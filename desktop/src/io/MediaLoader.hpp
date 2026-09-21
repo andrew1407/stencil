@@ -28,19 +28,19 @@ namespace stencil::gui {
     void load(const QString& src, int frame);
 
     // Valid when loaded() fires.
-    bool isVideoSource() const { return isVideo_; }
+    bool isVideoSource() const { return isVideo; }
 
     // Embedded cover/thumbnail (QMediaMetaData), null when absent. Valid when loaded() fires.
-    QImage embeddedThumbnail() const { return thumbnail_; }
+    QImage embeddedThumbnail() const { return thumbnail; }
 
     // Valid when loaded() fires for a video; frameCount() 0 = unknown.
-    double frameRate() const { return fps_; }
-    qint64 durationMs() const { return durationMs_; }
+    double frameRate() const { return fps; }
+    qint64 getDurationMs() const { return durationMs; }
     int frameCount() const {
-      return (fps_ > 0 && durationMs_ > 0) ? static_cast<int>(durationMs_ / 1000.0 * fps_) : 0;
+      return (fps > 0 && durationMs > 0) ? static_cast<int>(durationMs / 1000.0 * fps) : 0;
     }
 
-    QUrl resolvedUrl() const { return url_; }
+    QUrl resolvedUrl() const { return url; }
 
     // SEQUENTIAL seeks reusing load()'s pipeline; the first failure aborts. No other load() until `done`.
     void extractFrames(const QString& src, const QList<int>& indices,
@@ -62,22 +62,22 @@ namespace stencil::gui {
     void fail(const QString& message);
     void cleanupVideo();
 
-    QString src_;
-    QUrl url_;
-    QString localPath_;  // non-empty only for an existing local file
-    int frame_ = 0;
-    bool done_ = false;     // guards single-shot loaded()/failed()
-    bool isVideo_ = false;  // set once the source is resolved as a video
-    QImage thumbnail_;      // embedded preview/cover image, if the video carries one
-    double fps_ = 0;        // video frame rate (assumed fallback when unknown)
-    qint64 durationMs_ = 0; // video duration in ms
+    QString src;
+    QUrl url;
+    QString localPath;  // non-empty only for an existing local file
+    int frame = 0;
+    bool done = false;     // guards single-shot loaded()/failed()
+    bool isVideo = false;  // set once the source is resolved as a video
+    QImage thumbnail;      // embedded preview/cover image, if the video carries one
+    double fps = 0;        // video frame rate (assumed fallback when unknown)
+    qint64 durationMs = 0; // video duration in ms
 
-    QMediaPlayer* player_ = nullptr;
-    QAudioOutput* audio_ = nullptr;
-    QVideoSink* sink_ = nullptr;
-    QTimer* timeout_ = nullptr;
-    bool seekIssued_ = false;
-    qint64 targetMs_ = 0;
+    QMediaPlayer* player = nullptr;
+    QAudioOutput* audio = nullptr;
+    QVideoSink* sink = nullptr;
+    QTimer* timeout = nullptr;
+    bool seekIssued = false;
+    qint64 targetMs = 0;
   };
 
 }

@@ -3,8 +3,8 @@
 // transcript readers, and the two waits every chat case opens with.
 #include "MainWindow.hpp"
 #include "ChatDock.hpp"
-#include "../src/llm/LlmClient.hpp"
-#include "../src/support/scrollReveal.hpp"
+#include "../src/llm/client/LlmClient.hpp"
+#include "../src/support/motion/scrollReveal.hpp"
 #include <QFrame>
 #include <QImage>
 #include <QJsonDocument>

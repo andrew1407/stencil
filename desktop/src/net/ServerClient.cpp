@@ -13,9 +13,9 @@
 namespace stencil::net {
 
   ServerClient::ServerClient(const QString& url)
-      : nam_(new QNetworkAccessManager), base_(normalizeBase(url)) {}
+      : nam(new QNetworkAccessManager), base(normalizeBase(url)) {}
 
-  ServerClient::~ServerClient() { delete nam_; }
+  ServerClient::~ServerClient() { delete nam; }
 
   bool ServerClient::isLoopbackHost(const QString& host) {
     if (host.isEmpty()) return false;
@@ -88,10 +88,10 @@ namespace stencil::net {
   QNetworkRequest ServerClient::buildRequest(const QString& path,
                                              const QString& contentType,
                                              const QString& bearer) const {
-    QNetworkRequest req{QUrl(base_ + path)};
+    QNetworkRequest req{QUrl(base + path)};
     // Bounded so a hung/malicious server cannot wedge a transfer forever.
     req.setTransferTimeout(20000);
-    const QString& tok = bearer.isEmpty() ? token_ : bearer;
+    const QString& tok = bearer.isEmpty() ? token : bearer;
     if (!tok.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + tok.toUtf8());
     if (!contentType.isEmpty())
@@ -104,26 +104,26 @@ namespace stencil::net {
                                   std::function<void(int status, QByteArray body)> done,
                                   bool retried) {
     QNetworkRequest req = buildRequest(path, contentType);
-    QNetworkReply* reply = nam_->sendCustomRequest(req, method, body);
-    // Context object is nam_ (owned by this client): when the client dies nam_ goes with it, the
+    QNetworkReply* reply = nam->sendCustomRequest(req, method, body);
+    // Context object is nam (owned by this client): when the client dies nam goes with it, the
     // connection is severed and this slot never runs on a dangling `this`.
-    QObject::connect(reply, &QNetworkReply::finished, nam_,
+    QObject::connect(reply, &QNetworkReply::finished, nam,
                      [this, reply, method, path, body, contentType, retried,
                       done = std::move(done)]() mutable {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                        const QByteArray data = reply->readAll();
                        if (!isOkStatus(status))
-                         err_ = restError(method, path, status, data,
+                         err = restError(method, path, status, data,
                                           reply->error() == QNetworkReply::NoError
                                               ? QString()
                                               : reply->errorString());
                        reply->deleteLater();
                        const bool refused = isAuthStatus(status);
                        // A minted session dies with a server restart — re-mint with the credential once and retry in place.
-                       if (refused && status_ == Status::CONNECTED && !retried &&
-                           !credential_.isEmpty() && path != QLatin1String("/auth/token")) {
-                         token_ = credential_;
+                       if (refused && this->status == Status::CONNECTED && !retried &&
+                           !credential.isEmpty() && path != QLatin1String("/auth/token")) {
+                         token = credential;
                          requestAsync("POST", "/auth/token", "{}", "application/json",
                                       [this, method, path, body, contentType,
                                        done = std::move(done)](int mint, QByteArray mb) mutable {
@@ -133,13 +133,13 @@ namespace stencil::net {
                                           done(mint, {});
                                           return;
                                         }
-                                        token_ = tok;
+                                        token = tok;
                                         requestAsync(
                                             method, path, body, contentType,
                                             [this, done = std::move(done)](int st, QByteArray rb) {
                                               // It minted AND the session works: an admin token (browser parity).
                                               if (isOkStatus(st))
-                                                kind_ = CredentialKind::ADMIN;
+                                                kind = CredentialKind::ADMIN;
                                               done(st, rb);
                                             },
                                             /*retried=*/true);
@@ -148,26 +148,26 @@ namespace stencil::net {
                          return;
                        }
                        // Refused mid-flight and past rescue is EXPIRED, not a dead server. One warning, on the way in.
-                       if (refused && status_ == Status::CONNECTED) {
-                         status_ = Status::EXPIRED;
+                       if (refused && this->status == Status::CONNECTED) {
+                         this->status = Status::EXPIRED;
                          qWarning("stencil: session on %s expired — reconnect to sign in again",
-                                  qPrintable(base_));
+                                  qPrintable(base));
                        }
                        done(status, data);
                      });
   }
 
   void ServerClient::mintInviteAsync(std::function<void(bool, QString)> done) {
-    if (credential_.isEmpty()) {
-      err_ = "no credential to mint an invite with";
+    if (credential.isEmpty()) {
+      err = "no credential to mint an invite with";
       done(false, QString());
       return;
     }
     // The mint carries the CREDENTIAL as bearer so the invited session outlives this one.
-    QNetworkRequest req = buildRequest("/auth/token", "application/json", credential_);
+    QNetworkRequest req = buildRequest("/auth/token", "application/json", credential);
     QNetworkReply* reply =
-        nam_->sendCustomRequest(req, "POST", QByteArray("{\"label\":\"invite\"}"));
-    QObject::connect(reply, &QNetworkReply::finished, nam_,
+        nam->sendCustomRequest(req, "POST", QByteArray("{\"label\":\"invite\"}"));
+    QObject::connect(reply, &QNetworkReply::finished, nam,
                      [this, reply, done = std::move(done)] {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -179,11 +179,11 @@ namespace stencil::net {
                                                      : reply->errorString();
                        reply->deleteLater();
                        if (!isOkStatus(status) || tok.isEmpty()) {
-                         err_ = restError("POST", "/auth/token", status, body, transport);
+                         err = restError("POST", "/auth/token", status, body, transport);
                          done(false, QString());
                          return;
                        }
-                       done(true, inviteLink(base_, tok));
+                       done(true, inviteLink(base, tok));
                      });
   }
 }  // namespace stencil::net

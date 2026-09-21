@@ -10,37 +10,37 @@
 namespace stencil::gui {
 
   core::Lines CanvasWidget::allLines() const {
-    core::Lines all = lines_;
-    if (!currentLine_.points.empty()) all.push_back(currentLine_);
+    core::Lines all = lines;
+    if (!currentLine.points.empty()) all.push_back(currentLine);
     return all;
   }
 
   void CanvasWidget::setLines(const core::Lines& lines) {
     commitLines(lines);
-    history_.reset(lines_);   // a fresh document: the stack starts here
+    history.reset(this->lines);   // a fresh document: the stack starts here
   }
 
   // A scripted or planned edit lands here instead: the user's undo stack survives and the
   // change becomes one step on it, where setLines drops the stack on the floor.
   void CanvasWidget::commitLines(const core::Lines& lines) {
     resetStrokeFx();
-    lines_ = lines;
+    this->lines = lines;
     clearHoverCache();   // indices are meaningless against the new set
-    currentLine_ = core::Line{};
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
     commitHistory();   // pushes the snapshot and emits changed()
     update();
     emit selectionChanged();
   }
 
   void CanvasWidget::setScale(double scale) {
-    scale_ = scale;
-    if (!image_.isNull()) {
-      setFixedSize(QSize(qRound(image_.width() * scale_),
-                         qRound(image_.height() * scale_)));
+    this->scale = scale;
+    if (!image.isNull()) {
+      setFixedSize(QSize(qRound(image.width() * this->scale),
+                         qRound(image.height() * this->scale)));
     }
     update();
   }
@@ -48,70 +48,70 @@ namespace stencil::gui {
   void CanvasWidget::setDefaults(const QString& color, double thickness,
                                  double pointSize, const QString& style,
                                  const QString& pointColor) {
-    defColor_ = color;
-    defThickness_ = thickness;
-    defPointSize_ = pointSize;
-    defStyle_ = style;
-    defPointColor_ = pointColor;
-    if (currentLine_.points.empty()) applyDefaultsToCurrent();
+    defColor = color;
+    defThickness = thickness;
+    defPointSize = pointSize;
+    defStyle = style;
+    defPointColor = pointColor;
+    if (currentLine.points.empty()) applyDefaultsToCurrent();
     update();
   }
 
   void CanvasWidget::applyDefaultsToCurrent() {
-    currentLine_.color = defColor_.toStdString();
-    currentLine_.thickness = defThickness_;
-    currentLine_.pointSize = defPointSize_;
-    currentLine_.style = defStyle_.toStdString();
+    currentLine.color = defColor.toStdString();
+    currentLine.thickness = defThickness;
+    currentLine.pointSize = defPointSize;
+    currentLine.style = defStyle.toStdString();
     // Resolved AT DRAW TIME (empty setting → the current line colour) so a later
     // line-colour change never recolours already-drawn points (browser parity).
-    currentLine_.pointColor =
-        (defPointColor_.isEmpty() ? defColor_ : defPointColor_).toStdString();
+    currentLine.pointColor =
+        (defPointColor.isEmpty() ? defColor : defPointColor).toStdString();
   }
 
   void CanvasWidget::setShowPoints(bool on) {
-    showPoints_ = on;
+    showPoints = on;
     update();
   }
   void CanvasWidget::setShowLines(bool on) {
-    showLines_ = on;
+    showLines = on;
     update();
   }
   void CanvasWidget::setDark(bool dark) {
-    dark_ = dark;
+    this->dark = dark;
     update();
   }
 
   void CanvasWidget::setAccent(const QString& accentKey) {
-    accentKey_ = accentKey;
+    this->accentKey = accentKey;
     update();
   }
 
   void CanvasWidget::setHighlightColors(const QColor& selGlow, const QColor& hoverRing,
                                         const QColor& focusRing) {
-    if (selGlow.isValid()) selGlow_ = selGlow;
-    if (hoverRing.isValid()) hoverRing_ = hoverRing;
-    if (focusRing.isValid()) focusRing_ = focusRing;
+    if (selGlow.isValid()) this->selGlow = selGlow;
+    if (hoverRing.isValid()) this->hoverRing = hoverRing;
+    if (focusRing.isValid()) this->focusRing = focusRing;
     update();
   }
 
-  // image filters (port of browser/js/core/renderer.js
+  // image filters (port of browser/js/core/draw/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164)
   void CanvasWidget::setFilter(const QString& mode) {
-    imageFilter_ = mode;
-    filterDirty_ = true;
+    imageFilter = mode;
+    filterDirty = true;
     update();
   }
 
   void CanvasWidget::setFilterColor(const QColor& tint) {
-    filterColor_ = tint;
-    filterDirty_ = true;
+    filterColor = tint;
+    filterDirty = true;
     update();
   }
 
   void CanvasWidget::setImageFilter(const QString& mode, const QColor& tint) {
-    imageFilter_ = mode;
-    filterColor_ = tint;
-    filterDirty_ = true;
+    imageFilter = mode;
+    filterColor = tint;
+    filterDirty = true;
     update();  // single repaint for both
   }
 
@@ -119,41 +119,41 @@ namespace stencil::gui {
   void CanvasWidget::setCompareMode(const QString& mode) {
     if (mode != "none" && mode != "original" && mode != "vertical" && mode != "horizontal")
       return;
-    if (compareMode_ == mode) return;
-    compareMode_ = mode;
+    if (compareMode == mode) return;
+    compareMode = mode;
     update();
   }
 
   void CanvasWidget::setCompareSplit(double fraction) {
-    compareSplit_ = std::clamp(fraction, 0.02, 0.98);
-    if (compareMode_ == "vertical" || compareMode_ == "horizontal") update();
+    compareSplit = std::clamp(fraction, 0.02, 0.98);
+    if (compareMode == "vertical" || compareMode == "horizontal") update();
   }
 
   void CanvasWidget::setCompareHoldOriginal(bool on) {
-    if (compareHoldOriginal_ == on) return;
-    compareHoldOriginal_ = on;
+    if (compareHoldOriginal == on) return;
+    compareHoldOriginal = on;
     update();
   }
 
   // Loads reset this to false; the owner re-marks blanks right after creating,
   // recolouring, or reopening one.
   void CanvasWidget::setBlankPage(bool on) {
-    if (blankPage_ == on) return;
-    blankPage_ = on;
+    if (blankPage == on) return;
+    blankPage = on;
     update();
   }
 
   // The pixel math lives once in core (shared with the wasm build); the row split is the adapter's.
   // Format_RGBA8888 is core's byte order and tightly packed, so a row starts at y * width * 4.
   void CanvasWidget::rebuildFilteredImage() {
-    filterDirty_ = false;
-    if (image_.isNull() || imageFilter_ == "none") {
-      filteredImage_ = QImage();
+    filterDirty = false;
+    if (image.isNull() || imageFilter == "none") {
+      filteredImage = QImage();
       return;
     }
     const core::FilterMode mode =
-        core::filterModeFromString(imageFilter_.toStdString());
-    QImage img = image_.convertToFormat(QImage::Format_RGBA8888);
+        core::filterModeFromString(imageFilter.toStdString());
+    QImage img = image.convertToFormat(QImage::Format_RGBA8888);
     const int w = img.width();
     const int h = img.height();
     std::uint8_t* bits = img.bits();
@@ -169,17 +169,17 @@ namespace stencil::gui {
       support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
         core::sobelRows(luma.data(), bits, w, h, y0, y1);
       });
-      filteredImage_ = img;
+      filteredImage = img;
       return;
     }
     // The tint channels are read only for the custom mode.
-    const int tr = filterColor_.red();
-    const int tg = filterColor_.green();
-    const int tb = filterColor_.blue();
+    const int tr = filterColor.red();
+    const int tg = filterColor.green();
+    const int tb = filterColor.blue();
     support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
       core::applyFilterRows(mode, bits, w, y0, y1, tr, tg, tb);
     });
-    filteredImage_ = img;
+    filteredImage = img;
   }
 
 }  // namespace stencil::gui

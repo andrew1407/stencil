@@ -41,7 +41,7 @@ namespace stencil::model {
   enum class ScriptOpKind { OPEN, FRAME, CROP, FILTER, LINE, RECT, LAYOUT, SAVE, UNDO, REDO };
 
   /* One lowered operation. `resolve()` is a separate call because a crop changes the image
-   * size mid-script. See core/script/scriptTypes.hpp for the per-kind payloads. */
+   * size mid-script. See core/script/types.hpp for the per-kind payloads. */
   struct ScriptOp {
     ScriptOpKind kind = ScriptOpKind::CROP;
     int block = 0;
@@ -71,10 +71,10 @@ namespace stencil::model {
      * asks: the lexer tags every @word DIRECTIVE, so only this tells a real one apart. */
     static bool isDirectiveWord(QStringView word);
 
-    const QVector<ScriptToken>& tokens() const { return tokens_; }
-    const QVector<ScriptDiagnostic>& diagnostics() const { return diagnostics_; }
-    const QVector<ScriptBlock>& blocks() const { return blocks_; }
-    const QVector<ScriptOp>& ops() const { return ops_; }
+    const QVector<ScriptToken>& getTokens() const { return tokens; }
+    const QVector<ScriptDiagnostic>& getDiagnostics() const { return diagnostics; }
+    const QVector<ScriptBlock>& getBlocks() const { return blocks; }
+    const QVector<ScriptOp>& getOps() const { return ops; }
     bool hasErrors() const;
 
     /* Length tokens -> pixels against the size the caller holds RIGHT NOW. CROP -> [x, y, w, h];
@@ -88,10 +88,10 @@ namespace stencil::model {
     static void appendLine(core::Lines& lines, const ScriptOp& op, QSize imageSize, bool* ok);
 
    private:
-    QVector<ScriptToken> tokens_;
-    QVector<ScriptDiagnostic> diagnostics_;
-    QVector<ScriptBlock> blocks_;
-    QVector<ScriptOp> ops_;
+    QVector<ScriptToken> tokens;
+    QVector<ScriptDiagnostic> diagnostics;
+    QVector<ScriptBlock> blocks;
+    QVector<ScriptOp> ops;
   };
 
 }  // namespace stencil::model

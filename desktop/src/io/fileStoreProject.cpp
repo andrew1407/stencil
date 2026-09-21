@@ -70,7 +70,7 @@ namespace stencil::gui {
   }
 
   namespace {
-    // §12.1 machinery filter (browser chatStore.js isInternalChatText parity): the §7 continuation
+    // §12.1 machinery filter (browser chat/store.js isInternalChatText parity): the §7 continuation
     // note (any role) and assistant turns that are raw op-/ask-plans never enter the transcript.
     bool isInternalChatText(const QString& role, const QString& text) {
       const QString t = text.trimmed();

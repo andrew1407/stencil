@@ -4,7 +4,9 @@
 // markup as a `${UI_STRINGS.a.b}` template, so resolving those is part of reading it.
 #pragma once
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -13,8 +15,13 @@
 
 namespace stencil::test {
 
-  // The repo root, from this header's own path (desktop/tests/support/…).
-  inline QString repoRoot() { return QStringLiteral(__FILE__).section('/', 0, -5); }
+  // The repo root: walk up from this header until browser/js/config is in sight. __FILE__
+  // carries the spelling the include used, so slicing its segments is not safe.
+  inline QString repoRoot() {
+    QDir d(QFileInfo(QStringLiteral(__FILE__)).absolutePath());
+    while (!d.exists("browser/js/config") && d.cdUp()) { }
+    return d.canonicalPath();
+  }
 
   struct BrowserMarkup {
     QString js;

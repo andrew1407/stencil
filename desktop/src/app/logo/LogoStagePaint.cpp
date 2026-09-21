@@ -1,0 +1,169 @@
+#include "LogoStage.hpp"
+
+#include "ModalBackdrop.hpp"   // the modal scrim + blur a showWord wears too
+#include "theme.hpp"          // accentShade
+
+#include <QPainter>
+#include <QPainterPath>
+#include <QRadialGradient>
+#include <QToolButton>
+#include <cmath>
+
+namespace stencil::gui {
+
+  using support::StageEffect;
+
+  namespace {
+    // The halo is rendered at most this wide and scaled up; the ramp is smooth, so nothing shows.
+    constexpr int HALO_PX = 220;
+    constexpr double PI = 3.14159265358979323846;
+    // 0 → 1 → 0 on the beat, the cosine the browser's keyframes ride.
+    double beatAt(double ms, double span) { return 0.5 - 0.5 * std::cos((2 * PI * ms) / span); }
+    double spinAt(double ms, double span) { return std::fmod(ms, span) / span * 360.0; }
+    QColor withAlpha(QColor c, double a) {
+      c.setAlphaF(std::clamp(a, 0.0, 1.0));
+      return c;
+    }
+  }  // namespace
+
+  // Qt has no backdrop-filter, so the hostWindow behind is photographed and blurred, the way a modal's
+  // backdrop is (support/ModalBackdrop.hpp). The stage's own paint is suppressed for the shot, or
+  // it photographs itself — and a resize needs a NEW one, or the old frame stretches over the new.
+  void LogoStage::takeBackdrop() {
+    if (!hostWindow || hostWindow->width() < 8 || hostWindow->height() < 8) { backdrop = QPixmap(); return; }
+    photographing = true;
+    // A notice stands ABOVE the stage, so it would be baked into the backdrop and then stretched.
+    if (hooks.hideNotices) hooks.hideNotices(true);
+    const QPixmap shot = hostWindow->grab();
+    if (hooks.hideNotices) hooks.hideNotices(false);
+    photographing = false;
+    backdrop = support::ModalBackdrop::blurred(shot, support::ModalBackdrop::BLUR_PX);
+  }
+
+  // A drag sends a resize per frame and both of these cost a whole hostWindow render, so they wait
+  // for its settle: until then the old shot stretches under its blur and the mark scales.
+  void LogoStage::refit() {
+    refitAt = 0;
+    if (!open && leftAt < 0) return;
+    takeBackdrop();
+    remakeMark();
+    update();
+  }
+
+  std::pair<double, double> LogoStage::ends(int w, int h) const {
+    const double rest = support::roams(showWord) ? support::roamLogoSize(w, h)
+                      : effect == StageEffect::GROW ? support::minLogoSize(w, h) : bigEnd(w, h);
+    return {rest, effect == StageEffect::GROW ? bigEnd(w, h) : support::minLogoSize(w, h)};
+  }
+
+  // Built at the BIGGEST markPx this showWord draws it, not the resting one: the mark is a pixmap where
+  // the browser's is an SVG that re-rasterises, and `grow` ends nine times the markPx it rests at.
+  void LogoStage::remakeMark() {
+    const auto [rest, other] = ends(width(), height());
+    mark = hooks.makeMark ? hooks.makeMark(int(std::ceil(std::max(rest, other)))) : QPixmap();
+  }
+
+  void LogoStage::paintCloud(QPainter& p, const support::StagePose& pose) {
+    const QColor accent = hooks.accent ? hooks.accent() : QColor(0x7c, 0x3a, 0xed);
+    // The cloud wears the mark's own scale, so it grows out of the logo and shrinks back into it.
+    const double scale = markPx > 0 ? pose.size / markPx : 1.0;
+    cloud.draw(p, QPointF(pose.x, pose.y), since.elapsed(), accent,
+                accentShade(accent, support::isParticleDark()), support::isParticleDark(), scale);
+  }
+
+  void LogoStage::paintEvent(QPaintEvent*) {
+    // Invisible to its own photograph, so the backdrop is the hostWindow behind and not the last frame.
+    if (photographing) return;
+    if (!open && leftAt < 0) return;
+    const support::LogoStageConfig& cfg = support::logoStageConfig();
+    const double t = since.elapsed();
+    const double beat = reduced ? 0.5 : beatAt(t, cfg.beatMs);
+    // A cloud showWord's light is a steady lamp the grains fly through: all its motion, and
+    // everything a hold adds, belongs to the cloud. Without a cloud the light does it all.
+    const double boost = hasCloud ? 1.0 : boostNow();
+    // Never all the way down: a neon sign breathes, it does not go out.
+    const double lit = hasCloud ? cfg.glowSteadyLit : cfg.glowFloor + (1 - cfg.glowFloor) * beat;
+    const double reveal = reduced ? 1.0 : std::min(1.0, t / double(cfg.revealMs));
+    const double p01 = leftAt < 0 ? reveal : 1.0 - std::min(1.0, (t - leftAt) / double(cfg.hideMs));
+    const double fade = leftAt < 0 ? std::min(1.0, reduced ? 1.0 : t / double(cfg.revealMs))
+                                    : std::max(0.0, 1.0 - (t - leftAt) / double(cfg.hideMs));
+    const support::StagePose pose = support::revealTween(from, support::StagePose{markCentre.x(), markCentre.y(), markPx}, p01);
+    const QColor accent = hooks.accent ? hooks.accent() : QColor(0x7c, 0x3a, 0xed);
+
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    // The backdrop a modal puts up: the hostWindow behind, blurred, under the same scrim. Both
+    // halves ride the fade, so the sharp hostWindow dissolves into the blurred one.
+    p.setOpacity(fade);
+    if (!backdrop.isNull()) p.drawPixmap(rect(), backdrop);
+    p.fillRect(rect(), QColor(0, 0, 0, int(cfg.scrimAlpha * 255)));
+    p.setOpacity(1.0);
+
+    paintCloud(p, pose);
+
+    // The halo: solid to the mark's edge, then falling off. It follows the mark's OWN rounded
+    // square (the notice's shining does the same for its pill) — a circle round a square leaves
+    // the four corners unlit and reads as a disc behind the art rather than a glow off it.
+    const QPointF centre(pose.x, pose.y);
+    // A hold widens its REACH as well as its brightness; that reach is what reads as intensity.
+    const double half = pose.size * cfg.markEdgeShare;
+    const double reach = cfg.glowReachShare * pose.size * lit * boost;
+    if (half > 0) {
+      // Capped at the showWord's own ceiling, never 1: opaque, the light stops reading as light and
+      // the hostWindow behind it disappears. A hold's intensity is carried by the REACH.
+      const double a = std::min(cfg.glowAlphaMax,
+          (cfg.glowAlphaMin + (cfg.glowAlphaMax - cfg.glowAlphaMin) * lit) * boost) * fade;
+      const double corner = pose.size * cfg.markCornerShare;
+      p.setPen(Qt::NoPen);
+      // ONE smooth gradient, computed per pixel: the alpha falls from `a` at the mark's own
+      // rounded edge to nothing `reach` beyond it. Stacked fills gave the same falloff but cost a
+      // pass over the whole halo EACH, and their 8-bit rounding piled up into a colour cast.
+      // Computed small and scaled up — the ramp is smooth, so nothing of the scale shows.
+      const double side = 2 * (half + reach);
+      const int px = std::clamp(int(std::ceil(side)), 8, HALO_PX);
+      if (halo.size() != QSize(px, px)) halo = QImage(px, px, QImage::Format_ARGB32_Premultiplied);
+      halo.fill(Qt::transparent);
+      const double k = side / px;                          // a halo pixel, in stage pixels
+      const double flat = std::max(0.0, half - corner);    // the square the corners round off
+      const int r8 = accent.red(), g8 = accent.green(), b8 = accent.blue();
+      for (int yy = 0; yy < px; ++yy) {
+        QRgb* row = reinterpret_cast<QRgb*>(halo.scanLine(yy));
+        const double qy = std::max(0.0, std::abs((yy + 0.5) * k - side / 2) - flat);
+        for (int xx = 0; xx < px; ++xx) {
+          const double qx = std::max(0.0, std::abs((xx + 0.5) * k - side / 2) - flat);
+          const double d = std::hypot(qx, qy) - corner;    // signed, from the rounded edge
+          const double t = d <= 0 ? 1.0 : (reach > 0 ? 1 - d / reach : 0.0);
+          if (t <= 0) continue;
+          row[xx] = qPremultiply(qRgba(r8, g8, b8, int(a * t * 255 + 0.5)));
+        }
+      }
+      p.drawImage(QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side), halo);
+    }
+
+    // The ring: spokes just outside the mark, turning on the spin and breathing on the beat.
+    if (effect == StageEffect::SUN) {
+      const double a = (cfg.sunAlphaMin + (cfg.sunAlphaMax - cfg.sunAlphaMin) * beat) * boost * fade;
+      const double r1 = pose.size * 0.5 + cfg.sunGapShare * pose.size;
+      const double r2 = r1 + cfg.sunLengthShare * pose.size;
+      const double spin = reduced ? 0.0 : spinAt(t, cfg.spinMs);
+      for (const auto& [width, alpha] : {std::pair{cfg.sunSoftWidthShare * pose.size, a * 0.45},
+                                         std::pair{cfg.sunBrightWidthShare * pose.size, a}}) {
+        p.setPen(QPen(withAlpha(accent, alpha), std::max(1.0, width), Qt::SolidLine, Qt::RoundCap));
+        for (int i = 0; i < cfg.sunSpokes; ++i) {
+          const double rad = qDegreesToRadians(spin + i * (360.0 / cfg.sunSpokes));
+          const QPointF dir(std::cos(rad), std::sin(rad));
+          p.drawLine(centre + dir * r1, centre + dir * r2);
+        }
+      }
+    }
+
+    // The mark sits still — only its light breathes. A showWord that changes markPx says so itself.
+    if (!mark.isNull()) {
+      p.setOpacity(fade);
+      p.drawPixmap(QRectF(pose.x - pose.size / 2, pose.y - pose.size / 2, pose.size, pose.size),
+                   mark, QRectF(mark.rect()));
+    }
+  }
+
+}  // namespace stencil::gui

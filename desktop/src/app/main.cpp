@@ -19,9 +19,9 @@ namespace {
     using QApplication::QApplication;
 
     void setMainWindow(stencil::gui::MainWindow* w) {
-      window_ = w;
-      for (const QString& f : pending_) route(f);
-      pending_.clear();
+      window = w;
+      for (const QString& f : pending) route(f);
+      pending.clear();
     }
 
    protected:
@@ -61,8 +61,8 @@ namespace {
                 ? url.toString(QUrl::FullyEncoded)
                 : fo->file();
         if (!entry.isEmpty()) {
-          if (window_) route(entry);
-          else pending_ << entry;  // buffer until the window is ready
+          if (window) route(entry);
+          else pending << entry;  // buffer until the window is ready
         }
         return true;
       }
@@ -72,13 +72,13 @@ namespace {
    private:
     void route(const QString& entry) {
       if (entry.startsWith(QLatin1String("stencil:"), Qt::CaseInsensitive))
-        window_->openStencilUrl(QUrl(entry));
+        window->openStencilUrl(QUrl(entry));
       else
-        window_->openPathFromOS(entry);
+        window->openPathFromOS(entry);
     }
 
-    stencil::gui::MainWindow* window_ = nullptr;
-    QStringList pending_;
+    stencil::gui::MainWindow* window = nullptr;
+    QStringList pending;
   };
 
   // Qt's ~700ms tooltip wake-up reads as "not showing"; match browser controlTooltip.js SHOW_DELAY_MS.
