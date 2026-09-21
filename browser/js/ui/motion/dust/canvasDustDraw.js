@@ -1,4 +1,4 @@
-import { dustEnabled } from '../../motionPrefs.js';
+import { dustEnabled } from '../motionPrefs.js';
 import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains } from '../../dust/dustCloud.js';
 import { GHOST_MS, dustEase } from './canvasDustGrid.js';
 import { DUST_ALPHA_LEVELS, dustParts, makeDustStage } from './canvasDustStage.js';

@@ -1,7 +1,7 @@
 // Shared UI motion helpers: pure decoration, CSS owns the keyframes (css/animations/). The
 // sections live one per file under motion/; this is the single import point.
 // `motionReduced()` is "nothing may move", `dustEnabled()` is "and it may be particles".
-export { dustEnabled, motionReduced } from './motionPrefs.js';
+export { dustEnabled, motionReduced } from './motion/motionPrefs.js';
 export * from './motion/reveal.js';
 export * from './motion/flip.js';
 export * from './motion/surface/themeSwap.js';

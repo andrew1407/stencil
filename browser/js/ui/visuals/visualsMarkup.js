@@ -1,7 +1,7 @@
 // ── Markup: the Visuals & Settings modal ────────────────────────────────────
 // The searchable rows of visual defaults: accent mount, motion mode, drawing colours.
 import { icon } from '../icons.js';
-import { MOTION_MODE_LABELS } from '../motionPrefs.js';
+import { MOTION_MODE_LABELS } from '../motion/motionPrefs.js';
 import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../../llm/voice/voiceSettings.js';
 
 export const visualsModalInner = () => `

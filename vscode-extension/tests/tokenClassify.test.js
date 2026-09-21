@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 import { parseScript } from '../src/parser/index.js';
 
-const { classify } = createRequire(import.meta.url)('../src/lib/tokenClassify.js');
+const { classify } = createRequire(import.meta.url)('../src/lib/vocab/tokenClassify.js');
 
 /* Every token of `text` as `text→type`, punctuation dropped: what a reader would see. */
 const painted = (text) => {

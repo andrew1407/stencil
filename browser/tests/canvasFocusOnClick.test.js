@@ -48,7 +48,7 @@ test('re-focusing is skipped when the canvas already has focus', async () => {
 });
 
 test('the canvas markup is focusable, without joining the Tab order', async () => {
-  const { StencilMainContent } = await import('../js/ui/mainContent.js');
+  const { StencilMainContent } = await import('../js/ui/panel/mainContent.js');
   const markup = StencilMainContent.inner();
   // -1 exactly: focusable, never a Tab stop (0 would add the image to Tab navigation).
   assert.match(markup, /<canvas id="canvas" tabindex="-1"><\/canvas>/,

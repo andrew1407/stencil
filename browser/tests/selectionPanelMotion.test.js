@@ -4,10 +4,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { barDustPoint } from '../js/ui/selectionPanel.js';
+import { barDustPoint } from '../js/ui/panel/selectionPanel.js';
 import { LAYOUT_CSS } from './helpers/css.js';
 
-const src = readFileSync(new URL('../js/ui/selectionPanel.js', import.meta.url), 'utf8');
+const src = readFileSync(new URL('../js/ui/panel/selectionPanel.js', import.meta.url), 'utf8');
 
 // A rect stub good enough for barDustPoint: only left/width/top/height/bottom are read.
 const rect = ({ left = 0, width = 0, top = 0, height = 0 }) =>

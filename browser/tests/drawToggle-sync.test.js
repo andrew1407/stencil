@@ -122,7 +122,7 @@ test('updateButtons seeds BOTH faces, so the session’s first Line↔Rect switc
 });
 
 test('the sync methods write the face through the shared swap, not innerHTML (source pin)', () => {
-  const body = read('../js/ui/drawToggleUI.js');
+  const body = read('../js/ui/panel/drawToggleUI.js');
   assert.ok(!/btn\.innerHTML\s*=/.test(body),
     'a raw innerHTML write cannot animate — that is what the green-button bug fix replaced');
   assert.equal((body.match(/swapContent\(/g) || []).length, 2, 'both toggles share one transition');

@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SORT_MODES, sortProjectItems, reconcileManualOrder } from '../js/ui/projectSort.js';
+import { SORT_MODES, sortProjectItems, reconcileManualOrder } from '../js/ui/projects/window/projectSort.js';
 
 // Item factory: key, lowercased name, date (epoch ms), isRemote.
 const it = (key, name, date, isRemote) => ({ key, name: name.toLowerCase(), date, isRemote });

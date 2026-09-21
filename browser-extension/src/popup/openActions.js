@@ -17,7 +17,7 @@ export const imageDataUrl = async (image) => {
 };
 
 // A custom scheme goes through an in-document anchor click: chrome.tabs.create on it
-// leaves a dead blank tab (mirrors browser/js/ui/openInModal.js).
+// leaves a dead blank tab (mirrors browser/js/ui/modal/openInModal.js).
 const openExternalUrl = (url) => {
   if (/^https?:/i.test(url)) { chrome.tabs.create({ url }); return; }
   const a = document.createElement('a');

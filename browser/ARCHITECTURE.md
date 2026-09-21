@@ -53,7 +53,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 | `js/net/` | abortable fetch, the connection store + manager, remote sync | every fetch goes through the one guard here |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the one shared chat session | validates every plan against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; every mutation routes through the same core methods the toolbar uses |
-| `js/ui/` | string-returning components composed by `layout()`; `bindings/` wires controls to the app; `motion/` + `dustCloud.js` | components return strings and emit on the bus — never reach into `net/` or `llm/` |
+| `js/ui/` | string-returning components composed by `layout()`, one folder per region — `shell/` the frame, `canvas/` the stage and its pointers, `panel/` the side panels, `settings/`, plus `bindings/` wiring controls to the app and `motion/` + `dust/` | components return strings and emit on the bus — never reach into `net/` or `llm/` |
 | `js/worker/` | the cross-tab projects sync worker | message constants shared with the app |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
 | `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build |

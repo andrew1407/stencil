@@ -1,9 +1,9 @@
 import { notify, shortName } from '../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../motion.js';
-import { setTranslucentDragImage } from '../dragGhost.js';
-import { makeTouchDraggable } from '../touchDrag.js';
-import { createDropZones } from '../projectDropZones.js';
-import { reconcileManualOrder } from '../projectSort.js';
+import { setTranslucentDragImage } from '../canvas/dragGhost.js';
+import { makeTouchDraggable } from '../canvas/touchDrag.js';
+import { createDropZones } from './window/projectDropZones.js';
+import { reconcileManualOrder } from './window/projectSort.js';
 
 // Dragging a project row: reorder (persisted as the session's manual order) and the drag-out
 // zones. Mouse uses HTML5 DnD, touch the pointer engine — both drive the same two paths.

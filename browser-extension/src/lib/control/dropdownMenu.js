@@ -1,5 +1,5 @@
 // ── Dropdown menus that escape their container ──────────────────────────────
-// PORT of browser/js/ui/dropdownMenu.js — keep the two rule-for-rule; tests/dropdownMenu.test.js
+// PORT of browser/js/ui/control/dropdownMenu.js — keep the two rule-for-rule; tests/dropdownMenu.test.js
 // carries the browser suite's cases. An open menu moves to <body> and is placed in viewport
 // coordinates, capped to the room available so a long list scrolls; that matters more here, since
 // the popup window is only ~400x600. While open the menu is NOT inside the component.

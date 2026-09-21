@@ -7,11 +7,11 @@
 const vscode = require('vscode');
 
 const { COMMANDS, LANGUAGE_ID } = require('./lib/ids.js');
-const { MISSING_CLI_MESSAGE, cliFor } = require('./lib/cliLocator.js');
-const { MISSING_PYTHON_MESSAGE, pythonFor } = require('./lib/pythonLocator.js');
-const { emitTarget, pickEmitTarget } = require('./lib/emitTargets.js');
-const { isPySource } = require('./lib/pySource.js');
-const { activeIn, spawn } = require('./lib/scriptSpawn.js');
+const { MISSING_CLI_MESSAGE, cliFor } = require('./lib/spawn/cliLocator.js');
+const { MISSING_PYTHON_MESSAGE, pythonFor } = require('./lib/spawn/pythonLocator.js');
+const { emitTarget, pickEmitTarget } = require('./lib/emit/emitTargets.js');
+const { isPySource } = require('./lib/emit/pySource.js');
+const { activeIn, spawn } = require('./lib/spawn/scriptSpawn.js');
 
 const spawnCli = (buildArgs) => spawn(vscode, {
   document: activeIn(vscode, (document) => document.languageId === LANGUAGE_ID),

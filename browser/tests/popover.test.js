@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { popoverPosition, DOUBLE_CLICK_MS } from '../js/ui/popover.js';
+import { popoverPosition, DOUBLE_CLICK_MS } from '../js/ui/tip/popover.js';
 import { machine, eagerMachine } from './helpers/popoverGestureRig.js';
 
 test('eagerClick opens on the click itself, with no timer left pending', () => {
@@ -27,7 +27,7 @@ test('eagerClick still gets its popover from a double-click', () => {
 // The wiring destructures its options explicitly, so a new one is silently dropped
 // unless it is listed there too — the bug that left the chat still waiting 250ms.
 test('wireModalOpenGestures forwards every option the machine understands', () => {
-  const src = readFileSync(new URL('../js/ui/popover.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/tip/popover.js', import.meta.url), 'utf8');
   const machineOpts = src.slice(src.indexOf('export const createModalOpenGesture = ({'),
                                 src.indexOf('} = {}) => {'));
   const wiring = src.slice(src.indexOf('export const wireModalOpenGestures = (btn, {'));

@@ -1,4 +1,4 @@
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { spawnSwapDust, swapDustPaint } from '../dust/swapDust.js';
 import { THEME_INSTANT_CLASS, THEME_SWAP_CLASS, THEME_SWAP_MS, swapEdgePolygon, swapPercent } from './themeSwap.js';
 export function themeSwap(apply, origin = null) {

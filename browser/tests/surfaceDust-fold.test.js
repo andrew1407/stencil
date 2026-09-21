@@ -12,7 +12,7 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const animCss = ANIMATIONS_CSS;
 const motionJs = motionSource();
 const toolbarJs = read('../js/ui/toolbar/toolbar.js');
-const mainContentJs = read('../js/ui/mainContent.js');
+const mainContentJs = read('../js/ui/panel/mainContent.js');
 
 
 // The two folding surfaces have no opener icon and CSS owns their whole reveal, so at the moment

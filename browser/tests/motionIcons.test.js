@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motionIcons.js';
-import { MOTION_MODES } from '../js/ui/motionPrefs.js';
+import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motion/motionIcons.js';
+import { MOTION_MODES } from '../js/ui/motion/motionPrefs.js';
 import { ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');

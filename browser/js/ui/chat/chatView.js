@@ -10,7 +10,7 @@ export {
 export { wireComposerVoice } from './chatComposerVoice.js';
 export { shrinkWrapWidth } from './chatRowDom.js';
 export { renderChatLog, stickToBottom, wireChatSuggestions } from './chatTranscript.js';
-export { trackPointer, wireInputSizer } from '../pointerTrack.js';
+export { trackPointer, wireInputSizer } from '../canvas/pointerTrack.js';
 export { hideThumbPreview, wireThumbPreview } from './chatThumbPreview.js';
 export { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton } from './chatCards.js';
 export { CHAT_ATTACHMENTS_EVENT, chatAttachmentChips, notifyAttachmentsChanged } from './chatAttachmentChips.js';

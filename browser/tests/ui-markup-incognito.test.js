@@ -66,7 +66,7 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
 // line carries its own tag (ui/projectTitle.updateInfo), beside the "?" bubble's line.
 test('the info line carries the incognito tag, and keeps its size text separable', () => {
     const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
-    const fn = readFileSync(new URL('../js/ui/projectTitle.js', import.meta.url), 'utf8');
+    const fn = readFileSync(new URL('../js/ui/projects/window/projectTitle.js', import.meta.url), 'utf8');
     assert.match(fn, /info\.dataset\.size = info\.textContent;/, 'the size stays readable on its own');
     assert.match(fn, /class[Nn]ame = 'info-incognito'/, 'the tag is an ELEMENT, so it survives no text rewrite');
     assert.match(fn, /Incognito — not saved/);
@@ -105,7 +105,7 @@ test('the info line carries the incognito tag, and keeps its size text separable
 // The frame belongs to the EDITOR: it traces the whole visible canvas region, picture and
 // empty ground, at any zoom — round the image alone it reads as a selection (user report).
 test('the incognito frame traces the canvas VIEWPORT, not the picture', () => {
-    const markup = readFileSync(new URL('../js/ui/mainContent.js', import.meta.url), 'utf8');
+    const markup = readFileSync(new URL('../js/ui/panel/mainContent.js', import.meta.url), 'utf8');
     // It lives in the VIEWPORT (the scrollport), not in the shrink-wrapping container.
     const vpAt = markup.indexOf('id="canvas-viewport"');
     const frameAt = markup.indexOf('class="incognito-frame"');

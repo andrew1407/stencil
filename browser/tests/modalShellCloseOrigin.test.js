@@ -18,7 +18,7 @@ installDom({}, {
 });
 
 const { wireModalShell } = await import('../js/ui/base.js');
-const { setMotionPrefs } = await import('../js/ui/motionPrefs.js');
+const { setMotionPrefs } = await import('../js/ui/motion/motionPrefs.js');
 // 'slide': every flight still plays, none of them out of dust — so playDust's particle
 // build (surfaceDust/disintegrate, which wants a real document) never runs.
 setMotionPrefs({ mode: 'slide' });

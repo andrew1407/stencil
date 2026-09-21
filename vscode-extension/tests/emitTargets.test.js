@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const { EMIT_TARGETS, emitTarget, pickEmitTarget } = createRequire(import.meta.url)('../src/lib/emitTargets.js');
+const { EMIT_TARGETS, emitTarget, pickEmitTarget } = createRequire(import.meta.url)('../src/lib/emit/emitTargets.js');
 
 test('the four suffixes are the ones the CLI accepts, python first', () => {
   assert.deepEqual(EMIT_TARGETS.map((t) => t.label), ['.pystc', '.py', '.stcjs', '.js']);

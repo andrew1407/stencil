@@ -2,7 +2,7 @@
 // output is data: every string lands via textContent.
 import MEDIA_TYPES from '../../config/mediaTypes.json' with { type: 'json' };
 import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
-import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from '../popover.js';
+import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from '../tip/popover.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, rectCenter, replayWaves, surfaceIn, surfaceOut, swapContent } from '../motion.js';
 import { announcePopup, openComposerMenus } from './chatRowMenu.js';
 import { applyChatSide, toggleChatSide } from './chatLayoutPrefs.js';

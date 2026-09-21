@@ -55,7 +55,7 @@ test('the status row is the same box with the incognito tag and without it', () 
     // pixel-or-two that moved the canvas on the desktop.
     assert.match(css, /\.info-incognito \.ic \{ display: block; flex: 0 0 auto; \}/);
     // 13px inside a 20px line box: it cannot exceed what is reserved for it.
-    const app = readFileSync(new URL('../js/ui/projectTitle.js', import.meta.url), 'utf8');
+    const app = readFileSync(new URL('../js/ui/projects/window/projectTitle.js', import.meta.url), 'utf8');
     const size = /icon\('incognito', \{ size: (\d+) \}\)/.exec(app);
     assert.ok(size && Number(size[1]) < 20, `the glyph (${size?.[1]}px) must fit the line box`);
     // …and nothing compensates by resizing the canvas: the frame is an overlay, and no
@@ -94,7 +94,7 @@ test('the row menus are sized to their content, not to a wide floor', () => {
 // The selected-line bar is parted into header | colours | geometry | fill | actions by
 // hairlines in its own amber; the fill group's separator comes and goes with the group.
 test('the bar separators part it in four, and the fill one follows its group', () => {
-    const js = readFileSync(new URL('../js/ui/selectionPanel.js', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../js/ui/panel/selectionPanel.js', import.meta.url), 'utf8');
     const inner = js.slice(js.indexOf('static inner()'), js.indexOf('static template()'));
     assert.equal((inner.match(/class="sel-sep"/g) || []).length, 4, 'four separators');
     // The fill group's own one is identified, starts hidden, and is toggled with the group.

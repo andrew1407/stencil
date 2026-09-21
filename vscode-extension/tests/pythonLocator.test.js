@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
-const { locatePython } = createRequire(import.meta.url)('../src/lib/pythonLocator.js');
+const { locatePython } = createRequire(import.meta.url)('../src/lib/spawn/pythonLocator.js');
 
 const POSIX_ONLY = { skip: process.platform === 'win32' ? 'POSIX file modes' : false };
 

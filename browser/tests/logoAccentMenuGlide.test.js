@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCENTS } from '../js/core/settings/accents.js';
-import { createModalOpenGesture } from '../js/ui/popover.js';
+import { createModalOpenGesture } from '../js/ui/tip/popover.js';
 import { rig } from './helpers/logoAccentMenuRig.js';
 
 // ── The glide registry: one mini window at a time, both directions ──────

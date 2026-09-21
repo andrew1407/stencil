@@ -14,7 +14,7 @@ const drawingAppJs = read('../js/core/drawingApp.js');
 const pointerJs = read('../js/core/pointer/pointerController.js');
 const inputJs = read('../js/core/pointer/inputController.js');
 const shapeJs = read('../js/core/line/shapeBuilder.js');   // closing / inserting / rects
-const panelJs = read('../js/ui/selectionPanel.js');
+const panelJs = read('../js/ui/panel/selectionPanel.js');
 const binderJs = read('../js/ui/bindings/selectionPanel.js');
 
 const P = (...xy) => xy.map(([x, y]) => ({ x, y }));

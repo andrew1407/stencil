@@ -2,7 +2,7 @@
 // adopts a deliberate open, and an engaged peek lingers until the pointer leaves.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createModalOpenGesture, DOUBLE_CLICK_MS, LINGER_CLOSE_MS } from '../js/ui/popover.js';
+import { createModalOpenGesture, DOUBLE_CLICK_MS, LINGER_CLOSE_MS } from '../js/ui/tip/popover.js';
 import { stubTimers } from './helpers/popoverGestureRig.js';
 
 const altMachine = () => {

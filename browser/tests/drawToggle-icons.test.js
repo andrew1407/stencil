@@ -64,7 +64,7 @@ test('the rect tool starts its sweep on the press, turning drawing on by itself'
     assert.ok(branch.indexOf('startDrawingMode') < branch.indexOf('isRectDrawDragging = true'),
         'drawing goes on before the band starts');
     // The desktop press does the same, so the two tools behave alike.
-    const cpp = readFileSync(new URL('../../desktop/src/canvas/CanvasDrawClick.cpp', import.meta.url), 'utf8');
+    const cpp = readFileSync(new URL('../../desktop/src/canvas/draw/CanvasDrawClick.cpp', import.meta.url), 'utf8');
     const dbranch = cpp.slice(cpp.indexOf('// rect-draw press'), cpp.indexOf('// when not drawing, a left-click'));
     assert.match(dbranch, /if \(drawMode == DrawMode::RECT && mods == Qt::NoModifier\)/);
     assert.match(dbranch, /if \(!isDrawing\) startDrawingMode\(\);/);

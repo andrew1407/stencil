@@ -1,4 +1,4 @@
-import { dustEnabled } from '../../motionPrefs.js';
+import { dustEnabled } from '../motionPrefs.js';
 import { runDust } from '../dust/canvasDustDraw.js';
 import { GHOST_MS } from '../dust/canvasDustGrid.js';
 import { makeDustStage } from '../dust/canvasDustStage.js';

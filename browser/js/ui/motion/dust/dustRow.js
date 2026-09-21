@@ -1,6 +1,6 @@
 // A row arriving/leaving on the KEYWORD-CHIP recipe (tiles.js CHIP_*): the particles carry
 // the line while the row's height slides under them. Desktop twin: slideCropDims.
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { speckPainter } from '../surface/painters.js';
 import { BOX_RESIZE_MS } from '../easeBoxHeight.js';

@@ -108,7 +108,7 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
   assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
   assert.match(body, /resetViewportScroll\(\);/, 'the viewport scroll position is never reset on clear');
   // …and that helper (ui/layoutControls.js) is what actually puts it back to the corner.
-  const controls = readFileSync(new URL('../js/ui/layoutControls.js', import.meta.url), 'utf8');
+  const controls = readFileSync(new URL('../js/ui/panel/layoutControls.js', import.meta.url), 'utf8');
   assert.match(controls, /export const resetViewportScroll = \(\) => scrollViewportTo\(0, 0\);/);
   const scroll = controls.match(/export const scrollViewportTo[\s\S]{0,200}if \(vp\) \{ ([^}]+) \}/)?.[1];
   assert.ok(scroll, 'scrollViewportTo must touch the viewport');

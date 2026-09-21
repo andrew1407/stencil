@@ -1,4 +1,4 @@
-// PORT of browser/js/ui/customSelect.js. Builds a styled trigger + menu over a native
+// PORT of browser/js/ui/control/customSelect.js. Builds a styled trigger + menu over a native
 // <select>, which stays the source of truth (wrapped `.value`, a bubbling `change`).
 export interface EnhanceSelectOptions {
   search?: boolean;

@@ -1,4 +1,4 @@
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { MARK_IN_MS, MARK_LEAVING_CLASS, MARK_OUT_MS, markIn, markOut } from '../surface/marks.js';
 import { groupPainter } from '../surface/painters.js';
 import { TUNE } from '../tune.js';

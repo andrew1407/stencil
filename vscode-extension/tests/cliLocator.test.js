@@ -15,7 +15,7 @@ const withLib = (options, body) => {
   try {
     return body({
       dir, vscode,
-      cliLocator: host.require('lib/cliLocator.js'),
+      cliLocator: host.require('lib/spawn/cliLocator.js'),
       pathSearch: host.require('lib/pathSearch.js'),
     });
   } finally {

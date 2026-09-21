@@ -173,7 +173,7 @@ test('the on-canvas overlays never eat the pointer', () => {
   assert.ok(!/pointer-events/.test(edge), 'the edges inherit the frame\'s transparency');
   // The comparison has no overlay element to eat anything — the split is rendered
   // into the canvas itself, and its divider is a cursor + a pointer handler.
-  const markup = readFileSync(new URL('../js/ui/mainContent.js', import.meta.url), 'utf8');
+  const markup = readFileSync(new URL('../js/ui/panel/mainContent.js', import.meta.url), 'utf8');
   assert.ok(!/compare-(overlay|divider|handle)/.test(markup), 'the split stays a canvas render');
   const zoomRect = markup.slice(markup.indexOf('id="zoom-rect-overlay"'));
   assert.match(zoomRect.slice(0, zoomRect.indexOf('>')), /pointer-events:none/, 'and the zoom rect too');

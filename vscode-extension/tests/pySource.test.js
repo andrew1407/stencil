@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const pySource = createRequire(import.meta.url)('../src/lib/pySource.js');
+const pySource = createRequire(import.meta.url)('../src/lib/emit/pySource.js');
 const ids = createRequire(import.meta.url)('../src/lib/ids.js');
 
 // A fresh uri per buffer: the marker scan is cached per (document, version).

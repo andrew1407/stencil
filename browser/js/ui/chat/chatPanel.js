@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from '../base.js';
-import { wireModalOpenGestures } from '../popover.js';
+import { wireModalOpenGestures } from '../tip/popover.js';
 import { notify, PHONE_MEDIA, onWindowResize } from '../../utils.js';
 import { icon } from '../icons.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';

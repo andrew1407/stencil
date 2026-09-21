@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCENTS } from '../js/core/settings/accents.js';
-import { LINGER_CLOSE_MS } from '../js/ui/popover.js';
+import { LINGER_CLOSE_MS } from '../js/ui/tip/popover.js';
 import { rig, marked } from './helpers/logoAccentMenuRig.js';
 
 // ── The right-click menu ────────────────────────────────────────────────

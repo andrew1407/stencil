@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 
 import { at, js, span, stcjs, withHost } from './helpers/jsHost.js';
 
-const jsSource = createRequire(import.meta.url)('../src/lib/jsSource.js');
+const jsSource = createRequire(import.meta.url)('../src/lib/emit/jsSource.js');
 
 // A comment: the editor's own service never explains one, so this answer is given even where
 // the extension otherwise stands aside.

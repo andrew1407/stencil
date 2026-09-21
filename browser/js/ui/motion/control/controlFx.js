@@ -1,4 +1,4 @@
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { TUNE } from '../tune.js';
 // A switching control wears one of these for one flight, so the parts whose visibility
 // IS the state (the mic's waves) arrive and leave (animations/voice.css).

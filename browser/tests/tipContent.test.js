@@ -62,7 +62,7 @@ test('every interpolated value is HTML-escaped', () => {
 });
 
 test('the compare button: heading, bulleted rows, and a parenthesised key hint', () => {
-  // The real title (browser/js/ui/toolbar.js): a "•" marker per mode, and NO "Alt+O
+  // The real title (browser/js/ui/toolbar/toolbar.js): a "•" marker per mode, and NO "Alt+O
   // cycles" line — that shortcut is already the heading's keycap.
   const title = [
     'Compare with original',

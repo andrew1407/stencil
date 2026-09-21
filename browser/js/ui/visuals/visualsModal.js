@@ -3,9 +3,9 @@ import { visualsModalInner } from './visualsMarkup.js';
 import { setVal, setRadioGroup, notify } from '../../utils.js';
 import { DEFAULT_ACCENT } from '../../core/settings/accents.js';
 import { buildAccentPicker } from '../accent/accentPicker.js';
-import { motionModeIcon } from '../motionIcons.js';
+import { motionModeIcon } from '../motion/motionIcons.js';
 import { enhanceSelect } from '../control/customSelect.js';
-import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from '../motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './visualsVoiceRow.js';
 // ── Component: visual defaults modal ────────────────────────────

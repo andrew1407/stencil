@@ -10,7 +10,7 @@ const withHost = (body, settings) => {
   const host = installVscodeStub(vscode);
   try {
     return body({
-      calls, host, classify: host.require('lib/tokenClassify.js'),
+      calls, host, classify: host.require('lib/vocab/tokenClassify.js'),
       tokens: host.require('semanticTokens.js'),
     });
   } finally {

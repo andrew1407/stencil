@@ -133,7 +133,7 @@ test('a face swap never changes the button’s width', () => {
 });
 
 test('both Draw-group toggles pin themselves from their own two faces', () => {
-  const src = read('../js/ui/drawToggleUI.js');
+  const src = read('../js/ui/panel/drawToggleUI.js');
   for (const [sync, faces] of [
     ['syncDrawToggleUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
     ['syncDrawModeUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],

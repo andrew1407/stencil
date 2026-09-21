@@ -1,4 +1,4 @@
-import { dustEnabled } from '../motionPrefs.js';
+import { dustEnabled } from './motionPrefs.js';
 import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
 import { speckPainter } from './surface/painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surface/surfaceMotion.js';

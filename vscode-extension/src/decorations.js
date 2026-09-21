@@ -6,9 +6,9 @@
 const vscode = require('vscode');
 
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { overridesFor } = require('./lib/colorFamilies.js');
+const { overridesFor } = require('./lib/vocab/colorFamilies.js');
 const { programFor } = require('./lib/programCache.js');
-const { classify } = require('./lib/tokenClassify.js');
+const { classify } = require('./lib/vocab/tokenClassify.js');
 
 const DEBOUNCE_MS = 200;
 

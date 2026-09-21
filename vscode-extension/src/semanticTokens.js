@@ -7,7 +7,7 @@ const vscode = require('vscode');
 
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { programFor } = require('./lib/programCache.js');
-const { classify } = require('./lib/tokenClassify.js');
+const { classify } = require('./lib/vocab/tokenClassify.js');
 
 // Standard VS Code token types only: a theme that has never heard of .stc still colours it.
 const TOKEN_TYPES = Object.freeze([

@@ -12,8 +12,8 @@ const withLib = (shell, body) => {
   try {
     return body({
       calls, vscode,
-      shellQuote: host.require('lib/shellQuote.js'),
-      terminal: host.require('lib/terminal.js'),
+      shellQuote: host.require('lib/spawn/shellQuote.js'),
+      terminal: host.require('lib/spawn/terminal.js'),
     });
   } finally {
     host.restore();

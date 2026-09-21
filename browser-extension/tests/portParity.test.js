@@ -24,7 +24,7 @@ const MANIFEST = [
   ['comboMatch', '../../browser/js/ui/control/comboMatch.js', '../src/lib/control/comboMatch.js'],
   ['scrollbarHover', '../../browser/js/ui/control/scrollbarHover.js', '../src/lib/control/scrollbarHover.js'],
   // A thumb's arithmetic and the menu bar it draws: pure, so each copy is the whole file.
-  ['thumbMetrics', '../../browser/js/ui/thumbMetrics.js', '../src/lib/control/thumbMetrics.js'],
+  ['thumbMetrics', '../../browser/js/ui/control/thumbMetrics.js', '../src/lib/control/thumbMetrics.js'],
   ['menuScrollbar', '../../browser/js/ui/control/menuScrollbar.js', '../src/lib/control/menuScrollbar.js'],
   // The cloud's two halves: the flight table a grain is posed by, and the shape it wears.
   ['dustFlight', '../../browser/js/ui/dust/dustFlight.js', '../src/lib/dust/dustFlight.js'],
@@ -33,7 +33,7 @@ const MANIFEST = [
   // painter, so the copy is the whole file.
   ['dustCloud', '../../browser/js/ui/dust/dustCloud.js', '../src/lib/dust/dustCloud.js'],
   // The motion modes' glyphs: pure SVG strings, so the copy is the whole file.
-  ['motionIcons', '../../browser/js/ui/motionIcons.js', '../src/lib/motionIcons.js'],
+  ['motionIcons', '../../browser/js/ui/motion/motionIcons.js', '../src/lib/motionIcons.js'],
   // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
   ['rectTween', '../../browser/js/ui/motion/rectTween.js', '../src/lib/rectTween.js'],
   // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
@@ -83,7 +83,7 @@ for (const [name, browserPath, extPath] of MANIFEST) {
 // A module that ports only PART of a browser module lists functions instead: each must match its
 // browser original verbatim, mid-body comments included. A wasm-routed original keeps a `JS` suffix.
 const FUNCTIONS = [
-  ['popover', '../../browser/js/ui/popover.js', '../src/lib/tip/popover.js', ['popoverPosition']],
+  ['popover', '../../browser/js/ui/tip/popover.js', '../src/lib/tip/popover.js', ['popoverPosition']],
   ['cropGeometry', '../../browser/js/core/parse/cropGeometry.js', '../src/lib/image/cropGeometry.js',
     ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
      'moveCropClamped', 'scaleCropCentered']],

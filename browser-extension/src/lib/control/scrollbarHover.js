@@ -1,4 +1,4 @@
-// Rule-for-rule PORT of browser/js/ui/scrollbarHover.js (tests/portParity.test.js pins
+// Rule-for-rule PORT of browser/js/ui/control/scrollbarHover.js (tests/portParity.test.js pins
 // the two bodies identical): `.sb-hover` on the scrollable whose native bar is under the
 // pointer, so the thumb takes the accent only then (lib/theme/palette.css). Every extension page
 // (popup / side panel / devtools panel via popup.js, crop, options) calls

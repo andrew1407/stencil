@@ -1,5 +1,5 @@
 // ── Arithmetic in numeric inputs ────────────────────────────────────────────
-// Byte-pinned PORT of browser/js/ui/numericInput.js. The size filters and custom page W/H take
+// Byte-pinned PORT of browser/js/ui/control/numericInput.js. The size filters and custom page W/H take
 // an expression: "45 + 9" → 54, or "* 9" on 3 → 27. Since `<input type="number">` discards
 // non-numeric text, enhance() flips the element to type="text" at runtime and re-adds stepping
 // and clamping. Operators match core/parse/formulaParser (** right-associative, no eval).

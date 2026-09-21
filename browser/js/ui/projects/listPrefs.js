@@ -1,7 +1,7 @@
 // The projects list's session preferences: sort mode, the manual drag order and the search
 // scope. sessionStorage only — never the shared localStorage registry with its C++ core twin.
 import { rowMatches } from '../base.js';
-import { SORT_MODES } from '../projectSort.js';
+import { SORT_MODES } from './window/projectSort.js';
 
 const SORT_KEY = 'stencil_projects_sortmode';
 const ORDER_KEY = 'stencil_projects_order';

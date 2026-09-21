@@ -1,7 +1,7 @@
 // Dragging a connection row: reorder by dropping on another row, disconnect by dropping outside
 // the modal. Both the HTML5 and the touch path (ui/touchDrag.js) end in the same two outcomes.
-import { setTranslucentDragImage } from '../dragGhost.js';
-import { makeTouchDraggable } from '../touchDrag.js';
+import { setTranslucentDragImage } from '../canvas/dragGhost.js';
+import { makeTouchDraggable } from '../canvas/touchDrag.js';
 
 export function createConnectRowDrag({ list, overlay, mgr, render, confirmDisconnect }) {
   // didReorder: an in-list drop already reordered (dragend must not also drag-out remove).
