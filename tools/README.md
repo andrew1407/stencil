@@ -26,7 +26,7 @@ strips its comments, collapses its whitespace (never inside a string), and hashe
 A pure move, even one that splits a file in two, prints `LOST 0   NEW 0`.
 
 ```
-$ node tools/moveCheck.mjs HEAD browser/js/core/renderer.js
+$ node tools/moveCheck.mjs HEAD browser/js/core/draw/renderer.js
 moveCheck HEAD -> working tree  (1 files then, 1 now)
   unchanged 14   LOST 0   NEW 0
 ```

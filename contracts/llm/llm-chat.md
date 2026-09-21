@@ -174,7 +174,7 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   raw op-plan stored as an ASSISTANT turn (leading `{`/`[` with `"version"` and an
   `actions`/`reply`/`variants`/`ask` key) are never written and never displayed from an
   older document — a user is still entitled to paste JSON as THEIR turn and see it again.
-  Reference: browser `js/llm/chatStore.js` `isInternalChatText` (+ `sanitizeChatMessages`
+  Reference: browser `js/llm/chat/store.js` `isInternalChatText` (+ `sanitizeChatMessages`
   on restore), which every other surface's reader mirrors. Tolerance vectors:
   `fixtures/chatDoc/`.
 - On restore, `messages` seed both the client's replay history (§7) and its transcript
@@ -210,10 +210,10 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
 
   | Surface | Test |
   |---|---|
-  | browser | `tests/chat-markup.test.js` — the `chat-save-chats-note` div, rendered next to the checkbox |
-  | desktop | `tests/MainWindow.chatPanel.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
-  | cli | `tests/console_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
-  | pystencil | `tests/test_cli_chat.py` `test_chat_on_says_who_can_read_a_saved_chat` |
+  | browser | `tests/ui/chat-markup.test.js` — the `chat-save-chats-note` div, rendered next to the checkbox |
+  | desktop | `tests/app/chat/MainWindow.chatPanel.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
+  | cli | `tests/console/console_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
+  | pystencil | `tests/cli/test_cli_chat.py` `test_chat_on_says_who_can_read_a_saved_chat` |
   | bot | `ChatPersistenceTests` — the `/chat save on` confirmation, the status read BEFORE opting in, and the 💾 button |
 
   The console surfaces state it on the turn that switches saving **on**, before anything

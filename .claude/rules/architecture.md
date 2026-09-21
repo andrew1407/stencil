@@ -47,9 +47,9 @@ A layer may use everything to its left, nothing to its right.
   `src/lib/` (`vscode`-free) → `src/*.js` → `src/extension.js`.
 - **desktop** — the core seam (`core/` includes the layer lint allows) → controllers → `net/`, `io/` →
   `support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
-- **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `image`, `layout`, `page`,
-  `video`) → `llm/` → `console/` → `main.zig`. **`console/` is the only layer allowed to write
-  to a terminal**; lower layers return values and errors.
+- **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `media`) → `llm/` →
+  `console/` → `app/` → `main.zig`. **`console/` and `app/` are the only layers allowed to
+  write to a terminal**; lower layers return values and errors.
 - **server** — `cmd/` → `internal/httpapi` (**transport only** — decode, authorize, encode) →
   service → `store`/`filestore` → `hub` → `protocol`. No business rule in a handler.
 - **bot** — `Domain` ← `Application` ← `Infrastructure` ← `Bot`. Dependencies point inward;
@@ -67,6 +67,47 @@ commit. Never raise a number without a note in the budget's `exceptions`.
 Budgets: `browser|browser-extension|vscode-extension/tests/sizeBudget.json`,
 `core|desktop/tests/sizeBudget.json`, `cli|mcp|pystencil/tests/size_budget.json`,
 `server/internal/lint/sizebudget.json`, `bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
+
+## Folders
+
+A folder holds at most **12 direct source files**; a header and its `.cpp`, or a module and its
+`.d.ts`, count once. At thirteen the folder splits.
+
+A split is by **feature, never by kind** — `ui/openImage/`, `app/mainWindow/chat/`, not
+`helpers/`, `parts/` or `misc/`. Its name is the prefix the files already share, and that prefix
+then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageTabs.js`. One
+class split across translation units keeps the class name on each
+(`app/chat/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
+
+A file a byte-pinned port imports keeps its name too: `portParity.test.js` reduces a specifier
+to its basename so either tree's layout is allowed, which only works while both spell it the
+same. `ui/motion/motionPrefs.js` stays as it is for that reason — `lib/rectTween.js` imports it
+on both sides.
+
+Nesting stops three levels below the surface's source root. Tests mirror the split one for one:
+a test sits in the folder named for the source it covers, and a case that spans modules or guards
+the whole tree stays at `tests/` root. A mirrored test folder may sit **above** the cap, because a
+module commonly carries several test files; freeze it in `dirs` rather than splitting it by kind.
+A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
+output and never raised.
+
+`maxFilesPerDir` in every surface's budget enforces the cap, and the folders still above it are
+frozen there under `dirs`, exactly like `files`: a frozen number comes down when the folder
+splits and never goes up. Only test folders are frozen today — a case that spans modules has no
+one home, and Cargo can only see an integration test directly in `tests/`.
+
+## C++ member names
+
+A member is spelled bare — `canvas`, `settings` — with no trailing underscore and no `m_`
+prefix. Where a parameter or a local binds the same name, the member use is written
+`this->canvas`; a plain `canvas = canvas` there assigns the parameter to itself, and neither
+`-Wall` nor `-Wextra` says a word. Where an accessor would collide with its own member, the
+accessor takes the `get` prefix (`getCropRect()` over `cropRect`), because the member keeps
+the plain name. A member of a QWidget subclass may not take the name of a Qt method it would
+hide — `size`, `show`, `window`, `rect` — so it carries what it actually holds (`markPx`,
+`showWord`, `hostWindow`, `cropBox`).
+
+`auto_` is the one survivor: its bare form is a keyword.
 
 ## Comments
 
@@ -97,7 +138,7 @@ sentence that restates the next line.
 read back out of the core over the C ABI, do that instead of mirroring it.
 
 The same rule covers copied **code**: the `browser/js/ui` + `llm/llmClient` modules in
-`browser-extension/src/lib/`, and `browser/js/core/script*.js` in
+`browser-extension/src/lib/`, and the modules of `browser/js/core/script/` in
 `vscode-extension/src/parser/`, are byte-equal copies pinned in both directions
 (`portParity.test.js`, `parserParity.test.js`). Edit the original and re-copy; never fix a
 copy in place.

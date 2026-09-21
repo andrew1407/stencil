@@ -19,7 +19,7 @@ always the wrong move here. Match what each subproject already does:
 - **browser-extension/** — same: plain MV3, `node --test`, no deps.
 - **vscode-extension/** — plain CommonJS against the `vscode` API the editor provides (never
   a dependency), `node --test` behind a hand-written stub, and a parser that is a **byte-equal
-  copy** of `browser/js/core/script*.js`, never an npm package. The second sanctioned
+  copy** of `browser/js/core/script/`, never an npm package. The second sanctioned
   exception: `@vscode/vsce`, exactly pinned, a **dev dependency** used only by
   `npm run package` to build the `.vsix`. Its lockfile is tracked; nothing ships at runtime
   and the packaged extension carries no `node_modules`.

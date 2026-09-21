@@ -35,15 +35,15 @@ re-derive the checks.
 |---|---|
 | cli | `cli/src/net.zig` |
 | desktop | `desktop/src/net/fetchGuard.{hpp,cpp}` (a port of `net.zig`) |
-| browser-extension | `browser-extension/src/lib/urlGuard.js` |
-| vscode-extension | `vscode-extension/src/lib/{cliLocator,terminal,webTarget}.js` |
+| browser-extension | `browser-extension/src/lib/connection/urlGuard.js` |
+| vscode-extension | `vscode-extension/src/lib/spawn/{cliLocator,terminal}.js` + `lib/web/target.js` |
 | pystencil | `pystencil/pystencil/_net.py` |
 | bot | `Editing/RemoteImageUrl.cs` in `bot/src/Stencil.TelegramBot.Application/` |
 | server | `internal/ratelimit` + `internal/auth` on the request path |
 
 The `vscode-extension` trio is the same idea one step out: **the CLI path is explicit user
 configuration** (the `stencil.cliPath` setting, then `STENCIL_CLI`, then `PATH`) and never a
-path read out of the document being edited; `webTarget.js` is the same rule for the browser
+path read out of the document being edited; `web/target.js` is the same rule for the browser
 instance the web commands open (`stencil.webUrl`, else the published default, `http(s)` only);
 and `terminal.js` is the one place a command line is composed, so document text never reaches
 a shell unquoted.
@@ -53,7 +53,7 @@ Also:
 - **Secrets live in env, never in a file the app writes and never in a URL query.**
   Connection tokens go in the existing 0600 store (`desktop/src/net/connectionStore.*`), not
   plaintext `QSettings`. `STENCIL_LLM_*` is scrubbed from child process environments
-  (`cli/src/child.zig`) — keep it scrubbed.
+  (`cli/src/safety/child.zig`) — keep it scrubbed.
 - **Adapters that forward model-chosen paths pass `--confine-output`** to the CLI, so output
   and scrape directories stay inside the working directory. `mcp` and `bot` already do; any
   new adapter must.
