@@ -1,7 +1,7 @@
 //! The two input loops: raw-mode editing on a TTY (with its confirmations) and the plain
 //! buffered reader for piped input. Both hand each line to dispatch.zig.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const line_edit = @import("../line_edit.zig");
 const clipboard = @import("../clipboard.zig");
 const session_mod = @import("session.zig");

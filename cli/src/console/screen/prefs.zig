@@ -6,7 +6,7 @@ const sc = @import("../screen.zig");
 const reveal_speed_min = sc.reveal_speed_min;
 const reveal_speed_max = sc.reveal_speed_max;
 const reveal_speed_default = sc.reveal_speed_default;
-const theme = @import("../../theme.zig");
+const theme = @import("../../app/theme.zig");
 
 pub fn parseRevealSpeed(text: []const u8) ?f64 {
     const v = std.fmt.parseFloat(f64, std.mem.trim(u8, text, " \t")) catch return null;

@@ -1,14 +1,14 @@
 //! `/projects` and `/fetch`: list what a connected server holds, and adopt one project
 //! (image + layout + colour + chat) as the session's working image.
 const std = @import("std");
-const image = @import("../../image.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const project = @import("../../project.zig");
-const msg = @import("../../messages.zig");
+const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
-const projectsTable = @import("../projectsTable.zig");
+const projectsTable = @import("../render/projectsTable.zig");
 const remoteEvents = @import("../remoteEvents.zig");
 
 /// `/projects [url]` — an aligned table (NAME / SIZE / CHANGED, plus SERVER across more than

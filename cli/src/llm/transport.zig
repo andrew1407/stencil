@@ -2,9 +2,9 @@
 //! the guarded net.request path, and the sanitized provider error details.
 const std = @import("std");
 const net = @import("../net.zig");
-const report = @import("../report.zig");
+const report = @import("../app/report.zig");
 const wire = @import("wire.zig");
-const sanitize = @import("../sanitize.zig");
+const sanitize = @import("../safety/sanitize.zig");
 
 // Symbols living in the sibling llm/ modules (facade: ../llm.zig).
 const member = wire.member;

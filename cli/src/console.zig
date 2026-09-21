@@ -3,7 +3,7 @@
 //! is the input loop and the verb dispatch; the pieces live in console/ — `session` (undo/redo),
 //! `commands` (grammar), `ui` (presentation), `handlers`. On a TTY, line_edit.zig adds raw mode.
 const std = @import("std");
-const logo = @import("logo.zig");
+const logo = @import("app/logo.zig");
 const llm = @import("llm.zig");
 const line_edit = @import("line_edit.zig");
 const session_mod = @import("console/session.zig");
@@ -73,13 +73,13 @@ test {
     _ = @import("console/ui.zig");
     _ = @import("console/handlers.zig");
     _ = @import("console/screen.zig");
-    _ = @import("console/ansi.zig");
-    _ = @import("console/logoFx.zig");
-    _ = @import("console/projectsTable.zig");
+    _ = @import("console/render/ansi.zig");
+    _ = @import("console/render/logoFx.zig");
+    _ = @import("console/render/projectsTable.zig");
     _ = @import("console/remoteEvents.zig");
     _ = @import("console/attachments.zig");
-    _ = @import("console/spinner.zig");
-    _ = @import("console/derivedView.zig");
+    _ = @import("console/render/spinner.zig");
+    _ = @import("console/render/derivedView.zig");
     _ = @import("console/llmPrompt.zig");
     _ = hooks;
     _ = loop;

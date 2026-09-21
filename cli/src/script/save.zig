@@ -2,8 +2,8 @@
 //! suffix, which is what makes a whole-directory script safe to run in place.
 const std = @import("std");
 
-const confine = @import("../confine.zig");
-const image = @import("../image.zig");
+const confine = @import("../safety/confine.zig");
+const image = @import("../media/image.zig");
 const net = @import("../net.zig");
 
 pub const Error = error{ SaveOutsideCwd, SaveTraversal };

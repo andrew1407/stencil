@@ -1,7 +1,7 @@
 //! The `.stencil` format's shape: its sentinel, version and the two records the codec
 //! reads and writes.
 const std = @import("std");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 
 pub const FORMAT = "stencil-project";
 pub const VERSION = 1;

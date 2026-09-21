@@ -1,8 +1,8 @@
 //! The pictures a `/prompt` turn sends (contract §7): the working image, the turn's
 //! `/upload` attachments, and the contour edge map — each base64 PNG, each capped.
 const std = @import("std");
-const image = @import("../../image.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;

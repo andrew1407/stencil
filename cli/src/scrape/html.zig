@@ -3,7 +3,7 @@
 //! guarded before anything is fetched.
 const std = @import("std");
 const net = @import("../net.zig");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const testing = std.testing;
 const urls = @import("urls.zig");
 const text = @import("text.zig");

@@ -32,11 +32,11 @@ the list in `build.zig`, a mirror of `STENCIL_CORE_SOURCES` in `../core/CMakeLis
 
 ## Layers
 
-`core.zig` + `scriptCore.zig` → `args.zig` (+ `params/`) → `net.zig` → ops (`pipeline/`, `script/`, `image.zig`,
-`layout.zig`, `page.zig`, `video.zig`) → `llm/` → `console/` → `main.zig`.
-**Only the presentation layer may write to a terminal** — `logo.zig`, `report.zig`, the
+`core.zig` + `script/core.zig` → `args.zig` (+ `params/`) → `net.zig` (+ `net/`) → ops (`pipeline/`, `script/`,
+`media/`) → `llm/` → `console/` → `app/` → `main.zig`.
+**Only the presentation layer may write to a terminal** — `app/`, the
 entry points and the two interactive surfaces (`console/`, `line_edit/`). Everything below
-reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
+reports through `app/report.zig` and never spells an ANSI escape; `app/logo.zig`'s
 `test "layering: …"` fails on a new file that breaks it.
 
 ## Where things go
@@ -44,21 +44,21 @@ reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
 | Path | Holds | Rule |
 |---|---|---|
 | `build.zig`, `build.zig.zon` | the build (core `.cpp` + `cliApi.cpp` + the stb TUs, libc++) and the pinned stb dependency | the core file list mirrors `STENCIL_CORE_SOURCES` |
-| `src/main.zig`, `logo.zig` (+ `logo/`), `report.zig`, `help.txt`, `brand.zig`, `theme.zig`, `messages.zig` | the entry point, the console logo + layer lint, the report sink, the generated `--help` body, the brand colours, the user-facing strings | every user-facing string is a named constant in `messages.zig`, pinned in `tests/pins/` |
+| `src/main.zig`, `help.txt`, `app/` (`logo.zig` + `logo/`, `report.zig`, `brand.zig`, `theme.zig`, `messages.zig`) | the entry point, the generated `--help` body, then the presentation ring: the console logo + layer lint, the report sink, the brand colours, the user-facing strings | every user-facing string is a named constant in `app/messages.zig`, pinned in `tests/pins/` |
 | `src/args.zig` + `params/` | the flag surface: `options.zig` (Options + Mode), `parse.zig` (argv → Options) | the flag surface is `CONTRACT.md`, mirrored by `mcp/src/args/` and the bot's `CliArgvBuilder` |
 | `src/pipeline.zig` + `pipeline/` | orchestration: resolve a source, run the steps, the one-shot run | headless; reports through `report.zig` |
-| `src/script.zig` + `script/` | `.stc` script modes: read, check, lower to an op plan, emit the script for another surface (`emit/`, one backend per target), expand a `@source` into files, run the lowered ops, name the output | the core owns the language; this owns files, pixels and where output lands. An emit backend is the twin of that surface's own runner, and refuses what stc-contract §10 says the surface cannot honour |
-| `src/core.zig`, `image.zig`, `imageRows.zig`, `stb_*_impl.c`, `mediaTypes.zig`, `page.zig`, `layout.zig`, `video.zig` | the core bridge, codecs, the row-band threading policy, media-type tables, page policy, layout JSON, ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; the encoder TU builds without it |
-| `src/net.zig`, `host.zig`, `fetchPool.zig` | the **one fetch guard** (http(s) only, SSRF/redirect checks, 64 MiB cap), the authority split, the bounded fan-out | every outbound URL passes `net.zig`; no code path re-derives the checks |
-| `src/confine.zig`, `sanitize.zig`, `child.zig` | output-path guards, the one sanitizer for untrusted prose, child spawning without `STENCIL_LLM_*` | `..` always refused; absolute/`~` refused under `--confine-output` |
-| `src/console.zig` + `console/` | the REPL: `session` (+ history, edits, attachments, chat, servers), `commands` (pure grammar), `ui`, `handlers/` (one file per feature), `llmPrompt` + `llm/`, `screen` + `screen/` (the full-screen TUI) | grammar is parsed in `commands.zig`, executed in `handlers/`; never both in one place |
+| `src/script.zig` + `script/` (`core.zig` is the core's script bridge) | `.stc` script modes: read, check, lower to an op plan, emit the script for another surface (`emit/`, one backend per target), expand a `@source` into files, run the lowered ops, name the output | the core owns the language; this owns files, pixels and where output lands. An emit backend is the twin of that surface's own runner, and refuses what stc-contract §10 says the surface cannot honour |
+| `src/core.zig`, `media/` (`image.zig`, `imageRows.zig`, `stb_*_impl.c`, `types.zig`, `page.zig`, `layout.zig`, `video.zig`) | the core bridge, then codecs, the row-band threading policy, media-type tables, page policy, layout JSON, ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; the encoder TU builds without it |
+| `src/net.zig` + `net/` (`host.zig`, `fetchPool.zig`) | the **one fetch guard** (http(s) only, SSRF/redirect checks, 64 MiB cap), the authority split, the bounded fan-out | every outbound URL passes `net.zig`; no code path re-derives the checks |
+| `src/safety/` (`confine.zig`, `sanitize.zig`, `child.zig`) | output-path guards, the one sanitizer for untrusted prose, child spawning without `STENCIL_LLM_*` | `..` always refused; absolute/`~` refused under `--confine-output` |
+| `src/console.zig` + `console/` | the REPL: `session` (+ history, edits, attachments, chat, servers), `commands` (pure grammar), `ui`, `render/` (ansi, spinner, logo effects, the derived view, the projects table), `handlers/` (one file per feature), `llmPrompt` + `llm/`, `screen` + `screen/` (the full-screen TUI) | grammar is parsed in `commands.zig`, executed in `handlers/`; never both in one place |
 | `src/line_edit.zig` + `line_edit/` | the raw-mode line editor | TTY only; piped stdin takes the plain reader |
 | `src/clipboard.zig` + `clipboard/` | `/paste` + `/copy` over the per-OS shell helpers | |
 | `src/llm.zig` + `llm/` | the wire, transport, registry, op schema and `opplan/` (validator + §10 guards) | plans validate against the embedded registry before anything runs |
 | `src/scrape.zig` + `scrape/` | `--source-site`: page walker, filters, window, run loop; `regex_shim.c` for `--source-name` | adapter-only, no `core/` involvement; patterns capped at 200 chars |
-| `src/project.zig` + `project/`, `project_cli.zig` | `.stencil` codec, shape, session bridge; the one-shot open/bundle | |
-| `src/serverClient.zig` + `server/` | the collaboration-server client (urls, payload, parse, edit channel) | mirrors `server/internal/protocol` |
-| `src/bench.zig` + `bench/` | the opt-in `zig build bench` | ratio assertions only |
+| `src/project.zig` + `project/` (`cli.zig` is the one-shot front) | `.stencil` codec, shape, session bridge; the one-shot open/bundle | |
+| `src/server/` (`client.zig` + the wire parts) | the collaboration-server client (urls, payload, parse, edit channel) | mirrors `server/internal/protocol` |
+| `src/bench/` (`bench.zig` + its fixtures) | the opt-in `zig build bench` | ratio assertions only |
 | `tests/` | `*_test.zig` integration suites banded by seam, `*_drift_test.zig` byte-pins of embedded `browser/js/config/` tables, `pins/` text goldens, `fixtures/` | |
 | `testdata/` | the language-neutral stderr goldens `mcp/` and `bot/` replay | one set of goldens for all three suites |
 | `scripts/tui_smoke.py` | the manual pseudo-terminal smoke check for the TUI | not in CI; timing-dependent |
@@ -142,8 +142,8 @@ classDiagram
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
 | `Options` (`params/options.zig`) | One invocation's flags; `modeOf` derives the `Mode` (`usage`, `console`, `scrape`, `project`, `pipeline`) | `main.zig`, the process | Read by `pipeline.run`, `scrape.run`, `project_cli.runOneShot` |
-| `Rgba8` (`image.zig`) | A decoded interleaved RGBA8 buffer, the only pixel type the core transforms | The caller's allocator; `decoded` marks stb's over-aligned plane | Produced by `image.decode`, consumed by every `pipeline/steps` op and `image.encode` |
-| `Layout` (`layout.zig`) | A parsed layout document: dims, filter, page and `core.LineDraw` lines | Its own arena, per run | The browser's `buildLayoutPayload` shape is canonical; re-mapped through `FrameStep` |
+| `Rgba8` (`media/image.zig`) | A decoded interleaved RGBA8 buffer, the only pixel type the core transforms | The caller's allocator; `decoded` marks stb's over-aligned plane | Produced by `image.decode`, consumed by every `pipeline/steps` op and `image.encode` |
+| `Layout` (`media/layout.zig`) | A parsed layout document: dims, filter, page and `core.LineDraw` lines | Its own arena, per run | The browser's `buildLayoutPayload` shape is canonical; re-mapped through `FrameStep` |
 | `Session` (`console/session.zig`) | The console's working document: the original, the undo stack, the derived view, the server pool, the LLM `Config`, `Attachment`s and chat `Turn`s | `console.run` or `project_cli.runOneShot`, for the process | Holds `EditState`, `Client`, `EditConn` |
 | `EditState` (`console/session/state.zig`) | One undoable snapshot: rotation, crop, filter, lines JSON | `Session.history`, up to `max_states` | The browser layout model is canonical; serialized by `currentLayoutJson` |
 | `Command` (`console/commands.zig`) | A parsed console line; `verbOf` yields a `Verb`, `actionOf` a transform `Action` (`crop`/`rotate`/`filter`/`layout`) | Slices into the input line, one dispatch | Switched on by `dispatch.handle` into `handlers.do*` |
@@ -159,13 +159,13 @@ classDiagram
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Facade over core | `core.zig` over `cliApi.h`; package roots `pipeline.zig`, `llm.zig`, `serverClient.zig`, `project.zig` | Typed, allocation-free wrappers; each root re-exports the names its callers bind to |
+| Facade over core | `core.zig` over `cliApi.h`; package roots `pipeline.zig`, `llm.zig`, `server/client.zig`, `project.zig` | Typed, allocation-free wrappers; each root re-exports the names its callers bind to |
 | Command | `EditState` on `Session.history` (`pushState`, `undo`, `redo`, `revert`); `Verb` → `dispatch.handle` → `handlers.do*` | Every edit is a snapshot; the view is rebuilt from it, never patched |
 | Strategy | `Provider` → `wire/body.zig writeBody`; `scrape.Deps`; `server/http.zig Transport`; `report.Writer` | Selected by enum or injected fn pointer; tests swap the seam, production wires the real one |
 | Observer | `EditConn` drained by `remoteEvents.pollEvents` at the prompt boundary; `markDirty` / `flushSync` | `PullAction` is a pure decision over version, dirty and id |
 | Repository | `project.loadInto` / `saveInto`; `Client.getProject` / `updateProject` / `uploadFile` | Persistence behind one bridge, shared by the console and the one-shot path |
 | Chain of Responsibility | `net.request`: `guardHost` (literal host, DNS resolution, `strict`), redirect refusal, `MAX_FETCH_BYTES`; `confine.hasParentTraversal` then `outsideCwd` | One guard per concern, in a fixed order |
-| Adapter | `layout.zig parse` (browser JSON → `LineDraw`), `server/payload.zig buildLayout` (session → envelope), `image.zig` over stb | The CLI never edits the layout schema, it translates to and from it |
+| Adapter | `media/layout.zig parse` (browser JSON → `LineDraw`), `server/payload.zig buildLayout` (session → envelope), `media/image.zig` over stb | The CLI never edits the layout schema, it translates to and from it |
 | Pipeline | `pipeline/oneshot.run` over `pipeline/steps.zig` | acquire → crop → rotate → filter → layout → encode; the console drives the same steps one at a time |
 | Table-driven validator | `opSchema.Schema` over the embedded `opRegistry.json`; `registry/table.zig op_registry` | A comptime check pins one descriptor per `Action` variant; forbidden names fail at build |
 
@@ -243,7 +243,8 @@ classDiagram
    and the scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`,
    `testdata/` and both adapters' fixtures.
 5. **Security guards are singular**: one fetch guard (`net.zig`), one output confinement
-   (`confine.zig`), one prose sanitizer (`sanitize.zig`), one child spawner (`child.zig`).
+   (`safety/confine.zig`), one prose sanitizer (`safety/sanitize.zig`), one child spawner
+   (`safety/child.zig`).
 
 ## Tests
 

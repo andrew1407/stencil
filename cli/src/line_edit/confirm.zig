@@ -1,7 +1,7 @@
 //! `Editor.confirm`: the inline (Y/n) question and how its answer is recorded — on the
 //! fixed prompt row in screen mode, in place otherwise. Bound as a method by line_edit.zig.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 
 const Editor = @import("../line_edit.zig").Editor;
 

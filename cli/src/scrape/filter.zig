@@ -2,8 +2,8 @@
 //! optional --source-name regex. The pattern is length-capped before it reaches regcomp.
 const std = @import("std");
 const builtin = @import("builtin");
-const image = @import("../image.zig");
-const mediaTypes = @import("../mediaTypes.zig");
+const image = @import("../media/image.zig");
+const mediaTypes = @import("../media/types.zig");
 const testing = std.testing;
 const text = @import("text.zig");
 const sniff = @import("sniff.zig");

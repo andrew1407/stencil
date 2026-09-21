@@ -1,8 +1,8 @@
 //! The `.stencil` single-file JSON codec: building the document (image as a data URL,
 //! layout, metadata) and parsing one back, with the format sentinel and version gate.
 const std = @import("std");
-const image = @import("../image.zig");
-const report = @import("../report.zig");
+const image = @import("../media/image.zig");
+const report = @import("../app/report.zig");
 const llm = @import("../llm.zig");
 const shape = @import("shape.zig");
 

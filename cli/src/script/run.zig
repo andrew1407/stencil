@@ -3,12 +3,12 @@
 const std = @import("std");
 
 const args = @import("../args.zig");
-const image = @import("../image.zig");
-const page_mod = @import("../page.zig");
+const image = @import("../media/image.zig");
+const page_mod = @import("../media/page.zig");
 const pipeline = @import("../pipeline.zig");
-const report = @import("../report.zig");
-const scriptCore = @import("../scriptCore.zig");
-const video = @import("../video.zig");
+const report = @import("../app/report.zig");
+const scriptCore = @import("core.zig");
+const video = @import("../media/video.zig");
 
 const apply = @import("apply.zig");
 const decode = @import("decode.zig");

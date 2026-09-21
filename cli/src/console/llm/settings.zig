@@ -1,11 +1,11 @@
 //! The op-plan actions that change the SESSION, not the picture (contract §10): undo/redo/
 //! reset, the server pool, the accent, opening a file or URL, clearing, and copying.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const project = @import("../../project.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;

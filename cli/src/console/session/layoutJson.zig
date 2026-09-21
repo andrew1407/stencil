@@ -2,9 +2,9 @@
 //! document, merging two, reading a layout back into an `EditState`, and the typed member
 //! lookups those need.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const core = @import("../../core.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const EditState = @import("../session.zig").EditState;
 
 pub fn rasterizeLinesJson(gpa: std.mem.Allocator, img: *image.Rgba8, lines_json: []const u8) void {

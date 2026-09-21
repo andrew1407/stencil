@@ -4,8 +4,8 @@
 //! targets are emitted AS WRITTEN; the generated file resolves them where it runs.
 const std = @import("std");
 
-const report = @import("../report.zig");
-const scriptCore = @import("../scriptCore.zig");
+const report = @import("../app/report.zig");
+const scriptCore = @import("core.zig");
 
 const common = @import("emit/common.zig");
 const js = @import("emit/js.zig");

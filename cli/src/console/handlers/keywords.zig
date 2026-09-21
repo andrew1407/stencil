@@ -2,9 +2,9 @@
 //! server projects, addressed by NAME across every connection. Parsing lives in
 //! keywordTargets.zig.
 const std = @import("std");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
-const msg = @import("../../messages.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
+const msg = @import("../../app/messages.zig");
 const Session = @import("../session.zig").Session;
 const kwt = @import("keywordTargets.zig");
 const KwMode = kwt.KwMode;

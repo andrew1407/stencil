@@ -2,7 +2,7 @@
 //! edit, a motion, a chord the caller handles, or a deferred logo click. Bound as a method
 //! on `Editor` by line_edit.zig.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const line_edit = @import("../line_edit.zig");
 
 const Editor = line_edit.Editor;

@@ -1,8 +1,8 @@
 //! Pure target-spec parsing for the `/keywords*` verbs: `<project | ["a","b"]> <keyword...>`
 //! splitting, name collection, and the keyword listing lines.
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const msg = @import("../../messages.zig");
+const logo = @import("../../app/logo.zig");
+const msg = @import("../../app/messages.zig");
 
 pub const KwMode = enum { add, del };
 

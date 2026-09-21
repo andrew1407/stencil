@@ -1,4 +1,4 @@
-//! Per-value checks in opSchema.js order: type, then caps, enums, ranges, grammars.
+//! Per-value checks in plan/schema.js order: type, then caps, enums, ranges, grammars.
 //! An object defers to fields.zig, which recurses back through `checkValue`.
 const std = @import("std");
 const json = @import("json.zig");

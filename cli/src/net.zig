@@ -3,9 +3,9 @@
 //! http(s) URLs are downloaded in-process. (Video URLs are handled by ffmpeg, which reads
 //! URLs directly; pure-Zig video decoding isn't practical — see video.zig.)
 const std = @import("std");
-const report = @import("report.zig");
-const host_guard = @import("host.zig");
-const fetchPool = @import("fetchPool.zig");
+const report = @import("app/report.zig");
+const host_guard = @import("net/host.zig");
+const fetchPool = @import("net/fetchPool.zig");
 
 // The host/authority split + SSRF guard live in host.zig; these are the names callers use.
 pub const Authority = host_guard.Authority;

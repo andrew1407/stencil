@@ -2,9 +2,9 @@
 //! /unpaste and /images, plus the images pasted INTO the line being typed
 //! (Ctrl-V or a pasted path) that become the turn's uploads on submit.
 const std = @import("std");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const pipeline = @import("../pipeline.zig");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const core = @import("../core.zig");
 const clipboard = @import("../clipboard.zig");
 const commands = @import("commands.zig");

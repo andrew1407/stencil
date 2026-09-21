@@ -2,9 +2,9 @@
 //! the input burst settles) and the layout / result / chat uploads /save, /fetch and the
 //! flush share.
 const std = @import("std");
-const image = @import("../../image.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const project = @import("../../project.zig");
 const ui = @import("../ui.zig");
