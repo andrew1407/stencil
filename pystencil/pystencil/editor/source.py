@@ -7,7 +7,7 @@ blank page. A mixin over the history plumbing :class:`Editor` owns.
 import os
 import urllib.parse
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .. import _net
 from ..image import Image
 from ..scriptpaths import is_url

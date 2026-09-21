@@ -10,7 +10,7 @@ import os
 import re
 from typing import Any, Iterable, Sequence
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 def wire_images(images: (Iterable | NoneType)) -> list:
   """Attachments in their WIRE form: strictly ``(media_type, bytes)`` pairs.

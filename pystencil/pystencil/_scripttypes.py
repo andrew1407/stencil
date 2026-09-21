@@ -3,12 +3,12 @@ from __future__ import annotations
 """The value types a parsed ``.stc`` program hands back: diagnostics, tokens, blocks, ops.
 
 Frozen dataclasses plus the ABI's own kind tables — the Python side of
-``core/script/scriptTypes.hpp``, carrying no handle and no ctypes.
+``core/script/types.hpp``, carrying no handle and no ctypes.
 """
 
 from dataclasses import dataclass, field
 
-# Index order is the ABI's; never reorder, only append (scriptTypes.hpp).
+# Index order is the ABI's; never reorder, only append (types.hpp).
 TOKEN_KINDS = tuple(
   "comment directive keyword number unit color string param punct ident error".split())
 SOURCE_KINDS = tuple("project file url dir glob".split())

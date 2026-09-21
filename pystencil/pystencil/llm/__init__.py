@@ -47,8 +47,8 @@ from .errors import (
   LlmPlanError,
   _clean_detail,
 )
-from .execute import execute_op_plan
-from .limits import (
+from .plan.execute import execute_op_plan
+from .plan.limits import (
   CHAT_DOC_VERSION,
   CONTINUATION_NOTE,
   DEFAULT_CUSTOM_LABEL,
@@ -68,7 +68,7 @@ from .limits import (
   SCHEMA,
   chat_display_text,
 )
-from .plan import parse_op_plan
+from .plan.parse import parse_op_plan
 from .prompt import (
   CONSOLE_SETTINGS_PROMPT,
   CONSOLE_SPLICE_ANCHOR,
@@ -77,7 +77,7 @@ from .prompt import (
   LLM_SYSTEM_PROMPT,
   _assemble_ops_bullets,
 )
-from .registry import (
+from .plan.registry import (
   FORBIDDEN_OPS,
   OP_REGISTRY,
   OpSpec,

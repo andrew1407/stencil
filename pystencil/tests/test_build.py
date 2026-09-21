@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 from tests import _PKG_ROOT
-from tests.nativecase import SKIP_NATIVE_ENV, require_core
+from tests.helpers.nativecase import SKIP_NATIVE_ENV, require_core
 
 
 def _load_build_py():
@@ -99,7 +99,7 @@ class AbiBindingTests(unittest.TestCase):
 
   @staticmethod
   def _bound():
-    text = (_PKG_ROOT / "pystencil" / "_bindings.py").read_text(encoding="utf-8")
+    text = (_PKG_ROOT / "pystencil" / "_ffi" / "bindings.py").read_text(encoding="utf-8")
     return set(re.findall(r"lib\.(stencil_cli_[A-Za-z0-9_]+)\.argtypes", text))
 
   def test_no_binding_names_a_function_the_header_does_not_declare(self):

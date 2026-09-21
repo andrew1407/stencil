@@ -9,7 +9,7 @@ import binascii
 import json
 import os
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..llm import MAX_HISTORY, chat_display_text
 from ..scriptpaths import is_url
 from ._snapshot import _BASE64_PREFIX, _EXT_MIME, _clean_keywords

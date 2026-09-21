@@ -26,7 +26,7 @@ cursor every mixin reads and pushes through.
 
 import os
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..core import Core, get_core
 from ..image import Image
 from ._snapshot import _Snapshot, _clean_keywords
@@ -83,7 +83,7 @@ class Editor(
     # (mirrors ProjectMeta.color / the server ProjectRecord `color` field).
     self._color: str = ""
     # Free-text keywords/tags (project-level; ride the .stencil file + the server
-    # ProjectRecord.keywords). Trimmed, empties dropped — matches projectFile.js cleanKeywords.
+    # ProjectRecord.keywords). Trimmed, empties dropped — matches project/file.js cleanKeywords.
     self._keywords: list[str] = list()
     # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
     self._allow_formulas: bool = False
@@ -165,7 +165,7 @@ class Editor(
 
   def set_keywords(self, keywords) -> "Editor":
     """Replace the project keywords with a list of strings (trimmed, empties/non-strings
-    dropped — mirrors projectFile.js ``cleanKeywords`` and the browser
+    dropped — mirrors project/file.js ``cleanKeywords`` and the browser
     ``projectsStore.setKeywords``). Returns self for chaining."""
     self._keywords = _clean_keywords(keywords)
     return self

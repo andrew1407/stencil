@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.nativecase import NativeCase
+from tests.helpers.nativecase import NativeCase
 
 from pystencil.editor import Editor
 from pystencil.layout import Layout, Line, Point

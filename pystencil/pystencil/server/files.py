@@ -10,7 +10,7 @@ the pixel bytes go in an octet-stream body. The sync half ports ``remoteSync.js`
 import urllib.parse
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 class _FileApi:

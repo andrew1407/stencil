@@ -8,7 +8,7 @@ callers can size-filter scraped media without a full decode.
 
 import struct
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 class CodecError(Exception):

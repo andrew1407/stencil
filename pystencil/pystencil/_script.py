@@ -16,12 +16,12 @@ from ._scripttypes import (
   OP_KINDS, SOURCE_KINDS, TOKEN_KINDS, Block, Blocks, Diagnostic, Diagnostics, Op, Ops,
   Pixels, Token, Tokens,
 )
-from ._types import NoneType
+from ._ffi.types import NoneType
 from .core import Core, get_core
 
 # CSS pixels per cm at 96 dpi — the basis the crop parser and the browser share.
 PX_PER_CM = 96.0 / 2.54
-# MAX_POINTS_PER_LINE points plus thickness and pointSize (scriptTypes.hpp).
+# MAX_POINTS_PER_LINE points plus thickness and pointSize (types.hpp).
 _RESOLVE_CAP = 2 * 200 + 2
 
 

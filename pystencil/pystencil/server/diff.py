@@ -8,7 +8,7 @@ from typing import Callable
 
 import time
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 # Project-metadata fields a watcher reports on. `version` is the server's monotonic edit

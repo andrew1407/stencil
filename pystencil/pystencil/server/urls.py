@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 # Default port the collaboration server listens on (server/.env.example). Used

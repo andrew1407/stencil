@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import codecs
 from ._script import ScriptError
-from ._types import NoneType
+from ._ffi.types import NoneType
 
 MAX_INPUTS = 512
 MAX_SCRIPT_BYTES = 4 << 20

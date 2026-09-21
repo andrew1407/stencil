@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..image import Image
 from ..layout import Layout, Line
 
@@ -58,7 +58,7 @@ class _Snapshot:
 
 
 def _clean_keywords(kw) -> list[str]:
-  """Trim keywords and drop empties/non-strings — port of projectFile.js ``cleanKeywords``.
+  """Trim keywords and drop empties/non-strings — port of project/file.js ``cleanKeywords``.
 
   Kept deliberately simple (no dedupe/lower-casing) so a ``.stencil`` round-trip preserves
   the exact tag list every other surface reads/writes.
