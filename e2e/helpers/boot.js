@@ -14,7 +14,7 @@ export { APP_URL };
 export const PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-// `motion` seeds ui/motionPrefs.js before first paint (prePaintTheme.js stamps <html
+// `motion` seeds ui/prefs.js before first paint (prePaintTheme.js stamps <html
 // data-motion>), so 'none' means no entrance ever starts; motion specs must not pass it.
 export async function gotoApp(page, { hash = '', motion = '' } = {}) {
   await page.addInitScript((m) => {

@@ -3,8 +3,8 @@
 // A/B/C series said nothing a single "Page" entry doesn't already say). Picking one only
 // ever affects THIS preview's crop, never the project's own page.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
-import { pngFile } from '../../helpers/png.js';
+import { gotoApp } from '../../../helpers/boot.js';
+import { pngFile } from '../../../helpers/png.js';
 
 const sizeRow = (page) => page.locator('#open-image-crop-size-row');
 const sizeSel = (page) => page.locator('#open-image-crop-size');

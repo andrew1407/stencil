@@ -7,11 +7,11 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gotoApp } from '../../helpers/boot.js';
+import { gotoApp } from '../../../helpers/boot.js';
 
 const FIXTURE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../fixtures/project.stencil',
+  '../../../fixtures/project.stencil',
 );
 
 test('opens a .stencil project through the facade (image + layout + theme)', async ({ page }) => {

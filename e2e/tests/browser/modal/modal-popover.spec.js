@@ -4,7 +4,7 @@
 // DOM-free in browser/tests/popover.test.js — this pins the real-DOM classes, placement and both
 // close routes.
 import { test, expect } from '@playwright/test';
-import { gotoApp, settleModalAnimations } from '../../helpers/boot.js';
+import { gotoApp, settleModalAnimations } from '../../../helpers/boot.js';
 
 const overlayState = (page, id) => page.evaluate((oid) => {
   const overlay = document.getElementById(oid);

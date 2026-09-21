@@ -1,4 +1,4 @@
-// Browser-app AI assistant e2e: the chat panel (js/ui/chatPanel.js) against a stub LLM server
+// Browser-app AI assistant e2e: the chat panel (js/ui/panel.js) against a stub LLM server
 // (helpers/llm-stub.js). Covers the llm-contract seams — §5 settings in localStorage, the §6.2
 // openai-compat wire shape, and a §1 op-plan whose actions execute against the frozen
 // window.stencil facade and whose variants render as thumbnail cards — plus a dock/float
@@ -338,7 +338,7 @@ test.describe('AI assistant chat panel', () => {
       await page.keyboard.press('Escape');
       await expect(page.locator('#ctx-menu')).not.toHaveClass(/ctx-open/);
       await clearConversation(page);
-      // Cleared rows leave on a dissolve (chatView.js) — poll until the motion is done.
+      // Cleared rows leave on a dissolve (view.js) — poll until the motion is done.
       await expect.poll(panelRows, { timeout: 5000 }).toEqual([]);
       await expect.poll(menuRows, { timeout: 5000 }).toEqual([]);
       await expect(page.locator('#chat-transcript .chat-empty')).toHaveCount(1);
@@ -396,7 +396,7 @@ test.describe('AI assistant chat panel', () => {
       for (const b of [send_, more]) {
         expect({ w: b.w, h: b.h, radius: b.radius }).toEqual({ w: 34, h: 34, radius: '6px' });
       }
-      // With voice supported, idle Send stays clickable as the mic (chatView.js syncComposerControls)
+      // With voice supported, idle Send stays clickable as the mic (view.js syncComposerControls)
       // and wears the app's shared idle palette, not a bespoke flyout rule.
       expect(send_.idle).toBe(true);
       expect(more.idle).toBe(false);
@@ -414,7 +414,7 @@ test.describe('AI assistant chat panel', () => {
       }, { timeout: 5000 }).toEqual({ idle: false, disabled: false, bg: more.bg, color: more.color });
 
       // The overflow actions exist, hidden until the "…" is opened — the same set, the
-      // same order, as the panel's own menu (one chatView.js template, two id prefixes).
+      // same order, as the panel's own menu (one view.js template, two id prefixes).
       const panelItems = await page.locator('#chat-more-menu .chat-more-item')
         .evaluateAll((els) => els.map((e) => e.id.replace(/^chat-/, '')));
       expect(panelItems).toContain('attach-btn');
@@ -559,7 +559,7 @@ test.describe('AI assistant chat panel', () => {
     await page2.close();
   });
 
-  // Fullscreen shows a CLONE of the toolbar (fullscreenLayer.js): the clone is a snapshot, so it
+  // Fullscreen shows a CLONE of the toolbar (layer.js): the clone is a snapshot, so it
   // cannot follow the panel's open state, and the original #chat-btn it forwards to measures 0×0.
   /* A double-click a HUMAN would make: two presses a beat apart, the second carrying the
    * clickCount that raises `dblclick`. Opening the panel on the FIRST click docked it and

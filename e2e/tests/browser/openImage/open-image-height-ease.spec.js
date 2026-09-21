@@ -4,8 +4,8 @@
 // visibly janky, self-correcting motion. Desktop twin: the analogous scroll-bar fight in
 // OpenImageDialog::animateHeightTo, fixed alongside this.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
-import { pngFile } from '../../helpers/png.js';
+import { gotoApp } from '../../../helpers/boot.js';
+import { pngFile } from '../../../helpers/png.js';
 
 test('toggling crop never starts a competing box ease while the read-out is sliding', async ({ page }) => {
   await gotoApp(page);

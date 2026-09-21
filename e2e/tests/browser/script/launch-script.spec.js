@@ -1,10 +1,10 @@
 // Browser e2e for the VS Code hand-off: a `.stc` rides the SAME `#stencil=` fragment the
 // Chrome extension uses, as a top-level `script` the shared codec ignores, and the app runs
-// it against the picture the fragment brought (browser/js/core/launchController.js +
+// it against the picture the fragment brought (browser/js/core/launch/controller.js +
 // browser/js/index.js). The script also lands in the one shared script buffer, so the window
 // shows the source that acted when the user opens it — never by itself.
 import { test, expect } from '@playwright/test';
-import { gotoApp, expectModalOpen } from '../../helpers/boot.js';
+import { gotoApp, expectModalOpen } from '../../../helpers/boot.js';
 
 const fragment = (payload) => '#stencil=' + encodeURIComponent(JSON.stringify(payload));
 

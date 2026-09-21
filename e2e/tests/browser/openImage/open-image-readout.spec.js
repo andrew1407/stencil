@@ -3,8 +3,8 @@
 // height. Before this it was a display: none toggle — one 25px jump, gap included.
 // Desktop twin: OpenImageDialog::slideCropDims, on the same clock.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
-import { pngFile } from '../../helpers/png.js';
+import { gotoApp } from '../../../helpers/boot.js';
+import { pngFile } from '../../../helpers/png.js';
 
 // Motion is ON: the slide is what is under test.
 async function openWithPicture(page) {

@@ -3,7 +3,7 @@
 // rules off the desktop ones. An .app-modal clips, so overflow never shows in the page's
 // scrollWidth: these measure the CONTROLS instead.
 import { test, expect } from '@playwright/test';
-import { gotoApp, seedProjectsAndOpenList, settleModalAnimations } from '../../helpers/boot.js';
+import { gotoApp, seedProjectsAndOpenList, settleModalAnimations } from '../../../helpers/boot.js';
 
 const PHONE = { viewport: { width: 393, height: 851 }, hasTouch: true, isMobile: true };   // Pixel 5
 const DESKTOP = { viewport: { width: 1280, height: 800 } };

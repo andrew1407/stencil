@@ -4,8 +4,8 @@
 // the window mid-flight left the motes playing over whatever arrived next, with the veil
 // they stood in for still down. Desktop twin: OpenImageDialog::cancelPreviewDust.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
-import { pngFile } from '../../helpers/png.js';
+import { gotoApp } from '../../../helpers/boot.js';
+import { pngFile } from '../../../helpers/png.js';
 
 const FILE = pngFile(320, 240, 'dust.png');
 const CLOUDS = '#open-image-modal-overlay canvas.canvas-dust';

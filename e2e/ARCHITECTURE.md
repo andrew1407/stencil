@@ -159,7 +159,7 @@ classDiagram
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite; the `.stc` corpus through `helpers/stcCases.js` | `project.stencil` is decoded by `tests/browser/project-file.spec.js` and rendered by `tests/cli/pipeline.spec.js`, so two surfaces are proven on one file; the corpus does the same for a script, down to the diagnostic a case expects |
+| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite; the `.stc` corpus through `helpers/stcCases.js` | `project.stencil` is decoded by `tests/browser/projects/project-file.spec.js` and rendered by `tests/cli/pipeline.spec.js`, so two surfaces are proven on one file; the corpus does the same for a script, down to the diagnostic a case expects |
 | Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server answering the openai-compat, ollama and Anthropic Messages shapes; a FIFO `queue` of scripted replies with a chat-only `FALLBACK_TEXT`; `hold` / `release` keep upstream calls in flight for the rate-limit spec |
 | Golden / Pin | `expectPin`, `capturePin`, `diffPins` (`helpers/uiPin.js`); `pins/<platform>/` | computed styles + DOM shape, never screenshots; `freezeMotion` pins the app's own motion switch and the light theme first |
 | Driver (page-object style) | `gotoApp`, `seedProjectsAndOpenList`, `settleModalAnimations` (`boot.js`); `openChatPanel`, `sendChat`, `openCanvasMenu` (`chat.js`); `finger`, `ghostBox` (`drag.js`); `launchExtension` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
