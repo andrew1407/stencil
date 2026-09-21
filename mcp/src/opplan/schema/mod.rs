@@ -1,5 +1,5 @@
 //! Registry-driven op-plan schema engine — a rule-for-rule port of the reference
-//! `browser/js/llm/opSchema.js` (opRegistry.README.md documents the key-spec language).
+//! `browser/js/llm/plan/schema.js` (opRegistry.README.md documents the key-spec language).
 //!
 //! The registry is embedded and parsed once; with no regex crate, each named grammar in
 //! `regexes` is a hand-written matcher ([`matches`]).

@@ -116,7 +116,7 @@ fn check_sparse(vector: &Value) {
 
 // ── Hand-written documents ──
 
-/// The exact document the CLI's own parser test feeds `cli/src/layout.zig` (legacy `filter`
+/// The exact document the CLI's own parser test feeds `cli/src/media/layout.zig` (legacy `filter`
 /// key included). If the two ends ever disagree about a key, this stops parsing.
 fn parses_the_document_the_cli_parser_test_uses() {
     let doc = r#"{ "imageWidth": 10, "imageHeight": 20, "filter": "bw",

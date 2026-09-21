@@ -1,4 +1,4 @@
-//! The wrapper half of the CLI's `--confine-output` (`cli/src/confine.zig`).
+//! The wrapper half of the CLI's `--confine-output` (`cli/src/safety/confine.zig`).
 //!
 //! The CLI resolves that flag against its OWN working directory, so a confined run is
 //! spawned inside the sandbox root with its output relative to it; every other local path

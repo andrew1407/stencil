@@ -1,7 +1,7 @@
 //! What mcp WRITES as layout JSON (pure).
 //!
 //! `layout.rs` is one end of a cross-surface agreement: the browser exports this document
-//! (`browser/js/core/layout.js`), the Zig CLI parses it (`cli/src/layout.zig`), and this
+//! (`browser/js/core/layout.js`), the Zig CLI parses it (`cli/src/media/layout.zig`), and this
 //! server writes it for `--layout`. Nothing type-checks the three against each other.
 
 use stencil_mcp::layout::{write_temp, Layout, Line, Point};
