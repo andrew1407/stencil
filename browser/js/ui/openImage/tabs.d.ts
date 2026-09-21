@@ -1,7 +1,7 @@
-import type { CropState, CropOverlay } from './openImageCrop.js';
-import type { CropRows } from './openImageCropRows.js';
-import type { PreviewDust } from './openImagePreviewDust.js';
-import type { FrameScrub } from './openImageFrameScrub.js';
+import type { CropState, CropOverlay } from './crop.js';
+import type { CropRows } from './cropRows.js';
+import type { PreviewDust } from './previewDust.js';
+import type { FrameScrub } from './frameScrub.js';
 
 /** What the chosen source IS, asked per tab; the fields themselves live in openImageModal.js. */
 export interface OpenImageSource {

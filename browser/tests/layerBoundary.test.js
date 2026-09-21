@@ -127,3 +127,32 @@ test('window.stencil appears outside js/console only in the frozen allowance', (
   const files = walk('').filter((rel) => !rel.startsWith('console/'));
   ratchet('facade', measure(files, FACADE), FACADE_ALLOWANCE);
 });
+
+// Rule 4 — a region owns its own subtree: `ui/` resolves nodes through StencilElement's scoped
+// `this.$(id)`, not the document. Every file that still reaches globally is frozen here, so a
+// new one, or an old one reaching further, fails. (`ui/base.js` is the one `$` definition.)
+const GLOBAL_ID = /(?<![\w$.])(?:document\.getElementById|\$)\(/g;
+
+const UI_ID_ALLOWANCE = {
+  'ui/base.js': 1, 'ui/bindings/arrowPan.js': 1, 'ui/bindings/blankColorButton.js': 2, 'ui/bindings/canvasPointer.js': 1,
+  'ui/bindings/dropPaste.js': 1, 'ui/bindings/formula.js': 1, 'ui/bindings/hotkeyActions.js': 9,
+  'ui/bindings/index.js': 1, 'ui/bindings/pageAndDisplay.js': 8, 'ui/bindings/projectColorButton.js': 3,
+  'ui/bindings/projectNameField.js': 6, 'ui/bindings/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
+  'ui/bindings/smoothZoom.js': 1, 'ui/bindings/styleControls.js': 14, 'ui/bindings/theme.js': 1,
+  'ui/bindings/toolbarButtons.js': 20, 'ui/bindings/zoom.js': 2, 'ui/chatCards.js': 1, 'ui/chatPanel.js': 22,
+  'ui/confirmModal.js': 9, 'ui/connectModal.js': 19, 'ui/contextMenu.js': 3, 'ui/controlState.js': 16,
+  'ui/cropModal.js': 11, 'ui/ctxActions.js': 22, 'ui/ctxAssistant.js': 6, 'ui/ctxAssistantChat.js': 15,
+  'ui/ctxScript.js': 3, 'ui/ctxScriptEditor.js': 7, 'ui/ctxState.js': 22, 'ui/ctxStyleActions.js': 21,
+  'ui/drawToggleUI.js': 2, 'ui/expirationModal.js': 2, 'ui/fullscreenClones.js': 2, 'ui/fullscreenLayer.js': 9,
+  'ui/fullscreenPanels.js': 2, 'ui/imageMissingBanner.js': 3, 'ui/infoModal.js': 5, 'ui/keywordChips.js': 5,
+  'ui/layoutControls.js': 1, 'ui/linesList.js': 2, 'ui/linksModal.js': 10, 'ui/llmSettingsModal.js': 21,
+  'ui/mainContent.js': 9, 'ui/modalShell.js': 1, 'ui/openImage/modal.js': 62, 'ui/openInModal.js': 12,
+  'ui/projectMetaModal.js': 7, 'ui/projectTitle.js': 10, 'ui/projects/batchActions.js': 1, 'ui/projects/selection.js': 8,
+  'ui/projectsModal.js': 13, 'ui/scriptEditor.js': 11, 'ui/scriptModal.js': 10, 'ui/selectionPanel.js': 17,
+  'ui/serverLayoutPaint.js': 3, 'ui/settingMirrors.js': 1, 'ui/settingsModal.js': 5, 'ui/toolbar.js': 7,
+  'ui/unitDisplay.js': 5, 'ui/visualsModal.js': 18, 'ui/visualsVoiceRow.js': 1,
+};
+
+test('js/ui reaches the document by id only in the frozen allowance', () => {
+  ratchet('ui id lookup', measure(walk('ui'), GLOBAL_ID), UI_ID_ALLOWANCE);
+});

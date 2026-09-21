@@ -1,8 +1,8 @@
 // What the Open-Image preview shows and when it decodes: the arriving media, the visibility
 // sync and the load path. Part of ui/openImageTabs.js, which owns the tabs and their memory.
-import { loadMediaCors, canReadPixels } from './mediaCors.js';
-import { fetchUrlToFile } from '../core/imageSourceLoader.js';
-import { isAlbumOrientation } from '../core/cropGeometry.js';
+import { loadMediaCors, canReadPixels } from '../mediaCors.js';
+import { fetchUrlToFile } from '../../core/imageSourceLoader.js';
+import { isAlbumOrientation } from '../../core/cropGeometry.js';
 
 export function createPreviewFlow(ctx) {
   const { els, src, cropState, crop, cropRows, dust, frame, pairs, memo, refresh,

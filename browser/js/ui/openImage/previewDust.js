@@ -1,9 +1,9 @@
 // The Open-Image preview's arrival/departure cloud: the media is veiled while an overlay canvas
 // assembles it in its own colours. Split out of ui/openImageModal.js; decoration only.
-import { makeDustStage } from './motion/canvasDustStage.js';
-import { runDust } from './motion/canvasDustDraw.js';
-import { GHOST_MS } from './motion/canvasDustGrid.js';
-import { dustEnabled } from './motionPrefs.js';
+import { makeDustStage } from '../motion/canvasDustStage.js';
+import { runDust } from '../motion/canvasDustDraw.js';
+import { GHOST_MS } from '../motion/canvasDustGrid.js';
+import { dustEnabled } from '../motionPrefs.js';
 
 export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   // ghostIn IDENTICAL (motion/canvasFx.js). Plays ONCE per source ever seen this session.

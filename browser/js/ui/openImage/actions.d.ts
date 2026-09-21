@@ -1,5 +1,5 @@
-import type { DrawingApp } from '../core/drawingApp.js';
-import type { OpenImageSource, OpenImageTabs } from './openImageTabs.js';
+import type { DrawingApp } from '../../core/drawingApp.js';
+import type { OpenImageSource, OpenImageTabs } from './tabs.js';
 
 /** Open here / in a new tab / over the current project — each resolves the source first. */
 export declare function wireOpenActions(args: {

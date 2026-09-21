@@ -1,8 +1,8 @@
 // The Open-Image dialog's three source tabs: which one is active, what each remembers of its
 // own source and crop, and what a switch shows. Composes the media pairs and the preview flow.
-import { isAlbumOrientation } from '../core/cropGeometry.js';
-import { createMediaPairs } from './openImageMediaPairs.js';
-import { createPreviewFlow } from './openImagePreviewFlow.js';
+import { isAlbumOrientation } from '../../core/cropGeometry.js';
+import { createMediaPairs } from './mediaPairs.js';
+import { createPreviewFlow } from './previewFlow.js';
 
 export function createOpenImageTabs({ els, src, cropState, crop, cropRows, dust, frame, refresh, canReplace }) {
   const { previewWrap, cropRow, cropToggle, tabBtns, panels, incogRow,

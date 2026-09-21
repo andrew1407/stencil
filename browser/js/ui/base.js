@@ -18,6 +18,13 @@ export class StencilElement extends ElementBase {
     onReady((app) => this.wire(app));
   }
 
+  // Scoped to this element: a region never reaches another region's nodes by id.
+  $(id) { return this.querySelector(`#${id}`); }
+
+  emit(type, detail) {
+    return this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
+  }
+
   wire(_app) {}
 }
 

@@ -1,5 +1,5 @@
-import type { DrawingApp } from '../core/drawingApp.js';
-import type { StencilElement } from './base.js';
+import type { DrawingApp } from '../../core/drawingApp.js';
+import type { StencilElement } from '../base.js';
 
 /** The single way to get an image in: Local file / URL link / Blank tabs. */
 export declare class StencilOpenImageModal extends StencilElement {

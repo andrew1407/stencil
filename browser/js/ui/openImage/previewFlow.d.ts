@@ -1,10 +1,10 @@
-import type { CropRect } from '../core/geometry.js';
-import type { CropState, CropOverlay } from './openImageCrop.js';
-import type { CropRows } from './openImageCropRows.js';
-import type { PreviewDust } from './openImagePreviewDust.js';
-import type { FrameScrub } from './openImageFrameScrub.js';
-import type { MediaPairs } from './openImageMediaPairs.js';
-import type { OpenImageSource } from './openImageTabs.js';
+import type { CropRect } from '../../core/geometry.js';
+import type { CropState, CropOverlay } from './crop.js';
+import type { CropRows } from './cropRows.js';
+import type { PreviewDust } from './previewDust.js';
+import type { FrameScrub } from './frameScrub.js';
+import type { MediaPairs } from './mediaPairs.js';
+import type { OpenImageSource } from './tabs.js';
 
 /** What each source tab remembers of its own decode and crop choice. */
 export interface TabMemo {

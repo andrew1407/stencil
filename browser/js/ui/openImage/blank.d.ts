@@ -1,4 +1,4 @@
-import type { DrawingApp } from '../core/drawingApp.js';
+import type { DrawingApp } from '../../core/drawingApp.js';
 
 /** The Blank tab: the fill colour with its presets, the pixel size, and Create. */
 export declare function createBlankTab(args: {

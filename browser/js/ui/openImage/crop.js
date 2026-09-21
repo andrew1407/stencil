@@ -4,10 +4,10 @@
 // state object and this draws it, so nothing here has to know which tab it belongs to.
 // Desktop twin: OpenImageDialog's CropPreview.
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, swapCropOrientation }
-  from '../core/cropGeometry.js';
-import { tweenRect } from './motion/rectTween.js';
-import { icon } from './icons.js';
-import { pinWidestFace } from './motion.js';
+  from '../../core/cropGeometry.js';
+import { tweenRect } from '../motion/rectTween.js';
+import { icon } from '../icons.js';
+import { pinWidestFace } from '../motion.js';
 
 // All rect math in ORIGINAL-image pixels (the natural pixels of the imported still);
 // `scale` is the only screen-space number, and `iw`/`ih` the picture the rect belongs to.
