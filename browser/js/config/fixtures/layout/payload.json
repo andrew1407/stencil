@@ -46,7 +46,7 @@
     "divergences": {
       "desktop": "cropRect key drift resolved in Phase 6: desktop writes the canonical {x,y,w,h} and reads both spellings ({width,height} legacy, canonical wins)",
       "cli": "filter key drift resolved in Phase 6: the cli reads both top-level keys (canonical \"imageFilter\" wins over legacy \"filter\") — this payload's imageFilter \"bw\" is honoured; filterColor still has no cli representation",
-      "mcp": "reads/writes the canonical imageFilter since Phase 6 (legacy `filter` read-only), but Layout has no filterColor/cropRect/rotationQuarters/pageSize/customPageWidth/customPageHeight/allowFormulas/formulaX/formulaY — those nine export fields silently drop on round-trip"
+      "mcp": "reads/writes the canonical imageFilter (legacy `filter` read-only) and the pageSize/customPageWidth/customPageHeight trio, but Layout has no filterColor/cropRect/rotationQuarters/allowFormulas/formulaX/formulaY — those six export fields silently drop on round-trip"
     },
     "layout": {
       "imageWidth": 1024,
@@ -194,7 +194,7 @@
     "name": "falsy-values-still-exported",
     "divergences": {
       "desktop": "omits WHEN-DEFAULT rather than when-absent: explicit falsy rotationQuarters 0 / customPageWidth 0 / allowFormulas false / formulaX \"\" are dropped where the browser still exports them; imageFilter \"\" passes through, filterColor default rides along",
-      "mcp": "imageFilter \"\" survives since Phase 6; the other falsy exported fields (rotationQuarters 0, customPageWidth 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
+      "mcp": "imageFilter \"\" and customPageWidth 0 survive; the other falsy exported fields (rotationQuarters 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
     },
     "layout": {
       "imageWidth": 4,

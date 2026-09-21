@@ -9,8 +9,9 @@ use std::io::Write;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// A full layout: optional source dimensions/filter plus the lines to draw.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+/// A full layout: optional source dimensions/filter/page format plus the lines to draw.
+/// Field order IS the emitted key order; it follows `browser/js/config/layoutFields.json`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Layout {
     /// Source image width in pixels (advisory; the CLI draws against the live image).
     #[serde(rename = "imageWidth", skip_serializing_if = "Option::is_none")]
@@ -18,13 +19,23 @@ pub struct Layout {
     /// Source image height in pixels (advisory).
     #[serde(rename = "imageHeight", skip_serializing_if = "Option::is_none")]
     pub image_height: Option<f64>,
+    /// The polylines to burn into the image.
+    #[serde(default)]
+    pub lines: Vec<Line>,
     /// Filter baked into the layout (`bw`/`sepia`/`invert`/`contour`/a color); a top-level
     /// `filter` argument overrides it. Canonical wire key is `imageFilter`.
     #[serde(rename = "imageFilter", alias = "filter", skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
-    /// The polylines to burn into the image.
-    #[serde(default)]
-    pub lines: Vec<Line>,
+    /// Page format the coordinates were authored against: a named ISO size (`A0`..`C10`) or
+    /// `custom`. The CLI reports it in the `wrote` line; it never resizes the image.
+    #[serde(rename = "pageSize", skip_serializing_if = "Option::is_none")]
+    pub page_size: Option<String>,
+    /// Page width in cm, read only when `pageSize` is `custom`.
+    #[serde(rename = "customPageWidth", skip_serializing_if = "Option::is_none")]
+    pub custom_page_width: Option<f64>,
+    /// Page height in cm, read only when `pageSize` is `custom`.
+    #[serde(rename = "customPageHeight", skip_serializing_if = "Option::is_none")]
+    pub custom_page_height: Option<f64>,
 }
 
 /// One polyline / closed shape.

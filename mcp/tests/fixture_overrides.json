@@ -56,18 +56,22 @@
             "locked": true
           }
         ],
-        "imageFilter": "bw"
+        "imageFilter": "bw",
+        "pageSize": "custom",
+        "customPageWidth": 10.5,
+        "customPageHeight": 14.8
       },
-      "note": "mcp drift: imageFilter round-trips since Phase 6 (canonical key, legacy `filter` still read), but Layout has no filterColor/cropRect/rotationQuarters/pageSize/customPageWidth/customPageHeight/allowFormulas/formulaX/formulaY — those nine export fields are silently dropped on round-trip"
+      "note": "mcp drift: imageFilter and the page trio round-trip, but Layout has no filterColor/cropRect/rotationQuarters/allowFormulas/formulaX/formulaY — those six export fields are silently dropped on round-trip"
     },
     "falsy-values-still-exported": {
       "payload": {
         "imageWidth": 4,
         "imageHeight": 4,
         "lines": [],
-        "imageFilter": ""
+        "imageFilter": "",
+        "customPageWidth": 0
       },
-      "note": "mcp drift: imageFilter \"\" survives since Phase 6, but the other falsy exported fields (rotationQuarters 0, customPageWidth 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
+      "note": "mcp drift: imageFilter \"\" and customPageWidth 0 survive, but the other falsy exported fields (rotationQuarters 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
     },
     "lines-pass-through-by-reference-unsanitized": {
       "verdict": "reject",

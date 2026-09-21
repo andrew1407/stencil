@@ -27,15 +27,18 @@ fn bare_line() -> Line {
 /// lookups would find a `null` and coerce it to 0 instead of its documented default.
 #[test]
 fn omitted_line_fields_are_absent_not_null() {
-    let json = to_json(&Layout {
-        image_width: None,
-        image_height: None,
-        filter: None,
-        lines: vec![bare_line()],
-    });
+    let json = to_json(&Layout { lines: vec![bare_line()], ..Layout::default() });
 
     let obj = json.as_object().expect("layout is an object");
-    for key in ["imageWidth", "imageHeight", "imageFilter", "filter"] {
+    for key in [
+        "imageWidth",
+        "imageHeight",
+        "imageFilter",
+        "filter",
+        "pageSize",
+        "customPageWidth",
+        "customPageHeight",
+    ] {
         assert!(
             !obj.contains_key(key),
             "top-level `{key}` should be omitted"
@@ -45,14 +48,7 @@ fn omitted_line_fields_are_absent_not_null() {
 
     let line = &json["lines"][0];
     let line_obj = line.as_object().expect("line is an object");
-    for key in [
-        "color",
-        "thickness",
-        "pointSize",
-        "style",
-        "locked",
-        "fillColor",
-    ] {
+    for key in ["color", "thickness", "pointSize", "style", "locked", "fillColor"] {
         assert!(
             !line_obj.contains_key(key),
             "line field `{key}` should be omitted, got {line}"
@@ -64,19 +60,14 @@ fn omitted_line_fields_are_absent_not_null() {
 /// Points are always `{x, y}` numbers — the CLI reads them positionally by name.
 #[test]
 fn points_serialize_as_x_y_numbers() {
-    let json = to_json(&Layout {
-        image_width: None,
-        image_height: None,
-        filter: None,
-        lines: vec![bare_line()],
-    });
+    let json = to_json(&Layout { lines: vec![bare_line()], ..Layout::default() });
     assert_eq!(json["lines"][0]["points"][0]["x"], 1.0);
     assert_eq!(json["lines"][0]["points"][0]["y"], 2.0);
     assert_eq!(json["lines"][0]["points"][1]["x"], 3.0);
     assert_eq!(json["lines"][0]["points"][1]["y"], 4.0);
 }
 
-/// The three renamed fields are the ones a Rust-side rename would quietly break: Rust
+/// The renamed fields are the ones a Rust-side rename would quietly break: Rust
 /// snake_case must reach the wire as the camelCase the browser and CLI use.
 #[test]
 fn renamed_fields_reach_the_wire_as_camel_case() {
@@ -84,6 +75,9 @@ fn renamed_fields_reach_the_wire_as_camel_case() {
         image_width: Some(640.0),
         image_height: Some(480.0),
         filter: Some("bw".into()),
+        page_size: Some("custom".into()),
+        custom_page_width: Some(10.5),
+        custom_page_height: Some(14.8),
         lines: vec![Line {
             points: vec![Point { x: 0.0, y: 0.0 }],
             color: Some("#ff0000".into()),
@@ -99,6 +93,9 @@ fn renamed_fields_reach_the_wire_as_camel_case() {
     assert_eq!(json["imageWidth"], 640.0);
     assert_eq!(json["imageHeight"], 480.0);
     assert_eq!(json["imageFilter"], "bw");
+    assert_eq!(json["pageSize"], "custom");
+    assert_eq!(json["customPageWidth"], 10.5);
+    assert_eq!(json["customPageHeight"], 14.8);
     assert!(json.get("filter").is_none(), "legacy `filter` key must not be written");
     let line = &json["lines"][0];
     assert_eq!(line["color"], "#ff0000");
@@ -108,7 +105,7 @@ fn renamed_fields_reach_the_wire_as_camel_case() {
     assert_eq!(line["locked"], true);
     assert_eq!(line["fillColor"], "#00ff00");
     // Nothing snake_case leaked through.
-    for stale in ["image_width", "image_height", "point_size", "fill_color"] {
+    for stale in ["image_width", "image_height", "page_size", "custom_page_width", "point_size", "fill_color"] {
         assert!(
             json.get(stale).is_none() && line.get(stale).is_none(),
             "snake_case key `{stale}` leaked onto the wire"
@@ -122,6 +119,9 @@ fn round_trips_through_json() {
         image_width: Some(1.5),
         image_height: Some(2.5),
         filter: Some("#3366ff".into()),
+        page_size: Some("A4".into()),
+        custom_page_width: Some(0.0),
+        custom_page_height: None,
         lines: vec![
             bare_line(),
             Line {
@@ -147,9 +147,8 @@ fn round_trips_through_json() {
 fn write_temp_produces_a_readable_json_file() {
     let layout = Layout {
         image_width: Some(320.0),
-        image_height: None,
-        filter: None,
         lines: vec![bare_line()],
+        ..Layout::default()
     };
     let file = write_temp(&layout).expect("writes a temp layout");
     let path = file.path().to_path_buf();
