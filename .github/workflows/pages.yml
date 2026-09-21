@@ -8,7 +8,7 @@
 #
 # NOTE: this deploys nothing until Pages is enabled for the repo —
 # Settings → Pages → Build and deployment → Source: "GitHub Actions".
-name: Deploy to GitHub Pages
+name: GitHub Pages
 
 on:
   push:
