@@ -1,6 +1,6 @@
 """Type predicates, JS-shaped string rendering, and the value paths in error messages.
 
-Ported from ``browser/js/llm/opSchema.js``; a message must read the same on both
+Ported from ``browser/js/llm/plan/opSchema.js``; a message must read the same on both
 surfaces, so ``_js_str``/``_eq`` reproduce JS ``String()`` and strict equality rather
 than Python's.
 """

@@ -4,7 +4,7 @@
 #include <optional>
 #include <vector>
 
-// Cursor hit tests over drawn lines. Port of browser/js/core/hitTest.js plus
+// Cursor hit tests over drawn lines. Port of browser/js/core/draw/hitTest.js plus
 // shouldCloseShape (core/lineTransforms.js) and holdDrawTarget (core/holdDraw.js).
 namespace stencil::core {
 

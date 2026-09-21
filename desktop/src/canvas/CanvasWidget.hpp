@@ -118,7 +118,7 @@ namespace stencil::gui {
     void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
-    // image filters (port of browser/js/core/renderer.js)
+    // image filters (port of browser/js/core/draw/renderer.js)
     void setFilter(const QString& mode);
     void setFilterColor(const QColor& tint);
     void setImageFilter(const QString& mode, const QColor& tint);

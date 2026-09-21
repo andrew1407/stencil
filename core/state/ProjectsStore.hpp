@@ -8,7 +8,7 @@
 #include <vector>
 
 // In-memory project registry + expiry rules. Port of the *pure* parts of
-// browser/js/core/projectsStore.js; serialization and file I/O live in the adapters.
+// browser/js/core/project/store/projectsStore.js; serialization and file I/O live in the adapters.
 namespace stencil::core {
 
   class ProjectsStore {

@@ -1,4 +1,4 @@
-// PORT of browser/js/core/cropGeometry.js (browser-extension/tests/portParity.test.js), plus
+// PORT of browser/js/core/parse/cropGeometry.js (browser-extension/tests/portParity.test.js), plus
 // the extension's own page-size table and dialog helpers.
 export interface CropRect { x: number; y: number; width: number; height: number; }
 export interface PageSize { width: number; height: number; }

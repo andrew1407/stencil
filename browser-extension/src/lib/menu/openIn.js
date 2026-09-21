@@ -1,6 +1,6 @@
 // "Open in…" deep links: `stencil://open?…` for the desktop app (server rows send a
 // reference, never a token) and `t.me/<bot>?start=` for the Telegram bot. Ports of
-// browser/js/core/deepLink.js + openInModal.js's size guards; tests/openIn.test.js pins them.
+// browser/js/core/launch/deepLink.js + openInModal.js's size guards; tests/openIn.test.js pins them.
 import { isLoopbackHost, normalizeUrl } from '../connection/connections.js';
 
 // Inline hand-offs ride the OS launch argv, which tolerates far less than an in-page URL.

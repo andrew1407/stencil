@@ -12,7 +12,7 @@ export const isDropCandidate = (types) => {
   return DRAG_TYPES.some((x) => t.includes(x));
 };
 
-// Mirror of browser/js/core/videoFrame.js isVideoFile.
+// Mirror of browser/js/core/export/videoFrame.js isVideoFile.
 export const isVideoFile = (file) => {
   if (!file) return false;
   if (typeof file.type === 'string' && file.type.startsWith('video/')) return true;

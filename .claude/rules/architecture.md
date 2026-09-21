@@ -83,6 +83,10 @@ Nesting stops three levels below the surface's source root. Tests mirror the spl
 A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
 output and never raised.
 
+`maxFilesPerDir` in the browser, desktop and cli budgets enforces the cap; the folders still
+above it are frozen there under `dirs`, exactly like `files`. A frozen number comes down when
+the folder splits and never goes up.
+
 ## C++ member names
 
 A member is spelled bare — `canvas`, `settings` — with no trailing underscore and no `m_`

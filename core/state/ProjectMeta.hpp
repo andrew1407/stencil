@@ -3,7 +3,7 @@
 #include <vector>
 
 // Metadata for one saved project, field for field the browser project object of
-// browser/js/core/projectMeta.js (and the server ProjectRecord). Payloads are the adapter's.
+// browser/js/core/project/meta/projectMeta.js (and the server ProjectRecord). Payloads are the adapter's.
 namespace stencil::core {
 
   struct ProjectMeta {

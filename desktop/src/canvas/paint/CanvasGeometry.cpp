@@ -59,7 +59,7 @@ namespace stencil::gui {
     return {widgetX / scale, widgetY / scale};
   }
 
-  // Port of the line drawing in browser/js/core/renderer.js. Scale-parameterized so renderToImage
+  // Port of the line drawing in browser/js/core/draw/renderer.js. Scale-parameterized so renderToImage
   // draws at native resolution while the live view passes scale.
   void CanvasWidget::drawLineScaled(QPainter& p, const core::Line& line,
                                     int lineIdx, double scale,

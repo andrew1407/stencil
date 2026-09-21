@@ -62,7 +62,7 @@ namespace stencil::gui {
   }
 
   // Raw px→cm per axis (not the formula path), independent of the display unit — mirrors
-  // browser/js/core/units.js layoutLineLengthCm. 0 when nothing is measurable.
+  // browser/js/core/settings/units.js layoutLineLengthCm. 0 when nothing is measurable.
   double MainWindow::currentLineLengthCm() const {
     const core::PageSize dims = currentPageDimensions();  // cm; already landscape-swaps
     const auto scale = UnitsController::pxToCm(dims.width, dims.height, canvas->imageWidth(),

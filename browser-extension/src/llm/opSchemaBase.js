@@ -1,4 +1,4 @@
-// Byte-identical copy of browser/js/llm/opSchemaBase.js (portParity.test.js): the closure-free
+// Byte-identical copy of browser/js/llm/plan/opSchemaBase.js (portParity.test.js): the closure-free
 // base of opSchema.js — value predicates, the SchemaError, message paths and the native rules.
 
 export const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);

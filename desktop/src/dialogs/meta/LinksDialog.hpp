@@ -19,7 +19,7 @@ class QAudioOutput;
 class QVideoSink;
 class QVideoFrame;
 
-// Source/resource links dialog (browser/js/ui/linksModal.js). The add-by-URL load hands the
+// Source/resource links dialog (browser/js/ui/meta/linksModal.js). The add-by-URL load hands the
 // already-decoded preview pixels back, so what was previewed is exactly what loads.
 namespace stencil::gui {
 

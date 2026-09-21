@@ -8,7 +8,7 @@
 #include "../src/support/notify/Notifications.hpp"
 #include "../src/support/motion/DisintegrateOverlay.hpp"
 #include "../src/support/dockGrip.hpp"   // DockEdgeOverlay: the chat dock's resize-edge tint
-#include "../src/canvas/DropZonesOverlay.hpp"
+#include "../src/canvas/overlay/DropZonesOverlay.hpp"
 #include "../src/canvas/CanvasTooltip.hpp"
 #include "CanvasWidget.hpp"
 #include "ChatDock.hpp"
@@ -103,7 +103,7 @@
 #include <QVariantAnimation>
 #include <memory>
 
-#include "../src/canvas/IncognitoOverlay.hpp"
+#include "../src/canvas/overlay/IncognitoOverlay.hpp"
 
 using stencil::gui::MainWindow;
 using stencil::gui::CanvasWidget;

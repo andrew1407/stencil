@@ -44,7 +44,7 @@ the files the lint lists as the core seam. The document state itself lives in `C
 | Path | Holds | Rule |
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with its method groups in feature folders beneath (`chat/`, `toolbar/`, `project/`, `theme/`, `setup/`, `open/`, `events/`, `actions/`, `context/`, `logo/`, `selection/`, `remote/`, `view/`, `meta/`) | composition only; no logic a controller could hold; a new method group is a new TU in the folder it belongs to, not a longer one |
-| `src/canvas/` | `CanvasWidget` (QPainter), split into paint / press / hold TUs, plus the tooltip | pixel, geometry and page math come from `core/`, never re-derived |
+| `src/canvas/` (+ `input/`, `draw/`, `paint/`, `overlay/`) | `CanvasWidget` (QPainter) and its tooltip, its TUs banded by gesture, stroke, paint and the overlays that float above it | pixel, geometry and page math come from `core/`, never re-derived |
 | `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to), plus `ScriptBuffer`, the session-scoped text the two script hosts share | the core seam — `model/` may include `core/` freely, and nothing above it may; nothing here is persisted |
 | `src/dialogs/` | one folder per window (`projects/`, `openImage/`, `script/`, `connect/`, `settings/`, `meta/`, `crop/`), one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script — plus `ScriptEditorWidget`, the .stc editor both script surfaces host, and `ScriptMenuPanel`, that script window at menu scale | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a second copy of them |
 | `src/llm/` | `dock/` and `panel/` (the two chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`), `plan/` (op registry, schema, `planExecutor`) | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
@@ -156,7 +156,7 @@ classDiagram
 | `Settings` | Persisted preferences and default visuals (`io/fileStore.hpp`); the browser's `DEFAULT_VISUALS` plus the desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` is derived from its `llm*` fields |
 | `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
 | `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
-| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
+| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/project/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
 | `ScriptDoc` | One parsed `.stc`: its token stream in QChar columns, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Held by the `ScriptEditorWidget` that parsed it, rebuilt on every keystroke | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
 | `ScriptBuffer` | The one `.stc` both script hosts edit: a session-scoped `QString` with a `changed` signal, so the window and the flyout never diverge | A process-wide instance, alive for the run; never written to settings, a project or a file | `ScriptEditorWidget` reads it at construction and writes it on every keystroke |
 | `EditState` | One checkpoint of the editable state — crop, filter and committed lines — the `.stc` runner keeps per numbered edit, since the canvas history holds lines alone | Transient, one per applied edit for the length of a run | `PlanTarget::captureEdit` / `restoreEdit`, the `@undo` of `contracts/stc` §7 |
@@ -278,7 +278,7 @@ classDiagram
 4. **Secrets.** Connection tokens live in the 0600 `connectionStore`; the LLM API key in the
    settings JSON only. `STENCIL_LLM_*` is never forwarded to child processes.
 5. **Motion** is gated by `support/motionPrefs.hpp` (`drawingAnimations`, `motionMode`,
-   `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dustCloud.js` value for value.
+   `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dust/dustCloud.js` value for value.
    Sprite blits, not `drawEllipse`; a `QTimer` at the screen's refresh rate, not
    `QVariantAnimation`.
 6. **State directory** is baked at build time (`STENCIL_STATE_DIR`): the gitignored

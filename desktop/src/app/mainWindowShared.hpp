@@ -41,7 +41,7 @@ namespace stencil::gui {
   inline constexpr int FOLD_OUT_MS = 630;
   inline constexpr int FOLD_DUST_IN_MS = 450;
   inline constexpr int FOLD_DUST_OUT_MS = 585;   // browser FOLD_DUST_OUT_MS, same 1.5x ratio
-  // Mirrors the browser's COMMIT_DEBOUNCE_MS (browser/js/ui/numericInput.js).
+  // Mirrors the browser's COMMIT_DEBOUNCE_MS (browser/js/ui/control/numericInput.js).
   inline constexpr int FORMULA_COMMIT_MS = 1200;
 
   // GET with a 10s deadline; `ctx` owns the manager — destroying it severs the reply, so `done`

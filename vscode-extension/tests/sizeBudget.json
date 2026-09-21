@@ -5,14 +5,14 @@
     "vscode-extension/src/commands.js": 66,
     "vscode-extension/src/diagnostics.js": 89,
     "vscode-extension/src/extension.js": 15,
-    "vscode-extension/src/lib/cliLocator.js": 33,
+    "vscode-extension/src/lib/spawn/cliLocator.js": 33,
     "vscode-extension/src/lib/ids.js": 41,
     "vscode-extension/src/lib/parserHost.js": 12,
     "vscode-extension/src/lib/pathSearch.js": 49,
     "vscode-extension/src/lib/programCache.js": 17,
     "vscode-extension/src/lib/scriptCheck.js": 49,
-    "vscode-extension/src/lib/shellQuote.js": 45,
-    "vscode-extension/src/lib/terminal.js": 36,
+    "vscode-extension/src/lib/spawn/shellQuote.js": 45,
+    "vscode-extension/src/lib/spawn/terminal.js": 36,
     "vscode-extension/src/parser/index.js": 39,
     "vscode-extension/src/semanticTokens.js": 54
   },
@@ -25,24 +25,24 @@
     "vscode-extension/tests/helpers": 6
   },
   "exceptions": {
-    "vscode-extension/src/lib/scriptCheck.js": "47 \u2192 49: a kill timeout on --script-check, so a binary that blocks on stdin cannot leave the promise unsettled and the child alive for the session. Two lines: the constant and why it is that value.",
-    "vscode-extension/src/lib/ids.js": "21 \u2192 27 \u2192 41: the .stencil project language's ids, then the .stcjs language, the four browser commands and their three settings. A table of identifiers grows with the manifest; there is nothing here to split.",
-    "vscode-extension/src/parser/script/scriptArgs.js": "byte-equal copy of browser/js/core/script/scriptArgs.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptCrop.js": "byte-equal copy of browser/js/core/script/scriptCrop.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptDiagnostics.js": "byte-equal copy of browser/js/core/script/scriptDiagnostics.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptDump.js": "byte-equal copy of browser/js/core/script/scriptDump.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptLexer.js": "byte-equal copy of browser/js/core/script/scriptLexer.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptLineStyle.js": "byte-equal copy of browser/js/core/script/scriptLineStyle.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptLower.js": "byte-equal copy of browser/js/core/script/scriptLower.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptParser.js": "byte-equal copy of browser/js/core/script/scriptParser.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptTemplates.js": "byte-equal copy of browser/js/core/script/scriptTemplates.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptTypes.js": "byte-equal copy of browser/js/core/script/scriptTypes.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptUndo.js": "byte-equal copy of browser/js/core/script/scriptUndo.js (parserParity.test.js) \u2014 split it there first",
-    "vscode-extension/src/parser/script/scriptValues.js": "byte-equal copy of browser/js/core/script/scriptValues.js (parserParity.test.js) \u2014 split it there first"
+    "vscode-extension/src/lib/scriptCheck.js": "47 → 49: a kill timeout on --script-check, so a binary that blocks on stdin cannot leave the promise unsettled and the child alive for the session. Two lines: the constant and why it is that value.",
+    "vscode-extension/src/lib/ids.js": "21 → 27 → 41: the .stencil project language's ids, then the .stcjs language, the four browser commands and their three settings. A table of identifiers grows with the manifest; there is nothing here to split.",
+    "vscode-extension/src/parser/script/scriptArgs.js": "byte-equal copy of browser/js/core/script/scriptArgs.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptCrop.js": "byte-equal copy of browser/js/core/script/scriptCrop.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptDiagnostics.js": "byte-equal copy of browser/js/core/script/scriptDiagnostics.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptDump.js": "byte-equal copy of browser/js/core/script/scriptDump.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptLexer.js": "byte-equal copy of browser/js/core/script/scriptLexer.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptLineStyle.js": "byte-equal copy of browser/js/core/script/scriptLineStyle.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptLower.js": "byte-equal copy of browser/js/core/script/scriptLower.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptParser.js": "byte-equal copy of browser/js/core/script/scriptParser.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptTemplates.js": "byte-equal copy of browser/js/core/script/scriptTemplates.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptTypes.js": "byte-equal copy of browser/js/core/script/scriptTypes.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptUndo.js": "byte-equal copy of browser/js/core/script/scriptUndo.js (parserParity.test.js) — split it there first",
+    "vscode-extension/src/parser/script/scriptValues.js": "byte-equal copy of browser/js/core/script/scriptValues.js (parserParity.test.js) — split it there first"
   },
-  "commentPctNotes": "src/parser/script/ is copied code: its comment share is browser/js/core/script's, and only a change there can move it. src/parser/ itself reads high because the copies moved down into script/ and left index.js's banner behind \u2014 the prose did not grow, the code under it left.",
+  "commentPctNotes": "src/parser/script/ is copied code: its comment share is browser/js/core/script's, and only a change there can move it. src/parser/ itself reads high because the copies moved down into script/ and left index.js's banner behind — the prose did not grow, the code under it left.",
   "filesNotes": "src/ only. The tests grow as the suite does; the 230-line cap is their ratchet.",
   "_notes": {
-    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added \u2014 the measured scope grew. These are the new floors."
+    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
   }
 }

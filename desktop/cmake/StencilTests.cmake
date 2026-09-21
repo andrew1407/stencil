@@ -30,7 +30,7 @@ endfunction()
 stencil_headless_test(stencil_crop_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
+    tests/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -71,23 +71,23 @@ stencil_headless_test(stencil_csscolor_headless
   SOURCES tests/cssColor.headless.cpp
   LIBS stencil_core Qt6::Gui)
 
-# Closing a shape and the ways back out of one (canvas/chainEdit.hpp) — the ring
+# Closing a shape and the ways back out of one (canvas/draw/chainEdit.hpp) — the ring
 # helpers plus the Alt+Ctrl pull-out gesture on the real widget.
 stencil_headless_test(stencil_chainedit_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
+    tests/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
-# Stroke growth (canvas/strokeGrowth.hpp) — where a just-added vertex is at a given
+# Stroke growth (canvas/draw/strokeGrowth.hpp) — where a just-added vertex is at a given
 # instant, and the flight bookkeeping behind it. Header-only, but it names core::Point /
 # core::Line, so it links the core.
 stencil_headless_test(stencil_strokegrowth_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/strokeGrowth.headless.cpp tests/strokeGrowthCanvas.headless.cpp
-    ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
+    ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -281,7 +281,7 @@ stencil_headless_test(stencil_holddraw_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/holdDrawCanvas.headless.cpp tests/holdDrawSelection.headless.cpp ${STENCIL_CANVAS_SOURCES}
-    src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+    src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Image-fixture test: loads a real PNG from tests/fixtures/ and runs it through the
@@ -289,8 +289,8 @@ stencil_headless_test(stencil_holddraw_headless
 stencil_headless_test(stencil_image_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/imageFixture.headless.cpp tests/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
-    src/canvas/IncognitoOverlay.cpp src/support/icon/iconSet.cpp src/support/control/numericInput.cpp
+    tests/imageFixture.headless.cpp tests/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    src/canvas/overlay/IncognitoOverlay.cpp src/support/icon/iconSet.cpp src/support/control/numericInput.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -329,7 +329,7 @@ stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
-    ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
+    ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp src/support/icon/iconSet.cpp
     src/support/logo/logoStageRules.cpp
     src/support/modal/modalReveal.cpp   # notifications' toast dust needs motionReduced()
@@ -604,7 +604,7 @@ stencil_headless_test(stencil_llmexecutor_headless
     tests/llmExecutorAccent.headless.cpp tests/llmExecutorRows.headless.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
-    src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+    src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
 
@@ -653,7 +653,7 @@ stencil_headless_test(stencil_scriptrunner_headless
     tests/scriptRunner.headless.cpp src/app/scriptRun.cpp src/model/ScriptDoc.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
-    src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+    src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
 

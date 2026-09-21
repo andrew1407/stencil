@@ -2,7 +2,7 @@
 #include "scriptParser.hpp"
 
 // `@stencil` definitions and `@use stencil …` expansion.
-// Port target: browser/js/core/scriptTemplates.js.
+// Port target: browser/js/core/script/scriptTemplates.js.
 namespace stencil::core::script {
 
   /* Expands one `@use stencil <words> [args…]` into the referenced body, @1..@n filled from

@@ -34,7 +34,7 @@ export const splitDataUrl = (u) => {
 };
 
 // Image replay rule (contract §7): the current turn keeps its images; of the PRIOR turns only
-// the most recent image survives. Mirror of browser/js/llm/chatController.js replayMessages.
+// the most recent image survives. Mirror of browser/js/llm/chat/chatController.js replayMessages.
 export const replayMessages = (history) => {
   const msgs = history.slice(-HISTORY_LIMIT);
   const out = [];

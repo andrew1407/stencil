@@ -1,7 +1,7 @@
 #pragma once
 
 // Numeric fields take an expression: "45 + 9" → 54, "* 9" on 3 → 27. Operators mirror
-// browser/js/ui/numericInput.js and core/parse/formulaParser (** right-associative).
+// browser/js/ui/control/numericInput.js and core/parse/formulaParser (** right-associative).
 
 #include <QDoubleSpinBox>
 #include <QSpinBox>

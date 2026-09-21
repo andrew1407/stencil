@@ -11,7 +11,7 @@ class QPushButton;
 class QToolButton;
 class QWidget;
 
-// Project-expiration editor, mirroring browser/js/ui/expirationModal.js chrome and all:
+// Project-expiration editor, mirroring browser/js/ui/meta/expirationModal.js chrome and all:
 // a refresh-period selector + Refresh seeding "now + period", a hand-built month grid
 // (not QCalendarWidget, whose nav bar and weekday header are nothing like the browser's),
 // a confirmed "keep forever" that clears the date, and an "auto-refresh on open".

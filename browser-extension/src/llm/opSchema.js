@@ -1,5 +1,5 @@
 // ── Registry-driven op-plan validation (llm-contract.md §1–§2, §8, §11) ──────
-// Byte-identical copy of browser/js/llm/opSchema.js (drift-guarded by dataParity.test.js): the
+// Byte-identical copy of browser/js/llm/plan/opSchema.js (drift-guarded by dataParity.test.js): the
 // generic half of every op validator, table-driven from config/llm/opRegistry.json — profile
 // membership, unknown-field rejection, required keys, types, enums, ranges, caps, token grammars
 // and the cross-field presence rules. Pure; surfaces keep only normalizers and native `rules`.

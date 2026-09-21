@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-// Value types of the .stc script engine. Port target: browser/js/core/scriptTypes.js.
+// Value types of the .stc script engine. Port target: browser/js/core/script/scriptTypes.js.
 // The grammar itself is normative in contracts/stc/stc-contract.md.
 namespace stencil::core::script {
 

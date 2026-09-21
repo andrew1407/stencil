@@ -127,7 +127,7 @@ namespace stencil::gui {
     const bool hasImg = canvas->hasImage();
     const core::Line* line = hasImg ? canvas->panelLine() : nullptr;
     // Same pageCoords converter as the status bar and tooltip; mirrors
-    // browser/js/core/coordTable.js.
+    // browser/js/ui/panel/coordTable.js.
     const auto u = unitFormat();
     // The unit rides in the column headings, not every cell (browser: `X cm` / `Y cm`), and tracks
     // the setting with no line on screen.
@@ -174,7 +174,7 @@ namespace stencil::gui {
     else selPanel->setLines({}, {});
   }
 
-  // Mirrors browser/js/ui/contextMenu.js grouping, reusing the shared QActions.
+  // Mirrors browser/js/ui/contextMenu/contextMenu.js grouping, reusing the shared QActions.
   void MainWindow::showContextMenuFromKeyboard() {
     if (!scroll) return;
     const QWidget* vp = scroll->viewport();

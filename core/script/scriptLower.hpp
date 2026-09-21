@@ -2,7 +2,7 @@
 #include "scriptParser.hpp"
 #include "scriptTypes.hpp"
 
-// Statements -> the flat op stream. Port target: browser/js/core/scriptLower.js.
+// Statements -> the flat op stream. Port target: browser/js/core/script/scriptLower.js.
 namespace stencil::core::script {
 
   struct LowerResult {

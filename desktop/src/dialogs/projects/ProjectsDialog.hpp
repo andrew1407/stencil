@@ -32,7 +32,7 @@ namespace stencil::net {
   class ConnectionManager;
 }
 
-// Saved-projects browser (browser/js/ui/projectsModal.js). With a ConnectionManager, server
+// Saved-projects browser (browser/js/ui/projects/window/projectsModal.js). With a ConnectionManager, server
 // projects are listed alongside the local ones and kept live on a short timer.
 namespace stencil::gui {
 

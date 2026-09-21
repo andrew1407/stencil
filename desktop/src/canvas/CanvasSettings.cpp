@@ -94,7 +94,7 @@ namespace stencil::gui {
     update();
   }
 
-  // image filters (port of browser/js/core/renderer.js
+  // image filters (port of browser/js/core/draw/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164)
   void CanvasWidget::setFilter(const QString& mode) {
     imageFilter = mode;

@@ -4,7 +4,7 @@
 #include <string_view>
 
 // Diagnostic construction and the "did you mean" suggester.
-// Port target: browser/js/core/scriptDiagnostics.js.
+// Port target: browser/js/core/script/scriptDiagnostics.js.
 namespace stencil::core::script {
 
   struct Stmt;

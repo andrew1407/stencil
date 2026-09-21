@@ -14,7 +14,7 @@
   `browser-extension/tests/dataParity.test.js`.
 
 The assembled prompt is `head + <registry-generated op bullets> + tail` (contract §13);
-`browser/js/llm/opPlan.js` does the assembly and re-exports the strings.
+`browser/js/llm/plan/opPlan.js` does the assembly and re-exports the strings.
 
 Byte-exactness: JSON escapes newlines but round-trips every byte — consumers get the
 strings byte-identical to the old in-source literals. Do not reflow or "prettify" the

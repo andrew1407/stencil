@@ -4,7 +4,7 @@
 #include <string_view>
 
 // Shared argument readers: length tokens, colours, point lists and small integers.
-// Port target: browser/js/core/scriptValues.js.
+// Port target: browser/js/core/script/scriptValues.js.
 namespace stencil::core::script {
 
   struct ArgCursor {

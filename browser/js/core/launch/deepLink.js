@@ -62,7 +62,7 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   : Buffer.from(bin, 'binary').toString('base64'));
 
 // "1" + base64url("host[:port]|projectId"), padding stripped; null past Telegram's limit.
-// Twins: desktop/src/app/deepLink.cpp, bot Application/Links/DeepLinkCodec.cs.
+// Twins: desktop/src/io/deepLink.cpp, bot Application/Links/DeepLinkCodec.cs.
 export const encodeTelegramStartPayload = (serverUrl, projectId) => {
   const plain = `${compressOrigin(normalizeUrl(serverUrl))}|${projectId}`;
   const bytes = new TextEncoder().encode(plain);

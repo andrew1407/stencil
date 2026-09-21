@@ -3,7 +3,7 @@
 Vectors for the per-project chat document all five persisting surfaces serialize
 (browser IndexedDB + server `chat` kind, desktop `projects.json`, cli/pystencil
 `.stencil` `chat` key, bot server-side). Reference implementation:
-`browser/js/llm/chatStore.js` (`parseChatDoc` / `buildChatDoc`,
+`browser/js/llm/chat/chatStore.js` (`parseChatDoc` / `buildChatDoc`,
 `CHAT_DOC_VERSION = 1`, 32-message cap). Walked by
 `browser/tests/llmWireFixtures.test.js`.
 

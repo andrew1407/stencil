@@ -1,6 +1,6 @@
 // The core's pixel ops over the wasm ABI: the RGBA filter table and the contour pass, both
 // copying through the shared pixel scratch and writing the result back in place.
-// Must match core/imageFilter.hpp.
+// Must match core/raster/imageFilter.hpp.
 const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
 export const buildImageOps = (core, { pixelScratch }) => {

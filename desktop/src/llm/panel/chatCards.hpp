@@ -1,7 +1,7 @@
 #pragma once
 // The chat-card vocabulary the dock and the compact composer both draw with: a bubble's colours and
 // side, its "…" row menu, the widths a wrapped label needs and the sheet a swap re-styles it with.
-// Browser twin: browser/js/ui/chatView.js. Included from ChatDock.hpp, so callers keep their spelling.
+// Browser twin: browser/js/ui/chat/chatView.js. Included from ChatDock.hpp, so callers keep their spelling.
 #include <QColor>
 #include <QImage>
 #include <QList>

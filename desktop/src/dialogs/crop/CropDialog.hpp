@@ -8,7 +8,7 @@ class QHBoxLayout;
 class QPushButton;
 class QVariantAnimation;
 
-// Image-crop dialog (browser/js/ui/cropModal.js): the full ORIGINAL image under a crop
+// Image-crop dialog (browser/js/ui/modal/cropModal.js): the full ORIGINAL image under a crop
 // rectangle locked to the page aspect, movable and corner-resizable with an
 // Album/Portrait toggle. exec(), then read cropRect() in original-image pixels. The
 // geometry is the shared core (cropGeometry); the chrome is support/modalChrome.

@@ -69,7 +69,7 @@ place, preserving alpha — so the browser computes grayscale + tint in one pass
 instead of a CSS `grayscale()` followed by a per-pixel tint. `applyContourRGBA`
 takes the same buffer plus its width × height and burns dark Sobel edges onto a
 white page with pinned integer-only math, so the JS fallback
-(`browser/js/core/contourFilter.js`) stays byte-identical.
+(`browser/js/core/image/contourFilter.js`) stays byte-identical.
 
 The core's **stateful** classes cross a second, handle-based ABI
 (`wasmStateApi.cpp`): `stencil_holdDraw_*` and `stencil_history_*` create an

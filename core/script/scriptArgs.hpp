@@ -2,7 +2,7 @@
 #include "scriptParser.hpp"
 #include "scriptTypes.hpp"
 
-// Per-directive argument grammars. Port target: browser/js/core/scriptArgs.js.
+// Per-directive argument grammars. Port target: browser/js/core/script/scriptArgs.js.
 namespace stencil::core::script {
 
   // Evaluator state a statement can read and change: the default unit and the line style.

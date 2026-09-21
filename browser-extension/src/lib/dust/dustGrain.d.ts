@@ -1,5 +1,5 @@
 // A grain's own shape and the jittered edge a styled cloud wears.
-// Byte-pinned twin: browser-extension/src/lib/dustGrain.js (browser-extension/tests/portParity.test.js).
+// Byte-pinned twin: browser-extension/src/lib/dust/dustGrain.js (browser-extension/tests/portParity.test.js).
 export declare const SHAPE_DISC: 0;
 export declare const SHAPE_OVAL: 1;
 export declare const SHAPE_WAVE: 2;

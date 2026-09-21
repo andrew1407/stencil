@@ -2,8 +2,8 @@
   "$meta": {
     "description": "Normative machine-readable registry of the Stencil LLM op-plan surface (llm-contract.md §1-§13). Every surface's validator is TABLE-DRIVEN from this file: profile membership, key schemas (types, enums, ranges, caps, token grammars) and the cross-field rules (forms/together/minFields/onlyWith/requiredWith) are read from here; surfaces keep only their normalizers, executors and the few native rules named in \"rules\". Recorded divergences are surface-specific by design (surfaceKeys, surfaces, forbidden.perSurface) — see opRegistry.README.md for the schema.",
     "sources": {
-      "browser": "browser/js/llm/opPlan.js (OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS)",
-      "desktop": "desktop/src/llm/opRegistry.cpp (opRegistry, forbiddenOps)",
+      "browser": "browser/js/llm/plan/opPlan.js (OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS)",
+      "desktop": "desktop/src/llm/plan/opRegistry.cpp (opRegistry, forbiddenOps)",
       "cli": "cli/src/llm.zig (op_registry, forbidden_ops)",
       "pystencil": "pystencil/pystencil/llm.py (OP_REGISTRY, FORBIDDEN_OPS)",
       "bot": "bot/src/Stencil.TelegramBot.Application/Llm/OpRegistry.cs (Ops, ForbiddenOps)",

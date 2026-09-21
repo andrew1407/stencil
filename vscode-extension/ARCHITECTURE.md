@@ -189,7 +189,7 @@ classDiagram
   Save As the user cancelled — refuses too, because `fsPath` would be a label, not a path.
 - **A run in the browser.** Two routes, because they answer different questions. `stencil.openInWeb`
   builds the `#stencil=` fragment the app already boots on — the one the Chrome extension writes and
-  `browser/js/core/deepLink.js` validates — and hands it to `env.openExternal`. The script rides as a
+  `browser/js/core/launch/deepLink.js` validates — and hands it to `env.openExternal`. The script rides as a
   top-level `script` key that codec deliberately ignores, so no other surface's vectors moved; the app
   reads it off the raw payload, runs it once the picture lands, and keeps the source in its script
   window without opening it. A script that names no `@source` acts on whatever is open, so the command

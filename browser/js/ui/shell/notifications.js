@@ -18,7 +18,7 @@ const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680
 // Shorter than the entrance: a departure has nothing left to look at, and a longer one
 // left the final grains crawling after the toast was gone.
 const LEAVE_DUST_MS = 420;
-// Desktop parity: Notifications::MAX_VISIBLE in desktop/src/support/Notifications.cpp.
+// Desktop parity: Notifications::MAX_VISIBLE in desktop/src/support/notify/Notifications.cpp.
 export const MAX_VISIBLE = 3;
 
 // A whitespace-free run (a filename, a URL) longer than `max` gets a middle ellipsis.

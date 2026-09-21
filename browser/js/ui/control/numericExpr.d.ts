@@ -1,5 +1,5 @@
 // Shapes for ui/numericExpr.js — the pure expression evaluator behind every numeric field.
-// The module is byte-pinned with browser-extension/src/lib/numericExpr.js
+// The module is byte-pinned with browser-extension/src/lib/control/numericExpr.js
 // (browser-extension/tests/portParity.test.js); this file is not.
 
 /**

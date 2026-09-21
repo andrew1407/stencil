@@ -17,7 +17,7 @@
     PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop',
   };
   const SRC = { EXT_REQ: 'stencil-ext-req', EXT_RES: 'stencil-ext-res', EXT_API: 'stencil-ext-api', EXT_API_RES: 'stencil-ext-api-res' };
-  // Must match ProjectsStore.REGISTRY_KEY in browser/js/core/projectsStore.js.
+  // Must match ProjectsStore.REGISTRY_KEY in browser/js/core/project/store/projectsStore.js.
   const REGISTRY_KEY = 'stencil_projects_v1';
 
   const publishRegistry = () => {
