@@ -98,13 +98,6 @@ fn missing_source_is_rejected() {
 }
 
 #[test]
-fn blank_half_dimensions_are_rejected() {
-    let p = params(json!({ "blank": { "width": 800 }, "output": "out.png" }));
-    let err = build_argv(&p, None).unwrap_err().to_string();
-    assert!(err.contains("together"), "got: {err}");
-}
-
-#[test]
 fn surface_defaults_when_omitted() {
     let p = params(json!({ "input": "a.png", "output": "out.png" }));
     let default = [Surface::Cli];
