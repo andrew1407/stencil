@@ -10,51 +10,51 @@ namespace stencil::core {
   }
 
   HoldEvent HoldDrawController::pointerDown(double x, double y, double t) {
-    state_ = HoldState::ARMED;
-    pressX_ = x; pressY_ = y; pressT_ = t;
-    stillX_ = x; stillY_ = y; stillSince_ = t;
-    armedForDrop_ = false;
+    state = HoldState::ARMED;
+    pressX = x; pressY = y; pressT = t;
+    stillX = x; stillY = y; stillSince = t;
+    armedForDrop = false;
     return HoldEvent{HoldAction::ARMED, 0.0, 0.0};
   }
 
   HoldEvent HoldDrawController::pointerMove(double x, double y, double t) {
-    if (state_ == HoldState::ARMED) {
+    if (state == HoldState::ARMED) {
       // Moving away before the hold fires = a real click/drag, not a hold.
-      if (dist(x, y, pressX_, pressY_) > moveTol_) {
-        state_ = HoldState::ABORTED;
+      if (dist(x, y, pressX, pressY) > moveTol) {
+        state = HoldState::ABORTED;
         return HoldEvent{HoldAction::ABORT, 0.0, 0.0};
       }
       return HoldEvent{HoldAction::NONE, 0.0, 0.0};
     }
-    if (state_ == HoldState::DRAWING) {
+    if (state == HoldState::DRAWING) {
       // New dwell window whenever the cursor leaves the current rest neighborhood.
-      if (dist(x, y, stillX_, stillY_) > moveTol_) {
-        stillX_ = x; stillY_ = y; stillSince_ = t;
+      if (dist(x, y, stillX, stillY) > moveTol) {
+        stillX = x; stillY = y; stillSince = t;
       }
       // Re-arm a drop only once the cursor leaves the last dropped point's vicinity.
-      if (dist(x, y, lastDropX_, lastDropY_) > rearm_) armedForDrop_ = true;
+      if (dist(x, y, lastDropX, lastDropY) > rearm) armedForDrop = true;
       return HoldEvent{HoldAction::PREVIEW, x, y};
     }
     return HoldEvent{HoldAction::NONE, 0.0, 0.0};
   }
 
   HoldEvent HoldDrawController::tick(double t) {
-    if (state_ == HoldState::ARMED) {
-      if (t - pressT_ >= holdDelay_) {
-        state_ = HoldState::DRAWING;
-        lastDropX_ = pressX_; lastDropY_ = pressY_;
-        stillX_ = pressX_; stillY_ = pressY_; stillSince_ = t;
-        armedForDrop_ = false;
-        return HoldEvent{HoldAction::START, pressX_, pressY_};
+    if (state == HoldState::ARMED) {
+      if (t - pressT >= holdDelay) {
+        state = HoldState::DRAWING;
+        lastDropX = pressX; lastDropY = pressY;
+        stillX = pressX; stillY = pressY; stillSince = t;
+        armedForDrop = false;
+        return HoldEvent{HoldAction::START, pressX, pressY};
       }
       return HoldEvent{HoldAction::NONE, 0.0, 0.0};
     }
-    if (state_ == HoldState::DRAWING) {
-      if (armedForDrop_ && t - stillSince_ >= holdDelay_) {
-        armedForDrop_ = false;
-        lastDropX_ = stillX_; lastDropY_ = stillY_;
-        stillSince_ = t;
-        return HoldEvent{HoldAction::DROP, stillX_, stillY_};
+    if (state == HoldState::DRAWING) {
+      if (armedForDrop && t - stillSince >= holdDelay) {
+        armedForDrop = false;
+        lastDropX = stillX; lastDropY = stillY;
+        stillSince = t;
+        return HoldEvent{HoldAction::DROP, stillX, stillY};
       }
       return HoldEvent{HoldAction::NONE, 0.0, 0.0};
     }
@@ -62,9 +62,9 @@ namespace stencil::core {
   }
 
   HoldEvent HoldDrawController::pointerUp(double /*t*/) {
-    const bool wasDrawing = state_ == HoldState::DRAWING;
-    state_ = HoldState::IDLE;
-    armedForDrop_ = false;
+    const bool wasDrawing = state == HoldState::DRAWING;
+    state = HoldState::IDLE;
+    armedForDrop = false;
     return wasDrawing ? HoldEvent{HoldAction::COMMIT, 0.0, 0.0}
                       : HoldEvent{HoldAction::NONE, 0.0, 0.0};
   }

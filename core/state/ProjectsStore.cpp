@@ -60,21 +60,21 @@ namespace stencil::core {
   }
 
   void ProjectsStore::load(std::vector<ProjectMeta> registry) {
-    registry_ = std::move(registry);
+    this->registry = std::move(registry);
     reindex();
   }
 
   void ProjectsStore::reindex() {
-    index_.clear();
-    index_.reserve(registry_.size());
-    for (std::size_t i = 0; i < registry_.size(); ++i)
-      index_.emplace(registry_[i].id, i);  // emplace keeps the FIRST occurrence
+    index.clear();
+    index.reserve(registry.size());
+    for (std::size_t i = 0; i < registry.size(); ++i)
+      index.emplace(registry[i].id, i);  // emplace keeps the FIRST occurrence
   }
 
   std::vector<const ProjectMeta*> ProjectsStore::listRefs() const {
     std::vector<const ProjectMeta*> out;
-    out.reserve(registry_.size());
-    for (const auto& m : registry_) {
+    out.reserve(registry.size());
+    for (const auto& m : registry) {
       if (!m.id.empty()) out.push_back(&m);
     }
     std::stable_sort(out.begin(), out.end(),
@@ -93,21 +93,21 @@ namespace stencil::core {
   }
 
   std::vector<ProjectMeta>::iterator ProjectsStore::findById(const std::string& id) {
-    const auto at = index_.find(id);
-    if (at == index_.end()) return registry_.end();
-    return registry_.begin() + static_cast<std::ptrdiff_t>(at->second);
+    const auto at = index.find(id);
+    if (at == index.end()) return registry.end();
+    return registry.begin() + static_cast<std::ptrdiff_t>(at->second);
   }
 
   std::vector<ProjectMeta>::const_iterator ProjectsStore::findById(
       const std::string& id) const {
-    const auto at = index_.find(id);
-    if (at == index_.end()) return registry_.end();
-    return registry_.begin() + static_cast<std::ptrdiff_t>(at->second);
+    const auto at = index.find(id);
+    if (at == index.end()) return registry.end();
+    return registry.begin() + static_cast<std::ptrdiff_t>(at->second);
   }
 
   const ProjectMeta* ProjectsStore::find(const std::string& id) const {
     const auto it = findById(id);
-    return it == registry_.end() ? nullptr : &*it;
+    return it == registry.end() ? nullptr : &*it;
   }
 
   std::optional<ProjectMeta> ProjectsStore::getMeta(const std::string& id) const {
@@ -124,18 +124,18 @@ namespace stencil::core {
     meta.updatedAt = now;
     if (meta.createdAt == 0) meta.createdAt = now;
     const auto it = findById(meta.id);
-    if (it != registry_.end()) {
+    if (it != registry.end()) {
       *it = std::move(meta);
       return *it;
     }
-    index_.emplace(meta.id, registry_.size());  // before the move empties meta.id
-    registry_.push_back(std::move(meta));
-    return registry_.back();
+    index.emplace(meta.id, registry.size());  // before the move empties meta.id
+    registry.push_back(std::move(meta));
+    return registry.back();
   }
 
   bool ProjectsStore::touch(const std::string& id, long long now) {
     const auto it = findById(id);
-    if (it == registry_.end()) return false;
+    if (it == registry.end()) return false;
     it->updatedAt = now;
     return true;
   }
@@ -144,7 +144,7 @@ namespace stencil::core {
                                     const std::string& refreshPeriod,
                                     bool autoRefresh) {
     const auto it = findById(id);
-    if (it == registry_.end()) return false;
+    if (it == registry.end()) return false;
     it->expiresAt = expiresAt;
     it->refreshPeriod = refreshPeriod.empty() ? DEFAULT_PERIOD : refreshPeriod;
     it->autoRefresh = autoRefresh;
@@ -153,14 +153,14 @@ namespace stencil::core {
 
   void ProjectsStore::remove(const std::string& id) {
     const auto it = findById(id);
-    if (it == registry_.end()) return;
-    registry_.erase(it);
+    if (it == registry.end()) return;
+    registry.erase(it);
     reindex();  // every later position shifted; a duplicate id may have surfaced
   }
 
   void ProjectsStore::clearAll() {
-    registry_.clear();
-    index_.clear();
+    registry.clear();
+    index.clear();
   }
 
   bool ProjectsStore::isExpired(const ProjectMeta& meta, long long now) const {
@@ -181,7 +181,7 @@ namespace stencil::core {
 
   std::vector<std::string> ProjectsStore::sweepExpired(long long now) {
     std::vector<std::string> removed;
-    for (const auto& m : registry_) {
+    for (const auto& m : registry) {
       if (isExpired(m, now)) removed.push_back(m.id);
     }
     for (const auto& id : removed) remove(id);
@@ -195,7 +195,7 @@ namespace stencil::core {
 
   std::string ProjectsStore::defaultName() const {
     int max = 0;
-    for (const auto& m : registry_) {
+    for (const auto& m : registry) {
       max = std::max(max, untitledIndex(m.name));
     }
     return "Untitled " + std::to_string(max + 1);
@@ -205,7 +205,7 @@ namespace stencil::core {
                                  const std::string& exceptId) const {
     const std::string n = trimLowerAscii(name);
     if (n.empty()) return false;
-    for (const auto& m : registry_) {
+    for (const auto& m : registry) {
       if (m.id.empty() || m.id == exceptId) continue;
       if (trimLowerAscii(m.name) == n) return true;
     }

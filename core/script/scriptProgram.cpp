@@ -16,9 +16,9 @@ namespace stencil::core::script {
   ScriptProgram ScriptProgram::parse(const char* text, int len) {
     ScriptProgram p;
     LexResult lexed = lexScript(text, len);
-    p.tokens_ = std::move(lexed.tokens);
+    p.tokens = std::move(lexed.tokens);
 
-    ParseResult parsed = parseScript(p.tokens_);
+    ParseResult parsed = parseScript(p.tokens);
     parsed.diagnostics.insert(parsed.diagnostics.begin(), lexed.diagnostics.begin(),
                               lexed.diagnostics.end());
 
@@ -29,27 +29,27 @@ namespace stencil::core::script {
                        if (a.line != b.line) return a.line < b.line;
                        return a.col < b.col;
                      });
-    p.diagnostics_ = std::move(lowered.diagnostics);
-    p.blocks_ = std::move(lowered.blocks);
-    p.ops_ = std::move(lowered.ops);
+    p.diagnostics = std::move(lowered.diagnostics);
+    p.blocks = std::move(lowered.blocks);
+    p.ops = std::move(lowered.ops);
     return p;
   }
 
-  bool ScriptProgram::hasErrors() const { return stencil::core::script::hasErrors(diagnostics_); }
+  bool ScriptProgram::hasErrors() const { return stencil::core::script::hasErrors(diagnostics); }
 
   int ScriptProgram::errorCount() const {
     int n = 0;
-    for (const Diagnostic& d : diagnostics_)
+    for (const Diagnostic& d : diagnostics)
       if (d.severity == Severity::ERROR) ++n;
     return n;
   }
 
-  const std::string& ScriptProgram::dump() const {
-    if (!dumped_) {
-      dump_ = dumpProgram(*this);
-      dumped_ = true;
+  const std::string& ScriptProgram::getDump() const {
+    if (!dumped) {
+      dump = dumpProgram(*this);
+      dumped = true;
     }
-    return dump_;
+    return dump;
   }
 
   namespace {
@@ -95,8 +95,8 @@ namespace stencil::core::script {
 
   int resolveOp(const ScriptProgram& program, int index, double imageW, double imageH,
                 double pxPerCmX, double pxPerCmY, double* out, int cap) {
-    if (index < 0 || index >= static_cast<int>(program.ops().size())) return -1;
-    return resolveOp(program.ops()[static_cast<std::size_t>(index)], imageW, imageH, pxPerCmX,
+    if (index < 0 || index >= static_cast<int>(program.getOps().size())) return -1;
+    return resolveOp(program.getOps()[static_cast<std::size_t>(index)], imageW, imageH, pxPerCmX,
                      pxPerCmY, out, cap);
   }
 

@@ -33,10 +33,10 @@ namespace stencil::core::script {
 
   std::string dumpProgram(const ScriptProgram& program) {
     std::string out;
-    const std::vector<Op>& ops = program.ops();
+    const std::vector<Op>& ops = program.getOps();
 
-    for (std::size_t bi = 0; bi < program.blocks().size(); ++bi) {
-      const Block& b = program.blocks()[bi];
+    for (std::size_t bi = 0; bi < program.getBlocks().size(); ++bi) {
+      const Block& b = program.getBlocks()[bi];
       out += "block " + num(static_cast<double>(bi)) + " " +
              std::string(SOURCE_KIND_NAMES[static_cast<std::size_t>(b.kind)]) + " " +
              quoted(b.source) + "\n";
@@ -63,7 +63,7 @@ namespace stencil::core::script {
 
   std::string dumpDiagnostics(const ScriptProgram& program) {
     std::string out;
-    for (const Diagnostic& d : program.diagnostics())
+    for (const Diagnostic& d : program.getDiagnostics())
       out += num(d.line) + ":" + num(d.col) + ":" + num(d.len) + ": " +
              (d.severity == Severity::ERROR ? "error: " : "warning: ") + d.message + " [" +
              d.code + "]\n";

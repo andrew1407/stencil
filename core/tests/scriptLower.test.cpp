@@ -17,7 +17,7 @@ namespace {
   }
 
   bool hasCode(const ScriptProgram& p, const char* code) {
-    for (const Diagnostic& d : p.diagnostics())
+    for (const Diagnostic& d : p.getDiagnostics())
       if (d.code == code) return true;
     return false;
   }
@@ -28,14 +28,14 @@ TEST_CASE("templates: longest defined name wins, parameters fill positionally") 
   const ScriptProgram p =
       parse("@stencil style:\n  @use line red\n\n@stencil style bold:\n  @use line blue, 5px\n\n"
             "@source a.png:\n  @use stencil style bold:\n  @line (1,1) (2,2)\n");
-  CHECK(p.ops()[1].strs[0] == "blue");
-  CHECK(p.ops()[1].nums[0] == doctest::Approx(5.0));
+  CHECK(p.getOps()[1].strs[0] == "blue");
+  CHECK(p.getOps()[1].nums[0] == doctest::Approx(5.0));
 
   const ScriptProgram q = parse("@stencil s p:\n  @use line @1, @2\n\n"
                                 "@source a.png:\n  @use stencil s p red cm:\n  @line (1,1) (2,2)\n");
   CHECK_FALSE(q.hasErrors());
-  CHECK(q.ops()[1].strs[0] == "red");
-  CHECK(q.ops()[1].toks[0] == "1cm");
+  CHECK(q.getOps()[1].strs[0] == "red");
+  CHECK(q.getOps()[1].toks[0] == "1cm");
 }
 
 TEST_CASE("templates: wrong arity, unknown name and no use are all reported") {
@@ -59,7 +59,7 @@ TEST_CASE("undo rewinds and replays so each save sees the right state") {
                                 "  @save three.png\n");
   CHECK_FALSE(p.hasErrors());
   int undos = 0, rects = 0;
-  for (const Op& op : p.ops()) {
+  for (const Op& op : p.getOps()) {
     if (op.kind == OpKind::UNDO) ++undos;
     if (op.kind == OpKind::RECT) ++rects;
   }
@@ -72,7 +72,7 @@ TEST_CASE("undoing the first edit rewinds past every later one and replays them"
                                 "  @crop 10%\n  @undo 1\n  @save out.png\n");
   CHECK_FALSE(p.hasErrors());
   const Op* undo = nullptr;
-  for (const Op& op : p.ops())
+  for (const Op& op : p.getOps())
     if (op.kind == OpKind::UNDO) undo = &op;
   REQUIRE(undo != nullptr);
   CHECK(undo->nums[0] == doctest::Approx(3.0));
@@ -96,18 +96,18 @@ TEST_CASE("@frame starts a fresh set of edits and rejects a repeat") {
 }
 
 TEST_CASE("a source spec is classified for the adapter that opens it") {
-  CHECK(parse("@source a.png:\n  @filter bw\n").blocks()[0].kind == SourceKind::FILE);
-  CHECK(parse("@source shots/:\n  @filter bw\n").blocks()[0].kind == SourceKind::DIR);
-  CHECK(parse("@source shots/a*.png:\n  @filter bw\n").blocks()[0].kind == SourceKind::GLOB);
-  CHECK(parse("@filter bw\n").blocks()[0].kind == SourceKind::PROJECT);
+  CHECK(parse("@source a.png:\n  @filter bw\n").getBlocks()[0].kind == SourceKind::FILE);
+  CHECK(parse("@source shots/:\n  @filter bw\n").getBlocks()[0].kind == SourceKind::DIR);
+  CHECK(parse("@source shots/a*.png:\n  @filter bw\n").getBlocks()[0].kind == SourceKind::GLOB);
+  CHECK(parse("@filter bw\n").getBlocks()[0].kind == SourceKind::PROJECT);
 }
 
 TEST_CASE("a block body ends where its indentation does") {
   const ScriptProgram p =
       parse("@stencil s:\n  @filter bw\n\n@rect (1,1) (2,2)\n@save\n");
-  CHECK(p.blocks().size() == 1);
-  CHECK(p.blocks()[0].kind == SourceKind::PROJECT);
-  CHECK(p.ops().size() == 2);  // the rect and the save, not the template body
+  CHECK(p.getBlocks().size() == 1);
+  CHECK(p.getBlocks()[0].kind == SourceKind::PROJECT);
+  CHECK(p.getOps().size() == 2);  // the rect and the save, not the template body
 }
 
 TEST_CASE("malformed input yields a diagnostic, never a crash") {
@@ -115,7 +115,7 @@ TEST_CASE("malformed input yields a diagnostic, never a crash") {
                        "@use line", "@stencil", "\"", "@filter", "@undo @", "@line ()", "@@@@@"};
   for (const char* src : bad) {
     const ScriptProgram p = parse(src);
-    CHECK(p.ops().size() <= 1);
+    CHECK(p.getOps().size() <= 1);
   }
 }
 
