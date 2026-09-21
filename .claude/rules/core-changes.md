@@ -37,11 +37,11 @@ in `core/CMakeLists.txt` or the browser cannot call it.
 
 Each core module is a port of a specific `browser/js/` call site (the mapping is at the top
 of each core header) and the browser keeps a **JS fallback that must match the wasm build
-op-for-op** (`browser/tests/wasm-parity.test.js` enforces it). So a behavioral change to a
+op-for-op** (`browser/tests/wasm/wasm-parity.test.js` enforces it). So a behavioral change to a
 core module also means:
 
 - change the matching `browser/js/…` fallback so the two stay identical — including
-  `browser/js/core/formulaEngine.js` ↔ `core/parse/formulaParser`, which are **both real
+  `browser/js/core/parse/formulaEngine.js` ↔ `core/parse/formulaParser`, which are **both real
   recursive-descent parsers** (no `eval`, no `new Function`, on either side) and must agree
   operator for operator, down to the shared `MAX_DEPTH`,
 - update **both** test suites (`core/tests/*` are ports of `browser/tests/*`),

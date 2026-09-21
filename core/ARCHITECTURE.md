@@ -168,7 +168,7 @@ classDiagram
 
 ## Design
 
-- **A wasm call.** `browser/js/core/stencilCore.js` imports the generated module, checks
+- **A wasm call.** `browser/js/core/abi/stencilCore.js` imports the generated module, checks
   every `EXPORTED_FUNCTIONS` entry is present, and `cwrap`s each; a missing or stale artifact
   degrades to the JS fallback. Scalars and C strings pass directly, a point list as one flat
   `[x0,y0,…]` array read through `abi::toPoints`, a result into a `_malloc`ed slot read back

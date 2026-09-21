@@ -11,7 +11,7 @@ corpus (`fixtures/opPlan/`) is the cross-language proof that they all agree — 
 half (`fixtures/opPlan/generated/cases.json`) is itself derived from this file by
 `browser/tools/genOpPlanFixtures.mjs` (`npm run gen-fixtures` after any registry change).
 
-Guarded by `browser/tests/opRegistryCanon.test.js` (pins the file to the live browser
+Guarded by `browser/tests/llm/plan/opRegistryCanon.test.js` (pins the file to the live browser
 structures and cross-checks the corpus) and by every surface's fixture walker.
 
 ## Top-level sections

@@ -48,7 +48,7 @@ headless, the CLI TUI goldens), so a green surface already covers its own lint a
 is nothing extra to run for them.
 
 **Chunk 3 is also the parser-copy gate.** `vscode-extension/tests/parserParity.test.js` holds
-`src/parser/script*.js` byte-equal to `browser/js/core/script*.js` in both directions, so a
+`src/parser/script/` byte-equal to `browser/js/core/script/` in both directions, so a
 script-engine edit that was not re-copied goes red there rather than in the browser chunk. It
 needs no install — only `npm run package` (the `.vsix`) does, and that is CI's job, not part
 of this matrix.

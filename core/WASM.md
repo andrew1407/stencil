@@ -18,7 +18,7 @@ generated artifact, not committed (it is gitignored): CI builds it for the parit
 check, and you build it locally to exercise the wasm path (steps below).
 
 At boot, `js/index.js` calls `core.init()` on the `core` singleton exported by
-`js/core/stencilCore.js`, which instantiates the module and installs typed wrappers
+`js/core/abi/stencilCore.js`, which instantiates the module and installs typed wrappers
 into the singleton. Every consumer calls through it and falls back to its built-in
 JS when no wasm op is installed — so on a fresh checkout (module not built), or if
 wasm fails to load, the app degrades to the JS reference path, which is also what
@@ -43,7 +43,7 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 
 | Browser JS call site (wasm-backed) | Exported wasm function(s) |
 |---|---|
-| `core/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
+| `core/parse/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
 | `utils.js` `distToSegment` | `stencil_distToSegment` |
 | `utils.js` `parseHex` (also feeds `hexToRgba`) | `stencil_parseHex` |
 | `drawingApp.js` `getPageDimensions` / `pixelToPageCoords` (raw) | `stencil_pageDimensions`, `stencil_pixelToPageRaw` (`stencil_pageFormats` lists the ISO names) |
@@ -52,7 +52,7 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
 | `zoom/pan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
-| `core/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
+| `core/parse/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
 
 The bw/sepia/invert filters stay on the browser's native CSS `ctx.filter`
 (GPU-fast, exact); the custom duotone — which the JS already did as a per-pixel
@@ -75,7 +75,7 @@ The core's **stateful** classes cross a second, handle-based ABI
 (`wasmStateApi.cpp`): `stencil_holdDraw_*` and `stencil_history_*` create an
 instance, return an opaque int, and take it back on every call, so an unknown
 handle is rejected instead of dereferenced. A `Lines` snapshot travels as the flat
-(nums, text) pair in `abi/linesCodec.hpp` — its JS twin is `js/core/linesCodec.js`.
+(nums, text) pair in `abi/linesCodec.hpp` — its JS twin is `js/core/line/linesCodec.js`.
 `projectsStore`'s registry is not a browser twin (the JS store is localStorage-backed),
 but its scalar expiry rules cross in `wasmProjectsApi.cpp`. The multi-line hit-testers
 — `findLineAt` / `findNearestPoint` / `findNearestSegment` — are still core-only.
@@ -86,15 +86,15 @@ Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
 
 1. **C++ side of the ABI** — all four `wasm*Api.cpp` files are plain STL, so they are
    compiled **natively into `stencil_tests`** and every export is exercised by
-   `tests/wasmApi.test.cpp` plus `tests/wasmCropApi.test.cpp` (the `core` job) — as are
-   the handle and project ABIs, by `tests/wasmStateApi.test.cpp` and
-   `tests/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
+   `tests/abi/wasmApi.test.cpp` plus `tests/abi/wasmCropApi.test.cpp` (the `core` job) — as are
+   the handle and project ABIs, by `tests/abi/wasmStateApi.test.cpp` and
+   `tests/abi/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
    point arrays, output pointers, filter-mode enum codes, char-code var names)
    even on a machine without `emcc`. `core/imageFilter` has its own suite in
-   `tests/imageFilter.test.cpp`.
+   `tests/raster/imageFilter.test.cpp`.
 2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm-parity*.test.js`
    loads the real wasm module in Node and asserts each wrapper agrees with the JS
-   reference, covering `js/core/stencilCore.js` (strings, char codes, in/out point
+   reference, covering `js/core/abi/stencilCore.js` (strings, char codes, in/out point
    arrays, output pointers, the RGBA pixel buffer). The module is a gitignored
    artifact, so this suite **self-skips when it hasn't been built** (e.g. the
    `browser` job, which runs only `node --test`); the `wasm` job builds the core
@@ -140,7 +140,7 @@ cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/bui
 ## How it is wired into the browser app
 
 The module is built `MODULARIZE=1 EXPORT_ES6=1 SINGLE_FILE=1`, so it imports
-cleanly and embeds its wasm. `js/core/stencilCore.js` owns instantiation + all the
+cleanly and embeds its wasm. `js/core/abi/stencilCore.js` owns instantiation + all the
 marshalling (strings, flat point arrays, output pointers, the pixel buffer) and
 installs typed wrappers into the `core` singleton. The raw Emscripten surface it
 wraps looks like:

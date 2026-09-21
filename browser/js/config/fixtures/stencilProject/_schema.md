@@ -1,6 +1,6 @@
 # `.stencil` project-file conformance vectors
 
-Pin the portable single-file project format shared by browser (`js/core/file.js`,
+Pin the portable single-file project format shared by browser (`js/core/project/file.js`,
 the reference), desktop (`io/fileStore.cpp`), cli (`project.zig`), pystencil
 (`editor.py`) and bot (`Domain/Project/StencilProjectFile.cs`).
 

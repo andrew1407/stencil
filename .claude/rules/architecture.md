@@ -77,7 +77,7 @@ A split is by **feature, never by kind** — `ui/openImage/`, `app/mainWindow/ch
 `helpers/`, `parts/` or `misc/`. Its name is the prefix the files already share, and that prefix
 then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageTabs.js`. One
 class split across translation units keeps the class name on each
-(`app/mainWindow/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
+(`app/chat/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
 
 A file a byte-pinned port imports keeps its name too: `portParity.test.js` reduces a specifier
 to its basename so either tree's layout is allowed, which only works while both spell it the

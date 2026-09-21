@@ -21,8 +21,8 @@ file rather than the case.
 **The name carries an expectation.** A case named `err-*` must produce at least one error;
 every other case must produce none. Warnings are free either way.
 
-Walked by `core/tests/scriptFixtures.test.cpp` and `browser/tests/scriptFixtures.test.js`
-(which share the splitting rules), and by `browser/tests/wasm-parity-script.test.js`, where
+Walked by `core/tests/script/scriptFixtures.test.cpp` and `browser/tests/core/scriptFixtures.test.js`
+(which share the splitting rules), and by `browser/tests/wasm/wasm-parity-script.test.js`, where
 the compiled core and the JS fallback must agree case for case.
 
 The four `tour-*` cases double as the language's worked examples; the contract points at
