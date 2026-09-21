@@ -1,7 +1,10 @@
 // Three tabs (Local file / URL link / Blank) over one footer. Built once and reused, so the
 // component's onOpen resets every field.
 import { icon } from '../icons.js';
-import MEDIA_TYPES from '../../config/mediaTypes.json' with { type: 'json' };
+import '../tabs.js';   // defines <stencil-tabs>, which this markup writes
+import { StencilOiFileSource } from './sources/file.js';
+import { StencilOiUrlSource } from './sources/url.js';
+import { StencilOiBlankTab } from './sources/blank.js';
 
 export const openImageModalInner = () => `
         <div class="app-modal">
@@ -10,51 +13,18 @@ export const openImageModalInner = () => `
                 <button class="app-modal-close btn-icon-text" id="open-image-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
-                <!-- Source tabs: pick how to add an image. -->
+                <!-- Source tabs: pick how to add an image. The strip is the shared element;
+                     each panel is the tab that owns it. -->
+                <stencil-tabs active-class="is-active" style="display:contents">
                 <div class="oi-tabs" role="tablist">
                     <button class="oi-tab is-active" id="oi-tab-file" data-tab="file" role="tab" type="button">${icon('file-text', { size: 14 })}<span>Local file</span></button>
                     <button class="oi-tab" id="oi-tab-url" data-tab="url" role="tab" type="button">${icon('link', { size: 14 })}<span>URL link</span></button>
                     <button class="oi-tab" id="oi-tab-blank" data-tab="blank" role="tab" type="button">${icon('plus-circle', { size: 14 })}<span>Blank</span></button>
                 </div>
-
-                <!-- Tab: Local file -->
-                <!-- The chooser is OURS, not the platform's: a native file input's button
-                     cannot hold an inline glyph, so it could never mime the folder the way
-                     every other control mimes its action. The input stays (hidden) as the
-                     one that actually picks the file. Desktop twin: the Choose File CTA
-                     and its read-only path field, joined into one control. -->
-                <div class="oi-panel" id="oi-panel-file">
-                    <div class="vs-row"><label>Choose</label>
-                        <span class="oi-file">
-                            <button type="button" id="open-image-choose" class="btn-icon-text oi-file-btn">${icon('folder', { size: 14 })}<span>Choose File</span></button>
-                            <span class="oi-file-name" id="open-image-file-name">No file chosen</span>
-                            <input type="file" id="open-image-file" accept="${MEDIA_TYPES.accept.imageOrVideo}" hidden>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Tab: URL link. Preview is explicit (button / Enter) after validation — not
-                     on every keystroke — so a half-typed URL never spins up a fetch. -->
-                <div class="oi-panel" id="oi-panel-url" style="display:none">
-                    <div class="vs-row vs-field"><label data-title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)"><button id="open-image-url-preview" class="btn-icon-text" type="button" data-title="Load a preview of this URL" disabled>${icon('image', { size: 14 })}<span>Preview</span></button></div>
-                </div>
-
-                <!-- Tab: Blank -->
-                <div class="oi-panel" id="oi-panel-blank" style="display:none">
-                    <div class="vs-section">Fill color</div>
-                    <div class="vs-row"><label>Presets</label>
-                        <span class="bi-presets">
-                            <button id="blank-image-white" class="bi-preset bi-preset-white" type="button" data-title="Fill with white">White</button>
-                            <button id="blank-image-black" class="bi-preset bi-preset-black" type="button" data-title="Fill with black">Black</button>
-                        </span>
-                    </div>
-                    <!-- The well reads its hex beside the chip, as the desktop swatch does
-                         (setColorSwatch withHex) — one control, not a bare picker. -->
-                    <div class="vs-row"><label>Custom color</label><label class="oi-color"><input type="color" id="blank-image-color" value="#ffffff"><span class="oi-hex" id="blank-image-color-hex">#FFFFFF</span></label></div>
-                    <div class="vs-section">Size (px)</div>
-                    <div class="vs-row"><label>Width</label><input type="number" id="blank-image-width" min="1" max="8192"></div>
-                    <div class="vs-row"><label>Height</label><input type="number" id="blank-image-height" min="1" max="8192"></div>
-                </div>
+                </stencil-tabs>
+${StencilOiFileSource.template()}
+${StencilOiUrlSource.template()}
+${StencilOiBlankTab.template()}
 
                 <!-- Live preview of the chosen file/URL source (blank tab has none). A video
                      shows a scrubber to pick the frame. The stage holds BOTH media elements

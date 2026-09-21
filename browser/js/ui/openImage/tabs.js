@@ -1,11 +1,11 @@
-// The Open-Image dialog's three source tabs: which one is active, what each remembers of its
-// own source and crop, and what a switch shows. Composes the media pairs and the preview flow.
+// What the Open-Image window remembers per tab: its own source, decode and crop, and what a
+// switch shows. The strip itself is ui/tabs.js — this is what the window does on the change.
 import { isAlbumOrientation } from '../../core/cropGeometry.js';
 import { createMediaPairs } from './mediaPairs.js';
 import { createPreviewFlow } from './previewFlow.js';
 
 export function createOpenImageTabs({ els, src, cropState, crop, cropRows, dust, frame, refresh, canReplace }) {
-  const { previewWrap, cropRow, cropToggle, tabBtns, panels, incogRow,
+  const { previewWrap, cropRow, cropToggle, incogRow,
     hereBtn, newTabBtn, createBtn, replaceRow, replaceBtn, chooseBtn, urlEl } = els;
 
   let activeTab = 'file';
@@ -58,8 +58,6 @@ export function createOpenImageTabs({ els, src, cropState, crop, cropRows, dust,
     if (activeTab !== 'blank') memo.ready[activeTab] = mediaReady;
     activeTab = name;
     if (name !== 'blank') mediaReady = memo.ready[name];
-    tabBtns.forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
-    for (const [k, el] of Object.entries(panels)) el.style.display = k === name ? '' : 'none';
     const blank = name === 'blank';
     hereBtn.style.display = blank ? 'none' : '';
     newTabBtn.style.display = blank ? 'none' : '';
