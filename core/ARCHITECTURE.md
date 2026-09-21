@@ -69,21 +69,21 @@ classDiagram
     }
     class HistoryStack {
         +MAX_STEPS = 64
-        -vector~Lines~ history_
-        -int historyStep_
+        -vector~Lines~ history
+        -int historyStep
     }
     class HistorySlot {
         +HistoryStack stack
         +Lines result
     }
     class HandleTable~T~ {
-        -map~int, unique_ptr~T~~ items_
-        -int next_
+        -map~int, unique_ptr~T~~ items
+        -int next
     }
     class HoldDrawController {
-        -HoldState state_
-        -double holdDelay_
-        -double moveTol_
+        -HoldState state
+        -double holdDelay
+        -double moveTol
     }
     class HoldEvent {
         +HoldAction action
@@ -98,8 +98,8 @@ classDiagram
     }
     class ProjectsStore {
         +WARN_MS = 1 day
-        -vector~ProjectMeta~ registry_
-        -map~string, size_t~ index_
+        -vector~ProjectMeta~ registry
+        -map~string, size_t~ index
     }
     class CropRect {
         +double x, y
@@ -116,13 +116,13 @@ classDiagram
     }
 
     Line "1" *-- "*" Point : points
-    HistoryStack "1" *-- "0..64" Line : history_ snapshots
+    HistoryStack "1" *-- "0..64" Line : history snapshots
     HistorySlot "1" *-- "1" HistoryStack : stack
     HistorySlot "1" *-- "*" Line : result
-    HandleTable "1" *-- "*" HistorySlot : items_
-    HandleTable "1" *-- "*" HoldDrawController : items_
+    HandleTable "1" *-- "*" HistorySlot : items
+    HandleTable "1" *-- "*" HoldDrawController : items
     HoldDrawController --> HoldEvent : returns
-    ProjectsStore "1" *-- "*" ProjectMeta : registry_
+    ProjectsStore "1" *-- "*" ProjectMeta : registry
     CropSpec --> CropRect : resolveCropRect
     CropRect --> Line : scaleLinePoints, rotateLinePointsQuarter
     FormulaParser --> Point : applied per axis after pixelToPageRaw
@@ -137,14 +137,14 @@ classDiagram
 | `HandleTable<T>` (`abi/HandleTable.hpp`) | opaque int → owned instance; a stale or forged handle looks up to `nullptr` | one static table per stateful class in `wasmStateApi.cpp` | `HistorySlot`, `HoldDrawController` |
 | `HoldDrawController` (`state/holdDraw.hpp`) | the hold-to-draw gesture machine over `HoldState` IDLE / ARMED / DRAWING / ABORTED; time-injected, host screen space | the GUI's pointer handler, or a wasm handle | `HoldEvent` |
 | `HoldEvent` (`state/holdDraw.hpp`) | one `HoldAction` (NONE, ARMED, ABORT, START, DROP, PREVIEW, COMMIT) with optional coordinates | value returned per pointer call | `HoldDrawController` |
-| `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry_` | `ProjectsStore` |
+| `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry` | `ProjectsStore` |
 | `ProjectsStore` (`state/ProjectsStore.hpp`) | the in-memory registry with an id index, name rules and the expiry rules; port of the pure parts of `projectsStore.js` | the adapter that loads and persists it | `ProjectMeta` |
-| `ScriptProgram` (`script/scriptProgram.hpp`) | one parsed `.stc`: its tokens, diagnostics, blocks and lowered ops. Immutable after `parse`, which is what lets the ABI hand out pointers into it | created per parse; owned by an `abi::HandleTable` slot until destroyed | `Token`, `Diagnostic`, `Block`, `Op` |
-| `Token` (`script/scriptTypes.hpp`) | one lexed span with its line, column, length and `TokenKind` | value inside a `ScriptProgram`; an editor colours by kind | `ScriptProgram` |
-| `Diagnostic` (`script/scriptTypes.hpp`) | one error or warning: a stable code, a span and a message | value inside a `ScriptProgram` | `ScriptProgram` |
-| `Block` (`script/scriptTypes.hpp`) | one `@source` run, or the implicit project block: the spec, its `SourceKind` and its slice of the op stream | value inside a `ScriptProgram` | `Op` |
-| `Op` (`script/scriptTypes.hpp`) | one lowered operation: plain strings, length tokens resolved lazily, and plain numbers | value inside a `ScriptProgram`; `resolveOp` turns its tokens into pixels | `Block`, `CropRect`, `Line` |
-| `EditLedger` (`script/scriptUndo.hpp`) | the per-block record of which edits are still live, and the rewind-and-replay that reconciles them at each `@save` | lives only during lowering | `Op` |
+| `ScriptProgram` (`script/program/scriptProgram.hpp`) | one parsed `.stc`: its tokens, diagnostics, blocks and lowered ops. Immutable after `parse`, which is what lets the ABI hand out pointers into it | created per parse; owned by an `abi::HandleTable` slot until destroyed | `Token`, `Diagnostic`, `Block`, `Op` |
+| `Token` (`script/types.hpp`) | one lexed span with its line, column, length and `TokenKind` | value inside a `ScriptProgram`; an editor colours by kind | `ScriptProgram` |
+| `Diagnostic` (`script/types.hpp`) | one error or warning: a stable code, a span and a message | value inside a `ScriptProgram` | `ScriptProgram` |
+| `Block` (`script/types.hpp`) | one `@source` run, or the implicit project block: the spec, its `SourceKind` and its slice of the op stream | value inside a `ScriptProgram` | `Op` |
+| `Op` (`script/types.hpp`) | one lowered operation: plain strings, length tokens resolved lazily, and plain numbers | value inside a `ScriptProgram`; `resolveOp` turns its tokens into pixels | `Block`, `CropRect`, `Line` |
+| `EditLedger` (`script/undo.hpp`) | the per-block record of which edits are still live, and the rewind-and-replay that reconciles them at each `@save` | lives only during lowering | `Op` |
 | `CropRect` (`geometry/cropGeometry.hpp`) | the crop window in original-image pixel space; lines are crop-local | value, kept by the adapter beside a 0..3 quarter-turn count | `CropSpec`, `Line` |
 | `CropSpec` (`parse/cropSpec.hpp`) | the CLI's parsed crop string, one length token per edge plus `aspect` | value, consumed by `resolveCropRect` | `CropRect` |
 | `FormulaParser` (`parse/formulaParser.hpp`) | the `f(x)` / `f(y)` arithmetic evaluator; identity on empty or invalid input | stateless; `Eval` lives for one call | `Point` (page coordinates after `pixelToPageRaw`) |
@@ -156,11 +156,11 @@ classDiagram
 | Facade over core | `cliApi.h`, `wasm*Api.cpp` | the `extern "C"` seam beneath every adapter facade (`window.stencil`, `core.zig`, `pystencil.core`); the desktop links the library directly at the seam its layer lint allows |
 | Command | `HistoryStack` (`state/HistoryStack.hpp`) | an entry is a whole-`Lines` snapshot, so apply and revert are the same copy; `push` truncates the redo branch |
 | Strategy | `FilterMode` + `filterPixel` (`raster/imageFilter.hpp`), `luma::rec709Truncated` / `rec709Scaled` | the mode is chosen by `filterModeFromString`, the per-pixel kernel by one hoisted `switch`; the two luma forms are distinct strategies pinned to distinct JS twins |
-| Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index_` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
-| State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol_` aborts, `tick` past `holdDelay_` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
+| Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
+| State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol` aborts, `tick` past `holdDelay` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
 | Interpreter (recursive descent) | `Eval` in `parse/formulaParser.cpp`, `DurationParser`, `parseCropSpec` + `parseLengthToken` | grammar functions per rule; `DepthGuard` caps recursion at `MAX_DEPTH` = 256, shared with `formulaEngine.js` |
 | Interpreter (lowering) | `script/` | a `.stc` is lexed, parsed, template-expanded and lowered to a flat `Op` stream; the adapters execute ops, never grammar, so every surface runs one language |
-| Rewind and replay | `EditLedger::reconcile` (`script/scriptUndo.hpp`) | `@undo` is resolved when the script is lowered: one `undo` back to where the applied and surviving edits agree, then the survivors again — so no adapter computes an undo count |
+| Rewind and replay | `EditLedger::reconcile` (`script/undo.hpp`) | `@undo` is resolved when the script is lowered: one `undo` back to where the applied and surviving edits agree, then the survivors again — so no adapter computes an undo count |
 | Handle table | `abi::HandleTable<T>` | stateful classes cross the ABI as opaque ints; an unknown handle is a no-op returning a neutral value |
 | Flat codec | `abi::encodeLines` / `decodeLines` (`abi/linesCodec.hpp`), `abi::toPoints` (`abi/marshal.hpp`) | `Lines` travel as a doubles buffer plus a UTF-8 text buffer; lengths are honoured, never trusted |
 | One body, two symbols | `abi/shared.inc` with `STENCIL_ABI(wasmName, cliName)` | exports identical on both ABIs are written once and emitted under each spelling |
@@ -168,7 +168,7 @@ classDiagram
 
 ## Design
 
-- **A wasm call.** `browser/js/core/stencilCore.js` imports the generated module, checks
+- **A wasm call.** `browser/js/core/abi/stencilCore.js` imports the generated module, checks
   every `EXPORTED_FUNCTIONS` entry is present, and `cwrap`s each; a missing or stale artifact
   degrades to the JS fallback. Scalars and C strings pass directly, a point list as one flat
   `[x0,y0,…]` array read through `abi::toPoints`, a result into a `_malloc`ed slot read back
@@ -211,7 +211,7 @@ classDiagram
   to wasm (`stencil_projects_*`); the registry itself is not a browser twin.
 
 The one wire schema the core owns is the `Lines` snapshot of `abi/linesCodec.hpp`, in two
-caller-owned buffers (`browser/js/core/linesCodec.js` is its twin):
+caller-owned buffers (`browser/js/core/line/linesCodec.js` is its twin):
 
 ```
 nums (double[]): lineCount, then per line:
@@ -225,11 +225,11 @@ text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenat
 
 1. **Parity.** Each module is a port of a specific browser JS call site, named at the top of
    its header, and stays behaviorally identical down to edge cases. Its tests are ports of
-   `browser/tests/`. `browser/tests/wasm-parity.test.js` asserts the compiled core agrees
+   `browser/tests/`. `browser/tests/wasm/wasm-parity.test.js` asserts the compiled core agrees
    with the JS reference op-for-op.
 2. **No `eval`.** `parse/formulaParser` is a real recursive-descent parser for
    `+ - * / ** ( )` and one variable (`**` right-associative, empty expression = identity,
-   division-by-zero / overflow = invalid), aligned with `browser/js/core/formulaEngine.js`
+   division-by-zero / overflow = invalid), aligned with `browser/js/core/parse/formulaEngine.js`
    down to the shared `MAX_DEPTH`.
 3. **STL-only, codec-free, GUI-free.** No Qt, no image codec, no DOM, no HTTP, no JSON, no
    third-party library; every such concern belongs to an adapter.
@@ -263,8 +263,8 @@ surface.
 The `wasm*Api.cpp` and `cliApi.cpp` units are plain STL, so `stencil_tests` compiles them
 natively and drives every export through its `extern "C"` prototype, guarding the
 marshalling (flat arrays, out pointers, enum codes, char-code variable names) without
-Emscripten or Zig. `tests/abiShared.test.cpp` calls each `shared.inc` export under both
-spellings and asserts they agree. `tests/rowRanges.test.cpp` pins every `*Rows` kernel
+Emscripten or Zig. `tests/abi/abiShared.test.cpp` calls each `shared.inc` export under both
+spellings and asserts they agree. `tests/raster/rowRanges.test.cpp` pins every `*Rows` kernel
 byte-for-byte against its whole-image call. The browser's `wasm-parity*.test.js` files drive
 the compiled module and the JS fallback through one script; the `Lines` codec is proved
 symmetric by the round trip in `wasm-parity-history.test.js`.

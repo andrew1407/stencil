@@ -7,7 +7,7 @@
 //   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked,
 //          byte lengths of color/style/fillColor/pointColor, then x0,y0,x1,y1,...]
 //   text: those four strings per line, concatenated UTF-8, in that field order.
-// Twin: browser/js/core/linesCodec.js.
+// Twin: browser/js/core/line/linesCodec.js.
 namespace stencil::core::abi {
 
   // Buffer lengths (in doubles / bytes) that encodeLines needs for `lines`.

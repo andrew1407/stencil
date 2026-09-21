@@ -30,12 +30,12 @@ namespace stencil::core {
 
     std::optional<Lines> redo();
 
-    int step() const { return historyStep_; }
-    std::size_t size() const { return history_.size(); }
+    int step() const { return historyStep; }
+    std::size_t size() const { return history.size(); }
 
    private:
-    std::vector<Lines> history_;
-    int historyStep_ = -1;
+    std::vector<Lines> history;
+    int historyStep = -1;
   };
 
 }

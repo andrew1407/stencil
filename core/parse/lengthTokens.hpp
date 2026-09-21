@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 
-// Length tokens. Port of browser/js/core/units.js (parseLengthToken / resolveAxisPx). A
+// Length tokens. Port of browser/js/core/settings/units.js (parseLengthToken / resolveAxisPx). A
 // bare number is a pixel DELTA; '3cm', '-4in', '50%', '120px' are absolute, where a
 // leading '-' means "measured from the END of the axis", not a negative length.
 namespace stencil::core {

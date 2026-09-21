@@ -8,7 +8,7 @@
 #include <vector>
 
 // In-memory project registry + expiry rules. Port of the *pure* parts of
-// browser/js/core/projectsStore.js; serialization and file I/O live in the adapters.
+// browser/js/core/project/store/projectsStore.js; serialization and file I/O live in the adapters.
 namespace stencil::core {
 
   class ProjectsStore {
@@ -36,7 +36,7 @@ namespace stencil::core {
     std::vector<const ProjectMeta*> listRefs() const;
 
     // Insertion order, unsorted, and still holding the id-less rows list() drops.
-    const std::vector<ProjectMeta>& registry() const { return registry_; }
+    const std::vector<ProjectMeta>& getRegistry() const { return registry; }
 
     std::optional<ProjectMeta> getMeta(const std::string& id) const;
 
@@ -68,7 +68,7 @@ namespace stencil::core {
 
     std::vector<std::string> sweepExpired(long long now);
 
-    // "p_" + base36(now) + "_" + salt; `salt` stands in for the browser's Math.random().
+    // "p" + base36(now) + "_" + salt; `salt` stands in for the browser's Math.random().
     std::string createId(long long now, const std::string& salt) const;
 
     std::string defaultName() const;
@@ -93,8 +93,8 @@ namespace stencil::core {
     // First occurrence of an id wins, like the linear scan it replaces.
     void reindex();
 
-    std::vector<ProjectMeta> registry_;
-    std::unordered_map<std::string, std::size_t> index_;  // id -> position in registry_
+    std::vector<ProjectMeta> registry;
+    std::unordered_map<std::string, std::size_t> index;  // id -> position in registry
   };
 
 }

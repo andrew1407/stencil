@@ -1,7 +1,7 @@
 #pragma once
 
 // Hold-to-draw gesture state machine. Port of the HoldDrawController in
-// browser/js/core/holdDraw.js: time-injected (monotonic ms), coordinates in host
+// browser/js/core/draw/holdDraw.js: time-injected (monotonic ms), coordinates in host
 // screen space so tolerances stay zoom-independent; the host owns timers and rendering.
 
 namespace stencil::core {
@@ -29,23 +29,23 @@ namespace stencil::core {
     explicit HoldDrawController(double holdDelay = 500.0,
                                 double moveTolerance = 6.0,
                                 double rearmDistance = 10.0)
-        : holdDelay_(holdDelay < 0.0 ? 0.0 : holdDelay),
-          moveTol_(moveTolerance),
-          rearm_(rearmDistance) {}
+        : holdDelay(holdDelay < 0.0 ? 0.0 : holdDelay),
+          moveTol(moveTolerance),
+          rearm(rearmDistance) {}
 
-    HoldState state() const { return state_; }
-    bool active() const { return state_ == HoldState::DRAWING; }
+    HoldState getState() const { return state; }
+    bool active() const { return state == HoldState::DRAWING; }
     bool engaged() const {
-      return state_ == HoldState::ARMED || state_ == HoldState::DRAWING;
+      return state == HoldState::ARMED || state == HoldState::DRAWING;
     }
-    double holdDelay() const { return holdDelay_; }
+    double getHoldDelay() const { return holdDelay; }
     void setHoldDelay(double ms) {
-      if (ms >= 0.0) holdDelay_ = ms;
+      if (ms >= 0.0) holdDelay = ms;
     }
 
     void cancel() {
-      state_ = HoldState::IDLE;
-      armedForDrop_ = false;
+      state = HoldState::IDLE;
+      armedForDrop = false;
     }
 
     HoldEvent pointerDown(double x, double y, double t);
@@ -54,14 +54,14 @@ namespace stencil::core {
     HoldEvent pointerUp(double t);
 
   private:
-    HoldState state_ = HoldState::IDLE;
-    double holdDelay_;
-    double moveTol_;
-    double rearm_;
-    double pressX_ = 0.0, pressY_ = 0.0, pressT_ = 0.0;
-    double stillX_ = 0.0, stillY_ = 0.0, stillSince_ = 0.0;
-    double lastDropX_ = 0.0, lastDropY_ = 0.0;
-    bool armedForDrop_ = false;
+    HoldState state = HoldState::IDLE;
+    double holdDelay;
+    double moveTol;
+    double rearm;
+    double pressX = 0.0, pressY = 0.0, pressT = 0.0;
+    double stillX = 0.0, stillY = 0.0, stillSince = 0.0;
+    double lastDropX = 0.0, lastDropY = 0.0;
+    bool armedForDrop = false;
   };
 
 }
