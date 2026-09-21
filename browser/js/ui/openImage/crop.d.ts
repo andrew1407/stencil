@@ -1,4 +1,4 @@
-import type { CropRect } from '../core/geometry.js';
+import type { CropRect } from '../../core/geometry.js';
 
 /** The crop's own state, in ORIGINAL-image pixels; `scale` is the only screen-space number. */
 export interface CropState {

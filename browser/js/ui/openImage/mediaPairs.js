@@ -1,6 +1,6 @@
 // One <img>/<video> pair per source tab of the Open-Image dialog, plus the events each pair
 // answers. Part of ui/openImageTabs.js, which decides which pair is on screen.
-import { retryWithoutCors } from './mediaCors.js';
+import { retryWithoutCors } from '../mediaCors.js';
 
 // What each pair holds: the source key being loaded, its kind, the object URL behind
 // it, and a decode that landed while its tab was away (delivered on the way back).

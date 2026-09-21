@@ -1,17 +1,17 @@
-import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from './base.js';
-import { wireModalOpenGestures } from './popover.js';
-import { notify } from '../utils.js';
-import { spinIconOnce } from './icons.js';
-import { isVideoFile, isVideoUrl } from '../core/videoFrame.js';
-import { createCropOverlay, freshCropState, hasCropRect } from './openImageCrop.js';
-import { modalBoxEase } from './motion/easeBoxHeight.js';
-import { openImageModalInner } from './openImageMarkup.js';
-import { createPreviewDust } from './openImagePreviewDust.js';
-import { createFrameScrub } from './openImageFrameScrub.js';
-import { createCropRows } from './openImageCropRows.js';
-import { createOpenImageTabs } from './openImageTabs.js';
-import { createBlankTab } from './openImageBlank.js';
-import { wireOpenActions } from './openImageActions.js';
+import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from '../base.js';
+import { wireModalOpenGestures } from '../popover.js';
+import { notify } from '../../utils.js';
+import { spinIconOnce } from '../icons.js';
+import { isVideoFile, isVideoUrl } from '../../core/videoFrame.js';
+import { createCropOverlay, freshCropState, hasCropRect } from './crop.js';
+import { modalBoxEase } from '../motion/easeBoxHeight.js';
+import { openImageModalInner } from './markup.js';
+import { createPreviewDust } from './previewDust.js';
+import { createFrameScrub } from './frameScrub.js';
+import { createCropRows } from './cropRows.js';
+import { createOpenImageTabs } from './tabs.js';
+import { createBlankTab } from './blank.js';
+import { wireOpenActions } from './actions.js';
 
 // The single way to get an image into the editor (Local file / URL link / Blank tabs); the DOM is built once and reused, so onOpen MUST reset every field.
 export class StencilOpenImageModal extends StencilElement {

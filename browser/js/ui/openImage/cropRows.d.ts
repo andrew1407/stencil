@@ -1,4 +1,4 @@
-import type { DrawingApp } from '../core/drawingApp.js';
+import type { DrawingApp } from '../../core/drawingApp.js';
 
 export interface CropRows {
   /** The page or plain ratio the crop's aspect is locked to. */

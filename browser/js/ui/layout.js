@@ -8,7 +8,7 @@ import { StencilVisualsModal } from './visualsModal.js';
 import { StencilInfoModal } from './infoModal.js';
 import { StencilProjectsModal } from './projectsModal.js';
 import { StencilExpirationModal } from './expirationModal.js';
-import { StencilOpenImageModal } from './openImageModal.js';
+import { StencilOpenImageModal } from './openImage/modal.js';
 import { StencilOpenInModal } from './openInModal.js';
 import { StencilLinksModal } from './linksModal.js';
 import { StencilConnectModal } from './connectModal.js';

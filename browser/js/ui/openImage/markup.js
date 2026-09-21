@@ -1,7 +1,7 @@
 // Three tabs (Local file / URL link / Blank) over one footer. Built once and reused, so the
 // component's onOpen resets every field.
-import { icon } from './icons.js';
-import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
+import { icon } from '../icons.js';
+import MEDIA_TYPES from '../../config/mediaTypes.json' with { type: 'json' };
 
 export const openImageModalInner = () => `
         <div class="app-modal">

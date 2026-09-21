@@ -1,7 +1,7 @@
 // The Open-Image dialog's Blank tab: the fill colour with its two presets, the pixel size, and
 // Create. Split out of ui/openImageModal.js; a blank canvas has no source and no preview.
-import { notify } from '../utils.js';
-import { defaultBlankSizePx } from '../core/layout.js';
+import { notify } from '../../utils.js';
+import { defaultBlankSizePx } from '../../core/layout.js';
 
 export function createBlankTab({ app, els, pageDims, target, close }) {
   const { colorEl, colorHexEl, widthEl, heightEl, createBtn } = els;
