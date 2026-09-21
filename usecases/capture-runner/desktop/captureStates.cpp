@@ -6,7 +6,7 @@
 #include "ChatDock.hpp"
 #include "OpenImageDialog.hpp"
 #include "ProjectDragZones.hpp"
-#include "../../../desktop/src/llm/LlmClient.hpp"
+#include "../../../desktop/src/llm/client/LlmClient.hpp"
 
 #include <QCheckBox>
 #include <QDockWidget>
@@ -105,10 +105,10 @@ void MainWindowGuiTest::grabVideoDialog(MainWindow& win, const QString& name,
       dlg->reject();
       return;
     }
-    if (dlg->frameSlider_) dlg->frameSlider_->setValue(dlg->frameSlider_->maximum() / 2);
+    if (dlg->frameSlider) dlg->frameSlider->setValue(dlg->frameSlider->maximum() / 2);
     waitUntil([] { return false; }, 600);   // let the seek land on the player
-    if (crop && dlg->cropPage_) {
-      dlg->cropPage_->setChecked(true);
+    if (crop && dlg->cropPage) {
+      dlg->cropPage->setChecked(true);
       waitUntil([] { return false; }, 700);   // the box eases in over the picture
     }
     pumpFor(400);
@@ -133,7 +133,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   const QString editorEmpty = suffixed("editor-empty", theme);
   if (shots.has(editorEmpty)) save(editorEmpty, &win);
 
-  const auto fit = [&] { pumpFor(150); win.actFit_->trigger(); pumpFor(150); clearToasts(&win); };
+  const auto fit = [&] { pumpFor(150); win.actFit->trigger(); pumpFor(150); clearToasts(&win); };
   win.createBlankImage(Qt::white, 960, 640);
   waitUntil([canvas] { return canvas->hasImage(); });
   fit();
@@ -158,9 +158,9 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   }
 
   if (shots.has("open-from-url")) {
-    const QImage before = canvas->image();
+    const QImage before = canvas->getImage();
     win.openSourceHere(FAVICON_URL, 0, false);
-    if (waitUntil([&] { return canvas->hasImage() && canvas->image().size() != before.size(); }, 12000)) {
+    if (waitUntil([&] { return canvas->hasImage() && canvas->getImage().size() != before.size(); }, 12000)) {
       fit();
       save("open-from-url", &win);
     } else {
@@ -193,19 +193,19 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   // canned plan through the real client — either way the canvas really changes.
   const QString assistantDocked = suffixed("assistant-docked", theme);
   if (shots.hasAny({assistantDocked, QStringLiteral("assistant-floating")})) {
-    const bool real = win.settings_.llmProvider == QLatin1String("stencil-server");
+    const bool real = win.settings.llmProvider == QLatin1String("stencil-server");
     if (real) {
       win.openSourceHere(ICON_URL, 0, false);
-      waitUntil([canvas] { return canvas->hasImage() && canvas->image().width() == 512; }, 15000);
+      waitUntil([canvas] { return canvas->hasImage() && canvas->getImage().width() == 512; }, 15000);
       fit();
     } else {
-      win.settings_.llmProvider = "ollama";
-      win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&canned);
+      win.settings.llmProvider = "ollama";
+      win.llmClient = std::make_unique<stencil::llm::LlmClient>(&canned);
     }
-    ChatDock* chat = win.chatDock_;
+    ChatDock* chat = win.chatDock;
     win.addDockWidget(Qt::RightDockWidgetArea, chat, Qt::Horizontal);
     chat->setFloating(false);
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     waitUntil([chat] { return chat->isVisible(); });
     auto* input = chat->findChild<QPlainTextEdit*>("chatInput");
     if (input) {
@@ -228,7 +228,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
         chat->setFloating(false);
       }
     }
-    win.actChat_->setChecked(false);
+    win.actChat->setChecked(false);
     pumpFor(100);
   }
 
@@ -238,19 +238,19 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
                     line({{610, 170}, {860, 540}}, "#1e63c8", 3, "dashed"),
                     line({{200, 560}, {780, 600}}, "#2e9e4f", 3, "dotted")});
   {
-    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
                                           [](const stencil::gui::Project& p) {
                                             return p.meta.id == "usecases-doc";
                                           }),
-                           win.projectList_.end());
+                           win.projectList.end());
     stencil::gui::Project pr;
     pr.meta.id = "usecases-doc";
     pr.meta.name = "Kitchen plan";
     // Keywords, but NO description: the description window is photographed empty, showing
     // the prompt that says what to type there.
     pr.meta.keywords = {"kitchen", "floor plan", "survey", "draft", "north wall"};
-    win.projectList_.push_back(pr);
-    win.activeProjectId_ = "usecases-doc";
+    win.projectList.push_back(pr);
+    win.activeProjectId = "usecases-doc";
     win.refreshActions();
   }
   fit();
@@ -286,17 +286,17 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
       QTimer::singleShot(0, [&] {
         QWidget* dlg = nullptr;
         waitUntil([&] { dlg = QApplication::activeModalWidget(); return dlg && dlg->isVisible(); }, 4000);
-        if (!dlg || !win.projectZones_) return;
+        if (!dlg || !win.projectZones) return;
         pumpFor(400);
-        win.projectZones_->begin(dlg->frameGeometry());
+        win.projectZones->begin(dlg->frameGeometry());
         // Top-left quadrant of the canvas, clear of the centred dialog: the "Open here" zone.
-        const QRect canvas = win.scroll_->viewport()->rect();
-        const QPoint here = win.scroll_->viewport()->mapToGlobal(
+        const QRect canvas = win.scroll->viewport()->rect();
+        const QPoint here = win.scroll->viewport()->mapToGlobal(
             QPoint(canvas.width() / 6, canvas.height() / 5));
         QCursor::setPos(here);
-        pumpFor(120);   // ~7 poll ticks, so hover_ has read the parked cursor
-        saveDragOver(zonesShot, &win, win.projectZones_, dlg);
-        win.projectZones_->end();
+        pumpFor(120);   // ~7 poll ticks, so hover has read the parked cursor
+        saveDragOver(zonesShot, &win, win.projectZones, dlg);
+        win.projectZones->end();
         done = true;
         if (auto* d = qobject_cast<QDialog*>(dlg)) d->reject(); else dlg->close();
       });
@@ -313,16 +313,16 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   else if (shots.hasAny(videoShots)) {
     // The tail of OpenImageDialog::browse(), which is what a picked file runs.
     const auto fromFile = [](OpenImageDialog* dlg) {
-      dlg->path_->setText(CLIP_FILE);
+      dlg->path->setText(CLIP_FILE);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
     };
     const auto fromUrl = [](OpenImageDialog* dlg) {
-      dlg->tabs_->setCurrentIndex(1);   // URL link
-      QTest::keyClicks(dlg->url_, CLIP_URL);   // setText alone never fires textEdited,
-      waitUntil([dlg] { return dlg->previewBtn_->isEnabled(); }, 2000);   // so Preview stays off
-      dlg->previewBtn_->click();
+      dlg->tabs->setCurrentIndex(1);   // URL link
+      QTest::keyClicks(dlg->url, CLIP_URL);   // setText alone never fires textEdited,
+      waitUntil([dlg] { return dlg->previewBtn->isEnabled(); }, 2000);   // so Preview stays off
+      dlg->previewBtn->click();
     };
     if (shots.has("open-video-local")) grabVideoDialog(win, "open-video-local", fromFile, false);
     // A URL clip goes straight to QMediaPlayer::setSource, whose platform media stack refuses the
@@ -348,7 +348,7 @@ void MainWindowGuiTest::themeClip() {
   win.createBlankImage(Qt::white, 960, 640);
   waitUntil([canvas] { return canvas->hasImage(); });
   pumpFor(150);
-  win.actFit_->trigger();
+  win.actFit->trigger();
   canvas->setLines({line({{120, 110}, {520, 260}, {300, 520}}, "#c81e1e", 4, "solid"),
                     line({{620, 140}, {840, 560}}, "#1e63c8", 3, "dashed")});
   pumpFor(300);

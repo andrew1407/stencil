@@ -6,8 +6,8 @@ import { repoPath } from '../lib/paths.mjs';
 
 // The background injects this with chrome.scripting.executeScript({ func: mountDropZones }), which
 // serialises that function and runs it in the page; evaluating the same source is that mechanism.
-// The overlay then arms itself off a dragover carrying a URL (lib/dropZones.js onOver).
-const SRC = readFileSync(repoPath('browser-extension/src/lib/dropZones.js'), 'utf8');
+// The overlay then arms itself off a dragover carrying a URL (lib/zones.js onOver).
+const SRC = readFileSync(repoPath('browser-extension/src/lib/zones.js'), 'utf8');
 
 // Fractions of the viewport: quadrantAt splits it in four — here / incognito on top, newtab / crop
 // below — so a point picks the quadrant whose label the shot is meant to show highlighted.
