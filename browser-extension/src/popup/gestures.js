@@ -1,9 +1,9 @@
 import { MSG } from '../lib/messages.js';
-import { sourceOf, editableSrc } from '../lib/imageModel.js';
+import { sourceOf, editableSrc } from '../lib/image/model.js';
 import { run } from './panelDom.js';
-import { state, isOpened, surfaceTabId } from './model.js';
+import { state, isOpened, surfaceTabId } from './list/model.js';
 import { openHere, sendToEditor, openCrop } from './openActions.js';
-import { openMenuAt } from './rowMenu.js';
+import { openMenuAt } from './row/menu.js';
 
 // A `dragover` exposes the DataTransfer's TYPES but never its data, so the entry is kept here.
 let draggingRow = null;
@@ -50,7 +50,7 @@ export const bindRowGestures = (el, image) => {
   bindGestures(el, onClick, onDouble);
 };
 
-// Mirrors browser/js/ui/dragGhost.js: Chrome snapshots the row before any .dragging style
+// Mirrors browser/js/ui/canvas/dragGhost.js: Chrome snapshots the row before any .dragging style
 // applies, and a bare row's transparent background would read as nothing — hence the card.
 const setTranslucentDragImage = (e, row) => {
   try {

@@ -1,26 +1,26 @@
 // Popup / side panel / DevTools panel: ./scan.js reads the page, ./filters.js ranks it,
 // ./row.js draws it; this file owns the controls' wiring and the boot order.
 import { setSettings } from '../lib/stencil.js';
-import { highlightColorValue } from '../lib/highlightColor.js';
-import { toggleStencilHighlight } from '../lib/highlight.js';
+import { highlightColorValue } from '../lib/highlight/color.js';
+import { toggleStencilHighlight } from '../lib/highlight/highlight.js';
 import { icon } from '../lib/icons.js';
 import { MSG } from '../lib/messages.js';
-import { watchNumericInputs } from '../lib/numericInput.js';
-import { initTooltips } from '../lib/controlTooltip.js';
-import { wireScrollbarHover } from '../lib/scrollbarHover.js';
-import { setTip } from '../lib/tip.js';
-import { enhanceSelect } from '../lib/customSelect.js';
+import { watchNumericInputs } from '../lib/control/numericInput.js';
+import { initTooltips } from '../lib/tip/controlTooltip.js';
+import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
+import { setTip } from '../lib/tip/tip.js';
+import { enhanceSelect } from '../lib/control/customSelect.js';
 import { statusEl, themePref, themeBtn, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
-import { state } from './model.js';
-import { filterUi, applyFilters } from './filters.js';
-import { scan, annotateOpened } from './scan.js';
-import { syncServerFilterUI } from './sharedPins.js';
-import { runHoverHighlight, highlightListRowForSource } from './hoverHighlight.js';
-import './row.js';
-import './pinActions.js';
+import { state } from './list/model.js';
+import { filterUi, applyFilters } from './list/filters.js';
+import { scan, annotateOpened } from './list/scan.js';
+import { syncServerFilterUI } from './pin/sharedPins.js';
+import { runHoverHighlight, highlightListRowForSource } from './row/hoverHighlight.js';
+import './row/row.js';
+import './pin/actions.js';
 import './dragWiring.js';
-import './sections.js';
-import './editorSection.js';
+import './list/sections.js';
+import './editor/section.js';
 import './assistantControls.js';
 import './storageSync.js';
 

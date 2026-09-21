@@ -1,9 +1,9 @@
 // Server connections; the popup reads the same chrome.storage.local list.
-import { PINS_KEY } from '../lib/pins.js';
-import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connections.js';
+import { PINS_KEY } from '../lib/prefs/pins.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connection/connections.js';
 import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { setTip } from '../lib/tip.js';
+import { setTip } from '../lib/tip/tip.js';
 import { hostLabel } from './pinsDom.js';
 import { renderPins, refreshServerPins } from './pins.js';
 

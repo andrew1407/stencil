@@ -1,9 +1,9 @@
 // One async handler per click group: toolbar action items, the video-preview submenu, pin
 // items, and the default image/video-frame path.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff } from '../lib/stencil.js';
-import { MENU, resolveContextAction, PIN_ITEMS } from '../lib/contextMenu.js';
-import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../lib/openIn.js';
-import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
+import { MENU, resolveContextAction, PIN_ITEMS } from '../lib/menu/contextMenu.js';
+import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../lib/menu/openIn.js';
+import { setPinned, loadPins, isPinnedIn, siteOf } from '../lib/prefs/pins.js';
 import { lastTargetByTab, lastVideoByTab, lastPosterByTab } from './tabState.js';
 import { captureFrameFromScreenshot, captureVideoFrameInTab, captureVideoFrameViaFetch } from './frameCapture.js';
 

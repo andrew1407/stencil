@@ -2,8 +2,8 @@
 // settings, so they apply instantly and flash-free across the extension's pages — no Save.
 import { surfaceIn, surfaceOut } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { menuDustPoint } from '../lib/dropdownMenu.js';
-import { wireLogoAccent } from '../lib/logoAccent.js';
+import { menuDustPoint } from '../lib/control/dropdownMenu.js';
+import { wireLogoAccent } from '../lib/accent/logoAccent.js';
 
 const accent = window.StencilAccent;
 if (accent) {

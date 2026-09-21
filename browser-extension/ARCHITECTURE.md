@@ -9,7 +9,7 @@ fragment. It runs no `core/`, parses no `.stencil` file and never reads `../brow
 ```mermaid
 graph TD
     subgraph EXT["browser-extension/ (MV3)"]
-      SCAN["lib/imageScan.js"]
+      SCAN["lib/scan.js"]
       SURF["popup · side panel · devtools"]
       CROP["crop/"]
       CONN["lib/connections.js"]
@@ -43,8 +43,8 @@ Enforced by `tests/layerBoundary.test.js` over every relative import in `src/`.
 | `src/lib/` | the shared bottom: `urlGuard` (the ONE fetch guard), `stencil.js` (settings, guarded `imageData`, `editorLaunch`), the scanner, filters, pins, `connections` (+ model/store/rest), `editorTabs`, the menus, `dropZones`, `pollClock`, `overlay` + `shellTheme`, `rasterize`, `videoFrames`, `messages.js`, the ported browser modules, `theme/`, `animations/`, `accent.js` + the pre-paint scripts, `motion/` | pure where possible and node-tested; ported browser files stay byte-identical (`tests/portParity.test.js`) |
 | `src/llm/` | settings, client, surface, the registry-driven validator (`opSchema` + `opValidate` + `opPlan`, byte-identical to the browser's), the extension profile (`opProfile`, `opPrompt`), executors, the chat controller | plans validate before any executor runs |
 | `src/background/` | the service worker: `background.js` is wiring only; menus, registrars, tab state, the editor relay, `handlers/` (one per message group), frame capture, context actions | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
-| `src/content/` | `ctxTarget.js` (the one always-on content script), `pageApiMain` + `pageApiBridge` (MAIN ⇄ ISOLATED for `window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, for `stencil.extension`) | MAIN-world files cannot import modules; they mirror `lib/pageImages.js` |
-| `src/popup/` | `popup.html` + `popup.js` (wiring only) and the extracted pieces; `editorMode.js` + its sections; `assistant.js` + `assistant/` | the same controller runs the popup, the side panel and the DevTools panel |
+| `src/content/` | `ctxTarget.js` (the one always-on content script), `pageApiMain` + `pageApiBridge` (MAIN ⇄ ISOLATED for `window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, for `stencil.extension`) | MAIN-world files cannot import modules; they mirror `lib/image/pageImages.js` |
+| `src/popup/` | `popup.html` + `popup.js` (wiring only) and the extracted pieces; `mode.js` + its sections; `assistant.js` + `assistant/` | the same controller runs the popup, the side panel and the DevTools panel |
 | `src/sidepanel/`, `src/devtools/` | the docked and the DevTools surfaces | reuse `popup.js` and the popup CSS set; DevTools targets `inspectedWindow.tabId` |
 | `src/crop/` | the quick-crop tool: stage (zoom + drag), controls (page/orientation), handoff | the only web-accessible resource |
 | `src/options/` | `options.html|js` (boot order only) + one section file per group | |
@@ -85,20 +85,20 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `PanelState` (`popup/model.js`) | the one live state of a panel document: scanned rows, the filtered view, page/editor mode, the tabs it stands on | module singleton `state`; lives as long as the popup/panel document | composes `PopupImage`; refreshed by `popup/scan.js` and the `pollClock` |
-| `ScanEntry` (`lib/imageScan.js`) | one image or video the injected scanner found, deduped by `src` across frames | produced per scan by `scanPageForImages`, merged by `mergeScanFrames` | base of `PopupImage`; the model's listing indexes into it |
-| `PopupImage` (`popup/model.js`) | a `ScanEntry` attributed (tab, resource, name) and annotated with pin/opened state, or a server project standing in for one | `PanelState.all`, rebuilt on every scan | `PinEntry`, `SharedPin`, `EditorHandoffPayload` |
-| `PinEntry` (`lib/pins.js`) | a pinned source URL keyed by (site, source), with keywords and a colour | `chrome.storage` under `PINS_KEY`; `background/tabState.js` keeps a synchronous `pinsCache` | annotates `PopupImage`; mirrored on a server as `SharedPin` |
-| `SharedPin` (`lib/connectionModel.js`) | a server project projected onto the pin shape; `ServerProject` is canonical in `server/internal/protocol` | derived on each `collectSharedPins` poll, never stored | `StoredConnection`; becomes a `PopupImage` via `sharedToImage` |
-| `StoredConnection` (`lib/connectionStore.js`) | a server URL, its bearer token and whether it is an admin credential; `Connection` adds the live `credential` | `chrome.storage` under `CONNECTIONS_KEY`, edited from `options/connections.js` | `SharedPin`, `LlmSettings` (`stencil-server` token) |
-| `EditorState` (`lib/messages.js`) | what one editor tab reports about itself: project, image, incognito, its project list; `lib/editorTabs.js` joins it with the chrome tab into an `EditorRow` | answered by `content/editorBridge.js` per request, with a 1500 ms timeout | `StencilMessage` (`EDITOR_STATE`, `EDITOR_LIST`) |
+| `PanelState` (`popup/list/model.js`) | the one live state of a panel document: scanned rows, the filtered view, page/editor mode, the tabs it stands on | module singleton `state`; lives as long as the popup/panel document | composes `PopupImage`; refreshed by `popup/list/scan.js` and the `pollClock` |
+| `ScanEntry` (`lib/image/scan.js`) | one image or video the injected scanner found, deduped by `src` across frames | produced per scan by `scanPageForImages`, merged by `mergeScanFrames` | base of `PopupImage`; the model's listing indexes into it |
+| `PopupImage` (`popup/list/model.js`) | a `ScanEntry` attributed (tab, resource, name) and annotated with pin/opened state, or a server project standing in for one | `PanelState.all`, rebuilt on every scan | `PinEntry`, `SharedPin`, `EditorHandoffPayload` |
+| `PinEntry` (`lib/prefs/pins.js`) | a pinned source URL keyed by (site, source), with keywords and a colour | `chrome.storage` under `PINS_KEY`; `background/tabState.js` keeps a synchronous `pinsCache` | annotates `PopupImage`; mirrored on a server as `SharedPin` |
+| `SharedPin` (`lib/connection/model.js`) | a server project projected onto the pin shape; `ServerProject` is canonical in `server/internal/protocol` | derived on each `collectSharedPins` poll, never stored | `StoredConnection`; becomes a `PopupImage` via `sharedToImage` |
+| `StoredConnection` (`lib/connection/store.js`) | a server URL, its bearer token and whether it is an admin credential; `Connection` adds the live `credential` | `chrome.storage` under `CONNECTIONS_KEY`, edited from `options/connections.js` | `SharedPin`, `LlmSettings` (`stencil-server` token) |
+| `EditorState` (`lib/messages.js`) | what one editor tab reports about itself: project, image, incognito, its project list; `lib/menu/editorTabs.js` joins it with the chrome tab into an `EditorRow` | answered by `content/editorBridge.js` per request, with a 1500 ms timeout | `StencilMessage` (`EDITOR_STATE`, `EDITOR_LIST`) |
 | `EditorHandoffPayload` (`lib/stencil.js`) | the `#stencil=` fragment body; the receiving side (`normalizeLaunchPayload`, `DrawingApp.applyExternalLaunch`) in `browser/` is canonical | built by `buildHandoff`/`buildHandoffPayload` per launch, capped at `MAX_PAYLOAD` | `PopupImage`, `CropState`, `TargetRecord`, `OpenLaunch` (`llm/openActions.js`) |
-| `CropState` (`crop/cropHandoff.js`) | the quick-crop page's whole mutable state: source, decoded size, page format, orientation, rect, zoom | one per `crop.html` document, seeded from `chrome.storage.session` | `EditorHandoffPayload` |
+| `CropState` (`crop/handoff.js`) | the quick-crop page's whole mutable state: source, decoded size, page format, orientation, rect, zoom | one per `crop.html` document, seeded from `chrome.storage.session` | `EditorHandoffPayload` |
 | `TargetRecord` (`background/tabState.js`) | what the `ctxTarget.js` probe last resolved under the cursor in one tab (image, CSS background, video, poster) | `lastTargetByTab` in the worker, overwritten per probe | the context-menu click handlers (`background/ctxActions.js`) |
 | `StencilMessage` (`lib/messages.js`) | a `chrome.runtime` message: a `MSG` channel tag plus that channel's fields; request/response channels answer `Answer<T>` | transient; one handler per `type` in `background/handlers/` | `EditorState`, every popup and content module |
-| `OpPlan` (`llm/opPlan.js`) | a validated model reply: prose, whitelisted `PlanAction`s, an optional `PlanAsk`, leniency warnings; the registry `browser/js/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/opExecutors.js`) |
-| `ChatMessage` (`llm/llmClient.js`) | one replayed turn with base64 `ChatImage`s; the wire shape shared byte-for-byte with the browser client | `ChatController.history`, in memory only, trimmed to `HISTORY_LIMIT` | `OpPlan`, `LlmSettings` |
-| `LlmSettings` (`llm/llmSettings.js`) | the explicit provider configuration: provider, endpoint, model, key, server URL, `shareTabs` | `chrome.storage` under `LLM_SETTINGS_KEY`, edited from `options/llm.js` | `StoredConnection`; `createLlmClient` reads it |
+| `OpPlan` (`llm/op/plan.js`) | a validated model reply: prose, whitelisted `PlanAction`s, an optional `PlanAsk`, leniency warnings; the registry `browser/js/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/op/executors.js`) |
+| `ChatMessage` (`llm/client.js`) | one replayed turn with base64 `ChatImage`s; the wire shape shared byte-for-byte with the browser client | `ChatController.history`, in memory only, trimmed to `HISTORY_LIMIT` | `OpPlan`, `LlmSettings` |
+| `LlmSettings` (`llm/settings.js`) | the explicit provider configuration: provider, endpoint, model, key, server URL, `shareTabs` | `chrome.storage` under `LLM_SETTINGS_KEY`, edited from `options/llm.js` | `StoredConnection`; `createLlmClient` reads it |
 
 ## Patterns
 
@@ -106,18 +106,18 @@ classDiagram
 |---|---|---|
 | Facade | `window.stencil` (`content/pageApiMain.js`, a frozen `Proxy` via `guard`) and `stencil.extension` (`content/editorApiMain.js`, `StencilExtensionApi`) | Not a facade over core: the extension has no core. Every page-side call becomes a `MSG` relay; nothing else is reachable from a page. |
 | Mediator | `background/background.js` `messageHandlers` + `resolveClickHandler`; `llm/chatController.js` over `ChatCapabilities` | The worker routes by `msg.type` and menu id; the popup, bridges and editor never address each other. The controller owns history, prompt and rounds and calls injected capabilities only. |
-| Strategy | `llm/llmClient.js` over `providers.json` `wire`; `lib/dropZones.js` `quadrantAt` → `background/handlers/dropZones.js` | The provider and the drop action are picked by table lookup. |
+| Strategy | `llm/client.js` over `providers.json` `wire`; `lib/drop/zones.js` `quadrantAt` → `background/handlers/dropZones.js` | The provider and the drop action are picked by table lookup. |
 | Observer | `chrome.storage.onChanged` in `background.js` and `popup/storageSync.js`; `lib/pollClock.js` (`POLL_MS` 8 s) for shared pins and editor previews; `watchAccentActionIcon` | One heartbeat per open panel document; no background socket. |
-| Repository | `lib/pins.js`, `lib/ledger.js`, `lib/connectionStore.js`, `lib/settings.js`, `llm/llmSettings.js` | Each wraps one `chrome.storage` key behind load/save/upsert functions; callers never touch storage. |
-| Chain of Responsibility | `lib/urlGuard.js` → `lib/imageData.js` `fetchAsDataUrl` → `lib/rasterize.js`; `background/frameCapture.js` routes tried in order by `ctxActions.js` | A fetch passes the guard, then decoding, then re-encoding. A video still is tried in-tab, then via fetch, then from a screenshot. |
-| Adapter | `llm/openActions.js` `translateOpenActions`; `popup/sharedPins.js` `sharedToImage`; `lib/editorTabs.js` `editorRow` | An op plan onto launch options, a server project onto a row, a chrome tab plus `EditorState` onto an `EditorRow`. |
+| Repository | `lib/prefs/pins.js`, `lib/prefs/ledger.js`, `lib/connection/store.js`, `lib/prefs/settings.js`, `llm/settings.js` | Each wraps one `chrome.storage` key behind load/save/upsert functions; callers never touch storage. |
+| Chain of Responsibility | `lib/connection/urlGuard.js` → `lib/image/data.js` `fetchAsDataUrl` → `lib/image/rasterize.js`; `background/frameCapture.js` routes tried in order by `background/ctxActions.js` | A fetch passes the guard, then decoding, then re-encoding. A video still is tried in-tab, then via fetch, then from a screenshot. |
+| Adapter | `llm/openActions.js` `translateOpenActions`; `popup/pin/sharedPins.js` `sharedToImage`; `lib/menu/editorTabs.js` `editorRow` | An op plan onto launch options, a server project onto a row, a chrome tab plus `EditorState` onto an `EditorRow`. |
 | MAIN ⇄ ISOLATED bridge | `pageApiMain` ↔ `pageApiBridge`; `editorApiMain` ↔ `editorBridge` (`SRC.EXT_API`/`EXT_API_RES`, `SRC.EXT_REQ`/`EXT_RES`) | Id-correlated `postMessage` envelopes, same window only; the ISOLATED half owns `chrome.*`. |
 | Injected function | `scanPageForImages`, `mountDropZones`, `mountStencilModal`, the probe in `registrars.js` | Handed to `chrome.scripting.executeScript({ func })`; each closes over nothing and carries its own mirror of `MSG`. |
-| Table-driven validator | `llm/opSchema.js` `createSchema` + `llm/opValidate.js` `OP_REGISTRY` / `EXT_VALIDATORS` | The op registry is the schema; per-op code adds only listing-bound rules. |
+| Table-driven validator | `llm/op/schema.js` `createSchema` + `llm/op/validate.js` `OP_REGISTRY` / `EXT_VALIDATORS` | The op registry is the schema; per-op code adds only listing-bound rules. |
 
 ## Design
 
-- **A page scan.** `popup/scan.js` runs `scanPageForImages` in every frame of the source tab
+- **A page scan.** `popup/list/scan.js` runs `scanPageForImages` in every frame of the source tab
   via `chrome.scripting.executeScript`; `mergeScanFrames` dedupes the `ScanEntry`s, the panel
   attributes them into `PopupImage`s in `PanelState.all`, then `annotatePinned` and
   `annotateOpened` join pins and the ledger. The worker scans another tab on `MSG.SCAN_TAB`.
@@ -147,7 +147,7 @@ classDiagram
   `parseOpPlan` against `{ listingLength, tabsLength }`; the `opExecutors` run each
   `PlanAction` through the injected capabilities into cards. If every action only gathered
   context (`continuationOnly`), one more round runs; `clearChat` resolves last.
-- **A server connection.** `addServer(rawUrl, token)` in `lib/connections.js` calls
+- **A server connection.** `addServer(rawUrl, token)` in `lib/connection/connections.js` calls
   `connect` (a session from `POST /auth/token`, proven by `GET /projects`), then
   `upsertConnection` persists a `StoredConnection`. `collectSharedPins` lists every
   connection's projects into `SharedPin`s, `sharedToImage` turns them into rows and
@@ -171,7 +171,7 @@ classDiagram
 ## Rules
 
 1. **One fetch guard.** Every fetch — thumbnails, the hand-off, an LLM attachment, a scraped
-   poster — goes through `lib/urlGuard.js`. Non-`http(s)`, loopback, private, link-local,
+   poster — goes through `lib/connection/urlGuard.js`. Non-`http(s)`, loopback, private, link-local,
    CGNAT/ULA and the metadata IP are refused; `data:`/`blob:` pass. Two narrow unlocks
    (`allowSameHostAs` for a scanned page's own host, `allowLoopback` for a URL the user
    typed); neither ever unlocks the metadata IP.
@@ -186,7 +186,7 @@ classDiagram
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable
    object and postMessages requests to an ISOLATED script that relays them to the worker and
    answers on the same id. "Is this the editor?" is an origin match against the Options
-   editor URL (`lib/editorTabs.js` `isEditorTab`) — the same rule scopes the content script.
+   editor URL (`lib/menu/editorTabs.js` `isEditorTab`) — the same rule scopes the content script.
 5. **Imports into an editor go through the editor's own methods** (`loadImageFromFile`,
    `replaceProjectImage`, `switchToProject`); the extension never touches the editor's
    project registry. "New project" is the fallback whenever the editor's state is unknown —
@@ -198,10 +198,10 @@ classDiagram
 7. **One poll.** MV3 popups are short-lived, so shared pins and editor previews refresh on
    the single 8 s `lib/pollClock.js` heartbeat while a surface is open — never a background
    `/ws` socket, never a second timer.
-8. **No native `title`.** Tooltips come from `data-title` via `lib/controlTooltip.js`; the
-   injected modal shell (`lib/overlay.js`) is the one exception, themed through
-   `lib/shellTheme.js` as data because it cannot link the theme sheets.
-9. **Attachments are rasterised** to PNG (`lib/rasterize.js`) before they are sent; the
+8. **No native `title`.** Tooltips come from `data-title` via `lib/tip/controlTooltip.js`; the
+   injected modal shell (`lib/drop/overlay.js`) is the one exception, themed through
+   `lib/prefs/shellTheme.js` as data because it cannot link the theme sheets.
+9. **Attachments are rasterised** to PNG (`lib/image/rasterize.js`) before they are sent; the
    contract accepts only png/jpeg/webp/gif and Chrome refuses SVG in `createImageBitmap`.
 10. **Motion** mirrors `browser/js/ui/motion/` value for value.
 
@@ -212,7 +212,7 @@ stands in for `chrome.storage` and `chrome.runtime`, `helpers/domStub.js` for th
 and every REST and LLM function takes an injected `fetch`. Cross-surface drift is pinned,
 not re-tested: `portParity.test.js` holds the ported modules byte-equal to the browser's,
 `dataParity.test.js` the `src/config/` copies to `browser/js/config/`, and
-`pageApiMainMirror.test.js` the MAIN-world inline helpers equal to `lib/pageImages.js`.
+`pageApiMainMirror.test.js` the MAIN-world inline helpers equal to `lib/image/pageImages.js`.
 `fixtureWalkers.test.js` walks the shared corpus under `browser/js/config/` (opPlan for
 profile `extension` under a fixed listing-and-tabs context, providerWire, sanitizer,
 deepLink), with measured divergences in `fixtureOverrides.json`. Structure is

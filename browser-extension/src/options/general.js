@@ -1,6 +1,6 @@
 // The saved settings form: loaded on open, written back by the Save button.
 import { getSettings, setSettings, DEFAULT_EDITOR_URL } from '../lib/stencil.js';
-import { pageSizeOptions } from '../lib/cropGeometry.js';
+import { pageSizeOptions } from '../lib/image/cropGeometry.js';
 import { icon } from '../lib/icons.js';
 
 // On-page highlight colour: "theme" (follow the accent) or a custom hex.

@@ -113,7 +113,7 @@
       const kind = target.kind || 'img';
       const src = target.src || '';
       const videoUrl = target.videoUrl || '';
-      // Provenance is the media URL for a video (lib/imageModel.js sourceOf).
+      // Provenance is the media URL for a video (lib/model.js sourceOf).
       const source = kind === 'video' ? (videoUrl || src) : src;
       if (!source) throw new Error('Stencil: this entry has no image URL to open');
       return {

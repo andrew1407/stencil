@@ -2,16 +2,16 @@
 // The executed-action cards, the §11 choice card, and the reply itself. The view's
 // entry builders are destructured, so every call here reads as it did inside the
 // panel; `state.send` is late-bound because the ask card's Submit starts the NEXT turn.
-import { editableSrc } from '../../lib/imageModel.js';
-import { askAnswerText } from '../../llm/opPlan.js';
-import { AUTO_DISMISS_MS } from '../../lib/chatUi.js';
+import { editableSrc } from '../../lib/image/model.js';
+import { askAnswerText } from '../../llm/op/plan.js';
+import { AUTO_DISMISS_MS } from '../../lib/chat/ui.js';
 import { entryName } from './shared.js';
 
 export const createResults = ({ view, getItems, state }) => {
   const { addCard, addMsg, addWarn, appendEntry } = view;
 
   // One renderer per executed-action card kind, keyed like the controller's op
-  // executors (and opPlan.js's validators).
+  // executors (and plan.js's validators).
   const cardRenderers = {
     focus: (c) => addCard('pin', c.ok
       ? `Focused image ${c.index} (${entryName(c.entry)}) on the page`

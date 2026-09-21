@@ -3,13 +3,13 @@
 // buttons, drop/paste-to-attach, the two menus beside this file — and the provider
 // probe behind the … trigger's status dot and its rich tooltip.
 import { icon } from '../../lib/icons.js';
-import { loadLlmSettings, LLM_SETTINGS_KEY } from '../../llm/llmSettings.js';
-import { probeProvider, PROVIDER_LABELS } from '../../llm/llmClient.js';
-import { serverTokenFor } from '../../llm/llmSurface.js';
-import { loadConnections } from '../../lib/connections.js';
-import { wireDropTarget, isVideoFile } from '../../lib/chatDrop.js';
-import { AUTO_DISMISS_MS } from '../../lib/chatUi.js';
-import { createChatStatusTip } from '../../lib/chatStatusTip.js';
+import { loadLlmSettings, LLM_SETTINGS_KEY } from '../../llm/settings.js';
+import { probeProvider, PROVIDER_LABELS } from '../../llm/client.js';
+import { serverTokenFor } from '../../llm/surface.js';
+import { loadConnections } from '../../lib/connection/connections.js';
+import { wireDropTarget, isVideoFile } from '../../lib/chat/drop.js';
+import { AUTO_DISMISS_MS } from '../../lib/chat/ui.js';
+import { createChatStatusTip } from '../../lib/chat/statusTip.js';
 import { wireComposerMenu } from './composerMenu.js';
 import { wireMsgMenu } from './msgMenu.js';
 
@@ -18,7 +18,7 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
   const { addPendingFile, addPendingUrl, syncClearBtn } = tray;
   const { addCard, clearConversation, msgMeta, showSuggestions } = view;
 
-  // ── The … trigger's rich status tooltip (lib/chatStatusTip.js — a themed table,
+  // ── The … trigger's rich status tooltip (lib/statusTip.js — a themed table,
   // saying only what the dropdown's items don't: reachability). ──
   const gearTip = createChatStatusTip({
     doc: document,
@@ -86,7 +86,7 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
     wireMsgMenu({ transcriptEl, inputEl, msgMeta, send, state });
 
     // The COMPOSER is the drop target, not the whole section: over the transcript the drop belongs
-    // to the page behind it (browser chatPanel.js parity).
+    // to the page behind it (browser panel.js parity).
     const composerEl = sectionEl.querySelector('.chat-composer');
     const cue = document.createElement('div');
     cue.className = 'chat-drop-cue';

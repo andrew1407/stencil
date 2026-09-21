@@ -1,5 +1,5 @@
 // ── The motion modes' icons ───────────────────────────────────────────────
-// Byte-pinned PORT of browser/js/ui/motionIcons.js (portParity.test.js): one inline-SVG glyph
+// Byte-pinned PORT of browser/js/ui/motion/icons.js (portParity.test.js): one inline-SVG glyph
 // per interface-motion mode, whose parts carry the classes the row's hover animates
 // (lib/animations/motionIcons.css `.mm-*`). The desktop paints the same shapes with QPainter
 // (support/motionIcons.hpp).

@@ -1,14 +1,14 @@
-import { createDragSectionOpener, ASSISTANT_SECTION, SEARCH_SECTION, SPRING_DWELL_MS } from '../lib/dragSections.js';
-import { createLogoDragMenu } from '../lib/logoDragMenu.js';
-import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/dropEntry.js';
+import { createDragSectionOpener, ASSISTANT_SECTION, SEARCH_SECTION, SPRING_DWELL_MS } from '../lib/drop/dragSections.js';
+import { createLogoDragMenu } from '../lib/accent/logoDragMenu.js';
+import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/drop/entry.js';
 import { shortName } from '../lib/displayName.js';
-import { sourceOf } from '../lib/imageModel.js';
+import { sourceOf } from '../lib/image/model.js';
 import { listEl, menuEl, statusEl, run, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
-import { state } from './model.js';
+import { state } from './list/model.js';
 import { openHere, openCrop } from './openActions.js';
-import { placeMenu, closeMenu } from './rowMenu.js';
+import { placeMenu, closeMenu } from './row/menu.js';
 import { getDraggingRow } from './gestures.js';
-import { sections } from './sections.js';
+import { sections } from './list/sections.js';
 
 // Spring-loaded drop targets: a collapsed section cannot accept a drop, so the one the
 // pointer dwells on unfolds (lib/dragSections.js owns the rules).

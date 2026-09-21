@@ -1,10 +1,10 @@
-// Shapes for llm/chatController.js — the surface-independent half of the assistant turn
+// Shapes for llm/controller.js — the surface-independent half of the assistant turn
 // (llm-contract.md §7–§11). The page injects its capabilities; the controller owns the
 // history, the prompt, the plan validation and the rounds. Its listing (chatListing.js),
-// open-action translation (openActions.js) and op executors (opExecutors.js) re-export
+// open-action translation (openActions.js) and op executors (executors.js) re-export
 // through it, so this file is the whole module's contract.
-import type { ChatMessage, LlmClient, ChatImage } from './llmClient.js';
-import type { OpPlan } from './opPlan.js';
+import type { ChatMessage, LlmClient, ChatImage } from './client.js';
+import type { OpPlan } from './op/plan.js';
 
 /** One entry in the working listing the model addresses by index (§8). */
 export interface ListingItem {

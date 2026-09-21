@@ -2,14 +2,14 @@
 // The composer's tray: what a drop/paste queued for the next message, plus the Clear
 // button's enabled state (it reads both the transcript and this queue).
 import { fetchAsDataUrl, filenameFromUrl } from '../../lib/stencil.js';
-import { editableSrc } from '../../lib/imageModel.js';
-import { guessKindFromUrl } from '../../lib/dragUrl.js';
-import { isAllowedImageUrl } from '../../lib/urlGuard.js';
+import { editableSrc } from '../../lib/image/model.js';
+import { guessKindFromUrl } from '../../lib/drop/dragUrl.js';
+import { isAllowedImageUrl } from '../../lib/connection/urlGuard.js';
 import { splitDataUrl, matchListingIndex, MAX_ATTACHMENTS } from '../../llm/chatController.js';
-import { isVideoFile } from '../../lib/chatDrop.js';
-import { sampleVideoFrames } from '../../lib/videoFrames.js';
-import { wireThumbPreview } from '../../lib/chatUi.js';
-import { setTip } from '../../lib/tip.js';
+import { isVideoFile } from '../../lib/chat/drop.js';
+import { sampleVideoFrames } from '../../lib/image/videoFrames.js';
+import { wireThumbPreview } from '../../lib/chat/ui.js';
+import { setTip } from '../../lib/tip/tip.js';
 import { chatLeave, entryName, toLlmImage } from './shared.js';
 
 export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, getPageUrl,
@@ -49,7 +49,7 @@ export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, ge
   };
 
   const addPending = (p) => {
-    // One message carries at most MAX_ATTACHMENTS images (chatController.js) — the
+    // One message carries at most MAX_ATTACHMENTS images (controller.js) — the
     // extra is refused out loud rather than queued and silently dropped later.
     if (pending.length >= MAX_ATTACHMENTS) {
       addWarn(`Up to ${MAX_ATTACHMENTS} images per message — remove one first.`);

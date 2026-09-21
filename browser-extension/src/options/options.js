@@ -1,10 +1,10 @@
 // Boot order and the page-wide chrome; each section wires itself up as its own module.
 import './scrollTop.js';
-import { initTooltips } from '../lib/controlTooltip.js';
-import { enhanceSelect } from '../lib/customSelect.js';
+import { initTooltips } from '../lib/tip/controlTooltip.js';
+import { enhanceSelect } from '../lib/control/customSelect.js';
 import { motionModeIcon } from '../lib/motionIcons.js';
-import { pinToWidestOption } from '../lib/fitWidest.js';
-import { wireScrollbarHover } from '../lib/scrollbarHover.js';
+import { pinToWidestOption } from '../lib/highlight/fitWidest.js';
+import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { pinSearchModeEl } from './pinsDom.js';
 import './appearance.js';
 import './general.js';

@@ -1,0 +1,143 @@
+// Outlines every grabbable element on the page; on=false (or a re-run) tears down.
+// Injected via executeScript({ func }), so self-contained: no imports, teardown stashed
+// on window. Returns the count.
+export const toggleStencilHighlight = (on, color = '#7c3aed') => {
+  const STYLE_ID = 'stencil-hl-style';
+  const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable
+  const HOVER = 'data-stencil-hl-hover';   // the one currently under the cursor
+
+  if (typeof window.__stencilHlCleanup === 'function') {
+    window.__stencilHlCleanup();
+    window.__stencilHlCleanup = null;
+  }
+  document.querySelectorAll('[' + ATTR + ']').forEach(el => el.removeAttribute(ATTR));
+  document.querySelectorAll('[' + HOVER + ']').forEach(el => el.removeAttribute(HOVER));
+  const prevStyle = document.getElementById(STYLE_ID);
+  if (prevStyle) prevStyle.remove();
+  if (!on) return 0;
+
+  const hasBgImage = (el) => {
+    for (const pseudo of [null, '::before', '::after']) {
+      const bg = getComputedStyle(el, pseudo).backgroundImage;
+      if (!bg || bg === 'none') continue;
+      const re = /url\((['"]?)(.*?)\1\)/g;
+      let m;
+      while ((m = re.exec(bg))) {
+        if (m[2]) return true;
+      }
+    }
+    return false;
+  };
+  const isImageEl = (el) => !!(el.matches && (el.matches('img') || el.matches('image') || el.matches('video')));
+  const grabbable = (el) => el.nodeType === 1 && (isImageEl(el) || hasBgImage(el));
+  const grabbableAt = (start) => {
+    for (let n = start; n && n.nodeType === 1; n = n.parentElement) {
+      if (grabbable(n)) return n;
+    }
+    return null;
+  };
+
+  const markWithin = (root) => {
+    if (!root || root.nodeType !== 1) return;
+    if (grabbable(root)) root.setAttribute(ATTR, '');
+    if (root.querySelectorAll) {
+      for (const el of root.querySelectorAll('*')) {
+        if (!el.hasAttribute(ATTR) && grabbable(el)) el.setAttribute(ATTR, '');
+      }
+    }
+  };
+  markWithin(document.body || document.documentElement);
+
+  // The hover ring and glow derive from `color`, so a custom accent stays self-consistent.
+  const toRgb = (hex) => {
+    let h = String(hex || '').trim().replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
+    return Number.isFinite(n) && h.length === 6 ? { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 } : { r: 124, g: 58, b: 237 };
+  };
+  const { r, g, b } = toRgb(color);
+  const lift = (v) => Math.round(v + (255 - v) * 0.28);
+  const hover = `rgb(${lift(r)},${lift(g)},${lift(b)})`;
+  const glow = `rgba(${lift(r)},${lift(g)},${lift(b)},.45)`;
+
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  // Transitions on !important rules still animate, so the ring eases without a keyframe
+  // running on hundreds of marked elements at once.
+  style.textContent =
+    '[' + ATTR + ']{outline:2px solid ' + color + ' !important;outline-offset:-2px !important;' +
+    'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
+    '[' + HOVER + ']{outline:3px solid ' + hover + ' !important;outline-offset:-3px !important;' +
+    'box-shadow:0 0 0 3px ' + glow + ' !important;}';
+  (document.head || document.documentElement).appendChild(style);
+
+  // Mirrors lib/model.js sourceOf and the scanner, so the panel can find the row.
+  const absUrl = (raw) => { try { return new URL(raw, location.href).href; } catch { return ''; } };
+  const sourceOfEl = (el) => {
+    if (!el) return '';
+    if (el.matches && el.matches('img')) return absUrl(el.currentSrc || el.src);
+    if (el.matches && el.matches('video')) return absUrl(el.currentSrc || el.src);
+    if (el.matches && el.matches('image')) return absUrl(el.getAttribute('href') || el.getAttribute('xlink:href'));
+    for (const pseudo of [null, '::before', '::after']) {
+      const bg = getComputedStyle(el, pseudo).backgroundImage;
+      if (!bg || bg === 'none') continue;
+      const re = /url\((['"]?)(.*?)\1\)/g;
+      let m;
+      while ((m = re.exec(bg))) if (m[2]) return absUrl(m[2]);
+    }
+    return '';
+  };
+  // Literal lib/messages.js MSG.HL_HOVER — an injected script cannot import.
+  const HL_HOVER = 'stencil-hl-hover';
+  const reportHover = (el) => {
+    try { chrome.runtime.sendMessage({ type: HL_HOVER, source: sourceOfEl(el) }, () => void chrome.runtime.lastError); }
+    catch { /* no extension messaging in this context */ }
+  };
+
+  // A page-sized background is not a hover target: "whitespace" is usually body's background.
+  const pageSizedBg = (el) => {
+    if (isImageEl(el)) return false;
+    if (el === document.documentElement || el === document.body) return true;
+    const r = el.getBoundingClientRect();
+    return r.width * r.height >= 0.8 * window.innerWidth * window.innerHeight;
+  };
+
+  let current = null;
+  const onOver = (e) => {
+    const found = grabbableAt(e.target);
+    const target = found && pageSizedBg(found) ? null : found;
+    if (target === current) return;
+    if (current) current.removeAttribute(HOVER);
+    current = target;
+    if (current) current.setAttribute(HOVER, '');
+    reportHover(current);
+  };
+  document.addEventListener('mouseover', onOver, true);
+
+  // Lazy images and SPA routes add nodes later; a class change can add or remove a background.
+  const observer = new MutationObserver((mutations) => {
+    for (const mu of mutations) {
+      if (mu.type === 'childList') {
+        mu.addedNodes.forEach(markWithin);
+      } else if (mu.type === 'attributes') {
+        const el = mu.target;
+        if (el.nodeType !== 1 || el.id === STYLE_ID) continue;
+        if (grabbable(el)) el.setAttribute(ATTR, '');
+        else el.removeAttribute(ATTR);
+      }
+    }
+  });
+  observer.observe(document.documentElement, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'src', 'srcset']
+  });
+
+  window.__stencilHlCleanup = () => {
+    document.removeEventListener('mouseover', onOver, true);
+    observer.disconnect();
+    if (current) current.removeAttribute(HOVER);
+    current = null;
+    reportHover(null);
+  };
+
+  return document.querySelectorAll('[' + ATTR + ']').length;
+};

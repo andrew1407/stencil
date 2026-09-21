@@ -1,7 +1,7 @@
 // Source-text assertions read whole surfaces, and several of them are split across files:
 // the popup's and the shared stylesheet sets (each document links them in this order), the
 // assistant controller (popup/assistant.js plus the modules beside it) and the motion layer
-// (lib/motionPrefs.js plus lib/motion/). Read each as one string, so an assertion never
+// (lib/prefs.js plus lib/motion/). Read each as one string, so an assertion never
 // has to know which sheet or module of a set now carries the thing it pins.
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +36,7 @@ export const assistantSrc = () => [read('../../src/popup/assistant.js')]
   .concat(readdirSync(assistantDir).sort().map((f) => readFileSync(assistantDir + f, 'utf8'))).join('\n');
 
 const motionDir = fileURLToPath(new URL('../../src/lib/motion/', import.meta.url));
-export const motionSrc = () => [read('../../src/lib/motionPrefs.js')]
+export const motionSrc = () => [read('../../src/lib/prefs/motionPrefs.js')]
   .concat(readdirSync(motionDir).sort().map((f) => readFileSync(motionDir + f, 'utf8'))).join('\n');
 
 // The browser's animation sheets are a set, linked by its index.html; read in that link order so
