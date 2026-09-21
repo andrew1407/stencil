@@ -3,6 +3,7 @@ import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
 import { surfaceIn, surfaceOut, rectCenter, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 import { subscribe, EVENTS } from '../eventBus/appBus.js';
+import { attachMenuScrollbar } from './menuScrollbar.js';
 // The logo's accent preset menu (right-click / Alt-hover): the Visuals dialog's rows on the
 // shared popup motion.
 export function wireLogoAccentMenu(logo, wrap, app) {
@@ -60,6 +61,8 @@ export function wireLogoAccentMenu(logo, wrap, app) {
     if (menuCloseDone) menu.removeEventListener('animationend', menuCloseDone);
     menu.classList.remove('dd-closing');
     menu.hidden = false;
+    // Measurable only once shown, and the cap above decides whether there is a thumb at all.
+    attachMenuScrollbar(menu);
     dustMenu(true);
     // Same refs, so a reopen can't double-register.
     document.addEventListener('pointerdown', onDocDown, true);
@@ -85,6 +88,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
       menu.removeEventListener('animationend', menuCloseDone);
       menu.hidden = true;
       menu.classList.remove('dd-closing');
+      menu.__ddSbOff?.();
     };
     // Reduced motion: animations/overlays.css neutralises the exit, so hide outright.
     if (reducedMotion()) { menuCloseDone(); return; }

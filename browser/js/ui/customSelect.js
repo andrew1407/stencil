@@ -1,5 +1,6 @@
 import { rowMatches } from './base.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
+import { attachMenuScrollbar } from './menuScrollbar.js';
 import { markSwap } from './motion.js';
 import { buildSelectFace } from './customSelectFace.js';
 
@@ -159,6 +160,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     // Placed against the trigger in viewport space: `.controls` clips its overflow and
     // the toolbar sits low enough that a long list would run off the window.
     showMenu(menu, trigger);
+    attachMenuScrollbar(menu);   // only a list too tall for its cap draws a thumb
     if (searchInput) searchInput.focus();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocDown, true);

@@ -2,6 +2,7 @@
 // gain a dust-animated options list for the others, opened by the same gestures every
 // modal-opening toolbar icon uses (popover.js). Alt+hover previews a row (exportPreview.js).
 import { showMenu, hideMenu } from './dropdownMenu.js';
+import { attachMenuScrollbar } from './menuScrollbar.js';
 import { wireModalOpenGestures } from './popover.js';
 import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { icon } from './icons.js';
@@ -55,6 +56,7 @@ export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy',
     if (!app.image) return;
     build();
     showMenu(menu, trigger);
+    attachMenuScrollbar(menu);   // only a list too tall for its cap draws a thumb
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
