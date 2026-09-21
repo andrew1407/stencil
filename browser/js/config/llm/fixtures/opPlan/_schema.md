@@ -24,7 +24,7 @@ Shared, language-neutral test corpus for every surface's op-plan validator
   `bot`, `mcp`, `extension`). A surface's walker uses its override when present, else `expect`.
   This is the CORPUS-AUTHORITATIVE record of every verdict-level disagreement: all measured
   opPlan verdict divergences live here (with the evidence in `reason`), not in the surfaces'
-  local override files — those files (`tests/fixtureOverrides.json` etc.) are reserved for
+  local override files — those files (`tests/llm/op/fixtureOverrides.json` etc.) are reserved for
   surface-SPECIFIC output pins in the other fixture families, where the divergent value
   (own error wording, own sanitizer text, bodyPatch, …) has no cross-surface representation.
 

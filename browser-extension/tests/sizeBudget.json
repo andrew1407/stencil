@@ -3,7 +3,6 @@
   "maxNewFileLines": 230,
   "maxFilesPerDir": 12,
   "dirs": {
-    "browser-extension/tests": 105,
     "browser-extension/tests/helpers": 15
   },
   "files": {
@@ -38,8 +37,27 @@
     "browser-extension/src/popup/list": 8,
     "browser-extension/src/popup/pin": 8,
     "browser-extension/src/popup/row": 7,
-    "browser-extension/tests": 9,
-    "browser-extension/tests/helpers": 16
+    "browser-extension/tests": 11,
+    "browser-extension/tests/background/handlers": 8,
+    "browser-extension/tests/content": 6,
+    "browser-extension/tests/helpers": 16,
+    "browser-extension/tests/lib": 6,
+    "browser-extension/tests/lib/accent": 9,
+    "browser-extension/tests/lib/chat": 8,
+    "browser-extension/tests/lib/connection": 6,
+    "browser-extension/tests/lib/control": 10,
+    "browser-extension/tests/lib/drop": 7,
+    "browser-extension/tests/lib/dust": 15,
+    "browser-extension/tests/lib/highlight": 7,
+    "browser-extension/tests/lib/image": 7,
+    "browser-extension/tests/lib/menu": 10,
+    "browser-extension/tests/lib/motion": 14,
+    "browser-extension/tests/lib/prefs": 8,
+    "browser-extension/tests/lib/tip": 17,
+    "browser-extension/tests/llm": 6,
+    "browser-extension/tests/llm/op": 8,
+    "browser-extension/tests/options": 15,
+    "browser-extension/tests/popup/assistant": 23
   },
   "exceptions": {},
   "commentPctNotes": {},
@@ -54,5 +72,5 @@
     "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
   },
   "_splitShareNote": "browser-extension/src/lib 12 -> 17: 70 modules moved into feature folders, so the same banners sit over a fraction of the code (comments 1153 -> 101, lines 8823 -> 577). Nothing added. src/popup 9→10: the folder kept the panel shell and its banners while 19 modules left for editor/, pin/, row/ and list/. Volume fell.",
-  "_dirsNote": "A test folder mirrors the source it covers, and a case that spans modules has no one home, so these are frozen at today's count rather than split by kind. They may shrink, never grow."
+  "_dirsNote": "tests/ mirrors src/ folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature."
 }

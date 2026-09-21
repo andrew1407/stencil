@@ -1,0 +1,173 @@
+// DrawingApp.applyExternalLaunch and importExternalImage (js/core/drawingApp.js) — the
+// extension's `#stencil=` hand-off, driven through a stub `this`. Pinned: the fragment is
+// stripped at once (history.replaceState) so it never reaches the server, a malformed payload
+// notifies instead of throwing, data: vs https: fetch dispatch, and an import into a live editor
+// starts a new project for 'new' while a replace leaves the target's page format alone.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { installDom } from '../helpers/dom.js';
+import { installFetchStub } from '../helpers/fetchStub.js';
+
+// notify() (utils.js) posts to a #notify-balloon element if present; expose one so we can spy.
+const notifications = [];
+const balloon = { notify: (msg, type) => notifications.push([msg, type]) };
+
+// Mutable stub globals the method reads/writes. Reset per test via resetGlobals().
+let replaceStateCalls = [];
+let fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'image/png' }) });
+
+installDom({}, {
+  location: { hash: '', pathname: '/app', search: '' },
+  history: { replaceState: (...args) => replaceStateCalls.push(args) },
+}).register('notify-balloon', balloon);
+// The stub delegates so a test can swap `fetchImpl` partway; calls land on fetchStub.calls.
+const fetchStub = installFetchStub((...args) => fetchImpl(...args));
+const fetchCalls = fetchStub.calls;
+
+const { DrawingApp } = await import('../../js/core/drawingApp.js');
+
+const resetGlobals = () => {
+  notifications.length = 0;
+  replaceStateCalls = [];
+  fetchStub.reset();
+  fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'image/png' }) });
+  globalThis.location = { hash: '', pathname: '/app', search: '' };
+  globalThis.history = { replaceState: (...args) => replaceStateCalls.push(args) };
+};
+
+// The minimum `this` applyExternalLaunch touches on the non-private paths we drive.
+const makeMock = (over = {}) => {
+  const loaded = [];
+  return {
+    loaded,
+    storage: { incognito: false, store: {} },
+    loadImageFromFile: (...args) => loaded.push(args),
+    updateIncognitoUI() {},
+    ...over,
+  };
+};
+
+// Encode a payload the way the extension does: #stencil=<encodeURIComponent(JSON)>.
+const fragmentFor = (payload) => '#stencil=' + encodeURIComponent(JSON.stringify(payload));
+const run = (mock) => DrawingApp.prototype.applyExternalLaunch.call(mock);
+
+test('no #stencil= fragment → the method is a no-op (no URL rewrite, no fetch)', () => {
+  resetGlobals();
+  globalThis.location.hash = '#something-else';
+  run(makeMock());
+  assert.equal(replaceStateCalls.length, 0);
+  assert.equal(fetchCalls.length, 0);
+});
+
+test('a valid fragment is stripped from the URL immediately (never reaches the server)', async () => {
+  resetGlobals();
+  globalThis.location = { hash: fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'a.png' }), pathname: '/editor', search: '?q=1' };
+  globalThis.history = { replaceState: (...args) => replaceStateCalls.push(args) };
+  const mock = makeMock();
+  run(mock);
+
+  // history.replaceState(null, '', pathname + search) — the #stencil fragment is dropped.
+  assert.equal(replaceStateCalls.length, 1);
+  const [state, title, url] = replaceStateCalls[0];
+  assert.equal(state, null);
+  assert.equal(title, '');
+  assert.equal(url, '/editor?q=1');
+  assert.ok(!url.includes('#stencil'), 'stripped URL carries no fragment');
+});
+
+test('a malformed/truncated #stencil= payload is caught (no throw) and reported as a fail', () => {
+  resetGlobals();
+  // Truncated JSON — decodeURIComponent succeeds, JSON.parse throws inside the method.
+  globalThis.location.hash = '#stencil=' + encodeURIComponent('{"dataUrl":"data:image/png;base64,AAA');
+  const mock = makeMock();
+
+  assert.doesNotThrow(() => run(mock));
+  // The fragment is still stripped (strip happens before the parse).
+  assert.equal(replaceStateCalls.length, 1);
+  // Reported via a fail notify, and nothing was fetched/loaded.
+  assert.deepEqual(notifications, [['Stencil: could not read the shared image', 'fail']]);
+  assert.equal(fetchCalls.length, 0);
+  assert.equal(mock.loaded.length, 0);
+});
+
+test('a data: payload fetches without CORS mode and loads the decoded image', async () => {
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'shared.png' });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));   // let the fetch().then() microtasks flush
+
+  assert.equal(fetchCalls.length, 1);
+  const [url, opts] = fetchCalls[0];
+  assert.equal(url, 'data:image/png;base64,AAAA');
+  assert.ok(opts.signal && opts.mode === undefined, 'data: URLs get no CORS mode — and every fetch is bounded');
+  assert.equal(mock.loaded.length, 1);           // loadImageFromFile(file, opts) was reached
+  const [file] = mock.loaded[0];
+  assert.equal(file.name, 'shared.png');
+});
+
+test('an https src: payload fetches with { mode: "cors" } and loads the image', async () => {
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ src: 'https://cdn.example/i.png', name: 'i.png' });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(fetchCalls.length, 1);
+  const [url, opts] = fetchCalls[0];
+  assert.equal(url, 'https://cdn.example/i.png');
+  assert.ok(opts.signal && opts.mode === 'cors', 'remote image → cross-origin fetch, bounded like the rest');
+  assert.equal(mock.loaded.length, 1);
+});
+
+test('a crop in the payload flows through to loadImageFromFile opts (open-image "new tab" + crop)', async () => {
+  resetGlobals();
+  const crop = { x: 10, y: 20, width: 100, height: 140 };
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'c.png', crop });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(mock.loaded.length, 1);
+  const [, opts] = mock.loaded[0];
+  assert.deepEqual(opts.crop, crop);   // the inline-crop rect rides the fragment to the loader
+});
+
+test('noCrop in the payload flows to loadImageFromFile opts (open-image "new tab", Crop off → whole frame)', async () => {
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'n.png', noCrop: true });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(mock.loaded.length, 1);
+  const [, opts] = mock.loaded[0];
+  assert.equal(opts.noCrop, true);     // Crop-off imports the full frame, not the default auto-crop
+  assert.equal(opts.crop, undefined);
+});
+
+test('an explicit crop wins over noCrop when both are present', async () => {
+  resetGlobals();
+  const crop = { x: 1, y: 2, width: 30, height: 40 };
+  globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', name: 'b.png', crop, noCrop: true });
+  const mock = makeMock();
+  run(mock);
+  await new Promise((r) => setTimeout(r, 0));
+
+  const [, opts] = mock.loaded[0];
+  assert.deepEqual(opts.crop, crop);
+  assert.equal(opts.noCrop, undefined);   // crop present ⇒ noCrop is not forwarded
+});
+
+test('a failed fetch is caught and reported as a fail (no throw escapes)', async () => {
+  resetGlobals();
+  fetchImpl = () => Promise.resolve({ ok: false, status: 404, blob: async () => ({ type: 'image/png' }) });
+  globalThis.location.hash = fragmentFor({ src: 'https://cdn.example/missing.png', name: 'm.png' });
+  const mock = makeMock();
+  assert.doesNotThrow(() => run(mock));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(mock.loaded.length, 0);
+  assert.deepEqual(notifications.at(-1), ['Stencil: failed to load the shared image', 'fail']);
+});
