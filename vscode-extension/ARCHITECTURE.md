@@ -73,7 +73,7 @@ the only root file that may import a sibling root file. Enforced by
 | `language-configuration.stcjs.json` + `syntaxes/stcjs.tmLanguage.json` | the `.stcjs` flavour: JavaScript's own comments, pairs and indent rules, and a grammar whose whole body is `include: source.js` | it defers, never re-spells JavaScript; the editor's own JS service owns the language, this tree adds only the facade's words |
 | `syntaxes/stencilMarker.tmLanguage.json` | the one rule that lights `// @use stencil` up inside a JavaScript line comment | an INJECTION (`injectTo: source.js`, `source.stcjs`), so it adds a scope and re-spells nothing; both halves take ONE scope a theme already knows, so the marker reads as a single declaration |
 | `language-configuration.project.json` + `syntaxes/stencilProject.tmLanguage.json` | the `.stencil` project file: brackets, and a grammar whose whole body is `include: source.json` | it defers, never re-spells JSON; contributing it already wakes the host, so it spells out no `activationEvents` entry (`tests/manifest.test.js`) |
-| `icons/` | `stencil.svg` (the app mark, the logo's source), `stc.svg` (the mark as a panelled badge, the script's explorer glyph), `stcjs.svg` (the same badge, its S paired with a J) and the light/dark bare-stroke pair for a project | `stencil.svg` is a copy of `browser/favicon.svg`, pinned by `browser/tests/svgArt.test.js`; the glyphs are this surface's own art. `stc.svg` carries its own panel, so one file serves both themes; the bare stroke does not, so it is a pair |
+| `icons/` | `stencil.svg` (the app mark, the logo's source), `stc.svg` (the mark as a panelled badge, the script's explorer glyph), `stcjs.svg` (the same badge, its S paired with a J) and the light/dark bare-stroke pair for a project | `stencil.svg` is a copy of `browser/favicon.svg`, pinned by `browser/tests/config/svgArt.test.js`; the glyphs are this surface's own art. `stc.svg` carries its own panel, so one file serves both themes; the bare stroke does not, so it is a pair |
 | `icon.png` | the extension-page logo, rasterized from `icons/stencil.svg` | PNG, ≥128px — VS Code refuses an SVG here |
 | `src/extension.js` | `activate` / `deactivate` | wiring only; every disposable goes on the context |
 | `src/diagnostics.js` | the two diagnostic sources, the debounce and the version guard | the CLI answers for a saved file, the parser copies for a buffer; both become `vscode.Diagnostic` |
@@ -143,7 +143,7 @@ classDiagram
 | Strategy | `src/diagnostics.js` `collect` | Saved file plus a locatable CLI takes the compiled core; anything else takes the copies. The two must agree, which is what the shared corpus proves. |
 | Table-driven | `src/semanticTokens.js` `KIND_TYPE`; `src/lib/ids.js`; the `HANDLERS` and `LAUNCH_FOR` maps in `src/webCommands.js` | A `TokenKind` becomes a legend index by lookup, every contributed id has one home the manifest test reads, and a language id picks the payload it becomes. |
 | Chain of Responsibility | `src/lib/spawn/cliLocator.js`: setting → `STENCIL_CLI` → `PATH` | Each step refuses or answers; no shell is consulted, so nothing is word-split or expanded. |
-| Port (byte-equal copy) → drift test | `src/config/stencilApiVocabulary.json` ← `browser/js/console/stencilApi.d.ts` | The prose is this tree's, the LIST is not: `tests/apiVocabulary.test.js` parses the interface and asserts the members and their signatures both ways, so a new facade member is unexplained until it is written down. |
+| Port (byte-equal copy) → drift test | `src/config/stencilApiVocabulary.json` ← `browser/js/console/stencilApi.d.ts` | The prose is this tree's, the LIST is not: `tests/lib/vocab/apiVocabulary.test.js` parses the interface and asserts the members and their signatures both ways, so a new facade member is unexplained until it is written down. |
 | Strategy | `src/webCommands.js`: hand-off vs. console | The fragment answers "show me this, in my own browser"; the debug evaluate answers "run this, again, and tell me what it said". A `.stcjs` has only the second, because the app never evaluates anything itself. |
 | Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` bridges CommonJS to the ESM copies; both features share the module graph. A rejection is never memoized, so one failure does not outlive itself. |
 | Strategy (table) | `src/lib/spawn/shellQuote.js` `SHELLS` | PowerShell, cmd.exe and POSIX each get a row; `vscode.env.shell` picks it. Quoting is never re-derived at a call site. |
@@ -257,7 +257,7 @@ classDiagram
    `browser/js/core/`; this tree re-copies. `tests/parserParity.test.js` fails on any drift,
    in either direction, and `tests/sizeBudget.json` `exceptions` marks the copies as copies.
    The facade vocabulary is the same idea one step out: the prose is this tree's, the member
-   list and the signatures are `stencilApi.d.ts`'s, and `tests/apiVocabulary.test.js` holds them.
+   list and the signatures are `stencilApi.d.ts`'s, and `tests/lib/vocab/apiVocabulary.test.js` holds them.
 4. **The grammar follows the language, not the other way round.** The directive list is
    asserted equal to the parser's `DIRECTIVES`; a new directive lands in the contract and the
    core first. `.stcjs` and `.stencil` go further and defer outright, to `source.js` and

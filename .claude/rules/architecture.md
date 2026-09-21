@@ -81,10 +81,13 @@ class split across translation units keeps the class name on each
 
 A file a byte-pinned port imports keeps its name too: `portParity.test.js` reduces a specifier
 to its basename so either tree's layout is allowed, which only works while both spell it the
-same. `ui/motion/prefs.js` stays as it is for that reason — `lib/rectTween.js` imports it
+same. `ui/motion/motionPrefs.js` stays as it is for that reason — `lib/rectTween.js` imports it
 on both sides.
 
-Nesting stops three levels below the surface's source root. Tests mirror the split one for one.
+Nesting stops three levels below the surface's source root. Tests mirror the split one for one:
+a test sits in the folder named for the source it covers, and a case that spans modules or guards
+the whole tree stays at `tests/` root. A mirrored test folder may sit **above** the cap, because a
+module commonly carries several test files; freeze it in `dirs` rather than splitting it by kind.
 A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
 output and never raised.
 

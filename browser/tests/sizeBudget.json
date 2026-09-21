@@ -2,7 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "maxFilesPerDir": 12,
-  "_dirsNote": "tests/ mirrors js/ folder for folder. A module commonly carries several test files (chatController alone has eleven), so a mirrored test folder can sit above the source cap; those are frozen here and may only shrink. helpers/ is shared by the whole suite and has no one feature.",
+  "_dirsNote": "tests/ mirrors its source folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature, and Cargo can only see an integration test directly in tests/. These are frozen at today's counts and may only shrink.",
   "dirs": {
     "browser/tests/console": 14,
     "browser/tests/core": 17,

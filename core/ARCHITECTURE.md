@@ -225,7 +225,7 @@ text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenat
 
 1. **Parity.** Each module is a port of a specific browser JS call site, named at the top of
    its header, and stays behaviorally identical down to edge cases. Its tests are ports of
-   `browser/tests/`. `browser/tests/wasm-parity.test.js` asserts the compiled core agrees
+   `browser/tests/`. `browser/tests/wasm/wasm-parity.test.js` asserts the compiled core agrees
    with the JS reference op-for-op.
 2. **No `eval`.** `parse/formulaParser` is a real recursive-descent parser for
    `+ - * / ** ( )` and one variable (`**` right-associative, empty expression = identity,
@@ -263,8 +263,8 @@ surface.
 The `wasm*Api.cpp` and `cliApi.cpp` units are plain STL, so `stencil_tests` compiles them
 natively and drives every export through its `extern "C"` prototype, guarding the
 marshalling (flat arrays, out pointers, enum codes, char-code variable names) without
-Emscripten or Zig. `tests/abiShared.test.cpp` calls each `shared.inc` export under both
-spellings and asserts they agree. `tests/rowRanges.test.cpp` pins every `*Rows` kernel
+Emscripten or Zig. `tests/abi/abiShared.test.cpp` calls each `shared.inc` export under both
+spellings and asserts they agree. `tests/raster/rowRanges.test.cpp` pins every `*Rows` kernel
 byte-for-byte against its whole-image call. The browser's `wasm-parity*.test.js` files drive
 the compiled module and the JS fallback through one script; the `Lines` codec is proved
 symmetric by the round trip in `wasm-parity-history.test.js`.
