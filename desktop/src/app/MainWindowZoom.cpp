@@ -44,18 +44,18 @@
 
 namespace stencil::gui {
 
-  void MainWindow::zoomIn() { setZoom(canvas_->scale() * 1.25); }
-  void MainWindow::zoomOut() { setZoom(canvas_->scale() * 0.8); }
+  void MainWindow::zoomIn() { setZoom(canvas->getScale() * 1.25); }
+  void MainWindow::zoomOut() { setZoom(canvas->getScale() * 0.8); }
 
   void MainWindow::setZoom(double scale, bool syncCombo) {
     scale = core::clampScale(scale);  // shared [ZOOM_MIN, ZOOM_MAX] bound (core/state/zoomPan)
-    canvas_->setScale(scale);
+    canvas->setScale(scale);
     if (syncCombo) {
       const QString pct = QString::number(qRound(scale * 100)) + "%";
       // setEditText with NoInsert never appends list items; signals blocked so a programmatic zoom
       // does not re-trigger setZoom.
-      QSignalBlocker block(zoom_);
-      zoom_->setEditText(pct);
+      QSignalBlocker block(zoom);
+      zoom->setEditText(pct);
     }
     // The single debounced persistence path for every zoom route (browser zoomPan.js persistZoom).
     scheduleViewSave();
@@ -64,39 +64,39 @@ namespace stencil::gui {
 
   // Invisible until an actual pan/zoom, never from hovering.
   void MainWindow::revealCanvasScrollbars() {
-    // A zoom resizes canvas_ without resizing scroll_, so relayout() directly; static_cast because
+    // A zoom resizes canvas without resizing scroll, so relayout() directly; static_cast because
     // the subclass has no Q_OBJECT (OverlayScrollArea.hpp).
-    if (scroll_) static_cast<OverlayScrollArea*>(scroll_)->relayout();
+    if (scroll) static_cast<OverlayScrollArea*>(scroll)->relayout();
     // A pan tick fires this twice per frame (both scrollbars); skip until the timer has burnt some
     // fuse.
-    const bool shown = vScrollOpacity_ && vScrollOpacity_->opacity() >= 1.0
-                       && hScrollOpacity_ && hScrollOpacity_->opacity() >= 1.0;
-    if (shown && scrollbarHideTimer_ && scrollbarHideTimer_->isActive()
-        && scrollbarHideTimer_->remainingTime() > 800)
+    const bool shown = vScrollOpacity && vScrollOpacity->opacity() >= 1.0
+                       && hScrollOpacity && hScrollOpacity->opacity() >= 1.0;
+    if (shown && scrollbarHideTimer && scrollbarHideTimer->isActive()
+        && scrollbarHideTimer->remainingTime() > 800)
       return;
-    if (vScrollOpacity_) vScrollOpacity_->setOpacity(1.0);
-    if (hScrollOpacity_) hScrollOpacity_->setOpacity(1.0);
+    if (vScrollOpacity) vScrollOpacity->setOpacity(1.0);
+    if (hScrollOpacity) hScrollOpacity->setOpacity(1.0);
     canvasScrollBar(Qt::Vertical)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
     canvasScrollBar(Qt::Horizontal)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
     scheduleScrollbarHide();
   }
 
   QScrollBar* MainWindow::canvasScrollBar(Qt::Orientation o) const {
-    return static_cast<OverlayScrollArea*>(scroll_)->overlayBar(o);
+    return static_cast<OverlayScrollArea*>(scroll)->overlayBar(o);
   }
 
   // Unless the pointer sits on a bar; eventFilter's Leave branch calls this once it lifts.
   void MainWindow::scheduleScrollbarHide() {
-    if (!scrollbarHideTimer_) return;
-    if (scrollbarHovered_) { scrollbarHideTimer_->stop(); return; }
-    scrollbarHideTimer_->start(900);
+    if (!scrollbarHideTimer) return;
+    if (scrollbarHovered) { scrollbarHideTimer->stop(); return; }
+    scrollbarHideTimer->start(900);
   }
 
   void MainWindow::fitToWindow() {
-    if (!canvas_->hasImage()) return;
-    const QSize vp = scroll_->viewport()->size();
-    const double sx = double(vp.width()) / canvas_->imageWidth();
-    const double sy = double(vp.height()) / canvas_->imageHeight();
+    if (!canvas->hasImage()) return;
+    const QSize vp = scroll->viewport()->size();
+    const double sx = double(vp.width()) / canvas->imageWidth();
+    const double sy = double(vp.height()) / canvas->imageHeight();
     setZoom(std::min(sx, sy) * 0.95);
   }
 
@@ -106,16 +106,16 @@ namespace stencil::gui {
   }
 
   void MainWindow::setToolbarsShown(bool show, bool animate) {
-    toolbarsShown_ = show;
+    toolbarsShown = show;
     refreshStatusHintVisibility();
     // The header row always stays, as the browser's header keeps the pill/title.
     QList<QToolBar*> bars;
     for (QToolBar* b : findChildren<QToolBar*>())
-      if (b != headerToolbar_) bars.append(b);
+      if (b != headerToolbar) bars.append(b);
     if (bars.isEmpty()) return;
     spinControlsPill(animate);   // the pill's chevron turns with the rows
     if (!animate) {
-      if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
+      if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); b->setVisible(show); }
       positionOverlayArrows();
       return;
@@ -127,7 +127,7 @@ namespace stencil::gui {
   // it); no opacity effect, so no flicker.
   void MainWindow::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
     if (bars.isEmpty()) return;
-    if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
+    if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
     auto release = [bars] {
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
     };
@@ -156,7 +156,7 @@ namespace stencil::gui {
       for (QToolBar* b : bars) b->setFixedHeight(0);
     }
     else dustFx = barsSurfaceFlight(bars, /*gather=*/false, FOLD_DUST_OUT_MS);
-    barsAnim_ = startExtentSlide(
+    barsAnim = startExtentSlide(
         this, from, to, show ? FOLD_MS : FOLD_OUT_MS,
         pinAndRaiseDust(
             [bars, this](int v) {
@@ -167,14 +167,14 @@ namespace stencil::gui {
         [this, bars, show, release] {
           release();
           if (!show) for (QToolBar* b : bars) b->hide();
-          barsAnim_ = nullptr;
+          barsAnim = nullptr;
           positionOverlayArrows();
         });
   }
 
   void MainWindow::scrollTo(int x, int y) {
-    auto* hb = scroll_->horizontalScrollBar();
-    auto* vb = scroll_->verticalScrollBar();
+    auto* hb = scroll->horizontalScrollBar();
+    auto* vb = scroll->verticalScrollBar();
     hb->setValue(std::clamp(x, hb->minimum(), hb->maximum()));
     vb->setValue(std::clamp(y, vb->minimum(), vb->maximum()));
   }
@@ -183,13 +183,13 @@ namespace stencil::gui {
   // core::anchoredZoom.
   void MainWindow::setZoomAnchored(double newScale,
                                    const QPoint& cursorInViewport) {
-    if (!canvas_->hasImage()) {
+    if (!canvas->hasImage()) {
       setZoom(newScale);
       return;
     }
-    const double oldScale = canvas_->scale();
-    const double sl = scroll_->horizontalScrollBar()->value();
-    const double st = scroll_->verticalScrollBar()->value();
+    const double oldScale = canvas->getScale();
+    const double sl = scroll->horizontalScrollBar()->value();
+    const double st = scroll->verticalScrollBar()->value();
     const auto z = core::anchoredZoom(sl, st, cursorInViewport.x(),
                                       cursorInViewport.y(), oldScale, newScale);
     setZoom(z.scale);

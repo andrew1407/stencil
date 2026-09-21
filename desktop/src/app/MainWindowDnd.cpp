@@ -69,24 +69,24 @@ namespace stencil::gui {
     // Show the split LEFT-save / RIGHT-incognito overlay.
     if (droppableSource(event->mimeData()).kind == DropSrc::NONE) return;
     event->acceptProposedAction();
-    if (dropZones_) {
-      dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
-      dropZones_->showZones();
+    if (dropZones) {
+      dropZones->setActiveLeft(event->position().x() < width() / 2.0);
+      dropZones->showZones();
     }
   }
 
   void MainWindow::dragMoveEvent(QDragMoveEvent* event) {
     if (droppableSource(event->mimeData()).kind == DropSrc::NONE) return;
     event->acceptProposedAction();
-    if (dropZones_) dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
+    if (dropZones) dropZones->setActiveLeft(event->position().x() < width() / 2.0);
   }
 
   void MainWindow::dragLeaveEvent(QDragLeaveEvent*) {
-    if (dropZones_) dropZones_->hideZones();
+    if (dropZones) dropZones->hideZones();
   }
 
   void MainWindow::dropEvent(QDropEvent* event) {
-    if (dropZones_) dropZones_->hideZones();
+    if (dropZones) dropZones->hideZones();
     const DropSrc src = droppableSource(event->mimeData());
     if (src.kind == DropSrc::NONE) return;
     event->acceptProposedAction();
@@ -115,7 +115,7 @@ namespace stencil::gui {
     const auto openNew = [&] { if (isLocal) openImageInNewWindow(source, incognito); else openSourceInNewWindow(source, -1, incognito); };
 
     // An image already open → ask this window vs a new one (the browser's askAlt).
-    if (canvas_->hasImage()) {
+    if (canvas->hasImage()) {
       ConfirmSpec spec;
       spec.title = tr("Open dropped image");
       spec.message = tr("An image is already open. Where should the dropped image open?");
@@ -133,38 +133,38 @@ namespace stencil::gui {
 
   // A fresh image ASSEMBLES from dust (browser ghostIn). An opacity effect must never stay on a repainting canvas; snapshot BEFORE it goes on.
   void MainWindow::playImageArrival() {
-    if (!canvas_) return;
+    if (!canvas) return;
     // Reduced motion: the opacity effect has to go too, or the canvas sits blank for the whole flight.
-    if (support::motionReduced()) { canvas_->setGraphicsEffect(nullptr); return; }
+    if (support::motionReduced()) { canvas->setGraphicsEffect(nullptr); return; }
 
-    const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
-        && !canvas_->visibleRegion().boundingRect().isEmpty()
-        && DisintegrateOverlay::overRect(canvas_, canvas_->visibleRegion().boundingRect(),
-                                         scroll_->viewport(), DisintegrateOverlay::Sweep::GATHER,
+    const bool dust = canvas->hasImage() && scroll && scroll->viewport()
+        && !canvas->visibleRegion().boundingRect().isEmpty()
+        && DisintegrateOverlay::overRect(canvas, canvas->visibleRegion().boundingRect(),
+                                         scroll->viewport(), DisintegrateOverlay::Sweep::GATHER,
                                          false, DisintegrateOverlay::DUST_MAX_CELLS,
                                          CANVAS_DUST_MS);
-    auto* fx = new QGraphicsOpacityEffect(canvas_);
+    auto* fx = new QGraphicsOpacityEffect(canvas);
     fx->setOpacity(0.0);
-    canvas_->setGraphicsEffect(fx);
+    canvas->setGraphicsEffect(fx);
     // Only ever tear down OUR effect: a second arrival mid-flight has its own.
     const QPointer<QGraphicsOpacityEffect> mine(fx);
     const auto done = [this, mine] {
-      if (canvas_ && canvas_->graphicsEffect() == mine) canvas_->setGraphicsEffect(nullptr);
+      if (canvas && canvas->graphicsEffect() == mine) canvas->setGraphicsEffect(nullptr);
     };
     if (dust) {
       // The motes already drew it into place; fading it up as well would double the arrival.
-      QTimer::singleShot(CANVAS_DUST_MS, canvas_, done);
+      QTimer::singleShot(CANVAS_DUST_MS, canvas, done);
       return;
     }
     // No dust to play: fall back to the plain fade, not to a hidden canvas.
-    auto* anim = new QVariantAnimation(canvas_);
+    auto* anim = new QVariantAnimation(canvas);
     anim->setDuration(360);
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);
-    connect(anim, &QVariantAnimation::valueChanged, canvas_,
+    connect(anim, &QVariantAnimation::valueChanged, canvas,
             [fx](const QVariant& v) { fx->setOpacity(v.toDouble()); });
-    connect(anim, &QVariantAnimation::finished, canvas_, done);
+    connect(anim, &QVariantAnimation::finished, canvas, done);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 

@@ -16,11 +16,11 @@ namespace stencil::gui {
     fx->raise();
     auto* anim = new QVariantAnimation(fx);
     anim->setDuration(ms);
-    fx->ms_ = ms;
+    fx->ms = ms;
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
     connect(anim, &QVariantAnimation::valueChanged, fx, [fx](const QVariant& v) {
-      fx->t_ = v.toDouble();
+      fx->t = v.toDouble();
       fx->update();
     });
     connect(anim, &QVariantAnimation::finished, fx, [fx] {
@@ -48,23 +48,23 @@ namespace stencil::gui {
   }
 
   void ValueSwapOverlay::paintEvent(QPaintEvent*) {
-    if (!styled_) {
-      styled_ = true;
-      style_ = support::particleStyle();
-      accent_ = support::particleAccent();
-      shade_ = support::particleShade();
-      dark_ = support::isParticleDark();
+    if (!styled) {
+      styled = true;
+      style = support::particleStyle();
+      accent = support::particleAccent();
+      shade = support::particleShade();
+      dark = support::isParticleDark();
     }
     QPainter p(this);
-    p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
+    p.setClipRect(clip);   // clipped by the edit field, the way the word itself is
     // Sequential: the outgoing word is most of the way out before the incoming starts. Each cloud is
     // composed on its own layer, or the second word's cut-outs would take the first word's grains.
-    renderCloud(&layerOut_, out_, &cellsOut_,
-                std::clamp(t_ / VALUE_SWAP_OUT_SHARE, 0.0, 1.0), false);
-    renderCloud(&layerIn_, in_, &cellsIn_,
-                std::clamp((t_ - VALUE_SWAP_PIVOT) / (1.0 - VALUE_SWAP_PIVOT), 0.0, 1.0), true);
-    p.drawImage(rect(), layerOut_);
-    p.drawImage(rect(), layerIn_);
+    renderCloud(&layerOut, out, &cellsOut,
+                std::clamp(t / VALUE_SWAP_OUT_SHARE, 0.0, 1.0), false);
+    renderCloud(&layerIn, in, &cellsIn,
+                std::clamp((t - VALUE_SWAP_PIVOT) / (1.0 - VALUE_SWAP_PIVOT), 0.0, 1.0), true);
+    p.drawImage(rect(), layerOut);
+    p.drawImage(rect(), layerIn);
   }
 
 
@@ -79,7 +79,7 @@ namespace stencil::gui {
     }
     layer->fill(Qt::transparent);
     if (pm.isNull() || (gather ? t <= 0.0 : t >= 1.0)) return;
-    const QRectF box(clip_);
+    const QRectF box(clip);
     if (box.width() < 2 || box.height() < 2) return;
     const int cols = std::max(1, qRound(box.width() / VALUE_SWAP_CELL_PX));
     const int rows = std::max(1, qRound(box.height() / VALUE_SWAP_CELL_PX));
@@ -128,13 +128,13 @@ namespace stencil::gui {
               const double w = DisintegrateOverlay::cellNoise(cx + 13, cy + 71);
               Grain g{home + QPointF(far * tx, far * ty) + DisintegrateOverlay::swirlAt(far, tx, ty, q),
                       DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)), c,
-                      support::grainShape(style_, w), support::headingOf(tx, ty, gather)};
-              const support::StyleFrame sf = support::styleFrame(style_, k, far, w, std::hypot(tx, ty), t_ * ms_);
+                      support::grainShape(style, w), support::headingOf(tx, ty, gather)};
+              const support::StyleFrame sf = support::styleFrame(style, k, far, w, std::hypot(tx, ty), this->t * ms);
               g.at += QPointF(sf.sx, sf.sy);
               g.r *= sf.scale;
-              g.c = support::tintedStop(accent_, shade_,
-                                        style_ == support::ParticleStyle::DUST ? support::dustMix(w, false) : sf.mix,
-                                        support::tintOf(w), dark_);
+              g.c = support::tintedStop(accent, shade,
+                                        style == support::ParticleStyle::DUST ? support::dustMix(w, false) : sf.mix,
+                                        support::tintOf(w), dark);
               g.c.setAlphaF(std::min(1.0, alpha * sf.glow));
               grains.push_back(g);
             }
@@ -169,13 +169,13 @@ namespace stencil::gui {
         p.setBrush(g.c);
         p.drawEllipse(g.at, g.r, g.r);
       } else {
-        sprites_.draw(p, g.at, g.r, g.c, g.shape, g.heading);
+        sprites.draw(p, g.at, g.r, g.c, g.shape, g.heading);
       }
     }
   }
 
   ValueSwapOverlay::ValueSwapOverlay(QComboBox* cb, const QPixmap& out, const QPixmap& in,
-                                     const QRect& clip) : QWidget(cb), out_(out), in_(in), clip_(clip) {
+                                     const QRect& clip) : QWidget(cb), out(out), in(in), clip(clip) {
     setObjectName(QString::fromLatin1(VALUE_SWAP_OBJECT_NAME));
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);

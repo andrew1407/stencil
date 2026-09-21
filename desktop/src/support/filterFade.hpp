@@ -73,7 +73,7 @@ namespace stencil::gui {
   // One shared tick for the whole list.
   class ListFilterFade : public QObject {
    public:
-    explicit ListFilterFade(QListWidget* list) : QObject(list), list_(list) {}
+    explicit ListFilterFade(QListWidget* list) : QObject(list), list(list) {}
 
     std::function<void(QListWidgetItem*, double presence)> writeRow;
     // `beforeFrame` suppresses whatever the container hangs off itemChanged (setData fires it).
@@ -82,7 +82,7 @@ namespace stencil::gui {
 
     void apply(const std::function<bool(QListWidgetItem*)>& wanted);
 
-    bool running() const { return timer_ && timer_->isActive(); }
+    bool running() const { return timer && timer->isActive(); }
 
     void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
 
@@ -94,11 +94,11 @@ namespace stencil::gui {
     void tick();
 
     void startTicking();
-    void stopTicking() { if (timer_) timer_->stop(); }
+    void stopTicking() { if (timer) timer->stop(); }
 
-    QListWidget* list_ = nullptr;
-    QTimer* timer_ = nullptr;
-    int dustBudget_ = 0;
+    QListWidget* list = nullptr;
+    QTimer* timer = nullptr;
+    int dustBudget = 0;
   };
 
   void fadeFiltered(QWidget* w, bool show);

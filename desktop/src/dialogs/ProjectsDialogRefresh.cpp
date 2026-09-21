@@ -26,65 +26,65 @@ namespace stencil::gui {
   }  // namespace
 
   void ProjectsDialog::refresh() {
-    const int prevRow = list_->currentRow();
+    const int prevRow = list->currentRow();
     // A row the rebuild ADDS arrives out of the filter's sand (browser motion.js filterDust); the very
     // first build dusts nothing.
     QSet<QString> keysBefore;
-    for (int i = 0; i < list_->count(); ++i) {
-      const QString k = rebuildKeyOf(list_->item(i));
+    for (int i = 0; i < list->count(); ++i) {
+      const QString k = rebuildKeyOf(list->item(i));
       if (!k.isEmpty()) keysBefore.insert(k);
     }
     // EVER built, not "has rows now": a removal empties the view when its scatter ends, and reading
     // that as the opening build made the pinned row appear with no arrival.
-    const bool wasBuilt = built_;
-    built_ = true;
-    if (filter_ && connections_ && connections_->urls() != knownServerUrls_)
+    const bool wasBuilt = built;
+    built = true;
+    if (filter && connections && connections->urls() != knownServerUrls)
       rebuildFilterOptions();
-    building_ = true;
+    building = true;
     hideHoverPreview();
     closeInlineRename();
-    list_->clear();
+    list->clear();
     const core::ProjectsStore store;
     buildSortedRows(store);
 
     // While the first server listing is in flight, a loading hint rather than a misleading "No projects yet".
-    if (connections_ && !connections_->urls().isEmpty() && !remoteLoaded_) {
-      auto* it = new QListWidgetItem(QStringLiteral("Loading shared projects…"), list_);
+    if (connections && !connections->urls().isEmpty() && !remoteLoaded) {
+      auto* it = new QListWidgetItem(QStringLiteral("Loading shared projects…"), list);
       it->setFlags(Qt::NoItemFlags);
       it->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
     }
 
-    // Drop LOCAL keys whose project is GONE (the bar reads batch_.checked.size()); a remote key is left
+    // Drop LOCAL keys whose project is GONE (the bar reads batch.checked.size()); a remote key is left
     // alone — a listing that has not answered is not proof it is gone.
-    if (!batch_.checked.isEmpty()) {
+    if (!batch.checked.isEmpty()) {
       QSet<QString> liveIds;
-      liveIds.reserve(projects_.size());
-      for (const Project& p : projects_) liveIds.insert(QString::fromStdString(p.meta.id));
-      for (auto it = batch_.checked.begin(); it != batch_.checked.end();) {
+      liveIds.reserve(projects.size());
+      for (const Project& p : projects) liveIds.insert(QString::fromStdString(p.meta.id));
+      for (auto it = batch.checked.begin(); it != batch.checked.end();) {
         if (it->startsWith(QLatin1Char('|')) && !liveIds.contains(it->mid(1)))
-          it = batch_.checked.erase(it);
+          it = batch.checked.erase(it);
         else
           ++it;
       }
     }
 
-    if (list_->count() == 0) {
-      auto* it = new QListWidgetItem("No projects yet", list_);
+    if (list->count() == 0) {
+      auto* it = new QListWidgetItem("No projects yet", list);
       it->setFlags(Qt::NoItemFlags);
-      building_ = false;
+      building = false;
       updateBatchBar();
       return;
     }
-    list_->setCurrentRow(prevRow >= 0 && prevRow < list_->count() ? prevRow : 0);
+    list->setCurrentRow(prevRow >= 0 && prevRow < list->count() ? prevRow : 0);
     applyFilter();
-    building_ = false;
+    building = false;
     updateBatchBar();
     // Rows this rebuild ADDED form out of sand on the ARRIVAL clock, last and one beat later, so a
     // removal's ash has the screen to itself first (browser beginRemoval). Only while ON SCREEN.
     if (wasBuilt && isVisible()) {
       QSet<QString> arriving;
-      for (int i = 0; i < list_->count(); ++i) {
-        QListWidgetItem* it = list_->item(i);
+      for (int i = 0; i < list->count(); ++i) {
+        QListWidgetItem* it = list->item(i);
         const QString k = rebuildKeyOf(it);
         if (k.isEmpty() || it->isHidden() || keysBefore.contains(k)) continue;
         arriving.insert(k);
@@ -92,10 +92,10 @@ namespace stencil::gui {
       if (!arriving.isEmpty())
         // Re-found by key: another rebuild may have replaced the items in the meantime.
         QTimer::singleShot(ROW_ARRIVE_DELAY_MS, this, [this, arriving] {
-          for (int i = 0; i < list_->count(); ++i) {
-            QListWidgetItem* it = list_->item(i);
+          for (int i = 0; i < list->count(); ++i) {
+            QListWidgetItem* it = list->item(i);
             if (it->isHidden() || !arriving.contains(rebuildKeyOf(it))) continue;
-            if (auto* fade = filterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
+            if (auto* fade = getFilterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
           }
         });
     }
@@ -106,13 +106,13 @@ namespace stencil::gui {
   void ProjectsDialog::buildSortedRows(const core::ProjectsStore& store) {
     struct Entry { bool remote; int idx; QString key; QString name; long long date; };
     std::vector<Entry> entries;
-    for (int i = 0; i < static_cast<int>(projects_.size()); ++i) {
-      const auto& m = projects_[i].meta;
+    for (int i = 0; i < static_cast<int>(projects.size()); ++i) {
+      const auto& m = projects[i].meta;
       entries.push_back({ false, i, "|" + QString::fromStdString(m.id),
                           QString::fromStdString(m.name).toLower(), static_cast<long long>(m.updatedAt) });
     }
-    for (int i = 0; i < remote_.size(); ++i) {
-      const auto& sp = remote_[i];
+    for (int i = 0; i < remote.size(); ++i) {
+      const auto& sp = remote[i];
       entries.push_back({ true, i, sp.serverUrl + "|" + sp.id, sp.name.toLower(), static_cast<long long>(sp.createdAt) });
     }
     const QString mode = g_projectsSortMode;
@@ -139,20 +139,20 @@ namespace stencil::gui {
       return cmpName(a, b) < 0;
     });
     // Inert (browser parity): no id, so no open, rename, checkbox, drag or "⋯".
-    if (temporary_) {
-      auto* it = new QListWidgetItem(incognito_ ? QStringLiteral("Incognito (unsaved)")
-                                                : QStringLiteral("Temporary (unsaved)"), list_);
+    if (temporary) {
+      auto* it = new QListWidgetItem(incognito ? QStringLiteral("Incognito (unsaved)")
+                                                : QStringLiteral("Temporary (unsaved)"), list);
       it->setFlags(Qt::ItemIsEnabled);
       it->setData(TEMP_ROLE, true);
       it->setData(Qt::UserRole + 3, it->text());
-      it->setData(META_ROLE, incognito_ ? QStringLiteral("Current window · incognito · never saved")
+      it->setData(META_ROLE, incognito ? QStringLiteral("Current window · incognito · never saved")
                                         : QStringLiteral("Current window · not saved to storage"));
       it->setData(Qt::UserRole + 4, QColor("#80868f"));
-      it->setIcon(QIcon(temporaryIcon(incognito_)));
+      it->setIcon(QIcon(temporaryIcon(incognito)));
     }
     for (const auto& e : entries) {
-      if (e.remote) addServerProjectRow(remote_[e.idx]);
-      else addLocalProjectRow(projects_[e.idx], store);
+      if (e.remote) addServerProjectRow(remote[e.idx]);
+      else addLocalProjectRow(projects[e.idx], store);
     }
   }
 

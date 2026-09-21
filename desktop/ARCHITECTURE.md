@@ -61,15 +61,15 @@ the files the lint lists as the core seam. The document state itself lives in `C
 ```mermaid
 classDiagram
     class MainWindow {
-      +Settings settings_
-      +vector~Project~ projectList_
-      +QVector~ChatMessage~ chatHistory_
+      +Settings settings
+      +vector~Project~ projectList
+      +QVector~ChatMessage~ chatHistory
     }
     class CanvasWidget {
-      +QImage image_
-      +Lines lines_
-      +HistoryStack history_
-      +CropRect cropRect_
+      +QImage image
+      +Lines lines
+      +HistoryStack history
+      +CropRect cropRect
     }
     class Settings {
       +QString themeMode
@@ -92,7 +92,7 @@ classDiagram
       +QString themeMode
     }
     class ScriptBuffer {
-      +QString text_
+      +QString text
     }
     class LaunchOptions {
       +QString project
@@ -100,13 +100,13 @@ classDiagram
       +QString serverProjectId
     }
     class ConnectionManager {
-      +QVector~ServerClient*~ clients_
+      +QVector~ServerClient*~ clients
       +snapshot() QVector~SavedServer~
     }
     class ServerClient {
-      +QString base_
-      +QString token_
-      +CredentialKind kind_
+      +QString base
+      +QString token
+      +CredentialKind kind
     }
     class ServerProject {
       +QString id
@@ -134,15 +134,15 @@ classDiagram
       +QString path
     }
     ScriptDoc <.. ScriptBuffer : parsed from
-    MainWindow *-- CanvasWidget : canvas_
-    MainWindow *-- Settings : settings_
-    MainWindow o-- Project : projectList_
+    MainWindow *-- CanvasWidget : canvas
+    MainWindow *-- Settings : settings
+    MainWindow o-- Project : projectList
     MainWindow --> Session : autosaves
     MainWindow --> LaunchOptions : applyLaunchOptions
-    MainWindow *-- ConnectionManager : connections_
-    MainWindow *-- RemoteLink : remoteSession_ link
-    MainWindow o-- ChatMessage : chatHistory_
-    ConnectionManager *-- ServerClient : clients_
+    MainWindow *-- ConnectionManager : connections
+    MainWindow *-- RemoteLink : remoteSession link
+    MainWindow o-- ChatMessage : chatHistory
+    ConnectionManager *-- ServerClient : clients
     ServerClient --> ServerProject : lists, gets
     Project --> ProjectFileData : bundles as .stencil
     ChatMessage --> OpPlan : reply parses to
@@ -153,19 +153,19 @@ classDiagram
 |---|---|---|---|
 | `MainWindow` | The editor window and mediator; holds settings, the project list, the active project id and the chat history | `main.cpp`, one per process (a second for "open in new window") | Everything below through signals and `Hooks` structs |
 | `CanvasWidget` | The document state: the working pixels, committed `core::Lines`, the in-progress `core::Line`, the `core::HistoryStack`, crop and rotation | `MainWindow`, window lifetime; `CanvasPlanTarget` owns offscreen copies for variant sandboxes | Every edit applier, `SelectionPanel`, `ChatPlanTarget` |
-| `Settings` | Persisted preferences and default visuals (`io/fileStore.hpp`); the browser's `DEFAULT_VISUALS` plus the desktop-only keys | `MainWindow::settings_`, loaded at boot, saved on change | `LlmSettings` is derived from its `llm*` fields |
+| `Settings` | Persisted preferences and default visuals (`io/fileStore.hpp`); the browser's `DEFAULT_VISUALS` plus the desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` is derived from its `llm*` fields |
 | `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
-| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList_`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
+| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
 | `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
 | `ScriptDoc` | One parsed `.stc`: its token stream in QChar columns, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Held by the `ScriptEditorWidget` that parsed it, rebuilt on every keystroke | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
 | `ScriptBuffer` | The one `.stc` both script hosts edit: a session-scoped `QString` with a `changed` signal, so the window and the flyout never diverge | A process-wide instance, alive for the run; never written to settings, a project or a file | `ScriptEditorWidget` reads it at construction and writes it on every keystroke |
 | `EditState` | One checkpoint of the editable state — crop, filter and committed lines — the `.stc` runner keeps per numbered edit, since the canvas history holds lines alone | Transient, one per applied edit for the length of a run | `PlanTarget::captureEdit` / `restoreEdit`, the `@undo` of `contracts/stc` §7 |
 | `LaunchOptions` | Parsed argv or a `stencil://` link; the desktop twin of the browser deep-link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
 | `ConnectionManager` | The set of live `ServerClient`s; its `changed()` persists the `SavedServer` snapshot | `MainWindow`, created lazily by `ensureConnections` | `connectionStore`, `RemoteSession` |
-| `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients_` | `ServerProject`, `LiveFeed` |
+| `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients` | `ServerProject`, `LiveFeed` |
 | `ServerProject` | A server project record; mirror of `server/internal/protocol` `ProjectRecord`, which is canonical | Transient reply value stamped with `serverUrl` | `RemoteLink` on open, `ProjectsDialog` rows |
-| `RemoteLink` | The bound server project (address, id, version) of the open editor | `RemoteSession::link_`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
-| `ChatMessage` | One chat turn with attached images; replayed in full each call | `MainWindow::chatHistory_`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
+| `RemoteLink` | The bound server project (address, id, version) of the open editor | `RemoteSession::link`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
+| `ChatMessage` | One chat turn with attached images; replayed in full each call | `MainWindow::chatHistory`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
 | `OpPlan` | A parsed, registry-validated assistant reply; the contract in `contracts/llm/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
 | `Action` | One op of a plan, a tagged union on `OpKind` | Inside `OpPlan` | `PlanTarget` appliers |
 
@@ -198,7 +198,7 @@ classDiagram
   flushes `deferredWrite`.
 - **A canvas press.** `CanvasWidget::mousePressEvent` resolves the gesture by precedence
   (context menu, pan, alt-drag, zoom-rect, multi-select, drawing click), converts the widget
-  point with `toImageSpace`, and mutates `currentLine_` / `lines_` through core geometry.
+  point with `toImageSpace`, and mutates `currentLine` / `lines` through core geometry.
   `commitHistory` pushes the `core::Lines` snapshot and emits `changed()`;
   `MainWindow::onCanvasChanged` refreshes actions, rebuilds the `SelectionPanel` rows from
   core page coordinates, and schedules the session autosave, the remote push and the
@@ -244,7 +244,7 @@ classDiagram
   pushes, polls while linked, and subscribes `LiveFeed` (raw TCP NDJSON, plaintext only).
 - **An LLM turn.** `ChatDock::sendRequested` → `MainWindow::onChatSend` derives `LlmSettings`
   from `Settings`, appends the `ChatMessage` (text plus downscaled attachments) to
-  `chatHistory_`, and calls `LlmClient::chat` with the system prompt assembled from the
+  `chatHistory`, and calls `LlmClient::chat` with the system prompt assembled from the
   shared op registry, over `QtLlmTransport`. `onChatReply` runs `parseOpPlan` (validated by
   `OpSchema::desktop()`), builds a `ChatPlanTarget(*this)` and `executePlan`; the
   `ExecResult` notes, variants (rendered in `CanvasPlanTarget` sandboxes) and ask card are

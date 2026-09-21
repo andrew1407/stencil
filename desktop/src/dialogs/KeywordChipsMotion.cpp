@@ -81,7 +81,7 @@ namespace stencil::gui {
     for (QFrame* chip : going) {
       chip->setProperty("kwLeaving", true);   // no longer one of the list's chips
       if (quiet) { chip->setParent(nullptr); chip->deleteLater(); continue; }
-      chipDust(chip, chipArea_, DisintegrateOverlay::Sweep::FALL, LEAVE_MS, going.size());
+      chipDust(chip, chipArea, DisintegrateOverlay::Sweep::FALL, LEAVE_MS, going.size());
       // …and the chip goes with its grains rather than sitting opaque until the width
       // wipes, which read as dust over a solid chip followed by a right-to-left wipe.
       auto* fade = new QGraphicsOpacityEffect(chip);
@@ -93,7 +93,7 @@ namespace stencil::gui {
       out->setEasingCurve(QEasingCurve::OutCubic);
       out->start(QAbstractAnimation::DeleteWhenStopped);
     }
-    if (quiet) { flow_->activate(); return; }
+    if (quiet) { flow->activate(); return; }
 
     QList<int> widths;
     widths.reserve(going.size());
@@ -114,20 +114,20 @@ namespace stencil::gui {
         going[i]->setMinimumWidth(0);
         going[i]->setMaximumWidth(qMax(0, int(widths[i] * shrink)));
       }
-      self->flow_->invalidate();
-      self->flow_->activate();
+      self->flow->invalidate();
+      self->flow->activate();
     });
     connect(fold, &QAbstractAnimation::finished, this, [self, going] {
       for (QFrame* chip : going)
         if (chip) { chip->setParent(nullptr); chip->deleteLater(); }
-      if (self) { self->flow_->invalidate(); self->flow_->activate(); }
+      if (self) { self->flow->invalidate(); self->flow->activate(); }
     });
     fold->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   void KeywordChips::playMotion(const QHash<QString, QRect>& was, const QList<QFrame*>& arrived) {
     if (!support::isDustAllowed()) return;   // "nothing may move" covers the glide too
-    for (auto it = chipFor_.cbegin(); it != chipFor_.cend(); ++it) {
+    for (auto it = chipFor.cbegin(); it != chipFor.cend(); ++it) {
       const QRect from = was.value(it.key());
       QFrame* chip = it.value();
       if (from.isNull() || from == chip->geometry()) continue;
@@ -141,7 +141,7 @@ namespace stencil::gui {
     // A new chip gathers out of its own dust and only THEN fades up (holdFadeKeys). GATHER, not
     // SURFACE_IN: the surface sweeps fly from a target point, so a chip gathered in from the corner.
     for (QFrame* chip : arrived) {
-      chipDust(chip, chipArea_, DisintegrateOverlay::Sweep::GATHER, ENTER_MS, arrived.size());
+      chipDust(chip, chipArea, DisintegrateOverlay::Sweep::GATHER, ENTER_MS, arrived.size());
       auto* fade = new QGraphicsOpacityEffect(chip);
       fade->setOpacity(0.0);
       chip->setGraphicsEffect(fade);

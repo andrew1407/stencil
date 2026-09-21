@@ -30,9 +30,9 @@ namespace stencil::gui {
   // Load a local file as a fresh image, clearing any source/resource provenance.
   bool MainWindow::loadLocalImageReset(const QString& path) {
     const core::PageSize page = naturalPageCm(pageSizeValue(),
-                                              settings_.customPageWidth,
-                                              settings_.customPageHeight);
-    canvas_->setPageCm(page.width, page.height);
+                                              settings.customPageWidth,
+                                              settings.customPageHeight);
+    canvas->setPageCm(page.width, page.height);
     // Decode and byte re-read are independent file jobs: the decode goes to the pool, this thread takes slice 0.
     QImage decoded;
     QByteArray sourceBytes;
@@ -43,14 +43,14 @@ namespace stencil::gui {
         else decoded.load(path);
       }
     });
-    if (!canvas_->loadImage(path, decoded)) {
-      notify_->error("Failed to load image");
+    if (!canvas->loadImage(path, decoded)) {
+      notify->error("Failed to load image");
       return false;
     }
     setSourceBytes(sourceBytes, ext);   // untouched file bytes ⇒ a lossless .stencil bundle
-    currentSource_.clear();  // a local file has no source/resource provenance
-    currentResource_.clear();
-    blankColor_.clear();     // a loaded image is not a blank project
+    currentSource.clear();  // a local file has no source/resource provenance
+    currentResource.clear();
+    blankColor.clear();     // a loaded image is not a blank project
     refreshActions();
     return true;
   }
@@ -61,19 +61,19 @@ namespace stencil::gui {
   void MainWindow::openImageDialog(bool startBlank) {
     const auto px = core::defaultBlankSizePx(currentPageDimensions());
     OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank,
-                        settings_.pageSize);
-    if (connections_ && !incognito_) dlg.setServerTargets(connections_->urls());
-    pendingServerTarget_.clear();
+                        settings.pageSize);
+    if (connections && !incognito) dlg.setServerTargets(connections->urls());
+    pendingServerTarget.clear();
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
-    if (dlg.outcome() == OpenImageDialog::Outcome::BLANK) {
+    if (dlg.getOutcome() == OpenImageDialog::Outcome::BLANK) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
       return;
     }
     const QString src = dlg.source();
     if (src.isEmpty()) return;
-    const OpenImageDialog::Outcome outcome = dlg.outcome();
+    const OpenImageDialog::Outcome outcome = dlg.getOutcome();
     // Consumed by adoptCanvasAsLocalProject once the image lands; a new window has no session to hand it to.
-    if (outcome == OpenImageDialog::Outcome::HERE) pendingServerTarget_ = dlg.serverTarget();
+    if (outcome == OpenImageDialog::Outcome::HERE) pendingServerTarget = dlg.serverTarget();
 
     // Preview path: adopt the pixels the dialog already decoded (no re-download/seek) and honour its Crop toggle.
     // Replace keeps its own in-place path; no preview falls back to the async resolve.
@@ -84,47 +84,47 @@ namespace stencil::gui {
       const bool localFile = !dlg.isUrl() && !dlg.isVideo() && QFileInfo(src).exists();
       if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
         // The fresh window re-resolves the same source and applies the same page-aspect crop.
-        openSourceInNewWindow(src, dlg.frame(), dlg.incognito(), /*hasPreview=*/true,
-                              dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize(),
+        openSourceInNewWindow(src, dlg.getFrame(), dlg.getIncognito(), /*hasPreview=*/true,
+                              dlg.cropToPage(), dlg.getCropAlbum(), dlg.getCropPageSize(),
                               dlg.cropRect());
         return;
       }
       openPreviewedImageHere(previewed, localFile ? src : QString(),
-                             dlg.isUrl() ? src : QString(), dlg.incognito(),
-                             dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize(),
+                             dlg.isUrl() ? src : QString(), dlg.getIncognito(),
+                             dlg.cropToPage(), dlg.getCropAlbum(), dlg.getCropPageSize(),
                              dlg.cropRect());
       return;
     }
 
     if (dlg.isUrl() || dlg.isVideo()) {
       if (outcome == OpenImageDialog::Outcome::NEW_WINDOW)
-        openSourceInNewWindow(src, dlg.frame(), dlg.incognito());
+        openSourceInNewWindow(src, dlg.getFrame(), dlg.getIncognito());
       else
-        openSourceHere(src, dlg.frame(), dlg.incognito());
+        openSourceHere(src, dlg.getFrame(), dlg.getIncognito());
       return;
     }
     if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
-      openImageInNewWindow(src, dlg.incognito());
+      openImageInNewWindow(src, dlg.getIncognito());
     } else if (outcome == OpenImageDialog::Outcome::REPLACE) {
-      replaceProjectImage(src, dlg.rename(), dlg.keepAnnotations());
+      replaceProjectImage(src, dlg.getRename(), dlg.keepAnnotations());
     } else {
-      openImageHere(src, dlg.incognito());
+      openImageHere(src, dlg.getIncognito());
     }
   }
 
   // "Open here" for a URL / local video: openImageHere's reset, but loaded via the async MediaLoader path.
   void MainWindow::openSourceHere(const QString& src, int frame, bool incognito) {
-    if (!incognito_) {
-      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+    if (!this->incognito) {
+      if (!activeProjectId.isEmpty()) saveToActiveProject();
       else saveSessionNow();
     }
-    activeProjectId_.clear();
-    if (incognito_ != incognito) {
-      incognito_ = incognito;
-      incognitoOverlay_->setActive(incognito);
-      actIncognito_->blockSignals(true);
-      actIncognito_->setChecked(incognito);
-      actIncognito_->blockSignals(false);
+    activeProjectId.clear();
+    if (this->incognito != incognito) {
+      this->incognito = incognito;
+      incognitoOverlay->setActive(incognito);
+      actIncognito->blockSignals(true);
+      actIncognito->setChecked(incognito);
+      actIncognito->blockSignals(false);
       updateProjectTitle();
     }
     openImageSource(src, frame);  // async; failure is reported by MediaLoader
@@ -165,25 +165,25 @@ namespace stencil::gui {
                                           bool cropToPage, bool cropAlbum,
                                           const QString& cropPage,
                                           const core::CropRect& cropRect) {
-    if (!incognito_) {
-      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+    if (!this->incognito) {
+      if (!activeProjectId.isEmpty()) saveToActiveProject();
       else saveSessionNow();
     }
-    activeProjectId_.clear();
-    if (incognito_ != incognito) {
-      incognito_ = incognito;
-      incognitoOverlay_->setActive(incognito);
-      actIncognito_->blockSignals(true);
-      actIncognito_->setChecked(incognito);
-      actIncognito_->blockSignals(false);
+    activeProjectId.clear();
+    if (this->incognito != incognito) {
+      this->incognito = incognito;
+      incognitoOverlay->setActive(incognito);
+      actIncognito->blockSignals(true);
+      actIncognito->setChecked(incognito);
+      actIncognito->blockSignals(false);
       updateProjectTitle();
     }
     // Never the default page-aspect auto-crop: what was previewed is what opens.
     if (cropToPage)
-      pendingCrop_ = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
+      pendingCrop = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
     else
-      pendingCrop_ = {QuickCropOpts::Mode::NONE, false, QString()};
-    pendingProvSource_ = provSource;
+      pendingCrop = {QuickCropOpts::Mode::NONE, false, QString()};
+    pendingProvSource = provSource;
     onLaunchImageLoaded(image, localPath);
   }
 

@@ -17,7 +17,7 @@ namespace stencil::gui {
   void CanvasWidget::paintIdleCard(QPainter& p, const Palette& pal) {
     p.fillRect(rect(), pal.bgPage);
     // The clear's dust is still falling: bare page only (setIdleHintHidden).
-    if (idleHintHidden_) { unsetCursor(); return; }
+    if (idleHintHidden) { unsetCursor(); return; }
     // The card alone is the click/cursor target, never the whole page.
     const QString label = QStringLiteral("＋ Blank image");
     constexpr int ICON_PX = 32;
@@ -36,18 +36,18 @@ namespace stencil::gui {
     box.setHeight(std::min(box.height(), wr.height() - 32.0));
     box.moveCenter(wr.center());
 
-    QColor accent = accentPrimary(accentKey_);
+    QColor accent = accentPrimary(accentKey);
     if (!accent.isValid()) accent = pal.textMuted;
     // The whole hover is a blend on `t` (components.css .idle-create-btn:hover + animations.css).
-    const double t = idleCardHoverT_;
+    const double t = idleCardHoverT;
     // --border-hint as theme.cpp derives it for %BORDER_HINT% (css/theme.css).
-    const QColor borderHint = dark_ ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
+    const QColor borderHint = dark ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
                                     : mixSrgb(QColor(Qt::white), accent, 0.35);
     const QColor fill = mixSrgb(pal.bgControls, accent, t);
     const QColor edge = mixSrgb(borderHint, pal.borderMain, t);
     const QColor ink = mixSrgb(pal.textMain, QColor(Qt::white), t);
     // Hit-test the RESTING rect, never the lifted one, or a cursor on the bottom edge oscillates.
-    idleCardRect_ = box;
+    idleCardRect = box;
     box.translate(0, -3.0 * t);
 
     // Drop shadow (0 8px 24px) as expanding rounded rects — QPainter has no blur. Lifted only.
@@ -76,12 +76,12 @@ namespace stencil::gui {
     p.drawPath(border);
 
     // Glass sweep (browser layout.css ::after + @keyframes ui-shimmer).
-    if (idleShimmerT_ >= 0.0) {
+    if (idleShimmerT >= 0.0) {
       const double w = box.width();
-      const double x = box.left() - 1.35 * w + idleShimmerT_ * 2.7 * w;
+      const double x = box.left() - 1.35 * w + idleShimmerT * 2.7 * w;
       QLinearGradient band(x, box.top(), x + w * 0.9, box.bottom());
       QColor glass(Qt::white);
-      glass.setAlphaF(dark_ ? 0.30 : 0.55);
+      glass.setAlphaF(dark ? 0.30 : 0.55);
       band.setColorAt(0.38, QColor(255, 255, 255, 0));
       band.setColorAt(0.50, glass);
       band.setColorAt(0.62, QColor(255, 255, 255, 0));
@@ -96,7 +96,7 @@ namespace stencil::gui {
     const QRectF content = box.adjusted(PAD_X, PAD_Y, -PAD_X, -PAD_Y);
     // iconMotion.json "image", mode "settle", hand-evaluated (see the glyph note below); IDLE_GLYPH_*
     // mirror the canon, pinned by tests/idleCardMotion.headless.cpp. A settle finishes on leave: its end IS rest.
-    const double gm = idleGlyphMs_;
+    const double gm = idleGlyphMs;
     // The sun: keyframes 0 → −1.6, 70% → +0.3, 100% → 0 on the settle default (OutBack).
     const auto orbDy = [](double ms) {
       const double local = ms - IDLE_GLYPH_ORB_DELAY_MS;

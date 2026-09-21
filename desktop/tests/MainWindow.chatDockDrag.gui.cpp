@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    auto* dock = win.chatDock_;   // the concrete dock: the drag state is ChatDock's own
+    auto* dock = win.chatDock;   // the concrete dock: the drag state is ChatDock's own
     QVERIFY(dock);
     win.openChatCompact(&win);   // any anchor: the popover only needs a rect to sit beside
     QTRY_VERIFY(win.chatCompactShowing());
@@ -53,7 +53,7 @@ class MainWindowGuiTest : public QObject {
     pressTitle(QEvent::MouseButtonPress);
     moveTitle(QPoint(240, 180));
     QTest::qWait(40);
-    QVERIFY2(dock->dragActive(), "the compact title bar drags, like the browser's header");
+    QVERIFY2(dock->getDragActive(), "the compact title bar drags, like the browser's header");
     QVERIFY2(!win.chatCompactShowing(),
              "and the drag adopts: what moves is a float the user chose, not a pinned popover");
     releaseTitle();
@@ -81,7 +81,7 @@ class MainWindowGuiTest : public QObject {
     // probes — the delivery-free situation of a native macOS drag.
     QPoint stubCursor = win.mapToGlobal(central.topLeft());  // ≠ the first drag target
     bool stubDown = false;
-    win.chatDock_->setDragProbesForTest([&stubCursor] { return stubCursor; },
+    win.chatDock->setDragProbesForTest([&stubCursor] { return stubCursor; },
                                         [&stubDown] { return stubDown; });
     const auto dragTo = [&](const QPoint& globalPos) {
       stubDown = true;

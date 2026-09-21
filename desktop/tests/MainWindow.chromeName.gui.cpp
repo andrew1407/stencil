@@ -12,20 +12,20 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // imageSizeInfo_ needs real top/bottom breathing room via contentsMargins, not
+  // imageSizeInfo needs real top/bottom breathing room via contentsMargins, not
   // stylesheet `padding` — QSS padding on this QLabel had no effect on paint or sizeHint().
   void imageSizeInfoHasRealVerticalPadding() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY(win.imageSizeInfo_);
+    QVERIFY(win.imageSizeInfo);
     // 10px left/right (browser parity: css/layout.css .info padding: 10px), 11px top/bottom
     // so the readout reads as its own band between the toolbars and the canvas.
-    QCOMPARE(win.imageSizeInfo_->contentsMargins(), QMargins(10, 11, 10, 11));
+    QCOMPARE(win.imageSizeInfo->contentsMargins(), QMargins(10, 11, 10, 11));
     // Not just set — actually taken into account: the reserved fixed height must exceed
     // the bare font height by at least the vertical margins.
     win.reserveImageInfoHeight();
-    const int fontH = QFontMetrics(win.imageSizeInfo_->font()).height();
-    QVERIFY2(win.imageSizeInfo_->height() >= fontH + 22,
+    const int fontH = QFontMetrics(win.imageSizeInfo->font()).height();
+    QVERIFY2(win.imageSizeInfo->height() >= fontH + 22,
              "the reserved height leaves no room for 11px top + 11px bottom");
   }
 
@@ -36,11 +36,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actPanel_->setChecked(false);
-    settle([&] { return win.panelReopenBtn_ != nullptr; }, 600);
-    QVERIFY(win.panelReopenBtn_);
-    QCOMPARE(win.panelReopenBtn_->focusPolicy(), Qt::NoFocus);
-    QCOMPARE(win.panelReopenBtn_->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
+    win.actPanel->setChecked(false);
+    settle([&] { return win.panelReopenBtn != nullptr; }, 600);
+    QVERIFY(win.panelReopenBtn);
+    QCOMPARE(win.panelReopenBtn->focusPolicy(), Qt::NoFocus);
+    QCOMPARE(win.panelReopenBtn->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
     // …and its twin in the panel header, so the pair stays consistent.
     QWidget* bar = nullptr;
     for (QDockWidget* d : win.findChildren<QDockWidget*>())
@@ -76,19 +76,19 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 300);
     const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
 
-    QCursor::setPos(win.nameBar_.group->mapToGlobal(win.nameBar_.group->rect().center()));
+    QCursor::setPos(win.nameBar.group->mapToGlobal(win.nameBar.group->rect().center()));
     win.updateNameHover();
-    QTRY_VERIFY(!paintedOut(win.nameBar_.edit));
-    QVERIFY(!paintedOut(win.nameBar_.colorBtn));
+    QTRY_VERIFY(!paintedOut(win.nameBar.edit));
+    QVERIFY(!paintedOut(win.nameBar.colorBtn));
 
     // Onto another control, and the pair goes — driven by the same recompute the app runs
     // when a pointer enters anything else (here: called directly, as the poll would).
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 60, 200)));
     win.updateNameHover();
-    QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.nameBar_.edit), 2000);
-    QVERIFY(paintedOut(win.nameBar_.colorBtn));
+    QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.nameBar.edit), 2000);
+    QVERIFY(paintedOut(win.nameBar.colorBtn));
     // …and they keep their slots either way: painting out must never move the row.
-    QVERIFY(win.nameBar_.edit->isVisible() && win.nameBar_.colorBtn->isVisible());
+    QVERIFY(win.nameBar.edit->isVisible() && win.nameBar.colorBtn->isVisible());
     beat();
   }
 
@@ -107,11 +107,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
     settleLayout(&win, 300);
-    win.nameBar_.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
+    win.nameBar.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
     const auto held = [&win] {
       int n = 0;
-      for (QToolButton* b : { win.nameBar_.edit, win.nameBar_.colorBtn,
-                              win.nameBar_.accept, win.nameBar_.cancel })
+      for (QToolButton* b : { win.nameBar.edit, win.nameBar.colorBtn,
+                              win.nameBar.accept, win.nameBar.cancel })
         if (b && b->isVisible()) ++n;
       return n;
     };
@@ -121,15 +121,15 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("entering: %1 chips held a slot").arg(held())));
     }
-    QVERIFY(win.nameBar_.accept->isVisible() && win.nameBar_.cancel->isVisible());
+    QVERIFY(win.nameBar.accept->isVisible() && win.nameBar.cancel->isVisible());
 
     win.cancelProjectName();
     for (int i = 0; i < 10; ++i) {   // …and the whole way back
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("leaving: %1 chips held a slot").arg(held())));
     }
-    QTRY_VERIFY(win.nameBar_.edit->isVisible() && win.nameBar_.colorBtn->isVisible());
-    QVERIFY(!win.nameBar_.accept->isVisible() && !win.nameBar_.cancel->isVisible());
+    QTRY_VERIFY(win.nameBar.edit->isVisible() && win.nameBar.colorBtn->isVisible());
+    QVERIFY(!win.nameBar.accept->isVisible() && !win.nameBar.cancel->isVisible());
     beat();
   }
 

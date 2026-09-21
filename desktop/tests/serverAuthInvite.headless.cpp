@@ -31,11 +31,11 @@ namespace serverauth {
     ServerClient* cl = mgr.find(mock.url());
     check(cl != nullptr, "…registered at the fragmentless base");
     if (cl) {
-      check(cl->base() == ServerClient::normalizeBase(mock.url()),
+      check(cl->getBase() == ServerClient::normalizeBase(mock.url()),
             "…with the fragment stripped from the base URL");
-      check(cl->credential() == QStringLiteral("invite-tok"),
+      check(cl->getCredential() == QStringLiteral("invite-tok"),
             "…and the fragment token as the credential");
-      check(cl->status() == ServerClient::Status::CONNECTED, "…landing Connected");
+      check(cl->getStatus() == ServerClient::Status::CONNECTED, "…landing Connected");
     }
     mock.goodBearer.clear();
   }
@@ -49,7 +49,7 @@ namespace serverauth {
     check(stencil::test::connectNow(mgr, mock.url() + "#token=stale-frag", QStringLiteral("typed-tok"), err),
           "a typed token connects even alongside a stale fragment");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->credential() == QStringLiteral("typed-tok"),
+    check(cl && cl->getCredential() == QStringLiteral("typed-tok"),
           "…and the typed token IS the credential (fragment ignored)");
     mock.goodBearer.clear();
     mock.tokenStatus = 200;
@@ -66,7 +66,7 @@ namespace serverauth {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err),
           "connects for the invite round");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->token() == QStringLiteral("sess-a"), "…holding its own session");
+    check(cl && cl->getToken() == QStringLiteral("sess-a"), "…holding its own session");
 
     mock.mintToken = "fresh-tok";  // what the invite mint hands out
     bool called = false, ok = false;
@@ -74,17 +74,17 @@ namespace serverauth {
     cl->mintInviteAsync([&](bool o, QString l) { ok = o; link = l; called = true; });
     pumpUntil([&] { return called; });
     check(ok, "the invite mint succeeds with the CREDENTIAL as bearer");
-    check(link == cl->base() + "#token=fresh-tok", "…yielding <url>#token=<fresh>");
-    check(cl->token() == QStringLiteral("sess-a"), "…without touching the live session token");
-    check(cl->credential() == QStringLiteral("admin-token"), "…or the credential");
+    check(link == cl->getBase() + "#token=fresh-tok", "…yielding <url>#token=<fresh>");
+    check(cl->getToken() == QStringLiteral("sess-a"), "…without touching the live session token");
+    check(cl->getCredential() == QStringLiteral("admin-token"), "…or the credential");
 
     // Round-trip: the minted link signs a second client in as its own session.
     mock.goodBearer = "fresh-tok";
     ConnectionManager mgr2;
     check(stencil::test::connectNow(mgr2, link, QString(), err), "the minted link connects a fresh client");
     ServerClient* cl2 = mgr2.find(mock.url());
-    check(cl2 && cl2->status() == ServerClient::Status::CONNECTED &&
-              cl2->credential() == QStringLiteral("fresh-tok"),
+    check(cl2 && cl2->getStatus() == ServerClient::Status::CONNECTED &&
+              cl2->getCredential() == QStringLiteral("fresh-tok"),
           "…which holds the invited token as its credential");
 
     // An anonymous session has no credential — the mint refuses locally.

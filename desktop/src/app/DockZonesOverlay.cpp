@@ -30,37 +30,37 @@ namespace stencil::gui {
     setObjectName(QStringLiteral("chatDockZones"));
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_NoSystemBackground);
-    nudgeAnim_ = new QVariantAnimation(this);
-    nudgeAnim_->setDuration(ZONE_NUDGE_MS);
-    nudgeAnim_->setLoopCount(-1);  // for the whole drag
-    nudgeAnim_->setEasingCurve(QEasingCurve::InOutSine);
-    nudgeAnim_->setKeyValueAt(0.0, -double(ZONE_NUDGE_PX));
-    nudgeAnim_->setKeyValueAt(0.5, double(ZONE_NUDGE_PX));
-    nudgeAnim_->setKeyValueAt(1.0, -double(ZONE_NUDGE_PX));
-    connect(nudgeAnim_, &QVariantAnimation::valueChanged, this,
+    nudgeAnim = new QVariantAnimation(this);
+    nudgeAnim->setDuration(ZONE_NUDGE_MS);
+    nudgeAnim->setLoopCount(-1);  // for the whole drag
+    nudgeAnim->setEasingCurve(QEasingCurve::InOutSine);
+    nudgeAnim->setKeyValueAt(0.0, -double(ZONE_NUDGE_PX));
+    nudgeAnim->setKeyValueAt(0.5, double(ZONE_NUDGE_PX));
+    nudgeAnim->setKeyValueAt(1.0, -double(ZONE_NUDGE_PX));
+    connect(nudgeAnim, &QVariantAnimation::valueChanged, this,
             [this](const QVariant& v) {
-              nudge_ = v.toReal();
+              nudge = v.toReal();
               update();
             });
-    watchdog_ = new QTimer(this);
-    watchdog_->setInterval(120);
-    connect(watchdog_, &QTimer::timeout, this, [this] {
+    watchdog = new QTimer(this);
+    watchdog->setInterval(120);
+    connect(watchdog, &QTimer::timeout, this, [this] {
       // Fail-safe: the overlay can never linger after a release, whatever events got swallowed.
-      if (stillDragging_ && !stillDragging_()) hide();
+      if (stillDragging && !stillDragging()) hide();
     });
     hide();
   }
 
   void DockZonesOverlay::beginDrag(const QColor& accent, const QRect& targetRect,
                                    std::function<bool()> stillDragging) {
-    accent_ = accent;
-    stillDragging_ = std::move(stillDragging);
-    hover_ = -1;
+    this->accent = accent;
+    this->stillDragging = std::move(stillDragging);
+    hover = -1;
     // Grabbed while still hidden, so the bands blur the page and not themselves.
-    backdrop_ = QPixmap();
+    backdrop = QPixmap();
     if (QWidget* p = parentWidget()) {
       const QPixmap shot = p->grab(targetRect);
-      if (!shot.isNull()) backdrop_ = blurred(shot);
+      if (!shot.isNull()) backdrop = blurred(shot);
     }
     setGeometry(targetRect);
     raise();
@@ -70,8 +70,8 @@ namespace stencil::gui {
 
   void DockZonesOverlay::dragTo(const QPoint& globalPos) {
     const int z = zoneAt(globalPos);
-    if (z != hover_) {
-      hover_ = z;
+    if (z != hover) {
+      hover = z;
       update();
     }
   }
@@ -99,14 +99,14 @@ namespace stencil::gui {
 
   void DockZonesOverlay::showEvent(QShowEvent* e) {
     QWidget::showEvent(e);
-    nudgeAnim_->start();
-    watchdog_->start();
+    nudgeAnim->start();
+    watchdog->start();
   }
 
   void DockZonesOverlay::hideEvent(QHideEvent* e) {
-    backdrop_ = QPixmap();   // a window-sized pixmap has no business outliving the drag
-    nudgeAnim_->stop();
-    watchdog_->stop();
+    backdrop = QPixmap();   // a window-sized pixmap has no business outliving the drag
+    nudgeAnim->stop();
+    watchdog->stop();
     QWidget::hideEvent(e);
   }
 
@@ -114,19 +114,19 @@ namespace stencil::gui {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     for (int i = 0; i < 4; ++i) {
-      const bool hot = i == hover_;
+      const bool hot = i == hover;
       const QRect z = zoneRect(i);
-      if (!backdrop_.isNull()) {
+      if (!backdrop.isNull()) {
         QPainterPath clip;
         clip.addRoundedRect(z, 10, 10);
         p.save();
         p.setClipPath(clip);
-        p.drawPixmap(rect(), backdrop_);
+        p.drawPixmap(rect(), backdrop);
         p.restore();
       }
-      QColor fill = accent_;
+      QColor fill = accent;
       fill.setAlpha(hot ? 133 : 82);   // ~52% targeted / ~32% rest
-      QColor stroke = accent_;
+      QColor stroke = accent;
       stroke.setAlpha(hot ? 255 : 179);  // full / ~70%
       p.setPen(QPen(stroke, 2, Qt::DashLine));
       p.setBrush(fill);
@@ -151,7 +151,7 @@ namespace stencil::gui {
   void DockZonesOverlay::drawChevron(QPainter& p, int i, const QRect& z, bool hot) {
     QPoint ctr = z.center();
     const int a = 7;  // chevron arm
-    const int off = qRound(nudge_);
+    const int off = qRound(nudge);
     QPoint pts[3];
     switch (i) {
       case 0:
@@ -179,7 +179,7 @@ namespace stencil::gui {
     p.setPen(QPen(QColor(0, 0, 0, 90), 4.5, Qt::SolidLine, Qt::RoundCap,
                   Qt::RoundJoin));
     p.drawPolyline(pts, 3);
-    QColor c = accent_;
+    QColor c = accent;
     c.setAlpha(hot ? 255 : 230);
     p.setPen(QPen(c, 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPolyline(pts, 3);

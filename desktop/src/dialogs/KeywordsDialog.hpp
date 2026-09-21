@@ -25,7 +25,7 @@ namespace stencil::gui {
                       const QStringList& keywords, long long now);
 
    private:
-    KeywordChips* chips_ = nullptr;
+    KeywordChips* chips = nullptr;
   };
 
 }  // namespace stencil::gui

@@ -19,7 +19,7 @@ namespace stencil::gui {
   void MainWindow::onHoverDetail(double imageX, double imageY,
                                  const QPoint& globalPos,
                                  Qt::KeyboardModifiers mods, bool immediate) {
-    if (!settings_.tooltipEnabled || !canvas_->hasImage()) {
+    if (!settings.tooltipEnabled || !canvas->hasImage()) {
       hideHoverTooltip();
       return;
     }
@@ -29,13 +29,13 @@ namespace stencil::gui {
     }
     // Compare view: nothing the "before" half covers can be labelled.
     const auto shown = [this](double x, double y) {
-      return !canvas_->compareReadOnly() || canvas_->compareShowsEdited(x, y);
+      return !canvas->compareReadOnly() || canvas->compareShowsEdited(x, y);
     };
     if (!shown(imageX, imageY)) {
       hideHoverTooltip();
       return;
     }
-    const double scale = canvas_->scale();
+    const double scale = canvas->getScale();
     const auto dims = currentPageDimensions();
 
     // By value: copies outlive this frame in the hover-delay closures.
@@ -43,9 +43,9 @@ namespace stencil::gui {
       const auto page = pageCoords(px, py);
       // Per-row visibility (contextMenu.js tooltipShowScreen/Page/Coords → tooltip.js show()).
       core::TooltipRowFlags flags;
-      flags.showScreen = settings_.tooltipShowScreen;
-      flags.showPage = settings_.tooltipShowPage;
-      flags.showCoords = settings_.tooltipShowCoords;
+      flags.showScreen = settings.tooltipShowScreen;
+      flags.showPage = settings.tooltipShowPage;
+      flags.showCoords = settings.tooltipShowCoords;
       const auto coreRows =
           core::buildTooltipRows({px, py}, page, dims, flags, unitFormat());
       std::vector<std::pair<QString, QString>> out;
@@ -58,13 +58,13 @@ namespace stencil::gui {
     // Key is stable regardless of pixel, so the tooltip keeps following without re-waiting.
     if ((mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier)) {
       scheduleHoverShow(QStringLiteral("coords"), [this, globalPos, imageX, imageY, rowsForPoint] {
-        tooltip_->setRows(rowsForPoint(imageX, imageY));
-        tooltip_->showAt(globalPos);
+        tooltip->setRows(rowsForPoint(imageX, imageY));
+        tooltip->showAt(globalPos);
       }, immediate);
       return;
     }
 
-    const core::Lines all = canvas_->allLines();
+    const core::Lines all = canvas->allLines();
 
     // Nearest point within (pointSize + 6)/scale image px.
     const core::Point* nearest = nullptr;
@@ -88,8 +88,8 @@ namespace stencil::gui {
       const double nx = nearest->x, ny = nearest->y;
       const QString key = QStringLiteral("point:%1:%2").arg(nx).arg(ny);
       scheduleHoverShow(key, [this, globalPos, nx, ny, rowsForPoint] {
-        tooltip_->setRows(rowsForPoint(nx, ny));
-        tooltip_->showAt(globalPos);
+        tooltip->setRows(rowsForPoint(nx, ny));
+        tooltip->showAt(globalPos);
       }, immediate);
       return;
     }
@@ -117,7 +117,7 @@ namespace stencil::gui {
     const QString key = QStringLiteral("line:%1:%2").arg(hitLineIdx).arg(showAll);
     scheduleHoverShow(key, [this, globalPos, hitLineIdx, showAll] {
       // Read the lines fresh at reveal time (browser parity) and re-check the index — the line may be gone.
-      const core::Lines fresh = canvas_->allLines();
+      const core::Lines fresh = canvas->allLines();
       if (hitLineIdx < 0 || hitLineIdx >= int(fresh.size())) return;
       const auto& hitLine = fresh[hitLineIdx];
       if (hitLine.points.empty()) return;
@@ -141,8 +141,8 @@ namespace stencil::gui {
         fmt("Start", pts.front());
         fmt("End", pts.back());
       }
-      tooltip_->setRows(rows);
-      tooltip_->showAt(globalPos);
+      tooltip->setRows(rows);
+      tooltip->showAt(globalPos);
     }, immediate);
   }
 

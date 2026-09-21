@@ -24,16 +24,16 @@ namespace stencil::gui {
                            double pageHeightCm, const core::CropRect& initial,
                            QWidget* parent, bool autoFitScreen)
       : QWidget(parent),
-        original_(original),
-        pageWidthCm_(pageWidthCm),
-        pageHeightCm_(pageHeightCm) {
-    iw_ = original_.width();
-    ih_ = original_.height();
-    album_ = core::isAlbumOrientation(
-        initial.width > 0 ? initial.width : iw_,
-        initial.height > 0 ? initial.height : ih_);
-    aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
-    rect_ = initial.width > 0 ? initial : core::centeredCrop(iw_, ih_, aspect_);
+        original(original),
+        pageWidthCm(pageWidthCm),
+        pageHeightCm(pageHeightCm) {
+    iw = this->original.width();
+    ih = this->original.height();
+    album = core::isAlbumOrientation(
+        initial.width > 0 ? initial.width : iw,
+        initial.height > 0 ? initial.height : ih);
+    aspect = core::cropAspect(this->pageWidthCm, this->pageHeightCm, album);
+    cropBox = initial.width > 0 ? initial : core::centeredCrop(iw, ih, aspect);
 
     if (autoFitScreen) setFitBox(previewFitBox(screenAvail(parent)));
     setMouseTracking(true);
@@ -41,16 +41,16 @@ namespace stencil::gui {
 
   void CropPreview::setOriginal(const QImage& original) {
     if (original.isNull()) return;
-    const bool sameSize = original.width() == iw_ && original.height() == ih_;
-    original_ = original;
-    iw_ = original_.width();
-    ih_ = original_.height();
+    const bool sameSize = original.width() == iw && original.height() == ih;
+    this->original = original;
+    iw = this->original.width();
+    ih = this->original.height();
     if (!sameSize) {
       settleRect();
-      rect_ = core::centeredCrop(iw_, ih_, aspect_);
-      // The box last FIT INTO, not scale_ * the new pixels: scale_ is the previous image's ratio, so a
+      cropBox = core::centeredCrop(iw, ih, aspect);
+      // The box last FIT INTO, not scale * the new pixels: scale is the previous image's ratio, so a
       // portrait swapped for a landscape landed the widget far outside PREVIEW_MAX_W/H.
-      setFitBox(fitBox_);
+      setFitBox(fitBox);
       emit cropChanged();
     }
     update();
@@ -60,11 +60,11 @@ namespace stencil::gui {
   // box must NEVER fall back to scale 1.0 - that is NATIVE pixels, which dwarf the dialog.
   void CropPreview::setFitBox(const QSize& box) {
     if (box.width() <= 0 || box.height() <= 0) return;   // keep the last good fit
-    fitBox_ = box;
-    const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw_),
-                              static_cast<double>(box.height()) / std::max(1, ih_));
-    scale_ = s > 0 ? s : 1.0;
-    setFixedSize(qRound(iw_ * scale_) + 2 * INSET, qRound(ih_ * scale_) + 2 * INSET);
+    fitBox = box;
+    const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw),
+                              static_cast<double>(box.height()) / std::max(1, ih));
+    scale = s > 0 ? s : 1.0;
+    setFixedSize(qRound(iw * scale) + 2 * INSET, qRound(ih * scale) + 2 * INSET);
     update();
   }
 
@@ -73,57 +73,57 @@ namespace stencil::gui {
   void CropPreview::setAlbum(bool album) {
     // A same-value call (the constructor's own bootstrap) must stay idempotent - swapping an
     // already-correct rect would put it at the WRONG, reciprocal aspect.
-    if (album == album_) { update(); emit cropChanged(); return; }
-    const core::CropRect from = rect_;
-    album_ = album;
-    aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
-    rect_ = core::swapCropOrientation(rect_, aspect_, iw_, ih_);
+    if (album == this->album) { update(); emit cropChanged(); return; }
+    const core::CropRect from = cropBox;
+    this->album = album;
+    aspect = core::cropAspect(pageWidthCm, pageHeightCm, this->album);
+    cropBox = core::swapCropOrientation(cropBox, aspect, iw, ih);
     flyRectFrom(from);
     emit cropChanged();
   }
 
-  // The flip's own flight: the painted box eases from its old shape while rect_ is already the new
+  // The flip's own flight: the painted box eases from its old shape while cropBox is already the new
   // one (browser twin: rectTween.js). A widget not yet shown lands at once.
   void CropPreview::flyRectFrom(const core::CropRect& from) {
     if (!isVisible() || support::motionReduced() || from.width <= 0) { settleRect(); return; }
-    if (!rectAnim_) {
-      rectAnim_ = new QVariantAnimation(this);
-      rectAnim_->setDuration(CROP_TWEEN_MS);
-      rectAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(rectAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+    if (!rectAnim) {
+      rectAnim = new QVariantAnimation(this);
+      rectAnim->setDuration(CROP_TWEEN_MS);
+      rectAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(rectAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
         const QRectF r = v.toRectF();
-        shownRect_ = {r.x(), r.y(), r.width(), r.height()};
+        shownRect = {r.x(), r.y(), r.width(), r.height()};
         update();
       });
-      connect(rectAnim_, &QVariantAnimation::finished, this, &CropPreview::settleRect);
+      connect(rectAnim, &QVariantAnimation::finished, this, &CropPreview::settleRect);
     }
-    rectAnim_->stop();
-    flying_ = true;
-    shownRect_ = from;
-    rectAnim_->setStartValue(QRectF(from.x, from.y, from.width, from.height));
-    rectAnim_->setEndValue(QRectF(rect_.x, rect_.y, rect_.width, rect_.height));
-    rectAnim_->start();
+    rectAnim->stop();
+    flying = true;
+    shownRect = from;
+    rectAnim->setStartValue(QRectF(from.x, from.y, from.width, from.height));
+    rectAnim->setEndValue(QRectF(cropBox.x, cropBox.y, cropBox.width, cropBox.height));
+    rectAnim->start();
   }
 
   void CropPreview::settleRect() {
-    flying_ = false;
-    if (rectAnim_ && rectAnim_->state() != QAbstractAnimation::Stopped) rectAnim_->stop();
+    flying = false;
+    if (rectAnim && rectAnim->state() != QAbstractAnimation::Stopped) rectAnim->stop();
     update();
   }
 
   // A DIFFERENT page has no reciprocal to carry the old box across, so this resets to a fresh
   // default at the new aspect. Browser twin: openImageModal.js applyCropPageChange.
   void CropPreview::setPageSize(double pageWidthCm, double pageHeightCm) {
-    pageWidthCm_ = pageWidthCm;
-    pageHeightCm_ = pageHeightCm;
-    aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
-    rect_ = core::centeredCrop(iw_, ih_, aspect_);
+    this->pageWidthCm = pageWidthCm;
+    this->pageHeightCm = pageHeightCm;
+    aspect = core::cropAspect(this->pageWidthCm, this->pageHeightCm, album);
+    cropBox = core::centeredCrop(iw, ih, aspect);
     settleRect();
     emit cropChanged();
   }
 
   core::Point CropPreview::toImage(const QPoint& w) const {
-    return {(w.x() - INSET) / scale_, (w.y() - INSET) / scale_};
+    return {(w.x() - INSET) / scale, (w.y() - INSET) / scale};
   }
 
   QRect CropPreview::imageRect() const {
@@ -131,8 +131,8 @@ namespace stencil::gui {
   }
 
   QRectF CropPreview::displayRect() const {
-    const core::CropRect& r = flying_ ? shownRect_ : rect_;
-    return QRectF(INSET + r.x * scale_, INSET + r.y * scale_, r.width * scale_, r.height * scale_);
+    const core::CropRect& r = flying ? shownRect : cropBox;
+    return QRectF(INSET + r.x * scale, INSET + r.y * scale, r.width * scale, r.height * scale);
   }
 
   int CropPreview::cornerAt(const QPoint& wp) const {
@@ -150,7 +150,7 @@ namespace stencil::gui {
   void CropPreview::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    p.drawImage(imageRect(), original_);
+    p.drawImage(imageRect(), original);
 
     const QRectF d = displayRect();
     // Dim everything outside the crop (even-odd fill of the image rect minus crop).

@@ -43,9 +43,9 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::setTemporary(bool temporary, bool incognito) {
-    if (temporary_ == temporary && incognito_ == incognito) return;
-    temporary_ = temporary;
-    incognito_ = incognito;
+    if (this->temporary == temporary && this->incognito == incognito) return;
+    this->temporary = temporary;
+    this->incognito = incognito;
     refresh();
   }
 

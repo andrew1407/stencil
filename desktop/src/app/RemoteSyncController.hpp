@@ -39,16 +39,16 @@ namespace stencil::gui {
     void onRemoteProjectEvent(const QString& id, qint64 version, bool deleted);
     void pollRemoteForUpdate();
 
-    QTimer* pushTimer_;
-    QTimer* pollTimer_;
-    QTimer* reloadTimer_;
-    stencil::net::LiveFeed* liveFeed_ = nullptr;
-    qint64 pushBurstStart_ = 0;   // start of the current debounce burst (max-wait cap)
-    bool reloadPending_ = false;  // a peer change queued during a reload's nested loop
-    RemoteSession* session_;       // the server-project session (link state + connections)
-    const bool* remoteReloading_;  // owned by MainWindow (true while an async reload is in flight)
-    const bool* remotePushing_;    // owned by MainWindow (true while an async push is in flight)
-    Hooks h_;
+    QTimer* pushTimer;
+    QTimer* pollTimer;
+    QTimer* reloadTimer;
+    stencil::net::LiveFeed* liveFeed = nullptr;
+    qint64 pushBurstStart = 0;   // start of the current debounce burst (max-wait cap)
+    bool reloadPending = false;  // a peer change queued during a reload's nested loop
+    RemoteSession* session;       // the server-project session (link state + connections)
+    const bool* remoteReloading;  // owned by MainWindow (true while an async reload is in flight)
+    const bool* remotePushing;    // owned by MainWindow (true while an async push is in flight)
+    Hooks h;
   };
 
 }  // namespace stencil::gui

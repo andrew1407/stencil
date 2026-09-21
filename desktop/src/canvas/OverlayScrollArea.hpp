@@ -17,19 +17,19 @@ namespace stencil::gui {
     explicit OverlayScrollArea(QWidget* parent = nullptr) : QScrollArea(parent) {
       setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
       setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-      vBar_ = new QScrollBar(Qt::Vertical, this);
-      hBar_ = new QScrollBar(Qt::Horizontal, this);
+      vBar = new QScrollBar(Qt::Vertical, this);
+      hBar = new QScrollBar(Qt::Horizontal, this);
       // Painted as pills (thin grey thumb, accent + a swell under the pointer) like every
       // other bar in the app — support/PillScrollBars.hpp; the theme feeds the colours.
-      ScrollBarPill::adopt(vBar_);
-      ScrollBarPill::adopt(hBar_);
-      mirror(verticalScrollBar(), vBar_);
-      mirror(horizontalScrollBar(), hBar_);
+      ScrollBarPill::adopt(vBar);
+      ScrollBarPill::adopt(hBar);
+      mirror(verticalScrollBar(), vBar);
+      mirror(horizontalScrollBar(), hBar);
     }
 
     // The visible, floating bar for an axis. horizontalScrollBar()/verticalScrollBar() stay
     // the model (value/range); these are what the user hovers and drags.
-    QScrollBar* overlayBar(Qt::Orientation o) const { return o == Qt::Vertical ? vBar_ : hBar_; }
+    QScrollBar* overlayBar(Qt::Orientation o) const { return o == Qt::Vertical ? vBar : hBar; }
 
     // Recomputes bar visibility/geometry. Range changes and area resizes call it themselves;
     // MainWindow also calls it after a zoom (revealCanvasScrollbars) as a backstop.
@@ -38,15 +38,15 @@ namespace stencil::gui {
       const QRect vp = viewport()->geometry();
       const bool showV = verticalScrollBar()->maximum() > verticalScrollBar()->minimum();
       const bool showH = horizontalScrollBar()->maximum() > horizontalScrollBar()->minimum();
-      const int vw = vBar_->sizeHint().width();
-      const int hh = hBar_->sizeHint().height();
+      const int vw = vBar->sizeHint().width();
+      const int hh = hBar->sizeHint().height();
       // Each bar stops short of the other's corner, as the browser's do.
-      vBar_->setGeometry(vp.right() - vw + 1, vp.top(), vw, vp.height() - (showH ? hh : 0));
-      hBar_->setGeometry(vp.left(), vp.bottom() - hh + 1, vp.width() - (showV ? vw : 0), hh);
-      vBar_->setVisible(showV);
-      hBar_->setVisible(showH);
-      vBar_->raise();
-      hBar_->raise();
+      vBar->setGeometry(vp.right() - vw + 1, vp.top(), vw, vp.height() - (showH ? hh : 0));
+      hBar->setGeometry(vp.left(), vp.bottom() - hh + 1, vp.width() - (showV ? vw : 0), hh);
+      vBar->setVisible(showV);
+      hBar->setVisible(showH);
+      vBar->raise();
+      hBar->raise();
     }
 
    protected:
@@ -75,8 +75,8 @@ namespace stencil::gui {
       connect(view, &QScrollBar::valueChanged, model, &QScrollBar::setValue);
     }
 
-    QScrollBar* vBar_ = nullptr;
-    QScrollBar* hBar_ = nullptr;
+    QScrollBar* vBar = nullptr;
+    QScrollBar* hBar = nullptr;
   };
 
 }  // namespace stencil::gui

@@ -132,18 +132,18 @@ namespace stencil::gui {
     repolish(cb);
   }
 
-  ctl::ComboPopupDust::ComboPopupDust(QComboBox* cb) : QObject(cb), cb_(cb) {
+  ctl::ComboPopupDust::ComboPopupDust(QComboBox* cb) : QObject(cb), cb(cb) {
     setObjectName(QString::fromLatin1(COMBO_POPUP_FILTER_NAME));
   }
 
   bool ctl::ComboPopupDust::eventFilter(QObject* o, QEvent* e) {
-    if (!cb_) return QObject::eventFilter(o, e);
+    if (!cb) return QObject::eventFilter(o, e);
     auto* popup = qobject_cast<QWidget*>(o);
     if (!popup) return QObject::eventFilter(o, e);
     if (e->type() == QEvent::Show) {
-      support::revealPopup(*popup, cb_);
+      support::revealPopup(*popup, cb);
     } else if (e->type() == QEvent::Hide) {
-      support::dismissPopup(*popup, cb_);
+      support::dismissPopup(*popup, cb);
     }
     return QObject::eventFilter(o, e);
   }

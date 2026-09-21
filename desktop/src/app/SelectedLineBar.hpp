@@ -41,26 +41,26 @@ namespace stencil::gui {
     void deselectRequested();
 
    private:
-    QWidget* card_ = nullptr;   // the bordered/rounded box; `this` is just its inset wrapper
-    QPushButton* unchainBtn_ = nullptr;
-    QFrame* fillSep_ = nullptr;   // the hairline that introduces the fill group
+    QWidget* card = nullptr;   // the bordered/rounded box; `this` is just its inset wrapper
+    QPushButton* unchainBtn = nullptr;
+    QFrame* fillSep = nullptr;   // the hairline that introduces the fill group
     void refitHeight();
-    QPushButton* colorSwatch_ = nullptr;
-    QPushButton* pointColorSwatch_ = nullptr;
-    QSpinBox* thickness_ = nullptr;
-    QSpinBox* pointSize_ = nullptr;
-    QComboBox* style_ = nullptr;
-    QWidget* fillField_ = nullptr;         // "Fill:" label + fillGroup_, hidden as a unit
-    QWidget* fillGroup_ = nullptr;        // locked-area fill, hidden otherwise
-    QPushButton* fillSwatch_ = nullptr;
-    QPushButton* fillClear_ = nullptr;
-    QPushButton* deselectBtn_ = nullptr;
+    QPushButton* colorSwatch = nullptr;
+    QPushButton* pointColorSwatch = nullptr;
+    QSpinBox* thickness = nullptr;
+    QSpinBox* pointSize = nullptr;
+    QComboBox* style = nullptr;
+    QWidget* fillField = nullptr;         // "Fill:" label + fillGroup, hidden as a unit
+    QWidget* fillGroup = nullptr;        // locked-area fill, hidden otherwise
+    QPushButton* fillSwatch = nullptr;
+    QPushButton* fillClear = nullptr;
+    QPushButton* deselectBtn = nullptr;
 
-    QColor currentColor_{"#FFFF00"};
-    QColor currentPointColor_{"#FFFF00"};
-    QColor currentFill_{"#ffffff"};
-    QColor defaultFill_{"#ffffff"};
-    bool updating_ = false;   // suppress signals while showLine repopulates
+    QColor currentColor{"#FFFF00"};
+    QColor currentPointColor{"#FFFF00"};
+    QColor currentFill{"#ffffff"};
+    QColor defaultFill{"#ffffff"};
+    bool updating = false;   // suppress signals while showLine repopulates
   };
 
 }  // namespace stencil::gui

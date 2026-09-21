@@ -103,8 +103,8 @@ namespace stencil::gui {
 
   class ElidedLabel : public QLabel {
    public:
-    explicit ElidedLabel(const QString& text) : QLabel(text), full_(text) {
-      setToolTip(full_);
+    explicit ElidedLabel(const QString& text) : QLabel(text), full(text) {
+      setToolTip(full);
       setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     }
     QSize sizeHint() const override { return QSize(40, QLabel::sizeHint().height()); }
@@ -115,11 +115,11 @@ namespace stencil::gui {
    protected:
     void resizeEvent(QResizeEvent* e) override {
       QLabel::resizeEvent(e);
-      setText(fontMetrics().elidedText(full_, Qt::ElideMiddle, width()));
+      setText(fontMetrics().elidedText(full, Qt::ElideMiddle, width()));
     }
 
    private:
-    QString full_;
+    QString full;
   };
 
 

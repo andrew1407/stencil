@@ -18,7 +18,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());   // the canvas menu opens for an image, and only then
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    win.settings_.llmProvider = "ollama";   // browser: the row sits right under the Assistant
+    win.settings.llmProvider = "ollama";   // browser: the row sits right under the Assistant
     auto* canvas = win.findChild<CanvasWidget*>();
 
     // startsWith, never == : the row carries its Alt+Shift+S hint in the "\t" column.
@@ -111,7 +111,7 @@ class MainWindowGuiTest : public QObject {
 
     // Upload raises a file dialog, and Qt takes every popup down the moment one opens —
     // native or not. So the hook puts the chain BACK: same place, script row, flyout open.
-    stencil::gui::asScriptMenu(win.scriptMenuPanel_)->setScript(QStringLiteral("@crop 10%"));
+    stencil::gui::asScriptMenu(win.scriptMenuPanel)->setScript(QStringLiteral("@crop 10%"));
     bool reopened = false, kept = false;
     QTimer::singleShot(600, [&] {
       // With the flyout open it IS the active popup; the whole chain goes down either way,
@@ -128,7 +128,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(kept, "the flyout came back without the script it was holding");
     beat();
   }
-  // MenuHotkeyChips shares ONE rows_ list across the recursive wire() tree while each level's placer
+  // MenuHotkeyChips shares ONE rows list across the recursive wire() tree while each level's placer
   // passes THAT level's `menu`, so every row must be checked against the menu it belongs to.
   void openingASubmenuDoesNotHideTheRootMenusOwnChips() {
     MainWindow win(nullptr, false);

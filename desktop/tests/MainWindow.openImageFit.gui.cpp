@@ -109,7 +109,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // A wider window fits a bigger preview (user report: it stayed pinned at its 440x300 floor), and the
-  // box must SETTLE: sizing it from size_.bodyContent's own width fed its effect on that width back in.
+  // box must SETTLE: sizing it from size.bodyContent's own width fed its effect on that width back in.
   void resizingTheWindowGrowsThePreviewAndSettles() {
     MainWindow win(nullptr, false);
     win.resize(1250, 980);
@@ -123,18 +123,18 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      dlg->path_->setText(img);
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
       settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
       settle([] { return false; }, 400);
-      wBefore = dlg->previewLabel_->maximumWidth();
+      wBefore = dlg->previewLabel->maximumWidth();
       dlg->resize(1000, dlg->height());
       settle([] { return false; }, 200);
-      wAfter = dlg->previewLabel_->maximumWidth();
+      wAfter = dlg->previewLabel->maximumWidth();
       settle([] { return false; }, 400);
-      wSettled = dlg->previewLabel_->maximumWidth();
+      wSettled = dlg->previewLabel->maximumWidth();
       dlg->reject();
     });
     win.openImage();

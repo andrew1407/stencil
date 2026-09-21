@@ -38,7 +38,7 @@ namespace stencil::gui {
   // The browser's inline width (#formula-x / #formula-y); shrinks toward the floor rather than overflowing into "»".
   inline constexpr int FORMULA_FIELD_W = 180;
   inline constexpr int FORMULA_FIELD_MIN_W = 72;   // still shows a typical "x/2 + 10"
-  // centralLayout_'s RIGHT inset while the panel is docked (browser: the .main-content gap); collapsed,
+  // centralLayout's RIGHT inset while the panel is docked (browser: the .main-content gap); collapsed,
   // updatePanelReopenButton swaps in CANVAS_RIGHT_MARGIN_COLLAPSED.
   inline constexpr int CENTRAL_SIDE_MARGIN = 14;
 

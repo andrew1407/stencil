@@ -24,7 +24,7 @@ namespace stencil::gui {
   struct Palette;
 
   // Most recent messages replayed (contract §7) — and the cap on the panel's
-  // mirrored transcript rows. Shared with MainWindow's chatHistory_/mirror log.
+  // mirrored transcript rows. Shared with MainWindow's chatHistory/mirror log.
   inline constexpr int CHAT_HISTORY_BOUND = 32;
 
   // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist). NOT a second chat -
@@ -38,7 +38,7 @@ namespace stencil::gui {
                   // starts closing, so the settings dialog still flies from the click.
                   std::function<void(QRect)> onSettings, std::function<void(QString)> onRetry);
 
-    QWidget* input() const;
+    QWidget* getInput() const;
 
     // `configure` adds a "Configure provider" action beside Retry (browser unreachable-card parity);
     // it re-uses the panel's own settings callback, the one the gear already opens through.
@@ -81,31 +81,31 @@ namespace stencil::gui {
     void submit();
     void scrollToBottom();
 
-    std::function<void(QString)> onSend_;
-    std::function<void()> onStop_;
-    std::function<void()> onAttach_;
-    std::function<void(QRect)> onSettings_;
-    PillSplitter* splitter_ = nullptr;  // transcript over the resizable composer
-    QScrollArea* scroll_ = nullptr;
-    QWidget* body_ = nullptr;
-    QVBoxLayout* rows_ = nullptr;
-    QPlainTextEdit* input_ = nullptr;
-    QToolButton* send_ = nullptr;
-    QToolButton* more_ = nullptr;      // the "…" overflow, and what the status dot rides on
-    ChatMoreActions moreRows_;         // the "…" overflow's rows, minus Clear history
-    QLabel* statusDot_ = nullptr;
-    QList<QFrame*> rowsAdded_;
-    QWidget* suggest_ = nullptr;  // empty-state chips
-    QFrame* pending_ = nullptr;
-    bool busy_ = false;
-    QColor danger_;   // error-card text (the dock's --danger)
+    std::function<void(QString)> onSend;
+    std::function<void()> onStop;
+    std::function<void()> onAttach;
+    std::function<void(QRect)> onSettings;
+    PillSplitter* splitter = nullptr;  // transcript over the resizable composer
+    QScrollArea* scroll = nullptr;
+    QWidget* body = nullptr;
+    QVBoxLayout* rows = nullptr;
+    QPlainTextEdit* input = nullptr;
+    QToolButton* send = nullptr;
+    QToolButton* more = nullptr;      // the "…" overflow, and what the status dot rides on
+    ChatMoreActions moreRows;         // the "…" overflow's rows, minus Clear history
+    QLabel* statusDot = nullptr;
+    QList<QFrame*> rowsAdded;
+    QWidget* suggest = nullptr;  // empty-state chips
+    QFrame* pending = nullptr;
+    bool busy = false;
+    QColor danger;   // error-card text (the dock's --danger)
     // …and the tones the shared row menu / "⋯" are built from.
-    QColor text_, chip_, border_, accent_, muted_;
-    bool chatSwapSides_ = false;   // mirrors ChatDock::chatSwapSides_ (MainWindow keeps them in step)
+    QColor text, chip, border, accent, muted;
+    bool chatSwapSides = false;   // mirrors ChatDock::chatSwapSides (MainWindow keeps them in step)
     // The last Palette restyle() ran with - setChatSwapSides re-issues the shared card stylesheet
-    // (chatCardStyleSheet) against it, since the flattened tail corner is keyed off chatSwapSides_ too.
-    Palette paletteCache_;
-    std::function<void(QString)> onRetry_;   // resend a failed/stopped turn
+    // (chatCardStyleSheet) against it, since the flattened tail corner is keyed off chatSwapSides too.
+    Palette paletteCache;
+    std::function<void(QString)> onRetry;   // resend a failed/stopped turn
   };
 
   // MainWindow stores the panel as a plain QWidget* member — this types it back.

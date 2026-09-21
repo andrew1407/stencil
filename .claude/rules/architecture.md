@@ -68,6 +68,34 @@ Budgets: `browser|browser-extension|vscode-extension/tests/sizeBudget.json`,
 `core|desktop/tests/sizeBudget.json`, `cli|mcp|pystencil/tests/size_budget.json`,
 `server/internal/lint/sizebudget.json`, `bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
 
+## Folders
+
+A folder holds at most **12 direct source files**; a header and its `.cpp`, or a module and its
+`.d.ts`, count once. At thirteen the folder splits.
+
+A split is by **feature, never by kind** — `ui/openImage/`, `app/mainWindow/chat/`, not
+`helpers/`, `parts/` or `misc/`. Its name is the prefix the files already share, and that prefix
+then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageTabs.js`. One
+class split across translation units keeps the class name on each
+(`app/mainWindow/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
+
+Nesting stops three levels below the surface's source root. Tests mirror the split one for one.
+A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
+output and never raised.
+
+## C++ member names
+
+A member is spelled bare — `canvas`, `settings` — with no trailing underscore and no `m_`
+prefix. Where a parameter or a local binds the same name, the member use is written
+`this->canvas`; a plain `canvas = canvas` there assigns the parameter to itself, and neither
+`-Wall` nor `-Wextra` says a word. Where an accessor would collide with its own member, the
+accessor takes the `get` prefix (`getCropRect()` over `cropRect`), because the member keeps
+the plain name. A member of a QWidget subclass may not take the name of a Qt method it would
+hide — `size`, `show`, `window`, `rect` — so it carries what it actually holds (`markPx`,
+`showWord`, `hostWindow`, `cropBox`).
+
+`auto_` is the one survivor: its bare form is a keyword.
+
 ## Comments
 
 **Two lines maximum, in the body of any file, and only when the code cannot say it**: a

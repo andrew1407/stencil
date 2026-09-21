@@ -46,26 +46,26 @@ namespace stencil::gui {
   void OpenImageDialog::showEvent(QShowEvent* event) {
     QDialog::showEvent(event);
     // A popover owns neither its size nor its place: the overlay caps it, its body scrolls.
-    if (measured_ || !isWindow()) return;
-    measured_ = true;
-    measuring_ = true;   // silent switches — no cross-tab fade for a measurement
-    const int keep = tabs_->currentIndex();
+    if (measured || !isWindow()) return;
+    measured = true;
+    measuring = true;   // silent switches — no cross-tab fade for a measurement
+    const int keep = tabs->currentIndex();
     int tallest = 0;
-    for (int i = 0; i < tabs_->count(); ++i) {
-      tabs_->setCurrentIndex(i);
+    for (int i = 0; i < tabs->count(); ++i) {
+      tabs->setCurrentIndex(i);
       if (QLayout* l = layout()) l->activate();
       tallest = std::max(tallest, wantedHeight());
     }
-    tabs_->setCurrentIndex(keep);
-    measuring_ = false;
+    tabs->setCurrentIndex(keep);
+    measuring = false;
     if (QLayout* l = layout()) { l->invalidate(); l->activate(); }
     // The floor is the browser's OI_MIN_H, not what the emptiest tab measured (barely
     // 280px) — never dropped under afterwards either.
     const int want = std::max({tallest, OI_MIN_H, height()});
     // An ease armed by the last pre-show refit would land after this and overwrite it.
-    if (size_.anim) size_.anim->stop();
+    if (size.anim) size.anim->stop();
     if (want != height()) resize(width(), want);
-    size_.floorH = size_.shownH = want;
+    size.floorH = size.shownH = want;
     // …re-centred for that height: Qt centred it at its pre-measurement size, so growing
     // this much left it sitting low.
     if (QWidget* p = parentWidget())
@@ -74,7 +74,7 @@ namespace stencil::gui {
   }
 
   bool OpenImageDialog::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == url_ && event->type() == QEvent::KeyPress) {
+    if (obj == url && event->type() == QEvent::KeyPress) {
       const auto* k = static_cast<QKeyEvent*>(event);
       if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
         doPreview();  // Enter previews the URL rather than accepting the dialog
@@ -90,8 +90,8 @@ namespace stencil::gui {
         "Images and video (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.mp4 *.mov *.webm "
         "*.mkv *.avi *.m4v *.mpg *.mpeg);;All files (*)");
     if (p.isEmpty()) return;
-    if (p != previewedSource_) scatterPreviewDust();
-    path_->setText(p);
+    if (p != previewedSource) scatterPreviewDust();
+    path->setText(p);
     resetPreviewState();
     refreshButtons();
     doPreview();  // a local file previews immediately
@@ -100,48 +100,48 @@ namespace stencil::gui {
   void OpenImageDialog::pickCustomColor() {
     // Anchored on the custom-fill swatch that was clicked.
     const QColor c =
-        support::pickColorAnimated(blank_.color, this, "Fill color", blank_.swatch);
+        support::pickColorAnimated(blank.color, this, "Fill color", blank.swatch);
     if (!c.isValid()) return;
-    blank_.color = c;
-    setColorSwatch(blank_.swatch, blank_.color, SWATCH_SIZE, /*withHex=*/true);
+    blank.color = c;
+    setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);
   }
 
   void OpenImageDialog::applyMode() {
     cancelPreviewDust();   // the outgoing tab's flourish does not play over the arriving one
-    size_.previewCapH = 0;      // the arriving tab's picture is fitted afresh
+    size.previewCapH = 0;      // the arriving tab's picture is fitted afresh
     // The OUTGOING tab's stage goes NOW: left standing, showPreview() would setOriginal() on it for
     // the arriving picture and persist a rect from the OLD stage's stale aspect.
-    if (cropStage_) {
-      cropStage_->hide();
-      cropStage_->deleteLater();
-      cropStage_ = nullptr;
+    if (cropStage) {
+      cropStage->hide();
+      cropStage->deleteLater();
+      cropStage = nullptr;
     }
-    const bool blank = tabs_->currentIndex() == TabBlank;
-    incogRow_->setVisible(!blank);  // incognito has no effect on a blank
-    act_.here->setVisible(!blank);
-    act_.newWindow->setVisible(!blank);
-    if (act_.replace) act_.replace->setVisible(!blank && tabs_->currentIndex() == TabFile);
-    act_.replaceRow->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
-    act_.createBlank->setVisible(blank);
+    const bool blank = tabs->currentIndex() == TabBlank;
+    incogRow->setVisible(!blank);  // incognito has no effect on a blank
+    act.here->setVisible(!blank);
+    act.newWindow->setVisible(!blank);
+    if (act.replace) act.replace->setVisible(!blank && tabs->currentIndex() == TabFile);
+    act.replaceRow->setVisible(!blank && canReplace && tabs->currentIndex() == TabFile);
+    act.createBlank->setVisible(blank);
     refreshTargetRow();
     // File and URL each keep their own chosen source AND their own crop choice: ticking
     // Crop on the URL tab says nothing about the local file (browser twin: tabCrop).
-    const int tab = tabs_->currentIndex();
+    const int tab = tabs->currentIndex();
     if (tab == TabFile || tab == TabUrl) {
-      const QSignalBlocker block(cropPage_);
-      cropPage_->setChecked(tabCrop_[tab]);
+      const QSignalBlocker block(cropPage);
+      cropPage->setChecked(tabCrop[tab]);
     }
     // Quiet from here: resetPreviewState()/stalePreview() rebuild the crop stage themselves, and
     // ungated that pass played the outgoing rows' closing flourish on every ordinary switch.
-    motion_.quietCrop = true;
+    motion.quietCrop = true;
     const QString src = source();
     if (blank) {
       clearPreviewImage();
       resetPreviewState();
     } else if (src.isEmpty()) {
       resetPreviewState();
-    } else if (src != previewedSource_) {
-      TabPreviewCache& cache = tabCache_[tab];
+    } else if (src != previewedSource) {
+      TabPreviewCache& cache = tabCache[tab];
       if (cache.valid && cache.source == src) {
         restoreTabPreview(cache);
       } else if (tab == TabUrl && cache.valid && restoreTabPreview(cache)) {
@@ -157,21 +157,21 @@ namespace stencil::gui {
     // still quietly.
     if (!blank) {
       syncQuickcropEnabled();
-      motion_.quietCrop = false;
+      motion.quietCrop = false;
       refreshButtons();
     } else {
-      motion_.quietCrop = false;
-      frameRow_->setVisible(false);
+      motion.quietCrop = false;
+      frameRow->setVisible(false);
     }
     fitTabsToCurrentPage();  // after the preview settles — not the tab it's leaving
     fadeInCurrentPage();
     // The tab's own control takes the keyboard (browser setTab) — Local its Choose button,
     // its path field being read-only. Never mid-measurement: that walks every tab.
-    if (measuring_) return;
-    if (tabs_->currentIndex() == TabUrl) {
-      url_->setFocus(Qt::TabFocusReason);
-    } else if (tabs_->currentIndex() == TabFile) {
-      if (QWidget* page = tabs_->currentWidget())
+    if (measuring) return;
+    if (tabs->currentIndex() == TabUrl) {
+      url->setFocus(Qt::TabFocusReason);
+    } else if (tabs->currentIndex() == TabFile) {
+      if (QWidget* page = tabs->currentWidget())
         if (auto* choose = page->findChild<QPushButton*>()) choose->setFocus(Qt::TabFocusReason);
     }
   }
@@ -181,11 +181,11 @@ namespace stencil::gui {
   void OpenImageDialog::refreshButtons() {
     const bool has = !source().isEmpty();
     const bool video = looksLikeVideo(source());
-    previewBtn_->setEnabled(has);
-    if (act_.replace) {
+    previewBtn->setEnabled(has);
+    if (act.replace) {
       const bool canReplaceNow = has && !isUrl() && !video;
-      act_.replace->setEnabled(canReplaceNow);
-      act_.replace->setToolTip(
+      act.replace->setEnabled(canReplaceNow);
+      act.replace->setToolTip(
           !has ? "Choose an image file first"
                : (isUrl() || video
                       ? "A URL or video opens as a new project (no in-place replace)"
@@ -198,12 +198,12 @@ namespace stencil::gui {
   // with a preview taken, opening adopts the exact previewed pixels.
   void OpenImageDialog::refreshOpenEnabled() {
     const bool has = !source().isEmpty();
-    act_.here->setEnabled(has);
-    act_.newWindow->setEnabled(has);
+    act.here->setEnabled(has);
+    act.newWindow->setEnabled(has);
     const QString reason = "Choose an image/video file or paste a URL first";
-    act_.here->setToolTip(has ? "Open the chosen source in this editor (makes a new project)"
+    act.here->setToolTip(has ? "Open the chosen source in this editor (makes a new project)"
                           : reason);
-    act_.newWindow->setToolTip(has ? "Open the chosen source in a new window (this editor stays)"
+    act.newWindow->setToolTip(has ? "Open the chosen source in a new window (this editor stays)"
                                : reason);
   }
 

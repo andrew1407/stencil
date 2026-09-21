@@ -23,16 +23,16 @@ namespace stencil::gui {
 
     // The visible label ("Controls"). The button's own text stays empty so the base does
     // not draw it under ours; accessibleName carries it for a11y.
-    void setLabel(const QString& t) { label_ = t; setAccessibleName(t); updateGeometry(); update(); }
+    void setLabel(const QString& t) { label = t; setAccessibleName(t); updateGeometry(); update(); }
     // `deg` 0 = chevron-up (rows shown), 180 = down; `ink` the label + chevron colour;
     // `px` the chevron glyph size (PILL_CHEVRON).
     void setChevron(qreal deg, const QColor& ink, int px) {
-      chevronDeg_ = deg; ink_ = ink; chevronPx_ = px; update();
+      chevronDeg = deg; this->ink = ink; chevronPx = px; update();
     }
 
     QSize sizeHint() const override {
       const QFontMetrics fm(font());
-      return QSize(PAD_X * 2 + chevronPx_ + GAP + fm.horizontalAdvance(label_),
+      return QSize(PAD_X * 2 + chevronPx + GAP + fm.horizontalAdvance(label),
                    fm.height() + PAD_Y * 2);
     }
     QSize minimumSizeHint() const override { return sizeHint(); }
@@ -42,17 +42,17 @@ namespace stencil::gui {
       QToolButton::paintEvent(e);   // QSS background / border / hover (button text is empty)
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
-      const QColor ink = ink_.isValid() ? ink_ : palette().color(QPalette::ButtonText);
+      const QColor ink = this->ink.isValid() ? this->ink : palette().color(QPalette::ButtonText);
       const QFontMetrics fm(font());
-      const int tw = fm.horizontalAdvance(label_);
-      const qreal groupW = chevronPx_ + GAP + tw;
+      const int tw = fm.horizontalAdvance(label);
+      const qreal groupW = chevronPx + GAP + tw;
       const qreal x0 = (width() - groupW) / 2.0;   // chevron + label centred as ONE group
       const qreal cy = height() / 2.0;
-      if (chevronPx_ > 0) {
+      if (chevronPx > 0) {
         p.save();
-        p.translate(x0 + chevronPx_ / 2.0, cy);
-        p.rotate(chevronDeg_);
-        const qreal w = chevronPx_, h = chevronPx_;
+        p.translate(x0 + chevronPx / 2.0, cy);
+        p.rotate(chevronDeg);
+        const qreal w = chevronPx, h = chevronPx;
         p.setPen(QPen(ink, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         p.drawPolyline(QPolygonF() << QPointF(-w * 0.42, h * 0.20)
                                    << QPointF(0.0, -h * 0.20)
@@ -61,18 +61,18 @@ namespace stencil::gui {
       }
       p.setPen(ink);
       p.setFont(font());
-      p.drawText(QRectF(x0 + chevronPx_ + GAP, 0, tw, height()),
-                 Qt::AlignLeft | Qt::AlignVCenter, label_);
+      p.drawText(QRectF(x0 + chevronPx + GAP, 0, tw, height()),
+                 Qt::AlignLeft | Qt::AlignVCenter, label);
     }
 
    private:
     static constexpr int PAD_X = 12;   // horizontal breathing room each side of the group
     static constexpr int PAD_Y = 3;
     static constexpr int GAP = 7;     // chevron → label
-    QString label_;
-    qreal chevronDeg_ = 0.0;
-    QColor ink_;
-    int chevronPx_ = 0;
+    QString label;
+    qreal chevronDeg = 0.0;
+    QColor ink;
+    int chevronPx = 0;
   };
 
 }  // namespace stencil::gui

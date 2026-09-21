@@ -102,7 +102,7 @@ namespace stencil::llm {
   const QVector<OpAddendum>& opAddenda() {
     static const QVector<OpAddendum> addenda = [] {
       QVector<QPair<int, OpAddendum>> ordered;
-      for (const OpEntry& e : OpSchema::desktop().entries()) {
+      for (const OpEntry& e : OpSchema::desktop().getEntries()) {
         OpKind kind;
         if (e.also.isEmpty() || !opKindFor(e.name, &kind)) continue;
         ordered.append({e.alsoOrder, OpAddendum{kind, e.also}});
@@ -134,7 +134,7 @@ namespace stencil::llm {
   QStringList forbiddenOps() {
     // The registry's forbidden.perSurface.desktop. Never registered; the
     // registry test and the executor reject are the two enforcement teeth.
-    static const QStringList names = OpSchema::desktop().forbidden();
+    static const QStringList names = OpSchema::desktop().getForbidden();
     return names;
   }
 

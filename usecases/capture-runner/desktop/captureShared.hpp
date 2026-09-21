@@ -122,16 +122,16 @@ inline QAction* actionNamed(QWidget& root, const QString& text) {
 class ShotSet {
  public:
   explicit ShotSet(const QString& csv) {
-    for (const QString& name : csv.split(QLatin1Char(','), Qt::SkipEmptyParts)) names_.insert(name.trimmed());
+    for (const QString& name : csv.split(QLatin1Char(','), Qt::SkipEmptyParts)) names.insert(name.trimmed());
   }
-  bool has(const QString& name) const { return names_.isEmpty() || names_.contains(name); }
+  bool has(const QString& name) const { return names.isEmpty() || names.contains(name); }
   bool hasAny(const QStringList& names) const {
     for (const QString& name : names) if (has(name)) return true;
     return false;
   }
 
  private:
-  QSet<QString> names_;
+  QSet<QString> names;
 };
 
 namespace stencil::gui { class OpenImageDialog; }

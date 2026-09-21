@@ -25,8 +25,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(input && send);
 
     // Simulate an in-flight turn: exactly the state onChatSend sets up.
-    win.chatDock_->showPending();
-    win.chatDock_->setBusy(true);
+    win.chatDock->showPending();
+    win.chatDock->setBusy(true);
     QVERIFY(send->isEnabled());  // STOP mode is always clickable
     QCOMPARE(send->toolTip(), QString("Stop the response"));
 
@@ -38,10 +38,10 @@ class MainWindowGuiTest : public QObject {
     input->clear();
 
     // Click STOP → the abort flag is set; then the canceled reply lands.
-    const int histBefore = win.chatHistory_.size();
+    const int histBefore = win.chatHistory.size();
     QTest::mouseClick(send, Qt::LeftButton);
-    QVERIFY(win.chatStopRequested_);
-    win.chatDock_->setBusy(false);  // what the chat completion wrapper does
+    QVERIFY(win.chatStopRequested);
+    win.chatDock->setBusy(false);  // what the chat completion wrapper does
     stencil::llm::LlmReply canceled;
     canceled.ok = false;
     canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
@@ -53,12 +53,12 @@ class MainWindowGuiTest : public QObject {
     for (QLabel* l : dock->findChildren<QLabel*>())
       if (l->text() == QString("Stopped.")) stoppedShown = true;
     QVERIFY(stoppedShown);
-    QCOMPARE(win.chatHistory_.size(), histBefore);
+    QCOMPARE(win.chatHistory.size(), histBefore);
     auto* toast = win.findChild<QWidget*>("chatToast");
     QVERIFY(!toast || !toast->isVisible());
 
     // Composer back to normal: send glyph/tooltip restored, guard cleared.
-    QVERIFY(!win.chatStopRequested_);
+    QVERIFY(!win.chatStopRequested);
     QCOMPARE(send->toolTip(), QString());
     QVERIFY(!send->isEnabled());  // idle + empty input gates send again
     input->setPlainText("hello");
@@ -76,12 +76,12 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    win.settings_.saveChatsWithProject = true;
+    win.settings.saveChatsWithProject = true;
 
     // A local project to file the chat under.
     win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId_.isEmpty());
-    const QString projectId = win.activeProjectId_;
+    QVERIFY(!win.activeProjectId.isEmpty());
+    const QString projectId = win.activeProjectId;
 
     // A settled turn: history push + the persist that onChatReply's tail runs.
     stencil::llm::ChatMessage u;
@@ -106,10 +106,10 @@ class MainWindowGuiTest : public QObject {
     // Reopening the project replays the saved conversation: replay history AND
     // dock transcript cards (restoreChatFromDoc via loadProjectIntoCanvas).
     win.resetChatState();
-    QVERIFY(win.chatHistory_.isEmpty());
+    QVERIFY(win.chatHistory.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(projectId));
-    QCOMPARE(win.chatHistory_.size(), 2);
-    QCOMPARE(win.chatHistory_.last().text, QString("Sepia applied."));
+    QCOMPARE(win.chatHistory.size(), 2);
+    QCOMPARE(win.chatHistory.last().text, QString("Sepia applied."));
     {
       auto* dock = qobject_cast<stencil::gui::ChatDock*>(
           win.findChild<QDockWidget*>("llmChatDock"));
@@ -123,14 +123,14 @@ class MainWindowGuiTest : public QObject {
 
     // The trash clears the persisted copy too (§12.2).
     win.onChatClear();
-    QVERIFY(win.chatHistory_.isEmpty());
+    QVERIFY(win.chatHistory.isEmpty());
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY(pr && pr->chat.isEmpty());
     }
 
     // Opt-in OFF (the default): a turn leaves the record untouched.
-    win.settings_.saveChatsWithProject = false;
+    win.settings.saveChatsWithProject = false;
     win.pushChatHistory(u);
     win.persistActiveChat();
     {

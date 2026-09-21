@@ -31,8 +31,8 @@ class MainWindowGuiTest : public QObject {
         *opened = true;
         // The "Current" copy-image variant action, a fixed pointer rather than text-matched: its own text no
         // longer starts with "Copy Image" now that it nests under an always-enabled submenu opener.
-        *copyFound = win.actCopyImage_ != nullptr;
-        *copyEnabled = win.actCopyImage_ && win.actCopyImage_->isEnabled();
+        *copyFound = win.actCopyImage != nullptr;
+        *copyEnabled = win.actCopyImage && win.actCopyImage->isEnabled();
         menu->close();
       });
       const QPoint corner(6, 6);
@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     QMenu* owner = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>()) {
       for (QAction* a : m->actions())
-        if (win.pop_.dialogActions.contains(a) && a->isEnabled()) { act = a; owner = m; break; }
+        if (win.pop.dialogActions.contains(a) && a->isEnabled()) { act = a; owner = m; break; }
       if (act) break;
     }
     QVERIFY2(act && owner, "no dialog action on the menu bar to test");
@@ -83,19 +83,19 @@ class MainWindowGuiTest : public QObject {
     // Hover the row the way a user does, then let the menu close and the action fire.
     QTest::mouseMove(owner, row.center());
     QTest::qWait(30);
-    QVERIFY2(win.pop_.menuRowAction == act, "the hovered row was not recorded");
+    QVERIFY2(win.pop.menuRowAction == act, "the hovered row was not recorded");
     const QRect rowGlobal(owner->mapToGlobal(row.topLeft()), row.size());
-    QCOMPARE(win.pop_.menuRowRect, rowGlobal);
+    QCOMPARE(win.pop.menuRowRect, rowGlobal);
     // Qt hides the menu and THEN activates the action, in the same pass of the event loop, so the record
     // must still be there — which reading QApplication::activePopupWidget() in triggered() got wrong.
     owner->close();
-    QVERIFY2(win.pop_.menuRowAction == act, "the row was forgotten before the action fired");
+    QVERIFY2(win.pop.menuRowAction == act, "the row was forgotten before the action fired");
     // The dialog itself blocks in exec(), so drive only the handler that stamps the anchor.
-    win.pop_.dialogAnchorRect = (win.pop_.menuRowAction == act) ? win.pop_.menuRowRect : QRect();
-    QCOMPARE(win.pop_.dialogAnchorRect, rowGlobal);
+    win.pop.dialogAnchorRect = (win.pop.menuRowAction == act) ? win.pop.menuRowRect : QRect();
+    QCOMPARE(win.pop.dialogAnchorRect, rowGlobal);
     // …and the record does not linger: the next run from an icon/shortcut is not the menu's.
     QTest::qWait(30);
-    QVERIFY2(!win.pop_.menuRowAction, "the hovered row outlived its menu");
+    QVERIFY2(!win.pop.menuRowAction, "the hovered row outlived its menu");
   }
 };
 

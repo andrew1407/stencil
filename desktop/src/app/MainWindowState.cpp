@@ -40,39 +40,39 @@ namespace stencil::gui {
   void MainWindow::validateAndApplyFormulas() {
     // A focus-out commit also arrives during destruction, when the controllers are gone. Same
     // guard as the chat dock.
-    if (tearingDown_) return;
-    if (formulaCommitTimer_) formulaCommitTimer_->stop();   // a direct call pre-empts the pause
-    const QString fx = formulaX_->text().trimmed();
-    const QString fy = formulaY_->text().trimmed();
+    if (tearingDown) return;
+    if (formulaCommitTimer) formulaCommitTimer->stop();   // a direct call pre-empts the pause
+    const QString fx = formulaX->text().trimmed();
+    const QString fy = formulaY->text().trimmed();
     const bool okX = core::FormulaParser::validate(fx.toStdString(), 'x');
     const bool okY = core::FormulaParser::validate(fy.toStdString(), 'y');
-    formulaError_->setVisible(!okX || !okY);
+    formulaError->setVisible(!okX || !okY);
     if (okX && okY) {
-      settings_.formulaX = fx;
-      settings_.formulaY = fy;
+      settings.formulaX = fx;
+      settings.formulaY = fy;
       persistSettings();
-      onHovered(lastHoverX_, lastHoverY_);
+      onHovered(lastHoverX, lastHoverY);
       onSelectionChanged();  // refresh panel cm with the new formulas (GAP-2)
-      remoteSync_->scheduleRemotePush();  // formulas ride the layout — push to peers
+      remoteSync->scheduleRemotePush();  // formulas ride the layout — push to peers
     }
   }
 
   // Two enabled actions cannot share a shortcut, so Ctrl+C/Ctrl+Shift+D moves onto the split
   // action while comparing.
   void MainWindow::syncSplitCopyDownloadSlot() {
-    const bool split = canvas_->isSplitCompare();
-    actCopyImageSplit_->setVisible(split);
-    actSaveImageSplit_->setVisible(split);
+    const bool split = canvas->isSplitCompare();
+    actCopyImageSplit->setVisible(split);
+    actSaveImageSplit->setVisible(split);
     // Idempotent: a moved shortcut leaves the source empty.
     auto moveShortcut = [](QAction* from, QAction* to) {
       if (!from->shortcut().isEmpty()) { to->setShortcut(from->shortcut()); from->setShortcut(QKeySequence()); }
     };
     if (split) {
-      moveShortcut(actCopyImage_, actCopyImageSplit_);
-      moveShortcut(actSaveImage_, actSaveImageSplit_);
+      moveShortcut(actCopyImage, actCopyImageSplit);
+      moveShortcut(actSaveImage, actSaveImageSplit);
     } else {
-      moveShortcut(actCopyImageSplit_, actCopyImage_);
-      moveShortcut(actSaveImageSplit_, actSaveImage_);
+      moveShortcut(actCopyImageSplit, actCopyImage);
+      moveShortcut(actSaveImageSplit, actSaveImage);
     }
     // "Current"'s own row carries a manual "\t"+combo hint mirroring the live primary combo
     // (browser: ctx-copy-img-current-hk swap).
@@ -82,58 +82,58 @@ namespace stencil::gui {
       row->setText(QStringLiteral("Current (Tint + Lines/Points)") +
                    (combo.isEmpty() ? QString() : QStringLiteral("\t") + combo));
     };
-    setRowHint(actCopyImageCurrentRow_, actCopyImage_);
-    setRowHint(actSaveImageCurrentRow_, actSaveImage_);
+    setRowHint(actCopyImageCurrentRow, actCopyImage);
+    setRowHint(actSaveImageCurrentRow, actSaveImage);
   }
 
   // Browser contextMenu.js syncState parity: rows that would render byte-identical to a sibling
   // hide.
   void MainWindow::syncExportActions() {
-    const bool hasImg = canvas_->hasImage();
-    const bool hasLines = !canvas_->allLines().empty();
-    actCopyImage_->setEnabled(hasImg);
-    actSaveImage_->setEnabled(hasImg);
-    actCopyImageSplit_->setEnabled(hasImg);
-    actSaveImageSplit_->setEnabled(hasImg);
-    actCopyImageCurrentRow_->setEnabled(hasImg);
-    actSaveImageCurrentRow_->setEnabled(hasImg);
-    actCopyImageOriginal_->setEnabled(hasImg);
-    actCopyImageTint_->setEnabled(hasImg);
-    actSaveImageOriginal_->setEnabled(hasImg);
-    actSaveImageTint_->setEnabled(hasImg);
-    const bool hasFilter = settings_.imageFilter != QLatin1String("none");
-    actCopyImageTint_->setVisible(hasFilter);
-    actSaveImageTint_->setVisible(hasFilter);
-    actCopyImageCurrentRow_->setVisible(hasLines);
-    actSaveImageCurrentRow_->setVisible(hasLines);
+    const bool hasImg = canvas->hasImage();
+    const bool hasLines = !canvas->allLines().empty();
+    actCopyImage->setEnabled(hasImg);
+    actSaveImage->setEnabled(hasImg);
+    actCopyImageSplit->setEnabled(hasImg);
+    actSaveImageSplit->setEnabled(hasImg);
+    actCopyImageCurrentRow->setEnabled(hasImg);
+    actSaveImageCurrentRow->setEnabled(hasImg);
+    actCopyImageOriginal->setEnabled(hasImg);
+    actCopyImageTint->setEnabled(hasImg);
+    actSaveImageOriginal->setEnabled(hasImg);
+    actSaveImageTint->setEnabled(hasImg);
+    const bool hasFilter = settings.imageFilter != QLatin1String("none");
+    actCopyImageTint->setVisible(hasFilter);
+    actSaveImageTint->setVisible(hasFilter);
+    actCopyImageCurrentRow->setVisible(hasLines);
+    actSaveImageCurrentRow->setVisible(hasLines);
     syncSplitCopyDownloadSlot();
     // Qt will not enable an invisible action.
-    actShareImage_->setEnabled(hasImg);
+    actShareImage->setEnabled(hasImg);
   }
 
   void MainWindow::onCanvasChanged() {
     refreshActions();
     onSelectionChanged();
     scheduleAutosave();
-    remoteSync_->scheduleRemotePush();   // live co-edit: push the edit to the server for peers
+    remoteSync->scheduleRemotePush();   // live co-edit: push the edit to the server for peers
     scheduleStencilAutosave();           // live file sync: auto-save the edit to the linked .stencil
   }
 
-  // Live co-edit push/pull lives in RemoteSyncController (remoteSync_); the remote-link state and
+  // Live co-edit push/pull lives in RemoteSyncController (remoteSync); the remote-link state and
   // reentrancy flags stay here.
 
   void MainWindow::onSelectionChanged() {
     // No image → no points panel, or restored lines float over the empty canvas.
-    const bool hasImg = canvas_->hasImage();
-    const core::Line* line = hasImg ? canvas_->panelLine() : nullptr;
+    const bool hasImg = canvas->hasImage();
+    const core::Line* line = hasImg ? canvas->panelLine() : nullptr;
     // Same pageCoords converter as the status bar and tooltip; mirrors
     // browser/js/core/coordTable.js.
     const auto u = unitFormat();
     // The unit rides in the column headings, not every cell (browser: `X cm` / `Y cm`), and tracks
     // the setting with no line on screen.
-    selPanel_->setUnitLabel(QString::fromStdString(u.label));
+    selPanel->setUnitLabel(QString::fromStdString(u.label));
     std::vector<SelectionPanel::PageRow> pageRows;
-    if (line && canvas_->hasImage()) {
+    if (line && canvas->hasImage()) {
       pageRows.reserve(line->points.size());
       for (const auto& p : line->points) {
         const auto page = pageCoords(p.x, p.y);
@@ -141,43 +141,43 @@ namespace stencil::gui {
                             QString::number(page.y * u.factor, 'f', 2)});
       }
     }
-    selPanel_->showLine(line, hasImg ? canvas_->selectedPoint() : -1, pageRows);
+    selPanel->showLine(line, hasImg ? canvas->getSelectedPoint() : -1, pageRows);
     // Dust plays only on the hidden<->visible edge (browser selectionPanel.js wasHidden), never on
     // repopulating.
-    const core::Line* editorLine = hasImg ? canvas_->selectedLine() : nullptr;
-    const bool wasBarVisible = selectedLineDock_->isVisible();
+    const core::Line* editorLine = hasImg ? canvas->selectedLine() : nullptr;
+    const bool wasBarVisible = selectedLineDock->isVisible();
     const bool showBar = editorLine != nullptr;
-    selectedLineBar_->showLine(editorLine);
+    selectedLineBar->showLine(editorLine);
     // The Image Size dock's top margin drops to 0 while the bar is up, or the browser's gap
     // doubles.
-    if (imageInfoHost_)
-      if (auto* hostLay = imageInfoHost_->layout()) {
+    if (imageInfoHost)
+      if (auto* hostLay = imageInfoHost->layout()) {
         QMargins m = hostLay->contentsMargins();
         m.setTop(showBar ? 0 : 8);
         hostLay->setContentsMargins(m);
       }
     if (showBar && !wasBarVisible) {
-      selectedLineDock_->setVisible(true);
+      selectedLineDock->setVisible(true);
       // splitDockWidget against a hidden dock does not register, so re-affirm the stack once it is
       // on screen. Idempotent.
-      if (imageInfoDock_) splitDockWidget(selectedLineDock_, imageInfoDock_, Qt::Vertical);
+      if (imageInfoDock) splitDockWidget(selectedLineDock, imageInfoDock, Qt::Vertical);
       if (QLayout* l = layout()) l->activate();   // the grab must see the shown bar, not a stale one
       dustSelectedLineBarIn();
     } else if (!showBar && wasBarVisible) {
       dustSelectedLineBarOut();
-      selectedLineDock_->setVisible(false);
+      selectedLineDock->setVisible(false);
     } else {
-      selectedLineDock_->setVisible(showBar);
+      selectedLineDock->setVisible(showBar);
     }
-    selPanel_->setMultiSelectCount(hasImg ? canvas_->selectionCount() : 0);
-    if (hasImg) selPanel_->setLines(canvas_->lines(), canvas_->selectedIndices());
-    else selPanel_->setLines({}, {});
+    selPanel->setMultiSelectCount(hasImg ? canvas->selectionCount() : 0);
+    if (hasImg) selPanel->setLines(canvas->getLines(), canvas->selectedIndices());
+    else selPanel->setLines({}, {});
   }
 
   // Mirrors browser/js/ui/contextMenu.js grouping, reusing the shared QActions.
   void MainWindow::showContextMenuFromKeyboard() {
-    if (!scroll_) return;
-    const QWidget* vp = scroll_->viewport();
+    if (!scroll) return;
+    const QWidget* vp = scroll->viewport();
     const QRect vpGlobal(vp->mapToGlobal(QPoint(0, 0)), vp->size());
     const QPoint cursor = QCursor::pos();
     showContextMenu(vpGlobal.contains(cursor) ? cursor : vpGlobal.center());

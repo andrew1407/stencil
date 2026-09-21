@@ -8,9 +8,9 @@ namespace stencil::model {
   }
 
   void ScriptBuffer::setText(const QString& text) {
-    if (text_ == text) return;
-    text_ = text;
-    emit changed(text_);
+    if (this->text == text) return;
+    this->text = text;
+    emit changed(this->text);
   }
 
 }  // namespace stencil::model

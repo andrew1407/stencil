@@ -36,9 +36,9 @@ namespace stencil::gui {
     // rather than doubling, so a re-add is never a silent no-op.
     static QStringList addTo(const QStringList& list, const QString& raw);
 
-    QLineEdit* input() const { return input_; }
+    QLineEdit* getInput() const { return input; }
     // Seated in the dialog's footer, beside Cancel — never over the well.
-    QPushButton* clearButton() const { return clearBtn_; }
+    QPushButton* clearButton() const { return clearBtn; }
 
    private:
     void rebuild();
@@ -53,14 +53,14 @@ namespace stencil::gui {
 
     bool orderChanged() const;
 
-    QStringList words_;
-    QStringList laidOut_;              // the order the flow currently holds
-    QHash<QString, QFrame*> chipFor_;   // patched in place, never rebuilt, so a chip can fly
-    QLineEdit* input_ = nullptr;
-    QPushButton* clearBtn_ = nullptr;
-    QScrollArea* scroll_ = nullptr;
-    QWidget* chipArea_ = nullptr;
-    FlowLayout* flow_ = nullptr;
+    QStringList words;
+    QStringList laidOut;              // the order the flow currently holds
+    QHash<QString, QFrame*> chipFor;   // patched in place, never rebuilt, so a chip can fly
+    QLineEdit* input = nullptr;
+    QPushButton* clearBtn = nullptr;
+    QScrollArea* scroll = nullptr;
+    QWidget* chipArea = nullptr;
+    FlowLayout* flow = nullptr;
   };
 
 }  // namespace stencil::gui

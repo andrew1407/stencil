@@ -29,7 +29,7 @@ class MainWindowGuiTest : public QObject {
     QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
     sendToolTipTo(btn);
     QVERIFY2(tip->isVisible(), "the tooltip did not take over QEvent::ToolTip");
-    QCOMPARE(tip->owner(), static_cast<QWidget*>(btn));
+    QCOMPARE(tip->getOwner(), static_cast<QWidget*>(btn));
     QVERIFY2(tip->windowOpacity() < 0.99, "it snapped in at full opacity");
     QTRY_COMPARE_WITH_TIMEOUT(tip->windowOpacity(), 1.0, 1500);   // …and rose to solid
     QTest::qWait(300);
@@ -80,7 +80,7 @@ class MainWindowGuiTest : public QObject {
     // The cursor is nowhere near it (offscreen QPA parks it at the origin, and no Leave is
     // synthesised) — the heartbeat is the only thing that can clear this.
     QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 3000);
-    QVERIFY(!tip->owner());
+    QVERIFY(!tip->getOwner());
     beat();
   }
 
@@ -92,13 +92,13 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     settleLayout(&win, 150);
-    win.settings_.tooltipEnabled = true;    // independent of the machine's saved settings
-    win.settings_.tooltipShowScreen = true;
+    win.settings.tooltipEnabled = true;    // independent of the machine's saved settings
+    win.settings.tooltipShowScreen = true;
 
     stencil::core::Line line;
     line.points = {{40, 40}, {160, 120}};
     canvas->setLines({line});
-    const double s = canvas->scale();
+    const double s = canvas->getScale();
 
     auto sendMouse = [&](QEvent::Type t, const QPointF& pos, Qt::MouseButton btn,
                          Qt::MouseButtons btns, Qt::KeyboardModifiers mods) {
@@ -113,7 +113,7 @@ class MainWindowGuiTest : public QObject {
     // Baseline: hovering the first point (no modifiers, nothing else going on) shows the
     // tooltip after the reveal delay — proves the setup actually can show one at all.
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
 
     // Alt-press ON that same point starts a point drag without moving first — the stranding case: the very
     // next move must retract a tooltip already up, not merely skip showing a new one.
@@ -121,12 +121,12 @@ class MainWindowGuiTest : public QObject {
              Qt::LeftButton, Qt::AltModifier);
     sendMouse(QEvent::MouseMove, QPointF(70 * s, 60 * s), Qt::NoButton, Qt::LeftButton,
              Qt::AltModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
     // Dragging further — even back over the SECOND point — never re-shows it either.
     sendMouse(QEvent::MouseMove, QPointF(160 * s, 120 * s), Qt::NoButton, Qt::LeftButton,
              Qt::AltModifier);
     QTest::qWait(260);   // outwait the reveal delay — it must still be hidden
-    QVERIFY2(!win.tooltip_->isVisible(), "a point drag popped a tooltip mid-drag");
+    QVERIFY2(!win.tooltip->isVisible(), "a point drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(160 * s, 120 * s), Qt::LeftButton,
              Qt::NoButton, Qt::AltModifier);
     beat();
@@ -135,14 +135,14 @@ class MainWindowGuiTest : public QObject {
     canvas->setLines({line});   // undo the point drag above — point 1 back at (40, 40)
     canvas->setDrawMode(CanvasWidget::DrawMode::RECT);
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
              Qt::LeftButton, Qt::NoModifier);
     sendMouse(QEvent::MouseMove, QPointF(90 * s, 90 * s), Qt::NoButton, Qt::LeftButton,
              Qt::NoModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
     QTest::qWait(260);
-    QVERIFY2(!win.tooltip_->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
+    QVERIFY2(!win.tooltip->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(90 * s, 90 * s), Qt::LeftButton,
              Qt::NoButton, Qt::NoModifier);
     canvas->setDrawMode(CanvasWidget::DrawMode::LINE);
@@ -151,23 +151,23 @@ class MainWindowGuiTest : public QObject {
     // Shift-drag (zoom rect) over a point: still nothing.
     canvas->setLines({line});   // drop the rect-draw commit above, back to the plain line
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
              Qt::LeftButton, Qt::ShiftModifier);
     // Kept under the 4-image-px commit threshold (mouseReleaseEvent) so releasing does
     // NOT actually zoom — this section only cares about the tooltip during the drag.
     sendMouse(QEvent::MouseMove, QPointF(42 * s, 41 * s), Qt::NoButton, Qt::LeftButton,
              Qt::ShiftModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
     QTest::qWait(260);
-    QVERIFY2(!win.tooltip_->isVisible(), "a zoom-rect drag popped a tooltip mid-drag");
+    QVERIFY2(!win.tooltip->isVisible(), "a zoom-rect drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(42 * s, 41 * s), Qt::LeftButton,
              Qt::NoButton, Qt::ShiftModifier);
     beat();
 
     // Back to a plain hover afterwards: the tooltip is not stuck off either.
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
     beat();
   }
 
@@ -177,12 +177,12 @@ class MainWindowGuiTest : public QObject {
     MainWindow win;
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     win.refreshActions();
     // Painting the card is what used to install the tooltip.
     QVERIFY(waitForIdleCard(win));
-    QVERIFY2(win.canvas_->toolTip().isEmpty(),
-             qPrintable("the empty canvas still has a tooltip: " + win.canvas_->toolTip()));
+    QVERIFY2(win.canvas->toolTip().isEmpty(),
+             qPrintable("the empty canvas still has a tooltip: " + win.canvas->toolTip()));
   }
 
 };

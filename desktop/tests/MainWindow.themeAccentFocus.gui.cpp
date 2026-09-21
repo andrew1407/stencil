@@ -15,21 +15,21 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn_;
-    QVERIFY(logo && win.canvas_);
+    QToolButton* logo = win.logoBtn;
+    QVERIFY(logo && win.canvas);
     // With a picture loaded, so a canvas press is an ordinary editing press and not the
     // empty canvas's "create a blank image" invitation (another modal dialog).
     QImage pic(320, 240, QImage::Format_RGB32);
     pic.fill(Qt::darkCyan);
-    win.canvas_->loadFromImage(pic);
-    QTRY_VERIFY(win.canvas_->hasImage());
+    win.canvas->loadFromImage(pic);
+    QTRY_VERIFY(win.canvas->hasImage());
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
     // A toolbar icon that is not the logo, and NOT one the open popover's box covers: a press on a
     // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
-    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
-      if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
+    for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
+      if (it.value() == win.actInfo && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 
@@ -37,7 +37,7 @@ class MainWindowGuiTest : public QObject {
     // what ends it — unless a NESTED dialog the popover itself opened took that focus.
     bool deactClosedSticky = false, deactKeptWithNested = false;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.pop_.active.data();
+      QDialog* pop = win.pop.active.data();
       if (pop) {
         auto nested = std::make_unique<QDialog>(pop);
         nested->resize(120, 80);
@@ -45,22 +45,22 @@ class MainWindowGuiTest : public QObject {
         QTest::qWait(30);
         QEvent deact1(QEvent::WindowDeactivate);
         QApplication::sendEvent(&win, &deact1);   // …handing focus to OUR nested window
-        deactKeptWithNested = win.pop_.active && !win.pop_.active->isHidden();
+        deactKeptWithNested = win.pop.active && !win.pop.active->isHidden();
         nested->close();
         nested.reset();
         QTest::qWait(30);
         QEvent deact2(QEvent::WindowDeactivate);
         QApplication::sendEvent(&win, &deact2);   // …now the app really lost focus
-        deactClosedSticky = !win.pop_.active || win.pop_.active->isHidden();
+        deactClosedSticky = !win.pop.active || win.pop.active->isHidden();
       }
-      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
+      if (win.pop.active && !win.pop.active->isHidden()) win.pop.active->reject();
     });
     QContextMenuEvent ctx2(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
     QApplication::sendEvent(logo, &ctx2);
     QVERIFY2(deactKeptWithNested,
              "a nested window's activation must not close the popover under it");
     QVERIFY2(deactClosedSticky, "losing focus must close even a STICKY popover");
-    QVERIFY(!win.pop_.active);
+    QVERIFY(!win.pop.active);
 
     // One open, one close, both animated, nothing re-shown: the popover is a CHILD widget of the main
     // window, so its grow/shrink are ordinary in-window animations. This case needs motion on.
@@ -104,7 +104,7 @@ class MainWindowGuiTest : public QObject {
 
     // The logo is not an outside target any more (the block above), so the lifecycle is
     // traced on the canvas and a toolbar icon.
-    for (QWidget* target : {static_cast<QWidget*>(win.canvas_), static_cast<QWidget*>(other)}) {
+    for (QWidget* target : {static_cast<QWidget*>(win.canvas), static_cast<QWidget*>(other)}) {
       trace.seq.clear();
       trace.dialogs.clear();
       trace.pressedAt = trace.hidAt = -1;
@@ -117,8 +117,8 @@ class MainWindowGuiTest : public QObject {
         trace.pressedAt = trace.clock.elapsed();
         // THE property: no window of its own. That is what made three animated closes
         // invisible, and what the in-window overlay fixes.
-        if (win.pop_.active) wasTopLevel = win.pop_.active->isWindow();
-        hadOverlay = win.pop_.overlay && win.pop_.overlay->isVisible();
+        if (win.pop.active) wasTopLevel = win.pop.active->isWindow();
+        hadOverlay = win.pop.overlay && win.pop.overlay->isVisible();
         trace.dismissed = true;
         QMouseEvent pr(QEvent::MouseButtonPress, local, at, Qt::LeftButton, Qt::LeftButton,
                        Qt::NoModifier);
@@ -162,7 +162,7 @@ class MainWindowGuiTest : public QObject {
                qPrintable(QString("%1: no dust played on open").arg(what)));
       QVERIFY2(trace.dustClosing > 0,
                qPrintable(QString("%1: no dust played on close").arg(what)));
-      QVERIFY(!win.pop_.active);
+      QVERIFY(!win.pop.active);
     }
   }
 

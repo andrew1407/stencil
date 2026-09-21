@@ -85,29 +85,29 @@ namespace stencil::gui {
     col->setSpacing(6);
 
     // The SHARED pill grip (PillSplitter.hpp): a stylesheet handle stretched with the panel.
-    log_.splitter = new PillSplitter(Qt::Vertical, body);
-    log_.splitter->setObjectName("chatSplitter");
-    log_.splitter->setChildrenCollapsible(false);
+    log.splitter = new PillSplitter(Qt::Vertical, body);
+    log.splitter->setObjectName("chatSplitter");
+    log.splitter->setChildrenCollapsible(false);
 
-    scroll_ = new QScrollArea(log_.splitter);
-    scroll_->setWidgetResizable(true);
+    scroll = new QScrollArea(log.splitter);
+    scroll->setWidgetResizable(true);
     // Never scrolls sideways: a long unbreakable token would slide the bubbles out of view.
-    scroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scroll_->setFrameShape(QFrame::NoFrame);
-    scroll_->setMinimumHeight(100);
-    log_.transcript = new QWidget(scroll_);
-    log_.transcriptLayout = new QVBoxLayout(log_.transcript);
-    log_.transcriptLayout->setContentsMargins(10, 10, 10, 10);
-    log_.transcriptLayout->setSpacing(8);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setMinimumHeight(100);
+    log.transcript = new QWidget(scroll);
+    log.transcriptLayout = new QVBoxLayout(log.transcript);
+    log.transcriptLayout->setContentsMargins(10, 10, 10, 10);
+    log.transcriptLayout->setSpacing(8);
     buildSuggestions();
-    log_.transcriptLayout->addStretch(1);
-    scroll_->setWidget(log_.transcript);
-    // browser .reveal-item (css/animations.css); parented to scroll_.
-    reveal_ = new ScrollReveal(scroll_);
-    scroll_->viewport()->installEventFilter(this);
+    log.transcriptLayout->addStretch(1);
+    scroll->setWidget(log.transcript);
+    // browser .reveal-item (css/animations.css); parented to scroll.
+    reveal = new ScrollReveal(scroll);
+    scroll->viewport()->installEventFilter(this);
     // Jump pills (browser .chat-jumps): both mid-log, neither while the log fits.
     const auto mkJump = [this](const QString& tip) {
-      auto* b = new QToolButton(scroll_);
+      auto* b = new QToolButton(scroll);
       b->setObjectName(QStringLiteral("chatJumpBtn"));
       b->setToolTip(tip);
       b->setCursor(Qt::PointingHandCursor);
@@ -120,21 +120,21 @@ namespace stencil::gui {
       b->hide();
       return b;
     };
-    log_.jumpTop = mkJump(QStringLiteral("Jump to the beginning"));
-    log_.jumpBottom = mkJump(QStringLiteral("Jump to the latest message"));
-    connect(scroll_->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] {
+    log.jumpTop = mkJump(QStringLiteral("Jump to the beginning"));
+    log.jumpBottom = mkJump(QStringLiteral("Jump to the latest message"));
+    connect(scroll->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] {
       // Chat stickiness: scrolling away releases the follow pin; a jump to the end re-arms it.
-      const auto* bar = scroll_->verticalScrollBar();
-      stickToBottom_ = bar->maximum() - bar->value() <= STICKY_BOTTOM_PX;
+      const auto* bar = scroll->verticalScrollBar();
+      stickToBottom = bar->maximum() - bar->value() <= STICKY_BOTTOM_PX;
       updateJumpButtons();
     });
-    connect(scroll_->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this] {
-      auto* bar = scroll_->verticalScrollBar();
-      if (stickToBottom_ && bar->value() < bar->maximum()) bar->setValue(bar->maximum());
+    connect(scroll->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this] {
+      auto* bar = scroll->verticalScrollBar();
+      if (stickToBottom && bar->value() < bar->maximum()) bar->setValue(bar->maximum());
       updateJumpButtons();
     });
     const auto jumpTo = [this](bool top) {
-      auto* sb = scroll_->verticalScrollBar();
+      auto* sb = scroll->verticalScrollBar();
       auto* anim = new QVariantAnimation(sb);
       anim->setDuration(220);
       anim->setStartValue(sb->value());
@@ -144,18 +144,18 @@ namespace stencil::gui {
               [sb](const QVariant& v) { sb->setValue(v.toInt()); });
       anim->start(QAbstractAnimation::DeleteWhenStopped);
     };
-    connect(log_.jumpTop, &QToolButton::clicked, this, [jumpTo] { jumpTo(true); });
-    connect(log_.jumpBottom, &QToolButton::clicked, this, [jumpTo] { jumpTo(false); });
-    log_.splitter->addWidget(scroll_);
+    connect(log.jumpTop, &QToolButton::clicked, this, [jumpTo] { jumpTo(true); });
+    connect(log.jumpBottom, &QToolButton::clicked, this, [jumpTo] { jumpTo(false); });
+    log.splitter->addWidget(scroll);
     buildComposer();
 
-    log_.splitter->addWidget(log_.inputArea);
+    log.splitter->addWidget(log.inputArea);
     // The pill centres on the handle (= the dock); the context-menu panel differs on purpose.
-    log_.splitter->setStretchFactor(0, 1);
-    log_.splitter->setStretchFactor(1, 0);
+    log.splitter->setStretchFactor(0, 1);
+    log.splitter->setStretchFactor(1, 0);
     // A tall transcript over a compact composer.
-    log_.splitter->setSizes({360, 96});
-    col->addWidget(log_.splitter, 1);
+    log.splitter->setSizes({360, 96});
+    col->addWidget(log.splitter, 1);
 
     setWidget(body);
     setMinimumWidth(260);

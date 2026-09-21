@@ -69,8 +69,8 @@ namespace stencil::gui {
 
   using namespace chatdock;
   void ChatDock::buildComposer() {
-    auto* inputArea = new QWidget(log_.splitter);
-    log_.inputArea = inputArea;
+    auto* inputArea = new QWidget(log.splitter);
+    log.inputArea = inputArea;
     inputArea->setMinimumHeight(88);
     // The QPlainTextEdit would swallow the drop and paste the path as text.
     inputArea->setAcceptDrops(true);
@@ -81,36 +81,36 @@ namespace stencil::gui {
     inputCol->setContentsMargins(10, 8, 10, 8);
     inputCol->setSpacing(4);
 
-    cmp_.busy = new QProgressBar(inputArea);
-    cmp_.busy->setRange(0, 0);
-    cmp_.busy->setTextVisible(false);
-    cmp_.busy->setFixedHeight(4);
-    cmp_.busy->hide();
-    inputCol->addWidget(cmp_.busy);
+    cmp.busy = new QProgressBar(inputArea);
+    cmp.busy->setRange(0, 0);
+    cmp.busy->setTextVisible(false);
+    cmp.busy->setFixedHeight(4);
+    cmp.busy->hide();
+    inputCol->addWidget(cmp.busy);
 
     // browser .chat-attachments parity
-    cmp_.attachTray = new QWidget(inputArea);
-    cmp_.attachTray->setObjectName("chatAttachTray");
+    cmp.attachTray = new QWidget(inputArea);
+    cmp.attachTray->setObjectName("chatAttachTray");
     // Wide chips clip rather than raising the dock's minimum width.
-    cmp_.attachTray->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    auto* trayRow = new QHBoxLayout(cmp_.attachTray);
+    cmp.attachTray->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    auto* trayRow = new QHBoxLayout(cmp.attachTray);
     trayRow->setContentsMargins(0, 0, 0, 0);
     trayRow->setSpacing(6);
     trayRow->addStretch(1);
-    cmp_.attachTray->setVisible(false);
-    inputCol->addWidget(cmp_.attachTray);
+    cmp.attachTray->setVisible(false);
+    inputCol->addWidget(cmp.attachTray);
 
     auto* inputRow = new QHBoxLayout;
     inputRow->setSpacing(6);
-    input_ = new QPlainTextEdit(inputArea);
-    input_->setObjectName("chatInput");
-    input_->setPlaceholderText("Ask the assistant… (Enter sends, Shift+Enter newline)");
-    input_->setMinimumHeight(48);
-    input_->setAcceptDrops(false);
-    input_->viewport()->setAcceptDrops(false);
-    input_->installEventFilter(this);
-    connect(input_, &QPlainTextEdit::textChanged, this, &ChatDock::updateSendEnabled);
-    inputRow->addWidget(input_, 1);
+    input = new QPlainTextEdit(inputArea);
+    input->setObjectName("chatInput");
+    input->setPlaceholderText("Ask the assistant… (Enter sends, Shift+Enter newline)");
+    input->setMinimumHeight(48);
+    input->setAcceptDrops(false);
+    input->viewport()->setAcceptDrops(false);
+    input->installEventFilter(this);
+    connect(input, &QPlainTextEdit::textChanged, this, &ChatDock::updateSendEnabled);
+    inputRow->addWidget(input, 1);
 
     auto* btnWrap = new QWidget(inputArea);
     auto* btnCol = new QVBoxLayout(btnWrap);
@@ -120,40 +120,40 @@ namespace stencil::gui {
     // Only SEND stays inline; the hidden QToolButtons live on as the "…" menu's action targets.
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(2);
-    cmp_.send = makeChatAccentButton(btnWrap, "");
-    cmp_.send->setObjectName("chatSend");
-    cmp_.send->setEnabled(false);
-    connect(cmp_.send, &QToolButton::clicked, this, &ChatDock::onSendClicked);
-    btnRow->addWidget(cmp_.send);
-    cmp_.attach = makeChatAccentButton(btnWrap, QString());
-    cmp_.attach->setAccessibleName(QStringLiteral("Add image"));
-    cmp_.attach->setObjectName("chatAttach");
-    cmp_.attach->hide();
-    connect(cmp_.attach, &QToolButton::clicked, this, &ChatDock::pickMedia);
-    cmp_.gear = makeChatAccentButton(btnWrap, QString());
-    cmp_.gear->setAccessibleName(QStringLiteral("Assistant settings"));
-    cmp_.gear->setObjectName("chatGear");
-    cmp_.gear->hide();
-    connect(cmp_.gear, &QToolButton::clicked, this, &ChatDock::settingsRequested);
-    cmp_.more = makeChatAccentButton(btnWrap, QString());
-    cmp_.more->setAccessibleName(QStringLiteral("More actions"));
-    cmp_.more->setObjectName("chatMore");
-    cmp_.more->setPopupMode(QToolButton::InstantPopup);
+    cmp.send = makeChatAccentButton(btnWrap, "");
+    cmp.send->setObjectName("chatSend");
+    cmp.send->setEnabled(false);
+    connect(cmp.send, &QToolButton::clicked, this, &ChatDock::onSendClicked);
+    btnRow->addWidget(cmp.send);
+    cmp.attach = makeChatAccentButton(btnWrap, QString());
+    cmp.attach->setAccessibleName(QStringLiteral("Add image"));
+    cmp.attach->setObjectName("chatAttach");
+    cmp.attach->hide();
+    connect(cmp.attach, &QToolButton::clicked, this, &ChatDock::pickMedia);
+    cmp.gear = makeChatAccentButton(btnWrap, QString());
+    cmp.gear->setAccessibleName(QStringLiteral("Assistant settings"));
+    cmp.gear->setObjectName("chatGear");
+    cmp.gear->hide();
+    connect(cmp.gear, &QToolButton::clicked, this, &ChatDock::settingsRequested);
+    cmp.more = makeChatAccentButton(btnWrap, QString());
+    cmp.more->setAccessibleName(QStringLiteral("More actions"));
+    cmp.more->setObjectName("chatMore");
+    cmp.more->setPopupMode(QToolButton::InstantPopup);
     {
-      auto* menu = new QMenu(cmp_.more);
+      auto* menu = new QMenu(cmp.more);
       menu->setObjectName("chatMoreMenu");
-      moreRows_ = buildChatMoreMenu(*menu, /*withClear=*/true);
-      connect(moreRows_.attach, &QAction::triggered, this, &ChatDock::pickMedia);
-      connect(moreRows_.clear, &QAction::triggered, this, [this] {
+      moreRows = buildChatMoreMenu(*menu, /*withClear=*/true);
+      connect(moreRows.attach, &QAction::triggered, this, &ChatDock::pickMedia);
+      connect(moreRows.clear, &QAction::triggered, this, [this] {
         clearConversation();
         emit clearRequested();
       });
       // Re-skins this dock immediately; the owner persists it and propagates to the mirror panel.
-      connect(moreRows_.swapSides, &QAction::triggered, this, [this] {
-        setChatSwapSides(!chatSwapSides_);
-        emit chatSwapSidesChanged(chatSwapSides_);
+      connect(moreRows.swapSides, &QAction::triggered, this, [this] {
+        setChatSwapSides(!chatSwapSides);
+        emit chatSwapSidesChanged(chatSwapSides);
       });
-      connect(moreRows_.settings, &QAction::triggered, this, &ChatDock::settingsRequested);
+      connect(moreRows.settings, &QAction::triggered, this, &ChatDock::settingsRequested);
       // An item that cannot act right now HIDES rather than greys out (browser parity).
       connect(menu, &QMenu::aboutToShow, this, [this, menu] {
         syncMoreMenuItems();
@@ -162,23 +162,23 @@ namespace stencil::gui {
       compactIconMenu(*menu);
       // Built once and parented to the menu: it is created once, popped many times (menuRowPolish.hpp).
       new support::MenuShimmer(menu, menu);
-      support::revealMenuFrom(*menu, cmp_.more);
-      cmp_.more->setMenu(menu);
+      support::revealMenuFrom(*menu, cmp.more);
+      cmp.more->setMenu(menu);
     }
-    btnRow->addWidget(cmp_.more);
+    btnRow->addWidget(cmp.more);
     // The dot is a child pinned to the "…" trigger's top-right corner: no layout space.
-    cmp_.statusDot = new QLabel(cmp_.more);
-    cmp_.statusDot->setObjectName("chatStatusDot");
-    cmp_.statusDot->setFixedSize(7, 7);
-    cmp_.statusDot->setAttribute(Qt::WA_TransparentForMouseEvents);
-    cmp_.statusDot->move(ACCENT_EDGE - cmp_.statusDot->width() - 1, 1);
-    cmp_.statusDot->raise();
+    cmp.statusDot = new QLabel(cmp.more);
+    cmp.statusDot->setObjectName("chatStatusDot");
+    cmp.statusDot->setFixedSize(7, 7);
+    cmp.statusDot->setAttribute(Qt::WA_TransparentForMouseEvents);
+    cmp.statusDot->move(ACCENT_EDGE - cmp.statusDot->width() - 1, 1);
+    cmp.statusDot->raise();
     // Disabled while a turn is in flight — the transcript can't be wiped mid-answer.
-    chrome_.clearBtn = makeChatAccentButton(btnWrap, QString());
-    chrome_.clearBtn->setAccessibleName(QStringLiteral("Clear history"));
-    chrome_.clearBtn->setObjectName("chatClear");
-    chrome_.clearBtn->hide();
-    connect(chrome_.clearBtn, &QToolButton::clicked, this, [this] {
+    chrome.clearBtn = makeChatAccentButton(btnWrap, QString());
+    chrome.clearBtn->setAccessibleName(QStringLiteral("Clear history"));
+    chrome.clearBtn->setObjectName("chatClear");
+    chrome.clearBtn->hide();
+    connect(chrome.clearBtn, &QToolButton::clicked, this, [this] {
       clearConversation();
       emit clearRequested();
     });
@@ -187,31 +187,31 @@ namespace stencil::gui {
     inputCol->addLayout(inputRow, 1);
 
     // A child of the composer, not a layout item — it must cover the input, not push it around.
-    cmp_.dropCue = new QWidget(inputArea);
-    cmp_.dropCue->setObjectName(QStringLiteral("chatDropCue"));
-    cmp_.dropCue->setAttribute(Qt::WA_StyledBackground);
-    cmp_.dropCue->setAttribute(Qt::WA_TransparentForMouseEvents);
-    cmp_.dropCue->hide();
-    auto* cueRow = new QHBoxLayout(cmp_.dropCue);
+    cmp.dropCue = new QWidget(inputArea);
+    cmp.dropCue->setObjectName(QStringLiteral("chatDropCue"));
+    cmp.dropCue->setAttribute(Qt::WA_StyledBackground);
+    cmp.dropCue->setAttribute(Qt::WA_TransparentForMouseEvents);
+    cmp.dropCue->hide();
+    auto* cueRow = new QHBoxLayout(cmp.dropCue);
     cueRow->setContentsMargins(8, 8, 8, 8);
     cueRow->setSpacing(8);
     cueRow->addStretch(1);
-    cmp_.dropCueIcon = new QLabel(cmp_.dropCue);
-    cueRow->addWidget(cmp_.dropCueIcon, 0, Qt::AlignVCenter);
-    cmp_.dropCueText = makePlainLabel(QStringLiteral("Drop to attach"), cmp_.dropCue);
-    cueRow->addWidget(cmp_.dropCueText, 0, Qt::AlignVCenter);
+    cmp.dropCueIcon = new QLabel(cmp.dropCue);
+    cueRow->addWidget(cmp.dropCueIcon, 0, Qt::AlignVCenter);
+    cmp.dropCueText = makePlainLabel(QStringLiteral("Drop to attach"), cmp.dropCue);
+    cueRow->addWidget(cmp.dropCueText, 0, Qt::AlignVCenter);
     cueRow->addStretch(1);
     // The bob rides on the label's contents margins — it sits in a layout, so moving it would fight it.
-    cmp_.dropCueAnim = new QVariantAnimation(this);
-    cmp_.dropCueAnim->setDuration(1000);
-    cmp_.dropCueAnim->setLoopCount(-1);
-    cmp_.dropCueAnim->setKeyValueAt(0.0, -2.0);
-    cmp_.dropCueAnim->setKeyValueAt(0.5, 2.0);
-    cmp_.dropCueAnim->setKeyValueAt(1.0, -2.0);
-    connect(cmp_.dropCueAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-      if (!cmp_.dropCueIcon) return;
+    cmp.dropCueAnim = new QVariantAnimation(this);
+    cmp.dropCueAnim->setDuration(1000);
+    cmp.dropCueAnim->setLoopCount(-1);
+    cmp.dropCueAnim->setKeyValueAt(0.0, -2.0);
+    cmp.dropCueAnim->setKeyValueAt(0.5, 2.0);
+    cmp.dropCueAnim->setKeyValueAt(1.0, -2.0);
+    connect(cmp.dropCueAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+      if (!cmp.dropCueIcon) return;
       const int dy = qRound(v.toDouble());
-      cmp_.dropCueIcon->setContentsMargins(0, 4 + dy, 0, 4 - dy);
+      cmp.dropCueIcon->setContentsMargins(0, 4 + dy, 0, 4 - dy);
     });
   }
 

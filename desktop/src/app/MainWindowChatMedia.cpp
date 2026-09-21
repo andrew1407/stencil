@@ -44,20 +44,20 @@
 namespace stencil::gui {
 
   void MainWindow::onChatVideoAttached(const QString& path) {
-    chatVideoPath_ = path;
-    chatVideoFrames_ = 0;
-    if (!chatMedia_) chatMedia_ = new MediaLoader(this);
+    chatVideoPath = path;
+    chatVideoFrames = 0;
+    if (!chatMedia) chatMedia = new MediaLoader(this);
     // Videos are NEVER sent to the LLM (contract §7): the first frame goes, the timeline feeds the system suffix.
     QPointer<MainWindow> self(this);
-    chatMedia_->extractFrames(path, {0}, [self](QList<QImage> frames, QString err) {
+    chatMedia->extractFrames(path, {0}, [self](QList<QImage> frames, QString err) {
       if (!self) return;
       if (!err.isEmpty()) {
-        self->notify_->error(QStringLiteral("Video preview failed: %1").arg(err));
+        self->notify->error(QStringLiteral("Video preview failed: %1").arg(err));
         return;
       }
-      self->chatVideoFrames_ = self->chatMedia_->frameCount();
-      if (!frames.isEmpty()) self->chatDock_->addAttachmentImage(frames.first());
-      self->notify_->info(
+      self->chatVideoFrames = self->chatMedia->frameCount();
+      if (!frames.isEmpty()) self->chatDock->addAttachmentImage(frames.first());
+      self->notify->info(
           QStringLiteral("Video frame attached — the video itself is never sent"));
     });
     offerChatVideoUpload(path);
@@ -65,9 +65,9 @@ namespace stencil::gui {
 
   void MainWindow::offerChatVideoUpload(const QString& path) {
     // Optional server storage with kind "video" (contract §8).
-    const auto& link = remoteSession_->link();
-    if (link.address.isEmpty() || !connections_) return;
-    auto* c = connections_->find(link.address);
+    const auto& link = remoteSession->getLink();
+    if (link.address.isEmpty() || !connections) return;
+    auto* c = connections->find(link.address);
     if (!c) return;
     const QString host = QUrl(link.address).host();
     if (!confirmYesNo(this, "Upload video",
@@ -75,7 +75,7 @@ namespace stencil::gui {
       return;
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-      notify_->error(QStringLiteral("Could not read the video file"));
+      notify->error(QStringLiteral("Could not read the video file"));
       return;
     }
     const QByteArray bytes = f.readAll();
@@ -85,24 +85,24 @@ namespace stencil::gui {
     c->uploadFileAsync(link.id, QStringLiteral("video"), bytes, ext, 0, 0,
                        [self](bool ok) {
                          if (!self) return;
-                         if (ok) self->notify_->success("Video uploaded to the server");
-                         else self->notify_->error("Video upload failed");
+                         if (ok) self->notify->success("Video uploaded to the server");
+                         else self->notify->error("Video upload failed");
                        });
   }
 
   bool MainWindow::chatExtractFrames(const QVector<int>& indices, QString* err) {
-    if (chatVideoPath_.isEmpty()) {
+    if (chatVideoPath.isEmpty()) {
       if (err) *err = QStringLiteral("frame: no video attached");
       return false;
     }
-    if (!chatMedia_) chatMedia_ = new MediaLoader(this);
+    if (!chatMedia) chatMedia = new MediaLoader(this);
     // Sequential seeks are async; block on a local loop (the MediaLoader timeout backstops a stuck seek).
     // `finished` guards the synchronous-failure path, or exec() on a never-started loop runs forever.
     QEventLoop loop;
     QList<QImage> frames;
     QString error;
     bool finished = false;
-    chatMedia_->extractFrames(chatVideoPath_, QList<int>(indices.begin(), indices.end()),
+    chatMedia->extractFrames(chatVideoPath, QList<int>(indices.begin(), indices.end()),
                               [&](QList<QImage> f, QString e) {
                                 frames = std::move(f);
                                 error = std::move(e);
@@ -123,19 +123,19 @@ namespace stencil::gui {
           registryChanged;
     // ONE registry write + dock-menu rebuild for the whole extraction.
     if (registryChanged) {
-      fileStore::saveProjects(projectList_);
+      fileStore::saveProjects(projectList);
       refreshDockMenu();
     }
     refreshActions();
-    notify_->success(QStringLiteral("Opened %1 video frame(s) as projects").arg(frames.size()));
+    notify->success(QStringLiteral("Opened %1 video frame(s) as projects").arg(frames.size()));
     return true;
   }
 
   QString MainWindow::addImageProjectEntry(const QImage& img, const QString& baseName,
                                            bool deferRegistrySave) {
-    if (img.isNull() || incognito_) return QString();  // incognito never persists
+    if (img.isNull() || incognito) return QString();  // incognito never persists
     Project pr;
-    pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
+    pr.meta.id = projectsStore.createId(nowMs(), makeSalt());
     // Unique-ify against the local list with the shared collision rules (checkProjectName → core validateName).
     QString name = baseName.isEmpty() ? QStringLiteral("variant") : baseName;
     {
@@ -157,9 +157,9 @@ namespace stencil::gui {
     pr.meta.hasImage = true;
     pr.meta.imageW = img.width();
     pr.meta.imageH = img.height();
-    projectList_.push_back(pr);
+    projectList.push_back(pr);
     if (!deferRegistrySave) {
-      fileStore::saveProjects(projectList_);
+      fileStore::saveProjects(projectList);
       refreshDockMenu();
     }
     return QString::fromStdString(pr.meta.id);

@@ -20,23 +20,23 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(QTest::qWaitForWindowExposed(&win));
       if (panel) {
         win.ensureChatMenuPanel();
-        QVERIFY(win.chatMenuPanel_);
-        win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
-        win.chatMenuPanel_->show();
-        settleLayout(win.chatMenuPanel_, 300);   // its width arrives before a grab can read it
+        QVERIFY(win.chatMenuPanel);
+        win.chatMenuPanel->setGeometry(20, 20, 340, 640);
+        win.chatMenuPanel->show();
+        settleLayout(win.chatMenuPanel, 300);   // its width arrives before a grab can read it
       } else {
-        win.actChat_->setChecked(true);
-        QTRY_VERIFY(win.chatDock_->isVisible());
+        win.actChat->setChecked(true);
+        QTRY_VERIFY(win.chatDock->isVisible());
       }
       // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers its rows
       // inside itself. Dock rows carry a "chatCard…" name, panel rows the "chatMoreBtn" property.
       const auto dust = [&win, panel, DUST] {
-        return panel ? win.chatMenuPanel_->findChild<QWidget*>(DUST)
+        return panel ? win.chatMenuPanel->findChild<QWidget*>(DUST)
                      : win.findChild<QWidget*>(DUST);
       };
       const auto rows = [&win, panel] {
         QList<QFrame*> out;
-        QWidget* surface = panel ? static_cast<QWidget*>(win.chatMenuPanel_) : win.chatDock_;
+        QWidget* surface = panel ? static_cast<QWidget*>(win.chatMenuPanel) : win.chatDock;
         for (QFrame* f : surface->findChildren<QFrame*>())
           if (panel ? f->property("chatMoreBtn").isValid()
                     : f->objectName().startsWith(QLatin1String("chatCard")))
@@ -54,11 +54,11 @@ class MainWindowGuiTest : public QObject {
         }};
       } else {
         appends = {
-            [&win] { win.chatDock_->appendUser(QStringLiteral("crop it square"), {}); },
-            [&win] { win.chatDock_->showPending(); },
-            [&win] { win.chatDock_->appendAssistant(QStringLiteral("Cropped.")); },
+            [&win] { win.chatDock->appendUser(QStringLiteral("crop it square"), {}); },
+            [&win] { win.chatDock->showPending(); },
+            [&win] { win.chatDock->appendAssistant(QStringLiteral("Cropped.")); },
             [&win] {
-              win.chatDock_->appendError(
+              win.chatDock->appendError(
                   QStringLiteral("Couldn't reach Ollama at localhost:11434 (fetch failed)"),
                   QStringLiteral("crop it square"));
             }};
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
         auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
         QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
         QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
-        if (!panel) win.chatDock_->clearPending();   // the "…" must not outlive its own case
+        if (!panel) win.chatDock->clearPending();   // the "…" must not outlive its own case
       }
 
       // …and every card lands on its resting state: full opacity, resting margins, and the
@@ -101,8 +101,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 620);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 4000);
@@ -116,7 +116,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(dust, what);
       QVERIFY2(dust->gathering(), what);   // an arrival, not a leave
       QFrame* card = nullptr;
-      for (QFrame* f : win.chatDock_->findChildren<QFrame*>(QString::fromLatin1(cardName))) card = f;
+      for (QFrame* f : win.chatDock->findChildren<QFrame*>(QString::fromLatin1(cardName))) card = f;
       QVERIFY2(card, what);
       const QRect box(card->mapTo(&win, QPoint(0, 0)), card->size());
       const int dx = dust->surfaceTarget().x() - box.center().x();
@@ -126,9 +126,9 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr,
                                stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
     };
-    win.chatDock_->appendUser(QStringLiteral("mine, on the right"), {});
+    win.chatDock->appendUser(QStringLiteral("mine, on the right"), {});
     arrivesFrom("chatCardUser", +1, "a user message must gather from the RIGHT");
-    win.chatDock_->appendAssistant(QStringLiteral("and the reply, on the left"));
+    win.chatDock->appendAssistant(QStringLiteral("and the reply, on the left"));
     arrivesFrom("chatCardAssistant", -1, "an assistant message must gather from the LEFT");
   }
 

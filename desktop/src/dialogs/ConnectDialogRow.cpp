@@ -33,13 +33,13 @@ namespace stencil::gui {
 
   // `rowIndex` is the drag-reorder slot.
   void ConnectDialog::addConnectionRow(const QString& url, int rowIndex) {
-    auto* reList = static_cast<ReorderableListWidget*>(list_);
+    auto* reList = static_cast<ReorderableListWidget*>(list);
     const int myIndex = rowIndex++;
-    stencil::net::ServerClient* client = manager_->find(url);
+    stencil::net::ServerClient* client = manager->find(url);
     // ADMIN = a credential PROVEN able to mint session tokens; marked in the projects list's collaboration gold.
     const bool admin = client && client->isAdmin();
     stencil::net::ServerClient* cl = client;
-    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::ERROR;
+    const auto st = cl ? cl->getStatus() : stencil::net::ServerClient::Status::ERROR;
     const bool expired = st == stencil::net::ServerClient::Status::EXPIRED;
     const QString adminTip =
         tr("Admin credential — this connection can mint session tokens (invite links)");
@@ -63,7 +63,7 @@ namespace stencil::gui {
     h->addSpacing(12);
     auto* cb = new QCheckBox;
     cb->setObjectName(QStringLiteral("connRowSelect"));
-    cb->setChecked(selected_.contains(url));
+    cb->setChecked(selected.contains(url));
     cb->setToolTip(tr("Select for batch action"));
     // Browser .connect-selected, repolished in place.
     const auto markSelected = [row](bool on) {
@@ -73,7 +73,7 @@ namespace stencil::gui {
     };
     markSelected(cb->isChecked());
     QObject::connect(cb, &QCheckBox::toggled, this, [this, url, markSelected](bool on) {
-      if (on) selected_.insert(url); else selected_.remove(url);
+      if (on) selected.insert(url); else selected.remove(url);
       markSelected(on);
       updateBatchBar();
     });
@@ -126,10 +126,10 @@ namespace stencil::gui {
     // Installed per row: rows are rebuilt on every change, and modalChrome's pass only saw the batch at open.
     installHoverShimmer(row);
     installHoverShimmerIn(row);
-    auto* item = new QListWidgetItem(list_);
+    auto* item = new QListWidgetItem(list);
     item->setData(Qt::UserRole, admin);
     item->setData(ROW_URL_ROLE, url);
-    list_->setItemWidget(item, row);
+    list->setItemWidget(item, row);
     // Sized AFTER parenting (the cascaded sheet is then in the hint) and capped to the viewport.
     const int rowH = std::max(row->sizeHint().height(), ROW_HEIGHT);
     item->setSizeHint(QSize(rowWidth(), rowH));

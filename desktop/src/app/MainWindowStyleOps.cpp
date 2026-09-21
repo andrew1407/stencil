@@ -35,82 +35,82 @@ namespace stencil::gui {
   // Mirrors the browser change handlers (drawingApp.js:155-178). Defaults only — never the
   // selection.
   QColor MainWindow::effectiveDefaultPointColor() const {
-    const QColor c(settings_.defaultPointColor);
-    return (!settings_.defaultPointColor.isEmpty() && c.isValid()) ? c : lineColorValue_;
+    const QColor c(settings.defaultPointColor);
+    return (!settings.defaultPointColor.isEmpty() && c.isValid()) ? c : lineColorValue;
   }
 
   void MainWindow::onLineStyleControlChanged() {
-    canvas_->setDefaults(settings_.defaultColor, settings_.defaultThickness,
-                         settings_.defaultPointSize, settings_.defaultStyle,
-                         settings_.defaultPointColor);
+    canvas->setDefaults(settings.defaultColor, settings.defaultThickness,
+                         settings.defaultPointSize, settings.defaultStyle,
+                         settings.defaultPointColor);
     persistSettings();
   }
 
   // One apply path for toolbar + context-menu twins. Setting an exclusive QAction's checked state
   // emits toggled(), not triggered(), so no re-entry. Transient view state, not persisted.
   void MainWindow::setCompareModeUi(const QString& mode) {
-    canvas_->setCompareMode(mode);
-    if (compareCombo_) {
-      const int idx = compareCombo_->findData(mode);
-      if (idx >= 0 && idx != compareCombo_->currentIndex()) {
-        QSignalBlocker b(compareCombo_);
-        compareCombo_->setCurrentIndex(idx);
+    canvas->setCompareMode(mode);
+    if (compareCombo) {
+      const int idx = compareCombo->findData(mode);
+      if (idx >= 0 && idx != compareCombo->currentIndex()) {
+        QSignalBlocker b(compareCombo);
+        compareCombo->setCurrentIndex(idx);
       }
     }
-    if (compareGroup_) {
-      for (QAction* a : compareGroup_->actions())
+    if (compareGroup) {
+      for (QAction* a : compareGroup->actions())
         if (a->data().toString() == mode) { a->setChecked(true); break; }
     }
     refreshActions();   // read-only view gates the editing actions + their shortcuts
   }
 
   void MainWindow::applyImageFilter(const QString& mode) {
-    settings_.imageFilter = mode;
-    if (imageFilter_) {  // sync toolbar combo by canonical data value
-      const int idx = imageFilter_->findData(mode);
+    settings.imageFilter = mode;
+    if (imageFilter) {  // sync toolbar combo by canonical data value
+      const int idx = imageFilter->findData(mode);
       if (idx >= 0) {
-        QSignalBlocker b(imageFilter_);
-        imageFilter_->setCurrentIndex(idx);
+        QSignalBlocker b(imageFilter);
+        imageFilter->setCurrentIndex(idx);
       }
     }
-    if (filterButtons_) {  // sync context-menu radio group (blocked so it doesn't re-apply)
-      for (QAbstractButton* b : filterButtons_->buttons())
+    if (filterButtons) {  // sync context-menu radio group (blocked so it doesn't re-apply)
+      for (QAbstractButton* b : filterButtons->buttons())
         if (b->property("filterValue").toString() == mode) {
           QSignalBlocker bl(b);
           b->setChecked(true);
           break;
         }
     }
-    if (filterColorBtn_) filterColorBtn_->setVisible(mode == "custom");
+    if (filterColorBtn) filterColorBtn->setVisible(mode == "custom");
     // Re-gate the export rows live so "Filter Only" shows/hides at once.
     syncExportActions();
-    canvas_->setImageFilter(mode, filterColorValue_);
+    canvas->setImageFilter(mode, filterColorValue);
     persistSettings();
-    if (!remoteReloading_) filterDirty_ = true;   // user changed the filter
-    remoteSync_->scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
+    if (!remoteReloading) filterDirty = true;   // user changed the filter
+    remoteSync->scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
   }
 
   void MainWindow::applyTintColor(const QColor& color) {
-    filterColorValue_ = color;
-    settings_.filterColor = color.name(QColor::HexRgb);
-    if (filterColorBtn_) updateColorSwatch(filterColorBtn_, color);
-    canvas_->setImageFilter(settings_.imageFilter, filterColorValue_);
+    filterColorValue = color;
+    settings.filterColor = color.name(QColor::HexRgb);
+    if (filterColorBtn) updateColorSwatch(filterColorBtn, color);
+    canvas->setImageFilter(settings.imageFilter, filterColorValue);
     persistSettings();
-    if (!remoteReloading_) filterDirty_ = true;   // user changed the tint
-    remoteSync_->scheduleRemotePush();   // live co-edit: push tint changes to peers
+    if (!remoteReloading) filterDirty = true;   // user changed the tint
+    remoteSync->scheduleRemotePush();   // live co-edit: push tint changes to peers
   }
 
   void MainWindow::applyLineStyle(const QString& style) {
-    settings_.defaultStyle = style;
-    if (lineStyle_) {  // sync toolbar combo by canonical data value
-      const int idx = lineStyle_->findData(style);
+    settings.defaultStyle = style;
+    if (lineStyle) {  // sync toolbar combo by canonical data value
+      const int idx = lineStyle->findData(style);
       if (idx >= 0) {
-        QSignalBlocker b(lineStyle_);
-        lineStyle_->setCurrentIndex(idx);
+        QSignalBlocker b(lineStyle);
+        lineStyle->setCurrentIndex(idx);
       }
     }
-    if (lineStyleGroup_) {  // sync context-menu radio group
-      for (QAction* a : lineStyleGroup_->actions())
+    if (lineStyleGroup) {  // sync context-menu radio group
+      for (QAction* a : lineStyleGroup->actions())
         if (a->data().toString() == style) { a->setChecked(true); break; }
     }
     onLineStyleControlChanged();
@@ -121,7 +121,7 @@ namespace stencil::gui {
     // The same input palette as the spinboxes beside it, swatch drawn inside; re-run from
     // applyTheme.
     const Palette pal =
-        themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+        themePalette(resolveDark(settings.themeMode), settings.accentColor);
     const bool labelled = !btn->text().isEmpty();
     btn->setFixedHeight(26);
     if (labelled) btn->setMinimumWidth(46);

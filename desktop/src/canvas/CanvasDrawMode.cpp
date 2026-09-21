@@ -9,30 +9,30 @@ namespace stencil::gui {
   // line and arm the click gate. Requires a loaded image.
   void CanvasWidget::startDrawingMode() {
     if (compareReadOnly()) return;   // read-only compare view
-    if (image_.isNull() || isDrawing_) return;
-    isDrawing_ = true;
+    if (image.isNull() || isDrawing) return;
+    isDrawing = true;
 
     // Continuation: a committed line is selected -> extend it, from its tail or the focused point.
     // Port of drawingApp.js startDrawingMode continuation branch.
-    if (selectedLineIdx_ >= 0 &&
-        selectedLineIdx_ < static_cast<int>(lines_.size())) {
-      continueLineIdx_ = selectedLineIdx_;
-      const core::Line& line = lines_[continueLineIdx_];
-      continueInsertIdx_ = (selectedPoint_ >= 0)
-                               ? selectedPoint_ + 1
+    if (selectedLineIdx >= 0 &&
+        selectedLineIdx < static_cast<int>(lines.size())) {
+      continueLineIdx = selectedLineIdx;
+      const core::Line& line = lines[continueLineIdx];
+      continueInsertIdx = (selectedPoint >= 0)
+                               ? selectedPoint + 1
                                : static_cast<int>(line.points.size());
-      currentLine_ = core::Line{};  // unused while continuing
+      currentLine = core::Line{};  // unused while continuing
       update();
       emit drawingModeChanged(true);
       emit selectionChanged();
       return;
     }
 
-    continueLineIdx_ = -1;
-    continueInsertIdx_ = -1;
-    currentLine_ = core::Line{};
+    continueLineIdx = -1;
+    continueInsertIdx = -1;
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
+    selectedPoint = -1;
     update();
     emit drawingModeChanged(true);
     emit selectionChanged();
@@ -41,18 +41,18 @@ namespace stencil::gui {
   // Port of drawingApp.js stopDrawingMode (~1138): commit the in-progress line
   // (when it has >= 2 points) and disarm the gate.
   void CanvasWidget::stopDrawingMode() {
-    if (!isDrawing_) return;
+    if (!isDrawing) return;
 
-    // Continuation: the extended line is already in lines_ — just commit & reset,
+    // Continuation: the extended line is already in lines — just commit & reset,
     // keeping it selected (drawingApp.js stopDrawingMode continuation ~1140).
-    if (continueLineIdx_ >= 0) {
-      const int li = continueLineIdx_;
-      continueLineIdx_ = -1;
-      continueInsertIdx_ = -1;
-      currentLine_ = core::Line{};
+    if (continueLineIdx >= 0) {
+      const int li = continueLineIdx;
+      continueLineIdx = -1;
+      continueInsertIdx = -1;
+      currentLine = core::Line{};
       applyDefaultsToCurrent();
-      isDrawing_ = false;
-      selectedLineIdx_ = (li < static_cast<int>(lines_.size())) ? li : -1;
+      isDrawing = false;
+      selectedLineIdx = (li < static_cast<int>(lines.size())) ? li : -1;
       commitHistory();
       update();
       emit drawingModeChanged(false);
@@ -60,18 +60,18 @@ namespace stencil::gui {
       return;
     }
 
-    if (currentLine_.points.size() >= 2) {
-      lines_.push_back(currentLine_);
+    if (currentLine.points.size() >= 2) {
+      lines.push_back(currentLine);
       // A vertex still in the air keeps flying on the line the stroke just became.
-      strokeFx_.rekey(-1, static_cast<int>(lines_.size()) - 1);
+      strokeFx.rekey(-1, static_cast<int>(lines.size()) - 1);
       commitHistory();
     }
-    currentLine_ = core::Line{};
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    isDrawing_ = false;
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
+    isDrawing = false;
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
     update();
     emit drawingModeChanged(false);
     emit selectionChanged();
@@ -80,23 +80,23 @@ namespace stencil::gui {
   void CanvasWidget::startNewLine() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (currentLine_.points.size() >= 2) {
-      lines_.push_back(currentLine_);
+    if (currentLine.points.size() >= 2) {
+      lines.push_back(currentLine);
       commitHistory();
     }
-    currentLine_ = core::Line{};
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
+    selectedPoint = -1;
     update();
     emit selectionChanged();
   }
 
   void CanvasWidget::deleteLastPoint() {
     if (compareReadOnly()) return;   // read-only compare view
-    if (currentLine_.points.empty()) return;
-    currentLine_.points.pop_back();
+    if (currentLine.points.empty()) return;
+    currentLine.points.pop_back();
     clearHoverCache();   // the hovered in-progress point may be the one removed
-    selectedPoint_ = -1;
+    selectedPoint = -1;
     update();
     emit selectionChanged();
   }
@@ -104,34 +104,34 @@ namespace stencil::gui {
   void CanvasWidget::clearAll() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (lines_.empty() && currentLine_.points.empty()) return;
-    lines_.clear();
+    if (lines.empty() && currentLine.points.empty()) return;
+    lines.clear();
     clearHoverCache();
-    currentLine_ = core::Line{};
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
     commitHistory();
     update();
     emit selectionChanged();
   }
 
   void CanvasWidget::commitHistory() {
-    history_.push(lines_);
+    history.push(lines);
     emit changed();
   }
 
   void CanvasWidget::undo() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (auto snap = history_.undo()) {
-      lines_ = *snap;
+    if (auto snap = history.undo()) {
+      lines = *snap;
       clearHoverCache();   // the snapshot may not contain the hovered indices
-      currentLine_ = core::Line{};
+      currentLine = core::Line{};
       applyDefaultsToCurrent();
-      selectedPoint_ = -1;
-      selectedLineIdx_ = -1;
+      selectedPoint = -1;
+      selectedLineIdx = -1;
       update();
       emit changed();
       emit selectionChanged();
@@ -141,13 +141,13 @@ namespace stencil::gui {
   void CanvasWidget::redo() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (auto snap = history_.redo()) {
-      lines_ = *snap;
+    if (auto snap = history.redo()) {
+      lines = *snap;
       clearHoverCache();   // see undo()
-      currentLine_ = core::Line{};
+      currentLine = core::Line{};
       applyDefaultsToCurrent();
-      selectedPoint_ = -1;
-      selectedLineIdx_ = -1;
+      selectedPoint = -1;
+      selectedLineIdx = -1;
       update();
       emit changed();
       emit selectionChanged();

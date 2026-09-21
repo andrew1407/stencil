@@ -20,14 +20,14 @@ namespace stencil::gui {
                                                       const Settings* settings,
                                                       core::ProjectsStore* store,
                                                       std::vector<Project>* projectList, Hooks hooks)
-      : notify_(notify), canvas_(canvas), settings_(settings), store_(store),
-        projectList_(projectList), h_(std::move(hooks)) {}
+      : notify(notify), canvas(canvas), settings(settings), store(store),
+        projectList(projectList), h(std::move(hooks)) {}
 
   stencil::net::ServerClient* ProjectTransferController::requireClient(const QString& url) {
-    stencil::net::ConnectionManager* mgr = h_.connections();
+    stencil::net::ConnectionManager* mgr = this->h.connections();
     stencil::net::ServerClient* c = mgr ? mgr->find(url) : nullptr;
     if (!c) {
-      notify_->error("Not connected to that server");
+      notify->error("Not connected to that server");
       return nullptr;
     }
     return c;
@@ -36,20 +36,20 @@ namespace stencil::gui {
   bool ProjectTransferController::localProjectOriginal(const Project& pr, QByteArray& bytes,
                                                        QString& ext, int& w, int& h) {
     ext = "png";
-    if (QString::fromStdString(pr.meta.id) == h_.activeProjectId() && canvas_->hasImage()) {
-      const QImage img = canvas_->image();
+    if (QString::fromStdString(pr.meta.id) == this->h.activeProjectId() && canvas->hasImage()) {
+      const QImage img = canvas->getImage();
       bytes = pngBytes(img);
       w = img.width();
       h = img.height();
       return true;
     }
     if (pr.imagePath.isEmpty()) {
-      notify_->error("This project has no stored image");
+      notify->error("This project has no stored image");
       return false;
     }
     const QImage img(pr.imagePath);
     if (img.isNull()) {
-      notify_->error("Could not read the project image");
+      notify->error("Could not read the project image");
       return false;
     }
     w = img.width();
@@ -73,20 +73,20 @@ namespace stencil::gui {
       std::function<void(bool ok, QString newId, qint64 newVersion)> done) {
     // pr may not outlive the chain.
     const QJsonObject layout = fileStore::buildLayoutJson(
-        w, h, pr.lines, settings_->imageFilter, settings_->filterColor,
-        pr.cropRect, pr.rotationQuarters, h_.currentLayoutMeta());
+        w, h, pr.lines, settings->imageFilter, settings->filterColor,
+        pr.cropRect, pr.rotationQuarters, this->h.currentLayoutMeta());
     c->createProjectAsync(
         name, QString::fromStdString(pr.meta.source), QString::fromStdString(pr.meta.resource), true,
         w, h, [this, c, name, bytes, ext, w, h, layout, done](bool ok, QString newId, qint64 version) {
           if (!ok) {
-            notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
+            notify->error(QString("Could not create on server — %1").arg(c->lastError()));
             done(false, QString(), 0);
             return;
           }
           c->uploadFileAsync(newId, "original", bytes, ext, w, h,
                              [this, c, newId, name, layout, version, done](bool uok) {
             if (!uok) {
-              notify_->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
+              notify->error(QString("Created, but image upload failed — %1").arg(c->lastError()));
               done(false, QString(), 0);
               return;
             }
@@ -105,9 +105,9 @@ namespace stencil::gui {
                                                            const QString& id) {
     stencil::net::ServerClient* c = requireClient(serverUrl);
     if (!c) return;
-    Project* pr = h_.findProject(id.toStdString());
+    Project* pr = this->h.findProject(id.toStdString());
     if (!pr) {
-      notify_->error("Project not found");
+      notify->error("Project not found");
       return;
     }
     QByteArray bytes;
@@ -119,19 +119,19 @@ namespace stencil::gui {
     // create cannot set the colour.
     const QString localColor = QString::fromStdString(pr->meta.color);
     const std::string sid = id.toStdString();
-    const bool wasActive = (h_.activeProjectId() == id);
+    const bool wasActive = (this->h.activeProjectId() == id);
     auto finish = [this, sid, name, serverUrl, localColor, wasActive](const QString& newId,
                                                                       qint64 newVersion) {
-      projectList_->erase(
-          std::remove_if(projectList_->begin(), projectList_->end(),
+      projectList->erase(
+          std::remove_if(projectList->begin(), projectList->end(),
                          [&](const Project& p) { return p.meta.id == sid; }),
-          projectList_->end());
-      fileStore::saveProjects(*projectList_);
+          projectList->end());
+      fileStore::saveProjects(*projectList);
       // Keep the editor open and link the live session to the new server project instead of
       // orphaning the canvas.
-      if (wasActive) h_.relinkActiveToServer(serverUrl, newId, name, localColor, newVersion);
-      h_.afterChange();
-      notify_->success(QString("Moved \"%1\" to %2").arg(name, serverUrl));
+      if (wasActive) this->h.relinkActiveToServer(serverUrl, newId, name, localColor, newVersion);
+      this->h.afterChange();
+      notify->success(QString("Moved \"%1\" to %2").arg(name, serverUrl));
     };
     createServerFromLocal(c, *pr, name, bytes, ext, w, h,
                           [c, localColor, finish](bool ok, QString newId, qint64 newVersion) {

@@ -27,18 +27,18 @@ namespace stencil::gui {
 
   // Browser openImageHere: persist the current content first (unless incognito), then a fresh editor in the requested mode.
   void MainWindow::openImageHere(const QString& path, bool incognito) {
-    if (!incognito_) {
-      if (!activeProjectId_.isEmpty()) saveToActiveProject();
+    if (!this->incognito) {
+      if (!activeProjectId.isEmpty()) saveToActiveProject();
       else saveSessionNow();
     }
     // Drop the project binding and adopt the incognito mode directly, signals blocked so the toggle slot doesn't fire.
-    activeProjectId_.clear();
-    if (incognito_ != incognito) {
-      incognito_ = incognito;
-      incognitoOverlay_->setActive(incognito);
-      actIncognito_->blockSignals(true);
-      actIncognito_->setChecked(incognito);
-      actIncognito_->blockSignals(false);
+    activeProjectId.clear();
+    if (this->incognito != incognito) {
+      this->incognito = incognito;
+      incognitoOverlay->setActive(incognito);
+      actIncognito->blockSignals(true);
+      actIncognito->setChecked(incognito);
+      actIncognito->blockSignals(false);
       updateProjectTitle();
     }
     if (loadLocalImageReset(path)) { playImageArrival(); adoptCanvasAsLocalProject(); }
@@ -48,7 +48,7 @@ namespace stencil::gui {
   void MainWindow::openImageInNewWindow(const QString& path, bool incognito) {
     // The new window's async launch cannot report a failure back, so validate up front and report on THIS window.
     if (!QImageReader(path).canRead()) {
-      notify_->error("Failed to load image");
+      notify->error("Failed to load image");
       return;
     }
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
@@ -64,7 +64,7 @@ namespace stencil::gui {
   void MainWindow::newBlankImage() { openImageDialog(/*startBlank=*/true); }
 
   void MainWindow::createBlankImageFromDialog(const QColor& color, int w, int h) {
-    if (canvas_->hasImage()) {
+    if (canvas->hasImage()) {
       ConfirmSpec spec;
       spec.title = tr("Replace image");
       spec.message = tr("Replace the current image with a new blank image?");
@@ -78,11 +78,11 @@ namespace stencil::gui {
   // No confirmation: a modal is something an op-plan cannot answer.
   void MainWindow::createBlankImage(const QColor& color, int w, int h) {
     // A blank's colour IS the page: a leftover filter would repaint the fill, so start clean.
-    if (settings_.imageFilter != QLatin1String("none")) applyImageFilter("none");
+    if (settings.imageFilter != QLatin1String("none")) applyImageFilter("none");
     const core::PageSize page = naturalPageCm(pageSizeValue(),
-                                              settings_.customPageWidth,
-                                              settings_.customPageHeight);
-    canvas_->setPageCm(page.width, page.height);
+                                              settings.customPageWidth,
+                                              settings.customPageHeight);
+    canvas->setPageCm(page.width, page.height);
     // loadFromImage crops to the page aspect, so shape the fill that way here: the toast
     // then states the size the blank keeps, and no pixel is filled to be cropped off.
     const core::CropRect fit = core::centeredCrop(
@@ -91,38 +91,38 @@ namespace stencil::gui {
     const int fh = qMax(1, qRound(fit.height));
     QImage img(fw, fh, QImage::Format_RGB32);
     img.fill(color);
-    activeProjectId_.clear();  // a new blank is a fresh editor, not the old project
-    canvas_->loadFromImage(img);
+    activeProjectId.clear();  // a new blank is a fresh editor, not the old project
+    canvas->loadFromImage(img);
     setSourceBytes({}, {});  // synthetic blank → re-encode from pixels on bundle
-    currentSource_.clear();  // a generated blank image has no provenance
-    currentResource_.clear();
-    blankColor_ = color.name();  // mark this session as a (recolourable) blank of this fill
-    canvas_->setBlankPage(true); // compare views keep a blank's fill + tint
+    currentSource.clear();  // a generated blank image has no provenance
+    currentResource.clear();
+    blankColor = color.name();  // mark this session as a (recolourable) blank of this fill
+    canvas->setBlankPage(true); // compare views keep a blank's fill + tint
     refreshActions();
     playImageArrival();   // a blank is an image appearing, so it assembles like any other
-    notify_->success(QString("Blank %1×%2 image created").arg(fw).arg(fh));
+    notify->success(QString("Blank %1×%2 image created").arg(fw).arg(fh));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 
   // Browser cropModal.js: confirm before discarding lines when the orientation flips; the original is never replaced.
   void MainWindow::openCropDialog() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Open an image first");
+    if (!canvas->hasImage()) {
+      notify->error("Open an image first");
       return;
     }
     const core::PageSize page = naturalPageCm(
-        pageSizeValue(), settings_.customPageWidth, settings_.customPageHeight);
-    canvas_->setPageCm(page.width, page.height);
+        pageSizeValue(), settings.customPageWidth, settings.customPageHeight);
+    canvas->setPageCm(page.width, page.height);
 
-    const core::CropRect cur = canvas_->cropRect();
+    const core::CropRect cur = canvas->getCropRect();
     const bool album = core::isAlbumOrientation(cur.width, cur.height);
     // cropRect lives in the rotated original's pixel space.
-    CropDialog dlg(canvas_->effectiveOriginalImage(), page.width, page.height, album, cur, this);
+    CropDialog dlg(canvas->effectiveOriginalImage(), page.width, page.height, album, cur, this);
     if (dlg.exec() != QDialog::Accepted) return;
 
     const core::CropRect next = dlg.cropRect();
     const core::CropChange ch = core::cropChange(cur, next);
-    if (ch.orientationChanged && !canvas_->lines().empty()) {
+    if (ch.orientationChanged && !canvas->getLines().empty()) {
       ConfirmSpec spec;
       spec.title = tr("Change orientation");
       spec.message = tr("Changing the crop orientation will remove all placed lines and "
@@ -130,14 +130,14 @@ namespace stencil::gui {
       spec.danger = true;   // it destroys the placed lines
       if (!confirmModal(this, spec)) return;
     }
-    const bool hadLines = !canvas_->lines().empty();
-    canvas_->applyCrop(next, /*recalc=*/true);
+    const bool hadLines = !canvas->getLines().empty();
+    canvas->applyCrop(next, /*recalc=*/true);
     fitToWindow();
     refreshActions();
     if (ch.orientationChanged && hadLines)
-      notify_->success("Image cropped — lines removed (orientation changed)");
+      notify->success("Image cropped — lines removed (orientation changed)");
     else
-      notify_->success("Image cropped");
+      notify->success("Image cropped");
   }
 
 }  // namespace stencil::gui

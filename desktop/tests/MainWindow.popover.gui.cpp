@@ -26,7 +26,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     QToolButton* icon = nullptr;
-    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
+    for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
       auto* b = static_cast<QToolButton*>(it.key());
       if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
     }
@@ -35,8 +35,8 @@ class MainWindowGuiTest : public QObject {
     bool sawPopover = false, wasWindow = true;
     QRect before, after;
     QTimer::singleShot(250, &win, [&] {
-      QDialog* dlg = win.pop_.active;
-      QWidget* overlay = win.pop_.overlay;
+      QDialog* dlg = win.pop.active;
+      QWidget* overlay = win.pop.overlay;
       if (!dlg || !overlay) { win.dismissPopover(); return; }
       sawPopover = true;
       wasWindow = dlg->isWindow();
@@ -67,7 +67,7 @@ class MainWindowGuiTest : public QObject {
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, icon->rect().center(),
                           icon->mapToGlobal(icon->rect().center()));
     QApplication::sendEvent(icon, &ctx);
-    settle([&] { return sawPopover && !win.pop_.active; }, 4000);
+    settle([&] { return sawPopover && !win.pop.active; }, 4000);
 
     QVERIFY2(sawPopover, "right-click on a dialog icon must open the compact popover");
     QVERIFY2(!wasWindow, "the popover is a child of the overlay, never its own window");
@@ -83,8 +83,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     QToolButton* icon = nullptr;
-    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
-      if (it.value() != win.actOpen_) continue;
+    for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
+      if (it.value() != win.actOpen) continue;
       auto* b = static_cast<QToolButton*>(it.key());
       if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
     }
@@ -96,8 +96,8 @@ class MainWindowGuiTest : public QObject {
     QString clipped;
     QPoint dlgPos;
     QTimer::singleShot(400, &win, [&] {
-      QDialog* dlg = win.pop_.active;
-      QWidget* overlay = win.pop_.overlay;
+      QDialog* dlg = win.pop.active;
+      QWidget* overlay = win.pop.overlay;
       if (!dlg || !overlay) { win.dismissPopover(); return; }
       sawPopover = true;
       dlgRect = dlg->rect();
@@ -119,7 +119,7 @@ class MainWindowGuiTest : public QObject {
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, icon->rect().center(),
                           icon->mapToGlobal(icon->rect().center()));
     QApplication::sendEvent(icon, &ctx);
-    settle([&] { return sawPopover && !win.pop_.active; }, 6000);
+    settle([&] { return sawPopover && !win.pop.active; }, 6000);
 
     QVERIFY2(sawPopover, "right-click on Open Image must open the compact popover");
     QCOMPARE(dlgPos, QPoint(0, 0));
@@ -141,8 +141,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     QToolButton* icon = nullptr;
-    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
-      if (it.value() != win.actOpen_) continue;
+    for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
+      if (it.value() != win.actOpen) continue;
       auto* b = static_cast<QToolButton*>(it.key());
       if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
     }
@@ -151,8 +151,8 @@ class MainWindowGuiTest : public QObject {
     bool sawPopover = false;
     int before = 0, after = 0, cap = 0, overlayAfter = 0, away = 0, back = 0, steps = 0;
     QTimer::singleShot(400, &win, [&] {
-      auto* dlg = qobject_cast<stencil::gui::OpenImageDialog*>(win.pop_.active.data());
-      QWidget* overlay = win.pop_.overlay;
+      auto* dlg = qobject_cast<stencil::gui::OpenImageDialog*>(win.pop.active.data());
+      QWidget* overlay = win.pop.overlay;
       if (!dlg || !overlay) { win.dismissPopover(); return; }
       sawPopover = true;
       before = dlg->height();
@@ -187,7 +187,7 @@ class MainWindowGuiTest : public QObject {
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, icon->rect().center(),
                           icon->mapToGlobal(icon->rect().center()));
     QApplication::sendEvent(icon, &ctx);
-    settle([&] { return sawPopover && !win.pop_.active; }, 8000);
+    settle([&] { return sawPopover && !win.pop.active; }, 8000);
 
     QVERIFY2(sawPopover, "right-click on Open Image must open the compact popover");
     QVERIFY2(after > before,

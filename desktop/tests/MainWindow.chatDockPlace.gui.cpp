@@ -23,7 +23,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(chat && dock);
     chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible() && !dock->isFloating());
-    awaitAnim(win.chatAnim_);
+    awaitAnim(win.chatAnim);
     const int settled = dock->width();
     QVERIFY2(settled > 80, "the dock never reached its full width");
     // Ask for the opposite side and watch the extent actually move mid-flight.
@@ -40,13 +40,13 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawCollapse, "the dock jumped to the new side without sliding out");
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
     QTRY_VERIFY2(dock->width() > settled / 2, "it never grew back at the new edge");
-    awaitAnim(win.chatAnim_);
+    awaitAnim(win.chatAnim);
 
     // …and coming back from FLOAT slides in at the side you picked, rather than
     // appearing at full width (the floating branch used to skip the animation).
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
-    awaitAnim(win.chatAnim_);
+    awaitAnim(win.chatAnim);
     emit static_cast<stencil::gui::ChatDock*>(dock)->dockRequested(Qt::LeftDockWidgetArea);
     bool sawNarrow = false;
     for (int i = 0; i < 20 && !sawNarrow; ++i) {
@@ -68,38 +68,38 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.selPanel_ && win.chatDock_);
-    QVERIFY(win.dockWidgetArea(win.selPanel_) == Qt::RightDockWidgetArea);
-    QTRY_VERIFY(!win.selPanel_->isHidden());
+    QVERIFY(win.selPanel && win.chatDock);
+    QVERIFY(win.dockWidgetArea(win.selPanel) == Qt::RightDockWidgetArea);
+    QTRY_VERIFY(!win.selPanel->isHidden());
 
     // Chat starts docked LEFT by default — opening it in an UNRELATED area settles QMainWindow's
     // dock layout onto the panel's real natural width, not its incidental construction size.
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
-    awaitAnim(win.chatAnim_);
-    const int panelBefore = win.selPanel_->width();
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible() && !win.chatDock->isFloating());
+    awaitAnim(win.chatAnim);
+    const int panelBefore = win.selPanel->width();
     QVERIFY2(panelBefore > 120, "the points panel never reached its natural width");
 
     // Now place the chat RIGHT, alongside the points panel, and watch the panel's
     // width through the whole flight.
-    emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
+    emit static_cast<stencil::gui::ChatDock*>(win.chatDock)->dockRequested(Qt::RightDockWidgetArea);
     int maxSeen = 0, minSeen = win.width();
-    QVERIFY2(win.chatAnim_, "the placement change did not animate");
+    QVERIFY2(win.chatAnim, "the placement change did not animate");
     QElapsedTimer flightClock;
     flightClock.start();
-    while (win.chatAnim_ && flightClock.elapsed() < 1500) {   // the flight's own length
+    while (win.chatAnim && flightClock.elapsed() < 1500) {   // the flight's own length
       QTest::qWait(15);
-      if (win.selPanel_->isHidden()) continue;
-      const int w = win.selPanel_->width();
+      if (win.selPanel->isHidden()) continue;
+      const int w = win.selPanel->width();
       maxSeen = std::max(maxSeen, w);
       minSeen = std::min(minSeen, w);
     }
-    QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
-    awaitAnim(win.chatAnim_);
+    QTRY_COMPARE(win.dockWidgetArea(win.chatDock), Qt::RightDockWidgetArea);
+    awaitAnim(win.chatAnim);
     // They must land SIDE BY SIDE (same row, chat to the right of the panel) —
     // never stacked vertically (Qt's plain, unsplit addDockWidget default).
-    QCOMPARE(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(), win.chatDock_->mapTo(&win, QPoint(0, 0)).y());
-    QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
+    QCOMPARE(win.selPanel->mapTo(&win, QPoint(0, 0)).y(), win.chatDock->mapTo(&win, QPoint(0, 0)).y());
+    QVERIFY2(win.chatDock->mapTo(&win, QPoint(0, 0)).x() > win.selPanel->mapTo(&win, QPoint(0, 0)).x(),
              "chat did not land to the right of the points panel");
     // The panel must never balloon past its pre-share width, nor get squeezed away —
     // the chat's own slide is what should move, not the panel sitting beside it.
@@ -109,21 +109,21 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("points panel collapsed to %1 mid-slide").arg(minSeen)));
 
     // Close the chat: the panel should hand its width right back...
-    win.actChat_->setChecked(false);
-    QTRY_VERIFY(!win.chatDock_->isVisible());
-    awaitAnim(win.chatAnim_);
-    QVERIFY2(win.selPanel_->width() >= panelBefore - 8,
+    win.actChat->setChecked(false);
+    QTRY_VERIFY(!win.chatDock->isVisible());
+    awaitAnim(win.chatAnim);
+    QVERIFY2(win.selPanel->width() >= panelBefore - 8,
              qPrintable(QString("panel stayed narrow after chat closed: %1 (was %2)")
-                            .arg(win.selPanel_->width()).arg(panelBefore)));
+                            .arg(win.selPanel->width()).arg(panelBefore)));
 
     // …and reopening the chat must not have baked a bad "restore" width into the panel: it settles
     // back near its own size, never "very wide".
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    awaitAnim(win.chatAnim_);
-    QVERIFY2(win.selPanel_->width() <= panelBefore + 8,
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    awaitAnim(win.chatAnim);
+    QVERIFY2(win.selPanel->width() <= panelBefore + 8,
              qPrintable(QString("panel reopened very wide: %1 (was %2)")
-                            .arg(win.selPanel_->width()).arg(panelBefore)));
+                            .arg(win.selPanel->width()).arg(panelBefore)));
   }
 
   // The points panel can be HIDDEN when the chat is placed onto its side, so ensurePanelChatSplit
@@ -133,35 +133,35 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.selPanel_ && win.chatDock_ && win.actPanel_ && win.actChat_);
-    QVERIFY(win.dockWidgetArea(win.selPanel_) == Qt::RightDockWidgetArea);
-    QTRY_VERIFY(!win.selPanel_->isHidden());
+    QVERIFY(win.selPanel && win.chatDock && win.actPanel && win.actChat);
+    QVERIFY(win.dockWidgetArea(win.selPanel) == Qt::RightDockWidgetArea);
+    QTRY_VERIFY(!win.selPanel->isHidden());
 
     // Hide the points panel FIRST...
-    win.actPanel_->setChecked(false);
-    QTRY_VERIFY(win.selPanel_->isHidden());
+    win.actPanel->setChecked(false);
+    QTRY_VERIFY(win.selPanel->isHidden());
 
     // ...then place the (unrelated-side) chat onto the panel's side while it's hidden.
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
-    emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
-    QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
-    awaitAnim(win.chatAnim_);
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible() && !win.chatDock->isFloating());
+    emit static_cast<stencil::gui::ChatDock*>(win.chatDock)->dockRequested(Qt::RightDockWidgetArea);
+    QTRY_COMPARE(win.dockWidgetArea(win.chatDock), Qt::RightDockWidgetArea);
+    awaitAnim(win.chatAnim);
 
     // Now reveal the panel again — it must come back BESIDE the chat, not squashed
     // underneath it.
-    win.actPanel_->setChecked(true);
-    QTRY_VERIFY(!win.selPanel_->isHidden());
+    win.actPanel->setChecked(true);
+    QTRY_VERIFY(!win.selPanel->isHidden());
     // The re-laid-out row, not a guess at how long it takes to arrive.
-    QTRY_COMPARE_WITH_TIMEOUT(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(),
-                              win.chatDock_->mapTo(&win, QPoint(0, 0)).y(), 1000);
-    QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
+    QTRY_COMPARE_WITH_TIMEOUT(win.selPanel->mapTo(&win, QPoint(0, 0)).y(),
+                              win.chatDock->mapTo(&win, QPoint(0, 0)).y(), 1000);
+    QVERIFY2(win.chatDock->mapTo(&win, QPoint(0, 0)).x() > win.selPanel->mapTo(&win, QPoint(0, 0)).x(),
              "the panel reappeared stacked under the chat instead of beside it");
     // Squashed means SHARING a vertical row with the chat, not "shorter than half the window": the
     // stacked toolbars and the top info dock can leave the whole dock row well under half of it.
-    QCOMPARE(win.selPanel_->height(), win.chatDock_->height());
+    QCOMPARE(win.selPanel->height(), win.chatDock->height());
     QVERIFY(win.centralWidget());
-    QVERIFY2(win.selPanel_->height() == win.centralWidget()->height(),
+    QVERIFY2(win.selPanel->height() == win.centralWidget()->height(),
              "the panel came back with a squashed, shared-row height");
   }
 

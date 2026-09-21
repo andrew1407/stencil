@@ -30,32 +30,32 @@ namespace stencil::gui {
       setAttribute(Qt::WA_TranslucentBackground, true);
       hide();
       // ~60fps pulse; step matched to the interval for a ~1.5s breathing cycle.
-      pulse_.setInterval(16);
-      QObject::connect(&pulse_, &QTimer::timeout, [this] {
-        phase_ += 0.067;
-        if (phase_ > 6.2831853) phase_ -= 6.2831853;
+      pulse.setInterval(16);
+      QObject::connect(&pulse, &QTimer::timeout, [this] {
+        phase += 0.067;
+        if (phase > 6.2831853) phase -= 6.2831853;
         update();
       });
-      fade_.setInterval(16);
-      QObject::connect(&fade_, &QTimer::timeout, [this] {
-        opacity_ -= 16.0 / FADE_OUT_MS;
-        if (opacity_ <= 0.0) { opacity_ = 1.0; fade_.stop(); hide(); return; }
+      fade.setInterval(16);
+      QObject::connect(&fade, &QTimer::timeout, [this] {
+        opacity -= 16.0 / FADE_OUT_MS;
+        if (opacity <= 0.0) { opacity = 1.0; fade.stop(); hide(); return; }
         update();
       });
       if (viewport) { viewport->installEventFilter(this); fitToParent(); }
     }
 
-    void setAccent(const QColor& c) { accent_ = c; update(); }
-    void setActiveLeft(bool left) { if (activeLeft_ != left) { activeLeft_ = left; update(); } }
-    void showZones() { fade_.stop(); opacity_ = 1.0; fitToParent(); raise(); show(); pulse_.start(); }
+    void setAccent(const QColor& c) { accent = c; update(); }
+    void setActiveLeft(bool left) { if (activeLeft != left) { activeLeft = left; update(); } }
+    void showZones() { fade.stop(); opacity = 1.0; fitToParent(); raise(); show(); pulse.start(); }
     // Zones LEAVE on a fade (browser #global-drop-overlay.drop-closing).
     void hideZones() {
       if (isHidden()) return;
-      pulse_.stop();
-      fade_.start();
+      pulse.stop();
+      fade.start();
     }
-    void hideZonesNow() { pulse_.stop(); fade_.stop(); opacity_ = 1.0; hide(); }
-    double overlayOpacity() const { return opacity_; }
+    void hideZonesNow() { pulse.stop(); fade.stop(); opacity = 1.0; hide(); }
+    double overlayOpacity() const { return opacity; }
 
    protected:
     bool eventFilter(QObject* w, QEvent* e) override {
@@ -65,17 +65,17 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
-      p.setOpacity(opacity_);
+      p.setOpacity(opacity);
       const int w = width(), h = height();
       // The footer is its own strip BELOW the zones (browser .drop-foot).
       const int zoneH = h - 20 - FOOT_H - FOOT_GAP;
       const QRect left(10, 10, w / 2 - 15, zoneH);
       const QRect right(w / 2 + 5, 10, w / 2 - 15, zoneH);
       // The SAME glyphs as ui/dropOverlay.js, not the text "↑"/"◐" (system-font dependent).
-      drawZone(p, left, accent_, QStringLiteral("upload"), QStringLiteral("Upload & save"),
-               QStringLiteral("Load the image and keep it in your projects"), activeLeft_);
-      drawZone(p, right, muted_, QStringLiteral("incognito"), QStringLiteral("Upload incognito"),
-               QStringLiteral("Load the image without saving it"), !activeLeft_);
+      drawZone(p, left, accent, QStringLiteral("upload"), QStringLiteral("Upload & save"),
+               QStringLiteral("Load the image and keep it in your projects"), activeLeft);
+      drawZone(p, right, muted, QStringLiteral("incognito"), QStringLiteral("Upload incognito"),
+               QStringLiteral("Load the image without saving it"), !activeLeft);
       QFont ff = p.font();
       ff.setPointSizeF(p.font().pointSizeF() - 1);
       p.setFont(ff);
@@ -105,7 +105,7 @@ namespace stencil::gui {
       p.setBrush(Qt::NoBrush);
       p.drawRoundedRect(r, 14, 14);
       // Rasterized ONCE at GLYPH_PX: re-rendering the SVG per frame would push ~60 entries/s into themedIcon's cache.
-      const double scale = 1.0 + 0.18 * std::sin(phase_);
+      const double scale = 1.0 + 0.18 * std::sin(phase);
       const QPixmap px = themedIcon(iconName, col, GLYPH_PX).pixmap(GLYPH_PX, GLYPH_PX);
       if (!px.isNull()) {
         const QRect band(r.left(), r.top() + r.height() / 6, r.width(), r.height() / 3);
@@ -137,13 +137,13 @@ namespace stencil::gui {
     static constexpr int GLYPH_PX = 96;
     static constexpr double GLYPH_DRAW_PX = 46.0;
 
-    QColor accent_{DEFAULT_ACCENT_HEX};
-    QColor muted_{"#80868f"};
-    bool activeLeft_ = true;
-    QTimer pulse_;
-    QTimer fade_;
-    double phase_ = 0.0;
-    double opacity_ = 1.0;
+    QColor accent{DEFAULT_ACCENT_HEX};
+    QColor muted{"#80868f"};
+    bool activeLeft = true;
+    QTimer pulse;
+    QTimer fade;
+    double phase = 0.0;
+    double opacity = 1.0;
   };
 
 }  // namespace stencil::gui

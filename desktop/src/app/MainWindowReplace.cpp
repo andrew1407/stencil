@@ -28,21 +28,21 @@ namespace stencil::gui {
 
   // Not a blank or incognito session — there is nothing to keep the same.
   bool MainWindow::canReplaceActive() const {
-    return canvas_->hasImage() && !incognito_
-        && (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty());
+    return canvas->hasImage() && !incognito
+        && (!activeProjectId.isEmpty() || !remoteSession->getLink().address.isEmpty());
   }
 
   // Same local id / server link; `rename` adopts the file's name, `keepAnnotations` keeps the
   // lines. Server sessions re-upload the `original`.
   void MainWindow::replaceProjectImage(const QString& path, bool rename, bool keepAnnotations) {
-    const core::Lines kept = keepAnnotations ? canvas_->allLines() : core::Lines{};
+    const core::Lines kept = keepAnnotations ? canvas->allLines() : core::Lines{};
     if (!loadLocalImageReset(path)) return;   // loadImage clears lines + provenance, keeps binding
-    if (keepAnnotations && !kept.empty()) canvas_->setLines(kept);
+    if (keepAnnotations && !kept.empty()) canvas->setLines(kept);
     if (rename) {
       const QString newName = QFileInfo(path).completeBaseName();
-      if (!remoteSession_->link().address.isEmpty()) {
-        remoteSession_->link().name = newName;
-      } else if (Project* pr = findProject(activeProjectId_.toStdString())) {
+      if (!remoteSession->getLink().address.isEmpty()) {
+        remoteSession->getLink().name = newName;
+      } else if (Project* pr = findProject(activeProjectId.toStdString())) {
         pr->meta.name = newName.toStdString();
       }
       updateProjectTitle();
@@ -51,7 +51,7 @@ namespace stencil::gui {
     // reads it.
     QPointer<MainWindow> self(this);
     auto save = [this, self]() { if (self) saveToActiveProject(); };
-    if (!remoteSession_->link().address.isEmpty())
+    if (!remoteSession->getLink().address.isEmpty())
       replaceServerOriginal(save);
     else
       save();
@@ -59,27 +59,27 @@ namespace stencil::gui {
 
   // `done` still fires when not server-linked or sync is off.
   void MainWindow::replaceServerOriginal(std::function<void()> done) {
-    if (remoteSession_->link().address.isEmpty() || !settings_.syncToServer) {
+    if (remoteSession->getLink().address.isEmpty() || !settings.syncToServer) {
       if (done) done();
       return;
     }
-    stencil::net::ServerClient* c = connections_ ? connections_->find(remoteSession_->link().address) : nullptr;
-    if (!c || !canvas_->hasImage()) {
+    stencil::net::ServerClient* c = connections ? connections->find(remoteSession->getLink().address) : nullptr;
+    if (!c || !canvas->hasImage()) {
       if (done) done();
       return;
     }
-    const int w = canvas_->imageWidth();
-    const int h = canvas_->imageHeight();
+    const int w = canvas->imageWidth();
+    const int h = canvas->imageHeight();
     QPointer<MainWindow> self(this);
-    c->uploadFileAsync(remoteSession_->link().id, "original", pngBytes(canvas_->image()), "png", w, h,
+    c->uploadFileAsync(remoteSession->getLink().id, "original", pngBytes(canvas->getImage()), "png", w, h,
                        [this, self, c, done](bool uok) {
                          if (!self) return;
                          if (!uok) { if (done) done(); return; }
-                         c->getProjectAsync(remoteSession_->link().id,
+                         c->getProjectAsync(remoteSession->getLink().id,
                                             [this, self, done](bool gok, stencil::net::ServerProject meta,
                                                                QJsonObject) {
                                               if (!self) return;
-                                              if (gok) remoteSession_->link().version = meta.version;
+                                              if (gok) remoteSession->getLink().version = meta.version;
                                               if (done) done();
                                             });
                        });
@@ -88,17 +88,17 @@ namespace stencil::gui {
   // The local twin of publishIncognitoToServer; an explicit user save is not the app writing on
   // its own.
   QString MainWindow::promoteIncognitoToLocal(const QString& name) {
-    if (!canvas_->hasImage()) return QString();
-    if (incognito_) {
-      incognito_ = false;
-      incognitoOverlay_->setActive(false);
-      actIncognito_->blockSignals(true);
-      actIncognito_->setChecked(false);
-      actIncognito_->blockSignals(false);
+    if (!canvas->hasImage()) return QString();
+    if (incognito) {
+      incognito = false;
+      incognitoOverlay->setActive(false);
+      actIncognito->blockSignals(true);
+      actIncognito->setChecked(false);
+      actIncognito->blockSignals(false);
       updateProjectTitle();
     }
     QString seed = name.trimmed();
-    if (seed.isEmpty()) seed = canvas_->imageBaseName();
+    if (seed.isEmpty()) seed = canvas->imageBaseName();
     if (seed.isEmpty()) seed = QStringLiteral("Untitled");
     const QString unique = uniqueLocalProjectName(seed);
     createLocalProject(unique, /*announce=*/false);
@@ -107,30 +107,30 @@ namespace stencil::gui {
 
   // Mirrors the browser's publishIncognitoToServer (a server-backed project is not incognito).
   void MainWindow::publishIncognitoToServer(const QString& serverUrl) {
-    if (!canvas_->hasImage()) {
-      notify_->error("Open an image first");
+    if (!canvas->hasImage()) {
+      notify->error("Open an image first");
       return;
     }
-    if (incognito_) {
-      incognito_ = false;
-      incognitoOverlay_->setActive(false);
-      actIncognito_->blockSignals(true);
-      actIncognito_->setChecked(false);
-      actIncognito_->blockSignals(false);
+    if (incognito) {
+      incognito = false;
+      incognitoOverlay->setActive(false);
+      actIncognito->blockSignals(true);
+      actIncognito->setChecked(false);
+      actIncognito->blockSignals(false);
     }
-    QString name = canvas_->imageBaseName();
+    QString name = canvas->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
     QPointer<MainWindow> self(this);
     // Creation failure notifies and never fires onLinked, so nothing is pushed.
     createServerProject(serverUrl, name, [this, self]() {
       if (!self) return;
-      // Pushed regardless of the sync toggle; saveToServer reads settings_.syncToServer only at
+      // Pushed regardless of the sync toggle; saveToServer reads settings.syncToServer only at
       // entry, so restoring it right after is safe.
-      const bool savedSync = settings_.syncToServer;
-      settings_.syncToServer = true;
+      const bool savedSync = settings.syncToServer;
+      settings.syncToServer = true;
       saveToServer();
-      settings_.syncToServer = savedSync;
-      remoteSync_->startRemotePoll();   // live co-edit: watch for peers changing this project
+      settings.syncToServer = savedSync;
+      remoteSync->startRemotePoll();   // live co-edit: watch for peers changing this project
       refreshActions();
       updateProjectTitle();
     });

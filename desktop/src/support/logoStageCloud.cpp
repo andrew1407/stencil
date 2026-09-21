@@ -64,36 +64,36 @@ namespace stencil::support {
   }
 
   void LogoStageCloud::setStyle(ParticleStyle style, bool on) {
-    style_ = style;
-    on_ = on;
-    motes_.clear();
+    this->style = style;
+    this->on = on;
+    motes.clear();
   }
 
-  void LogoStageCloud::clear() { motes_.clear(); }
+  void LogoStageCloud::clear() { motes.clear(); }
 
   void LogoStageCloud::step(double dt, double size, double boost, const QPointF& dir) {
-    if (!on_) return;
-    const int room = logoStageConfig().cloudMaxLive - motes_.size();
+    if (!on) return;
+    const int room = logoStageConfig().cloudMaxLive - motes.size();
     const int want = std::min(spawnStageCount(boost, dt), std::max(0, room));
-    for (int i = 0; i < want; ++i) motes_.push_back(newStageMote(size, boost, dir));
-    for (int i = motes_.size() - 1; i >= 0; --i)
-      if (!stepStageMote(motes_[i], dt)) motes_.removeAt(i);
+    for (int i = 0; i < want; ++i) motes.push_back(newStageMote(size, boost, dir));
+    for (int i = motes.size() - 1; i >= 0; --i)
+      if (!stepStageMote(motes[i], dt)) motes.removeAt(i);
   }
 
   void LogoStageCloud::draw(QPainter& p, const QPointF& at, double ms, const QColor& accent,
                             const QColor& shade, bool dark, double scale) {
-    if (!on_ || motes_.isEmpty()) return;
-    for (const StageMote& m : motes_) {
+    if (!on || motes.isEmpty()) return;
+    for (const StageMote& m : motes) {
       const double prog = m.life > 0 ? std::min(1.0, m.age / m.life) : 1.0;
-      const StyleFrame f = styleFrame(style_, prog, prog, m.w, m.len, ms);
+      const StyleFrame f = styleFrame(style, prog, prog, m.w, m.len, ms);
       const double alpha = stageMoteAlpha(m) * f.glow;
       if (alpha < 0.01) continue;
       const int tint = tintOf(m.w);
-      const double mix = tint < 0 && style_ == ParticleStyle::DUST ? dustMix(m.w, false) : f.mix;
+      const double mix = tint < 0 && style == ParticleStyle::DUST ? dustMix(m.w, false) : f.mix;
       p.setOpacity(std::clamp(alpha, 0.0, 1.0));
-      sprites_.draw(p, at + QPointF((m.x + f.sx) * scale, (m.y + f.sy) * scale), m.r * f.scale * scale,
+      sprites.draw(p, at + QPointF((m.x + f.sx) * scale, (m.y + f.sy) * scale), m.r * f.scale * scale,
                     tintedStop(accent, shade, mix, tint, dark),
-                    grainShape(style_, m.w), headingOf(m.vx, m.vy, false));
+                    grainShape(style, m.w), headingOf(m.vx, m.vy, false));
     }
     p.setOpacity(1.0);
   }

@@ -17,17 +17,17 @@ namespace stencil::gui {
 
     // Continuation drawing: append the 4 corners to the line being extended
     // instead of making a standalone area (drawingApp.js createRect ~1402).
-    if (continueLineIdx_ >= 0 &&
-        continueLineIdx_ < static_cast<int>(lines_.size())) {
-      core::Line& line = lines_[continueLineIdx_];
+    if (continueLineIdx >= 0 &&
+        continueLineIdx < static_cast<int>(lines.size())) {
+      core::Line& line = lines[continueLineIdx];
       const int at = std::max(
-          0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
+          0, std::min(continueInsertIdx, static_cast<int>(line.points.size())));
       const core::Point corners[4] = {
           {xa, ya}, {xb, ya}, {xb, yb}, {xa, yb}};
       line.points.insert(line.points.begin() + at, corners, corners + 4);
-      flyInPoints(continueLineIdx_, line, at, 4);
-      continueInsertIdx_ = at + 4;
-      selectedPoint_ = continueInsertIdx_ - 1;
+      flyInPoints(continueLineIdx, line, at, 4);
+      continueInsertIdx = at + 4;
+      selectedPoint = continueInsertIdx - 1;
       commitHistory();
       update();
       emit selectionChanged();
@@ -36,31 +36,31 @@ namespace stencil::gui {
 
     core::Line rect;
     rect.points = {{xa, ya}, {xb, ya}, {xb, yb}, {xa, yb}};  // exactly 4 corners
-    rect.color = defColor_.toStdString();
+    rect.color = defColor.toStdString();
     rect.pointColor =
-        (defPointColor_.isEmpty() ? defColor_ : defPointColor_).toStdString();
-    rect.thickness = defThickness_;
-    rect.pointSize = defPointSize_;
-    rect.style = defStyle_.toStdString();
+        (defPointColor.isEmpty() ? defColor : defPointColor).toStdString();
+    rect.thickness = defThickness;
+    rect.pointSize = defPointSize;
+    rect.style = defStyle.toStdString();
     rect.locked = true;
     rect.fillColor = "transparent";
 
-    lines_.push_back(rect);
-    selectedLineIdx_ = static_cast<int>(lines_.size()) - 1;
+    lines.push_back(rect);
+    selectedLineIdx = static_cast<int>(lines.size()) - 1;
     // The rect draws itself out of its first corner, edge by edge.
-    flyInPoints(selectedLineIdx_, lines_.back(), 0, 4);
-    selectedPoint_ = -1;
+    flyInPoints(selectedLineIdx, lines.back(), 0, 4);
+    selectedPoint = -1;
     commitHistory();
     update();
     emit selectionChanged();
   }
 
   core::Point CanvasWidget::toImageSpace(int widgetX, int widgetY) const {
-    return {widgetX / scale_, widgetY / scale_};
+    return {widgetX / scale, widgetY / scale};
   }
 
   // Port of the line drawing in browser/js/core/renderer.js. Scale-parameterized so renderToImage
-  // draws at native resolution while the live view passes scale_.
+  // draws at native resolution while the live view passes scale.
   void CanvasWidget::drawLineScaled(QPainter& p, const core::Line& line,
                                     int lineIdx, double scale,
                                     bool highlight, bool live) const {
@@ -73,7 +73,7 @@ namespace stencil::gui {
     const QPolygonF& poly = polyBuf;
 
     const QColor stroke = paintColor(line.color);
-    const Palette& pal = paintPalette(dark_, accentKey_, selGlow_, hoverRing_);
+    const Palette& pal = paintPalette(dark, accentKey, selGlow, hoverRing);
 
     // core::pointColorOr resolves an unset point colour to the stroke colour, so a line without one
     // paints as it always did; an unparseable colour falls back there too, never to black.
@@ -93,14 +93,14 @@ namespace stencil::gui {
   double CanvasWidget::pointScaleAt(int lineIdx, const core::Line& line, int ptIdx,
                                     bool live) const {
     if (!live || ptIdx < 0 || ptIdx >= static_cast<int>(line.points.size())) return 1.0;
-    const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[ptIdx]);
+    const stroke::Flight* f = strokeFx.at(lineIdx, line.points[ptIdx]);
     if (!f) return 1.0;
     return stroke::vertexScale(stroke::phase(fxNow() - f->start, f->fly));
   }
 
   // ms on the shared clock. Every pass takes it here so they all agree on one instant.
   double CanvasWidget::fxNow() const {
-    return static_cast<double>(fxClock_.elapsed());
+    return static_cast<double>(fxClock.elapsed());
   }
 
 }  // namespace stencil::gui

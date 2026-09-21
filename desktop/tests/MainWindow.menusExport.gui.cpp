@@ -18,43 +18,43 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
     QVERIFY(saveBtn);
     QVERIFY(copyBtn);
-    QVERIFY(win.saveImageOptionsMenu_);
-    QVERIFY(win.copyImageOptionsMenu_);
-    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageCurrentRow_));
-    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageOriginal_));
-    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageTint_));
-    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageCurrentRow_));
-    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageOriginal_));
-    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageTint_));
+    QVERIFY(win.saveImageOptionsMenu);
+    QVERIFY(win.copyImageOptionsMenu);
+    QVERIFY(win.saveImageOptionsMenu->actions().contains(win.actSaveImageCurrentRow));
+    QVERIFY(win.saveImageOptionsMenu->actions().contains(win.actSaveImageOriginal));
+    QVERIFY(win.saveImageOptionsMenu->actions().contains(win.actSaveImageTint));
+    QVERIFY(win.copyImageOptionsMenu->actions().contains(win.actCopyImageCurrentRow));
+    QVERIFY(win.copyImageOptionsMenu->actions().contains(win.actCopyImageOriginal));
+    QVERIFY(win.copyImageOptionsMenu->actions().contains(win.actCopyImageTint));
 
     // Right-click the Download button: the popup opens, the plain action does NOT fire
     // (a real download would pop a blocking file dialog — this must never happen here).
     int saveTriggers = 0;
-    connect(win.actSaveImage_, &QAction::triggered, &win, [&] { ++saveTriggers; });
+    connect(win.actSaveImage, &QAction::triggered, &win, [&] { ++saveTriggers; });
     QContextMenuEvent saveCtx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
                               saveBtn->mapToGlobal(saveBtn->rect().center()));
     QApplication::sendEvent(saveBtn, &saveCtx);
-    QVERIFY2(QApplication::activePopupWidget() == win.saveImageOptionsMenu_,
+    QVERIFY2(QApplication::activePopupWidget() == win.saveImageOptionsMenu,
              "right-click on the download-image button opened no popup, or the wrong one");
     QCOMPARE(saveTriggers, 0);
-    win.saveImageOptionsMenu_->close();
+    win.saveImageOptionsMenu->close();
 
     // Same gesture on the Copy button.
     QContextMenuEvent copyCtx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
                               copyBtn->mapToGlobal(copyBtn->rect().center()));
     QApplication::sendEvent(copyBtn, &copyCtx);
-    QVERIFY2(QApplication::activePopupWidget() == win.copyImageOptionsMenu_,
+    QVERIFY2(QApplication::activePopupWidget() == win.copyImageOptionsMenu,
              "right-click on the copy-image button opened no popup, or the wrong one");
-    win.copyImageOptionsMenu_->close();
+    win.copyImageOptionsMenu->close();
 
     // A plain single click on Copy still runs the default ("current") variant — deferred
     // briefly (so a following dblclick could still cancel it, though none comes here).
     int copyTriggers = 0;
-    connect(win.actCopyImage_, &QAction::triggered, &win, [&] { ++copyTriggers; });
+    connect(win.actCopyImage, &QAction::triggered, &win, [&] { ++copyTriggers; });
     QTest::mouseClick(copyBtn, Qt::LeftButton);
     QTRY_COMPARE(copyTriggers, 1);
     beat();
@@ -72,9 +72,9 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
     QVERIFY(copyBtn);
-    QMenu* menu = win.copyImageOptionsMenu_;
+    QMenu* menu = win.copyImageOptionsMenu;
     QVERIFY(menu && !menu->isVisible());
 
     // underMouse() backs up the real cursor-position check (MainWindowEvents.cpp) —
@@ -114,12 +114,12 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
     QVERIFY(copyBtn);
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
                           copyBtn->mapToGlobal(copyBtn->rect().center()));
     QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
+    QMenu* menu = win.copyImageOptionsMenu;
     QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
 
     int widestLabel = 0;
@@ -157,12 +157,12 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage);
     QVERIFY(saveBtn);
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
                           saveBtn->mapToGlobal(saveBtn->rect().center()));
     QApplication::sendEvent(saveBtn, &ctx);
-    QMenu* menu = win.saveImageOptionsMenu_;
+    QMenu* menu = win.saveImageOptionsMenu;
     const bool opened = menu && menu->isVisible();
     bool anyOverflow = false;
     if (opened) {

@@ -21,7 +21,7 @@ namespace stencil::net {
     // https base, tearing down any prior subscription.
     bool subscribe(const QString& base, const QString& token);
     void unsubscribe();
-    const QString& base() const { return base_; }
+    const QString& getBase() const { return base; }
 
    signals:
     // `deleted` marks a delete event rather than an edit.
@@ -36,14 +36,14 @@ namespace stencil::net {
     void dial();
     void parseFrames();
 
-    QTcpSocket* sock_ = nullptr;
-    QTimer* retry_ = nullptr;
-    QString base_;
-    QString host_;
-    quint16 port_ = 0;
-    QString token_;
-    QString clientId_;
-    QByteArray rbuf_;
+    QTcpSocket* sock = nullptr;
+    QTimer* retry = nullptr;
+    QString base;
+    QString host;
+    quint16 port = 0;
+    QString token;
+    QString clientId;
+    QByteArray rbuf;
   };
 
 }  // namespace stencil::net

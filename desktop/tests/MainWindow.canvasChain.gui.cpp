@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     settleLayout(&win, 200);
-    QVERIFY(win.status_);
+    QVERIFY(win.status);
 
     // Synthesize a real hover over the canvas and read the status bar.
     const auto hoverAt = [&](const QPoint& p) {
@@ -24,7 +24,7 @@ class MainWindowGuiTest : public QObject {
                        Qt::NoButton, Qt::NoModifier);
       QApplication::sendEvent(canvas, &move);
       QTest::qWait(20);
-      return win.status_->text();
+      return win.status->text();
     };
     const auto readoutMoves = [&](const char* state) {
       const QString a = hoverAt(QPoint(canvas->width() / 3, canvas->height() / 3));
@@ -38,23 +38,23 @@ class MainWindowGuiTest : public QObject {
 
     readoutMoves("plain");
 
-    win.actIncognito_->setChecked(true);   // the state the report came from
+    win.actIncognito->setChecked(true);   // the state the report came from
     settleLayout(&win, 80);
     readoutMoves("incognito");
-    win.actIncognito_->setChecked(false);
+    win.actIncognito->setChecked(false);
 
-    win.actChat_->setChecked(true);        // …with the chat open over the layout
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    awaitAnim(win.chatAnim_);              // …on the slide's own end
+    win.actChat->setChecked(true);        // …with the chat open over the layout
+    QTRY_VERIFY(win.chatDock->isVisible());
+    awaitAnim(win.chatAnim);              // …on the slide's own end
     readoutMoves("chat open");
-    win.actChat_->setChecked(false);
-    awaitAnim(win.chatAnim_);
+    win.actChat->setChecked(false);
+    awaitAnim(win.chatAnim);
 
     // COMPARE: the canvas is read-only there, but the readout is information, not editing —
     // it must keep following the cursor.
     for (const char* mode : {"vertical", "horizontal"}) {
       win.setCompareModeUi(QString::fromLatin1(mode));
-      QTRY_VERIFY2(win.canvas_->compareReadOnly(), "compare did not engage");
+      QTRY_VERIFY2(win.canvas->compareReadOnly(), "compare did not engage");
       readoutMoves(mode);
     }
     win.setCompareModeUi(QStringLiteral("none"));
@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
 
-    auto* unchain = win.selectedLineBar_->findChild<QPushButton*>("selectedLineUnchain");
+    auto* unchain = win.selectedLineBar->findChild<QPushButton*>("selectedLineUnchain");
     QVERIFY2(unchain, "the bar has no Unchain button");
 
     // An OPEN line: the area controls, Unchain among them, stay away.
@@ -79,7 +79,7 @@ class MainWindowGuiTest : public QObject {
     open.points = {{20, 20}, {80, 80}, {40, 90}};
     canvas->setLines({open});
     canvas->selectLineByIndex(0);
-    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock->isVisible(), 2000);
     // The group SLIDES away now (controlReveal), so visibility settles on the event loop
     // rather than on the same tick — wait it out instead of reading it mid-flight.
     QTRY_VERIFY2(!unchain->isVisible(), "an open line was offered Unchain");
@@ -94,7 +94,7 @@ class MainWindowGuiTest : public QObject {
       canvas->setLines({tinted});
       canvas->selectLineByIndex(0);
       beat();
-      auto* swatch = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillSwatch");
+      auto* swatch = win.selectedLineBar->findChild<QPushButton*>("selectedLineFillSwatch");
       QVERIFY2(swatch, "the bar has no fill swatch");
       // The colour lives in the well's CHIP now (a 32x16 pixmap inside the input frame),
       // so read it there: its channels must be the CSS ones, alpha included.
@@ -111,14 +111,14 @@ class MainWindowGuiTest : public QObject {
       // macOS is a second conversion on an already colour-managed surface.
       win.resize(1900, 900);
       settleLayout(&win, 300);
-      const QImage bar = win.selectedLineBar_->grab().toImage();
-      auto* ds = win.selectedLineBar_->findChild<QWidget*>("selectedLineDeselect");
+      const QImage bar = win.selectedLineBar->grab().toImage();
+      auto* ds = win.selectedLineBar->findChild<QWidget*>("selectedLineDeselect");
       QVERIFY(ds);
-      const QColor got = bar.pixelColor(ds->mapTo(win.selectedLineBar_, QPoint(5, ds->height() / 2)));
+      const QColor got = bar.pixelColor(ds->mapTo(win.selectedLineBar, QPoint(5, ds->height() / 2)));
       // Deselect wears the bar's own amber, the token its siblings use (browser .deselect-btn ->
       // var(--bg-sel-btn)), for the theme the window is actually in.
       const stencil::gui::Palette live = stencil::gui::themePalette(
-          stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+          stencil::gui::resolveDark(win.settings.themeMode), win.settings.accentColor);
       QCOMPARE(got.name(), live.bgSelBtn.name());
       QCOMPARE(stencil::gui::themePalette(true, "violet").danger.name(), QStringLiteral("#f0697a"));
     }
@@ -126,7 +126,7 @@ class MainWindowGuiTest : public QObject {
     // The two glyphs in this group are sized like the browser's: an 11px clear-fill cross (not
     // the style's 16 scaling it up), and Unchain's icon-plus-label pairing from #sel-unchain.
     {
-      auto* clear = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillClear");
+      auto* clear = win.selectedLineBar->findChild<QPushButton*>("selectedLineFillClear");
       QVERIFY2(clear, "no clear-fill button");
 
       // …and the browser's own boxes: a 23x19 cross, 28px-tall buttons and 46x34 colour wells
@@ -134,7 +134,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(clear->height() >= 26, qPrintable(QString("clear is %1px tall").arg(clear->height())));
       QCOMPARE(clear->iconSize(), QSize(13, 13));
       // ONE colour well everywhere: 46x24, the size the browser and extension now use too.
-      auto* swatch2 = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillSwatch");
+      auto* swatch2 = win.selectedLineBar->findChild<QPushButton*>("selectedLineFillSwatch");
       QVERIFY(swatch2);
       QCOMPARE(swatch2->size(), QSize(46, 26));
       QVERIFY2(!swatch2->icon().isNull(),
@@ -142,7 +142,7 @@ class MainWindowGuiTest : public QObject {
       // …in the theme's own input chrome, as the toolbar's wells are. The widget's own palette
       // resolves to the LIGHT theme's #dddddd and rings the wells in near-white.
       const stencil::gui::Palette chrome = stencil::gui::themePalette(
-          stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+          stencil::gui::resolveDark(win.settings.themeMode), win.settings.accentColor);
       QVERIFY2(swatch2->styleSheet().contains(chrome.borderMain.name()),
                qPrintable("well frame reads: " + swatch2->styleSheet()));
       QVERIFY2(swatch2->styleSheet().contains(chrome.inputBg.name()),
@@ -151,10 +151,10 @@ class MainWindowGuiTest : public QObject {
       // actions. The fill's own comes and goes WITH the group; measured at a two-row width.
       win.resize(1100, 900);
       settleLayout(&win, 300);
-      const int barHeightWithFill = win.selectedLineBar_->height();
+      const int barHeightWithFill = win.selectedLineBar->height();
       const auto visibleSeps = [&] {
         int n = 0;
-        for (QFrame* f : win.selectedLineBar_->findChildren<QFrame*>("selectedLineSep"))
+        for (QFrame* f : win.selectedLineBar->findChildren<QFrame*>("selectedLineSep"))
           if (f->isVisible()) ++n;
         return n;
       };
@@ -166,10 +166,10 @@ class MainWindowGuiTest : public QObject {
       // …and the bar SHRINKS with it: losing the fill group can cost the flow layout a whole row,
       // so refitHeight() runs on every content change.
       const int tallWithFill = barHeightWithFill;
-      QTRY_VERIFY2(win.selectedLineBar_->height() < tallWithFill,
+      QTRY_VERIFY2(win.selectedLineBar->height() < tallWithFill,
                    qPrintable(QString("bar stayed %1px tall after the fill group left (was %2)")
-                                  .arg(win.selectedLineBar_->height()).arg(tallWithFill)));
-      for (QComboBox* cb : win.selectedLineBar_->findChildren<QComboBox*>()) {
+                                  .arg(win.selectedLineBar->height()).arg(tallWithFill)));
+      for (QComboBox* cb : win.selectedLineBar->findChildren<QComboBox*>()) {
         QVERIFY2(cb->height() >= 32 && cb->height() <= 36,
                  qPrintable(QString("style combo is %1px tall, the browser's is 34").arg(cb->height())));
         break;
@@ -193,8 +193,8 @@ class MainWindowGuiTest : public QObject {
     // press: the group is mid-slide when it first becomes visible (controlReveal).
     unchain->click();
     beat();
-    QVERIFY2(!canvas->lines()[0].locked, "the click did not unchain the area");
-    QCOMPARE(canvas->lines()[0].points.size(), std::size_t(4));
+    QVERIFY2(!canvas->getLines()[0].locked, "the click did not unchain the area");
+    QCOMPARE(canvas->getLines()[0].points.size(), std::size_t(4));
     QTRY_VERIFY2(!unchain->isVisible(), "Unchain is still offered on a line that is now open");
   }
 

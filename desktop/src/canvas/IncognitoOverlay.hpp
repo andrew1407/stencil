@@ -23,7 +23,7 @@ namespace stencil::gui {
     // Dashes DRAW ON clockwise from the top-left and retract the same way.
     void setActive(bool on);
 
-    double progress() const { return progress_; }
+    double getProgress() const { return progress; }
     // Pure, so the draw order is testable without a display (browser: four staggered .ig-edge).
     static QPainterPath framePath(const QRectF& box, double t);
     static constexpr int DRAW_MS = 480;
@@ -41,11 +41,11 @@ namespace stencil::gui {
    private:
     void fitToParent();
 
-    bool active_ = false;
-    double progress_ = 0.0;
-    QVariantAnimation* anim_ = nullptr;
-    bool dark_ = false;
-    QString accentKey_ = DEFAULT_ACCENT_KEY;
+    bool active = false;
+    double progress = 0.0;
+    QVariantAnimation* anim = nullptr;
+    bool dark = false;
+    QString accentKey = DEFAULT_ACCENT_KEY;
   };
 
 }

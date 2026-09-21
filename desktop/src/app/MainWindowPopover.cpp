@@ -38,77 +38,77 @@ namespace stencil::gui {
   // Alt+hover peek (browser popover.js altHover parity); never adopts the machine's own open
   // window.
   void MainWindow::altPeekOpen(QToolButton* btn, QAction* act) {
-    if (!btn || !act || !act->isEnabled() || pop_.active) return;
+    if (!btn || !act || !act->isEnabled() || pop.active) return;
     // Another dialog is up: a peek under it would be unreachable.
     if (QApplication::activeModalWidget()) return;
     // Gliding off an open compact chat closes it; a docked panel or a user-chosen float is never
     // touched.
-    if (act != actChat_ && actChat_ && actChat_->isChecked() && chatCompactShowing()) {
-      pop_.peekAction.clear();
-      actChat_->setChecked(false);
+    if (act != actChat && actChat && actChat->isChecked() && chatCompactShowing()) {
+      pop.peekAction.clear();
+      actChat->setChecked(false);
     }
     stopLingerPoll();
-    if (pop_.clickTimer) pop_.clickTimer->stop();
-    pop_.pendingAction.clear();
+    if (pop.clickTimer) pop.clickTimer->stop();
+    pop.pendingAction.clear();
     // A chat already on screen takes the same animated swap the right-click route does, but is
     // never adopted as a peek.
-    if (act == actChat_ && actChat_->isChecked()) {
-      pop_.anchor.clear();
-      pop_.peekAction.clear();
+    if (act == actChat && actChat->isChecked()) {
+      pop.anchor.clear();
+      pop.peekAction.clear();
       openChatCompact(btn);
       return;
     }
-    pop_.anchor = btn;
-    pop_.peekAction = act;
+    pop.anchor = btn;
+    pop.peekAction = act;
     act->trigger();
     // exec() blocks until the dialog closes, so reaching here ends the peek; only the non-blocking
     // chat keeps its flag until Alt release.
-    if (act != actChat_) pop_.peekAction.clear();
+    if (act != actChat) pop.peekAction.clear();
   }
 
   // Linger poll: close once the pointer is outside, unless a field or the composer holds typed
   // content.
   void MainWindow::startLingerPoll() {
-    if (!pop_.lingerPoll) {
-      pop_.lingerPoll = new QTimer(this);
-      pop_.lingerPoll->setInterval(120);
-      connect(pop_.lingerPoll, &QTimer::timeout, this, [this] {
-        QWidget* w = pop_.active
-            ? static_cast<QWidget*>(pop_.active.data())
-            : ((chatDock_ && chatDock_->isFloating() && chatDock_->isVisible()) ? chatDock_ : nullptr);
-        if (!w) { pop_.lingerPoll->stop(); return; }
-        const QRect box = pop_.active ? popoverRectGlobal() : w->frameGeometry();
+    if (!pop.lingerPoll) {
+      pop.lingerPoll = new QTimer(this);
+      pop.lingerPoll->setInterval(120);
+      connect(pop.lingerPoll, &QTimer::timeout, this, [this] {
+        QWidget* w = pop.active
+            ? static_cast<QWidget*>(pop.active.data())
+            : ((chatDock && chatDock->isFloating() && chatDock->isVisible()) ? chatDock : nullptr);
+        if (!w) { pop.lingerPoll->stop(); return; }
+        const QRect box = pop.active ? popoverRectGlobal() : w->frameGeometry();
         if (box.contains(QCursor::pos())) return;
         if (hasTypedContentInside(w)) return;
-        if (w == chatDock_ && chatDock_->hasComposerText()) return;
-        pop_.lingerPoll->stop();
-        if (pop_.active) dismissPopover();
-        else if (actChat_ && actChat_->isChecked()) actChat_->setChecked(false);
+        if (w == chatDock && chatDock->hasComposerText()) return;
+        pop.lingerPoll->stop();
+        if (pop.active) dismissPopover();
+        else if (actChat && actChat->isChecked()) actChat->setChecked(false);
       });
     }
-    pop_.lingerPoll->start();
+    pop.lingerPoll->start();
   }
-  void MainWindow::stopLingerPoll() { if (pop_.lingerPoll) pop_.lingerPoll->stop(); }
+  void MainWindow::stopLingerPoll() { if (pop.lingerPoll) pop.lingerPoll->stop(); }
 
-  // exec() centred, or as a compact popover when a gesture armed pop_.anchor. Fade out before
-  // reject (the ghost shows only after unmap); pop_.active drops first (re-entrancy).
+  // exec() centred, or as a compact popover when a gesture armed pop.anchor. Fade out before
+  // reject (the ghost shows only after unmap); pop.active drops first (re-entrancy).
   void MainWindow::dismissPopover() {
-    if (!pop_.active) return;
+    if (!pop.active) return;
     // The linger poll would otherwise spend the closing animation watching the floating chat dock.
     stopLingerPoll();
     // reject() is the whole dismissal; execMaybePopover's finished() handler owns the collapse.
-    pop_.active->reject();
+    pop.active->reject();
   }
 
   QRect MainWindow::popoverRectGlobal() const {
-    if (pop_.overlay)
-      return QRect(pop_.overlay->mapToGlobal(QPoint(0, 0)), pop_.overlay->size());
-    return pop_.active ? pop_.active->frameGeometry() : QRect();
+    if (pop.overlay)
+      return QRect(pop.overlay->mapToGlobal(QPoint(0, 0)), pop.overlay->size());
+    return pop.active ? pop.active->frameGeometry() : QRect();
   }
 
   bool MainWindow::handlePopoverPress(QWidget* target, const QPoint& globalPos,
                                       Qt::MouseButton button) {
-    if (!pop_.active) return false;
+    if (!pop.active) return false;
     PopoverHost::PressFacts f;
     // The popover lives inside this window, so this test tells inside from outside.
     f.insidePopover = popoverRectGlobal().contains(globalPos);
@@ -118,24 +118,24 @@ namespace stencil::gui {
     } else {
       // Polled press: any other visible top-level owns that click.
       for (QWidget* w : QApplication::topLevelWidgets())
-        if (w != this && w != pop_.active.data() && w->isVisible() &&
+        if (w != this && w != pop.active.data() && w->isVisible() &&
             w->frameGeometry().contains(globalPos))
           f.otherWindowOwns = true;
     }
     f.onLogo =
-        logoBtn_ && (target ? target == logoBtn_
-                            : QRect(logoBtn_->mapToGlobal(QPoint(0, 0)), logoBtn_->size())
+        logoBtn && (target ? target == logoBtn
+                            : QRect(logoBtn->mapToGlobal(QPoint(0, 0)), logoBtn->size())
                                   .contains(globalPos));
-    f.accentPopover = pop_.active->objectName() == QLatin1String("accentPopover");
-    f.peekingAccent = pop_.peekAction.data() == actAccent_;
+    f.accentPopover = pop.active->objectName() == QLatin1String("accentPopover");
+    f.peekingAccent = pop.peekAction.data() == actAccent;
     // The press travels on, but must not re-open what it just dismissed — the popover is non-
     // modal, so it reaches the button.
-    f.onPopoverIcon = target && (target == logoBtn_ || pop_.buttons.contains(target));
+    f.onPopoverIcon = target && (target == logoBtn || pop.buttons.contains(target));
 
     const auto verdict = PopoverHost::judgePress(f, button);
-    if (verdict.clearPeek) pop_.peekAction.clear();
+    if (verdict.clearPeek) pop.peekAction.clear();
     if (verdict.dismiss) dismissPopover();
-    if (verdict.armDismissClick) pop_.dismissClick = true;
+    if (verdict.armDismissClick) pop.dismissClick = true;
     return verdict.consume;
   }
 

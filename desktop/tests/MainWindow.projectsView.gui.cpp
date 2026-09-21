@@ -17,14 +17,14 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId_.isEmpty());
-    const QString projectId = win.activeProjectId_;
+    QVERIFY(!win.activeProjectId.isEmpty());
+    const QString projectId = win.activeProjectId;
 
     // Zoom in past the viewport so the canvas grows a scrollable range: otherwise the scrollbars have
     // nowhere to move and the pan half of this test proves nothing.
     win.setZoom(5.0);
-    win.scroll_->horizontalScrollBar()->setValue(30);
-    win.scroll_->verticalScrollBar()->setValue(20);
+    win.scroll->horizontalScrollBar()->setValue(30);
+    win.scroll->verticalScrollBar()->setValue(20);
     QTest::qWait(600);   // past the 400ms debounce
 
     {
@@ -46,11 +46,11 @@ class MainWindowGuiTest : public QObject {
     // the save just verified), simulating an editor sitting elsewhere as this project reopens.
     canvas->setScale(1.0);
     QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false));
-    QCOMPARE(canvas->scale(), 5.0);
+    QCOMPARE(canvas->getScale(), 5.0);
     // The scroll half restores a turn later (QTimer::singleShot(0, …)), so it is the one
     // to wait on — the scale is already back by the time loadProjectIntoCanvas returns.
-    QTRY_COMPARE(win.scroll_->horizontalScrollBar()->value(), 30);
-    QCOMPARE(win.scroll_->verticalScrollBar()->value(), 20);
+    QTRY_COMPARE(win.scroll->horizontalScrollBar()->value(), 30);
+    QCOMPARE(win.scroll->verticalScrollBar()->value(), 20);
 
     // Tidy the dev state dir: drop the project this test created.
     dismissModal("OK");
@@ -65,7 +65,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win;
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QAction* clear = win.actClearProject_;
+    QAction* clear = win.actClearProject;
     QVERIFY(clear);
     // With an image loaded it is live…
     QImage img(24, 24, QImage::Format_RGB32);
@@ -74,8 +74,8 @@ class MainWindowGuiTest : public QObject {
     win.refreshActions();
     QVERIFY2(clear->isEnabled(), "Clear Project is dead with an image loaded");
     // …and dead once there is nothing left to clear (an empty canvas, no project).
-    win.canvas_->clearImage();
-    win.activeProjectId_.clear();
+    win.canvas->clearImage();
+    win.activeProjectId.clear();
     win.refreshActions();
     QVERIFY2(!clear->isEnabled(), "Clear Project stays live on an empty editor");
     // The ACTION's glyph is the ordinary menu tone, never danger red: menus paint icons muted (browser
@@ -99,7 +99,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // A restored session must keep its PROJECT identity: without the binding a relaunch showed the
-  // project's pixels while activeProjectId_ was empty, orphaning the image when it was deleted.
+  // project's pixels while activeProjectId was empty, orphaning the image when it was deleted.
   void sessionRoundTripsTheActiveProjectBinding() {
     MainWindow win(nullptr, false);
     win.resize(1200, 700);
@@ -109,14 +109,14 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkMagenta);
     win.loadImageWithLayout(img, QJsonObject());
     win.createLocalProject(QStringLiteral("session-bind"), /*announce=*/false);
-    QVERIFY(!win.activeProjectId_.isEmpty());
+    QVERIFY(!win.activeProjectId.isEmpty());
     win.saveSessionNow();
     const auto sess = stencil::gui::fileStore::loadSession();
     QVERIFY(sess.has_value());
-    QCOMPARE(sess->activeProjectId, win.activeProjectId_);
+    QCOMPARE(sess->activeProjectId, win.activeProjectId);
     // …and the restore path re-binds it (project still exists in the list).
     MainWindow win2(nullptr, true);
-    QCOMPARE(win2.activeProjectId_, win.activeProjectId_);
+    QCOMPARE(win2.activeProjectId, win.activeProjectId);
   }
 
   // Deliberate NON-round-trip: the image filter/tint and the compare split view must NOT carry into a
@@ -127,18 +127,18 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());   // a REAL file path — restoreSession needs one to reload from
-    QTRY_VERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(win.canvas->hasImage());
     win.applyImageFilter(QStringLiteral("custom"));
     win.applyTintColor(QColor(200, 40, 40));
-    QCOMPARE(win.settings_.imageFilter, QStringLiteral("custom"));
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("custom"));
     win.saveSessionNow();
 
     MainWindow win2(nullptr, true);
-    QVERIFY(win2.canvas_ && win2.canvas_->hasImage());   // the rest of the session DID restore
-    QCOMPARE(win2.settings_.imageFilter, QStringLiteral("none"));
-    QCOMPARE(win2.canvas_->imageFilter(), QStringLiteral("none"));
-    if (win2.imageFilter_) QCOMPARE(win2.imageFilter_->currentData().toString(), QStringLiteral("none"));
-    if (win2.filterColorBtn_) QVERIFY(!win2.filterColorBtn_->isVisible());
+    QVERIFY(win2.canvas && win2.canvas->hasImage());   // the rest of the session DID restore
+    QCOMPARE(win2.settings.imageFilter, QStringLiteral("none"));
+    QCOMPARE(win2.canvas->getImageFilter(), QStringLiteral("none"));
+    if (win2.imageFilter) QCOMPARE(win2.imageFilter->currentData().toString(), QStringLiteral("none"));
+    if (win2.filterColorBtn) QVERIFY(!win2.filterColorBtn->isVisible());
   }
 
 };

@@ -50,10 +50,10 @@ namespace stencil::gui {
   // The filter is installed once so a radio's ↑/↓ can be taken over below.
   void StayOpenMenu::focusStop(QWidget* w, Qt::FocusReason reason) {
     if (!w) return;
-    if (!filteredStops_.contains(w)) {
+    if (!filteredStops.contains(w)) {
       w->installEventFilter(this);
-      filteredStops_.insert(w);
-      connect(w, &QObject::destroyed, this, [this, w] { filteredStops_.remove(w); });
+      filteredStops.insert(w);
+      connect(w, &QObject::destroyed, this, [this, w] { filteredStops.remove(w); });
     }
     w->setFocus(reason);
   }
@@ -61,14 +61,14 @@ namespace stencil::gui {
   void StayOpenMenu::keyPressEvent(QKeyEvent* e) {
     // A hover-opened flyout never takes the grab, so the key is handed to its focused control as
     // Qt would; Escape stays here.
-    if (!redispatchingKey_ && e->key() != Qt::Key_Escape) {
+    if (!redispatchingKey && e->key() != Qt::Key_Escape) {
       QWidget* fw = QApplication::focusWidget();
       auto* owner = fw ? qobject_cast<StayOpenMenu*>(fw->window()) : nullptr;
       bool descendant = false;
       for (QWidget* w = owner ? owner->parentWidget() : nullptr; w && !descendant; w = w->parentWidget())
         descendant = w == this;
       if (owner && owner != this && fw != owner && owner->isVisible() && descendant) {
-        const Latch latch(redispatchingKey_);
+        const Latch latch(redispatchingKey);
         QApplication::sendEvent(fw, e);
         return;
       }
@@ -87,7 +87,7 @@ namespace stencil::gui {
       }
       if (qobject_cast<QMenu*>(parentWidget()) && !(cur && cur->menu())) {
         // Never Qt's default here, which reads → on such a row as ← and closes the flyout.
-        entered_ = true;
+        entered = true;
         if (!enterControls()) {
           if (QAction* a = firstRowAction()) setActiveAction(a);
         }
@@ -96,7 +96,7 @@ namespace stencil::gui {
       }
     }
     // A flyout the first → only revealed still belongs to its parent's walk (browser parity).
-    if (!entered_ && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+    if (!entered && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
       if (auto* parent = qobject_cast<QMenu*>(parentWidget()); parent && parent->isVisible()) {
         QApplication::sendEvent(parent, e);
         return;
@@ -125,12 +125,12 @@ namespace stencil::gui {
       if (walkTab(back)) { e->accept(); return; }
     }
     // Escape always belongs to the menu. Same latch as the mouse path.
-    if (keyTarget_ && !redispatchingKey_ && e->key() != Qt::Key_Escape) {
+    if (keyTarget && !redispatchingKey && e->key() != Qt::Key_Escape) {
       QWidget* fw = focusWidget();  // this menu's own focus widget
       const bool ours = fw && fw != this && fw->window() == window() &&
-                        (fw == keyTarget_ || keyTarget_->isAncestorOf(fw));
+                        (fw == keyTarget || keyTarget->isAncestorOf(fw));
       if (ours) {
-        const Latch latch(redispatchingKey_);
+        const Latch latch(redispatchingKey);
         QApplication::sendEvent(fw, e);  // typing, Enter, arrows — the input's
         return;
       }

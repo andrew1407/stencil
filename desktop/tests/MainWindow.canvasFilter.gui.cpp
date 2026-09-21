@@ -28,21 +28,21 @@ class MainWindowGuiTest : public QObject {
     QRadioButton* none = filterRadio("none");
     QVERIFY(none);
     none->setChecked(true);
-    QCOMPARE(canvas->imageFilter(), QString("none"));
+    QCOMPARE(canvas->getImageFilter(), QString("none"));
 
     // Check the SHARED filter path (toggling the radio runs the real applyImageFilter, which also
     // syncs the toolbar combo) and lands the mode on the live canvas.
     QRadioButton* bw = filterRadio("bw");
     QVERIFY(bw && bw->isEnabled());
     bw->setChecked(true);
-    QCOMPARE(canvas->imageFilter(), QString("bw"));      // menu/toolbar wiring reached the canvas
+    QCOMPARE(canvas->getImageFilter(), QString("bw"));      // menu/toolbar wiring reached the canvas
     beat();
 
     // Switching filters is live and mutually exclusive (one button group).
     QRadioButton* sepia = filterRadio("sepia");
     QVERIFY(sepia);
     sepia->setChecked(true);
-    QCOMPARE(canvas->imageFilter(), QString("sepia"));
+    QCOMPARE(canvas->getImageFilter(), QString("sepia"));
     QVERIFY(!bw->isChecked());                            // exclusive group cleared the old mode
     beat();
 
@@ -67,7 +67,7 @@ class MainWindowGuiTest : public QObject {
     QAction* newLine = actionByText(&win, "New Line");
     QVERIFY(newLine);
     newLine->trigger();
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 1);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);
 
     // "Clear All Lines" (canvas context menu + Edit menu) asks first — the browser's styled
     // confirm (drawingApp.js clearAllLines) — and on Confirm wipes committed and in-progress.
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(clear && clear->isEnabled());
     dismissModal("OK");
     clear->trigger();
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 0);
     QCOMPARE(totalPoints(canvas), 0);   // nothing committed or in-progress remains
     beat();
   }
@@ -89,9 +89,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.applyImageFilter("bw");
     win.createBlankImage(QColor("#ff0000"), 400, 300);
-    QCOMPARE(win.settings_.imageFilter, QStringLiteral("none"));
-    QTRY_VERIFY(win.canvas_->graphicsEffect() == nullptr);
-    const QImage shot = win.canvas_->grab().toImage();
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("none"));
+    QTRY_VERIFY(win.canvas->graphicsEffect() == nullptr);
+    const QImage shot = win.canvas->grab().toImage();
     const QColor mid = shot.pixelColor(shot.width() / 2, shot.height() / 2);
     QVERIFY2(mid.red() > 200 && mid.green() < 80 && mid.blue() < 80,
              qPrintable(QStringLiteral("blank is %1, not red").arg(mid.name())));
@@ -106,10 +106,10 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.createBlankImage(QColor("#ffffff"), 400, 300);
-    win.canvas_->setScale(2.5);
-    QCOMPARE(win.canvas_->scale(), 2.5);
+    win.canvas->setScale(2.5);
+    QCOMPARE(win.canvas->getScale(), 2.5);
     win.applyBlankColor(QColor("#0000ff"));
-    QCOMPARE(win.canvas_->scale(), 2.5);
+    QCOMPARE(win.canvas->getScale(), 2.5);
     beat();
   }
 

@@ -14,55 +14,55 @@ namespace stencil::gui {
   void ChatDock::showPending() {
     clearPending();  // defensive: never two pending cards
     QVBoxLayout* lay = appendTranscriptCard(2);
-    pendingCard_ = lay->parentWidget();
-    pendingCard_->setObjectName(QStringLiteral("chatCardAssistant"));
-    pendingRole_ = nullptr;  // the bubble's own tone says "assistant" (browser parity)
+    pendingCard = lay->parentWidget();
+    pendingCard->setObjectName(QStringLiteral("chatCardAssistant"));
+    pendingRole = nullptr;  // the bubble's own tone says "assistant" (browser parity)
     // An in-flight turn shows bouncing dots; markPendingStopped swaps in the label.
-    pendingBody_ = makePlainLabel(QString(), pendingCard_);
-    pendingBody_->setWordWrap(true);
-    pendingBody_->setProperty("chatRole", QStringLiteral("Assistant"));
-    pendingBody_->setProperty("chatBody", QStringLiteral("…"));
-    pendingBody_->hide();
-    pendingDots_ = new TypingDots(pendingCard_);
-    lay->addWidget(pendingDots_);
-    lay->addWidget(pendingBody_);
-    log_.transcriptLayout->setAlignment(pendingCard_, Qt::AlignLeft);
+    pendingBody = makePlainLabel(QString(), pendingCard);
+    pendingBody->setWordWrap(true);
+    pendingBody->setProperty("chatRole", QStringLiteral("Assistant"));
+    pendingBody->setProperty("chatBody", QStringLiteral("…"));
+    pendingBody->hide();
+    pendingDots = new TypingDots(pendingCard);
+    lay->addWidget(pendingDots);
+    lay->addWidget(pendingBody);
+    log.transcriptLayout->setAlignment(pendingCard, Qt::AlignLeft);
     applyBubbleWidths();
     // The "…" card is the send's tail end — bring it fully into view.
     scrollToBottom();
   }
 
   void ChatDock::clearPending() {
-    if (pendingCard_) pendingCard_->deleteLater();
-    pendingDots_ = nullptr;   // owned by the card
-    pendingCard_ = nullptr;
-    pendingRole_ = nullptr;
-    pendingBody_ = nullptr;
+    if (pendingCard) pendingCard->deleteLater();
+    pendingDots = nullptr;   // owned by the card
+    pendingCard = nullptr;
+    pendingRole = nullptr;
+    pendingBody = nullptr;
   }
 
   void ChatDock::markPendingStopped(const QString& stoppedText) {
-    if (!pendingCard_) return;
+    if (!pendingCard) return;
     // The "…" card becomes the stop notice in place, error-card styled.
-    if (pendingDots_) { pendingDots_->deleteLater(); pendingDots_ = nullptr; }
-    pendingBody_->show();
-    pendingBody_->setText(QStringLiteral("Stopped."));
-    pendingBody_->setProperty("chatBody", QStringLiteral("Stopped."));
-    pendingCard_->setObjectName(QStringLiteral("chatCardError"));
+    if (pendingDots) { pendingDots->deleteLater(); pendingDots = nullptr; }
+    pendingBody->show();
+    pendingBody->setText(QStringLiteral("Stopped."));
+    pendingBody->setProperty("chatBody", QStringLiteral("Stopped."));
+    pendingCard->setObjectName(QStringLiteral("chatCardError"));
     // A stylesheet is matched when the widget is POLISHED, so renaming it afterwards changes nothing
     // until the style is re-run.
-    repolish(pendingCard_);
-    for (QLabel* l : pendingCard_->findChildren<QLabel*>()) repolish(l);
+    repolish(pendingCard);
+    for (QLabel* l : pendingCard->findChildren<QLabel*>()) repolish(l);
     // The browser renders a stopped turn with .chat-msg-error and the extension with .msg.error, both
     // in --danger; muted text made a stop look like an ordinary note on this surface alone.
-    applyDangerText(pendingBody_, dangerCache_.isValid() ? dangerCache_ : QColor("#d6293e"));
+    applyDangerText(pendingBody, dangerCache.isValid() ? dangerCache : QColor("#d6293e"));
     // Stopping is a change of mind, not a dead end: the card keeps the prompt.
-    addRetryButton(qobject_cast<QVBoxLayout*>(pendingCard_->layout()), stoppedText);
+    addRetryButton(qobject_cast<QVBoxLayout*>(pendingCard->layout()), stoppedText);
     // A SETTLED row gets the row menu, like every other one (browser chatRowMenuItems excludes only
     // pending rows). Built here rather than in showPending so an in-flight "..." never offers one.
-    installCardMenu(qobject_cast<QFrame*>(pendingCard_));
-    pendingCard_ = nullptr;
-    pendingRole_ = nullptr;
-    pendingBody_ = nullptr;
+    installCardMenu(qobject_cast<QFrame*>(pendingCard));
+    pendingCard = nullptr;
+    pendingRole = nullptr;
+    pendingBody = nullptr;
   }
 
 }  // namespace stencil::gui

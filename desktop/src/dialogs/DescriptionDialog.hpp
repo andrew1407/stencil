@@ -29,7 +29,7 @@ namespace stencil::gui {
     bool eventFilter(QObject* obj, QEvent* event) override;   // Ctrl+Enter in the field saves
 
    private:
-    QPlainTextEdit* edit_ = nullptr;
+    QPlainTextEdit* edit = nullptr;
   };
 
 }  // namespace stencil::gui

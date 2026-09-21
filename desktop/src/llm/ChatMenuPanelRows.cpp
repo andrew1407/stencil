@@ -35,22 +35,22 @@ namespace stencil::gui {
   ChatCardMenuHooks ChatMenuPanel::menuHooks() {
     ChatCardMenuHooks h;
     h.owner = this;
-    h.scroll = scroll_;
-    h.busy = [this] { return busy_; };
+    h.scroll = scroll;
+    h.busy = [this] { return busy; };
     h.insertIntoPrompt = [this](const QString& t) {
-      const QString existing = input_->toPlainText();
-      input_->setPlainText(existing.isEmpty() ? t
+      const QString existing = input->toPlainText();
+      input->setPlainText(existing.isEmpty() ? t
                                               : existing + QLatin1Char('\n') + t);
-      input_->moveCursor(QTextCursor::End);
-      input_->setFocus();
+      input->moveCursor(QTextCursor::End);
+      input->setFocus();
       updateSendEnabled();
     };
-    h.resend = [this](QFrame*, const QString& t) { if (onSend_) onSend_(t); };
-    h.text = text_;
-    h.chip = chip_;
-    h.border = border_;
-    h.accent = accent_;
-    h.muted = muted_;
+    h.resend = [this](QFrame*, const QString& t) { if (onSend) onSend(t); };
+    h.text = text;
+    h.chip = chip;
+    h.border = border;
+    h.accent = accent;
+    h.muted = muted;
     return h;
   }
 
@@ -58,43 +58,43 @@ namespace stencil::gui {
     clearPending();
     appendRow(QStringLiteral("Assistant"), QStringLiteral("…"), true, QString(),
               /*pending=*/true);
-    pending_ = rowsAdded_.isEmpty() ? nullptr : rowsAdded_.last();
+    pending = rowsAdded.isEmpty() ? nullptr : rowsAdded.last();
     // The DOCK's bouncing dots, not a static "…": an in-flight turn has to
     // look in-flight on this surface too.
-    if (!pending_) return;
-    if (QLabel* body = bodyOf(pending_)) body->hide();
-    if (auto* lay = qobject_cast<QVBoxLayout*>(pending_->layout()))
-      lay->insertWidget(0, makeChatTypingDots(pending_));
+    if (!pending) return;
+    if (QLabel* body = bodyOf(pending)) body->hide();
+    if (auto* lay = qobject_cast<QVBoxLayout*>(pending->layout()))
+      lay->insertWidget(0, makeChatTypingDots(pending));
   }
 
   void ChatMenuPanel::clearPending() {
-    if (!pending_) return;
-    rowsAdded_.removeAll(pending_);
-    delete pending_;
-    pending_ = nullptr;
+    if (!pending) return;
+    rowsAdded.removeAll(pending);
+    delete pending;
+    pending = nullptr;
   }
 
   // The dock's semantics: the in-flight row becomes a muted "Stopped." in
   // place — no error row, no history push.
   void ChatMenuPanel::markStopped(const QString& retryText) {
-    if (!pending_) return;
+    if (!pending) return;
     // The dots stop with the turn; the text takes their place.
-    if (QWidget* dots = pending_->findChild<QWidget*>(QStringLiteral("chatTypingDots")))
+    if (QWidget* dots = pending->findChild<QWidget*>(QStringLiteral("chatTypingDots")))
       delete dots;
-    if (QLabel* body = bodyOf(pending_)) {
+    if (QLabel* body = bodyOf(pending)) {
       body->show();
       body->setText(QStringLiteral("Stopped."));
       body->setProperty("chatBody", QStringLiteral("Stopped."));
     }
     // A settled row: the dock's error tone, its Resend, and the row menu the
     // pending card deliberately went without.
-    pending_->setObjectName(QStringLiteral("chatCardError"));
-    pending_->style()->unpolish(pending_);
-    pending_->style()->polish(pending_);
-    if (!retryText.isEmpty()) addRetry(pending_, retryText);
-    installChatCardMenu(pending_, menuHooks());
-    applyChatBubbleWidths(body_, scroll_);
-    pending_ = nullptr;
+    pending->setObjectName(QStringLiteral("chatCardError"));
+    pending->style()->unpolish(pending);
+    pending->style()->polish(pending);
+    if (!retryText.isEmpty()) addRetry(pending, retryText);
+    installChatCardMenu(pending, menuHooks());
+    applyChatBubbleWidths(body, scroll);
+    pending = nullptr;
   }
 
   // A mirrored row ARRIVES the way a dock card does - the SHARED gatherChatCardIn (chatWidgets.hpp),
@@ -115,7 +115,7 @@ namespace stencil::gui {
         if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(cp->graphicsEffect()))
           e->setOpacity(1.0);
       };
-      gatherChatCardIn(cp, rows_, scroll_, window(), CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
+      gatherChatCardIn(cp, rows, scroll, window(), CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
                        settle);
     });
   }
@@ -130,7 +130,7 @@ namespace stencil::gui {
                                   CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   l->palette().color(QPalette::WindowText))
         != nullptr;
-    rows_->removeWidget(l);
+    rows->removeWidget(l);
     // Out of the layout, but painted while it fades under its own dust. Reuse any effect already on
     // the row and stop its animations first - setGraphicsEffect() deletes the old effect.
     for (QVariantAnimation* a : l->findChildren<QVariantAnimation*>()) a->stop();
@@ -160,15 +160,15 @@ namespace stencil::gui {
   void ChatMenuPanel::clearRows() {
     clearPending();
     bool wiped = false;
-    for (QFrame* l : rowsAdded_) wiped = dissolveRow(l) || wiped;
-    rowsAdded_.clear();
+    for (QFrame* l : rowsAdded) wiped = dissolveRow(l) || wiped;
+    rowsAdded.clear();
     // The dock's sequencing (ChatDock.cpp clearConversation): the rows leave
     // FIRST and the empty state returns only once the particles have landed.
-    if (!wiped) { suggest_->show(); return; }
+    if (!wiped) { suggest->show(); return; }
     QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this] {
       // A turn may have started while the wipe played — then the chips are wrong.
-      if (!rowsAdded_.isEmpty() || pending_) return;
-      suggest_->show();
+      if (!rowsAdded.isEmpty() || pending) return;
+      suggest->show();
     });
   }
 }  // namespace stencil::gui

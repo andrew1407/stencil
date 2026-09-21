@@ -11,27 +11,27 @@ namespace stencil::gui {
   // Native-resolution render of an export variant. Mirrors the browser's exportService.js
   // renderExportCanvas / renderSplitExportCanvas op-for-op.
   QImage CanvasWidget::renderToImage(const QString& variant, bool withDivider) const {
-    if (image_.isNull()) return QImage();
+    if (image.isNull()) return QImage();
 
     if (variant == "original") {
       // The cropped+rotated original alone — no filter, no annotations.
-      return image_.convertToFormat(QImage::Format_ARGB32);
+      return image.convertToFormat(QImage::Format_ARGB32);
     }
 
     // Resolve the filtered pixels at native size (const-safe: we don't touch the
-    // cached filteredImage_/filterDirty_ here, we recompute locally if needed).
+    // cached filteredImage/filterDirty here, we recompute locally if needed).
     QImage base;
-    if (imageFilter_ == "none") {
-      base = image_.convertToFormat(QImage::Format_ARGB32);
-    } else if (!filterDirty_ && !filteredImage_.isNull()) {
-      base = filteredImage_;  // cache already current
+    if (imageFilter == "none") {
+      base = image.convertToFormat(QImage::Format_ARGB32);
+    } else if (!filterDirty && !filteredImage.isNull()) {
+      base = filteredImage;  // cache already current
     } else {
       // Recompute via a temporary canvas to keep this method const.
       CanvasWidget* self = const_cast<CanvasWidget*>(this);
       self->rebuildFilteredImage();
-      base = filteredImage_.isNull()
-                 ? image_.convertToFormat(QImage::Format_ARGB32)
-                 : filteredImage_;
+      base = filteredImage.isNull()
+                 ? image.convertToFormat(QImage::Format_ARGB32)
+                 : filteredImage;
     }
 
     QImage out = base.convertToFormat(QImage::Format_ARGB32);
@@ -42,14 +42,14 @@ namespace stencil::gui {
     {
       QPainter p(&out);
       p.setRenderHint(QPainter::Antialiasing, true);
-      for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
-        drawLineScaled(p, lines_[i], i, 1.0, /*highlight=*/false, /*live=*/false);
-      drawLineScaled(p, currentLine_, -1, 1.0, /*highlight=*/false, /*live=*/false);
+      for (int i = 0; i < static_cast<int>(lines.size()); ++i)
+        drawLineScaled(p, lines[i], i, 1.0, /*highlight=*/false, /*live=*/false);
+      drawLineScaled(p, currentLine, -1, 1.0, /*highlight=*/false, /*live=*/false);
     }
     if (variant == "split") {
       QPainter p(&out);
       p.setRenderHint(QPainter::Antialiasing, true);
-      const QString mode = compareMode_ == "horizontal" ? "horizontal" : "vertical";
+      const QString mode = compareMode == "horizontal" ? "horizontal" : "vertical";
       paintCompareSplit(p, mode, /*scale=*/1.0, withDivider);
     }
     return out;
@@ -60,13 +60,13 @@ namespace stencil::gui {
   }
 
   QString CanvasWidget::imageBaseName() const {
-    if (imagePath_.isEmpty()) return QStringLiteral("image");
-    return QFileInfo(imagePath_).completeBaseName();
+    if (imagePath.isEmpty()) return QStringLiteral("image");
+    return QFileInfo(imagePath).completeBaseName();
   }
 
   QString CanvasWidget::imageExt() const {
-    if (imagePath_.isEmpty()) return QStringLiteral("png");
-    const QString suffix = QFileInfo(imagePath_).suffix();
+    if (imagePath.isEmpty()) return QStringLiteral("png");
+    const QString suffix = QFileInfo(imagePath).suffix();
     return suffix.isEmpty() ? QStringLiteral("png") : suffix;
   }
 
@@ -75,23 +75,23 @@ namespace stencil::gui {
   void CanvasWidget::loadFromImage(const QImage& img, bool keepZoom) {
     if (img.isNull()) return;
     unsetCursor();   // drop the idle "pointing hand" (set while the empty-canvas hint was showing)
-    blankPage_ = false;   // a fresh load is a picture until the owner marks it a blank
-    originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
-    rotationQuarters_ = 0;
-    cropRect_ = defaultCropRect();
+    blankPage = false;   // a fresh load is a picture until the owner marks it a blank
+    originalImage = img.convertToFormat(QImage::Format_ARGB32);
+    rotationQuarters = 0;
+    cropRect = defaultCropRect();
     rebuildCroppedFromOriginal();
-    imagePath_.clear();
-    lines_.clear();
-    currentLine_ = core::Line{};
+    imagePath.clear();
+    lines.clear();
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
-    if (!keepZoom) scale_ = 1.0;
-    filterDirty_ = true;
-    history_.reset(lines_);
-    setFixedSize(QSize(qRound(image_.width() * scale_),
-                       qRound(image_.height() * scale_)));
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
+    if (!keepZoom) scale = 1.0;
+    filterDirty = true;
+    history.reset(lines);
+    setFixedSize(QSize(qRound(image.width() * scale),
+                       qRound(image.height() * scale)));
     update();
     emit changed();
     emit selectionChanged();
@@ -102,58 +102,58 @@ namespace stencil::gui {
   void CanvasWidget::loadFromImage(const QImage& img, const core::CropRect& cropRect,
                                    int rotationQuarters) {
     if (img.isNull()) return;
-    blankPage_ = false;   // a fresh load is a picture until the owner marks it a blank
-    originalImage_ = img.convertToFormat(QImage::Format_ARGB32);
-    rotationQuarters_ = ((rotationQuarters % 4) + 4) % 4;  // before defaultCropRect/rebuild
-    cropRect_ = cropRect.width > 0 ? cropRect : defaultCropRect();
+    blankPage = false;   // a fresh load is a picture until the owner marks it a blank
+    originalImage = img.convertToFormat(QImage::Format_ARGB32);
+    this->rotationQuarters = ((rotationQuarters % 4) + 4) % 4;  // before defaultCropRect/rebuild
+    this->cropRect = cropRect.width > 0 ? cropRect : defaultCropRect();
     rebuildCroppedFromOriginal();
-    imagePath_.clear();
-    lines_.clear();
-    currentLine_ = core::Line{};
+    imagePath.clear();
+    lines.clear();
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
-    scale_ = 1.0;
-    filterDirty_ = true;
-    history_.reset(lines_);
-    setFixedSize(QSize(qRound(image_.width() * scale_),
-                       qRound(image_.height() * scale_)));
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
+    scale = 1.0;
+    filterDirty = true;
+    history.reset(lines);
+    setFixedSize(QSize(qRound(image.width() * scale),
+                       qRound(image.height() * scale)));
     update();
     emit changed();
     emit selectionChanged();
   }
 
   QRect CanvasWidget::idleCardGlobalRect() const {
-    if (!image_.isNull() || idleHintHidden_ || idleCardRect_.isEmpty()) return {};
-    const QRect local = idleCardRect_.toRect();
+    if (!image.isNull() || idleHintHidden || idleCardRect.isEmpty()) return {};
+    const QRect local = idleCardRect.toRect();
     return QRect(mapToGlobal(local.topLeft()), local.size());
   }
 
   void CanvasWidget::setIdleHintHidden(bool on) {
-    if (idleHintHidden_ == on) return;
-    idleHintHidden_ = on;
+    if (idleHintHidden == on) return;
+    idleHintHidden = on;
     if (on) unsetCursor();
     update();
   }
 
   void CanvasWidget::clearImage() {
     resetStrokeFx();
-    blankPage_ = false;
-    originalImage_ = QImage();
-    image_ = QImage();
-    imagePath_.clear();
-    rotationQuarters_ = 0;
-    cropRect_ = core::CropRect{};
-    lines_.clear();
-    currentLine_ = core::Line{};
+    blankPage = false;
+    originalImage = QImage();
+    image = QImage();
+    imagePath.clear();
+    rotationQuarters = 0;
+    cropRect = core::CropRect{};
+    lines.clear();
+    currentLine = core::Line{};
     applyDefaultsToCurrent();
-    selectedPoint_ = -1;
-    selectedLineIdx_ = -1;
-    continueLineIdx_ = continueInsertIdx_ = -1;
-    scale_ = 1.0;
-    filterDirty_ = true;
-    history_.reset(lines_);
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
+    scale = 1.0;
+    filterDirty = true;
+    history.reset(lines);
     // Release the image-locked fixed size AND actually shrink back: the host scroll area is not
     // widgetResizable, so relaxing the constraints alone keeps the old image's size.
     setMinimumSize(320, 240);

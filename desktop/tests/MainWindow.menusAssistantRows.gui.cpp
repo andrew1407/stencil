@@ -19,7 +19,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     for (const char* provider : {"none", "ollama"}) {
-      win.settings_.llmProvider = provider;
+      win.settings.llmProvider = provider;
       QAction* showPoints = nullptr;
       for (QAction* a : win.findChildren<QAction*>())
         if (a->text() == "Show Points") showPoints = a;
@@ -51,7 +51,7 @@ class MainWindowGuiTest : public QObject {
 
     // The other half of the same hazard: a click on a TRANSCRIPT ROW inside the chat panel. A QLabel
     // ignores mouse presses, so the re-dispatched event propagated back up to the menu.
-    win.settings_.llmProvider = "ollama";
+    win.settings.llmProvider = "ollama";
     win.ensureChatMenuPanel();
     win.chatMirror("You", "hello there", false);
     bool rowClicked = false, subAlive = false, splitterDragged = false;
@@ -112,7 +112,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());   // the canvas menu opens for an image, and only then
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    win.settings_.llmProvider = "ollama";
+    win.settings.llmProvider = "ollama";
 
     bool settingsFound = false, menuGoneAfterClick = false, popupGrabGone = false;
     QTimer::singleShot(0, [&] {

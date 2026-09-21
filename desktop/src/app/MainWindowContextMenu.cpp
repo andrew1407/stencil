@@ -31,8 +31,8 @@ namespace stencil::gui {
 
   void MainWindow::showContextMenu(const QPoint& globalPos) {
     // No image, no menu — the single gate for all three ways in (contextMenu.js `if (!app.image) return`).
-    if (!canvas_ || !canvas_->hasImage()) return;
-    contextMenuAt_ = globalPos;
+    if (!canvas || !canvas->hasImage()) return;
+    contextMenuAt = globalPos;
     syncContextActions();
 
     // Order mirrors contextMenu.js inner() (~5-108). StayOpenMenu keeps a hosted checkbox/radio click from closing it.
@@ -44,7 +44,7 @@ namespace stencil::gui {
     auto subMenuIn = [&](QMenu& parent, const char* icon, const QString& title) -> StayOpenMenu* {
       auto* m = new StayOpenMenu(title, &parent);
       QAction* a = parent.addMenu(m);
-      a->setIcon(themedIcon(QString::fromLatin1(icon), iconColor_, subIcon));
+      a->setIcon(themedIcon(QString::fromLatin1(icon), iconColor, subIcon));
       // The same particle dust the top menu plays, on the same slower clock.
       support::revealSubmenu(*m, parent, *a, support::CONTEXT_MENU_DUST_MS);
       return m;
@@ -60,17 +60,17 @@ namespace stencil::gui {
     };
 
     // Browser order: Fit FIRST, then Image/Layout, then Fullscreen.
-    menu.addAction(actFit_);
+    menu.addAction(actFit);
 
     // An unavailable action is OMITTED, not greyed — the menu is rebuilt per right-click, the desktop's version of
     // the browser's hide-not-disable (contextMenu.js syncState); the MENU BAR copies keep the greyed behaviour.
-    const bool hasImg = canvas_->hasImage();
-    const bool hasLines = !canvas_->allLines().empty();
+    const bool hasImg = canvas->hasImage();
+    const bool hasLines = !canvas->allLines().empty();
 
     // contextMenu.js:7-22. The "With Splitter" variants lead but stay invisible until a split compare view is active
     // (syncSplitCopyDownloadSlot already ran). Opener rows carry no hotkey hint (browser parity).
     QMenu* layout = subMenu("folder", "Image / Layout");
-    layout->addAction(secImageAct_);
+    layout->addAction(secImageAct);
     // Constructed before the root `hotkeyChips` so its recursive wire() skips them; declared out here to outlive the `if (hasImg)` blocks.
     std::optional<support::MenuHotkeyChips> copyImgChips, dlImgChips;
     if (hasImg) {
@@ -78,87 +78,87 @@ namespace stencil::gui {
       populateExportVariantMenu(copyImg, /*copy=*/true);
       copyImgChips.emplace(copyImg, /*compact=*/true);
     }
-    layout->addAction(actPasteImage_);
+    layout->addAction(actPasteImage);
     if (hasImg) {
       QMenu* dlImg = subMenuIn(*layout, "download", "Download Image");
       populateExportVariantMenu(dlImg, /*copy=*/false);
       dlImgChips.emplace(dlImg, /*compact=*/true);
-      layout->addAction(actShareImage_); // "Share Image"
+      layout->addAction(actShareImage); // "Share Image"
     }
     layout->addSeparator();
-    layout->addAction(secLayoutJsonAct_);
-    if (hasLines) layout->addAction(actCopyLayout_);
-    if (hasImg) layout->addAction(actPasteLayout_);
-    if (hasLines) layout->addAction(actDownloadJson_);  // "Download Layout"
-    layout->addAction(actUploadJson_);    // "Upload Layout"
+    layout->addAction(secLayoutJsonAct);
+    if (hasLines) layout->addAction(actCopyLayout);
+    if (hasImg) layout->addAction(actPasteLayout);
+    if (hasLines) layout->addAction(actDownloadJson);  // "Download Layout"
+    layout->addAction(actUploadJson);    // "Upload Layout"
 
-    menu.addAction(actFullscreen_);
+    menu.addAction(actFullscreen);
     menu.addSeparator();
 
     // Assistant submenu only when a provider is configured (adds NO separator). Live-input handling is scoped to THIS child menu.
-    if (settings_.llmProvider != QLatin1String("none")) {
+    if (settings.llmProvider != QLatin1String("none")) {
       ensureChatMenuPanel();
       refreshLlmStatus();  // fresh provider dot/tooltip on the panel's gear
-      StayOpenMenu* assistant = subMenu("sparkle", QStringLiteral("Assistant") + hintTab(actChat_));
-      assistant->addAction(chatMenuAction_);
-      assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
+      StayOpenMenu* assistant = subMenu("sparkle", QStringLiteral("Assistant") + hintTab(actChat));
+      assistant->addAction(chatMenuAction);
+      assistant->setInteractiveArea(chatMenuPanel, chatMenuInput);
       // No separator BELOW it, so the disabled case leaves exactly the original separators.
     }
     // browser: #ctx-script, right under the Assistant — a caret onto the same editor the
     // script window holds, scoped the same way. The window itself stays on Alt+Shift+S.
     ensureScriptMenuPanel();
-    StayOpenMenu* script = subMenu("script", QStringLiteral("Stencil Script") + hintTab(actScript_));
-    script->addAction(scriptMenuAction_);
-    script->setInteractiveArea(scriptMenuPanel_, scriptMenuEditor_);
+    StayOpenMenu* script = subMenu("script", QStringLiteral("Stencil Script") + hintTab(actScript));
+    script->addAction(scriptMenuAction);
+    script->setInteractiveArea(scriptMenuPanel, scriptMenuEditor);
 
     // contextMenu.js:28-31
-    menu.addAction(canvas_->isDrawing() ? actStopDraw_ : actStartDraw_);
-    menu.addAction(actDrawLineNow_);
-    menu.addAction(actDrawRectNow_);
+    menu.addAction(canvas->getIsDrawing() ? actStopDraw : actStartDraw);
+    menu.addAction(actDrawLineNow);
+    menu.addAction(actDrawRectNow);
     menu.addSeparator();
 
     // contextMenu.js:33-36
-    menu.addAction(actShowPoints_);
-    menu.addAction(actShowLines_);
-    if (hasLines) menu.addAction(actClearAll_);
+    menu.addAction(actShowPoints);
+    menu.addAction(actShowLines);
+    if (hasLines) menu.addAction(actClearAll);
     menu.addSeparator();
 
     // contextMenu.js:39-57
     QMenu* style = subMenu("palette", "Style");
-    style->addAction(pointSizeAction_);
-    style->addAction(thicknessAction_);
-    style->addAction(secLineStyleAct_);
-    style->addAction(actStyleSolid_);
-    style->addAction(actStyleDashed_);
-    style->addAction(actStyleDotted_);
+    style->addAction(pointSizeAction);
+    style->addAction(thicknessAction);
+    style->addAction(secLineStyleAct);
+    style->addAction(actStyleSolid);
+    style->addAction(actStyleDashed);
+    style->addAction(actStyleDotted);
 
     // contextMenu.js:59-74; the \t column mirrors the browser's Alt+B badge.
-    QMenu* filter = subMenu("image", QStringLiteral("Image Filter") + hintTab(actCycleFilter_));
-    filter->addAction(secFilterAct_);
-    filter->addAction(actFilterNone_);
-    filter->addAction(actFilterBW_);
-    filter->addAction(actFilterSepia_);
-    filter->addAction(actFilterInvert_);
-    filter->addAction(actFilterContour_);
-    filter->addAction(actFilterCustom_);
+    QMenu* filter = subMenu("image", QStringLiteral("Image Filter") + hintTab(actCycleFilter));
+    filter->addAction(secFilterAct);
+    filter->addAction(actFilterNone);
+    filter->addAction(actFilterBW);
+    filter->addAction(actFilterSepia);
+    filter->addAction(actFilterInvert);
+    filter->addAction(actFilterContour);
+    filter->addAction(actFilterCustom);
     filter->addSeparator();
-    filter->addAction(tintColorAction_);
+    filter->addAction(tintColorAction);
 
     // contextMenu.js:76-100
     QMenu* transform = subMenu("function", "Transformation");
-    transform->addAction(secCoordFormulasAct_);
-    transform->addAction(ctxAllowFormulasAct_);
-    transform->addAction(ctxFormulaXAct_);
-    transform->addAction(ctxFormulaYAct_);
+    transform->addAction(secCoordFormulasAct);
+    transform->addAction(ctxAllowFormulasAct);
+    transform->addAction(ctxFormulaXAct);
+    transform->addAction(ctxFormulaYAct);
 
     // contextMenu.js:96-107; hosted QCheckBoxes so toggling keeps the menu open.
     QMenu* tt = subMenu("message", "Tooltip");
-    tt->addAction(actTooltipEnable_);
+    tt->addAction(actTooltipEnable);
     tt->addSeparator();   // browser: a plain rule separates the toggle from the row group below
-    tt->addAction(secShowInTooltipAct_);
-    tt->addAction(actTtPage_);
-    tt->addAction(actTtScreen_);
-    tt->addAction(actTtCoords_);
+    tt->addAction(secShowInTooltipAct);
+    tt->addAction(actTtPage);
+    tt->addAction(actTtScreen);
+    tt->addAction(actTtCoords);
 
     // No Deselect row (browser parity; Esc still deselects).
 
@@ -168,8 +168,8 @@ namespace stencil::gui {
     support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
     // Coming back from the flyout's file dialog: land on the script row, flyout open, as if
     // the chain had never been dismissed. The keyboard path, so QMenu keeps its own state.
-    if (reopenScriptFlyout_) {
-      reopenScriptFlyout_ = false;
+    if (reopenScriptFlyoutPending) {
+      reopenScriptFlyoutPending = false;
       QAction* row = script->menuAction();
       QTimer::singleShot(0, &menu, [&menu, row] {
         menu.setActiveAction(row);

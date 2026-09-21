@@ -52,16 +52,16 @@ namespace stencil::gui {
       if (!sect.isValid()) continue;
       // The Start/Stop toggle opts out: its accent says which state it is in. Both actions restore
       // its face, since either enable re-copies a glyph.
-      if (b == startDrawBtn_) {
+      if (b == startDrawBtn) {
         b->setProperty("toolFill", QString());
         if (!b->property("fillSync").toBool()) {
           b->setProperty("fillSync", true);
           // A repaint, not a transition: the state change comes through refreshActions and must
           // not be pre-empted.
-          for (QAction* state : {actStartDraw_, actStopDraw_})
+          for (QAction* state : {actStartDraw, actStopDraw})
             connect(state, &QAction::changed, b, [b] { repaintFace(b); });
         }
-        syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
+        syncDrawToggleFace(canvas && canvas->getIsDrawing(), false);
         b->style()->unpolish(b);
         b->style()->polish(b);
         b->update();
@@ -69,18 +69,18 @@ namespace stencil::gui {
       }
       // No fill for a checkable toggle, where the accent means "on" (browser #chat-btn .active);
       // everything that acts on press takes the fill. Fullscreen is filled in both states.
-      const bool alwaysFilled = (a == actFullscreen_);
+      const bool alwaysFilled = (a == actFullscreen);
       const QString fill = (a->isCheckable() && !alwaysFilled)
                                ? QString()
-                               : (dangerIcons_.contains(a) ? QStringLiteral("danger")
+                               : (dangerIcons.contains(a) ? QStringLiteral("danger")
                                                            : QStringLiteral("accent"));
       b->setProperty("toolFill", fill);
       b->setProperty("toolGhostBox",
                      fill.isEmpty() && sect.toString() == QLatin1String("Settings"));
       const auto paint = [this, a, b] {
-        const auto name = actionIconNames_.constFind(a);
-        if (name != actionIconNames_.constEnd()) {
-          const QColor ink = toolButtonIconColor(a, iconColor_);
+        const auto name = actionIconNames.constFind(a);
+        if (name != actionIconNames.constEnd()) {
+          const QColor ink = toolButtonIconColor(a, iconColor);
           b->setIcon(themedIcon(name.value(), ink, TOOL_ICON));
         }
         // The compound [toolFill="danger"]:disabled selector needs a re-polish on every enabled
@@ -131,10 +131,10 @@ namespace stencil::gui {
             "QCheckBox::indicator:checked{image:url(\"%2\");}"
             "QRadioButton::indicator:checked{image:url(\"%3\");}")
             .arg(textColor.name(), checkPath, dotPath);
-    QList<QWidget*> toggles = {tooltipEnableCheck_, ttPageCheck_, ttScreenCheck_,
-                               ttCoordsCheck_, ctxAllowFormulas_};
-    if (filterButtons_)
-      for (QAbstractButton* b : filterButtons_->buttons()) toggles.append(b);
+    QList<QWidget*> toggles = {tooltipEnableCheck, ttPageCheck, ttScreenCheck,
+                               ttCoordsCheck, ctxAllowFormulas};
+    if (filterButtons)
+      for (QAbstractButton* b : filterButtons->buttons()) toggles.append(b);
     for (QWidget* w : toggles)
       if (w) w->setStyleSheet(css);
   }

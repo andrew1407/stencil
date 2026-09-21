@@ -48,7 +48,7 @@ namespace stencil::support {
     const double alpha = colour.alphaF();
     if (radius < 0.2 || alpha <= 1.0 / 255) return;
     const double dpr = p.device()->devicePixelRatio();
-    if (dpr != dpr_) { cache_.clear(); dpr_ = dpr; }
+    if (dpr != this->dpr) { cache.clear(); this->dpr = dpr; }
     // Cached at half the radius resolution: a quarter-pixel of size is invisible on a moving drop.
     const bool disc = shape == GrainShape::DISC;
     const double step = disc ? RADIUS_STEP : RADIUS_STEP * 2;
@@ -60,10 +60,10 @@ namespace stencil::support {
         : ((int(std::lround(a / (2 * style::PI) * HEADING_STEPS)) % HEADING_STEPS) + HEADING_STEPS) % HEADING_STEPS;
     const quint32 key = (colourKey(colour) << 16) | quint32(rb << 10) | quint32(int(shape) << 7)
                       | quint32(hs << 2) | quint32(py << 1) | quint32(px);
-    auto it = cache_.find(key);
-    if (it == cache_.end()) {
-      if (cache_.size() >= MAX_CACHED) cache_.clear();
-      it = cache_.insert(key, build(rb * step, px, py, colour, shape, hs * 2 * style::PI / HEADING_STEPS));
+    auto it = cache.find(key);
+    if (it == cache.end()) {
+      if (cache.size() >= MAX_CACHED) cache.clear();
+      it = cache.insert(key, build(rb * step, px, py, colour, shape, hs * 2 * style::PI / HEADING_STEPS));
     }
     const QImage& img = it.value();
     const int half = img.width() / 2;   // device px; the disc is centred at half (+ phase)
@@ -109,7 +109,7 @@ namespace stencil::support {
 
   QImage MoteSprites::build(double radius, int px, int py, const QColor& colour,
                             GrainShape shape, double a) const {
-    const double r = radius * dpr_;
+    const double r = radius * dpr;
     const int half = int(std::ceil(r * reachOf(shape))) + 1;
     QImage img(half * 2, half * 2, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
@@ -121,7 +121,7 @@ namespace stencil::support {
     q.setBrush(solid);
     drawExact(q, shape, QPointF(half + px * 0.5, half + py * 0.5), r, a);
     q.end();
-    img.setDevicePixelRatio(dpr_);   // logical size = device / dpr, so it blits 1:1
+    img.setDevicePixelRatio(dpr);   // logical size = device / dpr, so it blits 1:1
     return img;
   }
 }  // namespace stencil::support

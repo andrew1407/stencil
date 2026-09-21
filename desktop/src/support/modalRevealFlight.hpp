@@ -38,13 +38,13 @@ namespace stencil::support {
    public:
     CloseFlight(QDialog* dlg, QPointer<QWidget> anchor, QRect anchorRect,
                 std::shared_ptr<QPixmap> shot, QRect closeRect = QRect())
-        : QObject(dlg), dlg_(dlg), anchor_(std::move(anchor)),
-          anchorRect_(anchorRect), closeRect_(closeRect), shot_(std::move(shot)) {}
+        : QObject(dlg), dlg(dlg), anchor(std::move(anchor)),
+          anchorRect(anchorRect), closeRect(closeRect), shot(std::move(shot)) {}
 
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override {
-      if (event->type() == QEvent::Hide && watched == dlg_ && !flown_) {
-        flown_ = true;
+      if (event->type() == QEvent::Hide && watched == dlg && !flown) {
+        flown = true;
         fly();
       }
       return QObject::eventFilter(watched, event);
@@ -52,24 +52,24 @@ namespace stencil::support {
 
    private:
     void fly() {
-      if (!dlg_) return;
+      if (!dlg) return;
       // Asked HERE, not at install: the settings dialog live-applies its own Motion rows.
       if (motionReduced()) return;
-      const QRect target = dlg_->geometry();
-      QWidget* host = hostFor(*dlg_);
+      const QRect target = dlg->geometry();
+      QWidget* host = hostFor(*dlg);
       // Re-photograph NOW (grab() renders a hidden widget): the open-time shot is stale
       // once the content changed; it is only the fallback for a render that yields nothing.
-      QPixmap shot = dlg_->grab();
-      if (shot.isNull() && shot_) shot = *shot_;
+      QPixmap shot = dlg->grab();
+      if (shot.isNull() && this->shot) shot = *this->shot;
       if (!host || !target.isValid() || shot.isNull()) return;
-      QRect to = closeRect_.isValid() ? closeRect_
-                                      : originRect(anchor_.data(), target, anchorRect_);
-      if (!closeRect_.isValid() && !anchorOnScreen(anchor_.data(), anchorRect_)) {
+      QRect to = closeRect.isValid() ? closeRect
+                                      : originRect(anchor.data(), target, anchorRect);
+      if (!closeRect.isValid() && !anchorOnScreen(anchor.data(), anchorRect)) {
         const QRect home = canvasHomeRect(host);
         if (home.isValid()) to = home;
       }
       if (to == target) return;
-      if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg_))) return;
+      if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg))) return;
       QLabel* ghost = makeGhost(host, shot, target);
       // Painted NOW: one deferred frame is the gap the dialog's disappearance shows through.
       ghost->repaint();
@@ -77,12 +77,12 @@ namespace stencil::support {
                QEasingCurve::InCubic, nullptr);
     }
 
-    QPointer<QDialog> dlg_;
-    QPointer<QWidget> anchor_;
-    QRect anchorRect_;
-    QRect closeRect_;
-    std::shared_ptr<QPixmap> shot_;
-    bool flown_ = false;
+    QPointer<QDialog> dlg;
+    QPointer<QWidget> anchor;
+    QRect anchorRect;
+    QRect closeRect;
+    std::shared_ptr<QPixmap> shot;
+    bool flown = false;
   };
 
   // Split from the public entry point so the watcher can play it WITHOUT claiming the dialog.

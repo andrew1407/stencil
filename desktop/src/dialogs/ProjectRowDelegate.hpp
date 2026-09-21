@@ -17,7 +17,7 @@ namespace stencil::gui {
    public:
     using QStyledItemDelegate::QStyledItemDelegate;
     // Viewport coords; the name-hover stroke and inline-rename hit tests read it.
-    QRect nameRectFor(int row) const { return nameRects_.value(row); }
+    QRect nameRectFor(int row) const { return nameRects.value(row); }
     // Capped to the viewport so long labels ELIDE instead of forcing a horizontal scrollbar.
     QSize sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& idx) const override;
     // Browser .project-row:hover translateX(3px) over 0.14s; a painted row has no widget to transition,
@@ -27,26 +27,26 @@ namespace stencil::gui {
 
     // The exact decoration rect the style laid out (checkbox excluded); the magnify hit test and the
     // preview dust's origin both anchor here so they can never disagree with the paint.
-    QRect iconRectFor(int row) const { return iconRects_.value(row); }
+    QRect iconRectFor(int row) const { return iconRects.value(row); }
     // Only its own hover styles the chip; the sweep is the shared ShimmerOverlay, not painted here.
-    void setKebabHover(int row) { kebabRow_ = row; }
+    void setKebabHover(int row) { kebabRow = row; }
     QRect kebabChipFor(const QRect& rowRect) const { return kebabChip(rowRect); }
 
     // One painter opacity for the whole row, so nothing can fade out of step.
     void paintFaded(QPainter* p, const QStyleOptionViewItem& opt, const QModelIndex& idx) const;
 
    private:
-    mutable QHash<int, QRect> iconRects_;
-    int kebabRow_ = -1;
+    mutable QHash<int, QRect> iconRects;
+    int kebabRow = -1;
     void recordIconRect(const QStyleOptionViewItem& o, const QModelIndex& idx) const;
 
     static constexpr double SLIDE_PX = 3.0;
     static constexpr int SLIDE_MS = 140;
     // Keyed by ROW: transient hover state, so no QPersistentModelIndex per row per paint.
-    mutable QHash<int, double> slide_;
-    mutable int slideHover_ = -1;
-    mutable QPointer<QTimer> slideTick_;
-    mutable QPointer<QAbstractItemView> slideView_;
+    mutable QHash<int, double> slide;
+    mutable int slideHover = -1;
+    mutable QPointer<QTimer> slideTick;
+    mutable QPointer<QAbstractItemView> slideView;
 
     double hoverSlideDx(const QStyleOptionViewItem& opt, const QModelIndex& idx) const;
     void startSlideTick() const;
@@ -56,7 +56,7 @@ namespace stencil::gui {
                        const QModelIndex& idx) const;
 
     static constexpr int THUMB_TEXT_GAP = 12;
-    mutable QHash<int, QRect> nameRects_;
+    mutable QHash<int, QRect> nameRects;
 
     void paintRow(QPainter* p, const QStyleOptionViewItem& opt, const QModelIndex& idx) const;
   };

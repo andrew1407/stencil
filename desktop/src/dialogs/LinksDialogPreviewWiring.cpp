@@ -36,77 +36,77 @@
 namespace stencil::gui {
 
   void LinksDialog::wirePreview(QPushButton* previewBtn) {
-    preview_ = new MediaLoader(this);
-    connect(preview_, &MediaLoader::loaded, this,
+    preview = new MediaLoader(this);
+    connect(preview, &MediaLoader::loaded, this,
             [this](const QImage& img, const QString&) {
-              previewIsVideo_ = preview_->isVideoSource();
-              if (previewIsVideo_) {
-                frameImage_ = img;
-                thumbImage_ = preview_->embeddedThumbnail();
-                scrubFps_ = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
-                scrubDurationMs_ = preview_->durationMs();
-                const bool hasThumb = !thumbImage_.isNull();
-                usePreview_->setEnabled(hasThumb);
-                if (!hasThumb && usePreview_->isChecked())
-                  usePreview_->setChecked(false);  // (re-renders via toggled)
-                frameRow_->setVisible(true);
+              previewIsVideo = preview->isVideoSource();
+              if (previewIsVideo) {
+                frameImage = img;
+                thumbImage = preview->embeddedThumbnail();
+                scrubFps = preview->frameRate() > 0 ? preview->frameRate() : 30.0;
+                scrubDurationMs = preview->getDurationMs();
+                const bool hasThumb = !thumbImage.isNull();
+                usePreview->setEnabled(hasThumb);
+                if (!hasThumb && usePreview->isChecked())
+                  usePreview->setChecked(false);  // (re-renders via toggled)
+                frameRow->setVisible(true);
                 applyFrameBounds();  // size the slider / spin box to this video
                 updateVideoPreview();
-                showQuickcrop(frameImage_.width(), frameImage_.height());
+                showQuickcrop(frameImage.width(), frameImage.height());
                 // Load the video ONCE into a persistent player for live scrubbing
                 // (re-streaming per frame, as the detector does, never seeks reliably).
-                setupScrubPlayer(preview_->resolvedUrl());
+                setupScrubPlayer(preview->resolvedUrl());
               } else {
                 teardownScrubPlayer();
-                frameImage_ = QImage();
-                thumbImage_ = QImage();
-                frameRow_->setVisible(false);
+                frameImage = QImage();
+                thumbImage = QImage();
+                frameRow->setVisible(false);
                 showPreview(img, QString("Image %1×%2").arg(img.width()).arg(img.height()));
                 showQuickcrop(img.width(), img.height());
               }
             });
-    connect(preview_, &MediaLoader::failed, this, [this](const QString& msg) {
+    connect(preview, &MediaLoader::failed, this, [this](const QString& msg) {
       teardownScrubPlayer();
-      previewImage_ = QImage();
-      frameImage_ = QImage();
-      thumbImage_ = QImage();
-      previewIsVideo_ = false;
-      previewLabel_->clear();
-      previewLabel_->setVisible(false);
-      frameRow_->setVisible(false);
-      quickcropRow_->setVisible(false);
-      usePreview_->setEnabled(false);
-      previewHint_->setText("Could not load that URL — " + msg);
-      loadBtn_->setEnabled(false);
+      previewImage = QImage();
+      frameImage = QImage();
+      thumbImage = QImage();
+      previewIsVideo = false;
+      previewLabel->clear();
+      previewLabel->setVisible(false);
+      frameRow->setVisible(false);
+      quickcropRow->setVisible(false);
+      usePreview->setEnabled(false);
+      previewHint->setText("Could not load that URL — " + msg);
+      loadBtn->setEnabled(false);
     });
     connect(previewBtn, &QPushButton::clicked, this, &LinksDialog::doPreview);
     // Enter in the URL fields triggers Preview rather than closing the dialog.
-    urlEdit_->installEventFilter(this);
-    urlResourceEdit_->installEventFilter(this);
+    urlEdit->installEventFilter(this);
+    urlResourceEdit->installEventFilter(this);
     // Editing the URL invalidates the current preview (and any video frame state).
-    connect(urlEdit_, &QLineEdit::textEdited, this,
+    connect(urlEdit, &QLineEdit::textEdited, this,
             [this] { resetPreviewState(); });
     // Toggling "use preview image" swaps between the cached frame and embedded image
     // (no re-fetch needed — both are already in hand).
-    connect(usePreview_, &QCheckBox::toggled, this, [this] {
-      if (previewIsVideo_) updateVideoPreview();
+    connect(usePreview, &QCheckBox::toggled, this, [this] {
+      if (previewIsVideo) updateVideoPreview();
     });
     // Debounce seeks lightly so a fast drag coalesces into the latest position rather than firing
     // a seek per pixel.
-    fetchTimer_ = new QTimer(this);
-    fetchTimer_->setSingleShot(true);
-    fetchTimer_->setInterval(80);
-    connect(fetchTimer_, &QTimer::timeout, this, [this] {
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
+    fetchTimer = new QTimer(this);
+    fetchTimer->setSingleShot(true);
+    fetchTimer->setInterval(80);
+    connect(fetchTimer, &QTimer::timeout, this, [this] {
+      if (previewIsVideo && !usePreview->isChecked()) seekScrub(frame->value());
     });
-    // Slider ↔ spin box stay mirrored (syncing_ guards the echo); either one
+    // Slider ↔ spin box stay mirrored (syncing guards the echo); either one
     // changing schedules a debounced seek. Releasing the slider seeks at once.
-    connect(frameSlider_, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
-    connect(frame_, QOverload<int>::of(&QSpinBox::valueChanged), this,
+    connect(frameSlider, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
+    connect(frame, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [this](int v) { setFrame(v); });
-    connect(frameSlider_, &QSlider::sliderReleased, this, [this] {
-      fetchTimer_->stop();
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
+    connect(frameSlider, &QSlider::sliderReleased, this, [this] {
+      fetchTimer->stop();
+      if (previewIsVideo && !usePreview->isChecked()) seekScrub(frame->value());
     });
   }
 

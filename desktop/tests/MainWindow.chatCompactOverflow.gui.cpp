@@ -15,8 +15,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.chatDock_->setVisible(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.chatDock->setVisible(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
     settleLayout(&win, 150);
     // ctest runs with STENCIL_NO_ANIM=1 and every flight is a no-op under it; this test
     // is about the flight itself, so turn it back on for the duration.
@@ -24,7 +24,7 @@ class MainWindowGuiTest : public QObject {
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
 
-    auto* moreBtn = win.chatDock_->moreButton();
+    auto* moreBtn = win.chatDock->moreButton();
     QVERIFY(moreBtn && moreBtn->isVisible());
     QMenu* menu = moreBtn->menu();
     QVERIFY(menu);
@@ -76,7 +76,7 @@ class MainWindowGuiTest : public QObject {
 
     // A shut dock leaves nothing on screen to own the window: it falls from above
     // instead of out of the trigger's stale last position.
-    win.chatDock_->setVisible(false);
+    win.chatDock->setVisible(false);
     QTRY_VERIFY(!moreBtn->isVisible());
     QDialog orphan(&win);
     orphan.resize(320, 240);
@@ -101,24 +101,24 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* dock = win.findChild<QDockWidget*>("llmChatDock");
     QVERIFY(dock);
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
-    awaitAnim(win.chatAnim_);
-    QWidget* icon = win.buttonForAction(win.actChat_);
+    awaitAnim(win.chatAnim);
+    QWidget* icon = win.buttonForAction(win.actChat);
     QVERIFY2(icon && icon->isVisible(), "no chat icon to fly from");
     const QPoint iconPoint = flightPointOf(icon, &win);
     // The flight is a cloud of the dock's own pixels inside the MAIN window, aimed at that icon:
     // gathering out of it going in, scattering back into it going out — direction tells them apart.
-    win.actChat_->setChecked(false);          // close: the window comes apart into the icon
+    win.actChat->setChecked(false);          // close: the window comes apart into the icon
     QTRY_VERIFY(surfaceFlight(&win));
     auto* closing = surfaceFlight(&win);
     QVERIFY2(closing, "closing a floating chat did not animate");
     QCOMPARE(closing->surfaceTarget(), iconPoint);
     QVERIFY2(!closing->gathering(), "the close flight scatters INTO the icon, it does not gather");
-    awaitAnim(win.chatAnim_);
-    win.actChat_->setChecked(true);           // open: it forms out of the icon
+    awaitAnim(win.chatAnim);
+    win.actChat->setChecked(true);           // open: it forms out of the icon
     QTRY_VERIFY(surfaceFlight(&win));
     auto* opening = surfaceFlight(&win);
     QVERIFY2(opening, "opening a floating chat did not animate");

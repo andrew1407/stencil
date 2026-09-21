@@ -77,32 +77,32 @@ namespace stencil::support {
      * every move, it keeps covering the screens wherever the dialog goes. */
     class BackdropAnchor : public QObject {
      public:
-      BackdropAnchor(QDialog* dlg, QWidget* backdrop) : QObject(dlg), backdrop_(backdrop) {}
+      BackdropAnchor(QDialog* dlg, QWidget* backdrop) : QObject(dlg), backdrop(backdrop) {}
 
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if ((e->type() == QEvent::Move || e->type() == QEvent::Resize) && backdrop_)
-          backdrop_->setGeometry(allScreensPadded());
+        if ((e->type() == QEvent::Move || e->type() == QEvent::Resize) && backdrop)
+          backdrop->setGeometry(allScreensPadded());
         return QObject::eventFilter(o, e);
       }
-      QPointer<QWidget> backdrop_;
+      QPointer<QWidget> backdrop;
     };
 
     class BackdropPress : public QObject {
      public:
-      BackdropPress(QWidget* backdrop, QDialog* dlg) : QObject(backdrop), dlg_(dlg) {}
+      BackdropPress(QWidget* backdrop, QDialog* dlg) : QObject(backdrop), dlg(dlg) {}
 
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() == QEvent::MouseButtonPress && dismissable(dlg_)) {
+        if (e->type() == QEvent::MouseButtonPress && dismissable(dlg)) {
           modalDismissLog(QStringLiteral("[modal] backdrop (app-modal) dismiss: %1")
-                              .arg(QString::fromLatin1(dlg_->metaObject()->className())));
-          rejectSoon(dlg_);
+                              .arg(QString::fromLatin1(dlg->metaObject()->className())));
+          rejectSoon(dlg);
           return true;
         }
         return QObject::eventFilter(o, e);
       }
-      QPointer<QDialog> dlg_;
+      QPointer<QDialog> dlg;
     };
 
     class BackdropWatcher : public QObject {

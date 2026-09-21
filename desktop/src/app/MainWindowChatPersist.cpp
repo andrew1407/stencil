@@ -43,10 +43,10 @@
 
 namespace stencil::gui {
 
-  // §12.1: the persisted document is the DISPLAYED conversation, not chatHistory_ (the model's view); it travels to every surface.
+  // §12.1: the persisted document is the DISPLAYED conversation, not chatHistory (the model's view); it travels to every surface.
   QJsonObject MainWindow::buildActiveChatDoc() const {
     QJsonArray messages;
-    for (const MirrorRow& r : chatMirrorLog_) {
+    for (const MirrorRow& r : chatMirrorLog) {
       // Muted rows and in-card notes are not conversation.
       if (r.muted) continue;
       const bool user = r.role == QLatin1String("You");
@@ -61,12 +61,12 @@ namespace stencil::gui {
   }
 
   void MainWindow::persistActiveChat() {
-    if (!settings_.saveChatsWithProject || incognito_) return;
+    if (!settings.saveChatsWithProject || incognito) return;
     const QJsonObject doc = buildActiveChatDoc();
-    const auto& link = remoteSession_->link();
+    const auto& link = remoteSession->getLink();
     if (!link.address.isEmpty()) {
       // Server-linked: the chat lives on the server (kind "chat", §9). Fire-and-forget; a failed push costs only the server copy.
-      if (auto* c = connections_ ? connections_->find(link.address) : nullptr) {
+      if (auto* c = connections ? connections->find(link.address) : nullptr) {
         if (doc.isEmpty())
           c->deleteFileAsync(link.id, QStringLiteral("chat"), [](bool) {});
         else
@@ -76,16 +76,16 @@ namespace stencil::gui {
       }
       return;
     }
-    if (activeProjectId_.isEmpty()) return;  // temporary editor — nowhere to file it
-    Project* pr = findProject(activeProjectId_.toStdString());
+    if (activeProjectId.isEmpty()) return;  // temporary editor — nowhere to file it
+    Project* pr = findProject(activeProjectId.toStdString());
     if (!pr) return;
     pr->chat = doc;
-    fileStore::saveProjects(projectList_);
+    fileStore::saveProjects(projectList);
   }
 
   void MainWindow::restoreChatFromDoc(const QJsonObject& doc) {
     resetChatState();
-    if (chatDock_) chatDock_->clearConversation();
+    if (chatDock) chatDock->clearConversation();
     // parseChatDoc launders the machinery on read (§12.1); both surfaces are fed from this loop (browser chatPersistence seedHistory parity).
     const QJsonArray msgs = fileStore::parseChatDoc(doc);
     for (const auto& v : msgs) {
@@ -93,29 +93,29 @@ namespace stencil::gui {
       llm::ChatMessage msg;
       msg.role = m.value("role").toString();
       msg.text = m.value("text").toString();
-      chatHistory_.push_back(msg);
+      chatHistory.push_back(msg);
       const bool user = msg.role == QLatin1String("user");
-      if (chatDock_) {
-        if (user) chatDock_->appendUser(msg.text);
-        else chatDock_->appendAssistant(msg.text, {});
+      if (chatDock) {
+        if (user) chatDock->appendUser(msg.text);
+        else chatDock->appendAssistant(msg.text, {});
       }
       chatMirror(user ? QStringLiteral("You") : QStringLiteral("Assistant"), msg.text, false);
     }
   }
 
   void MainWindow::clearPersistedChat() {
-    if (!settings_.saveChatsWithProject || incognito_) return;
-    const auto& link = remoteSession_->link();
+    if (!settings.saveChatsWithProject || incognito) return;
+    const auto& link = remoteSession->getLink();
     if (!link.address.isEmpty()) {
-      if (auto* c = connections_ ? connections_->find(link.address) : nullptr)
+      if (auto* c = connections ? connections->find(link.address) : nullptr)
         c->deleteFileAsync(link.id, QStringLiteral("chat"), [](bool) {});
       return;
     }
-    if (activeProjectId_.isEmpty()) return;
-    Project* pr = findProject(activeProjectId_.toStdString());
+    if (activeProjectId.isEmpty()) return;
+    Project* pr = findProject(activeProjectId.toStdString());
     if (!pr || pr->chat.isEmpty()) return;
     pr->chat = QJsonObject();
-    fileStore::saveProjects(projectList_);
+    fileStore::saveProjects(projectList);
   }
 }  // namespace stencil::gui
 

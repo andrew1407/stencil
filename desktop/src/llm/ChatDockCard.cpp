@@ -21,16 +21,16 @@ namespace stencil::gui {
   using namespace chatdock;
   // The deferred scrollToBottom measures the card after the caller populates it.
   QVBoxLayout* ChatDock::appendTranscriptCard(int spacing) {
-    cmp_.suggest->hide();
-    auto* card = new QFrame(log_.transcript);
+    cmp.suggest->hide();
+    auto* card = new QFrame(log.transcript);
     card->setFrameShape(QFrame::StyledPanel);
     auto* lay = new QVBoxLayout(card);
     lay->setContentsMargins(8, 6, 8, 6);
     lay->setSpacing(spacing);
-    log_.transcriptLayout->insertWidget(log_.transcriptLayout->count() - 1, card);
+    log.transcriptLayout->insertWidget(log.transcriptLayout->count() - 1, card);
     animateCardIn(card, lay);
     // Follow only while pinned to the end; sends re-pin.
-    if (stickToBottom_) scrollToBottom();
+    if (stickToBottom) scrollToBottom();
     return lay;
   }
 
@@ -60,8 +60,8 @@ namespace stencil::gui {
       card->setProperty(ScrollReveal::ENTERING_PROPERTY, false);
       // Laid out FIRST: setContentsMargins only QUEUES the move, and ScrollReveal::apply() measures.
       lay->activate();
-      if (reveal_) reveal_->apply();
-      repositionChatBubbleTails(log_.transcript);
+      if (reveal) reveal->apply();
+      repositionChatBubbleTails(log.transcript);
     };
     // The slide starts only once the dust actually flies; the card waits fully hidden.
     const auto slide = [this, card, lay, rest] {
@@ -77,7 +77,7 @@ namespace stencil::gui {
       });
       anim->start(QAbstractAnimation::DeleteWhenStopped);
     };
-    gatherChatCardIn(card, log_.transcriptLayout, scroll_, window(), CHAT_SCATTER_COLS,
+    gatherChatCardIn(card, log.transcriptLayout, scroll, window(), CHAT_SCATTER_COLS,
                      CHAT_SCATTER_ROWS, settle, slide);
   }
 }  // namespace stencil::gui

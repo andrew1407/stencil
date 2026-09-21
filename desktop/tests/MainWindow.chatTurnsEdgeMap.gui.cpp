@@ -9,23 +9,23 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // §10 clearChat from chat: DEFERRED (the plan's other action runs first) and always confirmed.
-  // Declined leaves everything; accepted clears the dock, chatHistory_, the §12 copy and the latch.
+  // Declined leaves everything; accepted clears the dock, chatHistory, the §12 copy and the latch.
   void chatClearChatDefersConfirmsAndClears() {
     using stencil::gui::Project;
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
-    win.settings_.saveChatsWithProject = true;
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    win.settings.saveChatsWithProject = true;
     MockChatTransport mock;
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     // A local project to file the persisted copy under (§12).
     win.adoptCanvasAsLocalProject();
-    QVERIFY(!win.activeProjectId_.isEmpty());
-    const QString projectId = win.activeProjectId_;
+    QVERIFY(!win.activeProjectId.isEmpty());
+    const QString projectId = win.activeProjectId;
     const auto wrap = [](const char* plan) {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
           .toJson(QJsonDocument::Compact);
@@ -43,24 +43,24 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(chatTranscriptHas(dock, "clear canceled"),
                  "a declined confirm must land as a note");
-    QCOMPARE(win.settings_.units, QString("in"));  // ran despite being listed second
+    QCOMPARE(win.settings.units, QString("in"));  // ran despite being listed second
     win.applyUnits("cm");                          // tidy the persisted setting
-    QCOMPARE(win.chatHistory_.size(), 2);          // user + assistant kept
+    QCOMPARE(win.chatHistory.size(), 2);          // user + assistant kept
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY2(pr && !pr->chat.isEmpty(), "the persisted copy must survive a decline");
     }
 
     // Accepted round: transcript + history + persisted copy go, latch re-arms.
-    win.chatTextOnlyKey_ = QStringLiteral("some|other|model");
+    win.chatTextOnlyKey = QStringLiteral("some|other|model");
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearChat\"}]}"));
     win.onChatSend("clear the chat");
     dismissModal("OK");   // after the send — the confirm is queued (see above)
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_VERIFY2(win.chatHistory_.isEmpty(), "the replay history must clear");
+    QTRY_VERIFY2(win.chatHistory.isEmpty(), "the replay history must clear");
     QTRY_VERIFY2(assistantBubbleTexts(dock).isEmpty(), "the transcript must clear");
-    QVERIFY2(win.chatTextOnlyKey_.isEmpty(), "the §7 text-only latch must re-arm");
+    QVERIFY2(win.chatTextOnlyKey.isEmpty(), "the §7 text-only latch must re-arm");
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY2(pr && pr->chat.isEmpty(), "the §12 persisted copy must clear (§12.2)");
@@ -83,7 +83,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(win.canvas->hasImage());
     // The fixture is flat white, and applyContourRGBA maps ANY uniform image to solid white, so one
     // line breaks the uniformity and guarantees the two renders differ.
     stencil::core::Line line;
@@ -91,9 +91,9 @@ class MainWindowGuiTest : public QObject {
     line.thickness = 4;
     line.points.push_back({20.0, 20.0});
     line.points.push_back({100.0, 100.0});
-    win.canvas_->setLines({line});
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.canvas->setLines({line});
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message",
@@ -102,9 +102,9 @@ class MainWindowGuiTest : public QObject {
                       "\"lines\":[{\"points\":[{\"x\":40,\"y\":40},{\"x\":80,\"y\":40},"
                       "{\"x\":80,\"y\":80},{\"x\":40,\"y\":40}]}]}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("outline the box");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
+    QTRY_VERIFY(!win.chatDock->isBusy());
     QCOMPARE(mock.allBodies.size(), 1);   // the turn, and nothing behind it
 
     const QString sentence =
@@ -126,7 +126,7 @@ class MainWindowGuiTest : public QObject {
                                  "{\"version\":1,\"reply\":\"ok\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
     win.onChatSend("thanks");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
+    QTRY_VERIFY(!win.chatDock->isBusy());
     const QJsonArray msgs2 = mock.allBodies.first().value("messages").toArray();
     // system, user1, assistant1, user2: the replayed user1 keeps exactly its
     // snapshot; the fresh turn carries snapshot + edge map again.
@@ -145,9 +145,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(!win.canvas_->hasImage());   // empty editor: turn 1 has no snapshot
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(!win.canvas->hasImage());   // empty editor: turn 1 has no snapshot
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     // A load-only plan (blank) triggers the single §7 continuation round; a COLOURED blank, since the
     // edge map contours a white blank to flat white and would coincide with its own snapshot.
@@ -157,10 +157,10 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Blank page.\",\"actions\":"
                       "[{\"op\":\"blank\",\"color\":\"#3366cc\",\"format\":\"a6\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("give me a blank a6 page");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
-    QVERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(!win.chatDock->isBusy());
+    QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 2);   // the turn + exactly one continuation
 
     const QString sentence =

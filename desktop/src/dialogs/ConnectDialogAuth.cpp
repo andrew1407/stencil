@@ -56,37 +56,37 @@
 namespace stencil::gui {
 
   void ConnectDialog::confirmDisconnect(const QString& url) {
-    if (!manager_) return;
+    if (!manager) return;
     if (!confirmYesNo(this, tr("Disconnect server"), tr("Disconnect and forget %1?").arg(url)))
       return;
     scatterRows({url});
-    manager_->disconnectFrom(url);
+    manager->disconnectFrom(url);
     rebuildList();
   }
 
   void ConnectDialog::updateBatchBar() {
-    if (!batchBar_) return;
-    const int n = selected_.size();
+    if (!batchBar) return;
+    const int n = selected.size();
     // The bar hosts Select all too, so it shows whenever the view has rows; only the selection-only
     // controls inside come and go with the checked set (connectModal.js updateBatchBar).
     const QStringList shown = shownUrls();
     // Opens at once, closes only once its contents have flown (support/controlReveal). NOT the
     // browser's animated bar slot: an animating bar re-lays out the list every frame.
-    revealBar(batchBar_, [this] { return !selected_.isEmpty() || !shownUrls().isEmpty(); });
+    revealBar(batchBar, [this] { return !selected.isEmpty() || !shownUrls().isEmpty(); });
     // Text first, so the count is already right when its slot opens.
-    if (batchCount_) {
-      batchCount_->setText(tr("%1 selected").arg(n));
-      revealControls(batchCount_, n > 0);
+    if (batchCount) {
+      batchCount->setText(tr("%1 selected").arg(n));
+      revealControls(batchCount, n > 0);
     }
     // The GROUP is what flies — one flight, not one per button.
-    if (batchSelectedGroup_) revealControls(batchSelectedGroup_, n > 0);
-    if (selectAllBtn_) {
-      revealControls(selectAllBtn_, !shown.isEmpty());
+    if (batchSelectedGroup) revealControls(batchSelectedGroup, n > 0);
+    if (selectAllBtn) {
+      revealControls(selectAllBtn, !shown.isEmpty());
       // Label AND glyph say which way it goes: a check gathers, a cross lets go
       // (browser icons.js setSelectAllFace).
       const bool all = allShownSelected();
-      selectAllBtn_->setText(all ? tr("Deselect all") : tr("Select all"));
-      selectAllBtn_->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));
+      selectAllBtn->setText(all ? tr("Deselect all") : tr("Select all"));
+      selectAllBtn->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));
     }
   }
 
@@ -94,7 +94,7 @@ namespace stencil::gui {
   // only if it refuses ask for a token. A session token or the server's ADMIN token both work.
   void ConnectDialog::reauthenticate(const QString& url) {
     QPointer<ConnectDialog> self(this);
-    manager_->reconnectAsync(url, [this, self, url](bool ok, QString err) {
+    manager->reconnectAsync(url, [this, self, url](bool ok, QString err) {
       if (!self) return;
       if (ok) {
         rebuildList();
@@ -116,7 +116,7 @@ namespace stencil::gui {
       };
       const auto token = promptModal(this, spec);
       if (!self || !token || token->isEmpty()) return;
-      manager_->reauthenticateAsync(url, *token, [this, self, url](bool ok, QString cerr) {
+      manager->reauthenticateAsync(url, *token, [this, self, url](bool ok, QString cerr) {
         if (!self) return;
         emit toast(ok ? tr("Reconnected to %1").arg(url) : tr("Reconnect failed — %1").arg(cerr),
                    !ok);

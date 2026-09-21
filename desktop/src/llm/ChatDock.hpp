@@ -78,7 +78,7 @@ namespace stencil::gui {
     bool isBusy() const;
     // Idempotent; called from the dock's own toggle and from the saved setting at boot.
     void setChatSwapSides(bool on);
-    bool chatSwapSides() const { return chatSwapSides_; }
+    bool getChatSwapSides() const { return chatSwapSides; }
     QSize floatingDefaultSize() const;
     // Compact = pinned beside its icon, but still draggable; only the bar's dblclick is dead.
     void setCompactPopover(bool on);
@@ -86,7 +86,7 @@ namespace stencil::gui {
     // Alt-peek release treats un-sent composer text as engagement.
     bool hasComposerText() const;
     bool dragPollActive() const;
-    bool dragActive() const;
+    bool getDragActive() const;
     // Offscreen has no cursor/button state; tests stub how the drag poll reads them.
     void setDragProbesForTest(std::function<QPoint()> cursorPos,
                               std::function<bool()> leftButtonDown);
@@ -94,9 +94,9 @@ namespace stencil::gui {
     void setProviderStatus(const QString& richTooltip, ProviderStatus status);
     void restyleIcons(const Palette& pal);
 
-    const QList<QImage>& attachedImages() const { return cmp_.images; }
-    const QStringList& attachedImageNames() const { return cmp_.imageNames; }
-    QString attachedVideoPath() const { return cmp_.videoPath; }
+    const QList<QImage>& attachedImages() const { return cmp.images; }
+    const QStringList& attachedImageNames() const { return cmp.imageNames; }
+    QString attachedVideoPath() const { return cmp.videoPath; }
     bool useCurrentImage() const { return true; }
     void addAttachmentImage(const QImage& img, const QString& name = QString());
     void clearAttachments();
@@ -108,7 +108,7 @@ namespace stencil::gui {
     void appendAsk(const stencil::llm::AskCard& ask, const QVector<QImage>& previews);
 
     // Hidden with the dock, so a window raised from the menu falls from above (modalReveal's rule).
-    QToolButton* moreButton() const { return cmp_.more; }
+    QToolButton* moreButton() const { return cmp.more; }
 
    signals:
     void sendRequested(const QString& text);
@@ -179,47 +179,47 @@ namespace stencil::gui {
 
    public:
     // Set by the owner while this dock animates OUT.
-    void setClosing(bool on) { closing_ = on; }
+    void setClosing(bool on) { closing = on; }
 
    private:
-    bool closing_ = false;
+    bool closing = false;
     void positionJumpButtons();
     void updateSendEnabled();
     void scrollToBottom();
 
-    // Furniture in chatDockState.hpp; input_ and scroll_ stay named (the GUI e2e reads them).
-    ChatTranscriptParts log_;
-    ChatTitleBarParts chrome_;
-    ChatComposerParts cmp_;
-    QScrollArea* scroll_ = nullptr;
-    class ScrollReveal* reveal_ = nullptr;
-    QColor accentCache_, textCache_, dangerCache_, mutedCache_, chipCache_, borderCache_;
+    // Furniture in chatDockState.hpp; input and scroll stay named (the GUI e2e reads them).
+    ChatTranscriptParts log;
+    ChatTitleBarParts chrome;
+    ChatComposerParts cmp;
+    QScrollArea* scroll = nullptr;
+    class ScrollReveal* reveal = nullptr;
+    QColor accentCache, textCache, dangerCache, mutedCache, chipCache, borderCache;
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
-    Palette paletteCache_;
-    bool chatSwapSides_ = false;
+    Palette paletteCache;
+    bool chatSwapSides = false;
     void updatePlacementState();
     // The title-drag events are CONSUMED: Qt's own (window-server) move swallows the release.
-    bool manualDrag_ = false, manualDragging_ = false, compactPopover_ = false;
-    QPoint manualGrabOffset_;
+    bool manualDrag = false, manualDragging = false, compactPopover = false;
+    QPoint manualGrabOffset;
     // ~16 ms poll: the native floating-window drag (macOS) swallows move/release events.
-    QTimer* dragPoll_ = nullptr;
-    QPoint dragStartCursor_;
-    bool dragMoved_ = false;
-    bool dragActive_ = false;
-    std::function<QPoint()> dragPosProbe_;
-    std::function<bool()> dragDownProbe_;
-    QPlainTextEdit* input_ = nullptr;
-    ChatMoreActions moreRows_;   // the "…" overflow's four rows
-    QPointer<QWidget> lastAssistantCard_;
-    // Not derived from cmp_.busy's visibility: turns run while the dock is hidden (context-menu chat).
+    QTimer* dragPoll = nullptr;
+    QPoint dragStartCursor;
+    bool dragMoved = false;
+    bool dragActive = false;
+    std::function<QPoint()> dragPosProbe;
+    std::function<bool()> dragDownProbe;
+    QPlainTextEdit* input = nullptr;
+    ChatMoreActions moreRows;   // the "…" overflow's four rows
+    QPointer<QWidget> lastAssistantCard;
+    // Not derived from cmp.busy's visibility: turns run while the dock is hidden (context-menu chat).
 
 
-    QElapsedTimer capToastAt_;
-    bool stickToBottom_ = true;
-    QWidget* pendingCard_ = nullptr;
-    QLabel* pendingRole_ = nullptr;
-    QLabel* pendingBody_ = nullptr;
-    QWidget* pendingDots_ = nullptr;
+    QElapsedTimer capToastAt;
+    bool stickToBottom = true;
+    QWidget* pendingCard = nullptr;
+    QLabel* pendingRole = nullptr;
+    QLabel* pendingBody = nullptr;
+    QWidget* pendingDots = nullptr;
   };
 
   void styleProviderStatusDot(QLabel* dot, QToolButton* gear,

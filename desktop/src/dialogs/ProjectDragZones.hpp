@@ -29,30 +29,30 @@ namespace stencil::gui {
     explicit ProjectDragZones(QWidget* parent) : QWidget(parent) {
       setAttribute(Qt::WA_TransparentForMouseEvents, true);
       hide();
-      poll_.setInterval(16);
+      poll.setInterval(16);
       // A cursor poll: the modal dialog's blocking drag loop delivers no drag-move events here.
       // Phase step matched to the interval for a ~1.5s breathing cycle (2π / (1.5s / 16ms)).
-      QObject::connect(&poll_, &QTimer::timeout, [this] {
-        hover_ = zoneAt(QCursor::pos());
-        phase_ += 0.067;
-        if (phase_ > 6.2831853) phase_ -= 6.2831853;
+      QObject::connect(&poll, &QTimer::timeout, [this] {
+        hover = zoneAt(QCursor::pos());
+        phase += 0.067;
+        if (phase > 6.2831853) phase -= 6.2831853;
         update();
       });
     }
 
     // `dialogFrameGlobal` (global coords) is not treated as a zone. Fills the parent widget.
     void begin(const QRect& dialogFrameGlobal) {
-      dialogFrame_ = dialogFrameGlobal;
+      dialogFrame = dialogFrameGlobal;
       if (parentWidget()) setGeometry(parentWidget()->rect());
-      hover_ = Zone::NONE;
+      hover = Zone::NONE;
       raise();
       show();
-      poll_.start();
+      poll.start();
     }
-    void end() { poll_.stop(); hide(); }
+    void end() { poll.stop(); hide(); }
 
     Zone zoneAt(const QPoint& global) const {
-      if (dialogFrame_.contains(global)) return Zone::NONE;
+      if (dialogFrame.contains(global)) return Zone::NONE;
       if (!parentWidget()) return Zone::NONE;
       const QPoint p = parentWidget()->mapFromGlobal(global);
       if (!rect().contains(p)) return Zone::NONE;
@@ -70,11 +70,11 @@ namespace stencil::gui {
       const int top = static_cast<int>(h * 0.68);
       // Labels hug the OUTER edges so the centred dialog never overlaps a zone's icon/text.
       drawZone(g, QRect(10, 10, w / 2 - 15, top - 20), QColor("#64748b"), QStringLiteral("folder"),
-               QStringLiteral("Open here"), hover_ == Zone::HERE, true);
+               QStringLiteral("Open here"), hover == Zone::HERE, true);
       drawZone(g, QRect(w / 2 + 5, 10, w / 2 - 15, top - 20), QColor("#2563eb"), QStringLiteral("external"),
-               QStringLiteral("Open in a new window"), hover_ == Zone::NEW_WINDOW, true);
+               QStringLiteral("Open in a new window"), hover == Zone::NEW_WINDOW, true);
       drawZone(g, QRect(10, top + 6, w - 20, h - top - 16), QColor("#dc3545"), QStringLiteral("trash"),
-               QStringLiteral("Remove"), hover_ == Zone::REMOVE, false);
+               QStringLiteral("Remove"), hover == Zone::REMOVE, false);
     }
 
    private:
@@ -100,7 +100,7 @@ namespace stencil::gui {
       // Rasterized ONCE at a fixed size and scaled about a FIXED centre, so the pulse is continuous
       // and symmetric rather than steppy whole-pixel rasterizations.
       const int base = 24;
-      const double scale = 1.0 + 0.18 * std::sin(phase_);
+      const double scale = 1.0 + 0.18 * std::sin(phase);
       const int render = 40;
       const QPixmap px = themedIcon(iconName, accent, render).pixmap(render, render);
       const int cx = r.center().x();
@@ -121,10 +121,10 @@ namespace stencil::gui {
                  Qt::AlignHCenter | Qt::AlignTop, title);
     }
 
-    QTimer poll_;
-    Zone hover_ = Zone::NONE;
-    double phase_ = 0.0;
-    QRect dialogFrame_;
+    QTimer poll;
+    Zone hover = Zone::NONE;
+    double phase = 0.0;
+    QRect dialogFrame;
   };
 
 }  // namespace stencil::gui

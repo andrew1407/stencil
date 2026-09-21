@@ -15,29 +15,29 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
     for (int i = 0; i < 10; ++i)
-      win.chatDock_->appendAssistant(
+      win.chatDock->appendAssistant(
           QStringLiteral("Row %1 — long enough that the transcript scrolls and a row "
                          "gets clipped at the bottom edge of the viewport.").arg(i));
     // A NARROW dock: the bubbles then reach the width cap, so an assistant row's
     // "…" (it hangs off the right) lands in the pills' corner.
-    win.chatDock_->setMinimumWidth(0);
-    win.resizeDocks({win.chatDock_}, {250}, Qt::Horizontal);
+    win.chatDock->setMinimumWidth(0);
+    win.resizeDocks({win.chatDock}, {250}, Qt::Horizontal);
     QScrollArea* scroll = nullptr;
-    for (QScrollArea* a : win.chatDock_->findChildren<QScrollArea*>()) scroll = a;
+    for (QScrollArea* a : win.chatDock->findChildren<QScrollArea*>()) scroll = a;
     QVERIFY(scroll);
     QScrollBar* bar = scroll->verticalScrollBar();
     QTRY_VERIFY(bar->maximum() > 24);
     bar->setValue(bar->maximum() / 2);   // mid-log: both pills want to show
-    settleLayout(win.chatDock_, 200);
-    const auto jumps = win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
+    settleLayout(win.chatDock, 200);
+    const auto jumps = win.chatDock->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
     // Precondition: no row menu on screen, so the pills' own rule lets them show. The clear + nudge is
     // re-run each poll, since only a scroll re-evaluates it.
     const auto pillsUp = [&] {
-      for (QToolButton* m : win.chatDock_->findChildren<QToolButton*>("chatCardMore"))
+      for (QToolButton* m : win.chatDock->findChildren<QToolButton*>("chatCardMore"))
         m->hide();
       // Re-centre each poll: the bubble-width pass keeps changing the range while
       // the transcript settles, and an end position legitimately hides one pill.
@@ -55,7 +55,7 @@ class MainWindowGuiTest : public QObject {
     // Hover the row whose "…" lands in the pills' corner — same real Enter path a
     // cursor takes, so placeChatCardMore runs its actual shift/hide logic.
     QFrame* card = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>())
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>())
       if (f->property("chatMoreBtn").isValid() &&
           QRect(f->mapToGlobal(QPoint(0, 0)), f->size())
               .intersects(QRect(scroll->viewport()->mapToGlobal(QPoint(0, 0)),
@@ -81,7 +81,7 @@ class MainWindowGuiTest : public QObject {
     // corrected on the next real placement pass, never by the pills hiding.
     if (more->isVisible()) {
       more->move(more->parentWidget()->mapFromGlobal(pillsRect().topLeft()));
-      win.chatDock_->revalidateMoreButtons();
+      win.chatDock->revalidateMoreButtons();
       QVERIFY2(jumps[0]->isVisible() && jumps[1]->isVisible(), "the pills stayed up");
       if (more->isVisible())
         QVERIFY2(!QRect(more->mapToGlobal(QPoint(0, 0)), more->size()).intersects(pillsRect()),
@@ -97,11 +97,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("remove this project"), {}});
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    win.chatHistory.append({QStringLiteral("user"), QStringLiteral("remove this project"), {}});
     // The panel exists BEFORE the failure, as it does in use — errors are
     // mirrored live (they never enter the replayed history).
     win.ensureChatMenuPanel();
@@ -110,11 +110,11 @@ class MainWindowGuiTest : public QObject {
                   QString());
     // …and a stopped turn, which is built through the PENDING card on both
     // surfaces, not through the ordinary append path.
-    win.chatDock_->showPending();
+    win.chatDock->showPending();
     win.chatMirrorPending(true);
-    win.chatDock_->markPendingStopped(QStringLiteral("remove this project"));
+    win.chatDock->markPendingStopped(QStringLiteral("remove this project"));
     win.chatMirrorStopped(QStringLiteral("remove this project"));
-    settleLayout(win.chatDock_, 200);
+    settleLayout(win.chatDock, 200);
 
     const auto menuItems = [](QWidget* w) {
       QStringList names;
@@ -135,7 +135,7 @@ class MainWindowGuiTest : public QObject {
       return names;
     };
 
-    QList<QFrame*> errorCards = win.chatDock_->findChildren<QFrame*>("chatCardError");
+    QList<QFrame*> errorCards = win.chatDock->findChildren<QFrame*>("chatCardError");
     QVERIFY2(errorCards.size() >= 2, "expected the error card AND the stopped card");
     for (QFrame* card : errorCards) {
       const QString what = card->findChildren<QLabel*>().isEmpty()
@@ -160,10 +160,10 @@ class MainWindowGuiTest : public QObject {
 
     // The mirrored panel gets the same treatment. Its cards are only on screen while its menu is open
     // — show it, or the row menu rightly refuses to pop into an invisible surface.
-    win.chatMenuPanel_->setGeometry(20, 20, 340, 620);
-    win.chatMenuPanel_->show();
-    settleLayout(win.chatMenuPanel_, 150);
-    QList<QFrame*> panelErrors = win.chatMenuPanel_->findChildren<QFrame*>("chatCardError");
+    win.chatMenuPanel->setGeometry(20, 20, 340, 620);
+    win.chatMenuPanel->show();
+    settleLayout(win.chatMenuPanel, 150);
+    QList<QFrame*> panelErrors = win.chatMenuPanel->findChildren<QFrame*>("chatCardError");
     QVERIFY2(!panelErrors.isEmpty(), "the panel mirrored no error card");
     bool sawRetry = false;
     for (QFrame* card : panelErrors) {

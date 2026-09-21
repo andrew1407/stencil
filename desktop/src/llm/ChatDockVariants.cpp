@@ -68,12 +68,12 @@ namespace stencil::gui {
   // Provider settings and the working image are NOT touched; the owner clears the model history.
   void ChatDock::clearConversation() {
     clearPending();
-    // Backwards so the indices stay valid; cmp_.suggest and the bottom stretch ARE the empty state.
+    // Backwards so the indices stay valid; cmp.suggest and the bottom stretch ARE the empty state.
     bool wiped = false;
-    for (int i = log_.transcriptLayout->count() - 1; i >= 0; --i) {
-      QLayoutItem* item = log_.transcriptLayout->itemAt(i);
+    for (int i = log.transcriptLayout->count() - 1; i >= 0; --i) {
+      QLayoutItem* item = log.transcriptLayout->itemAt(i);
       QWidget* w = item ? item->widget() : nullptr;
-      if (!w || w == cmp_.suggest) continue;
+      if (!w || w == cmp.suggest) continue;
       // Snapshot BEFORE the card leaves the layout, hosted on the WINDOW (the dock's content widget
       // paints over its children). Fall, not Rows: the same gesture as the cleared IMAGE.
       DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::FALL,
@@ -82,7 +82,7 @@ namespace stencil::gui {
                                 w->palette().color(QPalette::WindowText));
       // Anything REMOVED means the empty state waits, even when over() declined the grab.
       wiped = true;
-      delete log_.transcriptLayout->takeAt(i);
+      delete log.transcriptLayout->takeAt(i);
       // Out of the layout but still painted while it fades; the fade owns the delete.
       fadeOutAndDelete(w);
     }
@@ -93,21 +93,21 @@ namespace stencil::gui {
       QTimer::singleShot(DisintegrateOverlay::ITEM_MS + 60, this, [this] {
         // A turn may have started while the wipe played.
         if (transcriptHasCards()) return;
-        cmp_.suggest->show();
+        cmp.suggest->show();
         scrollToBottom();
       });
     } else {
-      cmp_.suggest->show();
+      cmp.suggest->show();
     }
     scrollToBottom();
   }
 
   // The empty state and the bottom stretch don't count.
   bool ChatDock::transcriptHasCards() const {
-    for (int i = 0; i < log_.transcriptLayout->count(); ++i) {
-      QLayoutItem* item = log_.transcriptLayout->itemAt(i);
+    for (int i = 0; i < log.transcriptLayout->count(); ++i) {
+      QLayoutItem* item = log.transcriptLayout->itemAt(i);
       QWidget* w = item ? item->widget() : nullptr;
-      if (w && w != cmp_.suggest && !w->isHidden()) return true;
+      if (w && w != cmp.suggest && !w->isHidden()) return true;
     }
     return false;
   }

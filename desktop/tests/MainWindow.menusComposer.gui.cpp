@@ -18,8 +18,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
 
     // ── assistant ON ──
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     // A mock transport answers synchronously with a canned op-plan, so nothing
     // touches the network (the same seam LlmClient.headless.cpp uses).
     MockChatTransport mock;
@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     bool twoButtons = false, dotOnMore = false, buttonsMatchDock = false;
     bool hintGone = false, sendGatedEmpty = false;
@@ -60,7 +60,7 @@ class MainWindowGuiTest : public QObject {
         for (QAction* a : over->actions()) overflowItems << a->text();
       // …and the DOCK's exact look: same 18 px glyphs, same 26 px box, same
       // accent treatment, so the two composers read identically.
-      auto* dockSend = win.chatDock_->findChild<QToolButton*>("chatSend");
+      auto* dockSend = win.chatDock->findChild<QToolButton*>("chatSend");
       buttonsMatchDock = dockSend && sendBtn->iconSize() == dockSend->iconSize() &&
                          sendBtn->size() == dockSend->size() &&
                          sendBtn->property("chatAccent").toBool() &&
@@ -80,7 +80,7 @@ class MainWindowGuiTest : public QObject {
         chipCount = chips.size();
         chipsShownEmpty = chipBox->isVisible();
         const auto dockChips =
-            win.chatDock_->findChildren<QPushButton*>("chatSuggestChip");
+            win.chatDock->findChildren<QPushButton*>("chatSuggestChip");
         chipTextsMatchDock = dockChips.size() == chips.size();
         for (int i = 0; chipTextsMatchDock && i < chips.size(); ++i)
           if (chips.at(i)->text() != dockChips.at(i)->text()) chipTextsMatchDock = false;
@@ -130,7 +130,7 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("the menu transcript renders only %1 px tall")
                             .arg(transcriptCap)));
 
-    win.llmClient_.reset();  // drop the mock before it goes out of scope
+    win.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

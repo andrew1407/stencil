@@ -38,12 +38,12 @@ namespace stencil::gui {
     // True while a split compare view is showing.
     bool inSplitCompare() const;
 
-    QWidget* parent_;
-    CanvasWidget* canvas_;
-    Notifications* notify_;
-    const Settings* settings_;
-    std::function<QString()> projectBaseName_;
-    std::function<fileStore::LayoutMeta()> currentLayoutMeta_;
+    QWidget* parent;
+    CanvasWidget* canvas;
+    Notifications* notify;
+    const Settings* settings;
+    std::function<QString()> projectBaseName;
+    std::function<fileStore::LayoutMeta()> currentLayoutMeta;
   };
 
 }  // namespace stencil::gui

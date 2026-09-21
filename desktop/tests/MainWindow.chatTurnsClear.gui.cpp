@@ -152,11 +152,11 @@ class MainWindowGuiTest : public QObject {
     m.role = "user";
     m.text = "make it sepia";
     win.pushChatHistory(m);
-    win.chatVideoPath_ = "/tmp/clip.mp4";
-    win.chatVideoFrames_ = 42;
-    win.chatImageDigest_ = QByteArray("digest");
-    win.chatImageEncoded_.data = QByteArray("cached");
-    QVERIFY(!win.chatHistory_.isEmpty());
+    win.chatVideoPath = "/tmp/clip.mp4";
+    win.chatVideoFrames = 42;
+    win.chatImageDigest = QByteArray("digest");
+    win.chatImageEncoded.data = QByteArray("cached");
+    QVERIFY(!win.chatHistory.isEmpty());
     auto* suggest = dock->findChild<QWidget*>("chatSuggest");
     QVERIFY(suggest && !suggest->isVisible());  // hidden by the first card
 

@@ -151,7 +151,7 @@ namespace stencil::llm {
     QString why;
     bool ok = ask.isObject();
     if (!ok) why = QStringLiteral("\"ask\" must be an object");
-    const QJsonObject schema = registry_.value("ask").toObject().value("schema").toObject();
+    const QJsonObject schema = registry.value("ask").toObject().value("schema").toObject();
     if (ok) ok = checkFields(ask.toObject(), schema.value("keys").toObject(), schema,
                              Path{true, QStringLiteral("ask."), QString(), QString()}, {}, &why);
     if (!ok) return fail(err, QStringLiteral("Invalid plan: ") + why);
@@ -159,13 +159,13 @@ namespace stencil::llm {
   }
 
   QJsonObject OpSchema::normalizeAsk(const QJsonObject& ask) const {
-    return pickFields(ask, registry_.value("ask").toObject().value("schema").toObject()
+    return pickFields(ask, registry.value("ask").toObject().value("schema").toObject()
                                .value("keys").toObject());
   }
 
   bool OpSchema::checkEnvelope(const QJsonValue& v, const QString& key, QString* err) const {
     QString why;
-    if (!checkValue(v, registry_.value("envelope").toObject().value(key).toObject(),
+    if (!checkValue(v, registry.value("envelope").toObject().value(key).toObject(),
                     Path{true, QString(), key, QString()}, nullptr, &why))
       return fail(err, QStringLiteral("Invalid plan: ") + why);
     return true;

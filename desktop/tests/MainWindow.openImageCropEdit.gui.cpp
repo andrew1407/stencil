@@ -52,12 +52,12 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      stagedBefore = dlg->cropStage_ != nullptr;
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      stagedBefore = dlg->cropStage != nullptr;
       QTest::keyClicks(url, "x");
       settle([] { return false; }, 100);
-      stagedAfter = dlg->cropStage_ != nullptr;
-      pictureVisible = dlg->previewLabel_->isVisible() && !dlg->previewLabel_->pixmap().isNull();
+      stagedAfter = dlg->cropStage != nullptr;
+      pictureVisible = dlg->previewLabel->isVisible() && !dlg->previewLabel->pixmap().isNull();
       stillChecked = crop->isChecked();
       dlg->reject();
     });
@@ -84,25 +84,25 @@ class MainWindowGuiTest : public QObject {
       const QString urlSrc = QStringLiteral("https://example.com/vid.mp4");
       QImage still(240, 160, QImage::Format_RGB32); still.fill(Qt::white);
       QImage frame(320, 240, QImage::Format_RGB32); frame.fill(Qt::darkGreen);
-      dlg->path_->setText(localPath);
-      auto& fileCache = dlg->tabCache_[stencil::gui::TabFile];
+      dlg->path->setText(localPath);
+      auto& fileCache = dlg->tabCache[stencil::gui::TabFile];
       fileCache.valid = true; fileCache.source = localPath;
       fileCache.isVideo = false; fileCache.previewImage = still;
-      dlg->url_->setText(urlSrc);
-      auto& urlCache = dlg->tabCache_[stencil::gui::TabUrl];
+      dlg->url->setText(urlSrc);
+      auto& urlCache = dlg->tabCache[stencil::gui::TabUrl];
       urlCache.valid = true;
       urlCache.source = urlSrc;
       urlCache.isVideo = true;
       urlCache.frameImage = frame;
       urlCache.previewImage = frame;
       urlCache.scrubFps = 30.0;
-      dlg->previewedSource_.clear();   // neither tab has been "arrived at" yet
+      dlg->previewedSource.clear();   // neither tab has been "arrived at" yet
       tabs->setCurrentIndex(1);
       settle([] { return false; }, 200);
-      frameShownAfterVideo = dlg->frameRow_->isVisible();
+      frameShownAfterVideo = dlg->frameRow->isVisible();
       tabs->setCurrentIndex(0);
       settle([] { return false; }, 200);
-      frameShownAfterImage = dlg->frameRow_->isVisible();
+      frameShownAfterImage = dlg->frameRow->isVisible();
       dlg->reject();
     });
     win.openImage();

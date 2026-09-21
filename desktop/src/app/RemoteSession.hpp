@@ -35,16 +35,16 @@ namespace stencil::gui {
     RemoteSession(QObject* parent, Notifications* notify);
 
     // By reference so MainWindow sets fields in place and bind()/unbind() it wholesale.
-    RemoteLink& link() { return link_; }
-    const RemoteLink& link() const { return link_; }
+    RemoteLink& getLink() { return link; }
+    const RemoteLink& getLink() const { return link; }
 
     // Null until MainWindow lazily creates it.
-    void setConnections(stencil::net::ConnectionManager* c) { connections_ = c; }
-    stencil::net::ConnectionManager* connections() const { return connections_; }
+    void setConnections(stencil::net::ConnectionManager* c) { connections = c; }
+    stencil::net::ConnectionManager* getConnections() const { return connections; }
 
-    const QString& address() const { return link_.address; }
-    const QString& id() const { return link_.id; }
-    qint64 version() const { return link_.version; }
+    const QString& address() const { return link.address; }
+    const QString& id() const { return link.id; }
+    qint64 version() const { return link.version; }
 
     // nullptr + `msg` notified when not connected.
     stencil::net::ServerClient* requireClient(
@@ -59,9 +59,9 @@ namespace stencil::gui {
         std::function<void(bool ok, qint64 outVersion)> done);
 
    private:
-    RemoteLink link_;
-    stencil::net::ConnectionManager* connections_ = nullptr;
-    Notifications* notify_;
+    RemoteLink link;
+    stencil::net::ConnectionManager* connections = nullptr;
+    Notifications* notify;
   };
 
 }  // namespace stencil::gui

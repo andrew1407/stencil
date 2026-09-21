@@ -98,18 +98,18 @@ namespace stencil::gui {
                                             int maxCells = SURFACE_MAX_CELLS,
                                             bool escapeHost = false, bool alwaysEscape = false);
 
-    int durationMs() const { return ms_; }   // the clock this cloud was started on
-    QSize grid() const { return QSize(cols_, rows_); }   // cells; the GUI test reads these
+    int durationMs() const { return ms; }   // the clock this cloud was started on
+    QSize grid() const { return QSize(cols, rows); }   // cells; the GUI test reads these
     // HOST coordinates; the GUI test reads these.
-    QPoint surfaceTarget() const { return target_.toPoint(); }
-    QRect surfacePicture() const { return picture_; }
-    bool gathering() const { return sweep_ == Sweep::SURFACE_IN; }
-    const QPixmap& snapshot() const { return snap_; }
+    QPoint surfaceTarget() const { return target.toPoint(); }
+    QRect surfacePicture() const { return picture; }
+    bool gathering() const { return sweep == Sweep::SURFACE_IN; }
+    const QPixmap& snapshot() const { return snap; }
 
     // `hostRect` is in HOST coordinates: a toast beside the docked chat must not paint
     // across the composer.
-    void setPaintClip(const QRect& hostRect) { paintClip_ = hostRect; update(); }
-    QRect paintClip() const { return paintClip_; }   // the GUI test reads what may be painted
+    void setPaintClip(const QRect& hostRect) { paintClip = hostRect; update(); }
+    QRect getPaintClip() const { return paintClip; }   // the GUI test reads what may be painted
 
     void retarget(const QPoint& delta);
 
@@ -133,8 +133,8 @@ namespace stencil::gui {
     const QColor& grainColour(int cx, int cy, double) const;
 
     bool isGlint(int cx, int cy, double n) const;
-    bool glintAt(int cx, int cy) const { return glints_[size_t(cy) * cols_ + cx]; }
-    int tintAt(int cx, int cy) const { return tints_[size_t(cy) * cols_ + cx]; }
+    bool glintAt(int cx, int cy) const { return glints[size_t(cy) * cols + cx]; }
+    int tintAt(int cx, int cy) const { return tints[size_t(cy) * cols + cx]; }
 
     QColor liftedGrain(int cx, int cy, double n) const;
 
@@ -159,35 +159,35 @@ namespace stencil::gui {
 
     void syncFollow();
 
-    QPointer<QWidget> follow_;
-    QPoint followAt_;            // parent coords at the last tick
-    QPixmap snap_;
-    QPixmap base_;          // overPixmaps only; null = nothing
-    QImage cells_;          // rebuilt when the grid changes
-    std::vector<QColor> grains_;
-    std::vector<bool> glints_;
-    std::vector<int8_t> tints_;    // -1 = the accent ramp
-    std::vector<Mote> motes_;   // per-frame scratch
-    std::vector<QRect> cut_;    // runs, Y-X sorted
-    Sweep sweep_ = Sweep::ROWS;
-    int cols_ = COLS;
-    int rows_ = ROWS;
-    int pad_ = 0;
-    QRect picture_;         // invalid = the whole box
-    QPointF target_;
-    QPoint shift_;          // host coords → this layer's, non-zero only when it escaped the host
-    QRect paintClip_;       // invalid = all
-    QColor ink_;            // invalid = none
+    QPointer<QWidget> follow;
+    QPoint followAt;            // parent coords at the last tick
+    QPixmap snap;
+    QPixmap base;          // overPixmaps only; null = nothing
+    QImage cells;          // rebuilt when the grid changes
+    std::vector<QColor> grains;
+    std::vector<bool> glints;
+    std::vector<int8_t> tints;    // -1 = the accent ramp
+    std::vector<Mote> motes;   // per-frame scratch
+    std::vector<QRect> cut;    // runs, Y-X sorted
+    Sweep sweep = Sweep::ROWS;
+    int cols = COLS;
+    int rows = ROWS;
+    int pad = 0;
+    QRect picture;         // invalid = the whole box
+    QPointF target;
+    QPoint shift;          // host coords → this layer's, non-zero only when it escaped the host
+    QRect paintClip;       // invalid = all
+    QColor ink;            // invalid = none
     // Captured at build time: a mid-flight settings change never restyles a cloud in the air.
-    support::ParticleStyle style_ = support::particleStyle();
-    QColor accent_ = support::particleAccent();
-    QColor shade_ = support::particleShade();
-    bool dark_ = support::isParticleDark();
-    support::MoteSprites sprites_;
-    QElapsedTimer clock_;
-    int ms_ = DUST_MS;
-    double spread_ = 1.0;   // throw distance, as a share of a list row's
-    double t_ = 0.0;
+    support::ParticleStyle style = support::particleStyle();
+    QColor accent = support::particleAccent();
+    QColor shade = support::particleShade();
+    bool dark = support::isParticleDark();
+    support::MoteSprites sprites;
+    QElapsedTimer clock;
+    int ms = DUST_MS;
+    double spread = 1.0;   // throw distance, as a share of a list row's
+    double t = 0.0;
   };
 
   DisintegrateOverlay* flyTipDust(QWidget* subject, QWidget* host,

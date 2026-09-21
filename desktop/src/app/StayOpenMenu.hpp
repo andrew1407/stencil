@@ -52,14 +52,14 @@ namespace stencil::gui {
       explicit Latch(bool& f) : flag(f) { flag = true; }
       ~Latch() { flag = false; }
     };
-    QWidget* area_ = nullptr;       // hosted widget with live input (chat)
-    QWidget* keyTarget_ = nullptr;  // where keystrokes go while it has focus
-    QPointer<QWidget> pressTarget_; // drag owner inside the area (splitter…)
-    QPointer<QWidget> hoverChild_;  // child currently sent a synthetic Enter
-    bool redispatching_ = false;    // inside a mouse re-dispatch
-    bool redispatchingKey_ = false; // inside a key re-dispatch
-    QSet<QWidget*> filteredStops_;  // hosted controls already given this filter
-    bool entered_ = false;          // past the reveal: a second →, Tab, or the pointer
+    QWidget* area = nullptr;       // hosted widget with live input (chat)
+    QWidget* keyTarget = nullptr;  // where keystrokes go while it has focus
+    QPointer<QWidget> pressTarget; // drag owner inside the area (splitter…)
+    QPointer<QWidget> hoverChild;  // child currently sent a synthetic Enter
+    bool redispatching = false;    // inside a mouse re-dispatch
+    bool redispatchingKey = false; // inside a key re-dispatch
+    QSet<QWidget*> filteredStops;  // hosted controls already given this filter
+    bool entered = false;          // past the reveal: a second →, Tab, or the pointer
   };
 
 }  // namespace stencil::gui

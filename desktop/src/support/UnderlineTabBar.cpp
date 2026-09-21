@@ -12,55 +12,55 @@ namespace stencil::gui {
     setAttribute(Qt::WA_Hover, true);
     // Browser tabs are <button>s and wear the shared shimmer; here the sweep runs per
     // hovered TAB over the strip's own overlay (external-band mode).
-    sweep_ = new ShimmerOverlay(this, nullptr, /*externalBands=*/true);
-    slide_ = new QVariantAnimation(this);
-    slide_->setDuration(SLIDE_MS);
-    slide_->setEasingCurve(QEasingCurve::OutCubic);
-    QObject::connect(slide_, &QVariantAnimation::valueChanged, this,
+    sweep = new ShimmerOverlay(this, nullptr, /*externalBands=*/true);
+    slide = new QVariantAnimation(this);
+    slide->setDuration(SLIDE_MS);
+    slide->setEasingCurve(QEasingCurve::OutCubic);
+    QObject::connect(slide, &QVariantAnimation::valueChanged, this,
                      [this](const QVariant& v) {
-                       underline_ = v.toRectF();
+                       underline = v.toRectF();
                        update();
                      });
     QObject::connect(this, &QTabBar::currentChanged, this, [this](int idx) {
       const QRectF to = underlineRect(idx);
       // First selection, a hidden bar, reduced motion: land.
-      if (underline_.isNull() || !isVisible() || support::motionReduced()) {
-        slide_->stop();
-        underline_ = to;
+      if (underline.isNull() || !isVisible() || support::motionReduced()) {
+        slide->stop();
+        underline = to;
         update();
         return;
       }
-      slide_->stop();
-      slide_->setStartValue(underline_);
-      slide_->setEndValue(to);
-      slide_->start();
+      slide->stop();
+      slide->setStartValue(underline);
+      slide->setEndValue(to);
+      slide->start();
     });
   }
 
   // Named, so every state repaints it in ITS colour (browser currentColor tinting).
   void UnderlineTabBar::setTabGlyph(int i, const QString& name) {
-    glyphs_.insert(i, name);
+    glyphs.insert(i, name);
     update();
   }
 
   QSize UnderlineTabBar::tabSizeHint(int index) const {
     const QFontMetrics fm(tabFont());
     int w = PAD_X * 2 + fm.horizontalAdvance(tabText(index));
-    if (!glyphs_.value(index).isEmpty()) w += GLYPH + GAP;
+    if (!glyphs.value(index).isEmpty()) w += GLYPH + GAP;
     const int h = PAD_Y * 2 + std::max(fm.height(), int(GLYPH)) + UNDERLINE;
     return QSize(w, h);
   }
 
   void UnderlineTabBar::showEvent(QShowEvent* e) {
     QTabBar::showEvent(e);
-    if (slide_->state() != QAbstractAnimation::Running)
-      underline_ = underlineRect(currentIndex());
+    if (slide->state() != QAbstractAnimation::Running)
+      underline = underlineRect(currentIndex());
   }
 
   void UnderlineTabBar::resizeEvent(QResizeEvent* e) {
     QTabBar::resizeEvent(e);
-    if (slide_->state() != QAbstractAnimation::Running)
-      underline_ = underlineRect(currentIndex());
+    if (slide->state() != QAbstractAnimation::Running)
+      underline = underlineRect(currentIndex());
   }
 
   bool UnderlineTabBar::event(QEvent* e) {
@@ -88,7 +88,7 @@ namespace stencil::gui {
     p.setFont(tabFont());
     for (int i = 0; i < count(); ++i) {
       const QRect r = tabRect(i);
-      const double u = hoverVal_.value(i, 0.0);
+      const double u = hoverVal.value(i, 0.0);
       if (u > 0.001) {
         QColor pill = accent2;
         pill.setAlphaF(u);
@@ -100,7 +100,7 @@ namespace stencil::gui {
       const QColor c = mix(base, QColor(Qt::white), u);
       int x = r.x() + PAD_X;
       const int contentH = r.height() - UNDERLINE;
-      const QString glyph = glyphs_.value(i);
+      const QString glyph = glyphs.value(i);
       if (!glyph.isEmpty()) {
         const int gy = r.y() + (contentH - GLYPH) / 2;
         // Cross-fade the two endpoint rasters: themedIcon caches each colour forever, and
@@ -119,8 +119,8 @@ namespace stencil::gui {
                  Qt::AlignLeft | Qt::AlignVCenter, tabText(i));
     }
     // Rounded tips: the browser's underline is a border-bottom on a 4px-radius button.
-    const QRectF u = slide_->state() == QAbstractAnimation::Running
-                         ? underline_
+    const QRectF u = slide->state() == QAbstractAnimation::Running
+                         ? underline
                          : underlineRect(currentIndex());
     if (!u.isNull()) {
       p.setPen(Qt::NoPen);
@@ -150,33 +150,33 @@ namespace stencil::gui {
 
   // One eased clock per tab, towards hovered (1) or rest (0).
   void UnderlineTabBar::setHovered(int idx) {
-    if (idx == hoverIdx_) return;
-    animateHover(hoverIdx_, 0.0);
-    hoverIdx_ = idx;
-    animateHover(hoverIdx_, 1.0);
-    if (idx >= 0) sweep_->sweepBand(tabRect(idx)); else sweep_->cancel();
+    if (idx == hoverIdx) return;
+    animateHover(hoverIdx, 0.0);
+    hoverIdx = idx;
+    animateHover(hoverIdx, 1.0);
+    if (idx >= 0) sweep->sweepBand(tabRect(idx)); else sweep->cancel();
   }
 
   void UnderlineTabBar::animateHover(int i, double to) {
     if (i < 0) return;
     if (support::motionReduced()) {
-      hoverVal_[i] = to;
+      hoverVal[i] = to;
       update();
       return;
     }
-    QVariantAnimation*& a = hoverAnims_[i];
+    QVariantAnimation*& a = hoverAnims[i];
     if (!a) {
       a = new QVariantAnimation(this);
       a->setDuration(HOVER_MS);
       a->setEasingCurve(QEasingCurve::OutCubic);
       QObject::connect(a, &QVariantAnimation::valueChanged, this,
                        [this, i](const QVariant& v) {
-                         hoverVal_[i] = v.toDouble();
+                         hoverVal[i] = v.toDouble();
                          update();
                        });
     }
     a->stop();
-    a->setStartValue(hoverVal_.value(i, 0.0));
+    a->setStartValue(hoverVal.value(i, 0.0));
     a->setEndValue(to);
     a->start();
   }

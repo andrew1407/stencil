@@ -74,7 +74,7 @@ namespace stencil::llm {
 
   bool CanvasPlanTarget::newBlank(const QString& color, const QString& isoName,
                                   double widthCm, double heightCm, QString* err) {
-    core::PageSize page = page_;
+    core::PageSize page = this->page;
     if (!isoName.isEmpty()) {
       const core::PageSize named = core::namedPageSize(isoName.toStdString());
       if (named.width > 0) page = named;
@@ -89,18 +89,18 @@ namespace stencil::llm {
     const core::SizePx px = core::defaultBlankSizePx(page, 96.0);
     QImage img(px.width, px.height, QImage::Format_RGB32);
     img.fill(QColor(rgba->r, rgba->g, rgba->b));
-    page_ = page;
-    canvas_->setPageCm(page_.width, page_.height);
-    canvas_->loadFromImage(
+    this->page = page;
+    canvas->setPageCm(this->page.width, this->page.height);
+    canvas->loadFromImage(
         img,
         core::CropRect{0, 0, static_cast<double>(px.width), static_cast<double>(px.height)},
         0);
-    blank_ = true;
+    blank = true;
     return true;
   }
 
   bool CanvasPlanTarget::setBlankColor(const QString& color, QString* note) {
-    if (!blank_ || !canvas_->hasImage()) {
+    if (!blank || !canvas->hasImage()) {
       // §10: valid only on a BLANK project — a note+skip, never a plan error.
       if (note) *note = QStringLiteral("only a blank page's background can be recoloured");
       return true;
@@ -112,17 +112,17 @@ namespace stencil::llm {
     }
     // Recolour in place, KEEPING the drawn lines (the point of the op — a
     // fresh `blank` would destroy them).
-    const core::Lines keep = canvas_->lines();
-    const QSize sz = canvas_->image().size();
+    const core::Lines keep = canvas->getLines();
+    const QSize sz = canvas->getImage().size();
     QImage img(sz, QImage::Format_RGB32);
     img.fill(QColor(rgba->r, rgba->g, rgba->b));
-    canvas_->loadFromImage(
+    canvas->loadFromImage(
         img,
         core::CropRect{0, 0, static_cast<double>(sz.width()),
                        static_cast<double>(sz.height())},
         0);
-    if (!keep.empty()) canvas_->setLines(keep);
-    blank_ = true;  // loadFromImage doesn't change what this canvas holds
+    if (!keep.empty()) canvas->setLines(keep);
+    blank = true;  // loadFromImage doesn't change what this canvas holds
     return true;
   }
 

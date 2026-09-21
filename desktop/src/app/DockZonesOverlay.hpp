@@ -34,14 +34,14 @@ namespace stencil::gui {
     QRect zoneRect(int i) const;
     void drawChevron(QPainter& p, int i, const QRect& z, bool hot);
 
-    QColor accent_;
+    QColor accent;
     // Qt has no backdrop filter, so the bands paint their own blurred copy (browser .chat-dock-zone backdrop-filter).
-    QPixmap backdrop_;
-    int hover_ = -1;
-    qreal nudge_ = 0.0;
-    QVariantAnimation* nudgeAnim_ = nullptr;
-    QTimer* watchdog_ = nullptr;
-    std::function<bool()> stillDragging_;
+    QPixmap backdrop;
+    int hover = -1;
+    qreal nudge = 0.0;
+    QVariantAnimation* nudgeAnim = nullptr;
+    QTimer* watchdog = nullptr;
+    std::function<bool()> stillDragging;
   };
 
 }  // namespace stencil::gui

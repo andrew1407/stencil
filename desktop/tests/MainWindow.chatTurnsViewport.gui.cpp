@@ -15,23 +15,23 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
     // Enough long messages that the transcript really scrolls: bubbles stretch to the full cap width
     // once they wrap (applyChatBubbleWidths), so more turns are needed to leave a row clipped.
     for (int i = 0; i < 14; ++i) {
-      win.chatDock_->appendUser(
+      win.chatDock->appendUser(
           QStringLiteral("Loading the image into incognito, converting to black & white "
                          "and cropping to portrait 3:4. Once it's done I will report "
                          "back with the result (%1).").arg(i));
-      win.chatDock_->appendAssistant(
+      win.chatDock->appendAssistant(
           QStringLiteral("Working on it — this reply is deliberately long so the row is "
                          "taller than a line and gets clipped by the viewport edge "
                          "while scrolling (%1).").arg(i));
     }
-    settleLayout(win.chatDock_, 300);
+    settleLayout(win.chatDock, 300);
 
     const auto globalRect = [](QWidget* w) {
       return QRect(w->mapToGlobal(QPoint(0, 0)), w->size());
@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
     // The jump pills' current box: a row whose "…" would land under them hides it instead
     // (placeChatCardMore's shift-else-hide), so checks wanting a SHOWN "…" must skip that corner.
     const auto pillsBox = [&] {
-      return static_cast<stencil::gui::ChatDock*>(win.chatDock_)->jumpPillsGlobalRect();
+      return static_cast<stencil::gui::ChatDock*>(win.chatDock)->jumpPillsGlobalRect();
     };
     const auto crowdedByPills = [&](const QRect& cardGlobal) {
       const QRect p = pillsBox();
@@ -206,32 +206,32 @@ class MainWindowGuiTest : public QObject {
     };
 
     QScrollArea* dockScroll = nullptr;
-    for (QScrollArea* a : win.chatDock_->findChildren<QScrollArea*>()) dockScroll = a;
-    checkSurface(win.chatDock_, dockScroll, "docked");
-    checkSliver(win.chatDock_, dockScroll, "docked");
-    win.chatDock_->setMinimumWidth(0);
-    win.resizeDocks({win.chatDock_}, {230}, Qt::Horizontal);   // squeeze it
-    settleLayout(win.chatDock_, 300);
-    checkNarrow(win.chatDock_, dockScroll, "docked narrow");
+    for (QScrollArea* a : win.chatDock->findChildren<QScrollArea*>()) dockScroll = a;
+    checkSurface(win.chatDock, dockScroll, "docked");
+    checkSliver(win.chatDock, dockScroll, "docked");
+    win.chatDock->setMinimumWidth(0);
+    win.resizeDocks({win.chatDock}, {230}, Qt::Horizontal);   // squeeze it
+    settleLayout(win.chatDock, 300);
+    checkNarrow(win.chatDock, dockScroll, "docked narrow");
 
     // The floating/compact shape uses the same transcript widget.
-    win.chatDock_->setFloating(true);
-    win.chatDock_->resize(360, 460);
-    settleLayout(win.chatDock_, 300);
-    checkSurface(win.chatDock_, dockScroll, "floating");
-    win.chatDock_->resize(240, 460);   // narrow float: bubbles at both edges
-    settleLayout(win.chatDock_, 300);
-    checkNarrow(win.chatDock_, dockScroll, "floating narrow");
-    win.chatDock_->setFloating(false);
-    settleLayout(win.chatDock_, 200);
+    win.chatDock->setFloating(true);
+    win.chatDock->resize(360, 460);
+    settleLayout(win.chatDock, 300);
+    checkSurface(win.chatDock, dockScroll, "floating");
+    win.chatDock->resize(240, 460);   // narrow float: bubbles at both edges
+    settleLayout(win.chatDock, 300);
+    checkNarrow(win.chatDock, dockScroll, "floating narrow");
+    win.chatDock->setFloating(false);
+    settleLayout(win.chatDock, 200);
 
     // …and so does the context menu's panel.
     win.ensureChatMenuPanel();
-    QVERIFY(win.chatMenuPanel_);
+    QVERIFY(win.chatMenuPanel);
     // It normally lives inside the menu's QWidgetAction; show it in place so it
     // lays out (a hidden scroll area has no range to scroll).
-    win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel_->show();
+    win.chatMenuPanel->setGeometry(20, 20, 340, 640);
+    win.chatMenuPanel->show();
     // The panel is built lazily and mirrors the SHARED history, which these
     // direct dock appends never touched — mirror the same volume into it.
     for (int i = 0; i < 14; ++i) {
@@ -245,9 +245,9 @@ class MainWindowGuiTest : public QObject {
                                     "the viewport edge while scrolling (%1).").arg(i),
                      false);
     }
-    settleLayout(win.chatMenuPanel_, 200);
-    checkSurface(win.chatMenuPanel_,
-                 win.chatMenuPanel_->findChild<QScrollArea*>("chatMenuTranscript"), "menu panel");
+    settleLayout(win.chatMenuPanel, 200);
+    checkSurface(win.chatMenuPanel,
+                 win.chatMenuPanel->findChild<QScrollArea*>("chatMenuTranscript"), "menu panel");
     beat();
   }
 

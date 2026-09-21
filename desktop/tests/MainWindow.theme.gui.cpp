@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     QVERIFY(logo);
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QVERIFY2(fx, "logo hover fx overlay not installed");
@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QVERIFY(logo && fx);
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
@@ -89,10 +89,10 @@ class MainWindowGuiTest : public QObject {
     bool opened = false, heldOnCrossing = false, heldOnBox = false;
     bool stoppedOffBoth = false, startedOnBox = false;
     QTimer::singleShot(600, &win, [&] {   // past the popover's open flight
-      QWidget* box = win.pop_.overlay.data();
-      opened = box && box->isVisible() && win.pop_.active &&
-               win.pop_.active->objectName() == QLatin1String("accentPopover");
-      if (!opened) { if (win.pop_.active) win.pop_.active->reject(); return; }
+      QWidget* box = win.pop.overlay.data();
+      opened = box && box->isVisible() && win.pop.active &&
+               win.pop.active->objectName() == QLatin1String("accentPopover");
+      if (!opened) { if (win.pop.active) win.pop.active->reject(); return; }
       // The cursor crosses the anchor gap onto the box: the logo's Leave alone must not
       // stop the loop (the browser's hover bridge), and resting on the box holds it.
       const QPoint boxGlobal = box->mapToGlobal(box->rect().center());
@@ -114,11 +114,11 @@ class MainWindowGuiTest : public QObject {
       startedOnBox = fx->property("fxActive").toBool();
       QCursor::setPos(awayGlobal);
       leave(box);
-      win.pop_.active->reject();
+      win.pop.active->reject();
     });
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logoGlobal);
     QApplication::sendEvent(logo, &ctx);   // blocks in the popover's loop until the timer acts
-    QTRY_VERIFY(!win.pop_.active);
+    QTRY_VERIFY(!win.pop.active);
     QVERIFY2(opened, "right-click did not open the accent popover");
     QVERIFY2(heldOnCrossing, "leaving the logo for the open popover stopped the shine");
     QVERIFY2(heldOnBox, "hovering the open popover did not hold the shine");

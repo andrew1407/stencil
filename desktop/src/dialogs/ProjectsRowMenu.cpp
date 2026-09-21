@@ -30,16 +30,16 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
     const QColor ico = palette().color(QPalette::WindowText);
-    const bool haveServers = connections_ && !connections_->urls().isEmpty();
+    const bool haveServers = connections && !connections->urls().isEmpty();
     QMenu menu(this);
 
     // Where a window raised from this menu flies back to: the menu is gone by close time, so the
     // motes pour into the row's "..." chip. Browser twin: projectsModal.js passes `menuBtn`.
     const QRect kebabGlobal = [this, it]() -> QRect {
-      auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
+      auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
       if (!del) return {};
-      const QRect chip = del->kebabChipFor(list_->visualItemRect(it));
-      return chip.isValid() ? QRect(list_->viewport()->mapToGlobal(chip.topLeft()), chip.size())
+      const QRect chip = del->kebabChipFor(list->visualItemRect(it));
+      return chip.isValid() ? QRect(list->viewport()->mapToGlobal(chip.topLeft()), chip.size())
                             : QRect();
     }();
 
@@ -50,13 +50,13 @@ namespace stencil::gui {
       const QString server = it->data(Qt::UserRole + 1).toString();
       QString current;
       if (server.isEmpty()) {
-        for (const auto& p : projects_)
+        for (const auto& p : projects)
           if (QString::fromStdString(p.meta.id) == id) {
             current = QString::fromStdString(p.meta.description);
             break;
           }
       } else {
-        for (const auto& sp : remote_)
+        for (const auto& sp : this->remote)
           if (sp.id == id && sp.serverUrl == server) { current = sp.description; break; }
       }
       PromptSpec spec;
@@ -90,13 +90,13 @@ namespace stencil::gui {
       const QString server = it->data(Qt::UserRole + 1).toString();
       QStringList current;
       if (server.isEmpty()) {
-        for (const auto& p : projects_)
+        for (const auto& p : projects)
           if (QString::fromStdString(p.meta.id) == id) {
             for (const auto& k : p.meta.keywords) current << QString::fromStdString(k);
             break;
           }
       } else {
-        for (const auto& sp : remote_)
+        for (const auto& sp : this->remote)
           if (sp.id == id && sp.serverUrl == server) { current = sp.keywords; break; }
       }
       PromptSpec spec;
@@ -135,12 +135,12 @@ namespace stencil::gui {
       if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;   // local only
       const QString id = it->data(Qt::UserRole).toString();
       const core::ProjectMeta* meta = nullptr;
-      for (const auto& p : projects_)
+      for (const auto& p : projects)
         if (QString::fromStdString(p.meta.id) == id) { meta = &p.meta; break; }
       if (!meta) return;
       ExpirationDialog exp(QString::fromStdString(meta->name), meta->expiresAt,
                            QString::fromStdString(meta->refreshPeriod), meta->autoRefresh,
-                           now_, this);
+                           now, this);
       support::revealDialog(exp, nullptr, support::gestureAnchorRect(), kebabGlobal);
       if (exp.exec() != QDialog::Accepted) return;
       emit expirationRequested(id, exp.expiresAtMs(), exp.refreshPeriod(), exp.autoRefresh());
@@ -156,7 +156,7 @@ namespace stencil::gui {
     if (remote) {
       menu.addAction(themedIcon("folder", ico, 16), "Open from server", this,
                      &ProjectsDialog::openSelected);
-      if (openInServerOk_)
+      if (openInServerOk)
         menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
                        [this, it, kebabGlobal] {
                          emit openInRequested(it->data(Qt::UserRole).toString(),
@@ -178,14 +178,14 @@ namespace stencil::gui {
                      &ProjectsDialog::openSelected);
       menu.addAction(themedIcon("external", ico, 16), "Open in new window", this,
                      &ProjectsDialog::openSelectedInNewWindow);
-      if (openInLocalOk_)
+      if (openInLocalOk)
         menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
                        [this, it, kebabGlobal] {
                          emit openInRequested(it->data(Qt::UserRole).toString(), QString(),
                                               kebabGlobal);
                        });
       menu.addAction(themedIcon("pencil", ico, 16), "Rename", this,
-                     [this] { beginInlineRename(list_->currentItem()); });
+                     [this] { beginInlineRename(list->currentItem()); });
       menu.addAction(themedIcon("palette", ico, 16), "Set color", this,
                      &ProjectsDialog::setColorSelected);
       if (hasColor)
@@ -217,9 +217,9 @@ namespace stencil::gui {
     support::revealMenu(menu, globalPos);   // grow-from-the-cursor pop
     // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly
     // as long as the popup lives — they capture it and fly their answer back into the chip.
-    hover_.menuKebabRect = kebabGlobal;
+    hover.menuKebabRect = kebabGlobal;
     menu.exec(globalPos);
-    hover_.menuKebabRect = QRect();
+    hover.menuKebabRect = QRect();
   }
 
 }  // namespace stencil::gui

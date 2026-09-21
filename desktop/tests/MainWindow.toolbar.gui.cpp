@@ -21,21 +21,21 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 120);
 
     const bool shares = stencil::support::isShareSheetAvailable();
-    QCOMPARE(win.actShareImage_->isVisible(), shares);
+    QCOMPARE(win.actShareImage->isVisible(), shares);
     QToolButton* btn = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>())
-      if (b->defaultAction() == win.actShareImage_) btn = b;
+      if (b->defaultAction() == win.actShareImage) btn = b;
     QVERIFY2(btn, "the Share action has no toolbar button at all");
     QCOMPARE(btn->isVisible(), shares);
     if (shares) {
-      QVERIFY(win.actShareImage_->isEnabled());
+      QVERIFY(win.actShareImage->isEnabled());
       return;
     }
     // …and the chord is dead with it: Qt will not enable an invisible action, so the
     // refresh that follows every image load cannot bring it back.
-    QVERIFY2(!win.actShareImage_->isEnabled(), "the Share chord is live with no share sheet");
-    win.actShareImage_->setEnabled(true);
-    QVERIFY2(!win.actShareImage_->isEnabled(), "an invisible Share action took enabling");
+    QVERIFY2(!win.actShareImage->isEnabled(), "the Share chord is live with no share sheet");
+    win.actShareImage->setEnabled(true);
+    QVERIFY2(!win.actShareImage->isEnabled(), "an invisible Share action took enabling");
   }
   // The script window's button opens the DATA section (browser toolbar.js puts #script-btn first
   // there) and carries the shared registry's chord. Its dialog is exec()'d, so this checks the wiring.
@@ -53,19 +53,19 @@ class MainWindowGuiTest : public QObject {
     for (QToolButton* b : data->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
     QVERIFY2(!got.isEmpty(), "the DATA section has no buttons");
-    QCOMPARE(got.first(), win.actScript_);
+    QCOMPARE(got.first(), win.actScript);
 
-    QCOMPARE(win.actScript_->shortcut(), QKeySequence(win.hotkey("openScript", "Alt+Shift+S")));
+    QCOMPARE(win.actScript->shortcut(), QKeySequence(win.hotkey("openScript", "Alt+Shift+S")));
     QMenu* dataMenu = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(win.actScript_)) dataMenu = m;
+      if (m->actions().contains(win.actScript)) dataMenu = m;
     QVERIFY2(dataMenu, "the script action is not in any menu");
 
     // A script can open its OWN source, so the window is live with no image loaded.
-    QVERIFY2(win.actScript_->isEnabled(), "the script window is gated on an image");
+    QVERIFY2(win.actScript->isEnabled(), "the script window is gated on an image");
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY2(win.actScript_->isEnabled(), "the script window went dead once an image loaded");
+    QVERIFY2(win.actScript->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
   // One cluster sequence across both surfaces (browser js/ui/toolbar.js): Image · Description ·
@@ -90,12 +90,12 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(sections, want);
     // Where the rows BREAK that sequence is a packing decision, so every row has to survive a narrow
     // window on its own: none may fall back on QToolBar's "»", which is how SETTINGS once vanished.
-    win.allowFormulas_->setChecked(true);
-    const int custom = win.units_.pageSize->findData(QStringLiteral("custom"));
+    win.allowFormulas->setChecked(true);
+    const int custom = win.units.pageSize->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);
-    const int a3 = win.units_.pageSize->findData(QStringLiteral("A3"));
+    const int a3 = win.units.pageSize->findData(QStringLiteral("A3"));
     QVERIFY(a3 >= 0);
-    win.units_.pageSize->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
+    win.units.pageSize->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
     settleLayout(&win, 150);
     for (const int width : {1400, 1100, 1000}) {
       win.resize(width, 950);
@@ -111,7 +111,7 @@ class MainWindowGuiTest : public QObject {
     }
     // …and once more with the custom page's W × H boxes out — they add ~160px to the PAGE
     // cluster (squeezable, but only so far), so that state is checked one step wider.
-    win.units_.pageSize->setCurrentIndex(custom);
+    win.units.pageSize->setCurrentIndex(custom);
     settleLayout(&win, 150);
     for (const int width : {1400, 1100}) {
       win.resize(width, 950);
@@ -125,7 +125,7 @@ class MainWindowGuiTest : public QObject {
                                     .arg(width).arg(tb->objectName())));
       }
     }
-    win.units_.pageSize->setCurrentIndex(a3);   // this suite shares the real settings file
+    win.units.pageSize->setCurrentIndex(a3);   // this suite shares the real settings file
   }
   // A squeezed window WRAPS its tool row (support/WrapRow.hpp) — the browser's flex-wrap.
   // QToolBar's own answer is the "»" overflow, where a widget action is not drawn at all.

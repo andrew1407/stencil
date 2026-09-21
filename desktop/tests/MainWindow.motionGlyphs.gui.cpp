@@ -92,8 +92,8 @@ class MainWindowGuiTest : public QObject {
           win.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
           break;
         case REOPENED_PROJECT:
-          QVERIFY2(!win.activeProjectId_.isEmpty(), "the loaded image was adopted as a project");
-          QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_), name);
+          QVERIFY2(!win.activeProjectId.isEmpty(), "the loaded image was adopted as a project");
+          QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId), name);
           break;
       }
       QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
@@ -126,7 +126,7 @@ class MainWindowGuiTest : public QObject {
         // The open's own arrival has to land first, or the rebind inherits its dust.
         QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
                                   stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
-        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_, /*animate=*/false), name);
+        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId, /*animate=*/false), name);
         settle([&] { return win.findChild<QWidget*>(DUST) != nullptr; }, 150);
         QVERIFY2(!win.findChild<QWidget*>(DUST), "a rebind is not an image appearing");
       }
@@ -141,7 +141,7 @@ class MainWindowGuiTest : public QObject {
       clear->trigger();
       QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
       QVERIFY2(!win.findChild<QWidget*>(DUST), "no dust on the clear either");
-      QVERIFY2(!canvas->idleHintHidden(), "the invitation is not held back by a missing animation");
+      QVERIFY2(!canvas->getIdleHintHidden(), "the invitation is not held back by a missing animation");
     }
     beat();
   }

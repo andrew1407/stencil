@@ -38,35 +38,35 @@ namespace stencil::gui {
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
     if (it->data(DOOMED_ROLE).toBool()) return;
     closeInlineRename();
-    if (press_.clickTimer) press_.clickTimer->stop();   // a rename is not an open
+    if (press.clickTimer) press.clickTimer->stop();   // a rename is not an open
     const QString id = it->data(Qt::UserRole).toString();
     const QString current = it->data(Qt::UserRole + 3).toString();
 
     // The same uniqueness/length rules the browser's inline editor applies.
-    auto store = loadedNameStore(projects_);
+    auto store = loadedNameStore(projects);
 
-    const QRect vr = list_->visualItemRect(it);
-    auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
-    QRect nr = del ? del->nameRectFor(list_->row(it)) : QRect();
+    const QRect vr = list->visualItemRect(it);
+    auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
+    QRect nr = del ? del->nameRectFor(list->row(it)) : QRect();
     if (nr.isEmpty()) nr = QRect(vr.left() + 80, vr.top() + 8, 200, 18);
 
-    renameBox_ = new QWidget(list_->viewport());
-    renameBox_->setObjectName("projectsRenameBox");
-    auto* lay = new QHBoxLayout(renameBox_);
+    renameBox = new QWidget(list->viewport());
+    renameBox->setObjectName("projectsRenameBox");
+    auto* lay = new QHBoxLayout(renameBox);
     lay->setContentsMargins(0, 2, 2, 2);   // even air around the ✓/✗ inside the box
     lay->setSpacing(5);
     // A row's chips are the height of the FIELD beside them: the editor reads as one
     // control, and clears the row's top border instead of straddling it.
     constexpr int RENAME_GLYPH = 12;
     constexpr int RENAME_BOX = 22;
-    auto* edit = new QLineEdit(current, renameBox_);
+    auto* edit = new QLineEdit(current, renameBox);
     edit->setObjectName("projectsRenameEdit");
     edit->setToolTip(tr("Project name"));
     edit->setFixedHeight(RENAME_BOX);   // …the chips' own height: one control, three parts
     lay->addWidget(edit, 1);
     // The browser's .name-edit-btn chips: accent-filled with a WHITE glyph (a green tick and a red
     // cross read as a warning). The shared objectName carries their QSS; sized by NAME_CHIP_*.
-    auto* okBtn = new QToolButton(renameBox_);
+    auto* okBtn = new QToolButton(renameBox);
     okBtn->setObjectName("projectsRenameBtn");
     okBtn->setIcon(themedIcon("check", QColor("#ffffff"), RENAME_GLYPH));
     okBtn->setIconSize(QSize(RENAME_GLYPH, RENAME_GLYPH));
@@ -76,7 +76,7 @@ namespace stencil::gui {
     okBtn->setFocusPolicy(Qt::NoFocus);
     installHoverShimmer(okBtn);   // the row's editor is built on demand, after the dialog's sweep
     lay->addWidget(okBtn);   // its cursor follows enabled/disabled — see makeNameValidator
-    auto* cancelBtn = new QToolButton(renameBox_);
+    auto* cancelBtn = new QToolButton(renameBox);
     cancelBtn->setObjectName("projectsRenameBtn");
     cancelBtn->setIcon(themedIcon("x", QColor("#ffffff"), RENAME_GLYPH));
     cancelBtn->setIconSize(QSize(RENAME_GLYPH, RENAME_GLYPH));
@@ -97,12 +97,12 @@ namespace stencil::gui {
     const int h = RENAME_BOX + 4;   // the field's height plus the box's own air
     // …centred on the name line, but never across the row's own edges.
     const int top = std::clamp(nr.center().y() - h / 2, vr.top() + 3, vr.bottom() - h - 3);
-    renameBox_->setGeometry(left, top, width, h);
+    renameBox->setGeometry(left, top, width, h);
     // The ✓/✗ FORM from dust once the editor is up (browser markIn parity): hidden
     // before show, then revealed — their slots open under the gathering motes.
     okBtn->hide();
     cancelBtn->hide();
-    renameBox_->show();
+    renameBox->show();
     revealControls(okBtn, true);
     revealControls(cancelBtn, true);
     edit->setFocus();
@@ -112,7 +112,7 @@ namespace stencil::gui {
     // The shared ✓-enable/tooltip validation (no rest-state tooltip on the chips —
     // user decision, browser look).
     const auto revalidate = makeNameValidator(store, edit, okBtn, id, current);
-    connect(edit, &QLineEdit::textChanged, renameBox_, [revalidate](const QString&) { revalidate(); });
+    connect(edit, &QLineEdit::textChanged, renameBox, [revalidate](const QString&) { revalidate(); });
     revalidate();
     QPointer<ProjectsDialog> self(this);
     auto commit = [this, self, store, edit, id, current] {
@@ -123,15 +123,15 @@ namespace stencil::gui {
       closeInlineRename();
       emit renameRequested(id, name);   // the owner renames, then calls setProjects()
     };
-    connect(okBtn, &QToolButton::clicked, renameBox_, commit);
-    connect(cancelBtn, &QToolButton::clicked, renameBox_, [this, self] { if (self) closeInlineRename(); });
-    connect(edit, &QLineEdit::returnPressed, renameBox_, commit);
+    connect(okBtn, &QToolButton::clicked, renameBox, commit);
+    connect(cancelBtn, &QToolButton::clicked, renameBox, [this, self] { if (self) closeInlineRename(); });
+    connect(edit, &QLineEdit::returnPressed, renameBox, commit);
   }
 
   void ProjectsDialog::closeInlineRename() {
-    if (!renameBox_) return;
-    QWidget* box = renameBox_;
-    renameBox_ = nullptr;   // cleared FIRST — hiding fires the edit's FocusOut back into us
+    if (!renameBox) return;
+    QWidget* box = renameBox;
+    renameBox = nullptr;   // cleared FIRST — hiding fires the edit's FocusOut back into us
     // The ✓/✗ come apart as dust (browser markOut parity): the flight is a snapshot on
     // the dialog window, so the editor itself still goes away NOW.
     for (QToolButton* b : box->findChildren<QToolButton*>()) revealControls(b, false);

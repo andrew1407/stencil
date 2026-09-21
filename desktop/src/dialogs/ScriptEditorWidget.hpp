@@ -36,7 +36,7 @@ namespace stencil::gui {
 
     ScriptEditorWidget(QWidget* parent, const Style& style);
 
-    QPlainTextEdit* editor() const { return edit_; }
+    QPlainTextEdit* editor() const { return edit; }
     QString script() const;
     void setScript(const QString& text);
     bool isEmpty() const;   // nothing but whitespace
@@ -46,7 +46,7 @@ namespace stencil::gui {
     void copyToClipboard() const;
 
     // The parse the colours came from, so a Run lexes the text once.
-    const model::ScriptDoc& program() const { return program_; }
+    const model::ScriptDoc& getProgram() const { return program; }
 
     // Re-lexes and re-colours; the strip stays empty until a run reports.
     void recolour();
@@ -69,16 +69,16 @@ namespace stencil::gui {
     void setFrameState(const char* key, bool on);
     void applyLineHeight();
 
-    Style style_;
-    QFrame* glow_ = nullptr;
-    QFrame* wrap_ = nullptr;
-    QPlainTextEdit* edit_ = nullptr;
-    QLabel* diag_ = nullptr;
-    ScriptHighlighter* highlighter_ = nullptr;
-    model::ScriptDoc program_;
+    Style style;
+    QFrame* glow = nullptr;
+    QFrame* wrap = nullptr;
+    QPlainTextEdit* edit = nullptr;
+    QLabel* diag = nullptr;
+    ScriptHighlighter* highlighter = nullptr;
+    model::ScriptDoc program;
     /* Re-colouring the document is itself a document change, so the editor's textChanged
      * comes back at us mid-paint; without this the two call each other until the stack ends. */
-    bool painting_ = false;
+    bool painting = false;
   };
 
 }  // namespace stencil::gui

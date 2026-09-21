@@ -73,7 +73,7 @@ void canvasWiring() {
   // the anchor and the segment has no length yet, so there would be nothing to see leaving.
   spin(90);
   const QImage flying = shot(canvas);
-  check(canvas.currentLine().points.size() == 2, "the click really added the point");
+  check(canvas.getCurrentLine().points.size() == 2, "the click really added the point");
   check(!inkNear(flying, target.x(), target.y(), ink, 8),
         "mid-flight the vertex has not reached the point you clicked");
   check(inkNear(flying, anchor.x() + 30, anchor.y() + 21, ink, 10),

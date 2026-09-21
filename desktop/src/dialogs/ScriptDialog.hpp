@@ -44,11 +44,11 @@ namespace stencil::gui {
     bool readInto(const QString& path);
     void saveFile();
 
-    ScriptEditorWidget* editor_ = nullptr;
-    QPushButton* copyBtn_ = nullptr;
-    QPushButton* downloadBtn_ = nullptr;
-    QPushButton* clearBtn_ = nullptr;
-    QPushButton* runBtn_ = nullptr;
+    ScriptEditorWidget* editor = nullptr;
+    QPushButton* copyBtn = nullptr;
+    QPushButton* downloadBtn = nullptr;
+    QPushButton* clearBtn = nullptr;
+    QPushButton* runBtn = nullptr;
   };
 
 }  // namespace stencil::gui

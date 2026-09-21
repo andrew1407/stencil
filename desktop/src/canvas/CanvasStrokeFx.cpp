@@ -9,8 +9,8 @@
 namespace stencil::gui {
 
   QRect CanvasWidget::lineRect(int lineIdx) const {
-    if (lineIdx < -1 || lineIdx >= static_cast<int>(lines_.size())) return {};
-    const core::Line& line = lineIdx < 0 ? currentLine_ : lines_[lineIdx];
+    if (lineIdx < -1 || lineIdx >= static_cast<int>(lines.size())) return {};
+    const core::Line& line = lineIdx < 0 ? currentLine : lines[lineIdx];
     if (line.points.empty()) return {};
     double x0 = line.points[0].x, y0 = line.points[0].y, x1 = x0, y1 = y0;
     const auto add = [&](double x, double y) {
@@ -21,7 +21,7 @@ namespace stencil::gui {
       add(pt.x, pt.y);
       // A vertex in flight starts off the line (its anchor or its foot on the segment it
       // split) and eases PAST its target before settling; the bow is covered by the pad.
-      if (const stroke::Flight* f = strokeFx_.at(lineIdx, pt)) {
+      if (const stroke::Flight* f = strokeFx.at(lineIdx, pt)) {
         add(f->from.x(), f->from.y());
         const QPointF over = f->to + (f->to - f->from) * 0.07;
         add(over.x(), over.y());
@@ -29,23 +29,23 @@ namespace stencil::gui {
     }
     // Stroke half-width plus the wake's extra 7, the ripple's 4.2x point radius, the bow cap.
     const double pad = line.thickness + line.pointSize * 4.2 + stroke::BOW_MAX + 8.0;
-    return QRectF((x0 - pad) * scale_, (y0 - pad) * scale_, (x1 - x0 + 2 * pad) * scale_,
-                  (y1 - y0 + 2 * pad) * scale_)
+    return QRectF((x0 - pad) * scale, (y0 - pad) * scale, (x1 - x0 + 2 * pad) * scale,
+                  (y1 - y0 + 2 * pad) * scale)
         .toAlignedRect();
   }
 
   QRect CanvasWidget::dragRect() const {
-    if (dragKind_ == DragKind::NONE) return {};
-    QRect r = lineRect(dragLineIdx_);
-    for (const auto& entry : dragMultiOrig_) r = r.united(lineRect(entry.first));
+    if (dragKind == DragKind::NONE) return {};
+    QRect r = lineRect(dragLineIdx);
+    for (const auto& entry : dragMultiOrig) r = r.united(lineRect(entry.first));
     return r;
   }
 
   QRect CanvasWidget::strokeFxRect() const {
-    if (!strokeFx_.active()) return {};
-    QRect r = strokeFx_.touches(-1) ? lineRect(-1) : QRect();
-    for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
-      if (strokeFx_.touches(i)) r = r.united(lineRect(i));
+    if (!strokeFx.active()) return {};
+    QRect r = strokeFx.touches(-1) ? lineRect(-1) : QRect();
+    for (int i = 0; i < static_cast<int>(lines.size()); ++i)
+      if (strokeFx.touches(i)) r = r.united(lineRect(i));
     return r;
   }
 
@@ -53,12 +53,12 @@ namespace stencil::gui {
                                   bool live, QPolygonF& poly) const {
     poly.clear();
     poly.reserve(static_cast<int>(line.points.size()));
-    const bool moving = live && strokeFx_.touches(lineIdx);
+    const bool moving = live && strokeFx.touches(lineIdx);
     const double now = moving ? fxNow() : 0.0;
     for (const auto& pt : line.points) {
       QPointF at(pt.x, pt.y);
       if (moving) {
-        if (const stroke::Flight* f = strokeFx_.at(lineIdx, pt)) {
+        if (const stroke::Flight* f = strokeFx.at(lineIdx, pt)) {
           const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
           if (ph.fly < 1.0) at = stroke::flyPoint(f->from, f->to, ph.fly, f->bow);
         }
@@ -72,10 +72,10 @@ namespace stencil::gui {
   void CanvasWidget::drawStrokeWake(QPainter& p, const core::Line& line,
                                     const QPolygonF& poly, int lineIdx,
                                     const QColor& stroke) const {
-    if (!showLines_ || !strokeFx_.touches(lineIdx)) return;
+    if (!showLines || !strokeFx.touches(lineIdx)) return;
     const double now = fxNow();
     for (int i = 0; i < static_cast<int>(line.points.size()); ++i) {
-      const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[i]);
+      const stroke::Flight* f = strokeFx.at(lineIdx, line.points[i]);
       if (!f) continue;
       const double a = stroke::wake(stroke::phase(now - f->start, f->fly).span);
       if (a < 0.01) continue;
@@ -99,11 +99,11 @@ namespace stencil::gui {
   void CanvasWidget::drawStrokeSpark(QPainter& p, const core::Line& line,
                                      const QPolygonF& poly, int lineIdx,
                                      const QColor& pointFill) const {
-    if (!strokeFx_.touches(lineIdx)) return;
+    if (!strokeFx.touches(lineIdx)) return;
     const double now = fxNow();
     const double r = line.pointSize;
     for (int i = 0; i < poly.size() && i < static_cast<int>(line.points.size()); ++i) {
-      const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[i]);
+      const stroke::Flight* f = strokeFx.at(lineIdx, line.points[i]);
       if (!f) continue;
       const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
       if (ph.fly < 1.0) {
@@ -127,8 +127,8 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::resetStrokeFx() {
-    strokeFx_.clear();
-    fxTimer_.stop();
+    strokeFx.clear();
+    fxTimer.stop();
   }
 
   // Send a just-added vertex on its way and keep the frame timer running while it and
@@ -136,15 +136,15 @@ namespace stencil::gui {
   void CanvasWidget::flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
                                 const QPointF* from) {
     if (!support::isDrawingMotionOk()) return;   // "Drawing animation" off, or nothing may move
-    strokeFx_.flyIn(lineIdx, line, ptIdx, fxNow(), from);
-    if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
+    strokeFx.flyIn(lineIdx, line, ptIdx, fxNow(), from);
+    if (strokeFx.active() && !fxTimer.isActive()) fxTimer.start();
   }
 
   void CanvasWidget::flyInPoints(int lineIdx, const core::Line& line, int startIdx,
                                  int count) {
     if (!support::isDrawingMotionOk()) return;
-    strokeFx_.flyInRange(lineIdx, line, startIdx, count, fxNow());
-    if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
+    strokeFx.flyInRange(lineIdx, line, startIdx, count, fxNow());
+    if (strokeFx.active() && !fxTimer.isActive()) fxTimer.start();
   }
 
 }  // namespace stencil::gui

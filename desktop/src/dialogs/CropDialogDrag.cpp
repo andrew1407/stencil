@@ -21,21 +21,21 @@ namespace stencil::gui {
     if (e->button() != Qt::LeftButton) return;
     settleRect();   // a grab mid-flight takes the box where it is headed
     const int corner = cornerAt(e->pos());
-    dragStartImg_ = toImage(e->pos());
-    dragStartRect_ = rect_;
+    dragStartImg = toImage(e->pos());
+    dragStartRect = cropBox;
     if (corner >= 0) {
-      drag_ = Drag::RESIZE;
-      dragCorner_ = corner;
+      drag = Drag::RESIZE;
+      dragCorner = corner;
     } else if (displayRect().contains(e->pos())) {
-      drag_ = Drag::MOVE;
+      drag = Drag::MOVE;
     } else {
-      drag_ = Drag::NONE;
+      drag = Drag::NONE;
     }
   }
 
   void CropPreview::mouseMoveEvent(QMouseEvent* e) {
     // Cursor feedback even when not dragging.
-    if (drag_ == Drag::NONE) {
+    if (drag == Drag::NONE) {
       const int c = cornerAt(e->pos());
       if (c == 0 || c == 2) setCursor(Qt::SizeFDiagCursor);
       else if (c == 1 || c == 3) setCursor(Qt::SizeBDiagCursor);
@@ -44,31 +44,31 @@ namespace stencil::gui {
       return;
     }
     const core::Point cur = toImage(e->pos());
-    if (drag_ == Drag::MOVE) {
-      rect_ = core::moveCropClamped(dragStartRect_, cur.x - dragStartImg_.x,
-                                    cur.y - dragStartImg_.y, iw_, ih_);
+    if (drag == Drag::MOVE) {
+      cropBox = core::moveCropClamped(dragStartRect, cur.x - dragStartImg.x,
+                                    cur.y - dragStartImg.y, iw, ih);
     } else {
-      rect_ = core::resizeCropFromCorner(dragStartRect_, dragCorner_, cur.x, cur.y,
-                                         aspect_, iw_, ih_);
+      cropBox = core::resizeCropFromCorner(dragStartRect, dragCorner, cur.x, cur.y,
+                                         aspect, iw, ih);
     }
     update();
     emit cropChanged();
   }
 
   void CropPreview::mouseReleaseEvent(QMouseEvent*) {
-    drag_ = Drag::NONE;
-    dragCorner_ = -1;
+    drag = Drag::NONE;
+    dragCorner = -1;
   }
 
   // Mouse wheel over the crop rect grows/shrinks it about its centre (aspect locked, clamped) via core::scaleCropCentered — mirrors the browser.
   void CropPreview::wheelEvent(QWheelEvent* e) {
     const double dy = e->angleDelta().y();
     const QPoint pos = e->position().toPoint();
-    if (iw_ <= 0 || dy == 0.0 || !displayRect().contains(pos)) { e->ignore(); return; }
+    if (iw <= 0 || dy == 0.0 || !displayRect().contains(pos)) { e->ignore(); return; }
     settleRect();
-    rect_ = core::scaleCropCentered(rect_, std::pow(1.0015, dy), aspect_, iw_, ih_);
+    cropBox = core::scaleCropCentered(cropBox, std::pow(1.0015, dy), aspect, iw, ih);
     // Re-anchor an in-progress move/resize drag so the next mouse-move doesn't snap the size back.
-    if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+    if (drag != Drag::NONE) { dragStartRect = cropBox; dragStartImg = toImage(pos); }
     update();
     emit cropChanged();
     e->accept();
@@ -78,12 +78,12 @@ namespace stencil::gui {
   bool CropPreview::event(QEvent* e) {
     if (e->type() == QEvent::NativeGesture) {
       auto* g = static_cast<QNativeGestureEvent*>(e);
-      if (g->gestureType() == Qt::ZoomNativeGesture && iw_ > 0) {
+      if (g->gestureType() == Qt::ZoomNativeGesture && iw > 0) {
         const QPoint pos = g->position().toPoint();
         if (displayRect().contains(pos)) {
           settleRect();
-          rect_ = core::scaleCropCentered(rect_, 1.0 + g->value(), aspect_, iw_, ih_);
-          if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+          cropBox = core::scaleCropCentered(cropBox, 1.0 + g->value(), aspect, iw, ih);
+          if (drag != Drag::NONE) { dragStartRect = cropBox; dragStartImg = toImage(pos); }
           update();
           emit cropChanged();
           return true;
@@ -103,9 +103,9 @@ namespace stencil::gui {
     ModalChrome chrome = installModalChrome(this, QStringLiteral("crop"), tr("Crop Image"));
     chrome.body->setSpacing(12);   // browser .settings-body gap: 12px
 
-    preview_ = new CropPreview(original, pageWidthCm, pageHeightCm, initial, this);
-    if (initial.width <= 0) preview_->setAlbum(album);
-    chrome.body->addWidget(preview_, 0, Qt::AlignHCenter);
+    preview = new CropPreview(original, pageWidthCm, pageHeightCm, initial, this);
+    if (initial.width <= 0) preview->setAlbum(album);
+    chrome.body->addWidget(preview, 0, Qt::AlignHCenter);
 
     auto* dims = new QLabel(this);
     dims->setObjectName(QStringLiteral("cropDims"));
@@ -116,11 +116,11 @@ namespace stencil::gui {
         chrome, tr("Drag to move · drag a corner to resize (aspect locked to the page)."));
     // Browser order: the hint leads, then the orientation toggle with the other buttons
     // (#crop-orientation) — text left, every button right.
-    orientationBtn_ = new QPushButton(this);
-    makeModalCta(orientationBtn_, QStringLiteral("swap"));
-    orientationBtn_->setToolTip(tr("Swap album / portrait — flips the crop orientation"));
-    orientationBtn_->setAutoDefault(false);
-    footer->addWidget(orientationBtn_);
+    orientationBtn = new QPushButton(this);
+    makeModalCta(orientationBtn, QStringLiteral("swap"));
+    orientationBtn->setToolTip(tr("Swap album / portrait — flips the crop orientation"));
+    orientationBtn->setAutoDefault(false);
+    footer->addWidget(orientationBtn);
     auto* cancelBtn = new QPushButton(tr("Cancel"), this);
     makeModalCta(cancelBtn, QStringLiteral("x"));
     cancelBtn->setAutoDefault(false);
@@ -134,17 +134,17 @@ namespace stencil::gui {
     connect(applyBtn, &QPushButton::clicked, this, &QDialog::accept);
 
     auto refresh = [this, dims] {
-      const core::CropRect r = preview_->cropRect();
+      const core::CropRect r = preview->cropRect();
       dims->setText(QString("%1 × %2 px · %3")
                         .arg(qRound(r.width))
                         .arg(qRound(r.height))
-                        .arg(preview_->album() ? tr("Album (landscape)") : tr("Portrait")));
-      orientationBtn_->setText(preview_->album() ? tr("Album") : tr("Portrait"));
+                        .arg(preview->getAlbum() ? tr("Album (landscape)") : tr("Portrait")));
+      orientationBtn->setText(preview->getAlbum() ? tr("Album") : tr("Portrait"));
     };
-    connect(preview_, &CropPreview::cropChanged, this, refresh);
-    connect(orientationBtn_, &QPushButton::clicked, this, [this] {
-      preview_->setAlbum(!preview_->album());
-      support::spinIconOnce(orientationBtn_);   // the press turns the glyph it flips
+    connect(preview, &CropPreview::cropChanged, this, refresh);
+    connect(orientationBtn, &QPushButton::clicked, this, [this] {
+      preview->setAlbum(!preview->getAlbum());
+      support::spinIconOnce(orientationBtn);   // the press turns the glyph it flips
     });
     refresh();
     fitToScreen(chrome, footer);
@@ -163,14 +163,14 @@ namespace stencil::gui {
       layout()->invalidate();
       layout()->activate();
     };
-    preview_->setFitBox(box);
+    preview->setFitBox(box);
     measure();
-    const QSize chrome_(minimumSizeHint().width() - preview_->width(),
-                        sizeHint().height() - preview_->height());
-    const QSize room(avail.width() - 2 * SCREEN_MARGIN - chrome_.width(),
-                     avail.height() - 2 * SCREEN_MARGIN - chrome_.height());
+    const QSize chromeSize(minimumSizeHint().width() - preview->width(),
+                        sizeHint().height() - preview->height());
+    const QSize room(avail.width() - 2 * SCREEN_MARGIN - chromeSize.width(),
+                     avail.height() - 2 * SCREEN_MARGIN - chromeSize.height());
     if (box.width() > room.width() || box.height() > room.height()) {
-      preview_->setFitBox(QSize(qMin(box.width(), room.width()), qMin(box.height(), room.height())));
+      preview->setFitBox(QSize(qMin(box.width(), room.width()), qMin(box.height(), room.height())));
       measure();
     }
     const int minW = std::max({MIN_DIALOG_W, minimumSizeHint().width(),
@@ -182,6 +182,6 @@ namespace stencil::gui {
     resize(w, qMin(h, avail.height() - 2 * SCREEN_MARGIN));
   }
 
-  core::CropRect CropDialog::cropRect() const { return preview_->cropRect(); }
+  core::CropRect CropDialog::cropRect() const { return preview->cropRect(); }
 }
 

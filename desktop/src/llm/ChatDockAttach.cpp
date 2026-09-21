@@ -44,23 +44,23 @@ namespace stencil::gui {
   // The cue over the composer while a drag hovers it (browser .chat-drop-cue). Only the composer
   // takes a drop, so only the composer lights up.
   void ChatDock::showDropCue(bool on) {
-    if (!cmp_.dropCue) return;
+    if (!cmp.dropCue) return;
     if (on) {
       // Over the INPUT only: covering the whole composer swallowed the chips, the busy bar and the
       // send buttons under one slab. In the browser the cue sits on the box you type in.
-      QRect r = log_.inputArea->rect();
-      if (input_ && input_->isVisible()) {
-        const QPoint tl = input_->mapTo(log_.inputArea, QPoint(0, 0));
-        r = QRect(tl, input_->size());
+      QRect r = log.inputArea->rect();
+      if (input && input->isVisible()) {
+        const QPoint tl = input->mapTo(log.inputArea, QPoint(0, 0));
+        r = QRect(tl, input->size());
       }
-      cmp_.dropCue->setGeometry(r);
-      cmp_.dropCue->raise();
-      cmp_.dropCue->show();
-      if (cmp_.dropCueAnim && cmp_.dropCueAnim->state() != QAbstractAnimation::Running)
-        cmp_.dropCueAnim->start();
+      cmp.dropCue->setGeometry(r);
+      cmp.dropCue->raise();
+      cmp.dropCue->show();
+      if (cmp.dropCueAnim && cmp.dropCueAnim->state() != QAbstractAnimation::Running)
+        cmp.dropCueAnim->start();
     } else {
-      cmp_.dropCue->hide();
-      if (cmp_.dropCueAnim) cmp_.dropCueAnim->stop();
+      cmp.dropCue->hide();
+      if (cmp.dropCueAnim) cmp.dropCueAnim->stop();
     }
   }
 
@@ -73,27 +73,27 @@ namespace stencil::gui {
         if (!u.isLocalFile()) continue;
         const QString path = u.toLocalFile();
         if (isImageFileName(path)) {
-          if (cmp_.images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
+          if (cmp.images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
           const QImage img = readImageFile(path);
           if (!img.isNull()) {
-            cmp_.images.append(img);
-            cmp_.imageNames.append(QFileInfo(path).fileName());
+            cmp.images.append(img);
+            cmp.imageNames.append(QFileInfo(path).fileName());
             any = true;
           }
         } else if (isVideoFileName(path)) {
           // Same routing as the attach-video button: MainWindow extracts a
           // preview frame / offers the server upload.
-          cmp_.videoPath = path;
+          cmp.videoPath = path;
           any = true;
           emit videoAttached(path);
         }
       }
     }
-    if (!any && mime->hasImage() && cmp_.images.size() >= MAX_ATTACHMENTS) overCap = true;
-    if (!any && mime->hasImage() && cmp_.images.size() < MAX_ATTACHMENTS) {
+    if (!any && mime->hasImage() && cmp.images.size() >= MAX_ATTACHMENTS) overCap = true;
+    if (!any && mime->hasImage() && cmp.images.size() < MAX_ATTACHMENTS) {
       const QImage img = qvariant_cast<QImage>(mime->imageData());
       if (!img.isNull()) {
-        cmp_.images.append(img);
+        cmp.images.append(img);
         // A web-drag delivers the bitmap plus its source URL: name the chip from the URL when its last
         // segment is a real filename. An endpoint segment stays unnamed (browser fileNameForUrl parity).
         QString name;
@@ -102,7 +102,7 @@ namespace stencil::gui {
           const QString f = u.fileName();
           if (f.contains(QLatin1Char('.')) && f.size() <= 80) { name = f; break; }
         }
-        cmp_.imageNames.append(name);
+        cmp.imageNames.append(name);
         any = true;
       }
     }

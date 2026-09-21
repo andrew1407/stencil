@@ -5,10 +5,10 @@
 namespace stencil::gui {
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
-    wireWindowSwitching(dlg, pop_.dialogActions, opener);
+    wireWindowSwitching(dlg, pop.dialogActions, opener);
     // Park the originals while the dialog owns those chords.
     QList<QPair<QAction*, Qt::ShortcutContext>> parked;
-    for (QAction* a : pop_.dialogActions) {
+    for (QAction* a : pop.dialogActions) {
       if (!a || a->shortcut().isEmpty()) continue;
       parked.append({a, a->shortcutContext()});
       a->setShortcutContext(Qt::WidgetShortcut);
@@ -16,10 +16,10 @@ namespace stencil::gui {
     const QScopeGuard restore([&] {
       for (const auto& [a, ctx] : parked) a->setShortcutContext(ctx);
     });
-    QWidget* anchor = pop_.anchor.data();
-    pop_.anchor.clear();
+    QWidget* anchor = pop.anchor.data();
+    pop.anchor.clear();
     if (!anchor) {
-      support::revealDialog(dlg, pop_.dialogAnchor.data(), pop_.dialogAnchorRect);
+      support::revealDialog(dlg, pop.dialogAnchor.data(), pop.dialogAnchorRect);
       return dlg.exec();
     }
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
@@ -34,7 +34,7 @@ namespace stencil::gui {
     auto* overlay = new QWidget(this);
     overlay->setObjectName(QStringLiteral("popoverOverlay"));   // themed + found by tests
     // The popover extends the logo's hover (browser: the menu lives inside .app-logo-wrap).
-    if (anchor == logoBtn_ && logoFx_) asLogoFx(logoFx_)->holdWhile(overlay);
+    if (anchor == logoBtn && logoFx) asLogoFx(logoFx)->holdWhile(overlay);
     overlay->setAutoFillBackground(true);
     dlg.setParent(overlay);
     dlg.setWindowFlags(Qt::Widget);   // a plain child now: no frame, no title, no window
@@ -87,26 +87,26 @@ namespace stencil::gui {
         fade->start(QAbstractAnimation::DeleteWhenStopped);
       }
     }
-    pop_.active = &dlg;
-    pop_.overlay = overlay;
+    pop.active = &dlg;
+    pop.overlay = overlay;
     // Alt-GLIDE: the modal loop blocks Enter/hover events, so a poll watches the cursor.
     QTimer glide;
     glide.setInterval(80);
     connect(&glide, &QTimer::timeout, this, [this, anchor] {
-      if (!pop_.active) return;
-      // altHeldForTest_: the offscreen GUI test's stand-in for a held Alt (QTest never sets platform modifier state).
-      if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest_)
+      if (!pop.active) return;
+      // altHeldForTest: the offscreen GUI test's stand-in for a held Alt (QTest never sets platform modifier state).
+      if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest)
         return;
       const bool onBox = popoverRectGlobal().contains(QCursor::pos());
-      for (auto it = pop_.buttons.cbegin(); it != pop_.buttons.cend(); ++it) {
+      for (auto it = pop.buttons.cbegin(); it != pop.buttons.cend(); ++it) {
         auto* b = static_cast<QToolButton*>(it.key());
         if (b == anchor || !b->isVisible() || !it.value()->isEnabled()) continue;
         // The cursor-rect half is blind to what COVERS the icon; underMouse() sees the overlay, so only the fallback is guarded.
         const bool hovering = b->underMouse() ||
                               (!onBox && b->rect().contains(b->mapFromGlobal(QCursor::pos())));
         if (!hovering) continue;
-        pop_.peekNextButton = b;
-        pop_.peekNextAction = it.value();
+        pop.peekNextButton = b;
+        pop.peekNextAction = it.value();
         dismissPopover();
         break;
       }
@@ -161,8 +161,8 @@ namespace stencil::gui {
     connect(qApp, &QCoreApplication::aboutToQuit, &loop, end);
     if (!ended) loop.exec();
     glide.stop();
-    pop_.active.clear();
-    pop_.overlay.clear();
+    pop.active.clear();
+    pop.overlay.clear();
     const int result = alive ? alive->result() : int(QDialog::Rejected);
     // The dialog is a stack object — never leave it parented to the overlay about to be deleted.
     if (alive) {
@@ -170,12 +170,12 @@ namespace stencil::gui {
       alive->setParent(nullptr);
     }
     if (overlayAlive) overlayAlive->deleteLater();
-    if (pop_.peekNextAction) {
+    if (pop.peekNextAction) {
       QTimer::singleShot(0, this, [this] {
-        QToolButton* b = pop_.peekNextButton.data();
-        QAction* a = pop_.peekNextAction.data();
-        pop_.peekNextButton.clear();
-        pop_.peekNextAction.clear();
+        QToolButton* b = pop.peekNextButton.data();
+        QAction* a = pop.peekNextAction.data();
+        pop.peekNextButton.clear();
+        pop.peekNextAction.clear();
         altPeekOpen(b, a);
       });
     }

@@ -52,9 +52,9 @@ namespace stencil::gui {
 
     void leave();
 
-    bool running() const { return anim_->state() == QAbstractAnimation::Running; }
-    double elapsedMs() const { return elapsed_; }
-    const IconRequest& request() const { return req_; }
+    bool running() const { return anim->state() == QAbstractAnimation::Running; }
+    double elapsedMs() const { return elapsed; }
+    const IconRequest& request() const { return req; }
 
     void rest();
 
@@ -67,16 +67,16 @@ namespace stencil::gui {
 
     void restPaint();   // the rest glyph back on, WITHOUT re-arming a spent settle
 
-    QAbstractButton* btn_ = nullptr;
-    IconRequest req_;
-    const IconMotionSpec* spec_ = nullptr;
-    const QVector<IconMotionPart>* parts_ = nullptr;
-    QVariantAnimation* anim_ = nullptr;
-    double elapsed_ = 0;
+    QAbstractButton* btn = nullptr;
+    IconRequest req;
+    const IconMotionSpec* spec = nullptr;
+    const QVector<IconMotionPart>* parts = nullptr;
+    QVariantAnimation* anim = nullptr;
+    double elapsed = 0;
     /* A settle plays ONCE per hover, like the CSS animation-name the browser switches on
      * with :hover (animations/iconHover.css): re-entering while the pointer never left
      * must not replay it, and leaving cancels it back to rest. */
-    bool spent_ = false;
+    bool spent = false;
   };
 
   // For a menu row (browser: a .chat-more-item / .ctx-item icon animates on row hover),
@@ -88,7 +88,7 @@ namespace stencil::gui {
 
     void enter();
     void leave();
-    const IconRequest& request() const { return req_; }
+    const IconRequest& request() const { return req; }
 
     void rest();
 
@@ -101,13 +101,13 @@ namespace stencil::gui {
 
     void restPaint();
 
-    QAction* act_ = nullptr;
-    IconRequest req_;
-    const IconMotionSpec* spec_ = nullptr;
-    const QVector<IconMotionPart>* parts_ = nullptr;
-    QVariantAnimation* anim_ = nullptr;
-    double elapsed_ = 0;
-    bool spent_ = false;
+    QAction* act = nullptr;
+    IconRequest req;
+    const IconMotionSpec* spec = nullptr;
+    const QVector<IconMotionPart>* parts = nullptr;
+    QVariantAnimation* anim = nullptr;
+    double elapsed = 0;
+    bool spent = false;
   };
 
   namespace icm {
@@ -139,7 +139,7 @@ namespace stencil::gui {
    private:
     void hoverMenuAction(QMenu* menu, QAction* a);
 
-    QHash<QObject*, QPointer<QAction>> menuHover_;
+    QHash<QObject*, QPointer<QAction>> menuHover;
   };
 
   void installIconMotion();

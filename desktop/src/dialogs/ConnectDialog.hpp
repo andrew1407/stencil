@@ -61,7 +61,7 @@ namespace stencil::gui {
     void applyRowReveal();
     // View state only — never persisted.
     void applyKindFilter();
-    ListFilterFade* filterFade();
+    ListFilterFade* getFilterFade();
     // Fresh session first, then a token prompt if the server refuses.
     void reauthenticate(const QString& url);
     // A painted list row has no widget of its own, so its RECT comes apart.
@@ -74,25 +74,25 @@ namespace stencil::gui {
     // The single remove path: per-row ✕, batch Disconnect, and the drag-out gesture.
     void confirmDisconnect(const QString& url);
 
-    stencil::net::ConnectionManager* manager_;
-    QLineEdit* urlEdit_ = nullptr;
-    QLineEdit* tokenEdit_ = nullptr;
-    QListWidget* list_ = nullptr;
-    QPushButton* reconnectAllBtn_ = nullptr;
+    stencil::net::ConnectionManager* manager;
+    QLineEdit* urlEdit = nullptr;
+    QLineEdit* tokenEdit = nullptr;
+    QListWidget* list = nullptr;
+    QPushButton* reconnectAllBtn = nullptr;
     // A connection preference (net::connectionStore), not a Settings one.
-    QCheckBox* autoConnect_ = nullptr;
-    QCheckBox* syncToServer_ = nullptr;
-    QComboBox* kindFilter_ = nullptr;
-    QSet<QString> selected_;
+    QCheckBox* autoConnect = nullptr;
+    QCheckBox* syncToServer = nullptr;
+    QComboBox* kindFilter = nullptr;
+    QSet<QString> selected;
     // Retire-then-finalize (projectsDialog parity): rebuildList waits until the dust settles.
-    QSet<QString> doomed_;
-    QSet<QString> known_;
-    QWidget* batchBar_ = nullptr;
-    QLabel* batchCount_ = nullptr;
-    QPushButton* selectAllBtn_ = nullptr;
+    QSet<QString> doomed;
+    QSet<QString> known;
+    QWidget* batchBar = nullptr;
+    QLabel* batchCount = nullptr;
+    QPushButton* selectAllBtn = nullptr;
     // ONE group so the bar's reveal is a single flight (browser .connect-batch-actions).
-    QWidget* batchSelectedGroup_ = nullptr;
-    ListFilterFade* filterFade_ = nullptr;
+    QWidget* batchSelectedGroup = nullptr;
+    ListFilterFade* filterFade = nullptr;
   };
 
 }  // namespace stencil::gui

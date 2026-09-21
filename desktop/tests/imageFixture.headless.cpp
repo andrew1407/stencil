@@ -57,9 +57,9 @@ int main(int argc, char** argv) {
   CanvasWidget canvas;
   canvas.setPageCm(21.0, 29.7);  // A4 (portrait)
   canvas.loadFromImage(img);
-  check(canvas.originalImage().width() == 16 && canvas.originalImage().height() == 12,
+  check(canvas.getOriginalImage().width() == 16 && canvas.getOriginalImage().height() == 12,
         "original image kept at 16x12");
-  const CropRect c0 = canvas.cropRect();
+  const CropRect c0 = canvas.getCropRect();
   check(c0.width > 0 && c0.height > 0 && c0.width <= 16 && c0.height <= 12,
         "default crop is a non-empty sub-rect of the image");
 
@@ -128,10 +128,10 @@ int main(int argc, char** argv) {
         "the frame starts empty and draws on, rather than appearing all at once");
   {
     QElapsedTimer t; t.start();
-    while (overlay->progress() < 1.0 && t.elapsed() < IncognitoOverlay::DRAW_MS * 4)
+    while (overlay->getProgress() < 1.0 && t.elapsed() < IncognitoOverlay::DRAW_MS * 4)
       QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
   }
-  check(overlay->progress() >= 1.0, "the frame reaches its closed state");
+  check(overlay->getProgress() >= 1.0, "the frame reaches its closed state");
   const QImage shot = host.grab().toImage();  // composites overlay over the host
   const long onAccent = countNear(shot, accent, 24);
   const long bgShown = countNear(shot, host_bg, 16);
@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
     const auto cycle = [&](bool on) {
       overlay->setActive(on);
       pump(IncognitoOverlay::DRAW_MS / 4);
-      const double mid = overlay->progress();
+      const double mid = overlay->getProgress();
       pump(IncognitoOverlay::DRAW_MS * 2);
       return mid;
     };

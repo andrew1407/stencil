@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     const auto toast = [&]() -> QWidget* {
-      return win.chatToast_ && win.chatToast_->isVisible() ? win.chatToast_ : nullptr;
+      return win.chatToast && win.chatToast->isVisible() ? win.chatToast : nullptr;
     };
     // Nothing may mark the icon at all now; the lambda stays to prove it.
     const auto unreadShown = [&] {
@@ -26,15 +26,15 @@ class MainWindowGuiTest : public QObject {
     };
 
     // Closed chat: the predicate says "nobody can see this".
-    QVERIFY(!win.chatDock_->isVisible());
+    QVERIFY(!win.chatDock->isVisible());
     QVERIFY2(win.chatSurfaceHidden(), "a closed chat should count as hidden");
     win.showChatToast(QStringLiteral("Assistant finished — done"), true);
     QVERIFY2(toast(), "no toast with the chat closed");
     QVERIFY2(!unreadShown(), "the toast is the whole notice — nothing is left on the icon");
 
     // Opening clears the mark, and nothing toasts while the chat is up.
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
     QVERIFY2(!unreadShown(), "opening must leave the icon unmarked too");
     QVERIFY2(!win.chatSurfaceHidden(), "an open chat must not count as hidden");
 
@@ -42,23 +42,23 @@ class MainWindowGuiTest : public QObject {
     // result landing then has nowhere to go, so it counts as hidden.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
-    win.actChat_->setChecked(false);
-    QVERIFY2(win.chatDock_->isVisible(), "the close should still be animating");
+    win.actChat->setChecked(false);
+    QVERIFY2(win.chatDock->isVisible(), "the close should still be animating");
     QVERIFY2(win.chatSurfaceHidden(), "a chat mid-close must count as hidden");
     if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim);
-    QTRY_VERIFY(!win.chatDock_->isVisible());
+    QTRY_VERIFY(!win.chatDock->isVisible());
 
     // ITEM C — the context-menu panel is a chat surface too.
     win.ensureChatMenuPanel();
-    win.chatMenuPanel_->setGeometry(20, 20, 340, 620);
-    win.chatMenuPanel_->show();
+    win.chatMenuPanel->setGeometry(20, 20, 340, 620);
+    win.chatMenuPanel->show();
     QTRY_VERIFY2(!win.chatSurfaceHidden(), "a visible menu panel must count as a surface");
-    win.chatMenuPanel_->hide();
+    win.chatMenuPanel->hide();
     QTRY_VERIFY2(win.chatSurfaceHidden(), "a dismissed menu panel leaves nothing to look at");
 
     // ITEM B — §3.0: settling a turn is not itself an event. Nothing runs after
     // the reply, so the terminal has no news of its own to toast.
-    if (win.chatToast_) win.chatToast_->hide();
+    if (win.chatToast) win.chatToast->hide();
     win.chatTurnSettled();
     QVERIFY2(!toast(), "the turn terminal must be silent — nothing runs after the reply");
     QVERIFY2(!unreadShown(), "…and it must not mark the icon either");
@@ -77,25 +77,25 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* dock = win.findChild<QDockWidget*>("llmChatDock");
     QVERIFY(dock);
-    auto* icon = qobject_cast<QToolButton*>(win.buttonForAction(win.actChat_));
+    auto* icon = qobject_cast<QToolButton*>(win.buttonForAction(win.actChat));
 
     // The outgoing FLOAT's exit is a cloud of its own pixels flown inside the main
     // window: it SCATTERS, every mote pouring back into the icon.
     const auto flight = [&win] { return surfaceFlight(&win); };
     // Past the whole surface flight, so a cloud from the LAST swap can never be mistaken
     // for the next one's (the gather is the longer of the two clocks).
-    const auto flushGhosts = [&win] { awaitAnim(win.chatAnim_); awaitFlights(&win); };
+    const auto flushGhosts = [&win] { awaitAnim(win.chatAnim); awaitFlights(&win); };
 
     // Put the chat in `floating` shape with a message in it, ready to be swapped.
     const auto arm = [&](bool floating, const QString& mark) {
       win.setChatShown(false, false);
-      win.chatCompactPopover_ = false;
+      win.chatCompactPopover = false;
       dock->setFloating(floating);
-      win.actChat_->setChecked(true);
+      win.actChat->setChecked(true);
       win.setChatShown(true, false);
       QTRY_VERIFY(dock->isVisible());
       QCOMPARE(dock->isFloating(), floating);
-      win.chatDock_->appendUser(mark);
+      win.chatDock->appendUser(mark);
       flushGhosts();
     };
     // Assert the swap: outgoing animates (slide for a dock, flight for a float),
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
                  qPrintable(QString("%1: the outgoing float must come APART, not form").arg(route)));
         QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
       } else {
-        QVERIFY2(win.chatAnim_ != nullptr,
+        QVERIFY2(win.chatAnim != nullptr,
                  qPrintable(QString("%1: the docked panel did not slide out").arg(route)));
         QVERIFY2(!dock->isFloating(),
                  qPrintable(QString("%1: it tore off before the slide played").arg(route)));
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
       {
         const QString mark = shape + " peek";
         arm(floating, mark);
-        win.altPeekOpen(icon, win.actChat_);
+        win.altPeekOpen(icon, win.actChat);
         expectSwap(floating, mark, qPrintable(shape + " + alt-peek"));
       }
     }
@@ -145,7 +145,7 @@ class MainWindowGuiTest : public QObject {
     // its anchor. Re-opening it must not teleport the window with no motion at either end.
     {
       QVERIFY(win.chatCompactShowing());
-      win.chatDock_->appendUser(QStringLiteral("moved compact"));
+      win.chatDock->appendUser(QStringLiteral("moved compact"));
       dock->move(dock->pos() + QPoint(160, 120));   // as if dragged
       flushGhosts();
       QContextMenuEvent ev(QContextMenuEvent::Mouse, QPoint(4, 4),

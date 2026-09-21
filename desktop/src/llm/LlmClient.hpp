@@ -77,8 +77,8 @@ namespace stencil::llm {
     void chatServer(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
                     const QString& system, std::function<void(LlmReply)> done);
 
-    LlmTransport* transport_;
-    std::function<QString(const QString&)> tokenResolver_;
+    LlmTransport* transport;
+    std::function<QString(const QString&)> tokenResolver;
   };
 
 }  // namespace stencil::llm

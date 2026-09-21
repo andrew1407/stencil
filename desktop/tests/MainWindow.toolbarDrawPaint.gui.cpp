@@ -14,7 +14,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QToolButton* btn = win.startDrawBtn_;
+    QToolButton* btn = win.startDrawBtn;
     QVERIFY(btn);
     QVERIFY2(btn->property("toolFill").toString().isEmpty(),
              "the draw toggle must opt out of the section fill — its accent IS its state");
@@ -43,19 +43,19 @@ class MainWindowGuiTest : public QObject {
     };
 
     for (const QString& accentKey : {QStringLiteral("violet"), QStringLiteral("grass")}) {
-      auto s = win.settings_;
+      auto s = win.settings;
       s.accentColor = accentKey;
       win.applySettings(s, /*persist=*/false);
       const QColor accent = stencil::gui::accentPrimary(accentKey);
       const QString why = QStringLiteral(" (accent %1)").arg(accentKey);
       // The re-theme repaints the window and SWAPS this button's face; 80ms was enough only
       // when the accent had not really moved. Wait for the glyph itself to arrive.
-      const QColor ink = stencil::gui::themePalette(win.paintedDark_, accentKey).textMain;
+      const QColor ink = stencil::gui::themePalette(win.paintedDark, accentKey).textMain;
       QTRY_VERIFY_WITH_TIMEOUT(nearColor(glyph(), ink, 40), 3000);
 
       // Idle: the plain UI outline and the theme's own ink, with NO accent anywhere on it (user decision) —
       // the accent is what the RUNNING state says.
-      QVERIFY(!canvas->isDrawing());
+      QVERIFY(!canvas->getIsDrawing());
       QCOMPARE(btn->property("drawToggle").toString(), QString("idle"));
       QVERIFY2(!nearColor(outline(), accent, 40), qPrintable("idle wears the accent ring" + why));
       QVERIFY2(!nearColor(ground(), accent, 50), qPrintable("idle is accent-FILLED" + why));
@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
       QAction* start = actionByText(&win, "Start Drawing");
       QVERIFY(start);
       start->trigger();
-      QTRY_VERIFY(canvas->isDrawing());
+      QTRY_VERIFY(canvas->getIsDrawing());
       QTRY_COMPARE(btn->property("drawToggle").toString(), QString("on"));
       // The property flips at the face swap's PIVOT, with the glyph still turning in, so every pixel sample
       // below waits for the face to land rather than reading whatever frame is up.
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY2_WITH_TIMEOUT(nearColor(glyph(), stencil::gui::onAccentInk(accent), 40),
                                 qPrintable("the ■ is not the on-accent foreground" + why), 3000);
       btn->defaultAction()->trigger();
-      QTRY_VERIFY(!canvas->isDrawing());
+      QTRY_VERIFY(!canvas->getIsDrawing());
       QTRY_COMPARE(btn->property("drawToggle").toString(), QString("idle"));
     }
 
@@ -86,10 +86,10 @@ class MainWindowGuiTest : public QObject {
     empty.show();
     QVERIFY(QTest::qWaitForWindowExposed(&empty));
     settleLayout(&empty, 150);
-    QToolButton* dead = empty.startDrawBtn_;
+    QToolButton* dead = empty.startDrawBtn;
     QVERIFY(dead);
     QVERIFY2(!dead->isEnabled(), "the draw toggle is live with no image loaded");
-    const QColor deadAccent = stencil::gui::accentPrimary(empty.settings_.accentColor);
+    const QColor deadAccent = stencil::gui::accentPrimary(empty.settings.accentColor);
     const QImage im = dead->grab().toImage();
     QVERIFY2(!nearColor(im.pixelColor(3, im.height() / 2), deadAccent, 50),
              "a disabled draw toggle is accent-filled");
@@ -103,7 +103,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QToolButton* mode = win.drawModeBtn_;
+    QToolButton* mode = win.drawModeBtn;
     QVERIFY(mode);
     const char* GLYPH = stencil::gui::FACE_GLYPH_PROPERTY;
     QCOMPARE(mode->property(GLYPH).toString(), QString("line"));
@@ -150,7 +150,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
     settleLayout(&win, 300);
-    for (QToolButton* b : { win.startDrawBtn_, win.drawModeBtn_ }) {
+    for (QToolButton* b : { win.startDrawBtn, win.drawModeBtn }) {
       QVERIFY(b);
       const QString who = b->text();
       QVERIFY2(b->font().pixelSize() >= 12,

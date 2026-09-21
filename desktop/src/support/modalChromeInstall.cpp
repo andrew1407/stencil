@@ -31,7 +31,7 @@ namespace stencil::gui {
     // Frameless (browser parity), so the HEADER is the drag handle.
     class HeaderDrag : public QObject {
      public:
-      HeaderDrag(QWidget* header, QDialog* dlg) : QObject(header), dlg_(dlg) {
+      HeaderDrag(QWidget* header, QDialog* dlg) : QObject(header), dlg(dlg) {
         header->installEventFilter(this);
       }
 
@@ -46,15 +46,15 @@ namespace stencil::gui {
             break;
           case QEvent::MouseButtonPress:
             if (movable() && me->button() == Qt::LeftButton) {
-              grab_ = me->globalPosition().toPoint() - dlg_->frameGeometry().topLeft();
-              on_ = true;
+              grab = me->globalPosition().toPoint() - dlg->frameGeometry().topLeft();
+              on = true;
             }
             break;
           case QEvent::MouseMove:
-            if (on_ && dlg_) dlg_->move(me->globalPosition().toPoint() - grab_);
+            if (on && dlg) dlg->move(me->globalPosition().toPoint() - grab);
             break;
           case QEvent::MouseButtonRelease:
-            on_ = false;
+            on = false;
             break;
           default:
             break;
@@ -66,11 +66,11 @@ namespace stencil::gui {
       /* Only a top-level window moves. execMaybePopover reparents this same dialog into the
        * popover overlay as a plain child, where move() reads the GLOBAL points below as
        * parent-relative and throws the panel out of the overlay it is anchored to. */
-      bool movable() const { return dlg_ && dlg_->isWindow(); }
+      bool movable() const { return dlg && dlg->isWindow(); }
 
-      QPointer<QDialog> dlg_;
-      QPoint grab_;
-      bool on_ = false;
+      QPointer<QDialog> dlg;
+      QPoint grab;
+      bool on = false;
     };
   }  // namespace
 

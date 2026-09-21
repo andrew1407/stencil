@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
           "a real fit box lands the widget within it, plus the handle inset");
   }
   {
-    // A degenerate box (what an uninitialized fitBox_ reads back as, QSize()'s -1x-1) must
+    // A degenerate box (what an uninitialized fitBox reads back as, QSize()'s -1x-1) must
     // be REFUSED, not answered with scale 1.0 — the widget keeps its last good fit.
     CropPreview p(frame, 29.7, 42.0, initial, nullptr, /*autoFitScreen=*/false);
     p.setFitBox(QSize(440, 300));
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     CropPreview p(wide, 21.0, 29.7, dragged, nullptr, /*autoFitScreen=*/false);
     const auto before = p.cropRect();
     const double cx = before.x + before.width / 2.0, cy = before.y + before.height / 2.0;
-    p.setAlbum(!p.album());
+    p.setAlbum(!p.getAlbum());
     const auto after = p.cropRect();
     check(after.width != before.width || after.height != before.height,
           "the flip changes the box's own dimensions");
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     QImage wide(2880, 2037, QImage::Format_RGB32);
     stencil::core::CropRect empty;
     CropPreview p(wide, 21.0, 29.7, empty, nullptr, /*autoFitScreen=*/false);
-    const bool albumBefore = p.album();
+    const bool albumBefore = p.getAlbum();
     const auto before = p.cropRect();
     p.setAlbum(albumBefore);
     const auto after = p.cropRect();

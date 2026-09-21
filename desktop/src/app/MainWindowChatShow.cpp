@@ -30,30 +30,30 @@ namespace stencil::gui {
 
   // The veil must never outlive the flight, or an interrupted slide leaves an invisible panel.
   void MainWindow::releasePanelVeil() {
-    if (!panelVeil_) return;
-    if (selPanel_ && selPanel_->graphicsEffect() == panelVeil_) selPanel_->setGraphicsEffect(nullptr);
-    panelVeil_ = nullptr;
+    if (!panelVeil) return;
+    if (selPanel && selPanel->graphicsEffect() == panelVeil) selPanel->setGraphicsEffect(nullptr);
+    panelVeil = nullptr;
   }
 
-  // Pins selPanel_ at its last settled solo width for the chat slide; stopChatAnim releases it.
+  // Pins selPanel at its last settled solo width for the chat slide; stopChatAnim releases it.
   void MainWindow::pinPanelWhileSharing(Qt::DockWidgetArea chatArea) {
     // Split first: the slide must trade space with the CANVAS.
     ensurePanelChatSplit();
-    if (!selPanel_ || selPanel_->isHidden()) return;
+    if (!selPanel || selPanel->isHidden()) return;
     if (chatArea != Qt::LeftDockWidgetArea && chatArea != Qt::RightDockWidgetArea) return;
-    if (dockWidgetArea(selPanel_) != chatArea) return;
-    if (!panelAnim_ && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
-    selPanel_->setFixedWidth(panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH);
+    if (dockWidgetArea(selPanel) != chatArea) return;
+    if (!panelAnim && selPanel->width() > 120) panelRestoreWidth = selPanel->width();
+    selPanel->setFixedWidth(panelRestoreWidth > 120 ? panelRestoreWidth : PANEL_DEFAULT_WIDTH);
   }
 
   // Plain addDockWidget stacks two docks VERTICALLY unless explicitly split. Idempotent.
   void MainWindow::ensurePanelChatSplit() {
     // Splitting against a hidden dock can park it off-screen; setPanelShown's reveal calls this again.
-    if (!selPanel_ || selPanel_->isHidden() || !chatDock_ || chatDock_->isFloating()) return;
-    const Qt::DockWidgetArea pArea = dockWidgetArea(selPanel_);
+    if (!selPanel || selPanel->isHidden() || !chatDock || chatDock->isFloating()) return;
+    const Qt::DockWidgetArea pArea = dockWidgetArea(selPanel);
     if (pArea != Qt::LeftDockWidgetArea && pArea != Qt::RightDockWidgetArea) return;
-    if (dockWidgetArea(chatDock_) != pArea) return;
-    splitDockWidget(selPanel_, chatDock_, Qt::Horizontal);
+    if (dockWidgetArea(chatDock) != pArea) return;
+    splitDockWidget(selPanel, chatDock, Qt::Horizontal);
   }
 
   // Browser chat-panel slide: ~0.34 s in, ~0.26 s out, ease-out. Pin min==max on every frame so QMainWindow's own
@@ -62,101 +62,101 @@ namespace stencil::gui {
    * clock starts before the slide's, so waiting for the slide left a beat with the overlay
    * destroyed and the dock still veiled, drawing neither. Idempotent: stopChatAnim repeats it. */
   void MainWindow::dropChatVeil() {
-    if (!chatVeil_) return;
-    if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
-    chatVeil_ = nullptr;
+    if (!chatVeil) return;
+    if (chatDock && chatDock->graphicsEffect() == chatVeil) chatDock->setGraphicsEffect(nullptr);
+    chatVeil = nullptr;
   }
 
   void MainWindow::stopChatAnim() {
     // An INTERRUPTED slide never runs its completion, so "leaving" is released here too.
-    chatClosing_ = false;
-    if (chatDock_) chatDock_->setClosing(false);
+    chatClosing = false;
+    if (chatDock) chatDock->setClosing(false);
     // Always released — it must never outlive an interrupted flight.
-    if (selPanel_) { selPanel_->setMinimumWidth(PANEL_MIN_WIDTH); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
+    if (selPanel) { selPanel->setMinimumWidth(PANEL_MIN_WIDTH); selPanel->setMaximumWidth(QWIDGETSIZE_MAX); }
     dropChatVeil();
-    if (!chatAnim_) return;
-    chatAnim_->stop();
-    chatAnim_->deleteLater();
-    chatAnim_ = nullptr;
-    if (!chatDock_) return;
+    if (!chatAnim) return;
+    chatAnim->stop();
+    chatAnim->deleteLater();
+    chatAnim = nullptr;
+    if (!chatDock) return;
     // A stopped slide must hand back the natural constraints.
-    chatDock_->setMinimumWidth(chatNaturalMin_.width());
-    chatDock_->setMaximumWidth(QWIDGETSIZE_MAX);
-    chatDock_->setMinimumHeight(chatNaturalMin_.height());
-    chatDock_->setMaximumHeight(QWIDGETSIZE_MAX);
+    chatDock->setMinimumWidth(chatNaturalMin.width());
+    chatDock->setMaximumWidth(QWIDGETSIZE_MAX);
+    chatDock->setMinimumHeight(chatNaturalMin.height());
+    chatDock->setMaximumHeight(QWIDGETSIZE_MAX);
   }
 
   void MainWindow::setChatShown(bool show, bool animate) {
-    if (!chatDock_) return;
-    const bool wasVisible = chatDock_->isVisible();
+    if (!chatDock) return;
+    const bool wasVisible = chatDock->isVisible();
     stopChatAnim();  // re-entrancy: a second toggle mid-slide wins outright
     if (show) {
-      chatClosing_ = false;
-      chatDock_->setClosing(false);
+      chatClosing = false;
+      chatDock->setClosing(false);
     }
     // A full open re-docks to the area the popover displaced (browser restoreFromCompact parity).
-    if (show && chatDock_->isFloating() && chatCompactPopover_) {
+    if (show && chatDock->isFloating() && chatCompactPopover) {
       setChatCompactPopover(false);
       // Same orientation rule as dockChatTo's place(): top/bottom claim a full-width row.
-      if (chatCompactPrevArea_ == Qt::TopDockWidgetArea
-          || chatCompactPrevArea_ == Qt::BottomDockWidgetArea)
-        addDockWidget(chatCompactPrevArea_, chatDock_, Qt::Vertical);
+      if (chatCompactPrevArea == Qt::TopDockWidgetArea
+          || chatCompactPrevArea == Qt::BottomDockWidgetArea)
+        addDockWidget(chatCompactPrevArea, chatDock, Qt::Vertical);
       else
-        addDockWidget(chatCompactPrevArea_, chatDock_);
-      chatDock_->setFloating(false);
+        addDockWidget(chatCompactPrevArea, chatDock);
+      chatDock->setFloating(false);
     }
     // Floating = its own window: no dock edge to slide from; it flies out of the toolbar icon like a dialog.
-    if (!tearingDown_ && animate && chatDock_->isFloating() && show != wasVisible) {
-      QWidget* icon = buttonForAction(actChat_);
+    if (!tearingDown && animate && chatDock->isFloating() && show != wasVisible) {
+      QWidget* icon = buttonForAction(actChat);
       if (show) {
-        chatDock_->show();
-        support::revealWindow(*chatDock_, icon);
+        chatDock->show();
+        support::revealWindow(*chatDock, icon);
       } else {
-        chatClosing_ = true;
-        chatDock_->setClosing(true);
-        support::dismissWindow(*chatDock_, icon);   // hides at once; the ghost flies
-        chatClosing_ = false;
-        chatDock_->setClosing(false);
+        chatClosing = true;
+        chatDock->setClosing(true);
+        support::dismissWindow(*chatDock, icon);   // hides at once; the ghost flies
+        chatClosing = false;
+        chatDock->setClosing(false);
       }
       return;
     }
-    if (tearingDown_ || chatDock_->isFloating() || !animate) {
+    if (tearingDown || chatDock->isFloating() || !animate) {
       // An instant show/hide still reflows the dock layout — pin around it too.
-      if (!tearingDown_ && !chatDock_->isFloating()) pinPanelWhileSharing(dockWidgetArea(chatDock_));
-      chatDock_->setVisible(show);
+      if (!tearingDown && !chatDock->isFloating()) pinPanelWhileSharing(dockWidgetArea(chatDock));
+      chatDock->setVisible(show);
       stopChatAnim();   // releases the pin immediately — no animation follows it
       return;
     }
-    const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+    const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
     pinPanelWhileSharing(area);   // released by the slide's own stopChatAnim() below
     const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const auto extent = [this, horiz] {
-      return horiz ? chatDock_->width() : chatDock_->height();
+      return horiz ? chatDock->width() : chatDock->height();
     };
     const auto pin = chatExtentPin(horiz);
-    if (!show && wasVisible && extent() > 80) chatRestoreExtent_ = extent();
-    const int full = chatRestoreExtent_ > 80 ? chatRestoreExtent_ : (horiz ? 345 : 320);
+    if (!show && wasVisible && extent() > 80) chatRestoreExtent = extent();
+    const int full = chatRestoreExtent > 80 ? chatRestoreExtent : (horiz ? 345 : 320);
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;
     // The dust flight and the slide run one clock (chatPanel.js), and leaving is the quicker
     // of the two. Shown BEFORE it is measured: a HIDDEN dock contributes no space to the layout.
     const int slideMs = show ? CHAT_SLIDE_IN_MS : CHAT_SLIDE_OUT_MS;
-    if (show) chatDock_->show();
+    if (show) chatDock->show();
     QPointer<gui::DisintegrateOverlay> dustFx =
         chatSurfaceFlight(area, /*gather=*/show, slideMs, pin, show ? full : from);
     if (show) pin(from);
     // A dock mid-slide is already "away" for results: it stays isVisible() for the whole slide.
-    if (!show) { chatClosing_ = true; chatDock_->setClosing(true); }
-    chatAnim_ = startExtentSlide(this, from, to,
+    if (!show) { chatClosing = true; chatDock->setClosing(true); }
+    chatAnim = startExtentSlide(this, from, to,
                                  slideMs,   // the dust flight above runs the same clock
                                  pinAndRaiseDust(pin, dustFx), [this, show] {
                                    stopChatAnim();  // releases the pinned constraints
-                                   if (!show) chatDock_->hide();
-                                   chatClosing_ = false;
-                                   chatDock_->setClosing(false);
+                                   if (!show) chatDock->hide();
+                                   chatClosing = false;
+                                   chatDock->setClosing(false);
                                    // Caret after the slide, so the animation's layout work does not steal focus.
-                                   if (show) chatDock_->focusInput();
+                                   if (show) chatDock->focusInput();
                                  },
                                  // Close eases OUT (InOutQuad): OutCubic front-loads the collapse and reads as a slam.
                                  show ? QEasingCurve::OutCubic : QEasingCurve::InOutQuad);

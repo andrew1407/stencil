@@ -53,7 +53,7 @@ class MainWindowGuiTest : public QObject {
       enteredRow = layoutMenu->activeAction() && layoutMenu->activeAction()->text().startsWith("Copy Image");
       QTest::keyClick(layoutMenu, Qt::Key_Down);
       QTest::qWait(30);
-      walkedInside = layoutMenu->activeAction() == win.actPasteImage_;
+      walkedInside = layoutMenu->activeAction() == win.actPasteImage;
       // ← folds it with the same dust every other close plays (Qt hides the popup
       // before aboutToHide fires, which used to leave this close with no flight).
       const auto dustSeen = [&win] {
@@ -90,9 +90,9 @@ class MainWindowGuiTest : public QObject {
       }
       // Enter picks a row: walk the root to Show Points and toggle it, which also
       // closes the menu (a picked action, not a hosted checkbox row).
-      pointsBefore = win.actShowPoints_->isChecked();
-      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == win.actShowPoints_; }, 24);
-      reachedPoints = root->activeAction() == win.actShowPoints_;
+      pointsBefore = win.actShowPoints->isChecked();
+      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == win.actShowPoints; }, 24);
+      reachedPoints = root->activeAction() == win.actShowPoints;
       QTest::keyClick(root, Qt::Key_Return);
       settle([&] { return !(root->isVisible()); }, 1000);
       enterClosed = !root->isVisible();
@@ -110,7 +110,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(closedByPointer, "hovering the pointer onto another row no longer closes it");
     QVERIFY2(reachedPoints, "the keyboard walk never reached Show Points");
     QVERIFY2(enterClosed, "Return did not pick the row and close the menu");
-    QCOMPARE(win.actShowPoints_->isChecked(), !pointsBefore);
+    QCOMPARE(win.actShowPoints->isChecked(), !pointsBefore);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
@@ -147,7 +147,7 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(60);
       // The first → only revealed it: no control has focus yet, so ← can fold it back.
       QWidget* popup = QApplication::activePopupWidget();
-      revealedOnly = QApplication::focusWidget() != win.pointSpin_ && QApplication::focusWidget() != win.thickSpin_;
+      revealedOnly = QApplication::focusWidget() != win.pointSpin && QApplication::focusWidget() != win.thickSpin;
       QTest::keyClick(popup, Qt::Key_Left);
       settle([&] { return !(style->isVisible()); }, 1000);
       foldedBack = !style->isVisible() && root->isVisible();
@@ -168,19 +168,19 @@ class MainWindowGuiTest : public QObject {
       QTest::keyClick(popup, Qt::Key_Backtab);   // …and off the first control onto the LAST row
       QTest::qWait(30);
       wrapped = QApplication::focusWidget();
-      wrappedToLastRow = style->activeAction() == win.actStyleDotted_;
+      wrappedToLastRow = style->activeAction() == win.actStyleDotted;
       root->close();
     });
     win.showContextMenu(at);
     QVERIFY2(opened, "Right on the Style row did not open its flyout");
     QVERIFY2(revealedOnly, "the first Right already moved focus into a control");
     QVERIFY2(foldedBack, "Left after the first Right did not fold the flyout back");
-    QCOMPARE(first, static_cast<QWidget*>(win.pointSpin_));
-    QCOMPARE(second, static_cast<QWidget*>(win.thickSpin_));
-    QCOMPARE(backAgain, static_cast<QWidget*>(win.pointSpin_));
+    QCOMPARE(first, static_cast<QWidget*>(win.pointSpin));
+    QCOMPARE(second, static_cast<QWidget*>(win.thickSpin));
+    QCOMPARE(backAgain, static_cast<QWidget*>(win.pointSpin));
     // Shift+Tab off the first control bridges onto the flyout's LAST plain row (Dotted):
     // the keys go back to the menu (no control focused) and ↑/↓ walk the rows from there.
-    QVERIFY2(!wrapped || (wrapped != win.pointSpin_ && wrapped != win.thickSpin_),
+    QVERIFY2(!wrapped || (wrapped != win.pointSpin && wrapped != win.thickSpin),
              "Shift+Tab off the first control left a spinner focused");
     QVERIFY2(wrappedToLastRow, "Shift+Tab off the first control did not land on the last row");
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);

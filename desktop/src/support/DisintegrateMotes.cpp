@@ -9,17 +9,17 @@ namespace stencil::gui {
     const double m = cellNoise(cx + 41, cy + 17);
     const double q = cellNoise(cx + 97, cy + 53);
     // Top row first. The sweep is a fifth of the span plus the tile's jitter (browser twin).
-    const double progress = rows_ > 1 ? double(cy) / (rows_ - 1) : 0.0;
+    const double progress = rows > 1 ? double(cy) / (rows - 1) : 0.0;
     const double delay = progress * 0.2 + n * (60.0 / 900.0);
-    const double flight = std::max(double(MIN_TILE_MS) / std::max(1, ms_), 1.0 - delay);
-    const double t = (t_ - delay) / flight;
+    const double flight = std::max(double(MIN_TILE_MS) / std::max(1, ms), 1.0 - delay);
+    const double t = (this->t - delay) / flight;
     if (t <= 0.0) return false;
     *out = Mote{};
     if (t >= 1.0) return true;
     const QColor cell = grainColour(cx, cy, n);
     if (cell.alphaF() <= 0.02) return true;
-    const double tx = (m - 0.5) * 66 * spread_;
-    const double ty = (26 + progress * 30 + n * 44) * spread_;
+    const double tx = (m - 0.5) * 66 * spread;
+    const double ty = (26 + progress * 30 + n * 44) * spread;
     const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
     const double w = cellNoise(cx + 13, cy + 71);
     const QPointF far = home + QPointF(tx, ty);
@@ -44,13 +44,13 @@ namespace stencil::gui {
     const double m = cellNoise(cx + 41, cy + 17);
     const double q = cellNoise(cx + 97, cy + 53);
     // Gather is Fall rewound: the cell that leaves first is the last one home.
-    const double progress = rows_ > 1
-        ? (sweep_ == Sweep::FALL ? double(cy) / (rows_ - 1)
-                                 : double(rows_ - 1 - cy) / (rows_ - 1))
+    const double progress = rows > 1
+        ? (sweep == Sweep::FALL ? double(cy) / (rows - 1)
+                                 : double(rows - 1 - cy) / (rows - 1))
         : 0.0;
     const double delay = progress * 0.45 + n * 0.08;
-    const bool gather = sweep_ == Sweep::GATHER;
-    double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
+    const bool gather = sweep == Sweep::GATHER;
+    double t = (this->t - delay) / std::max(0.05, 1.0 - delay);
     if (!gather && t <= 0.0) return false;
     if (gather && t >= 1.0) return false;
     t = std::clamp(t, 0.0, 1.0);
@@ -61,10 +61,10 @@ namespace stencil::gui {
     const QColor cell = grainColour(cx, cy, n);
     if (cell.alphaF() <= 0.02) return true;
     // A fall accelerates (away²); a gather rises home from below.
-    const double drift = (22 + progress * 34 + n * 30) * spread_;
-    const double tx = (m - 0.5) * 66 * spread_;
+    const double drift = (22 + progress * 34 + n * 30) * spread;
+    const double tx = (m - 0.5) * 66 * spread;
     const double ty = drift * 1.6;
-    const double fall = sweep_ == Sweep::FALL ? away * away : away;
+    const double fall = sweep == Sweep::FALL ? away * away : away;
     const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
     out->at = home + QPointF(away * tx, fall * ty) + swirlAt(away, tx, ty, q);
     out->radius = moteRadius(cw, ch, n) * (1.0 - away * (0.65 - n * 0.3));
@@ -84,16 +84,16 @@ namespace stencil::gui {
     const double m = cellNoise(cx + 41, cy + 17);
     const double q = cellNoise(cx + 97, cy + 53);
     const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
-    const QPointF tgt = target_ + QPointF(shift_);
+    const QPointF tgt = target + QPointF(shift);
     const double toX = tgt.x() - home.x();
     const double toY = tgt.y() - home.y();
     // Normalised against the longest trip any cell in this box makes.
     const double reach = std::hypot(toX, toY);
     const double far = std::hypot(box.width(), box.height()) + reach;
     const double progress = far > 0 ? std::min(1.0, reach / far) : 0.0;
-    const bool gather = sweep_ == Sweep::SURFACE_IN;
+    const bool gather = sweep == Sweep::SURFACE_IN;
     const double delay = (progress * 0.45 + n * 0.12) * (gather ? 1.0 : 0.5);
-    double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
+    double t = (this->t - delay) / std::max(0.05, 1.0 - delay);
     if (!gather && t <= 0.0) return false;
     *out = Mote{};
     // A gathering grain is NOTHING until it sets off: parked, hundreds make a solid blob.
@@ -105,9 +105,9 @@ namespace stencil::gui {
     // The whole cloud's alpha (browser dustHostOut / dustHostIn): IN holds, then fades
     // under the window's fade-up; OUT waits for the window to begin cutting out.
     const double host = gather
-        ? (t_ < DUST_HOLD ? 1.0
-           : std::max(0.0, 1.0 - (t_ - DUST_HOLD) / ((1.0 - DUST_HOLD) * SURFACE_MOTE_FADE_FRAC)))
-        : std::clamp((t_ - SURFACE_SCATTER_SPLIT * SURFACE_MOTE_RISE_DELAY) / SURFACE_SCATTER_SPLIT,
+        ? (this->t < DUST_HOLD ? 1.0
+           : std::max(0.0, 1.0 - (this->t - DUST_HOLD) / ((1.0 - DUST_HOLD) * SURFACE_MOTE_FADE_FRAC)))
+        : std::clamp((this->t - SURFACE_SCATTER_SPLIT * SURFACE_MOTE_RISE_DELAY) / SURFACE_SCATTER_SPLIT,
                      0.0, 1.0);
     if (gather && t >= 1.0) {
       out->at = home;

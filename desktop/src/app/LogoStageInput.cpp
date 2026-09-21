@@ -1,4 +1,4 @@
-// The logo stage's input half: the hold that opens a show, the typed words, and the lock that
+// The logo stage's input half: the hold that opens a showWord, the typed words, and the lock that
 // makes the stage the only thing the editor hears. Behaviour and painting are its siblings.
 #include "LogoStage.hpp"
 
@@ -30,38 +30,38 @@ namespace stencil::gui {
   }  // namespace
 
   void LogoStage::mouseMoveEvent(QMouseEvent* e) {
-    cursor_ = e->position();
+    cursorPos = e->position();
     syncCursor();
   }
 
   // The mark is the one thing on the stage a press acts on, so it wears the hand — and a roaming
   // mark runs under a still pointer, so the frame re-asks (tick) as well as the move.
   void LogoStage::syncCursor() {
-    const bool hot = onMark(cursor_.toPoint());
-    if (hot == handCursor_) return;
-    handCursor_ = hot;
+    const bool hot = onMark(cursorPos.toPoint());
+    if (hot == handCursor) return;
+    handCursor = hot;
     setCursor(hot ? Qt::PointingHandCursor : Qt::ArrowCursor);
   }
 
   void LogoStage::mousePressEvent(QMouseEvent* e) { pressed(e->position().toPoint()); }
 
-  void LogoStage::mouseReleaseEvent(QMouseEvent*) { held_ = false; }
+  void LogoStage::mouseReleaseEvent(QMouseEvent*) { held = false; }
 
   void LogoStage::keyPressEvent(QKeyEvent* e) {
     if (e->key() == Qt::Key_Escape) dismiss();
   }
 
-  // A printable key typed into the bare window, outside any text box, spells a show's name.
+  // A printable key typed into the bare hostWindow, outside any text box, spells a showWord's name.
   bool LogoStage::typedKey(const QString& text) {
     if (text.size() != 1 || !text.at(0).isPrint()) return false;
-    typed_ += text.toLower();
+    typed += text.toLower();
     const QStringList words = support::typedWords();
     int longest = 0;
     for (const QString& word : words) longest = std::max(longest, int(word.size()));
-    if (typed_.size() > longest) typed_ = typed_.right(longest);
+    if (typed.size() > longest) typed = typed.right(longest);
     for (int i = 0; i < words.size(); ++i) {
-      if (!typed_.endsWith(words.at(i))) continue;
-      typed_.clear();
+      if (!typed.endsWith(words.at(i))) continue;
+      typed.clear();
       activateByName(support::logoStageConfig().shows.at(i).name);
       return true;
     }
@@ -85,39 +85,39 @@ namespace stencil::gui {
       return true;
     }
     // A press that landed anywhere else is still the stage's: map it into stage space. A REAL
-    // one arrives on the window HANDLE before any widget sees it, and the lock swallows it
+    // one arrives on the hostWindow HANDLE before any widget sees it, and the lock swallows it
     // there, so the widget cast must not be what decides whether the stage hears it.
     if (t == QEvent::MouseButtonPress) {
-      const bool ours = w ? w->window() == window_ : (window_ && o == window_->windowHandle());
+      const bool ours = w ? w->window() == hostWindow : (hostWindow && o == hostWindow->windowHandle());
       if (ours) pressed(mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPosition().toPoint()));
       return true;
     }
-    if (t == QEvent::MouseButtonRelease) held_ = false;
+    if (t == QEvent::MouseButtonRelease) held = false;
     return true;
   }
 
   bool LogoStage::eventFilter(QObject* o, QEvent* e) {
-    if (open_ && lockEvent(o, e)) return true;
+    if (open && lockEvent(o, e)) return true;
     const QEvent::Type t = e->type();
-    // Nothing resizes the stage for it: it is a bare child of the window, in no layout.
-    if (t == QEvent::Resize && o == window_) relayout();
-    if (o == logo_ && logo_) {
+    // Nothing resizes the stage for it: it is a bare child of the hostWindow, in no layout.
+    if (t == QEvent::Resize && o == hostWindow) relayout();
+    if (o == logo && logo) {
       if (t == QEvent::MouseButtonPress) {
         auto* me = static_cast<QMouseEvent*>(e);
         if (me->button() == Qt::LeftButton && me->modifiers() == Qt::NoModifier) {
-          fired_ = false;
-          pressAt_ = me->globalPosition().toPoint();
-          hold_->start(support::logoStageConfig().holdMs);
+          fired = false;
+          pressAt = me->globalPosition().toPoint();
+          hold->start(support::logoStageConfig().holdMs);
         }
       } else if (t == QEvent::MouseMove) {
         const QPoint at = static_cast<QMouseEvent*>(e)->globalPosition().toPoint();
-        if (hold_->isActive() && (at - pressAt_).manhattanLength() > PRESS_SLOP_PX) hold_->stop();
+        if (hold->isActive() && (at - pressAt).manhattanLength() > PRESS_SLOP_PX) hold->stop();
       } else if (t == QEvent::MouseButtonRelease || t == QEvent::Leave) {
-        hold_->stop();
+        hold->stop();
         // The release after a hold must not reach clicked(), which would cycle the accent.
-        if (fired_ && t == QEvent::MouseButtonRelease) {
-          fired_ = false;
-          logo_->setDown(false);
+        if (fired && t == QEvent::MouseButtonRelease) {
+          fired = false;
+          logo->setDown(false);
           return true;
         }
       }
@@ -125,10 +125,10 @@ namespace stencil::gui {
     }
     // An unhandled key walks up the widget chain, and the app filter sees EVERY step of it, so
     // only the first delivery counts — the rest would spell the letter five times over.
-    if (t == QEvent::KeyPress && !open_) {
+    if (t == QEvent::KeyPress && !open) {
       QWidget* focus = QApplication::focusWidget();
-      QWidget* first = focus ? focus : window_;
-      if (o == first && first->window() == window_ && !isTextEntry(focus) &&
+      QWidget* first = focus ? focus : hostWindow;
+      if (o == first && first->window() == hostWindow && !isTextEntry(focus) &&
           !(static_cast<QKeyEvent*>(e)->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) &&
           typedKey(static_cast<QKeyEvent*>(e)->text()))
         return true;

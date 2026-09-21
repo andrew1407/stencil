@@ -59,9 +59,9 @@ class MainWindowGuiTest : public QObject {
       settle([] { return false; }, 300);
       QTest::keyClicks(url, "x");   // the text moves on; the picture does not
       settle([] { return false; }, 200);
-      rowShown = dlg->quickcropRow_->isVisible();
+      rowShown = dlg->quickcropRow->isVisible();
       stillTicked = crop->isChecked();
-      pictureShown = dlg->previewLabel_->isVisible();
+      pictureShown = dlg->previewLabel->isVisible();
       dlg->reject();
     });
     win.openImage();
@@ -93,13 +93,13 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
       tabs->setCurrentIndex(2);            // Blank — the crop has nothing to sit on
       settle([] { return false; }, 400);
       tabs->setCurrentIndex(1);            // …and back
       settle([] { return false; }, 400);
       ticked = cropBox(dlg) && cropBox(dlg)->isChecked();
-      staged = dlg->cropStage_ != nullptr;
+      staged = dlg->cropStage != nullptr;
       clouds = dlg->findChildren<QWidget*>(
                      QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
       dlg->reject();
@@ -137,8 +137,8 @@ class MainWindowGuiTest : public QObject {
       settle([] { return false; }, 400);
       tabs->setCurrentIndex(1);            // …and back
       settle([] { return false; }, 500);
-      shown = dlg->previewLabel_->isVisible();
-      pix = dlg->previewLabel_->pixmap().size();
+      shown = dlg->previewLabel->isVisible();
+      pix = dlg->previewLabel->pixmap().size();
       dlg->reject();
     });
     win.openImage();
@@ -170,7 +170,7 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
       settle([] { return false; }, 700);   // the tick's own arrival cloud lands and clears
       tabs->setCurrentIndex(0);            // Local file — nothing chosen, a plain switch
       clouds = dlg->findChildren<QWidget*>(
@@ -192,9 +192,9 @@ class MainWindowGuiTest : public QObject {
       auto* dlg = qobject_cast<OpenImageDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
       // Incognito's caption is up from the start — no preview needed for this one.
-      QCheckBox* box = dlg->incognito_;
+      QCheckBox* box = dlg->incognito;
       QLabel* caption = nullptr;
-      for (QLabel* l : dlg->incogRow_->findChildren<QLabel*>())
+      for (QLabel* l : dlg->incogRow->findChildren<QLabel*>())
         if (l->isVisible() && l->text().size() > 12) { caption = l; break; }
       if (!box || !caption) { dlg->reject(); return; }
       hadCaption = true;

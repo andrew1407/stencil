@@ -15,10 +15,10 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.chatDock_);
-    win.chatDock_->show();
+    QVERIFY(win.chatDock);
+    win.chatDock->show();
     settleLayout(&win, 120);
-    auto* edge = win.chatEdge_;
+    auto* edge = win.chatEdge;
     QVERIFY(edge);
     const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } AREAS[] = {
         {Qt::LeftDockWidgetArea, Qt::Horizontal, "left"},
@@ -27,10 +27,10 @@ class MainWindowGuiTest : public QObject {
         {Qt::BottomDockWidgetArea, Qt::Vertical, "bottom"},
     };
     for (const auto& a : AREAS) {
-      win.addDockWidget(a.area, win.chatDock_, a.split);
+      win.addDockWidget(a.area, win.chatDock, a.split);
       settleLayout(&win, 120);
-      const QRect dock = win.chatDock_->geometry();
-      const QRect hit = win.chatEdgeHit_;
+      const QRect dock = win.chatDock->geometry();
+      const QRect hit = win.chatEdgeHit;
       const QRect band = edge->geometry();
       QVERIFY2(edge->isVisible(), a.name);
       QVERIFY2(!hit.isEmpty(), a.name);
@@ -46,7 +46,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(qMin(band.width(), band.height()) >= stencil::gui::DockEdgeOverlay::MIN_THICKNESS, a.name);
     }
     // Nothing to grab while it floats — the window frame owns that resize.
-    win.chatDock_->setFloating(true);
+    win.chatDock->setFloating(true);
     QTRY_VERIFY(!edge->isVisible());
   }
 
@@ -98,7 +98,7 @@ class MainWindowGuiTest : public QObject {
         if (a->text() == "Selection Panel") { panelAct = a; break; }
       QVERIFY(panelAct);
       QVERIFY(panelAct->isChecked());  // synced to the restored visibility
-      // Header chevron path: collapseRequested → actPanel_ → animated hide.
+      // Header chevron path: collapseRequested → actPanel → animated hide.
       QVERIFY(QMetaObject::invokeMethod(selPanel, "collapseRequested"));
       QTRY_VERIFY(selPanel->isHidden());
       QVERIFY(!panelAct->isChecked());
@@ -134,7 +134,7 @@ class MainWindowGuiTest : public QObject {
       do {
         s.append(dock->isVisible() ? dock->width() : 0);
         QTest::qWait(16);
-      } while (win.chatAnim_ && t.elapsed() < 1200);
+      } while (win.chatAnim && t.elapsed() < 1200);
       return s;
     };
     auto hasIntermediate = [](const QList<int>& s, int full) {
@@ -169,7 +169,7 @@ class MainWindowGuiTest : public QObject {
     // Reopening restores the extent it was dismissed at.
     chat->setChecked(true);
     QTRY_VERIFY(dock->width() > 200);
-    awaitAnim(win.chatAnim_);
+    awaitAnim(win.chatAnim);
     QVERIFY2(qAbs(dock->width() - full) <= 8, "reopen lost the remembered width");
 
     // Floating: no edge to slide from — plain show/hide, and the tear-off size

@@ -42,23 +42,23 @@ namespace stencil::gui {
 
    protected:
     void mousePressEvent(QMouseEvent* e) override {
-      if (e->button() == Qt::LeftButton) armed_ = true;
+      if (e->button() == Qt::LeftButton) armed = true;
       QLabel::mousePressEvent(e);
     }
     void mouseMoveEvent(QMouseEvent* e) override {
-      if (armed_ && (e->buttons() & Qt::LeftButton)) {
-        armed_ = false;
+      if (armed && (e->buttons() & Qt::LeftButton)) {
+        armed = false;
         if (onDrag) onDrag();
       }
       QLabel::mouseMoveEvent(e);
     }
     void mouseReleaseEvent(QMouseEvent* e) override {
-      armed_ = false;
+      armed = false;
       QLabel::mouseReleaseEvent(e);
     }
 
    private:
-    bool armed_ = false;
+    bool armed = false;
   };
 
   class ReorderableListWidget : public QListWidget {
@@ -71,9 +71,9 @@ namespace stencil::gui {
       setSelectionMode(QAbstractItemView::SingleSelection);
       // A bright insertion line showing WHERE a dragged row will land (Qt's built-in indicator
       // doesn't show for our manually-handled drag). A thin click-through child of the viewport.
-      dropIndicator_ = new QWidget(viewport());
-      dropIndicator_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-      dropIndicator_->hide();
+      dropIndicator = new QWidget(viewport());
+      dropIndicator->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+      dropIndicator->hide();
     }
     // In-list reorder: move the row at `from` to `to` (QList::move semantics on the model).
     std::function<void(int from, int to)> onReorder;
@@ -111,15 +111,15 @@ namespace stencil::gui {
         drag->setHotSpot(QPoint(qBound(0, inVp.x() - vr.left(), vr.width()),
                                 qBound(0, inVp.y() - vr.top(), vr.height())));
       }
-      droppedInList_ = false;
-      pendingFrom_ = from;
-      pendingTo_ = from;
+      droppedInList = false;
+      pendingFrom = from;
+      pendingTo = from;
       if (onDragStart) onDragStart();
       drag->exec(Qt::MoveAction);
       hideDropIndicator();
       if (onDragEnd) onDragEnd();
-      if (droppedInList_) {
-        if (pendingFrom_ != pendingTo_ && onReorder) onReorder(pendingFrom_, pendingTo_);
+      if (droppedInList) {
+        if (pendingFrom != pendingTo && onReorder) onReorder(pendingFrom, pendingTo);
       } else if (onDragOut) {
         onDragOut(from);
       }
@@ -128,14 +128,14 @@ namespace stencil::gui {
    protected:
     // Position the insertion line at viewport-y `y` (the top or bottom edge of the target row).
     void positionDropIndicator(int y) {
-      if (!dropIndicator_) return;
-      dropIndicator_->setStyleSheet(
+      if (!dropIndicator) return;
+      dropIndicator->setStyleSheet(
           QStringLiteral("background:%1; border-radius:2px;").arg(palette().color(QPalette::Highlight).name()));
-      dropIndicator_->setGeometry(3, y - 2, viewport()->width() - 6, 4);
-      dropIndicator_->raise();
-      dropIndicator_->show();
+      dropIndicator->setGeometry(3, y - 2, viewport()->width() - 6, 4);
+      dropIndicator->raise();
+      dropIndicator->show();
     }
-    void hideDropIndicator() { if (dropIndicator_) dropIndicator_->hide(); }
+    void hideDropIndicator() { if (dropIndicator) dropIndicator->hide(); }
     // The viewport-y where the insertion line should sit for a drop at `pos`.
     int dropIndicatorY(const QPoint& pos) const {
       QListWidgetItem* tgt = const_cast<ReorderableListWidget*>(this)->itemAt(pos);
@@ -172,7 +172,7 @@ namespace stencil::gui {
       if (!e->mimeData()->hasFormat(reorderRowMime())) { QListWidget::dropEvent(e); return; }
       // Defer the actual model mutation to beginRowDrag (after the drag loop unwinds) so we
       // don't rebuild the list from inside its own drop event.
-      droppedInList_ = true;
+      droppedInList = true;
       const int from = e->mimeData()->data(reorderRowMime()).toInt();
       const QPoint pos = e->position().toPoint();
       QListWidgetItem* tgt = itemAt(pos);
@@ -188,17 +188,17 @@ namespace stencil::gui {
       }
       if (to < 0) to = 0;
       if (to >= count()) to = count() - 1;
-      pendingFrom_ = from;
-      pendingTo_ = to;
+      pendingFrom = from;
+      pendingTo = to;
       e->setDropAction(Qt::MoveAction);
       e->accept();
     }
 
    private:
-    bool droppedInList_ = false;
-    int pendingFrom_ = -1;
-    int pendingTo_ = -1;
-    QWidget* dropIndicator_ = nullptr;
+    bool droppedInList = false;
+    int pendingFrom = -1;
+    int pendingTo = -1;
+    QWidget* dropIndicator = nullptr;
   };
 
 }  // namespace stencil::gui

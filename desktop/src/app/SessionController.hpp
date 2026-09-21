@@ -36,19 +36,19 @@ namespace stencil::gui {
     }
 
     void attach(QObject* owner, std::function<void()> saveSession, std::function<void()> saveView) {
-      autosave_ = newTimer(owner, std::move(saveSession));
-      viewSave_ = newTimer(owner, std::move(saveView));
+      autosave = newTimer(owner, std::move(saveSession));
+      viewSave = newTimer(owner, std::move(saveView));
     }
     // Only incognito stops the timer arming; the remote-unsynced case is decided at fire time.
     void scheduleAutosave(bool autosaveEnabled, const Gates& g) {
-      if (autosave_ && autosaveEnabled && !g.incognito) autosave_->start(AUTOSAVE_MS);
+      if (autosave && autosaveEnabled && !g.incognito) autosave->start(AUTOSAVE_MS);
     }
     void scheduleViewSave(const Gates& g) {
-      if (viewSave_ && wantsViewSchedule(g, restoring_)) viewSave_->start(VIEW_SAVE_MS);
+      if (viewSave && wantsViewSchedule(g, restoring)) viewSave->start(VIEW_SAVE_MS);
     }
 
-    bool restoring() const { return restoring_; }
-    void setRestoring(bool on) { restoring_ = on; }
+    bool getRestoring() const { return restoring; }
+    void setRestoring(bool on) { restoring = on; }
 
    private:
     static QTimer* newTimer(QObject* owner, std::function<void()> fire) {
@@ -57,9 +57,9 @@ namespace stencil::gui {
       QObject::connect(t, &QTimer::timeout, owner, std::move(fire));
       return t;
     }
-    QTimer* autosave_ = nullptr;
-    QTimer* viewSave_ = nullptr;
-    bool restoring_ = false;
+    QTimer* autosave = nullptr;
+    QTimer* viewSave = nullptr;
+    bool restoring = false;
   };
 
 }  // namespace stencil::gui

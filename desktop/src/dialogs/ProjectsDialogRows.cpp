@@ -23,12 +23,12 @@ namespace stencil::gui {
 
   void ProjectsDialog::addLocalProjectRow(const Project& pr, const core::ProjectsStore& store) {
     // No line/point counts (browser projects list parity).
-    const QString expiry = expiryText(store, pr.meta, now_);
+    const QString expiry = expiryText(store, pr.meta, now);
     QString label = QString::fromStdString(pr.meta.name);
     const QString created = createdText(pr.meta.createdAt);
     if (!created.isEmpty()) label += QString("   ·   %1").arg(created);
     if (!expiry.isEmpty()) label += QString("   ·   %1").arg(expiry);
-    auto* it = new QListWidgetItem(label, list_);
+    auto* it = new QListWidgetItem(label, list);
     it->setData(Qt::UserRole, QString::fromStdString(pr.meta.id));
     it->setData(Qt::UserRole + 3, QString::fromStdString(pr.meta.name));
     {
@@ -38,11 +38,11 @@ namespace stencil::gui {
       it->setData(META_ROLE, metaBits.join(QStringLiteral(" · ")));
     }
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
-    it->setCheckState(batch_.checked.contains("|" + QString::fromStdString(pr.meta.id))
+    it->setCheckState(batch.checked.contains("|" + QString::fromStdString(pr.meta.id))
                           ? Qt::Checked : Qt::Unchecked);
     // Absent for pathless (in-memory) sources — a uniform placeholder tile keeps the row height.
-    const auto thumb = thumbs_.constFind(QString::fromStdString(pr.meta.id));
-    if (thumb != thumbs_.constEnd() && !thumb->isNull()) {
+    const auto thumb = thumbs.constFind(QString::fromStdString(pr.meta.id));
+    if (thumb != thumbs.constEnd() && !thumb->isNull()) {
       it->setIcon(QIcon(squareThumb(*thumb, 112)));
       it->setData(Qt::UserRole + 2, *thumb);
     } else {
@@ -53,8 +53,8 @@ namespace stencil::gui {
     const QString pcol = QString::fromStdString(pr.meta.color);
     const QColor custom(pcol);
     QColor nameCol;
-    if (store.isExpired(pr.meta, now_)) nameCol = QColor("#dc3545");
-    else if (store.isExpiringSoon(pr.meta, now_)) nameCol = QColor("#e0a800");
+    if (store.isExpired(pr.meta, now)) nameCol = QColor("#dc3545");
+    else if (store.isExpiringSoon(pr.meta, now)) nameCol = QColor("#e0a800");
     else if (!pcol.isEmpty() && custom.isValid()) nameCol = custom;
     else nameCol = QColor("#80868f");
     it->setData(Qt::UserRole + 4, nameCol);
@@ -64,7 +64,7 @@ namespace stencil::gui {
     // UserRole+6: file-origin flag → the delegate's bronze outline + file glyph.
     it->setData(Qt::UserRole + 6, pr.meta.fromFile);
     // UserRole+8: the project open in THIS editor → the delegate's "(Current)" mark.
-    if (!activeProjectId_.isEmpty() && QString::fromStdString(pr.meta.id) == activeProjectId_)
+    if (!activeProjectId.isEmpty() && QString::fromStdString(pr.meta.id) == activeProjectId)
       it->setData(ACTIVE_ROLE, true);
     // A LOCAL row already carries the "computer" badge (the browser tip has no origin line); a .stencil
     // project keeps its note.
@@ -83,7 +83,7 @@ namespace stencil::gui {
     if (!spCreated.isEmpty()) label += QString("   ·   %1").arg(spCreated);
     const QString spExpires = expiresText(sp.expiresAt);
     if (!spExpires.isEmpty()) label += QString("   ·   %1").arg(spExpires);
-    auto* it = new QListWidgetItem(label, list_);
+    auto* it = new QListWidgetItem(label, list);
     it->setData(Qt::UserRole, sp.id);
     it->setData(Qt::UserRole + 1, sp.serverUrl);
     {
@@ -94,7 +94,7 @@ namespace stencil::gui {
     }
     it->setData(Qt::UserRole + 3, sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name);
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
-    it->setCheckState(batch_.checked.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
+    it->setCheckState(batch.checked.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
     // UserRole+4 — the name only, so the "— <url>" suffix stays the default colour. The gold outline
     // marks server rows, so the grey matches local rows (browser default — not gold).
     const QColor custom(sp.color);

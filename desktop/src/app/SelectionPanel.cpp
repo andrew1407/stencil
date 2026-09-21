@@ -42,29 +42,29 @@ namespace stencil::gui {
     titleRow->setContentsMargins(8, 2, 5, 0);
     // The tabs live in the header beside the chevron (browser .coord-panel-header holds only tabs
     // + toggle); the QTabWidget hides its own bar.
-    tabBar_ = new QTabBar(titleBar);
-    tabBar_->setObjectName("selectionTabBar");
-    tabBar_->setDrawBase(false);
-    tabBar_->setExpanding(false);
-    tabBar_->setFocusPolicy(Qt::NoFocus);
-    tabBar_->addTab("Points");
-    tabBar_->addTab("Lines");
-    collapseBtn_ = new QToolButton(titleBar);
-    collapseBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    collapseBtn_->setCursor(Qt::PointingHandCursor);
-    collapseBtn_->setToolTip("Hide panel");
+    tabBar = new QTabBar(titleBar);
+    tabBar->setObjectName("selectionTabBar");
+    tabBar->setDrawBase(false);
+    tabBar->setExpanding(false);
+    tabBar->setFocusPolicy(Qt::NoFocus);
+    tabBar->addTab("Points");
+    tabBar->addTab("Lines");
+    collapseBtn = new QToolButton(titleBar);
+    collapseBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    collapseBtn->setCursor(Qt::PointingHandCursor);
+    collapseBtn->setToolTip("Hide panel");
     // On the panel surface it takes the browser's #toggle-coord-panel treatment, not the floating
     // chevron's slab.
-    collapseBtn_->setObjectName("panelCollapseBtn");   // styled in theme.cpp
+    collapseBtn->setObjectName("panelCollapseBtn");   // styled in theme.cpp
     // A fold chevron's angle is state, not hover feedback (iconMotion.json trigger.excluded).
-    collapseBtn_->setProperty(NO_ICON_MOTION_PROPERTY, true);
-    collapseBtn_->setFocusPolicy(Qt::NoFocus);   // no macOS focus halo around the chevron
-    collapseBtn_->setFixedSize(TOGGLE_BOX, TOGGLE_BOX);
-    collapseBtn_->setIconSize(QSize(TOGGLE_GLYPH, TOGGLE_GLYPH));
-    connect(collapseBtn_, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
-    titleRow->addWidget(tabBar_);
+    collapseBtn->setProperty(NO_ICON_MOTION_PROPERTY, true);
+    collapseBtn->setFocusPolicy(Qt::NoFocus);   // no macOS focus halo around the chevron
+    collapseBtn->setFixedSize(TOGGLE_BOX, TOGGLE_BOX);
+    collapseBtn->setIconSize(QSize(TOGGLE_GLYPH, TOGGLE_GLYPH));
+    connect(collapseBtn, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
+    titleRow->addWidget(tabBar);
     titleRow->addStretch(1);
-    titleRow->addWidget(collapseBtn_, 0, Qt::AlignVCenter);
+    titleRow->addWidget(collapseBtn, 0, Qt::AlignVCenter);
 
     setTitleBarWidget(titleBar);
 
@@ -75,81 +75,81 @@ namespace stencil::gui {
     layout->setContentsMargins(8, 8, 8, 8);
 
     // Shown while 2+ lines are multi-selected; the "Selected Line:" bar stays hidden then.
-    multiLabel_ = new QLabel(body);
-    multiLabel_->setWordWrap(true);
-    multiLabel_->setStyleSheet("color: palette(highlight); font-weight: 600;");
-    multiLabel_->setVisible(false);
-    layout->addWidget(multiLabel_);
+    multiLabel = new QLabel(body);
+    multiLabel->setWordWrap(true);
+    multiLabel->setStyleSheet("color: palette(highlight); font-weight: 600;");
+    multiLabel->setVisible(false);
+    layout->addWidget(multiLabel);
 
     // browser mainContent.js coord-tabs; the Lines tab mirrors renderLinesList / #lines-list.
-    tabs_ = new QTabWidget(body);
-    tabs_->setObjectName("selectionTabs");
-    tabs_->tabBar()->hide();   // the header's own strip drives it (see tabBar_ above)
-    layout->addWidget(tabs_, 1);
+    tabs = new QTabWidget(body);
+    tabs->setObjectName("selectionTabs");
+    tabs->tabBar()->hide();   // the header's own strip drives it (see tabBar above)
+    layout->addWidget(tabs, 1);
 
-    auto* ptsTab = new QWidget(tabs_);
+    auto* ptsTab = new QWidget(tabs);
     auto* ptsLay = new QVBoxLayout(ptsTab);
     ptsLay->setContentsMargins(0, 6, 0, 0);
-    points_ = new QTableWidget(0, COL_COUNT, ptsTab);
-    points_->setObjectName("pointsTable");
-    points_->setItemDelegate(new PointRowDelegate(points_));  // outline-style selection
+    points = new QTableWidget(0, COL_COUNT, ptsTab);
+    points->setObjectName("pointsTable");
+    points->setItemDelegate(new PointRowDelegate(points));  // outline-style selection
     applyUnitHeaders();
-    points_->verticalHeader()->setVisible(false);
-    points_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    points_->setSelectionMode(QAbstractItemView::SingleSelection);
-    points_->setShowGrid(false);
-    points_->setAlternatingRowColors(true);
-    points_->setWordWrap(false);
-    points_->setEditTriggers(QAbstractItemView::DoubleClicked |
+    points->verticalHeader()->setVisible(false);
+    points->setSelectionBehavior(QAbstractItemView::SelectRows);
+    points->setSelectionMode(QAbstractItemView::SingleSelection);
+    points->setShowGrid(false);
+    points->setAlternatingRowColors(true);
+    points->setWordWrap(false);
+    points->setEditTriggers(QAbstractItemView::DoubleClicked |
                              QAbstractItemView::EditKeyPressed);
-    points_->installEventFilter(this);
+    points->installEventFilter(this);
     // Hover cross-highlight, row → canvas (browser coordTable.js row mouseenter); Leave is caught
     // in eventFilter.
-    points_->setMouseTracking(true);
-    points_->viewport()->setMouseTracking(true);
-    connect(points_, &QTableWidget::cellEntered, this,
+    points->setMouseTracking(true);
+    points->viewport()->setMouseTracking(true);
+    connect(points, &QTableWidget::cellEntered, this,
             [this](int row, int) { emit pointRowHovered(row); });
-    auto* hh = points_->horizontalHeader();
+    auto* hh = points->horizontalHeader();
     hh->setSectionResizeMode(COL_INDEX, QHeaderView::ResizeToContents);
     for (int c : {COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y}) hh->setSectionResizeMode(c, QHeaderView::Stretch);
     hh->setSectionResizeMode(COL_DEL, QHeaderView::Fixed);
     // The browser's trailing cell (mainContent.js: `width:28px;padding:4px`).
-    points_->setColumnWidth(COL_DEL, 28);
+    points->setColumnWidth(COL_DEL, 28);
     hh->setHighlightSections(false);
     // layout.css .coordinates-table th { text-align: left }
     hh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // The browser table draws a hairline around every cell (--border-coord); the grid is Qt's way.
-    points_->setShowGrid(true);
-    ptsLay->addWidget(points_, 1);
+    points->setShowGrid(true);
+    ptsLay->addWidget(points, 1);
 
-    tabs_->addTab(ptsTab, "Points");
+    tabs->addTab(ptsTab, "Points");
 
     // browser #lines-list: colour chip · "Line N · M pts" · 🗑; Ctrl/⌘+Shift toggles multi-select.
-    auto* linesTab = new QWidget(tabs_);
+    auto* linesTab = new QWidget(tabs);
     auto* linesLay = new QVBoxLayout(linesTab);
     linesLay->setContentsMargins(0, 6, 0, 0);
-    lines_ = new QListWidget(linesTab);
-    lines_->setObjectName("linesList");
-    lines_->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
+    lines = new QListWidget(linesTab);
+    lines->setObjectName("linesList");
+    lines->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
     // ClickFocus so a bare Delete/Backspace scopes to this list; selection stays canvas-driven,
     // only the current row moves.
-    lines_->setFocusPolicy(Qt::ClickFocus);
-    lines_->installEventFilter(this);
+    lines->setFocusPolicy(Qt::ClickFocus);
+    lines->installEventFilter(this);
     // Hover cross-highlight, row → canvas (browser renderLinesList row mouseenter).
-    lines_->setMouseTracking(true);
-    lines_->viewport()->setMouseTracking(true);
-    connect(lines_, &QListWidget::itemEntered, this,
-            [this](QListWidgetItem* it) { emit lineRowHovered(lines_->row(it)); });
-    linesLay->addWidget(lines_, 1);
-    tabs_->addTab(linesTab, "Lines");
+    lines->setMouseTracking(true);
+    lines->viewport()->setMouseTracking(true);
+    connect(lines, &QListWidget::itemEntered, this,
+            [this](QListWidgetItem* it) { emit lineRowHovered(lines->row(it)); });
+    linesLay->addWidget(lines, 1);
+    tabs->addTab(linesTab, "Lines");
     // Bound both ways so a programmatic page change turns the strip too.
-    connect(tabBar_, &QTabBar::currentChanged, tabs_, &QTabWidget::setCurrentIndex);
-    connect(tabs_, &QTabWidget::currentChanged, tabBar_, &QTabBar::setCurrentIndex);
+    connect(tabBar, &QTabBar::currentChanged, tabs, &QTabWidget::setCurrentIndex);
+    connect(tabs, &QTabWidget::currentChanged, tabBar, &QTabBar::setCurrentIndex);
 
-    connect(lines_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
-      const int idx = lines_->row(it);
+    connect(lines, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
+      const int idx = lines->row(it);
       if (idx < 0) return;
-      lines_->setCurrentRow(idx);   // the row Delete/Backspace will act on
+      lines->setCurrentRow(idx);   // the row Delete/Backspace will act on
       const auto mods = QGuiApplication::keyboardModifiers();
       const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
                          (mods & Qt::ShiftModifier);
@@ -159,12 +159,12 @@ namespace stencil::gui {
     setWidget(body);
     restyleIcons(palette().color(QPalette::WindowText));
 
-    connect(points_, &QTableWidget::cellClicked, this, [this](int row, int col) {
+    connect(points, &QTableWidget::cellClicked, this, [this](int row, int col) {
       if (col != COL_DEL) emit pointActivated(row);
     });
     // Guarded against showLine's repopulation.
-    connect(points_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* it) {
-      if (updating_ || !it) return;
+    connect(points, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* it) {
+      if (updating || !it) return;
       const int col = it->column();
       if (col != COL_X && col != COL_Y) return;
       bool ok = false;

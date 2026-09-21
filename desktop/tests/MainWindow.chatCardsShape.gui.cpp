@@ -16,14 +16,14 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    win.chatDock_->appendUser(QStringLiteral("hi"), {});
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    win.chatDock->appendUser(QStringLiteral("hi"), {});
     QTest::qWait(120);
     QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::OBJECT_NAME),
              "no dust under reduced motion");
     QFrame* card = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardUser")) card = f;
     QVERIFY(card);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
       QTRY_COMPARE(fx->opacity(), 1.0);
@@ -40,22 +40,22 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     openTranscript(win);   // the dock's real width: a card appended into a sliver lays out wrong
-    win.chatDock_->appendUser(QStringLiteral("Give me 3 variants"), {});
-    win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
+    win.chatDock->appendUser(QStringLiteral("Give me 3 variants"), {});
+    win.chatHistory.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
     win.chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());
-    QTRY_VERIFY(win.chatDock_->findChild<QFrame*>("chatCardError"));
+    QTRY_VERIFY(win.chatDock->findChild<QFrame*>("chatCardError"));
     QFrame* errCard = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) errCard = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardError")) errCard = f;
     QFrame* userCard = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) userCard = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardUser")) userCard = f;
     QVERIFY(errCard && userCard);
-    QImage shot = win.chatDock_->grab().toImage();
+    QImage shot = win.chatDock->grab().toImage();
     // A pixel just inside the card's flattened corner, against a reference pixel further in that
     // is unambiguously fill. Equal ⇒ one continuous fill; a rounded corner samples the transcript.
     const auto sampleFlushCorner = [&](QFrame* card, bool right, const char* what) {
-      const QPoint corner = card->mapTo(win.chatDock_,
+      const QPoint corner = card->mapTo(win.chatDock,
           right ? card->rect().bottomRight() : card->rect().bottomLeft());
       const int dx = right ? -1 : 1;
       const QColor atCorner = shot.pixelColor(corner.x() + dx, corner.y() - 1);
@@ -74,22 +74,22 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.chatDock_->show();
+    win.chatDock->show();
     // Fill the transcript until it scrolls FIRST: appending into an already scrollable transcript
     // toggles no scrollbar, so no healing viewport-resize re-measure follows.
     QScrollArea* scroll = openTranscript(win);
     fillUntilScrollable(win, scroll);
     QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
-    settleLayout(win.chatDock_, 50);
+    settleLayout(win.chatDock, 50);
     const QString text = QStringLiteral(
         "This reply is deliberately long enough to wrap across several transcript lines, "
         "so a height reserved at the wrong measurement width visibly disagrees with the "
         "height the rendered text actually needs — the regression this test guards.");
-    win.chatDock_->appendAssistant(text);
+    win.chatDock->appendAssistant(text);
     QTRY_VERIFY(noneEntering(scroll->widget()));   // the entrance drops its own claim
-    settleLayout(win.chatDock_, 120);              // …and the deferred relayout follows
+    settleLayout(win.chatDock, 120);              // …and the deferred relayout follows
     QLabel* body = nullptr;
-    for (QLabel* l : win.chatDock_->findChildren<QLabel*>())
+    for (QLabel* l : win.chatDock->findChildren<QLabel*>())
       if (l->property("chatBody").toString() == text) body = l;
     QVERIFY(body);
     QVERIFY(body->width() > 100);   // really laid out at bubble width
@@ -118,19 +118,19 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.chatDock_->show();
+    win.chatDock->show();
     QScrollArea* scroll = openTranscript(win);
     QScrollBar* bar = fillUntilScrollable(win, scroll, 24);
     QVERIFY(bar->maximum() > 24);
     bar->setValue(bar->maximum() / 2);   // mid-log: both pills visible
     const auto jumps =
-        win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
+        win.chatDock->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
     // The pills rest at 0.7, the shared figure across the three surfaces (browser .chat-jump-btn);
     // hover restores full opacity and lifts the glyph from --text-muted to --text-main.
-    const bool dark = stencil::gui::resolveDark(win.settings_.themeMode);
-    const QColor muted = stencil::gui::themePalette(dark, win.settings_.accentColor).textMuted;
-    const QColor main = stencil::gui::themePalette(dark, win.settings_.accentColor).textMain;
+    const bool dark = stencil::gui::resolveDark(win.settings.themeMode);
+    const QColor muted = stencil::gui::themePalette(dark, win.settings.accentColor).textMuted;
+    const QColor main = stencil::gui::themePalette(dark, win.settings.accentColor).textMain;
     const auto glyphIs = [](QToolButton* b, const QColor& want) {
       const QImage im = b->icon().pixmap(14, 14).toImage();
       for (int y = 0; y < im.height(); ++y)

@@ -15,50 +15,50 @@ namespace stencil::gui {
   // Hover: ×1.12 breath + 2px lift on a 1.2s beat, a glow on the same beat, 8 spokes turning once per 8s.
   LogoHoverFx::LogoHoverFx(QToolButton* logo, std::function<QPixmap()> makePixmap,
                            std::function<QColor()> accent)
-      : QWidget(logo->window()), logo_(logo),
-        makePixmap_(std::move(makePixmap)), accent_(std::move(accent)) {
+      : QWidget(logo->window()), logo(logo),
+        makePixmap(std::move(makePixmap)), accent(std::move(accent)) {
     setObjectName(QStringLiteral("logoHoverFx"));   // findable by the GUI test
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_NoSystemBackground);
-    pulse_ = new QVariantAnimation(this);   // one 1.2s breath per loop (logoPulse)
-    pulse_->setStartValue(0.0);
-    pulse_->setEndValue(1.0);
-    pulse_->setDuration(1200);
-    pulse_->setLoopCount(-1);
-    QObject::connect(pulse_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+    pulse = new QVariantAnimation(this);   // one 1.2s breath per loop (logoPulse)
+    pulse->setStartValue(0.0);
+    pulse->setEndValue(1.0);
+    pulse->setDuration(1200);
+    pulse->setLoopCount(-1);
+    QObject::connect(pulse, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
       // 0 → 1 → 0 across the beat.
-      beat_ = 0.5 - 0.5 * std::cos(qDegreesToRadians(360.0 * v.toReal()));
-      setProperty("pulseBeat", beat_);   // observable by the GUI test
+      beat = 0.5 - 0.5 * std::cos(qDegreesToRadians(360.0 * v.toReal()));
+      setProperty("pulseBeat", beat);   // observable by the GUI test
       syncGeometry();                    // tracks the button between ticks too
       update();
     });
-    spin_ = new QVariantAnimation(this);    // one ray revolution per 8s (logoRaysSpin)
-    spin_->setStartValue(0.0);
-    spin_->setEndValue(360.0);
-    spin_->setDuration(8000);
-    spin_->setLoopCount(-1);
-    QObject::connect(spin_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-      angle_ = v.toReal();
-      setProperty("raysAngle", angle_);
+    spin = new QVariantAnimation(this);    // one ray revolution per 8s (logoRaysSpin)
+    spin->setStartValue(0.0);
+    spin->setEndValue(360.0);
+    spin->setDuration(8000);
+    spin->setLoopCount(-1);
+    QObject::connect(spin, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+      angle = v.toReal();
+      setProperty("raysAngle", angle);
       update();
     });
-    grace_ = new QTimer(this);
-    grace_->setSingleShot(true);
-    grace_->setInterval(150);
-    QObject::connect(grace_, &QTimer::timeout, this, [this] {
+    grace = new QTimer(this);
+    grace->setSingleShot(true);
+    grace->setInterval(150);
+    QObject::connect(grace, &QTimer::timeout, this, [this] {
       if (!hoveredAnywhere()) stop();
     });
     setProperty("fxActive", false);
     hide();
-    logo_->installEventFilter(this);
+    this->logo->installEventFilter(this);
     // Paint the mark at ALL times: QToolButton draws its icon at half size on Retina. Deferred so the button is laid out first.
     QTimer::singleShot(0, this, [this] { showStatic(); });
   }
 
   void LogoHoverFx::holdWhile(QWidget* box) {
-    if (box_) box_->removeEventFilter(this);
-    box_ = box;
-    if (box_) box_->installEventFilter(this);
+    if (this->box) this->box->removeEventFilter(this);
+    this->box = box;
+    if (this->box) this->box->installEventFilter(this);
   }
 
   void LogoHoverFx::standDown(bool on) {
@@ -71,31 +71,31 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::themeChanged() {
-    pm_ = makePixmap_();
+    pm = makePixmap();
     blankButtonIcon();
     update();
   }
 
-  bool LogoHoverFx::active() const { return pulse_->state() == QAbstractAnimation::Running; }
+  bool LogoHoverFx::active() const { return pulse->state() == QAbstractAnimation::Running; }
 
   bool LogoHoverFx::eventFilter(QObject* o, QEvent* e) {
-    if (o == logo_) {
+    if (o == logo) {
       switch (e->type()) {
         case QEvent::Enter:
-          grace_->stop();
-          if (logo_->isEnabled()) start();
+          grace->stop();
+          if (logo->isEnabled()) start();
           break;
         case QEvent::Leave:
-          if (box_ && box_->isVisible()) leaveSoon(); else stop();
+          if (box && box->isVisible()) leaveSoon(); else stop();
           break;
         case QEvent::Hide:
         case QEvent::EnabledChange:
         case QEvent::WindowDeactivate:
           // Mirror ShimmerOverlay: the button hiding / a modal opening mid-hover stops the LOOP.
-          grace_->stop();
+          grace->stop();
           stop();
           // The RESTING mark goes with the button too — stop() returns early with no loop running.
-          if (!logo_ || !logo_->isVisible()) hide();
+          if (!logo || !logo->isVisible()) hide();
           break;
         case QEvent::Move:
         case QEvent::Resize:
@@ -107,11 +107,11 @@ namespace stencil::gui {
         default:
           break;
       }
-    } else if (box_ && o == box_) {
+    } else if (box && o == box) {
       switch (e->type()) {
         case QEvent::Enter:
-          grace_->stop();
-          if (logo_->isEnabled() && logo_->isVisible()) start();
+          grace->stop();
+          if (logo->isEnabled() && logo->isVisible()) start();
           break;
         case QEvent::Leave:
         case QEvent::Hide:
@@ -125,7 +125,7 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::leaveSoon() {
-    if (active()) grace_->start();
+    if (active()) grace->start();
   }
 
   bool LogoHoverFx::hoveredAnywhere() const {
@@ -134,7 +134,7 @@ namespace stencil::gui {
       return w->isVisible() &&
              (w->underMouse() || w->rect().contains(w->mapFromGlobal(QCursor::pos())));
     };
-    return under(logo_) || (box_ && under(box_));
+    return under(logo) || (box && under(box));
   }
 }  // namespace stencil::gui
 

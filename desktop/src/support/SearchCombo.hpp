@@ -40,20 +40,20 @@ namespace stencil::gui {
     void applyFilter(const QString& query);
     void positionPopup();
 
-    bool searchable_ = true;        // false → no search row (short lists)
-    QWidget* popup_ = nullptr;      // Qt::Popup container (translucent corners)
-    QLineEdit* search_ = nullptr;
-    QAbstractItemDelegate* delegate_ = nullptr;   // setListDelegate, applied in ensurePopup
-    std::function<void(const QString&)> preview_;   // setPreview: hover-preview callback
-    bool previewing_ = false;       // a preview is showing → restorePreview() should revert
-    QTimer previewTimer_;           // rested-intent delay before a hover previews
-    QString pendingPreview_;        // …the row-value it will preview when it fires
-    QListView* list_ = nullptr;
-    QLabel* noMatch_ = nullptr;
-    QSortFilterProxyModel* proxy_ = nullptr;
+    bool searchable = true;        // false → no search row (short lists)
+    QWidget* popup = nullptr;      // Qt::Popup container (translucent corners)
+    QLineEdit* search = nullptr;
+    QAbstractItemDelegate* delegate = nullptr;   // setListDelegate, applied in ensurePopup
+    std::function<void(const QString&)> preview;   // setPreview: hover-preview callback
+    bool previewing = false;       // a preview is showing → restorePreview() should revert
+    QTimer previewTimer;           // rested-intent delay before a hover previews
+    QString pendingPreview;        // …the row-value it will preview when it fires
+    QListView* list = nullptr;
+    QLabel* noMatch = nullptr;
+    QSortFilterProxyModel* proxy = nullptr;
     // Browser toggle: the outside-press auto-close fires first, so without this timestamp
     // the combo click would instantly reopen the popup.
-    QElapsedTimer lastHide_;
+    QElapsedTimer lastHide;
   };
 
 }

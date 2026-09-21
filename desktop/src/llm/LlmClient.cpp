@@ -22,14 +22,14 @@ namespace stencil::llm {
   }
 
   LlmClient::LlmClient(LlmTransport* transport)
-      : transport_(transport), tokenResolver_(&LlmClient::savedServerToken) {}
+      : transport(transport), tokenResolver(&LlmClient::savedServerToken) {}
 
   void LlmClient::setServerTokenResolver(
       std::function<QString(const QString& serverUrl)> resolver) {
-    if (resolver) tokenResolver_ = std::move(resolver);
+    if (resolver) tokenResolver = std::move(resolver);
   }
 
-  void LlmClient::abort() { transport_->abortActive(); }
+  void LlmClient::abort() { transport->abortActive(); }
 
   QString LlmClient::systemPrompt(const QString& suffix) {
     // §4 prose core + the ops section assembled from the §13 op registry

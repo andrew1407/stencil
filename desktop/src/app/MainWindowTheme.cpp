@@ -43,18 +43,18 @@
 namespace stencil::gui {
 
   void MainWindow::applyTheme() {
-    const bool dark = resolveDark(settings_.themeMode);
+    const bool dark = resolveDark(settings.themeMode);
     // A real palette change gets the browser's flood-from-the-centre wipe. Never under reduced
     // motion, and never while one is in flight - stacking snapshots tore the window.
-    const bool paletteMoved = dark != paintedDark_ || settings_.accentColor != paintedAccent_;
-    const bool swapping = themePainted_ && !support::motionReduced() && !themeSwapping() && paletteMoved;
+    const bool paletteMoved = dark != paintedDark || settings.accentColor != paintedAccent;
+    const bool swapping = themePainted && !support::motionReduced() && !themeSwapping() && paletteMoved;
     // Start the wipe at the icon that owns the change, as the browser blooms from its toggle; the
     // cursor may be up at the menu bar.
     ThemeSwapOverlay* wipe = nullptr;
     if (swapping) {
-      const bool themeFlipped = dark != paintedDark_;
-      QWidget* anchor = themeFlipped ? buttonForAction(actTheme_) : nullptr;
-      if (!anchor) anchor = themeFlipped ? logoBtn_ : static_cast<QWidget*>(logoBtn_);
+      const bool themeFlipped = dark != paintedDark;
+      QWidget* anchor = themeFlipped ? buttonForAction(actTheme) : nullptr;
+      if (!anchor) anchor = themeFlipped ? logoBtn : static_cast<QWidget*>(logoBtn);
       QPoint origin(-1, -1);
       if (anchor && anchor->isVisible())
         origin = anchor->mapTo(this, anchor->rect().center());
@@ -66,28 +66,28 @@ namespace stencil::gui {
       // Wake particles take the accent and shade being erased, read before the restyle moves them;
       // 'slide' drops the grain (browser parity).
       if (wipe && support::isDustAllowed()) {
-        const Palette old = themePalette(paintedDark_, paintedAccent_);
-        wipe->seedDust(old.accent, old.textKey, paintedDark_);
+        const Palette old = themePalette(paintedDark, paintedAccent);
+        wipe->seedDust(old.accent, old.textKey, paintedDark);
       }
-      themeWipe_ = wipe;
+      themeWipe = wipe;
     }
     // The global re-polish depends only on (dark, accent); keyed off paletteMoved, not `swapping`:
     // a change mid-wipe skips the wipe but must still restyle.
-    const bool restyleApp = !themePainted_ || paletteMoved;
-    themePainted_ = true;
-    paintedDark_ = dark;
-    paintedAccent_ = settings_.accentColor;
+    const bool restyleApp = !themePainted || paletteMoved;
+    themePainted = true;
+    paintedDark = dark;
+    paintedAccent = settings.accentColor;
     if (restyleApp) {
       // Application level so menus, popups and native chrome are themed too; a widget-level sheet
       // left the menubar unthemed on Fedora.
-      qApp->setPalette(buildQPalette(dark, settings_.accentColor));
-      qApp->setStyleSheet(buildStylesheet(dark, settings_.accentColor));
+      qApp->setPalette(buildQPalette(dark, settings.accentColor));
+      qApp->setStyleSheet(buildStylesheet(dark, settings.accentColor));
     }
     // Tooltips are rich text with literal colours (tipContent.hpp), re-taken from the palette on
     // every swap.
-    setTooltipPalette(themePalette(dark, settings_.accentColor));
+    setTooltipPalette(themePalette(dark, settings.accentColor));
     {
-      const Palette np = themePalette(dark, settings_.accentColor);
+      const Palette np = themePalette(dark, settings.accentColor);
       support::setParticlePalette(np.accent, np.textKey, dark);
     }
     // An open accent popover keeps its ✓ on the applied accent, whichever route moved it.
@@ -95,56 +95,56 @@ namespace stencil::gui {
     // Scrollbar thumbs are painted pills (support/PillScrollBars.hpp); a stylesheet cannot round
     // or accent them.
     ScrollBarPill::setColors(canvasScrollThumb(dark),
-                             canvasScrollThumbHover(dark, settings_.accentColor));
-    canvas_->setDark(dark);
-    canvas_->setAccent(settings_.accentColor);
-    incognitoOverlay_->setTheme(dark, settings_.accentColor);
-    if (dropZones_) dropZones_->setAccent(themePalette(dark, settings_.accentColor).accent);
-    if (panelGrip_ || chatEdge_) {
-      const Palette gp = themePalette(dark, settings_.accentColor);
-      if (panelGrip_) panelGrip_->setColors(gp.borderMain, gp.accent);
-      if (chatEdge_) chatEdge_->setAccent(gp.accent);   // …and the chat dock's resize edge
+                             canvasScrollThumbHover(dark, settings.accentColor));
+    canvas->setDark(dark);
+    canvas->setAccent(settings.accentColor);
+    incognitoOverlay->setTheme(dark, settings.accentColor);
+    if (dropZones) dropZones->setAccent(themePalette(dark, settings.accentColor).accent);
+    if (panelGrip || chatEdge) {
+      const Palette gp = themePalette(dark, settings.accentColor);
+      if (panelGrip) panelGrip->setColors(gp.borderMain, gp.accent);
+      if (chatEdge) chatEdge->setAccent(gp.accent);   // …and the chat dock's resize edge
     }
-    actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
+    actTheme->setText(dark ? "Light Theme" : "Dark Theme");
 
-    const QColor iconCol = themePalette(dark, settings_.accentColor).textMain;
+    const QColor iconCol = themePalette(dark, settings.accentColor).textMain;
     styleActionIcons(dark, iconCol);
     // styleActionIcons() reset the copy/save glyphs; re-apply the split-compare override on top.
     syncSplitCopyDownloadSlot();
     retintMenuIconsForSystem(dark, iconCol);
-    if (selPanel_) selPanel_->restyleIcons(iconCol);
-    if (selectedLineBar_) selectedLineBar_->restyleIcons(iconCol);
+    if (selPanel) selPanel->restyleIcons(iconCol);
+    if (selectedLineBar) selectedLineBar->restyleIcons(iconCol);
     // The colour chips' palette frame (updateColorSwatch) is re-issued after the snapshot like
     // every other themed control.
-    if (lineColorBtn_) updateColorSwatch(lineColorBtn_, lineColorValue_);
-    if (pointColorBtn_) updateColorSwatch(pointColorBtn_, effectiveDefaultPointColor());
-    if (filterColorBtn_) updateColorSwatch(filterColorBtn_, filterColorValue_);
-    if (nameBar_.blankColorBtn && nameBar_.blankColorBtn->isVisible()) {
-      const QColor blank(blankColor_);
-      updateColorSwatch(nameBar_.blankColorBtn, blank.isValid() ? blank : QColor("#ffffff"));
+    if (lineColorBtn) updateColorSwatch(lineColorBtn, lineColorValue);
+    if (pointColorBtn) updateColorSwatch(pointColorBtn, effectiveDefaultPointColor());
+    if (filterColorBtn) updateColorSwatch(filterColorBtn, filterColorValue);
+    if (nameBar.blankColorBtn && nameBar.blankColorBtn->isVisible()) {
+      const QColor blank(blankColor);
+      updateColorSwatch(nameBar.blankColorBtn, blank.isValid() ? blank : QColor("#ffffff"));
     }
-    if (chatDock_) chatDock_->restyleIcons(themePalette(dark, settings_.accentColor));
-    if (chatMenuPanel_)
-      asChatMenu(chatMenuPanel_)->restyle(themePalette(dark, settings_.accentColor));
-    if (scriptMenuPanel_)
-      asScriptMenu(scriptMenuPanel_)->restyle(themePalette(dark, settings_.accentColor));
-    if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(HEADER_LOGO)));   // frame tracks the accent colour
-    if (logoFx_) asLogoFx(logoFx_)->themeChanged();   // mid-hover accent cycle: fx keeps the pixels
+    if (chatDock) chatDock->restyleIcons(themePalette(dark, settings.accentColor));
+    if (chatMenuPanel)
+      asChatMenu(chatMenuPanel)->restyle(themePalette(dark, settings.accentColor));
+    if (scriptMenuPanel)
+      asScriptMenu(scriptMenuPanel)->restyle(themePalette(dark, settings.accentColor));
+    if (logoBtn) logoBtn->setIcon(QIcon(makeLogoPixmap(HEADER_LOGO)));   // frame tracks the accent colour
+    if (logoFx) asLogoFx(logoFx)->themeChanged();   // mid-hover accent cycle: fx keeps the pixels
     positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab
     sizeViewToggles();
-    if (notify_)
-      notify_->setColors(themePalette(dark, settings_.accentColor).accent,
-                         themePalette(dark, settings_.accentColor).danger);
+    if (notify)
+      notify->setColors(themePalette(dark, settings.accentColor).accent,
+                         themePalette(dark, settings.accentColor).danger);
 
     QPalette vp;
     vp.setColor(QPalette::Window, themePalette(dark).bgPage);
-    scroll_->viewport()->setAutoFillBackground(true);
-    scroll_->viewport()->setPalette(vp);
+    scroll->viewport()->setAutoFillBackground(true);
+    scroll->viewport()->setPalette(vp);
 
     // The drop-hint's lightbulb is a rasterised glyph an inline <img> cannot recolour, and its
     // keycaps are painted pictures carrying literal colours, so the whole line is rebuilt.
-    if (dropHintIcon_)
-      dropHintIcon_->setPixmap(themedIcon("lightbulb", themePalette(dark, settings_.accentColor).textMuted, 14)
+    if (dropHintIcon)
+      dropHintIcon->setPixmap(themedIcon("lightbulb", themePalette(dark, settings.accentColor).textMuted, 14)
                                     .pixmap(14, 14));
     refreshDropHint();
 
@@ -154,12 +154,12 @@ namespace stencil::gui {
   // The paste combo as KEYCAPS in this platform's glyphs (browser twin: mainContent.js pasteKeys).
   // The caps are painted pictures holding literal colours, so this re-runs on every theme change.
   void MainWindow::refreshDropHint() {
-    if (!dropHintText_) return;
+    if (!dropHintText) return;
     const QString combo =
         QKeySequence(hotkey("paste", "Ctrl+V")).toString(QKeySequence::NativeText);
     // A keycap is taller than the type beside it and an inline image inflates the line box downwards.
     // One middle-aligned table row centres prose and caps, as a rich tooltip's row does (tipContent).
-    dropHintText_->setText(
+    dropHintText->setText(
         QString("<table cellspacing=\"0\" cellpadding=\"0\"><tr>"
                 "<td style=\"vertical-align: middle;\">Drag &amp; drop an <b>image</b> or "
                 "<b>.json</b> anywhere on the window — or paste an image with&nbsp;</td>"
@@ -170,7 +170,7 @@ namespace stencil::gui {
   // theme.cpp's QSS draws a wider indicator than Qt's default, and applying it re-polishes the
   // floor away; numbers are the QSS's (16px + 1px border a side + 7px spacing) — keep in step.
   void MainWindow::sizeViewToggles() {
-    for (QCheckBox* box : {showPointsCheck_, showLinesCheck_}) {
+    for (QCheckBox* box : {showPointsCheck, showLinesCheck}) {
       if (!box) continue;
       // Through the stylesheet so it reaches sizeHint (setMinimumWidth does not); the padding eats
       // the indicator's overrun instead of the neighbour's label.

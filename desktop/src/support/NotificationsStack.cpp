@@ -20,40 +20,40 @@
 
 namespace stencil::gui {
 
-  Notifications::Notifications(QWidget* host) : QObject(host), host_(host) {
-    if (host_) host_->installEventFilter(this);
+  Notifications::Notifications(QWidget* host) : QObject(host), host(host) {
+    if (this->host) this->host->installEventFilter(this);
   }
 
   void Notifications::setBottomInset(int px) {
-    if (bottomInset_ == px) return;
-    bottomInset_ = px;
+    if (bottomInset == px) return;
+    bottomInset = px;
     reflow();
   }
 
   void Notifications::setLeftInset(int px) {
-    if (leftInset_ == px) return;
-    leftInset_ = px;
+    if (leftInset == px) return;
+    leftInset = px;
     reflow();
   }
 
   void Notifications::setColors(const QColor& normal, const QColor& error) {
-    normalBg_ = normal;
-    errorBg_ = error;
+    normalBg = normal;
+    errorBg = error;
   }
 
   // Called by its own timer AND by the cap in show(); the flag makes the second a no-op.
   void Notifications::dismiss(QLabel* toast) {
     if (!toast || toast->property(LEAVING_PROPERTY).toBool()) return;
     toast->setProperty(LEAVING_PROPERTY, true);
-    entering_.remove(toast);   // no longer entering — reflow() must not chase it anymore
+    entering.remove(toast);   // no longer entering — reflow() must not chase it anymore
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect());
     if (!fx) {   // no effect to animate (defensive): drop it straight away
-      stack_.removeAll(QPointer<QLabel>(toast));
+      stack.removeAll(QPointer<QLabel>(toast));
       toast->deleteLater();
       QTimer::singleShot(0, this, [this] { reflow(); });
       return;
     }
-    const bool dusted = dustToastOut(toast, host_, leftInset_);
+    const bool dusted = dustToastOut(toast, host, leftInset);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
     fadeOut->setDuration(FADE_OUT_MS);
     fadeOut->setStartValue(fx->opacity());
@@ -69,7 +69,7 @@ namespace stencil::gui {
     }
     QObject::connect(fadeOut, &QPropertyAnimation::finished, this,
                      [this, toast] {
-                       stack_.removeAll(QPointer<QLabel>(toast));
+                       stack.removeAll(QPointer<QLabel>(toast));
                        toast->deleteLater();
                        QTimer::singleShot(0, this, [this] { reflow(); });
                      });
@@ -78,14 +78,14 @@ namespace stencil::gui {
 
   // Bottom-left (browser parity), newest at the bottom, growing upward.
   void Notifications::reflow() {
-    if (!host_) return;
+    if (!host) return;
     // A leaving toast is carried by its own geometry animation; holding its slot would leave a gap.
     const auto toasts = liveToasts();
-    int y = host_->height() - 12 - bottomInset_;   // bottom margin, clear of any status bar
+    int y = host->height() - 12 - bottomInset;   // bottom margin, clear of any status bar
     for (int i = toasts.size() - 1; i >= 0; --i) {
       QLabel* t = toasts[i];
       y -= t->height();
-      const QRect rest(LEFT_MARGIN + leftInset_ + (leftInset_ > 0 ? DOCK_GAP_PX : 0),
+      const QRect rest(LEFT_MARGIN + leftInset + (leftInset > 0 ? DOCK_GAP_PX : 0),
                        std::max(8, y), t->width(), t->height());
       auto* rise = t->findChild<QPropertyAnimation*>("toastRise");
       if (rise && rise->state() == QAbstractAnimation::Running) {
@@ -94,7 +94,7 @@ namespace stencil::gui {
       } else {
         // An entrance cloud grabbed at the OLD box is dragged along by the same delta.
         const QPoint delta = rest.topLeft() - t->geometry().topLeft();
-        if (QPointer<DisintegrateOverlay> overlay = entering_.value(t)) overlay->retarget(delta);
+        if (QPointer<DisintegrateOverlay> overlay = entering.value(t)) overlay->retarget(delta);
         t->move(rest.topLeft());
       }
       t->raise();
@@ -103,7 +103,7 @@ namespace stencil::gui {
   }
 
   bool Notifications::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == host_ && event->type() == QEvent::Resize) reflow();
+    if (watched == host && event->type() == QEvent::Resize) reflow();
     return QObject::eventFilter(watched, event);
   }
 }

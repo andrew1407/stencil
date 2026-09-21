@@ -129,7 +129,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QComboBox* filter = win.imageFilter_;
+    QComboBox* filter = win.imageFilter;
     QVERIFY(filter);
     // The face colour, plus how loudly the text/caret stand out against it.
     const auto face = [](QWidget* w) {

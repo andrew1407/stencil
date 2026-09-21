@@ -23,47 +23,47 @@ namespace stencil::gui {
   void MainWindow::scheduleHoverShow(const QString& key, std::function<void()> revealFn,
                                      bool immediate) {
     if (immediate) {
-      if (hoverTooltipTimer_) hoverTooltipTimer_->stop();
-      hoverPendingKey_.clear();
-      hoverPendingReveal_ = nullptr;
-      hoverShownKey_ = key;
+      if (hoverTooltipTimer) hoverTooltipTimer->stop();
+      hoverPendingKey.clear();
+      hoverPendingReveal = nullptr;
+      hoverShownKey = key;
       revealFn();
       return;
     }
-    if (hoverShownKey_ == key) { revealFn(); return; }
-    if (hoverPendingKey_ == key) { hoverPendingReveal_ = std::move(revealFn); return; }
+    if (hoverShownKey == key) { revealFn(); return; }
+    if (hoverPendingKey == key) { hoverPendingReveal = std::move(revealFn); return; }
     // A different target: hide only if one is actually ON SCREEN, else just drop the timer.
-    if (!hoverShownKey_.isEmpty()) {
-      hoverShownKey_.clear();
-      tooltip_->hide();
-    } else if (hoverTooltipTimer_) {
-      hoverTooltipTimer_->stop();
+    if (!hoverShownKey.isEmpty()) {
+      hoverShownKey.clear();
+      tooltip->hide();
+    } else if (hoverTooltipTimer) {
+      hoverTooltipTimer->stop();
     }
-    hoverPendingKey_ = key;
-    hoverPendingReveal_ = std::move(revealFn);
-    if (!hoverTooltipTimer_) {
-      hoverTooltipTimer_ = new QTimer(this);
-      hoverTooltipTimer_->setSingleShot(true);
+    hoverPendingKey = key;
+    hoverPendingReveal = std::move(revealFn);
+    if (!hoverTooltipTimer) {
+      hoverTooltipTimer = new QTimer(this);
+      hoverTooltipTimer->setSingleShot(true);
       // Same 200 ms wake-up as every other tooltip (main.cpp SH_ToolTip_WakeUpDelay).
-      hoverTooltipTimer_->setInterval(200);
-      connect(hoverTooltipTimer_, &QTimer::timeout, this, [this] {
-        hoverShownKey_ = hoverPendingKey_;
-        hoverPendingKey_.clear();
-        auto fn = std::move(hoverPendingReveal_);
-        hoverPendingReveal_ = nullptr;
+      hoverTooltipTimer->setInterval(200);
+      connect(hoverTooltipTimer, &QTimer::timeout, this, [this] {
+        hoverShownKey = hoverPendingKey;
+        hoverPendingKey.clear();
+        auto fn = std::move(hoverPendingReveal);
+        hoverPendingReveal = nullptr;
         if (fn) fn();
       });
     }
-    hoverTooltipTimer_->start();
+    hoverTooltipTimer->start();
   }
 
   // Drops the pending reveal too — an abandoned target must not pop in late.
   void MainWindow::hideHoverTooltip() {
-    if (hoverTooltipTimer_) hoverTooltipTimer_->stop();
-    hoverPendingKey_.clear();
-    hoverPendingReveal_ = nullptr;
-    hoverShownKey_.clear();
-    tooltip_->hide();
+    if (hoverTooltipTimer) hoverTooltipTimer->stop();
+    hoverPendingKey.clear();
+    hoverPendingReveal = nullptr;
+    hoverShownKey.clear();
+    tooltip->hide();
   }
 
 }  // namespace stencil::gui

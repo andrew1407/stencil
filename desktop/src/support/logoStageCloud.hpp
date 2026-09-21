@@ -20,7 +20,7 @@ namespace stencil::support {
     // A null style flies nothing: the show has no cloud, or motion is off.
     void setStyle(ParticleStyle style, bool on);
     void clear();
-    int live() const { return int(motes_.size()); }
+    int live() const { return int(motes.size()); }
     // `boost` is the stage's: 1 at rest, more under the pointer, most while it is held.
     void step(double dt, double size, double boost, const QPointF& dir = QPointF(0, 0));
     // `scale` is the mark's own: the grains grow out of the header logo with it and shrink back.
@@ -28,10 +28,10 @@ namespace stencil::support {
               bool dark, double scale = 1.0);
 
    private:
-    QVector<StageMote> motes_;
-    MoteSprites sprites_;
-    ParticleStyle style_ = ParticleStyle::DUST;
-    bool on_ = false;
+    QVector<StageMote> motes;
+    MoteSprites sprites;
+    ParticleStyle style = ParticleStyle::DUST;
+    bool on = false;
   };
 
   StageMote newStageMote(double size, double reach, const QPointF& dir = QPointF(0, 0));

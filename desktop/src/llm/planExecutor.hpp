@@ -134,7 +134,7 @@ namespace stencil::llm {
     bool hasImage() const override;
     QSize effectiveOriginalSize() const override;
     QSize workingSize() const override;
-    core::PageSize pageCm() const override { return page_; }
+    core::PageSize pageCm() const override { return page; }
     bool applyCropRect(const core::CropRect& rect) override;
     void rotateQuarter(bool clockwise) override;
     void setImageFilter(const QString& mode, const QString& tintHex) override;
@@ -188,9 +188,9 @@ namespace stencil::llm {
     bool copiedLayout = false;
 
    private:
-    std::unique_ptr<gui::CanvasWidget> canvas_;
-    core::PageSize page_;
-    bool blank_ = false;         // the canvas holds a `blank`-created page
+    std::unique_ptr<gui::CanvasWidget> canvas;
+    core::PageSize page;
+    bool blank = false;         // the canvas holds a `blank`-created page
   };
 
   struct ExecResult {

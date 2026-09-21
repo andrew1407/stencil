@@ -9,29 +9,29 @@ namespace stencil::gui {
     setFocusPolicy(Qt::NoFocus);
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
-    body_ = new TipBody(this);
-    body_->setTextFormat(Qt::RichText);
-    body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
+    body = new TipBody(this);
+    body->setTextFormat(Qt::RichText);
+    body->setObjectName(QStringLiteral("stencilAppTooltipBody"));
     // Browser #app-tooltip max-width: 380px.
-    body_->setWordWrap(true);
-    body_->setMaximumWidth(MAX_TIP_WIDTH);
-    lay->addWidget(body_);
+    body->setWordWrap(true);
+    body->setMaximumWidth(MAX_TIP_WIDTH);
+    lay->addWidget(body);
     hide();
 
-    fade_ = new QVariantAnimation(this);
-    fade_->setDuration(FADE_MS);
-    QObject::connect(fade_, &QVariantAnimation::valueChanged, this,
+    fade = new QVariantAnimation(this);
+    fade->setDuration(FADE_MS);
+    QObject::connect(fade, &QVariantAnimation::valueChanged, this,
                      [this](const QVariant& v) { setWindowOpacity(v.toDouble()); });
-    QObject::connect(fade_, &QVariantAnimation::finished, this, [this] {
-      if (closing_) { closing_ = false; QFrame::hide(); }
+    QObject::connect(fade, &QVariantAnimation::finished, this, [this] {
+      if (closing) { closing = false; QFrame::hide(); }
     });
     // Anti-stranding heartbeat: a fast sweep can leave the owner without a Leave we see.
     auto* beat = new QTimer(this);
     beat->setInterval(200);
     QObject::connect(beat, &QTimer::timeout, this, [this] {
-      if (!isVisible() || closing_) return;
-      if (!owner_ || !owner_->isVisible() || !owner_->window()->isActiveWindow()
-          || !owner_->rect().contains(owner_->mapFromGlobal(QCursor::pos())))
+      if (!isVisible() || closing) return;
+      if (!owner || !owner->isVisible() || !owner->window()->isActiveWindow()
+          || !owner->rect().contains(owner->mapFromGlobal(QCursor::pos())))
         hideTip();
     });
     beat->start();
@@ -68,11 +68,11 @@ namespace stencil::gui {
   // `originGlobal` invalid = the owner's centre (wrong for an item view's viewport).
   void AppTooltip::showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
                            const QRect& originGlobal) {
-    origin_ = originGlobal;
+    origin = originGlobal;
     // Re-rendered from the plain text in THIS body's font: the owner's copy was measured
     // in QToolTip's (11pt on macOS vs 13pt), which broke a ⇧⌘X chord onto two lines.
-    body_->ensurePolished();
-    const QFont font = body_->font();
+    body->ensurePolished();
+    const QFont font = body->font();
     const QVariant plain = owner ? owner->property(PLAIN_TIP_PROPERTY) : QVariant();
     const QString rich = plain.isValid()                    ? enrichedToolTip(plain.toString(), &font)
                          : text.trimmed().startsWith('<') ? text
@@ -82,14 +82,14 @@ namespace stencil::gui {
     bool dusted = false;
     // Qt re-sends ToolTip while the pointer wanders inside one control; only an
     // appearance (first show, new owner, new content) may re-shake.
-    const bool appearing = !isVisible() || closing_ || owner != owner_ || wrapped != body_->text();
+    const bool appearing = !isVisible() || closing || owner != this->owner || wrapped != body->text();
     settleShake();
-    owner_ = owner;
-    body_->setTip(wrapped);
+    this->owner = owner;
+    body->setTip(wrapped);
     adjustSize();
     place(globalPos);
-    closing_ = false;
-    fade_->stop();
+    closing = false;
+    fade->stop();
     if (support::motionReduced()) {
       setWindowOpacity(1.0);
       show();
@@ -102,21 +102,21 @@ namespace stencil::gui {
       dusted = appearing && dust(true);
       if (dusted) {
         setWindowOpacity(0.0);
-        holdFadeKeys(fade_, DUST_IN_MS);
+        holdFadeKeys(fade, DUST_IN_MS);
         // No cursor tracking mid-flight: the cloud was aimed where the tip was placed
         // (browser controlTooltip.js).
-        placeHold_.setRemainingTime(DUST_IN_MS);
+        placeHold.setRemainingTime(DUST_IN_MS);
       } else {
-        fade_->setKeyValues({});
-        fade_->setDuration(FADE_MS);
-        fade_->setStartValue(from);
-        fade_->setEndValue(1.0);
+        fade->setKeyValues({});
+        fade->setDuration(FADE_MS);
+        fade->setStartValue(from);
+        fade->setEndValue(1.0);
       }
-      fade_->start();
+      fade->start();
     }
     // The keycap nudge waits for the gather — a shake behind the motes cannot be seen.
     if (appearing && hasKeycaps(rich)) {
-      if (dusted) shakeDelay()->start(DUST_IN_MS);
+      if (dusted) getShakeDelay()->start(DUST_IN_MS);
       else shakeKeys();
     }
   }
@@ -124,54 +124,54 @@ namespace stencil::gui {
 
   // No re-measure, no entrance: showFor would re-run its bookkeeping on every mouse move.
   void AppTooltip::moveTo(const QPoint& globalPos) {
-    if (isVisible() && !closing_ && placeHold_.hasExpired()) place(globalPos);
+    if (isVisible() && !closing && placeHold.hasExpired()) place(globalPos);
   }
 
   void AppTooltip::hideTip() {
-    if (!isVisible()) { owner_.clear(); return; }
+    if (!isVisible()) { owner.clear(); return; }
     settleShake();
-    fade_->stop();
-    if (support::motionReduced()) { owner_.clear(); closing_ = false; QFrame::hide(); return; }
+    fade->stop();
+    if (support::motionReduced()) { owner.clear(); closing = false; QFrame::hide(); return; }
     // Dusted while the owner is still known.
     const bool dusted = dust(false);
-    owner_.clear();
-    closing_ = true;
-    fade_->setKeyValues({});
-    fade_->setDuration(dusted ? DUST_HAND_OVER_MS : FADE_MS);
-    fade_->setStartValue(windowOpacity());
-    fade_->setEndValue(0.0);
-    fade_->start();
+    owner.clear();
+    closing = true;
+    fade->setKeyValues({});
+    fade->setDuration(dusted ? DUST_HAND_OVER_MS : FADE_MS);
+    fade->setStartValue(windowOpacity());
+    fade->setEndValue(0.0);
+    fade->start();
   }
 
 
   // One damped left-right pass over the KEYCAPS, never a loop.
   void AppTooltip::shakeKeys() {
-    if (shakeDelay_) shakeDelay_->stop();
+    if (shakeDelay) shakeDelay->stop();
     if (!isVisible() || support::motionReduced()) return;
-    if (body_->capCount() == 0) return;
-    if (!shake_) {
-      shake_ = new QVariantAnimation(this);
-      shake_->setDuration(SHAKE_MS);
-      shake_->setStartValue(0.0);
-      shake_->setEndValue(1.0);
-      QObject::connect(shake_, &QVariantAnimation::valueChanged, this,
-                       [this](const QVariant& v) { body_->setShake(v.toDouble()); });
-      QObject::connect(shake_, &QVariantAnimation::finished, this,
-                       [this] { body_->settle(); });
+    if (body->capCount() == 0) return;
+    if (!shake) {
+      shake = new QVariantAnimation(this);
+      shake->setDuration(SHAKE_MS);
+      shake->setStartValue(0.0);
+      shake->setEndValue(1.0);
+      QObject::connect(shake, &QVariantAnimation::valueChanged, this,
+                       [this](const QVariant& v) { body->setShake(v.toDouble()); });
+      QObject::connect(shake, &QVariantAnimation::finished, this,
+                       [this] { body->settle(); });
     }
-    shake_->stop();
-    body_->settle();
-    shake_->start();
+    shake->stop();
+    body->settle();
+    shake->start();
   }
 
 
   // false (no owner, or a box too small to grain) = the plain fade stands in.
   bool AppTooltip::dust(bool gather) {
-    QWidget* owner = owner_.data();
+    QWidget* owner = this->owner.data();
     if (!owner || !owner->isVisible()) return false;
     // paintNow on a close: a deferred first frame was the gap the tip blinked out in.
     return flyTipDust(this, owner->window(),
-                      origin_.isValid() ? origin_.center()
+                      origin.isValid() ? origin.center()
                                         : owner->mapToGlobal(owner->rect().center()), gather,
                       gather ? DUST_IN_MS : DUST_OUT_MS,
                       /*escapeHost=*/true, /*paintNow=*/!gather)
@@ -193,18 +193,18 @@ namespace stencil::gui {
 
 
   void AppTooltip::settleShake() {
-    if (shakeDelay_) shakeDelay_->stop();
-    if (shake_) shake_->stop();
-    body_->settle();
+    if (shakeDelay) shakeDelay->stop();
+    if (shake) shake->stop();
+    body->settle();
   }
 
 
-  QTimer* AppTooltip::shakeDelay() {
-    if (!shakeDelay_) {
-      shakeDelay_ = new QTimer(this);
-      shakeDelay_->setSingleShot(true);
-      QObject::connect(shakeDelay_, &QTimer::timeout, this, [this] { shakeKeys(); });
+  QTimer* AppTooltip::getShakeDelay() {
+    if (!shakeDelay) {
+      shakeDelay = new QTimer(this);
+      shakeDelay->setSingleShot(true);
+      QObject::connect(shakeDelay, &QTimer::timeout, this, [this] { shakeKeys(); });
     }
-    return shakeDelay_;
+    return shakeDelay;
   }
 }  // namespace stencil::gui

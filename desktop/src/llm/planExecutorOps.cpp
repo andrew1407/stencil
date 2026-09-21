@@ -165,16 +165,16 @@ namespace stencil::llm {
   void CanvasPlanTarget::setPageCustom(double widthCm, double heightCm) {
     pageCustomW = widthCm;
     pageCustomH = heightCm;
-    page_ = {widthCm, heightCm};
-    canvas_->setPageCm(page_.width, page_.height);
+    page = {widthCm, heightCm};
+    canvas->setPageCm(page.width, page.height);
   }
 
   int CanvasPlanTarget::stepHistory(bool redo, int steps) {
     int done = 0;
     for (; done < steps; ++done) {
-      if (redo ? !canvas_->canRedo() : !canvas_->canUndo()) break;
-      if (redo) canvas_->redo();
-      else canvas_->undo();
+      if (redo ? !canvas->canRedo() : !canvas->canUndo()) break;
+      if (redo) canvas->redo();
+      else canvas->undo();
     }
     return done;
   }
@@ -198,10 +198,10 @@ namespace stencil::llm {
 
   bool CanvasPlanTarget::setCompare(const QString& mode, double split, QString*) {
     compareMode = mode;
-    canvas_->setCompareMode(mode);
+    canvas->setCompareMode(mode);
     if (split > 0) {
       compareSplit = split;
-      canvas_->setCompareSplit(split);
+      canvas->setCompareSplit(split);
     }
     return true;
   }
@@ -209,7 +209,7 @@ namespace stencil::llm {
   bool CanvasPlanTarget::setZoom(int percent, bool fit, QString*) {
     zoomPercent = percent;
     zoomFit = fit;
-    if (!fit && percent > 0) canvas_->setScale(percent / 100.0);
+    if (!fit && percent > 0) canvas->setScale(percent / 100.0);
     return true;
   }
 }  // namespace stencil::llm

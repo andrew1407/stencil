@@ -12,7 +12,7 @@ class MainWindowGuiTest : public QObject {
   // → lands in its text box (user decision), so a reply can be typed without touching the mouse.
   void ctxAssistantFlyoutSecondRightFocusesItsInput() {
     MainWindow win(nullptr, false);
-    win.settings_.llmProvider = "ollama";
+    win.settings.llmProvider = "ollama";
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
@@ -39,10 +39,10 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return chat->isVisible(); }, 1000);
       opened = chat->isVisible();
       QTest::qWait(80);
-      revealedOnly = QApplication::focusWidget() != win.chatMenuInput_;
+      revealedOnly = QApplication::focusWidget() != win.chatMenuInput;
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
-      entered = QApplication::focusWidget() == win.chatMenuInput_;
+      entered = QApplication::focusWidget() == win.chatMenuInput;
       root->close();
     });
     win.showContextMenu(at);
@@ -65,7 +65,7 @@ class MainWindowGuiTest : public QObject {
     QCursor::setPos(at);
     QTest::qWait(20);   // the pointer lands before the menu asks where it is
     const auto checkedFilter = [&win] {
-      for (QAbstractButton* b : win.filterButtons_->buttons())
+      for (QAbstractButton* b : win.filterButtons->buttons())
         if (b->isChecked()) return b->property("filterValue").toString();
       return QString();
     };
@@ -156,12 +156,12 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(40);
       keyTo(Qt::Key_Tab);     // off the last control → the first plain row (Solid)
       QTest::qWait(40);
-      for (int i = 0; i < 6 && style->activeAction() != win.actStyleDashed_; ++i) {
+      for (int i = 0; i < 6 && style->activeAction() != win.actStyleDashed; ++i) {
         keyTo(Qt::Key_Down);
         QTest::qWait(30);
       }
-      styleApplied = style->activeAction() == win.actStyleDashed_ && win.actStyleDashed_->isChecked()
-                     && win.settings_.defaultStyle == "dashed";
+      styleApplied = style->activeAction() == win.actStyleDashed && win.actStyleDashed->isChecked()
+                     && win.settings.defaultStyle == "dashed";
       styleStayedOpen = style->isVisible() && root->isVisible();
       root->close();
     });

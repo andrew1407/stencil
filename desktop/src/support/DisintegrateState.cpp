@@ -4,8 +4,8 @@ namespace stencil::gui {
 
   void DisintegrateOverlay::retarget(const QPoint& delta) {
     if (delta.isNull()) return;
-    picture_.translate(delta);
-    target_ += QPointF(delta);
+    picture.translate(delta);
+    target += QPointF(delta);
     update();
   }
 
@@ -13,13 +13,13 @@ namespace stencil::gui {
   // Browser twin: motion.js followDust. A tile flight IS its geometry; a surface flight
   // shifts picture and target.
   void DisintegrateOverlay::setFollow(QWidget* w) {
-    follow_ = w;
-    followAt_ = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();
+    follow = w;
+    followAt = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();
   }
 
 
   // A child layer is clipped by the host, so a flight that needs more room becomes a frameless
-  // input-transparent top-level; `host` stays the QObject parent, coords stay HOST via `shift_`.
+  // input-transparent top-level; `host` stays the QObject parent, coords stay HOST via `shift`.
   void DisintegrateOverlay::placeForSurface(QWidget* host, const QRect& picture,
                                             const QPoint& target, bool escapeHost,
                                             bool alwaysEscape) {
@@ -42,7 +42,7 @@ namespace stencil::gui {
                    | Qt::WindowTransparentForInput | Qt::WindowDoesNotAcceptFocus
                    | Qt::NoDropShadowWindowHint);
     setAttribute(Qt::WA_ShowWithoutActivating, true);
-    shift_ = hostBox.topLeft() - need.topLeft();
+    shift = hostBox.topLeft() - need.topLeft();
     setGeometry(need);
   }
 
@@ -59,7 +59,7 @@ namespace stencil::gui {
   }
 
   DisintegrateOverlay::DisintegrateOverlay(QWidget* host,
-                                           const QPixmap& snap) : QWidget(host), snap_(snap) {
+                                           const QPixmap& snap) : QWidget(host), snap(snap) {
     setObjectName(OBJECT_NAME);   // findable without a Q_OBJECT (this class stays MOC-free)
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);
@@ -71,16 +71,16 @@ namespace stencil::gui {
   // A plain timer at the screen's refresh interval, not a QVariantAnimation: Qt's
   // animation timer ticks 60Hz whatever the display does. The clock is linear.
   void DisintegrateOverlay::start(int ms) {
-    ms_ = std::max(1, ms);
-    clock_.start();
+    this->ms = std::max(1, ms);
+    clock.start();
     auto* tick = new QTimer(this);
     tick->setTimerType(Qt::PreciseTimer);
     tick->setInterval(support::frameIntervalMs(this));
     connect(tick, &QTimer::timeout, this, [this, tick] {
-      t_ = std::min(1.0, clock_.nsecsElapsed() / 1e6 / ms_);
+      t = std::min(1.0, clock.nsecsElapsed() / 1e6 / this->ms);
       syncFollow();
       update();
-      if (t_ >= 1.0) {
+      if (t >= 1.0) {
         tick->stop();
         deleteLater();
       }
@@ -91,17 +91,17 @@ namespace stencil::gui {
 
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
     // Water and fire grid coarser (browser motion.js makeDustStage).
-    if (style_ != support::ParticleStyle::DUST) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
-    dustGrid(size, cellPx, maxCells, &cols_, &rows_);
+    if (style != support::ParticleStyle::DUST) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
+    dustGrid(size, cellPx, maxCells, &cols, &rows);
   }
 
   void DisintegrateOverlay::syncFollow() {
-    if (!follow_ || !parentWidget()) return;
-    const QPoint now = follow_->mapTo(parentWidget(), QPoint(0, 0));
-    const QPoint delta = now - followAt_;
+    if (!follow || !parentWidget()) return;
+    const QPoint now = follow->mapTo(parentWidget(), QPoint(0, 0));
+    const QPoint delta = now - followAt;
     if (delta.isNull()) return;
-    followAt_ = now;
-    if (picture_.isValid()) retarget(delta);
+    followAt = now;
+    if (picture.isValid()) retarget(delta);
     else move(pos() + delta);
   }
 }  // namespace stencil::gui

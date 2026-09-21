@@ -21,16 +21,16 @@ namespace stencil::llm {
   }
 
   QtLlmTransport::QtLlmTransport(QObject* parent)
-      : QObject(parent), nam_(new QNetworkAccessManager(this)) {}
+      : QObject(parent), nam(new QNetworkAccessManager(this)) {}
 
   QtLlmTransport::~QtLlmTransport() = default;
 
   void QtLlmTransport::dispatch(
       QNetworkReply* reply,
       std::function<void(int status, QByteArray body, QString error)> cb) {
-    // Context object is nam_ (owned by this transport): if the transport dies the connection is
+    // Context object is nam (owned by this transport): if the transport dies the connection is
     // severed and the lambda never runs on a dangling reply - as in ServerClient::requestAsync.
-    QObject::connect(reply, &QNetworkReply::finished, nam_,
+    QObject::connect(reply, &QNetworkReply::finished, nam,
                      [reply, cb = std::move(cb)]() {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -54,13 +54,13 @@ namespace stencil::llm {
     applyNoRedirect(req);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     for (const auto& h : headers) req.setRawHeader(h.first, h.second);
-    QNetworkReply* reply = nam_->post(req, body);
-    activePost_ = reply;  // abortActive() targets the latest chat POST
+    QNetworkReply* reply = nam->post(req, body);
+    activePost = reply;  // abortActive() targets the latest chat POST
     dispatch(reply, std::move(cb));
   }
 
   void QtLlmTransport::abortActive() {
-    if (activePost_) activePost_->abort();  // finished() fires with OperationCanceled
+    if (activePost) activePost->abort();  // finished() fires with OperationCanceled
   }
 
   void QtLlmTransport::getJson(
@@ -70,7 +70,7 @@ namespace stencil::llm {
     req.setTransferTimeout(PROBE_TIMEOUT_MS);
     applyNoRedirect(req);
     for (const auto& h : headers) req.setRawHeader(h.first, h.second);
-    dispatch(nam_->get(req), std::move(cb));
+    dispatch(nam->get(req), std::move(cb));
   }
 
 }  // namespace stencil::llm

@@ -15,9 +15,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 820);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("crop it"), {}});
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    win.chatHistory.append({QStringLiteral("user"), QStringLiteral("crop it"), {}});
 
     stencil::llm::LlmReply expired;
     expired.ok = false;
@@ -27,10 +27,10 @@ class MainWindowGuiTest : public QObject {
         "Your session on localhost:8090 has expired — reconnect to that server, then "
         "send this again.");
     win.onChatReply(expired);
-    QTRY_VERIFY2(win.chatDock_->findChild<QFrame*>("chatCardError"),
+    QTRY_VERIFY2(win.chatDock->findChild<QFrame*>("chatCardError"),
                  "no error card for the expired session");
     QFrame* card = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) card = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardError")) card = f;
     QVERIFY2(card, "no error card for the expired session");
     bool saidIt = false;
     for (QLabel* l : card->findChildren<QLabel*>())
@@ -65,9 +65,9 @@ class MainWindowGuiTest : public QObject {
     plain.failure = stencil::llm::LlmFailure::HTTP;
     plain.error = QStringLiteral("localhost:11434 answered: HTTP 401");
     win.onChatReply(plain);
-    QTRY_COMPARE(win.chatDock_->findChildren<QFrame*>("chatCardError").size(), 2);
+    QTRY_COMPARE(win.chatDock->findChildren<QFrame*>("chatCardError").size(), 2);
     QFrame* last = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) last = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardError")) last = f;
     QVERIFY(last);
     QVERIFY2(!last->findChild<QPushButton*>(QStringLiteral("chatReconnectCta")),
              "a local provider's 401 must not offer a server reconnect");
@@ -79,8 +79,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
 
     // The img is what would reach QTextDocument's resource loader if interpreted.
     const QString reply = QStringLiteral("<b>done</b> <img src=\"/etc/passwd\">");
@@ -105,24 +105,24 @@ class MainWindowGuiTest : public QObject {
                            QJsonObject{{"content", QString::fromUtf8(
                                                        QJsonDocument(plan).toJson(QJsonDocument::Compact))}}}})
             .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     auto* chat = win.findChild<QAction*>("actChat");
     chat->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    auto* dockInput = win.chatDock_->findChild<QPlainTextEdit*>("chatInput");
+    QTRY_VERIFY(win.chatDock->isVisible());
+    auto* dockInput = win.chatDock->findChild<QPlainTextEdit*>("chatInput");
     QVERIFY(dockInput);
     dockInput->setPlainText("go");
     QTest::keyClick(dockInput, Qt::Key_Return);
-    QCOMPARE(win.chatHistory_.size(), 2);
+    QCOMPARE(win.chatHistory.size(), 2);
     win.ensureChatMenuPanel();
-    QVERIFY(win.chatMenuPanel_);
+    QVERIFY(win.chatMenuPanel);
 
     // Every transcript row, on BOTH surfaces, is identified by its property —
     // not by where it sits — so a restyle can't quietly drop this from cover.
     int bodies = 0;
-    for (QWidget* surface : {static_cast<QWidget*>(win.chatDock_),
-                             static_cast<QWidget*>(win.chatMenuPanel_)}) {
+    for (QWidget* surface : {static_cast<QWidget*>(win.chatDock),
+                             static_cast<QWidget*>(win.chatMenuPanel)}) {
       for (QLabel* l : surface->findChildren<QLabel*>()) {
         if (l->property("chatBody").toString().isEmpty()) continue;
         ++bodies;
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
     // The assistant row shows the tags themselves; interpreted markup would leave text() holding the
     // source while the SCREEN showed bold, so both the format and the round-trip are asserted.
     bool sawReply = false, sawQuestion = false, sawOption = false;
-    for (QLabel* l : win.chatDock_->findChildren<QLabel*>()) {
+    for (QLabel* l : win.chatDock->findChildren<QLabel*>()) {
       if (l->text() == reply) { sawReply = true; QCOMPARE(l->textFormat(), Qt::PlainText); }
       if (l->text() == question) { sawQuestion = true; QCOMPARE(l->textFormat(), Qt::PlainText); }
       if (l->text() == option) { sawOption = true; QCOMPARE(l->textFormat(), Qt::PlainText); }
@@ -149,7 +149,7 @@ class MainWindowGuiTest : public QObject {
     // The menu mirror carries the FULL text in the row itself (the dock's card
     // rendering — no tooltip, no elision), so the round-trip holds there too.
     bool checkedMirror = false;
-    for (QLabel* l : win.chatMenuPanel_->findChildren<QLabel*>()) {
+    for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>()) {
       if (l->property("chatBody").toString() != reply) continue;
       checkedMirror = true;
       QCOMPARE(l->text(), reply);
@@ -157,7 +157,7 @@ class MainWindowGuiTest : public QObject {
     }
     QVERIFY2(checkedMirror, "no mirrored row carried the assistant reply");
 
-    win.llmClient_.reset();
+    win.llmClient.reset();
     beat();
   }
 

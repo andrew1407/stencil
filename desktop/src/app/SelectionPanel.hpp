@@ -77,21 +77,21 @@ namespace stencil::gui {
     void applyUnitHeaders();
     void showEmptyPoints();
 
-    QToolButton* collapseBtn_ = nullptr;  // header chevron: hide the panel (browser panel header)
-    // Lives in the header row beside the chevron (browser .coord-panel-header); `tabs_` hides its
+    QToolButton* collapseBtn = nullptr;  // header chevron: hide the panel (browser panel header)
+    // Lives in the header row beside the chevron (browser .coord-panel-header); `tabs` hides its
     // own bar.
-    QTabBar* tabBar_ = nullptr;
-    QTabWidget* tabs_ = nullptr;     // Points | Lines pages
-    QString unitLabel_{"cm"};        // what the two page columns are headed with
-    QTableWidget* points_ = nullptr;
-    QListWidget* lines_ = nullptr;   // Lines tab: one row per committed line
-    QLabel* multiLabel_ = nullptr;   // "N lines selected" note (multi-select mode)
-    QColor iconColor_{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
-    bool updating_ = false;        // suppress itemChanged while showLine repopulates
+    QTabBar* tabBar = nullptr;
+    QTabWidget* tabs = nullptr;     // Points | Lines pages
+    QString unitLabel{"cm"};        // what the two page columns are headed with
+    QTableWidget* points = nullptr;
+    QListWidget* lines = nullptr;   // Lines tab: one row per committed line
+    QLabel* multiLabel = nullptr;   // "N lines selected" note (multi-select mode)
+    QColor iconColor{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
+    bool updating = false;        // suppress itemChanged while showLine repopulates
 
-    int canvasHoverPointRow_ = -1;
-    int canvasHoverLineRow_ = -1;
-    std::vector<int> linesSelected_;
+    int canvasHoverPointRow = -1;
+    int canvasHoverLineRow = -1;
+    std::vector<int> linesSelected;
   };
 
 }

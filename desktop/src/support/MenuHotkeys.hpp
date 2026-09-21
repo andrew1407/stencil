@@ -40,7 +40,7 @@ namespace stencil::support {
       gui::TipBody* chip = nullptr;
       QVariantAnimation* shake = nullptr;
     };
-    bool compact_ = false;
+    bool compact = false;
 
     static QString comboOf(QAction* a);
 
@@ -54,9 +54,9 @@ namespace stencil::support {
 
     void stopShake(QAction* a);
 
-    std::vector<Row> rows_;
+    std::vector<Row> rows;
     // The shaken row per menu LEVEL, reset on aboutToHide so a fresh open shakes again.
-    QHash<QObject*, QPointer<QAction>> current_;
+    QHash<QObject*, QPointer<QAction>> current;
   };
 
 }  // namespace stencil::support

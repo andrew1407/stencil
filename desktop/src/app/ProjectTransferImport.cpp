@@ -20,9 +20,9 @@ namespace stencil::gui {
                                                            const QString& id, const QString& name) {
     stencil::net::ServerClient* c = requireClient(serverUrl);
     if (!c) return;
-    Project* pr = h_.findProject(id.toStdString());
+    Project* pr = this->h.findProject(id.toStdString());
     if (!pr) {
-      notify_->error("Project not found");
+      notify->error("Project not found");
       return;
     }
     QByteArray bytes;
@@ -36,8 +36,8 @@ namespace stencil::gui {
     createServerFromLocal(c, *pr, copyName, bytes, ext, w, h,
                           [this, copyName, serverUrl](bool ok, QString, qint64) {
       if (!ok) return;
-      h_.afterChange();
-      notify_->success(QString("Copied \"%1\" to %2").arg(copyName, serverUrl));
+      this->h.afterChange();
+      notify->success(QString("Copied \"%1\" to %2").arg(copyName, serverUrl));
     });
   }
 
@@ -46,14 +46,14 @@ namespace stencil::gui {
                                                            const QString& id) {
     // If this is the open remote session, follow it to local so the editor never points at the
     // deleted server id.
-    const bool wasOpen = (h_.remoteId() == id && h_.remoteAddress() == serverUrl);
+    const bool wasOpen = (this->h.remoteId() == id && this->h.remoteAddress() == serverUrl);
     importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/true, "",
                                [this, wasOpen](bool ok, QString newId) {
       if (!ok) return;
       // A rebind, not an arrival.
-      if (wasOpen) h_.loadProjectIntoCanvas(newId, /*animate=*/false);
-      h_.afterChange();
-      notify_->success("Moved to local storage");
+      if (wasOpen) this->h.loadProjectIntoCanvas(newId, /*animate=*/false);
+      this->h.afterChange();
+      notify->success("Moved to local storage");
     });
   }
 
@@ -63,9 +63,9 @@ namespace stencil::gui {
     importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/false, name,
                                [this](bool ok, QString newId) {
       if (!ok) return;
-      h_.afterChange();
-      h_.loadProjectIntoCanvas(newId, /*animate=*/true);  // the detached copy OPENS (clears the remote link)
-      notify_->success("Local copy created");
+      this->h.afterChange();
+      this->h.loadProjectIntoCanvas(newId, /*animate=*/true);  // the detached copy OPENS (clears the remote link)
+      notify->success("Local copy created");
     });
   }
 
@@ -79,30 +79,30 @@ namespace stencil::gui {
     c->getProjectAsync(id, [this, c, id, name, removeFromServer, done](
                                bool gok, stencil::net::ServerProject meta, QJsonObject layout) {
       if (!gok) {
-        notify_->error(QString("Could not fetch server project — %1").arg(c->lastError()));
+        notify->error(QString("Could not fetch server project — %1").arg(c->lastError()));
         if (done) done(false, QString());
         return;
       }
       auto persist = [this, c, id, name, removeFromServer, meta, layout, done](QByteArray bytes) {
         if (bytes.isEmpty()) {
-          notify_->error("Server project has no image");
+          notify->error("Server project has no image");
           if (done) done(false, QString());
           return;
         }
         QImage img;
         if (!img.loadFromData(bytes)) {
-          notify_->error("Server image could not be decoded");
+          notify->error("Server image could not be decoded");
           if (done) done(false, QString());
           return;
         }
         // Local projects reference an on-disk imagePath.
         Project pr;
-        pr.meta.id = store_->createId(nowMs(), makeSalt());
+        pr.meta.id = store->createId(nowMs(), makeSalt());
         const QString imgDir = fileStore::stateDir() + "/images";
         QDir().mkpath(imgDir);
         const QString path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";
         if (!img.save(path, "PNG")) {
-          notify_->error("Could not write the image to local storage");
+          notify->error("Could not write the image to local storage");
           if (done) done(false, QString());
           return;
         }
@@ -119,12 +119,12 @@ namespace stencil::gui {
         int lw = 0, lh = 0;
         pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters);
         const QString newId = QString::fromStdString(pr.meta.id);
-        projectList_->push_back(pr);
-        fileStore::saveProjects(*projectList_);
+        projectList->push_back(pr);
+        fileStore::saveProjects(*projectList);
         if (removeFromServer) {
           c->deleteProjectAsync(id, [this, c, newId, done](bool dok) {
             if (!dok)
-              notify_->error(QString("Copied locally, but server delete failed — %1")
+              notify->error(QString("Copied locally, but server delete failed — %1")
                                  .arg(c->lastError()));
             if (done) done(true, newId);
           });
@@ -138,7 +138,7 @@ namespace stencil::gui {
           return;
         }
         // No stored bytes (extension-added project): fetch the web URL.
-        h_.fetchUrlBytes(meta.source, [persist](QByteArray b) { persist(b); });
+        this->h.fetchUrlBytes(meta.source, [persist](QByteArray b) { persist(b); });
       });
     });
   }

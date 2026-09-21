@@ -34,10 +34,10 @@ namespace stencil::gui {
     void build();
     void applyFilter(const QString& filter);
 
-    QLineEdit* search_ = nullptr;
-    QWidget* content_ = nullptr;
-    QLabel* empty_ = nullptr;
-    QVector<Section> sections_;
+    QLineEdit* search = nullptr;
+    QWidget* content = nullptr;
+    QLabel* empty = nullptr;
+    QVector<Section> sections;
   };
 
 }

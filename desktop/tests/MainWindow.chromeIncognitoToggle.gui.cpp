@@ -16,15 +16,15 @@ class MainWindowGuiTest : public QObject {
       win.resize(1200, 820);
       win.show();
       QVERIFY(QTest::qWaitForWindowExposed(&win));
-      win.settings_.themeMode = mode;
+      win.settings.themeMode = mode;
       win.applyTheme();
       settleLayout(&win, 150);
-      QVERIFY(win.actIncognito_ && !win.actIncognito_->isChecked());
+      QVERIFY(win.actIncognito && !win.actIncognito->isChecked());
       // With the assistant OPEN, so the dock is a real on-screen neighbour of the
       // canvas rather than a hidden widget whose geometry means nothing.
-      win.actChat_->setChecked(true);
-      QTRY_VERIFY(win.chatDock_->isVisible());
-      awaitAnim(win.chatAnim_);
+      win.actChat->setChecked(true);
+      QTRY_VERIFY(win.chatDock->isVisible());
+      awaitAnim(win.chatAnim);
 
       // Every widget the tag could possibly push around, in window coordinates.
       const auto snapshot = [&win] {
@@ -34,11 +34,11 @@ class MainWindowGuiTest : public QObject {
         const auto add = [&](const QString& name, QWidget* w) {
           if (w && w->isVisible()) out.insert(name, QRect(w->mapTo(&win, QPoint(0, 0)), w->size()));
         };
-        add(QStringLiteral("canvas viewport"), win.scroll_->viewport());
-        add(QStringLiteral("canvas"), win.canvas_);
-        add(QStringLiteral("points panel"), win.selPanel_);
-        add(QStringLiteral("chat dock"), win.chatDock_);
-        add(QStringLiteral("coord readout"), win.status_);
+        add(QStringLiteral("canvas viewport"), win.scroll->viewport());
+        add(QStringLiteral("canvas"), win.canvas);
+        add(QStringLiteral("points panel"), win.selPanel);
+        add(QStringLiteral("chat dock"), win.chatDock);
+        add(QStringLiteral("coord readout"), win.status);
         for (QToolBar* tb : win.findChildren<QToolBar*>())
           add(QStringLiteral("toolbar ") + tb->objectName(), tb);
         return out;
@@ -74,30 +74,30 @@ class MainWindowGuiTest : public QObject {
         if (loaded) {
           QImage pic(376, 501, QImage::Format_RGB32);
           pic.fill(QColor("#2a6f97"));
-          win.canvas_->loadFromImage(pic);
-          QTRY_VERIFY(win.canvas_->hasImage());
+          win.canvas->loadFromImage(pic);
+          QTRY_VERIFY(win.canvas->hasImage());
           win.updateImageSizeInfo();
         }
         const QString state = QStringLiteral("%1/%2").arg(mode, loaded ? "loaded" : "empty");
         // Baseline after ONE round: the info bar reserves the tallest box it has ever needed, so the first
         // tag it shows can still grow that reserve by a pixel. Every toggle after that must not move.
-        win.actIncognito_->setChecked(true);
+        win.actIncognito->setChecked(true);
         settleLayout(&win, 150);
-        win.actIncognito_->setChecked(false);
+        win.actIncognito->setChecked(false);
         const QMap<QString, QRect> before = steady();
-        const int hintBefore = win.imageSizeInfo_->sizeHint().height();
+        const int hintBefore = win.imageSizeInfo->sizeHint().height();
 
-        win.actIncognito_->setChecked(true);
-        QTRY_VERIFY_WITH_TIMEOUT(win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")), 150);
-        QVERIFY2(win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")),
+        win.actIncognito->setChecked(true);
+        QTRY_VERIFY_WITH_TIMEOUT(win.imageSizeInfo->text().contains(QStringLiteral("Incognito")), 150);
+        QVERIFY2(win.imageSizeInfo->text().contains(QStringLiteral("Incognito")),
                  qPrintable(state + ": the tag never appeared — the check would be vacuous"));
         same(before, steady(), state + " on");
-        QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
+        QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
 
-        win.actIncognito_->setChecked(false);
-        QTRY_VERIFY_WITH_TIMEOUT(!win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")), 150);
+        win.actIncognito->setChecked(false);
+        QTRY_VERIFY_WITH_TIMEOUT(!win.imageSizeInfo->text().contains(QStringLiteral("Incognito")), 150);
         same(before, steady(), state + " off again");
-        QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
+        QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
       }
     }
     beat();

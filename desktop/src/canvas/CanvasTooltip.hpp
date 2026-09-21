@@ -34,10 +34,10 @@ namespace stencil::gui {
     // window's coords so escapeHost can carry the cloud past it. False -> the caller plain-fades.
     bool dust(bool gather);
 
-    QLabel* body_ = nullptr;
-    QVariantAnimation* fade_ = nullptr;
-    QPoint lastCursor_;      // where the dust flies out of / back into
-    bool closing_ = false;   // fade_ is mid fade-OUT; its finished handler should hide()
+    QLabel* body = nullptr;
+    QVariantAnimation* fade = nullptr;
+    QPoint lastCursor;      // where the dust flies out of / back into
+    bool closing = false;   // fade is mid fade-OUT; its finished handler should hide()
   };
 
 }

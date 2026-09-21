@@ -30,18 +30,18 @@ namespace stencil::gui {
 
     explicit DissolveEffect(QObject* parent = nullptr) : QGraphicsEffect(parent) {}
 
-    double dissolve() const { return dissolve_; }
+    double getDissolve() const { return dissolve; }
     // 0..1 shares of the widget's own height.
     void setVisibleSpan(double start, double end) {
-      if (qFuzzyCompare(visStart_ + 1.0, start + 1.0) && qFuzzyCompare(visEnd_ + 1.0, end + 1.0)) return;
-      visStart_ = start;
-      visEnd_ = end;
+      if (qFuzzyCompare(visStart + 1.0, start + 1.0) && qFuzzyCompare(visEnd + 1.0, end + 1.0)) return;
+      visStart = start;
+      visEnd = end;
       update();
     }
     void setDissolve(double v) {
       const double next = std::clamp(v, 0.0, 1.0);
-      if (qFuzzyCompare(dissolve_ + 1.0, next + 1.0)) return;
-      dissolve_ = next;
+      if (qFuzzyCompare(dissolve + 1.0, next + 1.0)) return;
+      dissolve = next;
       update();
     }
 
@@ -61,12 +61,12 @@ namespace stencil::gui {
 
    protected:
     void draw(QPainter* painter) override {
-      if (dissolve_ <= 0.001) { drawSource(painter); return; }
+      if (dissolve <= 0.001) { drawSource(painter); return; }
 
       QPoint offset;
       const QPixmap src = sourcePixmap(Qt::LogicalCoordinates, &offset);
       if (src.isNull()) { drawSource(painter); return; }
-      if (dissolve_ >= 0.999) return;
+      if (dissolve >= 0.999) return;
 
       QImage out = src.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
       QImage mask(out.size(), QImage::Format_ARGB32_Premultiplied);
@@ -77,8 +77,8 @@ namespace stencil::gui {
         mp.setRenderHint(QPainter::Antialiasing, true);
         const QRectF box(0, 0, mask.width() / mask.devicePixelRatio(),
                          mask.height() / mask.devicePixelRatio());
-        fillGrain(mp, box, dissolve_);
-        applyWipe(mp, box, visStart_, visEnd_);
+        fillGrain(mp, box, dissolve);
+        applyWipe(mp, box, visStart, visEnd);
       }
       QPainter op(&out);
       op.setCompositionMode(QPainter::CompositionMode_DestinationIn);
@@ -127,8 +127,8 @@ namespace stencil::gui {
       for (const Grain& g : GRAINS) p.fillRect(box, grainBrush(g, dissolve));
     }
 
-    double dissolve_ = 0.0;
-    double visStart_ = 0.0, visEnd_ = 1.0;
+    double dissolve = 0.0;
+    double visStart = 0.0, visEnd = 1.0;
   };
 
 }  // namespace stencil::gui

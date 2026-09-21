@@ -46,14 +46,14 @@ namespace stencil::gui {
     explicit ChatBubbleTail(QWidget* parent);
     void setColors(const QColor& fill, const QColor& border);
     void setSide(bool right);
-    bool isRight() const { return right_; }
+    bool isRight() const { return right; }
 
    protected:
     void paintEvent(QPaintEvent* event) override;
 
    private:
-    QColor fill_, border_;
-    bool right_ = true;
+    QColor fill, border;
+    bool right = true;
   };
 
   // Parented to the card's OWN parent (outside its clip), linked both ways with the card.
@@ -107,10 +107,10 @@ namespace stencil::gui {
     void hide();
     void show();
 
-    QPointer<QLabel> thumb_;
-    QImage full_;
-    QString caption_;
-    QPointer<QWidget> popup_;
+    QPointer<QLabel> thumb;
+    QImage full;
+    QString caption;
+    QPointer<QWidget> popup;
   };
 
   // Browser .chat-typing (chatView.js typingDots).
@@ -127,8 +127,8 @@ namespace stencil::gui {
     static constexpr int DOT_GAP = 3;
     static constexpr int LIFT = 3;
     static constexpr int STEPS = 20;
-    QTimer timer_;
-    int phase_ = 0;
+    QTimer timer;
+    int phase = 0;
   };
 
   // One card's "⋯": hover reveal, placement, and a grace period to cross the gap. Owned by the card.
@@ -143,14 +143,14 @@ namespace stencil::gui {
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
-    bool shown() const { return more_ && more_->isVisible(); }
+    bool shown() const { return more && more->isVisible(); }
     void scheduleHide();
 
-    QPointer<QFrame> card_;
-    QPointer<QToolButton> more_;
-    QScrollArea* scroll_ = nullptr;
-    std::function<void()> moved_;
-    std::function<QRect()> avoidRect_;
+    QPointer<QFrame> card;
+    QPointer<QToolButton> more;
+    QScrollArea* scroll = nullptr;
+    std::function<void()> moved;
+    std::function<QRect()> avoidRect;
   };
 
 }  // namespace stencil::gui

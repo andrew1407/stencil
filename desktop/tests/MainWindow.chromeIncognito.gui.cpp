@@ -49,7 +49,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 820);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QLabel* info = win.imageSizeInfo_;
+    QLabel* info = win.imageSizeInfo;
     QVERIFY(info);
     const QString tag = QStringLiteral("Incognito");
 
@@ -58,21 +58,21 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(info->textFormat(), Qt::PlainText);
 
     // Empty editor, incognito ON: the tag rides beside "No image loaded".
-    win.actIncognito_->setChecked(true);
+    win.actIncognito->setChecked(true);
     QTRY_VERIFY2(info->text().contains(tag), "no incognito tag on the empty line");
     QVERIFY2(info->text().contains(QStringLiteral("No image loaded")),
              "the empty-state text was replaced instead of extended");
     QCOMPARE(info->textFormat(), Qt::RichText);
     const QColor accent =
-        stencil::gui::themePalette(stencil::gui::resolveDark(win.settings_.themeMode),
-                                   win.settings_.accentColor).accent;
+        stencil::gui::themePalette(stencil::gui::resolveDark(win.settings.themeMode),
+                                   win.settings.accentColor).accent;
     QVERIFY2(info->text().contains(accent.name()), "the tag is not accent-coloured");
     QVERIFY2(info->text().contains(QStringLiteral("font-weight:700")), "the tag is not bold");
 
     // The divider + the real icon, in whichever state the line is in.
     const QString muted =
-        stencil::gui::themePalette(stencil::gui::resolveDark(win.settings_.themeMode),
-                                   win.settings_.accentColor).textMuted.name();
+        stencil::gui::themePalette(stencil::gui::resolveDark(win.settings.themeMode),
+                                   win.settings.accentColor).textMuted.name();
     const auto checkTagChrome = [&](const char* state) {
       const QString html = info->text();
       QVERIFY2(html.contains(QStringLiteral("<span style=\"color:%1;\">|</span>").arg(muted)),
@@ -96,25 +96,25 @@ class MainWindowGuiTest : public QObject {
     // …with an image loaded it sits beside the size.
     QImage pic(320, 240, QImage::Format_RGB32);
     pic.fill(Qt::darkCyan);
-    win.canvas_->loadFromImage(pic);
-    QTRY_VERIFY(win.canvas_->hasImage());
+    win.canvas->loadFromImage(pic);
+    QTRY_VERIFY(win.canvas->hasImage());
     win.updateImageSizeInfo();
     QVERIFY2(info->text().contains(QStringLiteral("Image Size:")) &&
-                 info->text().contains(QString::number(win.canvas_->imageWidth())),
+                 info->text().contains(QString::number(win.canvas->imageWidth())),
              "the size left the line");
     QVERIFY2(info->text().contains(tag), "no incognito tag beside the size");
     checkTagChrome("loaded");
 
     // …and it goes when incognito does — divider included, so a plain line never
     // ends in a dangling separator. The "?" bubble still carries the fact.
-    win.actIncognito_->setChecked(false);
+    win.actIncognito->setChecked(false);
     QTRY_VERIFY2(!info->text().contains(tag), "the tag outlived incognito");
     QCOMPARE(info->textFormat(), Qt::PlainText);
     QVERIFY2(!info->text().contains(QLatin1Char('|')), "a divider survived the tag");
     QVERIFY2(!info->text().contains(QStringLiteral("<img")), "an icon survived the tag");
-    win.actIncognito_->setChecked(true);
-    QTRY_VERIFY(win.statusHint_->toolTip().contains(tag));
-    win.actIncognito_->setChecked(false);
+    win.actIncognito->setChecked(true);
+    QTRY_VERIFY(win.statusHint->toolTip().contains(tag));
+    win.actIncognito->setChecked(false);
 
     // The glyph is rasterised for the SCREEN it will be shown on: at dpr 2 the same 16px element
     // carries a 32px PNG. Offscreen runs at 1x, so the ratio is passed in.

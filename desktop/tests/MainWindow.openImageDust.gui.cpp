@@ -83,7 +83,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1250, 980);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // A second picture: an arrival plays once per source (animatedSources_), so the close
+    // A second picture: an arrival plays once per source (animatedSources), so the close
     // has to be watched over a source that has not flown yet.
     const QString other = QDir::temp().filePath(QStringLiteral("stencil_oi_leave.png"));
     QImage second(240, 180, QImage::Format_RGB32);
@@ -110,7 +110,7 @@ class MainWindowGuiTest : public QObject {
       mid = clouds();
       tabs->setCurrentIndex(2);                     // …and away, before it lands
       onSwitch = clouds();
-      veiled = dlg->previewLabel_->graphicsEffect() != nullptr;
+      veiled = dlg->previewLabel->graphicsEffect() != nullptr;
       tabs->setCurrentIndex(1);                     // back, then a source that is new here
       auto* url = page->findChild<QLineEdit*>();
       url->clear();
@@ -146,7 +146,7 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      dlg->path_->setText(img);
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -159,7 +159,7 @@ class MainWindowGuiTest : public QObject {
         for (QWidget* c : dlg->findChildren<QWidget*>(
                  QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME))) {
           if (c->width() > 40 && c->width() < 130 && c->height() < 40) {   // the button's own cloud
-            const QPoint want = dlg->cropAlbum_->mapTo(dlg->cropAlbum_->parentWidget(), QPoint());
+            const QPoint want = dlg->cropAlbum->mapTo(dlg->cropAlbum->parentWidget(), QPoint());
             sawAny = true;
             if ((c->pos() - want).manhattanLength() > 4) followed = false;
           }
@@ -187,7 +187,7 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      dlg->path_->setText(img);
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -195,18 +195,18 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
       const auto clouds = [dlg] {
         return dlg->findChildren<QWidget*>(
                      QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
       };
-      const int customIdx = dlg->cropPageSize_->findData(QStringLiteral("custom"));
-      dlg->cropPageSize_->setCurrentIndex(customIdx);
+      const int customIdx = dlg->cropPageSize->findData(QStringLiteral("custom"));
+      dlg->cropPageSize->setCurrentIndex(customIdx);
       settle([&] { return clouds() > 0; }, 1500);
       sawArrive = clouds() > 0;
       settle([&] { return clouds() == 0; }, 3000);
-      const int pageIdx = dlg->cropPageSize_->findData(QStringLiteral("page"));
-      dlg->cropPageSize_->setCurrentIndex(pageIdx);
+      const int pageIdx = dlg->cropPageSize->findData(QStringLiteral("page"));
+      dlg->cropPageSize->setCurrentIndex(pageIdx);
       settle([&] { return clouds() > 0; }, 1500);
       sawLeave = clouds() > 0;
       dlg->reject();

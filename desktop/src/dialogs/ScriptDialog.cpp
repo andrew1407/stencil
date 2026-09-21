@@ -60,26 +60,26 @@ namespace stencil::gui {
     chrome.root->insertLayout(2, bar);
     chrome.root->insertWidget(3, modalDivider(chrome.root->parentWidget()));
 
-    editor_ = new ScriptEditorWidget(this, windowStyle());
-    chrome.body->addWidget(editor_, 1);   // the editor takes whatever height the window has
+    editor = new ScriptEditorWidget(this, windowStyle());
+    chrome.body->addWidget(editor, 1);   // the editor takes whatever height the window has
 
     // Run LEADS the row: the primary action is the first one the eye and the cursor reach.
-    runBtn_ = new QPushButton(tr("Run"), this);
-    runBtn_->setObjectName(QStringLiteral("scriptRun"));
-    runBtn_->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
-    makeModalGo(runBtn_, QStringLiteral("play"));   // the one GO action: green, not accent
-    runBtn_->setAutoDefault(false);
-    bar->addWidget(runBtn_);
+    runBtn = new QPushButton(tr("Run"), this);
+    runBtn->setObjectName(QStringLiteral("scriptRun"));
+    runBtn->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
+    makeModalGo(runBtn, QStringLiteral("play"));   // the one GO action: green, not accent
+    runBtn->setAutoDefault(false);
+    bar->addWidget(runBtn);
 
-    copyBtn_ = new QPushButton(tr("Copy"), this);
-    makeModalCta(copyBtn_, QStringLiteral("clipboard"));
-    copyBtn_->setAutoDefault(false);
-    bar->addWidget(copyBtn_);
+    copyBtn = new QPushButton(tr("Copy"), this);
+    makeModalCta(copyBtn, QStringLiteral("clipboard"));
+    copyBtn->setAutoDefault(false);
+    bar->addWidget(copyBtn);
 
-    downloadBtn_ = new QPushButton(tr("Download"), this);
-    makeModalCta(downloadBtn_, QStringLiteral("file-down"));
-    downloadBtn_->setAutoDefault(false);
-    bar->addWidget(downloadBtn_);
+    downloadBtn = new QPushButton(tr("Download"), this);
+    makeModalCta(downloadBtn, QStringLiteral("file-down"));
+    downloadBtn->setAutoDefault(false);
+    bar->addWidget(downloadBtn);
 
     auto* uploadBtn = new QPushButton(tr("Upload"), this);
     makeModalCta(uploadBtn, QStringLiteral("file-up"));
@@ -88,32 +88,32 @@ namespace stencil::gui {
 
     // At the far end, in the shared danger red: Clear throws work away, so it sits clear of
     // everything the cursor passes on its way to Run.
-    clearBtn_ = new QPushButton(tr("Clear"), this);
-    clearBtn_->setToolTip(tr("Empty the script editor"));
-    makeModalDanger(clearBtn_, QStringLiteral("trash"));
-    clearBtn_->setAutoDefault(false);
-    bar->addWidget(clearBtn_);
+    clearBtn = new QPushButton(tr("Clear"), this);
+    clearBtn->setToolTip(tr("Empty the script editor"));
+    makeModalDanger(clearBtn, QStringLiteral("trash"));
+    clearBtn->setAutoDefault(false);
+    bar->addWidget(clearBtn);
     // The row starts at the LEFT content edge and the slack falls past it
     // (browser .script-actions-bar: justify-content: flex-start).
     bar->addStretch(1);
 
-    connect(copyBtn_, &QPushButton::clicked, editor_, &ScriptEditorWidget::copyToClipboard);
-    connect(downloadBtn_, &QPushButton::clicked, this, &ScriptDialog::saveFile);
+    connect(copyBtn, &QPushButton::clicked, editor, &ScriptEditorWidget::copyToClipboard);
+    connect(downloadBtn, &QPushButton::clicked, this, &ScriptDialog::saveFile);
     connect(uploadBtn, &QPushButton::clicked, this, &ScriptDialog::loadFile);
-    connect(clearBtn_, &QPushButton::clicked, this, [this] { editor_->setScript(QString()); });
-    connect(runBtn_, &QPushButton::clicked, this, &ScriptDialog::runRequested);
-    connect(editor_, &ScriptEditorWidget::runRequested, this, &ScriptDialog::runRequested);
-    connect(editor_, &ScriptEditorWidget::edited, this, &ScriptDialog::gateActions);
+    connect(clearBtn, &QPushButton::clicked, this, [this] { editor->setScript(QString()); });
+    connect(runBtn, &QPushButton::clicked, this, &ScriptDialog::runRequested);
+    connect(editor, &ScriptEditorWidget::runRequested, this, &ScriptDialog::runRequested);
+    connect(editor, &ScriptEditorWidget::edited, this, &ScriptDialog::gateActions);
 
-    if (!initialText.isEmpty()) editor_->setScript(initialText);
+    if (!initialText.isEmpty()) editor->setScript(initialText);
     setAcceptDrops(true);
     // Provisional: showEvent re-measures it on the fonts the QSS hands the buttons.
     setFixedWidth(minimumSizeHint().width() * FIT_SHARE_NUM / FIT_SHARE_DEN);
     const int avail = screen() ? screen()->availableGeometry().height() : MODAL_MAX_H;
     resize(width(), qMin(int(avail * MODAL_SCREEN_SHARE), MODAL_MAX_H));
     gateActions();
-    editor_->editor()->setFocus();
-    editor_->editor()->moveCursor(QTextCursor::End);
+    editor->editor()->setFocus();
+    editor->editor()->moveCursor(QTextCursor::End);
   }
 
   // The window is its widest row, the actions bar; half again that fit leaves the editor room
@@ -123,20 +123,20 @@ namespace stencil::gui {
     if (isWindow()) setFixedWidth(minimumSizeHint().width() * FIT_SHARE_NUM / FIT_SHARE_DEN);
   }
 
-  QString ScriptDialog::script() const { return editor_->script(); }
+  QString ScriptDialog::script() const { return editor->script(); }
 
-  const model::ScriptDoc& ScriptDialog::program() const { return editor_->program(); }
+  const model::ScriptDoc& ScriptDialog::program() const { return editor->getProgram(); }
 
-  void ScriptDialog::showRunDiagnostics() { editor_->showRunDiagnostics(); }
+  void ScriptDialog::showRunDiagnostics() { editor->showRunDiagnostics(); }
 
   // Copy, Save and Clear need text; Open always has something to do. Run needs something to
   // RUN (browser js/ui/scriptEditor.js gateActions).
   void ScriptDialog::gateActions() {
-    const bool blank = editor_->isEmpty();
-    copyBtn_->setEnabled(!blank);
-    downloadBtn_->setEnabled(!blank);
-    clearBtn_->setEnabled(!blank);
-    runBtn_->setEnabled(!blank && !editor_->isIdle());
+    const bool blank = editor->isEmpty();
+    copyBtn->setEnabled(!blank);
+    downloadBtn->setEnabled(!blank);
+    clearBtn->setEnabled(!blank);
+    runBtn->setEnabled(!blank && !editor->isIdle());
   }
 
 }  // namespace stencil::gui

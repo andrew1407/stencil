@@ -24,12 +24,12 @@
 namespace stencil::gui {
 
   void SelectedLineBar::restyleIcons(const QColor& iconColor) {
-    if (fillClear_) fillClear_->setIcon(themedIcon("rect", iconColor, 13));
-    if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", QColor("#ffffff"), 13));
-    if (unchainBtn_) unchainBtn_->setIcon(themedIcon("link", iconColor, 13));
+    if (fillClear) fillClear->setIcon(themedIcon("rect", iconColor, 13));
+    if (deselectBtn) deselectBtn->setIcon(themedIcon("x", QColor("#ffffff"), 13));
+    if (unchainBtn) unchainBtn->setIcon(themedIcon("link", iconColor, 13));
   }
 
-  void SelectedLineBar::setDefaultFillColor(const QColor& color) { defaultFill_ = color; }
+  void SelectedLineBar::setDefaultFillColor(const QColor& color) { defaultFill = color; }
 
   // QDockWidget reserves a height from an early narrow width guess and never re-asks, so the bar
   // asserts its own on every resize and content change.
@@ -45,33 +45,33 @@ namespace stencil::gui {
 
   void SelectedLineBar::showLine(const core::Line* line) {
     // MainWindow shows/hides the whole row via its dock; this only repopulates.
-    updating_ = true;
+    updating = true;
     if (line) {
-      currentColor_ = cssColor(line->color);
-      setColorSwatch(colorSwatch_, currentColor_);
+      currentColor = cssColor(line->color);
+      setColorSwatch(colorSwatch, currentColor);
       // A line with no point colour shows its stroke (core::pointColorOr).
-      currentPointColor_ = cssColor(core::pointColorOr(*line));
-      setColorSwatch(pointColorSwatch_, currentPointColor_);
-      thickness_->setValue(static_cast<int>(std::lround(line->thickness)));
-      pointSize_->setValue(static_cast<int>(std::lround(line->pointSize)));
-      const int sidx = style_->findData(QString::fromStdString(line->style));
-      style_->setCurrentIndex(sidx >= 0 ? sidx : 0);
+      currentPointColor = cssColor(core::pointColorOr(*line));
+      setColorSwatch(pointColorSwatch, currentPointColor);
+      thickness->setValue(static_cast<int>(std::lround(line->thickness)));
+      pointSize->setValue(static_cast<int>(std::lround(line->pointSize)));
+      const int sidx = style->findData(QString::fromStdString(line->style));
+      style->setCurrentIndex(sidx >= 0 ? sidx : 0);
 
       // Fill controls only for locked areas, label included (browser #sel-fill-group
       // display:none); the group slides and dusts (controlReveal).
-      revealControls(fillField_, line->locked);
-      if (fillSep_) revealControls(fillSep_, line->locked);
+      revealControls(fillField, line->locked);
+      if (fillSep) revealControls(fillSep, line->locked);
       if (line->locked) {
         const QString fc = QString::fromStdString(line->fillColor);
         const bool hasFill = !fc.isEmpty() && fc != "transparent";
         // An unfilled area shows the default colour at zero alpha, so the well says "none".
-        currentFill_ = hasFill ? cssColor(fc)
-                               : QColor(defaultFill_.red(), defaultFill_.green(),
-                                        defaultFill_.blue(), 0);
-        setColorSwatch(fillSwatch_, currentFill_);
+        currentFill = hasFill ? cssColor(fc)
+                               : QColor(defaultFill.red(), defaultFill.green(),
+                                        defaultFill.blue(), 0);
+        setColorSwatch(fillSwatch, currentFill);
       }
     }
-    updating_ = false;
+    updating = false;
     // Losing the fill group can cost the flow layout a row; refit now and once the reveal has
     // finished.
     refitHeight();

@@ -5,20 +5,20 @@ namespace stencil::gui {
   // An excluded row is gone at once; the rows LEFT arrive. A row the filter has never
   // seen (a fresh list) jumps to the end state.
   void ListFilterFade::apply(const std::function<bool(QListWidgetItem*)>& wanted) {
-    if (!list_) return;
-    dustBudget_ = 0;
+    if (!list) return;
+    dustBudget = 0;
     const bool instant = support::motionReduced();
     if (beforeFrame) beforeFrame();
     // A re-list landing on the same set must not replay, or every refresh flashes the list.
     bool changed = false;
-    for (int i = 0; i < list_->count() && !changed; ++i) {
-      const QVariant prev = list_->item(i)->data(FILTER_TARGET_ROLE);
-      if (prev.isValid() && prev.toDouble() != (wanted(list_->item(i)) ? 1.0 : 0.0))
+    for (int i = 0; i < list->count() && !changed; ++i) {
+      const QVariant prev = list->item(i)->data(FILTER_TARGET_ROLE);
+      if (prev.isValid() && prev.toDouble() != (wanted(list->item(i)) ? 1.0 : 0.0))
         changed = true;
     }
     bool moving = false;
-    for (int i = 0; i < list_->count(); ++i) {
-      QListWidgetItem* it = list_->item(i);
+    for (int i = 0; i < list->count(); ++i) {
+      QListWidgetItem* it = list->item(i);
       const double target = wanted(it) ? 1.0 : 0.0;
       const bool known = it->data(FILTER_PRESENCE_ROLE).isValid();
       // OUT: straight to nothing. IN: a row already open keeps its slot.
@@ -37,17 +37,17 @@ namespace stencil::gui {
   // Browser js/ui/motion.js filterDust: the row is veiled (FILTER_DUST_ROLE, honoured by
   // a delegate through filterInk) while its motes gather over its rect.
   void ListFilterFade::dustRowIn(QListWidgetItem* it, QWidget* host, int ms) {
-    if (!it || !list_ || !host || !host->isVisible() || support::motionReduced()) return;
-    if (dustBudget_ >= FILTER_DUST_MAX_ROWS) return;
+    if (!it || !list || !host || !host->isVisible() || support::motionReduced()) return;
+    if (dustBudget >= FILTER_DUST_MAX_ROWS) return;
     const int cells = FILTER_DUST_CELLS / FILTER_DUST_MAX_ROWS;
-    ++dustBudget_;
+    ++dustBudget;
     if (beforeFrame) beforeFrame();
     it->setData(FILTER_DUST_ROLE, 0.0);
     if (afterFrame) afterFrame();
     QPointer<ListFilterFade> self(this);
     QPointer<QWidget> hostP(host);
-    QListWidget* list = list_;
-    QPersistentModelIndex idx(list_->indexFromItem(it));
+    QListWidget* list = this->list;
+    QPersistentModelIndex idx(list->indexFromItem(it));
     const auto fly = [self, list, idx, hostP, cells, ms] {
       if (!self || !hostP || !idx.isValid()) return;
       QListWidgetItem* row = list->item(idx.row());
@@ -84,17 +84,17 @@ namespace stencil::gui {
       QTimer::singleShot(int(ms * FILTER_DUST_VEIL_STOP), self, unveil);
     };
     // A row being revealed has no box yet: wait out the slot opening.
-    if (list_->visualItemRect(it).height() >= 8) fly();
+    if (list->visualItemRect(it).height() >= 8) fly();
     else QTimer::singleShot(FILTER_FADE_MS, this, fly);
   }
 
 
   // Dialog teardown.
   void ListFilterFade::finishNow() {
-    if (!list_) return;
+    if (!list) return;
     if (beforeFrame) beforeFrame();
-    for (int i = 0; i < list_->count(); ++i) {
-      QListWidgetItem* it = list_->item(i);
+    for (int i = 0; i < list->count(); ++i) {
+      QListWidgetItem* it = list->item(i);
       const QVariant t = it->data(FILTER_TARGET_ROLE);
       if (!t.isValid()) continue;
       write(it, t.toDouble(), t.toDouble());
@@ -112,12 +112,12 @@ namespace stencil::gui {
   }
 
   void ListFilterFade::tick() {
-    if (!list_) { stopTicking(); return; }
+    if (!list) { stopTicking(); return; }
     const double step = double(FILTER_FADE_TICK_MS) / FILTER_FADE_MS;
     if (beforeFrame) beforeFrame();
     bool moving = false;
-    for (int i = 0; i < list_->count(); ++i) {
-      QListWidgetItem* it = list_->item(i);
+    for (int i = 0; i < list->count(); ++i) {
+      QListWidgetItem* it = list->item(i);
       const QVariant t = it->data(FILTER_TARGET_ROLE);
       if (!t.isValid()) continue;
       const double target = t.toDouble();
@@ -132,11 +132,11 @@ namespace stencil::gui {
   }
 
   void ListFilterFade::startTicking() {
-    if (!timer_) {
-      timer_ = new QTimer(this);
-      timer_->setInterval(FILTER_FADE_TICK_MS);
-      connect(timer_, &QTimer::timeout, this, [this] { tick(); });
+    if (!timer) {
+      timer = new QTimer(this);
+      timer->setInterval(FILTER_FADE_TICK_MS);
+      connect(timer, &QTimer::timeout, this, [this] { tick(); });
     }
-    if (!timer_->isActive()) timer_->start();
+    if (!timer->isActive()) timer->start();
   }
 }  // namespace stencil::gui

@@ -55,18 +55,18 @@
 
 namespace stencil::gui {
 
-  // Browser connectModal.js `shownUrls`. Read off the rows, never manager_->urls() by index: a row
+  // Browser connectModal.js `shownUrls`. Read off the rows, never manager->urls() by index: a row
   // retired under its removal dust keeps its slot after the manager has let go.
   QStringList ConnectDialog::shownUrls() const {
     QStringList out;
-    if (!list_) return out;
+    if (!list) return out;
     const QString mode =
-        kindFilter_ ? kindFilter_->currentData().toString() : QStringLiteral("all");
-    for (int i = 0; i < list_->count(); ++i) {
-      const QListWidgetItem* it = list_->item(i);
+        kindFilter ? kindFilter->currentData().toString() : QStringLiteral("all");
+    for (int i = 0; i < list->count(); ++i) {
+      const QListWidgetItem* it = list->item(i);
       if (it->data(Qt::UserRole).isNull()) continue;
       const QString url = it->data(ROW_URL_ROLE).toString();
-      if (url.isEmpty() || doomed_.contains(url)) continue;
+      if (url.isEmpty() || doomed.contains(url)) continue;
       if (kindMatches(mode, it->data(Qt::UserRole).toBool())) out << url;
     }
     return out;
@@ -76,25 +76,25 @@ namespace stencil::gui {
     const QStringList shown = shownUrls();
     if (shown.isEmpty()) return false;
     for (const QString& u : shown)
-      if (!selected_.contains(u)) return false;
+      if (!selected.contains(u)) return false;
     return true;
   }
 
   // Over the CURRENT filtered view; deselect clears the WHOLE selection.
   void ConnectDialog::toggleSelectAll() {
-    if (allShownSelected()) selected_.clear();
-    else for (const QString& u : shownUrls()) selected_.insert(u);
+    if (allShownSelected()) selected.clear();
+    else for (const QString& u : shownUrls()) selected.insert(u);
     rebuildList();
   }
 
   // An EXCLUDED row is gone at once (it was never disconnected); the rows LEFT arrive via support/filterFade.
-  ListFilterFade* ConnectDialog::filterFade() {
-    if (filterFade_ || !list_) return filterFade_;
-    filterFade_ = new ListFilterFade(list_);
-    filterFade_->writeRow = [this](QListWidgetItem* it, double p) {
+  ListFilterFade* ConnectDialog::getFilterFade() {
+    if (filterFade || !list) return filterFade;
+    filterFade = new ListFilterFade(list);
+    filterFade->writeRow = [this](QListWidgetItem* it, double p) {
       const QVariant full = it->data(FILTER_FULL_HEIGHT_ROLE);
       if (full.isValid()) it->setSizeHint(QSize(rowWidth(), filterHeight(full.toInt(), p)));
-      QWidget* w = list_->itemWidget(it);
+      QWidget* w = list->itemWidget(it);
       if (!w) return;
       // Settled either way, hand the row back to the scroll-edge reveal.
       if (p >= 1.0 || p <= 0.0) {
@@ -112,35 +112,35 @@ namespace stencil::gui {
       }
       fx->setOpacity(filterOpacity(p));
     };
-    filterFade_->afterFrame = [this] { applyRowReveal(); };
-    return filterFade_;
+    filterFade->afterFrame = [this] { applyRowReveal(); };
+    return filterFade;
   }
 
   void ConnectDialog::applyKindFilter() {
-    if (!list_) return;
+    if (!list) return;
     const QString mode =
-        kindFilter_ ? kindFilter_->currentData().toString() : QStringLiteral("all");
-    // The placeholder goes first so real-row indices line up with manager_->urls().
-    for (int i = list_->count() - 1; i >= 0; --i)
-      if (list_->item(i)->data(Qt::UserRole + 1).toBool()) delete list_->takeItem(i);
+        kindFilter ? kindFilter->currentData().toString() : QStringLiteral("all");
+    // The placeholder goes first so real-row indices line up with manager->urls().
+    for (int i = list->count() - 1; i >= 0; --i)
+      if (list->item(i)->data(Qt::UserRole + 1).toBool()) delete list->takeItem(i);
     auto wanted = [&mode](QListWidgetItem* it) {
       if (it->data(Qt::UserRole).isNull()) return true;
       return kindMatches(mode, it->data(Qt::UserRole).toBool());
     };
     int rows = 0, shown = 0;
-    for (int i = 0; i < list_->count(); ++i) {
-      QListWidgetItem* it = list_->item(i);
+    for (int i = 0; i < list->count(); ++i) {
+      QListWidgetItem* it = list->item(i);
       if (it->data(Qt::UserRole).isNull()) continue;
       ++rows;
       if (wanted(it)) ++shown;
     }
-    if (auto* fade = filterFade()) fade->apply(wanted);
+    if (auto* fade = getFilterFade()) fade->apply(wanted);
     updateBatchBar();
     if (rows == 0 || shown > 0) return;
     auto* none = new QListWidgetItem(mode == QLatin1String("admin")
                                          ? tr("No connection holds an admin credential.")
                                          : tr("Every connection holds an admin credential."),
-                                     list_);
+                                     list);
     none->setData(Qt::UserRole + 1, true);
     none->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
     none->setFlags(Qt::NoItemFlags);

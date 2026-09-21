@@ -78,25 +78,25 @@ namespace stencil::gui {
         }
       }
     }
-    // Escape, app-wide (KeyPress AND ShortcutOverride): closes a popover first, then leaves fullscreen (fs_.active — isFullScreen() is unreliable on macOS).
-    if (pop_.active &&
+    // Escape, app-wide (KeyPress AND ShortcutOverride): closes a popover first, then leaves fullscreen (fs.active — isFullScreen() is unreliable on macOS).
+    if (pop.active &&
         (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
       auto* w = qobject_cast<QWidget*>(obj);
-      if (w && (w->window() == this || w == pop_.active.data() ||
-                pop_.active->isAncestorOf(w))) {
-        pop_.peekAction.clear();   // Escape is deliberate: it ends a peek for good
+      if (w && (w->window() == this || w == pop.active.data() ||
+                pop.active->isAncestorOf(w))) {
+        pop.peekAction.clear();   // Escape is deliberate: it ends a peek for good
         dismissPopover();
         return true;
       }
     }
     if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && chatCompactShowing()) {
-      if (event->type() == QEvent::KeyPress && actChat_) actChat_->setChecked(false);
+      if (event->type() == QEvent::KeyPress && actChat) actChat->setChecked(false);
       return true;   // the ShortcutOverride claim keeps focused widgets from eating it
     }
     if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
-        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fs_.active) {
+        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fs.active) {
       toggleFullscreen();
       return true;
     }

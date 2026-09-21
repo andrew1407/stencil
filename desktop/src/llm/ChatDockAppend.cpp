@@ -58,7 +58,7 @@ namespace stencil::gui {
     QString t = text;
     for (const QString& w : warnings) t += QStringLiteral("\n⚠ ") + w;
     QVBoxLayout* lay = appendCard("Assistant", t, CardKind::BUBBLE);
-    lastAssistantCard_ = lay->parentWidget();   // late notes merge into THIS bubble
+    lastAssistantCard = lay->parentWidget();   // late notes merge into THIS bubble
     // Executor notes ride WITH the reply — muted lines in the SAME bubble, never
     // a separate card (browser parity: they merge into the reply's warnings).
     for (const QString& n : notes) {

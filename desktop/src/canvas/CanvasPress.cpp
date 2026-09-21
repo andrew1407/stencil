@@ -12,7 +12,7 @@ namespace stencil::gui {
   void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::RightButton) {
       // macOS delivers Ctrl+Left as a right press: Alt with it is the pull-out gesture, not a menu.
-      if (!image_.isNull() && (event->modifiers() & Qt::AltModifier) &&
+      if (!image.isNull() && (event->modifiers() & Qt::AltModifier) &&
           (event->modifiers() & Qt::ControlModifier) && !compareReadOnly()) {
         if (beginPullOut(toImageSpace(event->pos().x(), event->pos().y()))) return;
         return;   // nothing under the cursor: still the gesture, still no menu
@@ -20,10 +20,10 @@ namespace stencil::gui {
       emit contextRequested(event->globalPosition().toPoint());
       return;
     }
-    if (image_.isNull()) {
+    if (image.isNull()) {
       // Only the CARD opens the creator; nothing is clickable while the hint is held back or unpainted.
-      if (event->button() == Qt::LeftButton && !idleHintHidden_ &&
-          idleCardRect_.contains(event->position()))
+      if (event->button() == Qt::LeftButton && !idleHintHidden &&
+          idleCardRect.contains(event->position()))
         emit blankImageRequested();
       return;
     }
@@ -31,10 +31,10 @@ namespace stencil::gui {
     const auto mods = event->modifiers();
 
     // Divider press is checked first so it wins over hits underneath; split modes only (not held).
-    if (event->button() == Qt::LeftButton && mods == Qt::NoModifier && !compareHoldOriginal_ &&
+    if (event->button() == Qt::LeftButton && mods == Qt::NoModifier && !compareHoldOriginal &&
         nearCompareDivider(event->pos())) {
-      draggingCompareSplit_ = true;
-      setCursor(compareMode_ == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
+      draggingCompareSplit = true;
+      setCursor(compareMode == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
       return;
     }
 
@@ -42,18 +42,18 @@ namespace stencil::gui {
     if (compareReadOnly()) {
       if (event->button() == Qt::MiddleButton ||
           (event->button() == Qt::LeftButton && (mods & Qt::AltModifier))) {
-        panning_ = true;
-        lastPanPos_ = event->globalPosition().toPoint();
+        panning = true;
+        lastPanPos = event->globalPosition().toPoint();
         setCursor(Qt::ClosedHandCursor);
       }
       return;
     }
 
     if (event->button() == Qt::MiddleButton) {
-      panning_ = true;
+      panning = true;
       // Pan anchor in GLOBAL coords: panBy() slides this widget under the cursor, so widget-space
       // positions would feed back into the next delta.
-      lastPanPos_ = event->globalPosition().toPoint();
+      lastPanPos = event->globalPosition().toPoint();
       setCursor(Qt::ClosedHandCursor);
       return;
     }
@@ -83,9 +83,9 @@ namespace stencil::gui {
       // Hold-to-draw arms only when not drawing, unmodified, and never with the rect tool (browser
       // inputController.js holdDrawEligible). handleDrawingClick runs first so a quick click still selects.
       const bool eligibleHold =
-          !isDrawing_ && mods == Qt::NoModifier && drawMode_ != DrawMode::RECT;
+          !isDrawing && mods == Qt::NoModifier && drawMode != DrawMode::RECT;
       handleDrawingClick(ip, mods, event->pos());
-      if (eligibleHold && !isDrawing_) beginHold(event->pos());
+      if (eligibleHold && !isDrawing) beginHold(event->pos());
     }
   }
 

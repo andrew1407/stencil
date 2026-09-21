@@ -74,24 +74,24 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());   // rotate needs an image to be enabled
     settleLayout(&win, 150);
-    QAction* first = win.actRotateLeft_;
-    QAction* second = win.actRotateRight_;
+    QAction* first = win.actRotateLeft;
+    QAction* second = win.actRotateRight;
     QVERIFY(first && second);
     QWidget* b1 = win.buttonForAction(first);
     QWidget* b2 = win.buttonForAction(second);
     QVERIFY2(b1 && b2 && b1 != b2, "expected a distinct toolbar button per action");
     first->trigger();
-    QCOMPARE(win.pop_.dialogAnchor.data(), b1);
+    QCOMPARE(win.pop.dialogAnchor.data(), b1);
     second->trigger();
-    QCOMPARE(win.pop_.dialogAnchor.data(), b2);
+    QCOMPARE(win.pop.dialogAnchor.data(), b2);
     // An action with no toolbar icon of its own clears the anchor instead of inheriting the last icon —
     // the "it flew out of the wrong button" case. It has no slot either, so nothing opens.
     auto* iconless = new QAction("Menu-only command", &win);
     win.addAction(iconless);
     win.bindRevealAnchors();     // idempotent — binds whatever is not bound yet
-    win.pop_.dialogAnchor = b2;
+    win.pop.dialogAnchor = b2;
     iconless->trigger();
-    QVERIFY2(!win.pop_.dialogAnchor, "an icon-less action left the previous icon as the origin");
+    QVERIFY2(!win.pop.dialogAnchor, "an icon-less action left the previous icon as the origin");
   }
 
   // End-to-end: open a dialog the way a user does and read where its flight STARTS — an icon-backed
@@ -119,11 +119,11 @@ class MainWindowGuiTest : public QObject {
     };
 
     // ── an icon-backed dialog ──
-    QWidget* icon = win.buttonForAction(win.actProjects_);
+    QWidget* icon = win.buttonForAction(win.actProjects);
     QVERIFY2(icon && icon->isVisible(), "the Projects icon is not on the toolbar");
     watcher.reset();
     closeSoon();
-    win.actProjects_->trigger();
+    win.actProjects->trigger();
     settle([&] { return watcher.captured; }, 50);
     {
       const QPoint want = flightPointOf(icon, &win);
@@ -136,7 +136,7 @@ class MainWindowGuiTest : public QObject {
     // toolbar icon now, so this synthetic one is bound and wired through the same execMaybePopover path.
     QMenu* help = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(win.actInfo_)) { help = m; break; }
+      if (m->actions().contains(win.actInfo)) { help = m; break; }
     QVERIFY2(help, "the Help menu was not found");
     auto* act = new QAction("Test Menu-Only Dialog", &win);
     help->addAction(act);

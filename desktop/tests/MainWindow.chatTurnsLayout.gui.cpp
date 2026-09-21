@@ -15,36 +15,36 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.chatDock_->show();
-    settleLayout(win.chatDock_, 30);
-    auto* scroll = win.chatDock_->findChild<QScrollArea*>();
+    win.chatDock->show();
+    settleLayout(win.chatDock, 30);
+    auto* scroll = win.chatDock->findChild<QScrollArea*>();
     QVERIFY(scroll);
     auto* bar = scroll->verticalScrollBar();
     const QString filler = QStringLiteral(
         "Filler turn %1 — long enough to wrap across the bubble and give the "
         "transcript real scrollable height for the follow assertions below.");
     for (int i = 0; i < 8; ++i) {
-      win.chatDock_->appendUser(filler.arg(i));
-      win.chatDock_->appendAssistant(filler.arg(i + 100));
+      win.chatDock->appendUser(filler.arg(i));
+      win.chatDock->appendAssistant(filler.arg(i + 100));
     }
     QTRY_VERIFY(bar->maximum() > 0);
     // A send lands the view at the very bottom, where the "…" card sits.
     bar->setValue(0);
-    win.chatDock_->appendUser(QStringLiteral("newest question"));
-    win.chatDock_->showPending();
+    win.chatDock->appendUser(QStringLiteral("newest question"));
+    win.chatDock->showPending();
     QTRY_VERIFY2(bar->maximum() > 0 && bar->value() == bar->maximum(),
                  "sending must scroll to the pending indicator at the bottom");
     QTest::qWait(50);   // drain the deferred scroll timers before scrolling away
     // Reading history releases the pin: a landing reply must not yank the view.
     bar->setValue(0);
-    win.chatDock_->clearPending();
-    win.chatDock_->appendAssistant(QStringLiteral("a reply landing mid-history"));
+    win.chatDock->clearPending();
+    win.chatDock->appendAssistant(QStringLiteral("a reply landing mid-history"));
     QTest::qWait(80);
     QVERIFY2(bar->value() < bar->maximum() / 2,
              "a reply must not yank a reader back down from history");
     // Back at the bottom the pin re-arms: the next reply is followed.
     bar->setValue(bar->maximum());
-    win.chatDock_->appendAssistant(QStringLiteral("and one the reader follows"));
+    win.chatDock->appendAssistant(QStringLiteral("and one the reader follows"));
     QTRY_VERIFY(bar->maximum() > 0 && bar->value() == bar->maximum());
     beat();
   }
@@ -57,9 +57,9 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.canvas_->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QTRY_VERIFY(win.canvas->hasImage());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
 
     // 17 small boxes — every one of them would have earned its own refinement
     // request, and the spread would have earned suspect rounds on top.
@@ -79,16 +79,16 @@ class MainWindowGuiTest : public QObject {
                                                      "\"actions\":[{\"op\":\"layout\",\"lines\":[%1]}]}")
                                           .arg(lines.join(QLatin1Char(',')))}}}})
             .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     QElapsedTimer clock;
     clock.start();
     win.onChatSend("outline every box");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
+    QTRY_VERIFY(!win.chatDock->isBusy());
     const qint64 settledMs = clock.elapsed();
 
     QCOMPARE(mock.allBodies.size(), 1);   // ONE round for the whole turn
-    QCOMPARE(int(win.canvas_->allLines().size()), 17);   // …and it drew all of them
+    QCOMPARE(int(win.canvas->allLines().size()), 17);   // …and it drew all of them
     // Nothing may be queued behind the reply either: the turn is over.
     QTest::qWait(200);
     QCOMPARE(mock.allBodies.size(), 1);
@@ -96,8 +96,8 @@ class MainWindowGuiTest : public QObject {
 
     // No self-check / sharpening vocabulary may reach the user, in the transcript
     // or in the toast.
-    const QString shown = dockText(win.chatDock_) +
-                          (win.chatToast_ ? dockText(win.chatToast_) : QString());
+    const QString shown = dockText(win.chatDock) +
+                          (win.chatToast ? dockText(win.chatToast) : QString());
     for (const char* word : {"sharpen", "self-check", "re-checked", "correction", "refine"})
       QVERIFY2(!shown.contains(QLatin1String(word), Qt::CaseInsensitive),
                qPrintable(QString("the reply still mentions \"%1\": %2")
@@ -113,9 +113,9 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.canvas_->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QTRY_VERIFY(win.canvas->hasImage());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
 
     DeferredChatTransport deferred;
     deferred.response =
@@ -126,14 +126,14 @@ class MainWindowGuiTest : public QObject {
                           "\"lines\":[{\"points\":[{\"x\":20,\"y\":20},{\"x\":50,\"y\":20},"
                           "{\"x\":50,\"y\":50},{\"x\":20,\"y\":20}]}]}]}"}}}})
             .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&deferred);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&deferred);
     win.onChatSend("outline the box");
     QCOMPARE(deferred.parked.size(), 1);   // the turn's own request, waiting
-    QVERIFY(win.chatDock_->isBusy());
+    QVERIFY(win.chatDock->isBusy());
 
     deferred.answerNext();                 // …the answer lands
-    QTRY_VERIFY(!win.chatDock_->isBusy());
-    QCOMPARE(int(win.canvas_->allLines().size()), 1);
+    QTRY_VERIFY(!win.chatDock->isBusy());
+    QCOMPARE(int(win.canvas->allLines().size()), 1);
     QTest::qWait(200);
     QVERIFY2(deferred.parked.isEmpty(), "a follow-up round was sent behind the reply");
     QCOMPARE(deferred.started, 1);

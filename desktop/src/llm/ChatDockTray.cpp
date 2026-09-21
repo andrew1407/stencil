@@ -25,7 +25,7 @@ namespace stencil::gui {
 
   using namespace chatdock;
   void ChatDock::refreshAttachmentTray() {
-    auto* row = qobject_cast<QHBoxLayout*>(cmp_.attachTray->layout());
+    auto* row = qobject_cast<QHBoxLayout*>(cmp.attachTray->layout());
     if (!row) return;
     // Drop the previous chips (the trailing stretch is re-added last).
     while (QLayoutItem* item = row->takeAt(0)) {
@@ -37,7 +37,7 @@ namespace stencil::gui {
     const auto addChip = [this, row](const QPixmap& thumb, const QString& label,
                                      const QString& tip, std::function<void()> remove,
                                      const QImage& full = QImage()) {
-      auto* chip = new QFrame(cmp_.attachTray);
+      auto* chip = new QFrame(cmp.attachTray);
       chip->setObjectName("chatAttachChip");
       auto* lay = new QHBoxLayout(chip);
       lay->setContentsMargins(4, 2, 4, 2);
@@ -107,34 +107,34 @@ namespace stencil::gui {
       row->addWidget(chip);
     };
 
-    for (int i = 0; i < cmp_.images.size(); ++i) {
-      const QImage& img = cmp_.images.at(i);
+    for (int i = 0; i < cmp.images.size(); ++i) {
+      const QImage& img = cmp.images.at(i);
       const QPixmap thumb = QPixmap::fromImage(
           img.scaled(QSize(28, 28), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-      const QString name = i < cmp_.imageNames.size() ? cmp_.imageNames.at(i) : QString();
+      const QString name = i < cmp.imageNames.size() ? cmp.imageNames.at(i) : QString();
       const QString dims = QStringLiteral("%1×%2").arg(img.width()).arg(img.height());
       addChip(thumb, name.isEmpty() ? dims : name,
               name.isEmpty() ? QStringLiteral("Queued image (%1)").arg(dims)
                              : QStringLiteral("%1 (%2)").arg(name, dims),
               [this, i] {
-                if (i < cmp_.images.size()) {
-                  cmp_.images.removeAt(i);
-                  if (i < cmp_.imageNames.size()) cmp_.imageNames.removeAt(i);
+                if (i < cmp.images.size()) {
+                  cmp.images.removeAt(i);
+                  if (i < cmp.imageNames.size()) cmp.imageNames.removeAt(i);
                 }
                 refreshAttachmentTray();
               },
               img);
     }
-    if (!cmp_.videoPath.isEmpty()) {
-      addChip(QPixmap(), QFileInfo(cmp_.videoPath).fileName(),
-              QStringLiteral("Queued video — frames are sent, never the video (%1)").arg(cmp_.videoPath),
+    if (!cmp.videoPath.isEmpty()) {
+      addChip(QPixmap(), QFileInfo(cmp.videoPath).fileName(),
+              QStringLiteral("Queued video — frames are sent, never the video (%1)").arg(cmp.videoPath),
               [this] {
-                cmp_.videoPath.clear();
+                cmp.videoPath.clear();
                 refreshAttachmentTray();
                 emit videoDetached();
               });
     }
     row->addStretch(1);
-    cmp_.attachTray->setVisible(!cmp_.images.isEmpty() || !cmp_.videoPath.isEmpty());
+    cmp.attachTray->setVisible(!cmp.images.isEmpty() || !cmp.videoPath.isEmpty());
   }
 }  // namespace stencil::gui

@@ -13,21 +13,21 @@ namespace stencil::gui {
 
   void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     // Finish a compare-divider drag.
-    if (draggingCompareSplit_) {
-      draggingCompareSplit_ = false;
+    if (draggingCompareSplit) {
+      draggingCompareSplit = false;
       unsetCursor();
       return;
     }
 
     // Releasing after a stroke commits the line and exits drawing; a quick/aborted hold just tears
     // down (selection already happened on press in handleDrawingClick).
-    if (holdTimer_.isActive() || hold_.engaged()) {
-      holdTimer_.stop();
-      const core::HoldEvent ev = hold_.pointerUp(holdNowMs());
+    if (holdTimer.isActive() || hold.engaged()) {
+      holdTimer.stop();
+      const core::HoldEvent ev = hold.pointerUp(holdNowMs());
       if (ev.action == core::HoldAction::COMMIT) {
         holdCommit();
-      } else if (holdHasPreview_) {
-        holdHasPreview_ = false;
+      } else if (holdHasPreview) {
+        holdHasPreview = false;
         update();
       }
       return;
@@ -35,32 +35,32 @@ namespace stencil::gui {
 
     // Finish an Alt-drag (drawingApp.js mouseup). Commit one undo step only when a committed line
     // actually moved; an in-progress-line point edit just refreshes the panel.
-    if (dragKind_ != DragKind::NONE) {
-      const bool moved = dragMoved_;
-      const bool committed = moved && dragLineIdx_ >= 0;
+    if (dragKind != DragKind::NONE) {
+      const bool moved = dragMoved;
+      const bool committed = moved && dragLineIdx >= 0;
       const QRect dirty = dragRect();   // before the kind clears it
-      dragKind_ = DragKind::NONE;
-      dragLineIdx_ = dragPtIdx1_ = dragPtIdx2_ = -1;
-      dragOrig_.clear();
-      dragMultiOrig_.clear();
+      dragKind = DragKind::NONE;
+      dragLineIdx = dragPtIdx1 = dragPtIdx2 = -1;
+      dragOrig.clear();
+      dragMultiOrig.clear();
       unsetCursor();
       update(dirty);
       if (committed) commitHistory();   // emits changed()
       if (moved) emit selectionChanged();
       return;
     }
-    if (panning_) {
-      panning_ = false;
+    if (panning) {
+      panning = false;
       unsetCursor();
       return;
     }
-    if (zoomRectActive_) {
-      zoomRectActive_ = false;
-      const QRect band = bandRect(zoomRectStart_, zoomRectEnd_);
+    if (zoomRectActive) {
+      zoomRectActive = false;
+      const QRect band = bandRect(zoomRectStart, zoomRectEnd);
       // Convert the swept rubber band to image space and emit. Only act on a
       // rect bigger than 4x4 image px (drawingApp.js mouseup ~882).
-      const core::Point a = toImageSpace(zoomRectStart_.x(), zoomRectStart_.y());
-      const core::Point b = toImageSpace(zoomRectEnd_.x(), zoomRectEnd_.y());
+      const core::Point a = toImageSpace(zoomRectStart.x(), zoomRectStart.y());
+      const core::Point b = toImageSpace(zoomRectEnd.x(), zoomRectEnd.y());
       const double x1 = std::min(a.x, b.x);
       const double y1 = std::min(a.y, b.y);
       const double w = std::abs(b.x - a.x);
@@ -71,10 +71,10 @@ namespace stencil::gui {
     }
     // commit the drag-to-create rectangle (drawingApp.js mouseup ~861). Only
     // act when the swept box exceeds 3 image px in both axes.
-    if (rectDrawActive_) {
-      rectDrawActive_ = false;
-      const core::Point a = toImageSpace(rectDrawStart_.x(), rectDrawStart_.y());
-      const core::Point b = toImageSpace(rectDrawEnd_.x(), rectDrawEnd_.y());
+    if (rectDrawActive) {
+      rectDrawActive = false;
+      const core::Point a = toImageSpace(rectDrawStart.x(), rectDrawStart.y());
+      const core::Point b = toImageSpace(rectDrawEnd.x(), rectDrawEnd.y());
       if (std::abs(b.x - a.x) > 3.0 && std::abs(b.y - a.y) > 3.0) {
         createRect(a.x, a.y, b.x, b.y);
       }
@@ -86,30 +86,30 @@ namespace stencil::gui {
 
   void CanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
     // Alt+left or middle double-click = fit to window (drawingApp.js resetZoom
-    // ~964). A double-click also fires a press first, which set panning_; clear it.
+    // ~964). A double-click also fires a press first, which set panning; clear it.
     const bool altLeft = event->button() == Qt::LeftButton &&
                          (event->modifiers() & Qt::AltModifier);
     if (altLeft || event->button() == Qt::MiddleButton) {
-      panning_ = false;
+      panning = false;
       unsetCursor();
       emit fitRequested();
       return;
     }
     // Plain left double-click on a line erases it (drawingApp.js canvasDblClick).
-    if (event->button() == Qt::LeftButton && !isDrawing_ && !compareReadOnly()) {
+    if (event->button() == Qt::LeftButton && !isDrawing && !compareReadOnly()) {
       const QPoint pos = event->position().toPoint();
       const core::Point ip = toImageSpace(pos.x(), pos.y());
-      const int idx = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
+      const int idx = core::findLineAt(lines, ip.x, ip.y, hitRadius(8.0));
       if (idx != -1) {
-        panning_ = false;   // the press that opened this double-click armed it
+        panning = false;   // the press that opened this double-click armed it
         unsetCursor();
-        lines_.erase(lines_.begin() + idx);
+        lines.erase(lines.begin() + idx);
         resetStrokeFx();
         clearHoverCache();   // indices shifted
-        selectedLines_.clear();
-        if (selectedLineIdx_ == idx) selectedLineIdx_ = -1;
-        else if (selectedLineIdx_ > idx) --selectedLineIdx_;
-        selectedPoint_ = -1;
+        selectedLines.clear();
+        if (selectedLineIdx == idx) selectedLineIdx = -1;
+        else if (selectedLineIdx > idx) --selectedLineIdx;
+        selectedPoint = -1;
         commitHistory();
         update();
         emit changed();

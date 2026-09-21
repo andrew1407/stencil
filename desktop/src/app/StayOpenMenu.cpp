@@ -26,11 +26,11 @@ namespace stencil::gui {
   }
 
   void StayOpenMenu::setInteractiveArea(QWidget* area, QWidget* keyTarget) {
-    area_ = area;
-    keyTarget_ = keyTarget;
+    this->area = area;
+    this->keyTarget = keyTarget;
     // Stop propagation at the panel: an unaccepted event re-dispatched to a child bubbles back
     // here and recurses.
-    if (area_) area_->setAttribute(Qt::WA_NoMousePropagation, true);
+    if (this->area) this->area->setAttribute(Qt::WA_NoMousePropagation, true);
   }
 
   QAbstractButton* StayOpenMenu::toggleAt(const QPoint& p) {
@@ -49,22 +49,22 @@ namespace stencil::gui {
   // A strict descendant only: a re-dispatch can never target the menu or an ancestor (the stack-
   // overflow shape).
   QWidget* StayOpenMenu::strictChildInArea(const QPoint& p) const {
-    if (!area_ || !area_->isVisible()) return nullptr;
-    if (!area_->geometry().contains(p)) return nullptr;
+    if (!area || !area->isVisible()) return nullptr;
+    if (!area->geometry().contains(p)) return nullptr;
     QWidget* c = childAt(p);
-    if (!c || c == this || c == area_) return nullptr;
-    if (!area_->isAncestorOf(c)) return nullptr;
+    if (!c || c == this || c == area) return nullptr;
+    if (!area->isAncestorOf(c)) return nullptr;
     if (c->window() != window()) return nullptr;  // never cross windows
     return c;
   }
 
   // Must run before toggleAt(), whose findChild() fallback would match the chat's send button.
   bool StayOpenMenu::deliverToArea(QMouseEvent* e) {
-    if (!area_ || !area_->isVisible()) return false;
+    if (!area || !area->isVisible()) return false;
     const QPoint p = e->position().toPoint();
-    if (!area_->geometry().contains(p)) return false;  // not ours — hands off
+    if (!area->geometry().contains(p)) return false;  // not ours — hands off
     // Re-entrancy latch.
-    if (redispatching_) {
+    if (redispatching) {
       e->accept();
       return true;
     }
@@ -74,7 +74,7 @@ namespace stencil::gui {
       e->accept();
       return true;
     }
-    for (QWidget* w = child; w && w != area_; w = w->parentWidget()) {
+    for (QWidget* w = child; w && w != area; w = w->parentWidget()) {
       if (auto* b = qobject_cast<QAbstractButton*>(w)) {
         if (e->type() == QEvent::MouseButtonRelease && b->isEnabled()) b->click();
         e->accept();
@@ -82,12 +82,12 @@ namespace stencil::gui {
       }
     }
     // Focus on press, so typing lands in the input rather than the menu.
-    if (e->type() == QEvent::MouseButtonPress && keyTarget_ &&
-        (child == keyTarget_ || keyTarget_->isAncestorOf(child)))
-      keyTarget_->setFocus(Qt::MouseFocusReason);
+    if (e->type() == QEvent::MouseButtonPress && keyTarget &&
+        (child == keyTarget || keyTarget->isAncestorOf(child)))
+      keyTarget->setFocus(Qt::MouseFocusReason);
     // QMenu owns the grab, so the press target keeps receiving the drag's moves.
-    if (e->type() == QEvent::MouseButtonPress) pressTarget_ = child;
-    if (e->type() == QEvent::MouseButtonRelease) pressTarget_ = nullptr;
+    if (e->type() == QEvent::MouseButtonPress) pressTarget = child;
+    if (e->type() == QEvent::MouseButtonRelease) pressTarget = nullptr;
     forward(child, e);
     e->accept();
     return true;
@@ -97,14 +97,14 @@ namespace stencil::gui {
     const QPointF local = target->mapFrom(this, e->position().toPoint());
     QMouseEvent copy(e->type(), local, e->scenePosition(), e->globalPosition(),
                      e->button(), e->buttons(), e->modifiers());
-    const Latch latch(redispatching_);
+    const Latch latch(redispatching);
     QApplication::sendEvent(target, &copy);
   }
 
   void StayOpenMenu::mouseMoveEvent(QMouseEvent* e) {
-    entered_ = true;   // the pointer coming in is as good as the second →
-    if (pressTarget_ && !redispatching_ && (e->buttons() & Qt::LeftButton)) {
-      forward(pressTarget_, e);
+    entered = true;   // the pointer coming in is as good as the second →
+    if (pressTarget && !redispatching && (e->buttons() & Qt::LeftButton)) {
+      forward(pressTarget, e);
       e->accept();
       return;
     }
@@ -116,9 +116,9 @@ namespace stencil::gui {
 
   void StayOpenMenu::updateAreaHover(QMouseEvent* e) {
     QWidget* now = strictChildInArea(e->position().toPoint());
-    if (now == hoverChild_) return;
+    if (now == hoverChild) return;
     clearAreaHover();
-    hoverChild_ = now;
+    hoverChild = now;
     if (!now) return;
     const QPointF local = now->mapFrom(this, e->position().toPoint());
     QEnterEvent enter(local, e->scenePosition(), e->globalPosition());
@@ -126,10 +126,10 @@ namespace stencil::gui {
   }
 
   void StayOpenMenu::clearAreaHover() {
-    if (!hoverChild_) return;
+    if (!hoverChild) return;
     QEvent leave(QEvent::Leave);
-    QApplication::sendEvent(hoverChild_, &leave);
-    hoverChild_ = nullptr;
+    QApplication::sendEvent(hoverChild, &leave);
+    hoverChild = nullptr;
   }
 
   void StayOpenMenu::leaveEvent(QEvent* e) {
@@ -164,7 +164,7 @@ namespace stencil::gui {
   // the first → only reveals a flyout.
   void StayOpenMenu::showEvent(QShowEvent* e) {
     QMenu::showEvent(e);
-    entered_ = false;   // revealed, not entered — see keyPressEvent's ↑/↓ hand-back
+    entered = false;   // revealed, not entered — see keyPressEvent's ↑/↓ hand-back
     QPointer<StayOpenMenu> self(this);
     QTimer::singleShot(0, this, [self] {
       if (!self || !self->isVisible()) return;

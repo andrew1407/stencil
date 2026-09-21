@@ -18,22 +18,22 @@ namespace stencil::gui {
    public:
     // browser numbers: translateX(2px) over `transform 0.12s ease`.
     explicit HoverSlide(QWidget* target, int px = 2, int ms = 120)
-        : QObject(target), target_(target), px_(px), ms_(ms) {
-      anim_.setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`
-      QObject::connect(&anim_, &QVariantAnimation::valueChanged, this,
+        : QObject(target), target(target), px(px), ms(ms) {
+      anim.setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`
+      QObject::connect(&anim, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { applyAt(v.toDouble()); });
       target->installEventFilter(this);
     }
 
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
-      if (o == target_) {
+      if (o == target) {
         switch (e->type()) {
           case QEvent::Enter: slideTo(1.0); break;
           case QEvent::Leave: slideTo(0.0); break;
           // A layout move (theme re-polish, resize) is the new resting x, not a slide of ours.
-          case QEvent::Move: if (!moving_) reanchor(); break;
-          case QEvent::Hide: anim_.stop(); at_ = 0.0; break;
+          case QEvent::Move: if (!moving) reanchor(); break;
+          case QEvent::Hide: anim.stop(); at = 0.0; break;
           default: break;
         }
       }
@@ -41,37 +41,37 @@ namespace stencil::gui {
     }
 
    private:
-    int offset() const { return int(std::lround(px_ * at_)); }
+    int offset() const { return int(std::lround(px * at)); }
 
     void slideTo(double to) {
-      if (at_ == 0.0 && !anim_.state()) baseX_ = target_->x();   // its resting place
-      anim_.stop();
+      if (at == 0.0 && !anim.state()) baseX = target->x();   // its resting place
+      anim.stop();
       if (support::motionReduced()) { applyAt(to); return; }
-      anim_.setStartValue(at_);
-      anim_.setEndValue(to);
-      anim_.setDuration(int(ms_ * std::fabs(to - at_)));
-      anim_.start();
+      anim.setStartValue(at);
+      anim.setEndValue(to);
+      anim.setDuration(int(ms * std::fabs(to - at)));
+      anim.start();
     }
 
     void applyAt(double v) {
-      at_ = v;
-      moving_ = true;
-      target_->move(baseX_ + offset(), target_->y());
-      moving_ = false;
+      at = v;
+      moving = true;
+      target->move(baseX + offset(), target->y());
+      moving = false;
     }
 
     void reanchor() {
-      baseX_ = target_->x();
-      if (at_ != 0.0) applyAt(at_);
+      baseX = target->x();
+      if (at != 0.0) applyAt(at);
     }
 
-    QWidget* target_;
-    int px_;
-    int ms_;
-    int baseX_ = 0;
-    double at_ = 0.0;    // 0 = resting, 1 = fully slid
-    bool moving_ = false;   // our own move(), not the layout's
-    QVariantAnimation anim_;
+    QWidget* target;
+    int px;
+    int ms;
+    int baseX = 0;
+    double at = 0.0;    // 0 = resting, 1 = fully slid
+    bool moving = false;   // our own move(), not the layout's
+    QVariantAnimation anim;
   };
 
   inline void installHoverSlide(QWidget* target) {

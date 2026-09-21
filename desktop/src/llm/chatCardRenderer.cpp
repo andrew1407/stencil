@@ -117,23 +117,23 @@ namespace stencil::gui {
                  kind == CardKind::ERROR   ? ChatCardKind::ERROR
                  : kind == CardKind::MUTED ? ChatCardKind::MUTED
                                            : ChatCardKind::BUBBLE,
-                 dangerCache_);
-    // pageBg is the transcript's REAL backdrop (bgControls), not chipCache_ — else the tail is a shade off.
-    applyChatBubbleSide(card, log_.transcriptLayout, isChatBubbleOnRight(user, chatSwapSides_),
-                        accentCache_, chipCache_, borderCache_, dangerCache_,
-                        paletteCache_.bgControls);
+                 dangerCache);
+    // pageBg is the transcript's REAL backdrop (bgControls), not chipCache — else the tail is a shade off.
+    applyChatBubbleSide(card, log.transcriptLayout, isChatBubbleOnRight(user, chatSwapSides),
+                        accentCache, chipCache, borderCache, dangerCache,
+                        paletteCache.bgControls);
     installCardMenu(card);
     applyBubbleWidths();
     return lay;
   }
 
   void ChatDock::setChatSwapSides(bool on) {
-    if (chatSwapSides_ == on) return;
-    chatSwapSides_ = on;
-    // The flattened tail corner rides the SHARED stylesheet, keyed off chatSwapSides_.
-    restyleIcons(paletteCache_);
-    applyChatSwapToCards(log_.transcript, log_.transcriptLayout, chatSwapSides_, accentCache_,
-                         chipCache_, borderCache_, dangerCache_, paletteCache_.bgControls);
+    if (chatSwapSides == on) return;
+    chatSwapSides = on;
+    // The flattened tail corner rides the SHARED stylesheet, keyed off chatSwapSides.
+    restyleIcons(paletteCache);
+    applyChatSwapToCards(log.transcript, log.transcriptLayout, chatSwapSides, accentCache,
+                         chipCache, borderCache, dangerCache, paletteCache.bgControls);
     applyBubbleWidths();
   }
 

@@ -40,18 +40,18 @@ namespace stencil::gui {
     QString resource() const;
 
     // True when the user clicked "Load into editor"; the caller adopts previewedImage().
-    bool loadRequested() const { return loadRequested_; }
+    bool getLoadRequested() const { return loadRequested; }
     QString urlSource() const;
     QString urlResource() const;
     int urlFrame() const;
 
-    // Browser linksModal parity; read on loadRequested(). cropToPage() off ⇒ the full frame.
+    // Browser linksModal parity; read on getLoadRequested(). cropToPage() off ⇒ the full frame.
     bool cropToPage() const;
-    bool cropAlbum() const;
-    QString cropPageSize() const;
+    bool getCropAlbum() const;
+    QString getCropPageSize() const;
 
     // Null until a preview succeeds; Load is only enabled once set.
-    QImage previewedImage() const { return previewImage_; }
+    QImage previewedImage() const { return previewImage; }
 
    protected:
     // Enter in the URL fields triggers Preview, not the dialog's default button (which would close it).
@@ -77,40 +77,40 @@ namespace stencil::gui {
     void showQuickcrop(int w, int h);
     void syncQuickcropEnabled();
 
-    QLineEdit* sourceEdit_ = nullptr;
-    QLineEdit* resourceEdit_ = nullptr;
-    QLineEdit* urlEdit_ = nullptr;
-    QLineEdit* urlResourceEdit_ = nullptr;
-    QSpinBox* frame_ = nullptr;
-    QSlider* frameSlider_ = nullptr;
-    QLabel* frameTotal_ = nullptr;
-    QCheckBox* usePreview_ = nullptr;
-    QWidget* frameRow_ = nullptr;
-    QLabel* previewLabel_ = nullptr;
-    QLabel* previewHint_ = nullptr;
-    QWidget* quickcropRow_ = nullptr;
-    QCheckBox* cropPage_ = nullptr;
-    QCheckBox* cropAlbum_ = nullptr;
-    QComboBox* cropPageSize_ = nullptr;
-    QString pageSeed_ = "A3";
-    QPushButton* loadBtn_ = nullptr;
-    MediaLoader* preview_ = nullptr;
-    QTimer* fetchTimer_ = nullptr;
+    QLineEdit* sourceEdit = nullptr;
+    QLineEdit* resourceEdit = nullptr;
+    QLineEdit* urlEdit = nullptr;
+    QLineEdit* urlResourceEdit = nullptr;
+    QSpinBox* frame = nullptr;
+    QSlider* frameSlider = nullptr;
+    QLabel* frameTotal = nullptr;
+    QCheckBox* usePreview = nullptr;
+    QWidget* frameRow = nullptr;
+    QLabel* previewLabel = nullptr;
+    QLabel* previewHint = nullptr;
+    QWidget* quickcropRow = nullptr;
+    QCheckBox* cropPage = nullptr;
+    QCheckBox* cropAlbum = nullptr;
+    QComboBox* cropPageSize = nullptr;
+    QString pageSeed = "A3";
+    QPushButton* loadBtn = nullptr;
+    MediaLoader* preview = nullptr;
+    QTimer* fetchTimer = nullptr;
 
     // Loaded once, then seeked per frame — re-streaming per frame never seeks reliably.
-    QMediaPlayer* scrubPlayer_ = nullptr;
-    QAudioOutput* scrubAudio_ = nullptr;
-    QVideoSink* scrubSink_ = nullptr;
-    double scrubFps_ = 30.0;
-    qint64 scrubDurationMs_ = 0;
-    qint64 scrubTargetMs_ = 0;
-    bool scrubPending_ = false;
+    QMediaPlayer* scrubPlayer = nullptr;
+    QAudioOutput* scrubAudio = nullptr;
+    QVideoSink* scrubSink = nullptr;
+    double scrubFps = 30.0;
+    qint64 scrubDurationMs = 0;
+    qint64 scrubTargetMs = 0;
+    bool scrubPending = false;
 
-    QImage previewImage_;
-    QImage frameImage_;
-    QImage thumbImage_;
-    bool previewIsVideo_ = false;
-    bool loadRequested_ = false;
+    QImage previewImage;
+    QImage frameImage;
+    QImage thumbImage;
+    bool previewIsVideo = false;
+    bool loadRequested = false;
   };
 
 }

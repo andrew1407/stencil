@@ -46,42 +46,42 @@ namespace stencil::gui {
   // Version-guarded name/layout PUT, then the render upload; a 409 leaves the link untouched.
   // Mirrors the browser's saveToServer.
   void MainWindow::saveToServer() {
-    if (!settings_.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
-    stencil::net::ServerClient* c = remoteSession_->requireClient(
-        remoteSession_->link().address, QString("Not connected to %1 — reconnect it first").arg(remoteSession_->link().address));
+    if (!settings.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
+    stencil::net::ServerClient* c = remoteSession->requireClient(
+        remoteSession->getLink().address, QString("Not connected to %1 — reconnect it first").arg(remoteSession->getLink().address));
     if (!c) return;
-    // remotePushing_ guards the poll for the whole async push; the shared clearer drops it on
+    // remotePushing guards the poll for the whole async push; the shared clearer drops it on
     // every exit path.
-    remotePushing_ = true;
+    remotePushing = true;
     auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(this)](void*) {
-      if (self) self->remotePushing_ = false;
+      if (self) self->remotePushing = false;
     });
     QPointer<MainWindow> self(this);
-    const int w = canvas_->imageWidth();
-    const int h = canvas_->imageHeight();
+    const int w = canvas->imageWidth();
+    const int h = canvas->imageHeight();
     // On a version conflict, union-merge the server's lines with ours and retry (up to 6) so a
     // tight race still converges.
     typedef stencil::net::ServerClient::GuardOutcome GO;
     stencil::net::ServerClient::runGuardedWriteAsync(
-        /*attempts=*/6, /*startVersion=*/remoteSession_->link().version,
+        /*attempts=*/6, /*startVersion=*/remoteSession->getLink().version,
         [this, self, c, w, h, pushGuard](qint64 version, std::function<void(GO)> cb) {
           if (!self) { cb(GO::FAILED); return; }
           const QJsonObject layout =
-              fileStore::buildLayoutJson(w, h, canvas_->allLines(),
-                                         settings_.imageFilter, settings_.filterColor,
-                                         canvas_->cropRect(), canvas_->rotationQuarters(),
+              fileStore::buildLayoutJson(w, h, canvas->allLines(),
+                                         settings.imageFilter, settings.filterColor,
+                                         canvas->getCropRect(), canvas->getRotationQuarters(),
                                          currentLayoutMeta());
           c->updateProjectAsync(
-              remoteSession_->link().id, remoteSession_->link().name, layout, version,
+              remoteSession->getLink().id, remoteSession->getLink().name, layout, version,
               [this, self, c, cb](bool ok, qint64 newVersion, bool conflict) {
                 if (!self) { cb(GO::FAILED); return; }
                 if (ok) {
-                  remoteSession_->link().version = newVersion;
+                  remoteSession->getLink().version = newVersion;
                   cb(GO::COMMITTED);
                   return;
                 }
                 if (!conflict) {
-                  notify_->error(QString("Server save failed — %1").arg(c->lastError()));
+                  notify->error(QString("Server save failed — %1").arg(c->lastError()));
                   cb(GO::FAILED);
                   return;
                 }
@@ -91,32 +91,32 @@ namespace stencil::gui {
         [this, self, c, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
           if (!self) { cb(false, 0); return; }
           c->getProjectAsync(
-              remoteSession_->link().id,
+              remoteSession->getLink().id,
               [this, self, cb](bool ok, stencil::net::ServerProject meta, QJsonObject srvLayout) {
                 if (!self || !ok) { cb(false, 0); return; }  // give up (re-read failed)
                 int sw = 0, sh = 0;
                 core::Lines mlines = fileStore::parseLayoutJson(srvLayout, sw, sh);
                 QSet<QString> seen;
                 for (const auto& l : mlines) seen.insert(lineKey(l));
-                for (const auto& l : canvas_->allLines()) {
+                for (const auto& l : canvas->allLines()) {
                   const QString k = lineKey(l);
                   if (!seen.contains(k)) { mlines.push_back(l); seen.insert(k); }
                 }
                 {  // apply merged lines (+ peer filter) locally without re-triggering a push.
                   // The reload flag brackets the synchronous block (onCanvasChanged reads it).
-                  remoteReloading_ = true;
-                  canvas_->setLines(mlines);
+                  remoteReloading = true;
+                  canvas->setLines(mlines);
                   // Adopt the peer's filter unless this user changed their own (the scalar cannot
                   // merge).
-                  if (!filterDirty_) {
+                  if (!filterDirty) {
                     QString sf, st;
-                    parseLayoutFilter(srvLayout, settings_.filterColor, sf, st);
+                    parseLayoutFilter(srvLayout, settings.filterColor, sf, st);
                     applyTintColor(QColor(st));
                     applyImageFilter(sf);
                   }
-                  remoteReloading_ = false;
+                  remoteReloading = false;
                 }
-                remoteSession_->link().version = meta.version;
+                remoteSession->getLink().version = meta.version;
                 cb(true, meta.version);
               });
         },
@@ -126,32 +126,32 @@ namespace stencil::gui {
           // exhausted.
           if (outcome == GO::FAILED) return;
           if (outcome != GO::COMMITTED) {
-            notify_->error(
+            notify->error(
                 "This project was edited elsewhere — reload it from the server before "
                 "saving again");
             return;
           }
-          filterDirty_ = false;   // our filter (if any) is now the server's
+          filterDirty = false;   // our filter (if any) is now the server's
           // Fired after the result upload + version refresh, matching the previous synchronous
           // order.
           auto announce = [this, self, pushGuard]() {
             if (self)
-              notify_->success(QString("Saved \"%1\" to %2")
-                                   .arg(remoteSession_->link().name, remoteSession_->link().address));
+              notify->success(QString("Saved \"%1\" to %2")
+                                   .arg(remoteSession->getLink().name, remoteSession->getLink().address));
           };
           // The file write bumps the version, so re-read it for the next save's guard.
-          if (canvas_->hasImage()) {
-            const QByteArray bytes = pngBytes(canvas_->renderToImage(true));
+          if (canvas->hasImage()) {
+            const QByteArray bytes = pngBytes(canvas->renderToImage(true));
             c->uploadFileAsync(
-                remoteSession_->link().id, "result", bytes, "png", w, h,
+                remoteSession->getLink().id, "result", bytes, "png", w, h,
                 [this, self, c, announce, pushGuard](bool uok) {
                   if (!self) return;
                   if (!uok) { announce(); return; }
-                  c->getProjectAsync(remoteSession_->link().id,
+                  c->getProjectAsync(remoteSession->getLink().id,
                                      [this, self, announce](bool gok, stencil::net::ServerProject meta,
                                                             QJsonObject) {
                                        if (!self) return;
-                                       if (gok) remoteSession_->link().version = meta.version;
+                                       if (gok) remoteSession->getLink().version = meta.version;
                                        announce();
                                      });
                 });

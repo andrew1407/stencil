@@ -61,12 +61,12 @@ namespace stencil::gui {
                                const QByteArray& bytes, const QString& ext, int w, int h,
                                std::function<void(bool ok, QString newId, qint64 newVersion)> done);
 
-    Notifications* notify_;
-    CanvasWidget* canvas_;
-    const Settings* settings_;
-    core::ProjectsStore* store_;
-    std::vector<Project>* projectList_;
-    Hooks h_;
+    Notifications* notify;
+    CanvasWidget* canvas;
+    const Settings* settings;
+    core::ProjectsStore* store;
+    std::vector<Project>* projectList;
+    Hooks h;
   };
 
 }  // namespace stencil::gui

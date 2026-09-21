@@ -36,8 +36,8 @@ namespace stencil::llm {
     void dispatch(QNetworkReply* reply,
                   std::function<void(int status, QByteArray body, QString error)> cb);
 
-    QNetworkAccessManager* nam_;
-    QPointer<QNetworkReply> activePost_;  // the abortable in-flight chat POST
+    QNetworkAccessManager* nam;
+    QPointer<QNetworkReply> activePost;  // the abortable in-flight chat POST
   };
 
 }  // namespace stencil::llm
