@@ -111,33 +111,33 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   enable_testing()
   add_executable(stencil_tests
     tests/testMain.cpp
-    tests/pointMath.test.cpp
-    tests/abiShared.test.cpp
-    tests/hitTest.test.cpp
-    tests/holdDraw.test.cpp
-    tests/color.test.cpp
-    tests/pageMetrics.test.cpp
-    tests/cropGeometry.test.cpp
-    tests/formula.test.cpp
-    tests/scriptApi.test.cpp
-    tests/script.test.cpp
-    tests/scriptLower.test.cpp
-    tests/scriptFixtures.test.cpp
-    tests/scriptLimits.test.cpp
-    tests/DurationParser.test.cpp
-    tests/history.test.cpp
-    tests/ProjectsStore.test.cpp
-    tests/zoomPan.test.cpp
-    tests/tooltipRows.test.cpp
-    tests/imageFilter.test.cpp
-    tests/hotkeyFormat.test.cpp
-    tests/localeUnit.test.cpp
-    tests/lengthTokens.test.cpp
-    tests/cropSpec.test.cpp
-    tests/colorNames.test.cpp
-    tests/imageOps.test.cpp
-    tests/rasterize.test.cpp
-    tests/rowRanges.test.cpp
+    tests/geometry/pointMath.test.cpp
+    tests/abi/abiShared.test.cpp
+    tests/geometry/hitTest.test.cpp
+    tests/state/holdDraw.test.cpp
+    tests/color/color.test.cpp
+    tests/page/pageMetrics.test.cpp
+    tests/geometry/cropGeometry.test.cpp
+    tests/parse/formula.test.cpp
+    tests/abi/scriptApi.test.cpp
+    tests/script/script.test.cpp
+    tests/script/scriptLower.test.cpp
+    tests/script/scriptFixtures.test.cpp
+    tests/script/scriptLimits.test.cpp
+    tests/parse/DurationParser.test.cpp
+    tests/state/history.test.cpp
+    tests/state/ProjectsStore.test.cpp
+    tests/state/zoomPan.test.cpp
+    tests/format/tooltipRows.test.cpp
+    tests/raster/imageFilter.test.cpp
+    tests/format/hotkeyFormat.test.cpp
+    tests/page/localeUnit.test.cpp
+    tests/parse/lengthTokens.test.cpp
+    tests/parse/cropSpec.test.cpp
+    tests/color/colorNames.test.cpp
+    tests/raster/imageOps.test.cpp
+    tests/raster/rasterize.test.cpp
+    tests/raster/rowRanges.test.cpp
     tests/sizeBudget.test.cpp
     # Perf-regression benchmarks — decorated doctest::skip(), so `ctest` never runs them.
     # Run on demand: stencil_tests -ts=bench --no-skip  (see tests/bench.test.cpp).
@@ -147,11 +147,11 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     # The extern "C" ABI surfaces (wasm exports + the CLI ABI) are plain STL, so they
     # compile and are exercised natively here — keeping both ABIs covered even on a
     # machine without Emscripten or Zig.
-    tests/wasmApi.test.cpp
-    tests/wasmCropApi.test.cpp
-    tests/wasmStateApi.test.cpp
-    tests/wasmProjectsApi.test.cpp
-    tests/cliApi.test.cpp
+    tests/abi/wasmApi.test.cpp
+    tests/abi/wasmCropApi.test.cpp
+    tests/abi/wasmStateApi.test.cpp
+    tests/abi/wasmProjectsApi.test.cpp
+    tests/abi/cliApi.test.cpp
     wasmApi.cpp
     wasmCropApi.cpp
     wasmScriptApi.cpp

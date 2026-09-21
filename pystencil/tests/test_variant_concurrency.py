@@ -14,7 +14,7 @@ import unittest
 
 from pystencil.llm import LlmExecutionError, execute_op_plan, parse_op_plan
 from pystencil.llm.plan.execute import MAX_VARIANT_WORKERS
-from tests.stubs import _StubEditor, _plan_json
+from tests.helpers.stubs import _StubEditor, _plan_json
 
 _TIMEOUT = 10.0  # generous: the barrier only has to be reached, not raced
 

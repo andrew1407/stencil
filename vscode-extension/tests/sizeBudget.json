@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "maxFilesPerDir": 12,
   "dirs": {
-    "vscode-extension/tests": 33
+    "vscode-extension/tests": 17
   },
   "files": {
     "vscode-extension/src/commands.js": 66,
@@ -25,8 +25,15 @@
     "vscode-extension/src/lib": 13,
     "vscode-extension/src/parser": 17,
     "vscode-extension/src/parser/script": 6,
-    "vscode-extension/tests": 4,
-    "vscode-extension/tests/helpers": 6
+    "vscode-extension/tests": 5,
+    "vscode-extension/tests/helpers": 6,
+    "vscode-extension/tests/lib": 1,
+    "vscode-extension/tests/lib/emit": 10,
+    "vscode-extension/tests/lib/spawn": 2,
+    "vscode-extension/tests/lib/vocab": 5,
+    "vscode-extension/tests/lib/web": 5,
+    "vscode-extension/tests/parser": 5,
+    "vscode-extension/tests/parser/script": 1
   },
   "exceptions": {
     "vscode-extension/src/lib/scriptCheck.js": "47 → 49: a kill timeout on --script-check, so a binary that blocks on stdin cannot leave the promise unsettled and the child alive for the session. Two lines: the constant and why it is that value.",
@@ -49,5 +56,5 @@
   "_notes": {
     "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
   },
-  "_dirsNote": "A test folder mirrors the source it covers, and a case that spans modules has no one home, so these are frozen at today's count rather than split by kind. They may shrink, never grow."
+  "_dirsNote": "tests/ mirrors src/ folder for folder; its root covers the modules at src/ root, several of which carry more than one test file."
 }

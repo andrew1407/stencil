@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 from tests import _PKG_ROOT
-from tests.nativecase import SKIP_NATIVE_ENV, require_core
+from tests.helpers.nativecase import SKIP_NATIVE_ENV, require_core
 
 
 def _load_build_py():
