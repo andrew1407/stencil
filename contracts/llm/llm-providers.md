@@ -5,7 +5,7 @@ root document's (code comments cite `§5`/`§6.x` everywhere). The machine-reada
 constants — default base URLs, wire paths, timeouts, the server's Anthropic upstream
 constants — live in
 [`browser/js/config/llm/providers.json`](../browser/js/config/llm/providers.json), the
-normative asset for this file's numbers (guarded by `desktop/tests/configCanon.headless.cpp`,
+normative asset for this file's numbers (guarded by `desktop/tests/support/theme/configCanon.headless.cpp`,
 bot `ProvidersAssetTests`, `pystencil/tests/test_canonical_drift.py`, and the cli/mcp
 compile-time embeds). Wire/error behaviour is pinned by the conformance fixtures
 `browser/js/config/llm/fixtures/providerWire/` and `fixtures/sanitizer/` (see their

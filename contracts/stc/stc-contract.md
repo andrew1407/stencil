@@ -11,10 +11,10 @@ proof lives in the fixture corpus at `browser/js/config/script/fixtures/`.
 | Artifact | Role | Pinned by |
 |---|---|---|
 | `core/script/` | the one parser, expander and lowerer | `core/tests/script*.test.cpp` |
-| `browser/js/core/script*.js` | the JS fallback, op-for-op identical | `browser/tests/wasm-parity.test.js` |
+| `browser/js/core/script/` | the JS fallback, op-for-op identical | `browser/tests/wasm/wasm-parity.test.js` |
 | `browser/js/config/script/fixtures/` | the shared corpus every surface replays | each surface's walker |
-| `core/cliApi.h` `stencil_cli_script*` | the C ABI the CLI and pystencil drive | `core/tests/scriptApi.test.cpp` |
-| `cli/CONTRACT.md` §5 | `--script`, `--script-plan`, `--script-check` | `cli/tests/script_test.zig` |
+| `core/cliApi.h` `stencil_cli_script*` | the C ABI the CLI and pystencil drive | `core/tests/abi/scriptApi.test.cpp` |
+| `cli/CONTRACT.md` §5 | `--script`, `--script-plan`, `--script-check` | `cli/tests/script/script_test.zig` |
 
 `core/` parses, validates and lowers. It never opens a file, fetches a URL, decodes an image
 or writes one — the adapters do that, driving the op stream this document defines.
