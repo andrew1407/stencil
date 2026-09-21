@@ -1,6 +1,16 @@
 {
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
+  "maxFilesPerDir": 12,
+  "_dirsNote": "Folder fan-out ratchet. A header and its .cpp count once. These folders predate the 12-file cap; each may shrink, never grow, and a new folder over the cap is split by feature rather than recorded here.",
+  "dirs": {
+    "desktop/src/app": 129,
+    "desktop/src/canvas": 28,
+    "desktop/src/dialogs": 87,
+    "desktop/src/llm": 54,
+    "desktop/src/support": 101,
+    "desktop/tests": 252
+  },
   "files": {
     "desktop/src/app/MainWindow.hpp": 910,
     "desktop/src/canvas/CanvasWidget.hpp": 432,
@@ -20,10 +30,10 @@
     "desktop/tests/support": 11
   },
   "exceptions": {
-    "desktop/tests": "Ratcheted back to 10. It had gone 10 -> 11 with no prose added to any existing file: splitting a suite into section TUs adds a file banner per TU while the assertions merely move, so a 60-line extraction carries ~3 comment lines against ~9 of its own \u2014 far above the directory's average, which pulls the share up. The MainWindow GUI e2e is one QtTest binary per feature area (MainWindow.<area>.gui.cpp) and a binary runs one QObject of slots, so an area is split only by splitting the binary. Drive this back down as the remaining oversized suites split and their cases merge."
+    "desktop/tests": "Ratcheted back to 10. It had gone 10 -> 11 with no prose added to any existing file: splitting a suite into section TUs adds a file banner per TU while the assertions merely move, so a 60-line extraction carries ~3 comment lines against ~9 of its own — far above the directory's average, which pulls the share up. The MainWindow GUI e2e is one QtTest binary per feature area (MainWindow.<area>.gui.cpp) and a binary runs one QObject of slots, so an area is split only by splitting the binary. Drive this back down as the remaining oversized suites split and their cases merge."
   },
   "_notes": {
-    "desktop/tests/MainWindow.chatTurnsViewport.gui.cpp": "257 and structurally capped: chatRowMenuStaysInsideTheViewport is ONE case whose three checker lambdas (checkSurface / checkNarrow / checkSliver, ~160 lines) are called against four chat surfaces, so no group of calls can leave them behind. They close over win.chatDock_ and win.chatMenuPanel_, which are private, so they cannot move to a shared test header either \u2014 MainWindow befriends the MainWindowGuiTest class alone. Listed in `files`, NOT in `exceptions`, so the ratchet still refuses growth.",
+    "desktop/tests/MainWindow.chatTurnsViewport.gui.cpp": "257 and structurally capped: chatRowMenuStaysInsideTheViewport is ONE case whose three checker lambdas (checkSurface / checkNarrow / checkSliver, ~160 lines) are called against four chat surfaces, so no group of calls can leave them behind. They close over win.chatDock_ and win.chatMenuPanel_, which are private, so they cannot move to a shared test header either — MainWindow befriends the MainWindowGuiTest class alone. Listed in `files`, NOT in `exceptions`, so the ratchet still refuses growth.",
     "desktop/src/app/MainWindow.hpp": "moc runs on this header, so a MainWindow member has nowhere else to be declared: the dialogs, the core seam and the runners already live outside it. Shrinking it means folding members into owned value-type bags (pop_, fs_, units_, nameBar_, session_ are the precedent), which renames every test call site that reaches them through friend class ::MainWindowGuiTest. Measured: 287 field declaration lines, 136 of them reached by name from desktop/tests and usecases/capture-runner through friend class ::MainWindowGuiTest, and ~500 method declarations moc needs in the class. Bagging every one of the 151 test-free fields would reach ~770, so this file cannot meet the 230 cap while MainWindow is one Q_OBJECT; it is listed in `files`, NOT in `exceptions`, so the ratchet still refuses growth.",
     "desktop/src/canvas/CanvasWidget.hpp": "432 and moc-bound, like MainWindow.hpp: 119 method declarations form the canvas's public surface and 55 field lines sit behind it, so the ~200 lines this would have to shed cannot come from value-type bags (they would save about 24). Shrinking it means giving the widget a narrower public API, which is a design change rather than a move. Listed in `files`, so it cannot grow."
   }
