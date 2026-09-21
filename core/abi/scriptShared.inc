@@ -18,8 +18,8 @@ static stencil::core::abi::HandleTable<stencil::core::script::ScriptProgram>& sc
 
 static const stencil::core::script::Op* scriptOpAtIndex(int h, int i) {
   const auto* p = scriptTable().get(h);
-  if (!p || i < 0 || i >= static_cast<int>(p->ops().size())) return nullptr;
-  return &p->ops()[static_cast<std::size_t>(i)];
+  if (!p || i < 0 || i >= static_cast<int>(p->getOps().size())) return nullptr;
+  return &p->getOps()[static_cast<std::size_t>(i)];
 }
 
 // Parses `len` bytes and returns a handle, or 0 when the text pointer is null.
@@ -40,15 +40,15 @@ int STENCIL_ABI(scriptErrorCount, scriptErrorCount)(int h) {
 
 int STENCIL_ABI(scriptDiagCount, scriptDiagCount)(int h) {
   const auto* p = scriptTable().get(h);
-  return p ? static_cast<int>(p->diagnostics().size()) : -1;
+  return p ? static_cast<int>(p->getDiagnostics().size()) : -1;
 }
 
 // Returns the message; *sev is 0 error / 1 warning, and *code the stable code string.
 const char* STENCIL_ABI(scriptDiagAt, scriptDiagAt)(int h, int i, int* sev, int* line,
                                                     int* col, int* len, const char** code) {
   const auto* p = scriptTable().get(h);
-  if (!p || i < 0 || i >= static_cast<int>(p->diagnostics().size())) return nullptr;
-  const stencil::core::script::Diagnostic& d = p->diagnostics()[static_cast<std::size_t>(i)];
+  if (!p || i < 0 || i >= static_cast<int>(p->getDiagnostics().size())) return nullptr;
+  const stencil::core::script::Diagnostic& d = p->getDiagnostics()[static_cast<std::size_t>(i)];
   if (sev) *sev = static_cast<int>(d.severity);
   if (line) *line = d.line;
   if (col) *col = d.col;
@@ -59,14 +59,14 @@ const char* STENCIL_ABI(scriptDiagAt, scriptDiagAt)(int h, int i, int* sev, int*
 
 int STENCIL_ABI(scriptTokenCount, scriptTokenCount)(int h) {
   const auto* p = scriptTable().get(h);
-  return p ? static_cast<int>(p->tokens().size()) : -1;
+  return p ? static_cast<int>(p->getTokens().size()) : -1;
 }
 
 int STENCIL_ABI(scriptTokenAt, scriptTokenAt)(int h, int i, int* kind, int* line, int* col,
                                               int* len) {
   const auto* p = scriptTable().get(h);
-  if (!p || i < 0 || i >= static_cast<int>(p->tokens().size())) return 0;
-  const stencil::core::script::Token& t = p->tokens()[static_cast<std::size_t>(i)];
+  if (!p || i < 0 || i >= static_cast<int>(p->getTokens().size())) return 0;
+  const stencil::core::script::Token& t = p->getTokens()[static_cast<std::size_t>(i)];
   if (kind) *kind = static_cast<int>(t.kind);
   if (line) *line = t.line;
   if (col) *col = t.col;
@@ -76,15 +76,15 @@ int STENCIL_ABI(scriptTokenAt, scriptTokenAt)(int h, int i, int* kind, int* line
 
 int STENCIL_ABI(scriptBlockCount, scriptBlockCount)(int h) {
   const auto* p = scriptTable().get(h);
-  return p ? static_cast<int>(p->blocks().size()) : -1;
+  return p ? static_cast<int>(p->getBlocks().size()) : -1;
 }
 
 // Returns the source spec ("" for the implicit project block).
 const char* STENCIL_ABI(scriptBlockAt, scriptBlockAt)(int h, int i, int* kind, int* frame,
                                                       int* opStart, int* opCount) {
   const auto* p = scriptTable().get(h);
-  if (!p || i < 0 || i >= static_cast<int>(p->blocks().size())) return nullptr;
-  const stencil::core::script::Block& b = p->blocks()[static_cast<std::size_t>(i)];
+  if (!p || i < 0 || i >= static_cast<int>(p->getBlocks().size())) return nullptr;
+  const stencil::core::script::Block& b = p->getBlocks()[static_cast<std::size_t>(i)];
   if (kind) *kind = static_cast<int>(b.kind);
   if (frame) *frame = b.frame;
   if (opStart) *opStart = b.opStart;
@@ -94,7 +94,7 @@ const char* STENCIL_ABI(scriptBlockAt, scriptBlockAt)(int h, int i, int* kind, i
 
 int STENCIL_ABI(scriptOpCount, scriptOpCount)(int h) {
   const auto* p = scriptTable().get(h);
-  return p ? static_cast<int>(p->ops().size()) : -1;
+  return p ? static_cast<int>(p->getOps().size()) : -1;
 }
 
 int STENCIL_ABI(scriptOpAt, scriptOpAt)(int h, int i, int* kind, int* block, int* editIndex,
@@ -150,5 +150,5 @@ int STENCIL_ABI(scriptOpResolve, scriptOpResolve)(int h, int i, double imageW, d
 // The canonical dump, memoized on the handle. This is the fixture format.
 const char* STENCIL_ABI(scriptDump, scriptDump)(int h) {
   const auto* p = scriptTable().get(h);
-  return p ? p->dump().c_str() : nullptr;
+  return p ? p->getDump().c_str() : nullptr;
 }

@@ -14,22 +14,22 @@ namespace stencil::core::abi {
    public:
     template <class... Args>
     int create(Args&&... args) {
-      const int id = next_++;
-      items_.emplace(id, std::make_unique<T>(std::forward<Args>(args)...));
+      const int id = next++;
+      items.emplace(id, std::make_unique<T>(std::forward<Args>(args)...));
       return id;
     }
 
     T* get(int id) {
-      const auto it = items_.find(id);
-      return it == items_.end() ? nullptr : it->second.get();
+      const auto it = items.find(id);
+      return it == items.end() ? nullptr : it->second.get();
     }
 
-    void destroy(int id) { items_.erase(id); }
-    std::size_t size() const { return items_.size(); }
+    void destroy(int id) { items.erase(id); }
+    std::size_t size() const { return items.size(); }
 
    private:
-    std::unordered_map<int, std::unique_ptr<T>> items_;
-    int next_ = 1;
+    std::unordered_map<int, std::unique_ptr<T>> items;
+    int next = 1;
   };
 
 }

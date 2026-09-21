@@ -18,7 +18,7 @@ namespace {
   // The one error code a capped script reports, or "" when it reports none.
   std::string onlyErrorCode(const ScriptProgram& p) {
     std::string found;
-    for (const Diagnostic& d : p.diagnostics()) {
+    for (const Diagnostic& d : p.getDiagnostics()) {
       if (d.severity != Severity::ERROR) continue;
       if (found.empty()) found = d.code;
       else if (found != d.code) return "<several>";
@@ -84,7 +84,7 @@ TEST_CASE("a script past MAX_TOKENS says so instead of dropping the rest silentl
   const ScriptProgram p = parse(repeat("a ", MAX_TOKENS + 1));
   int found = 0;
   std::string message;
-  for (const Diagnostic& d : p.diagnostics())
+  for (const Diagnostic& d : p.getDiagnostics())
     if (d.code == "E_LIMIT_TOKENS") {
       ++found;
       message = d.message;
@@ -98,10 +98,10 @@ TEST_CASE("an @undo replay that would pass MAX_OPS is refused, never multiplied"
       parse("@source a.png:\n" + repeat("  @filter bw\n", 3000) + "  @undo 1\n  @save\n");
   CHECK(p.hasErrors());
   CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
-  REQUIRE(p.diagnostics().size() == 1);
-  CHECK(p.diagnostics()[0].line == 1);  // the block header, not the @save that replayed
-  CHECK(p.blocks().empty());            // a capped block is not recorded, so nothing dumps
-  CHECK(static_cast<int>(p.ops().size()) <= MAX_OPS);
+  REQUIRE(p.getDiagnostics().size() == 1);
+  CHECK(p.getDiagnostics()[0].line == 1);  // the block header, not the @save that replayed
+  CHECK(p.getBlocks().empty());            // a capped block is not recorded, so nothing dumps
+  CHECK(static_cast<int>(p.getOps().size()) <= MAX_OPS);
 }
 
 TEST_CASE("nested @use fan-out is bounded before the statements exist") {
@@ -112,7 +112,7 @@ TEST_CASE("nested @use fan-out is bounded before the statements exist") {
   const ScriptProgram p = parse(src);
   CHECK(p.hasErrors());
   CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
-  CHECK(p.ops().size() == 1);  // the block's open, and nothing a template fanned out
+  CHECK(p.getOps().size() == 1);  // the block's open, and nothing a template fanned out
 }
 
 TEST_CASE("a fan-out that produces no statement at all is bounded too") {
@@ -125,7 +125,7 @@ TEST_CASE("a fan-out that produces no statement at all is bounded too") {
   const ScriptProgram p = parse(src + "@use stencil t1\n");
   CHECK(p.hasErrors());
   CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
-  CHECK(p.blocks().empty());  // a capped block is not recorded, so nothing dumps
+  CHECK(p.getBlocks().empty());  // a capped block is not recorded, so nothing dumps
 }
 
 TEST_CASE("a chain MAX_TEMPLATE_DEPTH deep that does produce ops is never refused") {
@@ -137,7 +137,7 @@ TEST_CASE("a chain MAX_TEMPLATE_DEPTH deep that does produce ops is never refuse
            "\n\n";
   const ScriptProgram p = parse(src + repeat("@use stencil t1\n", 2000));
   CHECK_FALSE(p.hasErrors());
-  CHECK(p.ops().size() == 2000);
+  CHECK(p.getOps().size() == 2000);
 }
 
 TEST_CASE("a script right at each cap is accepted") {

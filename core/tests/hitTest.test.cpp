@@ -103,7 +103,7 @@ TEST_CASE("findNearestSegment returns the closest segment within threshold") {
   CHECK_FALSE(findNearestSegment(onePoint, 0, 0).has_value());
 }
 
-// Single-line nearest-point scan — the in-progress currentLine_ cursor scan
+// Single-line nearest-point scan — the in-progress currentLine cursor scan
 // shared by canvasWidget mousePress (point grab) and updateHover.
 TEST_CASE("nearestPointInLine returns the first point within threshold") {
   std::vector<Point> empty;

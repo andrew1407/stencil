@@ -98,7 +98,7 @@ TEST_CASE("script fixtures: every case matches its recorded dump and diagnostics
   for (const Case& c : cases) {
     const ScriptProgram program =
         ScriptProgram::parse(c.script.data(), static_cast<int>(c.script.size()));
-    CHECK_MESSAGE(program.dump() == c.dump, "dump mismatch for " << c.name);
+    CHECK_MESSAGE(program.getDump() == c.dump, "dump mismatch for " << c.name);
     CHECK_MESSAGE(dumpDiagnostics(program) == c.diagnostics, "diagnostic mismatch for " << c.name);
 
     // The naming convention is load-bearing: err-* must fail, everything else must not.
@@ -118,6 +118,6 @@ TEST_CASE("script fixtures: a parse never crashes on truncated input") {
 
   for (std::size_t cut = 0; cut < src.size(); cut += 7) {
     const ScriptProgram p = ScriptProgram::parse(src.data(), static_cast<int>(cut));
-    CHECK(p.ops().size() <= static_cast<std::size_t>(MAX_OPS));
+    CHECK(p.getOps().size() <= static_cast<std::size_t>(MAX_OPS));
   }
 }

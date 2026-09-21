@@ -9,23 +9,23 @@ namespace stencil::core::script {
    public:
     static ScriptProgram parse(const char* text, int len);
 
-    const std::vector<Token>& tokens() const { return tokens_; }
-    const std::vector<Diagnostic>& diagnostics() const { return diagnostics_; }
-    const std::vector<Block>& blocks() const { return blocks_; }
-    const std::vector<Op>& ops() const { return ops_; }
+    const std::vector<Token>& getTokens() const { return tokens; }
+    const std::vector<Diagnostic>& getDiagnostics() const { return diagnostics; }
+    const std::vector<Block>& getBlocks() const { return blocks; }
+    const std::vector<Op>& getOps() const { return ops; }
     bool hasErrors() const;
     int errorCount() const;
 
     // Memoized on first call; the ABI returns a pointer into it.
-    const std::string& dump() const;
+    const std::string& getDump() const;
 
    private:
-    std::vector<Token> tokens_;
-    std::vector<Diagnostic> diagnostics_;
-    std::vector<Block> blocks_;
-    std::vector<Op> ops_;
-    mutable std::string dump_;
-    mutable bool dumped_ = false;
+    std::vector<Token> tokens;
+    std::vector<Diagnostic> diagnostics;
+    std::vector<Block> blocks;
+    std::vector<Op> ops;
+    mutable std::string dump;
+    mutable bool dumped = false;
   };
 
   /* Resolves one op's length tokens into pixels against the CURRENT image size, which crop

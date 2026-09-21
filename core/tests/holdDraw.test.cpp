@@ -51,10 +51,10 @@ TEST_CASE("holdDrawTarget: topmost (last) line wins for an overlapping point") {
 TEST_CASE("controller: quick release before holdDelay never starts drawing") {
   HoldDrawController c(500.0);
   CHECK(c.pointerDown(10, 10, 0).action == HoldAction::ARMED);
-  CHECK(c.state() == HoldState::ARMED);
+  CHECK(c.getState() == HoldState::ARMED);
   CHECK(c.tick(200).action == HoldAction::NONE);
   CHECK(c.pointerUp(300).action == HoldAction::NONE);  // released early → no commit
-  CHECK(c.state() == HoldState::IDLE);
+  CHECK(c.getState() == HoldState::IDLE);
 }
 
 TEST_CASE("controller: moving past tolerance while armed aborts") {
@@ -62,7 +62,7 @@ TEST_CASE("controller: moving past tolerance while armed aborts") {
   c.pointerDown(10, 10, 0);
   CHECK(c.pointerMove(13, 11, 50).action == HoldAction::NONE);    // within tolerance
   CHECK(c.pointerMove(30, 10, 100).action == HoldAction::ABORT);  // moved away
-  CHECK(c.state() == HoldState::ABORTED);
+  CHECK(c.getState() == HoldState::ABORTED);
   CHECK(c.tick(600).action == HoldAction::NONE);                  // no start after abort
   CHECK(c.pointerUp(700).action == HoldAction::NONE);
 }
@@ -113,12 +113,12 @@ TEST_CASE("controller: release after drawing commits; setHoldDelay + cancel work
   c.pointerDown(0, 0, 0);
   c.tick(500);
   CHECK(c.pointerUp(800).action == HoldAction::COMMIT);
-  CHECK(c.state() == HoldState::IDLE);
+  CHECK(c.getState() == HoldState::IDLE);
 
   c.setHoldDelay(200.0);
-  CHECK(c.holdDelay() == doctest::Approx(200));
+  CHECK(c.getHoldDelay() == doctest::Approx(200));
   c.pointerDown(0, 0, 0);
   CHECK(c.tick(200).action == HoldAction::START);
   c.cancel();
-  CHECK(c.state() == HoldState::IDLE);
+  CHECK(c.getState() == HoldState::IDLE);
 }

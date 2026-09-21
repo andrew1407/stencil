@@ -69,21 +69,21 @@ classDiagram
     }
     class HistoryStack {
         +MAX_STEPS = 64
-        -vector~Lines~ history_
-        -int historyStep_
+        -vector~Lines~ history
+        -int historyStep
     }
     class HistorySlot {
         +HistoryStack stack
         +Lines result
     }
     class HandleTable~T~ {
-        -map~int, unique_ptr~T~~ items_
-        -int next_
+        -map~int, unique_ptr~T~~ items
+        -int next
     }
     class HoldDrawController {
-        -HoldState state_
-        -double holdDelay_
-        -double moveTol_
+        -HoldState state
+        -double holdDelay
+        -double moveTol
     }
     class HoldEvent {
         +HoldAction action
@@ -98,8 +98,8 @@ classDiagram
     }
     class ProjectsStore {
         +WARN_MS = 1 day
-        -vector~ProjectMeta~ registry_
-        -map~string, size_t~ index_
+        -vector~ProjectMeta~ registry
+        -map~string, size_t~ index
     }
     class CropRect {
         +double x, y
@@ -116,13 +116,13 @@ classDiagram
     }
 
     Line "1" *-- "*" Point : points
-    HistoryStack "1" *-- "0..64" Line : history_ snapshots
+    HistoryStack "1" *-- "0..64" Line : history snapshots
     HistorySlot "1" *-- "1" HistoryStack : stack
     HistorySlot "1" *-- "*" Line : result
-    HandleTable "1" *-- "*" HistorySlot : items_
-    HandleTable "1" *-- "*" HoldDrawController : items_
+    HandleTable "1" *-- "*" HistorySlot : items
+    HandleTable "1" *-- "*" HoldDrawController : items
     HoldDrawController --> HoldEvent : returns
-    ProjectsStore "1" *-- "*" ProjectMeta : registry_
+    ProjectsStore "1" *-- "*" ProjectMeta : registry
     CropSpec --> CropRect : resolveCropRect
     CropRect --> Line : scaleLinePoints, rotateLinePointsQuarter
     FormulaParser --> Point : applied per axis after pixelToPageRaw
@@ -137,7 +137,7 @@ classDiagram
 | `HandleTable<T>` (`abi/HandleTable.hpp`) | opaque int → owned instance; a stale or forged handle looks up to `nullptr` | one static table per stateful class in `wasmStateApi.cpp` | `HistorySlot`, `HoldDrawController` |
 | `HoldDrawController` (`state/holdDraw.hpp`) | the hold-to-draw gesture machine over `HoldState` IDLE / ARMED / DRAWING / ABORTED; time-injected, host screen space | the GUI's pointer handler, or a wasm handle | `HoldEvent` |
 | `HoldEvent` (`state/holdDraw.hpp`) | one `HoldAction` (NONE, ARMED, ABORT, START, DROP, PREVIEW, COMMIT) with optional coordinates | value returned per pointer call | `HoldDrawController` |
-| `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry_` | `ProjectsStore` |
+| `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry` | `ProjectsStore` |
 | `ProjectsStore` (`state/ProjectsStore.hpp`) | the in-memory registry with an id index, name rules and the expiry rules; port of the pure parts of `projectsStore.js` | the adapter that loads and persists it | `ProjectMeta` |
 | `ScriptProgram` (`script/scriptProgram.hpp`) | one parsed `.stc`: its tokens, diagnostics, blocks and lowered ops. Immutable after `parse`, which is what lets the ABI hand out pointers into it | created per parse; owned by an `abi::HandleTable` slot until destroyed | `Token`, `Diagnostic`, `Block`, `Op` |
 | `Token` (`script/scriptTypes.hpp`) | one lexed span with its line, column, length and `TokenKind` | value inside a `ScriptProgram`; an editor colours by kind | `ScriptProgram` |
@@ -156,8 +156,8 @@ classDiagram
 | Facade over core | `cliApi.h`, `wasm*Api.cpp` | the `extern "C"` seam beneath every adapter facade (`window.stencil`, `core.zig`, `pystencil.core`); the desktop links the library directly at the seam its layer lint allows |
 | Command | `HistoryStack` (`state/HistoryStack.hpp`) | an entry is a whole-`Lines` snapshot, so apply and revert are the same copy; `push` truncates the redo branch |
 | Strategy | `FilterMode` + `filterPixel` (`raster/imageFilter.hpp`), `luma::rec709Truncated` / `rec709Scaled` | the mode is chosen by `filterModeFromString`, the per-pixel kernel by one hoisted `switch`; the two luma forms are distinct strategies pinned to distinct JS twins |
-| Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index_` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
-| State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol_` aborts, `tick` past `holdDelay_` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
+| Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
+| State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol` aborts, `tick` past `holdDelay` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
 | Interpreter (recursive descent) | `Eval` in `parse/formulaParser.cpp`, `DurationParser`, `parseCropSpec` + `parseLengthToken` | grammar functions per rule; `DepthGuard` caps recursion at `MAX_DEPTH` = 256, shared with `formulaEngine.js` |
 | Interpreter (lowering) | `script/` | a `.stc` is lexed, parsed, template-expanded and lowered to a flat `Op` stream; the adapters execute ops, never grammar, so every surface runs one language |
 | Rewind and replay | `EditLedger::reconcile` (`script/scriptUndo.hpp`) | `@undo` is resolved when the script is lowered: one `undo` back to where the applied and surviving edits agree, then the survivors again — so no adapter computes an undo count |

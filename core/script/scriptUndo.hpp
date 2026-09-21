@@ -28,7 +28,7 @@ namespace stencil::core::script {
     // A new @frame starts a fresh base: nothing from before is undoable.
     void reset();
 
-    int editCount() const { return static_cast<int>(edits_.size()); }
+    int editCount() const { return static_cast<int>(edits.size()); }
 
    private:
     struct EditRec {
@@ -36,9 +36,9 @@ namespace stencil::core::script {
       std::string text;
       bool live = true;
     };
-    std::vector<EditRec> edits_;
-    std::vector<int> applied_;
-    std::vector<int> removed_;  // LIFO, what @redo brings back
+    std::vector<EditRec> edits;
+    std::vector<int> applied;
+    std::vector<int> removed;  // LIFO, what @redo brings back
   };
 
   // Applies one `@undo`/`@redo` statement to the ledger.
