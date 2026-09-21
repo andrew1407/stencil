@@ -5,7 +5,7 @@
 #include "ServerClient.hpp"
 #include "connectionStore.hpp"
 #include "iconSet.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "connectDialogParts.hpp"
 #include "../../support/theme/filterFade.hpp"

@@ -1,6 +1,6 @@
 #include "CanvasWidget.hpp"
 #include "CanvasWidget.hpp"
-#include "../support/motionPrefs.hpp"
+#include "../../support/motionPrefs.hpp"
 
 #include <QPen>
 

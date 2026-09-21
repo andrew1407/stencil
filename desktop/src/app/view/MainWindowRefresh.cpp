@@ -27,7 +27,7 @@
 #include "SettingsDialog.hpp"
 #include "ShortcutsDialog.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include "../../support/modal/modalChrome.hpp"
 

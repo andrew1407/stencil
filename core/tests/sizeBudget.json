@@ -1,6 +1,10 @@
 {
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
+  "maxFilesPerDir": 12,
+  "dirs": {
+    "core/tests": 38
+  },
   "files": {
     "core/raster/rasterize.cpp": 221
   },
@@ -22,5 +26,6 @@
     "core/format": "the Port-of mappings at the top of each header stay (parity contract)",
     "core/geometry": "the Port-of mappings at the top of each header stay (parity contract). 9 -> 10 for swapCropOrientation: the Album/Portrait press carries the user's own framing across the flip instead of resetting it, and the reciprocal-aspect fact it relies on is non-obvious enough to state.",
     "core/raster": "the kMaxCoord/clamp hardening and the pinned-Sobel and two-phase notes stay"
-  }
+  },
+  "_dirsNote": "A test folder mirrors the source it covers, and a doctest TU that spans modules has no one home, so core/tests is frozen at today's count rather than split by kind."
 }

@@ -10,7 +10,7 @@
 #include <QPixmap>
 #include <QTimer>
 #include <optional>
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 namespace stencil::gui {
 
   // Run in THIS order; filterHoverPreview only observes, an answering handler ends the chain.

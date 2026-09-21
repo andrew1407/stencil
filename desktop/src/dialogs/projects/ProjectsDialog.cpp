@@ -12,7 +12,7 @@
 #include "ReorderableListWidget.hpp"
 #include "../../support/motion/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
 #include "../../app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX / NAME_CHIP_GLYPH — the shared chip
-#include "../../support/control/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
+#include "../../support/control/reveal/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
 #include "../../support/control/FlowLayout.hpp"           // the filter row + batch bar wrap, never clip
 #include "../../support/motion/DisintegrateOverlay.hpp"  // deleted rows come apart
 #include "../../support/displayName.hpp"          // shortName for the remove confirm

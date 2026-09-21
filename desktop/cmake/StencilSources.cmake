@@ -20,6 +20,8 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/actions
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/planTarget
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/session
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/context
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/events
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/logo
@@ -35,15 +37,26 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/connect
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/crop
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta/links
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta/keywords
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage/preview
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage/dust
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/row
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/list
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/script
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/settings
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/client
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock/card
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock/compose
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/panel
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan/executor
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/reveal
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/swap
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/dust
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/icon
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/logo
@@ -89,22 +102,22 @@ set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projects/ProjectsDialog.cpp
   src/dialogs/projects/ProjectsDialogBuild.cpp
   src/dialogs/projects/ProjectsDialogEvents.cpp
-  src/dialogs/projects/ProjectsDialogList.cpp
-  src/dialogs/projects/ProjectsDialogRefresh.cpp
-  src/dialogs/projects/ProjectsDialogRows.cpp
-  src/dialogs/projects/ProjectsDialogViewport.cpp
-  src/dialogs/projects/ProjectRowDelegate.cpp
-  src/dialogs/projects/ProjectRowDelegateRow.cpp
-  src/dialogs/projects/ProjectsBatchBar.cpp
-  src/dialogs/projects/ProjectsFilter.cpp
-  src/dialogs/projects/ProjectsHoverPreview.cpp
+  src/dialogs/projects/list/ProjectsDialogList.cpp
+  src/dialogs/projects/list/ProjectsDialogRefresh.cpp
+  src/dialogs/projects/list/ProjectsDialogRows.cpp
+  src/dialogs/projects/list/ProjectsDialogViewport.cpp
+  src/dialogs/projects/row/ProjectRowDelegate.cpp
+  src/dialogs/projects/row/ProjectRowDelegateRow.cpp
+  src/dialogs/projects/list/ProjectsBatchBar.cpp
+  src/dialogs/projects/list/ProjectsFilter.cpp
+  src/dialogs/projects/row/ProjectsHoverPreview.cpp
   src/dialogs/projects/ProjectsOpen.cpp
   src/dialogs/projects/ProjectsRename.cpp
-  src/dialogs/projects/projectsRowChrome.cpp
-  src/dialogs/projects/ProjectsRowIcons.cpp
-  src/dialogs/projects/ProjectsRowMenu.cpp
-  src/dialogs/projects/ProjectsRows.cpp
-  src/dialogs/projects/ProjectsThumbs.cpp
+  src/dialogs/projects/row/projectsRowChrome.cpp
+  src/dialogs/projects/row/ProjectsRowIcons.cpp
+  src/dialogs/projects/row/ProjectsRowMenu.cpp
+  src/dialogs/projects/row/ProjectsRows.cpp
+  src/dialogs/projects/row/ProjectsThumbs.cpp
   src/dialogs/projects/ProjectsTransfer.cpp)
 
 # The disintegration cloud (support/DisintegrateOverlay.hpp) is split across five TUs
@@ -140,11 +153,11 @@ set(STENCIL_CONNECTDIALOG_SOURCES
 # The links dialog (dialogs/LinksDialog.hpp) is a TU family: the shell, two constructor build
 # stages, the preview/scrub player and the show path.
 set(STENCIL_LINKSDIALOG_SOURCES
-  src/dialogs/meta/LinksDialog.cpp
-  src/dialogs/meta/LinksDialogQuickCrop.cpp
-  src/dialogs/meta/LinksDialogPreviewWiring.cpp
-  src/dialogs/meta/LinksDialogPreview.cpp
-  src/dialogs/meta/LinksDialogShow.cpp)
+  src/dialogs/meta/links/LinksDialog.cpp
+  src/dialogs/meta/links/LinksDialogQuickCrop.cpp
+  src/dialogs/meta/links/LinksDialogPreviewWiring.cpp
+  src/dialogs/meta/links/LinksDialogPreview.cpp
+  src/dialogs/meta/links/LinksDialogShow.cpp)
 
 # The open dialog (dialogs/OpenImageDialog.hpp) is several TUs behind a private parts
 # header: the build, the preview, the video scrub player, the preview's dust flourish, its
@@ -153,18 +166,18 @@ set(STENCIL_LINKSDIALOG_SOURCES
 set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/openImage/OpenImageDialog.cpp
   src/dialogs/openImage/OpenImageDialogBuildTabs.cpp
-  src/dialogs/openImage/OpenImageDialogBuildPreview.cpp
-  src/dialogs/openImage/OpenImageDialogBuildCrop.cpp
-  src/dialogs/openImage/OpenImageDialogPreview.cpp
-  src/dialogs/openImage/OpenImageDialogFit.cpp
-  src/dialogs/openImage/OpenImageDialogScrub.cpp
-  src/dialogs/openImage/OpenImageDialogDust.cpp
-  src/dialogs/openImage/OpenImageDialogSizeDust.cpp
-  src/dialogs/openImage/OpenImageDialogAlbumDust.cpp
-  src/dialogs/meta/chipDust.cpp
-  src/dialogs/openImage/OpenImageDialogCache.cpp
+  src/dialogs/openImage/preview/OpenImageDialogBuildPreview.cpp
+  src/dialogs/openImage/preview/OpenImageDialogBuildCrop.cpp
+  src/dialogs/openImage/preview/OpenImageDialogPreview.cpp
+  src/dialogs/openImage/preview/OpenImageDialogFit.cpp
+  src/dialogs/openImage/preview/OpenImageDialogScrub.cpp
+  src/dialogs/openImage/dust/OpenImageDialogDust.cpp
+  src/dialogs/openImage/dust/OpenImageDialogSizeDust.cpp
+  src/dialogs/openImage/dust/OpenImageDialogAlbumDust.cpp
+  src/dialogs/meta/keywords/chipDust.cpp
+  src/dialogs/openImage/preview/OpenImageDialogCache.cpp
   src/dialogs/openImage/OpenImageDialogState.cpp
-  src/dialogs/openImage/OpenImageDialogCropStage.cpp
+  src/dialogs/openImage/preview/OpenImageDialogCropStage.cpp
   src/dialogs/openImage/OpenImageDialogResult.cpp)
 
 # Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
@@ -197,12 +210,12 @@ set(STENCIL_OPREGISTRY_SOURCES
   src/llm/plan/opRegistryBullets.cpp)        # the "Available ops" prompt section
 
 set(STENCIL_PLANEXECUTOR_SOURCES
-  src/llm/plan/planExecutor.cpp
-  src/llm/plan/planExecutorImage.cpp          # crop / rotate / filter / layout / page / blank
-  src/llm/plan/planExecutorEdit.cpp           # history, frames, opens, image refs, save
-  src/llm/plan/planExecutorState.cpp          # the editor-settings ops
-  src/llm/plan/planExecutorOps.cpp
-  src/llm/plan/planExecutorCanvas.cpp)
+  src/llm/plan/executor/planExecutor.cpp
+  src/llm/plan/executor/planExecutorImage.cpp          # crop / rotate / filter / layout / page / blank
+  src/llm/plan/executor/planExecutorEdit.cpp           # history, frames, opens, image refs, save
+  src/llm/plan/executor/planExecutorState.cpp          # the editor-settings ops
+  src/llm/plan/executor/planExecutorOps.cpp
+  src/llm/plan/executor/planExecutorCanvas.cpp)
 
 # The op-schema validator (llm/OpSchema.hpp) is three TUs behind a private checks header:
 # the table and limits, the per-kind field checks, and the action/ask validation.
@@ -240,9 +253,9 @@ set(STENCIL_APPTOOLTIP_SOURCES
   src/support/tip/AppTooltipFilter.cpp)
 
 set(STENCIL_CONTROLREVEAL_SOURCES
-  src/support/control/controlReveal.cpp
-  src/support/control/controlRevealShow.cpp
-  src/support/control/controlRevealBar.cpp)
+  src/support/control/reveal/controlReveal.cpp
+  src/support/control/reveal/controlRevealShow.cpp
+  src/support/control/reveal/controlRevealBar.cpp)
 
 set(STENCIL_DUSTKIT_SOURCES
   src/support/dust/dustKit.cpp
@@ -265,9 +278,9 @@ set(STENCIL_THEMESWAP_SOURCES
 # checkbox/combo pixmaps and bookkeeping, the value-swap cloud overlay, and the app-wide
 # event filter. They define one header's members, so they travel together.
 set(STENCIL_CONTROLSWAP_SOURCES
-  src/support/control/controlSwap.cpp
-  src/support/control/controlSwapValue.cpp
-  src/support/control/controlSwapFilter.cpp)
+  src/support/control/swap/controlSwap.cpp
+  src/support/control/swap/controlSwapValue.cpp
+  src/support/control/swap/controlSwapFilter.cpp)
 
 # The toggle face swap is split across two TUs defining one header's functions (the
 # frame maths and painting, then the live driver); every target that swaps a face needs
@@ -303,14 +316,14 @@ set(STENCIL_GUI_SOURCES
   src/app/remote/StencilFileSync.cpp
   src/app/remote/StencilFileSyncWatch.cpp
   src/app/chat/MainWindowChat.cpp
-  src/app/chat/MainWindowChatReply.cpp
-  src/app/chat/MainWindowChatClient.cpp
-  src/app/chat/MainWindowChatSend.cpp
+  src/app/chat/session/MainWindowChatReply.cpp
+  src/app/chat/session/MainWindowChatClient.cpp
+  src/app/chat/session/MainWindowChatSend.cpp
   src/app/chat/MainWindowChatNotices.cpp
   src/app/chat/MainWindowChatState.cpp
-  src/app/chat/MainWindowChatPersist.cpp
-  src/app/chat/MainWindowChatMedia.cpp
-  src/app/chat/MainWindowChatSave.cpp
+  src/app/chat/session/MainWindowChatPersist.cpp
+  src/app/chat/session/MainWindowChatMedia.cpp
+  src/app/chat/session/MainWindowChatSave.cpp
   src/app/events/MainWindowEvents.cpp
   src/app/events/MainWindowEventsCanvas.cpp
   src/app/events/MainWindowEventsChrome.cpp
@@ -394,24 +407,24 @@ set(STENCIL_GUI_SOURCES
   src/app/selection/SelectedLineBar.cpp
   src/app/selection/SelectedLineBarRow.cpp
   src/llm/dock/ChatDock.cpp
-  src/llm/dock/ChatDockComposer.cpp
+  src/llm/dock/compose/ChatDockComposer.cpp
   src/llm/dock/ChatDockChrome.cpp
   src/llm/dock/chatDockShared.cpp
   src/llm/panel/chatMoreMenu.cpp
   src/llm/dock/ChatDockEvents.cpp
-  src/llm/dock/ChatDockDrag.cpp
-  src/llm/dock/ChatDockAttach.cpp
+  src/llm/dock/compose/ChatDockDrag.cpp
+  src/llm/dock/compose/ChatDockAttach.cpp
   src/llm/dock/ChatDockJumpPills.cpp
-  src/llm/dock/ChatDockCompose.cpp
+  src/llm/dock/compose/ChatDockCompose.cpp
   src/llm/dock/ChatDockTray.cpp
-  src/llm/dock/ChatDockCard.cpp
-  src/llm/dock/chatDockCardMenu.cpp
-  src/llm/dock/ChatDockCardParts.cpp
-  src/llm/dock/ChatDockBubbleWidth.cpp
+  src/llm/dock/card/ChatDockCard.cpp
+  src/llm/dock/card/chatDockCardMenu.cpp
+  src/llm/dock/card/ChatDockCardParts.cpp
+  src/llm/dock/card/ChatDockBubbleWidth.cpp
   src/llm/dock/ChatDockPending.cpp
   src/llm/dock/ChatDockAppend.cpp
   src/llm/dock/ChatDockNotices.cpp
-  src/llm/dock/ChatDockVariants.cpp
+  src/llm/dock/card/ChatDockVariants.cpp
   src/llm/dock/ChatDockState.cpp
   src/llm/panel/chatWidgets.cpp
   src/llm/panel/chatBubbleTail.cpp
@@ -421,9 +434,9 @@ set(STENCIL_GUI_SOURCES
   src/llm/panel/ChatMenuPanelCompose.cpp
   src/llm/panel/ChatMenuPanelRows.cpp
   src/llm/panel/ChatMenuPanelState.cpp
-  src/app/chat/ChatPlanTarget.cpp
-  src/app/chat/ChatPlanTargetServer.cpp
-  src/app/chat/ChatPlanTargetProjects.cpp
+  src/app/chat/planTarget/ChatPlanTarget.cpp
+  src/app/chat/planTarget/ChatPlanTargetServer.cpp
+  src/app/chat/planTarget/ChatPlanTargetProjects.cpp
   ${STENCIL_OPPLAN_SOURCES}
   ${STENCIL_OPREGISTRY_SOURCES}
   ${STENCIL_OPSCHEMA_SOURCES}
@@ -458,9 +471,9 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/script/ScriptHighlighter.cpp
   src/dialogs/script/ScriptMenuPanel.cpp
   src/dialogs/script/ScriptMenuPanelState.cpp
-  src/dialogs/meta/KeywordsDialog.cpp
-  src/dialogs/meta/KeywordChips.cpp
-  src/dialogs/meta/KeywordChipsMotion.cpp
+  src/dialogs/meta/keywords/KeywordsDialog.cpp
+  src/dialogs/meta/keywords/KeywordChips.cpp
+  src/dialogs/meta/keywords/KeywordChipsMotion.cpp
   src/dialogs/crop/CropDialog.cpp
   src/dialogs/crop/CropDialogDrag.cpp
   src/dialogs/meta/InfoDialog.cpp

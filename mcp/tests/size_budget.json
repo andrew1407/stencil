@@ -1,6 +1,10 @@
 {
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'. Rust files carry inline #[cfg(test)] modules, so an entry is either a bare line count or {lines, prod}, where prod is the part before that module and is what maxNewFileLines applies to.",
   "maxNewFileLines": 230,
+  "maxFilesPerDir": 12,
+  "dirs": {
+    "mcp/tests": 50
+  },
   "files": {
     "mcp/src/server/mod.rs": {
       "lines": 120,
@@ -39,5 +43,6 @@
     "mcp/src commentPct 21 -> 23": "Splitting deliver.rs into deliver/ moved 251 comment-sparse lines out of mcp/src. The directory's ABSOLUTE comment count FELL; only the denominator moved. No comment was added.",
     "mcp/src/server/tools/prompt/response.rs": "90 production lines; the rest is the inline #[cfg(test)] mod tests, which this ratchet measures separately (see _doc). Listed so the test half cannot grow either.",
     "mcp/src/server/mod.rs 140 -> 122": "The #[cfg(test)] testwire helpers moved to src/server/testwire.rs, so the file shrank even as stencil_script's #[tool] landed in it."
-  }
+  },
+  "_dirsNote": "Cargo only discovers an integration test that sits directly in tests/, so that folder cannot be split; it is frozen at today's count and may only shrink."
 }

@@ -1,7 +1,7 @@
 #include "CanvasWidget.hpp"
 #include "CanvasWidget.hpp"
 #include "hitTest.hpp"
-#include "../support/motionPrefs.hpp"
+#include "../../support/motionPrefs.hpp"
 
 #include <QCursor>
 #include <QKeyEvent>

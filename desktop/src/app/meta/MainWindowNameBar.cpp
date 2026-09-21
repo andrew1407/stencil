@@ -22,7 +22,7 @@
 #include "SettingsDialog.hpp"
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 

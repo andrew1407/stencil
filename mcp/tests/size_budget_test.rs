@@ -197,26 +197,30 @@ fn no_rust_file_grows_past_its_recorded_budget() {
 }
 
 #[test]
-fn comment_share_per_directory_does_not_rise() {
+fn comment_share_and_folder_fan_out_per_directory() {
     let root = repo_root();
-    let recorded = budget(&root)["commentPct"].as_object().cloned().expect("commentPct");
-    let mut dirs: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    let b = budget(&root);
+    let recorded = b["commentPct"].as_object().cloned().expect("commentPct");
+    let cap = b["maxFilesPerDir"].as_u64().expect("maxFilesPerDir") as usize;
+    let frozen = b["dirs"].as_object().cloned().expect("dirs");
+    let mut dirs: BTreeMap<String, (usize, usize, usize)> = BTreeMap::new();
     for (name, c) in survey(&root) {
         let (dir, _) = name.rsplit_once('/').expect("a file inside a scoped directory");
         let tally = dirs.entry(dir.to_string()).or_default();
         tally.0 += c.comments;
         tally.1 += c.total;
+        tally.2 += 1;
     }
     let mut problems = Vec::new();
-    for (dir, (comments, total)) in &dirs {
+    // Cargo only discovers an integration test directly in tests/, so that folder is frozen
+    // at today's count rather than split; every other folder takes the plain cap.
+    for (dir, (comments, total, files)) in &dirs {
+        let allowed = frozen.get(dir).and_then(Value::as_u64).map_or(cap, |n| n as usize);
+        if files > &allowed { problems.push(format!("{dir}: {files} files > {allowed} — split it")); }
         let pct = comments * 100 / total;
         match recorded.get(dir).and_then(Value::as_u64).map(|n| n as usize) {
-            Some(budget) if pct > budget => {
-                problems.push(format!("{dir}: comments are {pct}% of lines, budget {budget}%"));
-            }
-            Some(budget) if pct < budget => {
-                println!("note: {dir} is down to {pct}% comments (budget {budget}%) — ratchet it down");
-            }
+            Some(b) if pct > b => problems.push(format!("{dir}: comments {pct}% of lines, budget {b}%")),
+            Some(b) if pct < b => println!("note: {dir} is down to {pct}% (budget {b}%) — ratchet it down"),
             None => problems.push(format!("{dir}: not listed in commentPct (currently {pct}%)")),
             _ => {}
         }

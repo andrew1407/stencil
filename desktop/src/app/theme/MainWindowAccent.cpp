@@ -35,7 +35,7 @@
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
 #include "../../support/tip/AppTooltip.hpp"
-#include "../../support/control/controlSwap.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/motion/HoverSlide.hpp"

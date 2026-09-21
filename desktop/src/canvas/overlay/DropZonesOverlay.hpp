@@ -18,7 +18,7 @@
 
 #include <cmath>
 
-#include "../support/icon/iconSet.hpp"   // the same glyph set the browser draws
+#include "../../support/icon/iconSet.hpp"   // the same glyph set the browser draws
 
 namespace stencil::gui {
 

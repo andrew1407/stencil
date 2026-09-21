@@ -419,8 +419,8 @@ stencil_headless_test(stencil_projectmeta_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectMetaDialogs.headless.cpp src/dialogs/meta/DescriptionDialog.cpp
-    src/dialogs/meta/KeywordsDialog.cpp src/dialogs/meta/KeywordChips.cpp
-    src/dialogs/meta/KeywordChipsMotion.cpp
+    src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
+    src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
@@ -437,8 +437,8 @@ stencil_headless_test(stencil_keywordchips_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/keywordChips.headless.cpp
-    src/dialogs/meta/KeywordsDialog.cpp src/dialogs/meta/KeywordChips.cpp
-    src/dialogs/meta/KeywordChipsMotion.cpp
+    src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
+    src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc

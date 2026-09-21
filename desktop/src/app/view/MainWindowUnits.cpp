@@ -13,7 +13,7 @@
 #include "ProjectsDialog.hpp"
 #include "RemoteSyncController.hpp"
 #include "ServerClient.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 
 #include <QSignalBlocker>
 #include <cmath>

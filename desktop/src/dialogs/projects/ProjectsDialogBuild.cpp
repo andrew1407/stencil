@@ -3,7 +3,7 @@
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
 #include "ServerClient.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/FlowLayout.hpp"
 #include "../../support/guiHelpers.hpp"
 #include "../../support/modal/modalChrome.hpp"

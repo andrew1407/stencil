@@ -23,7 +23,7 @@
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/WrapRow.hpp"
 
 #include <QCloseEvent>

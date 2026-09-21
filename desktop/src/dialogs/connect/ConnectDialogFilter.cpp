@@ -8,7 +8,7 @@
 #include "../../support/guiHelpers.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/modal/modalReveal.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 
 #include "connectionStore.hpp"

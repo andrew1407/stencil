@@ -30,7 +30,7 @@ namespace {
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
-      "app/chat/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
+      "app/chat/planTarget/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
       "app/selection/SelectedLineBar.hpp",        "app/selection/SelectionPanel.hpp",
       "canvas/draw/chainEdit.hpp",           "canvas/draw/strokeGrowth.hpp",
       "llm/plan/opPlan.hpp",
@@ -45,11 +45,11 @@ namespace {
       "canvas/draw/CanvasSelection.cpp",     "canvas/CanvasSettings.cpp",
       "canvas/paint/CanvasTransform.cpp",     "canvas/CanvasWidget.hpp",
       "dialogs/crop/CropDialog.hpp",         "dialogs/meta/ExpirationDialog.cpp",
-      "dialogs/openImage/OpenImageDialogCropStage.cpp",
+      "dialogs/openImage/preview/OpenImageDialogCropStage.cpp",
       "dialogs/projects/ProjectsDialog.cpp",     "dialogs/projects/ProjectsDialog.hpp",
-      "dialogs/projects/projectsRowChrome.hpp",  "io/fileStore.cpp",
+      "dialogs/projects/row/projectsRowChrome.hpp",  "io/fileStore.cpp",
       "io/fileStore.hpp",               "llm/plan/opPlanFields.cpp",
-      "llm/plan/planExecutorParts.hpp",           "llm/plan/planExecutor.hpp",
+      "llm/plan/executor/planExecutorParts.hpp",           "llm/plan/executor/planExecutor.hpp",
       "support/theme/cssColor.hpp",           "support/guiHelpers.cpp",
   };
 

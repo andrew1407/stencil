@@ -9,7 +9,7 @@
 #include "ControlsPill.hpp"
 #include "OpenImageButton.hpp"
 #include "theme.hpp"
-#include "../../support/control/controlReveal.hpp"   // section buttons come and go as sand
+#include "../../support/control/reveal/controlReveal.hpp"   // section buttons come and go as sand
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
