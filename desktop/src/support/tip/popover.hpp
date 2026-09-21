@@ -3,7 +3,7 @@
 #include <QSize>
 
 // Popover placement for a dialog opened next to its toolbar icon (MainWindow.cpp
-// execMaybePopover) — the desktop port of browser/js/ui/popover.js popoverPosition; keep
+// execMaybePopover) — the desktop port of browser/js/ui/tip/popover.js popoverPosition; keep
 // the two rule-for-rule. Header-only and pure, so the headless test drives it.
 namespace stencil::support {
 

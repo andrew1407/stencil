@@ -41,7 +41,7 @@ pub fn parseMouse(seq: []const u8) ?Mouse {
     return .{ .btn = btn, .col = col, .row = row, .press = last == 'M' };
 }
 
-// accent cycle (mirrors browser/js/ui/toolbar.js cycleAccent)
+// accent cycle (mirrors browser/js/ui/toolbar/toolbar.js cycleAccent)
 
 const testing = std.testing;
 

@@ -2,7 +2,7 @@
 #include "scriptParser.hpp"
 #include "scriptTypes.hpp"
 
-// Per-block edit bookkeeping for @undo / @redo. Port target: browser/js/core/scriptUndo.js.
+// Per-block edit bookkeeping for @undo / @redo. Port target: browser/js/core/script/scriptUndo.js.
 namespace stencil::core::script {
 
   /* Edits are numbered 1..n as written and never renumbered. Undoing marks one dead; the

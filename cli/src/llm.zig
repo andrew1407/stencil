@@ -1,7 +1,7 @@
 //! LLM assistant support for the console (`/prompt`, `/llm`) — the CLI's port of `llm-contract.md`.
 //! Facade only: the implementation lives in llm/ — registry + prompt assembly (§4/§13), provider
 //! config (§5), wire mappings + reply extraction (§6), transport, and the strict op-plan parser
-//! (§1–§3, table-driven from the embedded opRegistry.json), mirroring browser/js/llm/opPlan.js and
+//! (§1–§3, table-driven from the embedded opRegistry.json), mirroring browser/js/llm/plan/opPlan.js and
 //! mcp/src/. Transport + parsing only; the handlers execute actions through existing operations.
 const registry = @import("llm/registry.zig");
 const opSchema = @import("llm/opSchema.zig");

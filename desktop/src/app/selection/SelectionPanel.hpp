@@ -14,7 +14,7 @@ class QTabWidget;
 class QTabBar;
 class QListWidget;
 
-// Points table + lines list — port of browser/js/ui/selectionPanel.js coordinate table + #lines-
+// Points table + lines list — port of browser/js/ui/panel/selectionPanel.js coordinate table + #lines-
 // list. The "Selected Line:" editor is SelectedLineBar.
 namespace stencil::gui {
 

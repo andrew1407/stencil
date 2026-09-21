@@ -10,7 +10,7 @@
 
 class QWidget;
 
-// Transient toasts. Port of browser/js/ui/notifications.js; stacks upward from the host's bottom-left.
+// Transient toasts. Port of browser/js/ui/shell/notifications.js; stacks upward from the host's bottom-left.
 namespace stencil::gui {
 
   class DisintegrateOverlay;

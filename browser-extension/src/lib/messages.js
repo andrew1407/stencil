@@ -42,7 +42,7 @@ export const SRC = Object.freeze({
   MODAL: 'stencil-modal',               // quick-crop frame → overlay host (ready/close handshake)
   // Id-correlated request/response; arguments nest under `payload` so the envelope's
   // `source` tag cannot collide with a hand-off's `source` URL. Same-window only.
-  EXT_REQ: 'stencil-ext-req',           // editorBridge (ISOLATED) → editor page (browser/js/core/extensionBridge.js): state / import / switch
+  EXT_REQ: 'stencil-ext-req',           // editorBridge (ISOLATED) → editor page (browser/js/core/launch/extensionBridge.js): state / import / switch
   EXT_RES: 'stencil-ext-res',           // editor page → editorBridge: the reply to one EXT_REQ
   EXT_API: 'stencil-ext-api',           // editorApiMain (MAIN world, stencil.extension) → editorBridge (ISOLATED): a facade call to relay
   EXT_API_RES: 'stencil-ext-api-res',   // editorBridge → editorApiMain: the reply to one EXT_API call

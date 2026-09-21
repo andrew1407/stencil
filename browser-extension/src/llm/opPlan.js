@@ -1,7 +1,7 @@
 // ── Op-plan: extension profile (llm-contract.md §1–§4 + §8 + §13) ──────
 // Pure module — no DOM, no chrome, no fetch. The extension's op set references images by index
 // in the context listing; `open.actions` carries the §2 core ops, validated with the same rules
-// as browser/js/llm/opPlan.js. LLM output is data, not instructions: plans are strictly
+// as browser/js/llm/plan/opPlan.js. LLM output is data, not instructions: plans are strictly
 // validated before anything executes.
 import {
   ASK_LIMITS, CORE_OPS, DEFAULT_CUSTOM_LABEL, FORBIDDEN_OPS, LIMITS, SCHEMA, isObj, isStr,

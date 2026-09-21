@@ -41,7 +41,7 @@
 
 namespace stencil::gui {
 
-  // Glyph names mirror browser/js/ui/toolbar.js. Null-guarded.
+  // Glyph names mirror browser/js/ui/toolbar/toolbar.js. Null-guarded.
   void MainWindow::styleActionIcons(bool dark, const QColor& iconColor) {
     this->iconColor = iconColor;
     const int s = TOOL_ICON;

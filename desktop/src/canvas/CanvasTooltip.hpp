@@ -9,7 +9,7 @@ class QLabel;
 class QVariantAnimation;
 
 // Floating, frameless tooltip shown over the canvas on hover. Port of
-// browser/js/ui/tooltip.js: it renders rows (label -> value pairs) and positions
+// browser/js/ui/tip/tooltip.js: it renders rows (label -> value pairs) and positions
 // itself near the cursor, flipping to stay on screen. The decision of WHAT to
 // show (cursor coords / nearest point / line endpoints) is made by MainWindow,
 // mirroring tooltip.js applyHover; this widget only renders + positions.

@@ -8,6 +8,10 @@
 set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app
   ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/input
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/draw
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/paint
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/overlay
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
   ${CMAKE_CURRENT_SOURCE_DIR}/src/io
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm
@@ -58,26 +62,26 @@ set(STENCIL_GUI_DIRS
 # together under one name.
 set(STENCIL_CANVAS_SOURCES
   src/canvas/CanvasWidget.cpp
-  src/canvas/CanvasDrag.cpp
-  src/canvas/CanvasDraw.cpp
-  src/canvas/CanvasDrawClick.cpp
-  src/canvas/CanvasDrawMode.cpp
-  src/canvas/CanvasGeometry.cpp
-  src/canvas/CanvasHold.cpp
-  src/canvas/CanvasHover.cpp
-  src/canvas/CanvasImage.cpp
-  src/canvas/CanvasLineEdit.cpp
-  src/canvas/CanvasMove.cpp
-  src/canvas/CanvasPaint.cpp
-  src/canvas/canvasPaintCache.cpp
-  src/canvas/CanvasPress.cpp
-  src/canvas/CanvasRelease.cpp
-  src/canvas/CanvasRender.cpp
-  src/canvas/CanvasSelection.cpp
+  src/canvas/input/CanvasDrag.cpp
+  src/canvas/draw/CanvasDraw.cpp
+  src/canvas/draw/CanvasDrawClick.cpp
+  src/canvas/draw/CanvasDrawMode.cpp
+  src/canvas/paint/CanvasGeometry.cpp
+  src/canvas/input/CanvasHold.cpp
+  src/canvas/input/CanvasHover.cpp
+  src/canvas/paint/CanvasImage.cpp
+  src/canvas/draw/CanvasLineEdit.cpp
+  src/canvas/input/CanvasMove.cpp
+  src/canvas/paint/CanvasPaint.cpp
+  src/canvas/paint/canvasPaintCache.cpp
+  src/canvas/input/CanvasPress.cpp
+  src/canvas/input/CanvasRelease.cpp
+  src/canvas/paint/CanvasRender.cpp
+  src/canvas/draw/CanvasSelection.cpp
   src/canvas/CanvasSettings.cpp
-  src/canvas/CanvasStrokeFx.cpp
-  src/canvas/CanvasTransform.cpp
-  src/canvas/strokeGrowth.cpp)
+  src/canvas/draw/CanvasStrokeFx.cpp
+  src/canvas/paint/CanvasTransform.cpp
+  src/canvas/draw/strokeGrowth.cpp)
 
 # The projects dialog is split across Projects*.cpp partials (plus its row delegate),
 # all defining ProjectsDialog:: / ProjectRowDelegate:: members; they travel together.
@@ -430,9 +434,9 @@ set(STENCIL_GUI_SOURCES
   src/llm/client/QtLlmTransport.cpp
   ${STENCIL_TIPCONTENT_SOURCES}
   ${STENCIL_CANVAS_SOURCES}
-  src/canvas/IdleCard.cpp
+  src/canvas/overlay/IdleCard.cpp
   src/canvas/CanvasTooltip.cpp
-  src/canvas/IncognitoOverlay.cpp
+  src/canvas/overlay/IncognitoOverlay.cpp
   src/dialogs/settings/SettingsDialog.cpp
   src/dialogs/settings/SettingsDialogMotionRows.cpp
   src/dialogs/settings/SettingsDialogDrawRows.cpp

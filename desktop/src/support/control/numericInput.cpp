@@ -7,7 +7,7 @@ namespace stencil::gui {
 
   namespace {
 
-    // Same structure as browser/js/ui/numericInput.js and the core formula parser:
+    // Same structure as browser/js/ui/control/numericInput.js and the core formula parser:
     // expr → term → unary → power → primary, unary ABOVE power so "-2 ** 2" is -(2**2).
     struct Parser {
       const QString& s;

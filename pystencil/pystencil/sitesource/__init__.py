@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Source-site scraping for pystencil — the stdlib-only port of the Zig CLI's
 ``cli/src/scrape.zig`` and a parity twin of the Chrome extension's page scanner
-(``browser-extension/src/lib/imageScan.js`` + ``filters.js``).
+(``browser-extension/src/lib/image/imageScan.js`` + ``filters.js``).
 
 Fetch a web page over http(s), parse its HTML with :mod:`html.parser` (no third-party
 libs), pull out image / video / background / poster media URLs, filter them by

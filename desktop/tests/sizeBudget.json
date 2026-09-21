@@ -5,7 +5,6 @@
   "_dirsNote": "Folder fan-out ratchet. A header and its .cpp count once. These folders predate the 12-file cap; each may shrink, never grow, and a new folder over the cap is split by feature rather than recorded here.",
   "dirs": {
     "desktop/src/app/chat": 16,
-    "desktop/src/canvas": 28,
     "desktop/src/dialogs/meta": 17,
     "desktop/src/dialogs/openImage": 16,
     "desktop/src/dialogs/projects": 23,
@@ -36,7 +35,11 @@
     "desktop/src/app/theme": 11,
     "desktop/src/app/toolbar": 16,
     "desktop/src/app/view": 10,
-    "desktop/src/canvas": 10,
+    "desktop/src/canvas": 14,
+    "desktop/src/canvas/draw": 9,
+    "desktop/src/canvas/input": 10,
+    "desktop/src/canvas/overlay": 10,
+    "desktop/src/canvas/paint": 9,
     "desktop/src/dialogs/connect": 9,
     "desktop/src/dialogs/crop": 10,
     "desktop/src/dialogs/meta": 9,
@@ -74,5 +77,5 @@
     "desktop/src/app/MainWindow.hpp": "moc runs on this header, so a MainWindow member has nowhere else to be declared: the dialogs, the core seam and the runners already live outside it. Shrinking it means folding members into owned value-type bags (pop_, fs_, units_, nameBar_, session_ are the precedent), which renames every test call site that reaches them through friend class ::MainWindowGuiTest. Measured: 287 field declaration lines, 136 of them reached by name from desktop/tests and usecases/capture-runner through friend class ::MainWindowGuiTest, and ~500 method declarations moc needs in the class. Bagging every one of the 151 test-free fields would reach ~770, so this file cannot meet the 230 cap while MainWindow is one Q_OBJECT; it is listed in `files`, NOT in `exceptions`, so the ratchet still refuses growth.",
     "desktop/src/canvas/CanvasWidget.hpp": "432 and moc-bound, like MainWindow.hpp: 119 method declarations form the canvas's public surface and 55 field lines sit behind it, so the ~200 lines this would have to shed cannot come from value-type bags (they would save about 24). Shrinking it means giving the widget a narrower public API, which is a design change rather than a move. Listed in `files`, so it cannot grow."
   },
-  "_splitShareNote": "desktop/src/support 9 -> 12: 92 units moved into feature folders, so the same per-file banners sit over a tenth of the code (comments 1295 -> 89, lines 13746 -> 739). Nothing was added."
+  "_splitShareNote": "desktop/src/support 9 -> 12: 92 units moved into feature folders, so the same per-file banners sit over a tenth of the code (comments 1295 -> 89, lines 13746 -> 739). Nothing was added. desktop/src/canvas 10→14: the folder kept CanvasWidget, CanvasSettings and the tooltip with their banners while 28 files left for input/, draw/, paint/ and overlay/. Comment volume fell; nothing was written."
 }

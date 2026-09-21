@@ -6,7 +6,7 @@
 #include <vector>
 
 // The hover-tooltip's coordinate rows. Port of the show() rows in
-// browser/js/ui/tooltip.js (Pixel / Page (cm) / To edge (cm)); `page` is the
+// browser/js/ui/tip/tooltip.js (Pixel / Page (cm) / To edge (cm)); `page` is the
 // post-formula page coord and "To edge" = pageDim - pageCoord.
 namespace stencil::core {
 

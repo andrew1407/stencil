@@ -8,7 +8,7 @@
 #include <QVector>
 
 // Registry-driven op-plan validation (llm-contract.md §1-§2, §11, §13) - the desktop port of
-// browser/js/llm/opSchema.js, table-driven from the shared browser/js/config/llm/opRegistry.json
+// browser/js/llm/plan/opSchema.js, table-driven from the shared browser/js/config/llm/opRegistry.json
 // (qrc alias llm/opRegistry.json): profile membership, unknown-field rejection, required keys,
 // types, enums, ranges, string caps, token grammars and the cross-field presence rules all come
 // from the registry. Ported op-for-op; only the error wording is this surface's.

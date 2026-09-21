@@ -1,6 +1,6 @@
 // Shapes for ui/tipKeys.js — the keys half of the rich tooltip: which strings in a composed
 // `title` are keys, and the keycaps they draw. The module is byte-pinned with
-// browser-extension/src/lib/tipKeys.js (browser-extension/tests/portParity.test.js).
+// browser-extension/src/lib/tip/tipKeys.js (browser-extension/tests/portParity.test.js).
 
 /** Whether the platform draws modifiers as Apple glyphs; false under Node. */
 export declare const isMacPlatform: () => boolean;

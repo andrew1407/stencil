@@ -2,7 +2,7 @@
 #include <string>
 
 // The canonical text form every fixture walker compares against.
-// Port target: browser/js/core/scriptDump.js.
+// Port target: browser/js/core/script/scriptDump.js.
 namespace stencil::core::script {
 
   class ScriptProgram;

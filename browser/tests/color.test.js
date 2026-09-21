@@ -31,7 +31,7 @@ test('parseHex(#3399ff) → {r:51,g:153,b:255}', () => {
 });
 
 // <input type="color"> cannot carry an alpha byte, so the editors keep the opacity in a slider beside the
-// swatch and these two put the halves together. Desktop twin: desktop/src/support/cssColor.hpp.
+// swatch and these two put the halves together. Desktop twin: desktop/src/support/theme/cssColor.hpp.
 test('cssColorParts splits a stored colour into swatch + opacity', () => {
     assert.deepStrictEqual(cssColorParts('#ff8800'), { hex: '#ff8800', alpha: 1 });
     assert.deepStrictEqual(cssColorParts('#FF8800'), { hex: '#ff8800', alpha: 1 });

@@ -5,7 +5,7 @@
 #include <vector>
 
 // Pure image-filter math over RGB components / interleaved RGBA8 buffers. Port of
-// browser/js/core/renderer.js drawImageWithFilter + #applyTintFilter; the desktop
+// browser/js/core/draw/renderer.js drawImageWithFilter + #applyTintFilter; the desktop
 // routes its per-pixel work through it too, so every front-end's output is identical.
 namespace stencil::core {
 

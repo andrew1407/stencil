@@ -2,7 +2,7 @@
 
 namespace stencil::core {
 
-  // Zoom/pan math. Port of browser/js/core/zoomPan.js (clamp / zoomToward / zoomToRect).
+  // Zoom/pan math. Port of browser/js/core/zoom/zoomPan.js (clamp / zoomToward / zoomToRect).
 
   // zoomPan.js MIN/MAX/STEP/STEP_FAST.
   constexpr double ZOOM_MIN = 0.05;

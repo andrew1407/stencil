@@ -1,6 +1,6 @@
 #pragma once
 // The cloud around the stage's mark: motes born on its edge, posed by the shared styleFrame and
-// blitted through the shared sprite cache. Twin of browser/js/ui/logoStageCloud.js.
+// blitted through the shared sprite cache. Twin of browser/js/ui/logo/logoStageCloud.js.
 #include <QColor>
 #include <QPainter>
 #include <QPointF>

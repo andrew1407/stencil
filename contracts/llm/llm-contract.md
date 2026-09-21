@@ -107,7 +107,7 @@ its flags (`topLevelOnly`, settings scope, gather, needs-confirm), its per-profi
 divergences. Don't restate op tables here or count the ops in prose; read the registry (its
 total and per-profile counts are pinned by `browser/tests/opRegistryCanon.test.js`). **Every surface's
 validator is table-driven from it** (schemaVersion 2): the surface embeds the registry
-and runs a port of the reference engine `browser/js/llm/opSchema.js`, keeping only its normalizers,
+and runs a port of the reference engine `browser/js/llm/plan/opSchema.js`, keeping only its normalizers,
 executors and the one native rule (`cropAspectFold`). What every entry shares:
 
 - **Core ops** (every plan-executing surface — membership in `profiles`, schemas in each entry):

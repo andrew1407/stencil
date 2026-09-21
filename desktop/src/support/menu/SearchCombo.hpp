@@ -4,7 +4,7 @@
 #include <QTimer>
 #include <functional>
 
-// Desktop port of the browser's enhanceSelect({ search: true }) (browser/js/ui/customSelect.js).
+// Desktop port of the browser's enhanceSelect({ search: true }) (browser/js/ui/control/customSelect.js).
 // Not a QCompleter popup: that is a bare top-level QListView the app stylesheet never reaches.
 class QAbstractItemDelegate;
 class QLabel;

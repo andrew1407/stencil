@@ -1,5 +1,5 @@
 // A dust grain's flight: the FLIGHTS table, the eased legs behind it and the palette/tint ramp.
-// Byte-pinned twin: browser-extension/src/lib/dustFlight.js (browser-extension/tests/portParity.test.js).
+// Byte-pinned twin: browser-extension/src/lib/dust/dustFlight.js (browser-extension/tests/portParity.test.js).
 export interface Flight {
   from: 'home' | 'far'; split: number; leg: (t: number) => number; rest: (t: number) => number;
   alpha: [number, number][];

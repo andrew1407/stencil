@@ -211,7 +211,7 @@ classDiagram
   to wasm (`stencil_projects_*`); the registry itself is not a browser twin.
 
 The one wire schema the core owns is the `Lines` snapshot of `abi/linesCodec.hpp`, in two
-caller-owned buffers (`browser/js/core/linesCodec.js` is its twin):
+caller-owned buffers (`browser/js/core/line/linesCodec.js` is its twin):
 
 ```
 nums (double[]): lineCount, then per line:
@@ -229,7 +229,7 @@ text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenat
    with the JS reference op-for-op.
 2. **No `eval`.** `parse/formulaParser` is a real recursive-descent parser for
    `+ - * / ** ( )` and one variable (`**` right-associative, empty expression = identity,
-   division-by-zero / overflow = invalid), aligned with `browser/js/core/formulaEngine.js`
+   division-by-zero / overflow = invalid), aligned with `browser/js/core/parse/formulaEngine.js`
    down to the shared `MAX_DEPTH`.
 3. **STL-only, codec-free, GUI-free.** No Qt, no image codec, no DOM, no HTTP, no JSON, no
    third-party library; every such concern belongs to an adapter.

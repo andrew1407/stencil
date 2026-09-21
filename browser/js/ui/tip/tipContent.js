@@ -2,7 +2,7 @@
 // Parses the ONE composed `title` string the app already writes (utils.js composeControlTitle)
 // into the desktop app's richer tooltip shape — heading, keycaps, term/description rows,
 // bullets, hint, disabled-reason note — so no call site changes. Pure string in, escaped HTML
-// out. Byte-pinned to browser-extension/src/lib/tipContent.js; cases in tipContent.test.js.
+// out. Byte-pinned to browser-extension/src/lib/tip/tipContent.js; cases in tipContent.test.js.
 
 // ONE escaper for the whole surface — a security helper must not exist in two copies.
 export { escapeHtml } from '../escapeHtml.js';

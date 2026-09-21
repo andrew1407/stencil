@@ -1,5 +1,5 @@
 #pragma once
-// Closing a shape and the two ways out: port of browser/js/core/dragGestures.js chain helpers.
+// Closing a shape and the two ways out: port of browser/js/core/touch/dragGestures.js chain helpers.
 // A click-closed shape repeats its first point at the end; a rect is locked without one.
 // "The ring" is the points minus that duplicate. Header-only, no MOC.
 #include <cstddef>

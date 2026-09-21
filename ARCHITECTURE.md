@@ -117,7 +117,7 @@ Four invariants:
    ports of `browser/tests/`.
 2. **The JS fallback matches wasm op-for-op.** `browser/tests/wasm-parity.test.js` proves
    it and CI builds wasm fresh to run it.
-3. **No `eval`, either side.** `browser/js/core/formulaEngine.js` and `core/parse/formulaParser`
+3. **No `eval`, either side.** `browser/js/core/parse/formulaEngine.js` and `core/parse/formulaParser`
    are both real recursive-descent parsers: `+ - * / ** ( )`, one variable, `**`
    right-associative, empty = identity, div-by-zero/overflow = invalid, recursion capped at
    the same depth (`MAX_DEPTH` on both sides).

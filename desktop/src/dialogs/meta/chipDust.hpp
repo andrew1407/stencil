@@ -1,6 +1,6 @@
 #pragma once
 // One row that forms out of, and falls into, a cloud of its own, sliding its own height open
-// and shut. Desktop twin of browser/js/ui/motion/dustRow.js.
+// and shut. Desktop twin of browser/js/ui/motion/dust/dustRow.js.
 #include "../../support/motion/DisintegrateOverlay.hpp"
 
 class QPixmap;

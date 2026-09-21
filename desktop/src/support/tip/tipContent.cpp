@@ -1,5 +1,5 @@
 // Parsing a composed `title` string into a Tip: the "·" alternatives, the " — " term/description
-// split, the "— reason" note line and the sentence-casing, all twins of browser/js/ui/tipContent.js.
+// split, the "— reason" note line and the sentence-casing, all twins of browser/js/ui/tip/tipContent.js.
 #include "tipContent.hpp"
 #include <QRegularExpression>
 

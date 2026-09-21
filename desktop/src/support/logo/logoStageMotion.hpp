@@ -1,6 +1,6 @@
 #pragma once
 // The logo stage's kinematics, pure and clocked by the caller. Twin of
-// browser/js/ui/logoStageMotion.js, value for value.
+// browser/js/ui/logo/logoStageMotion.js, value for value.
 #include <QPointF>
 
 namespace stencil::support {

@@ -1,4 +1,4 @@
-// The canvas context menu's persistent action set — port of browser/js/ui/contextMenu.js wire().
+// The canvas context menu's persistent action set — port of browser/js/ui/contextMenu/contextMenu.js wire().
 #include "MainWindow.hpp"
 #include "CanvasWidget.hpp"
 #include "numericInput.hpp"

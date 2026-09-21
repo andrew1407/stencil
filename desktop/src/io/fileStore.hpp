@@ -171,7 +171,7 @@ namespace stencil::gui {
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
-    // .stencil portable project file — browser/js/core/projectFile.js twin; QtCore-only (image as base64).
+    // .stencil portable project file — browser/js/core/project/projectFile.js twin; QtCore-only (image as base64).
     inline constexpr int STENCIL_FILE_VERSION = 1;
     struct ProjectFileData {
       QString name = "Untitled";

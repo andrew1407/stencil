@@ -10,7 +10,7 @@ class QSpinBox;
 class QComboBox;
 class QFrame;
 
-// The "Selected Line:" bar — port of browser/js/ui/selectionPanel.js #selection-panel.
+// The "Selected Line:" bar — port of browser/js/ui/panel/selectionPanel.js #selection-panel.
 namespace stencil::gui {
 
   class SelectedLineBar : public QWidget {

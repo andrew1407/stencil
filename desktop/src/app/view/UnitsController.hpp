@@ -9,7 +9,7 @@ class QWidget;
 
 namespace stencil::gui {
 
-  // The page-format and display-unit group; the arithmetic shared with browser/js/core/units.js.
+  // The page-format and display-unit group; the arithmetic shared with browser/js/core/settings/units.js.
   // Core-free by design.
   class UnitsController {
    public:

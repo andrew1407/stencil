@@ -4,7 +4,7 @@
 #include <array>
 #include <string_view>
 
-// Tokens -> statements, grouped into raw blocks. Port target: browser/js/core/scriptParser.js.
+// Tokens -> statements, grouped into raw blocks. Port target: browser/js/core/script/scriptParser.js.
 namespace stencil::core::script {
 
   /* Resolved once by the parser, so nothing downstream re-compares words. Internal to the

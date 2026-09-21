@@ -7,7 +7,7 @@ class QLabel;
 class QPushButton;
 class QWidget;
 
-// "Open in..." dialog. Mirrors browser/js/ui/openInModal.js: mirror the CURRENT session into
+// "Open in..." dialog. Mirrors browser/js/ui/modal/openInModal.js: mirror the CURRENT session into
 // another Stencil front-end - the browser app or the Telegram bot. Unusable targets are HIDDEN,
 // not greyed. exec(); on QDialog::Accepted read getOutcome()/getIncognito().
 // A Telegram link that cannot fit the 64-char start payload keeps the dialog open and shows the

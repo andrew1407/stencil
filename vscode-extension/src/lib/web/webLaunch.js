@@ -6,7 +6,7 @@ const { readFileSync } = require('node:fs');
 const { basename, extname } = require('node:path');
 
 // Past this, Chrome drops the navigation — the real ceiling, under the validator's 32 MiB.
-// The same number browser-extension/src/lib/editorLaunch.js writes; the tests pin the pair.
+// The same number browser-extension/src/lib/menu/editorLaunch.js writes; the tests pin the pair.
 const MAX_PAYLOAD = 1_800_000;
 
 const IMAGE_TYPES = Object.freeze({

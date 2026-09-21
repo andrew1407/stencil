@@ -5,8 +5,6 @@
   "_dirsNote": "Folder fan-out ratchet. A module and its .d.ts count once. These folders predate the 12-file cap; each may shrink, never grow, and a new folder over the cap is split rather than recorded here.",
   "dirs": {
     "browser/js/console": 17,
-    "browser/js/core": 48,
-    "browser/js/ui": 42,
     "browser/js/ui/bindings": 21,
     "browser/js/ui/chat": 17,
     "browser/js/ui/projects": 16,
@@ -81,13 +79,13 @@
     "browser/tools": 11
   },
   "exceptions": {},
-  "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel \u2014 utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
-  "_behaviouralPinNote": "strokeGrowth.test.js 298 \u2192 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",
+  "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel — utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
+  "_behaviouralPinNote": "strokeGrowth.test.js 298 → 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",
   "_testCssImportNote": "components.css/animations.css were split into css/components/ and css/animations/; the tests that assert on a whole stylesheet each gained ONE import of tests/helpers/css.js. That +1 is the only growth recorded here.",
   "_notes": {
     "browser/js/core/drawingApp.d.ts": "397 and shaped by its module: 92 lines are the type vocabulary 87 other shape files import through './drawingApp.js', and the rest is ONE `export declare class DrawingApp` mirroring a 601-line class whose own floor is pinned by seven test files reading its source text. A class declaration cannot be split, so this follows drawingApp.js down rather than separately.",
-    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added \u2014 the measured scope grew. These are the new floors.",
+    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors.",
     "browser/js/console/stencilApi.d.ts": "357 and single-file on purpose: vscode-extension/tools/genTypings.mjs reads THIS file as its one SOURCE to generate the shipped vscode-extension/typings/stencil.d.ts, and vscode-extension/tests/apiVocabulary.test.js pins the vocabulary's presence here. Splitting the type vocabulary out silently stripped it from the generated typings, so the facade and its vocabulary stay together."
   },
-  "_splitShareNote": "Shares that rose purely because code left the directory, never because prose was added: browser/js/ui 13->14 (comments 2316->560 of 16613->3970), browser/js/ui/openImage 12->13 (180->173 of 1433->1326), browser/js/llm 19->22 (844->143 of 4269->643), browser/js/ui/motion 15->16 (371->119 of 2417->734). Each folder keeps the same banners over far less code. browser/js/ui 14\u219219 and ui/motion 16\u219217: the ui/ root kept seven foundational modules and their banners while 35 modules left, and motion/ gained two that arrived with theirs. Comment VOLUME fell from 560 lines to 80 in ui/; nothing was written."
+  "_splitShareNote": "Shares that rose purely because code left the directory, never because prose was added: browser/js/ui 13->14 (comments 2316->560 of 16613->3970), browser/js/ui/openImage 12->13 (180->173 of 1433->1326), browser/js/llm 19->22 (844->143 of 4269->643), browser/js/ui/motion 15->16 (371->119 of 2417->734). Each folder keeps the same banners over far less code. browser/js/ui 14→19 and ui/motion 16→17: the ui/ root kept seven foundational modules and their banners while 35 modules left, and motion/ gained two that arrived with theirs. Comment VOLUME fell from 560 lines to 80 in ui/; nothing was written."
 }

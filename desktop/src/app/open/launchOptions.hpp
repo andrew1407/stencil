@@ -60,7 +60,7 @@ namespace stencil::gui {
   // QCommandLineParser (exact long-option matching keeps --project / --projects distinct); a stencil:// positional routes through parseStencilUrl.
   LaunchOptions parseLaunchOptions(const QCoreApplication& app);
 
-  // Grammar mirrored by browser/js/core/deepLink.js buildStencilSchemeUrl: server+id win over src; unknown params ignored;
+  // Grammar mirrored by browser/js/core/launch/deepLink.js buildStencilSchemeUrl: server+id win over src; unknown params ignored;
   // src is restricted to web/data sources — links are remotely clickable, so local paths never ride them.
   LaunchOptions parseStencilUrl(const QUrl& url);
 

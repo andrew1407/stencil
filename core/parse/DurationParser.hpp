@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-// Human-duration parser behind `expire`; twin browser/js/core/durationParser.js. Clock-free.
+// Human-duration parser behind `expire`; twin browser/js/core/parse/durationParser.js. Clock-free.
 //   spec  := off | unit | count unit | unit count
 //   off   := 'off' | 'never' | 'none' -> 0 ("keep forever")
 //   unit  := day | week | fortnight | month | year (trailing 's' ok); a bare unit means one

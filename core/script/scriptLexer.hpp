@@ -3,7 +3,7 @@
 
 #include <string_view>
 
-// .stc tokenizer. Port target: browser/js/core/scriptLexer.js.
+// .stc tokenizer. Port target: browser/js/core/script/scriptLexer.js.
 namespace stencil::core::script {
 
   struct LexResult {

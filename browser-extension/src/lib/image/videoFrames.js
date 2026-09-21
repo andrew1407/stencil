@@ -1,5 +1,5 @@
 // Videos are never sent to the model (llm-contract.md §7): they are sampled into evenly
-// spaced JPEG frames. Browser twin: browser/js/core/videoFrame.js captureFramesAt; this
+// spaced JPEG frames. Browser twin: browser/js/core/export/videoFrame.js captureFramesAt; this
 // copy downscales to the contract's image edge instead of the editor's 1920.
 import { fitSize } from './rasterize.js';
 import { MAX_IMAGE_EDGE } from '../../llm/chatController.js';
