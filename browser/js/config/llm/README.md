@@ -14,13 +14,13 @@
   `browser-extension/tests/dataParity.test.js`.
 
 The assembled prompt is `head + <registry-generated op bullets> + tail` (contract §13);
-`browser/js/llm/plan/plan.js` does the assembly and re-exports the strings.
+`browser/js/llm/plan/parser.js` does the assembly and re-exports the strings.
 
 Byte-exactness: JSON escapes newlines but round-trips every byte — consumers get the
 strings byte-identical to the old in-source literals. Do not reflow or "prettify" the
 values: the collaboration server byte-pins the first 328 bytes of `head` and 434 bytes
 of `extensionHead` (`server/internal/httpapi/llmprompt.go`), and
-`browser/tests/systemPromptAsset.test.js` canaries both prefixes.
+`browser/tests/llm/chat/systemPromptAsset.test.js` canaries both prefixes.
 
 ## Shared sentences (§4 / §7)
 
@@ -36,7 +36,7 @@ schema of its own. These were retyped in five clients each before they moved her
   hiding it, and converging them is a behaviour change that belongs to its own commit:
   - `continuationNote` — the editors' (browser `store.js`, desktop
     `MainWindowChat.cpp`). This is the wording llm-chat.md §12.1 quotes.
-  - `continuationNoteConsole` — cli `wire.zig` + mcp `prompt.rs` (`…loaded — continue
+  - `continuationNoteConsole` — cli `wire.zig` + mcp `server/tools/prompt/` (`…loaded — continue
     with it, using its real pixel size.]`).
   - `continuationNoteBot` — bot `ChatDocument.cs` (`…those actions just made — …`).
   - `continuationNotePython` — pystencil `llm.py` (`…that action just made — …`).
@@ -51,5 +51,5 @@ schema of its own. These were retyped in five clients each before they moved her
   rather than a registry bullet. The bot's and the consoles' wordings differ by the word
   "console"; both are recorded.
 
-`browser/tests/systemPromptAsset.test.js` byte-pins each of them and asserts the four
+`browser/tests/llm/chat/systemPromptAsset.test.js` byte-pins each of them and asserts the four
 continuation wordings stay distinct, so a silent convergence fails too.

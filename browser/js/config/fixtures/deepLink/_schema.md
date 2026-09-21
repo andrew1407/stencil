@@ -1,7 +1,7 @@
 # Deep-link codec conformance vectors
 
-Pin the launch-payload / deep-link contract shared by browser (`js/core/deepLink.js`,
-the reference), desktop (`app/deepLink.cpp`), bot (`Infrastructure/Links/DeepLinkCodec.cs`)
+Pin the launch-payload / deep-link contract shared by browser (`js/core/launch/deepLink.js`,
+the reference), desktop (`io/deepLink.cpp`), bot (`Infrastructure/Links/DeepLinkCodec.cs`)
 and the extension (which builds `#stencil=` payloads).
 
 `launchPayload.json` — `{ name, payload, expect: "ok"|"rejected", normalized? }`:

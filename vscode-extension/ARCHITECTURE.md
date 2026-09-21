@@ -30,7 +30,7 @@ graph TD
       COPIES["src/parser/script/"]
       GRAM["syntaxes/stc.tmLanguage.json"]
     end
-    SRC["browser/js/core/script*.js"]
+    SRC["browser/js/core/script/"]
     DTS["browser/js/console/stencilApi.d.ts"]
     CLI["cli/"]
     APP["the browser app"]
@@ -77,19 +77,19 @@ the only root file that may import a sibling root file. Enforced by
 | `icon.png` | the extension-page logo, rasterized from `icons/stencil.svg` | PNG, ≥128px — VS Code refuses an SVG here |
 | `src/extension.js` | `activate` / `deactivate` | wiring only; every disposable goes on the context |
 | `src/diagnostics.js` | the two diagnostic sources, the debounce and the version guard | the CLI answers for a saved file, the parser copies for a buffer; both become `vscode.Diagnostic` |
-| `src/semanticTokens.js` | the legend and the provider | standard VS Code token types only, so any theme colours it; WHICH type a token gets is `lib/tokenClassify.js` |
+| `src/semanticTokens.js` | the legend and the provider | standard VS Code token types only, so any theme colours it; WHICH type a token gets is `lib/vocab/tokenClassify.js` |
 | — | each of the three providers reads its own `stencil.*` toggle per request | a toggle must not need a reload, so nothing is decided at `register` time; colouring, recolouring and the icon themes stay VS Code's own settings |
 | `src/completion.js` | the suggestion items, one builder per group | it offers words, never a filename — a path is the user's to type |
 | `src/hover.js` | the Markdown for the token under the caret | the token comes from the same parse the colours do, so a hover cannot land where no colour did |
 | `src/decorations.js` | one `TextEditorDecorationType` per family the extension or `stencil.colors` colours, painted over the themed tokens | a theme decides what a token type looks like, so an EXACT colour can only be drawn on top; the eight families whose type means something else to a theme carry a built-in colour, every other family is the theme's until named, and an empty string hands one back |
 | `src/colors.js` | the one command that is not a CLI invocation: it seeds and opens VS Code's token-colour setting | an extension may not set token colours, so this hands the user the setting rather than owning one; the seeded rules are pinned to the README block (`tests/colors.test.js`) |
 | `src/commands.js` | run, run-on-image, check | one CLI invocation each, in the reused `Stencil` terminal, `cwd` = the script's directory |
-| `src/webCommands.js` | the browser commands: the hand-off (plain and incognito), and the three that evaluate in the page | it composes no shell line and reads no target out of the document — the instance comes from `lib/target.js` alone |
-| `src/jsHints.js` | the facade's completions and hovers, for `.stcjs` and for an opted-in `.js` | additive to the editor's own JavaScript service, which cannot know a facade a page installs at runtime; both flavours are offered to VS Code and `lib/jsSource.js` decides per request — except where the workspace holds the typings and the service can answer for itself |
+| `src/webCommands.js` | the browser commands: the hand-off (plain and incognito), and the three that evaluate in the page | it composes no shell line and reads no target out of the document — the instance comes from `lib/web/target.js` alone |
+| `src/jsHints.js` | the facade's completions and hovers, for `.stcjs` and for an opted-in `.js` | additive to the editor's own JavaScript service, which cannot know a facade a page installs at runtime; both flavours are offered to VS Code and `lib/emit/jsSource.js` decides per request — except where the workspace holds the typings and the service can answer for itself |
 | `src/typings.js` over `src/lib/emit/typingsFile.js` | the one command that writes the facade's types into a workspace | it writes `stencil.d.ts`, and a `jsconfig.json` only where the project has none — one it already has is the user's |
 | `typings/stencil.d.ts` + `tools/genTypings.mjs` | the facade as ONE ambient script: the app's types flattened, every member carrying its summary, its example and a link to the docs | generated, never hand-edited (`tests/typings.test.js` regenerates and compares); a top-level `export` would make it a module and its declarations would stop being global |
 | `src/lib/` (+ `spawn/`, `web/`, `vocab/`, `emit/`) | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `target.js` (the ONE way the browser instance is named), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `launch.js` (the `#stencil=` hand-off) and `console.js` (the debug configuration, the expression and the two waits), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version), `versionCache.js` under both it and `jsSource.js` (one answer per document version), `vocabularyEntry.js` (how one entry renders, whatever table it came from) under `vocabulary.js` (the one reading of the language's vocabulary table) and `apiVocabulary.js` (the same for the facade's), `jsSource.js` (which JavaScript buffers are Stencil's), `tokenClassify.js` (a legend type per token, from the statement it sits in), `colorFamilies.js` (the user-facing name for each legend type, and the reduction of `stencil.colors`) and `completionContext.js` (which suggestion groups a caret takes) | `vscode` is passed in, never imported, so each is a pure unit |
-| `src/parser/` | byte-equal copies of `browser/js/core/script*.js`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | ESM, scoped by its own `package.json`; pinned both directions by `tests/parserParity.test.js` |
+| `src/parser/` | `script/`, byte-equal copies of `browser/js/core/script/`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | ESM, scoped by its own `package.json`; pinned both directions by `tests/parserParity.test.js` |
 | `src/config/` | `colorNames.json`, the one table the copies import, and the two vocabularies, `stcVocabulary.json` and `stencilApiVocabulary.json` | `colorNames.json` is byte-pinned to `browser/js/config/colorNames.json`; both vocabularies are this surface's own prose — no other surface explains the language or the facade to a reader — over somebody else's list: the directive keys are held to the parser's `DIRECTIVES`, the member keys and signatures to `interface Stencil` in `browser/js/console/stencilApi.d.ts` |
 | `tests/` | `node --test` suites and `helpers/vscodeStub.js` | ESM, scoped by its own `package.json`; no editor, no network |
 
@@ -131,7 +131,7 @@ classDiagram
 | `ShellRules` (`src/lib/spawn/shellQuote.js`) | one shell family's quoting: what needs no quotes, how a quote is escaped, how a directory is changed, what a quoted command word needs in front of it | a frozen table entry, chosen per invocation from `vscode.env.shell` | `CommandLine` |
 | `LaunchPayload` (`src/lib/web/launch.js`) | what rides the `#stencil=` fragment: the script, a picture as inlined bytes or as a URL, and the incognito flag; a `.stencil` arrives already split into the two | per invocation of the hand-off; consumed once by the app and stripped from its URL | `ScriptProgram` (whose blocks say what the browser cannot open), the receiving `normalizeLaunchPayload` |
 | `WebSession` (`src/lib/web/console.js`) | the js-debug session driving the browser, addressed by one `evaluate` custom request | VS Code's, one per browser window; reused across runs while it lives | `ExtensionSettings.webBrowser`, the page's `window.stencil` |
-| `ApiEntry` (`src/config/stencilApiVocabulary.json`) | one `window.stencil` member as a reader meets it: its group, its signature, what it does | a frozen table entry, read through `lib/apiVocabulary.js` | `interface Stencil` in `browser/js/console/stencilApi.d.ts`, which is its list |
+| `ApiEntry` (`src/config/stencilApiVocabulary.json`) | one `window.stencil` member as a reader meets it: its group, its signature, what it does | a frozen table entry, read through `lib/vocab/apiVocabulary.js` | `interface Stencil` in `browser/js/console/stencilApi.d.ts`, which is its list |
 | `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map laid over `colorFamilies.js`'s built-in palette, and the three browser settings (`webUrl`, `webBrowser`, `webInlineImages`) | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations, both browser routes |
 
 ## Patterns
@@ -236,7 +236,7 @@ classDiagram
   costs a whole-text scan per ask — what "anywhere" is worth. The words with code in front of them
   are not it, and are hovered with the reason, because a coloured line that does nothing is worse
   than no line at all.
-- **The parser copies.** `src/parser/` is `browser/js/core/script*.js`, byte for byte, with
+- **The parser copies.** `src/parser/script/` is `browser/js/core/script/`, byte for byte, with
   two files left behind: `script.js`, whose imports reach the wasm loader and the app's unit
   helpers, and `scriptHandles.js`, which marshals wasm handles. `src/parser/index.js` stands in
   for the first, re-composing lex → parse → lower exactly as `script.js` does when wasm is

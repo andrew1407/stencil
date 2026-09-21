@@ -5,7 +5,7 @@ Vectors for the per-project chat document all five persisting surfaces serialize
 `.stencil` `chat` key, bot server-side). Reference implementation:
 `browser/js/llm/chat/store.js` (`parseChatDoc` / `buildChatDoc`,
 `CHAT_DOC_VERSION = 1`, 32-message cap). Walked by
-`browser/tests/llmWireFixtures.test.js`.
+`browser/tests/llm/llmWireFixtures.test.js`.
 
 Two files, each an array of case objects with `name` (unique) + optional `comment` and an
 optional informational `divergences` map (`{ "<surface>": "one-line summary" }` of measured

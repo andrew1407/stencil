@@ -115,7 +115,7 @@ Four invariants:
 1. **Each core module is a port of a named `browser/js/` call site.** The mapping is at the
    top of every core header. Behaviour is identical down to edge cases; `core/tests/` are
    ports of `browser/tests/`.
-2. **The JS fallback matches wasm op-for-op.** `browser/tests/wasm-parity.test.js` proves
+2. **The JS fallback matches wasm op-for-op.** `browser/tests/wasm/wasm-parity.test.js` proves
    it and CI builds wasm fresh to run it.
 3. **No `eval`, either side.** `browser/js/core/parse/formulaEngine.js` and `core/parse/formulaParser`
    are both real recursive-descent parsers: `+ - * / ** ( )`, one variable, `**`
@@ -157,7 +157,7 @@ Five consumption mechanisms, one per surface:
 
 A table a surface writes in its own words is held to the canonical list the same way, without
 being a copy of it: `vscode-extension/src/config/stencilApiVocabulary.json` explains every
-`window.stencil` member, and `tests/apiVocabulary.test.js` asserts its keys and signatures
+`window.stencil` member, and `tests/lib/vocab/apiVocabulary.test.js` asserts its keys and signatures
 against `interface Stencil` in `browser/js/console/stencilApi.d.ts`, both directions.
 
 The fifth rail exists only where embedding is impossible: the extensions ship self-contained
@@ -166,7 +166,7 @@ pystencil stays relocatable. Every copy on this rail carries a byte-equality dri
 `browser-extension/tests/dataParity.test.js` (modes `full` / `subset`, with declared
 `extensionOnly` names), `pystencil/tests/test_canonical_drift.py`, and
 `vscode-extension/tests/parserParity.test.js`, which pins both `src/config/colorNames.json`
-and the copied `src/parser/script*.js` to `browser/js/` in **both directions** — no file may
+and the copied `src/parser/script/` to `browser/js/` in **both directions** — no file may
 appear, vanish or change on one side alone.
 
 A value the core can compute is read rather than mirrored: page formats and colour names
@@ -232,7 +232,7 @@ The recurring structures, under the names the repo uses for them.
   interface the caller cannot see through.
 - **Chain of Responsibility** — request middleware on the server, and the guard chains on
   each surface's fetch path.
-- **Adapter** — CLI argv builders (`mcp/src/args.rs`, bot's `CliArgvBuilder`) translating a
+- **Adapter** — CLI argv builders (`mcp/src/args/`, bot's `CliArgvBuilder`) translating a
   typed request into the CLI's documented flags.
 - **Interpreter** — `core/parse/formulaParser` over an `f(x)` expression, and `core/script/`
   over a `.stc`: lex → parse → expand templates → lower to an op stream. Neither evaluates
@@ -240,4 +240,4 @@ The recurring structures, under the names the repo uses for them.
   toolbar makes, so a script and a click are one code path.
 - **Port (byte-equal copy)** — a module the consumer cannot import across subprojects, copied
   and pinned: the `browser/js/ui` + `llm/llmClient` modules into `browser-extension/src/lib/`,
-  `browser/js/core/script*.js` into `vscode-extension/src/parser/`. The pin, not the copy, is the contract.
+  `browser/js/core/script/` into `vscode-extension/src/parser/script/`. The pin, not the copy, is the contract.

@@ -65,7 +65,7 @@ CMake + Doctest; each other surface uses its platform's default.
    the top of each core header — and must stay behaviorally identical down to edge cases.
    `core/tests/` are ports of `browser/tests/`. Change one side, change the other, update both.
 2. **The browser runs `core/` via wasm with a JS fallback that must match it op-for-op.**
-   `browser/tests/wasm-parity.test.js` enforces it; CI builds wasm fresh to run it.
+   `browser/tests/wasm/wasm-parity.test.js` enforces it; CI builds wasm fresh to run it.
 3. **No `eval` anywhere.** `browser/js/core/parse/formulaEngine.js` and `core/parse/formulaParser`
    are both real recursive-descent parsers (no `new Function`), aligned down to the shared
    `MAX_DEPTH`.
