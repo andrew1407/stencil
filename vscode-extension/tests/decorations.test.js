@@ -10,7 +10,7 @@ import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
 const require = createRequire(import.meta.url);
-const families = require('../src/lib/colorFamilies.js');
+const families = require('../src/lib/vocab/colorFamilies.js');
 const { DEFAULTS, FAMILIES, FAMILY_TYPE, overridesFor } = families;
 
 const LIGHT = 1;

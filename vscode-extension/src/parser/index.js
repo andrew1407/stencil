@@ -1,11 +1,11 @@
 // The parser copies' entry point: the composition browser/js/core/script.js performs when
 // wasm is absent. parseScriptJS and the two dump wrappers are pinned to it, declaration for
 // declaration, by tests/parserParity.test.js.
-import { hasErrors } from './scriptDiagnostics.js';
-import { dumpDiagnostics, dumpProgram } from './scriptDump.js';
-import { lexScript } from './scriptLexer.js';
-import { lowerScript } from './scriptLower.js';
-import { parseScript as parseStatements } from './scriptParser.js';
+import { hasErrors } from './script/diagnostics.js';
+import { dumpDiagnostics, dumpProgram } from './script/dump.js';
+import { lexScript } from './script/lexer.js';
+import { lowerScript } from './script/lower.js';
+import { parseScript as parseStatements } from './script/parser.js';
 
 /* Parses a script into { tokens, diagnostics, blocks, ops }. Diagnostics come in source
  * order; a program with any error must not be executed. */

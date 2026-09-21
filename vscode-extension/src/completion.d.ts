@@ -1,5 +1,5 @@
 // Shape of completion.js — the suggestion list for a caret in a .stc buffer.
-import type { ScriptToken } from './parser/scriptTypes.js';
+import type { ScriptToken } from './parser/script/types.js';
 export declare const COLOR_WORDS: readonly string[];
 export declare const LAYOUT_MODES: readonly string[];
 export declare const USE_SUBS: readonly string[];

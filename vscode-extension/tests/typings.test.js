@@ -10,7 +10,7 @@ import { buildTypings, DOCS_URL } from '../tools/genTypings.mjs';
 import { installVscodeStub, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
 const require = createRequire(import.meta.url);
-const file = require('../src/lib/typingsFile.js');
+const file = require('../src/lib/emit/typingsFile.js');
 const TABLE = require('../src/config/stencilApiVocabulary.json');
 
 const COMMITTED = readFileSync(new URL('../typings/stencil.d.ts', import.meta.url), 'utf8');
