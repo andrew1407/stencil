@@ -5,7 +5,7 @@
 
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 #include <QCheckBox>
 #include <QDir>
 #include <QLabel>

@@ -1,6 +1,6 @@
 #pragma once
 #include "accentDefaults.hpp"
-#include "../llm/llmSettings.hpp"
+#include "../llm/client/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
 #include "ProjectsStore.hpp"

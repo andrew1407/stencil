@@ -1,6 +1,6 @@
 #include "CanvasTooltip.hpp"
-#include "../support/DisintegrateOverlay.hpp"
-#include "../support/modalReveal.hpp"
+#include "../support/motion/DisintegrateOverlay.hpp"
+#include "../support/modal/modalReveal.hpp"
 #include <QApplication>
 #include <QLabel>
 #include <QPalette>

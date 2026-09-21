@@ -30,41 +30,42 @@ namespace {
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
-      "app/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
-      "app/SelectedLineBar.hpp",        "app/SelectionPanel.hpp",
+      "app/chat/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
+      "app/selection/SelectedLineBar.hpp",        "app/selection/SelectionPanel.hpp",
       "canvas/chainEdit.hpp",           "canvas/strokeGrowth.hpp",
-      "llm/opPlan.hpp",
-      "app/MainWindow.hpp",             "app/MainWindowBlank.cpp",
-      "app/MainWindowChat.cpp",         "app/MainWindowFullscreenZoom.cpp",
-      "app/mainWindowHelpers.hpp",      "app/MainWindowHoverDetail.cpp",
-      "app/MainWindowLaunchImage.cpp",  "app/MainWindowProjectLoad.cpp",
-      "app/MainWindowZoom.cpp",         "app/ProjectTransferController.hpp",
+      "llm/plan/opPlan.hpp",
+      "app/MainWindow.hpp",             "app/open/MainWindowBlank.cpp",
+      "app/chat/MainWindowChat.cpp",         "app/view/MainWindowFullscreenZoom.cpp",
+      "app/mainWindowHelpers.hpp",      "app/meta/MainWindowHoverDetail.cpp",
+      "app/open/MainWindowLaunchImage.cpp",  "app/project/MainWindowProjectLoad.cpp",
+      "app/view/MainWindowZoom.cpp",         "app/project/ProjectTransferController.hpp",
       "canvas/CanvasDrag.cpp",          "canvas/CanvasDrawClick.cpp",
       "canvas/CanvasHold.cpp",          "canvas/CanvasHover.cpp",
       "canvas/CanvasLineEdit.cpp",      "canvas/CanvasRelease.cpp",
       "canvas/CanvasSelection.cpp",     "canvas/CanvasSettings.cpp",
       "canvas/CanvasTransform.cpp",     "canvas/CanvasWidget.hpp",
-      "dialogs/CropDialog.hpp",         "dialogs/ExpirationDialog.cpp",
-      "dialogs/OpenImageDialogCropStage.cpp",
-      "dialogs/ProjectsDialog.cpp",     "dialogs/ProjectsDialog.hpp",
-      "dialogs/projectsRowChrome.hpp",  "io/fileStore.cpp",
-      "io/fileStore.hpp",               "llm/opPlanFields.cpp",
-      "llm/planExecutorParts.hpp",           "llm/planExecutor.hpp",
-      "support/cssColor.hpp",           "support/guiHelpers.cpp",
+      "dialogs/crop/CropDialog.hpp",         "dialogs/meta/ExpirationDialog.cpp",
+      "dialogs/openImage/OpenImageDialogCropStage.cpp",
+      "dialogs/projects/ProjectsDialog.cpp",     "dialogs/projects/ProjectsDialog.hpp",
+      "dialogs/projects/projectsRowChrome.hpp",  "io/fileStore.cpp",
+      "io/fileStore.hpp",               "llm/plan/opPlanFields.cpp",
+      "llm/plan/planExecutorParts.hpp",           "llm/plan/planExecutor.hpp",
+      "support/theme/cssColor.hpp",           "support/guiHelpers.cpp",
   };
 
   // One app/ header a sibling still reaches for: the shared name-chip metrics (NAME_CHIP_BOX /
   // NAME_CHIP_GLYPH) that the projects list draws its rows with. They belong in support/.
   const char* APP_INCLUDE_ALLOWANCE[] = {
-      "dialogs/ProjectsDialog.cpp:mainWindowHelpers.hpp",
+      "dialogs/projects/ProjectsDialog.cpp:mainWindowHelpers.hpp",
   };
 
+  // Recursive: a group's headers now sit in feature folders under it, and the group still owns them.
   QStringList headersIn(const QDir& dir) {
     QStringList out;
     if (!dir.exists()) return out;
-    for (const QFileInfo& fi : dir.entryInfoList({QStringLiteral("*.hpp"), QStringLiteral("*.h")},
-                                                 QDir::Files))
-      out << fi.fileName();
+    QDirIterator it(dir.absolutePath(), {QStringLiteral("*.hpp"), QStringLiteral("*.h")},
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) out << QFileInfo(it.next()).fileName();
     return out;
   }
 

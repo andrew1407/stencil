@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — The gestures that open a row in the projects list.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
-#include "../src/support/filterFade.hpp"
+#include "../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT

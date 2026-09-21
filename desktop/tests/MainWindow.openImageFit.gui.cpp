@@ -4,9 +4,9 @@
 
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
-#include "../src/support/iconSpin.hpp"
-#include "../src/support/scrubBar.hpp"
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/icon/iconSpin.hpp"
+#include "../src/support/control/scrubBar.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QLineEdit>

@@ -3,7 +3,7 @@
 // 1.5x faster than the DUST_MS every list row, chip and dialog shares.
 #include "CanvasWidget.hpp"
 #include "MainWindow.hpp"
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 
 #include <QApplication>
 #include <QDir>

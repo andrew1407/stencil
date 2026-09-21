@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — The .stencil file: opening it, autosaving edits into it, and deleting the linked one.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
-#include "../src/support/filterFade.hpp"
+#include "../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
