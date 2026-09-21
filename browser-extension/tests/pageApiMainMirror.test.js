@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import * as truth from '../src/lib/pageImages.js';
+import * as truth from '../src/lib/image/pageImages.js';
 
 const MAIN_SRC = readFileSync(
   fileURLToPath(new URL('../src/content/pageApiMain.js', import.meta.url)),

@@ -48,7 +48,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
 });
 
 test('the options dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', () => {
-  const cs = read('../src/lib/customSelect.js');
+  const cs = read('../src/lib/control/customSelect.js');
   assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null, preview = null \} = \{\}\)/);
   assert.match(cs, /slot\.className = 'cs-opt-icon';/);
   assert.match(cs, /const glyph = icons \? icons\(selectEl\.value\) : '';/);
@@ -57,7 +57,7 @@ test('the options dropdown wears the glyphs; the dropdown puts them before the l
 });
 
 test('a pick is applied before the list leaves and the value swaps, so both play in the new mode', () => {
-  const cs = read('../src/lib/customSelect.js');
+  const cs = read('../src/lib/control/customSelect.js');
   const body = cs.slice(cs.indexOf('const choose = (v) => {'), cs.indexOf('trigger.addEventListener'));
   const at = (needle) => body.indexOf(needle);
   assert.ok(at('proto.set.call(selectEl, v);') >= 0, 'the raw setter — no early sync');

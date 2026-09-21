@@ -1,6 +1,6 @@
 import { fetchAsDataUrl } from '../lib/stencil.js';
-import { editableSrc } from '../lib/imageModel.js';
-import { createHoverPreview } from '../lib/hoverPreview.js';
+import { editableSrc } from '../lib/image/imageModel.js';
+import { createHoverPreview } from '../lib/highlight/hoverPreview.js';
 import { previewEl, previewImg, THUMB_PX } from './panelDom.js';
 import { rowResource } from './model.js';
 

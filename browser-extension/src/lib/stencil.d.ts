@@ -1,4 +1,4 @@
-import type { Settings } from './settings.js';
+import type { Settings } from './prefs/settings.js';
 
 export declare const DEFAULT_EDITOR_URL: string;
 export declare const DEFAULT_PAGE: string;

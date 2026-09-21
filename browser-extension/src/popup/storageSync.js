@@ -1,8 +1,8 @@
 // Everything another open surface or the options page can change under this one.
-import { LEDGER_KEY } from '../lib/ledger.js';
-import { PINS_KEY } from '../lib/pins.js';
-import { CONNECTIONS_KEY } from '../lib/connections.js';
-import { FILTERS_KEY } from '../lib/filterUi.js';
+import { LEDGER_KEY } from '../lib/prefs/ledger.js';
+import { PINS_KEY } from '../lib/prefs/pins.js';
+import { CONNECTIONS_KEY } from '../lib/connection/connections.js';
+import { FILTERS_KEY } from '../lib/highlight/filterUi.js';
 import { state } from './model.js';
 import { annotateOpened, annotatePinned, loadOpenInSettings } from './scan.js';
 import { filterUi, applyFilters } from './filters.js';

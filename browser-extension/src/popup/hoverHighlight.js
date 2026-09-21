@@ -1,8 +1,8 @@
-import { highlightColorValue } from '../lib/highlightColor.js';
-import { highlightSourceOnTab } from '../lib/hoverHighlight.js';
+import { highlightColorValue } from '../lib/highlight/highlightColor.js';
+import { highlightSourceOnTab } from '../lib/highlight/hoverHighlight.js';
 import { MSG } from '../lib/messages.js';
-import { sameSource } from '../lib/dropEntry.js';
-import { sourceOf, pinnable } from '../lib/imageModel.js';
+import { sameSource } from '../lib/drop/dropEntry.js';
+import { sourceOf, pinnable } from '../lib/image/imageModel.js';
 import { state, rowElFor } from './model.js';
 
 // All row hovers share ONE debounced scheduler, so a sweep collapses to the last hovered

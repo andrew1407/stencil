@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from '../base.js';
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { wireHoverDust, foldDust } from '../motion.js';
 import { onWindowResize } from '../../utils.js';

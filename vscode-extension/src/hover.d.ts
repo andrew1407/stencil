@@ -1,5 +1,5 @@
 // Shape of hover.js — the Markdown explanation of the token under the caret.
-import type { ScriptToken } from './parser/scriptTypes.js';
+import type { ScriptToken } from './parser/script/scriptTypes.js';
 export declare const PARAM_DOC: string;
 export declare const tokenAt: (
   tokens: ScriptToken[], position: { line: number; character: number },

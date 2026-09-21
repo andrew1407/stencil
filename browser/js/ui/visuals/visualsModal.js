@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from '../base.js';
 import { visualsModalInner } from './visualsMarkup.js';
 import { setVal, setRadioGroup, notify } from '../../utils.js';
-import { DEFAULT_ACCENT } from '../../core/accents.js';
+import { DEFAULT_ACCENT } from '../../core/settings/accents.js';
 import { buildAccentPicker } from '../accent/accentPicker.js';
 import { motionModeIcon } from '../motionIcons.js';
 import { enhanceSelect } from '../control/customSelect.js';

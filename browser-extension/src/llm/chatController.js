@@ -9,7 +9,7 @@ import { createOpExecutors } from './opExecutors.js';
 
 export const HISTORY_LIMIT = 32;
 // Contract §7 image downscale bound — the same long edge every rasterise path uses.
-export { DEFAULT_MAX_EDGE as MAX_IMAGE_EDGE } from '../lib/rasterize.js';
+export { DEFAULT_MAX_EDGE as MAX_IMAGE_EDGE } from '../lib/image/rasterize.js';
 
 // How many images ONE message may carry (browser chatController.js twin): images are
 // re-encoded and replayed per turn (§7), and past three the queue is refused out loud.

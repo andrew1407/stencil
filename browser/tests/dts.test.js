@@ -9,7 +9,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const JS = fileURLToPath(new URL('../js/', import.meta.url));
+const JS = fileURLToPath(new URL('../js', import.meta.url));
 const read = (p) => readFileSync(p, 'utf8');
 
 const walk = (dir, out = []) => {

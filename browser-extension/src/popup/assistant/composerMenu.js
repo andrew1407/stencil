@@ -1,8 +1,8 @@
 // ── The composer's "…" overflow: attach / clear / settings ──────────────────
 // Browser + desktop parity: the items reuse the existing handlers, only the affordance
 // moved. Both edges of the menu fly, like every other surface here.
-import { applyChatSide, toggleChatSide } from '../../lib/chatLayoutPrefs.js';
-import { dismissTip } from '../../lib/controlTooltip.js';
+import { applyChatSide, toggleChatSide } from '../../lib/chat/chatLayoutPrefs.js';
+import { dismissTip } from '../../lib/tip/controlTooltip.js';
 import { surfaceIn, surfaceOut, centerOf, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../lib/motion.js';
 
 export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) => {

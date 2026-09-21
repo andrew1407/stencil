@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildLayoutPayload, sanitizeLines } from '../js/core/layout.js';
 import { parseProjectFile, MAX_PROJECT_FILE_CHARS } from '../js/core/project/projectFile.js';
-import { normalizeLaunchPayload, encodeTelegramStartPayload, LAUNCH_DATA_URL_MAX } from '../js/core/deepLink.js';
+import { normalizeLaunchPayload, encodeTelegramStartPayload, LAUNCH_DATA_URL_MAX } from '../js/core/launch/deepLink.js';
 
 const CONFIG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'config');
 const FIXTURES = path.join(CONFIG_DIR, 'fixtures');

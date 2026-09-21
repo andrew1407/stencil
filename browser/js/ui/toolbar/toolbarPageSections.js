@@ -1,7 +1,7 @@
 // The toolbar's Page and Formula sections: page format + display units, and the f(x,y)
 // pill with its two fields. ui/toolbar.js composes them; every input is wired by id.
 import { icon } from '../icons.js';
-import { pageFormatOptions } from '../../core/units.js';
+import { pageFormatOptions } from '../../core/settings/units.js';
 
 export const toolbarPageSectionsHtml = () => `            <!-- ── Section: Page ── -->
             <div class="ctrl-section">

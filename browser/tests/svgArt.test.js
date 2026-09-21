@@ -1,7 +1,7 @@
 // config/svgArt.json is the one copy of the inline SVG that is NOT a 24-grid toolbar glyph: the draw-mode
 // toggle's 16-grid pair and the accent-tinted favicon. Each has a second copy the browser cannot import
 // from, so each is pinned here — favicon against favicon.svg (the static file the tab loads before JS runs)
-// and the extension's pre-paint classic script (browser-extension/src/lib/accent.js), drawMode against
+// and the extension's pre-paint classic script (src/lib/accent/accent.js), drawMode against
 // icons.json's canonical `line`/`rect`, which this pair is x1.5 smaller than.
 
 import { test } from 'node:test';
@@ -13,7 +13,7 @@ import { dirname, resolve } from 'node:path';
 import ART from '../js/config/svgArt.json' with { type: 'json' };
 import ICONS from '../js/config/icons.json' with { type: 'json' };
 import ACCENTS from '../js/config/accents.json' with { type: 'json' };
-import { faviconSvg } from '../js/core/accents.js';
+import { faviconSvg } from '../js/core/settings/accents.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(resolve(ROOT, rel), 'utf8');
@@ -55,13 +55,13 @@ test('%1 is the only placeholder, and it is the accent-stroked panel outline', (
 
 // The extension paints the same mark from a pre-paint CLASSIC script, which cannot import JSON, so its copy
 // is string concatenation: compare the drawing, not the source text.
-test('the extension paints the same favicon (src/lib/prefs.js)', () => {
-  const src = read('../browser-extension/src/lib/prefs.js');
+test('the extension paints the same favicon (src/lib/prefs/prefs.js)', () => {
+  const src = read('../browser-extension/src/lib/prefs/prefs.js');
   const body = src.slice(src.indexOf('const faviconSvg ='), src.indexOf('const applyFavicon'));
   const copy = [...body.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('');
   assert.ok(copy.includes('<svg'), 'failed to read the extension copy');
   assert.deepEqual(elements(copy), elements(ART.favicon.replace('%1', '')),
-    'browser-extension/src/lib/prefs.js faviconSvg drifted from config/svgArt.json');
+    'browser-extension/src/lib/prefs/prefs.js faviconSvg drifted from config/svgArt.json');
 });
 
 test('the draw-mode pair is the canonical line/rect pair, x1.5 smaller', () => {

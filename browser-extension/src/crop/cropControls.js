@@ -1,5 +1,5 @@
 // The two things that decide the crop's ASPECT; every change re-centres the rect.
-import { pageSizeOptions } from '../lib/cropGeometry.js';
+import { pageSizeOptions } from '../lib/image/cropGeometry.js';
 
 export const createCropControls = ({ state, resetCrop, swapCrop = resetCrop }) => {
   // Custom first, then every ISO A/B/C format from the shared table (canonical order).

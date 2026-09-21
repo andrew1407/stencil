@@ -2,10 +2,10 @@
 // Extracted from stencilApi.js. A fresh accessor object per access (the setters close over
 // the app); the same descriptors are also spread onto the facade itself, so
 // `stencil.lineColor` and `stencil.settings.lineColor` are one setter.
-import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js';
+import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/settings/accents.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/voiceSettings.js';
-import { validateHexColor } from '../core/validation.js';
+import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';
 
 export const createSettingsFacade = ({ app, guard }) => {

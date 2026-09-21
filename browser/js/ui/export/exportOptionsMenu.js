@@ -7,7 +7,7 @@ import { wireModalOpenGestures } from '../popover.js';
 import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/tipContent.js';
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { formatCombo } from '../../utils.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS,
          exportVariantState } from './exportVariants.js';

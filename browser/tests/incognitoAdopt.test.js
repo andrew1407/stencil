@@ -75,7 +75,7 @@ test('the removeProject fallback clears with keepChat and an accurate confirm', 
 // tab off the page holding the conversation.
 test('the chat panel opens nothing — no window.open, no location write, no launch URL', () => {
   // The capability bag now lives in js/llm/adapters/ — guard the whole of it, not one file.
-  const dir = new URL('../js/llm/adapters/', import.meta.url);
+  const dir = new URL('../js/llm/adapters', import.meta.url);
   const session = [src('../js/llm/chat/chatSession.js'),
     ...readdirSync(dir).filter((n) => n.endsWith('.js')).map((n) => src(`../js/llm/adapters/${n}`))].join('\n');
   assert.doesNotMatch(session, /window\.open\(/, 'the chat plumbing opens a browser tab again');

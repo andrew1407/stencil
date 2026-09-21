@@ -4,7 +4,7 @@
 // injected function can't import, and same-origin is tighter than its same-host carve-out.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scanPageForImages } from '../src/lib/imageScan.js';
+import { scanPageForImages } from '../src/lib/image/imageScan.js';
 import { installDom, stubDoc } from './helpers/domStub.js';
 
 const scan = async (manifestHref, pageUrl = 'https://shop.example/cart') => {

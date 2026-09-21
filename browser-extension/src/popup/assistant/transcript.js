@@ -4,8 +4,8 @@
 // away. Shared mutable state (busy, the controller, the working scan, the per-message
 // menu hook) lives on `state`; everything else arrives as a collaborator.
 import { icon } from '../../lib/icons.js';
-import { setTip } from '../../lib/tip.js';
-import { makeDismissible, renderSuggestions, wireThumbPreview, applyShrinkWrap } from '../../lib/chatUi.js';
+import { setTip } from '../../lib/tip/tip.js';
+import { makeDismissible, renderSuggestions, wireThumbPreview, applyShrinkWrap } from '../../lib/chat/chatUi.js';
 import { wipeDurationMs } from '../../lib/motion.js';
 import { chatLeave, chatEnter } from './shared.js';
 

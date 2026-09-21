@@ -4,7 +4,7 @@
 // key `llmSettings`, in storage.local so the apiKey never syncs across machines. All chrome.*
 // access is guarded, so importing this module under `node --test` stays inert.
 import PROVIDERS_ASSET from '../config/providers.json' with { type: 'json' };
-import { loadConnections } from '../lib/connections.js';
+import { loadConnections } from '../lib/connection/connections.js';
 
 export const LLM_SETTINGS_KEY = 'llmSettings';
 

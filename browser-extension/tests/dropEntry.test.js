@@ -9,7 +9,7 @@ import {
   sameSource, isMediaFile, entryFromUrl, entryFromDrop,
   DRAG_MENU_ACTIONS, dragMenuActions, dragActionAllowed,
   INTERNAL_DRAG_TYPE, dragPayloadKind, createDragArmer,
-} from '../src/lib/dropEntry.js';
+} from '../src/lib/drop/dropEntry.js';
 
 const ids = (entry) => dragMenuActions(entry).map((a) => a.id);
 

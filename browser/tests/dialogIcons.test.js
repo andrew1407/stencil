@@ -9,7 +9,7 @@ import { join } from 'node:path';
 // a check mark beside "This cannot be undone" reads as reassurance.
 import { ICONS } from '../js/ui/icons.js';
 
-const JS_ROOT = new URL('../js/', import.meta.url).pathname;
+const JS_ROOT = new URL('../js', import.meta.url).pathname;
 
 const sourceFiles = (dir) => {
   const out = [];

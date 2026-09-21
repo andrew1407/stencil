@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
-import { rotateLinePointsQuarter } from '../js/core/cropGeometry.js';
+import { rotateLinePointsQuarter } from '../js/core/parse/cropGeometry.js';
 import { plan, makeStub, drawnBy } from './helpers/opPlanRig.js';
 
 test('executor maps every op onto the facade', async () => {

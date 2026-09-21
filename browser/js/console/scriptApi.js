@@ -1,6 +1,6 @@
 // window.stencil's .stc entry: run a script string against the live editor.
 import { parseScript } from '../core/script.js';
-import { formatDiagnostic } from '../core/scriptDiagnostics.js';
+import { formatDiagnostic } from '../core/script/scriptDiagnostics.js';
 import { runScript } from './scriptRunner.js';
 
 export const createScriptApi = () => {

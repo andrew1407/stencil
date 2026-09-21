@@ -1,5 +1,5 @@
 import { createEditorMode } from './editorMode.js';
-import { SEARCH_SECTION } from '../lib/dragSections.js';
+import { SEARCH_SECTION } from '../lib/drop/dragSections.js';
 import { statusEl, run, dismiss } from './panelDom.js';
 import { item, submenu, openMenuNodes, closeMenu } from './rowMenu.js';
 import { imageDataUrl } from './openActions.js';

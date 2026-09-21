@@ -1,7 +1,7 @@
 import { icon, DRAW_MODE_ICON } from './icons.js';
 import { swapContent, pinWidestFace } from './motion.js';
 import { composeControlTitle } from '../utils.js';
-import { hotkeys } from '../core/hotkeys.js';
+import { hotkeys } from '../core/settings/hotkeys.js';
 
 // The Draw group's Start/Stop and Line/Rect faces, driven from updateButtons()
 // (ui/controlState.js) so core holds no icon markup.

@@ -1,7 +1,7 @@
 // Records what the ctxTarget probe resolved under the cursor and relabels/reveals the menu
 // groups that depend on it. Everything here must be synchronous: the native menu is opening.
-import { MENU, menuVisibilityFor, DYNAMIC_ITEMS, PREVIEW_ITEMS, pinItemTitle } from '../../lib/contextMenu.js';
-import { isPinnedIn, siteOf } from '../../lib/pins.js';
+import { MENU, menuVisibilityFor, DYNAMIC_ITEMS, PREVIEW_ITEMS, pinItemTitle } from '../../lib/menu/contextMenu.js';
+import { isPinnedIn, siteOf } from '../../lib/prefs/pins.js';
 import { MSG } from '../../lib/messages.js';
 import { lastTargetByTab, lastVideoByTab, lastPosterByTab, pinsCache } from '../tabState.js';
 import { desktopSchemeSet } from '../menus.js';

@@ -57,6 +57,6 @@ test('the cross-surface channels still match the extension bridge byte-for-byte'
 test('the app listens for switchToSource and dispatches registryChanged', () => {
   const app = readFileSync(resolve(ROOT, 'js/core/drawingApp.js'), 'utf8');
   assert.ok(app.includes('window.addEventListener(EVENTS.switchToSource'));
-  const tabs = readFileSync(resolve(ROOT, 'js/core/tabsCoordinator.js'), 'utf8');
+  const tabs = readFileSync(resolve(ROOT, 'js/core/launch/tabsCoordinator.js'), 'utf8');
   assert.ok(tabs.includes('new Event(EVENTS.registryChanged)'));
 });

@@ -1,6 +1,6 @@
 // The single import point for the motion layer (mirror of browser/js/ui/motion.js); the
 // sections live one per file under motion/. CSS owns the keyframes — this only toggles classes.
-export { prefersReducedMotion, motionMode, motionReduced, dustEnabled, particleStyle } from './motionPrefs.js';
+export { prefersReducedMotion, motionMode, motionReduced, dustEnabled, particleStyle } from './prefs/motionPrefs.js';
 export * from './motion/reveal.js';
 export * from './motion/tiles.js';
 export * from './motion/painters.js';

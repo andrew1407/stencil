@@ -1,5 +1,5 @@
 import { PROJECT_ACTION } from '../../worker/messages.js';
-import { normalizePageSize } from '../units.js';
+import { normalizePageSize } from '../settings/units.js';
 import { normalizeCropRect } from '../layout.js';
 import { createTrailingSave } from '../zoom/zoomPan.js';
 import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../../ui/motion.js';

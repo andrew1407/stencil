@@ -36,7 +36,7 @@ export const assistantSrc = () => [read('../../src/popup/assistant.js')]
   .concat(readdirSync(assistantDir).sort().map((f) => readFileSync(assistantDir + f, 'utf8'))).join('\n');
 
 const motionDir = fileURLToPath(new URL('../../src/lib/motion/', import.meta.url));
-export const motionSrc = () => [read('../../src/lib/motionPrefs.js')]
+export const motionSrc = () => [read('../../src/lib/prefs/motionPrefs.js')]
   .concat(readdirSync(motionDir).sort().map((f) => readFileSync(motionDir + f, 'utf8'))).join('\n');
 
 // The browser's animation sheets are a set, linked by its index.html; read in that link order so

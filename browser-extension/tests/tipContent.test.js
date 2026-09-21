@@ -1,4 +1,4 @@
-// src/lib/tipContent.js is a rule-for-rule PORT of browser/js/ui/tipContent.js. Its
+// src/lib/tipContent.js is a rule-for-rule PORT of browser/js/ui/tip/tipContent.js. Its
 // behavioural cases (parse/render, keycaps, platform key vocabulary) live in
 // browser/tests/tipContent.test.js; portParity.test.js pins the two sources identical,
 // so the extension no longer duplicates that suite. What remains here is the
@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { themeCss } from './helpers/sources.js';
 
 test('the tooltip controller renders the structure, and the CSS styles every part', () => {
-  const js = readFileSync(new URL('../src/lib/controlTooltip.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../src/lib/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(js, /renderTip/, 'the controller goes through the content model');
   assert.ok(!/\.textContent\s*=\s*txt/.test(js), 'and no longer prints the title flat');
   const css = themeCss();

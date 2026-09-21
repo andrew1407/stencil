@@ -1,8 +1,8 @@
-import { createDragSectionOpener, ASSISTANT_SECTION, SEARCH_SECTION, SPRING_DWELL_MS } from '../lib/dragSections.js';
-import { createLogoDragMenu } from '../lib/logoDragMenu.js';
-import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/dropEntry.js';
+import { createDragSectionOpener, ASSISTANT_SECTION, SEARCH_SECTION, SPRING_DWELL_MS } from '../lib/drop/dragSections.js';
+import { createLogoDragMenu } from '../lib/accent/logoDragMenu.js';
+import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/drop/dropEntry.js';
 import { shortName } from '../lib/displayName.js';
-import { sourceOf } from '../lib/imageModel.js';
+import { sourceOf } from '../lib/image/imageModel.js';
 import { listEl, menuEl, statusEl, run, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
 import { state } from './model.js';
 import { openHere, openCrop } from './openActions.js';

@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { animationsCss, themeCss } from './helpers/sources.js';
-import { setTip, tipLabel } from '../src/lib/tip.js';
+import { setTip, tipLabel } from '../src/lib/tip/tip.js';
 import { stubEl } from './helpers/domStub.js';
 
 test('setTip writes data-title and never a title attribute', () => {
@@ -35,10 +35,10 @@ test('empty text clears both attributes, and a missing element is a no-op', () =
 
 // lib/overlay.js is the one exception: it is injected into the HOST page (executeScript({func}), so
 // it cannot import), which means controlTooltip.js never runs over it.
-const NATIVE_TITLE_OK = new Set(['src/lib/overlay.js']);
+const NATIVE_TITLE_OK = new Set(['src/lib/drop/overlay.js']);
 // controlTooltip.js blanks/restores a native title it finds (a port pinned byte-for-byte
 // against its browser twin); tipContent.js's `tip.title` is a plain object field.
-const NOT_A_CALL_SITE = new Set(['src/lib/controlTooltip.js', 'src/lib/tipContent.js']);
+const NOT_A_CALL_SITE = new Set(['src/lib/tip/controlTooltip.js', 'src/lib/tip/tipContent.js']);
 
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {

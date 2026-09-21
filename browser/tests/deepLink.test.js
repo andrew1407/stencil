@@ -6,7 +6,7 @@ import {
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
   buildDesktopBounceUrl, normalizeLaunchPayload, TELEGRAM_START_LIMIT,
   LAUNCH_DATA_URL_MAX,
-} from '../js/core/deepLink.js';
+} from '../js/core/launch/deepLink.js';
 
 test('readOpenProjectId returns the project id from the open param', () => {
   assert.strictEqual(readOpenProjectId('?open=p_1'), 'p_1');

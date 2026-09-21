@@ -1,8 +1,8 @@
 // The panel's dialog shell: click-away and Escape both cancel; an `anchor` switches on
 // the popover shape (lib/popover.js placement). The Escape listener must be removed on
 // EVERY close route, or it lingers for the panel's lifetime.
-import { popoverPosition } from '../lib/popover.js';
-import { menuTransformOrigin } from '../lib/chatMsgMenu.js';
+import { popoverPosition } from '../lib/tip/popover.js';
+import { menuTransformOrigin } from '../lib/chat/chatMsgMenu.js';
 import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
 // Resolves exactly once; `finish(undefined)` is a cancel, as click-away / Escape are.

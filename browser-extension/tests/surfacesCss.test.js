@@ -4,13 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { animationsCss, motionSrc, themeCss } from './helpers/sources.js';
-import { FLIGHTS, alphaAt } from '../src/lib/dustCloud.js';
+import { FLIGHTS, alphaAt } from '../src/lib/dust/dustCloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ANIMS = animationsCss();
 const MOTION = motionSrc();
 const THEME = themeCss();
-const OVERLAY = css('../src/lib/overlay.js');
+const OVERLAY = css('../src/lib/drop/overlay.js');
 
 // ── The CSS contract ────────────────────────────────────────────────────────
 test('a dusted surface waits behind its motes, and its old pop stays off for good', () => {
@@ -58,7 +58,7 @@ test('the tooltip keeps its mask grain as the fallback under the real motes', ()
   assert.match(ANIMS, /@property --dissolve \{ syntax: "<number>"; inherits: false; initial-value: 0; \}/);
   // …and once a real cloud has flown, the mask and the transition are off for good.
   assert.match(THEME, /#app-tooltip\.dust-driven \{[\s\S]*?mask-image: none;/);
-  const tip = readFileSync(new URL('../src/lib/controlTooltip.js', import.meta.url), 'utf8');
+  const tip = readFileSync(new URL('../src/lib/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(tip, /surfaceIn\(t, dustPoint\(el\), \{ ms: TIP_IN_MS \}\)/);
   assert.match(tip, /surfaceOut\(tip, dustPoint\(owner\), \{ ms: TIP_OUT_MS \}\)/);
 });

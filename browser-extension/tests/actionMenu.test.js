@@ -3,7 +3,7 @@
 // builders + open/close/Escape machinery, driven with a stub document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { menuPlacement, anchoredX, flyoutPlacement, createActionMenu } from '../src/lib/actionMenu.js';
+import { menuPlacement, anchoredX, flyoutPlacement, createActionMenu } from '../src/lib/control/actionMenu.js';
 import { stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 // ── Pure placement ──

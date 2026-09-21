@@ -1,6 +1,6 @@
 // What the Open-Image window remembers per tab: its own source, decode and crop, and what a
 // switch shows. The strip itself is ui/tabs.js — this is what the window does on the change.
-import { isAlbumOrientation } from '../../core/cropGeometry.js';
+import { isAlbumOrientation } from '../../core/parse/cropGeometry.js';
 import { createMediaPairs } from './mediaPairs.js';
 import { createPreviewFlow } from './previewFlow.js';
 

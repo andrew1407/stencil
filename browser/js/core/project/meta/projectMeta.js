@@ -1,7 +1,7 @@
 // Live app → plain state readers: buildLayoutState feeds the pure serializeSession();
 // buildProjectMeta builds the registry row (the projects list reads only this, never the payload).
 import { serializeSession, buildLayoutPayload } from '../../layout.js';
-import { layoutLineLengthCm } from '../../units.js';
+import { layoutLineLengthCm } from '../../settings/units.js';
 import { addPeriod, DEFAULT_PERIOD } from '../store/projectsStore.js';
 import { makeThumbnail } from '../../image/thumbnail.js';
 

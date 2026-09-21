@@ -1,5 +1,5 @@
 import { setHtml, setRadioGroup, formatCombo, hasAnyLines } from '../../utils.js';
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/tipContent.js';
 import { revealControls } from '../motion.js';

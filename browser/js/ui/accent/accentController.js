@@ -1,6 +1,6 @@
 import { icon } from '../icons.js';
 import { themeSwap, originOf, originOfId } from '../motion.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from '../../core/accents.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from '../../core/settings/accents.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 
 // Three appearance modes, like the desktop and the extension; 'system' is the default.

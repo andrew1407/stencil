@@ -24,7 +24,7 @@ test('the wipe: browser and extension share one duration and one ease-out curve'
   // The JS timer that clears the classes has to outlast the CSS, or the fallback
   // cross-fade is cut off mid-way.
   assert.equal(THEME_SWAP_MS, browser.ms, 'motion.js THEME_SWAP_MS is the CSS fallback');
-  const ext = readFileSync(new URL('../../browser-extension/src/lib/swapGeometry.js', import.meta.url), 'utf8');
+  const ext = readFileSync(new URL('../../browser-extension/src/lib/dust/swapGeometry.js', import.meta.url), 'utf8');
   assert.equal(Number(/const SWAP_MS = (\d+)/.exec(ext)[1]), browser.ms, 'swapGeometry.js SWAP_MS agrees');
 
   // Judged on the AREA it sweeps, not its control points: a circle's area grows as r², so the

@@ -1,7 +1,7 @@
 import { fetchAsDataUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff, resumeInOpenEditor } from '../lib/stencil.js';
-import { sourceOf, editableSrc } from '../lib/imageModel.js';
-import { rasterizeToPngDataUrl, isSvgType, isSvgUrl, mediaTypeOf } from '../lib/rasterize.js';
-import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/openIn.js';
+import { sourceOf, editableSrc } from '../lib/image/imageModel.js';
+import { rasterizeToPngDataUrl, isSvgType, isSvgUrl, mediaTypeOf } from '../lib/image/rasterize.js';
+import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/menu/openIn.js';
 import { statusEl, dismiss } from './panelDom.js';
 import { state, rowResource, surfaceTabId } from './model.js';
 import { sharedDataUrl } from './sharedPins.js';

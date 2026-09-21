@@ -1,5 +1,5 @@
 // Shape of index.js — the parser copies' entry point: parse, dump, format diagnostics.
-import type { ScriptBlock, ScriptDiagnostic, ScriptOp, ScriptToken } from './scriptTypes.js';
+import type { ScriptBlock, ScriptDiagnostic, ScriptOp, ScriptToken } from './script/scriptTypes.js';
 export interface ScriptProgram {
   tokens: ScriptToken[];
   diagnostics: ScriptDiagnostic[];

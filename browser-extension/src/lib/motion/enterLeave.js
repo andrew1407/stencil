@@ -2,7 +2,7 @@
 // A row about to be destroyed collapses and fades first, so a delete reads as the row
 // going away rather than the list jumping. The caller still does the removal in the
 // callback — this only buys it the time. Mirrors the browser twin.
-import { motionReduced, dustEnabled, prefersReducedMotion } from '../motionPrefs.js';
+import { motionReduced, dustEnabled, prefersReducedMotion } from '../prefs/motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { DISINTEGRATE_MS } from './tiles.js';
 export const LEAVE_MS = 220;

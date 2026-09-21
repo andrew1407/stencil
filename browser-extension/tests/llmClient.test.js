@@ -10,7 +10,7 @@ import {
   ASSISTANT_OFF_TEXT, serverTokenFor, turnFailureText, isUnreachableError,
 } from '../src/llm/llmSurface.js';
 import { installChromeStub } from './helpers/chromeStub.js';
-import { CONNECTIONS_KEY } from '../src/lib/connections.js';
+import { CONNECTIONS_KEY } from '../src/lib/connection/connections.js';
 
 const mockFetch = (body = {}, status = 200) => {
   const calls = [];

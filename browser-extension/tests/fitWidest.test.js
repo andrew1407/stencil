@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { themeCss } from './helpers/sources.js';
-import { pinToWidestOption } from '../src/lib/fitWidest.js';
+import { pinToWidestOption } from '../src/lib/highlight/fitWidest.js';
 
 // ── Stub DOM ────────────────────────────────────────────────────────────────
 // A custom-select trigger whose label is 7px a character and re-syncs on value set.
@@ -130,6 +130,6 @@ test('a hidden chip or dropdown takes no width', () => {
   assert.match(css, /\.chk\[hidden\] \{ display: none; \}/);
   assert.match(css, /\.accent-dd\[hidden\] \{ display: none; \}/);
   // The wrapper only ever gets `hidden` because customSelect mirrors the select's.
-  const cs = readFileSync(new URL('../src/lib/customSelect.js', import.meta.url), 'utf8');
+  const cs = readFileSync(new URL('../src/lib/control/customSelect.js', import.meta.url), 'utf8');
   assert.match(cs, /wrap\.hidden = selectEl\.hidden/);
 });

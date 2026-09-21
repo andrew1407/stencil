@@ -9,7 +9,7 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser js/ui/ctxScript.js):
+  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser js/ui/ctx/ctxScript.js):
   // typing and running leave the menu open, and the typed script outlives the menu.
   void contextMenuScriptFlyout() {
     MainWindow win(nullptr, false);

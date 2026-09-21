@@ -1,7 +1,7 @@
 // Pure .stencil project-file (de)serializer: ORIGINAL image + export layout + metadata +
 // optional theme.
 import { buildLayoutPayload, sanitizeLines } from '../layout.js';
-import { normalizeHex, isAccent } from '../accents.js';
+import { normalizeHex, isAccent } from '../settings/accents.js';
 
 export const STENCIL_FILE_FORMAT = 'stencil-project';
 export const STENCIL_FILE_VERSION = 1;

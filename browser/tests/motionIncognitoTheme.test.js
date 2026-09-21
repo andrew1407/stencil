@@ -50,7 +50,7 @@ test('theme mode: picking a mode that resolves to the painted palette does not a
   const noop = body.slice(body.indexOf('=== painted'), body.indexOf('themeSwap('));
   assert.match(noop, /localStorage\.setItem\(THEME_STORAGE_KEY, next\)/, 'the mode is still stored');
   assert.match(noop, /EVENTS\.themeChanged/, 'and still announced');
-  const ext = readFileSync(new URL('../../browser-extension/src/lib/shellPrefs.js', import.meta.url), 'utf8');
+  const ext = readFileSync(new URL('../../browser-extension/src/lib/prefs/shellPrefs.js', import.meta.url), 'utf8');
   assert.match(ext, /const repaints = resolveTheme\(next\) !== resolveTheme\(readTheme\(\)\)/,
     'the extension makes the same check');
 });

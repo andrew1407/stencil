@@ -3,7 +3,7 @@
 // apiKey, serverUrl }. Every localStorage access is guarded so the leaf is inert in Node.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
-import { validateHttpUrl } from '../core/validation.js';
+import { validateHttpUrl } from '../core/parse/validation.js';
 
 const LLM_SETTINGS_KEY = 'drawingApp_llmSettings';
 

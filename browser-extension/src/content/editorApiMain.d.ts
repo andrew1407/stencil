@@ -2,8 +2,8 @@
 // page's console gets. Eight members; README.md carries the same table in prose.
 // Every promise rejects with an Error whose message starts "Stencil: "; `open`'s
 // already-holds-an-image rejection also carries `needsChoice` + `state`.
-import type { EditorRow, SourceTabChoice } from '../lib/editorTabs.js';
-import type { AttributedScanEntry } from '../lib/imageScan.js';
+import type { EditorRow, SourceTabChoice } from '../lib/menu/editorTabs.js';
+import type { AttributedScanEntry } from '../lib/image/imageScan.js';
 import type { EditorState, ImportMode } from '../lib/messages.js';
 
 /** A scan entry with the two one-way shortcuts `images()` hangs off each row. */

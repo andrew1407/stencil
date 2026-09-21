@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clearPins, loadPins, setPinned, matchPinsForSite, sitesOf } from '../src/lib/pins.js';
+import { clearPins, loadPins, setPinned, matchPinsForSite, sitesOf } from '../src/lib/prefs/pins.js';
 
 // The stub's deferred set models the real latency gap a concurrent read-modify-write races in.
 import { installChromeStub } from './helpers/chromeStub.js';

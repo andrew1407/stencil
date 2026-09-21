@@ -9,7 +9,7 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // The copy/download-image toolbar buttons open a variant-options popup on right-click instead of
-  // re-running the plain action (browser js/ui/exportOptionsMenu.js): wireExportOptionsPopups().
+  // re-running the plain action (browser js/ui/export/exportOptionsMenu.js): wireExportOptionsPopups().
   void toolbarImageButtonsOpenExportOptionsOnRightClick() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

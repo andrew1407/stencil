@@ -117,7 +117,7 @@ test('a clickable toast runs its action once and dismisses itself', (t) => {
 });
 
 test('the cap matches the desktop stack, and the CSS stacks the column', () => {
-  const hpp = readFileSync(new URL('../../desktop/src/support/Notifications.hpp', import.meta.url), 'utf8');
+  const hpp = readFileSync(new URL('../../desktop/src/support/notify/Notifications.hpp', import.meta.url), 'utf8');
   assert.equal(MAX_VISIBLE, Number(/MAX_VISIBLE = (\d+)/.exec(hpp)[1]),
     'browser and desktop must agree on how many toasts are too many');
 
@@ -203,7 +203,7 @@ test('the toast exit rides the shared scatter curve, on a short clock', () => {
     const stagger = Number(/const TOAST_LEAVE_STAGGER = ([0-9.]+)/.exec(js)[1]);
     assert.ok(stagger <= 0.2, `stagger ${stagger} is enough to leave stragglers`);
     // …and the desktop leaves on the same clock (its constants live in the .cpp).
-    const cpp = desktopSource('support/notifications');
+    const cpp = desktopSource('support/notify/notifications');
     assert.equal(Number(/constexpr int TOAST_OUT_MS = (\d+)/.exec(cpp)[1]), leave,
         'the two apps must not drift on the exit clock');
 });

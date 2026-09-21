@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { loadAccent } from './helpers/accentSandbox.js';
-import { THEME_MODES } from '../src/lib/shellTheme.js';
+import { THEME_MODES } from '../src/lib/prefs/shellTheme.js';
 
 // ── Appearance (light / dark / system) ──
 

@@ -3,8 +3,8 @@
 // paths, so the canvas is stubbed and the DRAWING is asserted as the call sequence it is.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyAccentActionIcon, watchAccentActionIcon } from '../src/lib/actionIcon.js';
-import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../src/lib/highlightColor.js';
+import { applyAccentActionIcon, watchAccentActionIcon } from '../src/lib/control/actionIcon.js';
+import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../src/lib/highlight/highlightColor.js';
 import { installChromeStub } from './helpers/chromeStub.js';
 import { installDom } from './helpers/domStub.js';
 

@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteOf, pinKey, isPinnedIn, addPinEntry, removePinEntry, removeSiteEntries, loadPins, setPinned, setPinKeywords, projectNameColor, normalizeKeywords, pinKeywords, pinMatchesSearch, PIN_SEARCH_MODES } from '../src/lib/pins.js';
+import { siteOf, pinKey, isPinnedIn, addPinEntry, removePinEntry, removeSiteEntries, loadPins, setPinned, setPinKeywords, projectNameColor, normalizeKeywords, pinKeywords, pinMatchesSearch, PIN_SEARCH_MODES } from '../src/lib/prefs/pins.js';
 
 // The shared chrome stub's storage.local get/set are awaitable, and its deferred set models
 // the real latency gap in which a concurrent read-modify-write could race.

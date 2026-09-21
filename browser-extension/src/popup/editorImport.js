@@ -1,7 +1,7 @@
 // Import one scanned row into the editor tab this panel stands on. Resolves false when
 // nothing landed, which lets the assistant fall back to a new-tab hand-off.
 import { MSG } from '../lib/messages.js';
-import { editableSrc, sourceOf } from '../lib/imageModel.js';
+import { editableSrc, sourceOf } from '../lib/image/imageModel.js';
 import { promptImportMode } from './editorDialogs.js';
 
 export const createImportHere = ({ ask, getEditorTabId, setStatus, imageDataUrl,

@@ -1,5 +1,5 @@
 import { MSG } from '../lib/messages.js';
-import { sourceOf, editableSrc } from '../lib/imageModel.js';
+import { sourceOf, editableSrc } from '../lib/image/imageModel.js';
 import { run } from './panelDom.js';
 import { state, isOpened, surfaceTabId } from './model.js';
 import { openHere, sendToEditor, openCrop } from './openActions.js';

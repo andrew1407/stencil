@@ -1,23 +1,20 @@
 // A VS Code extension cannot import across subprojects, so browser/js/core/script*.js is
-// COPIED into src/parser/. This is the drift guard, modeled on
+// COPIED into src/parser/script/, at the same depth so every import specifier matches. This is the drift guard, modeled on
 // browser-extension/tests/portParity.test.js: byte equality, both directions — no file in
 // either tree may appear, vanish or change alone. Nothing is normalized away.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const BROWSER = fileURLToPath(new URL('../../browser/js/core/', import.meta.url));
-const COPIES = fileURLToPath(new URL('../src/parser/', import.meta.url));
+const BROWSER = fileURLToPath(new URL('../../browser/js/core/script/', import.meta.url));
+const COPIES = fileURLToPath(new URL('../src/parser/script/', import.meta.url));
+const PARSER = fileURLToPath(new URL('../src/parser/', import.meta.url));
+const CORE = fileURLToPath(new URL('../../browser/js/core/', import.meta.url));
 
-// Not copied, each for a reason the extension cannot work around.
-const EXCLUDED = new Map([
-  ['script.js', 'the entry point binds the wasm loader and the app\'s units module; '
-    + 'src/parser/index.js re-composes the JS fallback and is pinned declaration-by-declaration below'],
-  ['script.d.ts', 'the sibling of script.js; src/parser/index.d.ts describes the narrower surface'],
-  ['scriptHandles.js', 'marshals the wasm core\'s handles; there is no wasm in an editor extension'],
-  ['scriptHandles.d.ts', 'the sibling of scriptHandles.js, and describes the same wasm-only surface'],
-]);
+// core/script/ is exactly the portable parser; the wasm seam sits a level up and is never
+// copied — src/parser/index.js re-composes script.js's JS fallback, pinned below.
+const WASM_SEAM = ['script.js', 'script.d.ts', 'scriptHandles.js', 'scriptHandles.d.ts'];
 
 // Data the copies import. Byte-pinned like any other shared table (.claude/rules/architecture.md).
 const DATA = [['colorNames.json', '../../browser/js/config/colorNames.json', '../src/config/colorNames.json']];
@@ -33,29 +30,30 @@ const copies = scriptFiles(COPIES);
 
 test('the browser originals were found', () => {
   assert.ok(originals.filter((f) => f.endsWith('.js')).length >= 12,
-    `only ${originals.length} script* files in browser/js/core — the scan missed the tree`);
+    `only ${originals.length} script* files in browser/js/core/script — the scan missed the tree`);
 });
 
 test('every browser original is copied here, or excluded on the record', () => {
-  const missing = originals.filter((f) => !copies.includes(f) && !EXCLUDED.has(f));
+  const missing = originals.filter((f) => !copies.includes(f));
   assert.deepEqual(missing, [],
-    'a new browser/js/core/script* file — copy it into src/parser/, or record why not');
+    'a new browser/js/core/script* file — copy it into src/parser/script/, or record why not');
 });
 
 test('every copy here has a browser original', () => {
   const orphans = copies.filter((f) => !originals.includes(f));
-  assert.deepEqual(orphans, [], 'src/parser/ holds a file browser/js/core/ does not — delete it');
+  assert.deepEqual(orphans, [], 'src/parser/script/ holds a file browser/js/core/script/ does not — delete it');
 });
 
-test('no excluded file was quietly copied after all, and each still exists upstream', () => {
-  for (const [name, why] of EXCLUDED) {
-    assert.ok(originals.includes(name), `${name} is gone from browser/js/core — drop the exclusion`);
-    assert.ok(!copies.includes(name), `${name} is copied now — drop its exclusion (${why})`);
+test('the wasm seam stays out of this tree, and still exists upstream', () => {
+  for (const name of WASM_SEAM) {
+    assert.ok(existsSync(`${CORE}${name}`), `${name} is gone from browser/js/core — the seam moved`);
+    assert.ok(!copies.includes(name), `${name} is copied now — there is no wasm in an editor extension`);
+    assert.ok(!originals.includes(name), `${name} is back in browser/js/core/script — copy it or move it out`);
   }
 });
 
 for (const name of copies) {
-  test(`src/parser/${name} is byte-identical to browser/js/core/${name}`, () => {
+  test(`src/parser/script/${name} is byte-identical to browser/js/core/script/${name}`, () => {
     assert.ok(bytes(BROWSER, name).equals(bytes(COPIES, name)),
       `${name} drifted from its browser original — change one, change the other, byte for byte`);
   });
@@ -92,8 +90,8 @@ const declaration = (src, name) => {
 };
 
 test('index.js keeps script.js\'s parse composition and dump wrappers verbatim', () => {
-  const original = readFileSync(`${BROWSER}script.js`, 'utf8');
-  const copy = readFileSync(`${COPIES}index.js`, 'utf8');
+  const original = readFileSync(`${CORE}script.js`, 'utf8');
+  const copy = readFileSync(`${PARSER}index.js`, 'utf8');
   for (const name of ['parseScriptJS', 'scriptDump', 'scriptDiagnostics']) {
     const mine = declaration(copy, name);
     const theirs = declaration(original, name);
@@ -104,13 +102,13 @@ test('index.js keeps script.js\'s parse composition and dump wrappers verbatim',
 });
 
 test('index.js exports the parser the rest of the extension asks for, and no wasm binding', () => {
-  const copy = readFileSync(`${COPIES}index.js`, 'utf8');
+  const copy = readFileSync(`${PARSER}index.js`, 'utf8');
   assert.match(copy, /export const parseScript = parseScriptJS;/);
   assert.ok(!copy.includes('stencilCore'), 'the wasm loader has no place in this tree');
 });
 
 test('the copies are ESM, scoped by their own package.json', () => {
-  const scope = JSON.parse(readFileSync(`${COPIES}package.json`, 'utf8'));
+  const scope = JSON.parse(readFileSync(`${PARSER}package.json`, 'utf8'));
   assert.equal(scope.type, 'module');
   const root = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(root.type, undefined, 'the extension entry point is CommonJS');

@@ -1,7 +1,7 @@
 // Background service worker: wiring only. Owns the right-click context menu (real <img>
 // and CSS background-image via the probe, ctxTarget.js) and routes messages/clicks to
 // the modules beside it.
-import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/actionIcon.js';
+import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/control/actionIcon.js';
 import { buildMenus, syncDesktopMenuVisibility } from './menus.js';
 import { injectProbeIntoOpenTabs, setUpScripts } from './registrars.js';
 import { resolveClickHandler } from './ctxActions.js';

@@ -1,8 +1,8 @@
 // ── The context listing the model reads (contract §8) ───────────────────────
 // The scanned-image set and the open-tabs set as prompt text, each bounded and
 // truncated, plus the routing that maps a dropped URL back to a listing index.
-import { sameSource } from '../lib/dropEntry.js';
-import { sourceOf } from '../lib/imageModel.js';
+import { sameSource } from '../lib/drop/dropEntry.js';
+import { sourceOf } from '../lib/image/imageModel.js';
 
 // Context-listing bounds (contract §8): ≤ 100 entries, names/alt text truncated.
 export const LISTING_LIMIT = 100;

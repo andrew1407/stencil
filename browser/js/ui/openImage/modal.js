@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from '../base.js';
 import { wireModalOpenGestures } from '../popover.js';
 import { spinIconOnce } from '../icons.js';
-import { isVideoFile, isVideoUrl } from '../../core/videoFrame.js';
+import { isVideoFile, isVideoUrl } from '../../core/export/videoFrame.js';
 import { createCropOverlay, freshCropState, hasCropRect } from './crop.js';
 import { modalBoxEase } from '../motion/easeBoxHeight.js';
 import { openImageModalInner } from './markup.js';

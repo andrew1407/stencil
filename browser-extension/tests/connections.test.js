@@ -7,7 +7,7 @@ import {
   upsertConnection, dropConnection, connect, listProjects, collectSharedPins,
   addServer, removeServer, loadConnections, CONNECTIONS_KEY, createProject,
   parseInviteUrl,
-} from '../src/lib/connections.js';
+} from '../src/lib/connection/connections.js';
 import { installStorageMock, mockFetch, tokenGatedFetch } from './helpers/serverMock.js';
 
 test('normalizeUrl is secure by default: bare remote → https, loopback → http', () => {

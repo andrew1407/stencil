@@ -186,7 +186,7 @@ test('every switch is in the Visuals modal and on the console facade', () => {
   assert.match(api, /set modalBackdrop\(v\) \{ app\.settings\.setMotion\('backdrop', !!v\); \}/);
   assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
   // Both surfaces come through the ONE setter, which is also what rejects a bad mode.
-  const controller = read('../js/core/settingsController.js');
+  const controller = read('../js/core/settings/settingsController.js');
   assert.match(controller, /if \(!MOTION_MODES\.includes\(m\)\)\s*\n?\s*throw new Error\(`Unknown motion mode/);
   assert.match(controller, /paintMotionMode\(m\)/);
   // …which is the modal's own control (ui/settingMirrors.js owns the element).

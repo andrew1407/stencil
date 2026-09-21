@@ -1,7 +1,7 @@
 // The logo stage's painter: backdrop, the accent glow and the spoke ring (css/animations/
 // logoHover.css logoPulse / logoRaysSpin / logoRaysShimmer at stage scale), then the mark.
 // Desktop twin: app/LogoStagePaint.cpp.
-import { faviconSvg, accentHex, normalizeHex } from '../../core/accents.js';
+import { faviconSvg, accentHex, normalizeHex } from '../../core/settings/accents.js';
 import { STAGE } from './logoStageRules.js';
 
 // 0 → 1 → 0 on the beat, the cosine the CSS keyframes ride.

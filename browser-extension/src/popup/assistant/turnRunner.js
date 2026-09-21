@@ -3,7 +3,7 @@
 // controller behind the stop button, render what came back — or a failed bubble with
 // Retry (and Configure, when the provider itself is what is wrong).
 import { icon } from '../../lib/icons.js';
-import { setTip } from '../../lib/tip.js';
+import { setTip } from '../../lib/tip/tip.js';
 import { LlmError } from '../../llm/llmClient.js';
 import { turnFailureText, isUnreachableError } from '../../llm/llmSurface.js';
 

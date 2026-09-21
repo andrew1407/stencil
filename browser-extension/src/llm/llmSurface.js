@@ -3,7 +3,7 @@
 // wording, its stencil-server token resolver (stored connections first, lib/connections.js)
 // and the extension-only helpers with no browser twin — they ride here to keep the client
 // byte-identical.
-import { loadConnections, connectionByUrl } from '../lib/connections.js';
+import { loadConnections, connectionByUrl } from '../lib/connection/connections.js';
 import { LlmError, PROVIDER_LABELS } from './llmClient.js';
 
 export const ASSISTANT_OFF_TEXT = 'The assistant is turned off — choose a provider in the extension options to enable it';

@@ -66,7 +66,7 @@ test('a mode changed on another page lands here through the storage event', () =
 });
 
 test('the classic-script styleFrame is dustCloud.js styleFrame, frame for frame', async () => {
-  const { styleFrame } = await import('../src/lib/dustCloud.js');
+  const { styleFrame } = await import('../src/lib/dust/dustCloud.js');
   const page = loadAccent();
   for (const style of [0, 1, 2]) {
     for (const p of [0, 0.13, 0.5, 0.87, 1]) {

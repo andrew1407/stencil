@@ -5,7 +5,7 @@
 // a live editor session.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mountStencilModal } from '../src/lib/overlay.js';
+import { mountStencilModal } from '../src/lib/drop/overlay.js';
 import { installDom, stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 // The shell reaches for its own parts by selector, so each stub remembers what it made.

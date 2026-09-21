@@ -1,10 +1,10 @@
 import { filenameFromUrl, setSettings } from '../lib/stencil.js';
-import { loadPins, isPinnedIn, siteOf, setPinned } from '../lib/pins.js';
+import { loadPins, isPinnedIn, siteOf, setPinned } from '../lib/prefs/pins.js';
 import { shortName } from '../lib/displayName.js';
-import { sourceOf, pinnable } from '../lib/imageModel.js';
-import { extractDraggedUrl, guessKindFromUrl } from '../lib/dragUrl.js';
-import { entryFromUrl, sameSource } from '../lib/dropEntry.js';
-import { URL_DRAG_TYPES } from '../lib/chatDrop.js';
+import { sourceOf, pinnable } from '../lib/image/imageModel.js';
+import { extractDraggedUrl, guessKindFromUrl } from '../lib/drop/dragUrl.js';
+import { entryFromUrl, sameSource } from '../lib/drop/dropEntry.js';
+import { URL_DRAG_TYPES } from '../lib/chat/chatDrop.js';
 import { flashLanding } from '../lib/motion.js';
 import { listEl, statusEl, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
 import { state, rowElFor, rowResource } from './model.js';

@@ -1,5 +1,5 @@
 import { anchorPickerInput } from '../../utils.js';
-import { normalizeHex } from '../../core/accents.js';
+import { normalizeHex } from '../../core/settings/accents.js';
 export function wireBlankColorButton(app) {
   const blankBtn = document.getElementById('blank-color-btn');
   const blankInput = document.getElementById('blank-color-input');

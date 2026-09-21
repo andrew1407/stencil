@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-import { DIRECTIVES as PARSER_DIRECTIVES, isUnitWord } from '../src/parser/scriptTypes.js';
+import { DIRECTIVES as PARSER_DIRECTIVES, isUnitWord } from '../src/parser/script/scriptTypes.js';
 
 const vocabulary = createRequire(import.meta.url)('../src/lib/vocabulary.js');
 

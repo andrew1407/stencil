@@ -2,14 +2,14 @@
 // The composer's tray: what a drop/paste queued for the next message, plus the Clear
 // button's enabled state (it reads both the transcript and this queue).
 import { fetchAsDataUrl, filenameFromUrl } from '../../lib/stencil.js';
-import { editableSrc } from '../../lib/imageModel.js';
-import { guessKindFromUrl } from '../../lib/dragUrl.js';
-import { isAllowedImageUrl } from '../../lib/urlGuard.js';
+import { editableSrc } from '../../lib/image/imageModel.js';
+import { guessKindFromUrl } from '../../lib/drop/dragUrl.js';
+import { isAllowedImageUrl } from '../../lib/connection/urlGuard.js';
 import { splitDataUrl, matchListingIndex, MAX_ATTACHMENTS } from '../../llm/chatController.js';
-import { isVideoFile } from '../../lib/chatDrop.js';
-import { sampleVideoFrames } from '../../lib/videoFrames.js';
-import { wireThumbPreview } from '../../lib/chatUi.js';
-import { setTip } from '../../lib/tip.js';
+import { isVideoFile } from '../../lib/chat/chatDrop.js';
+import { sampleVideoFrames } from '../../lib/image/videoFrames.js';
+import { wireThumbPreview } from '../../lib/chat/chatUi.js';
+import { setTip } from '../../lib/tip/tip.js';
 import { chatLeave, entryName, toLlmImage } from './shared.js';
 
 export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, getPageUrl,

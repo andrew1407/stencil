@@ -2,7 +2,7 @@
 // The transcript's arrive/leave gestures and the two small entry adapters, used by
 // assistant.js and the modules beside it.
 import { chatIn, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor } from '../../lib/motion.js';
-import { rasterizeToPngDataUrl } from '../../lib/rasterize.js';
+import { rasterizeToPngDataUrl } from '../../lib/image/rasterize.js';
 import { splitDataUrl, MAX_IMAGE_EDGE } from '../../llm/chatController.js';
 
 // `count` is how many entries leave at once: one removal gets the full fine mesh, a whole-

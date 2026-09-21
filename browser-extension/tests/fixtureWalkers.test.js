@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { parseOpPlan } from '../src/llm/opPlan.js';
 import { createLlmClient, sanitizeProviderText, LlmError } from '../src/llm/llmClient.js';
-import { encodeTelegramStartPayload } from '../src/lib/openIn.js';
+import { encodeTelegramStartPayload } from '../src/lib/menu/openIn.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LLM_FIXTURES = path.join(HERE, '..', '..', 'browser', 'js', 'config', 'llm', 'fixtures');

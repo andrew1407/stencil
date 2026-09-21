@@ -1,7 +1,7 @@
 // The session side of the .stencil file (projectFile.js is the pure (de)serializer): gather
 // the state, apply a parsed file, prompt on a live-sync conflict, paint the live-sync button.
 import { validateLayout, mergeLines } from '../layout.js';
-import { isAccent } from '../accents.js';
+import { isAccent } from '../settings/accents.js';
 
 // The shape projectFile.buildProjectFile wants; JSON/IO live in ExportService + projectFile.js.
 export const projectFileState = (app, { includeTheme = true } = {}) => {

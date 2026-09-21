@@ -2,8 +2,8 @@
 // persists to chrome.storage (with the cross-surface echo it must skip).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { COMMON_FORMATS, FILTERS_KEY, formatListFor, formatPillsHtml, createFilterUi } from '../src/lib/filterUi.js';
-import { UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
+import { COMMON_FORMATS, FILTERS_KEY, formatListFor, formatPillsHtml, createFilterUi } from '../src/lib/highlight/filterUi.js';
+import { UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/highlight/filters.js';
 import { installChromeStub } from './helpers/chromeStub.js';
 import { stubDom } from './helpers/filterUiDom.js';
 

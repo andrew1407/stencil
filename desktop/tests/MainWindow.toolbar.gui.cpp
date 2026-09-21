@@ -68,7 +68,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.actScript->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
-  // One cluster sequence across both surfaces (browser js/ui/toolbar.js): Image · Description ·
+  // One cluster sequence across both surfaces (browser js/ui/toolbar/toolbar.js): Image · Description ·
   // Projects · Connections · Edit/Line · Point/Draw · View/Zoom · Page · Formula · Data · Settings.
   void toolbarSectionsFollowTheBrowsersOrder() {
     MainWindow win(nullptr, false);

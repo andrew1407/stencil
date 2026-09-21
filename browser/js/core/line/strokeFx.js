@@ -3,7 +3,7 @@ import {
   strokeSpark, strokeVertexScale, strokeWake,
 } from '../../ui/motion.js';
 import { drawMotionEnabled } from '../../ui/motionPrefs.js';
-import { pointColorOf } from '../renderer.js';
+import { pointColorOf } from '../draw/renderer.js';
 
 // The vertices currently in flight (maths in ui/motion.js). A record holds the point
 // OBJECT, not its index — a later insert shifts every index. Desktop twin: canvas/strokeGrowth.hpp.

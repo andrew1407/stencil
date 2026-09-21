@@ -2,7 +2,7 @@
 // both directions, the sticky right-click path, and Alt+click against the plain-click cycle.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCENTS } from '../js/core/accents.js';
+import { ACCENTS } from '../js/core/settings/accents.js';
 import { createModalOpenGesture } from '../js/ui/popover.js';
 import { rig } from './helpers/logoAccentMenuRig.js';
 

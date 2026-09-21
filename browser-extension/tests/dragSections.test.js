@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   ASSISTANT_SECTION, SEARCH_SECTION, RESTORE_DELAY_MS, SPRING_DWELL_MS, DRAG_KINDS,
   sectionForDragPoint, createDragSectionOpener,
-} from '../src/lib/dragSections.js';
+} from '../src/lib/drop/dragSections.js';
 
 // A stub surface: `collapsed` is the live state, every expand/collapse is recorded, and
 // timers are held so a test decides whether the dwell elapses.

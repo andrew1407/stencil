@@ -1,6 +1,6 @@
 // Shapes for popup/editorMode.js — the panel while it stands on the Stencil editor: wires
 // editorList.js and sourceTabsList.js to the panel's clock and the browser's tab events.
-import type { SourceTabChoice } from '../lib/editorTabs.js';
+import type { SourceTabChoice } from '../lib/menu/editorTabs.js';
 import type { ImportHereFn } from './editorImport.js';
 
 export interface EditorModeApi {

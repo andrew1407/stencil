@@ -1,6 +1,6 @@
 import { wireNameEditor } from '../../utils.js';
 import { markIn, markOut } from '../motion.js';
-import { validateProjectName } from '../../core/validation.js';
+import { validateProjectName } from '../../core/parse/validation.js';
 export function wireProjectNameField(app) {
   const nameInput = document.getElementById('project-name-input');
   const nameEdit = document.getElementById('project-name-edit');

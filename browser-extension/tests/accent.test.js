@@ -5,8 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { loadAccent } from './helpers/accentSandbox.js';
-import { ACCENT_STORAGE_KEY } from '../src/lib/highlightColor.js';
-import { THEME_STORAGE_KEY } from '../src/lib/shellTheme.js';
+import { ACCENT_STORAGE_KEY } from '../src/lib/highlight/highlightColor.js';
+import { THEME_STORAGE_KEY } from '../src/lib/prefs/shellTheme.js';
 
 // ── The accent list ──
 

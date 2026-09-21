@@ -8,7 +8,7 @@ import {
   DEFAULT_MAX_EDGE, DEFAULT_RASTER_EDGE, DECODE_ERROR,
   isSvgType, isSvgUrl, mediaTypeOf, fitSize, rasterSize,
   rasterizeToPngDataUrl, decodeSize,
-} from '../src/lib/rasterize.js';
+} from '../src/lib/image/rasterize.js';
 
 // ── Test doubles ──
 

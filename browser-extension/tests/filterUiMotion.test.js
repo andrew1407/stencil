@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createFilterUi } from '../src/lib/filterUi.js';
-import { passesFilters } from '../src/lib/filters.js';
+import { createFilterUi } from '../src/lib/highlight/filterUi.js';
+import { passesFilters } from '../src/lib/highlight/filters.js';
 import { diffListKeys, createFilterTransition, FILTER_OUT_CLASS } from '../src/lib/motion.js';
 import { makeList, renderKeys } from './helpers/listDom.js';
 import { stubDom } from './helpers/filterUiDom.js';

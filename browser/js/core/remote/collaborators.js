@@ -1,14 +1,14 @@
 // Every DrawingApp collaborator, constructed in dependency order. The two view-layer ones are
 // injected, so this wiring stays DOM-free; each takes the app and knows none of the others.
 import { HistoryStack } from '../historyStack.js';
-import { FormulaEngine } from '../formulaEngine.js';
-import { Renderer } from '../renderer.js';
+import { FormulaEngine } from '../parse/formulaEngine.js';
+import { Renderer } from '../draw/renderer.js';
 import { StrokeFx } from '../line/strokeFx.js';
 import { Storage } from '../storage/storage.js';
-import { TabsCoordinator } from '../tabsCoordinator.js';
+import { TabsCoordinator } from '../launch/tabsCoordinator.js';
 import { ZoomPan } from '../zoom/zoomPan.js';
-import { ExportService } from '../exportService.js';
-import { SettingsController } from '../settingsController.js';
+import { ExportService } from '../export/exportService.js';
+import { SettingsController } from '../settings/settingsController.js';
 import { ImageModel } from '../image/imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
 import { ProjectTransferController } from '../project/projectTransferController.js';

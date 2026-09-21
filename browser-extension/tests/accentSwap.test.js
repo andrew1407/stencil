@@ -34,7 +34,7 @@ test('the wipe starts at the theme button, and no press is remembered to overrid
 });
 
 test('water and fire cut their own front, and the classic-script twins match dustCloud.js', async () => {
-  const dc = await import('../src/lib/dustCloud.js');
+  const dc = await import('../src/lib/dust/dustCloud.js');
   const page = loadAccent();
   const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
     .map((m) => Math.hypot((parseFloat(m[1]) / 100) * 480 - 290, (parseFloat(m[2]) / 100) * 700 - 40));

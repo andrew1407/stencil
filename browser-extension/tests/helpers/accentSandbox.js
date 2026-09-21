@@ -9,8 +9,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { makePage } from './accentDom.js';
 
-const SRC = ['prefs.js', 'swapGeometry.js', 'dustGrains.js', 'dustWake.js', 'themeSwap.js',
-  'accent.js', 'shellPrefs.js']
+const SRC = ['prefs/prefs.js', 'dust/swapGeometry.js', 'dust/dustGrains.js', 'dust/dustWake.js', 'dust/themeSwap.js',
+  'accent/accent.js', 'prefs/shellPrefs.js']
   .map((f) => readFileSync(fileURLToPath(new URL(`../../src/lib/${f}`, import.meta.url)), 'utf8')).join('\n');
 
 /**
@@ -117,7 +117,7 @@ export const loadAccent = ({
   if (withChrome) sandbox.chrome = chrome;
 
   vm.createContext(sandbox);
-  vm.runInContext(SRC, sandbox, { filename: 'accent.js' });
+  vm.runInContext(SRC, sandbox, { filename: 'accent/accent.js' });
 
   return {
     /** The two APIs accent.js publishes. */

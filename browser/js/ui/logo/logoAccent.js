@@ -1,4 +1,4 @@
-import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../../core/accents.js';
+import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../../core/settings/accents.js';
 import { wireLogoAccentMenu } from './logoAccentMenu.js';
 
 // Double-click (or double-tap) the logo opens a native colour picker that tints this page's

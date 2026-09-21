@@ -6,10 +6,10 @@ import { icon } from '../../lib/icons.js';
 import { loadLlmSettings, LLM_SETTINGS_KEY } from '../../llm/llmSettings.js';
 import { probeProvider, PROVIDER_LABELS } from '../../llm/llmClient.js';
 import { serverTokenFor } from '../../llm/llmSurface.js';
-import { loadConnections } from '../../lib/connections.js';
-import { wireDropTarget, isVideoFile } from '../../lib/chatDrop.js';
-import { AUTO_DISMISS_MS } from '../../lib/chatUi.js';
-import { createChatStatusTip } from '../../lib/chatStatusTip.js';
+import { loadConnections } from '../../lib/connection/connections.js';
+import { wireDropTarget, isVideoFile } from '../../lib/chat/chatDrop.js';
+import { AUTO_DISMISS_MS } from '../../lib/chat/chatUi.js';
+import { createChatStatusTip } from '../../lib/chat/chatStatusTip.js';
 import { wireComposerMenu } from './composerMenu.js';
 import { wireMsgMenu } from './msgMenu.js';
 

@@ -4,7 +4,7 @@
 // extension's own geometry: the 400px popup window the port exists to serve.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { popoverPosition } from '../src/lib/popover.js';
+import { popoverPosition } from '../src/lib/tip/popover.js';
 
 test('a narrow panel viewport (the 400px popup) still fits the 280px dialog', () => {
   // An anchor at the right edge (a row's ⋯ button) must pull the box back in.

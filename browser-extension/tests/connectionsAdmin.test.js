@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   connect, listProjects, upsertConnection, addServer, loadConnections, CONNECTIONS_KEY,
   isAdminConnection, filterConnections, reconnectServer,
-} from '../src/lib/connections.js';
+} from '../src/lib/connection/connections.js';
 import { installStorageMock, mockFetch, tokenGatedFetch } from './helpers/serverMock.js';
 
 // credentialKind: a server whose admin token can MINT session tokens but cannot list projects

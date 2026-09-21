@@ -1,5 +1,5 @@
 // Headless check of the stroke-growth flight (src/canvas/strokeGrowth.hpp) — the desktop
-// port of browser/js/ui/motion.js + js/core/strokeFx.js. The painting needs a live widget;
+// port of browser/js/ui/motion.js + js/core/line/strokeFx.js. The painting needs a live widget;
 // the arithmetic saying where a just-added vertex IS at a given instant does not, so that
 // is what is pinned here, with the numbers that must equal the browser's and the flight
 // bookkeeping. Pure QtCore geometry; no display needed.

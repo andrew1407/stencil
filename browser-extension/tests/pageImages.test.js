@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, videoHasFrame } from '../src/lib/pageImages.js';
-import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/imageScan.js';
+import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, videoHasFrame } from '../src/lib/image/pageImages.js';
+import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/image/imageScan.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
   assert.equal(bgImageUrl('url("https://a.example/x.png")'), 'https://a.example/x.png');

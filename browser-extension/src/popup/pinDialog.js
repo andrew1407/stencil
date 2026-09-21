@@ -1,6 +1,6 @@
-import { connectionByUrl, createProject, projectRequestFromImage } from '../lib/connections.js';
-import { sourceOf, hostLabel } from '../lib/imageModel.js';
-import { enhanceSelect } from '../lib/customSelect.js';
+import { connectionByUrl, createProject, projectRequestFromImage } from '../lib/connection/connections.js';
+import { sourceOf, hostLabel } from '../lib/image/imageModel.js';
+import { enhanceSelect } from '../lib/control/customSelect.js';
 import { openPanelDialog } from './dialogShell.js';
 import { statusEl } from './panelDom.js';
 import { state } from './model.js';

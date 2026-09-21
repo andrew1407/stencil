@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { fillState } from '../core/layout.js';
-import { pointColorOf } from '../core/renderer.js';
+import { pointColorOf } from '../core/draw/renderer.js';
 import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from './motion.js';
 import { syncFsTriggers } from './fullscreen/fullscreenPanels.js';

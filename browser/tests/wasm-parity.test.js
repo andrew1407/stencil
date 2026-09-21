@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 import { core } from '../js/core/abi/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
-import { FormulaEngine } from '../js/core/formulaEngine.js';
-import { parseDuration } from '../js/core/durationParser.js';
+import { FormulaEngine } from '../js/core/parse/formulaEngine.js';
+import { parseDuration } from '../js/core/parse/durationParser.js';
 import constants from '../js/config/constants.json' with { type: 'json' };
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the

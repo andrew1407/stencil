@@ -12,7 +12,7 @@ globalThis.document = {
   },
 };
 
-export const { wireExtensionBridge } = await import('../../js/core/extensionBridge.js');
+export const { wireExtensionBridge } = await import('../../js/core/launch/extensionBridge.js');
 
 export const PNG = 'data:image/png;base64,AAAA';
 

@@ -1,9 +1,9 @@
 import { filenameFromUrl, getSettings } from '../lib/stencil.js';
-import { loadLedger, matchEntries, trackableSource } from '../lib/ledger.js';
-import { loadPins, isPinnedIn, siteOf } from '../lib/pins.js';
-import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../lib/imageScan.js';
-import { isEditorTab } from '../lib/editorTabs.js';
-import { sourceOf, pinnable } from '../lib/imageModel.js';
+import { loadLedger, matchEntries, trackableSource } from '../lib/prefs/ledger.js';
+import { loadPins, isPinnedIn, siteOf } from '../lib/prefs/pins.js';
+import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../lib/image/imageScan.js';
+import { isEditorTab } from '../lib/menu/editorTabs.js';
+import { sourceOf, pinnable } from '../lib/image/imageModel.js';
 import { listEl, statusEl, IS_DEVTOOLS } from './panelDom.js';
 import { state, rowResource } from './model.js';
 import { filterUi, applyFilters } from './filters.js';

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   listProjects, pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
-} from '../src/lib/connections.js';
+} from '../src/lib/connection/connections.js';
 
 // ── pin-target selection (pure) ──
 

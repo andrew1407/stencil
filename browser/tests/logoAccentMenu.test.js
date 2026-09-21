@@ -2,7 +2,7 @@
 // what a pick applies and closes, and the exit animation Escape or an outside press plays.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCENTS } from '../js/core/accents.js';
+import { ACCENTS } from '../js/core/settings/accents.js';
 import { LINGER_CLOSE_MS } from '../js/ui/popover.js';
 import { rig, marked } from './helpers/logoAccentMenuRig.js';
 

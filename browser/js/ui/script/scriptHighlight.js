@@ -2,7 +2,7 @@
 // flyout (ctxScriptEditor.js). The colouring comes from the core's own token stream, so the
 // editors and the runner never disagree about what a line means.
 import { parseScript } from '../../core/script.js';
-import { DIRECTIVES } from '../../core/scriptTypes.js';
+import { DIRECTIVES } from '../../core/script/scriptTypes.js';
 
 // The lexer classifies on the '@' alone, so only a REAL directive is coloured, lowercased like
 // the lowering (@CROP stays one). Read off the SOURCE: the wasm path leaves token.text empty.

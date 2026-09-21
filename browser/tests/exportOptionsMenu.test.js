@@ -13,7 +13,7 @@ const doc = installDom({}, {
 });
 
 const { wireExportOptionsMenu } = await import('../js/ui/export/exportOptionsMenu.js');
-const { hotkeys } = await import('../js/core/hotkeys.js');
+const { hotkeys } = await import('../js/core/settings/hotkeys.js');
 const { formatCombo } = await import('../js/utils.js');
 const { keysHtml } = await import('../js/ui/tip/tipContent.js');
 

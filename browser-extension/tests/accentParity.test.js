@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { loadAccent } from './helpers/accentSandbox.js';
-import { ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlightColor.js';
+import { ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlight/highlightColor.js';
 
 // ── Parity with the two copies that cannot import this file ──
 
@@ -43,7 +43,7 @@ test('the browser palette (config/accents.json) carries the same keys and hexes'
 test('the extension and the browser deliberately use DIFFERENT storage keys', () => {
   const { accent } = loadAccent();
   const src = readFileSync(
-    fileURLToPath(new URL('../../browser/js/core/accents.js', import.meta.url)),
+    fileURLToPath(new URL('../../browser/js/core/settings/accents.js', import.meta.url)),
     'utf8',
   );
   // Different origins, different stores — sharing a key would be the actual bug.

@@ -44,7 +44,7 @@ const useFallbackPaths = () => ({
   name: 'stencil-singlefile-fallbacks',
   enforce: 'pre',
   transform(code, id) {
-    if (id.endsWith('core/tabsCoordinator.js')) {
+    if (id.endsWith('core/launch/tabsCoordinator.js')) {
       return code.replace(
         PROJECTS_WORKER_URL,
         "(() => { throw new Error('single-file build: no module worker'); })()"

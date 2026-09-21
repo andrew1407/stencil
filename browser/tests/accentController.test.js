@@ -10,7 +10,7 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 import {
   needsDarkGlyph, onAccentInk, contrastWithWhite, contrastWithBlack, relativeLuminance,
   ON_ACCENT_LIGHT, ON_ACCENT_DARK, LIGHT_ACCENT_KEYS,
-} from '../js/core/accents.js';
+} from '../js/core/settings/accents.js';
 
 // Minimal <html> stand-in: attribute map + a CSS style object supporting the three ops the
 // controller uses (setProperty / removeProperty / getPropertyValue).

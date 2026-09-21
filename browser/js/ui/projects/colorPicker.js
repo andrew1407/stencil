@@ -1,7 +1,7 @@
 // One hidden colour field for the whole projects list, anchored to whichever row's swatch asked.
 // Never display:none and never built in the handler: the native picker opens beside a laid-out box.
 import { anchorPickerInput } from '../../utils.js';
-import { normalizeHex } from '../../core/accents.js';
+import { normalizeHex } from '../../core/settings/accents.js';
 
 export function createColorPicker({ app, list, render }) {
   const colorInput = document.createElement('input');

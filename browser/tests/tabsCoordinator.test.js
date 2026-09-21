@@ -1,7 +1,7 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { MSG } from '../js/worker/messages.js';
-import { TabsCoordinator } from '../js/core/tabsCoordinator.js';
+import { TabsCoordinator } from '../js/core/launch/tabsCoordinator.js';
 
 // TabsCoordinator picks the SharedWorker transport when one exists. We stub a
 // stub worker + a minimal `window` so construction takes that path in Node, then
