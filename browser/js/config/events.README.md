@@ -12,7 +12,7 @@ fires — so no surface retypes one.
   `VOICE_SETTINGS_EVENT`) take the value from here.
 - **extension** — ships self-contained (MV3) and cannot import across subprojects, so its
   content scripts keep the literals; `browser-extension/tests/dataParity.test.js` pins them against
-  this file, and `browser/tests/events.test.js` fails on a stray literal in browser code.
+  this file, and `browser/tests/core/events.test.js` fails on a stray literal in browser code.
 
 `stencil:ready` is dispatched on `document` (components wire off it once, `ui/base.js`);
 every other channel is dispatched on `window`.

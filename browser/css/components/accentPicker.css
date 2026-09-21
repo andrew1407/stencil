@@ -64,7 +64,18 @@
     min-width: 100%;
     max-height: 280px;
     overflow-y: auto;
-    background: var(--bg-container);
+    /* macOS hides its overlay scrollbar until it moves, so a capped list looked simply cut off.
+       The two `local` covers ride the content and uncover a `scroll` shadow only while rows remain. */
+    background:
+        /* The thumb (js/ui/menuScrollbar.js): `scroll` holds it against the box while the two
+           custom properties carry its length and travel. Zero-length — absent — when it fits. */
+        linear-gradient(var(--sb-thumb), var(--sb-thumb))
+            right 3px top var(--dd-sb-pos, 0px) / 6px var(--dd-sb-len, 0px) no-repeat scroll,
+        linear-gradient(var(--bg-container) 40%, rgba(0, 0, 0, 0)) top / 100% 20px no-repeat local,
+        linear-gradient(rgba(0, 0, 0, 0), var(--bg-container) 60%) bottom / 100% 20px no-repeat local,
+        radial-gradient(farthest-side at 50% 0, var(--shadow), rgba(0, 0, 0, 0)) top / 100% 10px no-repeat scroll,
+        radial-gradient(farthest-side at 50% 100%, var(--shadow), rgba(0, 0, 0, 0)) bottom / 100% 10px no-repeat scroll,
+        var(--bg-container);
     border: 1px solid var(--border-main);
     border-radius: 8px;
     box-shadow: 0 8px 24px var(--shadow);

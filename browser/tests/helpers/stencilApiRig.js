@@ -23,7 +23,7 @@ installDom({
 });
 
 export const { createStencil } = await import('../../js/console/stencilApi.js');
-export const { hotkeys } = await import('../../js/core/hotkeys.js');
+export const { hotkeys } = await import('../../js/core/settings/hotkeys.js');
 export const { validateLayout } = await import('../../js/core/layout.js');
 
 // The mock records every call as [name, ...args] in `app.calls`; line/point mutators really mutate

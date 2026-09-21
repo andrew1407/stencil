@@ -1,4 +1,4 @@
-import { applyAccentFavicon } from '../../core/accents.js';
+import { applyAccentFavicon } from '../../core/settings/accents.js';
 export function wireTheme(app) {
   app.accents.updateThemeIcon();
   // Tint the tab favicon + status bar to the saved accent on load.

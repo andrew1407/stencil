@@ -2,16 +2,16 @@
 // facade over the live DrawingApp: every mutation routes through the same core methods
 // the toolbar uses, most calls return the facade (or a Project / Line / Point) to chain.
 import type { DrawingApp } from '../core/drawingApp.js';
-import type { CodecLine } from '../core/linesCodec.js';
+import type { CodecLine } from '../core/line/linesCodec.js';
 import type { LayoutPayload, WireCropRect } from '../core/layout.js';
-import type { RefreshPeriod } from '../core/projectsStore.js';
+import type { RefreshPeriod } from '../core/project/store/projectsStore.js';
 import type { ConnectSpec } from '../net/connectionManager.js';
 import type { TaggedRemoteProject } from '../net/serverConnection.js';
-import type { RemoteProjectMeta } from '../core/projectTransferController.js';
-import type { LlmSettings } from '../llm/llmSettings.js';
-import type { VariantResult } from '../llm/opPlan.js';
+import type { RemoteProjectMeta } from '../core/project/transferController.js';
+import type { LlmSettings } from '../llm/settings.js';
+import type { VariantResult } from '../llm/plan/opPlan.js';
 
-export { WINDOWS } from './windowsApi.js';
+export { WINDOWS } from './api/windowsApi.js';
 
 export interface XY { x: number; y: number; }
 export interface Size { width: number; height: number; }

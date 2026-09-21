@@ -3,7 +3,7 @@
 // index.html's link order — derived from index.html, never a hardcoded list, so it cannot drift.
 import { readFileSync } from 'node:fs';
 
-const ROOT = new URL('../../', import.meta.url);
+const ROOT = new URL('../..', import.meta.url);
 const html = readFileSync(new URL('index.html', ROOT), 'utf8');
 
 // `css/<name>.css` and every `css/<name>/…` both count, so a set reads the same before and

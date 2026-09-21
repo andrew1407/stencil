@@ -1,7 +1,7 @@
 // Shared rig for the opPlan.test.js family: the plan builder, the accept/reject
 // shorthands and the stateful facade stub the executor specs drive.
 import assert from 'node:assert';
-import { parseOpPlan } from '../../js/llm/opPlan.js';
+import { parseOpPlan } from '../../js/llm/plan/opPlan.js';
 
 export const plan = (over = {}) => JSON.stringify({ version: 1, reply: 'ok', actions: [], variants: [], ...over });
 

@@ -1,6 +1,6 @@
 // Shared rig for the logoAccentMenu.test.js family: the stub element factory (contains()
 // always hits, so containment guards see dispatched targets as inside) and a wired logo.
-import { wireLogoColorPicker } from '../../js/ui/toolbar.js';
+import { wireLogoColorPicker } from '../../js/ui/toolbar/toolbar.js';
 import { createStubElement } from './dom.js';
 
 // ── Stubs ── the shared element factory; contains() must always hit, so containment

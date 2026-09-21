@@ -2,7 +2,7 @@
 // (projectsStore.nameExists), so a batch of saves wanting the same base is suffixed
 // until free rather than losing the save to a clash.
 import type { DrawingApp } from '../core/drawingApp.js';
-import type { ProjectMeta } from '../core/projectsStore.js';
+import type { ProjectMeta } from '../core/project/store/projectsStore.js';
 
 /** Exactly one of the two: the resolved record, or why nothing resolved. */
 export type ProjectNameResolution =

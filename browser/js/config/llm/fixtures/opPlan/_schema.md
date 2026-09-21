@@ -24,7 +24,7 @@ Shared, language-neutral test corpus for every surface's op-plan validator
   `bot`, `mcp`, `extension`). A surface's walker uses its override when present, else `expect`.
   This is the CORPUS-AUTHORITATIVE record of every verdict-level disagreement: all measured
   opPlan verdict divergences live here (with the evidence in `reason`), not in the surfaces'
-  local override files — those files (`tests/fixtureOverrides.json` etc.) are reserved for
+  local override files — those files (`tests/llm/op/fixtureOverrides.json` etc.) are reserved for
   surface-SPECIFIC output pins in the other fixture families, where the divergent value
   (own error wording, own sanitizer text, bodyPatch, …) has no cross-surface representation.
 
@@ -39,7 +39,7 @@ each case named `gen-<op>-<rule>`, with no `file`) is DERIVED from `opRegistry.j
 op, unknown/missing/wrong-type fields, enum and grammar rejections, range and cap boundary
 pairs, the cross-field presence rules, the plan envelope caps and the §11 card. Every walker
 loads it beside `cases.json` (each generated case walks as `<name>.json`);
-`browser/tests/opPlanFixtures.test.js` compares the sha256 of `opRegistry.json` and of
+`browser/tests/llm/plan/opPlanFixtures.test.js` compares the sha256 of `opRegistry.json` and of
 `generated/cases.json` against `generated/freshness.json` instead of re-deriving the bundle,
 so a registry edit without `npm run gen-fixtures` fails it. Hand-written cases
 are reserved for what the registry cannot derive: extraction tolerance, the aspect fold,
@@ -49,5 +49,5 @@ Adding a case: append it to `cases.json` under the next free `NNN` label.
 
 Walkers: run each fixture whose `profiles` include the surface's profile (or `all`) through
 the surface's real parse/validate entry point and assert the verdict — see
-`browser/tests/opPlanFixtures.test.js` (the reference walker). Extension fixtures assume a
+`browser/tests/llm/plan/opPlanFixtures.test.js` (the reference walker). Extension fixtures assume a
 scan listing of 8 images and a shared-tabs listing of 4 tabs.

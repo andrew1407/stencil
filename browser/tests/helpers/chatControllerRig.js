@@ -1,6 +1,6 @@
 // Shared rig for the chatController.test.js family: the client double that captures what it
 // was sent, the recording stencil facade, and a controller wired to both.
-import { createChatController } from '../../js/llm/chatController.js';
+import { createChatController } from '../../js/llm/chat/controller.js';
 
 // ── Doubles: client capturing what it was sent, stub facade recording calls ──
 export const makeClient = (replies) => {

@@ -2,7 +2,7 @@
 // spellings, the co-edit union merge, hardening of untrusted `lines`, and the small
 // geometry-edit decisions. Never touches DOM or app state.
 import type { CropRect } from './geometry.js';
-import type { CodecLine } from './linesCodec.js';
+import type { CodecLine } from './line/linesCodec.js';
 
 /** One row of config/layoutFields.json; array order IS the session payload's byte order. */
 export interface LayoutField {

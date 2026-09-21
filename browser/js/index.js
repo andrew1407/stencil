@@ -1,20 +1,20 @@
 import { mountHTML } from './utils.js';
 import { layout } from './ui/layout.js';
 import { DrawingApp } from './core/drawingApp.js';
-import { core } from './core/stencilCore.js';
-import { hotkeys } from './core/hotkeys.js';
+import { core } from './core/abi/stencilCore.js';
+import { hotkeys } from './core/settings/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
 import { runScriptHere } from './console/scriptRunner.js';
-import { setScriptText } from './ui/scriptBuffer.js';
-import { initTooltips } from './ui/controlTooltip.js';
+import { setScriptText } from './ui/script/buffer.js';
+import { initTooltips } from './ui/tip/controlTooltip.js';
 import { watchControlLabels } from './ui/ariaLabels.js';
-import { wireChatPersistence } from './llm/chatPersistence.js';
-import { initProjectsBackend } from './core/projectsBackend.js';
-import { watchNumericInputs } from './ui/numericInput.js';
-import { installControlSwap } from './ui/controlSwap.js';
-import { installVoiceModes } from './llm/voiceModes.js';
-import { applyMotionAttr } from './ui/motionPrefs.js';
+import { wireChatPersistence } from './llm/chat/persistence.js';
+import { initProjectsBackend } from './core/project/store/projectsBackend.js';
+import { watchNumericInputs } from './ui/control/numericInput.js';
+import { installControlSwap } from './ui/control/swap.js';
+import { installVoiceModes } from './llm/voice/modes.js';
+import { applyMotionAttr } from './ui/motion/motionPrefs.js';
 import EVENTS from './config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 // Application entrypoint. Loaded LAST — importing layout registers every custom element.
@@ -51,7 +51,7 @@ window.onload = async () => {
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
-  // Voice input (js/llm/voiceModes.js) — installed before the components wire, since the
+  // Voice input (js/llm/modes.js) — installed before the components wire, since the
   // composers and the toolbar read app.voice as they build their controls.
   installVoiceModes(app);
   // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and

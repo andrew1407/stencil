@@ -1,7 +1,7 @@
 // The wasm side of the .stc engine (core/wasmScriptApi.cpp): parse into an opaque handle,
 // read the whole program out, destroy it. Everything the handle returns dies with it, so
 // each read is copied into a plain object before scriptDestroy.
-import { OP_KINDS, SOURCE_KINDS, TOKEN_KINDS } from './scriptTypes.js';
+import { OP_KINDS, SOURCE_KINDS, TOKEN_KINDS } from './script/types.js';
 
 const I32 = 4;
 const nums = (n) => Array.from({ length: n }, () => 'number');

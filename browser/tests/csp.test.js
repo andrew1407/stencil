@@ -43,7 +43,7 @@ test('script execution stays locked to same-origin files plus wasm', () => {
 });
 
 // frame-ancestors is deliberately absent: the extension frames this app in its in-page
-// editor modal (browser-extension/src/lib/overlay.js), on an origin nobody can know up front.
+// editor modal (src/lib/drop/overlay.js), on an origin nobody can know up front.
 test('nothing restricts frame-ancestors', () => {
   assert.equal(directives['frame-ancestors'], undefined);
 });

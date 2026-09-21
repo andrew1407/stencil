@@ -6,7 +6,7 @@ export const notifications = [];
 const balloon = { notify: (msg, type) => notifications.push([msg, type]) };
 installDom().register('notify-balloon', balloon);
 
-export const { ExportService } = await import('../../js/core/exportService.js');
+export const { ExportService } = await import('../../js/core/export/service.js');
 
 // A mock app carrying just what the driven paths touch. `record` collects calls to the
 // shared app methods so we can assert the service delegates instead of reimplementing.

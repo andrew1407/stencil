@@ -25,7 +25,7 @@ export const createEditorActions = ({ app }) => {
       if (on) { if (app.image && !app.isDrawing) app.startDrawingMode(); }
       else if (app.isDrawing) app.stopDrawingMode();
     },
-    // Hands-free voice chat (js/llm/voiceModes.js): listens with the chat closed and sends
+    // Hands-free voice chat (js/llm/modes.js): listens with the chat closed and sends
     // every utterance as a turn. Turning it on stops any composer dictation.
     get voiceChat() { return !!app.voice?.voiceChat; },
     set voiceChat(on) {

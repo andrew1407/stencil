@@ -1,8 +1,8 @@
-import { dustEnabled, motionReduced } from '../motionPrefs.js';
+import { dustEnabled, motionReduced } from './motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { flipFrom } from './flip.js';
-import { speckPainter } from './painters.js';
-import { DISINTEGRATE_MS, MOTE_PX, TILE_GATHER_SHARE, scatterGridFor } from './tiles.js';
+import { speckPainter } from './surface/painters.js';
+import { DISINTEGRATE_MS, MOTE_PX, TILE_GATHER_SHARE, scatterGridFor } from './surface/tiles.js';
 import { TUNE } from './tune.js';
 // Dropped content plays in out of the drop point; with no point it keeps the plain landing.
 const ARRIVE_MS = TUNE.ARRIVE_MS;

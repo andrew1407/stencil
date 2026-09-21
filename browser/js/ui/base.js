@@ -18,6 +18,13 @@ export class StencilElement extends ElementBase {
     onReady((app) => this.wire(app));
   }
 
+  // Scoped to this element: a region never reaches another region's nodes by id.
+  $(id) { return this.querySelector(`#${id}`); }
+
+  emit(type, detail) {
+    return this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
+  }
+
   wire(_app) {}
 }
 
@@ -26,9 +33,9 @@ export const hostTag = (tag, attrs, inner) => `<${tag}${attrs ? ' ' + attrs : ''
 // For any server-supplied or user-typed value interpolated into innerHTML.
 export { escapeHtml } from './escapeHtml.js';
 
-export { closeOpenModal } from './modalRegistry.js';
-export { MODAL_CLOSE_MS, createModalFlight } from './modalFlight.js';
-export { wireModalShell } from './modalShell.js';
+export { closeOpenModal } from './modal/registry.js';
+export { MODAL_CLOSE_MS, createModalFlight } from './modal/flight.js';
+export { wireModalShell } from './modal/shell.js';
 
 export const attachSearchFilter = (searchInput, applyFilterFn) => {
   searchInput.addEventListener('input', applyFilterFn);

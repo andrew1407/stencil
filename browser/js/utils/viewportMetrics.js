@@ -1,4 +1,4 @@
-// The DOM half of ZoomPan (core/zoomPan.js). Every value is MEASURED live — a fixed inset
+// The DOM half of ZoomPan (core/pan.js). Every value is MEASURED live — a fixed inset
 // guess leaves a page scrollbar.
 
 // Below these the frame / the panel header would be clipped.

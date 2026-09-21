@@ -1,0 +1,26 @@
+import type { ModalShellApi } from './registry.js';
+
+/** What createModalFlight (ui/flight.js) hands a shell. */
+export interface ModalFlight {
+  reducedMotion(): boolean;
+  setOrigin(anchor: unknown): boolean;
+  finishClose(): void;
+  playDust(enter: boolean): void;
+  playClosing(): void;
+  settle(): void;
+}
+
+export interface ModalShellOptions {
+  onOpen?: () => void;
+  onClose?: () => void;
+  escapeClose?: boolean;
+  originEl?: (() => unknown) | null;
+  stacked?: boolean;
+  /** Focused once the window is up: an element, or one resolved at open time. */
+  focusOnOpen?: HTMLElement | null | (() => HTMLElement | null);
+}
+
+/** Wire open/close/overlay-press/Escape for one app modal. */
+export declare function wireModalShell(
+  overlay: unknown, openBtn: unknown, closeBtn: unknown, opts?: ModalShellOptions,
+): ModalShellApi;

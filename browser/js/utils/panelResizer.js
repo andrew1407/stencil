@@ -1,4 +1,4 @@
-import { onWindowResize } from '../ui/frameSync.js';
+import { onWindowResize } from '../ui/canvas/frameSync.js';
 // Writes the shared `--coord-panel-width` CSS var (clamped); dragging LEFT widens. Kept for
 // THIS tab only (sessionStorage) — the desktop relaunches at its default too.
 const COORD_PANEL_WIDTH_KEY = 'drawingApp_coordPanelWidth';
