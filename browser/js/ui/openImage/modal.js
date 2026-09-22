@@ -10,6 +10,7 @@ import { createFrameScrub } from './frameScrub.js';
 import { createCropRows } from './cropRows.js';
 import { createOpenImageTabs } from './tabs.js';
 import { wireOpenActions } from './actions.js';
+import { openImageAnchorRect, openImageConfirmAnchors } from '../modal/imageAnchor.js';
 import { notify } from '../../utils.js';
 
 // The single way to get an image into the editor. The three tabs are their own elements under
@@ -135,8 +136,10 @@ export class StencilOpenImageModal extends StencilElement {
       },
       onClose: () => { preview.closeUp(); boxEase.stop(); },
     });
+    // Each of the three actions opens an image, so the window pours into the toolbar's Open
+    // control — the opener it grew out of is gone or swapped by then (ui/modal/imageAnchor.js).
     wireOpenActions({
-      app, preview, src, canReplace, openOpts, target, close: () => close(),
+      app, preview, src, canReplace, openOpts, target, close: () => close(openImageAnchorRect()),
       els: { hereBtn, newTabBtn, replaceBtn, incog, renameEl, keepEl },
       frameSeconds: () => frame.frameSeconds(),
     });
@@ -144,7 +147,7 @@ export class StencilOpenImageModal extends StencilElement {
     // `from` = the control that asked, so the dialog grows out of that, not the toolbar icon.
     const openBlank = (from) => { open(from); tabs.select('blank'); };
 
-    this.$('open-image-cancel').addEventListener('click', close);
+    this.$('open-image-cancel').addEventListener('click', () => close());
     // The open-ANOTHER icon answers the same gestures too (#load-image-btn hides once an image exists).
     const anotherBtn = document.getElementById('open-image-btn');
     if (anotherBtn) wireModalOpenGestures(anotherBtn, { openFull: () => open(anotherBtn), openPopover: () => openPopover(anotherBtn) });
@@ -177,9 +180,10 @@ export class StencilOpenImageModal extends StencilElement {
     });
     this.addEventListener('create-blank', async (e) => {
       const { color, width, height } = e.detail;
-      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image', confirmIcon: 'swap' }))) return;
+      if (app.image && !(await app.confirm('Replace the current image with a new blank image?',
+        { title: 'Replace image', confirmIcon: 'swap', ...openImageConfirmAnchors() }))) return;
       app.createBlankImage({ color, width, height, address: target() || undefined })
-        .then(() => { close(); notify(`Blank ${width}×${height} image created`, 'ok'); })
+        .then(() => { close(openImageAnchorRect()); notify(`Blank ${width}×${height} image created`, 'ok'); })
         .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));
     });
     this.$('blank-image-create').addEventListener('click', () => blank.requestCreate());
