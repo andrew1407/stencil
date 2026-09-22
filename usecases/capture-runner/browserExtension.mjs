@@ -38,6 +38,26 @@ await host.setViewportSize(VIEWS.site);
 await host.goto(site.url);
 await host.locator('figure img').first().waitFor();
 
+// A real popup box stops at 600px and scrolls its list; the picture is of what the popup HOLDS,
+// so the capture lets it stand at its full height rather than cutting a row in half.
+const POPUP_UNCAPPED = `html, body { max-height: none !important; overflow: visible !important; }
+  .list { overflow: visible !important; max-height: none !important; }`;
+
+// The shot is the popup and nothing else: the clip ends at its last pixel, so none of the
+// viewport left under it rides along.
+const popupClip = async (ui) => {
+  await waitForAnimations(ui);
+  const height = await ui.evaluate(() => {
+    const ends = [document.body.getBoundingClientRect().bottom];
+    for (const over of document.querySelectorAll('#action-menu, #action-menu .flyout')) {
+      const box = over.getBoundingClientRect();
+      if (box.height > 0) ends.push(box.bottom);
+    }
+    return Math.ceil(Math.max(...ends));
+  });
+  return { clip: { x: 0, y: 0, width: VIEWS.popup.width, height } };
+};
+
 const surface = async (rel, viewport, theme) => {
   const page = await context.newPage();
   await page.setViewportSize(viewport);
@@ -52,11 +72,15 @@ const scanSite = async (ui) => {
   await ui.evaluate(() => document.getElementById('rescan').click());
   await ui.waitForFunction((min) => document.querySelectorAll('.row').length > min, MIN_ROWS, { timeout: TIMEOUTS.scanMs });
   await ui.bringToFront();
+  // The scan's status line leaves on a 200ms timer while freezeMotion has already faded it to
+  // nothing, so an unwaited shot keeps its empty band above the first row.
+  await ui.waitForFunction(() => !document.getElementById('status').textContent, null, { timeout: TIMEOUTS.scanMs });
   await waitForAnimations(ui);
 };
 const openPopup = async (theme) => {
   const ui = await surface('src/popup/popup.html', VIEWS.popup, theme);
   await ui.waitForSelector('.filters', { timeout: TIMEOUTS.scanMs });
+  await ui.addStyleTag({ content: POPUP_UNCAPPED });
   await scanSite(ui);
   return ui;
 };
@@ -102,6 +126,14 @@ const openInTab = async (ctx, theme, label, name) => {
   await reopenPopup(ctx, theme);
 };
 
+// The options page's four cards, each named by a control only that card carries.
+const OPTION_CARDS = Object.freeze([
+  ['options-general', '#accent'],
+  ['options-connections', '#conn-list'],
+  ['options-assistant', '#llm-provider'],
+  ['options-pins', '#pin-list'],
+]);
+
 const STEPS = Object.freeze([
   { name: 'site', run: () => runner.shot(host, 'site') },
   ...makeDropZoneSteps({ config, runner, host, applyShellTheme, timeouts: TIMEOUTS }),
@@ -109,15 +141,28 @@ const STEPS = Object.freeze([
     name,
     run: async (ctx, theme) => {
       const ui = await popup(ctx, theme);
-      await runner.shot(ui, name);
+      await runner.shot(ui, name, await popupClip(ui));
     },
   })),
   { name: 'popup-row-menu', run: async (ctx, theme) => {
     const ui = await popup(ctx, theme);
     await openRowMenu(ui);
     await openFlyout(ui);
-    await runner.shot(ui, 'popup-row-menu');
+    await runner.shot(ui, 'popup-row-menu', await popupClip(ui));
     await ui.keyboard.press('Escape');
+  } },
+  { name: 'options', run: async (ctx, theme) => {
+    const options = await surface('src/options/options.html', VIEWS.options, theme);
+    await options.waitForSelector('.card', { timeout: TIMEOUTS.scanMs });
+    await waitForAnimations(options);
+    // The element box IS the card, so the background the page centres it on never enters the frame.
+    for (const [name, marker] of OPTION_CARDS) {
+      const card = options.locator('.card').filter({ has: options.locator(marker) }).first();
+      await card.scrollIntoViewIfNeeded();
+      await waitForAnimations(options);
+      await runner.shot(card, name);
+    }
+    await options.close();
   } },
   { name: 'site-highlight', run: async (ctx, theme) => {
     const ui = await popup(ctx, theme);
@@ -145,7 +190,7 @@ const STEPS = Object.freeze([
     await ui.locator('#chat-transcript .msg.assistant:not(.typing-row)').first().waitFor({ timeout: TIMEOUTS.replyMs });
     await ui.locator('#chat-transcript .typing-row').waitFor({ state: 'detached', timeout: TIMEOUTS.replyMs }).catch(() => {});
     await waitForAnimations(ui);
-    await runner.shot(ui, 'popup-assistant');
+    await runner.shot(ui, 'popup-assistant', await popupClip(ui));
   } },
   { name: 'site-crop-modal', run: async (ctx, theme) => {
     const ui = await popup(ctx, theme);
@@ -190,7 +235,7 @@ const STEPS = Object.freeze([
     await clickMenuItem(ui, 'Locally', true);
     await ui.locator('.row .pin-btn.active').first().waitFor({ timeout: TIMEOUTS.scanMs });
     await waitForAnimations(ui);
-    await runner.shot(ui, 'popup-pinned');
+    await runner.shot(ui, 'popup-pinned', await popupClip(ui));
   } },
   { name: 'side-panel', run: async (ctx, theme) => {
     const panel = await surface('src/sidepanel/sidepanel.html', VIEWS.panel, theme);
@@ -201,13 +246,6 @@ const STEPS = Object.freeze([
     await waitForAnimations(panel);
     await runner.shot(panel, 'side-panel');
     await panel.close();
-  } },
-  { name: 'options', run: async (ctx, theme) => {
-    const options = await surface('src/options/options.html', VIEWS.options, theme);
-    await options.waitForSelector('.card', { timeout: TIMEOUTS.scanMs });
-    await waitForAnimations(options);
-    await runner.shot(options, 'options', { fullPage: true });
-    await options.close();
   } },
   { name: 'crop-page', run: async (ctx, theme) => {
     const crop = await surface(`src/crop/crop.html?src=${encodeURIComponent(config.url('botIcon'))}`, VIEWS.crop, theme);

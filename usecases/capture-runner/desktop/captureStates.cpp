@@ -6,6 +6,7 @@
 #include "ChatDock.hpp"
 #include "OpenImageDialog.hpp"
 #include "ProjectDragZones.hpp"
+#include "../../../desktop/src/model/ScriptBuffer.hpp"
 #include "../../../desktop/src/llm/client/LlmClient.hpp"
 
 #include <QCheckBox>
@@ -38,6 +39,7 @@ namespace {
       "https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg");
   const QString ICON_URL = envOr("STENCIL_DOCS_ICON_URL",
       "https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png");
+  const QString SCRIPT = envOr("STENCIL_DOCS_SCRIPT", "@crop 8% 8% -8% -8%\n@filter sepia");
   const QString PROMPT = envOr("STENCIL_DOCS_PROMPT",
       "Warm it up with sepia, outline the centre and show me two more takes");
   const QString REAL_PROMPT = envOr("STENCIL_DOCS_REAL_PROMPT",
@@ -270,8 +272,13 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
     {"Image Links…", QStringLiteral("links-dialog")},
     {"Open In…", QStringLiteral("open-in-dialog")},
   };
-  for (const auto& dialog : dialogs)
-    if (shots.has(dialog.name)) grabModal(win, actionNamed(win, QString::fromUtf8(dialog.action)), dialog.name);
+  for (const auto& dialog : dialogs) {
+    if (!shots.has(dialog.name)) continue;
+    // The editor reads the session buffer as it is built, so the window opens on a real script
+    // and its Run / Copy / Download gate open with it.
+    if (dialog.name == QLatin1String("script-dialog")) stencil::model::ScriptBuffer::instance().setText(SCRIPT);
+    grabModal(win, actionNamed(win, QString::fromUtf8(dialog.action)), dialog.name);
+  }
 
   // The drag-out zones (dialogs/ProjectDragZones.hpp): the overlay the WINDOW paints while a
   // project row is dragged out of the list. They live only for the drag, and the dialog's own

@@ -29,6 +29,18 @@ export function framesToGif(dir, dst, { inFps = 15, fps = 10, width = 800, patte
   return dst;
 }
 
+// Cut a horizontal band out of a PNG and close the gap. `top` and `bottom` are fractions of
+// the height: everything above `top` and below `bottom` is kept, stacked.
+export function dropBand(file, top, bottom) {
+  const tmp = `${file}.b.png`;
+  runFfmpeg(['-i', file, '-filter_complex',
+    `[0:v]crop=iw:round(ih*${top}):0:0[a];`
+    + `[0:v]crop=iw:ih-round(ih*${bottom}):0:round(ih*${bottom})[b];`
+    + '[a][b]vstack=inputs=2', tmp]);
+  fs.renameSync(tmp, file);
+  return file;
+}
+
 // Re-encode a PNG on a 256-colour palette: terminals and flat UI lose nothing and shrink
 // several times over.
 export function quantizePng(file) {

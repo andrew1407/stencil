@@ -29,8 +29,8 @@ run('cmake', ['-S', repoPath('desktop'), '-B', BUILD, '-DSTENCIL_DOCS_CAPTURE=ON
 run('cmake', ['--build', BUILD, '--config', 'Release', '--target', 'stencil_docs_capture', '-j']);
 
 // The offscreen platform's screen is 800x800 and the tall dialogs size off availableGeometry, so
-// the plugin gets a 1920x1200-logical screen in DEVICE pixels, which QT_SCALE_FACTOR divides.
-const SCREEN_PX = { w: 1920, h: 1200 };
+// the plugin gets a 1440x1100-logical screen in DEVICE pixels, which QT_SCALE_FACTOR divides.
+const SCREEN_PX = { w: 1440, h: 1100 };
 const SCREEN_FILE = scratchPath('desktop-screen.json');
 fs.writeFileSync(SCREEN_FILE, JSON.stringify({
   screens: [{ name: 'docs', x: 0, y: 0,
@@ -50,6 +50,7 @@ const env = {
   STENCIL_DOCS_CLIP: clip.file,
   STENCIL_DOCS_CLIP_URL: media.url(clip.name),
   STENCIL_DOCS_PROMPT: config.prompt('stub'),
+  STENCIL_DOCS_SCRIPT: config.get('canvas.script').join('\n'),
   STENCIL_DOCS_REAL_PROMPT: config.prompt('real'),
   STENCIL_DOCS_PLAN: JSON.stringify(config.stubPlan('sepiaOutline')),
   ...(token ? { STENCIL_DOCS_SERVER_URL: config.serverUrl, STENCIL_DOCS_SERVER_TOKEN: token } : {}),
@@ -84,7 +85,10 @@ for (const theme of themes) {
       ...(onScreen ? rest : env),
       STENCIL_DOCS_THEME: theme,
       STENCIL_DOCS_SHOTS: shots.join(','),
-      QT_SCALE_FACTOR: String(config.get('scaleFactor')),
+      // Offscreen reports dpr 1 (the screen file says so), so the scale factor is what makes those
+      // shots 2x. A real screen brings its own: forcing it again there halves the logical screen the
+      // dialogs size against, and the clip's dialog ended up scrolling its own body.
+      ...(onScreen ? {} : { QT_SCALE_FACTOR: String(config.get('scaleFactor')) }),
       STENCIL_NO_ANIM: '1',
     });
     taken.push(...shots);

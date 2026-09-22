@@ -8,7 +8,7 @@ import { outDir, scratchDir } from './lib/paths.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
 import { CLI_BIN, SHELL, VsCodeHost } from './lib/vscodeHost.mjs';
 import { film } from './lib/shots.mjs';
-import { framesToGif, quantizePng } from './lib/gifTools.mjs';
+import { dropBand, framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { settle, waitForStable } from './lib/waits.mjs';
 
 const config = loadCaptureConfig('cli');
@@ -43,7 +43,28 @@ const waitForText = (pattern, timeoutMs) => page.waitForFunction(
     document.querySelector('.terminal-wrapper.active .xterm-rows')?.innerText ?? ''),
   pattern.source, { timeout: timeoutMs },
 );
-const shot = async (name) => quantizePng(await runner.shot(screen, name));
+// The console pins its input rule to the BOTTOM of the terminal, so a short run leaves a band of
+// empty rows between the last output line and it. `trim` drops that band, leaving the picture a
+// terminal just tall enough for the run.
+const idleBand = () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.terminal-wrapper.active .xterm-rows > div')];
+  const box = document.querySelector('.terminal-wrapper.active .xterm')?.getBoundingClientRect();
+  if (rows.length < 4 || !box?.height) return null;
+  const filled = rows.map((row) => row.innerText.trim() !== '');
+  let bottom = rows.length;
+  while (bottom > 0 && filled[bottom - 1]) bottom--;   // the input rule and its prompt
+  let top = bottom;
+  while (top > 0 && !filled[top - 1]) top--;           // the empty rows standing above them
+  if (top === 0 || bottom - top < 4) return null;
+  const at = (i) => (rows[i].getBoundingClientRect().top - box.top) / box.height;
+  return { top: at(top), bottom: at(bottom) };
+});
+const shot = async (name, { trim = false } = {}) => {
+  const file = await runner.shot(screen, name);
+  const band = trim ? await idleBand() : null;
+  if (band) dropBand(file, band.top, band.bottom);
+  return quantizePng(file);
+};
 const screenClip = async () => ({ clip: await screen.boundingBox() });
 // Terminal cell → page point, from the row stack xterm renders into.
 const cellPoint = async (row, col) => {
@@ -99,13 +120,13 @@ const STEPS = Object.freeze([
   { name: 'term-upload', run: async (ctx) => {
     await load(ctx);
     await type('/status');
-    await shot('term-upload');
+    await shot('term-upload', { trim: true });
   } },
   { name: 'term-prompt', run: async (ctx) => {
     if (!token) { console.log('  term-prompt skipped (no server token)'); return; }
     await load(ctx);
     await type(`/prompt ${config.prompt('real')}`, TIMEOUTS.promptMs);
-    await shot('term-prompt');
+    await shot('term-prompt', { trim: true });
   } },
   { name: 'term-edit', run: async (ctx) => {
     await load(ctx);
@@ -114,12 +135,12 @@ const STEPS = Object.freeze([
     await type('/filter bw');
     await type('/undo');
     await type('/save out/edited.png');
-    await shot('term-edit');
+    await shot('term-edit', { trim: true });
   } },
   { name: 'term-blank', run: async () => {
     await type('/blank a5 black');
     await type('/script @rect (10%, 10%) (90%, 90%) ; @filter sepia');
-    await shot('term-blank');
+    await shot('term-blank', { trim: true });
   } },
   // The header logo cycles the accent: two clicks, filmed.
   { name: 'term-theme-cycle', run: async () => {
