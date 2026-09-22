@@ -1564,9 +1564,6 @@
    "|#connect-list": {
     "min-height": "170px"
    },
-   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal": {
-    "min-height": "min(82vh, 760px)"
-   },
    "|#controls-body": {
     "display": "grid",
     "grid-template-rows": "1fr",
@@ -1943,6 +1940,9 @@
     "background": "var(--accent-2)",
     "border-color": "var(--accent-2) !important"
    },
+   "|#info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal": {
+    "min-height": "min(82vh, 760px)"
+   },
    "|#install-host": {
     "position": "fixed",
     "right": "18px",
@@ -2075,6 +2075,9 @@
    },
    "|#project-name-input:read-only": {
     "cursor": "default"
+   },
+   "|#projects-modal-overlay .settings-body": {
+    "padding-top": "6px"
    },
    "|#projects-modal-overlay:not(.modal-popover) .app-modal": {
     "min-height": "min(560px, 82vh)"
@@ -6143,6 +6146,9 @@
     "flex": "1 1 100%",
     "text-align": "left"
    },
+   "|.modal-resizing": {
+    "transition": "none !important"
+   },
    "|.modal-search": {
     "width": "100%",
     "padding": "8px 10px",
@@ -6923,7 +6929,8 @@
     "flex-wrap": "nowrap"
    },
    "|.projects-filter-row": {
-    "padding-top": "0"
+    "padding-top": "4px",
+    "padding-bottom": "4px"
    },
    "|.reveal-group-transition": {
     "overflow": "hidden",
@@ -7618,6 +7625,9 @@
    "|@property --ic-play": {
     "syntax": "\"*\"",
     "inherits": "false"
+   },
+   "|[data-edge], [data-edge] .settings-header": {
+    "cursor": "var(--edge-cursor)"
    },
    "|[data-theme=\"dark\"]": {
     "--accent-2": "color-mix(in srgb, var(--accent) 78%, white)",
@@ -8639,7 +8649,7 @@
    "|#settings-close:hover",
    "|.settings-body",
    "|#settings-modal .settings-body",
-   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal",
+   "|#info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal",
    "|.modal-search-bar",
    "|.modal-search",
    "|.settings-footer",
@@ -8686,6 +8696,8 @@
    "|.app-modal-overlay:not(.modal-popover) .settings-header",
    "|.app-modal.modal-dragging .settings-header",
    "|.app-modal.modal-dragging",
+   "|[data-edge], [data-edge] .settings-header",
+   "|.modal-resizing",
    "|.app-modal-overlay.modal-closing",
    "|#confirm-modal-overlay.modal-open",
    "|#confirm-modal-overlay.modal-closing",
@@ -8879,6 +8891,7 @@
    "|.modal-search-bar",
    "|.modal-search-bar .modal-search",
    "|.projects-filter-row",
+   "|#projects-modal-overlay .settings-body",
    "|.modal-filter",
    "@media (max-width: 680px)|.modal-search-bar",
    "@media (max-width: 680px)|.modal-search-bar .modal-search",

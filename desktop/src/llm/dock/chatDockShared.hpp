@@ -34,6 +34,8 @@ namespace stencil::gui::chatdock {
   inline constexpr int APPEAR_SLIDE_PX = 6;
   // Compact default when torn off; 385 = 380 + 5 px so the per-row "…" clears the transcript edge.
   inline constexpr QSize FLOATING_SIZE{385, 480};
+  // The popover shape beside the toolbar icon (browser chat/geometry.js COMPACT_CHAT_W/H).
+  inline constexpr QSize COMPACT_SIZE{340, 460};
 
   // The snapshot was taken already, so the bubble melts into its own dust rather than vanishing.
   void fadeOutAndDelete(QWidget* w);

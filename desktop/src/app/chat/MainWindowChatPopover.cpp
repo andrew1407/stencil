@@ -66,7 +66,7 @@ namespace stencil::gui {
     if (!chatDock || !anchor) return {};
     const QRect anchorRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
     const QRect screen = anchor->screen()->availableGeometry();
-    return support::popoverRect(anchorRect, chatDock->floatingDefaultSize(), screen);
+    return support::popoverRect(anchorRect, chatDock->compactDefaultSize(), screen);
   }
 
   // Browser chat/panel.js FLOAT_DEFAULT/clampFloatRect parity; the insets clear the whole toolbar row.

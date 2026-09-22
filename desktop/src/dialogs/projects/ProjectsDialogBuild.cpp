@@ -28,6 +28,9 @@ namespace stencil::gui {
       search->setClearButtonEnabled(true);
       srow->addWidget(search, 1);
       layout->addLayout(srow);
+      // The selects sit as far under the search as above the rows: the list adds its 4px item
+      // spacing over the first row, so the same 4px goes over the selects (browser .projects-filter-row).
+      layout->addSpacing(4);
       connect(search, &QLineEdit::textChanged, this, [this](const QString&) { applyFilter(); });
     }
 
@@ -120,7 +123,7 @@ namespace stencil::gui {
       batch.batchBar->setVisible(false);
       // The bar and the list share ONE zero-spacing slot; the gap under the bar is the bar's OWN bottom
       // margin, so a closing strip slides its whole footprint away (controlReveal closeBarSlot). 10px above, 10px below.
-      bh->setContentsMargins(0, 0, 0, BODY_SPACING);
+      bh->setContentsMargins(0, 4, 0, BODY_SPACING);
       barSlot = new QVBoxLayout;
       barSlot->setContentsMargins(0, 0, 0, 0);
       barSlot->setSpacing(0);

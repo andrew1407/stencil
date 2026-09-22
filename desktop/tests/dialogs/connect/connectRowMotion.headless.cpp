@@ -73,11 +73,10 @@ namespace connectrow {
   {
     ConnectDialog mini(&mgr);
     mini.setWindowFlags(mini.windowFlags() | Qt::FramelessWindowHint);
-    const QSize cap(470, 590);           // execMaybePopover's compact cap, verbatim
+    const QSize cap(420, 560);           // execMaybePopover's compact cap, verbatim
     mini.setMinimumSize(0, 0);
     mini.setMaximumSize(cap);
-    mini.resize(qMin(mini.sizeHint().width(), cap.width()),
-                qMin(mini.sizeHint().height(), cap.height()));
+    mini.resize(cap.width(), qMin(mini.sizeHint().height(), cap.height()));
     mini.show();
     pumpFor(80);
     auto* mlist = mini.findChild<QListWidget*>();

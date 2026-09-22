@@ -45,7 +45,7 @@ namespace stencil::gui {
                            const QString& units, QWidget* parent)
       : QDialog(parent), pageSeed(pageSeed) {
     setWindowTitle("Image links");
-    setMinimumWidth(540);
+    setMinimumWidth(MODAL_WIDTH);
     const QColor txt = palette().color(QPalette::WindowText);
     // Theme muted tone for hint/secondary text (browser --text-muted).
     const QString mutedCss =

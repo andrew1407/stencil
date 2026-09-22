@@ -40,6 +40,7 @@ namespace stencil::gui {
   bool ChatDock::isBusy() const { return cmp.busyFlag; }
 
   QSize ChatDock::floatingDefaultSize() const { return FLOATING_SIZE.expandedTo(minimumSize()); }
+  QSize ChatDock::compactDefaultSize() const { return COMPACT_SIZE.expandedTo(minimumSize()); }
 
   void ChatDock::focusInput() { input->setFocus(); }
 
