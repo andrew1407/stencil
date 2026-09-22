@@ -17,6 +17,7 @@
 #include "ProjectsDialog.hpp"
 #include "ServerClient.hpp"
 #include "../../support/modal/modalChrome.hpp"
+#include "../../support/modal/imageAnchor.hpp"
 
 #include <QImage>
 #include <QImageReader>
@@ -70,6 +71,7 @@ namespace stencil::gui {
       spec.message = tr("Replace the current image with a new blank image?");
       spec.confirmLabel = tr("Replace");
       spec.confirmIcon = QStringLiteral("refresh");
+      spec.flight = openImageConfirmFlight(this);
       if (!confirmModal(this, spec)) return;
     }
     createBlankImage(color, w, h);
@@ -118,6 +120,7 @@ namespace stencil::gui {
     const bool album = core::isAlbumOrientation(cur.width, cur.height);
     // cropRect lives in the rotated original's pixel space.
     CropDialog dlg(canvas->effectiveOriginalImage(), page.width, page.height, album, cur, this);
+    support::revealDialog(dlg, pop.dialogAnchor.data(), pop.dialogAnchorRect);   // flight + the dim behind
     if (dlg.exec() != QDialog::Accepted) return;
 
     const core::CropRect next = dlg.cropRect();

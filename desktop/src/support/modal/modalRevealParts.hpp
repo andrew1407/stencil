@@ -3,6 +3,7 @@
 // the ghost that flies between two rects and the surface dust it breaks into. Private to the
 // modalReveal TUs; the public surface stays modalReveal.hpp.
 #include "modalReveal.hpp"
+#include "imageAnchor.hpp"
 #include "ModalBackdrop.hpp"
 #include "DisintegrateOverlay.hpp"
 
@@ -58,15 +59,13 @@ namespace stencil::support {
     return anchorRect.isValid() && anchorRect.width() > 0 && anchorRect.height() > 0;
   }
 
-  // Exit target once the opener is gone: the canvas. Browser twin: ui/base.js canvasHomeRect.
-  QRect canvasHomeRect(QWidget* host) {
+  // Exit target once the opener is gone: the open-image flow's own canvas box (imageAnchor.hpp).
+  QRect canvasHomeRect(QWidget* host) {   // invalid = keep the caller's own fallback
     QWidget* canvas =
-        host ? host->findChild<QWidget*>(QStringLiteral("canvasViewport")) : nullptr;
+        host ? host->findChild<QWidget*>(QLatin1String(gui::CANVAS_VIEWPORT_NAME)) : nullptr;
     if (!canvas || !canvas->isVisible() || canvas->width() < 1 || canvas->height() < 1)
       return QRect();
-    constexpr int HOME_PX = 40;   // a small box, so the shrink reads as collapsing INTO it
-    const QRect g(canvas->mapToGlobal(QPoint(0, 0)), canvas->size());
-    return QRect(g.center() - QPoint(HOME_PX / 2, HOME_PX / 2), QSize(HOME_PX, HOME_PX));
+    return gui::canvasAnchorRect(canvas);
   }
 
   // A CHILD of the main window, never a top-level: per-frame moves of a real window go

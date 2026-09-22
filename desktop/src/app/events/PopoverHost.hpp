@@ -1,5 +1,6 @@
 #pragma once
 #include <QHash>
+#include <functional>
 #include <QPointer>
 #include <QRect>
 #include <QSet>
@@ -27,6 +28,8 @@ namespace stencil::gui {
     // the icon is hidden.
     QPointer<QWidget> dialogAnchor;
     QRect dialogAnchorRect;
+    // Where the NEXT dialog lands, asked at close time with its outcome; taken by execMaybePopover.
+    std::function<QRect(bool)> dialogCloseRect;
     // Recorded on QMenu::hovered — Qt hides the menu before emitting triggered().
     QPointer<QAction> menuRowAction;
     QRect menuRowRect;
