@@ -64,7 +64,7 @@ owns no transport concept (no `ResponseWriter`, no statuses). `auth`, `ratelimit
 | `internal/store/` | the pgx `Store` (`projects.go` + `sessions.go`), the pool, keyset listing, embedded SQL migrations | migrations are idempotent and applied in lexical order at boot; Postgres is the sole source of truth |
 | `internal/filestore/` | the path-confined byte store: `safeJoin` (clean + root-prefix re-check + symlink-escape guard), atomic put (fsync before rename), quota | never touches a client-supplied filename; path-confined, not encrypted |
 | `internal/transport/`, `internal/hub/` | the `Conn` abstraction over WebSocket (with keepalive) and TCP NDJSON; one run-loop per project relaying edits and committing saves | all transports join the same session |
-| `internal/eventbus/`, `internal/redisbus/` | pub/sub fan-out, in-process and Redis; `drop.go` | both drop a delivery rather than stall a slow subscriber, and warn (rate-limited) because a silent drop reads like a lost edit |
+| `internal/eventbus/`, `internal/redisbus/` | pub/sub fan-out, in-process and Redis; `drop.go` | both drop a delivery rather than stall a slow subscriber, and warn (rate-limited) because a silent drop reads like a lost edit; `Subscribe` returns only once the backend has the subscription, so the first publish after it cannot be lost |
 | `internal/llm/`, `internal/validate/` | the upstream proxy (one file per wire shape, enablement, upstream failure classification, sanitize); the chat-request check | requests validate before leaving; upstream text is untrusted and sanitized; the key and image payloads are never logged |
 | `internal/clock/`, `internal/testutil/`, `internal/lint/` | the injectable `now()`, the shared test rigs, the source-tree lint (run as a test) | |
 | `vendor/` | `go mod vendor` output | gitignored, as is `go.sum`; the only non-stdlib deps are `pgx`, `go-redis`, `coder/websocket` |
@@ -166,7 +166,7 @@ classDiagram
 | `ProjectRecord` (`protocol/project.go`) | project metadata plus the server-only storage fields; `Version` is the last-writer-wins guard | a Postgres row in `store`; canonical here, mirroring `core/state/ProjectsStore.hpp` `ProjectMeta` semantics; the `Layout` payload is the browser's `buildLayoutPayload` | cached as `session.loadedRec`; the body of every REST project response |
 | `LlmChatRequest` / `LlmChatResponse` (`protocol/llm.go`) | one canonical chat turn and its reply; the provider wire shape never leaves `llm/` | per request, `llm-contract.md` §6.3 is canonical | validated by `validate.LLMChat`; mapped by a `providerMapping` |
 | `Session` (`auth/token.go`) | the authenticated principal resolved from a bearer token's SHA-256 hash | a `sessions` row created by `Store.CreateSession`, live until `ExpiresAt` | resolved by `auth.Verify` for REST and for the hub's hello; keys the per-session `Limiter` |
-| `Hub` (`hub/hub.go`) | the registry of live sessions and tracked connections | one per process, for the process lifetime | acquires and releases a `session` per project id; meters hellos through its `helloGuard` |
+| `Hub` (`hub/hub.go`) | the registry of live sessions and tracked connections | one per process; its own context, ended by `Close` after the drain | acquires and releases a `session` per project id; meters hellos through its `helloGuard` |
 | `session` (`hub/session.go`) | the single-goroutine owner of one project's live state: members, version, cached snapshot | created by `Hub.acquire` on the first join, refcounted, torn down when the last member leaves | fans `Envelope`s out to `member`s; delegates store I/O to its `snapshotWorker` |
 | `member` (`hub/member.go`) | one connected client inside a session, with its bounded outbound queue and `writeLoop` | per connection, from `serveProject` until disconnect | owns a `Conn`; addressed by `clientID` |
 | `snapshotWorker` (`hub/persist.go`) | the session's DB arm: `persistJob` in, `persistResult` out, one blocking store call at a time | one per session, exits when the session's `done` closes | calls `hub.Store` (`GetProject`, `UpdateProject`) |
@@ -197,7 +197,10 @@ classDiagram
   `configureLLM` attaches a `llm.Client` when a provider is configured. `newHTTPServer`
   wraps the mux (REST routes, `/ws`, `/healthz`) in `CORS`; `listenTCP` opens the NDJSON
   listener under the same TLS config. Shutdown drains in order: the sweep, TCP accepts,
-  `Hub.CloseAll` (a `shuttingDown` frame to every live connection), then HTTP.
+  `Hub.CloseAll` (a `shuttingDown` frame to every live connection), HTTP, then `Hub.Close`.
+  The hub holds a context of its own, carrying the signal context's values but not its
+  cancellation: TCP editors are served under it, so the signal cannot hang them up before the
+  notice is written, and the last peer-leave publish and an in-flight save still land.
 - **A REST project write.** `PUT /projects/{id}` passes `CORS`, then `auth.Middleware`
   (`BearerToken` → `auth.Verify` → `Session` on the context), then `handleUpdateProject`
   decodes an `UpdateProjectRequest`, opens an `opCtx` and calls `Store.UpdateProject` with a
@@ -272,7 +275,8 @@ classDiagram
    the user can act on; anything unclassified is stripped of control characters, redacted of
    URLs and token-shaped runs, capped at 200 characters, and dropped entirely if a fragment
    of the key appears. The `code` is always the server's.
-7. **Store calls run under `OP_TIMEOUT_SECONDS`** in every handler.
+7. **Store calls run under `OP_TIMEOUT_SECONDS`** in every handler, and under `hub.opTimeout`
+   in the hub — the hello's token lookup included, since the handshake deadline is spent by then.
 
 ## Tests
 

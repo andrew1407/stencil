@@ -22,14 +22,14 @@ const goodToken = "good-token"
 // project and one session so goodToken resolves.
 func newTestHub(t *testing.T) *Hub {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	st := testutil.NewMemStore()
 	st.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
-	if _, err := st.CreateSession(ctx, auth.HashToken(goodToken), "test", 0, 0); err != nil {
+	if _, err := st.CreateSession(context.Background(), auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	return New(ctx, st, eventbus.NewInProc(), st)
+	h := New(context.Background(), st, eventbus.NewInProc(), st)
+	t.Cleanup(h.Close) // the hub holds a context of its own now, so a test must end it
+	return h
 }
 
 // startTCP runs a hub TCP listener and returns its address.

@@ -40,14 +40,14 @@ func (c *countingResolver) ResolveToken(ctx context.Context, hash []byte) (auth.
 // limitedHub is newTestHub with the hello limiter armed.
 func limitedHub(t *testing.T, perMin int, trusted []netip.Prefix) (*Hub, *countingResolver) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	res := &countingResolver{MemStore: testutil.NewMemStore()}
 	res.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
-	if _, err := res.CreateSession(ctx, auth.HashToken(goodToken), "test", 0, 0); err != nil {
+	if _, err := res.CreateSession(context.Background(), auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	return New(ctx, res, eventbus.NewInProc(), res, WithHelloLimit(perMin, trusted)), res
+	h := New(context.Background(), res, eventbus.NewInProc(), res, WithHelloLimit(perMin, trusted))
+	t.Cleanup(h.Close)
+	return h, res
 }
 
 // helloOnce dials, sends one hello, and returns the error code it got back.

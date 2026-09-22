@@ -6,6 +6,7 @@ package redisbus
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -15,6 +16,8 @@ import (
 
 // subBuffer mirrors the in-proc bus: a slow consumer drops rather than stalls.
 const subBuffer = 64
+
+const subscribeTimeout = 5 * time.Second // the wait for Redis to acknowledge a SUBSCRIBE
 
 // Options size the client; a zero field keeps go-redis's default.
 type Options struct {
@@ -76,6 +79,12 @@ func (b *redisBus) Subscribe(channel string) (<-chan eventbus.Envelope, func()) 
 	// The subscription's lifetime is bounded by the returned unsubscribe func, not by a per-call context, so
 	// the initial SUBSCRIBE uses a background context.
 	pubsub := b.client.Subscribe(context.Background(), channel)
+	// A publish that beats the subscription is lost even to local members, who receive through the bus.
+	ctx, cancel := context.WithTimeout(context.Background(), subscribeTimeout)
+	defer cancel()
+	if _, err := pubsub.Receive(ctx); err != nil {
+		log.Printf("redisbus: subscription to %s unconfirmed: %v", channel, err)
+	}
 	out := make(chan eventbus.Envelope, subBuffer)
 	go func() {
 		defer close(out)
