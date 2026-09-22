@@ -63,7 +63,7 @@ namespace stencil::gui {
                 ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
                                 {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
                 : QuickCropOpts{QuickCropOpts::Mode::NONE, false, QString()};
-      openImageSource(opts.src, opts.frame);
+      openImageSource(opts.src, opts.frame, opts.srcFallbacks);
     } else if (!opts.file.isEmpty()) {
       pendingLaunchLayout = opts.layout;
       openPathFromOS(opts.file, opts.frame);

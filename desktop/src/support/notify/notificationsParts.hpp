@@ -26,6 +26,8 @@ namespace stencil::gui {
   // Set the moment a toast starts leaving, so the cap ignores it and the exit is never staged twice.
   inline constexpr const char* LEAVING_PROPERTY = "stencilToastLeaving";
   inline constexpr const char* TEXT_PROPERTY = "stencilToastText";
+  // The Level the toast was raised at, so a caller's severity is assertable.
+  inline constexpr const char* LEVEL_PROPERTY = "stencilToastLevel";
 
   // Toast dust (browser surface/motion.js surfaceIn/surfaceOut). The entrance runs LONGER than the
   // browser's 680: at the desktop's size the arrival read as a flash rather than a landing.

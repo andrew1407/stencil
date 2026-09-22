@@ -1,5 +1,6 @@
 #pragma once
 #include <QString>
+#include <QStringList>
 
 class QCoreApplication;
 class QUrl;
@@ -18,6 +19,10 @@ namespace stencil::gui {
 
     // --src <path|url>: local path, remote image URL, or a video frame.
     QString src;
+
+    // Ranked alternatives for --src, tried in order when it fails; NOT parsed from argv — a
+    // dragged link and the <img> it wrapped are both candidates for the same picture.
+    QStringList srcFallbacks;
 
     // --frame <n>: 0-based; negative/invalid clamps to 0.
     int frame = 0;
