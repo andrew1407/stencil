@@ -44,13 +44,13 @@ the files the lint lists as the core seam. The document state itself lives in `C
 | Path | Holds | Rule |
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with its method groups in feature folders beneath (`chat/` with `session/` + `planTarget/`, `toolbar/`, `project/`, `theme/`, `setup/`, `open/`, `events/`, `actions/`, `context/`, `logo/`, `selection/`, `remote/`, `view/`, `meta/`) | composition only; no logic a controller could hold; a new method group is a new TU in the folder it belongs to, not a longer one |
-| `src/canvas/` (+ `input/`, `draw/`, `paint/`, `overlay/`) | `CanvasWidget` (QPainter) and its tooltip, its TUs banded by gesture, stroke, paint and the overlays that float above it | pixel, geometry and page math come from `core/`, never re-derived |
+| `src/canvas/` (+ `input/`, `draw/`, `paint/`, `overlay/`) | `CanvasWidget` (QPainter) and its tooltip, its TUs banded by gesture, stroke, paint and the overlays that float above it (`DropZonesOverlay` over the whole window) | pixel, geometry and page math come from `core/`, never re-derived |
 | `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to), plus `ScriptBuffer`, the session-scoped text the two script hosts share | the core seam — `model/` may include `core/` freely, and nothing above it may; nothing here is persisted |
 | `src/dialogs/` | one folder per window (`projects/` with `row/` + `list/`, `openImage/` with `preview/` + `dust/`, `script/`, `connect/`, `settings/`, `meta/` with `links/` + `keywords/`, `crop/`), one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script — plus `ScriptEditorWidget`, the .stc editor both script surfaces host, and `ScriptMenuPanel`, that script window at menu scale | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a second copy of them |
 | `src/llm/` (+ `dock/card/`, `dock/compose/`, `plan/executor/`) | `dock/` and `panel/` (the two chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`), `plan/` (op registry, schema, `planExecutor`) | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
-| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `share/`, `notify/` — plus the platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
+| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `share/`, `notify/` — plus the platform helpers (`shareImage*`, `modalDismissMac`, `dragPasteboard*`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
 | `resources/` | `app.qrc`: `app.qss` and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
 | `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
@@ -225,6 +225,19 @@ classDiagram
   and failing all leave the menu open. Its Upload and Download are the window's, because Qt
   takes every popup down the moment a file dialog opens; they dismiss the chain themselves and
   put it BACK on the script row afterwards. The editor owns Tab (it indents) and Ctrl+Enter runs.
+- **An open-image question's flight.** Every dialog in the open-image flow starts and ends at one
+  of two boxes, resolved in `support/modal/imageAnchor.hpp` (the twin of the browser's
+  `ui/modal/imageAnchor.js`): `canvasAnchorRect` is a 40 px box on the canvas viewport's centre,
+  valid with no image open and standing in with the window's own centre before layout, and
+  `openImageAnchorRect` is whichever half of the toolbar's Open pair is showing — the pair swaps on
+  `hasImage`, so the rect is read at flight time, not from a fixed control. A confirm about opening
+  an image (the dropped-image ask, the blank-replace, the paste-replace) grows out of the canvas
+  whatever gesture raised it, and the Open Image window does too when nothing anchored it. Where it
+  lands follows the OUTCOME, asked as the dialog hides (`FlightAnchors::closeRectFor`): an answer
+  that opened an image pours into the Open control, a cancel back into the canvas. Every modal also
+  dims and blurs the windows behind it (`support/modal/ModalBackdrop`, the browser's
+  `.app-modal-overlay` scrim plus its `backdrop-filter`); only the compact popover stays undimmed,
+  as `.modal-popover` does. `motionReduced()` drops the flight and keeps the dim.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
   applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
   `MediaLoader`. `openProjectFile`
@@ -249,6 +262,10 @@ classDiagram
   `OpSchema::desktop()`), builds a `ChatPlanTarget(*this)` and `executePlan`; the
   `ExecResult` notes, variants (rendered in `CanvasPlanTarget` sandboxes) and ask card are
   posted to the dock, and a changed result runs the same refresh and autosave as a toolbar edit.
+  The appliers await server and media work in nested event loops, so the execution is scoped by
+  `planRunning`: `RemoteSyncController` holds its poll and reload off while it is set (the third
+  of its re-entrancy flags, beside `remoteReloading` and `remotePushing`), and `onChatSend`
+  ignores a Send, since the dock is already idle by the time the plan runs.
 - **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
   (`app/LogoStage*.cpp`), a full-window child of the window that asks its `Hooks` for a bare
   window — not fullscreen, nothing modal, no popover — before it opens. `logoStage.json` in the
@@ -292,7 +309,27 @@ classDiagram
    deep links all route through `openPathFromOS`, which forks on suffix: `.json` a layout,
    `.stencil` a project, `.stc` a script to RUN, anything else an image or video. The model's
    `openFile`/`save` ops go through the same, gated to paths the user wrote in the
-   conversation.
+   conversation. A dragged picture is not one url but RANKED candidates — whatever names an
+   image first, then the PROMISED FILE, then the `<img src>` (an image whatever its url spells),
+   then the BITMAP the drag source rendered — a `data:` candidate `MediaLoader` decodes itself —
+   then the rest, and `MediaLoader::loadFirstOf` keeps the first that resolves, reporting the
+   FIRST failure when none does. The candidates are not QMimeData's alone: macOS maps only some
+   flavors onto it, so `support/dragPasteboard` reads `public.html`, the urls Qt dropped and the
+   file a browser promises Finder straight off the drag pasteboard, on the drop alone. A promise
+   is fulfilled into a per-user owner-only scratch under a `PROMISE_BUDGET_MS` deadline, so one
+   that never lands cannot hold the drop; the named url still leads, because the promise is bytes
+   already written and costs nothing to fall through to. The list rides `LaunchOptions`, so "New
+   window" gets the same tries. A drag that published LINKS ONLY — every candidate an
+   http(s) url naming no picture, and no bitmap, promised file or `<img>` src behind it — carried
+   no image at all, so the drop opens nothing and SAYS SO: the failure is the drag's, not an
+   unreadable picture's, and the toast names it that way. The save/incognito half is the one the
+   ZONES paint: the overlay is hosted by the WINDOW, as the browser's `#global-drop-overlay`
+   covers the whole page, so it spans toolbar, canvas, status
+   row and docked panel alike and its split is the window midline; both the lit half and the
+   drop read it from the overlay's own rect. It follows the drag wherever Qt delivers it — a
+   child that accepts drops (the chat dock) becomes the target and the window is sent no move
+   of its own. A dock torn off into its own top-level window is not covered: a child overlay
+   cannot paint over another window.
 
 ## Tests
 

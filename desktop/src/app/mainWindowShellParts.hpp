@@ -38,6 +38,7 @@
 #include "MenuHotkeys.hpp"
 #include "menuReveal.hpp"
 #include "MenuShimmer.hpp"
+#include "imageAnchor.hpp"
 #include "modalReveal.hpp"
 #include "SearchCombo.hpp"
 #include "ControlsPill.hpp"

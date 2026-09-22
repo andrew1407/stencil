@@ -222,6 +222,7 @@ namespace stencil::gui {
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
     core::UnitFormat unitFormat() const;
+    core::FormulaContext formulaContext() const;
     double currentLineLengthCm() const;
     void stampCanvasMeta(core::ProjectMeta& meta) const;
     void applyUnitToPageInputs();
@@ -319,8 +320,7 @@ namespace stencil::gui {
     void chatMirrorLateNote(const QString& text);
     void chatLateNote(const QString& text);
     void chatNote(const QString& text);
-    void chatMirrorProviderStatus(const QString& richTooltip,
-                                  ChatDock::ProviderStatus status);
+    void chatMirrorProviderStatus(const QString& richTooltip, ChatDock::ProviderStatus status);
     SessionController::Gates sessionGates() const;
     void scheduleAutosave();
     void saveSessionNow();
@@ -349,17 +349,18 @@ namespace stencil::gui {
     void createBlankImage(const QColor& color, int w, int h);
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
-    void openSourceHere(const QString& src, int frame, bool incognito);
+    // `fallbacks`: the ranked candidates to try after `src` (a linked image's other urls).
+    void openSourceHere(const QString& src, int frame, bool incognito,
+                        const QStringList& fallbacks = {});
     // `cropRect` is what the Open-Image stage was left on; empty ⇒ the new window centres it.
     void openSourceInNewWindow(const QString& src, int frame, bool incognito,
-                               bool hasPreview = false, bool cropToPage = false,
-                               bool cropAlbum = false,
+                               const QStringList& fallbacks = {}, bool hasPreview = false,
+                               bool cropToPage = false, bool cropAlbum = false,
                                const QString& cropPage = QString(),
                                const core::CropRect& cropRect = {});
     void openPreviewedImageHere(const QImage& image, const QString& localPath,
-                                const QString& provSource, bool incognito,
-                                bool cropToPage, bool cropAlbum,
-                                const QString& cropPage,
+                                const QString& provSource, bool incognito, bool cropToPage,
+                                bool cropAlbum, const QString& cropPage,
                                 const core::CropRect& cropRect = {});
     bool canReplaceActive() const;
     void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
@@ -370,7 +371,7 @@ namespace stencil::gui {
     void onLaunchImageLoaded(const QImage& image, const QString& localPath);
     void applyQuickCrop();
     void applyLayoutFromSource(const QString& src);
-    void openImageSource(const QString& src, int frame);
+    void openImageSource(const QString& src, int frame, const QStringList& fallbacks = {});
     void ensureMediaLoader();
     // Browser linksModal.js.
     void openLinks();
@@ -408,8 +409,7 @@ namespace stencil::gui {
     void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito);
     // Browser openInModal.js, for the current session.
     void openInAnotherApp();
-    void openInAnotherAppFor(const QString& id, const QString& serverUrl,
-                             const QRect& closeRect);
+    void openInAnotherAppFor(const QString& id, const QString& serverUrl, const QRect& closeRect);
     struct OpenInSource {
       QString serverUrl, serverId;
       qint64 version = 0;
@@ -451,8 +451,7 @@ namespace stencil::gui {
     void onChatSend(const QString& text);
     void onChatReply(const stencil::llm::LlmReply& reply);
     bool settleFailedChatReply(const stencil::llm::LlmReply& reply, bool toastWanted);
-    void postChatReplyBubble(const stencil::llm::OpPlan& plan, bool hasWork,
-                             bool adoptAttachment);
+    void postChatReplyBubble(const stencil::llm::OpPlan& plan, bool hasWork, bool adoptAttachment);
     void renderChatAskCard(const stencil::llm::OpPlan& plan, stencil::llm::PlanTarget& target);
     void renderChatVariantCards(const stencil::llm::ExecResult& res, const QString& reply);
     bool maybeContinueChat(const stencil::llm::OpPlan& plan);
@@ -570,6 +569,8 @@ namespace stencil::gui {
     // Reentrancy flags, read by RemoteSyncController as const bool*.
     bool remotePushing = false;
     bool remoteReloading = false;
+    // True for the whole of an op plan, whose appliers await async work in nested event loops.
+    bool planRunning = false;
     bool filterDirty = false;
 
     ProjectNameBar nameBar;
@@ -655,7 +656,7 @@ namespace stencil::gui {
     class DockEdgeOverlay* chatEdge = nullptr;
     QRect chatEdgeHit;
     bool chatEdgeDrag = false;
-    class QLabel* imageSizeInfo = nullptr;
+    class QLabel *imageSizeInfo = nullptr, *incognitoTag = nullptr;
     QWidget* imageInfoBar = nullptr;
     QWidget* imageInfoHost = nullptr;
     class QDockWidget* imageInfoDock = nullptr;
@@ -849,8 +850,7 @@ namespace stencil::gui {
       Mode mode = Mode::AUTO;
       bool album = false;
       QString page;
-      // The rect the Open-Image crop stage was left on, in original-image pixels. Width 0
-      // means none was dragged, and the page-aspect crop is centred as it always was.
+      // The Open-Image crop stage's rect in original-image px; width 0 = none dragged, so the page-aspect crop centres.
       core::CropRect rect;
     };
     QuickCropOpts pendingCrop;
