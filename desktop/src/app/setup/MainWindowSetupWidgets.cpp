@@ -54,7 +54,9 @@ namespace stencil::gui {
         [this] { return currentLayoutMeta(); });
     // Mirrors the browser's body.incognito-mode outline/badge.
     incognitoOverlay = new IncognitoOverlay(scroll->viewport());
-    dropZones = new DropZonesOverlay(scroll->viewport());
+    // Hosted by the WINDOW, not the viewport: the browser's #global-drop-overlay covers the
+    // whole page, so no dock can move the painted split off the window midline.
+    dropZones = new DropZonesOverlay(this);
     // Accent lands in the theme apply below (QPalette::Highlight is the OS selection blue).
     projectZones = new ProjectDragZones(scroll->viewport());
     tooltip = new CanvasTooltip(this);

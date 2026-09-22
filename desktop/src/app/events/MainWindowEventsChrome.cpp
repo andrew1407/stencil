@@ -1,8 +1,10 @@
 // eventFilter chain, observers only (pointer chrome + dock chrome). Neither consumes — order in MainWindowEvents.cpp.
 #include "MainWindow.hpp"
 #include "ChatDock.hpp"
+#include "DropZonesOverlay.hpp"
 #include "SelectionPanel.hpp"
 #include "../../support/dockGrip.hpp"
+#include <QDragMoveEvent>
 #include <QEvent>
 #include <QMouseEvent>
 #include <QScrollBar>
@@ -17,6 +19,14 @@ namespace stencil::gui {
       else if (event->type() == QEvent::Leave) { scrollbarHovered = false; scheduleScrollbarHide(); }
     }
     if (obj == chatDock && event->type() == QEvent::Resize) syncToastInset();
+    // A child that accepts drops (the chat dock) becomes the drag's target, and the window is
+    // then sent no move at all — so the zones follow the drag wherever Qt delivers it.
+    if (dropZones && !dropZones->isHidden() && obj != this &&
+        (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove)) {
+      if (auto* over = qobject_cast<QWidget*>(obj))
+        dropZones->followDrag(
+            over->mapToGlobal(static_cast<QDragMoveEvent*>(event)->position().toPoint()));
+    }
     // Disabled controls show `not-allowed` (browser rule): Qt never sends a disabled widget the move, so an app-wide filter + override cursor is the one way.
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter ||
         event->type() == QEvent::HoverEnter || event->type() == QEvent::HoverMove) {
