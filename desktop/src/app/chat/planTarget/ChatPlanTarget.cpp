@@ -62,6 +62,7 @@ namespace stencil::gui {
     out.lines = w.canvas->getLines();
     return true;
   }
+  core::FormulaContext ChatPlanTarget::formulaContext() const { return w.formulaContext(); }
   void ChatPlanTarget::setFormula(QChar axis, const QString& expr) {
     if (!expr.isEmpty() && w.allowFormulas && !w.allowFormulas->isChecked())
       w.allowFormulas->setChecked(true);  // shows the inputs + persists

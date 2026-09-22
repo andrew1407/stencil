@@ -66,7 +66,7 @@ namespace stencil::llm::exec {
           // by the core formula engine before use (contract §2).
           if (!a.expr.isEmpty() &&
               !core::FormulaParser::validate(a.expr.toStdString(),
-                                             a.axis.toLatin1())) {
+                                             target.formulaContext())) {
             *err = QStringLiteral("formula: the core parser rejected \"%1\"").arg(a.expr);
             return false;
           }

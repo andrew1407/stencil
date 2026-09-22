@@ -26,6 +26,7 @@ namespace stencil::gui {
     void setLayoutLines(const core::Lines& lines) override;
     void commitLayoutLines(const core::Lines& lines) override;
     bool captureEdit(llm::EditState& out) const override;
+    core::FormulaContext formulaContext() const override;
     void setFormula(QChar axis, const QString& expr) override;
     void setFormulasEnabled(bool on) override;
     void setPageFormat(const QString& isoName) override;

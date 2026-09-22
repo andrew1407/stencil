@@ -1,5 +1,6 @@
 #pragma once
 #include "cropGeometry.hpp"
+#include "formulaContext.hpp"
 #include "opPlan.hpp"
 #include "pageMetrics.hpp"
 #include <QImage>
@@ -52,6 +53,9 @@ namespace stencil::llm {
     virtual bool captureEdit(EditState& out) const { return false; }
     // Puts a checkpoint back: crop, filter and lines together.
     void restoreEdit(const EditState& state);
+    // What a formula's names resolve to here: the page this target reports, plus its pixels
+    // once an image is open. Display unit: cm unless a target names its own.
+    virtual core::FormulaContext formulaContext() const;
     // `expr` is already charset- and grammar-checked; "" clears the axis.
     virtual void setFormula(QChar axis, const QString& expr) = 0;
     virtual void setFormulasEnabled(bool on) { Q_UNUSED(on); }
