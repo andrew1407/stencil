@@ -1,8 +1,15 @@
 import type { StencilElement } from '../base.js';
 
+/** An element, a client-rect-shaped box, or null: where a flight starts or lands. */
+export type ConfirmAnchor = Element | { left: number; top: number; width: number; height: number } | null;
+
 export interface ConfirmOptions {
   title?: string; titleIcon?: string; confirmLabel?: string; cancelLabel?: string;
-  confirmIcon?: string; danger?: boolean; closeAnchor?: Element | null;
+  confirmIcon?: string; danger?: boolean;
+  /** Overrides the gesture the dialog would otherwise grow out of. */
+  openAnchor?: ConfirmAnchor;
+  /** Where the close lands; a function is called with the raw answer. */
+  closeAnchor?: ConfirmAnchor | ((answer: unknown) => ConfirmAnchor);
 }
 export interface ConfirmAltOptions extends ConfirmOptions { altLabel?: string; altIcon?: string; }
 export interface ChooseOptions extends ConfirmOptions { options?: { value: string; label?: string }[]; }

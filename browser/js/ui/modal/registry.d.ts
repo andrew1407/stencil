@@ -1,7 +1,8 @@
 /** The live handle ui/shell.js registers for one wired window. */
 export interface ModalShellApi {
   open(from?: unknown, backTo?: unknown, opts?: { stacked?: boolean }): void;
-  close(): void;
+  /** `backTo` overrides where this close lands; anything that is not an anchor is ignored. */
+  close(backTo?: unknown): void;
   openPopover(anchorEl: unknown): void;
   toggle(from?: unknown): void;
   isOpen(): boolean;

@@ -4,6 +4,7 @@ import { sweepDust } from '../motion.js';
 import { isTypingTarget } from '../../utils.js';
 import { modalShells, wireEscapeOnce, closeOpenModal } from './registry.js';
 import { createModalFlight } from './flight.js';
+import { canvasAnchorRect } from './imageAnchor.js';
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
 // modal-open class toggles. The opener answers the popover gestures (ui/popover.js).
@@ -35,17 +36,6 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
   const onScreenRect = (r) =>
     !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
-  // Where a window collapses to when its control is off screen: the canvas. Falling off the
-  // top is an entrance; as an exit it leaves towards nothing.
-  const CLOSE_HOME_PX = 40;
-  const canvasHomeRect = () => {
-    const r = document.getElementById('canvas-viewport')?.getBoundingClientRect?.();
-    const cx = r && r.width ? r.left + r.width / 2 : (window.innerWidth || 0) / 2;
-    const cy = r && r.height ? r.top + r.height / 2 : (window.innerHeight || 0) / 2;
-    const half = CLOSE_HOME_PX / 2;
-    return { left: cx - half, top: cy - half, right: cx + half, bottom: cy + half,
-             width: CLOSE_HOME_PX, height: CLOSE_HOME_PX };
-  };
 
   // `from` null means there is no control: fall from above. Omitted means the shell's opener.
   const open = (from, backTo = null, { stacked: stackThisOpen = stacked } = {}) => {
@@ -66,16 +56,18 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     if (focusTarget?.focus) setTimeout(() => { if (api.isOpen()) focusTarget.focus(); }, FOCUS_MS);
   };
   let gestures = null;
-  const close = () => {
+  // `backTo` overrides where this one close lands (an outcome that opened an image goes into
+  // the toolbar's Open control); a click handler's event is not an anchor and is ignored.
+  const close = (backTo = null) => {
     onClose?.();
     // A removal's motes are on <body> and outlive the window that started them. The window's
     // own close flight starts after this, so the sweep never catches it.
     sweepDust(overlay);
     // `modal-open` is what every caller tests, so it comes off now and the shrink runs under
     // `modal-closing`. Measure first — display:none measures 0.
-    const home = closeOriginEl || originEl || defaultOrigin();
+    const home = (anchorLike(backTo) ? backTo : null) || closeOriginEl || originEl || defaultOrigin();
     const animate = overlay.classList.contains('modal-open') && !reducedMotion()
-      && setOriginVars(onScreenRect(rectOf(home)) ? home : canvasHomeRect());
+      && setOriginVars(onScreenRect(rectOf(home)) ? home : canvasAnchorRect());
     overlay.classList.remove('modal-open');
     if (animate) {
       flight.playClosing();

@@ -92,14 +92,16 @@ test('modals: the dust point IS the icon centre setOriginVars already measured',
   // The window still goes away on its own clock — the close never waits on the effect.
   assert.match(baseJs, /const MODAL_CLOSE_MS = SURFACE_OUT_MS;/);
   assert.match(baseJs, /flight\.settle\(\);\s*\/\/ nothing plays/);
-  // …and the CONFIRM dialog, which has no opener icon at all, plays the very same
-  // flight out of the gesture that raised it (ui/gesturePoint.js).
+  // …and the CONFIRM dialog, which has no opener icon at all, plays the very same flight out of the
+  // gesture that raised it (ui/gesturePoint.js), unless the caller named one (ui/modal/imageAnchor.js).
   assert.match(confirmJs, /createModalFlight\(overlay, \(\) => overlay\.querySelector\('\.app-modal'\)\)/);
-  assert.match(confirmJs, /openAnchor = gestureAnchorRect\(\);[\s\S]{0,200}if \(!flight\.reducedMotion\(\) && flight\.setOrigin\(openAnchor\)\) flight\.playDust\(true\);/);
+  assert.match(confirmJs, /openAnchor = rectOf\(opts\.openAnchor\) \|\| gestureAnchorRect\(\);[\s\S]{0,200}if \(!flight\.reducedMotion\(\) && flight\.setOrigin\(openAnchor\)\) flight\.playDust\(true\);/);
   assert.match(confirmJs, /if \(animate\) flight\.playClosing\(\);/);
   // The close reuses the anchor the dialog opened with, not a fresh gestureAnchorRect(), unless the
-  // caller named a closeAnchor — a context-menu row is gone by the time it lands.
-  assert.match(confirmJs, /flight\.setOrigin\(rectOf\(closeAnchorEl\) \|\| openAnchor\);\s*\n\s*overlay\.classList\.remove\('modal-open'\);/);
+  // caller named a closeAnchor — a context-menu row is gone by the time it lands, and an answer that
+  // opens an image lands on the toolbar's Open control instead, so the anchor may be a function of it.
+  assert.match(confirmJs, /const back = typeof closeAnchorEl === 'function' \? closeAnchorEl\(val\) : closeAnchorEl;/);
+  assert.match(confirmJs, /flight\.setOrigin\(rectOf\(back\) \|\| openAnchor\);\s*\n\s*overlay\.classList\.remove\('modal-open'\);/);
   assert.ok(!/const settle = \(val\) => \{[\s\S]{0,200}gestureAnchorRect\(\)/.test(confirmJs),
     'settle() must not recompute the gesture point — it would anchor on the button that just closed it');
 });

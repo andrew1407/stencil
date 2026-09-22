@@ -38,12 +38,12 @@ export class StencilConfirmModal extends StencilElement {
 
     // Captured on open and reused on close, or the close would anchor on the dismiss button.
     let openAnchor = null;
-    // opts.closeAnchor names another way back (a context-menu row is gone by close time);
-    // an element, measured at close time.
+    // opts.closeAnchor names another way back (a context-menu row is gone by close time):
+    // an element, a rect, or a function of the answer, all measured at close time.
     let closeAnchorEl = null;
-    const rectOf = (el) => {
-      const r = el?.getBoundingClientRect?.();
-      return r && r.width > 0 && r.height > 0 ? r : null;
+    const rectOf = (v) => {
+      const r = v?.getBoundingClientRect?.() || v;
+      return Number.isFinite(r?.width) && r.width > 0 && r.height > 0 ? r : null;
     };
     let resolveCurrent = null;
     // "choose" mode: Confirm resolves the picked value, Cancel/Close/Escape null.
@@ -76,8 +76,9 @@ export class StencilConfirmModal extends StencilElement {
     const settle = (val) => {
       // Measured while still up (display:none measures 0); the cloud lives on <body>, so the
       // answer never waits for it.
+      const back = typeof closeAnchorEl === 'function' ? closeAnchorEl(val) : closeAnchorEl;
       const animate = overlay.classList.contains('modal-open') && !flight.reducedMotion()
-                      && flight.setOrigin(rectOf(closeAnchorEl) || openAnchor);
+                      && flight.setOrigin(rectOf(back) || openAnchor);
       overlay.classList.remove('modal-open');
       if (animate) flight.playClosing();
       else { flight.settle(); flight.finishClose(); }
@@ -121,7 +122,8 @@ export class StencilConfirmModal extends StencilElement {
       flight.finishClose();
       overlay.classList.add('modal-open');
       // Measured after the class applies (no size while display:none); reused by settle().
-      openAnchor = gestureAnchorRect();
+      // opts.openAnchor overrides the gesture: the open-image flow flies from the canvas.
+      openAnchor = rectOf(opts.openAnchor) || gestureAnchorRect();
       closeAnchorEl = opts.closeAnchor || null;
       if (!flight.reducedMotion() && flight.setOrigin(openAnchor)) flight.playDust(true);
       document.addEventListener('keydown', onKey, true);
