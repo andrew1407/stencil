@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Stateful chat (contract §7): a client-side conversation whose bounded history is
 replayed in full on every call, since every provider is stateless.
 """
+
+from __future__ import annotations
 
 import json
 import time

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The chainable editor facade — pystencil's port of the browser ``window.stencil``
 surface and the Zig CLI's structured editing session (``cli/src/console/session.zig``).
 
@@ -23,6 +21,8 @@ Split across _snapshot / source / edits / derive / layout_io / project / assista
 what stays here is the history itself — the original image, the snapshot stack and the
 cursor every mixin reads and pushes through.
 """
+
+from __future__ import annotations
 
 import os
 

@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """The snapshot stack itself: pushing a new state, and moving the cursor over it.
 
 Every mutator elsewhere in the facade goes through ``_push``; ``undo``/``redo``/
 ``reset``/``clear`` move or truncate the cursor and let the view re-derive.
 """
+
+from __future__ import annotations
 
 from ..image import Image
 from ._snapshot import _MAX_STATES, _Snapshot

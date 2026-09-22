@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """The LLM exception family and the provider-detail scrubber every message runs through.
 
 A provider's own prose may be echoed (contract §6.3), but only after control
 characters, URLs and secret-shaped runs are stripped and it is length-capped.
 """
+
+from __future__ import annotations
 
 import re
 

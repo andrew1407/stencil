@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """HTML scanning: the :class:`html.parser.HTMLParser` subclass that buckets media
 records in document order, and :func:`scan_html`, which concatenates the buckets in
 DESIGN scan order and dedupes first-wins.
 """
+
+from __future__ import annotations
 
 import urllib.parse
 from html.parser import HTMLParser

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """One /prompt round: build the request, validate the plan, execute it, report."""
+
+from __future__ import annotations
 
 from ...llm import (
   CONSOLE_SYSTEM_PROMPT,

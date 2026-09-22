@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The REPL's output channel.
 
 Every line the console prints goes through one object, so the stream and the
 ``error: ``/``note: `` severity prefixes live in a single place instead of being
 threaded through every command method.
 """
+
+from __future__ import annotations
 
 from typing import TextIO
 

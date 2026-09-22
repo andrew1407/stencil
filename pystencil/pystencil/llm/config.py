@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Provider configuration (contract §5): the provider list, their default base URLs,
 the attachment caps, and :class:`LlmConfig` — env-loaded, never discovered.
 """
+
+from __future__ import annotations
 
 import importlib.resources
 import json

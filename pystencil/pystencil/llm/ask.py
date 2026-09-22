@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """§11 interactive replies: validating an ``ask`` card, rendering it for this text
 console, and turning the user's numeric pick back into answer text.
 """
+
+from __future__ import annotations
 
 import re
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """One connected Stencil server: identity, request plumbing and the handshake.
 
 The REST surface itself lives in the two mixins this class composes —
@@ -7,6 +5,8 @@ The REST surface itself lives in the two mixins this class composes —
 so each stays readable on its own. Every call ultimately routes through
 ``_request`` here, which owns the one-shot session-token re-mint.
 """
+
+from __future__ import annotations
 
 import json
 import urllib.error

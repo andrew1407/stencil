@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The set of connected servers for one session — a port of the browser's
 ConnectionManager, REST-only.
 """
+
+from __future__ import annotations
 
 from typing import Any, Iterable, Union
 

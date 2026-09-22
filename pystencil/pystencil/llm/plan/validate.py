@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Plan validation primitives shared by the parser and the §11 ask card.
 
 Unknown ops are dropped with a warning (forward compatibility); a known op with
 invalid params fails the whole plan; a misplaced top-level-only/console op costs only
 the variant it appeared in.
 """
+
+from __future__ import annotations
 
 from typing import Any, Callable
 

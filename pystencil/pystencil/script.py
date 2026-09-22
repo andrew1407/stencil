@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Running a whole ``.stc`` file: the block loop over the inputs each ``@source`` names.
 
 The core decides *what* to do; this decides what that means for a file — which inputs a
@@ -7,6 +5,8 @@ block opens, which editor carries them, and where each ``@save`` lands. Twin of
 ``cli/src/script/run.zig``. ``Editor.script`` is the single-image door; this is the
 batch one.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 

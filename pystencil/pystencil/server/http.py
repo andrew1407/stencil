@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Shared urllib plumbing — the seam every network test stubs.
 
 Request assembly, the redirect-refusing opener, the single ``urlopen`` call site and
 the structured-error parser, plus :class:`ServerError`. Reused verbatim by
 ``pystencil.llm``'s LlmClient, which passes the longer ``_LLM_TIMEOUT``.
 """
+
+from __future__ import annotations
 
 import importlib.resources
 import json

@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The interactive console: one Editor plus the server connections, and the command
 table the mixins below register into.
 """
+
+from __future__ import annotations
 
 from typing import TextIO
 

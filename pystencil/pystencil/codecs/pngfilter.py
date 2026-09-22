@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Reversing the five PNG row filters, and the palette/grayscale expansion tables.
 
 Split out of ``png.py``: this is the decoder's whole per-byte-cost story, and the one
 place that decides which filters get a whole-row form. ``tests/bench_codecs.py`` pins
 the cost ratios between them.
 """
+
+from __future__ import annotations
 
 
 def __paeth(a: int, b: int, c: int) -> int:

@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The §10 console profile's executor side: the hook names the REPL implements, the
 applier that calls them, and the helpers that guard and describe console state.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Sequence

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Page-shaped commands: /blank and /format."""
+
+from __future__ import annotations
 
 from ..blank import BlankSpec
 from ..registry import command

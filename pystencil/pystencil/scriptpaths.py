@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Which file a ``.stc`` is read from, what a ``@source`` names, where a ``@save`` writes.
 
 The core classifies a source spec and hands back the save target verbatim; turning
@@ -8,6 +6,8 @@ glob, the ``-stencil`` naming rule and the two ``..`` refusals live here. Every 
 that reads a script file goes through :func:`read_script`. Twin of
 ``cli/src/script/sources.zig`` and ``cli/src/script/save.zig``.
 """
+
+from __future__ import annotations
 
 import fnmatch
 import os

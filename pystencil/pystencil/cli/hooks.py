@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """The §10 console-profile op hooks: the interface ``execute_op_plan`` duck-types
 into, declared as a Protocol so the contract is checkable, and the REPL's
 implementation of it.
 """
+
+from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 

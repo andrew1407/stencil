@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The ``[format] [w h] [color]`` blank grammar — one parser for both callers.
 
 ``--blank`` (one-shot) and ``/blank`` (console) accept the same tokens, so they share
 this type instead of each destructuring an anonymous tuple. Port of the Zig CLI's
 ``args.parseBlank``.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Sequence

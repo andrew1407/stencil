@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The collaboration-server commands: /connect, /disconnect, /connections,
 /projects, /delete and /fetch.
 """
+
+from __future__ import annotations
 
 from ...editor import Editor
 from ...server import (

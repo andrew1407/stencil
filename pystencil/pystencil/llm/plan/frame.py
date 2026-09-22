@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """The executor-side coordinate re-mapping (contract §1).
 
 Self-contained: every plan coordinate arrives in the frame the model SAW, and this
 composes the crop translations and quarter-turn rotations that have run since.
 """
+
+from __future__ import annotations
 
 from ..._ffi.types import NoneType
 

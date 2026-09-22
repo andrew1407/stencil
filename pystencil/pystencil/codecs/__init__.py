@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Pure-Python image I/O for pystencil (the C++ ``core/`` is codec-free by design).
 
 Stdlib-only (``zlib`` + ``struct``), so it implements just the two formats it can do
@@ -15,6 +13,8 @@ callers at the Zig CLI, which owns codec-heavy work.
 Split across ``sniff`` (detection), ``png`` and ``bmp``; this module is the façade and
 holds the one function that spans them.
 """
+
+from __future__ import annotations
 
 from .bmp import decode_bmp, encode_bmp
 from .png import decode_png, encode_png
