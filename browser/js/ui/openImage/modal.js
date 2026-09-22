@@ -12,6 +12,7 @@ import { createOpenImageTabs } from './tabs.js';
 import { wireOpenActions } from './actions.js';
 import { openImageAnchorRect, openImageConfirmAnchors } from '../modal/imageAnchor.js';
 import { notify } from '../../utils.js';
+import { waitForImage } from '../../core/image/loadFlow.js';
 
 // The single way to get an image into the editor. The three tabs are their own elements under
 // sources/ and speak up on the bubbling `source-change` / `preview-request` / `create-blank`;
@@ -136,10 +137,14 @@ export class StencilOpenImageModal extends StencilElement {
       },
       onClose: () => { preview.closeUp(); boxEase.stop(); },
     });
-    // Each of the three actions opens an image, so the window pours into the toolbar's Open
-    // control — the opener it grew out of is gone or swapped by then (ui/modal/imageAnchor.js).
+    // Each action opens an image, so the window waits for the load it started and then pours into
+    // the toolbar's Open control (ui/modal/imageAnchor.js); a new tab loads nothing here.
+    const closeIntoOpen = async ({ here = true } = {}) => {
+      if (here) await waitForImage(app, { previous: app.image });
+      close(openImageAnchorRect(here || !!app.image));
+    };
     wireOpenActions({
-      app, preview, src, canReplace, openOpts, target, close: () => close(openImageAnchorRect()),
+      app, preview, src, canReplace, openOpts, target, close: closeIntoOpen,
       els: { hereBtn, newTabBtn, replaceBtn, incog, renameEl, keepEl },
       frameSeconds: () => frame.frameSeconds(),
     });
@@ -183,7 +188,8 @@ export class StencilOpenImageModal extends StencilElement {
       if (app.image && !(await app.confirm('Replace the current image with a new blank image?',
         { title: 'Replace image', confirmIcon: 'swap', ...openImageConfirmAnchors() }))) return;
       app.createBlankImage({ color, width, height, address: target() || undefined })
-        .then(() => { close(openImageAnchorRect()); notify(`Blank ${width}×${height} image created`, 'ok'); })
+        .then(() => closeIntoOpen())
+        .then(() => notify(`Blank ${width}×${height} image created`, 'ok'))
         .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));
     });
     this.$('blank-image-create').addEventListener('click', () => blank.requestCreate());

@@ -24,9 +24,11 @@
 #include "ServerClient.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
+#include "../../support/modal/imageAnchor.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 
+#include <QPointer>
 #include <QTimer>
 
 // Saving to the active project, clearing it and resetting to a blank editor.
@@ -117,6 +119,13 @@ namespace stencil::gui {
     spec.message = msg;
     spec.confirmIcon = QStringLiteral("trash");
     spec.danger = true;   // browser parity: the Clear-project confirm is red
+    // Clearing shrinks the Image cluster, which slides this trash along the row: the answer pours
+    // into where the icon LANDS, not where it was pressed (browser: emptiedControlRect).
+    QPointer<MainWindow> self(this);
+    QPointer<QWidget> trash(buttonForAction(actClearProject));
+    spec.flight.closeRectFor = [self, trash](bool yes) {
+      return yes && self && trash ? emptiedControlRect(self.data(), trash.data()) : QRect();
+    };
     if (!confirmModal(this, spec)) return;
     if (hasProject) {
       const std::string id = activeProjectId.toStdString();

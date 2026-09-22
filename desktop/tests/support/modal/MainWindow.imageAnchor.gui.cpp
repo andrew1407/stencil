@@ -72,6 +72,46 @@ class MainWindowGuiTest : public QObject {
                             .arg(QDebug::toString(watcher.origin), QDebug::toString(openCtrl))));
   }
 
+  // From the empty editor the icon row is not up yet — the image lands after the dialog is gone —
+  // so the anchor is the place the icon TAKES, never the big button it replaces.
+  void theAnchorIsWhereTheIconLandsNotWhereTheBigButtonStands() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    settleLayout(&win, 400);
+    QWidget* icon = win.findChild<QWidget*>(QStringLiteral("openAnotherImageBtn"));
+    QWidget* big = win.findChild<QWidget*>(QStringLiteral("openImageBtn"));
+    QVERIFY(icon && big);
+    QVERIFY2(!icon->isVisible() && big->isVisible(), "the empty editor shows the big Open button");
+    const QRect aimed = openImageAnchorRect(&win);
+    QVERIFY2(!aimed.contains(QRect(big->mapToGlobal(QPoint(0, 0)), big->size()).center()),
+             "the anchor is still the big button the icon replaces");
+
+    win.createBlankImageFromDialog(Qt::white, 200, 200);
+    settleLayout(&win, 1200);
+    QVERIFY(icon->isVisible());
+    QCOMPARE(aimed, QRect(icon->mapToGlobal(QPoint(0, 0)), icon->size()));
+  }
+
+  // Clearing shrinks the Image cluster, which slides the rest of the row along: the trash the
+  // answer pours into is read where it LANDS, not where it was pressed.
+  void theTrashAnchorIsWhereClearingLeavesIt() {
+    MainWindow win;
+    QVERIFY(openLoaded(win));
+    settleLayout(&win, 600);
+    QWidget* trash = win.buttonForAction(win.actClearProject);
+    QVERIFY(trash && trash->isVisible());
+    const QRect pressed(trash->mapToGlobal(QPoint(0, 0)), trash->size());
+    const QRect aimed = stencil::gui::emptiedControlRect(&win, trash);
+    win.resetToBlankEditor();
+    settleLayout(&win, 1200);
+    QVERIFY(trash->isVisible());
+    const QRect landed(trash->mapToGlobal(QPoint(0, 0)), trash->size());
+    QVERIFY2(pressed != landed, "the trash stayed put — the case proves nothing");
+    QCOMPARE(aimed, landed);
+  }
+
   // …and the rule reaches no further: a confirm outside the flow names no anchor at all, so it is
   // left to the app-wide watcher, which forms it out of the gesture (modalReveal gestureAnchorRect).
   void anUnrelatedConfirmStillFliesFromItsGesture() {

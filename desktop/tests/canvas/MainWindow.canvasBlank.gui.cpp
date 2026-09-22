@@ -60,9 +60,13 @@ class MainWindowGuiTest : public QObject {
     QMouseEvent move(QEvent::MouseMove, QPointF(c), win.canvas->mapToGlobal(c),
                      Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(win.canvas, &move);
-    QTest::qWait(150);
+    // Off the sweep's own progress, not the clock: its middle is over the card from 0.33 to 0.70.
+    const auto reached = [&](double p) {
+      QTRY_VERIFY(win.canvas->property("idleSweepProgress").toDouble() >= p);
+    };
+    reached(0.36);
     const int first = bandX();
-    QTest::qWait(220);
+    reached(0.55);
     const int second = bandX();
     QVERIFY2(second > first,
              qPrintable(QString("the sweep does not travel: %1 then %2").arg(first).arg(second)));

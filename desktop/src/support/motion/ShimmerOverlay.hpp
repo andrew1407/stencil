@@ -11,6 +11,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointF>
 #include <QPaintEvent>
 #include <QRect>
 #include <QVariantAnimation>
@@ -24,6 +25,12 @@
 #include <algorithm>
 
 namespace stencil::gui {
+
+  inline QEasingCurve shimmerEase() {   // the browser's `ease`: no slow start to sit out
+    QEasingCurve e(QEasingCurve::BezierSpline);
+    e.addCubicBezierSegment(QPointF(0.25, 0.1), QPointF(0.25, 1.0), QPointF(1.0, 1.0));
+    return e;
+  }
 
   // C++ cannot read a QSS border-radius back, so the common control radius is the default
   // and anything rounder (the Close pill, the Controls pill) carries its own here.
@@ -50,7 +57,7 @@ namespace stencil::gui {
       anim->setStartValue(0.0);
       anim->setEndValue(1.0);
       anim->setDuration(325);
-      anim->setEasingCurve(QEasingCurve::InOutSine);
+      anim->setEasingCurve(shimmerEase());
       QObject::connect(anim, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { setProgress(v.toReal()); });
       QObject::connect(anim, &QVariantAnimation::finished, this,

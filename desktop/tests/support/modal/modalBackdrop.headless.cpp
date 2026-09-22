@@ -2,12 +2,14 @@
 // `backdrop-filter: blur()`, which Qt has no equivalent for, so the page behind is photographed once
 // and blurred. The Visuals switch gates it (off creates nothing), blurred() really softens the picture
 // and keeps its size and device pixel ratio, it covers the host under a scrim and takes no clicks, and
-// it goes when the dialog that asked for it closes, however that dialog was dismissed.
+// it goes when the dialog that asked for it closes, however that dialog was dismissed — fading in
+// and out on the browser's overlayFade clocks, or landing whole under reduced motion.
 #include "ModalBackdrop.hpp"
 #include "motionPrefs.hpp"
 
 #include <QApplication>
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QPainter>
 #include <QPixmap>
 #include <QPointer>
@@ -31,6 +33,13 @@ static double contrast(const QImage& img) {
       ++n;
     }
   return n ? sum / n : 0;
+}
+
+// Drive the animation clock for a stretch: this test owns no event loop of its own.
+static void pump(int ms) {
+  QElapsedTimer t;
+  t.start();
+  while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
 }
 
 // A hard checkerboard: the most contrast a blur can take away.
@@ -80,13 +89,37 @@ int main(int argc, char** argv) {
     check(bd && bd->testAttribute(Qt::WA_TransparentForMouseEvents),
           "behind: it only paints — the dialog owns the input");
     check(bd && bd->isVisible(), "behind: it is up before the dialog runs");
-    // Dismissal, whichever way, takes it with the dialog: finished() is wired to
-    // deleteLater, so after the loop drains the deferred deletes it is gone from the host.
+    // The dim and blur come UP, as the browser's overlayFadeIn does, rather than landing whole.
+    check(bd && bd->opacityNow() == 0.0, "behind: it starts on the window as it is");
+    pump(ModalBackdrop::FADE_IN_MS / 2);
+    const double midway = bd->opacityNow();
+    check(midway > 0.0 && midway < 1.0, "behind: the scrim comes up over time");
+    pump(ModalBackdrop::FADE_IN_MS);
+    check(qFuzzyCompare(bd->opacityNow(), 1.0), "behind: …and settles fully dimmed");
+    // Dismissal, whichever way, takes it with the dialog — on the way out it fades, so it is
+    // still there for those frames and gone once the fade has run.
     QPointer<QWidget> guard(bd);
     dlg.reject();
+    pump(ModalBackdrop::FADE_OUT_MS / 3);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    check(!guard.isNull() && bd->opacityNow() < 1.0, "behind: it does not blink out, it clears");
+    pump(ModalBackdrop::FADE_OUT_MS);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     check(guard.isNull(), "behind: closing the dialog takes the backdrop with it");
     check(host.findChild<QWidget*>("modalBackdrop") == nullptr, "behind: the host is clean again");
+  }
+  // Reduced motion has no fade at all: up whole, and gone with the dialog.
+  {
+    const support::MotionMode was = support::motionMode();
+    support::setMotionMode(support::MotionMode::NONE);
+    QDialog dlg(&host);
+    ModalBackdrop* bd = ModalBackdrop::behind(&dlg, &host);
+    check(bd && qFuzzyCompare(bd->opacityNow(), 1.0), "reduced motion: the scrim is there at once");
+    QPointer<QWidget> guard(bd);
+    dlg.reject();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    check(guard.isNull(), "reduced motion: and goes at once too");
+    support::setMotionMode(was);
   }
   {
     QDialog dlg(&host);

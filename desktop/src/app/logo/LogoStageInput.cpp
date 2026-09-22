@@ -1,14 +1,12 @@
 // The logo stage's input half: the hold that opens a showWord, the typed words, and the lock that
 // makes the stage the only thing the editor hears. Behaviour and painting are its siblings.
 #include "LogoStage.hpp"
+#include "textFocus.hpp"
 #include "typedLetter.hpp"
 
 #include <QApplication>
 #include <QKeyEvent>
-#include <QLineEdit>
 #include <QMouseEvent>
-#include <QPlainTextEdit>
-#include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
 #include <QWindow>
@@ -18,10 +16,6 @@ namespace stencil::gui {
   namespace {
     constexpr int PRESS_SLOP_PX = 10;   // browser ui/popover.js
 
-    bool isTextEntry(QObject* o) {
-      return qobject_cast<QLineEdit*>(o) || qobject_cast<QPlainTextEdit*>(o) ||
-             qobject_cast<QTextEdit*>(o);
-    }
     bool inputEvent(QEvent::Type t) {
       return t == QEvent::KeyPress || t == QEvent::KeyRelease || t == QEvent::ShortcutOverride ||
              t == QEvent::Shortcut || t == QEvent::MouseButtonPress || t == QEvent::MouseButtonRelease ||
@@ -130,7 +124,7 @@ namespace stencil::gui {
     if (t == QEvent::KeyPress && !open) {
       QWidget* focus = QApplication::focusWidget();
       QWidget* first = focus ? focus : hostWindow;
-      if (o == first && first->window() == hostWindow && !isTextEntry(focus) &&
+      if (o == first && first->window() == hostWindow && !support::isTextEntry(focus) &&
           !(static_cast<QKeyEvent*>(e)->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) &&
           typedKey(*static_cast<QKeyEvent*>(e)))
         return true;

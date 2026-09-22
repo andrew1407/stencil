@@ -49,7 +49,7 @@ const loadBtn = doc.register('load-image-btn', createStubElement('button', { get
 const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
 setMotionPrefs({ mode: 'slide' });   // every flight plays, none of them out of real particles
 const { StencilConfirmModal } = await import('../../../js/ui/modal/confirmModal.js');
-const { canvasAnchorRect, openImageAnchorRect, openImageConfirmAnchors } =
+const { canvasAnchorRect, openImageAnchorRect, openImageConfirmAnchors, emptiedControlRect } =
   await import('../../../js/ui/modal/imageAnchor.js');
 const { wireModalShell } = await import('../../../js/ui/base.js');
 
@@ -167,4 +167,32 @@ test('the Open Image window collapses into the toolbar control when its outcome 
   shell.open(blankCard);
   shell.close();
   assert.deepEqual(readShell(), expectedVars(CANVAS_HOME));
+});
+
+// Both anchors are read BEFORE the sweep that gets the toolbar there: the aim is the place the
+// control lands, so a half still hidden — and a control the shrinking Image section will slide —
+// answer with where they will be, not with what measures now (imageAnchor.js settledRect).
+test('an anchor is where the control lands, not where the toolbar still has it', async () => {
+  const shownRect = (el, r) => () => (el.style.display === 'none' ? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 } : rectOf(r)());
+  openBtn.getBoundingClientRect = shownRect(openBtn, TOOLBAR);
+  loadBtn.getBoundingClientRect = shownRect(loadBtn, { left: 20, top: 12, width: 140, height: 34 });
+  const actions = doc.register('image-actions', createStubElement('div'));
+  // The trash rides the row: the Image section's big button pushes it along when it comes back.
+  const trash = doc.register('clear-storage', createStubElement('button', {}));
+  trash.getBoundingClientRect = () => rectOf(loadBtn.style.display === 'none'
+    ? { left: 900, top: 12, width: 28, height: 24 }
+    : { left: 700, top: 12, width: 28, height: 24 })();
+
+  openBtn.style.display = 'none';          // the swap that shows it has not run yet
+  loadBtn.style.display = '';
+  assert.deepEqual(openImageAnchorRect(), rectOf(TOOLBAR)(), 'the ⧉ icon answers from where it lands');
+  assert.equal(openBtn.style.display, 'none', 'and the toolbar is put straight back');
+
+  openBtn.style.display = '';              // …and the other way: an editor about to be emptied
+  loadBtn.style.display = 'none';
+  assert.deepEqual(emptiedControlRect('clear-storage'), rectOf({ left: 700, top: 12, width: 28, height: 24 })());
+  assert.equal(loadBtn.style.display, 'none');
+  actions.style.display = '';
+  openBtn.getBoundingClientRect = rectOf(TOOLBAR);
+  loadBtn.getBoundingClientRect = GONE;
 });

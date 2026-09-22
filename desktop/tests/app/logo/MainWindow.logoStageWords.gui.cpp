@@ -5,6 +5,9 @@
 #include "LogoStage.hpp"
 #include "typedLetter.hpp"
 
+#include <QComboBox>
+#include <QSpinBox>
+
 using stencil::gui::LogoStage;
 namespace support = stencil::support;
 
@@ -65,6 +68,29 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stage->isOpen(), "the word typed under another layout opens its show");
     QCOMPARE(stage->showName(), QString("neonOn"));
     stage->dismiss();
+  }
+
+  // A spin box is its line edit's focus proxy, so the container is what has the focus: the keys
+  // typed into Thickness are its own, not a word.
+  void aWordTypedIntoASpinBoxStaysInIt() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    LogoStage* stage = stageOf(win);
+    QVERIFY(stage);
+    QVERIFY(win.lineThickness);
+    win.lineThickness->setFocus();
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.lineThickness));
+    QTest::keyClicks(win.lineThickness, QStringLiteral("neonon"));
+    QVERIFY2(!stage->isOpen(), "a word typed into a spin box opens nothing");
+
+    // …and so is a combo box's: a closed list jumps to the item the letters spell.
+    QVERIFY(win.lineStyle);
+    win.lineStyle->setFocus();
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.lineStyle));
+    QTest::keyClicks(win.lineStyle, QStringLiteral("neonon"));
+    QVERIFY2(!stage->isOpen(), "a word typed into a combo box opens nothing");
   }
 
 };

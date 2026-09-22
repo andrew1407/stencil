@@ -4,6 +4,7 @@ import { wireBlankColorButton } from './blankColorButton.js';
 import { wireProjectColorButton } from './projectColorButton.js';
 import { wireProjectNameField } from './projectNameField.js';
 import { setupHoldZoom } from '../viewport/holdZoom.js';
+import { emptiedControlRect } from '../../modal/imageAnchor.js';
 export function wireToolbarButtons(app) {
   wireProjectNameField(app);
   wireProjectColorButton(app);
@@ -34,10 +35,12 @@ export function wireToolbarButtons(app) {
   document.getElementById('open-project-btn').addEventListener('click', () => app.export.pickAndOpenProjectFile());
   document.getElementById('live-sync-btn').addEventListener('click', () => { app.stencilSync.liveSync = !app.stencilSync.liveSync; });
   document.getElementById('delete-project-btn').addEventListener('click', () => app.export.deleteProjectFile());
+  // Yes empties the editor: the shrinking Image section slides this trash, so aim where it lands.
+  const emptiedAnchor = (yes) => (yes ? emptiedControlRect('clear-storage') : null);
   document.getElementById('clear-storage').addEventListener('click', async () => {
     if (app.storage.temporary || app.activeProjectId == null) {
       // Temporary editor → just clear the editor back to blank.
-      if (await app.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true, confirmIcon: 'trash' })) {
+      if (await app.confirm('Clear this editor (image + lines)?', { title: 'Clear editor', danger: true, confirmIcon: 'trash', closeAnchor: emptiedAnchor })) {
         app.storage.newTemporary();
         app.tabs.reportActive(null);
         // The clear worked, so it reads as a success — a red ✕ said the opposite.
@@ -52,7 +55,7 @@ export function wireToolbarButtons(app) {
     const msg = server
       ? `Remove the local copy of this project? It is stored on the server ${server} and will stay there.`
       : 'Clear this project (image + lines) from storage?';
-    if (await app.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true, confirmIcon: 'trash' })) {
+    if (await app.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true, confirmIcon: 'trash', closeAnchor: emptiedAnchor })) {
       app.remoteLink = null;   // dropped the local session → no server link to save back to
       // ONE removal path (drawingApp.removeProject): storage, the stored chat (§12.2),
       // the drop to a blank editor and the cross-tab notify all happen there.
