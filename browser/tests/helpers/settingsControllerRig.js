@@ -19,7 +19,7 @@ export const makeApp = (over = {}) => {
     coordTable: { update() { rec.coordUpdate++; } },
     remoteSync: { scheduleRemoteSync() { rec.remoteSync++; } },
     applyUnitToUI() {}, updateCoordStatus() {},
-    formula: { validate: (v) => v !== 'bad' },
+    formula: { validate: (v) => v !== 'bad', validateCtx: (v) => v !== 'bad' },
     tooltipMgr: { refresh() {} },
     ...over,
   };
