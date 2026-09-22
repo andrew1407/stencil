@@ -77,7 +77,7 @@ namespace stencil::gui {
   QString MainWindow::incognitoTagHtml() const {
     const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
     const int glyphPx = std::max(12, QFontMetrics(imageSizeInfo->font()).height() - 2);
-    return QStringLiteral("&nbsp;&nbsp;<span style=\"color:%1;\">|</span>&nbsp;&nbsp;"
+    return QStringLiteral("<span style=\"color:%1;\">|</span>&nbsp;&nbsp;"
                           "%2<span style=\"color:%3;font-weight:700;vertical-align:middle;\">"
                           "&nbsp;Incognito &mdash; not saved</span>")
         .arg(pal.textMuted.name(),

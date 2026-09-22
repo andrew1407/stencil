@@ -75,20 +75,21 @@ namespace stencil::gui {
       freshVeil->setOpacity(0.0);
       guard->setGraphicsEffect(freshVeil);
       QPointer<QGraphicsOpacityEffect> freshVeilGuard(freshVeil);
+      // In `slide` the cloud declines and the slot alone is the flight, so the veil comes off
+      // at once — there are no motes for the group to wait behind (browser revealControls).
       if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, CONTROL_REVEAL_IN_MS)) {
         guard->setGraphicsEffect(nullptr);
-        ctl::handBackMaxWidth(guard, savedMax);
-        return;
+      } else {
+        auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
+        fade->setDuration(CONTROL_REVEAL_IN_MS);
+        fade->setKeyValueAt(0.0, 0.0);
+        fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
+        fade->setKeyValueAt(1.0, 1.0);
+        QObject::connect(fade, &QPropertyAnimation::finished, guard, [guard] {
+          if (guard) guard->setGraphicsEffect(nullptr);
+        });
+        fade->start(QAbstractAnimation::DeleteWhenStopped);
       }
-      auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
-      fade->setDuration(CONTROL_REVEAL_IN_MS);
-      fade->setKeyValueAt(0.0, 0.0);
-      fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
-      fade->setKeyValueAt(1.0, 1.0);
-      QObject::connect(fade, &QPropertyAnimation::finished, guard, [guard] {
-        if (guard) guard->setGraphicsEffect(nullptr);
-      });
-      fade->start(QAbstractAnimation::DeleteWhenStopped);
       auto* grow = new QPropertyAnimation(guard, MAX_WIDTH_PROPERTY, guard);
       grow->setDuration(CONTROL_REVEAL_IN_MS);
       grow->setStartValue(0);
