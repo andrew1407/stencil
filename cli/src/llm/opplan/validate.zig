@@ -136,34 +136,6 @@ pub fn droppedVariantWarning(a: std.mem.Allocator, pos: usize, label: []const u8
     return std.fmt.allocPrint(a, "Dropped variant {d} (\"{s}\"): the {s} \"{s}\" can't run inside a variant — the rest of the plan ran", .{ pos, label, kind, op });
 }
 
-// The plan returned for `raw`, which the test expects to be VALID (not `.invalid`).
-pub fn mustPlan(raw: []const u8) !Plan {
-    switch (try parsePlan(testing.allocator, raw)) {
-        .plan => |p| return p,
-        .invalid => |msg| {
-            defer testing.allocator.free(msg);
-            std.debug.print("unexpectedly invalid: {s}\n", .{msg});
-            return error.TestUnexpectedResult;
-        },
-    }
-}
-
-// The rejection message for `raw`, which the test expects to be INVALID.
-pub fn mustReject(raw: []const u8, expected: []const u8) !void {
-    switch (try parsePlan(testing.allocator, raw)) {
-        .plan => |p| {
-            var plan = p;
-            defer plan.deinit();
-            std.debug.print("unexpectedly valid for: {s}\n", .{raw});
-            return error.TestUnexpectedResult;
-        },
-        .invalid => |msg| {
-            defer testing.allocator.free(msg);
-            try testing.expectEqualStrings(expected, msg);
-        },
-    }
-}
-
 // A plan carrying nothing but the given ACTIONS (or one VARIANT of them) — the envelope
 // every op unit below needs, written once so the cases read as the op JSON they test.
 const plan_head = "{\"reply\":\"ok\",\"actions\":[";
@@ -773,4 +745,32 @@ test "parsePlan: the GUI editors' §10 ops stay unknown here — skipped with a 
     try testing.expectEqual(@as(usize, 2), p.warnings.len);
     try testing.expectEqualStrings("Skipped unknown operation \"theme\"", p.warnings[0]);
     try testing.expectEqualStrings("Skipped unknown operation \"units\"", p.warnings[1]);
+}
+
+// The plan returned for `raw`, which the test expects to be VALID (not `.invalid`).
+pub fn mustPlan(raw: []const u8) !Plan {
+    switch (try parsePlan(testing.allocator, raw)) {
+        .plan => |p| return p,
+        .invalid => |msg| {
+            defer testing.allocator.free(msg);
+            std.debug.print("unexpectedly invalid: {s}\n", .{msg});
+            return error.TestUnexpectedResult;
+        },
+    }
+}
+
+// The rejection message for `raw`, which the test expects to be INVALID.
+pub fn mustReject(raw: []const u8, expected: []const u8) !void {
+    switch (try parsePlan(testing.allocator, raw)) {
+        .plan => |p| {
+            var plan = p;
+            defer plan.deinit();
+            std.debug.print("unexpectedly valid for: {s}\n", .{raw});
+            return error.TestUnexpectedResult;
+        },
+        .invalid => |msg| {
+            defer testing.allocator.free(msg);
+            try testing.expectEqualStrings(expected, msg);
+        },
+    }
 }

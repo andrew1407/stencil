@@ -4,6 +4,8 @@
 //! image pipeline. If ffmpeg isn't installed the caller surfaces a clear hint.
 const std = @import("std");
 const child = @import("../safety/child.zig");
+const report = @import("../app/report.zig");
+const sanitize = @import("../safety/sanitize.zig");
 const mediaTypes = @import("types.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed };
@@ -53,7 +55,11 @@ pub fn extractFrame(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: 
         else => false,
     };
     if (!ok or res.stdout.len == 0) {
-        if (res.stderr.len > 0) std.debug.print("ffmpeg: {s}\n", .{res.stderr});
+        if (res.stderr.len > 0) {
+            // ffmpeg echoes the URL it was given, token and all, so its prose is untrusted.
+            var buf: sanitize.DetailBuf = undefined;
+            report.err("ffmpeg: {s}\n", .{sanitize.sanitizeDetail(res.stderr, &buf)});
+        }
         gpa.free(res.stdout);
         return Error.FfmpegFailed;
     }
