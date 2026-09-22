@@ -66,7 +66,11 @@ func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protoco
 		refuseHello(ctx, conn, protocol.CodeRateLimited, "too many failed handshakes; retry later")
 		return errHelloThrottled
 	}
-	if _, err := auth.Verify(ctx, h.resolver, hello.Token, clock.NowMs()); err != nil {
+	// The token lookup is a store round trip, so it is bounded like every other one; the handshake
+	// deadline is already spent by here, and the connection context has none of its own.
+	vctx, cancel := context.WithTimeout(ctx, opTimeout)
+	defer cancel()
+	if _, err := auth.Verify(vctx, h.resolver, hello.Token, clock.NowMs()); err != nil {
 		refuseHello(ctx, conn, protocol.CodeUnauthorized, "invalid token")
 		return err
 	}

@@ -93,10 +93,12 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 	stop()            // cancel rootCtx so the expiry-sweep goroutine winds down
 	sweepWG.Wait()    // join it before run()'s deferred st.Close()/b.Close() fire
 	_ = tcpLn.Close() // stop accepting new TCP editors; ServeListener now drains
-	// Cancel every live edit connection so their handlers unwind: ctx-aware TCP Reads return and hijacked
-	// WebSocket editors (which Shutdown cannot close) release, so Shutdown finishes instead of timing out.
+	// Notice, then cancel, every live edit connection so their handlers unwind: ctx-aware TCP Reads return
+	// and hijacked WebSocket editors (which Shutdown cannot close) release, so Shutdown finishes.
 	h.CloseAll()
-	return srv.Shutdown(shutdownCtx)
+	err := srv.Shutdown(shutdownCtx)
+	h.Close() // the hub's context outlives the drain, so the last peer-leave publish still lands
+	return err
 }
 
 // waitForTermination blocks until a signal cancels ctx or the HTTP server

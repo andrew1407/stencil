@@ -1,8 +1,10 @@
 package hub
 
 import (
+	"context"
 	"testing"
 
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 	"stencil/server/internal/transport"
@@ -41,5 +43,22 @@ func TestShutdownNotifiesLiveConnections(t *testing.T) {
 			t.Errorf("%s: the notice should say what was lost", name)
 		}
 		expectClosed(t, c, name+" after shutdown")
+	}
+}
+
+// The hub's context is not the signal context: cancelling that must not cut the goodbye write, an
+// in-flight save (persist.go) or the drain's last publish (relay.go) short. Close is what ends it.
+func TestHubContextOutlivesTheSignalContext(t *testing.T) {
+	signalCtx, signalled := context.WithCancel(context.Background())
+	h := New(signalCtx, nil, eventbus.NewInProc(), nil)
+
+	signalled()
+	if err := h.ctx.Err(); err != nil {
+		t.Fatalf("the hub died with the signal: %v", err)
+	}
+
+	h.Close()
+	if h.ctx.Err() == nil {
+		t.Error("Close must end the hub's context")
 	}
 }

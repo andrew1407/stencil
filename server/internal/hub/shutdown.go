@@ -25,6 +25,18 @@ var shutdownNotice = protocol.WSMessage{
 	Message: "server is shutting down; unsaved live edits are lost — save and reconnect",
 }
 
+// CloseAll tells every live connection the server is going away (unsaved live edits die with it) and
+// cancels its context so the handler unwinds and releases the conn. Pair it with Close, after the drain.
+func (h *Hub) CloseAll() {
+	closeAll(h.liveConns())
+}
+
+// Close ends the hub's own context, so it comes last: the goodbye writes, the final peer-leave publish
+// and an in-flight save all ride it, and cancelling it earlier is what silences the notice.
+func (h *Hub) Close() {
+	h.cancel()
+}
+
 // liveConns snapshots the tracked connections so the notice + cancel run outside
 // the hub lock (a write must never block connects and disconnects).
 func (h *Hub) liveConns() []*connReg {

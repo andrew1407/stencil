@@ -37,6 +37,7 @@ type Hub struct {
 	bus      eventbus.Bus
 	resolver auth.SessionResolver
 	ctx      context.Context
+	cancel   context.CancelFunc
 	hello    helloGuard // per-IP throttle on failed handshakes (hellolimit.go)
 
 	mu       sync.Mutex
@@ -51,14 +52,16 @@ type connReg struct {
 	conn   transport.Conn
 }
 
-// New constructs a hub. ctx bounds background publishes/persists; opts carry the
-// tunables (WithHelloLimit).
+// New constructs a hub. Its own context carries ctx's values but not its cancellation, so a signal that
+// cancels ctx cannot hang up a TCP editor before CloseAll says goodbye; Close ends it. opts are tunables.
 func New(ctx context.Context, store Store, b eventbus.Bus, resolver auth.SessionResolver, opts ...Option) *Hub {
+	hctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &Hub{
 		store:    store,
 		bus:      b,
 		resolver: resolver,
-		ctx:      ctx,
+		ctx:      hctx,
+		cancel:   cancel,
 		sessions: map[string]*session{},
 		conns:    map[*connReg]struct{}{},
 	}
@@ -80,12 +83,6 @@ func (h *Hub) trackConn(conn transport.Conn, cancel context.CancelFunc) func() {
 		delete(h.conns, reg)
 		h.mu.Unlock()
 	}
-}
-
-// CloseAll tells every live connection the server is going away (unsaved live edits die with it) and
-// cancels its context so the handler unwinds and releases the conn.
-func (h *Hub) CloseAll() {
-	closeAll(h.liveConns())
 }
 
 // acquire returns the session for id, creating and starting it if needed, and

@@ -32,7 +32,6 @@ func TestRedisPubSubRoundTrip(t *testing.T) {
 
 	ch, cancel := b.Subscribe("test:proj:1")
 	defer cancel()
-	time.Sleep(100 * time.Millisecond) // let the subscription register
 
 	env := eventbus.Envelope{Type: protocol.WSEdit, From: "c_1", Data: []byte(`{"type":"edit"}`)}
 	if err := b.Publish(ctx, "test:proj:1", env); err != nil {
