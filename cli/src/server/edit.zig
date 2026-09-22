@@ -1,6 +1,7 @@
 //! The live edit channel: newline-delimited frames over raw TCP, the `updated` events a
 //! peer's save produces, and the buffered connection that reassembles partial frames.
 const std = @import("std");
+const builtin = @import("builtin");
 const Error = @import("errors.zig").Error;
 const urls = @import("urls.zig");
 const hostAndPort = urls.hostAndPort;
@@ -75,8 +76,8 @@ pub const EditConn = struct {
     rbuf: std.ArrayList(u8) = .empty,
     closed: bool = false,
 
-    /// Connect to the edit port, authenticate with a hello (empty projectId = global
-    /// feed), and bound reads with a short receive timeout so draining never stalls.
+    /// Connect to the edit port, authenticate with a hello (empty projectId = global feed),
+    /// and set the receive timeout that backs the non-blocking drain below.
     pub fn open(gpa: std.mem.Allocator, io: std.Io, base: []const u8, token: []const u8, client_id: []const u8) !EditConn {
         // The events feed is a plaintext TCP socket and cannot speak TLS, so over https we skip the live feed
         // rather than dial the wrong port. REST and sync still work over TLS.
@@ -93,10 +94,10 @@ pub const EditConn = struct {
             break :s try hn.connect(io, port, .{ .mode = .stream });
         };
         errdefer stream.close(io);
-        const fd = stream.socket.handle;
-        // 100ms receive timeout: a drain returns promptly (EAGAIN) when no events pend.
+        // A read that reaches the socket is always one poll() said was ready, but a stalled peer
+        // must not hold the prompt either: 100ms is the ceiling on any read that slips through.
         const tv = std.posix.timeval{ .sec = 0, .usec = 100 * 1000 };
-        std.posix.setsockopt(fd, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&tv)) catch {};
+        std.posix.setsockopt(stream.socket.handle, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&tv)) catch {};
         const hello = try helloFrame(gpa, token, "", client_id);
         defer gpa.free(hello);
         var wbuf: [256]u8 = undefined;
@@ -111,11 +112,13 @@ pub const EditConn = struct {
         self.rbuf.deinit(self.gpa);
     }
 
-    /// Best-effort drain: read whatever is pending (bounded by the receive timeout), then pop the next
-    /// complete project-update event, or null. Repeated calls drain the buffer one event at a time.
+    /// Best-effort drain: read whatever is already pending, then pop the next complete
+    /// project-update event, or null. Repeated calls drain the buffer one event at a time.
+    /// It NEVER blocks — the console calls it at every prompt boundary, piped runs included.
     pub fn poll(self: *EditConn) !?Event {
         if (self.closed) return null;
         if (std.mem.indexOfScalar(u8, self.rbuf.items, '\n') == null) {
+            if (!readable(self.stream.socket.handle)) return null; // nothing pending right now
             var tmp: [4096]u8 = undefined;
             const n = std.posix.read(self.stream.socket.handle, &tmp) catch |e| switch (e) {
                 error.WouldBlock => return null, // receive timeout: nothing pending right now
@@ -131,6 +134,16 @@ pub const EditConn = struct {
             try self.feed(tmp[0..n]);
         }
         return self.nextEvent();
+    }
+
+    /// Whether a read would return at once. Windows has no posix poll(), so there the
+    /// receive timeout is what bounds the drain instead.
+    fn readable(fd: std.posix.socket_t) bool {
+        if (builtin.os.tag != .windows) {
+            var fds = [_]std.posix.pollfd{.{ .fd = fd, .events = std.posix.POLL.IN, .revents = 0 }};
+            return (std.posix.poll(&fds, 0) catch 0) != 0;
+        }
+        return true;
     }
 
     /// Append freshly-read socket bytes to the frame buffer. Split out for testing.

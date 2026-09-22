@@ -292,7 +292,7 @@ test "layering: severity has one definition, and only the presentation layer pri
     defer src_dir.close(io);
 
     const literals = [_][]const u8{ "\"error: ", "\"note: ", "\"warning: " };
-    const prints = [_][]const u8{ "logo.print(", "logo.err(", "logo.note(", "logo.banner(" };
+    const prints = [_][]const u8{ "logo.print(", "logo.err(", "logo.note(", "logo.banner(", "std.debug.print(" };
     const escapes = [_][]const u8{ "\\x1b", "\\x1B", "\\u{1b}", "\\033", "\x1b" };
 
     var seen: usize = 0;

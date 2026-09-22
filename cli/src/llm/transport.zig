@@ -72,20 +72,11 @@ pub const Job = struct {
 
     /// Move the state out of `.running`, reporting whether this caller won the handoff.
     fn claim(self: *Job, to: State) bool {
-        return self.state.cmpxchgStrong(
-            @intFromEnum(State.running),
-            @intFromEnum(to),
-            .acq_rel,
-            .acquire,
-        ) == null;
+        return self.state.cmpxchgStrong(@intFromEnum(State.running), @intFromEnum(to), .acq_rel, .acquire) == null;
     }
 
     fn run(self: *Job) void {
-        if (rawRequest(self.gpa, self.io, self.url, self.auth, self.body)) |res| {
-            self.res = res;
-        } else |e| {
-            self.err = e;
-        }
+        if (rawRequest(self.gpa, self.io, self.url, self.auth, self.body)) |res| self.res = res else |e| self.err = e;
         if (self.claim(.finished)) return; // the caller is still waiting — it collects
         self.discard(); // abandoned: this thread owns everything now
     }
@@ -140,15 +131,22 @@ pub fn postJson(
     // Watched: the request runs on a worker while this thread keeps reading the tty, so a
     // Ctrl-C (or the deadline) ends the wait instead of the console sitting deaf for minutes.
     const job = Job.init(gpa, io, url, auth, body) catch return PostError.OutOfMemory;
-    var thread = std.Thread.spawn(.{}, Job.run, .{job}) catch {
-        // No thread to spare — fall back to the plain blocking call rather than failing.
-        job.destroy();
+    var fut = io.concurrent(Job.run, .{job}) catch {
+        job.destroy(); // no unit of concurrency to spare: the plain blocking call, rather than a failure
         return finish(gpa, try rawRequest(gpa, io, url, auth, body));
     };
-    thread.detach();
-    const res = try waitForJob(job, io, waiter);
+    const res = waitForJob(job, io, waiter) catch |e| {
+        // A worker that already landed leaves the job to us; one still in flight is stopped
+        // here, socket and all, or it would outlive the turn — and it frees the job itself.
+        if (job.state.load(.acquire) == @intFromEnum(Job.State.finished)) {
+            fut.await(io);
+            job.destroy();
+        } else fut.cancel(io);
+        return e;
+    };
     // The worker landed first and left the result to us; the job itself is ours to free.
     defer job.destroy();
+    fut.await(io);
     return finish(gpa, res);
 }
 
@@ -198,6 +196,7 @@ fn rawRequest(gpa: std.mem.Allocator, io: std.Io, url: []const u8, auth: ?[]cons
         .method = .POST,
         .payload = body,
         .extra_headers = headers[0..n],
+        .timeout_ms = @intCast(request_timeout_ms), // the socket's deadline is the one the waiter watches
     });
 }
 

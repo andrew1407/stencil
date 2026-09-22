@@ -5,7 +5,7 @@
 const std = @import("std");
 const report = @import("app/report.zig");
 const host_guard = @import("net/host.zig");
-const fetchPool = @import("net/fetchPool.zig");
+const send = @import("net/send.zig");
 
 // The host/authority split + SSRF guard live in host.zig; these are the names callers use.
 pub const Authority = host_guard.Authority;
@@ -14,11 +14,12 @@ pub const hostOf = host_guard.hostOf;
 pub const isLoopbackHost = host_guard.isLoopbackHost;
 pub const isBlockedFetchHost = host_guard.isBlockedFetchHost;
 
-pub const Error = error{ HttpFailed, BlockedHost };
-
-/// Hard cap on the bytes read from a single fetch: bounds memory against a host streaming an endless
-/// body, which matters for scrape's many untrusted URLs. Page-allocated, so a small response pays less.
-pub const MAX_FETCH_BYTES = 64 << 20; // 64 MiB
+// The exchange itself, its options, the body cap and the per-request deadline live in send.zig.
+pub const Error = send.Error;
+pub const Response = send.Response;
+pub const RequestOptions = send.RequestOptions;
+pub const MAX_FETCH_BYTES = send.MAX_FETCH_BYTES;
+pub const DEFAULT_TIMEOUT_MS = send.DEFAULT_TIMEOUT_MS;
 
 pub fn isUrl(s: []const u8) bool {
     return std.ascii.startsWithIgnoreCase(s, "http://") or
@@ -41,24 +42,6 @@ pub fn hasForeignScheme(s: []const u8) bool {
     return true;
 }
 
-pub const RequestOptions = struct {
-    /// null lets std.http.Client infer it (GET without a payload, POST with one).
-    method: ?std.http.Method = null,
-    payload: ?[]const u8 = null,
-    extra_headers: []const std.http.Header = &.{},
-    /// Block loopback in addition to the always-blocked internal ranges — pass true for
-    /// sub-resource URLs harvested from untrusted scanned content, false for user-named URLs.
-    strict: bool = false,
-    /// Skip the host/DNS block entirely (see isBlockedFetchHost: the server-connect path is
-    /// exempt — the user names their own server). The cap and redirect refusal still apply.
-    allow_named_host: bool = false,
-};
-
-pub const Response = struct {
-    status: u16,
-    body: []u8, // owned by the caller (present for non-2xx statuses too)
-};
-
 /// SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
 fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
     const host = hostOf(url) orelse {
@@ -77,40 +60,11 @@ fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
 }
 
 /// Send one HTTP request through the full SSRF guard — literal host check, DNS-resolution check,
-/// redirect refusal — returning status + owned body capped at `MAX_FETCH_BYTES`. Every fetch uses it.
-pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) (Error || error{OutOfMemory})!Response {
+/// redirect refusal — returning status + owned body capped at `MAX_FETCH_BYTES`, and giving up after
+/// `opts.timeout_ms`. Every fetch uses it.
+pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) send.Result {
     if (!opts.allow_named_host) try guardHost(io, url, opts.strict);
-
-    var client: std.http.Client = .{ .allocator = gpa, .io = io };
-    defer client.deinit();
-
-    // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the cap, aborting
-    // the stream instead of growing memory. Page-allocated, so a small response commits its own pages.
-    const scratch = fetchPool.bodyScratch(MAX_FETCH_BYTES) orelse return Error.HttpFailed;
-    var body: std.Io.Writer = .fixed(scratch);
-
-    const result = client.fetch(.{
-        .location = .{ .url = url },
-        .method = opts.method,
-        .payload = opts.payload,
-        .extra_headers = opts.extra_headers,
-        .response_writer = &body,
-        // Refuse redirects: a public first hop must not 30x-bounce to an internal
-        // host, which would slip past the pre-fetch host check above.
-        .redirect_behavior = .not_allowed,
-    }) catch |e| {
-        if (e == error.WriteFailed) {
-            report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
-        } else {
-            report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
-        }
-        return Error.HttpFailed;
-    };
-
-    return .{
-        .status = @intFromEnum(result.status),
-        .body = try gpa.dupe(u8, body.buffered()),
-    };
+    return send.deadlined(gpa, io, url, opts);
 }
 
 /// GET `url`, returning the owned response body (capped at `MAX_FETCH_BYTES`). `strict` also blocks
