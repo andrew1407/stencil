@@ -278,6 +278,15 @@
       QToolButton[toolGhostBox="true"] { background: transparent; border: 1px solid %UI_OUTLINE%; }
       QToolButton[toolGhostBox="true"]:hover { background: %BG_INFO%; border-color: %ACCENT%; }
       QToolButton[toolGhostBox="true"]:pressed { background: %BG_COORD_HOVER%; }
+      /* …and ON it fills, like the browser's #incognito-toggle.active. It needs its own rule:
+         the ghost above ties QToolButton:checked on specificity and comes later, so it won. */
+      QToolButton[toolGhostBox="true"]:checked {
+        background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%;
+      }
+      QToolButton[toolGhostBox="true"]:checked:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
+      QToolButton[toolGhostBox="true"]:disabled, QToolButton[toolGhostBox="true"]:checked:disabled {
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
+      }
 
       /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */
       QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }

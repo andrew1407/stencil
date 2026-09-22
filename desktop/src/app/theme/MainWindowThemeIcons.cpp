@@ -104,8 +104,9 @@ namespace stencil::gui {
     set(actAllowFormulas, "function");
     set(units.unitCm, "ruler");
     set(units.unitIn, "ruler");
-    // Always the mask glyph; Qt greys it when disabled (browser parity).
-    if (actIncognito) actIncognito->setIcon(themedIcon("incognito", iconColor, s));
+    // Always the mask glyph, but REGISTERED like the rest: the ghost toggle's ink flips to
+    // on-accent when it lights up, and only a named glyph is repainted for that.
+    set(actIncognito, "incognito");
     set(actSettings, "palette");
     set(actAccent, "palette");   // Settings section: the accent/visuals popover
     set(actProjects, "layers");          // browser projects-btn glyph (layers, not folder)
@@ -173,7 +174,9 @@ namespace stencil::gui {
     for (QToolButton* b : findChildren<QToolButton*>()) {
       if (b->defaultAction() != act) continue;
       const QString fill = b->property("toolFill").toString();
-      if (fill.isEmpty()) break;
+      // A ghost toggle takes the accent's ink only while it is ON (app.qss toolGhostBox:checked).
+      const bool litGhost = b->property("toolGhostBox").toBool() && act->isChecked() && act->isEnabled();
+      if (fill.isEmpty() && !litGhost) break;
       if (fill == QLatin1String("danger")) return QColor(Qt::white);
       return themePalette(resolveDark(settings.themeMode), settings.accentColor).onAccent;
     }

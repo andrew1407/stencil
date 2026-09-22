@@ -1,14 +1,15 @@
 #include "IncognitoOverlay.hpp"
+#include "motionPrefs.hpp"
 #include "theme.hpp"
 
 #include <QColor>
+#include <QEasingCurve>
 #include <QEvent>
 #include <QPainter>
 #include <QRectF>
 #include <QVariantAnimation>
 
 #include <algorithm>
-#include <cmath>
 
 namespace stencil::gui {
 
@@ -23,18 +24,31 @@ namespace stencil::gui {
     hide();
   }
 
-  // Four equal quarters from the top-left, each a straight run so `t` maps linearly (browser .ig-edge).
-  QPainterPath IncognitoOverlay::framePath(const QRectF& box, double t) {
+  IncognitoOverlay::EdgeLengths IncognitoOverlay::edgeLengths(double ms, bool drawing,
+                                                             const EdgeLengths& from) {
+    const QEasingCurve ease(QEasingCurve::OutCubic);   // browser: ease-out
+    const double to = drawing ? 1.0 : 0.0;
+    EdgeLengths out{};
+    for (int e = 0; e < 4; ++e) {
+      // ON runs top, right, bottom, left; OFF mirrors the delays, so the last edge drawn goes first.
+      const int slot = drawing ? e : 3 - e;
+      const double u = std::clamp((ms - slot * STAGGER_MS) / EDGE_MS, 0.0, 1.0);
+      out[e] = from[e] + (to - from[e]) * ease.valueForProgress(u);
+    }
+    return out;
+  }
+
+  QPainterPath IncognitoOverlay::framePath(const QRectF& box, const EdgeLengths& len) {
     QPainterPath path;
-    t = std::clamp(t, 0.0, 1.0);
-    if (t <= 0.0 || box.isEmpty()) return path;
-    const auto run = [t](int q) { return std::clamp(t * 4.0 - q, 0.0, 1.0); };
+    if (box.isEmpty()) return path;
     const qreal w = box.width(), h = box.height();
-    path.moveTo(box.topLeft());
-    path.lineTo(box.left() + w * run(0), box.top());
-    if (t > 0.25) { path.moveTo(box.topRight());    path.lineTo(box.right(), box.top() + h * run(1)); }
-    if (t > 0.50) { path.moveTo(box.bottomRight()); path.lineTo(box.right() - w * run(2), box.bottom()); }
-    if (t > 0.75) { path.moveTo(box.bottomLeft());  path.lineTo(box.left(), box.bottom() - h * run(3)); }
+    const auto run = [&len](int e) { return std::clamp(len[e], 0.0, 1.0); };
+    // One run per edge from the corner it starts at, never a growing perimeter: length is what
+    // animates, so the dash pattern is REVEALED along each axis instead of smeared.
+    if (run(0) > 0.0) { path.moveTo(box.topLeft());     path.lineTo(box.left() + w * run(0), box.top()); }
+    if (run(1) > 0.0) { path.moveTo(box.topRight());    path.lineTo(box.right(), box.top() + h * run(1)); }
+    if (run(2) > 0.0) { path.moveTo(box.bottomRight()); path.lineTo(box.right() - w * run(2), box.bottom()); }
+    if (run(3) > 0.0) { path.moveTo(box.bottomLeft());  path.lineTo(box.left(), box.bottom() - h * run(3)); }
     return path;
   }
 
@@ -48,9 +62,11 @@ namespace stencil::gui {
     }
     if (!anim) {
       anim = new QVariantAnimation(this);
-      anim->setEasingCurve(QEasingCurve::OutCubic);
+      anim->setDuration(DRAW_MS);
+      anim->setStartValue(0.0);
+      anim->setEndValue(double(DRAW_MS));   // linear: each edge carries its own easing
       connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        progress = v.toDouble();
+        edges = edgeLengths(v.toDouble(), active, from);
         update();
       });
       // Hide only once the frame has finished retracting.
@@ -58,15 +74,14 @@ namespace stencil::gui {
         if (!active) hide();
       });
     }
-    // Capture the frame's position BEFORE touching the animation: setStartValue/setEndValue emit
-    // valueChanged into progress, so reading it after them yields the END value (an instant snap).
-    const double from = progress;
-    const double to = on ? 1.0 : 0.0;
-    const int ms = std::max(1, int(DRAW_MS * std::abs(to - from)));
     anim->stop();
-    anim->setDuration(ms);
-    anim->setStartValue(from);
-    anim->setEndValue(to);
+    from = edges;   // a flip mid-flight carries on from where each edge stands
+    if (support::motionReduced()) {
+      edges.fill(on ? 1.0 : 0.0);
+      if (!on) hide();
+      update();
+      return;
+    }
     anim->start();
     update();
   }
@@ -90,20 +105,20 @@ namespace stencil::gui {
   }
 
   void IncognitoOverlay::paintEvent(QPaintEvent*) {
-    if (progress <= 0.0) return;
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor accent = themePalette(dark, accentKey).accent;
 
-    // Browser: 3px dashed outline, outline-offset -3px. Qt strokes centred, so the only inset is
-    // PEN_PX/2. The dash pattern rides ON the partial path, so dashes are REVEALED, not stretched.
+    // Browser: a 3px dashed frame, accent 0 9px / transparent 9px 16px. Qt's dash pattern is in
+    // PEN WIDTHS, so the browser's pixel run divides by the width.
     QPen pen(accent);
-    pen.setStyle(Qt::DashLine);
     pen.setWidth(PEN_PX);
+    pen.setStyle(Qt::CustomDashLine);
+    pen.setDashPattern({DASH_ON_PX / PEN_PX, DASH_OFF_PX / PEN_PX});
     pen.setCapStyle(Qt::FlatCap);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
-    p.drawPath(framePath(frameBox(QRectF(rect())), progress));
+    p.drawPath(framePath(frameBox(QRectF(rect())), edges));
   }
 
 }

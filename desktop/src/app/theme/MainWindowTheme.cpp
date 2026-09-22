@@ -99,7 +99,10 @@ namespace stencil::gui {
     canvas->setDark(dark);
     canvas->setAccent(settings.accentColor);
     incognitoOverlay->setTheme(dark, settings.accentColor);
-    if (dropZones) dropZones->setAccent(themePalette(dark, settings.accentColor).accent);
+    if (dropZones) {
+      const Palette dp = themePalette(dark, settings.accentColor);
+      dropZones->setColors(dp.accent, dp.textKey, dp.textMuted, dp.bgContainer);
+    }
     if (panelGrip || chatEdge) {
       const Palette gp = themePalette(dark, settings.accentColor);
       if (panelGrip) panelGrip->setColors(gp.borderMain, gp.accent);
