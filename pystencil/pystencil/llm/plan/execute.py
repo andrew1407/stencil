@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Plan execution over the Editor facade: :func:`execute_op_plan`, the one entry
 point that walks a validated plan (and its variants) against an editor.
 """
+
+from __future__ import annotations
 
 from typing import Any, Sequence
 
@@ -101,7 +101,9 @@ def execute_op_plan(
       base = editor.result()  # snapshot AFTER the top-level actions
     branches = list()
     for variant in plan.variants:
-      branch = type(editor)()
+      # The core rides along: a branch left to load its own would race the singleton
+      # (and its lazy c++ build) from a worker thread.
+      branch = type(editor)(core=getattr(editor, "_core", None))
       branch.load(base, name=variant.label)
       branches.append((branch, variant, frame.branch()))
     outputs.extend(map_parallel(branches, __render_branch, MAX_VARIANT_WORKERS))

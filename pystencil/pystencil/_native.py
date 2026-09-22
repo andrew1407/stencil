@@ -12,6 +12,7 @@ from __future__ import annotations
 import ctypes
 import importlib.util
 import os
+import threading
 from pathlib import Path
 
 from ._ffi.types import NoneType
@@ -22,6 +23,8 @@ _BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 
 
 _CDLL: (ctypes.CDLL | NoneType) = None
+
+_LOCK = threading.RLock()  # guards _CDLL and core.py's _CORE; reentrant for get_core()
 
 
 def __load_build():
@@ -68,10 +71,16 @@ def find_or_build(build_if_missing: bool = True) -> str:
 
 
 def load_library() -> ctypes.CDLL:
-  """Load (once) and return the ctypes CDLL handle for the shared core."""
+  """Load (once) and return the ctypes CDLL handle for the shared core.
+
+  Double-checked under :data:`_LOCK`, so the hot path stays lock-free while racing
+  first callers still build once: two threads through find_or_build() would mean two
+  concurrent ``c++ -shared`` writes to the same artifact.
+  """
   global _CDLL
   if _CDLL is not None: return _CDLL
-
-  path = find_or_build(build_if_missing=True)
-  _CDLL = ctypes.CDLL(path)
-  return _CDLL
+  with _LOCK:
+    if _CDLL is not None: return _CDLL
+    path = find_or_build(build_if_missing=True)
+    _CDLL = ctypes.CDLL(path)
+    return _CDLL

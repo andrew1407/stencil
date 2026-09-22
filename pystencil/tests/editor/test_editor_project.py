@@ -80,7 +80,15 @@ class DrawCombineTests(NativeCase):
 
   def test_undo_restores_the_previous_line_set(self):
     ed = self._editor()
-    ed.draw({"lines": [{"points": [{"x": 5, "y": 5}]}]}, combine=False)
+    ed.draw({"lines": [{"points": [{"x": 5, "y": 5}, {"x": 6, "y": 6}]}]}, combine=False)
+    self.assertEqual(len(ed.layout().lines), 1)
+    self.assertTrue(ed.undo())
+    restored = ed.layout().lines
+    self.assertEqual(len(restored), 1)
+    self.assertEqual((restored[0].points[0].x, restored[0].points[0].y), (1, 1))
+    self.assertTrue(ed.redo())
+    replaced = ed.layout().lines
+    self.assertEqual((replaced[0].points[0].x, replaced[0].points[0].y), (5, 5))
 
 
 if __name__ == "__main__":

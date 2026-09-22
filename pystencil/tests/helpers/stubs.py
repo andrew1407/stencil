@@ -21,13 +21,15 @@ def _plan_json(**kw) -> str:
 class _StubEditor:
   """Records the Editor calls execute_op_plan makes (no native core needed).
 
-  Variant branches are created as ``type(editor)()``, so this class also stands in
-  for the per-variant editors; the class-level registry collects every instance.
+  Variant branches are created with the root editor's core passed through, so this
+  class takes the same `core` keyword `Editor` does and also stands in for the
+  per-variant editors; the class-level registry collects every instance.
   """
 
   instances: list = list()
 
-  def __init__(self) -> None:
+  def __init__(self, core=None) -> None:
+    self._core = core
     self.calls: list = list()
     _StubEditor.instances.append(self)
 

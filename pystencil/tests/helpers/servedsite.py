@@ -14,6 +14,11 @@ from pathlib import Path
 from threading import Thread
 
 from pystencil import codecs
+from pystencil._net import MAX_FETCH_BYTES
+
+# The two _net refusals that need a live server rather than a stub.
+REDIRECT_PATH = "/redirect"
+OVERSIZED_PATH = "/oversized"
 
 
 def _solid_png(w: int, h: int, rgb=(200, 30, 30)) -> bytes:
@@ -54,6 +59,31 @@ _IMAGES = {
 class _QuietHandler(SimpleHTTPRequestHandler):
   def log_message(self, *args):  # keep the test output clean
     pass
+
+  def do_GET(self):
+    if self.path == REDIRECT_PATH:
+      self.send_response(302)
+      self.send_header("Location", "logo.png")
+      self.end_headers()
+      return
+    if self.path == OVERSIZED_PATH: return self._flood()
+    return super().do_GET()
+
+  def _flood(self):
+    """A body one byte past the fetch cap, streamed so nothing that big is held."""
+    left = MAX_FETCH_BYTES + 1
+    self.send_response(200)
+    self.send_header("Content-Type", "application/octet-stream")
+    self.send_header("Content-Length", str(left))
+    self.end_headers()
+    chunk = bytes(1 << 20)
+    try:
+      while left > 0:
+        size = min(left, len(chunk))
+        self.wfile.write(chunk[:size])
+        left -= size
+    except OSError:
+      pass  # the guard hangs up as soon as it has one byte too many
 
 
 class ServedSiteCase(unittest.TestCase):
