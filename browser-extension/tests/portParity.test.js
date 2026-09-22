@@ -43,9 +43,9 @@ const MANIFEST = [
   ['llmHttp', '../../browser/js/llm/http.js', '../src/llm/http.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
-  ['opSchema', '../src/llm/op/schema.js', '../src/llm/op/schema.js'],
+  ['opSchema', '../../browser/js/llm/plan/opSchema.js', '../src/llm/op/schema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
-  ['opSchemaBase', '../src/llm/op/schemaBase.js', '../src/llm/op/schemaBase.js'],
+  ['opSchemaBase', '../../browser/js/llm/plan/opSchemaBase.js', '../src/llm/op/opSchemaBase.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
   ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
@@ -71,6 +71,8 @@ const normalize = (src) => normalizeImports(stripHeader(src));
 
 for (const [name, browserPath, extPath] of MANIFEST) {
   test(`${name}: the extension port matches the browser module rule-for-rule`, () => {
+    // A row whose two columns name one file compares it to itself and proves nothing.
+    assert.notEqual(browserPath, extPath, `${name}: both columns name the same file`);
     const browser = normalize(read(browserPath));
     const ext = normalize(read(extPath));
     assert.ok(browser.trim() && ext.trim(), 'both copies have a body');
@@ -142,6 +144,7 @@ const sourceOf = (rel) => {
 
 for (const [name, browserPath, extPath, fns] of FUNCTIONS) {
   test(`${name}: every ported function matches its browser original`, () => {
+    assert.notEqual(browserPath, extPath, `${name}: both columns name the same file`);
     const browser = sourceOf(browserPath);
     const ext = sourceOf(extPath);
     for (const fn of fns) {

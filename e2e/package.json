@@ -5,7 +5,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "lint:size": "node --test tests/sizeBudget.test.js",
+    "test": "npm run lint:size && playwright test",
     "test:ui": "playwright test --project=browser-app --project=browser-extension",
     "test:stack": "E2E_STACK=1 playwright test --project=fullstack --project=server-protocol",
     "report": "playwright show-report"
