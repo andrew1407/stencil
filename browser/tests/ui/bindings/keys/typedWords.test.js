@@ -17,7 +17,7 @@ beforeEach(() => {
   globalThis.performance = { now: () => 0 };
 });
 
-const { wireTypedWords, matchTypedWord } = await import('../../../../js/ui/bindings/keys/typedWords.js');
+const { wireTypedWords, matchTypedWord, typedLetter } = await import('../../../../js/ui/bindings/keys/typedWords.js');
 const { logoStageOpen, closeLogoStage } = await import('../../../../js/ui/logo/stage.js');
 
 const type = (text, over = {}) => {
@@ -29,6 +29,22 @@ test('a buffer is matched by its tail, so a typo before the word still lands', (
   assert.equal(matchTypedWord('qqqpinkvibe'), 'pinkVibe');
   assert.equal(matchTypedWord('neono'), null);
   assert.equal(matchTypedWord(''), null);
+});
+
+test('a key spells its own Latin letter, else the US letter of its physical position', () => {
+  assert.equal(typedLetter({ key: 'p', code: 'KeyP' }), 'p');
+  assert.equal(typedLetter({ key: 'a', code: 'KeyQ' }), 'a', 'AZERTY: the label on the key wins');
+  assert.equal(typedLetter({ key: 'з', code: 'KeyP' }), 'p', 'Cyrillic: the position wins');
+  assert.equal(typedLetter({ key: 'Shift', code: 'ShiftLeft' }), '');
+  assert.equal(typedLetter({ key: '1', code: 'Digit1' }), '1', 'any other character still joins the buffer');
+});
+
+test('a word typed under a Cyrillic layout opens its show', () => {
+  wireTypedWords({ accent: 'violet', customAccent: null }, doc);
+  const russian = [['т', 'KeyN'], ['у', 'KeyE'], ['щ', 'KeyO'], ['т', 'KeyN'], ['щ', 'KeyO'], ['т', 'KeyN']];
+  for (const [key, code] of russian) doc.dispatch('keydown', { key, code, target: body });
+  assert.equal(logoStageOpen(), true);
+  closeLogoStage();
 });
 
 test('typing a show\'s name opens it, whatever the accent says', () => {

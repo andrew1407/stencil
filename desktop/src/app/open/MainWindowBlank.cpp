@@ -101,6 +101,7 @@ namespace stencil::gui {
     blankColor = color.name();  // mark this session as a (recolourable) blank of this fill
     canvas->setBlankPage(true); // compare views keep a blank's fill + tint
     refreshActions();
+    fitToWindow();   // BEFORE the dust measures it (browser settle.js), or a wide page's cloud fills the viewport
     playImageArrival();   // a blank is an image appearing, so it assembles like any other
     notify->success(QString("Blank %1×%2 image created").arg(fw).arg(fh));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)

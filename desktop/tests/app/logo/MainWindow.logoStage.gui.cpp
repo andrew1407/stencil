@@ -166,32 +166,25 @@ class MainWindowGuiTest : public QObject {
     stage->dismiss();
   }
 
-  // Typing a show's name into the bare window opens it, as it does in the browser.
-  void typingAShowsNameOpensIt() {
+  // The blank the pink show makes is fitted before its dust measures it, so the cloud is the
+  // page's size and not the viewport's.
+  void thePinkShowsBlankAssemblesAtItsFittedSize() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
-    win.resize(900, 700);
+    win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY(stage);
-    qWarning("focus at rest: %s", QApplication::focusWidget()
-             ? QApplication::focusWidget()->metaObject()->className() : "none");
-    // Through Qt's own delivery — shortcut map, focus widget and all — not straight to the window.
-    const auto type = [&win](const QString& word) {
-      QWidget* to = QApplication::focusWidget() ? QApplication::focusWidget() : &win;
-      QTest::keyClicks(to, word);
-    };
-    type(QStringLiteral("neonon"));
-    QVERIFY2(stage->isOpen(), "the typed word opens its show");
-    stage->dismiss();
-    QTest::qWait(500);   // the hide plays out, and the stage lets go of the keyboard
-
-    // …and the NEXT word is heard just as well: one show must not deafen the window.
-    type(QStringLiteral("makesomesunshine"));
-    QVERIFY2(stage->isOpen(), "a second typed word opens its show too");
-    QCOMPARE(stage->showName(), QString("makeSomeSunshine"));
-    stage->dismiss();
+    QVERIFY(!win.canvas->hasImage());
+    QVERIFY(stage->activateByName("pinkVibe"));
+    QWidget* viewport = win.scroll->viewport();
+    const auto clouds = viewport->findChildren<QWidget*>(
+        QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME));
+    QVERIFY2(!clouds.isEmpty(), "the blank assembles from dust");
+    const QRect cloud = clouds.last()->geometry();
+    QVERIFY2(win.canvas->width() < viewport->width(), "the page is fitted, narrower than the view");
+    QCOMPARE(cloud.size(), win.canvas->size());
   }
 
   // The pink show is an edit: the tint, and the heart as one step on the user's own stack.

@@ -264,7 +264,8 @@ set(STENCIL_DUSTKIT_SOURCES
 set(STENCIL_LOGOSTAGE_SOURCES
   src/support/logo/logoStageRules.cpp
   src/support/logo/logoStageMotion.cpp
-  src/support/logo/logoStageCloud.cpp)
+  src/support/logo/logoStageCloud.cpp
+  src/support/logo/typedLetter.cpp)
 
 set(STENCIL_FILTERFADE_SOURCES
   src/support/theme/filterFade.cpp

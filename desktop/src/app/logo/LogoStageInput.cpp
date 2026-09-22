@@ -1,6 +1,7 @@
 // The logo stage's input half: the hold that opens a showWord, the typed words, and the lock that
 // makes the stage the only thing the editor hears. Behaviour and painting are its siblings.
 #include "LogoStage.hpp"
+#include "typedLetter.hpp"
 
 #include <QApplication>
 #include <QKeyEvent>
@@ -52,9 +53,10 @@ namespace stencil::gui {
   }
 
   // A printable key typed into the bare hostWindow, outside any text box, spells a showWord's name.
-  bool LogoStage::typedKey(const QString& text) {
-    if (text.size() != 1 || !text.at(0).isPrint()) return false;
-    typed += text.toLower();
+  bool LogoStage::typedKey(const QKeyEvent& e) {
+    const QChar letter = support::typedLetter(e);
+    if (letter.isNull()) return false;
+    typed += letter;
     const QStringList words = support::typedWords();
     int longest = 0;
     for (const QString& word : words) longest = std::max(longest, int(word.size()));
@@ -130,7 +132,7 @@ namespace stencil::gui {
       QWidget* first = focus ? focus : hostWindow;
       if (o == first && first->window() == hostWindow && !isTextEntry(focus) &&
           !(static_cast<QKeyEvent*>(e)->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) &&
-          typedKey(static_cast<QKeyEvent*>(e)->text()))
+          typedKey(*static_cast<QKeyEvent*>(e)))
         return true;
     }
     return QWidget::eventFilter(o, e);
