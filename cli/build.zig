@@ -11,6 +11,7 @@ const core_sources = [_][]const u8{
     "raster/imageOps.cpp",
     "raster/rasterize.cpp",
     "raster/imageFilter.cpp",
+    "parse/formulaContext.cpp",
     "parse/formulaParser.cpp",
     "parse/DurationParser.cpp",
     "parse/lengthTokens.cpp",

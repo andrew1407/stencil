@@ -1,4 +1,4 @@
-"""Import-direction lint for the ``pystencil`` package.
+"""The package-wide AST lints: import direction, and the module docstring's place.
 
 ``.claude/rules/architecture.md`` orders the layers ``_native``/``core`` → ``image``/
 ``codecs``/``layout``/``scriptpaths`` → ``editor`` → ``llm``/``script``/``server``/
@@ -143,6 +143,26 @@ class LayerBoundaryTest(unittest.TestCase):
       rightward, unranked = violations(scan(root))
     self.assertEqual(rightward, ["codecs/png.py → llm", "core.py → editor"])
     self.assertEqual(unranked, {"extra"})
+
+
+class ModuleDocstringTest(unittest.TestCase):
+  """A ``from __future__ import annotations`` above the module docstring turns the
+  string into a bare expression, so ``__doc__`` and ``help()`` come back empty. The
+  docstring is the first statement; the ``__future__`` import follows it."""
+
+  def test_every_module_leads_with_its_docstring(self):
+    missing = [
+      path.relative_to(PACKAGE).as_posix()
+      for path in sorted(PACKAGE.rglob("*.py"))
+      if ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) is None
+    ]
+    self.assertEqual(missing, [], "move the docstring above the __future__ import")
+
+  def test_the_lint_sees_a_docstring_pushed_below_the_future_import(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      path = Path(tmp) / "m.py"
+      path.write_text('from __future__ import annotations\n\n"""Doc."""\n', encoding="utf-8")
+      self.assertIsNone(ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,6 @@
+import type { FormulaEngine } from './formulaEngine.js';
+import type { FormulaContext } from './formulaContext.js';
+
 /** The one verdict shape. `reason` is '' when ok, otherwise the sentence to show. */
 export interface Verdict { ok: boolean; reason: string; }
 
@@ -23,8 +26,8 @@ export function validateHttpUrl(value: unknown): Verdict;
 export function validateHotkey(combo: unknown): Verdict;
 
 /** The engine comes in because it is wasm-bound and the caller already holds the app's. */
-export function validateFormula(engine: { validate(expr: string, axis: string): boolean } | null,
-  expr: unknown, axis?: 'x' | 'y'): Verdict;
+export function validateFormula(engine: FormulaEngine | null,
+  expr: unknown, axis?: 'x' | 'y', ctx?: FormulaContext | null): Verdict;
 
 /** An accepted file carries the parsed project alongside the verdict. */
 export function validateProjectFileText(text: string): Verdict & { project?: Record<string, unknown> };

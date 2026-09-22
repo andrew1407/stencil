@@ -6,6 +6,8 @@ const std = @import("std");
 const console = @import("../../src/console.zig");
 const image = @import("../../src/media/image.zig");
 const logo = @import("../../src/app/logo.zig");
+const core = @import("../../src/core.zig");
+const edits = @import("../../src/console/session/edits.zig");
 const testing = std.testing;
 const sample = @embedFile("../fixtures/sample.png");
 
@@ -179,6 +181,44 @@ test "console: /formula sets validated formulas that ride the exported layout" {
     try testing.expectEqualStrings("x*2 + 1", obj.get("formulaX").?.string);
     try testing.expectEqualStrings("y/3", obj.get("formulaY").?.string);
     try testing.expect(obj.get("allowFormulas").?.bool);
+}
+
+test "console: /formula reaches the page, the image and the other axis" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    // No image open: IMAGE_WIDTH is unsupplied, so the expression is refused outright rather
+    // than silently resolving to zero.
+    _ = try console.handle(&session, io, "/formula x IMAGE_WIDTH");
+    try testing.expectEqualStrings("", session.formula_x);
+    try testing.expect(!session.allow_formulas);
+
+    _ = try console.handle(&session, io, "/blank 64 48 white");
+    _ = try console.handle(&session, io, "/format a4");
+    _ = try console.handle(&session, io, "/formula x IMAGE_WIDTH");
+    try testing.expectEqualStrings("IMAGE_WIDTH", session.formula_x);
+    _ = try console.handle(&session, io, "/formula y PAGE_WIDTH + PAGE_HEIGHT - x / 2");
+    try testing.expectEqualStrings("PAGE_WIDTH + PAGE_HEIGHT - x / 2", session.formula_y);
+    _ = try console.handle(&session, io, "/formula x 9"); // a constant needs no variable at all
+    try testing.expectEqualStrings("9", session.formula_x);
+    _ = try console.handle(&session, io, "/formula x PAGE_WIDTHS");
+    try testing.expectEqualStrings("9", session.formula_x); // unknown name: the prior value stands
+
+    // What those names resolve to. A 64x48 blank lays A4 on its side, and the console has no
+    // display-unit switch, so PAGE_WIDTH reads cm until a caller names "in".
+    const ctx = edits.formulaContext(&session);
+    try testing.expectEqual(@as(f64, 64), core.applyFormulaCtx("IMAGE_WIDTH", 'x', 5, true, ctx));
+    try testing.expectApproxEqAbs(@as(f64, 29.7), core.applyFormulaCtx("PAGE_WIDTH", 'x', 5, true, ctx), 1e-12);
+    var inches = ctx;
+    inches.unit = "in";
+    try testing.expectApproxEqAbs(@as(f64, 29.7 / 2.54), core.applyFormulaCtx("PAGE_WIDTH", 'x', 5, true, inches), 1e-12);
+    // Nothing supplied the live coordinates, so an axis name leaves the raw value alone.
+    try testing.expectEqual(@as(f64, 5), core.applyFormulaCtx("x * 2", 'y', 5, true, ctx));
 }
 
 test "console: /project-color without an active server project is a graceful no-op" {

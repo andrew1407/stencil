@@ -1,11 +1,12 @@
-from __future__ import annotations
-
 """The chainable edits: rotation, crop, filter/tint and the x/y coordinate formulas.
 
 Each mutator snapshots history through the ``_push`` that :class:`Editor` owns and
 returns ``self``.
 """
 
+from __future__ import annotations
+
+from .._ffi.formula import FormulaContext
 from .._ffi.types import NoneType
 
 
@@ -153,7 +154,7 @@ class _EditApi:
     rides the saved layout, where the browser applies it; use apply_formula() to evaluate."""
     ax = "y" if axis == "y" else "x"
     expr = (expr or "").strip()
-    if expr and not self._get_core().validate_formula(expr, ax):
+    if expr and not self._get_core().validate_formula(expr, ax, ctx=self.formula_context()):
       raise ValueError(f"invalid {ax} formula: {expr!r}")
     if ax == "y":
       self._formula_y = expr
@@ -172,8 +173,25 @@ class _EditApi:
     """Whether the x/y formulas are currently applied."""
     return self._allow_formulas
 
-  def apply_formula(self, axis: str, value: float) -> float:
-    """Apply the current x or y formula to a coordinate (identity when off/empty/invalid)."""
+  def formula_context(self) -> FormulaContext:
+    """What a formula's names resolve to here: the page in cm and, once an image is open, the
+    view's pixels. pystencil shows no display unit, so PAGE_WIDTH reads cm."""
+    pw, ph = self._page_cm()
+    ctx = FormulaContext(page_width_cm=pw, page_height_cm=ph)
+    if self._original is not None:
+      w, h = self.image_size
+      ctx.image_width, ctx.image_height = float(w), float(h)
+    return ctx
+
+  def apply_formula(self, axis: str, value: float, other: (float | NoneType) = None) -> float:
+    """Apply the current x or y formula to a coordinate (identity when off/empty/invalid).
+
+    ``other`` is the coordinate on the OTHER axis, so f(x) may read ``y`` and f(y) may read
+    ``x``; leave it out and an expression naming the other axis falls back to ``value``.
+    """
     ax = "y" if axis == "y" else "x"
     expr = self._formula_y if ax == "y" else self._formula_x
-    return self._get_core().apply_formula(expr, ax, value, self._allow_formulas)
+    ctx = self.formula_context()
+    setattr(ctx, ax, value)
+    if other is not None: setattr(ctx, "y" if ax == "x" else "x", other)
+    return self._get_core().apply_formula(expr, ax, value, self._allow_formulas, ctx=ctx)

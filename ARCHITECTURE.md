@@ -118,9 +118,10 @@ Four invariants:
 2. **The JS fallback matches wasm op-for-op.** `browser/tests/wasm/wasm-parity.test.js` proves
    it and CI builds wasm fresh to run it.
 3. **No `eval`, either side.** `browser/js/core/parse/formulaEngine.js` and `core/parse/formulaParser`
-   are both real recursive-descent parsers: `+ - * / ** ( )`, one variable, `**`
-   right-associative, empty = identity, div-by-zero/overflow = invalid, recursion capped at
-   the same depth (`MAX_DEPTH` on both sides).
+   are both real recursive-descent parsers: `+ - * / ** ( )`, both axes and the page/image
+   constants of `FormulaContext`, `**` right-associative, empty = identity, div-by-zero /
+   overflow / an unknown or unsupplied name = invalid, recursion capped at the same depth
+   (`MAX_DEPTH` on both sides).
 4. **The source list lives in three files**: `STENCIL_CORE_SOURCES` in
    `core/CMakeLists.txt`, the array in `cli/build.zig` and the list in `pystencil/build.py`.
    The wasm exports are a separate list, `EXPORTED_FUNCTIONS` in `core/CMakeLists.txt`.
@@ -234,7 +235,7 @@ The recurring structures, under the names the repo uses for them.
   each surface's fetch path.
 - **Adapter** — CLI argv builders (`mcp/src/args/`, bot's `CliArgvBuilder`) translating a
   typed request into the CLI's documented flags.
-- **Interpreter** — `core/parse/formulaParser` over an `f(x)` expression, and `core/script/`
+- **Interpreter** — `core/parse/formulaParser` over an `f(x, y)` expression, and `core/script/`
   over a `.stc`: lex → parse → expand templates → lower to an op stream. Neither evaluates
   anything; each surface's runner maps the lowered ops onto the very facade calls its
   toolbar makes, so a script and a click are one code path.

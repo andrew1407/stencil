@@ -28,7 +28,7 @@ graph TD
 A group includes only what is to its left. `parse/cropSpec` includes `geometry/cropGeometry`;
 `raster/rasterize` includes `color/colorNames` and `raster/imageFilter` includes
 `color/luma`; `format/tooltipRows` includes `page/pageMetrics`; `state/` and `page/` include
-nothing but the root value types; `script/` includes `parse/`, `color/` and `raster/` — it
+nothing but the root value types; `script/` includes `parse/` and `color/` — it
 lowers a script into their vocabulary rather than growing its own; `abi/` includes only `models.hpp`; the library itself never
 includes `abi/`. By convention; no lint. Every group directory is on one flat include path, so
 the includes are bare (`"cropGeometry.hpp"`) and the direction is visible only in the
@@ -38,11 +38,11 @@ the includes are bare (`"cropGeometry.hpp"`) and the direction is visible only i
 
 | Path | Holds | Rule |
 |---|---|---|
-| `models.hpp`, `text.hpp`, `rgba.hpp` | the shared value types (Point / Line) and header-only helpers used across groups | header-only; no group may define its own Point |
+| `models.hpp`, `text.hpp`, `rgba.hpp` | the shared value types (Point / Line), the ASCII string helpers and the keyed word table every group resolves through | header-only; no group may define its own Point |
 | `geometry/` | point math, hit-testing, crop-window geometry | pure functions over `Point`/`Line` |
 | `raster/` | whole-image RGBA8 transforms, the line rasteriser, the per-pixel filters + Sobel contour | operates on caller-owned buffers, never allocates the image |
 | `color/` | hex/keyword parsing, the two luma formulas | `luma.hpp` names both formulas once; there is no third |
-| `parse/` | the formula parser, length tokens, crop spec, duration spec | recursive descent only — no `eval`, no arbitrary identifiers |
+| `parse/` | the formula parser and its context of named constants, length tokens, crop spec, duration spec | recursive descent only — no `eval`; a name is the bound axis or a `FormulaContext` constant, never arbitrary |
 | `page/` | pixel ↔ page (cm) conversion, the ISO `PAGE_SIZES` table, locale unit | the page table is the one source; adapters read it over the ABI |
 | `format/` | tooltip rows, hotkey display formatting | string building only |
 | `state/` | history stack, projects store + expiry, zoom/pan, hold-draw state machine, `ProjectMeta` | in-memory only; persistence and the event loop belong to the GUI |
@@ -113,6 +113,14 @@ classDiagram
     class FormulaParser {
         +validate(expr, var)
         +apply(expr, var, value, allow)
+        +validate(expr, ctx)
+        +apply(expr, var, value, allow, ctx)
+    }
+    class FormulaContext {
+        +double x, y
+        +double pageWidthCm, pageHeightCm
+        +double imageWidth, imageHeight
+        +string unit
     }
 
     Line "1" *-- "*" Point : points
@@ -125,6 +133,7 @@ classDiagram
     ProjectsStore "1" *-- "*" ProjectMeta : registry
     CropSpec --> CropRect : resolveCropRect
     CropRect --> Line : scaleLinePoints, rotateLinePointsQuarter
+    FormulaParser --> FormulaContext : reads named constants from
     FormulaParser --> Point : applied per axis after pixelToPageRaw
 ```
 
@@ -147,7 +156,8 @@ classDiagram
 | `EditLedger` (`script/undo.hpp`) | the per-block record of which edits are still live, and the rewind-and-replay that reconciles them at each `@save` | lives only during lowering | `Op` |
 | `CropRect` (`geometry/cropGeometry.hpp`) | the crop window in original-image pixel space; lines are crop-local | value, kept by the adapter beside a 0..3 quarter-turn count | `CropSpec`, `Line` |
 | `CropSpec` (`parse/cropSpec.hpp`) | the CLI's parsed crop string, one length token per edge plus `aspect` | value, consumed by `resolveCropRect` | `CropRect` |
-| `FormulaParser` (`parse/formulaParser.hpp`) | the `f(x)` / `f(y)` arithmetic evaluator; identity on empty or invalid input | stateless; `Eval` lives for one call | `Point` (page coordinates after `pixelToPageRaw`) |
+| `FormulaParser` (`parse/formulaParser.hpp`) | the `f(x)` / `f(y)` arithmetic evaluator; identity on empty or invalid input | stateless; `Eval` lives for one call | `Point` (page coordinates after `pixelToPageRaw`), `FormulaContext` |
+| `FormulaContext` (`parse/formulaContext.hpp`) | the names a formula may read besides its own axis: the other axis, the page in cm, the image in pixels, and the selected display unit | value, built per call by the caller that knows the page and the image | `FormulaParser` |
 
 ## Patterns
 
@@ -164,6 +174,7 @@ classDiagram
 | Handle table | `abi::HandleTable<T>` | stateful classes cross the ABI as opaque ints; an unknown handle is a no-op returning a neutral value |
 | Flat codec | `abi::encodeLines` / `decodeLines` (`abi/linesCodec.hpp`), `abi::toPoints` (`abi/marshal.hpp`) | `Lines` travel as a doubles buffer plus a UTF-8 text buffer; lengths are honoured, never trusted |
 | One body, two symbols | `abi/shared.inc` with `STENCIL_ABI(wasmName, cliName)` | exports identical on both ABIs are written once and emitted under each spelling |
+| Keyed word table | `Keyed<T>` + `lookup` / `contains` (`text.hpp`) over a `constexpr std::array` | every string → value resolution — filter modes, refresh presets, length units, crop keys, page sizes, directives, op names — is one table matched in declaration order, never an `if` chain |
 | Row-range kernel | the `*Rows` functions in `raster/imageOps.hpp`, `raster/imageFilter.hpp`, `fillPolygonRows` | half-open `[y0, y1)` slices of a whole-image op for a caller-owned thread pool; the core owns no threading |
 
 ## Design
@@ -198,6 +209,15 @@ classDiagram
   result is invalid. The caller composes it after `pixelToPageRaw`, per axis, as the browser
   does. `formulaValidate` / `formulaApply` reach both ABIs from `shared.inc`;
   `stencil_formulaEvaluate` is wasm-only.
+- **A formula's names.** A `primary` is a number, a parenthesised expression, or a name —
+  `[A-Za-z_][A-Za-z0-9_]*`, matched whole and case-sensitively, so `PAGE_WIDTHS` is one
+  unknown name rather than a constant plus junk. `formulaConstant` resolves it: the caller's
+  own binding (`varName` / `value`) first, then `x` and `y`, `PAGE_WIDTH` / `PAGE_HEIGHT` in
+  `ctx.unit` with their `_CM` / `_IN` forms, and `IMAGE_WIDTH` / `IMAGE_HEIGHT` in pixels.
+  Every `FormulaContext` field defaults to `kFormulaUnset` (NaN) — an unsupplied name is
+  unknown, so the formula is invalid and the caller's identity fallback stands, never zero.
+  The `*Ctx` exports carry the context as plain doubles plus the unit word; the pre-context
+  entry points pass an empty context and so behave exactly as they always have.
 - **A history push and undo.** `push(lines)` advances the step, drops the redo branch,
   appends the snapshot, and past `MAX_STEPS` erases the oldest and shifts the cursor down.
   `undo()` at step > 0 returns the previous snapshot; at step 0 returns empty `Lines` and
@@ -228,9 +248,10 @@ text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenat
    `browser/tests/`. `browser/tests/wasm/wasm-parity.test.js` asserts the compiled core agrees
    with the JS reference op-for-op.
 2. **No `eval`.** `parse/formulaParser` is a real recursive-descent parser for
-   `+ - * / ** ( )` and one variable (`**` right-associative, empty expression = identity,
-   division-by-zero / overflow = invalid), aligned with `browser/js/core/parse/formulaEngine.js`
-   down to the shared `MAX_DEPTH`.
+   `+ - * / ** ( )` over both axes and the `FormulaContext` constants (`**` right-associative,
+   empty expression = identity, division-by-zero / overflow / an unknown or unsupplied name =
+   invalid), aligned with `browser/js/core/parse/formulaEngine.js` down to the shared
+   `MAX_DEPTH`.
 3. **STL-only, codec-free, GUI-free.** No Qt, no image codec, no DOM, no HTTP, no JSON, no
    third-party library; every such concern belongs to an adapter.
 4. **Three source lists.** The `core/*.cpp` set is held in `STENCIL_CORE_SOURCES`
@@ -263,8 +284,12 @@ surface.
 The `wasm*Api.cpp` and `cliApi.cpp` units are plain STL, so `stencil_tests` compiles them
 natively and drives every export through its `extern "C"` prototype, guarding the
 marshalling (flat arrays, out pointers, enum codes, char-code variable names) without
-Emscripten or Zig. `tests/abi/abiShared.test.cpp` calls each `shared.inc` export under both
-spellings and asserts they agree. `tests/raster/rowRanges.test.cpp` pins every `*Rows` kernel
+Emscripten or Zig. `tests/abi/abiShared.test.cpp` calls each `shared.inc` and
+`scriptShared.inc` export under both spellings and asserts they agree, reading a parsed
+script back through every export as one comparable transcript.
+`tests/twinDrift.test.cpp` reads the refresh presets and the `.stc` caps out of their
+canonical browser `.js` and checks them against the C++ — over the ABI where one exists — so
+a twin edited alone fails natively, not only in the self-skipping wasm run. `tests/raster/rowRanges.test.cpp` pins every `*Rows` kernel
 byte-for-byte against its whole-image call. The browser's `wasm-parity*.test.js` files drive
 the compiled module and the JS fallback through one script; the `Lines` codec is proved
 symmetric by the round trip in `wasm-parity-history.test.js`.

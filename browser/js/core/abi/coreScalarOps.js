@@ -7,6 +7,11 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
   // fixed ~64KB wasm STACK, which an unbounded formula would overflow. See withCString.
   const cFormulaValid   = core.cwrap('stencil_formulaValidate', 'number', ['number', 'number']);
   const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['number', 'number', 'number', 'number']);
+  const cFormulaValidCtx = core.cwrap('stencil_formulaValidateCtx', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'string']);
+  const cFormulaApplyCtx = core.cwrap('stencil_formulaApplyCtx', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'string']);
+  // An absent field crosses as NaN, which the core reads as "not supplied".
+  const num = (v) => (Number.isFinite(v) ? v : NaN);
+  const ctxArgs = (ctx) => [num(ctx?.x), num(ctx?.y), num(ctx?.pageWidthCm), num(ctx?.pageHeightCm), num(ctx?.imageWidth), num(ctx?.imageHeight), ctx?.unit ?? 'cm'];
   const cParseDuration  = (spec, out) => core.ccall('stencil_parseDuration', 'number', ['string', 'number'], [spec, out]);
   const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
   const cShouldClose    = core.cwrap('stencil_shouldCloseShape', 'number', ['number', 'number', 'number', 'number', 'number']);
@@ -32,6 +37,14 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
 
     formulaApply(expr, varName, val, allowFormulas) {
       return withCString(expr, p => cFormulaApply(p, varName.charCodeAt(0), val, allowFormulas ? 1 : 0));
+    },
+
+    formulaValidateCtx(expr, ctx) {
+      return withCString(expr, p => cFormulaValidCtx(p, ...ctxArgs(ctx))) === 1;
+    },
+
+    formulaApplyCtx(expr, varName, val, allowFormulas, ctx) {
+      return withCString(expr, p => cFormulaApplyCtx(p, varName.charCodeAt(0), val, allowFormulas ? 1 : 0, ...ctxArgs(ctx)));
     },
 
     // ms (0 = keep forever), or null. The int64 out slot reads as two halves; exact below 2^53.

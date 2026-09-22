@@ -1,16 +1,19 @@
 import { core } from '../abi/stencilCore.js';
+import { formulaConstant, isBlankFormula, withProbeAxes } from './formulaContext.js';
 
 // Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
-// Function`/`eval`) over `+ - * / ** ( )` and one variable, so server-supplied formulas stay
-// inert. Syntax error ⇒ invalid (→ identity). MAX_DEPTH caps recursion against adversarial
-// nesting and must equal the core parser's MAX_DEPTH so wasm and this fallback agree.
+// Function`/`eval`) over `+ - * / ** ( )`, a variable and the FormulaContext constants, so
+// server-supplied formulas stay inert. Syntax error ⇒ invalid (→ identity). MAX_DEPTH caps
+// recursion against adversarial nesting and must equal the core parser's MAX_DEPTH so wasm
+// and this fallback agree.
 const MAX_DEPTH = 256;
 
 class Evaluator {
-  constructor(src, varName, varValue) {
+  constructor(src, varName, varValue, ctx) {
     this.src = src;
     this.varName = varName;
     this.varValue = varValue;
+    this.ctx = ctx;
     this.pos = 0;
     this.ok = true;
     this.depth = 0;
@@ -106,7 +109,7 @@ class Evaluator {
     if ((c >= '0' && c <= '9') || c === '.') {
       return this.parseNumber();
     }
-    if (isAlpha(c)) {
+    if (isNameStart(c)) {
       return this.parseIdentifier();
     }
     this.ok = false;
@@ -144,15 +147,15 @@ class Evaluator {
     return value;
   }
 
+// Longest run wins: `PAGE_WIDTHS` is one unknown name, not a constant plus junk.
   parseIdentifier() {
     this.skipSpaces();
     const start = this.pos;
-    while (this.pos < this.src.length && isAlpha(this.src[this.pos])) {
+    while (this.pos < this.src.length && isNamePart(this.src[this.pos])) {
       this.pos += 1;
     }
-    const ident = this.src.slice(start, this.pos);
-// Only the single bound variable; any other name is a parse error.
-    if (ident.length === 1 && ident === this.varName) return this.varValue;
+    const v = formulaConstant(this.ctx, this.src.slice(start, this.pos), this.varName, this.varValue);
+    if (v !== null) return v;
     this.ok = false;
     return 0;
   }
@@ -162,13 +165,17 @@ function isAlpha(c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-function isBlank(s) {
-  return !s || !s.trim();
+function isNameStart(c) {
+  return isAlpha(c) || c === '_';
+}
+
+function isNamePart(c) {
+  return isNameStart(c) || (c >= '0' && c <= '9');
 }
 
 // A finite number or null.
-function evaluate(expr, varName, value) {
-  const result = new Evaluator(expr, varName, value).run();
+function evaluate(expr, varName, value, ctx) {
+  const result = new Evaluator(expr, varName, value, ctx).run();
   if (result === null || !Number.isFinite(result)) return null;
   return result;
 }
@@ -176,14 +183,27 @@ function evaluate(expr, varName, value) {
 export class FormulaEngine {
 // Empty = valid (identity).
   validate = core.bind('formulaValidate', (expr, varName) => {
-    if (isBlank(expr)) return true;
-    return evaluate(expr, varName, 1) !== null;
+    if (isBlankFormula(expr)) return true;
+    return evaluate(expr, varName, 1, null) !== null;
   });
 
 // Returns the original when formulas are off, the expression is empty, or evaluation fails.
   apply = core.bind('formulaApply', (expr, varName, val, allowFormulas) => {
-    if (!allowFormulas || isBlank(expr)) return val;
-    const result = evaluate(expr, varName, val);
+    if (!allowFormulas || isBlankFormula(expr)) return val;
+    const result = evaluate(expr, varName, val, null);
+    return result !== null ? result : val;
+  });
+
+// The same two with the named constants in reach; an axis `ctx` leaves unset validates at 1.
+  validateCtx = core.bind('formulaValidateCtx', (expr, ctx) => {
+    if (isBlankFormula(expr)) return true;
+    return evaluate(expr, '\0', 0, withProbeAxes(ctx)) !== null;
+  });
+
+// `val` still binds `varName` and is the fallback; `ctx` carries the other axis.
+  applyCtx = core.bind('formulaApplyCtx', (expr, varName, val, allowFormulas, ctx) => {
+    if (!allowFormulas || isBlankFormula(expr)) return val;
+    const result = evaluate(expr, varName, val, ctx);
     return result !== null ? result : val;
   });
 }

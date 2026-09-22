@@ -5,9 +5,11 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from dataclasses import replace
 
 from tests.helpers.editorcase import EditorCase
 
+from pystencil.core import get_core
 from pystencil.editor import Editor
 
 
@@ -86,6 +88,39 @@ class EditorLayoutTests(EditorCase):
     # an invalid expression is rejected
     with self.assertRaises(ValueError):
       ed.set_formula("x", "foo(x)")
+
+  def test_formula_names_reach_the_page_the_image_and_the_other_axis(self) -> None:
+    ed = Editor().blank(200, 100).set_page_format("A4")  # album blank: A4 lies on its side
+    ctx = ed.formula_context()
+    self.assertAlmostEqual(ctx.page_width_cm, 29.7)
+    self.assertAlmostEqual(ctx.page_height_cm, 21.0)
+    self.assertEqual((ctx.image_width, ctx.image_height), (200.0, 100.0))
+
+    ed.set_formula("x", "9")  # a constant needs no variable at all
+    self.assertEqual(ed.apply_formula("x", 10.0), 9.0)
+    ed.set_formula("x", "IMAGE_WIDTH").set_formula("y", "PAGE_WIDTH - y")
+    self.assertEqual(ed.apply_formula("x", 10.0), 200.0)
+    self.assertAlmostEqual(ed.apply_formula("y", 6.0), 29.7 - 6.0)
+    # f(x) may read y, but only when the caller supplies the other coordinate.
+    ed.set_formula("x", "x / y")
+    self.assertEqual(ed.apply_formula("x", 10.0, other=4.0), 2.5)
+    self.assertEqual(ed.apply_formula("x", 10.0), 10.0)
+    # PAGE_* follows the unit a caller names; pystencil itself shows cm.
+    self.assertAlmostEqual(
+      get_core().apply_formula("PAGE_WIDTH", "x", 0.0, True, ctx=replace(ctx, unit="in")),
+      29.7 / 2.54,
+    )
+
+  def test_image_names_need_an_image_open(self) -> None:
+    ed = Editor()
+    ctx = ed.formula_context()
+    self.assertNotEqual(ctx.image_width, ctx.image_width)  # NaN: not supplied
+    with self.assertRaises(ValueError):
+      ed.set_formula("x", "IMAGE_WIDTH")
+    # Nothing was committed, so the coordinate keeps its raw value rather than moving to 0.
+    self.assertEqual(ed.apply_formula("x", 7.0), 7.0)
+    ed.blank(200, 100).set_formula("x", "IMAGE_WIDTH")
+    self.assertEqual(ed.apply_formula("x", 7.0), 200.0)
 
   def test_blank_named_page_b5(self) -> None:
     from pystencil.core import get_core

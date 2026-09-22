@@ -50,7 +50,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 | `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` and the `scriptHandles` marshalling; `script.js` is the entry that binds wasm to the fallback | one file per `core/script/*.cpp`, op-for-op with it; pure — it resolves ops but calls no facade, and `vscode-extension/src/parser/script/` is a byte-equal copy of it |
 | `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
-| `js/net/` | abortable fetch, the connection store + manager, remote sync | every fetch goes through the one guard here |
+| `js/net/` | the fetch guard, abortable fetch, the connection store + manager, remote sync | every fetch goes through `fetchGuard.js` here |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the one shared chat session | validates every plan against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; every mutation routes through the same core methods the toolbar uses |
 | `js/ui/` | string-returning components composed by `layout()`, one folder per region — `shell/` the frame, `canvas/` the stage and its pointers, `panel/` the side panels, `settings/`, plus `bindings/` wiring controls to the app and `motion/` + `dust/` | components return strings and emit on the bus — never reach into `net/` or `llm/` |
@@ -125,7 +125,7 @@ classDiagram
 | `ProjectFileDoc` | The `.stencil` document (`core/project/file.js`); `format` is the sentinel, `version` the schema | Built by `buildProjectFile`, hardened by `parseProjectFile`; the browser definition is canonical | `LayoutPayload` |
 | `ProjectMeta` | One registry row: name, colour, keywords, thumbnail, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry arithmetic twinned with `core/state/ProjectsStore.cpp` | `RemoteLink` |
 | `RemoteLink` | The editor's link to a server project; `version` is the save-back guard (`core/remote/syncController.js`) | `DrawingApp.remoteLink` for a server-linked session | `ProjectMeta`, `ServerConnection` |
-| `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect`, closed on disconnect | `ConnectionManager`, `RemoteLink` |
+| `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect` — a batch handshakes together and each stands alone, so one refusal costs only itself — closed on disconnect | `ConnectionManager`, `RemoteLink` |
 | `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
 | `OpPlan` | A validated model reply: `reply`, `actions`, `variants`, `ask`, `warnings`, `chatOnly` (`llm/plan/parser.js`); the op set is `config/llm/opRegistry.json`, canonical for every surface | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
@@ -143,10 +143,10 @@ classDiagram
 | Observer | `Emitter` (`core/emitter.js`) behind `TabsCoordinator` channels and `ServerConnection.onEvent`; `publish` / `subscribe` in `eventBus/appBus.js` over the `config/events.json` window events | The `stencil:*` window events are the contract the extension's content scripts read |
 | Composite | `StencilElement` (`ui/base.js`): light-DOM custom elements whose `inner()` markup `layout()` concatenates, `$(id)` scoped to the element's own subtree, `emit()` for the reply upward; a region nests them (`ui/openImage/sources/`, `<stencil-tabs>`) | Light DOM, because `cssInventory` follows `index.html`'s link order and the extension consumes these modules inside its own shadow roots; a nested host carries `display:contents` so it generates no box |
 | Repository | `ProjectsStore` over a `StorageBackend`; `projectsBackend.js` moves payload keys to IndexedDB; `net/connectionStore.js` for saved servers; `llm/chat/store.js` for chat documents | Callers see a synchronous `localStorage`-shaped contract |
-| Chain of Responsibility | Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` (`net/urlRules.js`, `net/abortable.js`) | The one browser fetch guard; a refused credential lands in the `expired` status, not `error` |
+| Chain of Responsibility | Any URL the app is handed: scheme → `timeoutSignal()` (`net/fetchGuard.js`). Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` (`net/urlRules.js`, `net/abortable.js`) | The one browser fetch guard: a `file:` URL never reaches `fetch`, nothing leaves without a deadline, and a refused credential lands in the `expired` status, not `error` |
 | Adapter | `llm/adapters/{dialog,editor,media,project}.js` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js` | Each translates an outside request into the same app methods the toolbar uses |
 | State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm twin via `coreHandles.js` |
-| Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), a recursive-descent evaluator over one variable | Port of `core/parse/formulaParser.cpp`; never `eval` |
+| Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), a recursive-descent evaluator over both axes and the named constants of `core/parse/formulaContext.js` | Port of `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | Port of `core/script/`; the parser never touches the editor and the runner never re-parses, so the language has one implementation and the browser only adds a target. Deliberately outside `llm/`: an op plan's caps guard model output, not the user's own script |
 
 ## Design
@@ -269,7 +269,7 @@ without the artifact, which CI builds fresh.
 The structural lints assert the design rather than behaviour: `layerBoundary` the import
 direction and the `window.stencil` name, `sizeBudget` the line cap, the comment share and the
 folder fan-out (a module and its `.d.ts` count once), `dts` every `.d.ts` against its module's exports in
-both directions, and `events`, `themeTokens`, `csp` and `opRegistryCanon` the drift between
+both directions and every exporting module against the frozen list of those still without one, and `events`, `themeTokens`, `csp` and `opRegistryCanon` the drift between
 a config table and its consumer. `cssInventory` pins every declaration `index.html` loads,
 file-blind, and `ui-markup` the static body ids of `layout()`. The fixture walkers run the
 shared corpora through the real modules and are the reference the other surfaces' walkers

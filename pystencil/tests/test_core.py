@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import os
 import unittest
+from dataclasses import replace
 
+from pystencil import FormulaContext
 from pystencil.core import Core, get_core
 
 
@@ -185,6 +187,23 @@ class CoreTest(unittest.TestCase):
     self.assertEqual(c.apply_formula("x*2", "x", 10.0, False), 10.0)  # disabled = identity
     self.assertEqual(c.apply_formula("y/3", "y", 9.0, True), 3.0)
     self.assertEqual(c.apply_formula("bad(", "x", 10.0, True), 10.0)  # invalid = identity
+
+  def test_formula_named_values_through_the_context(self) -> None:
+    c = get_core()
+    a4 = FormulaContext(page_width_cm=21.0, page_height_cm=29.7, image_width=600, image_height=400)
+    self.assertEqual(c.apply_formula("9", "x", 3.0, True, ctx=a4), 9.0)  # constant only
+    live = FormulaContext(x=4.0, y=2.0, page_width_cm=21.0, page_height_cm=29.7)
+    self.assertEqual(c.apply_formula("x / y", "x", 4.0, True, ctx=live), 2.0)  # cross-axis
+    self.assertEqual(c.apply_formula("IMAGE_WIDTH", "x", 1.0, True, ctx=a4), 600.0)
+    self.assertEqual(c.apply_formula("PAGE_WIDTH", "x", 1.0, True, ctx=a4), 21.0)
+    inches = replace(a4, unit="in")
+    self.assertAlmostEqual(c.apply_formula("PAGE_WIDTH", "x", 1.0, True, ctx=inches), 21.0 / 2.54)
+    self.assertAlmostEqual(c.apply_formula("PAGE_HEIGHT_CM", "x", 1.0, True, ctx=inches), 29.7)
+    self.assertTrue(c.validate_formula("PAGE_WIDTH + PAGE_HEIGHT - x / 2", ctx=a4))
+    # No image open: IMAGE_* is unsupplied, so the expression is invalid and the raw value stands.
+    blank = FormulaContext(page_width_cm=21.0, page_height_cm=29.7)
+    self.assertFalse(c.validate_formula("IMAGE_WIDTH", ctx=blank))
+    self.assertEqual(c.apply_formula("IMAGE_WIDTH", "x", 42.0, True, ctx=blank), 42.0)
 
   def test_parse_duration(self) -> None:
     c = get_core()

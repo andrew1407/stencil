@@ -1,8 +1,8 @@
 """ctypes binding over the stencil_cli_* extern "C" ABI (core/cliApi.h) -> class Core.
 
 The scalar half lives here (colour, page sizing, formula, duration); the pixel-buffer
-half is :class:`pystencil._rasterops.RasterOps`, and the marshalling rules — including
-the caller-owns-every-buffer memory model — are in :mod:`pystencil._marshal`. Every
+half is :class:`pystencil._raster.ops.RasterOps`, and the marshalling rules — including
+the caller-owns-every-buffer memory model — are in :mod:`pystencil._ffi.marshal`. Every
 bound function gets explicit .argtypes/.restype (the rasterize call in particular FAILS
 silently without argtypes on the double* parameter on 64-bit).
 """
@@ -14,16 +14,15 @@ import ctypes
 from ._ffi.types import NoneType
 from . import _native
 from ._ffi.bindings import bind
+from ._ffi.formula import FormulaContext, ctx_args
 from ._ffi.marshal import _encode
 from ._raster.ops import RasterOps
 
 
 class Core(RasterOps):
-  """Thin, typed wrapper around the shared core's CLI ABI.
-
-  Construct via Core.load(); each method maps 1:1 to a stencil_cli_* entry point and
-  handles the ctypes marshalling so callers work in plain Python types.
-  """
+  """Thin, typed wrapper around the shared core's CLI ABI: construct via Core.load(),
+  and every method maps 1:1 to a stencil_cli_* entry point, handling the ctypes
+  marshalling so callers work in plain Python types."""
 
   def __init__(self, lib: ctypes.CDLL) -> None:
     self._lib = lib
@@ -105,23 +104,21 @@ class Core(RasterOps):
     return (out_w.value, out_h.value)
 
   # ── formula (coordinate transform) ──────────────────────────────────────────
-  def validate_formula(self, expr: str, var: str = "x") -> bool:
-    """True if `expr` is a valid single-variable formula in `var` ('x'/'y'); empty = identity."""
-    return bool(self._lib.stencil_cli_validateFormula(_encode(expr), ord(var[:1] or "x")))
+  def validate_formula(self, expr: str, var: str = "x", ctx: (FormulaContext | NoneType) = None) -> bool:
+    """True if `expr` is a valid formula in `var` ('x'/'y'); empty = identity. With `ctx` the
+    named values are in reach and `var` no longer binds — both axes probe at 1 instead."""
+    if ctx is None:
+      return bool(self._lib.stencil_cli_validateFormula(_encode(expr), ord(var[:1] or "x")))
+    return bool(self._lib.stencil_cli_validateFormulaCtx(_encode(expr), *ctx_args(ctx)))
 
-  def apply_formula(
-    self, expr: str, var: str, value: float, allow: bool = True
-  ) -> float:
+  def apply_formula(self, expr: str, var: str, value: float, allow: bool = True,
+                    ctx: (FormulaContext | NoneType) = None) -> float:
     """Apply `expr` to `value` (the same FormulaParser the browser uses). Returns `value`
-    unchanged when allow is False, expr is empty, or evaluation fails (identity-on-error)."""
-    return float(
-      self._lib.stencil_cli_applyFormula(
-        _encode(expr),
-        ord(var[:1] or "x"),
-        ctypes.c_double(value),
-        ctypes.c_int(1 if allow else 0),
-      )
-    )
+    unchanged when allow is False, expr is empty, or evaluation fails (identity-on-error);
+    `ctx` puts the named values — the other axis, PAGE_*, IMAGE_* — in reach."""
+    args = (_encode(expr), ord(var[:1] or "x"), ctypes.c_double(value), ctypes.c_int(1 if allow else 0))
+    if ctx is None: return float(self._lib.stencil_cli_applyFormula(*args))
+    return float(self._lib.stencil_cli_applyFormulaCtx(*args, *ctx_args(ctx)))
 
   # ── duration (expiration) ───────────────────────────────────────────────────
   def parse_duration(self, spec: str) -> (int | NoneType):
@@ -140,7 +137,9 @@ _CORE: (Core | NoneType) = None
 
 
 def get_core() -> Core:
-  """Return a cached, lazily-loaded Core singleton."""
+  """Return a cached, lazily-loaded Core singleton; racing callers share the winner."""
   global _CORE
-  if _CORE is None: _CORE = Core.load()
+  if _CORE is None:
+    with _native._LOCK:  # double-checked: the hot path never takes the lock
+      if _CORE is None: _CORE = Core.load()
   return _CORE
