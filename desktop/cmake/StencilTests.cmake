@@ -103,11 +103,30 @@ stencil_headless_test(stencil_sessioncontroller_headless
   SOURCES tests/app/remote/SessionController.headless.cpp
   LIBS Qt6::Core)
 
+# The co-edit sync guards (app/RemoteSyncController): what a peer change has to get past
+# before it swaps the canvas — the op-plan gate, the reload-in-flight gate, the coalescing
+# reload and the trailing push debounce. RemoteSession joins as a HEADER: its ctor is inline,
+# so the suite needs its moc but not its TU, which would drag in the notification stack.
+stencil_headless_test(stencil_remotesynccontroller_headless
+  SOURCES tests/app/remote/RemoteSyncController.headless.cpp
+    src/app/remote/RemoteSyncController.cpp src/app/remote/RemoteSession.hpp
+    src/net/LiveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES}
+  LIBS stencil_core Qt6::Gui Qt6::Network)
+
 # What a press outside an open compact popover means (app/PopoverHost.hpp) — including
 # the logo/accent exception; header-only, so the test is the only compile unit.
 stencil_headless_test(stencil_popoverhost_headless
   SOURCES tests/app/events/PopoverHost.headless.cpp
   LIBS Qt6::Widgets)
+
+# Dropped-drag candidates (app/events/dropSources.cpp) once the NATIVE pasteboard joins them:
+# the html flavor Qt never maps, its urls and a promised file. The drag reader comes along so
+# the bounded wait and the promise scratch are proved on the platform that runs the suite.
+stencil_headless_test(stencil_dropsources_headless
+  SOURCES tests/app/events/dropSources.headless.cpp src/app/events/dropSources.cpp
+    ${STENCIL_DRAG_SOURCES}
+  LIBS Qt6::Gui ${STENCIL_DRAG_LIBS}
+  INCLUDE_TESTS)
 
 # The project-name group's chip visibility (app/ProjectNameBar.hpp) — which of ✓/✗/✎/🎨
 # belong in the header row per state; header-only, so the test is the only compile unit.
@@ -413,6 +432,13 @@ stencil_headless_test(stencil_projectmeta_headless
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
+# The open-image flow's flight anchors (support/modal/imageAnchor.hpp): the canvas centre a
+# confirm about opening an image grows out of, and the half of the toolbar's Open pair an
+# answer that opened one pours into. Header-only, so the test is the only compile unit.
+stencil_headless_test(stencil_imageanchor_headless
+  SOURCES tests/support/modal/imageAnchor.headless.cpp
+  LIBS Qt6::Widgets)
+
 # The window backdrop (support/ModalBackdrop): the browser's scrim + blur, on its switch.
 stencil_headless_test(stencil_modalbackdrop_headless
   SOURCES tests/support/modal/modalBackdrop.headless.cpp
@@ -709,6 +735,16 @@ stencil_headless_test(stencil_connectionsecrets_headless
   SOURCES tests/dialogs/connect/connectionSecrets.headless.cpp src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Core)
+
+# The media loader's candidate walk (io/MediaLoader::loadFirstOf), twin of the browser's
+# fetchFirstDraggedMediaFile: fall through a candidate that cannot resolve, stop at the first
+# that can, report the FIRST failure when none does. Its failing sources are guard-blocked
+# hosts, so the suite fetches nothing.
+stencil_headless_test(stencil_medialoader_headless
+  SOURCES tests/io/MediaLoader.headless.cpp
+    src/io/MediaLoader.cpp src/io/MediaLoaderVideo.cpp src/io/mediaTypes.cpp
+    src/net/fetchGuard.cpp resources/app.qrc
+  LIBS Qt6::Gui Qt6::Network Qt6::Multimedia)
 
 # Untrusted-fetch SSRF guard (net/fetchGuard) — the port of cli/src/net.zig: the
 # blocked host classes and their alternate numeric encodings, strict-vs-loose

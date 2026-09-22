@@ -338,6 +338,7 @@ set(STENCIL_GUI_SOURCES
   src/app/context/MainWindowContextActions.cpp
   src/app/context/MainWindowContextMenu.cpp
   src/app/context/MainWindowContextRows.cpp
+  src/app/events/dropSources.cpp
   src/app/events/MainWindowDnd.cpp
   src/app/theme/MainWindowDust.cpp
   src/app/view/MainWindowFullscreen.cpp
@@ -552,3 +553,18 @@ elseif(WIN32)
 else()
   list(APPEND STENCIL_GUI_SOURCES src/support/share/shareImageLinux.cpp)
 endif()
+
+# The native drag pasteboard (support/dragPasteboard.hpp): the drop flavors Qt never maps onto
+# QMimeData — public.html and the promised file a browser offers Finder. The portable TU carries
+# the scratch dir and the bounded wait, and off Apple supplies the primitives as no-ops; the .mm
+# is the only body that touches AppKit, which is OS-provided, not a new dependency.
+set(STENCIL_DRAG_SOURCES src/support/dragPasteboard.cpp)
+set(STENCIL_DRAG_LIBS)
+if(APPLE)
+  list(APPEND STENCIL_DRAG_SOURCES src/support/dragPasteboardMac.mm)
+  set_source_files_properties(src/support/dragPasteboardMac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+  find_library(STENCIL_APPKIT_LIBRARY AppKit REQUIRED)
+  list(APPEND STENCIL_DRAG_LIBS ${STENCIL_APPKIT_LIBRARY})
+endif()
+list(APPEND STENCIL_GUI_SOURCES ${STENCIL_DRAG_SOURCES})
+list(APPEND STENCIL_SHARE_LIBS ${STENCIL_DRAG_LIBS})

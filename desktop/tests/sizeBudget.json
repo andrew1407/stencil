@@ -82,7 +82,7 @@
     "desktop/tests/app/open": 8,
     "desktop/tests/app/project": 9,
     "desktop/tests/app/remote": 11,
-    "desktop/tests/app/setup": 14,
+    "desktop/tests/app/setup": 13,
     "desktop/tests/app/theme": 11,
     "desktop/tests/app/toolbar": 12,
     "desktop/tests/app/view": 15,
