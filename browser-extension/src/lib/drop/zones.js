@@ -32,8 +32,10 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   let prefersDark = false;
   try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { /* no matchMedia */ }
   const dark = mode === 'dark' || (mode !== 'light' && prefersDark);
-  // Panel colours from lib/theme/palette.css, at .69/.72 alpha so the page still reads.
-  const cellBg = dark ? 'rgba(33,36,45,.69)' : 'rgba(244,245,247,.72)';
+  // Panel colours from lib/theme/palette.css, at the editor's own .88 (browser
+  // controls.css #global-drop-overlay .drop-zone) so a target reads as a target.
+  const cellBg = dark ? 'rgba(33,36,45,.88)' : 'rgba(244,245,247,.88)';
+  const cellSolid = dark ? '#21242d' : '#f4f5f7';
   const cellFg = dark ? '#e8eaf0' : '#1d2230';
   const scrim = dark ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.3)';
   const overMix = dark ? 30 : 22;
@@ -51,7 +53,8 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
     /* The icon pulses (small → large → small) to catch the eye, like the editor's drop zones. */
     .cell .ic{color:${accent};transform-origin:center;animation:stencilDropPulse .9s ease-in-out infinite;}
     .cell .label{max-width:90%;}
-    .cell.over{background:color-mix(in srgb, ${accent} ${overMix}%, ${cellBg});border-style:solid;}
+    /* The aimed cell mixes into the SOLID panel colour, as the editor's aimed half does. */
+    .cell.over{background:color-mix(in srgb, ${accent} ${overMix}%, ${cellSolid});border-style:solid;}
     @keyframes stencilDropPulse{0%,100%{transform:scale(.8)}50%{transform:scale(1.25)}}
     @media (prefers-reduced-motion: reduce){ .cell .ic{animation-duration:.001ms;} .cell{transition-duration:.001ms;} }
   `;

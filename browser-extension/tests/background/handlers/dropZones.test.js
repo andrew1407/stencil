@@ -53,11 +53,15 @@ test('the zone palette follows the Appearance choice, not the OS', (t) => {
   assert.match(stylesFor('system', false), /background:rgba\(244,245,247/);
 });
 
-test('the zone panels let a fifth more of the page through', (t) => {
+test('the zone panels carry the editor\'s own weight', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  // .86/.90 → .69/.72: a 20% cut, so the page under the zones stays readable.
-  assert.match(stylesFor('dark', false), /rgba\(33,36,45,\.69\)/);
-  assert.match(stylesFor('light', true), /rgba\(244,245,247,\.72\)/);
+  // .88 = the editor's own zone fill (browser controls.css #global-drop-overlay .drop-zone),
+  // so a target drawn on a page and one drawn on the canvas read alike.
+  assert.match(stylesFor('dark', false), /rgba\(33,36,45,\.88\)/);
+  assert.match(stylesFor('light', true), /rgba\(244,245,247,\.88\)/);
+  // …and the aimed cell mixes into the SOLID panel colour, as the editor's aimed half does.
+  assert.match(stylesFor('dark', false), /\.cell\.over\{background:color-mix\(in srgb, \S+ 30%, #21242d\)/);
+  assert.match(stylesFor('light', true), /\.cell\.over\{background:color-mix\(in srgb, \S+ 22%, #f4f5f7\)/);
 });
 
 test('the service worker hands the Appearance mode to the injected zones', () => {
