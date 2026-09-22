@@ -133,6 +133,7 @@ namespace stencil::gui {
                        .arg(text.toHtmlEscaped()));
     // The plain message, for anything reading a toast back (the GUI tests).
     toast->setProperty(TEXT_PROPERTY, text);
+    toast->setProperty(LEVEL_PROPERTY, static_cast<int>(level));
     toast->setObjectName("toast");
     // Browser .notify-toast padding less the 4px the rich-text document adds itself. A show's
     // notice gives a pixel of it back to its taller mark, so every pill is the same height.

@@ -2,6 +2,7 @@
 #include <QImage>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <functional>
 
@@ -11,7 +12,8 @@ class QVideoSink;
 class QVideoFrame;
 class QTimer;
 
-// Resolves a launch --src (local image, remote URL via fetchGuard, or a video frame) into one QImage.
+// Resolves a launch --src (local image, remote URL via fetchGuard, inline data: bytes, or a
+// video frame) into one QImage.
 namespace stencil::gui {
 
   // Pure suffix sniffers off the canon (browser/js/config/mediaTypes.json `surfaces.desktop`).
@@ -26,6 +28,13 @@ namespace stencil::gui {
 
     // `frame` is the 0-based video frame. Emits loaded() or failed() exactly once; a new load() cancels.
     void load(const QString& src, int frame);
+
+    // Ranked candidates for ONE picture (a dragged link and the <img> it wrapped). Keeps the
+    // first that resolves; failed() carries the FIRST error, since the head is the preferred one.
+    void loadFirstOf(const QStringList& sources, int frame);
+
+    // loadFirstOf's list, still in try order; empty for a plain load().
+    QStringList rankedSources() const { return candidates; }
 
     // Valid when loaded() fires.
     bool isVideoSource() const { return isVideo; }
@@ -55,6 +64,10 @@ namespace stencil::gui {
     void onVideoFrame(const QVideoFrame& frame);
 
    private:
+    // The one-source engine behind load() and each loadFirstOf() attempt; leaves the candidate
+    // list alone, so a retry keeps its place in it.
+    void beginLoad(const QString& src, int frame);
+    bool hasMoreCandidates() const { return candidateIndex + 1 < candidates.size(); }
     void resolve();
     void startVideo(const QUrl& url);
     void tryStartVideoSeek();
@@ -63,6 +76,9 @@ namespace stencil::gui {
     void cleanupVideo();
 
     QString src;
+    QStringList candidates;  // loadFirstOf's ranked list; empty for a plain load()
+    int candidateIndex = 0;
+    QString firstError;      // what the PREFERRED candidate said, reported when all have failed
     QUrl url;
     QString localPath;  // non-empty only for an existing local file
     int frame = 0;

@@ -102,9 +102,16 @@ namespace stencil::gui {
 
   void MediaLoader::fail(const QString& message) {
     if (done) return;
+    if (firstError.isEmpty()) firstError = message;
+    // The head of the list is the preferred candidate, so its error is the one that explains
+    // the drop; the rest only get the chance to succeed.
+    if (hasMoreCandidates()) {
+      beginLoad(candidates.at(++candidateIndex), frame);
+      return;
+    }
     done = true;
     cleanupVideo();
-    emit failed(message);
+    emit failed(firstError);
   }
 
   void MediaLoader::cleanupVideo() {

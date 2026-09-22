@@ -14,13 +14,46 @@ namespace stencil::gui {
 
   namespace guard = stencil::net::fetchGuard;
 
-
+  namespace {
+    // A data: uri carries its own bytes, so there is no url to resolve: the browser→desktop
+    // hand-off and the bitmap a web drag renders both arrive this way.
+    bool decodeDataUri(const QString& src, QImage& out) {
+      const int comma = src.indexOf(QLatin1Char(','));
+      if (comma < 0) return false;
+      const QByteArray payload = src.mid(comma + 1).toUtf8();
+      return out.loadFromData(
+          src.left(comma).contains(QLatin1String(";base64"), Qt::CaseInsensitive)
+              ? QByteArray::fromBase64(payload)
+              : QByteArray::fromPercentEncoding(payload));
+    }
+  }  // namespace
 
   MediaLoader::MediaLoader(QObject* parent) : QObject(parent) {}
 
   MediaLoader::~MediaLoader() { cleanupVideo(); }
 
   void MediaLoader::load(const QString& src, int frame) {
+    candidates.clear();
+    candidateIndex = 0;
+    firstError.clear();
+    beginLoad(src, frame);
+  }
+
+  void MediaLoader::loadFirstOf(const QStringList& sources, int frame) {
+    QStringList ranked;
+    for (const QString& s : sources)
+      if (!s.trimmed().isEmpty()) ranked << s;
+    if (ranked.size() < 2) {
+      load(ranked.value(0), frame);
+      return;
+    }
+    candidates = ranked;
+    candidateIndex = 0;
+    firstError.clear();
+    beginLoad(candidates.first(), frame);
+  }
+
+  void MediaLoader::beginLoad(const QString& src, int frame) {
     cleanupVideo();
     this->src = src;
     this->frame = std::max(0, frame);
@@ -30,6 +63,20 @@ namespace stencil::gui {
     fps = 0;
     durationMs = 0;
     seekIssued = false;
+
+    if (src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
+      localPath.clear();
+      url.clear();
+      QImage img;
+      // A malformed payload fails like any other candidate, so the walk carries on past it.
+      if (!decodeDataUri(src, img)) {
+        fail(QStringLiteral("Could not decode the inline image"));
+        return;
+      }
+      done = true;
+      emit loaded(img, QString());
+      return;
+    }
 
     // Resolve to a URL: an existing local file wins (so relative paths and odd names are not misread
     // as URLs); otherwise fromUserInput turns a bare "example.com/x.png" into a proper http URL.
@@ -126,6 +173,13 @@ namespace stencil::gui {
       if (err.isEmpty() && img.loadFromData(bytes)) {
         done = true;
         emit loaded(img, QString());
+        return;
+      }
+      // A candidate still waiting makes the 20 s video probe a stall: the answer has already
+      // settled this one (the browser refuses an unaccepted content type and moves on).
+      if (hasMoreCandidates()) {
+        fail(QStringLiteral("Could not fetch --src: %1")
+                 .arg(err.isEmpty() ? QStringLiteral("that URL is not an image") : err));
         return;
       }
       startVideo(u);  // not an image (or no bytes): a media stream may still work

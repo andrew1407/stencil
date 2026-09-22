@@ -16,12 +16,14 @@
 #include "launchOptions.hpp"
 #include "LinksDialog.hpp"
 #include "MediaLoader.hpp"
+#include "../../support/modal/imageAnchor.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/rowWork.hpp"
 
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
+#include <QPointer>
 
 // Opening an image: the open dialog and the here/new-window/preview entry points.
 
@@ -64,6 +66,13 @@ namespace stencil::gui {
                         settings.pageSize);
     if (connections && !incognito) dlg.setServerTargets(connections->urls());
     pendingServerTarget.clear();
+    // Raised by neither toolbar half nor the idle card: the canvas stands in for the opener.
+    if (!pop.dialogAnchor && !pop.dialogAnchorRect.isValid())
+      pop.dialogAnchorRect = canvasAnchorRect(this);
+    QPointer<MainWindow> self(this);
+    pop.dialogCloseRect = [self](bool opened) {   // an accept always opened an image
+      return opened ? openImageAnchorRect(self.data()) : QRect();
+    };
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
     if (dlg.getOutcome() == OpenImageDialog::Outcome::BLANK) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
@@ -84,9 +93,9 @@ namespace stencil::gui {
       const bool localFile = !dlg.isUrl() && !dlg.isVideo() && QFileInfo(src).exists();
       if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
         // The fresh window re-resolves the same source and applies the same page-aspect crop.
-        openSourceInNewWindow(src, dlg.getFrame(), dlg.getIncognito(), /*hasPreview=*/true,
-                              dlg.cropToPage(), dlg.getCropAlbum(), dlg.getCropPageSize(),
-                              dlg.cropRect());
+        openSourceInNewWindow(src, dlg.getFrame(), dlg.getIncognito(), /*fallbacks=*/{},
+                              /*hasPreview=*/true, dlg.cropToPage(), dlg.getCropAlbum(),
+                              dlg.getCropPageSize(), dlg.cropRect());
         return;
       }
       openPreviewedImageHere(previewed, localFile ? src : QString(),
@@ -113,7 +122,8 @@ namespace stencil::gui {
   }
 
   // "Open here" for a URL / local video: openImageHere's reset, but loaded via the async MediaLoader path.
-  void MainWindow::openSourceHere(const QString& src, int frame, bool incognito) {
+  void MainWindow::openSourceHere(const QString& src, int frame, bool incognito,
+                                  const QStringList& fallbacks) {
     if (!this->incognito) {
       if (!activeProjectId.isEmpty()) saveToActiveProject();
       else saveSessionNow();
@@ -127,20 +137,22 @@ namespace stencil::gui {
       actIncognito->blockSignals(false);
       updateProjectTitle();
     }
-    openImageSource(src, frame);  // async; failure is reported by MediaLoader
+    openImageSource(src, frame, fallbacks);  // async; failure is reported by MediaLoader
   }
 
   // "Open in new window" for a URL / local video: the source and quick-crop ride the launch options;
   // MediaLoader validates + reports in that window.
   void MainWindow::openSourceInNewWindow(const QString& src, int frame, bool incognito,
-                                         bool hasPreview, bool cropToPage,
-                                         bool cropAlbum, const QString& cropPage,
+                                         const QStringList& fallbacks, bool hasPreview,
+                                         bool cropToPage, bool cropAlbum,
+                                         const QString& cropPage,
                                          const core::CropRect& cropRect) {
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
     LaunchOptions opts;
     opts.src = src;
+    opts.srcFallbacks = fallbacks;
     opts.frame = frame;
     opts.incognito = incognito;
     // crop OFF ⇒ the whole frame (skip the default page-aspect auto-crop), matching "Open here".

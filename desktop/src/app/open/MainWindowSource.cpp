@@ -35,32 +35,12 @@ namespace stencil::gui {
     });
   }
 
-  void MainWindow::openImageSource(const QString& src, int frame) {
-    // A data: URL (browser→desktop stencil:// hand-off) decodes directly; MediaLoader has no data
-    // URI path.
-    if (src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
-      const int comma = src.indexOf(QLatin1Char(','));
-      QImage img;
-      bool ok = comma > 0;
-      if (ok) {
-        const QString meta = src.left(comma);
-        const QByteArray payload = src.mid(comma + 1).toUtf8();
-        const QByteArray bytes = meta.contains(QLatin1String(";base64"), Qt::CaseInsensitive)
-                                     ? QByteArray::fromBase64(payload)
-                                     : QByteArray::fromPercentEncoding(payload);
-        ok = img.loadFromData(bytes);
-      }
-      if (!ok) {
-        pendingLaunchLayout.clear();
-        pendingLaunchLayoutJson.clear();
-        notify->error("Could not decode the inline image");
-        return;
-      }
-      onLaunchImageLoaded(img, QString());
-      return;
-    }
+  // A data: source (a browser hand-off, a dragged bitmap) is just another candidate here.
+  void MainWindow::openImageSource(const QString& src, int frame,
+                                   const QStringList& fallbacks) {
     ensureMediaLoader();
-    mediaLoader->load(src, frame);
+    if (fallbacks.isEmpty()) mediaLoader->load(src, frame);
+    else mediaLoader->loadFirstOf(QStringList{src} + fallbacks, frame);
   }
 
   // From the OS shell: a *.json is a layout, anything else goes via the --src path.
