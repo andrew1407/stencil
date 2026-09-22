@@ -7,6 +7,7 @@ import {
   paintMotionBackdrop,
 } from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './registry.js';
+import { formulaContext } from '../parse/pageMetrics.js';
 
 export { COMPARE_MODES } from './registry.js';
 
@@ -104,7 +105,8 @@ export class SettingsController {
   wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
     const app = this.app;
     const read = (id) => readControl(id);
-    const bothValid = () => app.formula.validate(read(x), 'x') && app.formula.validate(read(y), 'y');
+    const ctx = () => formulaContext(app);
+    const bothValid = () => app.formula.validateCtx(read(x), ctx()) && app.formula.validateCtx(read(y), ctx());
     let timer = null;
 
     const commit = () => {
@@ -143,7 +145,7 @@ export class SettingsController {
     const app = this.app;
     const a = axis === 'y' ? 'y' : 'x';
     const v = String(expr ?? '').trim();
-    if (v && !app.formula.validate(v, a)) throw new Error(`Invalid ${a} formula: ${expr}`);
+    if (v && !app.formula.validateCtx(v, formulaContext(app))) throw new Error(`Invalid ${a} formula: ${expr}`);
     if (a === 'x') app.formulaX = v; else app.formulaY = v;
     setVal(`formula-${a}`, v);
     setVal(`ctx-formula-${a}`, v);

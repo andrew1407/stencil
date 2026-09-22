@@ -27,13 +27,23 @@ const seg = (px, py, a, b) => ({ px, py, a, b });
 const CASES = {
   dist: [seg(5, 3, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(-3, 0, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(14, 7, { x: 2, y: 2 }, { x: 9, y: 5 })],
   formula: [['x+9', 'x', 3], ['2**x', 'x', 3], ['(x-1)*4/2', 'x', 7], ['', 'x', 5], ['x +', 'x', 2]],
+  // [expr, the axis `val` binds, val] against CTX below; the last three are invalid.
+  formulaCtx: [['PAGE_WIDTH', 'x', 0], ['PAGE_HEIGHT_IN', 'x', 0], ['IMAGE_WIDTH / 2', 'y', 0],
+    ['x / y', 'x', 10], ['PAGE_WIDTH + PAGE_HEIGHT - x / 2', 'x', 8], ['9', 'x', 5],
+    ['PAGE_WIDTHS', 'x', 42], ['page_width', 'x', 42], ['IMAGE_DEPTH', 'x', 42]],
   hex: ['#7c3aed', '#000000', '#ffffff', '#0a1b2c', 'nope'],
   duration: ['days 23', 'fortnight', 'month', '3 weeks', 'off', 'banana', 'days 0', 'days 100000000', 'days 200000000'],
 };
+// A4 landscape behind a 600x400 image; the unbound-field case has no image open.
+const CTX = { x: 10, y: 4, pageWidthCm: 29.7, pageHeightCm: 21, imageWidth: 600, imageHeight: 400, unit: 'cm' };
+const NO_IMAGE = { pageWidthCm: 29.7, pageHeightCm: 21, unit: 'in' };
 const jsRef = {
   dist: CASES.dist.map(c => distToSegment(c.px, c.py, c.a, c.b)),
   formulaApply: CASES.formula.map(([e, v, x]) => fe.apply(e, v, x, true)),
   formulaValidate: CASES.formula.map(([e, v]) => fe.validate(e, v)),
+  formulaApplyCtx: CASES.formulaCtx.map(([e, v, x]) => fe.applyCtx(e, v, x, true, CTX)),
+  formulaValidateCtx: CASES.formulaCtx.map(([e]) => fe.validateCtx(e, CTX)),
+  formulaNoImage: CASES.formulaCtx.map(([e, v, x]) => fe.applyCtx(e, v, x, true, NO_IMAGE)),
   hex: CASES.hex.map(h => parseHex(h)),
   // Captured at module-eval time (no wasm installed yet), so this is the JS fallback.
   duration: CASES.duration.map(s => parseDuration(s)),
@@ -91,6 +101,20 @@ wtest('formula: long/adversarial strings marshal over the heap without corruptin
   // The instance is still healthy after the oversized inputs (no heap corruption).
   assert.strictEqual(valid('x*2+1', 'x'), true);
   assert.strictEqual(apply('x*2+1', 'x', 10, true), 21);
+});
+
+// The context crosses as seven scalars plus the unit string; an absent field is NaN, which the
+// core reads as "not supplied" — the name stays unknown and apply() is the identity.
+wtest('formula in a context: wasm matches JS reference (constants, both axes, NaN gaps)', () => {
+  const apply = core.op('formulaApplyCtx');
+  const valid = core.op('formulaValidateCtx');
+  CASES.formulaCtx.forEach(([e, v, x], i) => {
+    assert.ok(Math.abs(apply(e, v, x, true, CTX) - jsRef.formulaApplyCtx[i]) < 1e-9, `applyCtx ${i}: ${e}`);
+    assert.strictEqual(valid(e, CTX), jsRef.formulaValidateCtx[i], `validateCtx ${i}: ${e}`);
+    assert.ok(Math.abs(apply(e, v, x, true, NO_IMAGE) - jsRef.formulaNoImage[i]) < 1e-9, `noImage ${i}: ${e}`);
+  });
+  assert.strictEqual(apply('PAGE_WIDTH', 'x', 5, false, CTX), 5);
+  assert.strictEqual(valid('x / y', { ...CTX, x: undefined, y: undefined }), true);
 });
 
 wtest('parseDuration: wasm matches JS reference (ms, 0 for off, null for invalid)', () => {

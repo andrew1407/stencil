@@ -3,69 +3,69 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { installDom } from '../helpers/dom.js';
+import { createStubElement, installDom } from '../helpers/dom.js';
 import { COMPONENTS_CSS } from '../helpers/css.js';
 
-installDom({}, { location: { hash: '', pathname: '/app', search: '' }, history: { replaceState: () => {} } });
+const doc = installDom({}, {
+  location: { hash: '', pathname: '/app', search: '' }, history: { replaceState: () => {} },
+});
 
 const { DrawingApp } = await import('../../js/core/drawingApp.js');
 
 // The info line carries its own incognito tag, since the "?" bubble appears only with an image and
 // an empty incognito editor announced it nowhere (user report); data-size stays the size alone.
-const infoLine = () => {
-  const el = { dataset: {}, children: [], _text: '', className: '', innerHTML: '' };
-  el.setAttribute = () => {};
-  el.appendChild = (c) => { el.children.push(c); return c; };
-  el.append = (...cs) => { for (const c of cs) el.appendChild(c); };
-  Object.defineProperty(el, 'textContent', {
-    get: () => el._text + el.children.map((c) => c.textContent).join(''),
-    set: (v) => { el._text = String(v); el.children.length = 0; },
-  });
-  return el;
-};
-const runUpdateInfo = (over) => {
-  const info = infoLine();
-  const prev = globalThis.document;
-  globalThis.document = {
-    getElementById: (id) => (id === 'image-info' ? info : null),
-    createElement: () => infoLine(),
-  };
-  try {
-    DrawingApp.prototype.updateInfo.call({
-      image: null, canvas: { width: 0, height: 0 },
-      activeIsBlank: () => false, storage: { incognito: false }, ...over,
-    });
-  } finally { globalThis.document = prev; }
+// The pair STANDS in the line and is revealed, so the assertions are about state, not construction.
+const infoRig = () => {
+  const info = createStubElement('span', { id: 'image-info' });
+  doc.register('image-info', info);
+  delete info.__infoParts;
+  info.children.length = 0;
+  info.textContent = '';
   return info;
 };
+const runUpdateInfo = (info, over) => {
+  DrawingApp.prototype.updateInfo.call({
+    image: null, canvas: { width: 0, height: 0 },
+    activeIsBlank: () => false, storage: { incognito: false }, ...over,
+  });
+  const parts = info.__infoParts;
+  return { ...parts, shown: (el) => el.style.display !== 'none' };
+};
 
-test('the info line states incognito with no image loaded, and nothing when it is off', () => {
-  const on = runUpdateInfo({ storage: { incognito: true } });
-  assert.equal(on.dataset.size, 'No image loaded. Upload an image to start.');
+test('the info line states incognito with no image loaded, and hides the pair when it is off', () => {
+  const info = infoRig();
+  const on = runUpdateInfo(info, { storage: { incognito: true } });
+  assert.equal(info.dataset.size, 'No image loaded. Upload an image to start.');
   // A muted divider then the tag — the empty editor gets the same pair as a loaded one.
-  assert.equal(on.children.length, 2, 'the empty editor still shows the mode');
-  assert.equal(on.children[0].className, 'info-divider');
-  assert.equal(on.children[0].textContent, '|');
-  assert.equal(on.children[1].className, 'info-incognito');
+  assert.equal(on.sep.className, 'info-divider');
+  assert.equal(on.sep.textContent, '|');
+  assert.equal(on.tag.className, 'info-incognito');
+  assert.ok(on.shown(on.sep) && on.shown(on.tag), 'the empty editor still shows the mode');
   // The app's own glyph, at 13px, stroked in currentColor so it takes the accent.
-  assert.match(on.children[1].innerHTML, /class="ic ic-incognito"/);
-  assert.match(on.children[1].innerHTML, /width="13" height="13"/);
-  assert.match(on.children[1].innerHTML, /stroke="currentColor"/);
-  assert.ok(!/🕶/.test(on.children[1].innerHTML), 'no emoji — it renders differently per platform');
-  assert.match(on.children[1].innerHTML, /Incognito — not saved/);
+  assert.match(on.tag.innerHTML, /class="ic ic-incognito"/);
+  assert.match(on.tag.innerHTML, /width="13" height="13"/);
+  assert.match(on.tag.innerHTML, /stroke="currentColor"/);
+  assert.ok(!/🕶/.test(on.tag.innerHTML), 'no emoji — it renders differently per platform');
+  assert.match(on.tag.innerHTML, /Incognito — not saved/);
   // …and the size stays separable, so the "?" bubble never doubles the line.
-  assert.ok(!on.dataset.size.includes('Incognito'));
+  assert.ok(!info.dataset.size.includes('Incognito'));
 
-  const off = runUpdateInfo({});
-  assert.equal(off.children.length, 0, 'no tag — and so no dangling divider — when it is off');
-  assert.equal(off.textContent, 'No image loaded. Upload an image to start.');
+  // Off: the pair is STILL there (it has to be, to be photographed) but neither shows —
+  // and so there is no dangling divider either.
+  const off = runUpdateInfo(info, {});
+  assert.equal(off.sep, on.sep, 'the divider is reused, never rebuilt');
+  assert.equal(off.tag, on.tag, 'and so is the tag');
+  assert.ok(!off.shown(off.sep) && !off.shown(off.tag), 'no tag and no divider when it is off');
+  assert.equal(info.dataset.size, 'No image loaded. Upload an image to start.');
 
   // With an image the tag rides beside the size, which data-size still holds alone.
-  const withImage = runUpdateInfo({
+  const loaded = infoRig();
+  const withImage = runUpdateInfo(loaded, {
     image: {}, canvas: { width: 800, height: 600 }, storage: { incognito: true },
   });
-  assert.equal(withImage.dataset.size, 'Image Size: 800 × 600 px');
-  assert.equal(withImage.children.length, 2, 'divider + tag beside the image facts');
+  assert.equal(loaded.dataset.size, 'Image Size: 800 × 600 px');
+  assert.ok(withImage.shown(withImage.sep) && withImage.shown(withImage.tag),
+    'divider + tag beside the image facts');
 });
 
 // Nothing overlays the canvas — the incognito frame is pointer-transparent and a split is drawn
