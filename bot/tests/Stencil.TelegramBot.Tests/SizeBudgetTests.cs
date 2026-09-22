@@ -4,7 +4,7 @@ using Xunit.Abstractions;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>The bot's size + comment ratchet, budgeted by <c>SizeBudget.json</c>: no new oversized file, no listed file grows, no directory gets comment-heavier. Paths are repo-relative.</summary>
-public sealed class SizeBudgetTests
+public sealed partial class SizeBudgetTests
 {
     private readonly ITestOutputHelper _output;
 
