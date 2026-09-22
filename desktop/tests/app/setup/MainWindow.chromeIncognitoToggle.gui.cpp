@@ -2,6 +2,8 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 
+#include "controlReveal.hpp"
+
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
@@ -88,18 +90,69 @@ class MainWindowGuiTest : public QObject {
         const int hintBefore = win.imageSizeInfo->sizeHint().height();
 
         win.actIncognito->setChecked(true);
-        QTRY_VERIFY_WITH_TIMEOUT(win.imageSizeInfo->text().contains(QStringLiteral("Incognito")), 150);
-        QVERIFY2(win.imageSizeInfo->text().contains(QStringLiteral("Incognito")),
+        QTRY_VERIFY_WITH_TIMEOUT(win.incognitoTag->isVisible(), 150);
+        QVERIFY2(win.incognitoTag->text().contains(QStringLiteral("Incognito")),
                  qPrintable(state + ": the tag never appeared — the check would be vacuous"));
         same(before, steady(), state + " on");
         QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
 
         win.actIncognito->setChecked(false);
-        QTRY_VERIFY_WITH_TIMEOUT(!win.imageSizeInfo->text().contains(QStringLiteral("Incognito")), 150);
+        QTRY_VERIFY_WITH_TIMEOUT(!win.incognitoTag->isVisible(), 150);
         same(before, steady(), state + " off again");
         QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
       }
     }
+    beat();
+  }
+
+  // …and the size text itself may not move a pixel, at rest OR mid-flight: the badge rode the
+  // same label as rich text once, and the plain-to-rich swap lifted the line (user report).
+  void incognitoBadgeNeverMovesTheSizeText() {
+    auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 820);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    settleLayout(&win, 200);
+    QLabel* info = win.imageSizeInfo;
+    QVERIFY(info && win.incognitoTag);
+    // The label's own rows of ink at dpr 2, beside its place in the window and its text FORMAT:
+    // a label that switches plain to rich re-places its baseline without moving a single rect.
+    const auto row = [&] {
+      QPixmap pm(info->size() * 2);
+      pm.setDevicePixelRatio(2);
+      pm.fill(Qt::transparent);
+      info->render(&pm, QPoint(), QRegion(), QWidget::DrawChildren);
+      const QImage shot = pm.toImage().convertToFormat(QImage::Format_ARGB32);
+      int first = -1, last = -1;
+      for (int y = 0; y < shot.height(); ++y) {
+        bool ink = false;
+        for (int x = 0; x < shot.width() && !ink; ++x) ink = qAlpha(shot.pixel(x, y)) > 24;
+        if (ink) { if (first < 0) first = y; last = y; }
+      }
+      return QString("fmt=%1 y=%2 h=%3 bar=%4 dock=%5 ink=%6..%7")
+          .arg(int(info->textFormat())).arg(info->mapTo(&win, QPoint(0, 0)).y())
+          .arg(info->height()).arg(win.imageInfoBar->height())
+          .arg(win.imageInfoDock->height()).arg(first).arg(last);
+    };
+    const QString rest = row();
+    QVERIFY2(!rest.endsWith(QStringLiteral("ink=-1..-1")),
+             qPrintable(QString("the size line inked nothing: %1").arg(rest)));
+    const auto hold = [&](const QString& what, int ms) {
+      QElapsedTimer t;
+      t.start();
+      while (t.elapsed() < ms) {
+        const QString now = row();
+        QVERIFY2(now == rest, qPrintable(QString("%1: %2 (was %3)").arg(what, now, rest)));
+        QTest::qWait(8);
+      }
+    };
+    win.actIncognito->setChecked(true);
+    hold(QStringLiteral("badge arriving"), stencil::gui::CONTROL_REVEAL_IN_MS + 400);
+    QVERIFY2(win.incognitoTag->isVisible(), "the badge never arrived — the check would be vacuous");
+    win.actIncognito->setChecked(false);
+    hold(QStringLiteral("badge leaving"), stencil::gui::CONTROL_REVEAL_OUT_MS + 400);
+    QVERIFY(!win.incognitoTag->isVisible());
     beat();
   }
 
