@@ -1,9 +1,12 @@
-//! A [`CliRunner`] that records instead of spawning, so `pipeline::run`'s whole flow runs
-//! without a Zig toolchain.
+//! Two [`CliRunner`]s that stand in for the binary, so `pipeline::run`'s whole flow runs
+//! without a Zig toolchain: [`FakeCli`] records one argv and answers at once, [`SlowCli`]
+//! takes its time so a fan-out's overlap and its cancellation can be watched.
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use stencil_mcp::pipeline::{CliOutput, CliRunner};
 
@@ -48,6 +51,59 @@ impl FakeCli {
 
     pub fn never_ran(&self) -> bool {
         self.calls.lock().unwrap().is_empty()
+    }
+}
+
+/// A runner that takes its time and answers with the output path it was handed. `finished`
+/// only rises when a run reached the end of its call, which an aborted one never does, and
+/// `peak` is the most runs that were ever in flight at once.
+pub struct SlowCli {
+    /// One delay per call, in arrival order; a call past the end waits none.
+    delays: Vec<Duration>,
+    started: AtomicUsize,
+    finished: AtomicUsize,
+    in_flight: AtomicUsize,
+    peak: AtomicUsize,
+}
+
+impl SlowCli {
+    pub fn with_delays(millis: &[u64]) -> Arc<SlowCli> {
+        Arc::new(SlowCli {
+            delays: millis.iter().map(|ms| Duration::from_millis(*ms)).collect(),
+            started: AtomicUsize::new(0),
+            finished: AtomicUsize::new(0),
+            in_flight: AtomicUsize::new(0),
+            peak: AtomicUsize::new(0),
+        })
+    }
+
+    pub fn started(&self) -> usize {
+        self.started.load(Ordering::SeqCst)
+    }
+
+    pub fn finished(&self) -> usize {
+        self.finished.load(Ordering::SeqCst)
+    }
+
+    pub fn peak(&self) -> usize {
+        self.peak.load(Ordering::SeqCst)
+    }
+}
+
+impl CliRunner for SlowCli {
+    async fn run(
+        &self,
+        argv: &[Cow<'static, str>],
+        _dir: Option<&Path>,
+    ) -> Result<CliOutput, String> {
+        let index = self.started.fetch_add(1, Ordering::SeqCst);
+        let flying = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+        self.peak.fetch_max(flying, Ordering::SeqCst);
+        tokio::time::sleep(self.delays.get(index).copied().unwrap_or_default()).await;
+        self.in_flight.fetch_sub(1, Ordering::SeqCst);
+        self.finished.fetch_add(1, Ordering::SeqCst);
+        let output = argv.last().expect("an output path").to_string();
+        Ok(CliOutput { success: true, stderr: format!("wrote {output} (1x1)\n") })
     }
 }
 

@@ -5,7 +5,7 @@ use common::e2e::{cli_present, edit_params, FIXTURE};
 use serde_json::json;
 use stencil_mcp::{opplan, pipeline};
 
-/// A local PNG answers out of its own header; the CLI render is the fallback. The two must
+/// A local PNG answers out of its own header, with the CLI render as the fallback.
 #[tokio::test]
 async fn probe_reports_fixture_dimensions() {
     if !cli_present() {

@@ -4,7 +4,7 @@
 //! Generation FROM the registry lives in `prompt_assembly_test.rs`.
 
 use stencil_mcp::opplan::schema::{matches, schema};
-use stencil_mcp::opplan::{parse_op_plan, OpPlanError, MAX_ASK_OPTIONS};
+use stencil_mcp::opplan::{parse_op_plan, OpPlanError};
 use stencil_mcp::registry::{descriptor, forbidden_ops, is_forbidden, op_registry};
 
 /// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` — a
@@ -112,11 +112,11 @@ fn ops_outside_the_registry_fall_to_the_unknown_op_skip() {
     }
 }
 
-/// The §11 option cap is the one limit imported as a constant; the rest come off the registry.
+/// Every limit is read off the registry; none is mirrored as a constant here.
 #[test]
 fn the_limits_come_from_the_registry() {
     let s = schema();
-    assert_eq!(s.limit("ask.maxOptions") as usize, MAX_ASK_OPTIONS);
+    assert_eq!(s.limit("ask.maxOptions"), 5.0);
     assert_eq!(s.limit("MAX_ACTIONS"), 16.0);
     assert_eq!(s.limit("MAX_STRING_CHARS"), 5000.0);
 }

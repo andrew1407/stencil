@@ -64,9 +64,6 @@ pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     Ok(out)
 }
 
-/// The raw `STENCIL_LLM_*` settings (contract §5), validated and defaulted per call in
-/// `llm::LlmConfig::resolve`.
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,4 +109,5 @@ mod tests {
     #[test]
     fn surface_list_rejects_a_bad_token() {
         assert!(parse_surfaces("browser, nope").is_err());
-    }}
+    }
+}

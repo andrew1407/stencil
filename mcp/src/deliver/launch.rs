@@ -10,10 +10,19 @@ use base64::Engine;
 
 /// Build `<browser_url>/#stencil=<encodeURIComponent(JSON)>` carrying the result as a data
 /// URL — the fragment the extension uses to hand images to the editor.
-pub(super) fn build_launch_url(output_path: &str, browser_url: &str) -> Result<String, String> {
-    let bytes = std::fs::read(output_path).map_err(|e| format!("reading '{output_path}': {e}"))?;
+pub(super) async fn build_launch_url(
+    output_path: &str,
+    browser_url: &str,
+) -> Result<String, String> {
+    // A finished render is megabytes: the read and its base64 go off the JSON-RPC thread.
+    let path = output_path.to_string();
+    let read = tokio::task::spawn_blocking(move || {
+        std::fs::read(&path)
+            .map(|bytes| base64::engine::general_purpose::STANDARD.encode(bytes))
+            .map_err(|e| format!("reading '{path}': {e}"))
+    });
+    let encoded = read.await.map_err(|e| e.to_string())??;
     let mime = mime_for(output_path);
-    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
     let data_url = format!("data:{mime};base64,{encoded}");
 
     let name = Path::new(output_path)
@@ -78,10 +87,10 @@ fn opener_argv(url: &str) -> (&'static str, Vec<&str>) {
     return ("xdg-open", vec![url]);
 }
 
-/// Open a URL with the platform opener.
+/// Open a URL with the platform opener. `tokio::process` reaps the child; std leaves a zombie.
 pub(super) fn open_in_os(url: &str) -> Result<(), String> {
     let (program, args) = opener_argv(url);
-    std::process::Command::new(program).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
+    tokio::process::Command::new(program).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -121,13 +130,13 @@ mod tests {
         assert_eq!((program, args), expected);
     }
 
-    #[test]
-    fn build_launch_url_carries_a_data_url_fragment() {
+    #[tokio::test]
+    async fn build_launch_url_carries_a_data_url_fragment() {
         let mut file = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
         file.write_all(b"\x89PNG\r\n").unwrap();
         let path = file.path().to_string_lossy().into_owned();
 
-        let url = build_launch_url(&path, "http://localhost:8080").unwrap();
+        let url = build_launch_url(&path, "http://localhost:8080").await.unwrap();
         assert!(url.starts_with("http://localhost:8080/#stencil="));
         // The fragment is percent-encoded JSON embedding a PNG data URL.
         assert!(url.contains("data%3Aimage%2Fpng%3Bbase64%2C"));

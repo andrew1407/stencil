@@ -20,10 +20,6 @@ pub use types::{
     Variant,
 };
 
-/// §11 option cap, pinned to the registry's `limits.ask.maxOptions` by `tests/schema_test.rs`
-/// (every other limit is read from the registry through [`schema::Schema::limit`]).
-pub const MAX_ASK_OPTIONS: usize = 5;
-
 /// How long a sanitized variant label may get (mirrors the browser's 40-char cap).
 const MAX_LABEL_CHARS: usize = 40;
 

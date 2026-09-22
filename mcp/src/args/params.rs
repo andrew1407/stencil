@@ -161,8 +161,6 @@ impl Crop {
     }
 }
 
-/// The ISO page-format names the CLI's core recognizes (`A0`–`C10`), matched
-
 /// A layout argument: a path/URL the CLI reads, or an inline layout object the server
 /// materializes to a temp file.
 #[derive(Debug, Deserialize, JsonSchema)]

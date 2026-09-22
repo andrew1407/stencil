@@ -20,15 +20,15 @@ struct ScrapePayload<'a> {
 
 /// The tool's whole body: guard the surface, run the scrape, then report every file.
 pub async fn run(params: ScrapeParams) -> Result<CallToolResult, McpError> {
-        // Scraping only writes files locally: reject any other surface before the CLI runs.
-        if let Err(message) = params.validate_surface() {
-            return Ok(err_result(message));
-        }
+    // Scraping only writes files locally: reject any other surface before the CLI runs.
+    if let Err(message) = params.validate_surface() {
+        return Ok(err_result(message));
+    }
 
-        let result = match pipeline::run_scrape(&params).await {
-            Ok(result) => result,
-            Err(error) => return Ok(err_result(error.to_string())),
-        };
+    let result = match pipeline::run_scrape(&params).await {
+        Ok(result) => result,
+        Err(error) => return Ok(err_result(error.to_string())),
+    };
 
         // A human-readable summary: one line per file, then the count/host/dir tail.
         use std::fmt::Write;
@@ -49,12 +49,12 @@ pub async fn run(params: ScrapeParams) -> Result<CallToolResult, McpError> {
             let _ = write!(summary, " into {dir}");
         }
 
-        let payload = ScrapePayload {
-            dir: result.dir.as_deref(),
-            host: result.host.as_deref(),
-            files: &result.files,
-        };
-        ok_result(summary, payload)
+    let payload = ScrapePayload {
+        dir: result.dir.as_deref(),
+        host: result.host.as_deref(),
+        files: &result.files,
+    };
+    ok_result(summary, payload)
 }
 
 #[cfg(test)]

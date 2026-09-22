@@ -15,9 +15,10 @@ use crate::llmtransport::{clip, LlmTransport, PlainHttpTransport, SNIPPET_LEN};
 use crate::opplan;
 use crate::server::tools::err_result;
 
+pub use execute::execute_plan;
 use execute::{attach, chat_once, execute_concurrently, prepare_outputs};
 use merge::{kept_or_error, merged_response};
-use response::PromptResult;
+pub use response::PromptResult;
 
 /// The tool's whole body: the real plain-http transport, then the flow below.
 pub async fn run(config: &Config, params: PromptParams) -> Result<CallToolResult, McpError> {

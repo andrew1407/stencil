@@ -11,11 +11,11 @@ use crate::server::tools::ok_result;
 /// One written result of a `stencil_prompt` plan: the base result (`label` null), a variant
 /// (its sanitized label), or a §2.1 `save`'s `.stencil` — a document, so no dimensions.
 #[derive(Serialize)]
-pub(super) struct PromptResult {
-    pub(super) label: Option<String>,
-    pub(super) path: String,
-    pub(super) width: Option<u32>,
-    pub(super) height: Option<u32>,
+pub struct PromptResult {
+    pub label: Option<String>,
+    pub path: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
 /// The `stencil_prompt` structured payload: the chat reply, any non-fatal notes, and the

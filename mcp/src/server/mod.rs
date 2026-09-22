@@ -4,7 +4,7 @@
 
 mod tools;
 
-pub use tools::prompt::run_prompt;
+pub use tools::prompt::{execute_plan, run_prompt, PromptResult};
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
