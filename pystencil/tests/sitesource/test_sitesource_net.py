@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import ipaddress
 import unittest
+import urllib.error
 
-from pystencil._net import _assert_fetchable, _is_blocked_ip
+from pystencil._net import MAX_FETCH_BYTES, _assert_fetchable, _fetch, _is_blocked_ip
 from pystencil.sitesource import _sub_strict
+from tests.helpers.servedsite import OVERSIZED_PATH, REDIRECT_PATH, ServedSiteCase
 
 class SsrfGuardTests(unittest.TestCase):
   def _blocked(self, host, strict):
@@ -65,3 +67,26 @@ class SsrfGuardTests(unittest.TestCase):
     # Different host → strict (the SSRF pivot).
     self.assertTrue(_sub_strict("http://127.0.0.1/admin", "evil.example"))
     self.assertTrue(_sub_strict("http://169.254.169.254/meta", "site.example"))
+
+
+class ServedRefusalTests(ServedSiteCase):
+  """The two refusals a real server has to produce: the 30x hop and the body cap.
+
+  A redirect is refused because the pre-fetch host check only saw the first hop, so a
+  public URL could otherwise bounce into the private ranges the SSRF guard blocks.
+  """
+
+  def test_a_plain_fetch_over_the_served_site_works(self):
+    # The control: same opener, same strictness, so a refusal below is the guard.
+    self.assertTrue(_fetch(self.base + "logo.png", strict=False).startswith(b"\x89PNG"))
+
+  def test_a_redirect_is_refused_rather_than_followed(self):
+    with self.assertRaises(urllib.error.HTTPError) as caught:
+      _fetch(self.base.rstrip("/") + REDIRECT_PATH, strict=False)
+    self.assertEqual(caught.exception.code, 302)
+    self.assertIn("refusing to follow redirect", str(caught.exception))
+
+  def test_a_body_over_the_cap_is_refused(self):
+    with self.assertRaises(ValueError) as caught:
+      _fetch(self.base.rstrip("/") + OVERSIZED_PATH, strict=False)
+    self.assertIn("exceeds the %d-byte fetch cap" % MAX_FETCH_BYTES, str(caught.exception))

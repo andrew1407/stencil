@@ -6,6 +6,7 @@ import threading
 import unittest
 
 from pystencil.server import ConnectionManager, ServerConnection, ServerError, diff_projects
+from pystencil.server import manager as manager_module
 
 class ErrorParsingTest(unittest.TestCase):
   def test_server_error_fields(self) -> None:
@@ -32,6 +33,66 @@ class ConnectionManagerUnitTest(unittest.TestCase):
       mgr._conns[conn.base] = conn
     mgr.disconnect()  # drops most-recently added
     self.assertEqual(mgr.connections, ["http://a:8090"])
+
+
+class _RecordingConn:
+  """Stands in for ServerConnection: records the handshake instead of making one."""
+
+  made: list = list()
+
+  def __init__(self, base, token="", *, verify=True):
+    self.base = base
+    self.token = token
+    self.verify = verify
+    self.connected = 0
+    self.closed = 0
+    _RecordingConn.made.append(self)
+
+  def connect(self):
+    self.connected += 1
+    self.token = self.token or "minted"  # a tokenless connect mints a session token
+    return self
+
+  def close(self):
+    self.closed += 1
+
+
+class ReconnectTest(unittest.TestCase):
+  """``reconnect()`` drops the live set and rebuilds it from the remembered
+  (url, token) pairs, so a server restart is recovered without re-typing anything."""
+
+  def setUp(self):
+    _RecordingConn.made = list()
+    self.addCleanup(setattr, manager_module, "ServerConnection", ServerConnection)
+    manager_module.ServerConnection = _RecordingConn
+
+  def test_reconnect_rebuilds_the_last_set_with_its_tokens(self):
+    mgr = ConnectionManager()
+    mgr.connect([{"url": "http://a:8090", "token": "ta"}, "http://b:8090"])
+    first = list(_RecordingConn.made)
+    mgr.reconnect()
+    self.assertEqual([c.closed for c in first], [1, 1])  # the old pair is closed
+    rebuilt = _RecordingConn.made[2:]
+    self.assertEqual([c.base for c in rebuilt], ["http://a:8090", "http://b:8090"])
+    # The user's token and the minted one both ride along into the new connections.
+    self.assertEqual([c.token for c in rebuilt], ["ta", "minted"])
+    self.assertEqual([c.connected for c in rebuilt], [1, 1])
+    self.assertEqual(mgr.connections, ["http://a:8090", "http://b:8090"])
+    self.assertIsNot(mgr.get("http://a:8090"), first[0])
+
+  def test_reconnect_with_nothing_connected_is_a_no_op(self):
+    mgr = ConnectionManager()
+    self.assertIs(mgr.reconnect(), mgr)
+    self.assertEqual(mgr.connections, [])
+    self.assertEqual(_RecordingConn.made, [])
+
+  def test_reconnect_restores_the_set_as_of_the_last_connect(self):
+    mgr = ConnectionManager()
+    mgr.connect(["http://a:8090", "http://b:8090"])
+    mgr.disconnect("http://b:8090")
+    # _last is recorded by connect(), not by disconnect(), so b comes back.
+    mgr.reconnect()
+    self.assertEqual(mgr.connections, ["http://a:8090", "http://b:8090"])
 
 
 class DiffProjectsTest(unittest.TestCase):
