@@ -91,18 +91,18 @@ test('both send loops run the SAME shared logged-turn frame', () => {
 test('a dropped image URL is fetched into an attachment, not silently dropped', () => {
   const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('const files = mediaFilesFromData(e.dataTransfer);'), 'Files still win');
-  assert.ok(panel.includes('const url = extractDraggedImageUrl((t) => e.dataTransfer.getData(t));'),
-    'and a File-less drag falls back to its URL');
-  assert.match(panel, /await attachFiles\(\[await fetchDraggedMediaFile\(url, \{ accept: \/\^\(image\|video\)\\\/\/ \}\)\]\);/);
   // A failure is reported, never swallowed — that silence was the whole bug.
-  assert.ok(panel.includes("notify(`Couldn't attach that image — ${err.message}`, 'fail');"));
+  assert.ok(panel.includes("notify(`Couldn't attach that image — ${err.message}. `"));
   assert.ok(panel.includes("notify('Nothing to attach from that drop', 'fail');"));
-  // The fetch itself is the canvas's, shared rather than re-implemented.
-  const drag = readFileSync(new URL('../../../js/core/pointer/dragImageUrl.js', import.meta.url), 'utf8');
-  assert.match(drag, /export const fetchDraggedMediaFile = async \(url, \{ accept = \/\^image\\\/\/ \} = \{\}\)/);
+  // Both drops share the canvas's helper rather than growing a second copy; what that
+  // helper DOES is proved against the real module in tests/core/pointer/dragImageUrl.test.js.
   const binder = readFileSync(new URL('../../../js/ui/bindings/dropPaste.js', import.meta.url), 'utf8');
-  assert.ok(binder.includes('const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);'),
-    'the canvas drop uses the same helper (no second copy)');
+  for (const [name, src] of [['panel.js', panel], ['dropPaste.js', binder]]) {
+    assert.match(src, /import \{[^}]*fetchFirstDraggedMediaFile[^}]*\} from '[^']*core\/pointer\/dragImageUrl\.js'/,
+      `${name} fetches a dragged URL through the shared helper`);
+    assert.match(src, /import \{[^}]*extractDraggedImageUrls[^}]*\} from '[^']*core\/pointer\/dragImageUrl\.js'/,
+      `${name} reads the drag's candidates through the shared helper`);
+  }
 });
 
 test('the composer ACTS on a drop; the panel SWALLOWS one (never the canvas)', () => {

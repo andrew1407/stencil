@@ -11,7 +11,7 @@ import {
 } from '../../llm/chat/session.js';
 import { rowsToMessages } from '../../llm/chat/store.js';
 import { MAX_ATTACHMENTS } from '../../llm/chat/controller.js';
-import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
+import { mediaFilesFromData, extractDraggedImageUrl, extractDraggedImageUrls, fetchFirstDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { modalShells } from '../modal/registry.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter } from '../motion.js';
@@ -367,12 +367,13 @@ export class StencilChatPanel extends StencilElement {
       const files = mediaFilesFromData(e.dataTransfer);
       if (files.length) { await attachFiles(files); return; }
 // An image dragged from another page carries no File, just a URL in uri-list/html.
-      const url = extractDraggedImageUrl((t) => e.dataTransfer.getData(t));
-      if (!url) { notify('Nothing to attach from that drop', 'fail'); return; }
+      const urls = extractDraggedImageUrls((t) => e.dataTransfer.getData(t));
+      if (!urls.length) { notify('Nothing to attach from that drop', 'fail'); return; }
       try {
-        await attachFiles([await fetchDraggedMediaFile(url, { accept: /^(image|video)\// })]);
+        await attachFiles([await fetchFirstDraggedMediaFile(urls, { accept: /^(image|video)\// })]);
       } catch (err) {
-        notify(`Couldn't attach that image — ${err.message}`, 'fail');
+        notify(`Couldn't attach that image — ${err.message}. `
+          + 'If the site blocks cross-origin downloads, try the extension or desktop app.', 'fail');
       }
     });
 
