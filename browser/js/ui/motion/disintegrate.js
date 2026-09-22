@@ -58,6 +58,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                           { span, spread, delayScale: delayScale ?? (gather ? 1 : 0.5) })
           : tileMotion(cx, cy, cols, rows, gather, drift, span);
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
+// null is "no ink under this cell" (painters.js inkPainter): line-art flies its shape.
+        if (!speck) continue;
 // The sweep is inside the span, never added to it (desktop: `t = (t - delay) / (1 - delay)`),
 // so the whole cloud is done at `span`.
         motes.push({

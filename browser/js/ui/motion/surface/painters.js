@@ -1,4 +1,5 @@
 import { SURFACE_SPECK_PX } from './motion.js';
+import { INK_FLOOR, inkAlpha } from './ink.js';
 import { tileNoise } from './tiles.js';
 import { TUNE } from '../tune.js';
 const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
@@ -40,6 +41,19 @@ export const speckPainter = (el, override = null) => {
   };
 };
 
+// Line-art: a cell with no ink under it answers null and flies nothing. The grid is the
+// flight's to settle, so the mask waits for the first cell and is then held.
+export const inkPainter = (el, paint) => {
+  let mask = null;
+  let at = 0;
+  return (g) => {
+    const cells = g.cols * g.rows;
+    if (at !== cells) { at = cells; mask = inkAlpha(el, g.cols, g.rows); }
+    if (mask && mask[g.cy * g.cols + g.cx] < INK_FLOOR) return null;
+    return paint(g);
+  };
+};
+
 // A group dusts in its controls' own colours (desktop: controlReveal.hpp groupShot): every
 // descendant that paints a background claims the cells under it, innermost winning.
 export const groupPainter = (el) => {
@@ -58,7 +72,8 @@ export const groupPainter = (el) => {
     parts.push({ l: r.left - root.left, t: r.top - root.top, r: r.right - root.left, b: r.bottom - root.top,
                  paint: speckPainter(el, { fill: cs.backgroundColor, edge }) });
   }
-  if (!parts.length) return base;
+// Nothing in it paints, its own box included: the incognito badge and its like.
+  if (!parts.length) return blankPaint(get(el).backgroundColor) ? inkPainter(el, base) : base;
   return (g) => {
     const x = (g.cx + 0.5) * g.cellW;
     const y = (g.cy + 0.5) * g.cellH;

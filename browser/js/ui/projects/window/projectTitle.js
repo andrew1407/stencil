@@ -1,5 +1,6 @@
 // Topbar project name + the image-info line.
 import { icon } from '../../icons.js';
+import { revealControls } from '../../motion.js';
 
 // Editable only with a saved active project. `force` re-syncs even while focused
 // (commit/cancel); the default respects focus so updateButtons() can't clobber typing.
@@ -61,33 +62,45 @@ export const updateProjectTitle = (app, force = false) => {
   if (canvasViewport) canvasViewport.classList.toggle('remote-editing', !!remote);
 };
 
+// The size text and the incognito pair STAND in the line, hidden rather than rebuilt: a
+// flight photographs a box already there, and rewriting the size must not take them with it.
+const infoParts = (info) => {
+  if (info.__infoParts) return info.__infoParts;
+  const size = document.createTextNode('');
+  // The divider exists only with the tag it separates. Decoration, hidden from assistive tech.
+  const sep = document.createElement('span');
+  sep.className = 'info-divider';
+  sep.setAttribute('aria-hidden', 'true');
+  sep.textContent = '|';
+  sep.style.display = 'none';
+  const tag = document.createElement('span');
+  tag.className = 'info-incognito';
+  // The app's own glyph, not an emoji: identical on every platform, and it takes the
+  // tag's accent colour via stroke="currentColor".
+  tag.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
+  tag.style.display = 'none';
+  info.textContent = '';
+  info.append(size, sep, tag);
+  info.__infoParts = { size, sep, tag };
+  return info.__infoParts;
+};
+
 export const updateInfo = (app) => {
   const info = document.getElementById('image-info');
   const blankBtn = document.getElementById('blank-color-btn');
   const blankSwatch = document.getElementById('blank-color-swatch');
   const isBlank = app.activeIsBlank();
-  if (app.image) {
-    const blankTag = isBlank ? '  ·  blank' : '';
-    // The shortcut hints live in the "?" popup (hints-btn), not this bar.
-    info.textContent = `Image Size: ${app.canvas.width} × ${app.canvas.height} px${blankTag}`;
-  } else {
-    info.textContent = 'No image loaded. Upload an image to start.';
-  }
+  const { size, sep, tag } = infoParts(info);
+  // The shortcut hints live in the "?" popup (hints-btn), not this bar.
+  size.nodeValue = app.image
+    ? `Image Size: ${app.canvas.width} × ${app.canvas.height} px${isBlank ? '  ·  blank' : ''}`
+    : 'No image loaded. Upload an image to start.';
   // data-size keeps the "?" bubble reading the size line alone.
-  info.dataset.size = info.textContent;
-  if (app.storage.incognito) {
-    // The divider exists only with the tag it separates. Decoration, hidden from assistive tech.
-    const sep = document.createElement('span');
-    sep.className = 'info-divider';
-    sep.setAttribute('aria-hidden', 'true');
-    sep.textContent = '|';
-    const tag = document.createElement('span');
-    tag.className = 'info-incognito';
-    // The app's own glyph, not an emoji: identical on every platform, and it takes the
-    // tag's accent colour via stroke="currentColor".
-    tag.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
-    info.append(sep, tag);
-  }
+  info.dataset.size = size.nodeValue;
+  // Both come and go in the selected motion: dust, the slot alone in `slide`, nothing under `none`.
+  const shown = !!app.storage.incognito;
+  revealControls(sep, shown, 'inline');
+  revealControls(tag, shown, 'inline-flex');
   if (blankBtn) blankBtn.style.display = (app.image && isBlank) ? 'inline-flex' : 'none';
   if (blankSwatch && isBlank) blankSwatch.style.background = app.blankColor || '#ffffff';
 };

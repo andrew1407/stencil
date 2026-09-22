@@ -98,7 +98,8 @@ const followDust = (el, ms) => {
 };
 
 // `dust: false` slides the slot without a cloud (desktop twin: revealControls' `dust`); `ms`
-// overrides the slot's clock so a group can land together with something else.
+// overrides the slot's clock so a group can land together with something else. In `slide` the
+// cloud declines and the slot alone is the flight — only motionReduced() skips it entirely.
 export function revealControls(el, show, display = 'inline-flex',
                                { vertical: axis = null, dust = true, ms = 0 } = {}) {
   const inMs = ms || REVEAL_GROUP_IN_MS;
@@ -114,7 +115,7 @@ export function revealControls(el, show, display = 'inline-flex',
     el.style.display = display;
     const r = el.getBoundingClientRect();   // now laid out at its natural size
     const size = vertical ? r.height : r.width;
-    const played = dust ? markIn(el, { ms: inMs, painter: groupPainter(el) }) : !motionReduced();
+    const played = (dust && markIn(el, { ms: inMs, painter: groupPainter(el) })) || !motionReduced();
     if (size && played)
       slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });
     if (dust && played) followDust(el, inMs);
@@ -123,9 +124,8 @@ export function revealControls(el, show, display = 'inline-flex',
 // Measured while still laid out, so the dust and the collapse start from the true box.
   const r = el.getBoundingClientRect();
   const size = vertical ? r.height : r.width;
-  const played = dust
-    ? markOut(el, { ms: outMs, painter: groupPainter(el), veil: MARK_LEAVING_CLASS })
-    : !motionReduced();
+  const played = (dust && markOut(el, { ms: outMs, painter: groupPainter(el), veil: MARK_LEAVING_CLASS }))
+    || !motionReduced();
   if (size && played) {
     slideRevealSize(el, sizeProp, `${size}px`, '0px', outMs,
       { ease: REVEAL_EASE_OUT, cleanup: () => { el.style.display = 'none'; } });

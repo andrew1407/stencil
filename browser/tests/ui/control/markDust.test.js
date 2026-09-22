@@ -77,10 +77,10 @@ test('showing sets display at once; hiding collapses the slot before it goes', (
   // Shown: display FIRST — the group takes its slot immediately — THEN the gather
   // plays over the box it now occupies, growing that slot from zero in step.
   assert.match(body, /el\.style\.display = display;/);
-  assert.match(body, /const played = dust \? markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\) : !motionReduced\(\);/);
+  assert.match(body, /const played = \(dust && markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\)\) \|\| !motionReduced\(\);/);
   // Hidden is measured while still laid out, so dust and collapse start from the true box; a
   // DECLINED flight hides at once, a played one defers display:none until the slot closes.
-  assert.match(body, /const played = dust\s*\n\s*\? markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)\s*\n\s*: !motionReduced\(\);/);
+  assert.match(body, /const played = \(dust && markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)\)\s*\n\s*\|\| !motionReduced\(\);/);
   // `dust: false` still SLIDES the slot, skipping only the cloud (a full-width bar's motes are
   // a grey band); `inMs`/`outMs` are the group defaults unless the caller passes a clock.
   assert.match(body, /const inMs = ms \|\| REVEAL_GROUP_IN_MS;/);
