@@ -28,6 +28,9 @@ class MainWindowGuiTest : public QObject {
     QToolButton* icon = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
       auto* b = static_cast<QToolButton*>(it.key());
+      // QHash hands these over in seed order, and the Assistant row TOGGLES THE DOCK — it is
+      // wired for the gesture but opens no dialog, so picking it first made this case flake.
+      if (it.value() == win.actChat) continue;
       if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
     }
     QVERIFY2(icon, "the tool rows must carry at least one popover-wired dialog icon");
