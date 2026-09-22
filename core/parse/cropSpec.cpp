@@ -4,10 +4,23 @@
 #include "text.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 
 namespace stencil::core {
+
+  namespace {
+    using CropField = std::optional<std::string> CropSpec::*;
+
+    constexpr std::array<Keyed<CropField>, 5> CROP_FIELDS = {{
+        {"x1", &CropSpec::x1},
+        {"x2", &CropSpec::x2},
+        {"y1", &CropSpec::y1},
+        {"y2", &CropSpec::y2},
+        {"aspect", &CropSpec::aspect},
+    }};
+  }  // namespace
 
   CropSpec parseCropSpec(const std::string& spec) {
     CropSpec out;
@@ -29,13 +42,9 @@ namespace stencil::core {
     flush();
 
     auto assign = [&](const std::string& key, const std::string& val) -> bool {
-      const std::string k = toLowerAscii(key);
-      if (k == "x1") out.x1 = val;
-      else if (k == "x2") out.x2 = val;
-      else if (k == "y1") out.y1 = val;
-      else if (k == "y2") out.y2 = val;
-      else if (k == "aspect") out.aspect = val;
-      else return false;
+      const CropField field = lookup(CROP_FIELDS, toLowerAscii(key), CropField{nullptr});
+      if (field == nullptr) return false;
+      out.*field = val;
       return true;
     };
 

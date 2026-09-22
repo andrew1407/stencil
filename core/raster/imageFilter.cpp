@@ -1,7 +1,9 @@
 #include "imageFilter.hpp"
 #include "luma.hpp"
 #include "rgba.hpp"  // rgbaOffset
+#include "text.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -9,13 +11,21 @@
 
 namespace stencil::core {
 
+  namespace {
+    // The browser's `imageFilter` strings, matched case-sensitively as renderer.js does.
+    constexpr std::array<Keyed<FilterMode>, 5> FILTER_MODES = {{
+        {"none", FilterMode::NONE},
+        {"bw", FilterMode::BW},
+        {"sepia", FilterMode::SEPIA},
+        {"invert", FilterMode::INVERT},
+        {"contour", FilterMode::CONTOUR},
+    }};
+  }  // namespace
+
   FilterMode filterModeFromString(const std::string& mode) {
-    if (mode.empty() || mode == "none") return FilterMode::NONE;
-    if (mode == "bw") return FilterMode::BW;
-    if (mode == "sepia") return FilterMode::SEPIA;
-    if (mode == "invert") return FilterMode::INVERT;
-    if (mode == "contour") return FilterMode::CONTOUR;
-    return FilterMode::CUSTOM;  // renderer.js: any other value is the custom tint
+    if (mode.empty()) return FilterMode::NONE;
+    // renderer.js: any other value is the custom tint.
+    return lookup(FILTER_MODES, mode, FilterMode::CUSTOM);
   }
 
   Rgb8 filterPixel(FilterMode mode, int r, int g, int b, int tintR, int tintG,

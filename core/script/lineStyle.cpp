@@ -3,15 +3,16 @@
 #include "values.hpp"
 #include "text.hpp"
 
+#include <array>
 #include <cstdlib>
 
 namespace stencil::core::script {
 
   namespace {
 
-    bool isStyleWord(const std::string& w) {
-      return w == "solid" || w == "dashed" || w == "dotted";
-    }
+    constexpr std::array<std::string_view, 3> STYLE_WORDS = {"solid", "dashed", "dotted"};
+
+    bool isStyleWord(const std::string& w) { return contains(STYLE_WORDS, w); }
 
     // One comma group of `@use line`: a colour, a style word, a width, `fill <c>`,
     // `point [<c>] [<size>]`, or a bare unit. Order between groups never matters.

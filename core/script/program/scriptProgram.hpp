@@ -28,10 +28,8 @@ namespace stencil::core::script {
     mutable bool dumped = false;
   };
 
-  /* Resolves one op's length tokens into pixels against the CURRENT image size, which crop
-   * changes mid-stream. Writes at most `cap` doubles, returns how many, -1 unresolvable, -2
-   * `cap` too small. CROP -> [x,y,w,h] · LINE/RECT -> [x0,y0,…,thickness,pointSize], a
-   * two-point rect expanding to four corners · FRAME/UNDO/REDO -> [n] · others -> 0. */
+  // Length tokens -> pixels against the CURRENT image size, which a crop changes mid-stream.
+  // Writes at most `cap` doubles, returns how many; -1 unresolvable, -2 `cap` too small.
   int resolveOp(const ScriptProgram& program, int index, double imageW, double imageH,
                 double pxPerCmX, double pxPerCmY, double* out, int cap);
 

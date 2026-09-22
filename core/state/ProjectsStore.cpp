@@ -40,14 +40,7 @@ namespace stencil::core {
   }  // namespace
 
   long long ProjectsStore::periodMs(const std::string& period) {
-    // Fixed-duration presets (must match browser projectsStore.js PERIOD_MS).
-    if (period == "day") return DAY_MS;
-    if (period == "fortnight") return 14 * DAY_MS;
-    if (period == "month") return 30 * DAY_MS;
-    if (period == "3month") return 90 * DAY_MS;
-    if (period == "6month") return 180 * DAY_MS;
-    if (period == "year") return 365 * DAY_MS;
-    return EXPIRY_MS;
+    return lookup(PERIOD_MS, period, EXPIRY_MS);
   }
 
   long long ProjectsStore::addPeriod(long long from, const std::string& period) {
@@ -181,10 +174,13 @@ namespace stencil::core {
 
   std::vector<std::string> ProjectsStore::sweepExpired(long long now) {
     std::vector<std::string> removed;
-    for (const auto& m : registry) {
-      if (isExpired(m, now)) removed.push_back(m.id);
-    }
-    for (const auto& id : removed) remove(id);
+    const auto expired = [&](const ProjectMeta& m) { return isExpired(m, now); };
+    for (const ProjectMeta& m : registry)
+      if (expired(m)) removed.push_back(m.id);
+    if (removed.empty()) return removed;
+    // One erase pass and one reindex; remove(id) per row reindexed the whole registry each time.
+    registry.erase(std::remove_if(registry.begin(), registry.end(), expired), registry.end());
+    reindex();
     return removed;
   }
 

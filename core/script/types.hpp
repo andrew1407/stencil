@@ -70,12 +70,8 @@ namespace stencil::core::script {
     REDO = 9,
   };
 
-  /* One lowered operation: strs plain strings, toks length tokens scriptOpResolve() turns
-   * into pixels, nums plain numbers. Per kind — OPEN strs{source} nums{sourceKind} · FRAME
-   * nums{index} · CROP strs{aspect} toks{x1,x2,y1,y2} nums{album} · FILTER strs{mode,tint} ·
-   * LINE/RECT strs{color,style,fillColor,pointColor} toks{x0,y0,…} nums{thickness,pointSize,
-   * locked} · LAYOUT strs{source,mode} nums{sourceKind} · SAVE strs{target} · UNDO/REDO
-   * nums{steps}. RECT is a LINE with locked = 1. */
+  // One lowered operation; `toks` are length tokens scriptOpResolve() turns into pixels.
+  // Its per-kind payload is the Op layout table in contracts/stc/stc-contract.md.
   struct Op {
     OpKind kind = OpKind::CROP;
     int block = 0;

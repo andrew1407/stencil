@@ -2,6 +2,7 @@
 
 #include "text.hpp"
 
+#include <array>
 #include <cctype>
 #include <cstdlib>
 
@@ -9,6 +10,22 @@ namespace stencil::core {
 
   namespace {
     constexpr double CM_PER_INCH = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
+
+    // value * mul / div, not one scale factor: mm is a DIVISION by 10, and x * 0.1 is not
+    // the same double as x / 10 for every x.
+    struct UnitSpec {
+      LengthKind kind;
+      double mul;
+      double div;
+    };
+
+    constexpr std::array<Keyed<UnitSpec>, 5> LENGTH_UNITS = {{
+        {"%", {LengthKind::PERCENT, 1.0, 1.0}},
+        {"cm", {LengthKind::CM, 1.0, 1.0}},
+        {"mm", {LengthKind::CM, 1.0, 10.0}},
+        {"in", {LengthKind::CM, CM_PER_INCH, 1.0}},
+        {"px", {LengthKind::PX, 1.0, 1.0}},
+    }};
   }  // namespace
 
   // Hand-rolled /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — no <regex> in the wasm build.
@@ -48,29 +65,17 @@ namespace stencil::core {
 
     LengthToken t;
     t.fromEnd = fromEnd;  // every kind but Delta keeps it; Delta folds it into the sign below
-    if (unit == "%") {
-      t.kind = LengthKind::PERCENT;
-      t.value = value;
-    } else if (unit == "cm") {
-      t.kind = LengthKind::CM;
-      t.value = value;
-    } else if (unit == "mm") {
-      t.kind = LengthKind::CM;
-      t.value = value / 10.0;
-    } else if (unit == "in") {
-      t.kind = LengthKind::CM;
-      t.value = value * CM_PER_INCH;
-    } else if (unit == "px") {
-      t.kind = LengthKind::PX;
-      t.value = value;
-    } else if (unit.empty()) {
+    if (unit.empty()) {
       // A bare number is a delta — keep the sign.
       t.kind = LengthKind::DELTA;
       t.value = fromEnd ? -value : value;
       t.fromEnd = false;
-    } else {
-      return std::nullopt;  // unknown unit suffix
+      return t;
     }
+    const UnitSpec* u = lookupPtr(LENGTH_UNITS, unit);
+    if (u == nullptr) return std::nullopt;  // unknown unit suffix
+    t.kind = u->kind;
+    t.value = value * u->mul / u->div;
     return t;
   }
 

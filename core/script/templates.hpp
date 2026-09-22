@@ -5,10 +5,8 @@
 // Port target: browser/js/core/script/templates.js.
 namespace stencil::core::script {
 
-  /* Expands one `@use stencil <words> [args…]` into the referenced body, @1..@n filled from
-   * the call. The name is the LONGEST defined template prefixing the word run, the rest are
-   * arguments. Nested uses expand too, bounded by MAX_TEMPLATE_DEPTH and MAX_OPS.
-   * `expansions` counts the whole script's expansion tree against MAX_TEMPLATE_EXPANSIONS. */
+  // Expands `@use stencil <words> [args…]` into the body of the LONGEST defined name prefixing
+  // the run, @1..@n from the rest; nested, bounded by MAX_TEMPLATE_DEPTH / _EXPANSIONS / _OPS.
   bool expandStencilUse(const Stmt& use, std::vector<TemplateDef>& templates, int depth,
                         int& expansions, std::vector<Stmt>& out,
                         std::vector<Diagnostic>& diags);

@@ -5,10 +5,8 @@
 #  error "define STENCIL_ABI(wasmName, cliName) before including abi/scriptShared.inc"
 #endif
 
-/* Handle-owned strings: every const char* returned here points INTO the handle's own
- * memory and stays valid until scriptDestroy(h). This is the one exception to the
- * "returned strings are static" rule in cliApi.h. An unknown handle yields NULL / 0 / -1,
- * never a crash. */
+/* Handle-owned strings: every const char* here stays valid until scriptDestroy(h) — the one
+ * exception to cliApi.h's "returned strings are static". An unknown handle: NULL / 0 / -1. */
 
 // static, not an anonymous namespace: this file is included inside an extern "C" block.
 static stencil::core::abi::HandleTable<stencil::core::script::ScriptProgram>& scriptTable() {

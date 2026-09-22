@@ -5,9 +5,8 @@
 // Per-block edit bookkeeping for @undo / @redo. Port target: browser/js/core/script/undo.js.
 namespace stencil::core::script {
 
-  /* Edits are numbered 1..n as written and never renumbered. Undoing marks one dead; the
-   * ledger RE-DERIVES the state at each @save with one undo{steps} back to the last
-   * agreeing edit plus a replay of the survivors, so no adapter counts undos. */
+  /* Edits are numbered 1..n as written and never renumbered. At each @save the ledger re-derives
+   * the state: one undo{steps} back to the last agreeing edit, then a replay of the survivors. */
   class EditLedger {
    public:
     // Records an emitted edit; `text` is the normalized source `@undo @line …` matches on.
