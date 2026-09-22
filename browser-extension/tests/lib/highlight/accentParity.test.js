@@ -1,5 +1,6 @@
-// src/lib/accent.js's list against the two copies that cannot import it — lib/color.js
-// and browser/js/config/accents.json — plus the on-accent ink the same list decides.
+// src/lib/accent.js's list against the copies that cannot import it — lib/color.js and the
+// literal in content/pageApiBridge.js — and against the canonical browser/js/config/accents.json,
+// plus the on-accent ink the same list decides.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { loadAccent } from '../../helpers/accentSandbox.js';
 import { ACCENT_HEX, DEFAULT_HL } from '../../../src/lib/highlight/color.js';
 
-// ── Parity with the two copies that cannot import this file ──
+// ── Parity with the copies that cannot import this file ──
 
 test('ACCENT_HEX in lib/color.js matches the list exactly', () => {
   const { accent } = loadAccent();
@@ -38,6 +39,26 @@ test('the browser palette (config/accents.json) carries the same keys and hexes'
     browserAccents,
     'the extension and browser accent palettes drifted',
   );
+});
+
+test('the ACCENT_HEX literal in content/pageApiBridge.js matches the list exactly', () => {
+  const { accent } = loadAccent();
+  const src = readFileSync(
+    fileURLToPath(new URL('../../../src/content/pageApiBridge.js', import.meta.url)),
+    'utf8',
+  );
+  // An ISOLATED-world classic content script: it cannot import, so it inlines the table.
+  const m = /const ACCENT_HEX = (\{[^}]*\});/.exec(src);
+  assert.ok(m, 'could not locate the ACCENT_HEX literal in pageApiBridge.js');
+  // eslint-disable-next-line no-new-func
+  const fromBridge = new Function(`return (${m[1]});`)();
+  const fromAccentJs = Object.fromEntries(accent.list.map((a) => [a.key, a.hex]));
+  assert.deepEqual(
+    fromBridge,
+    fromAccentJs,
+    'pageApiBridge.js ACCENT_HEX drifted from lib/accent.js — it says "keep in sync"',
+  );
+  assert.equal(fromBridge.violet, DEFAULT_HL, 'the bridge falls back to the default accent');
 });
 
 test('the extension and the browser deliberately use DIFFERENT storage keys', () => {

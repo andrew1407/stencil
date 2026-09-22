@@ -28,8 +28,7 @@ export async function startLlmStub({ port = 0, host = '127.0.0.1' } = {}) {
   const requests = [];
   /** @type {string[]} */
   const queue = [];
-  // While `hold()` is armed every POST reply waits for `release()`, so concurrent chats stay in
-  // flight upstream and a caller can observe the server's LLM_MAX_IN_FLIGHT gate.
+  // While `hold()` is armed every POST reply waits for `release()`, so calls stay in flight upstream.
   /** @type {{ promise: Promise<void>, resolve: () => void } | null} */
   let gate = null;
 

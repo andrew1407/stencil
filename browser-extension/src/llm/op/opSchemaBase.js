@@ -1,5 +1,6 @@
-// Byte-identical copy of browser/js/llm/plan/schemaBase.js (portParity.test.js): the closure-free
+// Byte-identical copy of browser/js/llm/plan/opSchemaBase.js (portParity.test.js): the closure-free
 // base of schema.js — value predicates, the SchemaError, message paths and the native rules.
+// It keeps the original's name: the pin compares import specifiers by basename.
 
 export const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 export const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v);

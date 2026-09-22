@@ -61,9 +61,11 @@ convention; no lint.
 | `helpers/stcCases.js` | reads the shared `.stc` corpus (`browser/js/config/script/fixtures/cases.txt`): a case's script and its expected diagnostics | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
 | `helpers/serverApi.js`, `wire.js` | REST helpers (token issuance with `X-Admin-Token`, project CRUD); WS + raw-TCP clients for the live-edit protocol | |
 | `helpers/chat.js`, `drag.js`, `uiPin.js` | LLM wire-shape readers + the chat gestures; the real-finger CDP touch driver; the computed-style + DOM-shape pin recorder | |
+| `helpers/png.js` | `solidPng(w, h, rgb)` / `pngFile(w, h, name)`: a real truecolour PNG encoded with Node's own `zlib` | the picture a spec hands a file input; `fixtures/pixel.png` is 1x1, too small for a preview, a crop or a dust stage |
 | `helpers/llm-stub.js` | the scriptable stub LLM (openai-compat / ollama / Anthropic Messages) | **all model traffic ends here**; no spec reaches a real provider |
 | `fixtures/` | host pages the extension scanner loads over http, `project.stencil`, `cli-layout.json` | `project.stencil` is opened by BOTH the browser and the cli specs, so the two surfaces are proven on the same bytes |
 | `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state | only `macos/` is recorded; other platforms skip |
+| `tests/sizeBudget.test.js`, `sizeBudget.json` | the surface's size + comment ratchet: the 230-line cap, the recorded floors, the per-directory comment share | a `node --test` lint, not a spec — it reads `playwright.config.js` to prove every spec is claimed by a project; `npm test` runs it before Playwright |
 | `tests/browser/`, `tests/browser-extension/`, `tests/fullstack/`, `tests/server/`, `tests/cli/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
 
 ## Entities
@@ -257,6 +259,11 @@ round trip; `server-protocol` the REST lifecycle and last-writer-wins guard, the
 edit fan-out, presence, keepalive reaping and the spend controls, with no browser at all;
 `cli` the argv and stderr grammar against the written PNG's real dimensions, and the `.stc`
 flags and console verb over the shared corpus — which the browser's script window runs too.
+
+The ratchet beside the specs is the one test here that drives nothing: it caps a new file at
+230 lines, holds every recorded file and the shared `helpers/` folder at today's count, and
+fails on a spec no project's `testMatch` claims — which would otherwise report neither pass
+nor skip.
 
 A missing prerequisite is a reported skip, never a pass: the stack-backed specs skip without
 `E2E_STACK=1`, the `cli` project without a binary, the LLM specs when the server reports its

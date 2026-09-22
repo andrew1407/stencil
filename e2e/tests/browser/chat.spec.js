@@ -561,11 +561,6 @@ test.describe('AI assistant chat panel', () => {
 
   // Fullscreen shows a CLONE of the toolbar (layer.js): the clone is a snapshot, so it
   // cannot follow the panel's open state, and the original #chat-btn it forwards to measures 0×0.
-  /* A double-click a HUMAN would make: two presses a beat apart, the second carrying the
-   * clickCount that raises `dblclick`. Opening the panel on the FIRST click docked it and
-   * pushed #chat-btn ~350px along the toolbar, so the second press landed on empty chrome
-   * and the compact gesture never reached the icon. Playwright's own dblclick() dispatches
-   * both presses before layout reflows, which is why it never caught this. */
   test('a paced double-click on the chat icon opens the compact popover', async ({ page }) => {
     await gotoApp(page);
     const panel = page.locator('#chat-panel');
