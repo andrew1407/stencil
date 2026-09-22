@@ -84,7 +84,20 @@ through a collaboration server's proxy, reads the page's images off the scan.
 
 ## Options
 
-Editor URL, page size, appearance and motion, server connections, the assistant's provider,
-and the pinned images all live on the options page.
+The editor URL, the page size, the accent, appearance and motion, and the hand-off to the
+desktop app are all set on the options page.
 
-![the options page](img/options.png)
+![the general options](img/options-general.png)
+
+Servers are connected and reconnected there too, and a connection is what lets a pin, a
+project or the assistant live somewhere other than this browser.
+
+![the server connections](img/options-connections.png)
+
+The assistant's provider, endpoint and model sit below them.
+
+![the assistant's provider](img/options-assistant.png)
+
+Every image you pinned is listed at the bottom — searchable, and removable one at a time.
+
+![the pinned images](img/options-pins.png)

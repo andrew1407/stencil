@@ -11,8 +11,8 @@
   ],
   "viewports": {
     "popup": {
-      "width": 380,
-      "height": 720
+      "width": 400,
+      "height": 1600
     },
     "site": {
       "width": 1280,

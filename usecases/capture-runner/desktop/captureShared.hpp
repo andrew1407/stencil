@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QImage>
 #include <QPainter>
+#include <QPalette>
 #include <QPixmap>
 #include <QString>
 #include <QTimer>
@@ -40,18 +41,26 @@ inline void save(const QString& name, QWidget* w) {
 inline constexpr int MODAL_MARGIN_PX = 64;
 
 inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
-  QImage base = win->grab().toImage();
+  const QPixmap shot = win->grab();
   const QPixmap top = dlg->grab();
-  const QPoint at((win->width() - dlg->width()) / 2, (win->height() - dlg->height()) / 2);
+  // The canvas takes the dialog AND its margin even when they outgrow the window: composed into
+  // the window grab alone, a dialog sized off the screen lost its footer row to the crop below.
+  const QSize margin(MODAL_MARGIN_PX * 2, MODAL_MARGIN_PX * 2);
+  const QSize canvas = win->size().expandedTo(dlg->size() + margin);
+  const qreal dpr = shot.devicePixelRatio();
+  QImage base(QSize(qRound(canvas.width() * dpr), qRound(canvas.height() * dpr)),
+              QImage::Format_ARGB32_Premultiplied);
+  base.setDevicePixelRatio(dpr);
+  base.fill(win->palette().color(QPalette::Window));
   QPainter p(&base);
-  p.fillRect(QRect(QPoint(), win->size()), QColor(0, 0, 0, 80));
+  p.drawPixmap(QPoint((canvas.width() - win->width()) / 2, (canvas.height() - win->height()) / 2), shot);
+  p.fillRect(QRect(QPoint(), canvas), QColor(0, 0, 0, 80));
+  const QPoint at((canvas.width() - dlg->width()) / 2, (canvas.height() - dlg->height()) / 2);
   p.drawPixmap(at, top);
   p.end();
-  QRect box(at - QPoint(MODAL_MARGIN_PX, MODAL_MARGIN_PX),
-            dlg->size() + QSize(MODAL_MARGIN_PX * 2, MODAL_MARGIN_PX * 2));
-  box &= QRect(QPoint(), win->size());
+  QRect box(at - QPoint(MODAL_MARGIN_PX, MODAL_MARGIN_PX), dlg->size() + margin);
+  box &= QRect(QPoint(), canvas);
   // grab() hands back a device-pixel image with its ratio set; copy() counts device pixels.
-  const qreal dpr = base.devicePixelRatio();
   QImage out = base.copy(QRect(box.topLeft() * dpr, box.size() * dpr));
   out.setDevicePixelRatio(dpr);
   save(name, out);
