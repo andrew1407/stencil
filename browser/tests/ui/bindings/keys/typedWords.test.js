@@ -75,6 +75,12 @@ test('a field with the caret in it keeps its keys, and so does any chord', () =>
   type('neonon', { ctrlKey: true });
   assert.equal(logoStageOpen(), false, 'held with a modifier');
 
+  // A spin box hands its keys to a line edit inside it: the caret's element is what counts.
+  doc.activeElement = createStubElement('input');
+  type('neonon');
+  doc.activeElement = null;
+  assert.equal(logoStageOpen(), false, 'the caret is in a field the keys did not land on');
+
   // A named key is not a character, so it neither matches nor breaks the run.
   type('neon');
   doc.dispatch('keydown', { key: 'Shift', target: body });

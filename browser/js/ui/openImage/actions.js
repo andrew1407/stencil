@@ -35,7 +35,7 @@ export function wireOpenActions({ app, els, preview, src, frameSeconds, openOpts
     const resolved = await resolveSource();
     if (!resolved) return;
     app.openImageNewTab(resolved, incog.checked, opts);
-    close();
+    close({ here: false });   // the image lands in the OTHER tab; this editor keeps its own state
   });
   replaceBtn.addEventListener('click', async () => {
     if (preview.tab() !== 'file' || !src.chosenFile() || !canReplace()) return;

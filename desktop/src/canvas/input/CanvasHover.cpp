@@ -1,6 +1,7 @@
 #include "CanvasWidget.hpp"
 #include "CanvasWidget.hpp"
 #include "hitTest.hpp"
+#include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/motionPrefs.hpp"
 
 #include <QCursor>
@@ -128,11 +129,18 @@ namespace stencil::gui {
       idleShimmerAnim->setDuration(750);
       idleShimmerAnim->setStartValue(0.0);
       idleShimmerAnim->setEndValue(1.0);
-      idleShimmerAnim->setEasingCurve(QEasingCurve::InOutQuad);
-      connect(idleShimmerAnim, &QVariantAnimation::valueChanged, this,
-              [this](const QVariant& v) { idleShimmerT = v.toDouble(); update(); });
-      connect(idleShimmerAnim, &QVariantAnimation::finished, this,
-              [this] { idleShimmerT = -1.0; update(); });
+      idleShimmerAnim->setEasingCurve(shimmerEase());   // the browser's `ease`, not a slow start
+      // Mirrored to a property (ShimmerOverlay's idiom), so a test samples the band, not the clock.
+      connect(idleShimmerAnim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+        idleShimmerT = v.toDouble();
+        setProperty("idleSweepProgress", idleShimmerT);
+        update();
+      });
+      connect(idleShimmerAnim, &QVariantAnimation::finished, this, [this] {
+        idleShimmerT = -1.0;
+        setProperty("idleSweepProgress", idleShimmerT);
+        update();
+      });
     }
     idleShimmerAnim->stop();
     idleShimmerT = 0.0;

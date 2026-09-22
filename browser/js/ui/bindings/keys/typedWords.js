@@ -1,5 +1,5 @@
 // A word typed into the bare window opens its logo show. One listener, one string compare per
-// printable key: no timers, and a focused field keeps every key it is given.
+// printable key: no timers, and every key is the caret's while any field holds it.
 import { isTypingTarget } from '../../../utils.js';
 import { TYPED_WORDS, SHOW_NAMES } from '../../logo/stageRules.js';
 import { activateShow } from '../../logo/stageTrigger.js';
@@ -24,7 +24,8 @@ export const typedLetter = (e) => {
 export function wireTypedWords(app, doc = document) {
   let buffer = '';
   doc.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) { buffer = ''; return; }
+    if (e.ctrlKey || e.metaKey || e.altKey ||
+        isTypingTarget(e.target) || isTypingTarget(doc.activeElement)) { buffer = ''; return; }
     const letter = typedLetter(e);
     if (!letter) return;
     buffer = (buffer + letter).slice(-LONGEST);

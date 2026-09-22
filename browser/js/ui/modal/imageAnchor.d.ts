@@ -9,8 +9,11 @@ export declare const IMAGE_ANCHOR_PX: number;
 /** A small box on the canvas area's centre, falling back to the window's centre. */
 export declare const canvasAnchorRect: () => AnchorRect;
 
-/** The visible half of the toolbar's Open Image pair, else the canvas centre. */
-export declare const openImageAnchorRect: () => AnchorRect | DOMRect;
+/** The half of the toolbar's Open Image pair the OUTCOME leaves showing, else the canvas centre. */
+export declare const openImageAnchorRect: (imageOpen?: boolean) => AnchorRect | DOMRect;
+
+/** Where a toolbar control sits once the editor is empty. */
+export declare const emptiedControlRect: (id: string) => AnchorRect | DOMRect;
 
 /** confirmModal opts: open from the canvas, close into the Open control when an image opens. */
 export declare const openImageConfirmAnchors: (opensImage?: (answer: unknown) => boolean) => {

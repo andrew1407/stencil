@@ -1,7 +1,7 @@
 // The open-image flow's two flight rules (support/modal/imageAnchor.hpp), the port of
 // browser/tests/ui/modal/imageAnchor.test.js: a confirm about opening an image grows out of the
-// CANVAS CENTRE however it was raised, and an answer that OPENS an image pours into whichever half
-// of the toolbar's Open pair is showing, while a cancel goes back to the canvas.
+// CANVAS CENTRE however it was raised, and an answer that OPENS an image pours into the place the
+// toolbar's ⧉ icon takes once it is in, while a cancel goes back to the canvas.
 #include "imageAnchor.hpp"
 
 #include <QApplication>
@@ -43,12 +43,16 @@ int main(int argc, char** argv) {
   check(canvasAnchorRect(viewport) == canvasAnchorRect(&host), "any widget of the window answers the same");
   check(canvasAnchorRect(nullptr).isNull(), "no window, no anchor");
 
-  // The pair swaps on hasImage (refreshActions), so whichever half is showing answers.
+  // The icon is where an answer that opens an image lands, hidden or not: the swap that shows it
+  // runs after the dialog is gone, so the anchor is read where the icon WILL be.
   check(openImageAnchorRect(&host) == globalOf(*openAnother), "an image is open: the ⧉ icon");
   openAnother->hide();
-  check(openImageAnchorRect(&host) == globalOf(*openImage), "…so the \"Open Image\" button answers");
+  check(openImageAnchorRect(&host) == globalOf(*openAnother), "…and it answers while its swap is still in the air");
+  openAnother->setObjectName(QStringLiteral("notTheOpenPair"));
+  check(openImageAnchorRect(&host) == globalOf(*openImage), "no icon at all: the \"Open Image\" button answers");
   openImage->hide();
-  check(openImageAnchorRect(&host) == canvasAnchorRect(&host), "neither half showing: the canvas stands in");
+  check(openImageAnchorRect(&host) == canvasAnchorRect(&host), "neither half there: the canvas stands in");
+  openAnother->setObjectName(QLatin1String(OPEN_ANOTHER_BTN_NAME));
   openAnother->show();
   openImage->show();
 
