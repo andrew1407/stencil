@@ -106,7 +106,11 @@ namespace stencil::gui {
     bar->setAttribute(Qt::WA_StyledBackground, true);
     auto* lay = new QHBoxLayout(bar);
     lay->setContentsMargins(0, 0, 0, 0);
-    lay->addWidget(imageSizeInfo);   // left-aligned label; the bar spans the window width
+    lay->setSpacing(0);   // the two labels carry their own gap in contentsMargins
+    // One vertical alignment for both, so neither is re-placed by the other's arrival; the bar
+    // itself spans the window width and the labels stay left.
+    lay->addWidget(imageSizeInfo, 0, Qt::AlignVCenter);
+    lay->addWidget(incognitoTag, 0, Qt::AlignVCenter);
     lay->addStretch(1);
     imageInfoBar = bar;
 

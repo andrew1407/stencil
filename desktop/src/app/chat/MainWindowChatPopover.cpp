@@ -121,6 +121,12 @@ namespace stencil::gui {
   void MainWindow::refreshStatusHintVisibility() {
     // The size line goes with the tool rows; the "?" takes over. Two readouts, one at a time.
     if (imageSizeInfo) imageSizeInfo->setVisible(toolbarsShown);
+    // The badge rides that line, and comes and goes in the selected motion: dust in the
+    // particle modes, the slot alone in `slide`, a plain show/hide under `none`.
+    if (incognitoTag) {
+      reserveImageInfoHeight();
+      revealControls(incognitoTag, toolbarsShown && incognito);
+    }
     if (!statusHintAction) return;
     const bool live = (canvas && canvas->hasImage()) || incognito;
     statusHintAction->setVisible(live && !toolbarsShown);

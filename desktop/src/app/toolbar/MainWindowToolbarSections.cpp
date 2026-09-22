@@ -11,6 +11,7 @@
 #include "theme.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"   // section buttons come and go as sand
 #include "../../support/icon/iconMotion.hpp"
+#include "../../support/modal/imageAnchor.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 
@@ -110,6 +111,9 @@ namespace stencil::gui {
         btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
       });
       btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+      // The Open pair's icon half: modal/imageAnchor.hpp reads it by name, as the browser
+      // reads #open-image-btn.
+      if (a == actOpenAnother) btn->setObjectName(QLatin1String(OPEN_ANOTHER_BTN_NAME));
       if (a == actStartDraw) {
         startDrawBtn = btn;   // styled accent while a draw session is active
         // The browser's #draw-toggle: label beside the icon (iconText() is the short

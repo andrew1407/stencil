@@ -36,7 +36,8 @@
 
 namespace stencil::gui {
 
-  // Hold the row at its TALLER state's height (the incognito glyph is ~2px taller). Measured on a throwaway twin; cached until font/theme changes.
+  // Hold the row at the TALLER of its two labels (the badge's glyph line runs ~2px over the size
+  // text), so which of them is up never decides the row. Twin-measured; cached until font/theme changes.
   void MainWindow::reserveImageInfoHeight() {
     if (!imageSizeInfo) return;
     const QString key = imageSizeInfo->font().key() + QLatin1Char('|') +
@@ -44,20 +45,25 @@ namespace stencil::gui {
                         QLatin1Char('|') + settings.themeMode + QLatin1Char('|') +
                         settings.accentColor;
     if (key != imageInfoHeightKey || imageSizeInfo->minimumHeight() <= 0) {
-      QLabel twin;
-      twin.setFont(imageSizeInfo->font());
-      twin.setStyleSheet(imageSizeInfo->styleSheet());
-      twin.setContentsMargins(imageSizeInfo->contentsMargins());   // sizeHint() honours these
-      twin.ensurePolished();
-      twin.setTextFormat(Qt::PlainText);
-      twin.setText(QStringLiteral("No image loaded"));
-      int h = twin.sizeHint().height();
-      twin.setTextFormat(Qt::RichText);
-      twin.setText(QStringLiteral("Image Size: 8888 × 8888 px") + incognitoTagHtml());
-      h = std::max(h, twin.sizeHint().height());
+      const auto twinHeight = [](const QLabel& like, Qt::TextFormat format, const QString& text) {
+        QLabel twin;
+        twin.setFont(like.font());
+        twin.setStyleSheet(like.styleSheet());
+        twin.setContentsMargins(like.contentsMargins());   // sizeHint() honours these
+        twin.ensurePolished();
+        twin.setTextFormat(format);
+        twin.setText(text);
+        return twin.sizeHint().height();
+      };
+      int h = twinHeight(*imageSizeInfo, Qt::PlainText,
+                         QStringLiteral("Image Size: 8888 × 8888 px"));
+      if (incognitoTag) h = std::max(h, twinHeight(*incognitoTag, Qt::RichText, incognitoTagHtml()));
       imageInfoHeightKey = key;
       imageSizeInfo->setFixedHeight(h);
     }
+    // Both labels wear the reserved height whether they are showing or not, so a badge that has
+    // never been measured yet cannot arrive taller than the row.
+    if (incognitoTag) incognitoTag->setFixedHeight(imageSizeInfo->minimumHeight());
     // The panel dock sits below the Image Size dock in the same stack, so no faked header gap.
     syncImageInfoDockHeight();
   }
@@ -108,22 +114,20 @@ namespace stencil::gui {
     if (imageSizeInfo) {
       // The row's height is RESERVED for the taller state, so switching cannot resize the bar.
       reserveImageInfoHeight();
-      // Browser parity (drawingApp.js updateInfo + .info-incognito): incognito rides INLINE. Our own text, never model output, so rich text is safe.
-      if (incognito) {
-        imageSizeInfo->setTextFormat(Qt::RichText);
-        imageSizeInfo->setText(size.toHtmlEscaped() + incognitoTagHtml());
-      } else {
-        imageSizeInfo->setTextFormat(Qt::PlainText);
-        imageSizeInfo->setText(size);
-      }
+      imageSizeInfo->setTextFormat(Qt::PlainText);
+      imageSizeInfo->setText(size);
     }
+    // Browser parity (projectTitle.js updateInfo + .info-incognito): the badge is a widget of
+    // its own beside the size. Our own text, never model output, so rich text is safe.
+    if (incognitoTag && incognito) incognitoTag->setText(incognitoTagHtml());
     // The "?" carries the SAME size plus the incognito line — the collapsed state's only readout.
     if (statusHint) {
       QString tip = size;
       if (incognito) tip += QStringLiteral("\nIncognito — not saved");
       statusHint->setToolTip(tip);
-      refreshStatusHintVisibility();
     }
+    // Last: it is what flies the badge, and it must photograph the text written above.
+    refreshStatusHintVisibility();
   }
 
   // Mini S-mark logo, a QPainter port of the browser's app-logo SVG (toolbar.js); only the frame tracks the accent.

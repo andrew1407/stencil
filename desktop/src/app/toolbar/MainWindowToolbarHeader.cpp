@@ -118,6 +118,13 @@ namespace stencil::gui {
     // padding), 11px top/bottom.
     imageSizeInfo->setContentsMargins(10, 11, 10, 11);
     imageSizeInfo->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    // Its own widget, so it can come and go in the selected motion; the size line's right
+    // margin is the gap in front of it (browser: the .hints-incognito span).
+    incognitoTag = new QLabel(this);
+    incognitoTag->setTextFormat(Qt::RichText);
+    incognitoTag->setContentsMargins(0, 11, 10, 11);
+    incognitoTag->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    incognitoTag->hide();
     addToolBarBreak();
   }
 

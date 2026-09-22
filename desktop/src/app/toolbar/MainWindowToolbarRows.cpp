@@ -12,6 +12,7 @@
 #include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
+#include "../../support/modal/imageAnchor.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include <QAction>
 #include <QCheckBox>
@@ -61,6 +62,8 @@ namespace stencil::gui {
     // With no image the cluster is one labelled "Open Image" button; refreshActions swaps in the
     // icon row (browser: #load-image-btn ↔ #open-image-btn).
     openImageBtn = new OpenImageButton(this);
+    // The pair's empty-state half, named for modal/imageAnchor.hpp (browser #load-image-btn).
+    openImageBtn->setObjectName(QLatin1String(OPEN_IMAGE_BTN_NAME));
     openImageBtn->setDefaultAction(actOpen);
     openImageBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     openImageBtn->setAutoRaise(true);
