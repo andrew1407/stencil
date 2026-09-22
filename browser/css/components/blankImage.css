@@ -28,6 +28,9 @@
    toward white) instead of the solid accent fill its desktop twin blends toward
    (IdleCard.cpp's `mixSrgb(bgControls, accent, t)`, t=1 at rest-hover). */
 .idle-create-btn:hover { border-color: var(--border-main); background: var(--accent); color: var(--on-accent); }
+/* Closing the blank modal restores focus here, and the UA ring then reads as a stray
+   selection around the card; hover/active already say where the pointer is. */
+.idle-create-btn:focus, .idle-create-btn:focus-visible { outline: none; }
 .idle-create-icon { font-size: 32px; line-height: 1; }
 /* White/black preset chips in the blank-image modal */
 .bi-presets { display: flex; gap: 8px; }

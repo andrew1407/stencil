@@ -70,6 +70,7 @@ input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor:
 @keyframes dropZonePulse { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
 #global-drop-overlay .drop-zone-right .drop-icon { color: var(--text-muted); }
 #global-drop-overlay .drop-zone p { font-size: 20px; font-weight: bold; color: var(--text-key); margin: 0; }
+#global-drop-overlay .drop-zone-right p { color: var(--text-muted); }
 #global-drop-overlay .drop-zone span { font-size: 13px; color: var(--text-muted); max-width: 90%; }
 #global-drop-overlay .drop-foot { flex: 0 0 auto; text-align: center; font-size: 13px; color: var(--text-muted); }
 /* Draw-mode toggle glyph (line / rect) — align with the button label. */

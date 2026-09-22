@@ -1910,6 +1910,9 @@
    "|#global-drop-overlay .drop-zone-right .drop-icon": {
     "color": "var(--text-muted)"
    },
+   "|#global-drop-overlay .drop-zone-right p": {
+    "color": "var(--text-muted)"
+   },
    "|#global-drop-overlay .drop-zone-right.drop-zone-active": {
     "background": "color-mix(in srgb, var(--text-muted) 30%, var(--bg-container))"
    },
@@ -5600,6 +5603,9 @@
     "border-radius": "10px",
     "transition": "border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease"
    },
+   "|.idle-create-btn:focus, .idle-create-btn:focus-visible": {
+    "outline": "none"
+   },
    "|.idle-create-btn:hover": {
     "border-color": "var(--border-main)",
     "background": "var(--accent)",
@@ -8451,6 +8457,7 @@
    "@keyframes dropZonePulse|50%",
    "|#global-drop-overlay .drop-zone-right .drop-icon",
    "|#global-drop-overlay .drop-zone p",
+   "|#global-drop-overlay .drop-zone-right p",
    "|#global-drop-overlay .drop-zone span",
    "|#global-drop-overlay .drop-foot",
    "|.draw-mode-icon",
@@ -8820,6 +8827,7 @@
    "|.idle-create",
    "|.idle-create-btn",
    "|.idle-create-btn:hover",
+   "|.idle-create-btn:focus, .idle-create-btn:focus-visible",
    "|.idle-create-icon",
    "|.bi-presets",
    "|.bi-preset",
