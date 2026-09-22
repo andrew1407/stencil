@@ -1,6 +1,8 @@
 #pragma once
 #include "ProjectMeta.hpp"
+#include "text.hpp"
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -21,7 +23,18 @@ namespace stencil::core {
     static constexpr const char* DEFAULT_PERIOD = "week";
 
     // Fixed durations (month=30d, year=365d) so the C++ and JS ports agree with no
-    // calendar library; unknown / empty is one week. Mirrors browser PERIOD_MS.
+    // calendar library. Row for row the PERIOD_MS of browser/js/core/project/meta/projectPeriods.js.
+    static constexpr std::array<Keyed<long long>, 7> PERIOD_MS = {{
+        {"day", DAY_MS},
+        {"week", EXPIRY_MS},
+        {"fortnight", 14 * DAY_MS},
+        {"month", 30 * DAY_MS},
+        {"3month", 90 * DAY_MS},
+        {"6month", 180 * DAY_MS},
+        {"year", 365 * DAY_MS},
+    }};
+
+    // Unknown / empty is one week.
     static long long periodMs(const std::string& period);
     static long long addPeriod(long long from, const std::string& period);
 

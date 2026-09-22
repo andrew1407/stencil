@@ -258,3 +258,32 @@ Two rules hold whoever emits:
 2. **The target's §10 row governs.** A directive that row cannot honour is refused with the
    span that named it, and nothing is written — an emitted script that cannot run is never
    produced.
+
+## §13 Lowered ops
+
+Lowering flattens every block body into one `Op` stream. An op carries `strs` (plain
+strings), `toks` (length tokens, resolved to pixels by `scriptOpResolve` against the size the
+host holds at that moment) and `nums` (plain numbers). `RECT` is a `LINE` with `locked = 1`.
+
+| Op kind | strs | toks | nums |
+|---|---|---|---|
+| `OPEN` (0) | source | — | sourceKind |
+| `FRAME` (1) | — | — | index |
+| `CROP` (2) | aspect | x1, x2, y1, y2 | album |
+| `FILTER` (3) | mode, tint | — | — |
+| `LINE` (4) / `RECT` (5) | color, style, fillColor, pointColor | x0, y0, x1, y1, … | thickness, pointSize, locked |
+| `LAYOUT` (6) | source, mode | — | sourceKind |
+| `SAVE` (7) | target | — | — |
+| `UNDO` (8) / `REDO` (9) | — | — | steps |
+
+`scriptOpResolve` writes, per kind:
+
+| Op kind | resolved doubles |
+|---|---|
+| `CROP` | `[x, y, w, h]` |
+| `LINE` / `RECT` | `[x0, y0, …, thickness, pointSize]`; a two-point rect expands to four corners |
+| `FRAME` / `UNDO` / `REDO` | `[n]` |
+| anything else | none (0) |
+
+An adapter executes this stream and never the grammar, which is what makes a script and a
+click one code path (§10).

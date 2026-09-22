@@ -22,6 +22,33 @@ double STENCIL_ABI(formulaApply, applyFormula)(const char* expr, int varName,
                               allowFormulas != 0);
 }
 
+// The same pair with named constants in reach: `x` / `y` (the other axis; `value` still
+// binds `varName`), PAGE_WIDTH / PAGE_HEIGHT in `unit` plus their _CM / _IN forms, and
+// IMAGE_WIDTH / IMAGE_HEIGHT in pixels. A non-finite context value is "not supplied": that
+// name stays unknown, so the formula is invalid and apply() returns `value`. `unit` is the
+// selected display unit — "in" converts, anything else (and NULL) reads as cm.
+int STENCIL_ABI(formulaValidateCtx, validateFormulaCtx)(const char* expr, double x, double y,
+                                                        double pageWcm, double pageHcm,
+                                                        double imageW, double imageH,
+                                                        const char* unit) {
+  return FormulaParser::validate(expr ? expr : "",
+                                 abi::toFormulaContext(x, y, pageWcm, pageHcm, imageW,
+                                                       imageH, unit))
+             ? 1
+             : 0;
+}
+
+double STENCIL_ABI(formulaApplyCtx, applyFormulaCtx)(const char* expr, int varName,
+                                                     double value, int allowFormulas,
+                                                     double x, double y, double pageWcm,
+                                                     double pageHcm, double imageW,
+                                                     double imageH, const char* unit) {
+  return FormulaParser::apply(expr ? expr : "", static_cast<char>(varName), value,
+                              allowFormulas != 0,
+                              abi::toFormulaContext(x, y, pageWcm, pageHcm, imageW, imageH,
+                                                    unit));
+}
+
 // Sobel edge detection in place on a width x height RGBA8 buffer: dark edges on a
 // white page, alpha preserved. Pinned integer math — the JS fallback
 // (contourFilter.js) must stay byte-identical. Null data / degenerate dims: no-op.
@@ -30,10 +57,8 @@ void STENCIL_ABI(applyContourRGBA, applyContour)(std::uint8_t* data, int width,
   applyContourRGBA(data, width, height);
 }
 
-// Parse a human duration ("days 23", "fortnight", "off") into ms (0 = keep forever),
-// written to *outMs; 0 return means invalid and leaves *outMs untouched. outMs is
-// int64 on BOTH ABIs — DurationParser caps ms at 2^53-1 (Number.isSafeInteger), so
-// the browser reads the slot losslessly as two 32-bit halves, no BigInt needed.
+// A human duration ("days 23", "fortnight", "off") -> *outMs, 0 = keep forever; a 0 return
+// is invalid. int64 on BOTH ABIs: ms caps at 2^53-1, so JS reads it as two 32-bit halves.
 int STENCIL_ABI(parseDuration, parseDuration)(const char* spec, long long* outMs) {
   static const DurationParser dp;
   long long ms = 0;

@@ -1,27 +1,42 @@
 #include "hotkeyFormat.hpp"
+#include "text.hpp"
+#include <array>
 #include <string>
 #include <vector>
 
 namespace stencil::core::hotkeyFormat {
 
   namespace {
+    // `order` is the Apple order: Control, Option, Shift, Command; -1 is "not a modifier".
+    struct MacModifier {
+      int order;
+      std::string_view glyph;
+    };
+
     // Ctrl→⌘ for DISPLAY (Qt swaps Ctrl/Meta on macOS for matching, but the table shows
-    // the key users press). orderOut is the Apple order: Control, Option, Shift, Command.
+    // the key users press).
+    constexpr std::array<Keyed<MacModifier>, 4> MAC_MODIFIERS = {{
+        {"Meta", {0, "⌃"}},
+        {"Alt", {1, "⌥"}},
+        {"Shift", {2, "⇧"}},
+        {"Ctrl", {3, "⌘"}},
+    }};
+
+    constexpr std::array<Keyed<std::string_view>, 4> MAC_KEYS = {{
+        {"Up", "↑"},
+        {"Down", "↓"},
+        {"Left", "←"},
+        {"Right", "→"},
+    }};
+
     std::string macModifier(const std::string& token, int& orderOut) {
-      if (token == "Meta")  { orderOut = 0; return "⌃"; }  // ⌃ Control
-      if (token == "Alt")   { orderOut = 1; return "⌥"; }  // ⌥ Option
-      if (token == "Shift") { orderOut = 2; return "⇧"; }  // ⇧ Shift
-      if (token == "Ctrl")  { orderOut = 3; return "⌘"; }  // ⌘ Command
-      orderOut = -1;
-      return {};
+      const MacModifier m = lookup(MAC_MODIFIERS, token, MacModifier{-1, ""});
+      orderOut = m.order;
+      return std::string(m.glyph);
     }
 
     std::string macKey(const std::string& token) {
-      if (token == "Up")    return "↑";
-      if (token == "Down")  return "↓";
-      if (token == "Left")  return "←";
-      if (token == "Right") return "→";
-      return token;
+      return std::string(lookup(MAC_KEYS, token, std::string_view(token)));
     }
 
     std::vector<std::string> split(const std::string& s, char sep) {

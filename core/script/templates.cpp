@@ -38,9 +38,8 @@ namespace stencil::core::script {
       return n;
     }
 
-    /* Longest defined name that is a prefix of the word run. The walk starts at the longest
-     * name there is, because no longer prefix can match, and shortens the candidate in place:
-     * re-joining every prefix made one call cost the SQUARE of its word count. */
+    /* Longest defined name prefixing the word run. Walks down from the longest name there is,
+     * shortening in place: re-joining every prefix cost the SQUARE of the word count. */
     int resolveName(const std::vector<std::string>& words,
                     const std::vector<TemplateDef>& templates, std::size_t& wordsUsed) {
       wordsUsed = 0;

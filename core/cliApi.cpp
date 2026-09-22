@@ -178,7 +178,7 @@ extern "C" {
 
   const char* stencil_cli_durationOffAliases(void) { return DurationParser::offAliases(); }
 
-  // Five more exports come from abi/shared.inc, verbatim with the wasm ABI.
+  // The rest come from abi/shared.inc and abi/scriptShared.inc, verbatim with the wasm ABI.
 #define STENCIL_ABI(wasmName, cliName) stencil_cli_##cliName
 #include "shared.inc"
 #include "scriptShared.inc"

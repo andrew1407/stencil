@@ -4,7 +4,15 @@
 #include "values.hpp"
 #include "text.hpp"
 
+#include <array>
+
 namespace stencil::core::script {
+
+  namespace {
+    // The word forms of @filter; anything else is a colour, i.e. the custom tint.
+    constexpr std::array<std::string_view, 5> FILTER_WORDS = {"bw", "sepia", "invert",
+                                                              "contour", "none"};
+  }  // namespace
 
   SourceKind classifySource(const std::string& spec) {
     if (spec.empty()) return SourceKind::PROJECT;
@@ -25,7 +33,7 @@ namespace stencil::core::script {
       return false;
     }
     const std::string low = toLowerAscii(word);
-    if (low == "bw" || low == "sepia" || low == "invert" || low == "contour" || low == "none") {
+    if (contains(FILTER_WORDS, low)) {
       op.strs = {low, ""};
       return true;
     }

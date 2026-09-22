@@ -209,6 +209,7 @@ TEST_CASE("size budget: comment share and folder fan-out per core directory") {
     const int cap = f == b.dirs.end() ? b.maxFilesPerDir : f->second;
     CHECK_MESSAGE(e.second.files <= cap, e.first << " holds " << e.second.files
                   << " (cap " << cap << ") — split it");
+    CHECK_MESSAGE(b.commentPct.count(e.first), e.first << " has no commentPct budget — record it");
   }
   for (const auto& entry : b.commentPct) {
     const auto found = byDir.find(entry.first);
