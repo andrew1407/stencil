@@ -15,6 +15,7 @@
 #include "logoStageMotion.hpp"
 #include "logoStageRules.hpp"
 
+class QKeyEvent;
 class QTimer;
 class QToolButton;
 
@@ -74,7 +75,7 @@ namespace stencil::gui {
     bool onMark(const QPoint& at) const;
     void rampBoost(double dt);
     void pressed(const QPoint& at);
-    bool typedKey(const QString& text);
+    bool typedKey(const QKeyEvent& e);
     bool lockEvent(QObject* o, QEvent* e);
 
     QWidget* hostWindow;

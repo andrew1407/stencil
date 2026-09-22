@@ -4,6 +4,7 @@
 #include "logoStageMotion.hpp"
 #include "logoStageRules.hpp"
 #include "motionPrefs.hpp"
+#include "typedLetter.hpp"
 #include "theme.hpp"
 
 #include <QApplication>
@@ -11,6 +12,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QKeyEvent>
 #include <cmath>
 #include <cstdio>
 
@@ -162,6 +164,33 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 100; ++i) flyStep(fly, 100, 100, 800, 600);
     const double mag = std::hypot(fly.vx, fly.vy);
     check(mag < 270 && mag >= cfg.flySpeedPx - 1e-6, "…and damps back to cruise, never under");
+  }
+
+  std::printf("the typed letter (browser typedWords.test.js):\n");
+  {
+    check(latinLetterOfNative(KeyPlatform::MAC, 0x23, 0) == QLatin1Char('p'), "macOS kVK_ANSI_P is p");
+    check(latinLetterOfNative(KeyPlatform::LINUX, 0, 33) == QLatin1Char('p'), "evdev KEY_P + 8 is p");
+    check(latinLetterOfNative(KeyPlatform::WINDOWS, 'P', 0) == QLatin1Char('p'), "VK_P is p");
+    check(latinLetterOfNative(KeyPlatform::MAC, 0x24, 0).isNull(), "Return is no letter");
+    check(latinLetterOfNative(KeyPlatform::LINUX, 0, 36).isNull(), "…on any platform");
+    bool roundTrip = true;
+    for (KeyPlatform p : {KeyPlatform::MAC, KeyPlatform::WINDOWS, KeyPlatform::LINUX})
+      for (char c = 'a'; c <= 'z'; ++c) {
+        const quint32 code = nativeCodeOfLetter(p, QLatin1Char(c));
+        roundTrip = roundTrip && latinLetterOfNative(p, code, code) == QLatin1Char(c);
+      }
+    check(roundTrip, "every letter's native code reads back as that letter, on every platform");
+    const quint32 p = nativeCodeOfLetter(hostKeyPlatform(), QLatin1Char('p'));
+    QKeyEvent cyrillic(QEvent::KeyPress, Qt::Key_unknown, Qt::NoModifier, p, p, 0, QString::fromUtf8("з"));
+    check(typedLetter(cyrillic) == QLatin1Char('p'), "a Cyrillic key spells its position's US letter");
+    QKeyEvent azerty(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier,
+                     nativeCodeOfLetter(hostKeyPlatform(), QLatin1Char('q')),
+                     nativeCodeOfLetter(hostKeyPlatform(), QLatin1Char('q')), 0, QStringLiteral("a"));
+    check(typedLetter(azerty) == QLatin1Char('a'), "a Latin key spells its own label (AZERTY)");
+    QKeyEvent digit(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, QStringLiteral("1"));
+    check(typedLetter(digit) == QLatin1Char('1'), "any other character still joins the buffer");
+    QKeyEvent shift(QEvent::KeyPress, Qt::Key_Shift, Qt::NoModifier);
+    check(typedLetter(shift).isNull(), "a bare modifier is nothing");
   }
 
   std::printf(failures ? "FAILED: %d\n" : "all passed (%d failures)\n", failures);

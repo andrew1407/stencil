@@ -105,7 +105,7 @@
     "desktop/tests/support": 11,
     "desktop/tests/support/control/swap": 12,
     "desktop/tests/support/icon": 11,
-    "desktop/tests/support/logo": 4,
+    "desktop/tests/support/logo": 3,
     "desktop/tests/support/menu": 6,
     "desktop/tests/support/modal": 8,
     "desktop/tests/support/motion": 12,
