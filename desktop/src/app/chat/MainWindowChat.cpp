@@ -90,7 +90,11 @@ namespace stencil::gui {
     if (hasWork) {
       // §2.1: with exactly one attachment an unnamed `save` names itself after it; with several, only an `image` op decides.
       chatActiveAttachment = chatTurnAttachments.size() == 1 ? 1 : 0;
-      res = llm::executePlan(plan, target);
+      {
+        // The appliers await async work in nested loops, so the sync timers and Send stand down.
+        FlagScope planScope(planRunning);
+        res = llm::executePlan(plan, target);
+      }
       // Skipped actions (§2.1) are reported, never silent.
       for (const QString& n : res.notes) {
         if (chatReplyHeld) {  // held turn: ride inside the eventual (one) bubble

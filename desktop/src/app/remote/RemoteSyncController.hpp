@@ -28,15 +28,17 @@ namespace stencil::gui {
     };
 
     RemoteSyncController(QObject* parent, RemoteSession* session, const bool* remoteReloading,
-                         const bool* remotePushing, Hooks hooks);
+                         const bool* remotePushing, const bool* planRunning, Hooks hooks);
 
     void scheduleRemotePush();
     void startRemotePoll();
     void stopRemotePoll();
 
+    // The peer-change entry: a LiveFeed event, or a version the poll found ahead of ours.
+    void onRemoteProjectEvent(const QString& id, qint64 version, bool deleted);
+
    private:
     void ensureLiveFeed();
-    void onRemoteProjectEvent(const QString& id, qint64 version, bool deleted);
     void pollRemoteForUpdate();
 
     QTimer* pushTimer;
@@ -48,6 +50,7 @@ namespace stencil::gui {
     RemoteSession* session;       // the server-project session (link state + connections)
     const bool* remoteReloading;  // owned by MainWindow (true while an async reload is in flight)
     const bool* remotePushing;    // owned by MainWindow (true while an async push is in flight)
+    const bool* planRunning;      // owned by MainWindow (true while an op plan holds the canvas)
     Hooks h;
   };
 

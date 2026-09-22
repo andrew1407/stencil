@@ -26,7 +26,7 @@ namespace stencil::gui {
     // Owns the debounce/poll/reload timers + the LiveFeed and composes remoteSession; the
     // reentrancy flags and the async save/open stay here as hooks.
     remoteSync = std::make_unique<RemoteSyncController>(
-        this, remoteSession, &remoteReloading, &remotePushing,
+        this, remoteSession, &remoteReloading, &remotePushing, &planRunning,
         RemoteSyncController::Hooks{
             [this] { return settings.syncToServer; },
             [this] { return incognito; },

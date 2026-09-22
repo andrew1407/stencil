@@ -32,7 +32,8 @@ namespace stencil::gui {
   class RemoteSession : public QObject {
     Q_OBJECT
    public:
-    RemoteSession(QObject* parent, Notifications* notify);
+    RemoteSession(QObject* parent, Notifications* notify)
+        : QObject(parent), notify(notify) {}
 
     // By reference so MainWindow sets fields in place and bind()/unbind() it wholesale.
     RemoteLink& getLink() { return link; }

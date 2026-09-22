@@ -18,6 +18,19 @@ namespace stencil::gui {
 
   inline constexpr int CHAT_IMAGE_MAX_EDGE = 1568; // long-edge downscale bound (§7)
 
+  // Holds a flag for a scope and restores it on every exit, a return or a throw included.
+  class FlagScope {
+   public:
+    explicit FlagScope(bool& flag) : flag(flag), prev(flag) { this->flag = true; }
+    ~FlagScope() { flag = prev; }
+    FlagScope(const FlagScope&) = delete;
+    FlagScope& operator=(const FlagScope&) = delete;
+
+   private:
+    bool& flag;
+    const bool prev;
+  };
+
   // ≤1568 px on the long edge, PNG base64 (contract §7).
   inline llm::ChatImage encodeChatImage(const QImage& img) {
     QImage scaled = img;
