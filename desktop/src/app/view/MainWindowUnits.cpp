@@ -41,18 +41,36 @@ namespace stencil::gui {
                                 settings.customPageHeight);
   }
 
-  // Raw pixel -> page (cm), then the formula transform, as the browser's pixelToPageCoords
-  // (drawingApp.js ~1756).
-  core::Point MainWindow::pageCoords(double imageX, double imageY) const {
+  // What the f(x,y) names resolve to: the page in cm, the image in pixels — absent until one
+  // is open, so IMAGE_WIDTH / IMAGE_HEIGHT stay unknown — and the active display unit.
+  core::FormulaContext MainWindow::formulaContext() const {
     const auto dims = currentPageDimensions();
+    core::FormulaContext ctx;
+    ctx.pageWidthCm = dims.width;
+    ctx.pageHeightCm = dims.height;
+    if (canvas->hasImage()) {
+      ctx.imageWidth = canvas->imageWidth();
+      ctx.imageHeight = canvas->imageHeight();
+    }
+    ctx.unit = UnitsController::canonicalUnit(settings.units).toStdString();
+    return ctx;
+  }
+
+  // Raw pixel -> page (cm), then the formula transform, as the browser's pixelToPageCoords
+  // (pageMetrics.js). Both raw axes ride the context, so f(x) may read y and f(y) may read x.
+  core::Point MainWindow::pageCoords(double imageX, double imageY) const {
+    core::FormulaContext ctx = formulaContext();
+    const core::PageSize dims{ctx.pageWidthCm, ctx.pageHeightCm};
     const auto raw = core::pixelToPageRaw(imageX, imageY, dims,
                                           canvas->imageWidth(),
                                           canvas->imageHeight());
+    ctx.x = raw.x;
+    ctx.y = raw.y;
     core::Point p;
     p.x = core::FormulaParser::apply(settings.formulaX.toStdString(), 'x', raw.x,
-                                     settings.allowFormulas);
+                                     settings.allowFormulas, ctx);
     p.y = core::FormulaParser::apply(settings.formulaY.toStdString(), 'y', raw.y,
-                                     settings.allowFormulas);
+                                     settings.allowFormulas, ctx);
     return p;
   }
 

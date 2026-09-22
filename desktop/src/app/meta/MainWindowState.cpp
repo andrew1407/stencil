@@ -44,8 +44,9 @@ namespace stencil::gui {
     if (formulaCommitTimer) formulaCommitTimer->stop();   // a direct call pre-empts the pause
     const QString fx = formulaX->text().trimmed();
     const QString fy = formulaY->text().trimmed();
-    const bool okX = core::FormulaParser::validate(fx.toStdString(), 'x');
-    const bool okY = core::FormulaParser::validate(fy.toStdString(), 'y');
+    const core::FormulaContext ctx = formulaContext();
+    const bool okX = core::FormulaParser::validate(fx.toStdString(), ctx);
+    const bool okY = core::FormulaParser::validate(fy.toStdString(), ctx);
     formulaError->setVisible(!okX || !okY);
     if (okX && okY) {
       settings.formulaX = fx;

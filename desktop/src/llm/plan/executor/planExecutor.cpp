@@ -35,6 +35,19 @@ namespace stencil::llm {
 
   }  // namespace
 
+  core::FormulaContext PlanTarget::formulaContext() const {
+    core::FormulaContext ctx;
+    const core::PageSize page = pageCm();
+    ctx.pageWidthCm = page.width;
+    ctx.pageHeightCm = page.height;
+    if (hasImage()) {
+      const QSize px = workingSize();
+      ctx.imageWidth = px.width();
+      ctx.imageHeight = px.height();
+    }
+    return ctx;
+  }
+
   bool PlanTarget::setBlankColor(const QString&, QString* note) {
     if (note) *note = QStringLiteral("blankColor: not available here");
     return false;

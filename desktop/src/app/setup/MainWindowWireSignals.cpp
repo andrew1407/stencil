@@ -123,8 +123,9 @@ namespace stencil::gui {
     connect(formulaCommitTimer, &QTimer::timeout, this, [this] { validateAndApplyFormulas(); });
     const auto onFormulaEdited = [this](const QString&) {
       // A wrong expression is only flagged once typing stops.
-      const bool okX = core::FormulaParser::validate(formulaX->text().trimmed().toStdString(), 'x');
-      const bool okY = core::FormulaParser::validate(formulaY->text().trimmed().toStdString(), 'y');
+      const core::FormulaContext ctx = formulaContext();
+      const bool okX = core::FormulaParser::validate(formulaX->text().trimmed().toStdString(), ctx);
+      const bool okY = core::FormulaParser::validate(formulaY->text().trimmed().toStdString(), ctx);
       if (okX && okY) formulaError->setVisible(false);
       formulaCommitTimer->start();
     };

@@ -2,6 +2,8 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 
+#include <cmath>
+
 // Comfortably past the f(x,y) idle-commit delay (MainWindow.cpp FORMULA_COMMIT_MS), so a
 // "stopped typing" wait can't race the timer on a loaded machine.
 constexpr int FORMULA_SETTLE_MS = 1600;
@@ -110,6 +112,90 @@ class MainWindowGuiTest : public QObject {
 
     // Leave the persisted formula as we found it — the settings are shared across tests.
     fx->clear();
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
+  }
+
+  // The desktop's own pixelToPageCoords. The opened picture is album-shaped, so A4 lies on
+  // its side (29.7 x 21 cm) and every name below is measured against the raw point it gives.
+  void formulaNamesReachThePageTheImageAndTheOtherAxis() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.canvas->hasImage());
+    const int hadPage = win.units.pageSize->currentIndex();
+    const QString hadUnits = win.settings.units;
+    const int a4 = win.units.pageSize->findData(QStringLiteral("A4"));
+    QVERIFY(a4 >= 0);
+    win.units.pageSize->setCurrentIndex(a4);
+    win.settings.allowFormulas = true;
+    win.settings.units = QStringLiteral("cm");
+
+    const double imgW = win.canvas->imageWidth();
+    const double imgH = win.canvas->imageHeight();
+    QVERIFY(imgW > imgH);
+    const double rawX = 29.7 / imgW * 120.0;
+    const double rawY = 21.0 / imgH * 80.0;
+
+    const auto at = [&win](const char* fx, const char* fy) {
+      win.settings.formulaX = QString::fromLatin1(fx);
+      win.settings.formulaY = QString::fromLatin1(fy);
+      return win.pageCoords(120, 80);
+    };
+    const auto near = [](double got, double want) { return std::fabs(got - want) < 1e-9; };
+
+    QVERIFY2(near(at("", "").x, rawX) && near(at("", "").y, rawY), "the raw page point");
+    QVERIFY2(near(at("9", "").x, 9.0), "a constant-only formula needs no variable");
+    QVERIFY2(near(at("x / y", "PAGE_WIDTH - y").x, rawX / rawY), "f(x) reads y");
+    QVERIFY2(near(at("x / y", "PAGE_WIDTH - y").y, 29.7 - rawY), "f(y) reads PAGE_WIDTH");
+    QVERIFY2(near(at("IMAGE_WIDTH", "IMAGE_HEIGHT").x, imgW), "the image names are pixels");
+    QVERIFY2(near(at("IMAGE_WIDTH", "IMAGE_HEIGHT").y, imgH), "…on both axes");
+    QVERIFY2(near(at("PAGE_WIDTH_IN", "").x, 29.7 / 2.54), "_IN converts while showing cm");
+    win.settings.units = QStringLiteral("in");
+    QVERIFY2(near(at("PAGE_WIDTH", "").x, 29.7 / 2.54), "PAGE_WIDTH follows the display unit");
+    win.settings.units = QStringLiteral("cm");
+    QVERIFY2(near(at("PAGE_WIDTH", "").x, 29.7), "…and reads cm again");
+    QVERIFY2(near(at("PAGE_WIDTHS", "").x, rawX), "an unknown name leaves the raw coordinate");
+    win.settings.allowFormulas = false;
+    QVERIFY2(near(at("9", "").x, rawX), "formulas off leaves it too");
+
+    win.settings.formulaX.clear();
+    win.settings.formulaY.clear();
+    win.settings.units = hadUnits;
+    if (hadPage >= 0) win.units.pageSize->setCurrentIndex(hadPage);
+  }
+
+  // IMAGE_WIDTH / IMAGE_HEIGHT are unsupplied until a picture is open, so the field is
+  // flagged and nothing is committed — the coordinate keeps its raw value rather than 0.
+  void formulaImageNamesNeedAnImageOpen() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1600, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* pill = win.findChild<QCheckBox*>("formulaPill");
+    QVERIFY(pill && win.formulaX);
+    if (!pill->isChecked()) pill->setChecked(true);
+    QLabel* err = win.findChild<QLabel*>("formulaError");
+    QVERIFY(err);
+    win.formulaX->clear();
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
+
+    QVERIFY(!win.canvas->hasImage());
+    win.formulaX->setText(QStringLiteral("IMAGE_WIDTH"));
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
+    QVERIFY2(err->isVisible(), "an image name with no image open must be flagged");
+    QVERIFY2(win.settings.formulaX.isEmpty(), "…and must not commit");
+
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.canvas->hasImage());
+    win.validateAndApplyFormulas();
+    QVERIFY2(!err->isVisible(), "the same name resolves once a picture is open");
+    QCOMPARE(win.settings.formulaX, QStringLiteral("IMAGE_WIDTH"));
+    win.settings.allowFormulas = true;
+    QVERIFY(std::fabs(win.pageCoords(120, 80).x - win.canvas->imageWidth()) < 1e-9);
+
+    win.formulaX->clear();
     QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
   }
 
