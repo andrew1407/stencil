@@ -44,6 +44,7 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | Browser JS call site (wasm-backed) | Exported wasm function(s) |
 |---|---|
 | `core/parse/formulaEngine.js` validate / apply | `stencil_formulaValidate`, `stencil_formulaApply` (`stencil_formulaEvaluate` available) |
+| `core/parse/formulaEngine.js` validateCtx / applyCtx | `stencil_formulaValidateCtx`, `stencil_formulaApplyCtx` — the same parser with the page/image constants of `formulaContext.js`; an absent field crosses as NaN |
 | `utils.js` `distToSegment` | `stencil_distToSegment` |
 | `utils.js` `parseHex` (also feeds `hexToRgba`) | `stencil_parseHex` |
 | `drawingApp.js` `getPageDimensions` / `pixelToPageCoords` (raw) | `stencil_pageDimensions`, `stencil_pixelToPageRaw` (`stencil_pageFormats` lists the ISO names) |

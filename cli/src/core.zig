@@ -4,6 +4,7 @@
 //! the NUL (a literal already has one) instead of the wrapper duping one per call.
 //! The row-range slice of the same ABI lives in imageRows.zig, its only consumer.
 const std = @import("std");
+const formula = @import("core/formula.zig");
 
 const c = @cImport({
     @cInclude("core/cliApi.h");
@@ -149,15 +150,12 @@ pub fn rasterizeLine(buf: []u8, w: i32, h: i32, line: LineDraw) void {
         line.fill_color.ptr, line.point_color.ptr);
 }
 
-/// Validate a single-variable formula (`var_name` is 'x' or 'y'). Empty = valid (identity).
-pub fn validateFormula(expr: [:0]const u8, var_name: u8) bool {
-    return c.stencil_cli_validateFormula(expr.ptr, @as(c_int, var_name)) != 0;
-}
-
-/// Apply a formula to `value` ('x'/'y' variable). Identity when disabled, empty, or invalid.
-pub fn applyFormula(expr: [:0]const u8, var_name: u8, value: f64, allow: bool) f64 {
-    return c.stencil_cli_applyFormula(expr.ptr, @as(c_int, var_name), value, @intFromBool(allow));
-}
+// The formula bridge lives in core/formula.zig; re-exported so every caller goes through core.
+pub const FormulaCtx = formula.FormulaCtx;
+pub const validateFormula = formula.validateFormula;
+pub const applyFormula = formula.applyFormula;
+pub const validateFormulaCtx = formula.validateFormulaCtx;
+pub const applyFormulaCtx = formula.applyFormulaCtx;
 
 /// Parse a human duration ("days 23", "fortnight", "month", "off") into ms (0 for off/never), else
 /// null. The caller adds it to "now" to get an expiry timestamp.
@@ -230,13 +228,8 @@ test "resolveCrop + rotate helpers" {
     try testing.expect(d.w == 2 and d.h == 4);
 }
 
-test "formula validate + apply through the ABI" {
-    try testing.expect(validateFormula("x*2", 'x'));
-    try testing.expect(validateFormula("", 'x')); // empty = identity = valid
-    try testing.expect(!validateFormula("foo(x)", 'x')); // unknown ident = invalid
-    try testing.expectEqual(@as(f64, 20), applyFormula("x*2", 'x', 10, true));
-    try testing.expectEqual(@as(f64, 10), applyFormula("x*2", 'x', 10, false)); // disabled = identity
-    try testing.expectEqual(@as(f64, 10), applyFormula("bad(", 'x', 10, true)); // invalid = identity
+test {
+    _ = formula;
 }
 
 test "the core's expire vocabulary joins into the console help lists" {

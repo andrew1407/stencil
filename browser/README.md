@@ -79,8 +79,10 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   focused point.
 - **Per-line style** — colour, thickness, point size, solid / dashed / dotted.
 - **Points table** — edit coordinates numerically, with pixel ↔ page (cm) conversion and
-  optional `f(x,y)` formula transforms. Page formats cover the full ISO A/B/C series plus a
-  custom size.
+  optional `f(x,y)` formula transforms. Either formula may use both `x` and `y`, a bare
+  number, and the constants `PAGE_WIDTH`, `PAGE_HEIGHT` (in the selected display unit),
+  `PAGE_WIDTH_CM` / `_IN`, `PAGE_HEIGHT_CM` / `_IN` and `IMAGE_WIDTH` / `IMAGE_HEIGHT` (in
+  pixels). Page formats cover the full ISO A/B/C series plus a custom size.
 - **Image** — filters (B&W, sepia, invert, contour, custom tint), crop, quarter-turn rotate,
   zoom/pan, fit-to-window, a blank-page creator, undo/redo, drag-and-drop and clipboard
   paste for images and layout JSON.

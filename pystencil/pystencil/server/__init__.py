@@ -1,10 +1,12 @@
-from __future__ import annotations
+"""Stencil collaboration-server client (REST over urllib).
 
-# ── Stencil collaboration-server client (REST over urllib) ──
-# A port of the browser net layer (browser/js/net/connectionManager.js + remoteSync.js)
-# over the REST contract in server/internal/protocol/protocol.go. REST-only: it never
-# opens the /ws feed, so a "connection" here is a validated token + base URL.
-# The server is codec-free, so every upload passes w/h and an ext hint on the query.
+A port of the browser net layer (browser/js/net/connectionManager.js + remoteSync.js)
+over the REST contract in server/internal/protocol/protocol.go. REST-only: it never
+opens the /ws feed, so a "connection" here is a validated token + base URL.
+The server is codec-free, so every upload passes w/h and an ext hint on the query.
+"""
+
+from __future__ import annotations
 
 from .connection import ServerConnection
 from .diff import (

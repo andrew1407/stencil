@@ -39,19 +39,22 @@ pub fn effectivePageName(layout_page: ?[]const u8, blank_page: ?[]const u8) []co
     return layout_page orelse (blank_page orelse "");
 }
 
+/// A session's page in cm: custom dims as picked (never orientation-swapped), a named format
+/// oriented to the image, else the A4 default. The ONE derivation the `wrote` label and the
+/// formula context share.
+pub fn pageCmFor(page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) core.Page {
+    if (page_size.len == 0) return pageForImage(w, h);
+    if (std.ascii.eqlIgnoreCase(page_size, "custom")) {
+        if (custom_w > 0 and custom_h > 0) return .{ .w = custom_w, .h = custom_h };
+        return pageForImage(w, h);
+    }
+    return namedPageForImage(page_size, w, h);
+}
+
 /// The page label beside the px size ("<name> <w>×<h>cm", "custom <w>×<h>cm", or the A4 default). The
 /// ONE derivation shared by the one-shot wrote line and Session.pageFormatLabel; caller owns it.
 pub fn pageLabelAlloc(gpa: std.mem.Allocator, page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) ![]u8 {
-    var name: []const u8 = "A4";
-    var dims = pageForImage(w, h);
-    if (page_size.len != 0) {
-        name = page_size;
-        if (std.ascii.eqlIgnoreCase(page_size, "custom")) {
-            // Custom dims are reported as picked (never orientation-swapped to the image).
-            if (custom_w > 0 and custom_h > 0) dims = .{ .w = custom_w, .h = custom_h };
-        } else {
-            dims = namedPageForImage(page_size, w, h);
-        }
-    }
+    const name: []const u8 = if (page_size.len != 0) page_size else "A4";
+    const dims = pageCmFor(page_size, custom_w, custom_h, w, h);
     return std.fmt.allocPrint(gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
 }

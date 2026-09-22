@@ -49,7 +49,7 @@ class StencilCore {
   // Emscripten exposes each as `_<symbol>`; any absent rejects the whole core.
   #requiredExports = [
     'stencil_parseHex', 'stencil_distToSegment', 'stencil_formulaValidate',
-    'stencil_formulaApply', 'stencil_parseDuration', 'stencil_clampScale', 'stencil_shouldCloseShape',
+    'stencil_formulaApply', 'stencil_formulaValidateCtx', 'stencil_formulaApplyCtx', 'stencil_parseDuration', 'stencil_clampScale', 'stencil_shouldCloseShape',
     'stencil_isAlbumOrientation', 'stencil_cropAspect', 'stencil_cropResizeScale',
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
@@ -76,7 +76,8 @@ class StencilCore {
   // A stable list for tests/introspection.
   get opNames() {
     return [
-      'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply', 'parseDuration',
+      'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply',
+      'formulaValidateCtx', 'formulaApplyCtx', 'parseDuration',
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',

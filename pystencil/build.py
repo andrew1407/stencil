@@ -39,6 +39,7 @@ STENCIL_CORE_SOURCES = [
   "raster/imageOps.cpp",
   "raster/rasterize.cpp",
   "raster/imageFilter.cpp",
+  "parse/formulaContext.cpp",
   "parse/formulaParser.cpp",
   "parse/DurationParser.cpp",
   "parse/lengthTokens.cpp",

@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The derived-view pipeline and the page metrics it rests on.
 
 ``result()`` applies the CLI ``rebuild()`` order — rotate → crop → filter →
 rasterize lines — and the geometry helpers below are ported one-to-one from
 ``session.zig`` / ``pipeline.zig``.
 """
+
+from __future__ import annotations
 
 from .._ffi.types import NoneType
 from ..image import Image
@@ -172,15 +172,30 @@ class _DeriveApi:
       q -= 1
     return (x, y, rw, rh)
 
-  def _page_for_image(self, w: int, h: int) -> tuple[float, float]:
-    """Page size (cm) for crop metrics — port of ``pipeline.pageForImage``.
-
-    A landscape image lays the page on its side; portrait keeps it upright.
+  def _named_page_for_image(self, name: str, w: int, h: int) -> tuple[float, float]:
+    """A named format's cm dims oriented to a ``w``x``h`` image — port of
+    ``page.namedPageForImage``. A landscape image lays the page on its side.
     """
-    base = self._get_core().named_page_size("A4") or _A4_FALLBACK
-    bw, bh = base
+    bw, bh = self._get_core().named_page_size(name) or _A4_FALLBACK
     if w > h: return (max(bw, bh), min(bw, bh))
     return (min(bw, bh), max(bw, bh))
+
+  def _page_for_image(self, w: int, h: int) -> tuple[float, float]:
+    """Page size (cm) for crop metrics — port of ``pipeline.pageForImage`` (always A4)."""
+    return self._named_page_for_image("A4", w, h)
+
+  def _page_cm(self) -> tuple[float, float]:
+    """The page in cm this project's names resolve to — port of ``page.pageCmFor``: custom
+    dims as picked, a named format oriented to the image, else the A4 default.
+    """
+    w, h = self.image_size if self._original is not None else (0, 0)
+    name = self._page_size
+    if not name: return self._page_for_image(w, h)
+    if name.lower() == "custom":
+      if self._custom_page_width > 0 and self._custom_page_height > 0:
+        return (self._custom_page_width, self._custom_page_height)
+      return self._page_for_image(w, h)
+    return self._named_page_for_image(name, w, h)
 
   @staticmethod
   def _build_crop_spec(

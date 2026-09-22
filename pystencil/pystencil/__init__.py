@@ -11,6 +11,7 @@ __version__ = "0.1.0"
 
 # Public surface. All stdlib-only, no third-party deps.
 from . import codecs
+from ._ffi.formula import FormulaContext
 from .core import Core, get_core
 from .image import Image
 from .layout import Point, Line, Layout
@@ -44,6 +45,7 @@ Stencil = Editor
 
 __all__ = [
   "Core",
+  "FormulaContext",
   "get_core",
   "Image",
   "Point",

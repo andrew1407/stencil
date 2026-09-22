@@ -23,7 +23,7 @@
     "cli/src/llm/registry.zig": 37,
     "cli/src/llm/transport.zig": 215,
     "cli/src/llm/wire.zig": 41,
-    "cli/src/net.zig": 129,
+    "cli/src/net.zig": 83,
     "cli/src/pipeline.zig": 37,
     "cli/src/project.zig": 34,
     "cli/src/scrape.zig": 22,

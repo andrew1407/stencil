@@ -103,6 +103,7 @@ test {
     _ = @import("app/messages.zig");
     _ = @import("media/types.zig");
     _ = @import("net/fetchPool.zig");
+    _ = @import("net/send.zig");
     _ = @import("media/imageRows.zig");
     _ = @import("app/report.zig");
 }

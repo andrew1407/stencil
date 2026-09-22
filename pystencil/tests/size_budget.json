@@ -31,7 +31,7 @@
   "dirs": {},
   "exceptions": {},
   "files": {
-    "pystencil/pystencil/core.py": 146,
+    "pystencil/pystencil/core.py": 145,
     "pystencil/pystencil/layout.py": 193,
     "pystencil/tests/editor/test_editor.py": 143,
     "pystencil/tests/image/test_image.py": 144,

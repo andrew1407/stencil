@@ -2,6 +2,7 @@
 // extern "C" exports. The artifact is generated and may be absent, so init() imports it
 // dynamically and degrades to the JS fallbacks; Node never loads wasm.
 import type { CropRect } from '../geometry.js';
+import type { FormulaContext } from '../parse/formulaContext.js';
 import type { HoldDrawOptions, WasmHoldDrawController, WasmHistoryStack } from './coreHandles.js';
 
 export interface XY { x: number; y: number; }
@@ -13,6 +14,9 @@ export interface CoreOps {
   distToSegment(px: number, py: number, a: XY, b: XY): number;
   formulaValidate(expr: string, varName: string): boolean;
   formulaApply(expr: string, varName: string, val: number, allowFormulas: boolean): number;
+  formulaValidateCtx(expr: string, ctx: FormulaContext): boolean;
+  formulaApplyCtx(expr: string, varName: string, val: number, allowFormulas: boolean,
+    ctx: FormulaContext): number;
   /** ms, 0 = keep forever; null when invalid. */
   parseDuration(spec: string | null | undefined): number | null;
   clampScale(scale: number): number;

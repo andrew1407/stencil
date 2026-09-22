@@ -138,6 +138,20 @@ def bind(lib: ctypes.CDLL) -> None:
     ctypes.c_int,
   ]
 
+  _d = ctypes.c_double
+  lib.stencil_cli_validateFormulaCtx.restype = ctypes.c_int
+  lib.stencil_cli_validateFormulaCtx.argtypes = [_cstr, _d, _d, _d, _d, _d, _d, _cstr]
+
+  lib.stencil_cli_applyFormulaCtx.restype = ctypes.c_double
+  lib.stencil_cli_applyFormulaCtx.argtypes = [
+    _cstr,
+    ctypes.c_int,
+    _d,
+    ctypes.c_int,
+    _d, _d, _d, _d, _d, _d,   # x, y, pageWcm, pageHcm, imageW, imageH
+    _cstr,
+  ]
+
   lib.stencil_cli_parseDuration.restype = ctypes.c_int
   lib.stencil_cli_parseDuration.argtypes = [_cstr, ctypes.POINTER(ctypes.c_longlong)]
 

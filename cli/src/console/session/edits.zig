@@ -9,6 +9,7 @@ const std = @import("std");
 const server = @import("../../server/client.zig");
 const core = @import("../../core.zig");
 const pipeline = @import("../../pipeline.zig");
+const page_mod = @import("../../media/page.zig");
 const EditState = @import("../session.zig").EditState;
 const clampRect = @import("../session.zig").clampRect;
 const rotateRectQuarters = @import("../session.zig").rotateRectQuarters;
@@ -162,10 +163,28 @@ pub fn setLabel(self: *Session, name: []const u8) !void {
     self.label = dup;
 }
 
-/// Set the x or y transform formula (validated via the shared parser; a non-empty
-/// expression enables formulas). Returns false on an invalid expression, state unchanged.
+/// What a formula's names resolve to in this session: the page in cm and, once an image is
+/// open, its pixels. The console has no display-unit switch, so PAGE_WIDTH reads cm.
+pub fn formulaContext(self: *Session) core.FormulaCtx {
+    const img = self.working;
+    const w: usize = if (img) |i| i.width else 0;
+    const h: usize = if (img) |i| i.height else 0;
+    const page = page_mod.pageCmFor(self.page_size, self.custom_page_w, self.custom_page_h, w, h);
+    var ctx = core.FormulaCtx{ .page_w_cm = page.w, .page_h_cm = page.h };
+    if (img != null) {
+        ctx.image_w = @floatFromInt(w);
+        ctx.image_h = @floatFromInt(h);
+    }
+    return ctx;
+}
+
+/// Set the x or y transform formula (validated via the shared parser with this session's named
+/// values in reach). Returns false on an invalid expression, state unchanged.
 pub fn setFormula(self: *Session, axis: u8, expr: []const u8) !bool {
-    if (expr.len != 0 and !core.validateFormula(core.zstr(expr) orelse return false, axis)) return false;
+    // The context is built BEFORE the expression is copied: it resolves a page name through
+    // core.zstr's one scratch buffer, which would otherwise overwrite the copy of `expr`.
+    const ctx = formulaContext(self);
+    if (expr.len != 0 and !core.validateFormulaCtx(core.zstr(expr) orelse return false, ctx)) return false;
     const dup = try self.gpa.dupe(u8, expr);
     const slot = if (axis == 'y') &self.formula_y else &self.formula_x;
     if (slot.len != 0) self.gpa.free(slot.*);

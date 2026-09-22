@@ -17,15 +17,27 @@ export const getPageDimensions = (app) => {
   return ps;
 };
 
+// What the f(x,y) names resolve to: the page in cm, the image in pixels — absent until one
+// is open, so IMAGE_WIDTH / IMAGE_HEIGHT stay unknown — and the active display unit.
+export const formulaContext = (app, ps = app.canvas ? getPageDimensions(app) : {}) => ({
+  pageWidthCm: ps.width,
+  pageHeightCm: ps.height,
+  imageWidth: app.image ? app.canvas.width : undefined,
+  imageHeight: app.image ? app.canvas.height : undefined,
+  unit: app.unit
+});
+
 export const pixelToPageCoords = (app, x, y) => {
   const ps = getPageDimensions(app);
-// formula.apply itself already routes through the wasm parser (see FormulaEngine).
+// formula.applyCtx itself already routes through the wasm parser (see FormulaEngine).
   const pixelToPageRaw = core.op('pixelToPageRaw');
   const raw = pixelToPageRaw
     ? pixelToPageRaw(x, y, ps, app.canvas.width, app.canvas.height)
     : { x: (ps.width / app.canvas.width) * x, y: (ps.height / app.canvas.height) * y };
+// Both axes are in reach of either formula, so f(x) may read y and f(y) may read x.
+  const ctx = { ...formulaContext(app, ps), x: raw.x, y: raw.y };
   return {
-    x: app.formula.apply(app.formulaX, 'x', raw.x, app.allowFormulas),
-    y: app.formula.apply(app.formulaY, 'y', raw.y, app.allowFormulas)
+    x: app.formula.applyCtx(app.formulaX, 'x', raw.x, app.allowFormulas, ctx),
+    y: app.formula.applyCtx(app.formulaY, 'y', raw.y, app.allowFormulas, ctx)
   };
 };

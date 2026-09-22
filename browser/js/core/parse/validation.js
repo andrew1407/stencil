@@ -46,10 +46,11 @@ export const validateHotkey = (combo) =>
   verdict(!!parseHotkey(combo), `"${combo}" is not a shortcut — try something like Ctrl+Shift+K`);
 
 // The engine is wasm-bound and owned by the app, so it comes in. Blank is valid (identity).
-export const validateFormula = (engine, expr, axis = 'x') => {
+export const validateFormula = (engine, expr, axis = 'x', ctx = null) => {
   const a = axis === 'y' ? 'y' : 'x';
   const v = String(expr ?? '').trim();
-  return verdict(!v || !!engine?.validate(v, a), `Invalid ${a} formula: ${expr}`);
+  const ok = () => (ctx ? !!engine?.validateCtx(v, ctx) : !!engine?.validate(v, a));
+  return verdict(!v || ok(), `Invalid ${a} formula: ${expr}`);
 };
 
 export const validateProjectFileText = (text) => {

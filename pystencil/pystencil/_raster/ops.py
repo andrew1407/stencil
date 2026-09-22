@@ -1,7 +1,7 @@
 """The pixel-buffer half of the core ABI, mixed into :class:`pystencil.core.Core`.
 
 Crop resolution and every RGBA8 kernel (crop / rotate / fill / filter / contour /
-rasterize). Each method marshals through :mod:`pystencil._marshal` and calls one
+rasterize). Each method marshals through :mod:`pystencil._ffi.marshal` and calls one
 stencil_cli_* entry point on ``self._lib``.
 """
 

@@ -41,7 +41,7 @@ fetch guard every network path goes through. The other `_`-prefixed helpers sit 
 | Path | Holds | Rule |
 |---|---|---|
 | `build.py` | compiles `core/` + `cliApi.cpp` into the shared lib | its source list mirrors `STENCIL_CORE_SOURCES`; rebuilds when any source **or header** is newer than the artifact |
-| `pystencil/_native.py`, `core.py`, `_raster/` (`ops.py`, `parallel.py`), `_ffi/` (`bindings.py`, `marshal.py`, `coerce.py`, `types.py`) | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
+| `pystencil/_native.py`, `core.py`, `_raster/` (`ops.py`, `parallel.py`), `_ffi/` (`bindings.py`, `marshal.py`, `coerce.py`, `types.py`, `formula.py`) | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards; the `FormulaContext` a coordinate formula reads its named values from | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
 | `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard (scheme, SSRF, redirects, size cap); the one bounded fan-out | fan-out results land in submission order so output matches a serial run |
 | `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle over `stencil_cli_script*`; the handle-free value types it reads out (twin of `core/script/types.hpp`); which file a script is read from, what a `@source` names and where a `@save` writes; the whole-file block loop | the core lowers, the adapter opens — directory listing, the one-segment glob, the `-stencil` rule, the two `..` refusals and the png/bmp `save_format` fallback live outside `core/`, each spelled once |
 | `pystencil/_severity.py`, `_ffi/types.py` | the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`); the 3.9 `NoneType` spelling | |
@@ -250,7 +250,8 @@ optional keys are omitted when empty):
 ## Rules
 
 1. **Stdlib only, ctypes only.** No PyPI package, no C extension module. `from __future__
-   import annotations` in every module so `(X | NoneType)` hints work on 3.9.
+   import annotations` in every module so `(X | NoneType)` hints work on 3.9 — below the
+   module docstring, which stays the first statement or `__doc__` comes back empty.
 2. **Three source lists.** `build.py`'s list is the third copy of `core/CMakeLists.txt`'s
    and `cli/build.zig`'s; `tests/test_build.py` pins it.
 3. **Nothing pushed into `core/`.** No Qt, codec or DOM concern ever crosses the ABI.
@@ -280,7 +281,10 @@ The other `test_fixture_*.py`
 walkers run the canonical `browser/js/config/llm/fixtures/` corpus through `fixturebase.py`,
 with `tests/helpers/fixture_overrides.json` naming this surface's deviations. `test_canonical_drift.py`
 byte-pins the `_data/` copies, `test_build.py` the source list and the script ABI's ctypes
-signature rows, `test_layer_boundary.py` the import direction, and `tests/goldens/` the console `/help` and argparse text. The network is
+signature rows, `test_layer_boundary.py` the import direction and the module docstring's
+place, and `tests/goldens/` the console `/help` and argparse text. The network is
 stubbed at the `_open` seam (`_StubClient`, `_StubConn`, `_MockLlmClient`), the editor at
-`_StubEditor`, and `ServedSiteCase` serves a local site over `http.server` for the scraper.
-Concurrency suites check that parallel variants and fetches land in submission order.
+`_StubEditor`, and `ServedSiteCase` serves a local site over `http.server` — the scraper's
+pages plus the 30x hop and the over-cap body that `_net`'s guard has to refuse.
+Concurrency suites check that parallel variants and fetches land in submission order, and
+that a racing first `get_core()` builds the library once.

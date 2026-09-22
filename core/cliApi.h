@@ -67,10 +67,8 @@ void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
 
 void stencil_cli_fillRGBA(uint8_t* dst, int pixelCount, int r, int g, int b, int a);
 
-/* Half-open [y0,y1) row slices of the whole-buffer ops, for a caller-owned thread pool
- * (core owns no threading policy); the same bytes as the whole-image call. Ranges clamp
- * to the image, EXCEPT stencil_cli_applyFilterRows: it is not told the height, so its
- * y1 is trusted — pass rows that exist. */
+/* Half-open [y0,y1) row slices of the whole-buffer ops for a caller-owned thread pool; the
+ * same bytes as the whole-image call. Ranges clamp, EXCEPT applyFilterRows: it trusts y1. */
 void stencil_cli_cropImageRows(const uint8_t* src, int srcW, int srcH,
                                int rx, int ry, int rw, int rh, uint8_t* dst,
                                int dy0, int dy1);
@@ -109,6 +107,14 @@ void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
  * fails / is non-finite (identity-on-error, like the browser). */
 int stencil_cli_validateFormula(const char* expr, int var);
 double stencil_cli_applyFormula(const char* expr, int var, double value, int allowFormulas);
+
+/* The same pair reaching the named constants too; abi/shared.inc states them. */
+int stencil_cli_validateFormulaCtx(const char* expr, double x, double y,
+                                   double pageWcm, double pageHcm,
+                                   double imageW, double imageH, const char* unit);
+double stencil_cli_applyFormulaCtx(const char* expr, int var, double value, int allowFormulas,
+                                   double x, double y, double pageWcm, double pageHcm,
+                                   double imageW, double imageH, const char* unit);
 
 /* CSS colour keywords, alphabetically, for adapter drift guards: NULL out of range,
  * 0xRRGGBB written to *rgb. */
