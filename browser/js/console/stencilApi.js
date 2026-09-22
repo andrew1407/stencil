@@ -88,6 +88,17 @@ export const createStencil = (app) => {
   // Hard-guard an API object: real setters write through, but writing a method or
   // read-only getter THROWS instead of silently no-opping in the non-strict console.
   const guard = (obj) => new Proxy(Object.freeze(obj), {
+    // Typed at a console, so a name answers in any casing — `EasterEggs.neonon` is
+    // `neonOn`. Exact spelling wins; an ambiguous fold stays undefined.
+    get(target, prop, recv) {
+      if (typeof prop === 'string' && !(prop in target)) {
+        const fold = prop.toLowerCase();
+        const hits = Reflect.ownKeys(target)
+          .filter((k) => typeof k === 'string' && k.toLowerCase() === fold);
+        if (hits.length === 1) return Reflect.get(target, hits[0], recv);
+      }
+      return Reflect.get(target, prop, recv);
+    },
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
       if (d && typeof d.set === 'function') { d.set.call(target, value); return true; }
