@@ -155,6 +155,7 @@ namespace stencil::gui {
     connect(a, &QAction::triggered, this, [this, a] {
       pop.dialogAnchor = buttonForAction(a);   // resolved at trigger time; buttons come later
       pop.dialogAnchorRect = (pop.menuRowAction == a) ? pop.menuRowRect : QRect();
+      pop.dialogCloseRect = nullptr;   // the handler about to run names its own, or there is none
     });
   }
 
