@@ -31,7 +31,7 @@ pub async fn edit<R: CliRunner>(
 }
 
 /// Run one contract §2.1 `save`: the same pipeline with a `.stencil` output, which the CLI
-
+/// bundles as a project and reports without dimensions. Returns the written path.
 pub async fn project<R: CliRunner>(
     runner: &R,
     params: &EditParams,
@@ -89,7 +89,7 @@ async fn run_cli<R: CliRunner>(runner: &R, params: &EditParams) -> Result<String
 }
 
 /// Run one `source_site` scrape: build the argv, spawn the CLI (which fetches the page,
-
+/// filters, and downloads the matches), and map its stderr into a structured result.
 pub async fn scrape<R: CliRunner>(
     runner: &R,
     params: &ScrapeParams,
@@ -141,8 +141,7 @@ pub async fn script<R: CliRunner>(
 }
 
 /// Run one `stencil_probe`. A local PNG/GIF/BMP/JPEG/WebP answers out of its own header;
-/// anything else (a URL, a video, an unreadable header) is rendered to a throwaway PNG,
-
+/// anything else is rendered to a throwaway PNG — the CLI has no metadata mode.
 pub async fn probe<R: CliRunner>(runner: &R, input: &str) -> Result<(u32, u32), String> {
     if let Some(dims) = crate::imagesize::read_dimensions(input).await {
         return Ok(dims);

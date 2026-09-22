@@ -41,7 +41,7 @@ same way; a module becomes a directory once it holds more than one job.
 |---|---|---|
 | `Cargo.toml`, `Cargo.lock` | exactly pinned crates (`rmcp`, `tokio`, `serde`, `serde_json`, `schemars`, `tempfile`, `base64`) | the lock is committed; CI builds `--locked`; no `tracing`/`anyhow`/`thiserror` |
 | `toolDescriptions.json` + `toolDescriptions/` | the canonical tool + `get_info` prose, and the generated shards the `#[tool]` attributes `include_str!` | one home for wire descriptions, instructions and the README's Tools table |
-| `src/main.rs`, `lib.rs` | entry (config, stderr logging, stdio serve) and the module surface for integration tests | **stdout is the JSON-RPC channel** — all logging is `eprintln!` |
+| `src/main.rs`, `lib.rs` | entry (config before the runtime — the dotenv load is `setenv`; stderr logging; stdio serve) and the module surface for integration tests | **stdout is the JSON-RPC channel** — all logging is `eprintln!` |
 | `src/server/` | `StencilServer` + the `#[tool]` methods; `tools/` holds one file per tool body (`prompt/` splits the auto-continuation loop, the round's steps, the response, the merges); `testwire.rs` reads a result back as the wire JSON | a `#[tool]` delegates its whole body to `tools/` |
 | `src/config/` | defaults ← `.env` ← env ← `--surface` arg; the `Surface` enum | |
 | `src/args/` | the DTOs schemars publishes, the page-format + colour tables, the CLI's option strings (`flags.rs`, single-sourced), `ArgvBuilder`, the scrape params + guard, the script params + guards | mirrors `cli/src/args.zig` flag for flag |
@@ -175,7 +175,7 @@ classDiagram
 | Chain of Responsibility | `parse_http_url` → `validate_request_parts` → `guard_credentials` (`llmtransport/guards.rs`); `run_cli`'s clobber guard → `confine::confine` → spawn | each guard refuses or passes on; a socket opens only after the last one |
 | Table-driven registry | `OpDescriptor` + `opplan::schema::Schema` from `browser/js/config/llm/opRegistry.json`; `registry::descriptor(name).lower` | validation, prompt generation and lowering come off one table |
 | Pipeline | `pipeline::run::run_cli`; `Fold` in `opplan/fold.rs` (source → frame → crop → rotate → filter → layout) | the CLI's fixed order is why a plan collapses into one run |
-| Ports for the two side effects | `CliRunner` (`ProcessRunner` vs a recording runner), `LlmTransport` (`PlainHttpTransport` vs a mock); `run_prompt` takes `Arc<dyn LlmTransport>` | the only process spawn and the only socket sit behind traits |
+| Ports for the two side effects | `CliRunner` (`ProcessRunner` vs a recording runner), `LlmTransport` (`PlainHttpTransport` vs a mock); `run_prompt` takes `Arc<dyn LlmTransport>`, `execute_plan` an `Arc<R: CliRunner>` | the only process spawn and the only socket sit behind traits |
 | Fixture walker | `tests/common/walk.rs` `Walk`; `opplan_fixtures_test`, `llm_wire_fixtures_test`, `layout_fixtures_test`, `sanitizer_fixtures_test` | one named case per shared fixture under `browser/js/config/llm/fixtures/` |
 | Golden pin | `tests/goldens/*.txt` with `text_golden_test.rs`, `tool_prose_test.rs` | tool descriptions, instructions and the README table are byte-pinned to `toolDescriptions.json` |
 
@@ -193,9 +193,12 @@ classDiagram
 - **A prompt turn.** `run_prompt` resolves `LlmConfig` (only `model` overridable) and runs
   at most two rounds: `attach` (the local input via `attach_local_image`, plus the §7 edge map
   rendered through the CLI, `edge_map_attachment` + `edge_map_suffix`) → `chat_once` on the
-  blocking pool → `parse_op_plan` → `prepare_outputs` (lowering) → `execute_concurrently`
-  over `run_edit` / `run_project`. When round one `loads_without_tracing`, the same prompt is
-  re-sent once over the rendered base result and `merged_response` joins both rounds.
+  blocking pool → `parse_op_plan` → `prepare_outputs` (lowering) → `execute_plan`, a
+  `JoinSet` over `run::edit` / `run::project` whose results are re-ordered back into request
+  order; dropping that set — a cancelled call, or the first failure — aborts the runs still
+  going, so their CLI children die with the call instead of finishing detached. When round
+  one `loads_without_tracing`, the same prompt is re-sent once over the rendered base result
+  and `merged_response` joins both rounds.
 - **Plan validation.** `parse_op_plan`: `strip_fences` → `first_json_object` (none = a
   chat-only turn) → the `reply`/`actions`/`variants` walk → `validate_actions`, where each
   action's op is looked up in the registry: forbidden fails the plan, unknown becomes a

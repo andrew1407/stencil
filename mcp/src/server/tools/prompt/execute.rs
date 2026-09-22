@@ -16,30 +16,30 @@ pub(super) async fn attach(
 ) -> (Vec<ImageAttachment>, String) {
     let mut images = Vec::new();
     let mut system_suffix = String::new();
-        if let Some(input) = &round_input {
-            // Independent, so run together: the snapshot read and the edge-map CLI render.
-            let local = std::path::Path::new(input.as_str()).is_file();
-            let owned = input.clone();
-            let read = tokio::task::spawn_blocking(move || llm::attach_local_image(&owned));
-            let render = async { if local { pipeline::render_edge_map(input).await } else { None } };
-            let (read, edge_map) = tokio::join!(read, render);
-            let (attachment, note) = read.unwrap_or((None, None));
-            let snapshot_attached = attachment.is_some();
-            if let Some(attachment) = attachment {
-                images.push(attachment);
-            }
-            if let Some(note) = note {
-                notes.push(note);
-            }
-            // §7 edge map: it rides right after the snapshot and only alongside one; a
-            // missing CLI or a failed/oversized render just skips it.
-            if snapshot_attached {
-                if let Some(edge) = edge_map.as_deref().and_then(llm::edge_map_attachment) {
-                    images.push(edge);
-                    system_suffix = llm::edge_map_suffix().to_string();
-                }
+    if let Some(input) = &round_input {
+        // Independent, so run together: the snapshot read and the edge-map CLI render.
+        let local = std::path::Path::new(input.as_str()).is_file();
+        let owned = input.clone();
+        let read = tokio::task::spawn_blocking(move || llm::attach_local_image(&owned));
+        let render = async { if local { pipeline::render_edge_map(input).await } else { None } };
+        let (read, edge_map) = tokio::join!(read, render);
+        let (attachment, note) = read.unwrap_or((None, None));
+        let snapshot_attached = attachment.is_some();
+        if let Some(attachment) = attachment {
+            images.push(attachment);
+        }
+        if let Some(note) = note {
+            notes.push(note);
+        }
+        // §7 edge map: it rides right after the snapshot and only alongside one; a
+        // missing CLI or a failed/oversized render just skips it.
+        if snapshot_attached {
+            if let Some(edge) = edge_map.as_deref().and_then(llm::edge_map_attachment) {
+                images.push(edge);
+                system_suffix = llm::edge_map_suffix().to_string();
             }
         }
+    }
     (images, system_suffix)
 }
 
@@ -115,59 +115,61 @@ async fn make_output_dirs(dir: String, requests: &[opplan::EditRequest]) -> Resu
     made.unwrap_or_else(|join_error| Err(format!("could not create output_dir: {join_error}")))
 }
 
-/// Run every request, joined before the reply. The runs are independent, so they run
-/// concurrently; results keep request order and the first failure in it is reported.
+/// Run every request, joined before the reply, against the real CLI.
 pub(super) async fn execute_concurrently(
     requests: Vec<opplan::EditRequest>,
 ) -> Result<Vec<PromptResult>, String> {
-        let mut handles = Vec::with_capacity(requests.len());
-        for request in requests {
-            let params = request.params;
-            let project = request.project;
-            handles.push((
-                request.label,
-                tokio::spawn(async move {
-                    // A §2.1 `save` writes a `.stencil` document (no dimensions reported).
-                    if project {
-                        pipeline::run_project(&params)
-                            .await
-                            .map(|path| (path, None, None))
-                    } else {
-                        pipeline::run_edit(&params)
-                            .await
-                            .map(|r| (r.path, Some(r.width), Some(r.height)))
-                    }
-                }),
-            ));
-        }
-        let mut outcomes = Vec::with_capacity(handles.len());
-        for (label, handle) in handles {
-            outcomes.push((label, handle.await));
-        }
-        let mut results: Vec<PromptResult> = Vec::new();
-        let mut failed: Option<String> = None;
-        for (label, outcome) in outcomes {
-            // Flatten the JoinError (panic/cancel) and the run error into one path.
-            let outcome = match outcome {
-                Ok(run) => run.map_err(|e| e.to_string()),
-                Err(join_error) => Err(join_error.to_string()),
+    execute_plan(std::sync::Arc::new(pipeline::ProcessRunner), requests).await
+}
+
+/// The fan-out, generic over the runner so a suite drives it without a CLI binary; the runs
+/// are independent and the results come back in request order. A `JoinSet`, never a bare
+/// `tokio::spawn`: dropping it aborts every run it still holds, so a cancelled call — and the
+/// first failure — kills the CLI children instead of leaving them to finish detached.
+pub async fn execute_plan<R: pipeline::CliRunner + Send + 'static>(
+    runner: std::sync::Arc<R>,
+    requests: Vec<opplan::EditRequest>,
+) -> Result<Vec<PromptResult>, String> {
+    let mut runs = tokio::task::JoinSet::new();
+    let mut labels: Vec<Option<String>> = Vec::with_capacity(requests.len());
+    for (index, request) in requests.into_iter().enumerate() {
+        labels.push(request.label);
+        let runner = runner.clone();
+        let params = request.params;
+        let project = request.project;
+        runs.spawn(async move {
+            // A §2.1 `save` writes a `.stencil` document (no dimensions reported).
+            let run = if project {
+                pipeline::run::project(runner.as_ref(), &params)
+                    .await
+                    .map(|path| (path, None, None))
+            } else {
+                pipeline::run::edit(runner.as_ref(), &params)
+                    .await
+                    .map(|r| (r.path, Some(r.width), Some(r.height)))
             };
-            match outcome {
-                Ok((path, width, height)) => results.push(PromptResult {
-                    label,
-                    path,
-                    width,
-                    height,
-                }),
-                Err(error) => {
-                    let what = label.as_deref().unwrap_or("the base result");
-                    failed = Some(format!("executing the plan failed at {what}: {error}"));
-                    break;
-                }
+            (index, run)
+        });
+    }
+
+    let mut done: Vec<Option<(String, Option<u32>, Option<u32>)>> = vec![None; labels.len()];
+    while let Some(joined) = runs.join_next().await {
+        // A JoinError here is a panic: nothing cancels a run but this function returning.
+        let (index, run) = joined.map_err(|e| format!("executing the plan failed: {e}"))?;
+        match run {
+            Ok(value) => done[index] = Some(value),
+            Err(error) => {
+                let what = labels[index].as_deref().unwrap_or("the base result");
+                return Err(format!("executing the plan failed at {what}: {error}"));
             }
         }
-    match failed {
-        Some(detail) => Err(detail),
-        None => Ok(results),
     }
+    Ok(labels
+        .into_iter()
+        .zip(done)
+        .map(|(label, run)| {
+            let (path, width, height) = run.expect("every run reported before the set drained");
+            PromptResult { label, path, width, height }
+        })
+        .collect())
 }

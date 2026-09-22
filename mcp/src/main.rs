@@ -9,8 +9,9 @@ use rmcp::ServiceExt;
 use stencil_mcp::config::Config;
 use stencil_mcp::server::StencilServer;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// Synchronous on purpose: `Config::load` reads the dotenv file with `setenv`, and `setenv`
+/// races any other thread's `getenv`. The runtime — and its workers — start after it.
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Resolve config from the dotenv file + process env + the --surface arg.
     let args: Vec<String> = std::env::args().collect();
     let (config, warnings) = Config::load(&args);
@@ -20,6 +21,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let surfaces: Vec<&str> = config.default_surfaces.iter().map(|s| s.as_str()).collect();
     eprintln!("stencil-mcp: starting; surfaces={surfaces:?}");
 
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    runtime.block_on(serve(config))
+}
+
+async fn serve(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     let service = StencilServer::new(config)
         .serve(stdio())
         .await

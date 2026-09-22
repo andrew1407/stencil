@@ -25,17 +25,17 @@ struct EditPayload<'a> {
 
 /// The tool's whole body: run the CLI, deliver to the resolved surfaces, then report.
 pub async fn run(config: &Config, params: EditParams) -> Result<CallToolResult, McpError> {
-        let result = match pipeline::run_edit(&params).await {
-            Ok(result) => result,
-            Err(error) => return Ok(err_result(error.to_string())),
-        };
+    let result = match pipeline::run_edit(&params).await {
+        Ok(result) => result,
+        Err(error) => return Ok(err_result(error.to_string())),
+    };
 
-        let surfaces = match params.resolve_surfaces(&config.default_surfaces) {
-            Ok(surfaces) => surfaces,
-            Err(message) => return Ok(err_result(message)),
-        };
+    let surfaces = match params.resolve_surfaces(&config.default_surfaces) {
+        Ok(surfaces) => surfaces,
+        Err(message) => return Ok(err_result(message)),
+    };
 
-        let notes = deliver::deliver(&surfaces, &result, config).await;
+    let notes = deliver::deliver(&surfaces, &result, config).await;
 
         // Summary: the write line + server deliveries, then one line per surface beyond cli.
         use std::fmt::Write;
@@ -51,18 +51,18 @@ pub async fn run(config: &Config, params: EditParams) -> Result<CallToolResult, 
             }
         }
 
-        // `server` may touch more than one collaboration server in one call (fetch/update
-        // one and create on another), each tagged with its action by `Remote`'s Serialize.
-        let payload = EditPayload {
-            path: &result.path,
-            width: result.width,
-            height: result.height,
-            surfaces: surfaces.iter().map(|s| s.as_str()).collect(),
-            deliveries: &notes,
-            server: &result.remotes,
-        };
+    // `server` may touch more than one collaboration server in one call (fetch/update
+    // one and create on another), each tagged with its action by `Remote`'s Serialize.
+    let payload = EditPayload {
+        path: &result.path,
+        width: result.width,
+        height: result.height,
+        surfaces: surfaces.iter().map(|s| s.as_str()).collect(),
+        deliveries: &notes,
+        server: &result.remotes,
+    };
 
-        ok_result(summary, payload)
+    ok_result(summary, payload)
 }
 
 #[cfg(test)]

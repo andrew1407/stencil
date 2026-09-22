@@ -45,21 +45,23 @@ pub async fn deliver(
         let note = match surface {
             Surface::Cli => DeliveryNote::ok("cli", format!("wrote {}", result.path), None),
             Surface::Desktop => deliver_desktop(result, config),
-            Surface::Browser => deliver_browser(result, config),
+            Surface::Browser => deliver_browser(result, config).await,
             Surface::BrowserLive => handoff_note(
                 "browser-live",
                 result,
                 config,
                 "live editing of a running tab is driven by the stencil-operator agent (it \
                  has the chrome-devtools tools); open this URL there or with the agent",
-            ),
+            )
+            .await,
             Surface::Extension => handoff_note(
                 "extension",
                 result,
                 config,
                 "page scanning/marking is driven by the stencil-operator agent + the Chrome \
                  extension; this server delivers the edited file and a launch URL",
-            ),
+            )
+            .await,
         };
         notes.push(note);
     }
@@ -75,8 +77,8 @@ fn deliver_desktop(result: &EditResult, config: &Config) -> DeliveryNote {
         );
     };
 
-    // Fire-and-forget: the GUI runs independently of this server.
-    match std::process::Command::new(bin)
+    // Fire-and-forget: the GUI runs on its own; `tokio::process` reaps the child, std zombies.
+    match tokio::process::Command::new(bin)
         .arg("--src")
         .arg(&result.path)
         .spawn()
@@ -94,8 +96,8 @@ fn deliver_desktop(result: &EditResult, config: &Config) -> DeliveryNote {
 }
 
 /// Build a browser-editor launch URL with the result loaded, and optionally open it.
-fn deliver_browser(result: &EditResult, config: &Config) -> DeliveryNote {
-    let url = match build_launch_url(&result.path, &config.browser_url) {
+async fn deliver_browser(result: &EditResult, config: &Config) -> DeliveryNote {
+    let url = match build_launch_url(&result.path, &config.browser_url).await {
         Ok(url) => url,
         Err(e) => {
             return DeliveryNote::fail("browser", format!("could not build a launch URL: {e}"))
@@ -114,12 +116,12 @@ fn deliver_browser(result: &EditResult, config: &Config) -> DeliveryNote {
 }
 
 /// A hand-off note for the live/scan surfaces: still produce the editor launch URL.
-fn handoff_note(
+async fn handoff_note(
     surface: &'static str,
     result: &EditResult,
     config: &Config,
     detail: &str,
 ) -> DeliveryNote {
-    let url = build_launch_url(&result.path, &config.browser_url).ok();
+    let url = build_launch_url(&result.path, &config.browser_url).await.ok();
     DeliveryNote::ok(surface, detail.to_string(), url)
 }

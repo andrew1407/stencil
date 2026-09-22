@@ -2,9 +2,8 @@
 
 mod common;
 
-use stencil_mcp::opplan::{
-    format_ask, loads_without_tracing, parse_op_plan, OpPlan, MAX_ASK_OPTIONS,
-};
+use stencil_mcp::opplan::schema::schema;
+use stencil_mcp::opplan::{format_ask, loads_without_tracing, parse_op_plan, OpPlan};
 
 use common::plan_of;
 // ── §11 interactive replies (`ask`) ──
@@ -113,7 +112,8 @@ fn five_options_is_the_cap_and_it_parses() {
     let plan = ask_plan(
         r#"{"question":"Q","options":[{"label":"1"},{"label":"2"},{"label":"3"},{"label":"4"},{"label":"5"}]}"#,
     );
-    assert_eq!(plan.ask.expect("card").options.len(), MAX_ASK_OPTIONS);
+    let cap = schema().limit("ask.maxOptions") as usize;
+    assert_eq!(plan.ask.expect("card").options.len(), cap);
 }
 
 #[test]
