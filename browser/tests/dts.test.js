@@ -12,11 +12,11 @@ import path from 'node:path';
 const JS = fileURLToPath(new URL('../js', import.meta.url));
 const read = (p) => readFileSync(p, 'utf8');
 
-const walk = (dir, out = []) => {
+const walk = (dir, ext = '.d.ts', out = []) => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (e.name !== 'wasm') walk(p, out); }
-    else if (e.name.endsWith('.d.ts')) out.push(p);
+    if (e.isDirectory()) { if (e.name !== 'wasm') walk(p, ext, out); }
+    else if (e.name.endsWith(ext)) out.push(p);
   }
   return out;
 };
@@ -91,6 +91,46 @@ for (const file of FILES) {
     }
   });
 }
+
+// Rule 5 — every public module has a sibling .d.ts. Out of scope: a module that exports
+// nothing documents nothing, and a barrel with `export *` may not have one (above), so
+// `utils.js` and `ui/motion.js` are exempt by that rule, not frozen. The rest is the debt
+// this ratchet freezes: a new module without a shape file fails, and writing one for a
+// listed module means deleting its line in the same commit.
+const NO_SHAPE_YET = [
+  'pwa.js', 'ui/bindings/canvasPointer.js', 'ui/bindings/controls/blankColorButton.js',
+  'ui/bindings/controls/formula.js', 'ui/bindings/controls/pageAndDisplay.js',
+  'ui/bindings/controls/projectColorButton.js', 'ui/bindings/controls/projectNameField.js',
+  'ui/bindings/controls/styleControls.js', 'ui/bindings/controls/toolbarButtons.js',
+  'ui/bindings/dropPaste.js', 'ui/bindings/index.js', 'ui/bindings/keys/hotkeyActions.js',
+  'ui/bindings/keys/hotkeyRules.js', 'ui/bindings/keys/keyboard.js',
+  'ui/bindings/selectionPanel.js', 'ui/bindings/theme.js', 'ui/bindings/viewport/arrowPan.js',
+  'ui/bindings/viewport/holdZoom.js', 'ui/bindings/viewport/scrollPersist.js',
+  'ui/bindings/viewport/smoothZoom.js', 'ui/bindings/viewport/zoom.js',
+  'ui/motion/control/canvasFx.js', 'ui/motion/control/chatFx.js', 'ui/motion/control/fx.js',
+  'ui/motion/control/revealControls.js', 'ui/motion/control/tips.js', 'ui/motion/disintegrate.js',
+  'ui/motion/dust/canvasDustDraw.js', 'ui/motion/dust/canvasDustGrid.js',
+  'ui/motion/dust/canvasDustStage.js', 'ui/motion/dust/swapDust.js', 'ui/motion/enterLeave.js',
+  'ui/motion/flip.js', 'ui/motion/reveal.js', 'ui/motion/strokeFly.js',
+  'ui/motion/surface/marks.js', 'ui/motion/surface/motion.js', 'ui/motion/surface/painters.js',
+  'ui/motion/surface/surfaces.js', 'ui/motion/surface/themeSwap.js',
+  'ui/motion/surface/themeSwapPlay.js', 'ui/motion/surface/tiles.js', 'ui/motion/tune.js',
+  'utils/appQueries.js', 'utils/color.js', 'utils/dom.js', 'utils/geometry.js', 'utils/keys.js',
+  'utils/math.js', 'utils/nameEditor.js', 'utils/panelResizer.js', 'utils/viewportMetrics.js',
+  'utils/zoomOverlay.js',
+];
+
+test('every exporting module has a sibling shape file, or is on the frozen list', () => {
+  const bare = walk(JS, '.js')
+    .filter((f) => !existsSync(f.replace(/\.js$/, '.d.ts')))
+    .map((f) => ({ rel: rel(f), src: read(f) }))
+    .filter(({ src }) => /^export\b/m.test(src) && !/^export \*/m.test(src))
+    .map(({ rel: r }) => r).sort();
+  const appeared = bare.filter((r) => !NO_SHAPE_YET.includes(r));
+  const gone = NO_SHAPE_YET.filter((r) => !bare.includes(r));
+  assert.deepEqual(appeared, [], 'a new module needs its .d.ts — this list only shrinks');
+  assert.deepEqual(gone, [], 'these have a shape file now (or are gone) — drop them from NO_SHAPE_YET');
+});
 
 test('jsconfig.json is editor configuration only, and reads the shape files', () => {
   const cfg = JSON.parse(read(fileURLToPath(new URL('../jsconfig.json', import.meta.url))));
