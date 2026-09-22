@@ -1,6 +1,7 @@
 #pragma once
 // The modal shell's shared metrics and flight claim, private to the modalChrome*.cpp TUs.
 #include <QHBoxLayout>
+#include "ModalBackdrop.hpp"
 #include "modalReveal.hpp"
 #include <QDialog>
 #include <QWidget>
@@ -28,12 +29,16 @@ namespace stencil::gui {
     return need + row->spacing() * qMax(0, items - 1);
   }
 
-  // Claim the flight (support/modalReveal.hpp) so the watcher leaves it alone, aiming the CLOSE at `closeRect`.
+  // Claim the flight so the watcher leaves it alone, aiming the CLOSE at `closeRect`. Either way
+  // the windows behind dim and blur (browser .app-modal-overlay).
   inline void armFlight(QDialog& dlg, const FlightAnchors& flight) {
-    if (!flight.openRect.isValid() && !flight.closeRect.isValid()) return;
+    if (!flight.openRect.isValid() && !flight.closeRect.isValid() && !flight.closeRectFor) {
+      support::ModalBackdrop::behindAll(&dlg);   // revealDialog installs it on the other branch
+      return;
+    }
     const QRect from = flight.openRect.isValid() ? flight.openRect
                                                  : support::gestureAnchorRect();
-    support::revealDialog(dlg, nullptr, from, flight.closeRect);
+    support::revealDialog(dlg, nullptr, from, flight.closeRect, flight.closeRectFor);
   }
 
 }  // namespace stencil::gui

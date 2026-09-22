@@ -37,9 +37,11 @@ namespace stencil::support {
   class CloseFlight : public QObject {
    public:
     CloseFlight(QDialog* dlg, QPointer<QWidget> anchor, QRect anchorRect,
-                std::shared_ptr<QPixmap> shot, QRect closeRect = QRect())
+                std::shared_ptr<QPixmap> shot, QRect closeRect = QRect(),
+                std::function<QRect(bool)> closeRectFor = {})
         : QObject(dlg), dlg(dlg), anchor(std::move(anchor)),
-          anchorRect(anchorRect), closeRect(closeRect), shot(std::move(shot)) {}
+          anchorRect(anchorRect), closeRect(closeRect), closeRectFor(std::move(closeRectFor)),
+          shot(std::move(shot)) {}
 
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override {
@@ -62,9 +64,12 @@ namespace stencil::support {
       QPixmap shot = dlg->grab();
       if (shot.isNull() && this->shot) shot = *this->shot;
       if (!host || !target.isValid() || shot.isNull()) return;
-      QRect to = closeRect.isValid() ? closeRect
-                                      : originRect(anchor.data(), target, anchorRect);
-      if (!closeRect.isValid() && !anchorOnScreen(anchor.data(), anchorRect)) {
+      // done() sets the result before the hide this runs on, so the outcome is already known.
+      QRect outcome = closeRectFor ? closeRectFor(dlg->result() == QDialog::Accepted) : QRect();
+      if (!outcome.isValid()) outcome = closeRect;
+      QRect to = outcome.isValid() ? outcome
+                                   : originRect(anchor.data(), target, anchorRect);
+      if (!outcome.isValid() && !anchorOnScreen(anchor.data(), anchorRect)) {
         const QRect home = canvasHomeRect(host);
         if (home.isValid()) to = home;
       }
@@ -81,13 +86,15 @@ namespace stencil::support {
     QPointer<QWidget> anchor;
     QRect anchorRect;
     QRect closeRect;
+    std::function<QRect(bool)> closeRectFor;
     std::shared_ptr<QPixmap> shot;
     bool flown = false;
   };
 
   // Split from the public entry point so the watcher can play it WITHOUT claiming the dialog.
   void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
-                 const QRect& closeRect = QRect()) {
+                 const QRect& closeRect = QRect(),
+                 std::function<QRect(bool)> closeRectFor = {}) {
     QPointer<QDialog> guard(&dlg);
     QPointer<QWidget> anchorGuard(anchor);
     auto shotWhileOpen = std::make_shared<QPixmap>();
@@ -117,6 +124,7 @@ namespace stencil::support {
 
     // Driven off the dialog's own Hide, NOT QDialog::finished: done() hides first and
     // emits a beat later, and in that gap the window server has already unmapped it.
-    dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen, closeRect));
+    dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen, closeRect,
+                                           std::move(closeRectFor)));
   }
 }  // namespace stencil::support

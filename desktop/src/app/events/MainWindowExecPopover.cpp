@@ -18,8 +18,12 @@ namespace stencil::gui {
     });
     QWidget* anchor = pop.anchor.data();
     pop.anchor.clear();
+    // Claimed either way: a popover flies itself back into the icon it grew out of.
+    std::function<QRect(bool)> closeRectFor;
+    closeRectFor.swap(pop.dialogCloseRect);
     if (!anchor) {
-      support::revealDialog(dlg, pop.dialogAnchor.data(), pop.dialogAnchorRect);
+      support::revealDialog(dlg, pop.dialogAnchor.data(), pop.dialogAnchorRect, QRect(),
+                            std::move(closeRectFor));
       return dlg.exec();
     }
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.

@@ -10,15 +10,18 @@ namespace modalchrome {
     spec.title = "Project keywords";
     spec.titleIcon = "info";
     spec.message = "Keep?";
-    bool glyph = false;
+    bool glyph = false, dimmed = false;
     whenModal("stencilConfirmModal", [&](QDialog* m) {
       // The header's glyph label sits before the title label, carrying a pixmap.
       for (QLabel* l : m->findChildren<QLabel*>())
         if (!l->pixmap().isNull()) glyph = true;
+      dimmed = host.findChild<QWidget*>(QStringLiteral("modalBackdrop")) != nullptr;
       m->accept();
     });
     check(confirmModal(&host, spec), "confirm: accept resolves true");
     check(glyph, "confirm: the header wears the caller's glyph");
+    // A confirm names no anchor, so it never reaches revealDialog — armFlight installs it.
+    check(dimmed, "confirm: the window behind dims and blurs (browser .app-modal-overlay)");
   }
 
   // ── OpenInDialog: the Telegram fallback stays in the dialog ──

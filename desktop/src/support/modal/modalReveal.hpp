@@ -21,10 +21,12 @@ namespace stencil::support {
   void revealDialog(QDialog& dlg, QWidget* anchor);
   // `anchorRect` (GLOBAL) is the fallback origin when the icon is hidden.
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect);
-  // `closeRect` (GLOBAL) aims the shrink elsewhere; invalid = fly back the way it came.
-  // Browser twin: ui/base.js `backTo` / confirmModal.js `closeAnchor`.
+  // `closeRect` (GLOBAL) aims the shrink elsewhere; invalid = fly back the way it came, and
+  // `closeRectFor(accepted)` asks for it at hide time (browser confirmModal.js `closeAnchor`).
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
                     const QRect& closeRect);
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect,
+                    std::function<QRect(bool)> closeRectFor);
 
   // A box around the user's last press — the origin for a dialog nobody anchored.
   QRect gestureAnchorRect();

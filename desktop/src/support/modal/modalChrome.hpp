@@ -90,6 +90,8 @@ namespace stencil::gui {
   struct FlightAnchors {
     QRect openRect;    // invalid = the press that raised the dialog
     QRect closeRect;   // invalid = back the way it came
+    // Browser confirmModal.js `closeAnchor(answer)`: the way back, asked at hide time.
+    std::function<QRect(bool accepted)> closeRectFor;   // invalid = fall back to closeRect
   };
 
   // Browser ui/confirmModal.js: true on Confirm, false on Cancel / Close / Escape.

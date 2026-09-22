@@ -58,10 +58,14 @@ namespace stencil::support {
 
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) { revealDialog(dlg, anchor, anchorRect, QRect()); }
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect) {
+    revealDialog(dlg, anchor, anchorRect, closeRect, {});
+  }
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect,
+                    std::function<QRect(bool)> closeRectFor) {
     dlg.setProperty(REVEALED_PROPERTY, true);
     // A WINDOW dims and blurs what it covers; the popover flies itself and stays undimmed.
     ModalBackdrop::behindAll(&dlg);
-    flyDialog(dlg, anchor, anchorRect, closeRect);
+    flyDialog(dlg, anchor, anchorRect, closeRect, std::move(closeRectFor));
   }
 
   namespace {

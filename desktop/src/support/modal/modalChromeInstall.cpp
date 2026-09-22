@@ -140,8 +140,10 @@ namespace stencil::gui {
     auto* msg = new QLabel(spec.message, &dlg);
     msg->setWordWrap(true);
     msg->setTextInteractionFlags(Qt::NoTextInteraction);
+    QSizePolicy wrap(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    wrap.setHeightForWidth(true);
+    msg->setSizePolicy(wrap);
     chrome.body->addWidget(msg);
-    chrome.body->addStretch(1);
     QHBoxLayout* footer = addModalFooter(chrome);
     auto* cancelBtn = new QPushButton(spec.cancelLabel, &dlg);
     makeModalCta(cancelBtn, QStringLiteral("x"));
@@ -170,9 +172,12 @@ namespace stencil::gui {
     footer->addWidget(okBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-    // Browser: shared .app-modal width, height sized to the question alone.
+    // Browser: shared .app-modal width, height sized to the question alone. A wrapped QLabel's
+    // sizeHint guesses a two-line box, so the height comes from the wrap at THIS width.
     dlg.setFixedWidth(MODAL_WIDTH);
     dlg.adjustSize();
+    if (QLayout* root = dlg.layout(); root && root->hasHeightForWidth())
+      dlg.resize(MODAL_WIDTH, qMin(dlg.height(), root->totalHeightForWidth(MODAL_WIDTH)));
     okBtn->setFocus();
     armFlight(dlg, spec.flight);
     if (dlg.exec() != QDialog::Accepted) return ConfirmChoice::CANCEL;

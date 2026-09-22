@@ -41,7 +41,8 @@ namespace stencil::support {
       bd->shot = blurred(shot, BLUR_PX);
       bd->show();
       bd->raise();
-      QObject::connect(dlg, &QDialog::finished, bd, &QWidget::deleteLater);
+      // Hidden at once, not merely queued: a flight photographing the host this turn catches the dim.
+      QObject::connect(dlg, &QDialog::finished, bd, [bd] { bd->hide(); bd->deleteLater(); });
       return bd;
     }
 
