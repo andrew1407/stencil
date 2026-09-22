@@ -12,9 +12,10 @@ namespace stencil::gui {
 
   RemoteSyncController::RemoteSyncController(QObject* parent, RemoteSession* session,
                                             const bool* remoteReloading,
-                                            const bool* remotePushing, Hooks hooks)
+                                            const bool* remotePushing, const bool* planRunning,
+                                            Hooks hooks)
       : QObject(parent), session(session), remoteReloading(remoteReloading),
-        remotePushing(remotePushing), h(std::move(hooks)) {
+        remotePushing(remotePushing), planRunning(planRunning), h(std::move(hooks)) {
     pushTimer = new QTimer(this);
     pushTimer->setSingleShot(true);
     connect(pushTimer, &QTimer::timeout, this, [this] {
@@ -31,9 +32,9 @@ namespace stencil::gui {
     connect(reloadTimer, &QTimer::timeout, this, [this] {
       if (this->session->address().isEmpty() || this->session->id().isEmpty()) return;
       if (!h.syncToServer()) return;
-      // openServerProject holds remoteReloading for its whole async lifetime; keep the pending
-      // flag and re-poll until it clears.
-      if (*this->remoteReloading) {
+      // openServerProject holds remoteReloading for its whole async lifetime, an op plan holds
+      // planRunning for its own; a swap under either would change the canvas mid-edit.
+      if (*this->remoteReloading || *this->planRunning) {
         if (reloadPending) reloadTimer->start(50);
         return;
       }
@@ -107,14 +108,14 @@ namespace stencil::gui {
     if (reloadTimer) reloadTimer->start(40);
   }
 
-  // Skipped while a local edit is pending, so we never clobber the user's work or reload our own
-  // change.
+  // Skipped while a local edit or an op plan is in flight, so we never clobber the user's work or
+  // reload our own change.
   void RemoteSyncController::pollRemoteForUpdate() {
     const QString addr = session->address();
     const QString id = session->id();
     if (addr.isEmpty() || id.isEmpty()) return;
     if (!h.syncToServer()) return;  // sync off — don't pull peer changes over local edits
-    if (*remotePushing || (pushTimer && pushTimer->isActive())) return;
+    if (*remotePushing || *planRunning || (pushTimer && pushTimer->isActive())) return;
     stencil::net::ConnectionManager* mgr = session->getConnections();
     stencil::net::ServerClient* c = mgr ? mgr->find(addr) : nullptr;
     if (!c) return;
@@ -125,7 +126,7 @@ namespace stencil::gui {
       // Re-check at completion: the session may have changed or a push started while the GET was
       // in flight.
       if (session->address() != addr || session->id() != id) return;
-      if (*remotePushing || (pushTimer && pushTimer->isActive())) return;
+      if (*remotePushing || *planRunning || (pushTimer && pushTimer->isActive())) return;
       if (meta.version > session->version())
         h.openServerProject(addr, id, /*silent=*/true);
     });

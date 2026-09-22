@@ -68,6 +68,46 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // A plan's appliers await async work in nested event loops, so the composer stays live while
+  // the executor holds the canvas: a Send landing there is ignored, and the turn clears the gate.
+  void chatSendIgnoredWhilePlanRuns() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(64, 48, QImage::Format_RGB32);
+    img.fill(Qt::darkMagenta);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    MockChatTransport mock;
+    mock.response = QJsonDocument(QJsonObject{
+        {"message",
+         QJsonObject{{"content",
+                      "{\"version\":1,\"reply\":\"Sepia it is.\",\"actions\":"
+                      "[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
+                        .toJson(QJsonDocument::Compact);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+
+    auto* dock = qobject_cast<stencil::gui::ChatDock*>(
+        win.findChild<QDockWidget*>("llmChatDock"));
+    QVERIFY(dock);
+    win.onChatSend("make it sepia");
+    QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("Sepia it is.")));
+    QVERIFY2(!win.planRunning, "the settled turn left the plan gate open again");
+
+    // Mid-plan the dock is idle, so only the gate stands between a second Send and a
+    // re-entered executePlan: the turn never starts and the history is untouched.
+    const int histBefore = win.chatHistory.size();
+    QVERIFY(!dock->isBusy());
+    win.planRunning = true;
+    win.onChatSend("now crop it");
+    QCOMPARE(win.chatHistory.size(), histBefore);
+    QVERIFY(!dock->isBusy());
+    win.planRunning = false;
+    beat();
+  }
+
   // Chat persistence (llm-contract §12): with the opt-in ON a settled conversation is filed on the
   // active LOCAL project and replays on reopen, the trash deletes it, and with it OFF nothing is.
   void chatPersistsWithProject() {

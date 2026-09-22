@@ -40,7 +40,8 @@ namespace stencil::net {
     QString serverUrl;
   };
 
-  // The REST surface is asynchronous throughout: completions run on the GUI thread, never in a nested loop.
+  // The REST surface is asynchronous throughout and completions run on the GUI thread; a caller
+  // that must await one (the op-plan appliers) spins a QEventLoop of its own around it.
   class ServerClient {
    public:
     // Expired (401/403) is deliberately not Error: the server is fine and the saved row is kept for re-sign-in.

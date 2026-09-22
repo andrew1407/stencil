@@ -44,8 +44,9 @@
 namespace stencil::gui {
 
   void MainWindow::onChatSend(const QString& text) {
-    // Single turn at a time; the dock guards its own paths, this covers programmatic sends.
-    if (chatDock->isBusy()) return;
+    // Single turn at a time; the dock guards its own paths, this covers programmatic sends and
+    // the window where a plan's nested loops leave the composer live.
+    if (chatDock->isBusy() || planRunning) return;
     chatLastPrompt = text;   // a stopped turn offers this back as Retry
     // Provider "none" = assistant off: the same Configure-provider card + Retry, answered locally — nothing is sent.
     // Not routed through chatUnreachable(): `text` itself is the retry.

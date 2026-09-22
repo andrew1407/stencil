@@ -1,5 +1,6 @@
 // What onChatReply renders once the plan has parsed. Failure and stop paths: MainWindowChat.cpp.
 #include "MainWindow.hpp"
+#include "mainWindowChatParts.hpp"
 #include "ChatDock.hpp"
 #include "ChatPlanTarget.hpp"
 #include "fileStore.hpp"
@@ -68,6 +69,7 @@ namespace stencil::gui {
       }
       QVector<QImage> previews(plan.ask.options.size());
       if (!previewPlan.variants.isEmpty()) {
+        FlagScope planScope(planRunning);
         const llm::ExecResult pr = llm::executePlan(previewPlan, target);
         for (int i = 0; i < pr.variants.size() && i < previewFor.size(); ++i)
           previews[previewFor[i]] = pr.variants[i].second;
