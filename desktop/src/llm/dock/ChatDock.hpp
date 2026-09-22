@@ -80,6 +80,7 @@ namespace stencil::gui {
     void setChatSwapSides(bool on);
     bool getChatSwapSides() const { return chatSwapSides; }
     QSize floatingDefaultSize() const;
+    QSize compactDefaultSize() const;
     // Compact = pinned beside its icon, but still draggable; only the bar's dblclick is dead.
     void setCompactPopover(bool on);
     void focusInput();
@@ -212,7 +213,6 @@ namespace stencil::gui {
     ChatMoreActions moreRows;   // the "…" overflow's four rows
     QPointer<QWidget> lastAssistantCard;
     // Not derived from cmp.busy's visibility: turns run while the dock is hidden (context-menu chat).
-
 
     QElapsedTimer capToastAt;
     bool stickToBottom = true;

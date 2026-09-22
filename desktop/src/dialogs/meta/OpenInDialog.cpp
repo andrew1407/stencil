@@ -18,7 +18,7 @@ namespace stencil::gui {
                              const QString& serverId)
       : QDialog(parent), serverUrl(serverUrl), serverId(serverId) {
     setWindowTitle("Open In…");
-    setMinimumWidth(520);
+    setMinimumWidth(MODAL_WIDTH);
 
     // Browser openInModal.js parity: shared modal shell, one .vs-section, and the
     // label/value rows split by hairlines.

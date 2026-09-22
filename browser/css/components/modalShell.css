@@ -21,6 +21,10 @@
 .app-modal.modal-dragging .settings-header { cursor: grabbing; }
 /* No transition while dragging, or the box lags the pointer by the flight's easing. */
 .app-modal.modal-dragging { transition: none !important; }
+/* The edges are the window's resize handles (ui/modal/resize.js), as a desktop window's frame
+   is: the box names the edge under the pointer, and the header's grab hand yields to it. */
+[data-edge], [data-edge] .settings-header { cursor: var(--edge-cursor); }
+.modal-resizing { transition: none !important; }
 /* `modal-closing` keeps the overlay on screen just for the shrink-back animation;
    ui/base.js drops `modal-open` immediately, so the modal counts as closed at once. */
 .app-modal-overlay.modal-closing { display: flex; }

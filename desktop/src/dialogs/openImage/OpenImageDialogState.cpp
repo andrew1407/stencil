@@ -59,9 +59,10 @@ namespace stencil::gui {
     tabs->setCurrentIndex(keep);
     measuring = false;
     if (QLayout* l = layout()) { l->invalidate(); l->activate(); }
-    // The floor is the browser's OI_MIN_H, not what the emptiest tab measured (barely
-    // 280px) — never dropped under afterwards either.
-    const int want = std::max({tallest, OI_MIN_H, height()});
+    // The floor is the browser's OI_MIN_H, not what the emptiest tab measured (barely 280px) —
+    // never dropped under afterwards. Not height(): pre-show it is a stale guess a start on the
+    // Blank tab leaves near the screen's height.
+    const int want = std::max(tallest, OI_MIN_H);
     // An ease armed by the last pre-show refit would land after this and overwrite it.
     if (size.anim) size.anim->stop();
     if (want != height()) resize(width(), want);

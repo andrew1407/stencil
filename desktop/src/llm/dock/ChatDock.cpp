@@ -164,7 +164,7 @@ namespace stencil::gui {
       updatePlacementState();
       if (!floating) return;
       QTimer::singleShot(0, this, [this] {
-        if (isFloating()) resize(FLOATING_SIZE.expandedTo(minimumSize()));
+        if (isFloating()) resize(compactPopover ? compactDefaultSize() : floatingDefaultSize());
       });
     });
     connect(this, &QDockWidget::dockLocationChanged, this,

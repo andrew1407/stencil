@@ -56,16 +56,16 @@
    to the body top (else scrolled rows show above it and overlap the modal title
    bar). Scoped to #settings-modal so other modals' .settings-body is untouched. */
 #settings-modal .settings-body { padding-top: 0; }
-/* The list dialogs (shortcuts, info, visuals, connections) keep one height while
-   a filter thins their rows or the list grows (desktop parity: modalChrome sizeModalTall
-   resizes to the same 82% share once and the QDialog holds it) — the floor equals the
-   ceiling, so the .settings-body scrolls or leaves slack below instead of the box
-   resizing with each keystroke. The compact popover shape keeps its own small cap;
-   the projects modal has its own floor further down. */
+/* The list dialogs (shortcuts, info, visuals) keep one height while a filter thins
+   their rows or the list grows (desktop parity: modalChrome sizeModalTall resizes to
+   the same 82% share once and the QDialog holds it) — the floor equals the ceiling, so
+   the .settings-body scrolls or leaves slack below instead of the box resizing with
+   each keystroke. The compact popover shape keeps its own small cap; the projects
+   modal has its own floor further down; the connections modal sizes to its rows over
+   its list's own floor (connections.css), as the desktop's dialog does. */
 #settings-modal-overlay:not(.modal-popover) #settings-modal,
 #info-modal-overlay:not(.modal-popover) .app-modal,
-#visuals-modal-overlay:not(.modal-popover) .app-modal,
-#connect-modal-overlay:not(.modal-popover) .app-modal { min-height: min(82vh, 760px); }
+#visuals-modal-overlay:not(.modal-popover) .app-modal { min-height: min(82vh, 760px); }
 /* Shared modal search bar (settings + visuals; sits above the scrolling body). */
 .modal-search-bar { padding: 12px 18px 6px; }
 .modal-search {

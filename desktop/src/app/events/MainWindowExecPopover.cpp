@@ -29,10 +29,11 @@ namespace stencil::gui {
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
     // This branch flies itself — opt out of the app-wide DialogRevealFilter or its flight piles on.
     dlg.setProperty(support::NO_DIALOG_REVEAL_PROPERTY, true);
-    const QSize cap(470, 590);
+    const QSize cap(420, qMin(560, int(height() * 0.78)));
     dlg.setMinimumSize(0, 0);
     dlg.setMaximumSize(cap);
-    const QSize want(qMin(dlg.sizeHint().width(), cap.width()),
+    const bool shell = dlg.findChild<QWidget*>(QStringLiteral("modalShell")) != nullptr;
+    const QSize want(shell ? cap.width() : qMin(dlg.sizeHint().width(), cap.width()),
                      qMin(dlg.sizeHint().height(), cap.height()));
 
     auto* overlay = new QWidget(this);

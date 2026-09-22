@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
     // Pinned next to the icon at the compact size — the shared placement rule.
     const QRect btnRect(btn->mapToGlobal(QPoint(0, 0)), btn->size());
     const QRect expect = stencil::support::popoverRect(
-        btnRect, win.chatDock->floatingDefaultSize(), btn->screen()->availableGeometry());
+        btnRect, win.chatDock->compactDefaultSize(), btn->screen()->availableGeometry());
     QTRY_COMPARE(dock->geometry().topLeft(), expect.topLeft());
     QCOMPARE(dock->size(), expect.size());
     // The deferred single-click must NOT fire off the dblclick's trailing release

@@ -66,9 +66,10 @@
 /* Filter dropdown sits beside the search field. */
 .modal-search-bar { display: flex; align-items: center; gap: 8px; }
 .modal-search-bar .modal-search { flex: 1; }
-/* Projects modal: the selects live on their own second row under the search bar —
-   tighter top padding so the two rows read as one control block. */
-.projects-filter-row { padding-top: 0; }
+/* Projects modal: the selects live on their own second row under the search bar, as far
+   under it as they sit above the rows (desktop ProjectsDialog buildSearchRow). */
+.projects-filter-row { padding-top: 4px; padding-bottom: 4px; }
+#projects-modal-overlay .settings-body { padding-top: 6px; }
 .modal-filter {
     flex: 0 0 auto; padding: 6px 8px; border-radius: 6px;
     /* background-COLOR, not the shorthand — the shorthand resets the hover sweep's
