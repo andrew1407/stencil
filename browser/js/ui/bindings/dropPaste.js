@@ -1,7 +1,8 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
-import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
+import { extractDraggedImageUrls, mediaFilesFromData, fetchFirstDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { showDropOverlay, hideDropOverlay } from '../canvas/dropOverlay.js';
 import { loadScriptFile } from '../script/modal.js';
+import { openImageConfirmAnchors } from '../modal/imageAnchor.js';
 export function wireDropPaste(app) {
   // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT
   // (upload incognito) zones. The cursor's half of the window decides which.
@@ -10,10 +11,10 @@ export function wireDropPaste(app) {
   const clearZoneCue = () => dropZone.querySelectorAll('.drop-zone-active').forEach((z) => z.classList.remove('drop-zone-active'));
 
   // An image dragged from ANOTHER web page arrives as a URL, not a File (see dragImageUrl.js).
-  const draggedImageUrl = (dt) => extractDraggedImageUrl((t) => dt.getData(t));
+  const draggedImageUrls = (dt) => extractDraggedImageUrls((t) => dt.getData(t));
   // Fetch a dragged image URL into a File so it flows through the same load path as a
   // dropped file (shared with the chat's drop-to-attach — dragImageUrl.js).
-  const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);
+  const fetchUrlToFile = (urls) => fetchFirstDraggedMediaFile(urls);
 
   // `from` = the drop point in client coords — the canvas plays in out of it (ui/motion.js
   // arriveFrom); the dialog and paste paths have none.
@@ -25,6 +26,8 @@ export function wireDropPaste(app) {
         title: 'Open dropped image',
         confirmLabel: 'Open in the current page', confirmIcon: 'image',
         altLabel: 'Open in a new page', altIcon: 'external',
+        // A drop lands anywhere, so the question is not the drop point's to own.
+        ...openImageConfirmAnchors(),
       });
       if (!where) return;                                                    // Cancel / Escape
       if (where === 'alt') { app.openImageNewTab(file, incognito); return; }
@@ -88,16 +91,16 @@ export function wireDropPaste(app) {
     const file = e.dataTransfer.files[0];
     if (!file) {
       // No File → maybe an image dragged from another page (a URL). Fetch it into a File.
-      const url = draggedImageUrl(e.dataTransfer);
-      if (!url) {
+      const urls = draggedImageUrls(e.dataTransfer);
+      if (!urls.length) {
         // A relative <img src> carries no origin, so there is nothing to fetch —
         // say so instead of silently doing nothing (dragImageUrl.js absolutize).
         notify('Could not read an image URL from that drag — try dragging the image from its own page, or copy the image address and use Open image → URL', 'fail');
         return;
       }
-      // Surface the real failure (bad URL, 404, non-image response) instead of
-      // blaming CORS unconditionally.
-      fetchUrlToFile(url)
+      // Names the host that refused and how many candidates were tried, so a blocked site
+      // reads differently from a badly guessed URL (dragImageUrl.js).
+      fetchUrlToFile(urls)
         .then((f) => handleImageDrop(f, incognito, from))
         .catch((err) => notify(`Could not load the dragged image — ${err.message}. `
           + 'If the site blocks cross-origin downloads, try the extension or desktop app.', 'fail'));
@@ -128,7 +131,8 @@ export function wireDropPaste(app) {
     if (hasImageItem) {
       e.preventDefault();
       const file = mediaFilesFromData(cd).find((f) => f.type.startsWith('image/'));
-      if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image', confirmIcon: 'paste' }))) {
+      if (app.image && !(await app.confirm('Replace current image with pasted image?',
+        { title: 'Replace image', confirmIcon: 'paste', ...openImageConfirmAnchors() }))) {
         notify('Image paste canceled', 'info');   // a declined confirm is a notice, not a failure
         return;
       }
