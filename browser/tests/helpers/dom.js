@@ -138,6 +138,13 @@ export const createStubDocument = ({ autoCreateById = false, ...overrides } = {}
     head: createStubElement('head'),
     activeElement: null,
     createElement: (tag) => createStubElement(tag),
+    // nodeValue and textContent are the same string, as they are on a real Text node.
+    createTextNode: (text) => {
+      let value = String(text);
+      const rw = { get: () => value, set: (v) => { value = String(v); }, enumerable: true };
+      return Object.defineProperties(
+        { nodeType: 3, parentNode: null, parentElement: null }, { nodeValue: rw, textContent: rw });
+    },
     getElementById: (id) => {
       if (!els.has(id) && autoCreateById) els.set(id, createStubElement('div', { id }));
       return els.get(id) ?? null;

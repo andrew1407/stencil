@@ -6,8 +6,68 @@ import { readFileSync } from 'node:fs';
 
 import { layout } from '../../../js/ui/layout.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from '../../helpers/css.js';
+import { createStubElement, installDom } from '../../helpers/dom.js';
 
 const markup = layout();
+
+class StubObserver {
+    constructor(fn) { this.fn = fn; StubObserver.all.push(this); }
+    observe() {}
+    disconnect() {}
+}
+StubObserver.all = [];
+globalThis.MutationObserver = StubObserver;
+globalThis.customElements = { define: () => {}, get: () => undefined };
+globalThis.HTMLElement = class {};
+
+const doc = installDom({ autoCreateById: true }, {
+    matchMedia: () => ({ matches: false }),
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame: () => {},
+    getComputedStyle: () => ({ getPropertyValue: () => '#7c3aed' }),
+    window: { addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => {} },
+    location: { hash: '', pathname: '/app', search: '' },
+    history: { replaceState: () => {} },
+});
+
+const { StencilToolbar } = await import('../../../js/ui/toolbar/toolbar.js');
+const { DrawingApp } = await import('../../../js/core/drawingApp.js');
+
+// A collapsed toolbar with an image open, so the "?" bubble is live and carries its line.
+const bubbleRig = () => {
+    doc.getElementById('image-info').dataset.size = 'Image Size: 800 × 600 px';
+    doc.body.classes.add('controls-collapsed');
+    doc.body.classes.delete('incognito-mode');
+    StubObserver.all.length = 0;
+    const popup = doc.getElementById('hints-popup');
+    popup.children.length = 0;
+    const bar = Object.create(StencilToolbar.prototype);
+    bar.querySelector = () => null;
+    bar.querySelectorAll = () => [];
+    bar.wire({});
+    const badge = popup.children.find((c) => c.className === 'hints-incognito');
+    return {
+        badge,
+        setIncognito: (on) => {
+            doc.body.classList.toggle('incognito-mode', on);
+            for (const o of StubObserver.all) o.fn();
+        },
+    };
+};
+
+// The status line, repainted the way the toggle repaints it — updateIncognitoUI, not updateInfo.
+const infoRig = () => {
+    const info = createStubElement('span', { id: 'image-info' });
+    doc.register('image-info', info);
+    const app = Object.assign(Object.create(DrawingApp.prototype), {
+        image: {}, canvas: { width: 800, height: 600 }, lines: [], activeProjectId: null,
+        activeIsBlank: () => false, storage: { incognito: false, temporary: true },
+    });
+    return {
+        info,
+        paint: (on) => { app.storage.incognito = on; app.updateIncognitoUI(); return info.__infoParts; },
+    };
+};
 
 // The "?" badge has its own hover bubble (.hints-popup), so it carries neither a title nor a
 // data-title and opts out of the shared tooltip — both at once would show the text twice.
@@ -46,7 +106,7 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
     for (const hint of ['Ctrl + wheel', 'Alt + wheel', 'Ctrl + Shift + wheel'])
         assert.ok(info.includes(hint), `${hint} must still be documented in the info modal`);
     // Two facts: the #image-info size line, plus an incognito line off body.incognito-mode.
-    assert.match(src, /popup\.textContent = hasImage \? size : 'No image loaded';/);
+    assert.match(src, /sizeText\.nodeValue = live \? \(hasImage \? size : 'No image loaded'\) : '';/);
     assert.match(src, /hints-incognito/);
     assert.match(src, /incognito-mode/);
     // Shown when the facts mean something — an image is open…
@@ -63,26 +123,30 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
 });
 
 // The mode has to read where the image facts are read, empty editor included: the info
-// line carries its own tag (ui/projectTitle.updateInfo), beside the "?" bubble's line.
-test('the info line carries the incognito tag, and keeps its size text separable', () => {
-    const app = readFileSync(new URL('../../../js/core/drawingApp.js', import.meta.url), 'utf8');
-    const fn = readFileSync(new URL('../../../js/ui/projects/window/projectTitle.js', import.meta.url), 'utf8');
-    assert.match(fn, /info\.dataset\.size = info\.textContent;/, 'the size stays readable on its own');
-    assert.match(fn, /class[Nn]ame = 'info-incognito'/, 'the tag is an ELEMENT, so it survives no text rewrite');
-    assert.match(fn, /Incognito — not saved/);
-    // The divider is built WITH the tag, so it can never appear alone.
-    assert.match(fn, /class[Nn]ame = 'info-divider'/);
-    const pair = fn.slice(fn.indexOf("if (app.storage.incognito)"));
-    assert.ok(pair.indexOf("'info-divider'") > -1 && pair.indexOf("'info-incognito'") > -1,
-        'both live inside the one incognito branch');
-    assert.match(pair, /info\.append\(sep, tag\)/, 'and they are appended together');
+// line carries its own tag (ui/projects/window/projectTitle.updateInfo), beside the "?" bubble's
+// line. Both are asserted as RENDERED — what builds them is not the contract.
+test('both incognito badges render the glyph and the wording, and stand hidden while it is off', () => {
+    const { info, paint } = infoRig();
+    const off = paint(false);
+    assert.strictEqual(off.tag.className, 'info-incognito');
+    assert.strictEqual(off.tag.style.display, 'none', 'the tag is hidden while the mode is off');
+    assert.strictEqual(off.sep.style.display, 'none', 'and no divider dangles without it');
+    const on = paint(true);
+    assert.notStrictEqual(on.tag.style.display, 'none', 'incognito shows the tag');
     // The app's own glyph, not an emoji.
-    assert.match(fn, /icon\('incognito', \{ size: 13 \}\)/);
-    assert.ok(!/🕶/.test(fn), 'the emoji is gone from the info line');
-    assert.match(fn, /app\.storage\.incognito/, 'off the one state flag');
-    // Toggling the mode repaints the line (the toggle only ever calls updateIncognitoUI).
-    const ui = app.slice(app.indexOf('  updateIncognitoUI() {'), app.indexOf('\n  }', app.indexOf('  updateIncognitoUI() {')));
-    assert.match(ui, /this\.updateInfo\(\)/);
+    assert.match(on.tag.innerHTML, /class="ic ic-incognito"/);
+    assert.ok(!/🕶/.test(on.tag.innerHTML), 'the emoji is gone from the info line');
+    assert.match(on.tag.innerHTML, /Incognito — not saved/);
+    assert.strictEqual(info.dataset.size, 'Image Size: 800 × 600 px', 'the size stays readable on its own');
+
+    // …and the "?" bubble states the same thing, off the same one flag.
+    const { badge, setIncognito } = bubbleRig();
+    assert.strictEqual(badge.style.display, 'none', 'the bubble line waits for the mode too');
+    setIncognito(true);
+    assert.notStrictEqual(badge.style.display, 'none');
+    assert.match(badge.innerHTML, /class="ic ic-incognito"/);
+    assert.ok(!/🕶/.test(badge.innerHTML), 'the emoji is gone from the bubble too');
+    assert.match(badge.innerHTML, /Incognito — not saved/);
     const css = LAYOUT_CSS;
     assert.match(css, /\.info-incognito \{/, 'and it is styled like the bubble line');
     // The glyph sits on the words, and the divider is muted + unselectable.
@@ -93,10 +157,6 @@ test('the info line carries the incognito tag, and keeps its size text separable
     const div = css.slice(css.indexOf('.info-divider {'), css.indexOf('}', css.indexOf('.info-divider {')));
     assert.match(div, /color: var\(--text-muted\)/, 'muted, not competing with the facts');
     assert.match(div, /user-select: none/);
-    // …and the "?" bubble carries the same glyph, not the emoji.
-    const bar = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
-    assert.match(bar, /line\.innerHTML = `\$\{icon\('incognito', \{ size: 13 \}\)\}/);
-    assert.ok(!/🕶/.test(bar), 'the emoji is gone from the bubble too');
     const hints = css.slice(css.indexOf('.hints-incognito {'), css.indexOf('}', css.indexOf('.hints-incognito {')));
     assert.match(hints, /display: flex/);
     assert.match(hints, /gap: 5px/);

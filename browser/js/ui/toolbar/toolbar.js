@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
-import { wireHoverDust, foldDust } from '../motion.js';
+import { wireHoverDust, foldDust, revealControls } from '../motion.js';
 import { onWindowResize } from '../../utils.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { syncWrappedSeparators } from './separators.js';
@@ -66,6 +66,15 @@ ${toolbarPageSectionsHtml()}
     // Shown by a :hover rule alone, so its sand is wired here (js/ui/motion.js).
     wireHoverDust(hintsBtn, popup);
     let hidden = false;
+    // A STANDING element, hidden rather than rebuilt: a flight photographs a box already there.
+    const incognitoLine = document.createElement('span');
+    incognitoLine.className = 'hints-incognito';
+    incognitoLine.style.display = 'none';
+    // Same glyph as the info line and the toolbar toggle — one incognito mark.
+    incognitoLine.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
+    // The size sits in a text node of its own, so rewriting it never disturbs the badge.
+    const sizeText = document.createTextNode('');
+    popup.append(sizeText, incognitoLine);
 
     const refresh = () => {
       const el = document.getElementById('image-info');
@@ -79,16 +88,10 @@ ${toolbarPageSectionsHtml()}
       const collapsed = document.body.classList.contains('controls-collapsed');
       const live = (hasImage || incognito) && collapsed;
       hintsBtn.style.display = live ? 'inline-flex' : 'none';
-      if (!live) { popup.textContent = ''; return; }
-      popup.textContent = hasImage ? size : 'No image loaded';
-      popup.classList.toggle('has-incognito', incognito);
-      if (incognito) {
-        const line = document.createElement('span');
-        line.className = 'hints-incognito';
-        // Same glyph as the info line and the toolbar toggle — one incognito mark.
-        line.innerHTML = `${icon('incognito', { size: 13 })}<span>Incognito — not saved</span>`;
-        popup.appendChild(line);
-      }
+      sizeText.nodeValue = live ? (hasImage ? size : 'No image loaded') : '';
+      popup.classList.toggle('has-incognito', live && incognito);
+      // Comes and goes in the selected motion: dust, the slot alone in `slide`, nothing under `none`.
+      revealControls(incognitoLine, live && incognito, 'flex');
     };
 
     btn.addEventListener('click', () => {
