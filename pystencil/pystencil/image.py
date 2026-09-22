@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The ``Image`` value type: a plain RGBA8 pixel buffer.
 
 This mirrors the raw RGBA8 buffers the C++ ``core/`` operates on — interleaved
@@ -8,6 +6,8 @@ ABI (crop/rotate/filter/rasterize) without conversion. Decoding/encoding goes
 through :mod:`pystencil.codecs` (pure-Python PNG/BMP); the core stays codec-free
 by design, exactly like the browser/wasm and Zig CLI front-ends.
 """
+
+from __future__ import annotations
 
 from ._ffi.types import NoneType
 from . import codecs

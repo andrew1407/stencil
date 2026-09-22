@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """BMP decode/encode: 24/32-bit ``BI_RGB`` only, bottom-up rows, BGR(A) <-> RGBA."""
+
+from __future__ import annotations
 
 import struct
 

@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Format detection: magic-byte sniffing and codec-free header dimension reads.
 
 No decode here — just enough of each header to name the format and size it, so
 callers can size-filter scraped media without a full decode.
 """
+
+from __future__ import annotations
 
 import struct
 

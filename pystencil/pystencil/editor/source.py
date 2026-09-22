@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Getting pixels IN: local paths, http(s) URLs, raw bytes, an :class:`Image`, or a
 blank page. A mixin over the history plumbing :class:`Editor` owns.
 """
+
+from __future__ import annotations
 
 import os
 import urllib.parse

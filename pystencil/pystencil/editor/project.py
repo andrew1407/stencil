@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Portable ``.stencil`` project files: save, open, delete, and the §12 chat block
 they may carry.
 """
+
+from __future__ import annotations
 
 import base64
 import binascii

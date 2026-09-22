@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The console's command table, and the ``/help`` listing generated from it.
 
 A method becomes a command by wearing :func:`command`; the first name is the verb, the
 rest are aliases. A declaration that carries ``usage`` also earns a ``/help`` entry, so
 the listing cannot silently fall out of step with what the REPL actually dispatches.
 """
+
+from __future__ import annotations
 
 from typing import Callable
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """``--script-plan``: a parsed ``.stc`` lowered to the op-plan JSON adapters already read.
 
 One plan per ``MAX_ACTIONS`` actions, in the wire names of
@@ -7,6 +5,8 @@ One plan per ``MAX_ACTIONS`` actions, in the wire names of
 header-only size probe of each block's first local input is the only I/O. Twin of
 ``cli/src/script/{plan,planActions}.zig``.
 """
+
+from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

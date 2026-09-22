@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The op registry (contract §13): ONE entry per op, the single source of an op's
 existence on this surface — its key schema, validator, applier and prompt bullet.
 
@@ -7,6 +5,8 @@ The per-op normalizers live here too: each runs on the registry-normalized actio
 after the table-driven check passed, and is the typed detail the generic deep-pick
 cannot express.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable

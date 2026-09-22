@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Command-line front-end for pystencil — ``python -m pystencil`` / ``stencil-py``.
 
 This is the Python counterpart of the Zig CLI (``cli/``). It offers the same two
@@ -31,6 +29,8 @@ Split across blank / oneshot / console / registry / hooks / repl and the per-are
 ``commands/`` modules; this module is the façade that keeps ``main`` and the console's
 names where callers expect them.
 """
+
+from __future__ import annotations
 
 import sys
 from typing import Sequence

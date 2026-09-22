@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """/chat: multi-turn prompting and the §12 persisted transcript."""
+
+from __future__ import annotations
 
 import json
 

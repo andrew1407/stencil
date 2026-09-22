@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Layout in and out: drawing lines onto the current snapshot, serializing the
 project to browser-compatible layout JSON, and coercing whatever the caller passed.
 """
+
+from __future__ import annotations
 
 import json
 import os

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Op-plan value types: the variant, the §11 ask card and the parsed plan itself."""
+
+from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

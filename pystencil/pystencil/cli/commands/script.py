@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """``/script`` and ``/script-run`` — run a ``.stc`` against the loaded image.
 
 The console owns a session, not a file, so a ``@source`` block is reported and its ops
 still apply to what is open: that is what the user is looking at. Twin of
 ``cli/src/console/handlers/script.zig``.
 """
+
+from __future__ import annotations
 
 from ..._script import ScriptError, parse_script
 from ...scriptpaths import read_script

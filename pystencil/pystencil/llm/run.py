@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """Per-plan execution state and its helpers: the attachment wire form, the §2.1
 multi-image run record, output-path derivation and coordinate clamping.
 
 Sits below the appliers so both they and :mod:`.execute` can reach it.
 """
+
+from __future__ import annotations
 
 import os
 import re

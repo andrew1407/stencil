@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Op-plan parsing (contract §1/§2/§3): tolerant extraction of the first balanced
 JSON object from the reply text, then strict validation against the registry.
 """
+
+from __future__ import annotations
 
 import json
 import re

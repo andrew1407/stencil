@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """One applier per op — the validated action mapped onto the Editor method it stands
 for (contract §2). Each rides its op's OP_REGISTRY entry beside the validator, so
 dispatch is table-driven on both the parse and the execute side.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

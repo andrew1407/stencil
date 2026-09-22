@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Download the scanned subset to disk: filename derivation and the parallel fetch."""
+
+from __future__ import annotations
 
 import os
 import re

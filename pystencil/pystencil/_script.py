@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The ``.stc`` script handle: a ctypes wrapper over the ``stencil_cli_script*`` ABI.
 
 The core parses, lowers and diagnoses; this reads the result out of the handle into the
@@ -8,6 +6,8 @@ the handle's own memory, so what a runner needs — diagnostics, blocks, ops —
 eagerly at parse time, while the colouring tokens, the dump and :meth:`Script.resolve`
 read through the handle and refuse once it is closed.
 """
+
+from __future__ import annotations
 
 import ctypes
 import functools

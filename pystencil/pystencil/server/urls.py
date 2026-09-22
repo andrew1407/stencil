@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Server URL handling: loopback detection, scheme/port normalization, invite links."""
+
+from __future__ import annotations
 
 import urllib.parse
 

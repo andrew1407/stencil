@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """Category / format / dimension filters, ported from the extension's ``filters.js``.
 
 Pure predicates over :class:`MediaItem`; the page scan applies them in that order.
 """
+
+from __future__ import annotations
 
 from .._ffi.types import NoneType
 from .format import MediaItem

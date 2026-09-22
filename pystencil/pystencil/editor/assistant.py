@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The editor's LLM entry point (llm-contract.md): one prompt round, executed against
 this editor through the same op-plan validator every surface uses.
 """
+
+from __future__ import annotations
 
 from .._ffi.types import NoneType
 

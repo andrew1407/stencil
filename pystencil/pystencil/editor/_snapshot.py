@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """The editing snapshot and the small value types the whole facade shares.
 
 ``_Snapshot`` is the Python mirror of the Zig ``EditState``: rotation + crop + filter
 + lines, never baked eagerly — :meth:`Editor.result` derives the view from it.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Union

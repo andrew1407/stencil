@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Running a ``.stc`` script against this editor.
 
 Each lowered op becomes one ordinary editor call — ``crop``/``set_filter``/``draw``/
@@ -7,6 +5,8 @@ Each lowered op becomes one ordinary editor call — ``crop``/``set_filter``/``d
 the same code. Lengths resolve against the view as it stands at that op, because an
 earlier crop already changed it. Twin of ``cli/src/console/handlers/script.zig``.
 """
+
+from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field

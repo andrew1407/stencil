@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The picture edits and the lines that report them: crop, rotate, filter, layout
 and save, plus the status line most of them print.
 """
+
+from __future__ import annotations
 
 from ..oneshot import _resolve_output
 from ..registry import command

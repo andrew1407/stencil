@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Contract limits (§1/§7/§11) — the same numbers in every client — read off the
 shared op-registry schema, plus the chat-transcript constants built on them.
 """
+
+from __future__ import annotations
 
 import re
 

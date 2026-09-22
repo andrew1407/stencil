@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Source-site scraping for pystencil — the stdlib-only port of the Zig CLI's
 ``cli/src/scrape.zig`` and a parity twin of the Chrome extension's page scanner
 (``browser-extension/src/lib/image/scan.js`` + ``filters.js``).
@@ -22,6 +20,8 @@ Static-HTML adaptations vs. the live-DOM extension (documented, deliberate):
 Split at its section banners across ``format`` / ``scan`` / ``filter`` / ``download`` /
 ``net``; this module is the façade and holds :func:`scan_page`, which spans them.
 """
+
+from __future__ import annotations
 
 import re
 import urllib.parse

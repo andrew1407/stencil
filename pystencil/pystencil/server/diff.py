@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """Project-change diffing and the poll loop that drives watchers, plus the
 connections-listing credential filter. Pure functions over project records.
 """
+
+from __future__ import annotations
 
 from typing import Callable
 

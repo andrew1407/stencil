@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The three one-shot script modes: ``--script``, ``--script-check``, ``--script-plan``.
 
 ``--script`` edits and writes like the rest of the pipeline (everything human on
@@ -7,6 +5,8 @@ stderr); the other two are written for an editor or an adapter to parse, so they
 to **stdout**. Stdin is a one-shot source only: the console reads the very same stream,
 so a ``-`` never reaches it. Twin of ``cli/src/script/{run,check,plan}.zig``.
 """
+
+from __future__ import annotations
 
 import sys
 from typing import TextIO

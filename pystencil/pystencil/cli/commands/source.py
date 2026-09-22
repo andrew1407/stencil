@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Getting a picture into the session: /upload, /source-upload and the §2.1 upload set."""
+
+from __future__ import annotations
 
 import urllib.parse
 

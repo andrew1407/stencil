@@ -1,10 +1,10 @@
-from __future__ import annotations
-
 """The value types a parsed ``.stc`` program hands back: diagnostics, tokens, blocks, ops.
 
 Frozen dataclasses plus the ABI's own kind tables — the Python side of
 ``core/script/types.hpp``, carrying no handle and no ctypes.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 

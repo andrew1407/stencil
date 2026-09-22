@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The package's one bounded fan-out primitive.
 
 Threads, not processes: every caller's work either waits on a socket or spends its time
@@ -7,6 +5,8 @@ inside a ctypes call into the core, and both release the GIL. Each caller brings
 worker bound, because what the bound protects differs (sockets against one host vs
 cores).
 """
+
+from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 

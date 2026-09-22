@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The provider client (contract §6): one non-streaming chat call per provider, over
 the same shared urllib plumbing as :mod:`pystencil.server`.
 """
+
+from __future__ import annotations
 
 import base64
 import json

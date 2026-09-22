@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """PNG decode (8-bit color types 0/2/3/4/6, all five row filters) and encode.
 
 Encode is deliberately trivial: color type 6, filter 0 on every scanline, zlib.
 """
+
+from __future__ import annotations
 
 import struct
 import zlib

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """The canonical system prompt (contract §4 + §13) and the console profile spliced
 into it.
 
@@ -7,6 +5,8 @@ The PROSE CORE is the checked-in canonical asset, byte-pinned by
 tests/test_canonical_drift.py; the "Available ops" bullets are GENERATED from
 OP_REGISTRY, so the prompt can never promise an op this surface cannot run.
 """
+
+from __future__ import annotations
 
 import importlib.resources
 import json

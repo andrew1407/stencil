@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """Networking helpers for the scraper (the guarded fetcher itself lives in
 ``pystencil._net``, shared with ``Editor.load``): the sub-resource strictness rule and
 the best-effort dimension probe built on it.
 """
+
+from __future__ import annotations
 
 import urllib.parse
 

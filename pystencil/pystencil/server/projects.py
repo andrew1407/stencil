@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The project-metadata half of a connection's REST surface (protocol.go routes).
 
 A mixin: every method reaches the network through the ``_request`` that
 :class:`ServerConnection` owns. Includes the poll-based change tracking that stands
 in for the /ws feed this REST-only client does not open.
 """
+
+from __future__ import annotations
 
 import urllib.parse
 from typing import Any

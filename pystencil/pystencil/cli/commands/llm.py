@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """The LLM assistant commands (llm-contract.md): /prompt, /llm, and the transport,
 image and context plumbing one prompt round needs.
 """
+
+from __future__ import annotations
 
 from ..._ffi.types import NoneType
 from ...editor import Editor

@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """One-shot mode: the argparse surface and the two non-interactive pipelines
 (edit-and-write, and source-site scrape).
 """
+
+from __future__ import annotations
 
 import argparse
 import re

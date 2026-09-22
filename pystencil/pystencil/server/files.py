@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """The file half of a connection's REST surface, plus high-level remote sync.
 
 A mixin over ``_request`` (owned by :class:`ServerConnection`). The server is
 codec-free, so every upload carries its dimensions and extension in the query while
 the pixel bytes go in an octet-stream body. The sync half ports ``remoteSync.js``.
 """
+
+from __future__ import annotations
 
 import urllib.parse
 from typing import Any
