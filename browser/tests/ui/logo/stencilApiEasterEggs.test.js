@@ -53,3 +53,24 @@ test('the namespace is read-only, like every other', () => {
   assert.throws(() => { delete stencil.EasterEggs.neonOn; }, /cannot be deleted/);
   closeLogoStage();
 });
+
+// Typed at a console, so casing is forgiven: the facade's guard folds a miss to its one
+// case-insensitive key. Exact spelling still wins, and the namespace itself folds too.
+test('a show answers in any casing, on the namespace and on the facade', () => {
+  const st = facade();
+  const eggs = st.EasterEggs;
+  const name = SHOW_NAMES[0];
+  assert.equal(typeof eggs[name.toLowerCase()], 'function', 'all-lower reaches the show');
+  assert.equal(typeof eggs[name.toUpperCase()], 'function', 'all-upper reaches it too');
+  assert.equal(eggs[name.toLowerCase()], eggs[name], 'the fold resolves to the same function');
+  assert.equal(typeof st.eastereggs, 'object', 'the namespace name folds as well');
+  assert.equal(typeof eggs.what, 'function');
+  assert.equal(typeof eggs.WHAT, 'function');
+});
+
+test('an unknown name is still undefined, and writing through a folded name still throws', () => {
+  const eggs = facade().EasterEggs;
+  assert.equal(eggs.nosuchshow, undefined, 'a fold invents nothing');
+  assert.equal(eggs[Symbol.iterator], undefined, 'symbols are untouched');
+  assert.throws(() => { eggs[SHOW_NAMES[0].toLowerCase()] = 1; }, /read-only/);
+});
