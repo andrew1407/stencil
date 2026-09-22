@@ -121,3 +121,52 @@ test('events feed emits project-event messages to listeners', async () => {
   assert.equal(got.event, 'created');
   assert.equal(got.project.id, 'p_x_y');
 });
+
+// A batch is Promise.allSettled: one server down no longer costs the others their session.
+const partialFetch = (down) => {
+  const { fetchImpl } = makeMockServer();
+  return (url, init) => {
+    if (new URL(url).host === down) throw new Error('connection refused');
+    return fetchImpl(url, init);
+  };
+};
+
+test('connect keeps the servers that answered when one in the batch fails', async () => {
+  const mgr = new ConnectionManager({ fetchImpl: partialFetch('bad:9'), WebSocketImpl: StubWS });
+  await mgr.connect(['http://bad:9', 'http://a:1', 'http://b:2']);
+  assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2'], 'the good ones connect, in the order asked for');
+});
+
+test('a partly-failed connect still records the set, so reconnect() has something to replay', async () => {
+  const mgr = new ConnectionManager({ fetchImpl: partialFetch('bad:9'), WebSocketImpl: StubWS });
+  await mgr.connect(['http://bad:9', 'http://a:1']);
+  assert.equal(mgr.reconnectable, true, '_lastSet was written despite the failure');
+  mgr.disconnectAll();
+  await mgr.reconnect();
+  assert.deepEqual(mgr.urls, ['http://a:1']);
+});
+
+test('an all-unreachable batch leaves the last known set standing for a later reconnect', async () => {
+  let allDown = false;
+  const { fetchImpl } = makeMockServer();
+  const mgr = new ConnectionManager({
+    fetchImpl: (url, init) => {
+      if (allDown) throw new Error('connection refused');
+      return fetchImpl(url, init);
+    },
+    WebSocketImpl: StubWS,
+  });
+  await mgr.connect(['http://a:1', 'http://b:2']);
+  allDown = true;
+  await assert.rejects(() => mgr.reconnect(), /connection refused/);
+  allDown = false;
+  await mgr.reconnect();
+  assert.deepEqual(mgr.urls, ['http://a:1', 'http://b:2']);
+});
+
+test('only an all-failed batch throws, and one failure keeps its own error', async () => {
+  const mgr = new ConnectionManager({ fetchImpl: partialFetch('bad:9'), WebSocketImpl: StubWS });
+  await assert.rejects(() => mgr.connect('http://bad:9'), /connection refused/);
+  await assert.rejects(() => mgr.connect(['http://bad:9', 'http://bad:9']), /connection refused/);
+  assert.deepEqual(mgr.urls, []);
+});

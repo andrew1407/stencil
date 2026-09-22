@@ -9,6 +9,16 @@ export {
 } from './urlRules.js';
 export { ServerConnection } from './serverConnection.js';
 
+// Nothing connected. A lone failure is rethrown as it stands — its `expired`/`status` are
+// what the Servers UI reads; several are joined, and `expired` only if every one was.
+const allFailed = (failures) => {
+  if (failures.length === 1) return failures[0];
+  const err = new Error(failures.map((e) => (e && e.message) || String(e)).join('; '));
+  err.expired = failures.every((e) => e && e.expired);
+  err.errors = failures;
+  return err;
+};
+
 export class ConnectionManager {
   #fetch; #WS; #onChange;
   #conns = new Map();   // url -> ServerConnection
@@ -70,34 +80,46 @@ export class ConnectionManager {
   get last() { const u = this.urls; return u.length ? this.#conns.get(u[u.length - 1]) : null; }
 
   // A URL string, {url, token}, or an array of either; already-connected urls are no-ops.
+  // The handshakes run together and each stands alone: only an all-failed batch throws.
   async connect(spec) {
     const items = Array.isArray(spec) ? spec : [spec];
+    const pending = [];
     for (const item of items) {
       const { url, token, kind } = typeof item === 'string' ? { url: item, token: '' } : (item || {});
       // An explicitly supplied token wins over the invite fragment's.
       const inv = parseInviteUrl(url);
       const norm = normalizeUrl(inv.url);
-      if (this.#conns.has(norm)) continue;
+      if (this.#conns.has(norm) || pending.some((p) => p.norm === norm)) continue;
       const conn = new ServerConnection(norm, {
         token: token || inv.token, kind, fetchImpl: this.#fetch, WebSocketImpl: this.#WS,
       });
       conn._onStatus = () => this.#onChange({ type: 'status', connection: conn });
-      try {
-        await conn.handshake();
-      } catch (err) {
-        // A refused credential is remembered, not retried; any other failure may recover.
-        if (err.expired) {
-          this.#expired.set(norm, conn);
-          this.#onChange({ type: 'expired', connection: conn });
-        }
-        throw err;
-      }
-      this.#expired.delete(norm);
-      conn.onEvent((msg, c) => this.#onChange({ type: 'event', message: msg, connection: c }));
-      this.#conns.set(norm, conn);
+      pending.push({ norm, conn });
     }
-    this.#lastSet = this.snapshot();
+    const settled = await Promise.allSettled(pending.map((p) => p.conn.handshake()));
+    const failures = [];
+    // Adopted in the order asked for, not the order they answered, so the rows keep it.
+    pending.forEach(({ norm, conn }, i) => {
+      if (settled[i].status === 'fulfilled') {
+        this.#expired.delete(norm);
+        conn.onEvent((msg, c) => this.#onChange({ type: 'event', message: msg, connection: c }));
+        this.#conns.set(norm, conn);
+        return;
+      }
+      const err = settled[i].reason;
+      // A refused credential is remembered, not retried; any other failure may recover.
+      if (err && err.expired) {
+        this.#expired.set(norm, conn);
+        this.#onChange({ type: 'expired', connection: conn });
+      }
+      failures.push(err);
+    });
+    // Recorded whatever the outcome, so a partly-failed batch is still replayable; an
+    // all-unreachable one snapshots nothing and leaves the last known set standing.
+    const snap = this.snapshot();
+    if (snap.length) this.#lastSet = snap;
     this.#onChange({ type: 'connect' });
+    if (pending.length && failures.length === pending.length) throw allFailed(failures);
     return this;
   }
 

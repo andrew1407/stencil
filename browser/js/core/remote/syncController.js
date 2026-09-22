@@ -2,6 +2,7 @@ import { notify } from '../../utils.js';
 import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../../ui/canvas/serverLayoutPaint.js';
 import { mergeLines } from '../layout.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
+import { guardedFetch } from '../../net/fetchGuard.js';
 import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../../net/remoteSync.js';
 
 // Live co-edit push/pull + server writes: the debounced save-back, the peer-event reload,
@@ -122,7 +123,7 @@ export class RemoteSyncController {
     let blob = null;
     try { blob = await conn.fetchFile(remoteId, 'original'); } catch {}
     if (!blob && /^https?:/i.test(src || '')) {
-      const resp = await fetch(src, { mode: 'cors' });
+      const resp = await guardedFetch(src, { mode: 'cors' });
       if (resp.ok) blob = await resp.blob();
     }
     return blob;

@@ -1,5 +1,6 @@
 import { normalizeUrl } from './connectionManager.js';
 import { loadSavedServers } from './connectionStore.js';
+import { ServerConnection } from './serverConnection.js';
 // Create-on-server after a local create + version-guarded save-back; each takes a
 // resolved ServerConnection.
 
@@ -25,8 +26,9 @@ export const shouldReloadFromEvent = (msg, link, opts = {}) => {
   return true;
 };
 
-// Falls back to a direct authenticated DELETE with the saved token when this tab's live
-// connection object is gone (dropped feed, cached listing).
+// Where this tab's live connection object is gone (dropped feed, cached listing), a
+// throwaway ServerConnection over the saved credential issues the DELETE, so the request
+// is built and bounded in one place instead of being re-derived here.
 export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
   const conn = connMgr?.get(serverUrl);
   if (conn) { await conn.deleteProject(id); return; }
@@ -34,14 +36,10 @@ export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
     try { return normalizeUrl(s.url) === normalizeUrl(serverUrl); } catch { return false; }
   });
   if (!saved) throw new Error(`not connected to ${serverUrl}`);
-  const res = await fetch(`${normalizeUrl(serverUrl)}/projects/${encodeURIComponent(id)}`, {
-    method: 'DELETE', headers: { Authorization: `Bearer ${saved.token}` },
-  });
-  if (!res.ok && res.status !== 404) {   // already-gone counts as removed
-    let msg = `HTTP ${res.status}`;
-    try { const body = await res.json(); if (body && body.message) msg = body.message; } catch { /* not JSON */ }
-    throw new Error(msg);
-  }
+  const oneShot = new ServerConnection(serverUrl, { token: saved.token, kind: saved.kind || '' });
+  try { await oneShot.deleteProject(id); }
+  catch (err) { if (err?.status !== 404) throw err; }   // already-gone counts as removed
+  finally { oneShot.close(); }
 };
 
 // Throws when there is no live connection to that server.

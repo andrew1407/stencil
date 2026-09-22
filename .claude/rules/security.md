@@ -35,6 +35,7 @@ re-derive the checks.
 |---|---|
 | cli | `cli/src/net.zig` |
 | desktop | `desktop/src/net/fetchGuard.{hpp,cpp}` (a port of `net.zig`) |
+| browser | `browser/js/net/fetchGuard.js` |
 | browser-extension | `browser-extension/src/lib/connection/urlGuard.js` |
 | vscode-extension | `vscode-extension/src/lib/spawn/{cliLocator,terminal}.js` + `lib/web/target.js` |
 | pystencil | `pystencil/pystencil/_net.py` |
