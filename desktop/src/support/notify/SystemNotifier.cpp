@@ -1,5 +1,6 @@
 #include "SystemNotifier.hpp"
 #include <QIcon>
+#include <QPointer>
 #include <QSystemTrayIcon>
 #include <map>
 #ifdef Q_OS_MACOS
@@ -40,8 +41,14 @@ namespace stencil::gui {
   void SystemNotifier::setActive(bool on) {
 #ifdef Q_OS_MACOS
     if (usesBanner()) {
+      const bool rising = on && !active;
       active = on;
-      if (on) macBanner::requestPermission();
+      if (!rising) return;
+      // A refusal already on record is reported by applySettings; only news is told here.
+      const bool knownRefused = macBanner::isDenied();
+      macBanner::requestPermission([self = QPointer<SystemNotifier>(this), knownRefused](bool allowed) {
+        if (!allowed && !knownRefused && self && self->active && self->onRefused) self->onRefused();
+      });
       return;
     }
 #endif

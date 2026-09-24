@@ -4,8 +4,14 @@
 
 namespace stencil::gui {
 
-  Notifications::Notifications(QWidget* host)
-      : QObject(host), toast(new ToastStack(host)), system(std::make_unique<SystemNotifier>()) {}
+  Notifications::Notifications(QWidget* host) : QObject(host), toast(new ToastStack(host)) {
+    auto os = std::make_unique<SystemNotifier>();
+    os->onRefused = [this] {
+      toast->show(tr("macOS does not allow notifications from Stencil — showing them in the app"),
+                  Level::INFO, 5000);
+    };
+    system = std::move(os);
+  }
 
   Notifications::~Notifications() = default;
 

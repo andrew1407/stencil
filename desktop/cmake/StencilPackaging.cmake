@@ -145,6 +145,15 @@ if(STENCIL_BUNDLE_ICON_NAME)
     VERBATIM)
 endif()
 
+# macOS grants notification permission only to an app signed with a real identity; an ad-hoc
+# build is refused. Last POST_BUILD step, so it seals the finished Info.plist. Off when empty.
+set(STENCIL_CODESIGN_IDENTITY "" CACHE STRING "macOS signing identity for the built app")
+if(APPLE AND STENCIL_CODESIGN_IDENTITY)
+  add_custom_command(TARGET stencil POST_BUILD
+    COMMAND codesign --force --deep --sign "${STENCIL_CODESIGN_IDENTITY}" "$<TARGET_BUNDLE_DIR:stencil>"
+    VERBATIM)
+endif()
+
 # ── Distributable packaging ───────────────────────────────────────────────
 # `cmake --install build` lays the app out under the install prefix; the Qt
 # deploy script then copies the Qt libraries + plugins next to it (macdeployqt /

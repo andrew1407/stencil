@@ -8,8 +8,8 @@ namespace stencil::gui::macBanner {
 
   // A bundled app: a bare test binary has no bundle id and no notification centre.
   bool isSupported();
-  // Asks the OS once; later calls only refresh the stored answer.
-  void requestPermission();
+  // Asks the OS; `done(allowed)` runs on the main thread once it answers.
+  void requestPermission(std::function<void(bool)> done);
   bool isAllowed();
   bool isDenied();
   // False until the OS has allowed banners; `onClick` runs on the main thread.

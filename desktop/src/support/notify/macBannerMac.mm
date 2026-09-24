@@ -65,10 +65,15 @@ namespace stencil::gui::macBanner {
   bool isAllowed() { return gStatus == Status::ALLOWED; }
   bool isDenied() { return gStatus == Status::DENIED; }
 
-  void requestPermission() {
+  void requestPermission(std::function<void(bool)> done) {
     if (!isSupported()) return;
     [center() requestAuthorizationWithOptions:UNAuthorizationOptionAlert
-                            completionHandler:^(BOOL, NSError*) { refresh(); }];
+                            completionHandler:^(BOOL granted, NSError*) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        gStatus = granted ? Status::ALLOWED : Status::DENIED;
+        if (done) done(granted);
+      });
+    }];
   }
 
   bool post(const QString& title, const QString& body, std::function<void()> onClick) {

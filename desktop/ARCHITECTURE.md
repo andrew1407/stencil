@@ -249,7 +249,8 @@ classDiagram
   elsewhere a `QSystemTrayIcon::showMessage` from a tray icon that exists only while that channel is chosen.
   A sink that cannot deliver — no tray, no message support — returns false and the toasts show
   it, so the setting is a preference, never a way to lose a message; `applySettings` says so once
-  when the pick cannot be honoured. Browser twin: `ui/shell/notifySinks.js`.
+  when the pick cannot be honoured, and a macOS refusal that arrives after the pick is told once
+  by `SystemNotifier::onRefused`. A banner needs a signed app (`STENCIL_CODESIGN_IDENTITY`). Browser twin: `ui/shell/notifySinks.js`.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
   applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
   `MediaLoader`. `openProjectFile`
