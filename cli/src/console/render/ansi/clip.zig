@@ -9,12 +9,13 @@ const appendBytes = scan.appendBytes;
 const utf8Len = scan.utf8Len;
 const csiLen = scan.csiLen;
 const clipRange = @import("splice.zig").clipRange;
+const restyle = @import("restyle.zig");
 
 pub fn clip(line: []const u8, cols: u16, out: []u8) []const u8 {
     var oi: usize = 0;
     var vis: u16 = 0;
     clipCounted(line, cols, out, &oi, &vis);
-    if (logo.colorEnabled()) appendBytes(out, &oi, "\x1b[0m"); // never bleed colour into the next row
+    appendBytes(out, &oi, restyle.tail()); // never bleed colour into the next row
     return out[0..oi];
 }
 
@@ -23,7 +24,7 @@ pub fn clip(line: []const u8, cols: u16, out: []u8) []const u8 {
 pub fn clipPrefix(line: []const u8, cols: u16, x: u16, out: []u8) []const u8 {
     var oi: usize = 0;
     clipRange(line, 0, @min(x, cols), logo.accentReal(), out, &oi);
-    if (logo.colorEnabled()) appendBytes(out, &oi, "\x1b[0m"); // never bleed colour into the next row
+    appendBytes(out, &oi, restyle.tail()); // never bleed colour into the next row
     return out[0..oi];
 }
 
@@ -33,13 +34,14 @@ pub fn clipPadded(line: []const u8, cols: u16, out: []u8) []const u8 {
     var oi: usize = 0;
     var vis: u16 = 0;
     clipCounted(line, cols, out, &oi, &vis);
-    if (logo.colorEnabled()) appendBytes(out, &oi, "\x1b[0m"); // pad on the default background
+    appendBytes(out, &oi, restyle.tail()); // pad on the default (or the skin's) background
     while (vis < cols) : (vis += 1) appendBytes(out, &oi, " ");
     return out[0..oi];
 }
 
 /// `clip`'s walk, reporting how many visible columns it wrote. Shared by clip and clipPadded.
-pub fn clipCounted(line: []const u8, cols: u16, out: []u8, oi: *usize, vis: *u16) void {
+pub fn clipCounted(raw: []const u8, cols: u16, out: []u8, oi: *usize, vis: *u16) void {
+    const line = restyle.restyle(raw);
     var i: usize = 0;
     while (i < line.len) {
         const b = line[i];
@@ -54,13 +56,14 @@ pub fn clipCounted(line: []const u8, cols: u16, out: []u8, oi: *usize, vis: *u16
             i += esc;
             continue;
         }
-        if (vis.* >= cols) break;
+        const w = scan.cellWidth(line, i);
+        if (vis.* + w > cols) break;
         const clen = @min(utf8Len(b), line.len - i);
         if (oi.* + clen > out.len) break;
         @memcpy(out[oi.*..][0..clen], line[i..][0..clen]);
         oi.* += clen;
         i += clen;
-        vis.* += 1;
+        vis.* += w;
     }
 }
 

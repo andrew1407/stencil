@@ -12,6 +12,7 @@ const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
 const llmPrompt = @import("llmPrompt.zig");
 const screen = @import("screen.zig");
+const skin = @import("../app/skin.zig");
 
 const Session = session_mod.Session;
 const hooks = @import("hooks.zig");
@@ -91,8 +92,15 @@ pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed:
                 // In full-screen mode the prompt is a fixed row that gets cleared, so echo the
                 // command into the scrollback first — otherwise its output has no visible source.
                 if (scr) |s| if (n != 0) {
+                    if (s.scroll_off != 0) { // sending a line brings a scrolled-up view back to the bottom
+                        s.scroll_off = 0;
+                        s.has_sel = false;
+                        s.paintBody();
+                        s.drawStatusBar();
+                    }
                     s.skipRevealOnce(); // the echo is what you just typed, not output arriving
-                    logo.print("{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), buf[0..n] });
+                    const gold = if (skin.isSecret(commands.parseCommand(buf[0..n]).word)) logo.colorSeq(skin.gold) else "";
+                    logo.print("{s}{s}{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), gold, buf[0..n], logo.resetSeq() });
                 };
                 // Images pasted into the line ride it as `[Image #N …]` markers: lift them off before the command
                 // is parsed — and before it is remembered, since a recalled marker would name a picture long gone.

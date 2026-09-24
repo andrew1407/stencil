@@ -3,6 +3,7 @@
 //! on `Editor` by line_edit.zig.
 const std = @import("std");
 const logo = @import("../app/logo.zig");
+const skin = @import("../app/skin.zig");
 const line_edit = @import("../line_edit.zig");
 
 const Editor = line_edit.Editor;
@@ -23,6 +24,9 @@ const markers = @import("markers.zig");
 const words = @import("words.zig");
 const wrap = @import("wrap.zig");
 
+// An animated secret skin repaints on the idle hook, so the hook runs at its frame rate.
+const frame_ms = skin.frame_ms;
+
 /// Read one edited line into `buf`: a submitted `.line`, or a chord the caller handles (`.eof`,
 /// `.interrupt`, `.copy`, `.paste`). `armed` carries the two-Ctrl-C exit guard across calls.
 pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool, preset: []const u8) Input {
@@ -36,15 +40,22 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
     // as a double-click; `click_pending` fires (cycle the accent) once the window lapses.
     var click_pending = false;
     var click_at: i64 = 0;
+    var frame_at: i64 = 0; // when the idle hook last ran
     self.refresh(prompt, buf[0..len], pos);
 
     while (true) {
+        // Input that never pauses (a wheel scroll, a drag) must not freeze an animated skin:
+        // between events, the hook runs as soon as a frame is due.
+        if (skin.animating() and self.idle_cb != null and self.nowMs() - frame_at >= frame_ms) {
+            frame_at = self.nowMs();
+            if (self.idle_cb.?(self.idle_ctx.?)) self.refresh(prompt, buf[0..len], pos);
+        }
         // Timeout: short while a logo click is pending (so it resolves promptly), else the
         // 500ms idle-hook cadence, else block indefinitely.
         const timeout: i32 = if (click_pending) blk: {
             const rem = double_click_ms - (self.nowMs() - click_at);
             break :blk if (rem <= 0) 1 else @intCast(@min(rem, @as(i64, 500)));
-        } else if (self.idle_cb != null) 500 else -1;
+        } else if (self.idle_cb != null) (if (skin.animating()) frame_ms else 500) else -1;
         const ch = blk: {
             switch (self.pollByte(timeout)) {
                 .closed => {
@@ -65,6 +76,7 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                         continue;
                     }
                     if (self.idle_cb) |cb| {
+                        frame_at = self.nowMs();
                         if (cb(self.idle_ctx.?)) self.refresh(prompt, buf[0..len], pos);
                     }
                     continue;

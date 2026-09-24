@@ -6,7 +6,6 @@ const reveal = @import("logoFx/reveal.zig");
 const clock = @import("logoFx/clock.zig");
 const timing = @import("logoFx/timing.zig");
 
-pub const wordmark = press.wordmark;
 pub const pressLogo = press.pressLogo;
 pub const wipeRecolor = press.wipeRecolor;
 pub const revealing = reveal.revealing;
@@ -17,4 +16,5 @@ test {
     _ = reveal;
     _ = clock;
     _ = timing;
+    _ = @import("logoFx/rain.zig");
 }

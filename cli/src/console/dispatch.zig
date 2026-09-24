@@ -12,6 +12,8 @@ const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
 const llmPrompt = @import("llmPrompt.zig");
 const screen = @import("screen.zig");
+const skin = @import("../app/skin.zig");
+const appearance = @import("handlers/appearance.zig");
 
 const Session = session_mod.Session;
 const PipedConfirm = @import("loop.zig").PipedConfirm;
@@ -29,6 +31,15 @@ pub fn dispatch(session: *Session, io: std.Io, line: []const u8) bool {
 pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
     const cmd = commands.parseCommand(line);
     if (cmd.word.len == 0) return false;
+    // The secret words: no Verb, so neither `help` nor Tab-completion can list them.
+    if (std.ascii.eqlIgnoreCase(cmd.word, skin.list_word)) {
+        appearance.doEasterEggs();
+        return false;
+    }
+    if (skin.skinOf(cmd.word)) |which| {
+        appearance.doEgg(which);
+        return false;
+    }
     if (commands.verbOf(cmd.word)) |verb| switch (verb) {
         .quit => return true,
         .help => ui.help(),

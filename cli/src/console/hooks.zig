@@ -9,18 +9,29 @@ const session_mod = @import("session.zig");
 const commands = @import("commands.zig");
 const ui = @import("ui.zig");
 const handlers = @import("handlers.zig");
+const appearance = @import("handlers/appearance.zig");
 const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
 const llmPrompt = @import("llmPrompt.zig");
 const screen = @import("screen.zig");
+const skin = @import("../app/skin.zig");
+const reveal = @import("render/logoFx/reveal.zig");
 
 const Session = session_mod.Session;
+
+var anim_frames: u32 = 0;
 
 // Idle hook: at the prompt, poll the live events feed (so a peer's name/colour change surfaces
 // without a keystroke) and, in screen mode, re-measure the terminal — no SIGWINCH handler needed.
 pub const IdleCtx = struct { session: *Session, io: std.Io, screen: ?*screen.Screen = null };
 pub fn idleTick(raw: *anyopaque) bool {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    if (c.screen) |s| if (skin.animating()) {
+        // The prompt keeps its letters under the picture skins, so only a recoloured one redraws it.
+        const moved = reveal.skinFrame(s, null, 0) and !skin.traitsOf(skin.get()).replaces_letters;
+        anim_frames +%= 1;
+        if (anim_frames % 6 != 0) return moved; // the feed and the size keep their ~500ms pace
+    };
     const resized = if (c.screen) |s| s.tick() else false;
     const evented = remoteEvents.pollEvents(c.session, c.io);
     return resized or evented; // true → the line editor repaints the prompt
@@ -29,6 +40,7 @@ pub fn idleTick(raw: *anyopaque) bool {
 // Single-click on the pinned logo: advance the accent, mirroring the browser logo.
 pub fn logoCycle(raw: *anyopaque) void {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    if (appearance.eggOff()) return;
     handlers.cycleTheme(c.session);
 }
 
@@ -36,6 +48,7 @@ pub fn logoCycle(raw: *anyopaque) void {
 // click time seeds the RNG so each double-click lands on a different hue.
 pub fn logoCustom(raw: *anyopaque) void {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
+    if (appearance.eggOff()) return;
     const seed: u64 = @bitCast(std.Io.Clock.now(.awake, c.io).toMilliseconds());
     handlers.randomCustomTheme(c.session, seed);
 }

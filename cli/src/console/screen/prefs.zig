@@ -1,23 +1,19 @@
 //! The two screen preferences a command can change: the reveal speed's 0.01…1 scale and
 //! the accent the pinned logo cycles through.
 const std = @import("std");
-const sc = @import("../screen.zig");
-
-const reveal_speed_min = sc.reveal_speed_min;
-const reveal_speed_max = sc.reveal_speed_max;
-const reveal_speed_default = sc.reveal_speed_default;
 const theme = @import("../../app/theme.zig");
+
+// `/reveal-speed <speed>`, 0.01 … 1: 1 = instant, smaller = slower (0 would never finish). The sweep's
+// constants are the pace at the default 0.5; each scales by (1-speed)/speed, which is 1 there.
+pub const speed_min = 0.01;
+pub const speed_max = 1.0;
+pub const speed_default = 0.5;
 
 pub fn parseRevealSpeed(text: []const u8) ?f64 {
     const v = std.fmt.parseFloat(f64, std.mem.trim(u8, text, " \t")) catch return null;
-    if (std.math.isNan(v) or v < reveal_speed_min or v > reveal_speed_max) return null;
+    if (std.math.isNan(v) or v < speed_min or v > speed_max) return null;
     return v;
 }
-
-/// The scale's ends and default, for the `/reveal-speed` command's messages.
-pub const speed_min = reveal_speed_min;
-pub const speed_max = reveal_speed_max;
-pub const speed_default = reveal_speed_default;
 
 /// The next accent key when the logo is single-clicked: advance through the preset list (wrapping),
 /// or reset to the default when a custom colour (`cur` is a '#hex') is active — as the browser does.

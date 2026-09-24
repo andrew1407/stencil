@@ -2,6 +2,7 @@
 //! fixed prompt row in screen mode, in place otherwise. Bound as a method by line_edit.zig.
 const std = @import("std");
 const logo = @import("../app/logo.zig");
+const restyle = @import("../console/render/ansi/restyle.zig");
 
 const Editor = @import("../line_edit.zig").Editor;
 
@@ -12,10 +13,9 @@ pub fn confirm(self: *Editor, question: []const u8) bool {
         self.gotoLineStart();
         self.writeAll("\x1b[2K");
     }
-    self.writeAll(logo.accentReal());
-    self.writeAll(question);
-    self.writeAll(" (Y/n) ");
-    self.writeAll(logo.resetSeq());
+    var qbuf: [1024]u8 = undefined;
+    const q = std.fmt.bufPrint(&qbuf, "{s}{s} (Y/n) {s}", .{ logo.accentReal(), question, logo.resetSeq() }) catch question;
+    self.writeAll(restyle.restyle(q));
     while (true) {
         const ch = self.readByte() orelse return false; // closed tty -> treat as decline
         switch (ch) {

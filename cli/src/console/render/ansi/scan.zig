@@ -33,6 +33,16 @@ pub fn appendBytes(out: []u8, oi: *usize, s: []const u8) void {
     oi.* += s.len;
 }
 
+const zwj = "\u{200d}";
+
+/// Cells a glyph takes: the emoji planes (U+1F000 on) are two wide, everything else one; a ZWJ
+/// and the glyph it joins on take none, so a joined emoji is as wide as its first part.
+pub fn cellWidth(line: []const u8, i: usize) u16 {
+    if (std.mem.startsWith(u8, line[i..], zwj)) return 0;
+    if (i >= zwj.len and std.mem.eql(u8, line[i - zwj.len .. i], zwj)) return 0;
+    return if (line[i] == 0xf0 and i + 1 < line.len and line[i + 1] >= 0x9f) 2 else 1;
+}
+
 pub fn utf8Len(b: u8) usize {
     if (b < 0x80) return 1;
     if (b >= 0xf0) return 4;
@@ -79,4 +89,13 @@ pub fn accentReachOf(line: []const u8) u16 {
         i += @min(utf8Len(line[i]), line.len - i);
     }
     return last;
+}
+
+test "cellWidth: emoji are two cells, a ZWJ-joined lime is two in all" {
+    const lime = "🍋\u{200d}🟩";
+    var w: u16 = 0;
+    var i: usize = 0;
+    while (i < lime.len) : (i += utf8Len(lime[i])) w += cellWidth(lime, i);
+    try std.testing.expectEqual(@as(u16, 2), w);
+    try std.testing.expectEqual(@as(u16, 1), cellWidth("a", 0));
 }
