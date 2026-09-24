@@ -4,7 +4,6 @@
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
 #include "guiHelpers.hpp"
-#include "../../../support/control/reveal/controlReveal.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../../../support/theme/filterFade.hpp"
@@ -68,7 +67,6 @@ namespace stencil::gui {
     closeInlineRename();
     for (int i = list->count() - 1; i >= 0; --i)
       if (list->item(i)->data(DOOMED_ROLE).toBool()) delete list->takeItem(i);
-    stopDustClouds(this);   // …the bar's controls' own clouds with them
     QDialog::done(result);
   }
 

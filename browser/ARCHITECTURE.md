@@ -249,7 +249,9 @@ classDiagram
    (`vscode-extension/tests/parserParity.test.js`). Edit here, then re-copy.
 5. **Typed boundary.** Every public module has a sibling `.d.ts`.
 6. **Motion is decoration.** Every particle cloud is one canvas (`cloud.js`); never a
-   DOM node per grain. The OS `prefers-reduced-motion` wins over every setting.
+   DOM node per grain. The OS `prefers-reduced-motion` wins over every setting. A row
+   cloud belongs to its window — a modal overlay or a `data-dust-scope` panel: it starts only
+   while that window is open, and the window's close sweeps it (`sweepDust`).
    A skin is a session override: it stamps `<html>` and lays motion, icon and favicon overrides
    over the stored preferences, and writes no store, so a reload wears the user's own look.
 7. **Storage split.** Image-heavy project payloads live in IndexedDB; the small registry

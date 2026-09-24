@@ -20,6 +20,7 @@ namespace stencil::gui {
     if (cols > 0) fx->cols = cols;
     if (rows > 0) fx->rows = rows;
     fx->setGeometry(QRect(at, victim->size()));
+    fx->bindToSurface(victim);
     fx->show();
     fx->raise();
     // Again after the relayout removing the victim triggers — it restacks the host's children.
@@ -46,6 +47,7 @@ namespace stencil::gui {
     fx->sweep = sweep;
     if (dust || sweep != Sweep::ROWS) fx->sizeGridForDust(rect.size(), dustCells);
     fx->setGeometry(QRect(at, rect.size()));
+    fx->bindToSurface(source);
     fx->show();
     fx->raise();
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
@@ -72,6 +74,7 @@ namespace stencil::gui {
     fx->spread = spread;
     fx->pad = std::max(0, pad);
     fx->setGeometry(at.adjusted(-fx->pad, -fx->pad, fx->pad, fx->pad));
+    fx->bindToSurface(host);
     fx->show();
     fx->raise();
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
@@ -129,6 +132,7 @@ namespace stencil::gui {
         shot, box, host, host->mapFromGlobal(originGlobal), gather, ms,
         subject->palette().color(QPalette::WindowText),
         DisintegrateOverlay::SURFACE_MAX_CELLS, escapeHost, alwaysEscape);
+    if (fx) fx->bindToSurface(host);
     if (fx && paintNow) fx->repaint();
     return fx;
   }

@@ -180,6 +180,34 @@ class MainWindowGuiTest : public QObject {
                                             .arg(QDebug::toString(origin), QDebug::toString(want))));
   }
 
+  // Motion off shows the dialog with no flight to hide behind: the first paint already wears the
+  // scrollbar, and the rows keep one width from then on (the bar sits in the reserved gutter).
+  void motionOffDialogPaintsWithItsScrollbarDecided() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(stencil::support::motionReduced());
+    struct Paints : QObject {
+      QList<QPair<int, bool>> seen;   // viewport width, bar shown — per dialog paint
+      bool eventFilter(QObject* o, QEvent* e) override {
+        auto* d = qobject_cast<QDialog*>(o);
+        auto* scroll = d && e->type() == QEvent::Paint ? d->findChild<QScrollArea*>() : nullptr;
+        if (scroll) seen.append({scroll->viewport()->width(), scroll->verticalScrollBar()->isVisible()});
+        return QObject::eventFilter(o, e);
+      }
+    } paints;
+    qApp->installEventFilter(&paints);
+    QTimer::singleShot(300, [] {
+      if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
+    });
+    win.openSettings();
+    qApp->removeEventFilter(&paints);
+    QVERIFY(!paints.seen.isEmpty());
+    QVERIFY2(paints.seen.first().second, "the first paint came before the scrollbar");
+    for (const auto& [w, bar] : paints.seen) QCOMPARE(w, paints.seen.first().first);
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

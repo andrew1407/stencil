@@ -4,11 +4,16 @@ import { speckPainter } from './surface/painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surface/motion.js';
 import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './surface/tiles.js';
 import { styleCode } from './tune.js';
+// `data-dust-scope`: the selector its window matches while open; a closed one starts no row cloud.
+const DUST_SCOPE = '.app-modal-overlay, [data-dust-scope]';
+const scopeOpen = (scope) => typeof scope.matches !== 'function'
+  || scope.matches(scope.dataset?.dustScope || '.modal-open');
+
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,
                                    spread = SURFACE_SPREAD, drift = 1, toBody = false,
                                    hostClass = '', paintTile = null, own = true, box = null,
-                                   delayScale = null, flight = null } = {}) {
+                                   delayScale = null, flight = null, scoped = true } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
 // Every element-sized cloud is built here, so this is where the motion mode turns
 // particles off; `false` leaves the caller on its own CSS entrance.
@@ -20,6 +25,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 // hands in the box it is about to take (foldBox).
     const r = box || el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
+    const scope = scoped ? el.closest?.(DUST_SCOPE) : null;
+    if (scope && !scopeOpen(scope)) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
     const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
@@ -29,7 +36,6 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.inert = true;
 // Which window the cloud came out of, for sweepDust() on close; a cloud on <body>
 // outlives the list it hangs in.
-    const scope = el.closest?.('.app-modal-overlay, [data-dust-scope]');
     if (scope?.id) host.dataset.dustScope = scope.id;
     const span = ms || DISINTEGRATE_MS;
 // A row gather on its own clock keeps the default's proportions (gather leg 0.48s of

@@ -91,6 +91,21 @@ namespace stencil::support {
     bool flown = false;
   };
 
+  // With no flight to hide behind, the layout (scrollbar included) settles before the first paint.
+  class SettleOnShow : public QObject {
+   public:
+    explicit SettleOnShow(QWidget* w) : QObject(w) {
+      setObjectName(QStringLiteral("stencilSettleOnShow"));
+      w->installEventFilter(this);
+    }
+
+   protected:
+    bool eventFilter(QObject* o, QEvent* e) override {
+      if (e->type() == QEvent::Show) settleLayout(*static_cast<QWidget*>(o));
+      return QObject::eventFilter(o, e);
+    }
+  };
+
   // Split from the public entry point so the watcher can play it WITHOUT claiming the dialog.
   void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
                  const QRect& closeRect = QRect(),
@@ -99,7 +114,10 @@ namespace stencil::support {
     QPointer<QWidget> anchorGuard(anchor);
     auto shotWhileOpen = std::make_shared<QPixmap>();
 
-    if (!motionReduced()) {
+    if (motionReduced()) {
+      if (!dlg.findChild<QObject*>(QStringLiteral("stencilSettleOnShow"), Qt::FindDirectChildrenOnly))
+        new SettleOnShow(&dlg);
+    } else {
       // Transparent BEFORE exec() maps it, else the real window flashes at full size first.
       dlg.setWindowOpacity(0.0);
       const auto restore = [guard] { if (guard) guard->setWindowOpacity(1.0); };

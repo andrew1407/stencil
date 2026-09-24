@@ -115,7 +115,14 @@ namespace stencil::gui {
 
     void setFollow(QWidget* w);
 
+    // The nearest window or dock around `inside`: when it hides or goes, this cloud goes at once.
+    static QWidget* surfaceOf(QWidget* inside);
+    void bindToSurface(QWidget* inside);
+    QWidget* boundSurface() const { return surface; }
+
    protected:
+    bool eventFilter(QObject* watched, QEvent* e) override;
+
     struct Mote {
       QPointF at;
       double radius = 0;
@@ -160,6 +167,8 @@ namespace stencil::gui {
     void syncFollow();
 
     QPointer<QWidget> follow;
+    QPointer<QWidget> surface;
+    QMetaObject::Connection surfaceGone;
     QPoint followAt;            // parent coords at the last tick
     QPixmap snap;
     QPixmap base;          // overPixmaps only; null = nothing

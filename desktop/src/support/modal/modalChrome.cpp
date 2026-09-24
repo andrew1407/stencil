@@ -36,10 +36,27 @@ namespace stencil::gui {
   namespace {
     // The bar's width is RESERVED, never taken and given back, or a search that shortens a list
     // past the scroll point widens every row on one keystroke and narrows them on the next.
+    // The bar shows INSIDE the reserved gutter (the margin gives way to it), so rows never move.
     class GutterScrollArea : public QScrollArea {
      public:
       using QScrollArea::QScrollArea;
-      void reserveBar() { setViewportMargins(0, 0, verticalScrollBar()->sizeHint().width(), 0); }
+      void reserveBar() {
+        verticalScrollBar()->installEventFilter(this);
+        fitGutter();
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (o == verticalScrollBar() && (e->type() == QEvent::Show || e->type() == QEvent::Hide))
+          fitGutter();
+        return QScrollArea::eventFilter(o, e);
+      }
+
+     private:
+      void fitGutter() {
+        const bool shown = verticalScrollBar()->isVisibleTo(this);
+        setViewportMargins(0, 0, shown ? 0 : verticalScrollBar()->sizeHint().width(), 0);
+      }
     };
   }  // namespace
 

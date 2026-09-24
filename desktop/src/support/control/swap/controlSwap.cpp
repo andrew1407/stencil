@@ -58,7 +58,9 @@ namespace stencil::gui {
         checked ? DisintegrateOverlay::Sweep::GATHER : DisintegrateOverlay::Sweep::FALL,
         CHECK_SWAP_CELLS, CHECK_SWAP_CELLS, CHECK_SWAP_MS, CHECK_SWAP_SPREAD, CHECK_SWAP_PAD_PX,
         QString::fromLatin1(CHECK_SWAP_OBJECT_NAME));
-    if (fx) fx->setProperty(CHECK_SWAP_OWNER_PROPERTY, QVariant::fromValue<QObject*>(box));
+    if (!fx) return;
+    fx->setProperty(CHECK_SWAP_OWNER_PROPERTY, QVariant::fromValue<QObject*>(box));
+    fx->bindToSurface(box);
   }
 
   QStyleOptionComboBox ctl::comboOption(const QComboBox* cb, const QString& text) {
