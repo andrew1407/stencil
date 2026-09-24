@@ -1,4 +1,4 @@
-// Classic script (see accent.js): no ES exports — publishes window.StencilTheme / window.StencilMotion.
+// Classic script (see accent.js): no ES exports — publishes window.StencilTheme / window.StencilMotion / window.StencilSkin.
 
 export interface StencilTheme {
   modes: string[];
@@ -15,6 +15,8 @@ export interface StencilMotion {
   storageKey: string;
   get(): string;
   set(mode: string): string;
+  /** The user's own choice, under the webcore skin's stillness. */
+  stored(): string;
   reduced(): boolean;
   particles(): boolean;
   style(): string | null;
@@ -27,4 +29,10 @@ export interface StencilMotion {
   stopOfTint(tint: unknown, k: number): unknown;
   paletteCss(): string[];
   onChange(fn: (mode: string) => void): void;
+}
+
+export interface StencilSkin {
+  storageKey: string;
+  get(): boolean;
+  set(on: boolean): boolean;
 }

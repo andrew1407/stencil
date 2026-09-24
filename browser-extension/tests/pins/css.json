@@ -1678,6 +1678,557 @@
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
    },
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg": "var(--wc-desktop)",
+    "--panel": "var(--wc-face)",
+    "--panel-2": "var(--wc-window)",
+    "--line": "var(--wc-shadow)",
+    "--text": "var(--wc-ink)",
+    "--muted": "var(--wc-muted)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--yellow": "#808000",
+    "--danger": "#800000",
+    "--ok": "#008000",
+    "--check-a": "var(--wc-window)",
+    "--check-b": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-focus)",
+    "--sb-thumb-active": "var(--wc-focus)",
+    "--btn-ink": "var(--wc-ink)",
+    "--btn-danger": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
+    "color": "var(--danger)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "position": "relative",
+    "padding-right": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-swatch": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .label": {
+    "color": "var(--wc-muted)",
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1": {
+    "font-weight": "700",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .card": {
+    "padding-top": "8px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
+    "box-shadow": "none !important",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-status-dot": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-typing i": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chk": {
+    "color": "var(--wc-ink)",
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .confirm-box": {
+    "padding": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .crop-box": {
+    "outline": "1px dashed var(--wc-hilight)",
+    "box-shadow": "0 0 0 1px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog": {
+    "padding": "3px 10px 10px",
+    "gap": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog-title": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px",
+    "margin": "0 -7px",
+    "padding": "3px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .handle": {
+    "background": "var(--wc-face)",
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .ic": {
+    "transform": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .list": {
+    "margin": "4px 6px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo": {
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover": {
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .pin-row": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .preview-frame": {
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .row.just-pinned": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .row.list-hl": {
+    "outline": "2px solid var(--wc-focus)",
+    "outline-offset": "-2px",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .section-head .chev": {
+    "transition": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .viewport": {
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-muted)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "default"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)": {
+    "background": "rgba(0, 0, 0, 0.25)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "outline": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)": {
+    "background": "transparent",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)": {
+    "border": "1px solid var(--wc-dark)",
+    "background": "var(--wc-window)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none !important",
+    "filter": "none",
+    "opacity": "1",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus": {
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)": {
+    "background": "var(--wc-face)"
+   },
+   "|:root[data-skin=\"webcore\"] code": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] header .logo": {
+    "width": "24px",
+    "height": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "filter": "none !important",
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "min-width": "13px",
+    "min-height": "13px",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *": {
+    "stroke": "none",
+    "animation": "none !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--yellow": "#d0d040",
+    "--danger": "#ff6060",
+    "--ok": "#40c040",
+    "--btn-ink": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "#404040"
+   },
    "|:root[data-theme=\"dark\"]": {
     "color-scheme": "dark",
     "--bg": "#21242d",
@@ -2056,6 +2607,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.logo-wrap:hover::before",
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
+   "|:root[data-motion=\"none\"] .logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -2220,7 +2773,113 @@
    "@keyframes mmDust|from",
    "@keyframes mmDust|to",
    "|.cs-cur-icon, .cs-opt-icon",
-   "|.cs-cur-icon:empty"
+   "|.cs-cur-icon:empty",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] code",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .chk",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *",
+   "|:root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover",
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before",
+   "|:root[data-skin=\"webcore\"] .section-head .chev",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header",
+   "|:root[data-skin=\"webcore\"] header .logo",
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
+   "|:root[data-skin=\"webcore\"] .list",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
+   "|:root[data-skin=\"webcore\"] .pin-row",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+   "|:root[data-skin=\"webcore\"] .row.list-hl",
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)",
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover",
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)",
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)",
+   "|:root[data-skin=\"webcore\"] .row.just-pinned",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))",
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-swatch",
+   "|:root[data-skin=\"webcore\"] .action-menu .sep",
+   "|:root[data-skin=\"webcore\"] .action-menu .label",
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row",
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)",
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+   "|:root[data-skin=\"webcore\"] .card",
+   "|:root[data-skin=\"webcore\"] .dialog",
+   "|:root[data-skin=\"webcore\"] .dialog-title",
+   "|:root[data-skin=\"webcore\"] .confirm-box",
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
+   "|:root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .chat-transcript",
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
+   "|:root[data-skin=\"webcore\"] .chat-typing i",
+   "|:root[data-skin=\"webcore\"] .chat-status-dot",
+   "|:root[data-skin=\"webcore\"] .viewport",
+   "|:root[data-skin=\"webcore\"] .crop-box",
+   "|:root[data-skin=\"webcore\"] .handle",
+   "|:root[data-skin=\"webcore\"] .preview-frame",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .logo-stage"
   ]
  },
  "src/devtools/panel.html": {
@@ -5229,6 +5888,557 @@
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
    },
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg": "var(--wc-desktop)",
+    "--panel": "var(--wc-face)",
+    "--panel-2": "var(--wc-window)",
+    "--line": "var(--wc-shadow)",
+    "--text": "var(--wc-ink)",
+    "--muted": "var(--wc-muted)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--yellow": "#808000",
+    "--danger": "#800000",
+    "--ok": "#008000",
+    "--check-a": "var(--wc-window)",
+    "--check-b": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-focus)",
+    "--sb-thumb-active": "var(--wc-focus)",
+    "--btn-ink": "var(--wc-ink)",
+    "--btn-danger": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
+    "color": "var(--danger)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "position": "relative",
+    "padding-right": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-swatch": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .label": {
+    "color": "var(--wc-muted)",
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1": {
+    "font-weight": "700",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .card": {
+    "padding-top": "8px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
+    "box-shadow": "none !important",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-status-dot": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-typing i": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chk": {
+    "color": "var(--wc-ink)",
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .confirm-box": {
+    "padding": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .crop-box": {
+    "outline": "1px dashed var(--wc-hilight)",
+    "box-shadow": "0 0 0 1px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog": {
+    "padding": "3px 10px 10px",
+    "gap": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog-title": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px",
+    "margin": "0 -7px",
+    "padding": "3px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .handle": {
+    "background": "var(--wc-face)",
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .ic": {
+    "transform": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .list": {
+    "margin": "4px 6px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo": {
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover": {
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .pin-row": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .preview-frame": {
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .row.just-pinned": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .row.list-hl": {
+    "outline": "2px solid var(--wc-focus)",
+    "outline-offset": "-2px",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .section-head .chev": {
+    "transition": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .viewport": {
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-muted)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "default"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)": {
+    "background": "rgba(0, 0, 0, 0.25)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "outline": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)": {
+    "background": "transparent",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)": {
+    "border": "1px solid var(--wc-dark)",
+    "background": "var(--wc-window)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none !important",
+    "filter": "none",
+    "opacity": "1",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus": {
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)": {
+    "background": "var(--wc-face)"
+   },
+   "|:root[data-skin=\"webcore\"] code": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] header .logo": {
+    "width": "24px",
+    "height": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "filter": "none !important",
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "min-width": "13px",
+    "min-height": "13px",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *": {
+    "stroke": "none",
+    "animation": "none !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--yellow": "#d0d040",
+    "--danger": "#ff6060",
+    "--ok": "#40c040",
+    "--btn-ink": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "#404040"
+   },
    "|:root[data-theme=\"dark\"]": {
     "color-scheme": "dark",
     "--bg": "#21242d",
@@ -5881,6 +7091,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.logo-wrap:hover::before",
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
+   "|:root[data-motion=\"none\"] .logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -6045,7 +7257,113 @@
    "@keyframes mmDust|from",
    "@keyframes mmDust|to",
    "|.cs-cur-icon, .cs-opt-icon",
-   "|.cs-cur-icon:empty"
+   "|.cs-cur-icon:empty",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] code",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .chk",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *",
+   "|:root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover",
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before",
+   "|:root[data-skin=\"webcore\"] .section-head .chev",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header",
+   "|:root[data-skin=\"webcore\"] header .logo",
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
+   "|:root[data-skin=\"webcore\"] .list",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
+   "|:root[data-skin=\"webcore\"] .pin-row",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+   "|:root[data-skin=\"webcore\"] .row.list-hl",
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)",
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover",
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)",
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)",
+   "|:root[data-skin=\"webcore\"] .row.just-pinned",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))",
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-swatch",
+   "|:root[data-skin=\"webcore\"] .action-menu .sep",
+   "|:root[data-skin=\"webcore\"] .action-menu .label",
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row",
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)",
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+   "|:root[data-skin=\"webcore\"] .card",
+   "|:root[data-skin=\"webcore\"] .dialog",
+   "|:root[data-skin=\"webcore\"] .dialog-title",
+   "|:root[data-skin=\"webcore\"] .confirm-box",
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
+   "|:root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .chat-transcript",
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
+   "|:root[data-skin=\"webcore\"] .chat-typing i",
+   "|:root[data-skin=\"webcore\"] .chat-status-dot",
+   "|:root[data-skin=\"webcore\"] .viewport",
+   "|:root[data-skin=\"webcore\"] .crop-box",
+   "|:root[data-skin=\"webcore\"] .handle",
+   "|:root[data-skin=\"webcore\"] .preview-frame",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .logo-stage"
   ]
  },
  "src/options/options.html": {
@@ -6270,6 +7588,30 @@
    },
    "@keyframes mmShaft|to": {
     "stroke-dashoffset": "0"
+   },
+   "@keyframes notifyEnter|from": {
+    "opacity": "0",
+    "transform": "translateY(10px) scale(0.98)"
+   },
+   "@keyframes notifyEnter|to": {
+    "opacity": "1",
+    "transform": "none"
+   },
+   "@keyframes notifyLeave|from": {
+    "opacity": "1",
+    "transform": "none"
+   },
+   "@keyframes notifyLeave|to": {
+    "opacity": "0",
+    "transform": "translateY(14px) scale(0.94)"
+   },
+   "@keyframes notifyShine|0%, 100%": {
+    "border-color": "#b8871f",
+    "box-shadow": "0 6px 24px rgba(0,0,0,0.28), 0 0 5px #ffd66b"
+   },
+   "@keyframes notifyShine|50%": {
+    "border-color": "#ffe9a8",
+    "box-shadow": "0 6px 24px rgba(0,0,0,0.28), 0 0 12px #ffd66b"
    },
    "@keyframes stCardIn|from": {
     "opacity": "0",
@@ -6544,6 +7886,9 @@
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before": {
     "content": "none"
    },
+   "@media (prefers-reduced-motion: reduce)|.notify-toast, .notify-toast.notify-leaving, .notify-toast.notify-shine": {
+    "animation": "none"
+   },
    "@media (prefers-reduced-motion: reduce)|.reveal-item": {
     "--dissolve": "0 !important",
     "transform": "none !important",
@@ -6605,6 +7950,17 @@
    },
    "|#chat-transcript > .leaving, #chat-tray .leaving": {
     "animation": "stCardLeave 0.22s ease both"
+   },
+   "|#notify-balloon": {
+    "position": "fixed",
+    "left": "18px",
+    "bottom": "18px",
+    "z-index": "100006",
+    "display": "flex",
+    "flex-direction": "column",
+    "align-items": "flex-start",
+    "gap": "8px",
+    "pointer-events": "none"
    },
    "|#preview, .preview-frame img": {
     "transition": "opacity 0.2s ease"
@@ -7303,6 +8659,21 @@
     "min-width": "168px",
     "z-index": "100002"
    },
+   "|.logo-stage": {
+    "position": "fixed",
+    "inset": "0",
+    "z-index": "100004",
+    "cursor": "default",
+    "touch-action": "none",
+    "backdrop-filter": "blur(3px)",
+    "-webkit-backdrop-filter": "blur(3px)"
+   },
+   "|.logo-stage canvas": {
+    "display": "block",
+    "width": "100%",
+    "height": "100%",
+    "cursor": "inherit"
+   },
    "|.logo-wrap": {
     "flex": "0 0 auto",
     "position": "relative",
@@ -7377,6 +8748,37 @@
    },
    "|.more-btn": {
     "transition": "background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease"
+   },
+   "|.notify-toast": {
+    "min-width": "0",
+    "max-width": "380px",
+    "overflow-wrap": "anywhere",
+    "padding": "10px 12px",
+    "border-radius": "8px",
+    "font": "500 13.5px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    "box-shadow": "0 6px 24px rgba(0,0,0,0.28)",
+    "display": "flex",
+    "align-items": "center",
+    "gap": "8px",
+    "animation": "notifyEnter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards"
+   },
+   "|.notify-toast .notify-icon": {
+    "display": "inline-flex",
+    "align-items": "center"
+   },
+   "|.notify-toast.notify-leaving": {
+    "animation": "notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both",
+    "pointer-events": "none"
+   },
+   "|.notify-toast.notify-shine": {
+    "border": "2px solid #b8871f",
+    "animation": "notifyEnter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, notifyShine 1.2s ease-in-out infinite"
+   },
+   "|.notify-toast.notify-shine .notify-icon": {
+    "height": "16px"
+   },
+   "|.notify-toast.notify-shine.notify-leaving": {
+    "animation": "notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both"
    },
    "|.num:focus, .search:focus, input:not([type=\"checkbox\"]):not([type=\"radio\"]):focus, select:focus": {
     "outline": "none",
@@ -7778,6 +9180,13 @@
     "font-weight": "600",
     "min-width": "0"
    },
+   "|.toast-glow": {
+    "position": "fixed",
+    "left": "0",
+    "top": "0",
+    "z-index": "100005",
+    "pointer-events": "none"
+   },
    "|::selection": {
     "background": "var(--accent)",
     "color": "var(--on-accent)"
@@ -7886,6 +9295,557 @@
     "transition-duration": "0.001ms !important",
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg": "var(--wc-desktop)",
+    "--panel": "var(--wc-face)",
+    "--panel-2": "var(--wc-window)",
+    "--line": "var(--wc-shadow)",
+    "--text": "var(--wc-ink)",
+    "--muted": "var(--wc-muted)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--yellow": "#808000",
+    "--danger": "#800000",
+    "--ok": "#008000",
+    "--check-a": "var(--wc-window)",
+    "--check-b": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-focus)",
+    "--sb-thumb-active": "var(--wc-focus)",
+    "--btn-ink": "var(--wc-ink)",
+    "--btn-danger": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
+    "color": "var(--danger)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "position": "relative",
+    "padding-right": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-swatch": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .label": {
+    "color": "var(--wc-muted)",
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1": {
+    "font-weight": "700",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .card": {
+    "padding-top": "8px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
+    "box-shadow": "none !important",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-status-dot": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-typing i": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chk": {
+    "color": "var(--wc-ink)",
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .confirm-box": {
+    "padding": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .crop-box": {
+    "outline": "1px dashed var(--wc-hilight)",
+    "box-shadow": "0 0 0 1px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog": {
+    "padding": "3px 10px 10px",
+    "gap": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog-title": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px",
+    "margin": "0 -7px",
+    "padding": "3px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .handle": {
+    "background": "var(--wc-face)",
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .ic": {
+    "transform": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .list": {
+    "margin": "4px 6px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo": {
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover": {
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .pin-row": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .preview-frame": {
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .row.just-pinned": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .row.list-hl": {
+    "outline": "2px solid var(--wc-focus)",
+    "outline-offset": "-2px",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .section-head .chev": {
+    "transition": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .viewport": {
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-muted)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "default"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)": {
+    "background": "rgba(0, 0, 0, 0.25)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "outline": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)": {
+    "background": "transparent",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)": {
+    "border": "1px solid var(--wc-dark)",
+    "background": "var(--wc-window)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none !important",
+    "filter": "none",
+    "opacity": "1",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus": {
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)": {
+    "background": "var(--wc-face)"
+   },
+   "|:root[data-skin=\"webcore\"] code": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] header .logo": {
+    "width": "24px",
+    "height": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "filter": "none !important",
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "min-width": "13px",
+    "min-height": "13px",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *": {
+    "stroke": "none",
+    "animation": "none !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--yellow": "#d0d040",
+    "--danger": "#ff6060",
+    "--ok": "#40c040",
+    "--btn-ink": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "#404040"
    },
    "|:root[data-theme=\"dark\"]": {
     "color-scheme": "dark",
@@ -8226,6 +10186,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.logo-wrap:hover::before",
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
+   "|:root[data-motion=\"none\"] .logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -8471,7 +10433,130 @@
    "|.confirm-btn:hover",
    "|.confirm-btn.danger",
    "|.confirm-btn.danger:hover",
-   "|.pin-empty"
+   "|.pin-empty",
+   "|.logo-stage",
+   "|.logo-stage canvas",
+   "|#notify-balloon",
+   "|.notify-toast",
+   "|.notify-toast .notify-icon",
+   "@keyframes notifyEnter|from",
+   "@keyframes notifyEnter|to",
+   "|.notify-toast.notify-leaving",
+   "@keyframes notifyLeave|from",
+   "@keyframes notifyLeave|to",
+   "|.toast-glow",
+   "|.notify-toast.notify-shine",
+   "|.notify-toast.notify-shine.notify-leaving",
+   "|.notify-toast.notify-shine .notify-icon",
+   "@keyframes notifyShine|0%, 100%",
+   "@keyframes notifyShine|50%",
+   "@media (prefers-reduced-motion: reduce)|.notify-toast, .notify-toast.notify-leaving, .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] code",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .chk",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *",
+   "|:root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover",
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before",
+   "|:root[data-skin=\"webcore\"] .section-head .chev",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header",
+   "|:root[data-skin=\"webcore\"] header .logo",
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
+   "|:root[data-skin=\"webcore\"] .list",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
+   "|:root[data-skin=\"webcore\"] .pin-row",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+   "|:root[data-skin=\"webcore\"] .row.list-hl",
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)",
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover",
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)",
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)",
+   "|:root[data-skin=\"webcore\"] .row.just-pinned",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))",
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-swatch",
+   "|:root[data-skin=\"webcore\"] .action-menu .sep",
+   "|:root[data-skin=\"webcore\"] .action-menu .label",
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row",
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)",
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+   "|:root[data-skin=\"webcore\"] .card",
+   "|:root[data-skin=\"webcore\"] .dialog",
+   "|:root[data-skin=\"webcore\"] .dialog-title",
+   "|:root[data-skin=\"webcore\"] .confirm-box",
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
+   "|:root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .chat-transcript",
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
+   "|:root[data-skin=\"webcore\"] .chat-typing i",
+   "|:root[data-skin=\"webcore\"] .chat-status-dot",
+   "|:root[data-skin=\"webcore\"] .viewport",
+   "|:root[data-skin=\"webcore\"] .crop-box",
+   "|:root[data-skin=\"webcore\"] .handle",
+   "|:root[data-skin=\"webcore\"] .preview-frame",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .logo-stage"
   ]
  },
  "src/popup/popup.html": {
@@ -11480,6 +13565,557 @@
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
    },
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg": "var(--wc-desktop)",
+    "--panel": "var(--wc-face)",
+    "--panel-2": "var(--wc-window)",
+    "--line": "var(--wc-shadow)",
+    "--text": "var(--wc-ink)",
+    "--muted": "var(--wc-muted)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--yellow": "#808000",
+    "--danger": "#800000",
+    "--ok": "#008000",
+    "--check-a": "var(--wc-window)",
+    "--check-b": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-focus)",
+    "--sb-thumb-active": "var(--wc-focus)",
+    "--btn-ink": "var(--wc-ink)",
+    "--btn-danger": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
+    "color": "var(--danger)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "position": "relative",
+    "padding-right": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-swatch": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .label": {
+    "color": "var(--wc-muted)",
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1": {
+    "font-weight": "700",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .card": {
+    "padding-top": "8px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
+    "box-shadow": "none !important",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-status-dot": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-typing i": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chk": {
+    "color": "var(--wc-ink)",
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .confirm-box": {
+    "padding": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .crop-box": {
+    "outline": "1px dashed var(--wc-hilight)",
+    "box-shadow": "0 0 0 1px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog": {
+    "padding": "3px 10px 10px",
+    "gap": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog-title": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px",
+    "margin": "0 -7px",
+    "padding": "3px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .handle": {
+    "background": "var(--wc-face)",
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .ic": {
+    "transform": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .list": {
+    "margin": "4px 6px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo": {
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover": {
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .pin-row": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .preview-frame": {
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .row.just-pinned": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .row.list-hl": {
+    "outline": "2px solid var(--wc-focus)",
+    "outline-offset": "-2px",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .section-head .chev": {
+    "transition": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .viewport": {
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-muted)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "default"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)": {
+    "background": "rgba(0, 0, 0, 0.25)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "outline": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)": {
+    "background": "transparent",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)": {
+    "border": "1px solid var(--wc-dark)",
+    "background": "var(--wc-window)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none !important",
+    "filter": "none",
+    "opacity": "1",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus": {
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)": {
+    "background": "var(--wc-face)"
+   },
+   "|:root[data-skin=\"webcore\"] code": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] header .logo": {
+    "width": "24px",
+    "height": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "filter": "none !important",
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "min-width": "13px",
+    "min-height": "13px",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *": {
+    "stroke": "none",
+    "animation": "none !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--yellow": "#d0d040",
+    "--danger": "#ff6060",
+    "--ok": "#40c040",
+    "--btn-ink": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "#404040"
+   },
    "|:root[data-theme=\"dark\"]": {
     "color-scheme": "dark",
     "--bg": "#21242d",
@@ -12130,6 +14766,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.logo-wrap:hover::before",
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
+   "|:root[data-motion=\"none\"] .logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -12294,7 +14932,113 @@
    "@keyframes mmDust|from",
    "@keyframes mmDust|to",
    "|.cs-cur-icon, .cs-opt-icon",
-   "|.cs-cur-icon:empty"
+   "|.cs-cur-icon:empty",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] code",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .chk",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *",
+   "|:root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover",
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before",
+   "|:root[data-skin=\"webcore\"] .section-head .chev",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header",
+   "|:root[data-skin=\"webcore\"] header .logo",
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
+   "|:root[data-skin=\"webcore\"] .list",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
+   "|:root[data-skin=\"webcore\"] .pin-row",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+   "|:root[data-skin=\"webcore\"] .row.list-hl",
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)",
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover",
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)",
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)",
+   "|:root[data-skin=\"webcore\"] .row.just-pinned",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))",
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-swatch",
+   "|:root[data-skin=\"webcore\"] .action-menu .sep",
+   "|:root[data-skin=\"webcore\"] .action-menu .label",
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row",
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)",
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+   "|:root[data-skin=\"webcore\"] .card",
+   "|:root[data-skin=\"webcore\"] .dialog",
+   "|:root[data-skin=\"webcore\"] .dialog-title",
+   "|:root[data-skin=\"webcore\"] .confirm-box",
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
+   "|:root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .chat-transcript",
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
+   "|:root[data-skin=\"webcore\"] .chat-typing i",
+   "|:root[data-skin=\"webcore\"] .chat-status-dot",
+   "|:root[data-skin=\"webcore\"] .viewport",
+   "|:root[data-skin=\"webcore\"] .crop-box",
+   "|:root[data-skin=\"webcore\"] .handle",
+   "|:root[data-skin=\"webcore\"] .preview-frame",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .logo-stage"
   ]
  },
  "src/sidepanel/sidepanel.html": {
@@ -15303,6 +18047,557 @@
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
    },
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg": "var(--wc-desktop)",
+    "--panel": "var(--wc-face)",
+    "--panel-2": "var(--wc-window)",
+    "--line": "var(--wc-shadow)",
+    "--text": "var(--wc-ink)",
+    "--muted": "var(--wc-muted)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--yellow": "#808000",
+    "--danger": "#800000",
+    "--ok": "#008000",
+    "--check-a": "var(--wc-window)",
+    "--check-b": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-focus)",
+    "--sb-thumb-active": "var(--wc-focus)",
+    "--btn-ink": "var(--wc-ink)",
+    "--btn-danger": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip": {
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error": {
+    "color": "var(--danger)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "position": "relative",
+    "padding-right": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-swatch": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .label": {
+    "color": "var(--wc-muted)",
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1": {
+    "font-weight": "700",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .card": {
+    "padding-top": "8px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea": {
+    "box-shadow": "none !important",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-status-dot": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-typing i": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chk": {
+    "color": "var(--wc-ink)",
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .confirm-box": {
+    "padding": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .crop-box": {
+    "outline": "1px dashed var(--wc-hilight)",
+    "box-shadow": "0 0 0 1px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog": {
+    "padding": "3px 10px 10px",
+    "gap": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .dialog-title": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px",
+    "margin": "0 -7px",
+    "padding": "3px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header": {
+    "background": "var(--wc-face)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .handle": {
+    "background": "var(--wc-face)",
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .ic": {
+    "transform": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .list": {
+    "margin": "4px 6px 6px"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo": {
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover": {
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .pin-row": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .preview-frame": {
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .row.just-pinned": {
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .row.list-hl": {
+    "outline": "2px solid var(--wc-focus)",
+    "outline-offset": "-2px",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .section-head .chev": {
+    "transition": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .viewport": {
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-muted)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "default"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)": {
+    "background": "rgba(0, 0, 0, 0.25)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)": {
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "outline": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)": {
+    "background": "transparent",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)": {
+    "border": "1px solid var(--wc-dark)",
+    "background": "var(--wc-window)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none !important",
+    "filter": "none",
+    "opacity": "1",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus": {
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-sunken) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)": {
+    "background": "var(--wc-face)"
+   },
+   "|:root[data-skin=\"webcore\"] code": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] header .logo": {
+    "width": "24px",
+    "height": "24px"
+   },
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "filter": "none !important",
+    "animation": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder": {
+    "color": "var(--wc-muted)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "min-width": "13px",
+    "min-height": "13px",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *": {
+    "stroke": "none",
+    "animation": "none !important",
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--yellow": "#d0d040",
+    "--danger": "#ff6060",
+    "--ok": "#40c040",
+    "--btn-ink": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)": {
+    "color": "#404040"
+   },
    "|:root[data-theme=\"dark\"]": {
     "color-scheme": "dark",
     "--bg": "#21242d",
@@ -15955,6 +19250,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.logo-wrap:hover::before",
+   "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
+   "|:root[data-motion=\"none\"] .logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -16119,7 +19416,113 @@
    "@keyframes mmDust|from",
    "@keyframes mmDust|to",
    "|.cs-cur-icon, .cs-opt-icon",
-   "|.cs-cur-icon:empty"
+   "|.cs-cur-icon:empty",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] body:has(> header), :root[data-skin=\"webcore\"]:has(body > header)",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(code, pre, .chat-composer textarea)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] code",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn, .pin-btn)",
+   "|:root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest, .chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)), :root[data-skin=\"webcore\"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn, .confirm-btn, .chat-send, .chk):active:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger)",
+   "|:root[data-skin=\"webcore\"] :is(.chk, label):has(> :disabled), :root[data-skin=\"webcore\"] :is(button, select, input, textarea, .chk):disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .search, .num, .page-select, .dialog-select, .accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"])",
+   "|:root[data-skin=\"webcore\"] .chat-composer textarea",
+   "|:root[data-skin=\"webcore\"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus), :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] :is(input, select, textarea, .accent-dd-search):focus",
+   "|:root[data-skin=\"webcore\"] input::placeholder, :root[data-skin=\"webcore\"] textarea::placeholder",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .chk",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] img[data-wc], :root[data-skin=\"webcore\"] svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] svg[data-wc] *",
+   "|:root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo",
+   "|:root[data-skin=\"webcore\"] .logo-wrap .logo:hover",
+   "|:root[data-skin=\"webcore\"] .logo-wrap::before",
+   "|:root[data-skin=\"webcore\"] .section-head .chev",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover, .action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] :is(button, .chk):disabled svg[data-wc]",
+   "|:root[data-skin=\"webcore\"] .chk:not(:has(> input:checked))",
+   "|:root[data-skin=\"webcore\"] .filters, :root[data-skin=\"webcore\"] header",
+   "|:root[data-skin=\"webcore\"] header .logo",
+   "|:root[data-skin=\"webcore\"] .brand h1, :root[data-skin=\"webcore\"] header h1",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.dlbl, label.f, .lbl, .peek-title)",
+   "|:root[data-skin=\"webcore\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"][data-theme=\"light\"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note)",
+   "|:root[data-skin=\"webcore\"] :is(.list, .ed-list, .src-list)",
+   "|:root[data-skin=\"webcore\"] .list",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row)",
+   "|:root[data-skin=\"webcore\"] .pin-row",
+   "|:root[data-skin=\"webcore\"] :is(.row, .ed-row, .src-row, .pin-row):hover",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked)",
+   "|:root[data-skin=\"webcore\"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim)",
+   "|:root[data-skin=\"webcore\"] .row.list-hl",
+   "|:root[data-skin=\"webcore\"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav)",
+   "|:root[data-skin=\"webcore\"] .meta .name.clickable:hover",
+   "|:root[data-skin=\"webcore\"] :is(.badge, .pin-kw, .pin-kind)",
+   "|:root[data-skin=\"webcore\"] :is(.badge.fmt, .badge.pinned)",
+   "|:root[data-skin=\"webcore\"] .row.just-pinned",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"], .action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over, .action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled))",
+   "|:root[data-skin=\"webcore\"] .action-menu .submenu:hover > .submenu-head .caret, :root[data-skin=\"webcore\"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected=\"true\"]) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover) .accent-dd-name",
+   "|:root[data-skin=\"webcore\"] .accent-swatch",
+   "|:root[data-skin=\"webcore\"] .action-menu .sep",
+   "|:root[data-skin=\"webcore\"] .action-menu .label",
+   "|:root[data-skin=\"webcore\"] .accent-dd-search-row",
+   "|:root[data-skin=\"webcore\"] :is(.dialog-back, .confirm-overlay)",
+   "|:root[data-skin=\"webcore\"] :is(.dialog, .confirm-box, #section-peek, .panel, .card)",
+   "|:root[data-skin=\"webcore\"] .card",
+   "|:root[data-skin=\"webcore\"] .dialog",
+   "|:root[data-skin=\"webcore\"] .dialog-title",
+   "|:root[data-skin=\"webcore\"] .confirm-box",
+   "|:root[data-skin=\"webcore\"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview)",
+   "|:root[data-skin=\"webcore\"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li, .chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap)",
+   "|:root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .chat-transcript",
+   "|:root[data-skin=\"webcore\"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask)",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.user",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg.error",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .msg::after, :root[data-skin=\"webcore\"] #sec-assistant .msg::before",
+   "|:root[data-skin=\"webcore\"] #sec-assistant .chip",
+   "|:root[data-skin=\"webcore\"] .chat-typing i",
+   "|:root[data-skin=\"webcore\"] .chat-status-dot",
+   "|:root[data-skin=\"webcore\"] .viewport",
+   "|:root[data-skin=\"webcore\"] .crop-box",
+   "|:root[data-skin=\"webcore\"] .handle",
+   "|:root[data-skin=\"webcore\"] .preview-frame",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .logo-stage"
   ]
  }
 }

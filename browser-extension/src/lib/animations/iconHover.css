@@ -216,6 +216,13 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
     animation: logoRaysSpin 8s linear infinite,
                logoRaysShimmer 1.2s ease-in-out infinite;
 }
+/* Motion "none" (browser animations/logoHover.css): no pulse and no rays — a still grow and an edge glow. */
+:root[data-motion="none"] .logo-wrap .logo:hover {
+    animation: none !important;
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+:root[data-motion="none"] .logo-wrap::before { content: none; }
 @media (prefers-reduced-motion: reduce) {
     .logo-wrap .logo:hover { animation: none; }   /* the simple scale(1.08) hover remains */
     .logo-wrap::before { content: none; }         /* no static ray ring either */

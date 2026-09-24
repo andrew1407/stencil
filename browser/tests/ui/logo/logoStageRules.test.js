@@ -46,7 +46,7 @@ test('a preset resolves by its row; a styled row needs its motion mode', () => {
   assert.equal(resolveShow('grey', null, 'none'), 'webcore', 'grey with the interface still: the skin');
   assert.equal(resolveShow('grey', null, 'water'), null, 'a mode neither row names opens nothing');
   assert.equal(resolveShow('grass', null, 'none'), 'makeItSmall');
-  assert.equal(resolveShow('brown', null, 'none'), 'pushToBloat');
+  assert.equal(resolveShow('brown', null, 'none'), 'punchToBloat');
   assert.equal(resolveShow('pink', null, 'none'), 'pinkVibe');
   assert.equal(resolveShow('nosuch', null, 'particles'), null);
 });
@@ -65,8 +65,8 @@ test('a styled show wears its own cloud; every other one wears the style in use'
   assert.equal(showStyle('dustySpot', 'fire'), 'dust');
   assert.equal(showStyle('chaseMe', 'water'), 'water');
   assert.equal(showStyle('randomWalk', 'fire'), 'fire');
-  assert.equal(showStyle('pushToBloat', 'dust'), 'dust', 'the still shows wear it too');
-  assert.equal(showStyle('pushToBloat', 'water'), 'water');
+  assert.equal(showStyle('punchToBloat', 'dust'), 'dust', 'the still shows wear it too');
+  assert.equal(showStyle('punchToBloat', 'water'), 'water');
   assert.equal(showStyle('makeItSmall', 'fire'), 'fire');
   // Particles off: no cloud anywhere, and the light does the whole show.
   assert.equal(showStyle('runaway', null), null);
@@ -75,7 +75,7 @@ test('a styled show wears its own cloud; every other one wears the style in use'
   assert.equal(showStyle('makeSomeSunshine', 'dust'), null);
   assert.equal(showStyle('neonOn', null), null);
   assert.equal(showStyle('nosuch', 'dust'), null);
-  assert.equal(effectOf('pushToBloat'), 'grow');
+  assert.equal(effectOf('punchToBloat'), 'grow');
   assert.equal(effectOf('nosuch'), null);
 });
 

@@ -49,6 +49,14 @@ const MANIFEST = [
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
   ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
+  // The logo shows' pure half: the table's rules, the kinematics, the cloud, the painter, the
+  // pointer memory and the notice's golden shining.
+  ['stageRules', '../../browser/js/ui/logo/stageRules.js', '../src/lib/logo/stageRules.js'],
+  ['stageMotion', '../../browser/js/ui/logo/stageMotion.js', '../src/lib/logo/stageMotion.js'],
+  ['stageCloud', '../../browser/js/ui/logo/stageCloud.js', '../src/lib/logo/stageCloud.js'],
+  ['stagePaint', '../../browser/js/ui/logo/stagePaint.js', '../src/lib/logo/stagePaint.js'],
+  ['logoPointer', '../../browser/js/ui/logo/pointer.js', '../src/lib/logo/pointer.js'],
+  ['toastGlow', '../../browser/js/ui/dust/toastGlow.js', '../src/lib/logo/toastGlow.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -104,6 +112,10 @@ const FUNCTIONS = [
   // `validateAsk` and `parseOpPlan` stay out.
   ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/op/plan.js',
     ['firstJsonObject', 'askAnswerText']],
+  ['typedWords', '../../browser/js/ui/bindings/keys/typedWords.js', '../src/options/secrets/typedWords.js',
+    ['LONGEST', 'matchTypedWord', 'typedLetter']],
+  ['typingTarget', '../../browser/js/utils/dom.js', '../src/options/secrets/typedWords.js', ['isTypingTarget']],
+  ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/logo/accents.js', ['normalizeHex']],
 ];
 
 // One top-level `const NAME = …` / `function NAME …` statement — exported or not, since a shared

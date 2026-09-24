@@ -66,6 +66,18 @@ const MANIFEST = [
     canonical: () => canonical('../../browser/js/config/motion.json'),
   },
   {
+    name: 'webcore pixel icons: lib/webcore/iconsWebcore.json ↔ config/iconsWebcore.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/webcore/iconsWebcore.json'),
+    canonical: () => canonical('../../browser/js/config/iconsWebcore.json'),
+  },
+  {
+    name: 'logo shows: lib/logo/logoStage.json ↔ config/logoStage.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/logo/logoStage.json'),
+    canonical: () => canonical('../../browser/js/config/logoStage.json'),
+  },
+  {
     name: 'op registry: src/config/opRegistry.json ↔ config/llm/opRegistry.json',
     mode: 'full',
     extension: () => canonical('../src/config/opRegistry.json'),

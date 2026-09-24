@@ -3,6 +3,10 @@ import './scrollTop.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
 import { installDblReset } from '../lib/control/dblReset.js';
+import { installWebcore } from '../lib/webcore/skin.js';
+import { wireLogoHold } from './secrets/trigger.js';
+import { wireTypedWords } from './secrets/typedWords.js';
+import { installStencilFacade } from './secrets/easterEggs.js';
 import { motionModeIcon } from '../lib/motionIcons.js';
 import { pinToWidestOption } from '../lib/highlight/fitWidest.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
@@ -14,6 +18,10 @@ import './pins.js';
 import './connections.js';
 
 installDblReset(document);
+installWebcore(document);
+wireLogoHold(document.querySelector('.brand .logo-wrap'));
+wireTypedWords(document);
+installStencilFacade(window, document);
 
 // The native `title` waits ~1 s and never shows on a disabled control.
 initTooltips();
