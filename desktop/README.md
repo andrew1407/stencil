@@ -29,6 +29,15 @@ builds. This dev build keeps runtime state (settings, projects, the session auto
 repo-local `desktop/.stencil/` directory and links Qt dynamically — it is not a
 distributable binary; see [Release packaging](#release-packaging).
 
+On macOS, system notifications need a signed app; an unsigned build shows them in the app
+instead. Sign each build with a certificate from your keychain (Xcode → Settings → Accounts →
+Manage Certificates → Apple Development):
+
+```bash
+security find-identity -v -p codesigning   # the name in quotes is the identity
+cmake -S . -B build -DSTENCIL_CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID)"
+```
+
 ## Test
 
 ```bash

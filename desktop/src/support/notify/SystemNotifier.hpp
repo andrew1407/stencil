@@ -19,6 +19,9 @@ namespace stencil::gui {
     bool show(const Notice& notice) override;
     void setActive(bool on) override;
 
+    // Runs when the OS refuses its banners as the channel turns to it; the toasts carry on.
+    std::function<void()> onRefused;
+
    private:
     QSystemTrayIcon* tray = nullptr;
 #ifdef Q_OS_MACOS
