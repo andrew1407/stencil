@@ -1,6 +1,7 @@
 #include "../../support/skinPrefs.hpp"
 #include "../../support/webcore/stylesheet.hpp"
 #include "MainWindow.hpp"
+#include "ToastStack.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
 #include "../../support/dockGrip.hpp"
@@ -156,7 +157,7 @@ namespace stencil::gui {
     positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab
     sizeViewToggles();
     if (notify)
-      notify->setColors(themePalette(dark, settings.accentColor).accent,
+      notify->toasts()->setColors(themePalette(dark, settings.accentColor).accent,
                          themePalette(dark, settings.accentColor).danger);
 
     QPalette vp;

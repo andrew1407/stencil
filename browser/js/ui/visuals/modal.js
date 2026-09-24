@@ -8,6 +8,7 @@ import { enhanceSelect } from '../control/customSelect.js';
 import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from '../motion/motionPrefs.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
+import { wireNotifyRow } from './notifyRow.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() { return visualsModalInner(); }
@@ -51,6 +52,7 @@ export class StencilVisualsModal extends StencilElement {
       hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
     };
     const voiceRow = wireVoiceSilenceRow();
+    const notifyRow = wireNotifyRow(app);
 
     // Main theme — a custom colour-swatch dropdown (./picker.js).
     const accentMount = document.getElementById('vs-accent');
@@ -138,6 +140,7 @@ export class StencilVisualsModal extends StencilElement {
       els.style.value = app.style;
       els.holdDelay.value = app.holdDrawDelay ?? VIS_DEFAULTS.holdDrawDelay;
       voiceRow.populate();
+      notifyRow.populate();
       els.fill.value = app.defaultFillColor || VIS_DEFAULTS.defaultFillColor;
       els.selGlow.value = app.selGlowColor   || VIS_DEFAULTS.selGlowColor;
       els.hoverRing.value = app.hoverRingColor || VIS_DEFAULTS.hoverRingColor;
@@ -185,6 +188,7 @@ export class StencilVisualsModal extends StencilElement {
       const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP], ['mode', DEFAULT_MOTION_MODE]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       voiceRow.reset();
+      notifyRow.reset();
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
       setVal('point-size', app.pointSize);

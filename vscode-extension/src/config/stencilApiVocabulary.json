@@ -452,6 +452,13 @@
       "summary": "Start a blank editor.",
       "example": "stencil.newEditor();   // { address } also links it to a server"
     },
+    "notifyChannel": {
+      "group": "settings",
+      "signature": "stencil.notifyChannel: NotifyChannel",
+      "summary": "Where a notice shows: in the app, or as the browser's own notifications.",
+      "detail": "'toast' is the corner stack in the page, the default. 'system' hands every notice to the browser's Notification API; the Visuals dialog asks for that permission, and while it is not granted the toasts show the notice instead.",
+      "example": "stencil.notifyChannel = 'system';   // toast | system"
+    },
     "openAssistantSettingsWindow": {
       "group": "windows",
       "signature": "stencil.openAssistantSettingsWindow(): Stencil",

@@ -6,6 +6,7 @@ import { createEditorState } from '../../core/editorState.js';
 import { DEFAULT_PERIOD } from '../../core/project/meta/projectPeriods.js';
 import { defaultSettings as llmDefaults } from '../../llm/settings.js';
 import { DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP, DEFAULT_MOTION_MODE } from '../motion/motionPrefs.js';
+import { DEFAULT_NOTIFY_CHANNEL } from '../../core/settings/notifyChannel.js';
 
 // The controls whose default the markup cannot say: read when the double-click lands, so a
 // window rendered later still finds its own.
@@ -16,6 +17,7 @@ const DEFAULTS = Object.freeze({
   'show-lines': editor('showLines'), 'allow-formulas': editor('allowFormulas'),
   'vs-appearance': () => 'system', 'vs-style': editor('style'), 'vs-motion-mode': () => DEFAULT_MOTION_MODE,
   'vs-draw-anim': () => DEFAULT_DRAWING_ANIMATIONS, 'vs-modal-backdrop': () => DEFAULT_MODAL_BACKDROP,
+  'vs-notify-channel': () => DEFAULT_NOTIFY_CHANNEL,
   'chat-provider': () => llmDefaults().provider, 'chat-save-chats': () => llmDefaults().saveChats,
   // openImage/modal.js onOpen and cropRows.js state these as literals.
   'open-image-incognito': () => false, 'open-image-rename': () => false, 'open-image-keep': () => true,

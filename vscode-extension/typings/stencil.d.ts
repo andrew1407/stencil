@@ -19,13 +19,13 @@ interface Size { width: number; height: number; }
 
 /** Any CSS colour on write, normalised to hex on read. */
 type ColorInput = string;
-
 type LineStyle = 'solid' | 'dashed' | 'dotted';
 type ImageFilter = 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom';
 type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
 type Unit = 'cm' | 'mm' | 'in';
 type DrawMode = 'line' | 'rect';
 type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
+type NotifyChannel = 'toast' | 'system';
 type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
 /** A logo show (logoStage.json) as a call, `<show>Mode` its on/off switch, `close`, `what` the words. */
@@ -352,6 +352,18 @@ interface StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   readonly motionModes: MotionMode[];
+  /**
+   * Where a notice shows: in the app, or as the browser's own notifications.
+   *
+   * 'toast' is the corner stack in the page, the default. 'system' hands every notice to the browser's Notification API; the Visuals dialog asks for that permission, and while it is not granted the toasts show the notice instead.
+   *
+   * ```js
+   * stencil.notifyChannel = 'system';   // toast | system
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  notifyChannel: NotifyChannel;
   /**
    * The fill inside a closed shape.
    *

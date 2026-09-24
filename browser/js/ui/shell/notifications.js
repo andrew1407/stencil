@@ -4,8 +4,11 @@ import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS 
 import { attachToastGlow } from '../dust/toastGlow.js';
 import { STAGE } from '../logo/stageRules.js';
 import SVG_ART from '../../config/svgArt.json' with { type: 'json' };
-// The bottom-left notification stack; utils.js `notify()` delegates here. Each message is
-// its own .notify-toast child, newest at the bottom.
+import { notifyChannel } from '../../core/settings/notifyChannel.js';
+import { ToastSink, SystemSink, pickSink } from './notifySinks.js';
+// The bottom-left notification stack; utils.js `notify()` delegates here and the stored channel
+// picks the sink: toast(), each message its own .notify-toast child, newest at the bottom, or
+// the browser's own notifications (notifySinks.js).
 
 // Failures linger longer; clickable toasts (an action rides on them) longer still.
 const FAIL_HIDE_MS = 3200;
@@ -61,10 +64,16 @@ export class StencilNotifications extends StencilElement {
   static inner() { return ''; }
   static template() { return hostTag('stencil-notifications', 'id="notify-balloon"', StencilNotifications.inner()); }
 
+  #sinks = null;
+  notify(msg, type = 'ok', opts = {}) {
+    this.#sinks ??= Object.freeze({ toast: new ToastSink(this), system: new SystemSink() });
+    if (!pickSink(notifyChannel(), this.#sinks).show(msg, type, opts)) this.toast(msg, type, opts);
+  }
+
   // `onClick` makes the toast an affordance (longer linger). `key` marks a running status: a
   // new one with the same key replaces its predecessor instead of stacking. `shine` is a logo
   // show's own notice: the egg on gold, with the golden shining around it.
-  notify(msg, type = 'ok', { onClick = null, key = null, shine = false } = {}) {
+  toast(msg, type = 'ok', { onClick = null, key = null, shine = false } = {}) {
     msg = squeezeLongTokens(msg);
     // Coalesce first: an identical clickless message restarts its timer, no replayed entrance.
     if (!onClick) {

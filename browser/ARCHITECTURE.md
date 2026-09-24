@@ -47,7 +47,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 | `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `logoStage`, `webcore` + `iconsWebcore`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
 | `js/config/script/fixtures/` | `cases.txt`, the `.stc` corpus: every case as a section of source, canonical dump and expected diagnostics | plain text, never JSON — `core/` has no JSON parser and reads this same file; a case named `err-*` must produce an error |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
-| `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
+| `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton); `settings/` holds the app-wide preferences (`accents`, `notifyChannel`) beside the project ones | **no DOM access** — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` and the `scriptHandles` marshalling; `script.js` is the entry that binds wasm to the fallback | one file per `core/script/*.cpp`, op-for-op with it; pure — it resolves ops but calls no facade, and `vscode-extension/src/parser/script/` is a byte-equal copy of it |
 | `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
 | `js/net/` | the fetch guard, abortable fetch, the connection store + manager, remote sync | every fetch goes through `fetchGuard.js` here |
@@ -139,7 +139,7 @@ classDiagram
 | Facade over core | `createStencil(app)` in `console/stencilApi.js`, installed as `window.stencil` | Frozen; toolbar, hotkey, console script and op plan reach the same `DrawingApp` methods through it |
 | Mediator | `DrawingApp` (`core/drawingApp.js`) | `HistoryStack`, `Renderer`, `Storage`, `RemoteSyncController`, `ProjectTransferController`, `InputController`, `ZoomPan` each take the app and reach back through it; they do not know one another |
 | Command | `HistoryStack.push` / `undo` / `redo` behind `DrawingApp.saveHistory()` | Every undoable edit is a line snapshot, applied and reverted by one code path; wasm twin via `coreHandles.js` |
-| Strategy | The provider `wire` in `llm/client.js`, keyed by `config/llm/providers.json`; `FilterMode` in `core.applyFilterRGBA` | Selected by table lookup |
+| Strategy | The provider `wire` in `llm/client.js`, keyed by `config/llm/providers.json`; `FilterMode` in `core.applyFilterRGBA`; the `NotificationSink` pair in `ui/shell/notifySinks.js` — `ToastSink` or `SystemSink` behind `<stencil-notifications>.notify()`, picked by `core/settings/notifyChannel.js` | Selected by table lookup; a sink that cannot deliver (the browser's permission not granted) returns false and the toasts show the notice |
 | Observer | `Emitter` (`core/emitter.js`) behind `TabsCoordinator` channels and `ServerConnection.onEvent`; `publish` / `subscribe` in `eventBus/appBus.js` over the `config/events.json` window events | The `stencil:*` window events are the contract the extension's content scripts read |
 | Composite | `StencilElement` (`ui/base.js`): light-DOM custom elements whose `inner()` markup `layout()` concatenates, `$(id)` scoped to the element's own subtree, `emit()` for the reply upward; a region nests them (`ui/openImage/sources/`, `<stencil-tabs>`) | Light DOM, because `cssInventory` follows `index.html`'s link order and the extension consumes these modules inside its own shadow roots; a nested host carries `display:contents` so it generates no box |
 | Repository | `ProjectsStore` over a `StorageBackend`; `projectsBackend.js` moves payload keys to IndexedDB; `net/connectionStore.js` for saved servers; `llm/chat/store.js` for chat documents | Callers see a synchronous `localStorage`-shaped contract |
@@ -226,6 +226,12 @@ classDiagram
   else leaves incognito, loads the picture `ui/webcore/image.js` paints from
   `config/webcore.json` under the name that becomes the project's, and installs the word as one
   `installLayout` step; the same word lifts every override again.
+- **A notice.** `notify()` (`utils/dom.js`) reaches `<stencil-notifications>`, whose `notify()`
+  asks `notifyChannel()` and hands the message to that sink (`ui/shell/notifySinks.js`): `toast()`,
+  the corner stack, or the browser's own `Notification` when the user chose it in Visuals and
+  granted it. The Visuals row asks for the permission from the user's own click and keeps the
+  toasts when it is refused; a permission revoked later falls back the same way, so no notice is
+  lost. Desktop twin: `support/notify/Notifications`.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.

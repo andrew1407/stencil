@@ -61,6 +61,8 @@ namespace stencil::gui {
     bool modalBackdrop = true;
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
+    // "toast" | "system": the in-app stack or the OS notification centre (support/notify).
+    QString notifyChannel = "toast";
     // Desktop-only "Open in…" targets; the browser keeps its own in js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;

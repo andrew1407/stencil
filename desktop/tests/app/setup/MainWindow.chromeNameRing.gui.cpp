@@ -163,7 +163,7 @@ class MainWindowGuiTest : public QObject {
     for (int i = 1; i <= 6; ++i) toasts.info(QString("Toast %1").arg(i));
     // The retired ones play their exit first, so wait for the stack to settle rather
     // than asserting on the frame the sixth arrived in.
-    QTRY_COMPARE(stackTopDown().size(), stencil::gui::Notifications::MAX_VISIBLE);
+    QTRY_COMPARE(stackTopDown().size(), stencil::gui::ToastStack::MAX_VISIBLE);
     // The OLDEST three went; the newest is lowest, where the next one will appear.
     QCOMPARE(stackTopDown(), QStringList({"Toast 4", "Toast 5", "Toast 6"}));
 

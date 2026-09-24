@@ -16,6 +16,7 @@
 #include "LinksDialog.hpp"
 #include "MediaLoader.hpp"
 #include "Notifications.hpp"
+#include <QLabel>
 #include "ProjectsDialog.hpp"
 #include "ConnectDialog.hpp"
 #include "DataExportController.hpp"

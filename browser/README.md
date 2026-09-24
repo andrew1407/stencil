@@ -93,7 +93,9 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
 - **Appearance** — light/dark theme with preset accents in the Visuals modal (double-click
   the logo for a one-off custom accent). **Visuals → Motion** turns the drawing animation
   on/off and picks the interface animation: Dust (default), Water, Fire, Sliding or None;
-  the OS's `prefers-reduced-motion` always wins.
+  the OS's `prefers-reduced-motion` always wins. **Visuals → Notifications** shows notices in
+  the app (the corner toasts, the default) or as the browser's own notifications, which asks for
+  the permission once and stays in the app if it is refused.
 - **Projects** — the session autosaves; projects are kept in the browser with a one-week
   expiry. In the Projects list a single click asks before opening here, a double click opens
   straight away, ⌘/Ctrl+click opens in a new tab; touch rows open on tap and reorder on
@@ -219,6 +221,7 @@ Orientation:
 - **Assistant**: `stencil.llm` (the settings, get/set), `await stencil.prompt(text, { images })`,
   and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`).
 - **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.holdDrawDelay`.
+- **Notifications**: `stencil.notifyChannel` — `'toast'` (in the app) or `'system'`.
 
 The object is a frozen facade: reassigning a method or read-only field throws, and members
 are non-enumerable so `console.log(stencil)` reads as `{}` while autocomplete still works.

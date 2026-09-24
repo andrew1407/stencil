@@ -341,7 +341,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/app/project/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
-    ${STENCIL_THEME_SOURCES} src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp src/support/icon/iconSet.cpp
+    ${STENCIL_THEME_SOURCES} ${STENCIL_NOTIFY_SOURCES} src/support/icon/iconSet.cpp
     src/support/logo/logoStageRules.cpp
     src/support/modal/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
@@ -367,10 +367,22 @@ stencil_headless_test(stencil_livefeed_headless
 stencil_headless_test(stencil_notifications_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/support/notify/Notifications.headless.cpp src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp
+    tests/support/notify/Notifications.headless.cpp ${STENCIL_NOTIFY_SOURCES}
     src/support/logo/logoStageRules.cpp
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp   # the toast dust flight needs motionReduced()
+    resources/app.qrc
+  LIBS Qt6::Widgets Qt6::Svg)
+
+# The notice channel (support/notify/Notifications): toasts by default, the OS sink while the
+# channel says so and it accepts, the toasts again when it declines.
+stencil_headless_test(stencil_notifychannel_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/support/notify/channel.headless.cpp ${STENCIL_NOTIFY_SOURCES}
+    src/support/logo/logoStageRules.cpp
+    src/support/icon/iconSet.cpp
+    src/support/modal/modalReveal.cpp
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg)
 

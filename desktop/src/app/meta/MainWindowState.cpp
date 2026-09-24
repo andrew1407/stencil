@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include <QLabel>
 #include <QScrollArea>
 #include "MainWindow.hpp"
 #include "mainWindowHelpers.hpp"

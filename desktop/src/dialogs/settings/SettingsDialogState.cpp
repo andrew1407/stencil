@@ -70,6 +70,7 @@ namespace stencil::gui {
     s.drawingAnimations = motionTouched ? drawAnim->isChecked() : heldDrawAnim;
     s.modalBackdrop = motionTouched ? modalBackdrop->isChecked() : heldBackdrop;
     s.motionMode = motionTouched ? motionMode->currentData().toString() : heldMotionMode;
+    s.notifyChannel = notifyChannel->currentData().toString();
     s.browserBaseUrl = browserUrl->text().trimmed();
     s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));
     return s;

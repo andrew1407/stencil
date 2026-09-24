@@ -31,7 +31,7 @@ test('every channel is stencil:<kebab of its key>, and the names are unique', ()
     assert.equal(seen.has(channel), false, `${channel} is declared twice`);
     seen.add(channel);
   }
-  assert.equal(Object.keys(EVENTS).length, 14);
+  assert.equal(Object.keys(EVENTS).length, 15);
 });
 
 // Prose may still NAME a channel; only code may not spell one.

@@ -60,6 +60,9 @@ size) work as in the browser app, with the same keyboard shortcuts.
   (`Alt+K`: click a combo and press the new chord).
 - **Motion** — Settings → Motion: *Drawing animation* on/off and *Interface animation*
   (Dust, Water, Fire, Sliding, None). `STENCIL_NO_ANIM=1` overrides the setting.
+- **Notifications** — Settings → Notifications: *In the app* (the corner toasts, the default) or
+  *System notifications* (the OS notification centre, through a tray icon shown while chosen).
+  Where the OS offers none, the toasts stay.
 - **Menu bar** — *Use the system menu bar* (default on) puts the menus where the platform
   does; turn it off to keep them in the window (takes effect on restart).
 - **Project actions** — `Ctrl+Alt+R` removes the current project from the editor,

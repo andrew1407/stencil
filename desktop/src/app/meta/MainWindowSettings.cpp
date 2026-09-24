@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "Notifications.hpp"
 #include <QToolButton>
 #include <QCheckBox>
 #include <QComboBox>
@@ -81,6 +82,7 @@ namespace stencil::gui {
         || settings.llmApiKey != s.llmApiKey || settings.llmServerUrl != s.llmServerUrl;
     // A theme the user chooses ends a skin's forced one; a motion switch the user moves ends its override.
     if (s.themeMode != settings.themeMode) support::clearForcedDark();
+    const bool channelMoved = s.notifyChannel != settings.notifyChannel;
     const bool motionMoved = s.motionMode != settings.motionMode
         || s.drawingAnimations != settings.drawingAnimations || s.modalBackdrop != settings.modalBackdrop;
     settings = s;
@@ -90,6 +92,12 @@ namespace stencil::gui {
     support::setDrawingAnimations(s.drawingAnimations);
     support::setModalBackdrop(s.modalBackdrop);
     if (motionMoved) support::clearMotionOverride();
+    if (notify) {
+      const NotifyChannel channel = notifyChannelFromKey(s.notifyChannel);
+      notify->setChannel(channel);
+      if (channelMoved && channel == NotifyChannel::SYSTEM && !notify->isSystemAvailable())
+        notify->info(tr("System notifications are not available here — showing them in the app"));
+    }
     canvas->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
                          s.defaultStyle, s.defaultPointColor);
     canvas->setHoldDrawDelay(s.holdDrawDelay);

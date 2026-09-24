@@ -1,6 +1,7 @@
 // buildMainToolbar()'s first row: the always-visible header (logo, Controls pill, project name).
 // addToolBarBreak() ends it.
 #include "MainWindow.hpp"
+#include "ToastStack.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
 #include "iconSet.hpp"
@@ -169,7 +170,7 @@ namespace stencil::gui {
     hooks.toast = [this](const QString& text) {
       if (!notify) return;
       notify->show(text, Notifications::Level::SUCCESS, 3000, /*special=*/true);
-      support::installToastShine(notify->lastToast());
+      support::installToastShine(notify->toasts()->lastToast());
     };
     // Through the same appliers a toolbar click and a script op take.
     hooks.pinkVibe = [this] {

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include <QLabel>
 #include "../../support/skinPrefs.hpp"
 #include "RemoteSession.hpp"
 #include <QLineEdit>
