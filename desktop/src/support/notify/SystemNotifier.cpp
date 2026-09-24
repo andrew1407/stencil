@@ -2,6 +2,9 @@
 #include <QIcon>
 #include <QSystemTrayIcon>
 #include <map>
+#ifdef Q_OS_MACOS
+#include "macBanner.hpp"
+#endif
 
 namespace stencil::gui {
 
@@ -19,15 +22,29 @@ namespace stencil::gui {
       const auto it = LEVEL_ICONS.find(level);
       return it == LEVEL_ICONS.end() ? QSystemTrayIcon::Information : it->second;
     }
+
+#ifdef Q_OS_MACOS
+    bool usesBanner() { return macBanner::isSupported(); }
+#endif
   }  // namespace
 
   SystemNotifier::SystemNotifier(QObject* parent) : QObject(parent) {}
 
   bool SystemNotifier::isAvailable() const {
+#ifdef Q_OS_MACOS
+    if (usesBanner()) return !macBanner::isDenied();
+#endif
     return QSystemTrayIcon::isSystemTrayAvailable() && QSystemTrayIcon::supportsMessages();
   }
 
   void SystemNotifier::setActive(bool on) {
+#ifdef Q_OS_MACOS
+    if (usesBanner()) {
+      active = on;
+      if (on) macBanner::requestPermission();
+      return;
+    }
+#endif
     if (on && !tray && isAvailable()) {
       tray = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/appicon.svg")), this);
       tray->setToolTip(QStringLiteral("Stencil"));
@@ -39,6 +56,10 @@ namespace stencil::gui {
   }
 
   bool SystemNotifier::show(const Notice& notice) {
+#ifdef Q_OS_MACOS
+    if (usesBanner())
+      return active && macBanner::post(QStringLiteral("Stencil"), notice.text, notice.onClick);
+#endif
     if (!tray || !tray->isVisible()) return false;
     onClick = notice.onClick;
     tray->showMessage(QStringLiteral("Stencil"), notice.text, iconFor(notice.level),
