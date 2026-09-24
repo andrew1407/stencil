@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
 import { formatCombo, isMacPlatform } from '../../utils/keys.js';
 import { wirePanelResizer } from '../../utils.js';
-import { foldDust, motionReduced } from '../motion.js';
+import { foldDust, motionReduced, sweepDust } from '../motion.js';
 
 // The paste combo as KEYCAPS in this platform's glyphs (⌘V on a Mac, Ctrl+V elsewhere);
 // `data-hk` lets hotkeys.updateCtxHints redraw them after a rebind.
@@ -52,7 +52,7 @@ export class StencilMainContent extends StencilElement {
                  canvas↔panel splitter). Hidden while the panel is collapsed. -->
             <div class="panel-resizer" id="panel-resizer"></div>
 
-            <div class="coordinates-panel" id="coord-panel">
+            <div class="coordinates-panel" id="coord-panel" data-dust-scope=":not(.coord-collapsed)">
                 <div class="coord-panel-header" id="coord-panel-header">
                     <div class="coord-tabs" role="tablist">
                         <button id="coord-tab-points" class="coord-tab coord-tab-active" role="tab" aria-selected="true" data-tab="points" data-title="Points of the selected line">Points</button>
@@ -120,6 +120,7 @@ export class StencilMainContent extends StencilElement {
       // for half the slide, which restarts the surfaceForm fade.
       clearTimeout(foldTimer);
       panel.classList.remove('coord-folding');
+      if (hidden) sweepDust(panel);
       foldDust(body, panel, 'coord-collapsed', hidden, 'right',
         { inMs: 460, toggle: () => panel.classList.toggle('coord-collapsed', hidden) });
       // Hold the table out of the layout for half the slide (.coord-folding,

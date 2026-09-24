@@ -124,7 +124,6 @@ namespace stencil::gui {
     }
     // …and the same for a filter fade: nothing half-faded survives into the close flight.
     if (filterFade) filterFade->finishNow();
-    stopDustClouds(this);   // nothing may still be flying when the close flight photographs
     QDialog::done(r);
   }
 

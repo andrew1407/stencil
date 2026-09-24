@@ -1,5 +1,7 @@
 #include "DisintegrateOverlay.hpp"
 
+#include <QDockWidget>
+
 namespace stencil::gui {
 
   void DisintegrateOverlay::retarget(const QPoint& delta) {
@@ -15,6 +17,31 @@ namespace stencil::gui {
   void DisintegrateOverlay::setFollow(QWidget* w) {
     follow = w;
     followAt = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();
+  }
+
+
+  QWidget* DisintegrateOverlay::surfaceOf(QWidget* inside) {
+    QWidget* w = inside;
+    while (w && !w->isWindow() && !qobject_cast<QDockWidget*>(w)) w = w->parentWidget();
+    return w;
+  }
+
+  void DisintegrateOverlay::bindToSurface(QWidget* inside) {
+    if (surface) surface->removeEventFilter(this);
+    disconnect(surfaceGone);
+    surface = surfaceOf(inside);
+    if (!surface) return;
+    surface->installEventFilter(this);
+    surfaceGone = connect(surface, &QObject::destroyed, this, [this] { hide(); deleteLater(); });
+  }
+
+  // Hidden before the owner's own hide handlers run, so a close flight's photograph never holds it.
+  bool DisintegrateOverlay::eventFilter(QObject* watched, QEvent* e) {
+    if (watched == surface && (e->type() == QEvent::Hide || e->type() == QEvent::Close)) {
+      hide();
+      deleteLater();
+    }
+    return QWidget::eventFilter(watched, e);
   }
 
 

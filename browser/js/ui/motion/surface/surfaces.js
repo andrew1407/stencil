@@ -15,7 +15,7 @@ export const surfaceDust = (el, point, { ms, gather, px = SURFACE_MOTE_PX, paint
   if (!(r.width >= 8 && r.height >= 8)) return false;
   const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, px);
   return disintegrate(el, {
-    ...grid, gather, toward: point, ms, px, toBody: true, box, delayScale,
+    ...grid, gather, toward: point, ms, px, toBody: true, box, delayScale, scoped: false,
     hostClass: gather ? 'dust-forming' : 'dust-leaving',
     paintTile: speckPainter(el, paint),
   });

@@ -121,6 +121,7 @@ namespace stencil::gui {
         /*gather=*/true, CHAT_ARRIVE_MS, card->palette().color(QPalette::WindowText),
         cols * rows);
     if (!dust) { settle(); return; }
+    dust->bindToSurface(card);   // a card's arrival, not a surface flight: it dies with the dock
     // Confined to the transcript: the layer is drawn on the WINDOW (clipDustToScroller).
     clipChatDustToScroller(dust, scroll, host);
     trackChatCardDust(card, dust, scroll, settle);

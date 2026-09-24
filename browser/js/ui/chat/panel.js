@@ -14,7 +14,7 @@ import { MAX_ATTACHMENTS } from '../../llm/chat/controller.js';
 import { mediaFilesFromData, extractDraggedImageUrl, extractDraggedImageUrls, fetchFirstDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { modalShells } from '../modal/registry.js';
-import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter } from '../motion.js';
+import { surfaceIn, surfaceOut, settleSurface, sweepDust, dockAwayPoint, motionReduced, rectCenter } from '../motion.js';
 import {
   renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, wireChatSuggestions, chatSuggestionsHtml,
   chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu, wireComposerVoice,
@@ -87,7 +87,7 @@ export class StencilChatPanel extends StencilElement {
 // it only under the ≤680px modal shape.
   static template() {
     return `<div id="chat-backdrop"></div>`
-      + hostTag('stencil-chat-panel', 'id="chat-panel" class="chat-panel"', StencilChatPanel.inner());
+      + hostTag('stencil-chat-panel', 'id="chat-panel" class="chat-panel" data-dust-scope=".chat-open:not(.chat-closing)"', StencilChatPanel.inner());
   }
 
   wire(app) {
@@ -455,6 +455,7 @@ export class StencilChatPanel extends StencilElement {
       if (!on) gestures?.notifyClosed();
       if (!on && host.classList.contains('chat-open')) {
         setFloatOriginVars();
+        sweepDust(host);
         playDust(false);        // …measured while it is still on screen
         host.classList.add('chat-closing');
         openBtn?.classList.remove('active');

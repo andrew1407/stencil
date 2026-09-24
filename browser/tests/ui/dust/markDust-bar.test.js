@@ -171,3 +171,37 @@ test('every modal shell sweeps its own dust as it closes', () => {
     'the shared close sweeps, so no window has to remember to');
   assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '[^']*motion\.js'/);
 });
+
+// A settle that lands mid-close (a removed project's list re-rendering) must not start a row cloud
+// the sweep has already passed; a window's own flight is not a row and is exempt.
+test('a row cloud starts only while its window is open', async () => {
+  const { disintegrate, dustEnabled } = await import('../../../js/ui/motion.js');
+  assert.ok(dustEnabled(), 'the node default flies particles');
+  const scope = (open, dustScope) => ({ dataset: dustScope ? { dustScope } : {}, matches: () => open });
+  const row = (s) => ({ closest: () => s, getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }) });
+  const realDoc = globalThis.document;
+  let built = 0;
+  globalThis.document = { body: {}, createElement: () => { built++; throw new Error('stub'); } };
+  const start = (s) => disintegrate(row(s), { paintTile: () => {} });
+  try {
+    start(scope(true));
+    assert.strictEqual(built, 1, 'an open window builds its cloud');
+    assert.strictEqual(start(scope(false)), false);
+    assert.strictEqual(start(scope(false, '.chat-open:not(.chat-closing)')), false);
+    assert.strictEqual(built, 1, 'a closing modal or panel builds none');
+  } finally {
+    globalThis.document = realDoc;
+  }
+  const surfaces = read('../../../js/ui/motion/surface/surfaces.js');
+  assert.match(surfaces, /return disintegrate\(el, \{[^}]*scoped: false/, 'a surface flight is not gated');
+});
+
+// The non-modal windows that host row clouds declare their open state and sweep on the way out.
+test('the chat panel and the coordinates panel scope and sweep their row clouds', () => {
+  const chat = read('../../../js/ui/chat/panel.js');
+  assert.match(chat, /data-dust-scope="\.chat-open:not\(\.chat-closing\)"/);
+  assert.match(chat, /sweepDust\(host\);\s*playDust\(false\)/, 'swept before its own close flight');
+  const main = read('../../../js/ui/panel/mainContent.js');
+  assert.match(main, /id="coord-panel" data-dust-scope=":not\(\.coord-collapsed\)"/);
+  assert.match(main, /if \(hidden\) sweepDust\(panel\);\s*foldDust\(/);
+});

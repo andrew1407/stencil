@@ -13,6 +13,7 @@ namespace stencil::gui {
   // The overlay self-deletes on landing; destroyed() clears the handle, so it never dangles.
   void ctl::trackRevealFx(QWidget* w, DisintegrateOverlay* fx) {
     fx->setProperty("stencilRevealOwner", QVariant::fromValue<QObject*>(w));
+    fx->bindToSurface(w);
     w->setProperty(REVEAL_FX_PROPERTY, QVariant::fromValue<QObject*>(fx));
     QObject::connect(fx, &QObject::destroyed, w,
                      [w] { w->setProperty(REVEAL_FX_PROPERTY, QVariant()); });
