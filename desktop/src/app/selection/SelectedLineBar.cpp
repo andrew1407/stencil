@@ -1,3 +1,4 @@
+#include "../../support/control/dblReset.hpp"
 #include "SelectedLineBar.hpp"
 
 #include "controlReveal.hpp"
@@ -78,13 +79,28 @@ namespace stencil::gui {
     };
 
     // selColor — drawingApp.js:1545 / :181
+    // A well and its 0-255 box, one control (browser .control-group: input[type=color] + .alpha-input).
+    const auto withAlpha = [&](QPushButton* well, QSpinBox* box) {
+      auto* pair = new QWidget(card);
+      auto* h = new QHBoxLayout(pair);
+      h->setContentsMargins(0, 0, 0, 0);
+      h->setSpacing(8);
+      well->setParent(pair);
+      box->setParent(pair);
+      h->addWidget(well);
+      h->addWidget(box);
+      return pair;
+    };
     colorSwatch = new QPushButton(card);
     setColorSwatch(colorSwatch, currentColor);
-    addField("Line Color:", colorSwatch);
+    lineAlpha = alphaBox(colorSwatch, currentColor, "Line", [this](const QString& v) { emit lineColorChanged(v); });
+    addField("Line Color:", withAlpha(colorSwatch, lineAlpha));
 
     pointColorSwatch = new QPushButton(card);
     setColorSwatch(pointColorSwatch, currentPointColor);
-    addField("Point Color:", pointColorSwatch);
+    pointAlpha = alphaBox(pointColorSwatch, currentPointColor, "Point",
+                          [this](const QString& v) { emit linePointColorChanged(v); });
+    addField("Point Color:", withAlpha(pointColorSwatch, pointAlpha));
 
     // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
     addSeparator();   // …and one after the colour wells, before the geometry fields
@@ -107,6 +123,7 @@ namespace stencil::gui {
     styleCombo->addItem("Dashed", "dashed");
     styleCombo->addItem("Dotted", "dotted");
     style = styleCombo;
+    support::setResetDefault(style, QStringLiteral("solid"));
     addField("Style:", style);
 
     fillSep = addSeparator();   // hidden with the group it introduces (see showLine)
@@ -135,6 +152,8 @@ namespace stencil::gui {
     fillWord->setObjectName("selectedLineFieldLabel");
     fillRow->addWidget(fillWord);
     fillRow->addWidget(fillSwatch);
+    fillAlpha = alphaBox(fillSwatch, currentFill, "Fill", [this](const QString& v) { emit lineFillChanged(v); });
+    fillRow->addWidget(fillAlpha);
     fillRow->addWidget(fillClear);
     fillRow->addWidget(unchainBtn);
     fillField = addField(QString(), fillGroup);
@@ -158,6 +177,7 @@ namespace stencil::gui {
         if (!c.isValid()) return;
         current = c;
         setColorSwatch(well, current);
+        syncAlpha();   // a picked alpha shows in the well's box
         send(cssName(current), false);
       });
     };

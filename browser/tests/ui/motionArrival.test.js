@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import {
   flipTransform, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
   dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, tileNoise,
-  DUST_CELL_PX, DUST_MAX_PARTICLES, playCanvasArrival,
+  DUST_CELL_PX, DUST_MAX_PARTICLES, playCanvasArrival, wipeDurationMs, ROW_ARRIVE_DELAY_MS,
 } from '../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
 import { box, el } from '../helpers/motionRig.js';
@@ -172,5 +172,17 @@ test('ghostIn declines rather than hiding a canvas it cannot animate', () => {
   globalThis.matchMedia = () => ({ matches: true });
   try {
     assert.equal(ghostIn({ width: 100, height: 80, parentElement: {} }), false, 'reduced motion');
+  } finally { globalThis.matchMedia = prior; }
+});
+
+test('a mode that flies nothing waits for nothing — the removal beat collapses', () => {
+  // The projects list holds a removed row for ROW_ARRIVE_DELAY_MS so its arrival is not lost in
+  // the falling ash; with no ash, the row sat on screen for that beat and nothing played.
+  assert.ok(wipeDurationMs() >= ROW_ARRIVE_DELAY_MS, 'particles: the beat fits inside the wipe');
+  const prior = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true });
+  try {
+    assert.equal(wipeDurationMs(), 0, 'nothing flies, so there is no ash to outlive');
+    assert.equal(Math.min(ROW_ARRIVE_DELAY_MS, wipeDurationMs()), 0, 'and the row goes at once');
   } finally { globalThis.matchMedia = prior; }
 });

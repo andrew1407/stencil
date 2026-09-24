@@ -1,5 +1,6 @@
 #pragma once
 #include "models.hpp"
+#include <QBrush>
 #include <QColor>
 #include <QDockWidget>
 #include <QString>
@@ -12,7 +13,6 @@ class QToolButton;
 class QWidget;
 class QTabWidget;
 class QTabBar;
-class QListWidget;
 
 // Points table + lines list — port of browser/js/ui/panel/selectionPanel.js coordinate table + #lines-
 // list. The "Selected Line:" editor is SelectedLineBar.
@@ -30,7 +30,7 @@ namespace stencil::gui {
 
     explicit SelectionPanel(QWidget* parent = nullptr);
 
-    void restyleIcons(const QColor& iconColor);
+    void restyleIcons(const QColor& iconColor, const QColor& binColor = QColor());
 
     // pageRows carries per-point page coords already run through MainWindow's pageCoords; empty
     // (no image) falls back to px-only rows (browser coordTable.js).
@@ -74,6 +74,9 @@ namespace stencil::gui {
 
    private:
     void styleLineRow(int i);
+    QBrush rowWash(bool picked) const;
+    QBrush rowInk() const;
+    static QString swatchSheet(const QString& face, const QString& rim);
     void applyUnitHeaders();
     void showEmptyPoints();
 
@@ -84,9 +87,10 @@ namespace stencil::gui {
     QTabWidget* tabs = nullptr;     // Points | Lines pages
     QString unitLabel{"cm"};        // what the two page columns are headed with
     QTableWidget* points = nullptr;
-    QListWidget* lines = nullptr;   // Lines tab: one row per committed line
+    QTableWidget* lines = nullptr;  // Lines tab: the same table, one row per committed line
     QLabel* multiLabel = nullptr;   // "N lines selected" note (multi-select mode)
-    QColor iconColor{"#cccccc"};  // current theme text colour for the per-row 🗑 buttons
+    QColor iconColor{"#cccccc"};  // current theme text colour for the panel chrome
+    QColor binColor{"#cccccc"};   // --danger: the delete bin on BOTH tabs (browser .del-pt-btn)
     bool updating = false;        // suppress itemChanged while showLine repopulates
 
     int canvasHoverPointRow = -1;

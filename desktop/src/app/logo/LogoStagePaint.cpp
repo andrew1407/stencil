@@ -2,6 +2,7 @@
 
 #include "ModalBackdrop.hpp"   // the modal scrim + blur a showWord wears too
 #include "theme.hpp"          // accentShade
+#include "../../support/skinPrefs.hpp"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -63,6 +64,23 @@ namespace stencil::gui {
     mark = hooks.makeMark ? hooks.makeMark(int(std::ceil(std::max(rest, other)))) : QPixmap();
   }
 
+  void LogoStage::restyle(bool fresh) {
+    reduced = support::showMotionReduced();
+    support::ParticleStyle next = support::ParticleStyle::DUST;
+    const bool withCloud = support::showHasCloud(showWord, &next) && !reduced &&
+                           (support::showHasOwnStyle(showWord) || support::showDustAllowed());
+    if (fresh || withCloud != hasCloud || next != cloudKind) cloud.setStyle(next, withCloud);
+    hasCloud = withCloud;
+    cloudKind = next;
+    glows = hasCloud || effect == StageEffect::NEON || effect == StageEffect::SUN;
+    const QColor accent = hooks.accent ? hooks.accent() : QColor();
+    const QString look = QStringLiteral("%1 %2 %3").arg(support::isWebcore()).arg(accent.name()).arg(support::isParticleDark());
+    if (!fresh && look == markLook) return;
+    markLook = look;
+    remakeMark();
+    if (!fresh) refitAt = since.elapsed() + REFIT_MS;   // the restyled window, photographed again
+  }
+
   void LogoStage::paintCloud(QPainter& p, const support::StagePose& pose) {
     const QColor accent = hooks.accent ? hooks.accent() : QColor(0x7c, 0x3a, 0xed);
     // The cloud wears the mark's own scale, so it grows out of the logo and shrinks back into it.
@@ -109,7 +127,7 @@ namespace stencil::gui {
     // A hold widens its REACH as well as its brightness; that reach is what reads as intensity.
     const double half = pose.size * cfg.markEdgeShare;
     const double reach = cfg.glowReachShare * pose.size * lit * boost;
-    if (half > 0) {
+    if (half > 0 && glows) {
       // Capped at the showWord's own ceiling, never 1: opaque, the light stops reading as light and
       // the hostWindow behind it disappears. A hold's intensity is carried by the REACH.
       const double a = std::min(cfg.glowAlphaMax,

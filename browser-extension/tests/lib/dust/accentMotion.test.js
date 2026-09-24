@@ -93,8 +93,8 @@ test('a water or fire wake is painted from the accent palette; slide keeps the w
   assert.ok(lit.length > 0, 'grains were painted');
   // Every fill is a palette colour — a stop of the accent ramp or one of its tints
   // (lib/cloud.js paletteCss) — never a pixel of the page.
-  const ramp = /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/;
-  const tint = /^(#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--accent\) 55%, #ffffff\)|var\(--dust-(ink|accent-alt), #\w{6}\))$/;
+  const ramp = /^color-mix\(in srgb, var\(--dust-accent, var\(--accent\)\) \d+%, var\(--dust-accent-2, var\(--accent-2\)\)\)$/;
+  const tint = /^(#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--dust-accent, var\(--accent\)\) 55%, #ffffff\)|var\(--dust-(ink|accent-alt), #\w{6}\))$/;
   for (const f of lit) assert.ok(ramp.test(f.colour) || tint.test(f.colour), `palette fill, got ${f.colour}`);
   assert.ok(lit.some((f) => ramp.test(f.colour)), 'most of it the accent');
   assert.ok(lit.some((f) => tint.test(f.colour)), '…and a tinted minority');

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/skinPrefs.hpp"
 #include "RemoteSession.hpp"
 #include <QToolButton>
 #include "MainWindow.hpp"
@@ -97,8 +98,10 @@ namespace stencil::gui {
     const QString color = incognito ? QString() : currentProjectColor();
     const QColor c(color);
     // Bold + a lighter grey than the browser's #80868f: Qt can't give a QLineEdit the legibility text-shadow.
-    const QString fg =
-        (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#9aa0a8");
+    const QString fg = (!color.isEmpty() && c.isValid()) ? c.name()
+                       : support::isWebcore()
+                             ? themePalette(paintedDark, settings.accentColor).textMain.name()
+                             : QStringLiteral("#9aa0a8");
     if (editing) {
       const QColor accent = accentPrimary(settings.accentColor);
       nameBar.field->setStyleSheet(

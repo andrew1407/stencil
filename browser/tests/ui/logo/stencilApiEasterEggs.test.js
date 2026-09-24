@@ -19,11 +19,32 @@ globalThis.performance = { now: () => 0 };
 
 const facade = () => createStencil(makeApp());
 
-test('every show in the table is a call on the namespace, plus close, what and of', () => {
+test('every show in the table is a call and a <show>Mode switch, plus close, what and of', () => {
   const eggs = facade().EasterEggs;
   for (const name of SHOW_NAMES) assert.equal(typeof eggs[name], 'function', `${name} is missing`);
   for (const extra of ['close', 'what', 'of']) assert.equal(typeof eggs[extra], 'function', extra);
-  assert.equal(Object.keys(eggs).length, SHOW_NAMES.length + 3);
+  for (const name of SHOW_NAMES) assert.equal(typeof eggs[`${name}Mode`], 'boolean', `${name}Mode`);
+  assert.equal(Object.keys(eggs).length, 2 * SHOW_NAMES.length + 3);
+});
+
+test('webcoreMode reads the skin off the page, and assigning the state it is in changes nothing', () => {
+  const eggs = facade().EasterEggs;
+  const root = document.documentElement;
+  const attrs = {};
+  const saved = { get: root.getAttribute, set: root.setAttribute };
+  root.getAttribute = (k) => attrs[k] ?? null;
+  root.setAttribute = (k, v) => { attrs[k] = String(v); };
+  try {
+    assert.equal(eggs.webcoreMode, false);
+    eggs.webcoreMode = false;
+    assert.equal(attrs['data-skin'], undefined, 'already off: nothing is stamped');
+    attrs['data-skin'] = 'webcore';
+    assert.equal(eggs.webcoreMode, true, 'the stamp is the state');
+    assert.equal(eggs.webcoremode, true, 'and it answers in any casing');
+  } finally {
+    root.getAttribute = saved.get;
+    root.setAttribute = saved.set;
+  }
 });
 
 test('what() lists the words, and of() runs one by its word, however it is cased', () => {

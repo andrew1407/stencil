@@ -1,5 +1,6 @@
 #include "theme.hpp"
 #include "themeTokens.hpp"
+#include "../skinPrefs.hpp"
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -27,6 +28,8 @@ namespace stencil::gui {
   QColor infoBackground(bool dark) { return themeToken("--bg-info", dark); }
 
   Palette themePalette(bool dark, const QString& accentKey) {
+    // A skin hands the hand-painted chrome its own palette (support/skinPrefs.hpp).
+    if (const support::PaletteFn hook = support::skinPalette()) return hook(dark);
     Palette p;
     p.bgPage = themeToken("--bg-page", dark);
     p.bgContainer = themeToken("--bg-container", dark);

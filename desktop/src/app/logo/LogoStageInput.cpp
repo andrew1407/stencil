@@ -1,8 +1,9 @@
-// The logo stage's input half: the hold that opens a showWord, the typed words, and the lock that
+// The logo stage's input half: the hold and the typed words that open a showWord, and the lock that
 // makes the stage the only thing the editor hears. Behaviour and painting are its siblings.
 #include "LogoStage.hpp"
 #include "textFocus.hpp"
 #include "typedLetter.hpp"
+#include "../../support/webcore/rules.hpp"
 
 #include <QApplication>
 #include <QKeyEvent>
@@ -15,6 +16,14 @@ namespace stencil::gui {
 
   namespace {
     constexpr int PRESS_SLOP_PX = 10;   // browser ui/popover.js
+    constexpr int WAY_MS = 30, WAY_TRIES = 40;   // a closing modal or fullscreen gets 1.2s to clear
+
+    // The window's own keys: its body, or the modal dialog it has open.
+    bool isHostKeyTarget(QWidget* host, QWidget* first) {
+      QWidget* top = first->window();
+      return top == host || (top == QApplication::activeModalWidget() && top->parentWidget() &&
+                             top->parentWidget()->window() == host);
+    }
 
     bool inputEvent(QEvent::Type t) {
       return t == QEvent::KeyPress || t == QEvent::KeyRelease || t == QEvent::ShortcutOverride ||
@@ -42,14 +51,71 @@ namespace stencil::gui {
 
   void LogoStage::mouseReleaseEvent(QMouseEvent*) { held = false; }
 
-  void LogoStage::keyPressEvent(QKeyEvent* e) {
-    if (e->key() == Qt::Key_Escape) dismiss();
+  void LogoStage::keyPressEvent(QKeyEvent* e) { stageKey(*e); }
+
+  bool LogoStage::activateByName(const QString& name, bool clearWay) {
+    using support::StageEffect;
+    const support::StageShow* spec = support::showByName(name);
+    if (!spec) return false;
+    const QString& toast = support::logoStageConfig().toast;
+    if (spec->effect == StageEffect::WEBCORE) {   // a skin toggle beside any show, never against one
+      const bool on = hooks.webcore ? hooks.webcore() : false;
+      if (hooks.toast) hooks.toast(on ? toast : support::webcoreConfig().offToast);
+      return true;
+    }
+    if (open && name == showWord) return false;
+    if (hooks.bareWindow && !hooks.bareWindow()) {
+      if (!clearWay || !hooks.clearWay) return false;
+      awaitBareWindow(name);
+      return true;
+    }
+    if (spec->effect == StageEffect::PINK) {   // an edit on the canvas under any stage
+      dismiss();
+      if (hooks.pinkVibe) hooks.pinkVibe();
+    } else {
+      start(name);
+    }
+    if (hooks.toast) hooks.toast(toast);
+    return true;
+  }
+
+  // A dialog's exec() is still unwinding when its reject() returns, so the show waits a turn.
+  void LogoStage::awaitBareWindow(const QString& name) {
+    if (!way) {
+      way = new QTimer(this);
+      way->setSingleShot(true);
+      connect(way, &QTimer::timeout, this, [this] {
+        if (!hooks.bareWindow || hooks.bareWindow()) {
+          activateByName(std::exchange(pending, QString()));
+        } else if (++wayTries < WAY_TRIES) {
+          hooks.clearWay();
+          way->start(WAY_MS);
+        } else {
+          pending.clear();
+        }
+      });
+    }
+    pending = name;
+    wayTries = 0;
+    hooks.clearWay();
+    way->start(0);
+  }
+
+  // Escape ends the show; any other word typed at it opens its own.
+  bool LogoStage::stageKey(const QKeyEvent& e) {
+    if (e.key() == Qt::Key_Escape) { dismiss(); return true; }
+    if (e.modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) return false;
+    return typedKey(e);
   }
 
   // A printable key typed into the bare hostWindow, outside any text box, spells a showWord's name.
+  // A letter more than typeGapMs after the last starts a new word (browser typedWords.js).
   bool LogoStage::typedKey(const QKeyEvent& e) {
     const QChar letter = support::typedLetter(e);
     if (letter.isNull()) return false;
+    if (!sinceLetter.isValid() || sinceLetter.elapsed() > support::logoStageConfig().typeGapMs)
+      typed.clear();
+    sinceLetter.restart();
     typed += letter;
     const QStringList words = support::typedWords();
     int longest = 0;
@@ -58,7 +124,7 @@ namespace stencil::gui {
     for (int i = 0; i < words.size(); ++i) {
       if (!typed.endsWith(words.at(i))) continue;
       typed.clear();
-      activateByName(support::logoStageConfig().shows.at(i).name);
+      activateByName(support::logoStageConfig().shows.at(i).name, /*clearWay=*/true);
       return true;
     }
     return false;
@@ -76,8 +142,8 @@ namespace stencil::gui {
       e->accept();
       return true;
     }
-    if (t == QEvent::KeyPress && static_cast<QKeyEvent*>(e)->key() == Qt::Key_Escape) {
-      dismiss();
+    if (t == QEvent::KeyPress) {
+      stageKey(*static_cast<QKeyEvent*>(e));
       return true;
     }
     // A press that landed anywhere else is still the stage's: map it into stage space. A REAL
@@ -124,9 +190,9 @@ namespace stencil::gui {
     if (t == QEvent::KeyPress && !open) {
       QWidget* focus = QApplication::focusWidget();
       QWidget* first = focus ? focus : hostWindow;
-      if (o == first && first->window() == hostWindow && !support::isTextEntry(focus) &&
-          !(static_cast<QKeyEvent*>(e)->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) &&
-          typedKey(*static_cast<QKeyEvent*>(e)))
+      const auto& key = *static_cast<QKeyEvent*>(e);
+      if (o == first && isHostKeyTarget(hostWindow, first) && !support::isTextEntry(focus) &&
+          key.key() != Qt::Key_Escape && stageKey(key))
         return true;
     }
     return QWidget::eventFilter(o, e);

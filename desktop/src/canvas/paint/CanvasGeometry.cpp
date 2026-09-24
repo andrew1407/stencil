@@ -69,7 +69,7 @@ namespace stencil::gui {
     // A vertex added a moment ago is drawn where it is RIGHT NOW, so segments hanging off a moving
     // vertex follow it for free. One buffer per frame: QPolygonF keeps its capacity.
     static thread_local QPolygonF polyBuf;
-    flownPolygon(line, lineIdx, scale, live, polyBuf);
+    flownPolygon(line, lineIdx, 1.0, live, polyBuf);
     const QPolygonF& poly = polyBuf;
 
     const QColor stroke = paintColor(line.color);
@@ -80,12 +80,17 @@ namespace stencil::gui {
     const QColor pointParsed = paintColor(core::pointColorOr(line));
     const QColor pointFill = pointParsed.isValid() ? pointParsed : stroke;
 
+    // A width and a radius are IMAGE px, as they are on the browser's CSS-scaled canvas: under
+    // the transform they shrink with the zoom instead of fattening as the view pulls back.
+    p.save();
+    p.scale(scale, scale);
     drawFill(p, line, poly);
     drawGlow(p, line, poly, lineIdx, highlight, pal);
     if (live) drawStrokeWake(p, line, poly, lineIdx, stroke);
     drawStroke(p, line, poly, stroke);
     drawPoints(p, line, poly, lineIdx, highlight, pointFill, pal, live);
     if (live) drawStrokeSpark(p, line, poly, lineIdx, pointFill);
+    p.restore();
   }
 
   // The flight, painted (browser js/core/strokeFx.js)

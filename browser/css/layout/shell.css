@@ -20,8 +20,8 @@
 }
 body {
     font-family: Arial, sans-serif;
-    /* Half the side frame (user decision) — the panel sits closer to the window edges. */
-    padding: 20px 10px;
+    /* No frame (user decision): the editor owns the window edge to edge, as the desktop's does. */
+    padding: 0;
     background: var(--bg-page);
     color: var(--text-main);
     transition: background 0.3s, color 0.3s;
@@ -64,8 +64,8 @@ body {
        is clamped in utils.js too; this is the backstop that keeps any wide content inside. */
     min-width: 0;
     background: var(--bg-container);
-    /* Less above the header so the logo row sits higher (user decision). */
-    padding: 12px 20px 20px;
+    /* One frame all round: the logo's gap from the top edge is its gap from the left. */
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 10px var(--shadow);
     color: var(--text-main);

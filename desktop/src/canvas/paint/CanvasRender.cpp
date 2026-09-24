@@ -1,5 +1,6 @@
 #include "CanvasWidget.hpp"
 #include "CanvasWidget.hpp"
+#include "../../support/motionPrefs.hpp"   // support::motionReduced()
 
 #include <QFileInfo>
 
@@ -138,6 +139,8 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::clearImage() {
+    // Arrives when a picture LEAVES, never on an already-empty editor (browser `idle-arriving`).
+    if (!image.isNull() && !support::motionReduced()) startIdleCardArrival();
     resetStrokeFx();
     blankPage = false;
     originalImage = QImage();

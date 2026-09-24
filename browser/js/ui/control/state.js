@@ -1,6 +1,9 @@
 import { composeControlTitle } from '../../utils.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { revealControls, settleMark } from '../motion.js';
+import { motionReduced } from '../motion/motionPrefs.js';
+
+const IDLE_ARRIVE_CLASS = 'idle-arriving';
 
 // One sweep reflecting the editor state onto every toolbar/panel control; DrawingApp's
 // updateButtons() delegates here.
@@ -37,9 +40,18 @@ export function updateButtons(app) {
     const el = document.getElementById(id);
     if (el) el.disabled = noImage;
   }
-  // The blank-image creator lives on the empty canvas only.
+  // The blank-image creator lives on the empty canvas only and arrives when a picture leaves,
+  // never on the first paint (display starts unset). Desktop twin: CanvasWidget::clearImage.
   const idleCreate = document.getElementById('idle-create-wrap');
-  if (idleCreate) idleCreate.style.display = noImage ? '' : 'none';
+  if (idleCreate) {
+    const wasShown = idleCreate.style.display !== 'none';
+    idleCreate.style.display = noImage ? '' : 'none';
+    if (noImage && !wasShown && !motionReduced()) {
+      idleCreate.classList.remove(IDLE_ARRIVE_CLASS);
+      void idleCreate.offsetWidth;   // restart the keyframe on a second removal
+      idleCreate.classList.add(IDLE_ARRIVE_CLASS);
+    }
+  }
 
   // data-disabled-reason (in the markup) feeds the tooltip via composeControlTitle.
   const hasImage = !!app.image;
@@ -55,7 +67,7 @@ export function updateButtons(app) {
   setDisabled('crop-image', !hasImage);
   setDisabled('rotate-left', !hasImage);
   setDisabled('rotate-right', !hasImage);
-  setDisabled('image-filter', !hasImage);
+  setDisabled('image-filter', false);   // a tint chosen ahead colours the next picture
   setDisabled('compare-mode', !hasImage);
   setDisabled('save-image', !hasImage);
   setDisabled('save-project-btn', !hasImage);

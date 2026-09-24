@@ -1,6 +1,7 @@
 // MainWindow construction, phase 1 of 4 — the order is pinned by the composition GUI test; reorder
 // nothing.
 #include "MainWindow.hpp"
+#include "../../support/control/dblReset.hpp"
 #include "../../support/tip/tipContent.hpp"
 #include "CanvasWidget.hpp"
 #include "mainWindowHelpers.hpp"   // CENTRAL_SIDE_MARGIN
@@ -55,6 +56,7 @@ namespace stencil::gui {
     dropHintText = new QLabel(dropHint);
     dropHintText->setObjectName("dropHintLabel");
     dropHintText->setTextFormat(Qt::RichText);
+    dropHintText->setWordWrap(true);   // browser .drop-hint wraps: its one line must not floor the canvas's width
     refreshDropHint();
     dropHintLay->addWidget(dropHintIcon, 0, Qt::AlignVCenter);
     dropHintLay->addWidget(dropHintText, 1);
@@ -122,6 +124,7 @@ namespace stencil::gui {
     setAttribute(Qt::WA_Hover, true);
     installIconMotion();
     installControlSwap();
+    support::installDblReset();   // a double-click puts a selector or a check back to its default
     support::installDialogReveal();
     support::installModalDismiss();   // a press outside a modal closes it (browser parity)
   }

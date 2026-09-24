@@ -1,6 +1,7 @@
 {
-  "_doc": "The logo stage: the full-window logo shows behind the header mark's hold, the typed words and stencil.EasterEggs. The desktop reads this file over its qrc alias (resources/app.qrc) and both surfaces resolve a show from this one table: a show's `accents` are the presets that open it on a hold, `motion` the motion mode that hold also needs, `customHex` the custom accent that opens it ('*' = any other custom hex). Every show is also its own facade call and, lower-cased, its typed word. Sizes are shares of the shorter window side; times are ms.",
+  "_doc": "The logo stage: the full-window logo shows behind the header mark's hold, the typed words and stencil.EasterEggs. The desktop reads this file over its qrc alias (resources/app.qrc) and both surfaces resolve a show from this one table: a show's `accents` are the presets that open it on a hold, `motion` the motion mode that hold also needs, `customHex` the custom accent that opens it ('*' = any other custom hex). Every show is also its own facade call and, lower-cased, its typed word. The webcore row (the session skin in webcore.json) shares grey with dustySpot and is told apart by `motion` alone, as every styled row is: dust flying opens the dust show, a still interface opens the skin. `typeGapMs` is how long a half-typed word waits for its next letter before it is forgotten. Sizes are shares of the shorter window side; times are ms.",
   "holdMs": 3000,
+  "typeGapMs": 1200,
   "toast": "Secret activated",
   "toastGold": "#e3b341",
   "toastInk": "#2e2000",
@@ -16,7 +17,8 @@
     "chaseMe":     { "effect": "follow", "customHex": "#ffffff" },
     "runaway":     { "effect": "escape", "customHex": "#000000" },
     "pinkVibe":    { "effect": "pink",   "accents": ["pink"] },
-    "randomWalk":  { "effect": "fly",    "customHex": "*" }
+    "randomWalk":  { "effect": "fly",    "customHex": "*" },
+    "webcore":     { "effect": "webcore", "accents": ["grey"], "motion": "none" }
   },
 
   "stage":  { "logoShare": 0.66, "bounceBigShare": 0.9, "minShare": 0.1, "revealMs": 520, "hideMs": 360,

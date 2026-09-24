@@ -31,6 +31,9 @@
     flex-wrap: wrap;
     flex: 1;
 }
+/* A picker and a checkbox are different kinds of control: the toggles get a little more air
+   than the row's own gap so they read as their own group (desktop twin: the View cluster). */
+#compare-mode + label { margin-left: 4px; }
 /* The toolbar's glyphs match the desktop's 18px box (mainWindowHelpers.hpp TOOL_ICON);
    the buttons keep their size — only the art inside them grows. Each glyph has a viewBox,
    so this scales the drawing rather than cropping it. */

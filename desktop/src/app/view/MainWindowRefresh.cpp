@@ -1,3 +1,4 @@
+#include "mainWindowHelpers.hpp"
 #include "MainWindow.hpp"
 #include <QActionGroup>
 #include <QComboBox>
@@ -60,7 +61,9 @@ namespace stencil::gui {
         int widest = 0;
         for (QAction* state : {actStartDraw, actStopDraw}) {
           startDrawBtn->setDefaultAction(state);
-          widest = std::max(widest, startDrawBtn->sizeHint().width());
+          const int w = startDrawBtn->sizeHint().width();
+          startDrawBtn->setProperty(faceHintKey(state->iconText()).constData(), w);
+          widest = std::max(widest, w);
         }
         startDrawBtn->setDefaultAction(keep);
         startDrawBtn->setFixedWidth(widest);
@@ -78,7 +81,9 @@ namespace stencil::gui {
         int widest = 0;
         for (const char* t : {"Line", "Rect"}) {
           drawModeBtn->setText(t);
-          widest = std::max(widest, drawModeBtn->sizeHint().width());
+          const int w = drawModeBtn->sizeHint().width();
+          drawModeBtn->setProperty(faceHintKey(QLatin1String(t)).constData(), w);
+          widest = std::max(widest, w);
         }
         drawModeBtn->setText(keep);
         drawModeBtn->setFixedWidth(widest);
@@ -104,10 +109,10 @@ namespace stencil::gui {
     actZoomOut->setEnabled(hasImg);
     actFit->setEnabled(hasImg);
     if (zoom) zoom->setEnabled(hasImg);
-    // browser: setDisabled('image-filter', !hasImage); the tint swatch rides along.
-    if (imageFilter) imageFilter->setEnabled(hasImg);
-    if (filterColorBtn) filterColorBtn->setEnabled(hasImg);
-    if (actCycleFilter) actCycleFilter->setEnabled(hasImg);
+    // The tint is chosen ahead of a picture too (browser control/state.js), so it never greys.
+    if (imageFilter) imageFilter->setEnabled(true);
+    if (filterColorBtn) filterColorBtn->setEnabled(true);
+    if (actCycleFilter) actCycleFilter->setEnabled(true);
     // restoreSession() ignores a session with no image and no lines, so saving one is a true no-
     // op.
     actSaveSession->setEnabled(hasImg || hasLines);

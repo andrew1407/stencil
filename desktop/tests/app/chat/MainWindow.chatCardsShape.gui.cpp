@@ -51,6 +51,8 @@ class MainWindowGuiTest : public QObject {
     QFrame* userCard = nullptr;
     for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardUser")) userCard = f;
     QVERIFY(errCard && userCard);
+    // Laid out first: a card still at its 18px birth size has no corner to sample.
+    QTRY_VERIFY(errCard->width() > 40 && userCard->width() > 40);
     QImage shot = win.chatDock->grab().toImage();
     // A pixel just inside the card's flattened corner, against a reference pixel further in that
     // is unambiguously fill. Equal ⇒ one continuous fill; a rounded corner samples the transcript.

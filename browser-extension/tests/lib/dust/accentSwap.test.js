@@ -113,8 +113,8 @@ test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', asy
   assert.ok(grains > 10, `a real field of grains (got ${grains})`);
   // Painted from the accent palette, resolved BEFORE the swap (the sandbox cannot compute
   // a colour, so color-mix() strings come through): every fourth grain wears the shade.
-  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
-  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
+  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 100%, var(--dust-accent-2, var(--accent-2)))'), 'accent grains');
+  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 0%, var(--dust-accent-2, var(--accent-2)))'), 'shade grains');
   // The whole point of the stage: batched fills — one per (stop, alpha step), each in
   // chunks of 32 grains (lib/cloud.js FILL_CHUNK) — not one per grain.
   assert.ok(stage.fills.length <= 6 * 8 + Math.ceil(grains / 32), `batched into ${stage.fills.length} fills, not ${grains}`);

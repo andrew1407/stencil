@@ -5,6 +5,7 @@
 // Qt-coupled helpers shared across the dialogs/widgets; never core/ (GUI-free).
 class QAbstractButton;
 class QColor;
+class QApplication;
 class QComboBox;
 class QDialog;
 class QWidget;
@@ -47,5 +48,9 @@ namespace stencil::gui {
   // contract); item DATA is the canonical "custom"/"A4". Re-invoking re-renders labels only.
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,
                          const QString& units = QStringLiteral("cm"));
+
+  // A disabled widget takes no mouse events, so Qt never shows a cursor for it. This watches the
+  // pointer application-wide instead (browser `cursor: not-allowed` on :disabled).
+  void installDisabledCursor(QApplication* app);
 
 }

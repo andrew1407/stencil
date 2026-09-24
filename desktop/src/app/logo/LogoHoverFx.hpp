@@ -51,6 +51,7 @@ namespace stencil::gui {
     QPixmap pm;      // the mark at the CURRENT accent (cached per hover / theme change)
     qreal beat = 0.0;
     qreal angle = 0.0;
+    bool hovering = false;   // true from start() to stop(), whether or not the loop runs
   };
 
   inline LogoHoverFx* asLogoFx(QWidget* w) { return static_cast<LogoHoverFx*>(w); }

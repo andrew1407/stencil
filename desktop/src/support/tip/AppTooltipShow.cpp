@@ -1,4 +1,5 @@
 #include "AppTooltip.hpp"
+#include "../skinPrefs.hpp"
 
 namespace stencil::gui {
 
@@ -147,7 +148,7 @@ namespace stencil::gui {
   // One damped left-right pass over the KEYCAPS, never a loop.
   void AppTooltip::shakeKeys() {
     if (shakeDelay) shakeDelay->stop();
-    if (!isVisible() || support::motionReduced()) return;
+    if (!isVisible() || support::motionReduced() || support::isWebcore()) return;
     if (body->capCount() == 0) return;
     if (!shake) {
       shake = new QVariantAnimation(this);

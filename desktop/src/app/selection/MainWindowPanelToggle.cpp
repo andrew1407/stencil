@@ -30,6 +30,7 @@ namespace stencil::gui {
   // Browser parity: `#toggle-controls .ic` spins half a turn on the fold's curve.
   void MainWindow::spinControlsPill(bool animate) {
     const qreal to = (actToolbars && !actToolbars->isChecked()) ? 180.0 : 0.0;
+    if (controlsPill) setTipBase(controlsPill, to > 0.0 ? "Show controls" : "Hide controls");
     if (pillSpinAnim) { pillSpinAnim->stop(); pillSpinAnim->deleteLater(); pillSpinAnim = nullptr; }
     if (!animate || qFuzzyCompare(pillChevronDeg + 1.0, to + 1.0)) {
       pillChevronDeg = to;

@@ -1,12 +1,12 @@
 // The logo stage: one full-window canvas holding the big mark, its light and its cloud, and the
 // lock that makes it the only thing the editor listens to until Escape or a click ends it.
 // Desktop twin: app/LogoStage.{hpp,cpp}.
-import { motionReduced, particleStyle } from '../motion/motionPrefs.js';
 import { modalShells } from '../modal/registry.js';
-import { STAGE, effectOf, showStyle, bigLogoSize, bounceBigSize, minLogoSize, roams, roamLogoSize, markEdge } from './stageRules.js';
-import { beatAt, spinAt, stageMark, markHex, paintBackdrop, paintGlow, paintSpokes, paintMark } from './stagePaint.js';
-import { createStageCloud } from './stageCloud.js';
+import { STAGE, effectOf, bigLogoSize, bounceBigSize, minLogoSize, roams, roamLogoSize, markEdge } from './stageRules.js';
+import { beatAt, spinAt, markHex, paintBackdrop, paintGlow, paintSpokes, paintMark } from './stagePaint.js';
+import { createStageLook } from './stageLook.js';
 import * as M from './stageMotion.js';
+import { lastPointer } from './pointer.js';
 
 export const STAGE_CLASS = 'logo-stage';
 export const OPEN_CLASS = 'logo-stage-open';
@@ -40,10 +40,10 @@ export const markOrigin = (doc = globalThis.document) => {
 };
 
 // `origin` is the header mark's centre, so the stage grows out of the logo and shrinks back into it.
+// A show is ASKED for, so no motion setting of the user's silences it.
 export const openLogoStage = (name, { app, origin = null, doc = globalThis.document } = {}) => {
   const effect = effectOf(name);
   if (!effect || effect === 'pink' || !logoStageAllowed(doc)) return false;
-  const reduced = motionReduced();
   const host = doc.createElement('div');
   host.className = STAGE_CLASS;
   host.setAttribute('aria-hidden', 'true');
@@ -53,9 +53,7 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
   // The show's own notice is the one thing that still stands above it (components/logoStage.css).
   doc.body.classList?.add?.(OPEN_CLASS);
   const ctx = canvas.getContext?.('2d') || null;
-  const img = stageMark(doc, markHex(app));
-  const style = reduced ? null : showStyle(name, particleStyle());
-  const cloud = createStageCloud(style);
+  const look = createStageLook(name, app, doc);
 
   const view = () => ({ w: globalThis.innerWidth || 1024, h: globalThis.innerHeight || 768 });
   let { w, h } = view();
@@ -68,8 +66,7 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
   const bounce = M.bounceState(rest, other);
   const fly = M.flyState(w / 2, h / 2, Math.random() * 2 * Math.PI);
   const chase = M.chaseState(w / 2, h / 2);
-  const pos = { x: w / 2, y: h / 2 };
-  const cursor = { x: w / 2, y: h / 2 };
+  const pos = { x: w / 2, y: h / 2 }, cursor = lastPointer() ?? { ...pos };
   let heading = null;   // the way it travels; the cloud lays its tail the other way
   const at = origin || markOrigin(doc);
   const from = at ? { x: at.x, y: at.y, size: 32 } : { x: w / 2, y: h / 2, size: rest };
@@ -80,10 +77,10 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
   let boost = 1;
   const rampBoost = (dt) => {
     const target = held ? STAGE.stage.holdBoost : 1;
-    const k = reduced ? 1 : 1 - Math.exp(-dt / STAGE.stage.holdRampMs);
+    const k = 1 - Math.exp(-dt / STAGE.stage.holdRampMs);
     boost += (target - boost) * k;
   };
-  let t0 = 0, last = 0, frame = null, fade = reduced ? 1 : 0;
+  let t0 = 0, last = 0, frame = null, fade = 0;
 
   const fit = () => {
     const was = { w, h };
@@ -109,25 +106,25 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
   };
   fit();
 
-  const drop = () => { host.remove(); doc.body.classList?.remove?.(OPEN_CLASS); };
+  const drop = () => { host.remove(); if (!live) doc.body.classList?.remove?.(OPEN_CLASS); };
   const now = () => (globalThis.performance?.now?.() ?? Date.now());
   const paint = (t) => {
     if (!ctx) return;
-    const beat = reduced ? 0.5 : beatAt(t);
+    const beat = beatAt(t);
     // A cloud show's light is a steady lamp the grains fly through: all its motion, and
     // everything a hold adds, belongs to the cloud. Without a cloud the light does it all.
-    const lightBoost = style ? 1 : boost;
+    const lightBoost = look.style ? 1 : boost;
     // Never all the way down: a neon sign breathes, it does not go out.
-    const lit = style ? STAGE.glow.steadyLit : STAGE.glow.floor + (1 - STAGE.glow.floor) * beat;
-    const reveal = reduced ? 1 : Math.min(1, t / STAGE.stage.revealMs);
+    const lit = look.style ? STAGE.glow.steadyLit : STAGE.glow.floor + (1 - STAGE.glow.floor) * beat;
+    const reveal = Math.min(1, t / STAGE.stage.revealMs);
     const p = leftAt === null ? reveal : 1 - Math.min(1, (t - leftAt) / STAGE.stage.hideMs);
     const pose = M.revealTween(from, { x: pos.x, y: pos.y, size }, p);
     paintBackdrop(ctx, w, h, fade);
     // The cloud wears the mark's own scale, so it grows out of the logo and shrinks back into it.
-    cloud.draw(ctx, doc, pose.x, pose.y, t, size > 0 ? pose.size / size : 1);
-    paintGlow(ctx, { ...pose, hex: markHex(app), beat: lit, boost: lightBoost });
-    if (effect === 'sun') paintSpokes(ctx, { ...pose, hex: markHex(app), beat, boost: lightBoost, angle: reduced ? 0 : spinAt(t) });
-    paintMark(ctx, img, pose);
+    look.cloud.draw(ctx, doc, pose.x, pose.y, t, size > 0 ? pose.size / size : 1);
+    if (look.glows) paintGlow(ctx, { ...pose, hex: markHex(app), beat: lit, boost: lightBoost });
+    if (effect === 'sun') paintSpokes(ctx, { ...pose, hex: markHex(app), beat, boost: lightBoost, angle: spinAt(t) });
+    paintMark(ctx, look.img, pose);
   };
 
   const step = () => {
@@ -135,31 +132,29 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
     const t = now() - t0;
     const dt = Math.min(50, last ? t - last : 16.7);
     last = t;
+    look.refresh();
     rampBoost(dt);
     fade = leftAt === null ? Math.min(1, t / STAGE.stage.revealMs)
       : Math.max(0, 1 - (t - leftAt) / STAGE.stage.hideMs);
     if (leftAt !== null && t - leftAt >= STAGE.stage.hideMs) { drop(); return; }
-    if (!reduced) {
-      if (effect === 'follow' || effect === 'escape') {
-        M.chaseStep(chase, cursor, dt, size, w, h, STAGE[effect], effect === 'escape');
-        pos.x = chase.x; pos.y = chase.y;
-        heading = M.headingOfState(chase);
-      } else if (effect === 'fly') {
-        M.flyStep(fly, dt, size, w, h);
-        pos.x = fly.x; pos.y = fly.y;
-        // No tail: this one is not chasing anything, so its cloud stays a ring on every side.
-        heading = null;
-      }
-      size = effect === 'shrink' || effect === 'grow' ? M.bounceStep(bounce, t) : size;
-      // Spawning tapers with the fade, so the hide has nothing new arriving into it.
-      cloud.step(dt, size, boost * fade, { dir: heading });
-      syncCursor();
+    if (effect === 'follow' || effect === 'escape') {
+      M.chaseStep(chase, cursor, dt, size, w, h, STAGE[effect], effect === 'escape');
+      pos.x = chase.x; pos.y = chase.y;
+      heading = M.headingOfState(chase);
+    } else if (effect === 'fly') {
+      M.flyStep(fly, dt, size, w, h);
+      pos.x = fly.x; pos.y = fly.y;
+      // No tail: this one is not chasing anything, so its cloud stays a ring on every side.
+      heading = null;
     }
+    size = effect === 'shrink' || effect === 'grow' ? M.bounceStep(bounce, t) : size;
+    // Spawning tapers with the fade, so the hide has nothing new arriving into it.
+    if (look.dusty) look.cloud.step(dt, size, boost * fade, { dir: heading });
+    syncCursor();
     paint(t);
     frame = raf(step);
   };
   const raf = globalThis.requestAnimationFrame ?? ((fn) => setTimeout(() => fn(now()), 16));
-  const cancel = globalThis.cancelAnimationFrame ?? clearTimeout;
 
   // The catch is the mark's OWN outline, not a circle round it: a circle reaches past the flat
   // edges and falls short of the corners, so the hand showed where the art was not. A fast mark
@@ -203,22 +198,24 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
   host.addEventListener('pointermove', onPointerMove);
   host.addEventListener('pointerdown', onPointerDown);
   for (const type of ['pointerup', 'pointercancel', 'pointerleave']) host.addEventListener(type, onPointerUp);
-  for (const type of SWALLOWED) doc.addEventListener(type, swallow, true);
+  for (const type of SWALLOWED) doc.addEventListener(type, swallow, { capture: true, passive: false });
   globalThis.addEventListener?.('resize', fit);
 
   live = {
     name, effect, host, canvas,
     get size() { return size; },
     get position() { return { ...pos }; },
-    get cloudLive() { return cloud.live; },
+    get cloudLive() { return look.cloud.live; },
+    get cloudStyle() { return look.dusty ? look.style : null; },
+    get markSrc() { return look.img?.src ?? null; },
     release() {
       leftAt = now() - t0;
+      look.unwatch();
       host.removeEventListener('pointermove', onPointerMove);
       host.removeEventListener('pointerdown', onPointerDown);
       for (const type of ['pointerup', 'pointercancel', 'pointerleave']) host.removeEventListener(type, onPointerUp);
       for (const type of SWALLOWED) doc.removeEventListener(type, swallow, true);
       globalThis.removeEventListener?.('resize', fit);
-      if (reduced) { if (frame) cancel(frame); drop(); }
     },
   };
   t0 = now();

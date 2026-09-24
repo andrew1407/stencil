@@ -93,12 +93,12 @@ test('the palette is six even mixes of the accent and its shade, then the five t
   assert.equal(PALETTE_STOPS, 6);
   const css = paletteCss();
   assert.equal(css.length, PAINT_STOPS);
-  assert.equal(css[0], 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))');
-  assert.equal(css[5], 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))');
-  assert.equal(css[2], 'color-mix(in srgb, var(--accent) 60%, var(--accent-2))');
+  assert.equal(css[0], 'color-mix(in srgb, var(--dust-accent, var(--accent)) 100%, var(--dust-accent-2, var(--accent-2)))');
+  assert.equal(css[5], 'color-mix(in srgb, var(--dust-accent, var(--accent)) 0%, var(--dust-accent-2, var(--accent-2)))');
+  assert.equal(css[2], 'color-mix(in srgb, var(--dust-accent, var(--accent)) 60%, var(--dust-accent-2, var(--accent-2)))');
   assert.deepEqual(css.slice(6), TINT_CSS, 'the tints follow the ramp, in order');
   assert.deepEqual(TINT_CSS.slice(1, 3), ['#b4b4b4', '#6e6e6e'], 'grey and a darker grey');
-  assert.match(TINT_CSS[3], /var\(--accent\) 55%, #ffffff/, 'a light accent');
+  assert.match(TINT_CSS[3], /var\(--dust-accent, var\(--accent\)\) 55%, #ffffff/, 'a light accent');
   // The neutral spark and the second accent tint follow the theme (css/theme.css), since
   // white cannot be seen on a pale surface nor a deep accent on a dark one.
   assert.match(TINT_CSS[0], /^var\(--dust-ink, #\w{6}\)$/, 'the spark');

@@ -59,6 +59,9 @@
         border: 1px solid #d4a017; border-radius: 8px;
       }
 
+      /* The View toggles' words (MainWindowToolbarView captioned): body text, not a muted caption. */
+      QLabel#toggleCaption { color: %TEXT%; padding: 0; }
+      QWidget[toolRow="true"] QCheckBox { spacing: 0; }   /* a bare box: its caption is the label beside it */
       /* Live cursor-coord readout, between the canvas and the drop-hint (browser parity:
          layout.css .coord-status — its own --bg-tooltip/--border-tooltip box, not the
          toolbar's bg-controls). */
@@ -225,7 +228,7 @@
          browser's does rather than pushed in from the left, and the air between glyph and
          label comes from the icon RECT instead (kFaceIconGap) — Qt's own gap is a fixed
          4px and QSS `spacing` does nothing here (user report, with a picture). */
-      QToolButton#drawFaceBtn { font-size: 12px; padding: 5px 6px; }
+      QToolButton#drawFaceBtn { font-size: 12px; padding: 5px %FACE_PAD_X%px; }
       /* Chat-dock action buttons (send / attach / gear): the standard FILLED
          accent icon-button treatment (browser chat-panel parity); disabled =
          the shared muted chip (button:disabled parity — browser/css/layout/shell.css).
@@ -582,25 +585,23 @@
          what makes its accent header read as five separate cells rather than one bar. */
       /* One size across the whole panel — cells, header and the Points | Lines strip, so the
          header and the tabs never fall back to the system font and stack two type scales. */
-      QTableWidget#pointsTable {
+      QTableWidget#pointsTable, QTableWidget#linesList {
         gridline-color: %BORDER%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
         selection-color: %TEXT%;
         font-size: 13px;
       }
-      QTableWidget#pointsTable QHeaderView::section {
+      QTableWidget#pointsTable QHeaderView::section, QTableWidget#linesList QHeaderView::section {
         border-right: 1px solid %BORDER%; border-bottom: 1px solid %BORDER%;
         padding: 6px 5px; font-weight: bold; font-size: 13px;
       }
       QTabBar#selectionTabBar::tab { font-size: 13px; }
       /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
-      QTableWidget#pointsTable::item { padding: 6px 5px; }
-      QTableWidget#pointsTable::item:hover { background: %ACCENT_SOFT%; }
+      QTableWidget#pointsTable::item, QTableWidget#linesList::item { padding: 6px 5px; }
       /* Kill BOTH selection fills (row panel via selection-background-color above + the per-item
          fill here, which would otherwise inherit the generic ::item:selected accent) so only the
          delegate's outline shows. */
-      QTableWidget#pointsTable::item:selected { background: transparent; color: %TEXT%; }
-      QTableWidget#pointsTable::item:selected:hover { background: %ACCENT_SOFT%; }
+      QTableWidget#pointsTable::item:selected, QTableWidget#linesList::item:selected { background: transparent; color: %TEXT%; }
       QPushButton#pointDelBtn {
         background: transparent; border: none; border-radius: 6px; padding: 2px;
       }
@@ -933,7 +934,8 @@
         background: %BG_INFO%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 7px 10px;
       }
-      QLabel#stencilAppTooltipBody { background: transparent; color: %TEXT%; }
+      /* The browser's #app-tooltip type (components/tooltip.css), not the platform tooltip font. */
+      QLabel#stencilAppTooltipBody { background: transparent; color: %TEXT%; font-size: 12px; }
 
       /* ── Searchable combo popup (SearchComboBox, e.g. the page-format picker):
          the desktop rendering of the browser's .accent-dd-menu panel — rounded

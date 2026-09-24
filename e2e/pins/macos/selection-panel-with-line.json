@@ -17,7 +17,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "10px 15px",
         "margin": "0px 0px 12px",
-        "width": "1220px",
+        "width": "1240px",
         "height": "58px"
       }
     },
@@ -32,7 +32,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "gap": "12px",
-        "width": "1186px",
+        "width": "1206px",
         "height": "34px",
         "align-items": "center"
       }

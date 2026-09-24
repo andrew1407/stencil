@@ -1,5 +1,5 @@
-// The logo stage's table and rules (js/ui/stageRules.js): every accent preset opens exactly
-// one show, a custom hex picks by value, a styled show needs its motion mode, and the heart fits.
+// The logo stage's table and rules (js/ui/stageRules.js): every accent preset opens a show, a
+// custom hex picks by value, a styled show needs its motion mode, and the heart fits.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ACCENTS from '../../../js/config/accents.json' with { type: 'json' };
@@ -8,19 +8,29 @@ import {
   bigLogoSize, minLogoSize, heartPoints, heartLine,
 } from '../../../js/ui/logo/stageRules.js';
 
-test('every accent preset opens exactly one show, and every show name is an identifier', () => {
+test('every accent preset opens a show, told apart by motion, and every name is an identifier', () => {
   for (const { key } of ACCENTS) {
     const owners = SHOW_NAMES.filter((n) => (SHOWS[n].accents || []).includes(key));
-    assert.equal(owners.length, 1, `${key} is owned by ${owners.join(', ') || 'nobody'}`);
+    assert.ok(owners.length >= 1, `${key} is owned by nobody`);
+    // A colour two rows share is told apart by their motion mode, never by their order.
+    if (owners.length > 1)
+      assert.equal(new Set(owners.map((n) => SHOWS[n].motion || '')).size, owners.length,
+                   `${key}: ${owners.join(', ')} open under the same motion mode`);
   }
   for (const name of SHOW_NAMES) assert.match(name, /^[a-z][A-Za-z0-9]*$/);
   assert.deepEqual(TYPED_WORDS, SHOW_NAMES.map((n) => n.toLowerCase()));
   for (const n of SHOW_NAMES) {
     const hex = SHOWS[n].customHex;
     if (hex) assert.equal(hex, hex.toLowerCase(), `${n}: customHex is lower-case`);
-    if (SHOWS[n].motion) assert.ok(['particles', 'water', 'fire'].includes(SHOWS[n].motion));
+    if (SHOWS[n].motion) assert.ok(['particles', 'water', 'fire', 'none'].includes(SHOWS[n].motion));
   }
   assert.ok(STAGE.holdMs >= 1000 && STAGE.toast.length > 0);
+  // The skin's row opens by word, by call, and by a hold on grey with the interface still.
+  assert.equal(effectOf('webcore'), 'webcore');
+  assert.deepEqual(SHOWS.webcore.accents, ['grey']);
+  assert.equal(SHOWS.webcore.motion, 'none');
+  assert.equal(SHOWS.webcore.customHex, undefined);
+  assert.equal(showStyle('webcore', 'dust'), null, 'no stage, so no cloud');
 });
 
 test('a preset resolves by its row; a styled row needs its motion mode', () => {
@@ -32,6 +42,9 @@ test('a preset resolves by its row; a styled row needs its motion mode', () => {
   assert.equal(resolveShow('sky', null, 'fire'), null);
   assert.equal(resolveShow('bluegray', null, 'particles'), 'dustySpot');
   assert.equal(resolveShow('grey', null, 'slide'), null);
+  assert.equal(resolveShow('grey', null, 'particles'), 'dustySpot', 'grey while the interface moves');
+  assert.equal(resolveShow('grey', null, 'none'), 'webcore', 'grey with the interface still: the skin');
+  assert.equal(resolveShow('grey', null, 'water'), null, 'a mode neither row names opens nothing');
   assert.equal(resolveShow('grass', null, 'none'), 'makeItSmall');
   assert.equal(resolveShow('brown', null, 'none'), 'pushToBloat');
   assert.equal(resolveShow('pink', null, 'none'), 'pinkVibe');

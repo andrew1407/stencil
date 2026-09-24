@@ -6,6 +6,8 @@
 #include "typedLetter.hpp"
 
 #include <QComboBox>
+#include <QDialog>
+#include <QPushButton>
 #include <QSpinBox>
 
 using stencil::gui::LogoStage;
@@ -16,6 +18,9 @@ class MainWindowGuiTest : public QObject {
 
  private:
   static LogoStage* stageOf(MainWindow& win) { return win.findChild<LogoStage*>("logoStage"); }
+  static void typeAt(MainWindow& win, const QString& word) {
+    QTest::keyClicks(QApplication::focusWidget() ? QApplication::focusWidget() : &win, word);
+  }
 
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
@@ -45,6 +50,59 @@ class MainWindowGuiTest : public QObject {
     type(QStringLiteral("makesomesunshine"));
     QVERIFY2(stage->isOpen(), "a second typed word opens its show too");
     QCOMPARE(stage->showName(), QString("makeSomeSunshine"));
+    stage->dismiss();
+  }
+
+  // Stage shows are exclusive: a word typed at a running show swaps it in, its own word does nothing.
+  void aWordTypedDuringAShowReplacesIt() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    LogoStage* stage = stageOf(win);
+    typeAt(win, QStringLiteral("firework"));
+    QCOMPARE(stage->showName(), QString("firework"));
+    const int toasts = int(win.findChildren<QWidget*>(QStringLiteral("toast")).size());
+    typeAt(win, QStringLiteral("firework"));
+    QVERIFY2(stage->isOpen(), "its own word leaves the show up");
+    QCOMPARE(int(win.findChildren<QWidget*>(QStringLiteral("toast")).size()), toasts);
+    typeAt(win, QStringLiteral("watershow"));
+    QVERIFY2(stage->isOpen(), "another word keeps a stage up…");
+    QCOMPARE(stage->showName(), QString("waterShow"));
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(QApplication::focusWidget(), &esc);
+    QVERIFY2(!stage->isOpen(), "Escape still ends it");
+  }
+
+  // A word typed at an open modal, or in fullscreen, clears the way and opens its show.
+  void aTypedWordClosesTheModalAndLeavesFullscreen() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    LogoStage* stage = stageOf(win);
+    QDialog dlg(&win);
+    auto* ok = new QPushButton(QStringLiteral("OK"), &dlg);
+    dlg.setModal(true);
+    dlg.show();
+    dlg.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&dlg));
+    ok->setFocus();
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(ok));
+    QCOMPARE(QApplication::activeModalWidget(), static_cast<QWidget*>(&dlg));
+    QTest::keyClicks(ok, QStringLiteral("neonon"));
+    QTRY_VERIFY2(stage->isOpen(), "the word closes the modal and opens its show");
+    QVERIFY(!dlg.isVisible());
+    QCOMPARE(stage->showName(), QString("neonOn"));
+    stage->dismiss();
+    QTest::qWait(500);
+
+    win.toggleFullscreen();
+    QVERIFY(win.fs.active);
+    QVERIFY2(!stage->activateByName("firework"), "a bare activation is still refused");
+    typeAt(win, QStringLiteral("firework"));
+    QTRY_VERIFY2(stage->isOpen(), "the word leaves fullscreen and opens its show");
+    QVERIFY(!win.fs.active);
     stage->dismiss();
   }
 

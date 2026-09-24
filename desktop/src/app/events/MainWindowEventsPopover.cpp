@@ -53,7 +53,10 @@ namespace stencil::gui {
     const bool aMenuPopupIsOpen = qobject_cast<QMenu*>(QApplication::activePopupWidget()) != nullptr;
     if (!aMenuPopupIsOpen && event->type() == QEvent::KeyPress &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt &&
-        !static_cast<QKeyEvent*>(event)->isAutoRepeat() && !typingFocus()) {
+        !static_cast<QKeyEvent*>(event)->isAutoRepeat() && !typingFocus() &&
+        !(pop.altPress == event && pop.altPressAt == static_cast<QKeyEvent*>(event)->timestamp())) {
+      pop.altPress = event;
+      pop.altPressAt = static_cast<QKeyEvent*>(event)->timestamp();
       // Export-options popups (browser export/optionsMenu.js altHover) are plain QMenus, so there is no exec()/pop.active
       // to fold them into. Checked FIRST and exclusive per keypress: one Alt hover opens at most one thing.
       bool openedExportMenu = false;
@@ -81,6 +84,7 @@ namespace stencil::gui {
           if (btn->isVisible() && (btn->underMouse() ||
                                    (!onOpenBox &&
                                     btn->rect().contains(btn->mapFromGlobal(QCursor::pos()))))) {
+            if (pop.active && btn == pop.openAnchor) break;
             if (pop.active) {
               // A popover already shows: the reject unwinds exec(), and execMaybePopover opens the next.
               pop.peekNextButton = btn;
@@ -98,6 +102,7 @@ namespace stencil::gui {
     if (event->type() == QEvent::KeyRelease &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt &&
         !static_cast<QKeyEvent*>(event)->isAutoRepeat()) {
+      pop.altPress = nullptr;
       if (QAction* act = pop.peekAction.data()) {
         pop.peekAction.clear();
         if (pop.active) {

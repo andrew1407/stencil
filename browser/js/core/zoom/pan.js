@@ -71,23 +71,33 @@ export class ZoomPan {
     if (persist && this.app.image) this.persistZoom();
   }
 
-  fitToWindow() {
-    if (!this.app.image) return;
-    // The SAME measurements syncViewportHeight() sizes the viewport to; fixed insets clip the
-    // fitted image. The height budget is border-box, so take the frame off.
+  // The scale that fits the picture in the frame's content box right now, off the SAME
+  // measurements syncViewportHeight() sizes the viewport to (fixed insets clip the fit).
+  fitScale() {
     const availW = this.availContentWidth();
     const availH = Math.max(1, this.availContentHeight() - this.viewportChromeY());
-    const scaleW = availW / this.app.image.width;
-    const scaleH = availH / this.app.image.height;
-    const fit = Math.min(scaleW, scaleH, 1);
+    // A small picture is magnified to fill the frame, as the desktop's fit does.
+    const fit = this.clampScale(Math.min(availW / this.app.image.width, availH / this.app.image.height));
     // Round DOWN to the 1% the zoom input shows: rounding up re-introduces the overflow
     // (619px at 0.7754 → 0.78 → 3px clipped).
-    this.setZoom(Math.floor(fit * 100) / 100);
+    return Math.floor(fit * 100) / 100;
+  }
+
+  fitToWindow() {
+    if (!this.app.image) return;
+    this.setZoom(this.fitScale());
 
     const viewport = document.getElementById('canvas-viewport');
     if (viewport) {
       viewport.scrollLeft = 0;
       viewport.scrollTop = 0;
     }
+    // A first picture reflows the toolbar AFTER its load fits it (settle.js, then updateInfo),
+    // so the room is read again next frame and the fit follows it while nothing else moved the zoom.
+    if (typeof requestAnimationFrame !== 'function') return;
+    const applied = this.app.scale;
+    requestAnimationFrame(() => {
+      if (this.app.image && this.app.scale === applied && this.fitScale() !== applied) this.fitToWindow();
+    });
   }
 }

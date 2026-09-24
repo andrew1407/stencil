@@ -36,9 +36,9 @@ namespace stencil::gui {
 
   // Browser modalShell.css: `stencil-links-modal { --vs-label-w: 118px }`.
   static constexpr int LINKS_LABEL_W = 118;
-  // A label column AND two chips beside the field, so these rows ask for the popover cap
-  // (MainWindow::execMaybePopover): at the compact 420 the field clipped its placeholder.
-  static constexpr int LINKS_FIELD_MIN_W = 470 - 2 * 18;   // modalChromeShared PAD_X
+  // The compact popover's body: its 420 cap (browser .modal-popover) less the shell's 1px inset
+  // and PAD_X per side.
+  static constexpr int LINKS_FIELD_MIN_W = 420 - 2 * (18 + 1);
 
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
                            bool hasImage, const QString& pageSeed,

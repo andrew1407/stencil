@@ -5,9 +5,9 @@
 #include <QApplication>
 #include <QFileOpenEvent>
 #include <QIcon>
-#include <QProxyStyle>
+#include "../support/tip/SnappyTooltipStyle.hpp"
+#include "../support/guiHelpers.hpp"
 #include <QStringList>
-#include <QStyleFactory>
 #include <QUrl>
 
 namespace {
@@ -81,19 +81,6 @@ namespace {
     QStringList pending;
   };
 
-  // Qt's ~700ms tooltip wake-up reads as "not showing"; match browser controlTooltip.js SHOW_DELAY_MS.
-  class SnappyTooltipStyle : public QProxyStyle {
-   public:
-    using QProxyStyle::QProxyStyle;
-    int styleHint(StyleHint hint, const QStyleOption* opt = nullptr,
-                  const QWidget* w = nullptr,
-                  QStyleHintReturn* ret = nullptr) const override {
-      if (hint == SH_ToolTip_WakeUpDelay) return 200;     // ms (was ~700, then 120)
-      if (hint == SH_ToolTip_FallAsleepDelay) return 0;
-      return QProxyStyle::styleHint(hint, opt, w, ret);
-    }
-  };
-
 }  // namespace
 
 // Entry point for the desktop app — the counterpart of browser/js/index.js.
@@ -108,10 +95,9 @@ int main(int argc, char** argv) {
   app.setWindowIcon(QIcon(QStringLiteral(":/icons/appicon.svg")));
   app.setDesktopFileName(QStringLiteral("stencil"));
 #endif
-  // Fusion honours widget-level QSS uniformly (the native gtk style leaves the menubar unthemed). QProxyStyle owns the base.
-  if (auto* fusion = QStyleFactory::create("Fusion")) {
-    QApplication::setStyle(new SnappyTooltipStyle(fusion));
-  }
+  // Fusion honours widget-level QSS uniformly (the native gtk style leaves the menubar unthemed).
+  stencil::support::installAppStyle("Fusion");
+  stencil::gui::installDisabledCursor(&app);
   // Parse before the window so --help/bad args exit cleanly; apply after show() (resolution is async).
   const stencil::gui::LaunchOptions opts = stencil::gui::parseLaunchOptions(app);
   // An incognito launch starts empty — no session restore.

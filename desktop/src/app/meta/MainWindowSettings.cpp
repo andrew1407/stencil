@@ -22,6 +22,7 @@
 #include "SelectedLineBar.hpp"
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
+#include "../../support/skinPrefs.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/WrapRow.hpp"
@@ -66,7 +67,9 @@ namespace stencil::gui {
     // One flip at a time: a second press mid-wipe tears the two palettes across each other. The
     // press is dropped until the wipe ends.
     if (themeSwapping()) return;
-    settings.themeMode = resolveDark(settings.themeMode) ? "light" : "dark";
+    // Relative to what is PAINTED: a skin may be forcing a theme the stored mode does not say.
+    support::clearForcedDark();
+    settings.themeMode = paintedDark ? "light" : "dark";
     applySettings(settings, true);
   }
 
@@ -76,12 +79,17 @@ namespace stencil::gui {
     const bool llmChanged = settings.llmProvider != s.llmProvider
         || settings.llmBaseUrl != s.llmBaseUrl || settings.llmModel != s.llmModel
         || settings.llmApiKey != s.llmApiKey || settings.llmServerUrl != s.llmServerUrl;
+    // A theme the user chooses ends a skin's forced one; a motion switch the user moves ends its override.
+    if (s.themeMode != settings.themeMode) support::clearForcedDark();
+    const bool motionMoved = s.motionMode != settings.motionMode
+        || s.drawingAnimations != settings.drawingAnimations || s.modalBackdrop != settings.modalBackdrop;
     settings = s;
     // Motion first: every animation asks these switches (support/modalReveal.hpp), the dialog's
     // own closing flight included.
     support::setMotionMode(support::motionModeFromKey(s.motionMode));
     support::setDrawingAnimations(s.drawingAnimations);
     support::setModalBackdrop(s.modalBackdrop);
+    if (motionMoved) support::clearMotionOverride();
     canvas->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
                          s.defaultStyle, s.defaultPointColor);
     canvas->setHoldDrawDelay(s.holdDrawDelay);
@@ -95,6 +103,9 @@ namespace stencil::gui {
       actShowPoints->setChecked(s.showPoints);
       actShowLines->setChecked(s.showLines);
       actTooltip->setChecked(s.tooltipEnabled);
+      // The blocked actions never tell the toolbar's bound checkboxes, so they are set here too.
+      for (auto [box, on] : {std::pair{showPointsCheck, s.showPoints}, std::pair{showLinesCheck, s.showLines}})
+        if (box) { QSignalBlocker bb(box); box->setChecked(on); }
     }
     syncUnitControls();
     applyUnitToPageCombo();  // page-format labels in the restored unit

@@ -2,6 +2,8 @@
    Dockable overlay panel driven by chatPanel.js. Docked size lives in --chat-size;
    float mode gets an inline rect from JS. Both are session-only — nothing persists.
    Theme-aware via the shared vars — no per-theme rules needed. */
+/* Not inherited: on :root every resize step restyled the whole page (dock.js sets each reader). */
+@property --chat-size { syntax: '*'; inherits: false; }
 stencil-chat-panel {
     display: none;
     position: fixed;

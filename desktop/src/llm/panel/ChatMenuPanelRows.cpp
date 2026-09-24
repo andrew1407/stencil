@@ -131,6 +131,8 @@ namespace stencil::gui {
                                   l->palette().color(QPalette::WindowText))
         != nullptr;
     rows->removeWidget(l);
+    // Nothing may move: the row goes NOW (browser leaveThenRemove).
+    if (support::motionReduced()) { l->hide(); l->deleteLater(); return playing; }
     // Out of the layout, but painted while it fades under its own dust. Reuse any effect already on
     // the row and stop its animations first - setGraphicsEffect() deletes the old effect.
     for (QVariantAnimation* a : l->findChildren<QVariantAnimation*>()) a->stop();

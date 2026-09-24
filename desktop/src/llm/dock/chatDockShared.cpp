@@ -2,6 +2,7 @@
 
 #include "../../support/motion/scrollReveal.hpp"        // ENTERING_PROPERTY — the entrance claims the effect
 #include "../../support/motion/ShimmerOverlay.hpp"  // the shared hover sweep on every ghost button
+#include "../../support/motionPrefs.hpp"
 
 #include <QEasingCurve>
 #include <QGraphicsOpacityEffect>
@@ -20,6 +21,8 @@ namespace stencil::gui::chatdock {
   // together as they do in the browser: the bubble melts into its own dust rather than vanishing.
   void fadeOutAndDelete(QWidget* w) {
     if (!w) return;
+    // Nothing may move: the card goes NOW, unfaded (browser leaveThenRemove).
+    if (support::motionReduced()) { w->hide(); w->deleteLater(); return; }
     // CLAIM the card's effect for the length of the fade: ScrollReveal installs its own DissolveEffect
     // near a viewport edge and setGraphicsEffect DELETES the one already there. animateCardIn too.
     w->setProperty(ScrollReveal::ENTERING_PROPERTY, true);

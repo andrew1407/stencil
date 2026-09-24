@@ -2,7 +2,14 @@
 // recolour, expiry and the batch transfers between local storage and a server.
 #include "mainWindowShellParts.hpp"
 
+#include "../../support/motionPrefs.hpp"
+
 namespace stencil::gui {
+
+  namespace {
+    // How long a rebuild waits for the removal wipe (ProjectsDialog::retireRow's own gate).
+    int rebuildAfterWipeMs() { return support::isDustAllowed() ? DisintegrateOverlay::DUST_MS : 0; }
+  }  // namespace
 
   void MainWindow::openProjects() {
     // Expiry sweep (one week).
@@ -43,7 +50,7 @@ namespace stencil::gui {
       refreshDockMenu();
       // Rows are still scattering; rebuild once the motes have landed (browser: beginRemoval).
       QPointer<ProjectsDialog> live(&dlg);
-      QTimer::singleShot(DisintegrateOverlay::DUST_MS, this, [this, live, unsavedSession] {
+      QTimer::singleShot(rebuildAfterWipeMs(), this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList, unsavedSession(), incognito);
       });
       notify->success(QString("Cleared %1 local project(s)").arg(n));
@@ -70,7 +77,7 @@ namespace stencil::gui {
       refreshActions();
       refreshDockMenu();  // drop it from the Dock "recent" list
       if (single) notify->info("Project deleted");
-      QTimer::singleShot(DisintegrateOverlay::DUST_MS, this, [this, live, unsavedSession] {
+      QTimer::singleShot(rebuildAfterWipeMs(), this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList, unsavedSession(), incognito);
       });
     });

@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 const { wireTypedWords, matchTypedWord, typedLetter } = await import('../../../../js/ui/bindings/keys/typedWords.js');
-const { logoStageOpen, closeLogoStage } = await import('../../../../js/ui/logo/stage.js');
+const { logoStageOpen, closeLogoStage, currentLogoStage } = await import('../../../../js/ui/logo/stage.js');
 
 const type = (text, over = {}) => {
   for (const key of text) doc.dispatch('keydown', { key, target: body, ...over });
@@ -86,5 +86,18 @@ test('a field with the caret in it keeps its keys, and so does any chord', () =>
   doc.dispatch('keydown', { key: 'Shift', target: body });
   type('on');
   assert.equal(logoStageOpen(), true, 'Shift between the letters does not break the word');
+  closeLogoStage();
+});
+
+// The listener captures ahead of a stage's key swallow, so a word typed during a show takes over.
+test('another show\'s word typed during a show switches to it; its own word changes nothing', () => {
+  wireTypedWords({ accent: 'violet', customAccent: null }, doc);
+  type('neonon');
+  const neon = currentLogoStage();
+  type('neonon');
+  assert.equal(currentLogoStage(), neon, 'the show already up is not restarted');
+  type('watershow');
+  assert.equal(currentLogoStage()?.name, 'waterShow');
+  assert.equal(toasts.length, 2);
   closeLogoStage();
 });

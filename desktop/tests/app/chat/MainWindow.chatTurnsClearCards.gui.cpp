@@ -61,11 +61,9 @@ class MainWindowGuiTest : public QObject {
     const QString providerBefore = win.currentLlmSettings().provider;
     QTest::mouseClick(clearBtn, Qt::LeftButton);
     QTRY_COMPARE(cardCount(), 0);   // cards go through deleteLater
-    // The empty state is held back for the length of the scatter, or the chips sit under falling
-    // particles. The wait is keyed off rows being REMOVED: offscreen there are no particles.
-    QVERIFY2(!suggest->isVisible(), "the chips came back before the wipe finished");
-    QTRY_VERIFY_WITH_TIMEOUT(suggest->isVisible(),
-                             stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
+    // The empty state is held back only while particles are actually falling in front of it
+    // (ChatDock::clearConversation, isDustAllowed). This suite runs REDUCED: none fly, none wait.
+    QTRY_VERIFY(suggest->isVisible());
     QCOMPARE(dock->attachedImages().size(), 0);
     QVERIFY(dock->attachedVideoPath().isEmpty());
     QVERIFY(win.chatHistory.isEmpty());
@@ -98,6 +96,8 @@ class MainWindowGuiTest : public QObject {
     // A card that SCROLLS while it fades must not crash: ScrollReveal's setGraphicsEffect deletes the
     // effect already there, so the fade claims the card (ENTERING_PROPERTY) as the entrance does.
     {
+      // Motion ON: the fade this guards only runs when something may move.
+      const auto motion = withMotion();
       for (int i = 0; i < 6; i++) {
         dock->appendUser(QStringLiteral("question %1").arg(i));
         dock->appendAssistant(QStringLiteral("a reply long enough to wrap and take real height %1").arg(i));

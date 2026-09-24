@@ -3,6 +3,7 @@
 // stylesheet still SIZES the bars; painting lives here because QSS on macOS draws the
 // handle square and its `::handle:hover` never lit the dialogs' bars.
 #include "motionPrefs.hpp"   // motionReduced()
+#include "../skinPrefs.hpp"
 
 #include <QApplication>
 #include <QColor>
@@ -105,12 +106,19 @@ namespace stencil::gui {
       opt.upsideDown = bar->invertedAppearance();
       const QRect slider = bar->style()->subControlRect(QStyle::CC_ScrollBar, &opt,
                                                          QStyle::SC_ScrollBarSlider, bar);
+      const bool hot = bar->underMouse() || bar->isSliderDown();
+      if (support::isWebcore()) {   // the skin sheet's bevelled bar; the thumb lit in the chosen accent
+        QPainter p(bar);
+        bar->style()->drawComplexControl(QStyle::CC_ScrollBar, &opt, &p, bar);
+        if (hot && slider.isValid() && support::skinAccent().isValid())
+          p.fillRect(slider.adjusted(2, 2, -2, -2), support::skinAccent());
+        return true;
+      }
       if (!slider.isValid()) return true;   // nothing to scroll: a bare, transparent slot
       const QRectF pill =
           opt.orientation == Qt::Vertical
               ? QRectF(slider.center().x() + 0.5 - thick / 2.0, slider.top(), thick, slider.height())
               : QRectF(slider.left(), slider.center().y() + 0.5 - thick / 2.0, slider.width(), thick);
-      const bool hot = bar->underMouse() || bar->isSliderDown();
       QPainter p(bar);
       p.setRenderHint(QPainter::Antialiasing);
       p.setPen(Qt::NoPen);

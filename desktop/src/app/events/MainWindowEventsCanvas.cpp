@@ -25,7 +25,7 @@ namespace stencil::gui {
     if (zoom && obj == zoom->lineEdit()) {
       const auto openPopup = [this] {
         QTimer::singleShot(0, this, [this] {
-          if (zoom && zoom->lineEdit()->hasFocus() && !zoom->view()->isVisible()) zoom->showPopup();
+          if (zoom && zoom->lineEdit()->hasFocus()) zoom->showPopup();
         });
       };
       if (event->type() == QEvent::MouseButtonRelease &&

@@ -8,14 +8,28 @@ import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 // class="ic-…" hooks are inert here; config/iconMotion.json moves them via iconHover.css.
 export const ICONS = ICONS_DATA;
 
+// A skin's own art, name → inner markup on a 16-grid with the colour baked in (ui/webcore/icons.js).
+// While one is installed every glyph assembled afterwards is born in it; null = the line-art.
+let skinArt = null;
+export const setIconSkin = (table) => { skinArt = table || null; };
+export const iconSkin = () => skinArt;
+
+const skinFace = (name, cls, size) =>
+  `<svg class="ic ic-${name}${cls}" viewBox="0 0 16 16" width="${size}" height="${size}" ` +
+  `shape-rendering="crispEdges" aria-hidden="true" focusable="false">${skinArt[name]}</svg>`;
+
 // The draw-mode toggle's two faces: complete <svg> strings on a 16-grid, not built by icon().
-export const DRAW_MODE_ICON = SVG_ART.drawMode;
+export const DRAW_MODE_ICON = {
+  get line() { return skinArt?.['draw-mode-line'] ? skinFace('draw-mode-line', ' draw-mode-icon', 13) : SVG_ART.drawMode.line; },
+  get rect() { return skinArt?.['draw-mode-rect'] ? skinFace('draw-mode-rect', ' draw-mode-icon', 13) : SVG_ART.drawMode.rect; },
+};
 
 // Returns '' for an unknown name, so a typo degrades to no glyph during markup assembly.
 export function icon(name, { size = 16, cls = '', sw = 2 } = {}) {
+  const extra = cls ? ` ${cls}` : '';
+  if (skinArt?.[name]) return skinFace(name, extra, size);
   const inner = ICONS[name];
   if (!inner) return '';
-  const extra = cls ? ` ${cls}` : '';
   return `<svg class="ic ic-${name}${extra}" viewBox="0 0 24 24" width="${size}" height="${size}" ` +
     `fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" ` +
     `stroke-linejoin="round" aria-hidden="true" focusable="false">${inner}</svg>`;

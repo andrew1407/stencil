@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include <QToolButton>
 #include "../../support/guiHelpers.hpp"
 #include "mainWindowShared.hpp"
@@ -60,7 +61,7 @@ namespace stencil::gui {
     const bool horizNew = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const auto growIn = [this, horizNew, area] {
       const auto pin = chatExtentPin(horizNew);
-      const int full = chatRestoreExtent > 80 ? chatRestoreExtent : (horizNew ? 345 : 320);
+      const int full = chatOpenExtent(chatRestoreExtent, horizNew);
       // chatSurfaceFlight leaves the dock pinned at 0 for a gather — nothing played
       // (no dust) still needs the explicit pin(0) it would otherwise have skipped.
       QPointer<gui::DisintegrateOverlay> dustFx = chatSurfaceFlight(area, /*gather=*/true, 300, pin, full);
@@ -134,6 +135,7 @@ namespace stencil::gui {
   // (setFixedWidth) each frame and release the constraint at the end.
   void MainWindow::setPanelShown(bool show, bool animate) {
     if (!selPanel) return;
+    if (support::motionReduced()) animate = false;   // `none`: no fold, no slide
     // A width read mid-slide is not one the user chose: only a settled panel updates the restore width.
     const bool settled = !panelAnim;
     if (panelAnim) { panelAnim->stop(); panelAnim->deleteLater(); panelAnim = nullptr; }

@@ -81,9 +81,11 @@ export function createRenderList(ctx) {
     if (held) list.style.minHeight = `${held}px`;
     const before = [...shownKeys];
     return async () => {
-      // Let the leaving ash thin first: the row and its arrival land together, so it is
-      // never seen plain and then veiled again, and its motes are not lost in the scatter.
-      await new Promise((r) => setTimeout(r, ROW_ARRIVE_DELAY_MS));
+      // The ash thins first, so the row and its arrival land together rather than the row
+      // showing plain and being veiled again; a mode that flies nothing has no ash (wipe 0).
+      const wipe = wipeDurationMs();
+      const arrive = Math.min(ROW_ARRIVE_DELAY_MS, wipe);
+      if (arrive) await new Promise((r) => setTimeout(r, arrive));
       render();
       // Only rows the settle ADDED materialize, on the arrival clock (desktop: dustRowIn).
       const { entering } = filterDelta(before, shownKeys);
@@ -92,7 +94,7 @@ export function createRenderList(ctx) {
         if (el) materialize(el, { ...rowDustGrid(entering.length, i), dustMs: ROW_ARRIVE_MS });
       });
       // The hold outlives the arrival, or a refresh re-renders the row out from under its motes.
-      await new Promise((r) => setTimeout(r, Math.max(0, wipeDurationMs() - ROW_ARRIVE_DELAY_MS)));
+      await new Promise((r) => setTimeout(r, Math.max(0, wipe - arrive)));
       removalsInFlight = Math.max(0, removalsInFlight - 1);
       list.style.minHeight = '';
     };

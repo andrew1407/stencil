@@ -786,12 +786,12 @@
     {
       "path": ":root/div[1]/div[5]/div[2]/span[1]/button[1]",
       "tag": "button",
-      "classes": "accent-dd-trigger cs-disabled",
+      "classes": "accent-dd-trigger",
       "style": {
         "display": "inline-flex",
         "position": "relative",
-        "color": "rgb(154, 160, 168)",
-        "background-color": "rgb(228, 230, 234)",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
         "border-color": "color(srgb 0 0 0 / 0.25)",
         "border-width": "1px",
         "border-radius": "4px",
@@ -812,8 +812,8 @@
       "classes": "accent-dd-name cs-cur",
       "style": {
         "display": "block",
-        "color": "rgb(154, 160, 168)",
-        "border-color": "rgb(154, 160, 168)",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
         "width": "53px",

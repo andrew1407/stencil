@@ -46,6 +46,8 @@ namespace stencil::gui {
    private:
     QFont tabFont() const;
 
+    void paintSkinTabs(QPainter& p);
+
     static QColor mix(const QColor& a, const QColor& b, double u);
 
     QRectF underlineRect(int i) const;

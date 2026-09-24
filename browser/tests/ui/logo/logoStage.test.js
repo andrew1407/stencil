@@ -2,6 +2,7 @@
 // keyboard while it is up, and what a click on the mark does versus a click beside it.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from '../../helpers/dom.js';
 
 let doc, body, frames;
@@ -116,4 +117,26 @@ test('closing unhooks the document, so the editor gets its keyboard back', () =>
   closeLogoStage();
   assert.equal(doc.listeners.keydown.length, before - 1);
   assert.equal(closeLogoStage(), false, 'closing twice is a no-op');
+});
+
+test("the stage's canvas takes the stage's hand, not the editor's crosshair", () => {
+  const css = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), 'utf8');
+  const aim = css('css/layout/canvasCursor.css').match(/^(body:not\([^)]*\):not\([^)]*\)) canvas \{ cursor: crosshair; \}/m);
+  assert.ok(aim, 'the crosshair rule moved');
+  assert.ok(css('css/components/logoStage.css').includes(`${aim[1]} .logo-stage canvas { cursor: inherit; }`));
+  const page = css('index.html');
+  assert.ok(page.indexOf('components/logoStage.css') > page.indexOf('layout/canvasCursor.css'), 'the stage sheet loads last');
+});
+
+test('a chase opened with the pointer standing still heads for that pointer, not the centre', async () => {
+  const { trackPointer } = await import('../../../js/ui/logo/pointer.js');
+  trackPointer(doc);
+  doc.dispatch('pointermove', { clientX: 900, clientY: 500 });
+  let t = 0;
+  globalThis.performance = { now: () => t };
+  assert.equal(open('chaseMe'), true);
+  for (let i = 0; i < 90; i++) { t += 16; frames.shift()?.(); }
+  const { x, y } = currentLogoStage().position;
+  assert.ok(Math.hypot(900 - x, 500 - y) < 100, `the mark sits at ${x},${y}`);
+  closeLogoStage();
 });

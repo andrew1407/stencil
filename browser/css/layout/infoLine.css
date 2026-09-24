@@ -14,7 +14,7 @@
    The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 10 (the
    viewport's own gap under the info line) stacked to 30px of nothing under a header that is
    itself only 33px tall. Collapsed, the canvas sits right under it. */
-body.controls-collapsed .info { display: none; }
+body.controls-collapsed .info { height: 0; min-height: 0; padding-block: 0; opacity: 0; visibility: hidden; }
 body.controls-collapsed .controls-topbar { margin-bottom: 0; }
 body.controls-collapsed .controls-wrapper { margin-bottom: 8px; }
 body.controls-collapsed .canvas-viewport { margin-top: 0; }
@@ -33,6 +33,7 @@ body.controls-collapsed .canvas-viewport { margin-top: 0; }
     align-items: center;
     line-height: 20px;
     min-height: 20px;
+    height: 20px;   /* explicit, so the fold (animations/collapse.css) can take it to 0 */
     white-space: nowrap;
     overflow: hidden;
 }
@@ -59,3 +60,6 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     color: var(--text-empty);
     font-style: italic;
 }
+/* An empty points table shows its message alone, as the Lines tab beside it does: column
+   headings over nothing read as a table that failed to load. Desktop twin: PointsTable. */
+.coordinates-table:has(.empty-message) thead { display: none; }

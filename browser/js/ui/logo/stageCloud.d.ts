@@ -14,8 +14,14 @@ export declare const stepStageMote: (m: StageMote, dt: number) => boolean;
 export declare const stageMoteAlpha: (m: StageMote) => number;
 export declare const spawnStageCount: (intensity: number, dt: number, rnd?: () => number) => number;
 
+/** A grain's drawn place: the style's drift `f` (styleFrame's sx/sy) pushed out of the mark
+ *  instead of down the screen, its sway turned to follow the edge. */
+export declare const driftedStageMote: (m: StageMote, f: { sx: number; sy: number }) => StagePoint;
+
 export interface StageCloud {
   readonly live: number;
+  /** Each grain's drawn place at `tMs`, relative to the mark's centre. */
+  placed(tMs: number): StagePoint[];
   /** `boost` is the stage's: 1 at rest, more under the pointer, most while it is held. */
   step(dt: number, size: number, boost?: number,
     opts?: { dir?: StagePoint | null; rnd?: () => number }): number;

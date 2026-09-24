@@ -100,7 +100,6 @@ namespace stencil::gui {
     // The browser's #image-filter tooltip, composed and kept current by tipContent.
     setTipBase(imageFilter, "Image Filter");
     setTipHotkey(imageFilter, actCycleFilter);
-    setTipReason(imageFilter, "Load an image to apply a filter");
     filterColorBtn = new QToolButton(this);
     filterColorBtn->setToolTip("Tint color");
     updateColorSwatch(filterColorBtn, filterColorValue);

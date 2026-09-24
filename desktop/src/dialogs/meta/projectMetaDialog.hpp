@@ -25,7 +25,8 @@ namespace stencil::gui {
   // Browser .modal-popover .app-modal: the compact shape is 420px wide whatever it holds, and takes
   // that width from sizeHint - so the FIELD has to ask for it.
   inline constexpr int POPOVER_W = 420;
-  inline constexpr int META_FIELD_MIN_W = POPOVER_W - 2 * 18;   // modalChromeShared PAD_X
+  // Less the shell's 1px inset, PAD_X and the metaFieldRing's 3px border, per side.
+  inline constexpr int META_FIELD_MIN_W = POPOVER_W - 2 * (18 + 1) - 2 * 3;
 
   struct ProjectMetaDialogSpec {
     QString name;          // object-name stem: "description" → stencilDescriptionDialog

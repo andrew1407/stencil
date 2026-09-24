@@ -23,6 +23,7 @@ beforeEach(setup);
 const { wireLogoHold, heldShow, activateShow, pinkVibe } = await import('../../../js/ui/logo/stageTrigger.js');
 const { logoStageOpen, closeLogoStage } = await import('../../../js/ui/logo/stage.js');
 const { STAGE } = await import('../../../js/ui/logo/stageRules.js');
+const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
 
 // A logo whose wrap is its own element, as .app-logo-wrap is in the topbar.
 const makeLogo = () => {
@@ -81,6 +82,16 @@ test('an accent whose show wants another motion mode holds nothing', (t) => {
   t.mock.timers.tick(STAGE.holdMs);
   assert.equal(logoStageOpen(), false);
   assert.equal(toasts.length, 0, 'nothing happened, so nothing is announced');
+});
+
+// Grey is the one colour two rows share, and the interface animation alone tells them apart.
+test('grey holds the dust show while the interface moves, and the skin while it is still', () => {
+  const app = { accent: 'grey', customAccent: null };
+  setMotionPrefs({ mode: 'particles', drawing: false });
+  assert.equal(heldShow(app), 'dustySpot', 'dust flying: the dust show, whatever the pen does');
+  setMotionPrefs({ mode: 'none', drawing: true });
+  assert.equal(heldShow(app), 'webcore', 'interface still: the skin, and never a dead hold');
+  setMotionPrefs({ mode: 'particles', drawing: true });
 });
 
 test('the pink show tints the page and adds the heart as one step', async () => {

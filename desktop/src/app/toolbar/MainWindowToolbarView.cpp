@@ -17,6 +17,7 @@
 #include <QAbstractSpinBox>
 #include <QBoxLayout>
 #include <QCheckBox>
+#include "../../support/control/clickToToggle.hpp"
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFontDatabase>
@@ -26,6 +27,7 @@
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QStyle>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -34,6 +36,25 @@
 // MainWindow's toolbar assembly: the Draw · View sections and the Image Size bar.
 
 namespace stencil::gui {
+
+  namespace {
+    // The box is exactly its style's indicator, re-read on a skin swap (webcore's is 17, not 18).
+    class IndicatorWidth : public QObject {
+     public:
+      explicit IndicatorWidth(QCheckBox* box) : QObject(box) { box->installEventFilter(this); fit(box); }
+
+     protected:
+      bool eventFilter(QObject* obj, QEvent* ev) override {
+        if (ev->type() == QEvent::StyleChange || ev->type() == QEvent::Polish) fit(static_cast<QCheckBox*>(obj));
+        return QObject::eventFilter(obj, ev);
+      }
+
+     private:
+      static void fit(QCheckBox* box) {
+        box->setFixedWidth(box->style()->pixelMetric(QStyle::PM_IndicatorWidth, nullptr, box));
+      }
+    };
+  }  // namespace
 
   void MainWindow::buildDrawViewToolbar() {
     QToolBar* row = toolRow();
@@ -68,10 +89,24 @@ namespace stencil::gui {
     static_cast<SearchComboBox*>(compareCombo)->setPreview(
         [this](const QString& mode) { canvas->setCompareMode(mode); });
 
-    // Points/Lines are real checkboxes (browser parity); the menu actions stay the source of
-    // truth.
-    showPointsCheck = new QCheckBox("Points", this);
-    showLinesCheck = new QCheckBox("Lines", this);
+    // Real checkboxes, the menu actions their source of truth; each a bare box and a caption 4px
+    // apart (browser <label><input> Points</label>), as the box's own text left room past the word.
+    showPointsCheck = new QCheckBox(this);
+    showLinesCheck = new QCheckBox(this);
+    const auto captioned = [this](QCheckBox* box, const QString& word, int lead) {
+      auto* host = new QWidget(this);
+      auto* h = new QHBoxLayout(host);
+      h->setContentsMargins(lead, 0, 0, 0);
+      h->setSpacing(4);
+      auto* caption = new QLabel(word, host);
+      caption->setObjectName(QStringLiteral("toggleCaption"));
+      new IndicatorWidth(box);   // just the indicator: an empty QCheckBox still reserves room for a label
+      box->setAttribute(Qt::WA_LayoutUsesWidgetRect);   // the style's smaller layout rect let the word overlap
+      support::captionToggles(caption, box);
+      h->addWidget(box);
+      h->addWidget(caption);
+      return host;
+    };
     const auto bindCheck = [this](QCheckBox* box, QAction* act) {
       box->setChecked(act->isChecked());
       box->setToolTip(act->toolTip().isEmpty() ? act->text() : act->toolTip());
@@ -95,7 +130,8 @@ namespace stencil::gui {
     auto* compareLabel = new QLabel("Compare", this);
     compareLabel->setStyleSheet("padding-right: 2px;");
     addWrapped(row, makeToolSection("View", {}, {
-        compareLabel, compareCombo, showPointsCheck, showLinesCheck, clearLinesBtn }));
+        compareLabel, compareCombo, captioned(showPointsCheck, "Points", 4),
+        captioned(showLinesCheck, "Lines", 3), clearLinesBtn }));   // leads: the picker gap, and 5 + 3 = the browser's 8
   }
 
   // browser #image-info. A real top dock like selectedLineDock, so it spans the full window width

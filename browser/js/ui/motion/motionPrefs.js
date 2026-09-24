@@ -48,6 +48,14 @@ const defaultMotionPrefs = () => ({
   backdrop: DEFAULT_MODAL_BACKDROP,
 });
 
+const mergePatch = (base, patch = {}) => {
+  const next = { ...base };
+  if (patch.mode !== undefined) next.mode = normalizeMotionMode(patch.mode);
+  if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
+  if (patch.backdrop !== undefined) next.backdrop = !!patch.backdrop;
+  return next;
+};
+
 // Bad/missing data degrades to defaults.
 const readMotionPrefs = () => {
   const out = defaultMotionPrefs();
@@ -55,60 +63,71 @@ const readMotionPrefs = () => {
     const raw = ls()?.getItem(MOTION_STORAGE_KEY);
     if (!raw) return out;
     const saved = JSON.parse(raw);
-    if (saved && typeof saved === 'object') {
-      out.mode = normalizeMotionMode(saved.mode);
-      if (saved.drawing !== undefined) out.drawing = !!saved.drawing;
-      if (saved.backdrop !== undefined) out.backdrop = !!saved.backdrop;
-    }
+    if (saved && typeof saved === 'object') return mergePatch(out, saved);
   } catch { /* storage blocked or the blob is junk — the defaults stand */ }
   return out;
 };
 
 let prefs = readMotionPrefs();
+// A session layer over the stored prefs (the webcore skin): read by everything, written nowhere.
+let override = null;
+const effective = () => (override ? { ...prefs, ...override } : prefs);
 
-export const motionPrefs = () => ({ ...prefs });
-export const motionMode = () => prefs.mode;
-export const drawingAnimations = () => prefs.drawing;
+export const motionPrefs = () => ({ ...effective() });
+export const motionMode = () => effective().mode;
+export const drawingAnimations = () => effective().drawing;
 // Whether an open window blurs and darkens what is behind it. Desktop twin:
 // support/motionPrefs.hpp modalBackdrop().
-export const modalBackdrop = () => prefs.backdrop;
+export const modalBackdrop = () => effective().backdrop;
+export const motionOverridden = () => override !== null;
+export const storedMotionMode = () => prefs.mode;
+export const showMotionStyle = () => PARTICLE_STYLE_OF[effective().mode] || 'dust';
+export const showDustAllowed = () => PARTICLE_MODES.includes(effective().mode);   // slide/none fly none
 
 // Asked at call time so a mid-session change is followed.
 export const prefersReducedMotion = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // The one gate every animation checks: nothing may move.
-export const motionReduced = () => prefs.mode === MOTION_NONE || prefersReducedMotion();
+export const motionReduced = () => effective().mode === MOTION_NONE || prefersReducedMotion();
 
 // False in 'slide' leaves the surface's own CSS entrance in charge.
-export const dustEnabled = () => PARTICLE_MODES.includes(prefs.mode) && !prefersReducedMotion();
+export const dustEnabled = () => PARTICLE_MODES.includes(effective().mode) && !prefersReducedMotion();
 
 // 'dust' | 'water' | 'fire', or null when none fly.
-export const particleStyle = () => (dustEnabled() ? PARTICLE_STYLE_OF[prefs.mode] : null);
+export const particleStyle = () => (dustEnabled() ? PARTICLE_STYLE_OF[effective().mode] : null);
 
 // The canvas stroke motion, which the user can turn off on its own.
-export const drawMotionEnabled = () => prefs.drawing && !motionReduced();
+export const drawMotionEnabled = () => effective().drawing && !motionReduced();
 
 // Mirrors what prePaintTheme.js writes before first paint.
 export const applyMotionAttr = (root = typeof document !== 'undefined' ? document.documentElement : null) => {
-  root?.setAttribute?.(MOTION_ATTR, prefs.mode);
+  const now = effective();
+  root?.setAttribute?.(MOTION_ATTR, now.mode);
   // A plain attribute, so the blur is a CSS rule rather than a per-overlay inline style.
-  root?.toggleAttribute?.(BACKDROP_ATTR, prefs.backdrop);
+  root?.toggleAttribute?.(BACKDROP_ATTR, now.backdrop);
 };
 
-// Persist, restamp <html>, announce. An unknown mode falls back to the default (the console
-// facade throws before it gets here).
-export const setMotionPrefs = (patch = {}) => {
-  const next = { ...prefs };
-  if (patch.mode !== undefined) next.mode = normalizeMotionMode(patch.mode);
-  if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
-  if (patch.backdrop !== undefined) next.backdrop = !!patch.backdrop;
-  prefs = next;
-  try { ls()?.setItem(MOTION_STORAGE_KEY, JSON.stringify(prefs)); } catch { /* storage blocked — this session still honours it */ }
+const announce = () => {
   applyMotionAttr();
   publish(MOTION_EVENT, motionPrefs());
   return motionPrefs();
 };
 
+// Persist, restamp <html>, announce. An unknown mode falls back to the default (the console
+// facade throws before it gets here). A user's choice ends any session override.
+export const setMotionPrefs = (patch = {}) => {
+  override = null;
+  prefs = mergePatch(prefs, patch);
+  try { ls()?.setItem(MOTION_STORAGE_KEY, JSON.stringify(prefs)); } catch { /* storage blocked — this session still honours it */ }
+  return announce();
+};
+
+// Lay a session-only patch over the stored prefs (null lifts it); the store is never touched.
+export const setMotionOverride = (patch) => {
+  override = patch ? mergePatch(effective(), patch) : null;
+  return announce();
+};
+
 // Tests only: forget what was loaded and read the store again.
-export const reloadMotionPrefs = () => { prefs = readMotionPrefs(); return motionPrefs(); };
+export const reloadMotionPrefs = () => { override = null; prefs = readMotionPrefs(); return motionPrefs(); };

@@ -3,6 +3,7 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
+#include "../../support/motionPrefs.hpp"
 #include "theme.hpp"
 #include "chatWidgets.hpp"
 
@@ -69,6 +70,9 @@ namespace stencil::gui {
       connect(rm, &QToolButton::clicked, this, [this, remove, chip] {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);
+        // Nothing may move: the slot closes NOW, unheld (browser chipLeave) — the
+        // rebuild remove() runs is what drops this chip.
+        if (support::motionReduced()) { remove(); return; }
         DisintegrateOverlay::over(chip, window(), DisintegrateOverlay::Sweep::FALL,
                                   CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   chip->palette().color(QPalette::WindowText));

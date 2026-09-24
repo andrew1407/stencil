@@ -11,6 +11,8 @@ export declare const DEFAULT_ACCENT: 'violet';
 export declare const isAccent: (key: unknown) => boolean;
 /** Primary hex for an accent key, falling back to the first preset (violet). */
 export declare const accentHex: (key: string) => string;
+/** Serve a skin's own favicon art (hex → SVG string) in place of the app's; null restores it. */
+export declare const setFaviconArt: (fn: ((hex: string) => string) | null) => void;
 /** The app favicon as an SVG string with the panel outline painted in `hex`. */
 export declare const faviconSvg: (hex: string) => string;
 /** '#rgb' or '#rrggbb' (leading '#' optional) → '#rrggbb' lower-case, else null. */

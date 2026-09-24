@@ -62,6 +62,10 @@ const SHELL = [
   './css/animations/reveal.css',
   './css/animations/dust.css',
   './css/animations/motionModes.css',
+  './css/webcore/tokens.css',
+  './css/webcore/chrome.css',
+  './css/webcore/windows.css',
+  './css/webcore/icons.css',
   './js/index.js',
 ];
 

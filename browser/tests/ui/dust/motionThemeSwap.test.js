@@ -77,8 +77,8 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
     pending(t0 + THEME_SWAP_MS / 2);
     const lit = stage.fills.filter((f) => f.arcs > 0);
     assert.ok(lit.reduce((n, f) => n + f.arcs, 0) > 30, 'a field of grains');
-    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
-    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
+    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 100%, var(--dust-accent-2, var(--accent-2)))'), 'accent grains');
+    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 0%, var(--dust-accent-2, var(--accent-2)))'), 'shade grains');
     // The whole point of the stage: batched fills — one per (stop, alpha step), each in
     // chunks of FILL_CHUNK grains (cloud.js) — not one per grain.
     const grains = lit.reduce((n, f) => n + f.arcs, 0);

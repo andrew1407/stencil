@@ -65,9 +65,11 @@ namespace stencil::gui {
     s.customPageWidth = customW->value();
     s.customPageHeight = customH->value();
     s.holdDrawDelay = holdDelay->value();
-    s.drawingAnimations = drawAnim->isChecked();
-    s.modalBackdrop = modalBackdrop->isChecked();
-    s.motionMode = motionMode->currentData().toString();
+    // Untouched, the motion rows hand back what is STORED: they were seeded from what is in
+    // force, and a skin's stillness must not persist through an unrelated edit.
+    s.drawingAnimations = motionTouched ? drawAnim->isChecked() : heldDrawAnim;
+    s.modalBackdrop = motionTouched ? modalBackdrop->isChecked() : heldBackdrop;
+    s.motionMode = motionTouched ? motionMode->currentData().toString() : heldMotionMode;
     s.browserBaseUrl = browserUrl->text().trimmed();
     s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));
     return s;

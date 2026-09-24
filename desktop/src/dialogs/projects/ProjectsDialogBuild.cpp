@@ -1,5 +1,6 @@
 // The Projects dialog's construction phases; call order in ProjectsDialog.cpp's ctor, pinned by
 // tests/ProjectsDialogRows.headless.cpp — re-cut these, reorder nothing.
+#include "../../support/control/dblReset.hpp"
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
 #include "ServerClient.hpp"
@@ -51,6 +52,9 @@ namespace stencil::gui {
       sortCombo->addItem(tr("Newest"), QStringLiteral("date-desc"));
       sortCombo->addItem(tr("Oldest"), QStringLiteral("date-asc"));
       sortCombo->addItem(tr("Manual order"), QStringLiteral("manual"));
+      // What a double-click restores (browser projects/list/prefs.js).
+      support::setResetDefault(filter, 0);
+      support::setResetDefault(sortCombo, QStringLiteral("name"));
       {
         const int mi = sortCombo->findData(g_projectsSortMode);
         sortCombo->setCurrentIndex(mi >= 0 ? mi : 0);
@@ -61,6 +65,7 @@ namespace stencil::gui {
       searchModeCombo->addItem(tr("Name + keywords"), QStringLiteral("common"));
       searchModeCombo->addItem(tr("Names only"), QStringLiteral("names"));
       searchModeCombo->addItem(tr("Keywords only"), QStringLiteral("keywords"));
+      support::setResetDefault(searchModeCombo, QStringLiteral("common"));
       frow->addWidget(searchModeCombo);
       layout->addLayout(frow);
       connect(filter, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });

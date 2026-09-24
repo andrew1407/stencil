@@ -8,24 +8,26 @@ export const SHOWS = Object.freeze(LOGO_STAGE.shows);
 export const SHOW_NAMES = Object.freeze(Object.keys(SHOWS));
 export const TYPED_WORDS = Object.freeze(SHOW_NAMES.map((n) => n.toLowerCase()));
 export const HOLD_MS = LOGO_STAGE.holdMs;
+// ms a half-typed word waits for its next letter; past it the buffer is forgotten.
+export const TYPE_GAP_MS = LOGO_STAGE.typeGapMs;
 export const TOAST_TEXT = LOGO_STAGE.toast;
 // The shows whose mark roams the window, wearing whatever cloud the motion mode gives.
 const ROAMING = new Set(['follow', 'escape', 'fly']);
 
 export const effectOf = (name) => SHOWS[name]?.effect ?? null;
 
-// A custom accent picks by its hex ('*' = every other one); a preset by its row, and a row with
-// a `motion` opens only under that motion mode. null = the hold does nothing.
+// A custom accent picks by its hex ('*' = every other one); a preset by its row, and a row with a
+// `motion` opens only under that mode (grey: dustySpot moving, webcore still). null = nothing.
 export const resolveShow = (accentKey, customHex, motionMode) => {
   const hex = typeof customHex === 'string' ? customHex.trim().toLowerCase() : '';
   if (hex) {
     return SHOW_NAMES.find((n) => SHOWS[n].customHex === hex)
       ?? SHOW_NAMES.find((n) => SHOWS[n].customHex === '*') ?? null;
   }
-  const name = SHOW_NAMES.find((n) => (SHOWS[n].accents || []).includes(accentKey));
-  if (!name) return null;
-  const need = SHOWS[name].motion;
-  return !need || need === motionMode ? name : null;
+  return SHOW_NAMES.find((n) => {
+    const show = SHOWS[n];
+    return (show.accents || []).includes(accentKey) && (!show.motion || show.motion === motionMode);
+  }) ?? null;
 };
 
 // 'dust' | 'water' | 'fire' | null: a styled show forces its own cloud, a roaming one takes the
@@ -36,7 +38,7 @@ export const resolveShow = (accentKey, customHex, motionMode) => {
 const LIGHT_ONLY = new Set(['neon', 'sun']);
 export const showStyle = (name, currentStyle = null) => {
   const show = SHOWS[name];
-  if (!show) return null;
+  if (!show || show.effect === 'webcore') return null;   // a skin toggle opens no stage
   if (show.motion) return show.effect;
   return LIGHT_ONLY.has(show.effect) ? null : currentStyle;
 };

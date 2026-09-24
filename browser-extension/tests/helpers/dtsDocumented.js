@@ -33,6 +33,7 @@ export const DOCUMENTED = [
   'lib/control/actionMenu.d.ts',
   'lib/control/collapsibleSections.d.ts',
   'lib/control/customSelect.d.ts',
+  'lib/control/dblReset.d.ts',
   'lib/control/dropdownMenu.d.ts',
   'lib/control/menuScrollbar.d.ts',
   'lib/control/numericInput.d.ts',

@@ -21,15 +21,14 @@ test('the empty state waits out the wipe instead of appearing under the falling 
   // One waiter at a time — renderChatLog runs on every log change.
   assert.ok(view.includes('if (transcript._emptyWaiting) return;'));
   // The wipe's true length is the SCATTER, not the row collapse: leaveThenRemove
-  // resolves on LEAVE_MS while the particles keep falling for DISINTEGRATE_MS.
+  // resolves on LEAVE_MS while the particles keep falling for DISINTEGRATE_MS — and a caller on
+  // its OWN dust clock (a chat entry, a project row — ITEM_DUST_MS) waits out THAT instead, or
+  // the placeholder lands under motes still falling.
   const motion = motionSource();
-  assert.match(motion, /export const wipeDurationMs = \(dustMs = 0\) => \{[\s\S]*Math\.max\(LEAVE_MS, DISINTEGRATE_MS\)/);
-  // …and a caller on its OWN dust clock (a chat entry, a project row — ITEM_DUST_MS)
-  // waits out THAT instead, or the placeholder lands under motes still falling.
-  assert.match(motion, /if \(dustMs\) return dustEnabled\(\) \? Math\.max\(LEAVE_MS, dustMs\) : LEAVE_MS;/);
-  assert.match(motion, /if \(motionReduced\(\)\) return 0;/, 'reduced motion has nothing to wait for');
-  // …and neither has a mode with no particles in it: the row's own collapse IS the wipe.
-  assert.match(motion, /dustEnabled\(\) \? Math\.max\(LEAVE_MS, DISINTEGRATE_MS\) : LEAVE_MS/);
+  assert.match(motion, /export const wipeDurationMs = \(dustMs = 0\) => \{[\s\S]*Math\.max\(LEAVE_MS, dustMs \|\| DISINTEGRATE_MS\)/);
+  // A mode that flies NOTHING waits for nothing: the row's own collapse is the whole wipe and
+  // the caller has already awaited it, so a removed row never sits on screen after it.
+  assert.match(motion, /if \(!dustEnabled\(\)\) return 0;/, 'no particles, no wait');
 });
 
 // ── The images a turn carries belong to the USER's row ──

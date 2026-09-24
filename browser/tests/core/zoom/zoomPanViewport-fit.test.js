@@ -41,12 +41,15 @@ test('fit is bounded by width when the image is wide', () => {
   assert.equal(app.scale, 0.3);          // floor(600/2000 * 100)/100
 });
 
-test('fit never upscales a small image past 100%', () => {
+test('fit magnifies a small image to fill the frame, as the desktop does', () => {
   const vp = installDom({ ...ROOMY, containerBottom: 933 });
   vp.clientWidth = 1061;
   const app = fitApp(120, 90);
-  new ZoomPan(app).fitToWindow();
-  assert.equal(app.scale, 1);
+  const zp = new ZoomPan(app);
+  zp.fitToWindow();
+  assert.ok(app.scale > 1, 'a small picture is magnified');
+  assert.ok(app.canvas.height * app.scale <= zp.availContentHeight() - zp.viewportChromeY(), 'and still fits');
+  assert.ok(app.canvas.width * app.scale <= 1061, 'on both axes');
 });
 
 test('fit falls back to the window inset when the viewport has no width yet', () => {

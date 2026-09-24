@@ -1,4 +1,5 @@
 #include "UnderlineTabBar.hpp"
+#include "../skinPrefs.hpp"
 
 namespace stencil::gui {
 
@@ -78,8 +79,34 @@ namespace stencil::gui {
     return QTabBar::event(e);
   }
 
+  // Browser webcore .oi-tab: raised, open at the bottom, the picked one lighter and 2px taller.
+  void UnderlineTabBar::paintSkinTabs(QPainter& p) {
+    const support::SkinBevel b = support::skinBevel();
+    QFont f = tabFont();
+    f.setPixelSize(12);
+    f.setBold(true);
+    p.setFont(f);
+    for (int i = 0; i < count(); ++i) {
+      const bool on = i == currentIndex();
+      const QRect r = tabRect(i).adjusted(0, on ? 0 : 2, -2, 0);
+      p.fillRect(r, on ? b.light : b.face);
+      p.fillRect(QRect(r.left(), r.top(), r.width(), 2), b.hilight);
+      p.fillRect(QRect(r.left(), r.top(), 2, r.height()), b.hilight);
+      p.fillRect(QRect(r.right() - 1, r.top(), 2, r.height()), b.dark);
+      int x = r.x() + PAD_X;
+      if (!glyphs.value(i).isEmpty()) {
+        p.drawPixmap(x, r.y() + (r.height() - GLYPH) / 2, themedIcon(glyphs.value(i), b.ink, GLYPH).pixmap(GLYPH, GLYPH));
+        x += GLYPH + GAP;
+      }
+      p.setPen(b.ink);
+      p.drawText(QRect(x, r.y(), r.right() - x, r.height()), Qt::AlignLeft | Qt::AlignVCenter, tabText(i));
+    }
+    p.fillRect(QRect(0, height() - 1, width(), 1), b.shadow);
+  }
+
   void UnderlineTabBar::paintEvent(QPaintEvent*) {
     QPainter p(this);
+    if (support::isWebcore()) return paintSkinTabs(p);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor muted = palette().color(QPalette::Mid);
     const QColor accent = palette().color(QPalette::Highlight);

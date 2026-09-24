@@ -16,10 +16,11 @@
     display: block;
     width: 100%;
     height: 100%;
-    /* The canvas is what the pointer is actually over, and the app's own `canvas` rule pins every
-       canvas to the default arrow — so it has to be told to take the stage's hand. */
-    cursor: inherit;
 }
+/* The pointer is over this canvas, so it takes the stage's hand — outranking both the bare
+   `canvas` arrow and the editor's crosshair (layout/canvasCursor.css). */
+.logo-stage canvas,
+body:not(.canvas-empty):not(.canvas-readonly) .logo-stage canvas { cursor: inherit; }
 
 /* A show covers every window, so its OWN notice is lifted over it — and it is the only
    notice that can appear while one is up, since the editor is inert. */

@@ -89,7 +89,8 @@ export function showSelectionPanel(app, line) {
   writeColorPair('sel-point-color', 'sel-point-alpha', pointColorOf(line));
   document.getElementById('sel-thickness').value = line.thickness;
   document.getElementById('sel-point-size').value = line.pointSize ?? app.pointSize;
-  document.getElementById('sel-style').value = line.style;
+  // A line with no style of its own draws solid (desktop SelectedLineBar does the same).
+  document.getElementById('sel-style').value = line.style || 'solid';
   // Fill control appears only for locked areas
   const fillGroup = document.getElementById('sel-fill-group');
   if (fillGroup) {

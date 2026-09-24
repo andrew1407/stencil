@@ -35,6 +35,10 @@ namespace stencil::gui {
     QRect menuRowRect;
     QPointer<QAction> pendingAction;      // the action a deferred click will trigger
     QPointer<QDialog> active;             // the popover being exec'd (outside-click close)
+    QPointer<QWidget> openAnchor;   // the icon `active` grew out of
+    // One Alt press propagates up the parents and meets the app-wide filter at every step: act once.
+    const void* altPress = nullptr;
+    quint64 altPressAt = 0;
     QPointer<QWidget> overlay;            // the in-window box hosting it
     // A double-click already acted: swallow its trailing release, or it toggles a non-modal target
     // straight back off.

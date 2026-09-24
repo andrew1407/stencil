@@ -52,7 +52,7 @@ namespace stencil::gui {
     panelReopenBtn->setFocusPolicy(Qt::NoFocus);   // ditto: no focus halo over the canvas
     panelReopenBtn->setFixedSize(PANEL_TOGGLE_BOX, PANEL_TOGGLE_BOX);   // same rounded square as the panel-header chevron
     panelReopenBtn->setIconSize(QSize(PANEL_TOGGLE_GLYPH, PANEL_TOGGLE_GLYPH));
-    panelReopenBtn->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
+    panelReopenBtn->setToolTip(QString("Show Last Line Points (%1)").arg(hotkey("togglePointsList", "Alt+X")));   // browser mainContent.js
     panelReopenBtn->setStyleSheet(panelToggleQss());
     // Its angle is STATE — no icon-motion on hover.
     panelReopenBtn->setProperty(NO_ICON_MOTION_PROPERTY, true);

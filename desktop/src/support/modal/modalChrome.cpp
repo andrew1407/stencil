@@ -1,4 +1,5 @@
 #include "modalChrome.hpp"
+#include "../skinPrefs.hpp"
 
 #include "clickToToggle.hpp"
 #include <QCheckBox>
@@ -25,12 +26,22 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
 
+  namespace {
+    // The bar's width is RESERVED, never taken and given back, or a search that shortens a list
+    // past the scroll point widens every row on one keystroke and narrows them on the next.
+    class GutterScrollArea : public QScrollArea {
+     public:
+      using QScrollArea::QScrollArea;
+      void reserveBar() { setViewportMargins(0, 0, verticalScrollBar()->sizeHint().width(), 0); }
+    };
+  }  // namespace
 
   int modalFooterLineWidth(const ModalChrome& chrome, const QHBoxLayout* footer) {
     if (!footer) return 0;
@@ -54,7 +65,7 @@ namespace stencil::gui {
   }
 
   QLabel* modalSectionLabel(const QString& text, QWidget* parent) {
-    auto* l = new QLabel(text.toUpper(), parent);
+    auto* l = new QLabel(support::isWebcore() ? text : text.toUpper(), parent);
     l->setObjectName(QStringLiteral("modalSection"));
     return l;
   }
@@ -131,11 +142,13 @@ namespace stencil::gui {
     QWidget* shell = chrome.root ? chrome.root->parentWidget() : nullptr;
     // The padding moves inside the column so the scrollbar rides the shell's own edge.
     chrome.body->setContentsMargins(0, 0, 0, 0);
-    b.scroll = new QScrollArea(shell);
+    auto* scroll = new GutterScrollArea(shell);
+    b.scroll = scroll;
     b.scroll->setObjectName(QStringLiteral("modalScroll"));
     b.scroll->setWidgetResizable(true);
     b.scroll->setFrameShape(QFrame::NoFrame);
     b.scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->reserveBar();
     b.scroll->viewport()->setAutoFillBackground(false);
     b.content = new QWidget(b.scroll);
     b.content->setAutoFillBackground(false);

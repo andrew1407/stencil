@@ -3,6 +3,13 @@
 import { loadMediaCors, canReadPixels } from '../canvas/mediaCors.js';
 import { fetchUrlToFile } from '../../core/image/sourceLoader.js';
 import { isAlbumOrientation } from '../../core/parse/cropGeometry.js';
+import { onWindowResize } from '../../utils.js';
+
+// The picture never grows past this share of the window (desktop previewFitBox), nor past the
+// modal's ceiling (modalShell.css .app-modal max-height) less its chrome at full height.
+const PREVIEW_MAX_SHARE = 0.6;
+const PREVIEW_MIN_H = 160;
+const MODAL_CEILING_PX = 760, MODAL_CEILING_SHARE = 0.82, MODAL_CHROME_PX = 380;
 
 export function createPreviewFlow(ctx) {
   const { els, src, cropState, crop, cropRows, dust, frame, pairs, memo, refresh,
@@ -23,6 +30,16 @@ export function createPreviewFlow(ctx) {
     if (cropState.rect.width < 1) crop.recenter();
     else crop.render();
   };
+
+  // The picture gives up height before the modal's body scrolls (desktop previewCapH). No row is
+  // measured, so a row mid-reveal cannot move the picture.
+  const fitPreviewCap = () => {
+    if (typeof window === 'undefined') return;
+    const ceiling = Math.min(window.innerHeight * MODAL_CEILING_SHARE, MODAL_CEILING_PX) - MODAL_CHROME_PX;
+    const cap = Math.max(PREVIEW_MIN_H, Math.floor(Math.min(window.innerHeight * PREVIEW_MAX_SHARE, ceiling)));
+    for (const m of [pairs.img(), pairs.video()]) m.style.maxHeight = cap + 'px';
+  };
+  onWindowResize(() => { if (previewWrap.style.display !== 'none') syncPreview(); });
 
   const syncPreview = () => {
     const show = previewReady() && ready();
@@ -45,6 +62,7 @@ export function createPreviewFlow(ctx) {
       pairs.video().style.display = video ? 'block' : 'none';
       pairs.img().style.display = video ? 'none' : 'block';
       cropStage.style.display = '';
+      fitPreviewCap();
     }
     if (!show) { crop.hide(); cropRows.hideDims(); return; }
     const cropping = cropToggle.checked;

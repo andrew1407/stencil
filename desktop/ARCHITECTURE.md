@@ -43,15 +43,15 @@ the files the lint lists as the core seam. The document state itself lives in `C
 
 | Path | Holds | Rule |
 |---|---|---|
-| `src/app/` | `main.cpp`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with its method groups in feature folders beneath (`chat/` with `session/` + `planTarget/`, `toolbar/`, `project/`, `theme/`, `setup/`, `open/`, `events/`, `actions/`, `context/`, `logo/`, `selection/`, `remote/`, `view/`, `meta/`) | composition only; no logic a controller could hold; a new method group is a new TU in the folder it belongs to, not a longer one |
+| `src/app/` | `main.cpp`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with its method groups in feature folders beneath (`chat/` with `session/` + `planTarget/`, `toolbar/`, `project/`, `theme/`, `setup/`, `open/`, `events/`, `actions/`, `context/`, `logo/` (the stage and the webcore toggle), `selection/`, `remote/`, `view/`, `meta/`) | composition only; no logic a controller could hold; a new method group is a new TU in the folder it belongs to, not a longer one |
 | `src/canvas/` (+ `input/`, `draw/`, `paint/`, `overlay/`) | `CanvasWidget` (QPainter) and its tooltip, its TUs banded by gesture, stroke, paint and the overlays that float above it (`DropZonesOverlay` over the whole window) | pixel, geometry and page math come from `core/`, never re-derived |
 | `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to), plus `ScriptBuffer`, the session-scoped text the two script hosts share | the core seam — `model/` may include `core/` freely, and nothing above it may; nothing here is persisted |
 | `src/dialogs/` | one folder per window (`projects/` with `row/` + `list/`, `openImage/` with `preview/` + `dust/`, `script/`, `connect/`, `settings/`, `meta/` with `links/` + `keywords/`, `crop/`), one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script — plus `ScriptEditorWidget`, the .stc editor both script surfaces host, and `ScriptMenuPanel`, that script window at menu scale | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a second copy of them |
 | `src/llm/` (+ `dock/card/`, `dock/compose/`, `plan/executor/`) | `dock/` and `panel/` (the two chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`), `plan/` (op registry, schema, `planExecutor`) | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
-| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `share/`, `notify/` — plus the platform helpers (`shareImage*`, `modalDismissMac`, `dragPasteboard*`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
-| `resources/` | `app.qrc`: `app.qss` and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
+| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `webcore/` (the session skin: its table, picture, overlay sheet, pixel icons and look), `share/`, `notify/` — plus the platform helpers and the session switches (`motionPrefs.hpp`, `skinPrefs.hpp`) (`shareImage*`, `modalDismissMac`, `dragPasteboard*`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
+| `resources/` | `app.qrc`: `app.qss`, the `webcore.qss` overlay, and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
 | `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
 | `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` (one QtTest binary per area over one `stencil_gui_objs` library) and the layer lint | every suite reports its own failures |
@@ -185,7 +185,9 @@ classDiagram
 | Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a 409 re-reads, merges and retries a bounded number of times |
 | Hosted menu panel | `ChatMenuPanel` behind the Assistant row, `ScriptMenuPanel` behind the Stencil Script row — a `QWidgetAction` in a `StayOpenMenu`, scoped by `setInteractiveArea(panel, keyTarget)` | The `QWidgetAction` owns the panel, so the transcript and the typed script outlive the per-right-click menu rebuild; a control that needs a modal dismisses the popup chain first |
 | Shared editor widget | `ScriptEditorWidget` — the halo, the box, the editor, the diagnostics strip and one `ScriptHighlighter`, hosted by `ScriptDialog` and `ScriptMenuPanel` | The hosts differ only in the `Style` they pass (names, metrics, which keys the editor owns) and in the buttons around it; the behaviour has one home |
+| Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp` — header-only switches every restyle and animation asks, plus the palette and icon hooks `support/webcore/look.cpp` installs | Read by everything, written to no file: `Settings` never carries a skin, and `applySettings` re-pushes the stored switches only when the user moved one |
 | Golden pin / fixture walker | `tests/uiPins.headless.cpp`; `opPlanFixtures`, `llmWireFixtures`, `storeFixtures`, `deepLinkFixtures` | Pins guard pixels and QSS; walkers prove the shared `browser/js/config` corpora on this surface |
+| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), app-wide; a control opts in with `setResetDefault` | A combo's two quick presses (it opens on the first) or a check's double-click sets the declared default through `activated` / `click()`, so the row's own wiring applies it; a caption resets its box through `captionToggles` |
 
 ## Design
 
@@ -237,7 +239,9 @@ classDiagram
   that opened an image pours into the Open control, a cancel back into the canvas. Every modal also
   dims and blurs the windows behind it (`support/modal/ModalBackdrop`, the browser's
   `.app-modal-overlay` scrim plus its `backdrop-filter`); only the compact popover stays undimmed,
-  as `.modal-popover` does. `motionReduced()` drops the flight and keeps the dim.
+  as `.modal-popover` does. A host child carrying `ModalBackdrop::ABOVE_PROPERTY` — the toasts —
+  is kept out of the photograph and raised back over the scrim, as `#notify-balloon` outranks the
+  overlay in the browser. `motionReduced()` drops the flight and keeps the dim.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
   applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
   `MediaLoader`. `openProjectFile`
@@ -268,15 +272,30 @@ classDiagram
   ignores a Send, since the dock is already idle by the time the plan runs.
 - **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
   (`app/LogoStage*.cpp`), a full-window child of the window that asks its `Hooks` for a bare
-  window — not fullscreen, nothing modal, no popover — before it opens. `logoStage.json` in the
+  window — not fullscreen, nothing modal, no popover — before it opens; a hold is refused
+  otherwise, while a typed word has `clearWay` close the modal or popover and leave fullscreen,
+  then opens once the window is bare. Stage shows are exclusive: another word replaces the one
+  that is up (the lock still hears words), its own word does nothing. `logoStage.json` in the
   qrc is the table both front-ends resolve a show from: which accent opens which effect, the
   motion mode a styled effect also needs, and the custom hexes. The stage paints the big mark,
   its light and its cloud (`support/logoStage{Rules,Motion,Cloud}` over `dustKit`), and while it
   is up it filters `qApp`: it accepts every `ShortcutOverride` so no action fires, swallows the
-  press that follows, and takes Escape as the way out. The pink show opens no stage — it runs
+  press that follows, and takes Escape as the way out. Each frame it re-resolves what it wears from the skin, the
+  motion mode, the accent and the theme — the mark's art, the cloud's style and whether it flies
+  (a styled show keeps its own), and the light, which with no cloud only the neon and sun shows
+  keep — so a toggle under a running show restyles it without restarting it. The pink show opens no stage — it runs
   through `ChatPlanTarget`, the same applier a toolbar click and a script op take, so the tint
   and the heart are one step on the user's own history. `motionReduced()` keeps the stage and
-  drops every loop.
+  drops every loop. The webcore show is a toggle, not a stage, so it neither closes nor waits
+  for one: `MainWindow::toggleWebcore`
+  (`app/logo/MainWindowWebcore.cpp`) sets the session skin, the motion switches and the forced
+  light theme, swaps the Windows style and the skin's face in (`support/webcore/look`), and
+  restyles with `themePainted` cleared, so `applyTheme` re-issues the palette — answered through
+  the skin's hook — the overlay sheet and every icon; an empty editor reopens the local project
+  named by the skin, or else `webcoreScene` leaves
+  incognito, loads the picture `support/webcore/image` paints, installs the word as one step
+  through `ChatPlanTarget` and creates the local project by the skin's name. The same word puts
+  the stored look back through `applySettings(settings, false)`.
 - **Packaging.** `cmake/StencilPackaging.cmake` drives CPack (`macdeployqt` / `windeployqt`;
   best-effort on Linux, Qt ≥ 6.3). The `.stencil` type and the `stencil://` scheme are
   registered on macOS (`com.stencil.project` UTI, `CFBundleDocumentTypes`, `CFBundleURLTypes`
@@ -301,7 +320,8 @@ classDiagram
 5. **Motion** is gated by `support/motionPrefs.hpp` (`drawingAnimations`, `motionMode`,
    `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dust/cloud.js` value for value.
    Sprite blits, not `drawEllipse`; a `QTimer` at the screen's refresh rate, not
-   `QVariantAnimation`.
+   `QVariantAnimation`. A skin (`support/skinPrefs.hpp`) is a session override over these and
+   the theme: it writes nothing, so a restart wears the user's own look.
 6. **State directory** is baked at build time (`STENCIL_STATE_DIR`): the gitignored
    `desktop/.stencil/` in dev, the per-user config dir when packaged
    (`-DSTENCIL_DEV_STATE_DIR=OFF`).

@@ -557,6 +557,14 @@
    "@keyframes icmWave|65%": {
     "transform": "skewX(-5deg)"
    },
+   "@keyframes idleCardArrive|from": {
+    "opacity": "0",
+    "transform": "scale(0.86)"
+   },
+   "@keyframes idleCardArrive|to": {
+    "opacity": "1",
+    "transform": "none"
+   },
    "@keyframes keycapShake|0%, 100%": {
     "transform": "none"
    },
@@ -1258,16 +1266,16 @@
     "top": "var(--chat-size, 300px)"
    },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom)": {
-    "padding-bottom": "calc(var(--chat-size, 300px) + 20px)"
+    "padding-bottom": "calc(var(--chat-size, 300px) + 10px)"
    },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)": {
-    "padding-left": "calc(var(--chat-size, 340px) + 20px)"
+    "padding-left": "calc(var(--chat-size, 340px) + 10px)"
    },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right)": {
-    "padding-right": "calc(var(--chat-size, 340px) + 20px)"
+    "padding-right": "calc(var(--chat-size, 340px) + 10px)"
    },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top)": {
-    "padding-top": "calc(var(--chat-size, 300px) + 20px)"
+    "padding-top": "calc(var(--chat-size, 300px) + 10px)"
    },
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs": {
     "display": "none",
@@ -1284,7 +1292,7 @@
    "@media (prefers-reduced-motion: reduce)|#chat-btn.chat-working::before": {
     "animation": "none"
    },
-   "@media (prefers-reduced-motion: reduce)|#controls-body, #controls-body.hidden, #coord-body, #toggle-controls .ic, #toggle-coord-panel .ic, .coord-tabs, .coordinates-panel": {
+   "@media (prefers-reduced-motion: reduce)|#controls-body, #controls-body.hidden, #coord-body, #toggle-controls .ic, #toggle-coord-panel .ic, .canvas-viewport, .controls-topbar, .controls-wrapper, .coord-tabs, .coordinates-panel, .info": {
     "transition": "none !important"
    },
    "@media (prefers-reduced-motion: reduce)|#ctx-menu.ctx-open, .chat-row-menu": {
@@ -1373,6 +1381,9 @@
    },
    "@media (prefers-reduced-motion: reduce)|.icm-spun :is(.ic, .draw-mode-icon)": {
     "animation-name": "none"
+   },
+   "@media (prefers-reduced-motion: reduce)|.idle-create.idle-arriving .idle-create-btn": {
+    "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.ig-edge": {
     "transition": "none !important"
@@ -1554,6 +1565,9 @@
    "|#chat-server-status-row": {
     "justify-content": "flex-start",
     "gap": "8px"
+   },
+   "|#compare-mode + label": {
+    "margin-left": "4px"
    },
    "|#confirm-modal-overlay.modal-closing": {
     "z-index": "100003"
@@ -2686,14 +2700,8 @@
    "|.app-modal-overlay.modal-open": {
     "display": "flex"
    },
-   "|.app-modal-overlay:not(.modal-popover) .settings-header": {
-    "cursor": "grab"
-   },
    "|.app-modal.modal-dragging": {
     "transition": "none !important"
-   },
-   "|.app-modal.modal-dragging .settings-header": {
-    "cursor": "grabbing"
    },
    "|.bar-held": {
     "height": "var(--bar-h)",
@@ -4118,7 +4126,7 @@
     "min-height": "0",
     "min-width": "0",
     "background": "var(--bg-container)",
-    "padding": "12px 20px 20px",
+    "padding": "20px",
     "border-radius": "8px",
     "box-shadow": "0 2px 10px var(--shadow)",
     "color": "var(--text-main)",
@@ -4167,6 +4175,9 @@
     "align-items": "center",
     "gap": "8px",
     "margin-bottom": "8px"
+   },
+   "|.controls-topbar, .controls-wrapper": {
+    "transition": "margin var(--fold-ms) var(--fold-ease)"
    },
    "|.controls-wrapper": {
     "margin-bottom": "12px"
@@ -4308,6 +4319,9 @@
     "border": "1px solid var(--border-coord)",
     "color": "var(--text-main)"
    },
+   "|.coordinates-table td:first-child, .coordinates-table th:first-child": {
+    "width": "38px"
+   },
    "|.coordinates-table th": {
     "background": "var(--bg-coord-th)",
     "color": "var(--on-accent)",
@@ -4320,6 +4334,9 @@
    },
    "|.coordinates-table tr:nth-child(even)": {
     "background-color": "var(--bg-coord-even)"
+   },
+   "|.coordinates-table:has(.empty-message) thead": {
+    "display": "none"
    },
    "|.cs-cur-icon, .cs-opt-icon": {
     "display": "inline-flex",
@@ -4735,7 +4752,7 @@
    "|.del-pt-btn": {
     "background": "transparent",
     "border": "none !important",
-    "color": "var(--danger)",
+    "color": "var(--danger, #ef4444)",
     "cursor": "pointer",
     "font-size": "14px",
     "padding": "0 3px",
@@ -5624,6 +5641,9 @@
     "line-height": "1",
     "transition": "transform 0.3s ease"
    },
+   "|.idle-create.idle-arriving .idle-create-btn": {
+    "animation": "idleCardArrive 0.34s cubic-bezier(0.22, 1, 0.36, 1) both"
+   },
    "|.ig-b": {
     "bottom": "0",
     "right": "0",
@@ -5705,8 +5725,10 @@
     "align-items": "center",
     "line-height": "20px",
     "min-height": "20px",
+    "height": "20px",
     "white-space": "nowrap",
-    "overflow": "hidden"
+    "overflow": "hidden",
+    "transition": "height var(--fold-ms) var(--fold-ease), min-height var(--fold-ms) var(--fold-ease), padding var(--fold-ms) var(--fold-ease), opacity var(--fold-fade-ms) var(--fold-ease), visibility 0s"
    },
    "|.info-desc": {
     "flex": "1",
@@ -5867,57 +5889,33 @@
     "overflow": "hidden",
     "animation": "rowLeave 0.22s cubic-bezier(0.4, 0, 1, 1) both"
    },
-   "|.lines-empty": {
-    "color": "var(--text-muted)",
-    "font-size": "12px",
-    "padding": "8px 4px",
-    "text-align": "center"
+   "|.lines-count-cell": {
+    "width": "46px"
    },
    "|.lines-label": {
-    "flex": "1",
     "color": "var(--text-main)",
     "white-space": "nowrap",
     "overflow": "hidden",
     "text-overflow": "ellipsis"
    },
-   "|.lines-list": {
-    "display": "flex",
-    "flex-direction": "column",
-    "gap": "3px",
-    "max-height": "340px",
-    "overflow-y": "auto"
-   },
-   "|.lines-remove": {
-    "flex-shrink": "0",
-    "background": "transparent",
-    "border": "none",
-    "color": "var(--text-muted)",
-    "cursor": "pointer",
-    "padding": "2px",
-    "display": "inline-flex",
-    "border-radius": "4px"
-   },
-   "|.lines-remove:hover": {
-    "color": "var(--danger, #ef4444)",
-    "background": "var(--bg-info)"
+   "|.lines-remove-cell": {
+    "width": "28px",
+    "padding": "4px"
    },
    "|.lines-row": {
-    "display": "flex",
-    "align-items": "center",
-    "gap": "8px",
-    "padding": "5px 6px",
-    "border": "1px solid var(--border-coord)",
-    "border-radius": "5px",
-    "background": "var(--bg-coord-table)",
-    "cursor": "pointer",
-    "font-size": "12px"
+    "cursor": "pointer"
    },
    "|.lines-row-hover:not(.lines-row-selected)": {
     "background": "color-mix(in srgb, var(--accent) 18%, transparent)"
    },
-   "|.lines-row-selected": {
-    "border-color": "var(--accent)",
-    "box-shadow": "inset 0 0 0 1px var(--accent)"
+   "|.lines-row-selected td": {
+    "box-shadow": "inset 0 1px var(--accent), inset 0 -1px var(--accent)"
+   },
+   "|.lines-row-selected td:first-child": {
+    "box-shadow": "inset 1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent)"
+   },
+   "|.lines-row-selected td:last-child": {
+    "box-shadow": "inset -1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent)"
    },
    "|.lines-row:hover": {
     "background": "var(--bg-coord-hover)"
@@ -5927,7 +5925,15 @@
     "height": "14px",
     "border-radius": "3px",
     "border": "1px solid var(--border-main)",
-    "flex-shrink": "0"
+    "display": "inline-block",
+    "vertical-align": "middle"
+   },
+   "|.lines-swatch-cell": {
+    "width": "46px",
+    "text-align": "center"
+   },
+   "|.lines-table": {
+    "table-layout": "fixed"
    },
    "|.links-clear, .links-open": {
     "flex": "0 0 auto",
@@ -6039,7 +6045,9 @@
    "|.logo-stage canvas": {
     "display": "block",
     "width": "100%",
-    "height": "100%",
+    "height": "100%"
+   },
+   "|.logo-stage canvas, body:not(.canvas-empty):not(.canvas-readonly) .logo-stage canvas": {
     "cursor": "inherit"
    },
    "|.main-content": {
@@ -6995,9 +7003,15 @@
     "align-items": "center"
    },
    "|.script-diag": {
-    "min-height": "1.4em",
+    "box-sizing": "border-box",
+    "height": "22px",
     "padding": "6px 15px 0",
     "font-size": "12px",
+    "line-height": "16px",
+    "white-space": "nowrap",
+    "overflow": "hidden",
+    "text-overflow": "ellipsis",
+    "flex": "0 0 auto",
     "color": "var(--text-muted)"
    },
    "|.script-diag-error": {
@@ -7093,6 +7107,7 @@
    "|.settings-footer": {
     "padding": "12px 18px",
     "border-top": "1px solid var(--border-main)",
+    "flex": "0 0 auto",
     "display": "flex",
     "flex-wrap": "wrap",
     "justify-content": "flex-end",
@@ -7117,7 +7132,8 @@
     "align-items": "center",
     "justify-content": "space-between",
     "padding": "14px 18px",
-    "border-bottom": "1px solid var(--border-main)"
+    "border-bottom": "1px solid var(--border-main)",
+    "flex": "0 0 auto"
    },
    "|.settings-header h2": {
     "margin": "0",
@@ -7271,7 +7287,7 @@
    "|.tip-plus": {
     "font-size": "13px",
     "color": "var(--text-shortcut)",
-    "margin": "0 1px",
+    "margin": "0 3px",
     "vertical-align": "middle"
    },
    "|.tip-rows": {
@@ -7450,7 +7466,8 @@
     "position": "fixed",
     "left": "auto",
     "top": "auto",
-    "z-index": "100002"
+    "z-index": "100002",
+    "min-width": "0"
    },
    "|.zoom-menu[hidden]": {
     "display": "none"
@@ -7476,6 +7493,12 @@
    "|:focus-visible": {
     "outline": "2px solid var(--accent)",
     "outline-offset": "2px"
+   },
+   "|:is(.app-modal, #settings-modal).modal-dragging .settings-header": {
+    "cursor": "grabbing"
+   },
+   "|:is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header": {
+    "cursor": "grab"
    },
    "|:root": {
     "--accent": "#7c3aed",
@@ -7617,6 +7640,784 @@
     "transition-delay": "0s !important",
     "scroll-behavior": "auto !important"
    },
+   "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover .app-logo": {
+    "animation": "none !important",
+    "transform": "scale(1.08)",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-motion=\"none\"] .app-logo-wrap::before": {
+    "content": "none"
+   },
+   "|:root[data-skin=\"webcore\"]": {
+    "--wc-face": "#c0c0c0",
+    "--wc-shadow": "#808080",
+    "--wc-dark": "#000000",
+    "--wc-light": "#dfdfdf",
+    "--wc-hilight": "#ffffff",
+    "--wc-title-a": "#000080",
+    "--wc-title-b": "#1084d0",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#008080",
+    "--wc-window": "#ffffff",
+    "--wc-ink": "#000000",
+    "--wc-muted": "#808080",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#ffffe1",
+    "--wc-tip-ink": "#000000",
+    "--wc-link": "#0000ff",
+    "--wc-focus": "#000080",
+    "--wc-raised": "inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight), inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light)",
+    "--wc-sunken": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight), inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light)",
+    "--wc-well": "inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight)",
+    "--wc-title": "linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b))",
+    "--wc-font": "\"MS Sans Serif\", Tahoma, \"Microsoft Sans Serif\", Verdana, Arial, sans-serif",
+    "--accent": "var(--wc-select)",
+    "--accent-2": "var(--wc-title-b)",
+    "--on-accent": "var(--wc-on-select)",
+    "--dust-ink": "var(--wc-ink)",
+    "--dust-accent": "var(--wc-focus)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 86%, black)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 55%, #000000)",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--bg-page": "var(--wc-desktop)",
+    "--bg-container": "var(--wc-face)",
+    "--bg-controls": "var(--wc-face)",
+    "--bg-info": "var(--wc-face)",
+    "--bg-coord-panel": "var(--wc-face)",
+    "--bg-coord-table": "var(--wc-window)",
+    "--bg-coord-even": "var(--wc-window)",
+    "--bg-coord-hover": "var(--wc-light)",
+    "--bg-coord-th": "var(--wc-select)",
+    "--bg-tooltip": "var(--wc-tip-bg)",
+    "--bg-tt-th": "var(--wc-face)",
+    "--bg-tt-td": "var(--wc-tip-bg)",
+    "--bg-sel-panel": "var(--wc-face)",
+    "--bg-drop-hint": "var(--wc-face)",
+    "--bg-keywords": "var(--wc-window)",
+    "--border-main": "var(--wc-shadow)",
+    "--border-canvas": "var(--wc-shadow)",
+    "--border-coord": "var(--wc-shadow)",
+    "--border-tooltip": "var(--wc-dark)",
+    "--border-sel": "var(--wc-shadow)",
+    "--bg-sel-btn": "var(--wc-face)",
+    "--bg-sel-btn-hov": "var(--wc-light)",
+    "--text-sel-btn": "var(--wc-ink)",
+    "--border-hint": "var(--wc-shadow)",
+    "--text-main": "var(--wc-ink)",
+    "--text-label": "var(--wc-ink)",
+    "--text-muted": "var(--wc-muted)",
+    "--section-title": "var(--wc-ink)",
+    "--ui-outline": "var(--wc-shadow)",
+    "--text-info": "var(--wc-ink)",
+    "--text-coord-h3": "var(--wc-ink)",
+    "--text-sel-label": "var(--wc-ink)",
+    "--text-shortcut": "var(--wc-muted)",
+    "--text-key": "var(--wc-focus)",
+    "--text-empty": "var(--wc-muted)",
+    "--project-name-fg": "var(--wc-ink)",
+    "--project-name-shadow": "none",
+    "--text-tooltip": "var(--wc-tip-ink)",
+    "--text-tt-header": "var(--wc-tip-ink)",
+    "--input-bg": "var(--wc-window)",
+    "--input-text": "var(--wc-ink)",
+    "--shadow": "transparent",
+    "--danger": "#800000",
+    "--danger-2": "#a00000",
+    "--success": "#008000",
+    "--success-cta": "#008000",
+    "--warning": "#808000",
+    "--disabled-bg": "var(--wc-face)",
+    "--disabled-text": "var(--wc-shadow)",
+    "--sb-track": "var(--wc-light)",
+    "--sb-thumb": "var(--wc-face)",
+    "--sb-thumb-hover": "var(--wc-face)",
+    "--sb-thumb-active": "var(--wc-face)",
+    "--resizer-grip": "var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] #app-tooltip, :root[data-skin=\"webcore\"] .chat-status-tip, :root[data-skin=\"webcore\"] .ctx-preview-tip, :root[data-skin=\"webcore\"] .tooltip": {
+    "background": "var(--wc-tip-bg)",
+    "color": "var(--wc-tip-ink)",
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none",
+    "padding": "3px 6px",
+    "font-size": "11px"
+   },
+   "|:root[data-skin=\"webcore\"] #chat-backdrop, :root[data-skin=\"webcore\"] .app-modal-overlay": {
+    "background": "rgba(0, 0, 0, 0.25)",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #install-toggle, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0 !important",
+    "box-shadow": "var(--wc-raised)",
+    "transform": "none",
+    "filter": "none",
+    "opacity": "1"
+   },
+   "|:root[data-skin=\"webcore\"] #chat-btn.active, :root[data-skin=\"webcore\"] #draw-toggle.active:not(:disabled), :root[data-skin=\"webcore\"] #fullscreen-toggle.active, :root[data-skin=\"webcore\"] #incognito-toggle.active, :root[data-skin=\"webcore\"] #voice-chat-btn.active, :root[data-skin=\"webcore\"] .chat-dock-btn-active, :root[data-skin=\"webcore\"] .coord-tab-active, :root[data-skin=\"webcore\"] .oi-tab.is-active, :root[data-skin=\"webcore\"] .pill-toggle.on, :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn):active:not(:disabled), :root[data-skin=\"webcore\"] button.active": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-sunken)",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #chat-input, :root[data-skin=\"webcore\"] #ctx-assist-input, :root[data-skin=\"webcore\"] #zoom-input, :root[data-skin=\"webcore\"] .chat-input-wrap, :root[data-skin=\"webcore\"] .coord-px-input, :root[data-skin=\"webcore\"] .kw-add input, :root[data-skin=\"webcore\"] .modal-search, :root[data-skin=\"webcore\"] .script-editor-wrap, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select, :root[data-skin=\"webcore\"] textarea": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)",
+    "padding-left": "6px"
+   },
+   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] #install-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] #fs-panel-resizer::before, :root[data-skin=\"webcore\"] .panel-resizer::before": {
+    "background": "var(--resizer-grip)"
+   },
+   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"], :root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"]:hover, :root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] #project-name-input, :root[data-skin=\"webcore\"] #project-name-input:disabled, :root[data-skin=\"webcore\"] #project-name-input:read-only": {
+    "background": "transparent",
+    "box-shadow": "none",
+    "color": "var(--wc-ink)",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] #project-name-input:not(:read-only), :root[data-skin=\"webcore\"] #project-name-input:not(:read-only):focus": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] #selection-panel, :root[data-skin=\"webcore\"] .container, :root[data-skin=\"webcore\"] .controls, :root[data-skin=\"webcore\"] .controls-wrapper, :root[data-skin=\"webcore\"] .coordinates-panel, :root[data-skin=\"webcore\"] .info, :root[data-skin=\"webcore\"] .selection-panel-inner": {
+    "background": "var(--wc-face)",
+    "border-color": "var(--wc-shadow)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #settings-close, :root[data-skin=\"webcore\"] .app-modal-close, :root[data-skin=\"webcore\"] .chat-hbtn": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "width": "18px",
+    "height": "16px",
+    "min-width": "0",
+    "padding": "0",
+    "font-size": "11px",
+    "font-weight": "700",
+    "line-height": "1",
+    "margin-left": "2px"
+   },
+   "|:root[data-skin=\"webcore\"] #settings-close:hover, :root[data-skin=\"webcore\"] .app-modal-close:hover, :root[data-skin=\"webcore\"] .chat-hbtn:hover": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] #settings-modal, :root[data-skin=\"webcore\"] .app-modal, :root[data-skin=\"webcore\"] .exp-modal, :root[data-skin=\"webcore\"] .script-modal": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border-color": "transparent",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] #zoom-input": {
+    "font-weight": "normal"
+   },
+   "|:root[data-skin=\"webcore\"] *": {
+    "scrollbar-width": "auto",
+    "scrollbar-color": "auto"
+   },
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before": {
+    "font-family": "var(--wc-font) !important",
+    "border-radius": "0 !important",
+    "text-shadow": "none !important",
+    "backdrop-filter": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar": {
+    "width": "16px",
+    "height": "16px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track": {
+    "background": "var(--wc-light)",
+    "background-image": "repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%)",
+    "background-size": "2px 2px"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0",
+    "border-radius": "0"
+   },
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret": {
+    "position": "absolute",
+    "right": "2px",
+    "top": "2px",
+    "bottom": "2px",
+    "width": "16px",
+    "display": "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover), :root[data-skin=\"webcore\"] .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)": {
+    "background": "transparent",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt[aria-selected=\"true\"], :root[data-skin=\"webcore\"] .zoom-menu-item.active": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)",
+    "padding": "2px 22px 2px 6px",
+    "position": "relative",
+    "transform": "none",
+    "padding-right": "22px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select": {
+    "height": "24px",
+    "min-height": "24px",
+    "padding": "2px 6px",
+    "line-height": "18px"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)": {
+    "background": "var(--wc-window)",
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo": {
+    "width": "32px",
+    "height": "32px"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo *, :root[data-skin=\"webcore\"] .draw-mode-icon *, :root[data-skin=\"webcore\"] .ic *": {
+    "transform": "none !important",
+    "animation": "none !important",
+    "transition": "none !important",
+    "stroke": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo, :root[data-skin=\"webcore\"] .draw-mode-icon, :root[data-skin=\"webcore\"] .ic": {
+    "shape-rendering": "crispEdges",
+    "image-rendering": "pixelated",
+    "fill": "none",
+    "stroke": "none",
+    "transform": "none !important",
+    "transition": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo-frame": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap.logo-hover .app-logo": {
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap:not(.logo-hover) .app-logo, :root[data-skin=\"webcore\"] .draw-mode-icon, :root[data-skin=\"webcore\"] .ic": {
+    "filter": "none !important",
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .app-modal-overlay:not(.modal-popover) .settings-header, :root[data-skin=\"webcore\"] .app-modal.modal-dragging .settings-header, :root[data-skin=\"webcore\"] .chat-header, :root[data-skin=\"webcore\"] .settings-header": {
+    "background": "var(--wc-title)",
+    "color": "var(--wc-title-ink)",
+    "border": "0",
+    "padding": "3px 4px 3px 8px",
+    "min-height": "18px"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-container": {
+    "box-shadow": "2px 2px var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-sb": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-sb-thumb": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-sb.canvas-sb-drag .canvas-sb-thumb, :root[data-skin=\"webcore\"] .canvas-sb:hover .canvas-sb-thumb": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-section": {
+    "background": "var(--wc-face)",
+    "border": "0",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-viewport": {
+    "background": "var(--wc-desktop)",
+    "box-shadow": "none",
+    "border-style": "solid",
+    "border-width": "2px",
+    "border-color": "var(--wc-shadow) var(--wc-hilight) var(--wc-hilight) var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-viewport.remote-editing": {
+    "box-shadow": "var(--wc-sunken), inset 0 0 0 2px #d4a017"
+   },
+   "|:root[data-skin=\"webcore\"] .canvas-viewport:is(.canvas-assembling, .canvas-clearing) .canvas-container": {
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-ask, :root[data-skin=\"webcore\"] .chat-error-card, :root[data-skin=\"webcore\"] .chat-msg, :root[data-skin=\"webcore\"] .chat-msg-assistant, :root[data-skin=\"webcore\"] .chat-msg-error, :root[data-skin=\"webcore\"] .chat-msg-user": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-ask-submit, :root[data-skin=\"webcore\"] .chat-config-cta, :root[data-skin=\"webcore\"] .chat-reconnect-cta, :root[data-skin=\"webcore\"] .chat-retry-cta, :root[data-skin=\"webcore\"] .chat-suggest": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-attach-chip, :root[data-skin=\"webcore\"] .kw-chip, :root[data-skin=\"webcore\"] .kw-chips": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-dock-float .chat-resizer::before, :root[data-skin=\"webcore\"] :is(.chat-float-handle-nw, .chat-float-handle-ne, .chat-float-handle-sw)::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-float-handle.dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-float-handle::before": {
+    "background": "var(--resizer-grip)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-input-row": {
+    "border-top": "1px solid var(--wc-shadow)",
+    "box-shadow": "inset 0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-input-sizer::before, :root[data-skin=\"webcore\"] .ctx-assist-sizer::before": {
+    "height": "1px",
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-msg-user": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-msg::after, :root[data-skin=\"webcore\"] .chat-msg::before": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-row-menu-item.is-danger, :root[data-skin=\"webcore\"] .project-menu-item.is-danger": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-title, :root[data-skin=\"webcore\"] .chat-title-text, :root[data-skin=\"webcore\"] .settings-header .ic, :root[data-skin=\"webcore\"] .settings-header h2": {
+    "color": "var(--wc-title-ink)",
+    "font-weight": "700",
+    "font-size": "12px"
+   },
+   "|:root[data-skin=\"webcore\"] .chat-transcript, :root[data-skin=\"webcore\"] .ctx-assist, :root[data-skin=\"webcore\"] stencil-chat-panel": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .conn-status": {
+    "border": "0",
+    "box-shadow": "var(--wc-well)",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .connect-admin-badge, :root[data-skin=\"webcore\"] .project-current-badge, :root[data-skin=\"webcore\"] .project-file-badge, :root[data-skin=\"webcore\"] .project-local-badge, :root[data-skin=\"webcore\"] .project-remote-badge": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .connect-row, :root[data-skin=\"webcore\"] .project-row": {
+    "background": "var(--wc-window)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "none",
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .connect-row.connect-selected, :root[data-skin=\"webcore\"] .coordinates-table tbody tr.row-focused, :root[data-skin=\"webcore\"] .lines-row-selected, :root[data-skin=\"webcore\"] .project-row.project-selected": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .container": {
+    "box-shadow": "var(--wc-raised)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, :root[data-skin=\"webcore\"] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic": {
+    "transform": "rotate(180deg) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .coord-status, :root[data-skin=\"webcore\"] .drop-hint": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-well)"
+   },
+   "|:root[data-skin=\"webcore\"] .coord-tab, :root[data-skin=\"webcore\"] .oi-tab": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0 !important",
+    "border-top": "2px solid var(--wc-hilight) !important",
+    "border-left": "2px solid var(--wc-hilight) !important",
+    "border-right": "2px solid var(--wc-dark) !important",
+    "padding": "3px 12px 4px",
+    "margin": "2px 2px 0 0"
+   },
+   "|:root[data-skin=\"webcore\"] .coord-tab.coord-tab-active, :root[data-skin=\"webcore\"] .oi-tab.is-active": {
+    "background": "var(--wc-light)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "font-weight": "700",
+    "margin-top": "0",
+    "margin-bottom": "-1px",
+    "padding-bottom": "5px"
+   },
+   "|:root[data-skin=\"webcore\"] .coord-tabs, :root[data-skin=\"webcore\"] .oi-tabs": {
+    "gap": "0",
+    "align-items": "flex-end",
+    "border-bottom": "1px solid var(--wc-shadow)"
+   },
+   "|:root[data-skin=\"webcore\"] .coordinates-table": {
+    "background": "var(--wc-window)",
+    "box-shadow": "var(--wc-sunken)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .coordinates-table td": {
+    "border-color": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] .coordinates-table th": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .ctrl-section + .ctrl-section::before, :root[data-skin=\"webcore\"] .info-divider, :root[data-skin=\"webcore\"] .sel-sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "1px 0 var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .ctrl-section-label, :root[data-skin=\"webcore\"] .selection-label, :root[data-skin=\"webcore\"] label": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .ctrl-section-row :is(label, span)[style*=\"--text-muted\"]": {
+    "color": "var(--wc-ink) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .ctx-assist-sizer:hover::before, :root[data-skin=\"webcore\"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before": {
+    "height": "2px",
+    "background": "var(--wc-focus)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .ctx-hotkey": {
+    "background": "none",
+    "box-shadow": "none",
+    "border": "0",
+    "padding-left": "10px"
+   },
+   "|:root[data-skin=\"webcore\"] .ctx-item::after, :root[data-skin=\"webcore\"] .oi-color::after, :root[data-skin=\"webcore\"] .shimmer::after, :root[data-skin=\"webcore\"] .vs-color::after": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .ctx-sep": {
+    "background": "var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "height": "1px",
+    "margin": "3px 1px"
+   },
+   "|:root[data-skin=\"webcore\"] .ctx-sub-label, :root[data-skin=\"webcore\"] .info-group-title, :root[data-skin=\"webcore\"] .vs-section": {
+    "color": "var(--wc-ink)",
+    "letter-spacing": "0",
+    "text-transform": "none",
+    "font-weight": "700"
+   },
+   "|:root[data-skin=\"webcore\"] .empty-message": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .exp-calendar, :root[data-skin=\"webcore\"] .meta-body, :root[data-skin=\"webcore\"] .settings-body, :root[data-skin=\"webcore\"] .settings-footer": {
+    "background": "var(--wc-face)",
+    "border-color": "var(--wc-shadow)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .hotkey-head": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .hotkey-head, :root[data-skin=\"webcore\"] .hotkey-row, :root[data-skin=\"webcore\"] .info-item, :root[data-skin=\"webcore\"] .vs-row": {
+    "border-color": "var(--wc-light)",
+    "background": "transparent"
+   },
+   "|:root[data-skin=\"webcore\"] .hotkey-row:hover, :root[data-skin=\"webcore\"] .info-item:hover": {
+    "background": "var(--wc-light)"
+   },
+   "|:root[data-skin=\"webcore\"] .hotkey-table .tip-key, :root[data-skin=\"webcore\"] .info-key .tip-key, :root[data-skin=\"webcore\"] .shortcut-hint, :root[data-skin=\"webcore\"] .tip-key": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] .icm-spun :is(.ic, .draw-mode-icon)": {
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .idle-create-btn": {
+    "padding": "10px 18px"
+   },
+   "|:root[data-skin=\"webcore\"] .idle-create-btn:hover .idle-create-icon": {
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .image-missing-banner, :root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-fail, :root[data-skin=\"webcore\"] .notify-toast.notify-info, :root[data-skin=\"webcore\"] .notify-toast.notify-shine": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "border": "0",
+    "box-shadow": "var(--wc-raised)",
+    "padding": "23px 12px 8px 8px",
+    "position": "relative",
+    "flex-wrap": "nowrap",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .incognito-frame .ig-edge": {
+    "background": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] .info": {
+    "border-top": "1px solid var(--wc-hilight)",
+    "border-bottom": "1px solid var(--wc-shadow)",
+    "box-shadow": "0 1px var(--wc-hilight)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .info-incognito": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .is-disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] :is(button, select, a, [role=\"button\"]):disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"] :is(.ic, .draw-mode-icon)": {
+    "filter": "grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] .is-disabled, :root[data-skin=\"webcore\"] :is(button, select, input, textarea):disabled, :root[data-skin=\"webcore\"] :is(label, .vs-row, .hotkey-row, .ctrl-section-label):has(> :disabled), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"], :root[data-skin=\"webcore\"] button.primary:disabled": {
+    "background": "var(--wc-face)",
+    "color": "var(--disabled-text)",
+    "text-shadow": "1px 1px var(--wc-hilight) !important",
+    "box-shadow": "var(--wc-raised)",
+    "opacity": "1",
+    "cursor": "not-allowed"
+   },
+   "|:root[data-skin=\"webcore\"] .is-loading .ic, :root[data-skin=\"webcore\"] .swapping > svg": {
+    "animation": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] .links-preview-wrap, :root[data-skin=\"webcore\"] .project-thumb, :root[data-skin=\"webcore\"] .project-thumb img": {
+    "border": "1px solid var(--wc-dark)",
+    "box-shadow": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .logo-stage": {
+    "background": "rgba(0, 0, 0, 0.5)"
+   },
+   "|:root[data-skin=\"webcore\"] .mm-icon": {
+    "shape-rendering": "crispEdges"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast .notify-icon": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .notify-toast::before": {
+    "content": "\"\"",
+    "position": "absolute",
+    "left": "3px",
+    "right": "3px",
+    "top": "3px",
+    "height": "15px",
+    "background": "var(--wc-title)"
+   },
+   "|:root[data-skin=\"webcore\"] .project-row:hover .project-thumb img": {
+    "transform": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .script-editor-wrap:focus-within, :root[data-skin=\"webcore\"] .script-editor-wrap:hover, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):focus, :root[data-skin=\"webcore\"] select:focus, :root[data-skin=\"webcore\"] select:hover:not(:disabled), :root[data-skin=\"webcore\"] textarea:focus": {
+    "box-shadow": "var(--wc-sunken)",
+    "outline": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .settings-footer": {
+    "border-top": "1px solid var(--wc-shadow)",
+    "box-shadow": "inset 0 1px var(--wc-hilight)"
+   },
+   "|:root[data-skin=\"webcore\"] .swap-ghost": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] .tip-bullets li, :root[data-skin=\"webcore\"] .tip-desc, :root[data-skin=\"webcore\"] .tip-hint, :root[data-skin=\"webcore\"] .tip-line, :root[data-skin=\"webcore\"] .tip-note, :root[data-skin=\"webcore\"] .tip-term, :root[data-skin=\"webcore\"] .tip-title": {
+    "color": "var(--wc-tip-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .toast-glow": {
+    "display": "none"
+   },
+   "|:root[data-skin=\"webcore\"] ::selection": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :focus-visible": {
+    "outline": "1px dotted var(--wc-ink)",
+    "outline-offset": "-3px"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover), .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)) :is(.accent-dd-name, .ctx-label, span)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt[aria-selected=\"true\"], .zoom-menu-item.active) :is(.accent-dd-name, .ctx-label, span)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected)": {
+    "background": "var(--wc-select) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon)": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div, .lines-label)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-highlighted:not(.row-focused), .lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected), .connect-row:hover:not(.connect-selected))": {
+    "background": "var(--wc-light) !important",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt):hover .tip-key": {
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt):hover .tip-plus": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover :is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span)": {
+    "color": "var(--wc-on-select)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, #install-menu [role=\"menuitem\"]:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)": {
+    "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.del-pt-btn, .lines-row .btn-icon)": {
+    "min-width": "20px",
+    "min-height": "18px",
+    "padding": "0"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.ic, .draw-mode-icon) rect": {
+    "stroke": "none"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.panel-resizer, #fs-panel-resizer):is(:hover, .dragging)::before": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.script-input, .script-highlight, code, pre)": {
+    "font-family": "'Menlo', 'Consolas', monospace !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .ctx-item *, .accent-dd-opt, .accent-dd-opt *, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default, .idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn, .coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text)": {
+    "transform": "none !important"
+   },
+   "|:root[data-skin=\"webcore\"] :is(button, select):disabled:hover": {
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled": {
+    "background": "var(--wc-face)",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important"
+   },
+   "|:root[data-skin=\"webcore\"] a": {
+    "color": "var(--wc-link)"
+   },
+   "|:root[data-skin=\"webcore\"] button.danger, :root[data-skin=\"webcore\"] button.danger:hover:not(:disabled)": {
+    "background": "var(--wc-face)",
+    "color": "var(--wc-ink)",
+    "box-shadow": "var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] button.primary, :root[data-skin=\"webcore\"] button[type=\"submit\"]": {
+    "box-shadow": "0 0 0 1px var(--wc-dark), var(--wc-raised)"
+   },
+   "|:root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):hover:not(:disabled):not(:focus)": {
+    "box-shadow": "inset 0 0 0 2px var(--wc-focus) !important",
+    "border-color": "transparent !important",
+    "background-image": "none",
+    "animation": "none"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "width": "13px",
+    "height": "13px",
+    "appearance": "none",
+    "margin": "0 4px 0 0",
+    "background": "var(--wc-window)",
+    "border": "0",
+    "box-shadow": "var(--wc-sunken)",
+    "accent-color": "var(--wc-ink)",
+    "vertical-align": "-2px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked": {
+    "background": "var(--wc-window) var(--accent-tick) center / 13px no-repeat",
+    "box-shadow": "var(--wc-sunken)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]": {
+    "box-shadow": "var(--wc-raised)",
+    "background": "var(--wc-face)",
+    "border": "0",
+    "padding": "3px"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]::-webkit-color-swatch": {
+    "border": "1px solid var(--wc-dark)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]": {
+    "border-radius": "50% !important"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked": {
+    "background": "radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px)"
+   },
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]": {
+    "accent-color": "var(--wc-select)"
+   },
+   "|:root[data-skin=\"webcore\"] select": {
+    "appearance": "none",
+    "padding-right": "22px",
+    "background-image": "linear-gradient(var(--wc-face), var(--wc-face))",
+    "background-size": "16px calc(100% - 4px)",
+    "background-position": "right 2px top 2px",
+    "background-repeat": "no-repeat"
+   },
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover": {
+    "background": "color-mix(in srgb, var(--wc-focus) 30%, transparent)"
+   },
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
+    "background": "var(--wc-desktop)",
+    "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]": {
+    "--wc-face": "#3c3c3c",
+    "--wc-shadow": "#1c1c1c",
+    "--wc-dark": "#000000",
+    "--wc-light": "#555555",
+    "--wc-hilight": "#7a7a7a",
+    "--wc-title-a": "#000040",
+    "--wc-title-b": "#0a4a7a",
+    "--wc-title-ink": "#ffffff",
+    "--wc-desktop": "#004040",
+    "--wc-window": "#202020",
+    "--wc-ink": "#e0e0e0",
+    "--wc-muted": "#9a9a9a",
+    "--wc-select": "#000080",
+    "--wc-on-select": "#ffffff",
+    "--wc-tip-bg": "#24240f",
+    "--wc-tip-ink": "#ffffe1",
+    "--wc-link": "#6a8cff",
+    "--wc-focus": "#7aa2ff",
+    "--accent-tick": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E\")",
+    "--danger": "#ff6060",
+    "--danger-2": "#ff8080",
+    "--success": "#40c040",
+    "--success-cta": "#2a8a2a",
+    "--warning": "#d0d040",
+    "--disabled-text": "var(--wc-muted)",
+    "--dust-accent-2": "color-mix(in srgb, var(--wc-focus) 78%, white)",
+    "--dust-accent-alt": "color-mix(in srgb, var(--wc-focus) 30%, #ffffff)",
+    "--resizer-grip": "var(--wc-ink)"
+   },
+   "|@property --chat-size": {
+    "syntax": "'*'",
+    "inherits": "false"
+   },
    "|@property --dissolve": {
     "syntax": "\"<number>\"",
     "inherits": "false",
@@ -7690,7 +8491,7 @@
    },
    "|body": {
     "font-family": "Arial, sans-serif",
-    "padding": "20px 10px",
+    "padding": "0",
     "background": "var(--bg-page)",
     "color": "var(--text-main)",
     "transition": "background 0.3s, color 0.3s, padding 0.51s ease",
@@ -7708,7 +8509,18 @@
     "margin-bottom": "8px"
    },
    "|body.controls-collapsed .info": {
-    "display": "none"
+    "height": "0",
+    "min-height": "0",
+    "padding-block": "0",
+    "opacity": "0",
+    "visibility": "hidden",
+    "transition": "height var(--fold-out-ms) var(--fold-ease), min-height var(--fold-out-ms) var(--fold-ease), padding var(--fold-out-ms) var(--fold-ease), opacity var(--fold-fade-ms) var(--fold-ease), visibility 0s linear var(--fold-out-ms)"
+   },
+   "|body.controls-collapsed :is(.controls-topbar, .controls-wrapper)": {
+    "transition": "margin var(--fold-out-ms) var(--fold-ease)"
+   },
+   "|body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport": {
+    "transition": "margin-top var(--fold-out-ms) var(--fold-ease)"
    },
    "|body.fullscreen-mode": {
     "padding": "0",
@@ -7809,6 +8621,9 @@
    "|body:has(stencil-chat-panel.chat-closing)": {
     "transition": "background 0.3s, color 0.3s, padding 0.39s ease"
    },
+   "|body:has(stencil-chat-panel.chat-gesturing)": {
+    "transition": "background 0.3s, color 0.3s"
+   },
    "|body:has(stencil-chat-panel.chat-open) #install-host": {
     "z-index": "89999"
    },
@@ -7820,6 +8635,9 @@
    },
    "|body:not(.canvas-empty):not(.canvas-readonly) .canvas-viewport, body:not(.canvas-empty):not(.canvas-readonly) canvas": {
     "cursor": "crosshair"
+   },
+   "|body:not(.fullscreen-mode) .canvas-viewport": {
+    "transition": "margin-top var(--fold-ms) var(--fold-ease)"
    },
    "|body:not(.fullscreen-mode) .canvas-viewport.flip-active": {
     "position": "relative",
@@ -8363,10 +9181,12 @@
    "|input[type=\"color\"]::-webkit-color-swatch-wrapper",
    "|input[type=\"color\"]::-webkit-color-swatch",
    "|.empty-message",
+   "|.coordinates-table:has(.empty-message) thead",
    "|.controls",
    "|.ctrl-section-label",
    "|.ctrl-section",
    "|.ctrl-section-row",
+   "|#compare-mode + label",
    "|.ctrl-section-row .btn-icon .ic, .ctrl-section-row .btn-icon-text .ic",
    "|.ctrl-section + .ctrl-section::before",
    "|.ctrl-section.ctrl-sep-wrapped::before",
@@ -8425,19 +9245,22 @@
    "|.coord-tab",
    "|.coord-tab:hover",
    "|.coord-tab-active",
-   "|.lines-list",
-   "|.lines-empty",
+   "|.lines-table",
    "|.lines-row",
    "|.lines-row:hover",
    "|.lines-row-hover:not(.lines-row-selected)",
-   "|.lines-row-selected",
+   "|.lines-row-selected td",
+   "|.lines-row-selected td:first-child",
+   "|.lines-row-selected td:last-child",
+   "|.lines-swatch-cell",
+   "|.lines-count-cell",
    "|.lines-swatch",
    "|.lines-label",
-   "|.lines-remove",
-   "|.lines-remove:hover",
+   "|.lines-remove-cell",
    "|.coordinates-table",
    "|.coordinates-table td, .coordinates-table th",
    "|.coordinates-table th",
+   "|.coordinates-table td:first-child, .coordinates-table th:first-child",
    "|.coordinates-table tr:nth-child(even)",
    "|.coordinates-table tbody tr:hover",
    "|.coordinates-table tbody tr.row-highlighted",
@@ -8593,6 +9416,7 @@
    "|.notify-toast.notify-clickable:hover",
    "|.logo-stage",
    "|.logo-stage canvas",
+   "|.logo-stage canvas, body:not(.canvas-empty):not(.canvas-readonly) .logo-stage canvas",
    "|body.logo-stage-open #notify-balloon",
    "|.toast-glow",
    "|.notify-toast.notify-shine",
@@ -8693,8 +9517,8 @@
    "|.app-modal-overlay",
    "|.app-modal-overlay.modal-open",
    "|:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover)",
-   "|.app-modal-overlay:not(.modal-popover) .settings-header",
-   "|.app-modal.modal-dragging .settings-header",
+   "|:is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header",
+   "|:is(.app-modal, #settings-modal).modal-dragging .settings-header",
    "|.app-modal.modal-dragging",
    "|[data-edge], [data-edge] .settings-header",
    "|.modal-resizing",
@@ -9119,6 +9943,7 @@
    "|.exp-swatch",
    "|.exp-swatch-today",
    "|.exp-swatch-expiry",
+   "|@property --chat-size",
    "|stencil-chat-panel",
    "|stencil-chat-panel.chat-open",
    "|stencil-chat-panel.chat-dock-left",
@@ -9278,6 +10103,7 @@
    "|body:has(stencil-chat-panel.chat-open) #install-host",
    "|body.fullscreen-mode stencil-chat-panel",
    "|body",
+   "|body:has(stencil-chat-panel.chat-gesturing)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top)",
@@ -9598,6 +10424,8 @@
    "@keyframes logoRaysShimmer|0%, 100%",
    "@keyframes logoRaysShimmer|50%",
    "|.app-logo-wrap.logo-hover::before",
+   "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover .app-logo",
+   "|:root[data-motion=\"none\"] .app-logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap.logo-hover .app-logo",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap::before",
    "|.icm-spun :is(.ic, .draw-mode-icon)",
@@ -9719,6 +10547,10 @@
    "|.hotkey-table tr td",
    "|.info-item",
    "|.info-item:hover",
+   "@keyframes idleCardArrive|from",
+   "@keyframes idleCardArrive|to",
+   "|.idle-create.idle-arriving .idle-create-btn",
+   "@media (prefers-reduced-motion: reduce)|.idle-create.idle-arriving .idle-create-btn",
    "|.idle-create-btn",
    "|.idle-create-btn:hover",
    "|.idle-create-icon",
@@ -9788,6 +10620,12 @@
    "|#controls-body > *",
    "|#controls-body.hidden > *",
    "|#controls-body.hidden",
+   "|.info",
+   "|body.controls-collapsed .info",
+   "|.controls-topbar, .controls-wrapper",
+   "|body:not(.fullscreen-mode) .canvas-viewport",
+   "|body.controls-collapsed :is(.controls-topbar, .controls-wrapper)",
+   "|body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport",
    "|#toggle-controls .ic, #toggle-coord-panel .ic",
    "|.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
    "|.coordinates-panel",
@@ -9796,7 +10634,7 @@
    "|.coordinates-panel.coord-collapsed #coord-body, .coordinates-panel.coord-collapsed .coord-tabs",
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs",
    "@starting-style|.coordinates-panel:not(.coord-collapsed) #coord-body, .coordinates-panel:not(.coord-collapsed) .coord-tabs",
-   "@media (prefers-reduced-motion: reduce)|#controls-body, #controls-body.hidden, #coord-body, #toggle-controls .ic, #toggle-coord-panel .ic, .coord-tabs, .coordinates-panel",
+   "@media (prefers-reduced-motion: reduce)|#controls-body, #controls-body.hidden, #coord-body, #toggle-controls .ic, #toggle-coord-panel .ic, .canvas-viewport, .controls-topbar, .controls-wrapper, .coord-tabs, .coordinates-panel, .info",
    "|#controls-body.fold-instant, #controls-body.fold-instant > *, .coordinates-panel.fold-instant, .coordinates-panel.fold-instant #coord-body, .coordinates-panel.fold-instant .coord-tabs",
    "|@property --dissolve",
    "|.reveal-item",
@@ -9931,7 +10769,150 @@
    "@keyframes mmDust|from",
    "@keyframes mmDust|to",
    "|.cs-cur-icon, .cs-opt-icon",
-   "|.cs-cur-icon:empty"
+   "|.cs-cur-icon:empty",
+   "|:root[data-skin=\"webcore\"]",
+   "|:root[data-skin=\"webcore\"][data-theme=\"dark\"]",
+   "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body",
+   "|:root[data-skin=\"webcore\"] *, :root[data-skin=\"webcore\"] *::after, :root[data-skin=\"webcore\"] *::before",
+   "|:root[data-skin=\"webcore\"] :is(.script-input, .script-highlight, code, pre)",
+   "|:root[data-skin=\"webcore\"] ::selection",
+   "|:root[data-skin=\"webcore\"] :focus-visible",
+   "|:root[data-skin=\"webcore\"] a",
+   "|:root[data-skin=\"webcore\"] #selection-panel, :root[data-skin=\"webcore\"] .container, :root[data-skin=\"webcore\"] .controls, :root[data-skin=\"webcore\"] .controls-wrapper, :root[data-skin=\"webcore\"] .coordinates-panel, :root[data-skin=\"webcore\"] .info, :root[data-skin=\"webcore\"] .selection-panel-inner",
+   "|:root[data-skin=\"webcore\"] .container",
+   "|:root[data-skin=\"webcore\"] .ctrl-section + .ctrl-section::before, :root[data-skin=\"webcore\"] .info-divider, :root[data-skin=\"webcore\"] .sel-sep",
+   "|:root[data-skin=\"webcore\"] .ctrl-section-label, :root[data-skin=\"webcore\"] .selection-label, :root[data-skin=\"webcore\"] label",
+   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #install-toggle, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button",
+   "|:root[data-skin=\"webcore\"] button.primary, :root[data-skin=\"webcore\"] button[type=\"submit\"]",
+   "|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] #chat-btn.active, :root[data-skin=\"webcore\"] #draw-toggle.active:not(:disabled), :root[data-skin=\"webcore\"] #fullscreen-toggle.active, :root[data-skin=\"webcore\"] #incognito-toggle.active, :root[data-skin=\"webcore\"] #voice-chat-btn.active, :root[data-skin=\"webcore\"] .chat-dock-btn-active, :root[data-skin=\"webcore\"] .coord-tab-active, :root[data-skin=\"webcore\"] .oi-tab.is-active, :root[data-skin=\"webcore\"] .pill-toggle.on, :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn):active:not(:disabled), :root[data-skin=\"webcore\"] button.active",
+   "|:root[data-skin=\"webcore\"] button.danger, :root[data-skin=\"webcore\"] button.danger:hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] .is-disabled, :root[data-skin=\"webcore\"] :is(button, select, input, textarea):disabled, :root[data-skin=\"webcore\"] :is(label, .vs-row, .hotkey-row, .ctrl-section-label):has(> :disabled), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"], :root[data-skin=\"webcore\"] button.primary:disabled",
+   "|:root[data-skin=\"webcore\"] :is(input, textarea):disabled",
+   "|:root[data-skin=\"webcore\"] :is(button, select):disabled:hover",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] .accent-dd-caret",
+   "|:root[data-skin=\"webcore\"] #chat-input, :root[data-skin=\"webcore\"] #ctx-assist-input, :root[data-skin=\"webcore\"] #zoom-input, :root[data-skin=\"webcore\"] .chat-input-wrap, :root[data-skin=\"webcore\"] .coord-px-input, :root[data-skin=\"webcore\"] .kw-add input, :root[data-skin=\"webcore\"] .modal-search, :root[data-skin=\"webcore\"] .script-editor-wrap, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select, :root[data-skin=\"webcore\"] textarea",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):not([type=\"range\"]), :root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] .accent-dd-trigger",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] .script-editor-wrap:focus-within, :root[data-skin=\"webcore\"] .script-editor-wrap:hover, :root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):focus, :root[data-skin=\"webcore\"] select:focus, :root[data-skin=\"webcore\"] select:hover:not(:disabled), :root[data-skin=\"webcore\"] textarea:focus",
+   "|:root[data-skin=\"webcore\"] input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"color\"]):hover:not(:disabled):not(:focus)",
+   "|:root[data-skin=\"webcore\"] #zoom-input",
+   "|:root[data-skin=\"webcore\"] select",
+   "|:root[data-skin=\"webcore\"] #project-name-input, :root[data-skin=\"webcore\"] #project-name-input:disabled, :root[data-skin=\"webcore\"] #project-name-input:read-only",
+   "|:root[data-skin=\"webcore\"] #project-name-input:not(:read-only), :root[data-skin=\"webcore\"] #project-name-input:not(:read-only):focus",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"color\"]::-webkit-color-swatch",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"], :root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"checkbox\"]:checked",
+   "|:root[data-skin=\"webcore\"] :is(input[type=\"checkbox\"], input[type=\"radio\"]):hover:not(:disabled)",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]",
+   "|:root[data-skin=\"webcore\"] input[type=\"radio\"]:checked",
+   "|:root[data-skin=\"webcore\"] input[type=\"range\"]",
+   "|:root[data-skin=\"webcore\"] *",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-corner, :root[data-skin=\"webcore\"] *::-webkit-scrollbar-track",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] *::-webkit-scrollbar-thumb:hover, :root[data-skin=\"webcore\"] .sb-hover::-webkit-scrollbar-thumb",
+   "|:root[data-skin=\"webcore\"] .canvas-sb",
+   "|:root[data-skin=\"webcore\"] .canvas-sb-thumb",
+   "|:root[data-skin=\"webcore\"] .canvas-sb.canvas-sb-drag .canvas-sb-thumb, :root[data-skin=\"webcore\"] .canvas-sb:hover .canvas-sb-thumb",
+   "|:root[data-skin=\"webcore\"] .canvas-viewport",
+   "|:root[data-skin=\"webcore\"] .canvas-section",
+   "|:root[data-skin=\"webcore\"] .info",
+   "|:root[data-skin=\"webcore\"] .canvas-container",
+   "|:root[data-skin=\"webcore\"] .canvas-viewport:is(.canvas-assembling, .canvas-clearing) .canvas-container",
+   "|:root[data-skin=\"webcore\"] .info-incognito",
+   "|:root[data-skin=\"webcore\"] .coord-status, :root[data-skin=\"webcore\"] .drop-hint",
+   "|:root[data-skin=\"webcore\"] .empty-message",
+   "|:root[data-skin=\"webcore\"] .idle-create-btn",
+   "|:root[data-skin=\"webcore\"] .idle-create-btn:hover .idle-create-icon",
+   "|:root[data-skin=\"webcore\"] .ctrl-section-row :is(label, span)[style*=\"--text-muted\"]",
+   "|:root[data-skin=\"webcore\"] .coordinates-table",
+   "|:root[data-skin=\"webcore\"] .coordinates-table th",
+   "|:root[data-skin=\"webcore\"] .coordinates-table td",
+   "|:root[data-skin=\"webcore\"] :is(.del-pt-btn, .lines-row .btn-icon)",
+   "|:root[data-skin=\"webcore\"] .connect-row.connect-selected, :root[data-skin=\"webcore\"] .coordinates-table tbody tr.row-focused, :root[data-skin=\"webcore\"] .lines-row-selected, :root[data-skin=\"webcore\"] .project-row.project-selected",
+   "|:root[data-skin=\"webcore\"] .coord-tabs, :root[data-skin=\"webcore\"] .oi-tabs",
+   "|:root[data-skin=\"webcore\"] .coord-tab, :root[data-skin=\"webcore\"] .oi-tab",
+   "|:root[data-skin=\"webcore\"] .coord-tab.coord-tab-active, :root[data-skin=\"webcore\"] .oi-tab.is-active",
+   "|:root[data-skin=\"webcore\"] #fs-panel-resizer::before, :root[data-skin=\"webcore\"] .panel-resizer::before",
+   "|:root[data-skin=\"webcore\"] :is(.panel-resizer, #fs-panel-resizer):is(:hover, .dragging)::before",
+   "|:root[data-skin=\"webcore\"] #chat-backdrop, :root[data-skin=\"webcore\"] .app-modal-overlay",
+   "|:root[data-skin=\"webcore\"] #settings-modal, :root[data-skin=\"webcore\"] .app-modal, :root[data-skin=\"webcore\"] .exp-modal, :root[data-skin=\"webcore\"] .script-modal",
+   "|:root[data-skin=\"webcore\"] .app-modal-overlay:not(.modal-popover) .settings-header, :root[data-skin=\"webcore\"] .app-modal.modal-dragging .settings-header, :root[data-skin=\"webcore\"] .chat-header, :root[data-skin=\"webcore\"] .settings-header",
+   "|:root[data-skin=\"webcore\"] .chat-title, :root[data-skin=\"webcore\"] .chat-title-text, :root[data-skin=\"webcore\"] .settings-header .ic, :root[data-skin=\"webcore\"] .settings-header h2",
+   "|:root[data-skin=\"webcore\"] #settings-close, :root[data-skin=\"webcore\"] .app-modal-close, :root[data-skin=\"webcore\"] .chat-hbtn",
+   "|:root[data-skin=\"webcore\"] #settings-close:hover, :root[data-skin=\"webcore\"] .app-modal-close:hover, :root[data-skin=\"webcore\"] .chat-hbtn:hover",
+   "|:root[data-skin=\"webcore\"] .exp-calendar, :root[data-skin=\"webcore\"] .meta-body, :root[data-skin=\"webcore\"] .settings-body, :root[data-skin=\"webcore\"] .settings-footer",
+   "|:root[data-skin=\"webcore\"] .settings-footer",
+   "|:root[data-skin=\"webcore\"] .ctx-sub-label, :root[data-skin=\"webcore\"] .info-group-title, :root[data-skin=\"webcore\"] .vs-section",
+   "|:root[data-skin=\"webcore\"] .hotkey-head, :root[data-skin=\"webcore\"] .hotkey-row, :root[data-skin=\"webcore\"] .info-item, :root[data-skin=\"webcore\"] .vs-row",
+   "|:root[data-skin=\"webcore\"] .hotkey-head",
+   "|:root[data-skin=\"webcore\"] .hotkey-row:hover, :root[data-skin=\"webcore\"] .info-item:hover",
+   "|:root[data-skin=\"webcore\"] .chat-attach-chip, :root[data-skin=\"webcore\"] .kw-chip, :root[data-skin=\"webcore\"] .kw-chips",
+   "|:root[data-skin=\"webcore\"] .connect-row, :root[data-skin=\"webcore\"] .project-row",
+   "|:root[data-skin=\"webcore\"] .links-preview-wrap, :root[data-skin=\"webcore\"] .project-thumb, :root[data-skin=\"webcore\"] .project-thumb img",
+   "|:root[data-skin=\"webcore\"] .project-row:hover .project-thumb img",
+   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] #install-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu",
+   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"], :root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item",
+   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"]:hover, :root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover",
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover :is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt[aria-selected=\"true\"], :root[data-skin=\"webcore\"] .zoom-menu-item.active",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt[aria-selected=\"true\"], .zoom-menu-item.active) :is(.accent-dd-name, .ctx-label, span)",
+   "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover), :root[data-skin=\"webcore\"] .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)",
+   "|:root[data-skin=\"webcore\"] :is(.accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover), .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)) :is(.accent-dd-name, .ctx-label, span)",
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt):hover .tip-key",
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt):hover .tip-plus",
+   "|:root[data-skin=\"webcore\"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .ctx-item *, .accent-dd-opt, .accent-dd-opt *, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default, .idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn, .coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text)",
+   "|:root[data-skin=\"webcore\"] .ctx-sep",
+   "|:root[data-skin=\"webcore\"] .ctx-item::after, :root[data-skin=\"webcore\"] .oi-color::after, :root[data-skin=\"webcore\"] .shimmer::after, :root[data-skin=\"webcore\"] .vs-color::after",
+   "|:root[data-skin=\"webcore\"] .chat-row-menu-item.is-danger, :root[data-skin=\"webcore\"] .project-menu-item.is-danger",
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-highlighted:not(.row-focused), .lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected), .connect-row:hover:not(.connect-selected))",
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected)",
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div, .lines-label)",
+   "|:root[data-skin=\"webcore\"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected, .project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon)",
+   "|:root[data-skin=\"webcore\"] #app-tooltip, :root[data-skin=\"webcore\"] .chat-status-tip, :root[data-skin=\"webcore\"] .ctx-preview-tip, :root[data-skin=\"webcore\"] .tooltip",
+   "|:root[data-skin=\"webcore\"] .tip-bullets li, :root[data-skin=\"webcore\"] .tip-desc, :root[data-skin=\"webcore\"] .tip-hint, :root[data-skin=\"webcore\"] .tip-line, :root[data-skin=\"webcore\"] .tip-note, :root[data-skin=\"webcore\"] .tip-term, :root[data-skin=\"webcore\"] .tip-title",
+   "|:root[data-skin=\"webcore\"] .hotkey-table .tip-key, :root[data-skin=\"webcore\"] .info-key .tip-key, :root[data-skin=\"webcore\"] .shortcut-hint, :root[data-skin=\"webcore\"] .tip-key",
+   "|:root[data-skin=\"webcore\"] .ctx-hotkey",
+   "|:root[data-skin=\"webcore\"] .image-missing-banner, :root[data-skin=\"webcore\"] .notify-toast, :root[data-skin=\"webcore\"] .notify-toast.notify-fail, :root[data-skin=\"webcore\"] .notify-toast.notify-info, :root[data-skin=\"webcore\"] .notify-toast.notify-shine",
+   "|:root[data-skin=\"webcore\"] .notify-toast::before",
+   "|:root[data-skin=\"webcore\"] .notify-toast .notify-icon",
+   "|:root[data-skin=\"webcore\"] .toast-glow",
+   "|:root[data-skin=\"webcore\"] .chat-transcript, :root[data-skin=\"webcore\"] .ctx-assist, :root[data-skin=\"webcore\"] stencil-chat-panel",
+   "|:root[data-skin=\"webcore\"] .chat-ask, :root[data-skin=\"webcore\"] .chat-error-card, :root[data-skin=\"webcore\"] .chat-msg, :root[data-skin=\"webcore\"] .chat-msg-assistant, :root[data-skin=\"webcore\"] .chat-msg-error, :root[data-skin=\"webcore\"] .chat-msg-user",
+   "|:root[data-skin=\"webcore\"] .chat-msg-user",
+   "|:root[data-skin=\"webcore\"] .chat-msg::after, :root[data-skin=\"webcore\"] .chat-msg::before",
+   "|:root[data-skin=\"webcore\"] .chat-ask-submit, :root[data-skin=\"webcore\"] .chat-config-cta, :root[data-skin=\"webcore\"] .chat-reconnect-cta, :root[data-skin=\"webcore\"] .chat-retry-cta, :root[data-skin=\"webcore\"] .chat-suggest",
+   "|:root[data-skin=\"webcore\"] .chat-float-handle::before",
+   "|:root[data-skin=\"webcore\"] .chat-float-handle.dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before",
+   "|:root[data-skin=\"webcore\"] .chat-dock-float .chat-resizer::before, :root[data-skin=\"webcore\"] :is(.chat-float-handle-nw, .chat-float-handle-ne, .chat-float-handle-sw)::before",
+   "|:root[data-skin=\"webcore\"] .chat-input-row",
+   "|:root[data-skin=\"webcore\"] .chat-input-sizer::before, :root[data-skin=\"webcore\"] .ctx-assist-sizer::before",
+   "|:root[data-skin=\"webcore\"] .ctx-assist-sizer:hover::before, :root[data-skin=\"webcore\"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before",
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover",
+   "|:root[data-skin=\"webcore\"] .incognito-frame .ig-edge",
+   "|:root[data-skin=\"webcore\"] .logo-stage",
+   "|:root[data-skin=\"webcore\"] .canvas-viewport.remote-editing",
+   "|:root[data-skin=\"webcore\"] .connect-admin-badge, :root[data-skin=\"webcore\"] .project-current-badge, :root[data-skin=\"webcore\"] .project-file-badge, :root[data-skin=\"webcore\"] .project-local-badge, :root[data-skin=\"webcore\"] .project-remote-badge",
+   "|:root[data-skin=\"webcore\"] .conn-status",
+   "|:root[data-skin=\"webcore\"] .app-logo, :root[data-skin=\"webcore\"] .draw-mode-icon, :root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap:not(.logo-hover) .app-logo, :root[data-skin=\"webcore\"] .draw-mode-icon, :root[data-skin=\"webcore\"] .ic",
+   "|:root[data-skin=\"webcore\"] .app-logo *, :root[data-skin=\"webcore\"] .draw-mode-icon *, :root[data-skin=\"webcore\"] .ic *",
+   "|:root[data-skin=\"webcore\"] .app-logo",
+   "|:root[data-skin=\"webcore\"] .app-logo-frame",
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap.logo-hover .app-logo",
+   "|:root[data-skin=\"webcore\"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, :root[data-skin=\"webcore\"] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
+   "|:root[data-skin=\"webcore\"] .is-loading .ic, :root[data-skin=\"webcore\"] .swapping > svg",
+   "|:root[data-skin=\"webcore\"] .swap-ghost",
+   "|:root[data-skin=\"webcore\"] .icm-spun :is(.ic, .draw-mode-icon)",
+   "|:root[data-skin=\"webcore\"] .mm-icon",
+   "|:root[data-skin=\"webcore\"] :is(.ic, .draw-mode-icon) rect",
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, #install-menu [role=\"menuitem\"]:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)",
+   "|:root[data-skin=\"webcore\"] .is-disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] :is(button, select, a, [role=\"button\"]):disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"] :is(.ic, .draw-mode-icon)"
   ]
  }
 }

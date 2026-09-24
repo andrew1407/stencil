@@ -114,6 +114,7 @@ class MainWindowGuiTest : public QObject {
   // The chat dock SLIDES: docked left, its WIDTH animates 0 → natural and back. Afterwards the
   // min==max pinning is released so the dock stays resizable and a reopen keeps its extent.
   void chatDockSlideAnimation() {
+    const auto motion = withMotion();   // `none` (the suite's default) is a plain show/hide
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
     win.show();

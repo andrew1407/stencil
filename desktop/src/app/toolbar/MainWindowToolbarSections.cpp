@@ -28,6 +28,7 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTimer>
+#include <QFont>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -49,7 +50,11 @@ namespace stencil::gui {
     auto* label = new QLabel(title.toUpper(), section);
     label->setObjectName("sectionLabel");
     // Colour comes from the theme sheet (QLabel#sectionLabel) so it re-themes on a swap.
-    label->setStyleSheet("font-size:9px;font-weight:700;letter-spacing:0.6px;");
+    // 9.5px as points (QSS px is whole); QSS has no letter-spacing, so the font carries the 0.8px.
+    label->setStyleSheet(QString("font-size:%1pt;font-weight:700;").arg(9.5 * 72.0 / label->logicalDpiY()));
+    QFont caps = label->font();
+    caps.setLetterSpacing(QFont::AbsoluteSpacing, 0.8);
+    label->setFont(caps);
     label->setAlignment(Qt::AlignLeft);   // left-aligned header, matching the browser sections
     // Fixed, or the QVBoxLayout hands spare height to the caption and pushes the controls down.
     label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
@@ -71,7 +76,6 @@ namespace stencil::gui {
     const auto wirePopover = [this](QToolButton* btn, QAction* a) {
       if (!a || !pop.dialogActions.contains(a)) return;
       pop.buttons.insert(btn, a);
-      btn->installEventFilter(this);
       btn->setContextMenuPolicy(Qt::CustomContextMenu);
       connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
         if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included

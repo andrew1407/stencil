@@ -1,6 +1,7 @@
 #include "iconSet.hpp"
 
 #include "LruCache.hpp"
+#include "skinPrefs.hpp"
 #include <algorithm>
 #include <QApplication>
 #include <QGuiApplication>
@@ -48,8 +49,18 @@ namespace stencil::gui {
       return t;
     }
 
-    // QSvgRenderer can't resolve the browser's `currentColor`.
+    // A skin's art comes first: a complete document, colour baked in, or empty to fall through.
+    QString activeMarkup(const QString& name) {
+      if (const support::IconFn skin = support::skinIcon()) {
+        const QString doc = skin(name);
+        if (!doc.isEmpty()) return doc;
+      }
+      return iconTable().value(name);
+    }
+
+    // QSvgRenderer can't resolve the browser's `currentColor`; a whole document passes as it is.
     QString svgDoc(const QString& inner, const QString& hex) {
+      if (inner.startsWith(QLatin1String("<svg"))) return inner;
       QString resolved = inner;
       resolved.replace("currentColor", hex);
       return QString(
@@ -67,7 +78,7 @@ namespace stencil::gui {
 
   bool hasIcon(const QString& name) { return iconTable().contains(name); }
 
-  QString iconMarkup(const QString& name) { return iconTable().value(name); }
+  QString iconMarkup(const QString& name) { return activeMarkup(name); }
 
   QString iconSvgDocument(const QString& inner, const QColor& color) {
     return svgDoc(inner, color.name());
@@ -86,6 +97,16 @@ namespace stencil::gui {
       const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
       return c.isValid() ? c : QColor("#8a8f98");
     }
+
+    // The glyph's own shape in one flat colour; `art` is at device pixels (dpr 1).
+    QPixmap silhouette(const QPixmap& art, const QColor& c) {
+      QPixmap out = art;
+      QPainter p(&out);
+      p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+      p.fillRect(out.rect(), c);
+      p.end();
+      return out;
+    }
   }  // namespace
 
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size,
@@ -101,7 +122,15 @@ namespace stencil::gui {
     const QRectF glyphBox(0, 0, size * dpr, size * dpr);
     QPainter painter(&pm);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    renderer.render(&painter, glyphBox);
+    if (!inner.contains(QLatin1String("crispEdges"))) renderer.render(&painter, glyphBox);
+    else {   // QSvgRenderer always antialiases: pixel art paints on a whole multiple of its grid,
+      // scaled nearest-neighbour — the browser's shape-rendering: crispEdges.
+      const int grid = std::max(1, renderer.viewBox().width()), k = std::max(1, (int(size * dpr) + grid - 1) / grid);
+      QImage art(QSize(grid, grid) * k, QImage::Format_ARGB32_Premultiplied);
+      art.fill(Qt::transparent);
+      { QPainter ap(&art); renderer.render(&ap); }
+      painter.drawImage(glyphBox, art.scaled(glyphBox.size().toSize(), Qt::IgnoreAspectRatio, Qt::FastTransformation));
+    }
     painter.end();
     pm.setDevicePixelRatio(dpr);
 
@@ -111,7 +140,17 @@ namespace stencil::gui {
     // does; fading left a light theme's dark glyph a ghost on the pale chip.
     QPixmap off(pm.size());
     off.fill(Qt::transparent);
-    {
+    const bool baked = inner.startsWith(QLatin1String("<svg"));
+    QPixmap art = pm;
+    art.setDevicePixelRatio(1.0);
+    const int devPx = qMax(1, qRound(dpr));
+    if (baked) {
+      // A baked colour cannot be re-inked, so a dead glyph takes Win95's relief: a white cast
+      // under a grey silhouette. A faded blit of it read as a smudge.
+      QPainter dp(&off);
+      dp.drawPixmap(QPoint(devPx, devPx), silhouette(art, QColor(Qt::white)));
+      dp.drawPixmap(QPoint(0, 0), silhouette(art, mutedInk()));
+    } else {
       QSvgRenderer dim(svgDoc(inner, mutedInk().name()).toUtf8());
       QPainter dp(&off);
       dp.setRenderHint(QPainter::Antialiasing, true);
@@ -119,12 +158,27 @@ namespace stencil::gui {
     }
     off.setDevicePixelRatio(dpr);
     icon.addPixmap(off, QIcon::Disabled);
+    // A menu's highlight is the navy bar, and pixel art with its colour baked in cannot follow it:
+    // a dark glyph vanished into it. Qt draws a highlighted item's icon in Active, so that mode
+    // carries the same one-pixel light halo the browser gives it (css/webcore/icons.css).
+    if (baked && support::isWebcore()) {
+      const QPixmap lit = silhouette(art, QColor(Qt::white));
+      QPixmap hot(pm.size());
+      hot.fill(Qt::transparent);
+      QPainter hp(&hot);
+      for (const QPoint& at : {QPoint(devPx, 0), QPoint(-devPx, 0), QPoint(0, devPx), QPoint(0, -devPx)})
+        hp.drawPixmap(at, lit);
+      hp.drawPixmap(QPoint(0, 0), art);
+      hp.end();
+      hot.setDevicePixelRatio(dpr);
+      icon.addPixmap(hot, QIcon::Active);
+    }
     return icon;
   }
 
   QIcon themedIcon(const QString& name, const QColor& color, int size,
                    qreal dprIn, int gap) {
-    const QString inner = iconTable().value(name);
+    const QString inner = activeMarkup(name);
     if (inner.isEmpty()) return QIcon();
 
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
@@ -133,7 +187,8 @@ namespace stencil::gui {
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
                         + '@' + QString::number(dpr)
                         + (gap > 0 ? "|g" + QString::number(gap) : QString())
-                        + '/' + mutedInk().name();   // …the disabled glyph's ink moves with the theme
+                        + '/' + mutedInk().name()    // …the disabled glyph's ink moves with the theme
+                        + '#' + QString::number(support::skinGeneration());   // …and a skin swaps the art
     if (const QIcon* hit = cache.find(key)) return *hit;
 
     const QIcon icon = iconFromMarkup(inner, color, size, dpr, true, gap);
@@ -146,7 +201,7 @@ namespace stencil::gui {
   QIcon rotatedIcon(const QString& name, const QColor& color, int size, qreal degrees,
                     qreal dprIn) {
     if (qFuzzyIsNull(degrees)) return themedIcon(name, color, size, dprIn);
-    const QString inner = iconTable().value(name);
+    const QString inner = activeMarkup(name);
     if (inner.isEmpty()) return QIcon();
 
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);

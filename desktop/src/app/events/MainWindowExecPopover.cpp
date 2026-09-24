@@ -93,6 +93,7 @@ namespace stencil::gui {
       }
     }
     pop.active = &dlg;
+    pop.openAnchor = anchor;
     pop.overlay = overlay;
     // Alt-GLIDE: the modal loop blocks Enter/hover events, so a poll watches the cursor.
     QTimer glide;
@@ -167,6 +168,7 @@ namespace stencil::gui {
     if (!ended) loop.exec();
     glide.stop();
     pop.active.clear();
+    pop.openAnchor.clear();
     pop.overlay.clear();
     const int result = alive ? alive->result() : int(QDialog::Rejected);
     // The dialog is a stack object — never leave it parented to the overlay about to be deleted.

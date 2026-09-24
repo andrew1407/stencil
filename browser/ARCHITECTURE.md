@@ -43,8 +43,8 @@ left; `tests/layerBoundary.test.js` enforces it.
 | Path | Holds | Rule |
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
-| `css/` | `theme.css`, then `layout/`, `components/` (+ `chat/`), `animations/` | one file per section; tokens live in `theme.css` and are mirrored in `js/config/themeTokens.json` |
-| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `logoStage`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
+| `css/` | `theme.css`, then `layout/`, `components/` (+ `chat/`), `animations/`, and last `webcore/`, the session skin | one file per section; tokens live in `theme.css` and are mirrored in `js/config/themeTokens.json`; a skin's tokens sit in its own `tokens.css` and are mirrored in `js/config/webcore.json` |
+| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `logoStage`, `webcore` + `iconsWebcore`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
 | `js/config/script/fixtures/` | `cases.txt`, the `.stc` corpus: every case as a section of source, canonical dump and expected diagnostics | plain text, never JSON — `core/` has no JSON parser and reads this same file; a case named `err-*` must produce an error |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
 | `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
@@ -53,7 +53,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 | `js/net/` | the fetch guard, abortable fetch, the connection store + manager, remote sync | every fetch goes through `fetchGuard.js` here |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the one shared chat session | validates every plan against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; every mutation routes through the same core methods the toolbar uses |
-| `js/ui/` | string-returning components composed by `layout()`, one folder per region — `shell/` the frame, `canvas/` the stage and its pointers, `panel/` the side panels, `settings/`, plus `bindings/` wiring controls to the app and `motion/` + `dust/` | components return strings and emit on the bus — never reach into `net/` or `llm/` |
+| `js/ui/` | string-returning components composed by `layout()`, one folder per region — `shell/` the frame, `canvas/` the stage and its pointers, `panel/` the side panels, `settings/`, plus `bindings/` wiring controls to the app, `motion/` + `dust/`, and `webcore/`, the session skin | components return strings and emit on the bus — never reach into `net/` or `llm/` |
 | `js/worker/` | the cross-tab projects sync worker | message constants shared with the app |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
 | `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build |
@@ -147,7 +147,9 @@ classDiagram
 | Adapter | `llm/adapters/{dialog,editor,media,project}.js` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js` | Each translates an outside request into the same app methods the toolbar uses |
 | State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm twin via `coreHandles.js` |
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), a recursive-descent evaluator over both axes and the named constants of `core/parse/formulaContext.js` | Port of `core/parse/formulaParser.cpp`; never `eval` |
+| Session override | `setMotionOverride` in `ui/motion/motionPrefs.js`, `setIconSkin` in `ui/icons.js`, `setFaviconArt` in `core/settings/accents.js` — the layers `ui/webcore/toggle.js` lays over the stored prefs | Read by everything, written to no store; the user's next choice through the ordinary setter lifts the motion one whole |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | Port of `core/script/`; the parser never touches the editor and the runner never re-parses, so the language has one implementation and the browser only adds a target. Deliberately outside `llm/`: an op plan's caps guard model output, not the user's own script |
+| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A double-click on a select (or its custom trigger) or a checkbox sets its default and fires `change`, so the control's own handler applies it; the default is `DEFAULTS` by id (read from `createEditorState`, `motionPrefs`, the LLM defaults), else `data-default`, else the markup's. Rows with a dblclick of their own are skipped |
 
 ## Design
 
@@ -216,7 +218,14 @@ classDiagram
   the whole window painting the mark, its light (`stagePaint.js`, the `logoHover.css`
   keyframes at stage scale) and its cloud (`stageCloud.js`, over the shared grain kit); while
   it is up a capture-phase listener swallows the keyboard except Escape, so the editor is inert
-  until it closes. `motionReduced()` keeps the stage and drops every loop.
+  until it closes. A show is asked for, so no motion setting stops its loops. The webcore show
+  is a toggle, not a stage: `ui/webcore/toggle.js` lays the session overrides down — motion
+  none and still lines, `<html data-skin="webcore">` for `css/webcore/`, the pixel table from
+  `config/iconsWebcore.json` installed in `ui/icons.js` and swapped into every glyph on the
+  page — and on an empty editor `scene.js` reopens the local project named by the skin, or
+  else leaves incognito, loads the picture `ui/webcore/image.js` paints from
+  `config/webcore.json` under the name that becomes the project's, and installs the word as one
+  `installLayout` step; the same word lifts every override again.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.
@@ -241,6 +250,8 @@ classDiagram
 5. **Typed boundary.** Every public module has a sibling `.d.ts`.
 6. **Motion is decoration.** Every particle cloud is one canvas (`cloud.js`); never a
    DOM node per grain. The OS `prefers-reduced-motion` wins over every setting.
+   A skin is a session override: it stamps `<html>` and lays motion, icon and favicon overrides
+   over the stored preferences, and writes no store, so a reload wears the user's own look.
 7. **Storage split.** Image-heavy project payloads live in IndexedDB; the small registry
    (names, thumbnails, expiry) in `localStorage`. Chat persistence is opt-in, text only,
    never in incognito.

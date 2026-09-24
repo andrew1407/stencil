@@ -135,6 +135,7 @@ namespace stencil::gui {
     });
     const auto jumpTo = [this](bool top) {
       auto* sb = scroll->verticalScrollBar();
+      if (support::motionReduced()) { sb->setValue(top ? 0 : sb->maximum()); return; }
       auto* anim = new QVariantAnimation(sb);
       anim->setDuration(220);
       anim->setStartValue(sb->value());

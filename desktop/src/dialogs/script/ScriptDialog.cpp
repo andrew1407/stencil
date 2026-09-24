@@ -79,6 +79,7 @@ namespace stencil::gui {
     downloadBtn = new QPushButton(tr("Download"), this);
     makeModalCta(downloadBtn, QStringLiteral("file-down"));
     downloadBtn->setAutoDefault(false);
+    downloadBtn->setToolTip(tr("Download this script as stencil.stc"));
     bar->addWidget(downloadBtn);
 
     auto* uploadBtn = new QPushButton(tr("Upload"), this);
@@ -89,7 +90,7 @@ namespace stencil::gui {
     // At the far end, in the shared danger red: Clear throws work away, so it sits clear of
     // everything the cursor passes on its way to Run.
     clearBtn = new QPushButton(tr("Clear"), this);
-    clearBtn->setToolTip(tr("Empty the script editor"));
+    clearBtn->setToolTip(tr("Clear this script from the editor"));
     makeModalDanger(clearBtn, QStringLiteral("trash"));
     clearBtn->setAutoDefault(false);
     bar->addWidget(clearBtn);

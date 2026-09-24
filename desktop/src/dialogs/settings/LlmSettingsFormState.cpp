@@ -1,3 +1,4 @@
+#include "../../support/skinPrefs.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "LlmSettingsForm.hpp"
@@ -109,8 +110,9 @@ namespace stencil::gui {
   // Paint the status row: the dot carries the state colour, the text stays the
   // muted .chat-server-status type (browser #chat-server-status-row).
   void LlmSettingsForm::setStatus(const char* color, const QString& text) {
-    statusDot->setText(QStringLiteral("<span style=\"color:%1;\">●</span>")
-                            .arg(QLatin1String(color)));
+    // Under the skin the lamp is square (browser webcore/windows.css .conn-status).
+    statusDot->setText(QStringLiteral("<span style=\"color:%1;\">%2</span>")
+                            .arg(QLatin1String(color), support::isWebcore() ? QStringLiteral("■") : QStringLiteral("●")));
     status->setText(text);
   }
 

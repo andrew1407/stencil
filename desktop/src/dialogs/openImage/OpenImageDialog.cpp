@@ -1,3 +1,4 @@
+#include "../../support/control/dblReset.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
@@ -81,10 +82,16 @@ namespace stencil::gui {
     // is connected — setServerTargets fills it.
     target = new SearchComboBox(this, /*searchable=*/false);
     target->setObjectName(QStringLiteral("openImageTarget"));
+    support::setResetDefault(target, 0);   // "here, locally"
     target->setToolTip("Open here locally or create on a connected server");
     targetRow = vsRow(this, tr("Save to"), target);
     targetRow->setVisible(false);
     layout->addWidget(targetRow);
+
+    // What a double-click restores (browser openImage/modal.js onOpen, cropRows.js).
+    support::setResetDefault(incognito, false);
+    support::setResetDefault(cropPage, false);
+    support::setResetDefault(cropPageSize, QStringLiteral("page"));
 
     // Replace options: only shown on the Local file tab over a replaceable project.
     // The two checks stack (browser .oi-replace wraps them onto their own lines).
@@ -92,6 +99,8 @@ namespace stencil::gui {
     if (this->canReplace) {
       rename = new QCheckBox("Rename project to the new image", this);
       keep = new QCheckBox("Keep existing annotations", this);
+      support::setResetDefault(rename, false);
+      support::setResetDefault(keep, true);
       keep->setChecked(true);
       auto* checks = new QVBoxLayout;
       checks->setContentsMargins(0, 0, 0, 0);

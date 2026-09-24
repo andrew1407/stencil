@@ -6,6 +6,7 @@
 #include <QLatin1String>
 #include <QString>
 #include <QtGlobal>
+#include <optional>
 
 namespace stencil::support {
 
@@ -16,19 +17,25 @@ namespace stencil::support {
   // Browser dust/cloud.js PARTICLE_STYLES.
   enum class ParticleStyle { DUST, WATER, FIRE };
 
+  // The three switches together, so a skin can lay its own set over the stored ones.
+  struct MotionSwitches {
+    MotionMode mode = MotionMode::PARTICLES;
+    bool drawing = true;
+    bool backdrop = true;   // browser list/prefs.js DEFAULT_MODAL_BACKDROP
+  };
+
   namespace detail {
     // One instance per program (C++17 inline-function statics); GUI thread only.
-    inline MotionMode& motionModeState() {
-      static MotionMode mode = MotionMode::PARTICLES;
-      return mode;
+    inline MotionSwitches& storedState() {
+      static MotionSwitches s;
+      return s;
     }
-    inline bool& drawingAnimationsState() {
-      static bool on = true;
-      return on;
+    inline std::optional<MotionSwitches>& overrideState() {
+      static std::optional<MotionSwitches> o;
+      return o;
     }
-    inline bool& modalBackdropState() {
-      static bool on = true;   // browser list/prefs.js DEFAULT_MODAL_BACKDROP
-      return on;
+    inline const MotionSwitches& live() {
+      return overrideState() ? *overrideState() : storedState();
     }
     // Pushed by MainWindow::applyTheme; violet and its shade until then.
     inline QColor& particleAccentState() {
@@ -46,8 +53,14 @@ namespace stencil::support {
     }
   }  // namespace detail
 
-  inline MotionMode motionMode() { return detail::motionModeState(); }
-  inline void setMotionMode(MotionMode mode) { detail::motionModeState() = mode; }
+  inline MotionMode motionMode() { return detail::live().mode; }
+  inline void setMotionMode(MotionMode mode) { detail::storedState().mode = mode; }
+
+  // A session layer over the stored switches (support/skinPrefs.hpp), written to no file.
+  // Browser twin: motionPrefs.js setMotionOverride.
+  inline void setMotionOverride(const MotionSwitches& s) { detail::overrideState() = s; }
+  inline void clearMotionOverride() { detail::overrideState().reset(); }
+  inline bool motionOverridden() { return detail::overrideState().has_value(); }
 
   // Browser MOTION_MODES. An unknown key reads as Particles, so another build's file is never silent.
   inline MotionMode motionModeFromKey(const QString& key) {
@@ -78,13 +91,13 @@ namespace stencil::support {
   inline bool isParticleDark() { return detail::particleDarkState(); }
 
   // The canvas stroke motion (canvas/strokeGrowth.hpp), switchable on its own.
-  inline bool drawingAnimations() { return detail::drawingAnimationsState(); }
-  inline void setDrawingAnimations(bool on) { detail::drawingAnimationsState() = on; }
+  inline bool drawingAnimations() { return detail::live().drawing; }
+  inline void setDrawingAnimations(bool on) { detail::storedState().drawing = on; }
 
   // Whether an open window dims and blurs what is behind it (support/ModalBackdrop).
   // Browser twin: list/prefs.js modalBackdrop().
-  inline bool modalBackdrop() { return detail::modalBackdropState(); }
-  inline void setModalBackdrop(bool on) { detail::modalBackdropState() = on; }
+  inline bool modalBackdrop() { return detail::live().backdrop; }
+  inline void setModalBackdrop(bool on) { detail::storedState().backdrop = on; }
 
   // Qt has no portable reduce-motion hint; this env var is the opt-out that overrides the mode.
   inline bool motionReduced() {
@@ -101,13 +114,26 @@ namespace stencil::support {
   }
 
   // Dust for any mode that flies none — callers ask isDustAllowed() first.
-  inline ParticleStyle particleStyle() {
-    switch (motionMode()) {
+  inline ParticleStyle particleStyleOf(MotionMode mode) {
+    switch (mode) {
       case MotionMode::WATER: return ParticleStyle::WATER;
       case MotionMode::FIRE: return ParticleStyle::FIRE;
       default: return ParticleStyle::DUST;
     }
   }
+  inline ParticleStyle particleStyle() { return particleStyleOf(motionMode()); }
+
+  // A logo show is ASKED for, so no setting of the user's silences it: it plays whatever the
+  // interface is set to, wearing their own style or dust. Only the test switch stills it.
+  inline MotionMode storedMotionMode() { return detail::storedState().mode; }
+  inline bool showMotionReduced() { return !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM"); }
+  // …but 'slide' and 'none' in force, a session override included, get the mark and its light,
+  // never a cloud. Browser twin: motionPrefs.js showDustAllowed().
+  inline bool showDustAllowed() {
+    const MotionMode m = motionMode();
+    return m != MotionMode::SLIDE && m != MotionMode::NONE && !showMotionReduced();
+  }
+  inline ParticleStyle showParticleStyle() { return particleStyleOf(motionMode()); }
 
   // isDustAllowed() plus the offscreen platform (no compositor; the gui tests run there).
   inline bool isDustMotionOk() {

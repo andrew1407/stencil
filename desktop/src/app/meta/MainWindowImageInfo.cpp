@@ -10,6 +10,8 @@
 #include "CanvasWidget.hpp"
 #include <QScrollArea>
 #include "guiHelpers.hpp"
+#include "../../support/skinPrefs.hpp"
+#include "../../support/webcore/icons.hpp"
 #include "SearchCombo.hpp"
 #include "ControlsPill.hpp"
 #include "iconSet.hpp"
@@ -35,6 +37,15 @@
 // The "Image Size" bar, the fullscreen glyph and the header logo mark.
 
 namespace stencil::gui {
+
+  // A muted grey reads as disabled on the skin's face, so there the line takes the window's ink.
+  void MainWindow::restyleImageSizeInfo() {
+    if (!imageSizeInfo) return;
+    const QString ink = support::isWebcore()
+                            ? themePalette(paintedDark, settings.accentColor).textMain.name()
+                            : QStringLiteral("#9aa0a8");
+    imageSizeInfo->setStyleSheet(QStringLiteral("color:%1;").arg(ink));
+  }
 
   // Hold the row at the TALLER of its two labels (the badge's glyph line runs ~2px over the size
   // text), so which of them is up never decides the row. Twin-measured; cached until font/theme changes.
@@ -132,6 +143,14 @@ namespace stencil::gui {
 
   // Mini S-mark logo, a QPainter port of the browser's app-logo SVG (toolbar.js); only the frame tracks the accent.
   QPixmap MainWindow::makeLogoPixmap(int size) const {
+    // Under a skin the mark is the skin's own (support/webcore); only its ring takes the accent,
+    // as the frame below does.
+    if (support::isWebcore()) {
+      const qreal r = qMax(devicePixelRatioF(), 2.0);
+      QColor ring = accentPrimary(settings.accentColor);
+      if (!ring.isValid()) ring = QColor(DEFAULT_ACCENT_HEX);
+      return iconFromMarkup(support::pixelLogoSvg(ring), ring, size, r).pixmap(QSize(size, size), r);
+    }
     // At LEAST 2x: devicePixelRatioF() often reports 1 before the window is on its Retina screen, and a 1x pixmap in a 2x button draws at HALF size.
     const qreal dpr = qMax(devicePixelRatioF(), 2.0);
     QPixmap pm(qRound(size * dpr), qRound(size * dpr));

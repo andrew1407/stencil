@@ -2,6 +2,7 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
+#include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "theme.hpp"
 #include "chatWidgets.hpp"
 
@@ -87,8 +88,9 @@ namespace stencil::gui {
       fadeOutAndDelete(w);
     }
     clearAttachments();
-    // Rows out first, THEN the placeholder (browser chat/view.js restoreEmptyState).
-    if (wiped) {
+    // Rows out first, THEN the placeholder (browser chat/view.js restoreEmptyState) — and
+    // only while something is actually falling in front of it (browser wipeDurationMs).
+    if (wiped && support::isDustAllowed()) {
       // A hair past the scatter's duration; the overlay deletes itself on finish.
       QTimer::singleShot(DisintegrateOverlay::ITEM_MS + 60, this, [this] {
         // A turn may have started while the wipe played.

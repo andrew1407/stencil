@@ -57,7 +57,7 @@
   const TINT_SHARE = 0.34;
   // Two follow the theme (lib/theme/palette.css): a white speck is invisible on a pale surface.
   const TINT_CSS = ['var(--dust-ink, #1f1f1f)', '#b4b4b4', '#6e6e6e',
-                  'color-mix(in srgb, var(--accent) 55%, #ffffff)',
+                  'color-mix(in srgb, var(--dust-accent, var(--accent)) 55%, #ffffff)',
                   'var(--dust-accent-alt, #442082)'];
   const TINT_STOPS = TINT_CSS.length;
   const tintOf = function (w) {
@@ -146,7 +146,7 @@
   const paletteCss = function () {
     const out = []; let i;
     for (i = 0; i < PALETTE_STOPS; i++)
-      out.push('color-mix(in srgb, var(--accent) ' + Math.round(100 - (100 * i) / (PALETTE_STOPS - 1)) + '%, var(--accent-2))');
+      out.push('color-mix(in srgb, var(--dust-accent, var(--accent)) ' + Math.round(100 - (100 * i) / (PALETTE_STOPS - 1)) + '%, var(--dust-accent-2, var(--accent-2)))');
     for (i = 0; i < TINT_STOPS; i++) out.push(TINT_CSS[i]);
     return out;
   };

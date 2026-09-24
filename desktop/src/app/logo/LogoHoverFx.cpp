@@ -1,5 +1,4 @@
 #include "LogoHoverFx.hpp"
-#include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QEvent>
 #include <QPainter>
@@ -76,7 +75,7 @@ namespace stencil::gui {
     update();
   }
 
-  bool LogoHoverFx::active() const { return pulse->state() == QAbstractAnimation::Running; }
+  bool LogoHoverFx::active() const { return hovering; }
 
   bool LogoHoverFx::eventFilter(QObject* o, QEvent* e) {
     if (o == logo) {

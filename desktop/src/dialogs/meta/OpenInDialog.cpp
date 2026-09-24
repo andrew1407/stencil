@@ -1,3 +1,4 @@
+#include "../../support/control/dblReset.hpp"
 #include "OpenInDialog.hpp"
 #include "deepLink.hpp"
 #include "iconSet.hpp"
@@ -52,6 +53,7 @@ namespace stencil::gui {
     // Row: incognito on the RECEIVING side (Stencil's own never-persisted mode).
     auto* incogLbl = new QLabel(tr("Incognito"), this);
     incognito = new QCheckBox(tr("Open it there without saving (Stencil incognito mode)."), this);
+    support::setResetDefault(incognito, false);
     incognito->setChecked(startIncognito);
     rows->addWidget(incogLbl, 3, 0);
     rows->addWidget(incognito, 3, 1);

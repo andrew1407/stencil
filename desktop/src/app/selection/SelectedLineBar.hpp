@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "models.hpp"
 #include <QColor>
 #include <QString>
@@ -45,6 +46,13 @@ namespace stencil::gui {
     QPushButton* unchainBtn = nullptr;
     QFrame* fillSep = nullptr;   // the hairline that introduces the fill group
     void refitHeight();
+    // SelectedLineBarAlpha.cpp: a well's 0-255 box, and the three boxes re-read from the colours.
+    QSpinBox* alphaBox(QPushButton* well, QColor& current, const QString& what,
+                       std::function<void(const QString&)> send);
+    void syncAlpha();
+    QSpinBox* lineAlpha = nullptr;
+    QSpinBox* pointAlpha = nullptr;
+    QSpinBox* fillAlpha = nullptr;
     QPushButton* colorSwatch = nullptr;
     QPushButton* pointColorSwatch = nullptr;
     QSpinBox* thickness = nullptr;

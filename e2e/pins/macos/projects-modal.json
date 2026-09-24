@@ -190,10 +190,10 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "padding": "0px 18px 6px",
+        "padding": "4px 18px",
         "gap": "8px",
         "width": "558px",
-        "height": "40px",
+        "height": "42px",
         "align-items": "center"
       }
     },
@@ -462,9 +462,9 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "padding": "14px 18px",
+        "padding": "6px 18px 14px",
         "width": "558px",
-        "height": "357px"
+        "height": "355px"
       }
     },
     {

@@ -1,0 +1,131 @@
+/* The webcore skin's tokens: the Win95 palette as --wc-* (the source js/config/webcore.json
+   `tokens` is pinned against, tests/config/webcore.test.js), and the app's own tokens
+   re-pointed at it. The desktop reads the same table as webcorePalette. */
+:root[data-skin="webcore"] {
+    --wc-face:      #c0c0c0;
+    --wc-shadow:    #808080;
+    --wc-dark:      #000000;
+    --wc-light:     #dfdfdf;
+    --wc-hilight:   #ffffff;
+    --wc-title-a:   #000080;
+    --wc-title-b:   #1084d0;
+    --wc-title-ink: #ffffff;
+    --wc-desktop:   #008080;
+    --wc-window:    #ffffff;
+    --wc-ink:       #000000;
+    --wc-muted:     #808080;
+    --wc-select:    #000080;
+    --wc-on-select: #ffffff;
+    --wc-tip-bg:    #ffffe1;
+    --wc-tip-ink:   #000000;
+    --wc-link:      #0000ff;
+    --wc-focus:     #000080;
+    /* The raised and the sunken box: outer white/black, inner light/shadow. */
+    --wc-raised: inset -1px -1px var(--wc-dark), inset 1px 1px var(--wc-hilight),
+                 inset -2px -2px var(--wc-shadow), inset 2px 2px var(--wc-light);
+    --wc-sunken: inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight),
+                 inset 2px 2px var(--wc-dark), inset -2px -2px var(--wc-light);
+    --wc-well:   inset 1px 1px var(--wc-shadow), inset -1px -1px var(--wc-hilight);
+    --wc-title:  linear-gradient(90deg, var(--wc-title-a), var(--wc-title-b));
+    /* Tahoma before Microsoft Sans Serif: the latter has no bold face on macOS, so bold read as regular. */
+    --wc-font:   "MS Sans Serif", Tahoma, "Microsoft Sans Serif", Verdana, Arial, sans-serif;
+
+    --accent:         var(--wc-select);
+    --accent-2:       var(--wc-title-b);
+    --on-accent:      var(--wc-on-select);
+    --dust-ink:       var(--wc-ink);
+    /* The particles keep the chosen colour (toggle.js paints it into --wc-focus), not the navy. */
+    --dust-accent:    var(--wc-focus);
+    --dust-accent-2:  color-mix(in srgb, var(--wc-focus) 86%, black);
+    --dust-accent-alt: color-mix(in srgb, var(--wc-focus) 55%, #000000);
+    --accent-tick:    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23000000'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E");
+    --bg-page:        var(--wc-desktop);
+    --bg-container:   var(--wc-face);
+    --bg-controls:    var(--wc-face);
+    --bg-info:        var(--wc-face);
+    --bg-coord-panel: var(--wc-face);
+    --bg-coord-table: var(--wc-window);
+    --bg-coord-even:  var(--wc-window);
+    --bg-coord-hover: var(--wc-light);
+    --bg-coord-th:    var(--wc-select);
+    --bg-tooltip:     var(--wc-tip-bg);
+    --bg-tt-th:       var(--wc-face);
+    --bg-tt-td:       var(--wc-tip-bg);
+    --bg-sel-panel:   var(--wc-face);
+    --bg-drop-hint:   var(--wc-face);
+    --bg-keywords:    var(--wc-window);
+    --border-main:    var(--wc-shadow);
+    --border-canvas:  var(--wc-shadow);
+    --border-coord:   var(--wc-shadow);
+    --border-tooltip: var(--wc-dark);
+    --border-sel:     var(--wc-shadow);
+    --bg-sel-btn:     var(--wc-face);
+    --bg-sel-btn-hov: var(--wc-light);
+    --text-sel-btn:   var(--wc-ink);
+    --border-hint:    var(--wc-shadow);
+    --text-main:      var(--wc-ink);
+    --text-label:     var(--wc-ink);
+    --text-muted:     var(--wc-muted);
+    --section-title:  var(--wc-ink);
+    --ui-outline:     var(--wc-shadow);
+    --text-info:      var(--wc-ink);
+    --text-coord-h3:  var(--wc-ink);
+    --text-sel-label: var(--wc-ink);
+    --text-shortcut:  var(--wc-muted);
+    /* The chosen accent, as the default theme's --accent-2 is: --wc-link is a fixed blue and
+       followed no theme at all. (toggle.js paints --wc-focus with the preset.) */
+    --text-key:       var(--wc-focus);
+    --text-empty:     var(--wc-muted);
+    --project-name-fg:     var(--wc-ink);
+    --project-name-shadow: none;
+    --text-tooltip:   var(--wc-tip-ink);
+    --text-tt-header: var(--wc-tip-ink);
+    --input-bg:       var(--wc-window);
+    --input-text:     var(--wc-ink);
+    --shadow:         transparent;
+    --danger:         #800000;
+    --danger-2:       #a00000;
+    --success:        #008000;
+    --success-cta:    #008000;
+    --warning:        #808000;
+    --disabled-bg:    var(--wc-face);
+    --disabled-text:  var(--wc-shadow);
+    --sb-track:       var(--wc-light);
+    --sb-thumb:       var(--wc-face);
+    --sb-thumb-hover:  var(--wc-face);
+    --sb-thumb-active: var(--wc-face);
+    --resizer-grip: var(--wc-shadow);   /* a resizer's bar */
+}
+
+:root[data-skin="webcore"][data-theme="dark"] {
+    --wc-face:      #3c3c3c;
+    --wc-shadow:    #1c1c1c;
+    --wc-dark:      #000000;
+    --wc-light:     #555555;
+    --wc-hilight:   #7a7a7a;
+    --wc-title-a:   #000040;
+    --wc-title-b:   #0a4a7a;
+    --wc-title-ink: #ffffff;
+    --wc-desktop:   #004040;
+    --wc-window:    #202020;
+    --wc-ink:       #e0e0e0;
+    --wc-muted:     #9a9a9a;
+    --wc-select:    #000080;
+    --wc-on-select: #ffffff;
+    --wc-tip-bg:    #24240f;
+    --wc-tip-ink:   #ffffe1;
+    --wc-link:      #6a8cff;
+    --wc-focus:     #7aa2ff;
+    --accent-tick:    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2012%2012'%20shape-rendering='crispEdges'%20fill='%23e0e0e0'%3E%3Crect%20x='2'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='3'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='4'%20y='7'%20width='2'%20height='2'/%3E%3Crect%20x='5'%20y='6'%20width='2'%20height='2'/%3E%3Crect%20x='6'%20y='5'%20width='2'%20height='2'/%3E%3Crect%20x='7'%20y='4'%20width='2'%20height='2'/%3E%3Crect%20x='8'%20y='3'%20width='2'%20height='2'/%3E%3Crect%20x='9'%20y='2'%20width='2'%20height='2'/%3E%3C/svg%3E");
+    --danger:         #ff6060;
+    --danger-2:       #ff8080;
+    --success:        #40c040;
+    --success-cta:    #2a8a2a;
+    --warning:        #d0d040;
+    /* Greyed ink: --wc-shadow is the light face's, and #1c1c1c on #3c3c3c is unreadable. */
+    --disabled-text: var(--wc-muted);
+    --dust-accent-2:  color-mix(in srgb, var(--wc-focus) 78%, white);
+    --dust-accent-alt: color-mix(in srgb, var(--wc-focus) 30%, #ffffff);
+    /* The shadow is near-black on the dark face: a grip there reads light, as the default dark skin's. */
+    --resizer-grip: var(--wc-ink);
+}

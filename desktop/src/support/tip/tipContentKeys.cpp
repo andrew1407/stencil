@@ -2,6 +2,7 @@
 // case-SENSITIVE on purpose so an app verb never wears a cap. Qt rich text gives a span only a
 // background, so a cap is an <img> data URI drawn here.
 #include "tipContentParts.hpp"
+#include "../skinPrefs.hpp"
 #include <QBuffer>
 #include <QFontMetricsF>
 #include <QGuiApplication>
@@ -46,6 +47,29 @@ namespace stencil::gui {
       return MAP.value(key, key);
     }
 
+    // STATED, not grown off QToolTip::font(): that font is a different size on every platform
+    // (11pt here). Browser twin: components/tooltip.css .tip-key 14px, in either skin.
+    int capPx(qreal scale) { return qMax(1, qRound(14.0 * scale)); }
+
+    QColor orElse(const QColor& c, const QColor& fallback) { return c.isValid() ? c : fallback; }
+
+    // The raised box of css/webcore/tokens.css --wc-raised: white top-left, black bottom-right,
+    // light and shadow one pixel in (support/skinPrefs.hpp carries the four).
+    void paintBevel(QPainter& p, const QRectF& r, const Palette& pal) {
+      p.fillRect(r, pal.bgContainer);
+      const support::SkinBevel b = support::skinBevel();
+      const QPair<QColor, QColor> bands[2] = {
+          {orElse(b.hilight, Qt::white), orElse(b.dark, Qt::black)},
+          {orElse(b.light, pal.bgContainer), orElse(b.shadow, pal.borderMain)}};
+      for (int i = 0; i < 2; ++i) {
+        const QRectF band = r.adjusted(i, i, -i, -i);
+        p.fillRect(QRectF(band.left(), band.top(), band.width(), 1), bands[i].first);
+        p.fillRect(QRectF(band.left(), band.top(), 1, band.height()), bands[i].first);
+        p.fillRect(QRectF(band.left(), band.bottom() - 1, band.width(), 1), bands[i].second);
+        p.fillRect(QRectF(band.right() - 1, band.top(), 1, band.height()), bands[i].second);
+      }
+    }
+
     // PAINTED as an <img> data URI: Qt rich text gives a span only a background.
     // `joiner` = the "+" between caps: no face, muted, same picture so it centres.
     QString capHtml(const QString& label, const Palette& pal, bool joiner = false,
@@ -53,23 +77,25 @@ namespace stencil::gui {
       // Browser: 14px cap over 12px prose. `scale` < 1 is a table-cell cap (comboKeycapsHtml).
       QFont f = QToolTip::font();
       f.setBold(!joiner);
-      if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 1.15 * scale);
-      else f.setPixelSize(qMax(1, qRound(f.pixelSize() * 1.15 * scale)));
+      f.setPixelSize(capPx(scale));
 
       const QScreen* scr = QGuiApplication::primaryScreen();
       const qreal dpr = qBound(1.0, scr ? scr->devicePixelRatio() : 1.0, 3.0);
       const QString key = label + (joiner ? "|+|" : "|k|") + f.toString() + '|' +
                           QString::number(dpr) + '|' + QString::number(scale) + '|' +
+                          QString::number(support::skinGeneration()) + '|' +
                           pal.bgContainer.name(QColor::HexArgb) +   // a transparent face is a face
-                          pal.borderMain.name() + pal.textKey.name() + pal.textMuted.name();
+                          pal.borderMain.name() + pal.textKey.name() + pal.textMuted.name() +
+                          pal.textMain.name();
       static QHash<QString, QString> cache;
       const auto hit = cache.constFind(key);
       if (hit != cache.constEnd()) return *hit;
 
       const QFontMetricsF fm(f);
-      const qreal padX = 6 * scale, padY = 3 * scale, radius = 5, gapX = 3 * scale;
+      // The "+" carries 3px of air each side (browser .tip-plus margin), so caps read as ' + '.
+      const qreal padX = 6 * scale, padY = 3 * scale, radius = 5, gapX = 0.5 * scale, joinPad = 3 * scale;
       const qreal h = fm.height() + 2 * padY;
-      const qreal w = joiner ? fm.horizontalAdvance(label) + 2
+      const qreal w = joiner ? fm.horizontalAdvance(label) + 2 * joinPad
                              : qMax(fm.horizontalAdvance(label) + 2 * padX, h * 0.9);
 
       QImage img(qRound((w + 2 * gapX) * dpr), qRound(h * dpr), QImage::Format_ARGB32_Premultiplied);
@@ -80,7 +106,10 @@ namespace stencil::gui {
         p.setRenderHint(QPainter::TextAntialiasing);
         p.scale(dpr, dpr);
         const QRectF r(gapX, 0, w, h);
-        if (!joiner) {
+        if (!joiner && support::isWebcore()) {
+          p.setRenderHint(QPainter::Antialiasing, false);
+          paintBevel(p, r, pal);
+        } else if (!joiner) {
           p.setPen(Qt::NoPen);
           p.setBrush(pal.borderMain);
           p.drawRoundedRect(r, radius, radius);
@@ -94,7 +123,8 @@ namespace stencil::gui {
           p.setCompositionMode(QPainter::CompositionMode_SourceOver);
         }
         p.setFont(f);
-        p.setPen(joiner ? pal.textMuted : pal.textKey);
+        // The skin's cap carries the page ink; its own key colour is the link blue.
+        p.setPen(joiner ? pal.textMuted : (support::isWebcore() ? pal.textMain : pal.textKey));
         p.drawText(r.adjusted(0, 0, 0, joiner ? 0 : -1), Qt::AlignCenter, label);
       }
       QByteArray png;

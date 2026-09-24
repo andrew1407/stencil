@@ -1,6 +1,6 @@
 // The logo stage's table and the pure rules over it (config/logoStage.json).
 export type StageEffect = 'neon' | 'sun' | 'fire' | 'water' | 'dust' | 'shrink' | 'grow'
-  | 'follow' | 'escape' | 'pink' | 'fly';
+  | 'follow' | 'escape' | 'pink' | 'fly' | 'webcore';
 export type StageStyle = 'dust' | 'water' | 'fire';
 
 export interface StageShow {
@@ -39,6 +39,7 @@ export declare const SHOW_NAMES: readonly string[];
 /** The show names lower-cased: what the typed trigger listens for. */
 export declare const TYPED_WORDS: readonly string[];
 export declare const HOLD_MS: number;
+export declare const TYPE_GAP_MS: number;
 export declare const TOAST_TEXT: string;
 
 export declare const effectOf: (name: string) => StageEffect | null;

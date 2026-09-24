@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/skinPrefs.hpp"
 #include "RemoteSession.hpp"
 #include <QLineEdit>
 #include <QStyle>
@@ -77,13 +78,15 @@ namespace stencil::gui {
   QString MainWindow::incognitoTagHtml() const {
     const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
     const int glyphPx = std::max(12, QFontMetrics(imageSizeInfo->font()).height() - 2);
+    // The skin's accent is its navy, lost on the dark face: there the tag takes the bar's ink.
+    const QColor tagInk = support::isWebcore() ? pal.textMain : pal.accent;
     return QStringLiteral("<span style=\"color:%1;\">|</span>&nbsp;&nbsp;"
                           "%2<span style=\"color:%3;font-weight:700;vertical-align:middle;\">"
                           "&nbsp;Incognito &mdash; not saved</span>")
         .arg(pal.textMuted.name(),
-             inlineIconHtml("incognito", pal.accent, glyphPx,
+             inlineIconHtml("incognito", tagInk, glyphPx,
                             QStringLiteral("vertical-align:middle")),
-             pal.accent.name());
+             tagInk.name());
   }
 
   void MainWindow::updateProjectTitle() {

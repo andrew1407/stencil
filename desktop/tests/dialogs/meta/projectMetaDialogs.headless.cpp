@@ -59,6 +59,26 @@ static int execWith(QDialog& dlg, std::function<void()> act) {
   return dlg.exec();
 }
 
+// Hosted the way execMaybePopover hosts a compact popover: a plain child, capped at 420px wide.
+static QString clippedAsPopover(QDialog& dlg) {
+  QWidget overlay;
+  dlg.setParent(&overlay);
+  dlg.setWindowFlags(Qt::Widget);
+  dlg.setMinimumSize(0, 0);
+  dlg.setMaximumSize(420, 560);
+  dlg.setGeometry(0, 0, 420, qMin(560, dlg.sizeHint().height()));
+  overlay.resize(dlg.size());
+  overlay.show();
+  pumpFor(30);
+  QString clipped;
+  for (QWidget* w : dlg.findChildren<QWidget*>())
+    if (w->isVisible() && w->width() > 8 && w->mapTo(&dlg, QPoint(w->width(), 0)).x() > dlg.width() + 1)
+      clipped += QStringLiteral("%1(%2) ").arg(w->metaObject()->className(), w->objectName());
+  overlay.hide();
+  dlg.setParent(nullptr);
+  return clipped;
+}
+
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
   // An isolated store: apply() writes projects.json under the state dir.
@@ -121,6 +141,16 @@ int main(int argc, char** argv) {
     DescriptionDialog dlg("", &host);
     const int r = execWith(dlg, [&] { btnByText(&dlg, "Cancel")->click(); });
     check(r == QDialog::Rejected, "description: Cancel rejects");
+  }
+
+  // ── both fit the popover's 420px cap without clipping a row ──
+  {
+    DescriptionDialog desc("A note", nullptr);
+    const QString d = clippedAsPopover(desc);
+    check(d.isEmpty(), qPrintable("description: nothing clipped as a popover: " + d));
+    KeywordsDialog kw({"kitchen", "a rather long keyword", "plan"}, nullptr);
+    const QString k = clippedAsPopover(kw);
+    check(k.isEmpty(), qPrintable("keywords: nothing clipped as a popover: " + k));
   }
 
   // ── apply(): the store write, round-tripped through the file store ──

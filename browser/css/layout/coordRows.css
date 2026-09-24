@@ -7,6 +7,8 @@
     color: var(--text-main);
 }
 .coordinates-table th { background: var(--bg-coord-th); color: var(--on-accent); font-weight: bold; }
+/* One ordinal column on BOTH tabs, so the two grids sit on the same left edge as the tab flips. */
+.coordinates-table th:first-child, .coordinates-table td:first-child { width: 38px; }
 .coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
 .coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
 /* The ring is drawn inside the row (outline-offset), not around it: an outline sits
@@ -67,11 +69,11 @@
 }
 .coord-px-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 
-/* delete point btn */
+/* The delete bin, on both panel tabs: one glyph in one colour for a point and a line. */
 .del-pt-btn {
     background: transparent;
     border: none !important;
-    color: var(--danger);
+    color: var(--danger, #ef4444);
     cursor: pointer;
     font-size: 14px;
     padding: 0 3px;

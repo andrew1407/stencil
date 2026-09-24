@@ -22,6 +22,7 @@ namespace stencil::support {
       if (k == "escape") return StageEffect::ESCAPE;
       if (k == "pink") return StageEffect::PINK;
       if (k == "fly") return StageEffect::FLY;
+      if (k == "webcore") return StageEffect::WEBCORE;
       return StageEffect::NEON;
     }
 
@@ -36,6 +37,7 @@ namespace stencil::support {
       if (!f.open(QIODevice::ReadOnly)) return c;
       const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
       c.holdMs = root.value("holdMs").toInt(c.holdMs);
+      c.typeGapMs = root.value("typeGapMs").toInt(c.typeGapMs);
       c.toast = root.value("toast").toString();
       c.toastGold = root.value("toastGold").toString();
       c.toastInk = root.value("toastInk").toString();
@@ -135,6 +137,7 @@ namespace stencil::support {
     return out;
   }
 
+  // Two rows may share a colour, told apart by `motion` alone.
   QString resolveShow(const QString& accentKey, MotionMode mode) {
     const LogoStageConfig& cfg = logoStageConfig();
     if (accentKey.startsWith('#')) {
@@ -148,7 +151,7 @@ namespace stencil::support {
     }
     for (const StageShow& s : cfg.shows) {
       if (!s.accents.contains(accentKey)) continue;
-      if (!s.motion.isEmpty() && motionModeFromKey(s.motion) != mode) return QString();
+      if (!s.motion.isEmpty() && motionModeFromKey(s.motion) != mode) continue;
       return s.name;
     }
     return QString();
@@ -156,18 +159,16 @@ namespace stencil::support {
 
   bool showHasCloud(const QString& name, ParticleStyle* out) {
     const StageShow* s = showByName(name);
-    if (!s) return false;
+    if (!s || s->effect == StageEffect::WEBCORE) return false;   // a skin toggle opens no stage
     if (!s->motion.isEmpty()) {
       if (out) *out = s->effect == StageEffect::FIRE ? ParticleStyle::FIRE
                     : s->effect == StageEffect::WATER ? ParticleStyle::WATER : ParticleStyle::DUST;
       return true;
     }
-    // No motion of its own: it wears whatever particle style the user is running, and with
-    // particles off there is no cloud and the light does the whole show. NEON is that light and
-    // SUN its own ring of beams, so neither ever wears a cloud.
-    if (s->effect == StageEffect::NEON || s->effect == StageEffect::SUN || !isDustAllowed())
-      return false;
-    if (out) *out = particleStyle();
+    // No motion of its own: it wears the user's particle style, dust when they run none. NEON is
+    // the light itself and SUN its own ring of beams, so neither ever wears a cloud.
+    if (s->effect == StageEffect::NEON || s->effect == StageEffect::SUN) return false;
+    if (out) *out = showParticleStyle();
     return true;
   }
 

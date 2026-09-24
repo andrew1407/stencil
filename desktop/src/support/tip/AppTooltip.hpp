@@ -1,7 +1,7 @@
 #pragma once
 // The app's own tooltip — port of #app-tooltip in browser/css/components.css. Qt's
 // QTipLabel cannot be animated, so QEvent::ToolTip is swallowed app-wide; Qt keeps the
-// timing (SH_ToolTip_WakeUpDelay in main.cpp). Item views keep Qt's path. Q_OBJECT-free.
+// timing (SnappyTooltipStyle.hpp). Item views keep Qt's path. Q_OBJECT-free.
 #include <QApplication>
 #include <QCursor>
 #include <QEasingCurve>

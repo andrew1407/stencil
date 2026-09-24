@@ -1,4 +1,5 @@
 #include "iconMotion.hpp"
+#include "../skinPrefs.hpp"   // webcore glyphs never move (browser webcore/icons.css)
 
 namespace stencil::gui {
 
@@ -14,7 +15,7 @@ namespace stencil::gui {
   bool icm::eligible(QAbstractButton* btn) {
     // A DISABLED control is deliberately eligible (iconMotion.json trigger.disabled): the
     // motion says what it WOULD do, the grey says it cannot yet.
-    if (!btn || support::motionReduced()) return false;
+    if (!btn || support::motionReduced() || support::isWebcore()) return false;
     if (btn->property(NO_ICON_MOTION_PROPERTY).toBool()) return false;
     if (faceSwapping(btn)) return false;
     for (QVariantAnimation* a :
@@ -119,7 +120,7 @@ namespace stencil::gui {
     if (cur)
       if (ActionIconMotionRunner* r = icm::runnerOfAction(cur)) r->leave();
     cur = a;
-    if (!a || a->isSeparator() || support::motionReduced()) return;
+    if (!a || a->isSeparator() || support::motionReduced() || support::isWebcore()) return;
     if (a->property(NO_ICON_MOTION_PROPERTY).toBool()) return;
     IconRequest req;
     // Same re-trace as the button path.

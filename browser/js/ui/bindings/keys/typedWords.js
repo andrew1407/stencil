@@ -1,7 +1,8 @@
-// A word typed into the bare window opens its logo show. One listener, one string compare per
-// printable key: no timers, and every key is the caret's while any field holds it.
+// A word typed outside a field opens its logo show — over a running one too, since it captures
+// ahead of the stage's key swallow. Every key is the caret's while any field holds it. A letter
+// more than TYPE_GAP_MS after the last starts a new word: "neo" never joins a later "n".
 import { isTypingTarget } from '../../../utils.js';
-import { TYPED_WORDS, SHOW_NAMES } from '../../logo/stageRules.js';
+import { TYPED_WORDS, SHOW_NAMES, TYPE_GAP_MS } from '../../logo/stageRules.js';
 import { activateShow } from '../../logo/stageTrigger.js';
 
 const LONGEST = TYPED_WORDS.reduce((n, w) => Math.max(n, w.length), 0);
@@ -23,15 +24,19 @@ export const typedLetter = (e) => {
 
 export function wireTypedWords(app, doc = document) {
   let buffer = '';
+  let last = 0;
   doc.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey ||
         isTypingTarget(e.target) || isTypingTarget(doc.activeElement)) { buffer = ''; return; }
     const letter = typedLetter(e);
     if (!letter) return;
+    const now = typeof e.timeStamp === 'number' && e.timeStamp > 0 ? e.timeStamp : Date.now();
+    if (now - last > TYPE_GAP_MS) buffer = '';
+    last = now;
     buffer = (buffer + letter).slice(-LONGEST);
     const name = matchTypedWord(buffer);
     if (!name) return;
     buffer = '';
-    activateShow(name, app);
-  });
+    activateShow(name, app, null, { replace: true });
+  }, true);
 }

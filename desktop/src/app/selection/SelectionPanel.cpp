@@ -10,7 +10,6 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QListWidget>
 #include <QTabWidget>
 #include <QPainter>
 #include <QPalette>
@@ -46,6 +45,7 @@ namespace stencil::gui {
     tabBar->setObjectName("selectionTabBar");
     tabBar->setDrawBase(false);
     tabBar->setExpanding(false);
+    tabBar->setUsesScrollButtons(false);   // their reserve widened the webcore hairline past the tabs
     tabBar->setFocusPolicy(Qt::NoFocus);
     tabBar->addTab("Points");
     tabBar->addTab("Lines");
@@ -108,7 +108,10 @@ namespace stencil::gui {
     points->setMouseTracking(true);
     points->viewport()->setMouseTracking(true);
     connect(points, &QTableWidget::cellEntered, this,
-            [this](int row, int) { emit pointRowHovered(row); });
+            [this](int row, int) {
+              setCanvasHover(row, canvasHoverLineRow);
+              emit pointRowHovered(row);
+            });
     auto* hh = points->horizontalHeader();
     hh->setSectionResizeMode(COL_INDEX, QHeaderView::ResizeToContents);
     for (int c : {COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y}) hh->setSectionResizeMode(c, QHeaderView::Stretch);
@@ -120,7 +123,10 @@ namespace stencil::gui {
     hh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // The browser table draws a hairline around every cell (--border-coord); the grid is Qt's way.
     points->setShowGrid(true);
-    ptsLay->addWidget(points, 1);
+    points->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);   // as tall as its rows, as the browser's
+    points->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    ptsLay->addWidget(points);
+    ptsLay->addStretch(1);
 
     tabs->addTab(ptsTab, "Points");
 
@@ -128,28 +134,51 @@ namespace stencil::gui {
     auto* linesTab = new QWidget(tabs);
     auto* linesLay = new QVBoxLayout(linesTab);
     linesLay->setContentsMargins(0, 6, 0, 0);
-    lines = new QListWidget(linesTab);
+    // The points table again, with the lines' own columns: one widget is one grid, one header
+    // and one cell padding across both tabs (in the browser it is the same table).
+    lines = new QTableWidget(0, LCOL_COUNT, linesTab);
     lines->setObjectName("linesList");
+    lines->setItemDelegate(new PointRowDelegate(lines, LCOL_COUNT - 1));
+    lines->setHorizontalHeaderLabels({"#", "Color", "Line", "Pts", ""});
+    lines->verticalHeader()->setVisible(false);
     lines->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
-    // ClickFocus so a bare Delete/Backspace scopes to this list; selection stays canvas-driven,
-    // only the current row moves.
+    lines->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    lines->setWordWrap(false);
+    lines->setShowGrid(true);
+    // ClickFocus so a bare Delete/Backspace scopes here; selection stays canvas-driven.
     lines->setFocusPolicy(Qt::ClickFocus);
     lines->installEventFilter(this);
     // Hover cross-highlight, row → canvas (browser renderLinesList row mouseenter).
     lines->setMouseTracking(true);
     lines->viewport()->setMouseTracking(true);
-    connect(lines, &QListWidget::itemEntered, this,
-            [this](QListWidgetItem* it) { emit lineRowHovered(lines->row(it)); });
-    linesLay->addWidget(lines, 1);
+    connect(lines, &QTableWidget::cellEntered, this,
+            [this](int row, int) {
+              setCanvasHover(canvasHoverPointRow, row);
+              emit lineRowHovered(row);
+            });
+    auto* lh = lines->horizontalHeader();
+    // The ordinal and the bin are the points table's own, so both tabs share their edges.
+    lh->setSectionResizeMode(LCOL_INDEX, QHeaderView::ResizeToContents);
+    lh->setSectionResizeMode(LCOL_NAME, QHeaderView::Stretch);
+    for (const auto& [col, w] : {std::pair{LCOL_SWATCH, LINE_COL_SWATCH},
+                                 std::pair{LCOL_PTS, LINE_COL_PTS}, std::pair{LCOL_DEL, 28}}) {
+      lh->setSectionResizeMode(col, QHeaderView::Fixed);
+      lines->setColumnWidth(col, w);
+    }
+    lh->setHighlightSections(false);
+    lh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    lines->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);   // as tall as its rows, as the browser's
+    lines->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    linesLay->addWidget(lines);
+    linesLay->addStretch(1);
     tabs->addTab(linesTab, "Lines");
     // Bound both ways so a programmatic page change turns the strip too.
     connect(tabBar, &QTabBar::currentChanged, tabs, &QTabWidget::setCurrentIndex);
     connect(tabs, &QTabWidget::currentChanged, tabBar, &QTabBar::setCurrentIndex);
 
-    connect(lines, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
-      const int idx = lines->row(it);
+    connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int) {
       if (idx < 0) return;
-      lines->setCurrentRow(idx);   // the row Delete/Backspace will act on
+      lines->setCurrentCell(idx, LCOL_INDEX);   // the row Delete/Backspace will act on
       const auto mods = QGuiApplication::keyboardModifiers();
       const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
                          (mods & Qt::ShiftModifier);

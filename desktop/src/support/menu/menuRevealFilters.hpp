@@ -13,6 +13,7 @@
 #include <QMenuBar>
 #include <QMouseEvent>
 #include <QParallelAnimationGroup>
+#include <QScreen>
 #include <QPixmap>
 #include <QPointer>
 #include <QPropertyAnimation>
@@ -151,11 +152,22 @@ namespace stencil::support {
       } else if (watched == sub && event->type() == QEvent::Show) {
         movedSinceShow = false;
         timer.stop();
+        placeBeside();
       }
       return QObject::eventFilter(watched, event);
     }
 
    private:
+    // Qt lays a flyout over its parent's frame; it goes SUBMENU_GAP past the edge on the side Qt
+    // chose, or the other side when that would leave the screen.
+    void placeBeside() {
+      if (!sub || !parent) return;
+      const QRect p = parent->geometry();
+      const QRect screen = sub->screen() ? sub->screen()->availableGeometry() : QRect();
+      int x = sub->x() >= p.center().x() ? p.right() + 1 + SUBMENU_GAP : p.left() - SUBMENU_GAP - sub->width();
+      if (!screen.isNull() && x + sub->width() > screen.right()) x = p.left() - SUBMENU_GAP - sub->width();
+      sub->move(x, sub->y());
+    }
     bool pointerOnRow(QAction* a) const {
       if (!parent || !a) return false;
       const QRect row = parent->actionGeometry(a);

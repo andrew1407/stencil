@@ -47,6 +47,18 @@
 .info-item:hover { background: var(--bg-coord-hover); }
 
 /* ── Idle "create blank image" affordance: invite a click ───────────── */
+/* The card grows in when a picture leaves, never on the first paint (only a hidden → shown turn
+   adds the class). Desktop twin: CanvasWidget's idleCardEnterT. */
+@keyframes idleCardArrive {
+    from { opacity: 0; transform: scale(0.86); }
+    to   { opacity: 1; transform: none; }
+}
+.idle-create.idle-arriving .idle-create-btn {
+    animation: idleCardArrive 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .idle-create.idle-arriving .idle-create-btn { animation: none; }
+}
 .idle-create-btn { transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
 .idle-create-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px var(--shadow); }
 .idle-create-icon { transition: transform 0.3s ease; }

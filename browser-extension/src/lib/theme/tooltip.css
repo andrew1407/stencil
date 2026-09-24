@@ -105,7 +105,7 @@
   border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; white-space: nowrap;
   vertical-align: middle;
 }
-.tip-plus { font-size: 13px; color: var(--muted); margin: 0 1px; vertical-align: middle; }
+.tip-plus { font-size: 13px; color: var(--muted); margin: 0 3px; vertical-align: middle; }
 /* Keycap shake (controlTooltip.js SHAKE_CLASS): a tooltip that carries a shortcut shakes
    its caps once as it appears. Movement only — the cap keeps its resting colours. */
 @keyframes keycapShake {

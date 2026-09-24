@@ -1,0 +1,91 @@
+{
+  "_doc": "The webcore skin: the session-only Windows-95 look the `webcore` cheat word (logoStage.json) toggles on the browser and the desktop. `tokens` are the CSS custom properties css/webcore/tokens.css declares (the stylesheet is the source of truth; tests/config/webcore.test.js pins this copy against it) and the desktop's webcorePalette reads them over the qrc alias. `image` is the picture the word paints when no image is loaded, on an integer `cell`-px grid so the two painters agree pixel for pixel: `skyBands` top to bottom, `hill` a repeating parabola of `spanCells` lifted `ampCells` above `horizonShare`, `grass` crest to foot with a checker dither at each band edge, and every cloud a list of [dx, dy, w, h] cell blocks off its anchor. `word` is STENCIL as seven closed, locked, filled lines: each glyph one polygon on a 5×7 cell grid, laid `widthShare` wide across the sky, centred on `centerYShare` of the height.",
+  "tokens": {
+    "light": {
+      "--wc-face": "#c0c0c0",
+      "--wc-shadow": "#808080",
+      "--wc-dark": "#000000",
+      "--wc-light": "#dfdfdf",
+      "--wc-hilight": "#ffffff",
+      "--wc-title-a": "#000080",
+      "--wc-title-b": "#1084d0",
+      "--wc-title-ink": "#ffffff",
+      "--wc-desktop": "#008080",
+      "--wc-window": "#ffffff",
+      "--wc-ink": "#000000",
+      "--wc-muted": "#808080",
+      "--wc-select": "#000080",
+      "--wc-on-select": "#ffffff",
+      "--wc-tip-bg": "#ffffe1",
+      "--wc-tip-ink": "#000000",
+      "--wc-link": "#0000ff",
+      "--wc-focus": "#000080"
+    },
+    "dark": {
+      "--wc-face": "#3c3c3c",
+      "--wc-shadow": "#1c1c1c",
+      "--wc-dark": "#000000",
+      "--wc-light": "#555555",
+      "--wc-hilight": "#7a7a7a",
+      "--wc-title-a": "#000040",
+      "--wc-title-b": "#0a4a7a",
+      "--wc-title-ink": "#ffffff",
+      "--wc-desktop": "#004040",
+      "--wc-window": "#202020",
+      "--wc-ink": "#e0e0e0",
+      "--wc-muted": "#9a9a9a",
+      "--wc-select": "#000080",
+      "--wc-on-select": "#ffffff",
+      "--wc-tip-bg": "#24240f",
+      "--wc-tip-ink": "#ffffe1",
+      "--wc-link": "#6a8cff",
+      "--wc-focus": "#7aa2ff"
+    }
+  },
+  "font": {
+    "families": ["MS Sans Serif", "Tahoma", "Microsoft Sans Serif", "Verdana", "Arial", "sans-serif"],
+    "px": 15,
+    "pt": 9
+  },
+  "image": {
+    "width": 1024,
+    "height": 768,
+    "cell": 4,
+    "horizonShare": 0.58,
+    "skyBands": ["#0000a8", "#0028c0", "#0050d8", "#2878e8", "#4898f0", "#70b8f8", "#98d0f8", "#c0e4fc"],
+    "hill": { "ampCells": 14, "spanCells": 200, "offsetCells": -40 },
+    "grass": ["#5cc85c", "#30b030", "#149614", "#0a7a0a"],
+    "cloudInk": "#ffffff",
+    "cloudShade": "#c0c0c0",
+    "clouds": [
+      { "x": 28, "y": 22, "blocks": [[0, 4, 26, 6], [4, 2, 14, 2], [6, 0, 8, 2], [18, 3, 6, 1]], "shade": [[2, 9, 22, 1]] },
+      { "x": 96, "y": 12, "blocks": [[0, 5, 36, 7], [6, 3, 18, 2], [9, 1, 10, 2], [24, 4, 8, 1]], "shade": [[3, 11, 30, 1]] },
+      { "x": 168, "y": 30, "blocks": [[0, 4, 22, 5], [3, 2, 12, 2], [5, 0, 6, 2]], "shade": [[2, 8, 18, 1]] },
+      { "x": 212, "y": 52, "blocks": [[0, 3, 30, 6], [5, 1, 16, 2], [22, 2, 6, 1]], "shade": [[2, 8, 26, 1]] }
+    ]
+  },
+  "word": {
+    "text": "STENCIL",
+    "stroke": "#000000",
+    "thickness": 2,
+    "colors": ["#ff0000", "#ffff00", "#00ff00", "#ff00ff", "#00ffff", "#ffffff", "#ff8000"],
+    "grid": [5, 7],
+    "gapCells": 2,
+    "widthShare": 0.8,
+    "centerYShare": 0.28,
+    "glyphs": {
+      "S": [[0, 0], [5, 0], [5, 1], [1, 1], [1, 3], [5, 3], [5, 7], [0, 7], [0, 6], [4, 6], [4, 4], [0, 4]],
+      "T": [[0, 0], [5, 0], [5, 1], [3, 1], [3, 7], [2, 7], [2, 1], [0, 1]],
+      "E": [[0, 0], [5, 0], [5, 1], [1, 1], [1, 3], [4, 3], [4, 4], [1, 4], [1, 6], [5, 6], [5, 7], [0, 7]],
+      "N": [[0, 0], [1, 0], [4, 5], [4, 0], [5, 0], [5, 7], [4, 7], [1, 2], [1, 7], [0, 7]],
+      "C": [[0, 0], [5, 0], [5, 1], [1, 1], [1, 6], [5, 6], [5, 7], [0, 7]],
+      "I": [[0, 0], [5, 0], [5, 1], [3, 1], [3, 6], [5, 6], [5, 7], [0, 7], [0, 6], [2, 6], [2, 1], [0, 1]],
+      "L": [[0, 0], [1, 0], [1, 6], [5, 6], [5, 7], [0, 7]]
+    }
+  },
+  "strings": {
+    "off": "Webcore off — your own look is back",
+    "project": "webcore",
+    "imageName": "webcore.png"
+  }
+}

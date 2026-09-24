@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QImage>
 #include <QLineEdit>
+#include <QToolButton>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QRandomGenerator>
@@ -26,6 +27,21 @@ namespace stencil::gui {
   // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a QToolButton, so the air is
   // made in the icon RECT (browser twin: .btn-icon-text `gap: 6px`).
   inline constexpr int FACE_ICON_GAP = 3;
+  // Qt left-anchors a text-beside-icon face, so the narrower word of a pinned pair takes half its
+  // slack (pinned width less its own hint) as left padding (browser .btn-draw-fixed centring).
+  inline QByteArray faceHintKey(const QString& label) { return "faceHint_" + label.toUtf8(); }
+  inline void centreFaceLabel(QToolButton* btn, int padX) {
+    if (!btn || btn->maximumWidth() == QWIDGETSIZE_MAX) return;
+    const int hint = btn->property(faceHintKey(btn->text()).constData()).toInt();
+    const int slack = hint > 0 ? btn->maximumWidth() - hint : 0;
+    btn->setStyleSheet(slack > 1
+                           ? QStringLiteral("QToolButton{padding-left:%1px;}").arg(padX + slack / 2)
+                           : QString());
+  }
+
+  // The chat dock's extent as it opens: the one it last had, else the browser's default (px).
+  inline int chatOpenExtent(int remembered, bool horiz) { return remembered > 80 ? remembered : (horiz ? 345 : 320); }
+
   // The ✎/🎨/✓/✗ chips beside the project name. Browser twin: .name-edit-btn.
   inline constexpr int NAME_CHIP_BOX = 28;
   // Half the box, as .name-edit-btn draws it (28px chip, 14px glyph).

@@ -64,7 +64,9 @@ namespace stencil::gui {
           currentLine.points.empty() && selectedLine()
               ? selectedLine()->color
               : defColor.toStdString()));
-      const QPointF cur(holdPreview.x * scale, holdPreview.y * scale);
+      p.save();   // image space under the zoom, like every other stroke
+      p.scale(scale, scale);
+      const QPointF cur(holdPreview.x, holdPreview.y);
       if (const core::Point* a = holdAnchor()) {
         QColor line = base; line.setAlphaF(0.45);
         QPen pen(line);
@@ -73,12 +75,13 @@ namespace stencil::gui {
         pen.setCapStyle(Qt::RoundCap);
         p.setPen(pen);
         p.setBrush(Qt::NoBrush);
-        p.drawLine(QPointF(a->x * scale, a->y * scale), cur);
+        p.drawLine(QPointF(a->x, a->y), cur);
       }
       QColor dot = base; dot.setAlphaF(0.6);
       p.setPen(Qt::NoPen);
       p.setBrush(dot);
       p.drawEllipse(cur, defPointSize, defPointSize);
+      p.restore();
     }
 
     if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare, scale);

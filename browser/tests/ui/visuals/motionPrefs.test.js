@@ -192,3 +192,26 @@ test('every switch is in the Visuals modal and on the console facade', () => {
   // …which is the modal's own control (ui/settingMirrors.js owns the element).
   assert.match(read('../../../js/ui/settings/settingMirrors.js'), /setVal\('vs-motion-mode', mode\)/);
 });
+
+// A session override (the webcore skin) sits over the stored prefs: every reader sees it, the
+// store never does, and the user's next choice lifts it whole.
+test('a session override is read everywhere, written nowhere, and lifted by the next choice', () => {
+  const { setMotionOverride, motionOverridden, modalBackdrop } = prefs;
+  setMotionPrefs({ mode: 'water', drawing: true, backdrop: true });
+  const stored = store.get(MOTION_STORAGE_KEY);
+  setMotionOverride({ mode: 'none', drawing: false, backdrop: false });
+  assert.equal(motionOverridden(), true);
+  assert.equal(motionReduced(), true);
+  assert.equal(drawMotionEnabled(), false);
+  assert.equal(modalBackdrop(), false);
+  assert.equal(doc.documentElement.attrs.get('data-motion'), 'none');
+  assert.equal(store.get(MOTION_STORAGE_KEY), stored, 'the store still says water');
+  setMotionOverride(null);
+  assert.equal(motionMode(), 'water');
+  assert.equal(motionOverridden(), false);
+  setMotionOverride({ mode: 'none' });
+  setMotionPrefs({ drawing: false });
+  assert.equal(motionMode(), 'water', 'a choice of any switch lifts the whole override');
+  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'water', drawing: false, backdrop: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
+});

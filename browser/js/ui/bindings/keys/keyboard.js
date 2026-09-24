@@ -75,7 +75,7 @@ export function wireKeyboard(app) {
       if (mods.altKey)                         app.canvas.style.cursor = 'grab';
       else if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) app.canvas.style.cursor = 'copy';
       else if (mods.shiftKey)                  app.canvas.style.cursor = 'zoom-in';
-      else                                     app.canvas.style.cursor = 'crosshair';
+      else app.canvas.style.cursor = !app.isDrawing && app.hoverLineIdx !== -1 ? 'pointer' : 'crosshair';
     }
   };
   document.addEventListener('keydown', onModifierChange);

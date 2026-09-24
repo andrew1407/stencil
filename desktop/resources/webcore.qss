@@ -1,0 +1,336 @@
+
+      /* The webcore overlay: appended after app.qss while the skin is on (support/webcore/
+         stylesheet.cpp), so a rule here wins its twin above at equal weight. %WC_*% are the
+         browser's --wc-* tokens (js/config/webcore.json); the bevel is a light top-left edge
+         and a dark bottom-right one, as QSS has no box-shadow. */
+      * { font-family: %WC_FONT%; font-size: %WC_FONT_PX%px; }
+      /* The window's own face; the teal workspace is what the canvas frame is sunk INTO. */
+      QMainWindow, QWidget#centralBackdrop { background: %WC_FACE%; }
+      QMainWindow::separator { background: %WC_FACE%; width: %SEP_W%px; height: 1px; }
+      QToolBar { background: %WC_FACE%; border: 0; border-bottom: 1px solid %WC_SHADOW%; }
+      QToolBar::separator { background: %WC_SHADOW%; border-radius: 0; border-right: 1px solid %WC_HILIGHT%; }
+      QFrame#toolWrapSep { background: %WC_SHADOW%; border-radius: 0; }
+      QToolBar QLabel { color: %WC_INK%; }
+      QLabel#sectionLabel { color: %WC_INK%; }
+      QWidget#imageInfoBar { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
+      QScrollArea#canvasViewport, QScrollArea#canvasViewport[fsView="true"] {
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;
+      }
+      QLabel#coordStatus { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; color: %WC_INK%; }
+      QWidget#dropHintBar { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QLabel#dropHintLabel { color: %WC_INK%; }
+      QWidget#selectedLineCard { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QLabel#selectedLineLabel, QLabel#selectedLineFieldLabel { color: %WC_INK%; }
+      QFrame#selectedLineSep { background: %WC_SHADOW%; }
+
+      /* ── Buttons: raised; pressed, checked and lit sink ── */
+      QToolButton, QToolButton#controlsPill, QToolButton[nameAffordance="true"], QToolButton[chatAccent="true"],
+      QToolButton[toolFill="accent"], QToolButton[toolFill="danger"], QToolButton[drawToggle="idle"],
+      QToolButton[drawToggle="on"], QToolButton[toolGhostBox="true"], QToolButton#panelCollapseBtn,
+      QToolButton#expCalNav, QToolButton#projectsRenameBtn, QToolButton#hotkeyReset,
+      QPushButton, QPushButton[accentCta="true"], QPushButton[successCta="true"], QPushButton#dangerButton,
+      QPushButton[dangerCta="true"], QPushButton#modalClosePill, QPushButton#chatSuggestChip,
+      QPushButton[modalDangerGhost="true"], QPushButton#pointDelBtn, QPushButton#oiChooseBtn,
+      QWidget#selectedLineCard QPushButton, QWidget#selectedLineCard QPushButton#selectedLineDeselect,
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear, QWidget#selectedLineCard QPushButton#selectedLineUnchain {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; font-weight: normal;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QPushButton[accentCta="true"], QPushButton[successCta="true"] { border-top: 2px solid %WC_HILIGHT%; border-left: 2px solid %WC_HILIGHT%; }
+      QToolButton:hover, QToolButton[nameAffordance="true"]:hover, QToolButton[chatAccent="true"]:hover,
+      QToolButton[toolFill="accent"]:hover, QToolButton[toolFill="danger"]:hover, QToolButton[drawToggle="idle"]:hover,
+      QToolButton[drawToggle="on"]:hover, QToolButton[toolGhostBox="true"]:hover, QToolButton#controlsPill:hover,
+      QToolButton#panelCollapseBtn:hover, QToolButton#expCalNav:hover, QToolButton#chatRetry:hover,
+      QToolButton#projectsRenameBtn:hover:enabled, QToolButton#hotkeyReset:hover,
+      QPushButton:hover, QPushButton[accentCta="true"]:hover, QPushButton[successCta="true"]:hover,
+      QPushButton#dangerButton:hover, QPushButton[dangerCta="true"]:hover, QPushButton#modalClosePill:hover,
+      QPushButton[modalDangerGhost="true"]:hover, QPushButton#pointDelBtn:hover,
+      QWidget#selectedLineCard QPushButton:hover, QWidget#selectedLineCard QPushButton#selectedLineDeselect:hover,
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear:hover, QWidget#selectedLineCard QPushButton#selectedLineUnchain:hover,
+      QToolButton#extension:hover,
+      QToolButton#qt_toolbar_ext_button:hover { background: %WC_FACE%; color: %WC_INK%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QToolButton:pressed, QToolButton:checked, QToolButton:checked:hover, QToolButton[nameAffordance="true"]:pressed,
+      QToolButton[chatAccent="true"]:pressed, QToolButton[toolFill="accent"]:pressed, QToolButton[toolFill="danger"]:pressed,
+      QToolButton[drawToggle="idle"]:pressed, QToolButton[drawToggle="on"], QToolButton[drawToggle="on"]:hover,
+      QToolButton[drawToggle="on"]:pressed, QToolButton[toolGhostBox="true"]:pressed, QToolButton[toolGhostBox="true"]:checked,
+      QToolButton[toolGhostBox="true"]:checked:hover, QToolButton#controlsPill:pressed, QToolButton#expCalDay[expDay="expiry"],
+      QPushButton:pressed, QPushButton#modalClosePill:pressed, QPushButton[modalDangerGhost="true"]:pressed {
+        background: %WC_LIGHT%; color: %WC_INK%;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QToolButton:disabled, QToolButton:checked:disabled, QToolButton[nameAffordance="true"]:disabled,
+      QToolButton[chatAccent="true"]:disabled, QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled,
+      QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled, QToolButton[toolGhostBox="true"]:disabled,
+      QToolButton[toolGhostBox="true"]:checked:disabled, QToolButton#projectsRenameBtn:disabled,
+      QPushButton:disabled, QPushButton[accentCta="true"]:disabled, QPushButton[successCta="true"]:disabled,
+      QPushButton#dangerButton:disabled, QPushButton[dangerCta="true"]:disabled {
+        background: %WC_FACE%; color: %WC_DISABLED%; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QToolButton#drawFaceBtn { font-size: %WC_FONT_PX%px; }
+      /* Toolbar buttons 34 and the pill 28 (browser); QSS heights are contents, +14 and +10. */
+      QWidget[toolRow="true"] QToolButton { max-height: 20px; }
+      QWidget[toolRow="true"] QCheckBox#formulaPill { max-height: 18px; min-height: 18px; }
+      /* The toolbar's own overflow button is Qt's: on the dark face its chevron took the
+         style's own ink and read as a smudge. */
+      QToolBarExtension, QToolButton#qt_toolbar_ext_button {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; padding: 0;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QToolBarExtension::menu-indicator, QToolButton#qt_toolbar_ext_button::menu-indicator { image: none; width: 0; }
+      QLabel#panelSectionHeader { color: %WC_INK%; letter-spacing: 0; }
+
+      /* ── Menus ── */
+      QMenuBar { background: %WC_FACE%; color: %WC_INK%; border-bottom: 1px solid %WC_SHADOW%; }
+      QMenuBar::item { border-radius: 0; }
+      QMenuBar::item:selected, QMenuBar::item:pressed { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QMenu {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; padding: 3px;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QMenu::item { border-radius: 0; margin: 0; padding: 6px %MENU_PAD_R%px 6px 4px; }
+      QMenu::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; padding-left: 7px; }   /* browser .ctx-item:hover +3px */
+      QMenu::item:disabled { color: %WC_DISABLED%; }
+      QMenu::right-arrow { image: url(%WC_SUBMENU_ARROW%); width: 4px; height: 7px; }   /* browser .ctx-arrow */
+      QMenu::indicator:checked { image: url(%WC_MENU_CHECK%); width: 14px; height: 14px; }   /* browser .ctx-check: the pixel tick */
+      QMenu::separator { background: %WC_SHADOW%; border-bottom: 1px solid %WC_HILIGHT%; height: 1px; margin: 3px 2px; }
+      QStatusBar { background: %WC_FACE%; color: %WC_INK%; border-top: 1px solid %WC_SHADOW%; }
+      QLabel { color: %WC_INK%; }
+
+      /* ── Fields: sunken white wells ── */
+      QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox:hover:enabled, QLineEdit:hover:enabled,
+      QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+      QComboBox:focus, QLineEdit#modalSearch, QLineEdit#modalSearch:hover:enabled, QLineEdit#modalSearch:focus,
+      QComboBox#modalChooseSelect, QComboBox#modalChooseSelect:hover, QComboBox#modalChooseSelect:focus,
+      QLineEdit#projectsRenameEdit, QLineEdit#projectsRenameEdit:focus, QLineEdit#searchComboSearch,
+      QLineEdit#searchComboSearch:focus, QLineEdit#keywordsInput:focus,
+      QWidget#selectedLineCard QComboBox, QWidget#selectedLineCard QComboBox:hover, QWidget#selectedLineCard QComboBox:focus,
+      QWidget#selectedLineCard QSpinBox, QWidget#selectedLineCard QLineEdit, QWidget#selectedLineCard QSpinBox:hover:enabled,
+      QWidget#selectedLineCard QSpinBox:focus, QWidget#selectedLineCard QLineEdit:hover:enabled, QWidget#selectedLineCard QLineEdit:focus,
+      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText, QPlainTextEdit#modalPromptText:hover:enabled,
+      QPlainTextEdit#descriptionText:hover:enabled, QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
+      QPlainTextEdit#chatMenuInput, QPlainTextEdit#chatMenuInput:focus, QFrame#scriptEditorWrap, QFrame#scriptMenuWrap,
+      QFrame#oiFileBox, QScrollArea#keywordsChips {
+        background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; padding: 1px 4px; min-height: 15px;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+        selection-background-color: %WC_SELECT%; selection-color: %WC_ON_SELECT%;
+      }
+      QComboBox:hover:enabled, QLineEdit:hover:enabled, QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled,
+      QPlainTextEdit#descriptionText:hover:enabled { border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled { background: %WC_FACE%; color: %WC_DISABLED%; }
+      /* One height for every field and selector, 24px (browser webcore/chrome.css); QSS heights
+         are the CONTENTS: the bevel and padding add 6. */
+      QComboBox, QAbstractSpinBox, QLineEdit { min-height: 18px; max-height: 18px; }
+      QComboBox QLineEdit, QAbstractSpinBox QLineEdit { min-height: 0; max-height: 16777215px; }
+      QLineEdit#projectNameField { min-height: 16px; max-height: 16px; }
+      /* The drop-down and the spin halves are raised buttons carrying a stepped black arrow. */
+      QComboBox::drop-down {
+        subcontrol-origin: padding; subcontrol-position: center right; width: 14px; margin: 1px;
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QComboBox::down-arrow { image: url(%WC_ARROW%); width: 7px; height: 4px; margin: 0; }
+      QComboBox::down-arrow:disabled { image: url(%WC_ARROW_DIM%); }
+      /* The browser's zoom is a bare field whose presets open on focus: no arrow button. */
+      QComboBox#zoomCombo::drop-down { width: 0; margin: 0; border: 0; }
+      QComboBox#zoomCombo::down-arrow { image: none; width: 0; }
+      /* No steppers: the browser's number fields are plain text boxes that take arrow keys and
+         expressions (control/numericInput.js), and the skin shows them as such. */
+      QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0; margin: 0; border: 0; background: transparent; }
+      QAbstractSpinBox::up-arrow, QAbstractSpinBox::down-arrow { image: none; width: 0; height: 0; }
+      QComboBox QAbstractItemView {
+        background: %WC_WINDOW%; color: %WC_INK%; border: 1px solid %WC_DARK%; border-radius: 0; padding: 0;
+        selection-background-color: %WC_SELECT%; selection-color: %WC_ON_SELECT%;
+      }
+      QFrame#metaFieldRing, QFrame#metaFieldRing[ringOn="true"], QFrame#scriptEditorGlow, QFrame#scriptMenuGlow,
+      QFrame#scriptEditorGlow[hovered="true"], QFrame#scriptMenuGlow[hovered="true"],
+      QFrame#scriptEditorGlow[focused="true"], QFrame#scriptMenuGlow[focused="true"] { border-color: transparent; border-radius: 0; }
+      /* Code keeps its monospace under the skin (browser webcore/chrome.css .script-input). */
+      QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
+        color: %WC_INK%; selection-background-color: %WC_SELECT%; font-family: Menlo, Consolas, monospace; font-size: 12px;
+      }
+      QLabel#openInFallbackCmds { font-family: Menlo, Consolas, monospace; font-size: 12px; }
+      QSlider#oiFrameScrub::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QSlider#oiFrameScrub::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
+      QSlider#oiFrameScrub::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
+
+      /* The logo's preset list is a menu, not a stack of buttons (browser .logo-accent-menu):
+         flat rows, one on the navy bar — the pointer's, else the current preset. */
+      QDialog#accentPopover { background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; }
+      QDialog#accentPopover QPushButton {
+        background: transparent; color: %WC_INK%; border: 0; border-radius: 0; border-image: none; text-align: left; padding: 6px 9px;
+      }
+      QDialog#accentPopover QPushButton[lit="true"] { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QDialog#accentPopover QPushButton:focus { outline: none; }
+      /* The assistant dock is a window like the others (browser webcore/windows.css .chat-panel):
+         the navy title strip, its buttons raised, the composer a sunken well. */
+      QWidget#chatTitleBar { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %WC_TITLE_A%, stop:1 %WC_TITLE_B%); border: 0; }
+      QLabel#chatHeaderTitle { color: %WC_TITLE_INK%; font-weight: bold; font-size: 12px; background: transparent; }
+      QWidget#chatTitleBar QToolButton {
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+        padding: 0; min-width: 14px; max-width: 14px; min-height: 12px; max-height: 12px;
+      }
+      QWidget#chatBody, QWidget#chatInputArea { background: %WC_FACE%; border: 0; }
+      QWidget#chatBody QScrollArea, QWidget#chatBody QScrollArea > QWidget > QWidget { background: %WC_FACE%; border: 0; }
+      /* A window like the browser's stencil-chat-panel (--wc-raised) under its title strip, and
+         the composer's rule etched like the settings footer (.chat-input-row). */
+      QWidget#chatBody {
+        border-style: solid; border-color: transparent; border-width: 0 2px 2px 2px;
+        border-image: url(%WC_RAISED_OPEN%) 0 2 2 2 stretch;
+      }
+      QWidget#chatInputArea {
+        border-style: solid; border-color: transparent; border-width: 2px 0 0 0;
+        border-image: url(%WC_ETCH%) 2 0 0 0 stretch;
+      }
+      #chatInput {
+        background: %WC_WINDOW%; color: %WC_INK%; border: 2px solid transparent;
+        border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; padding: 4px 6px; font-size: 12px;
+      }
+      QPushButton#chatSuggestChip { font-size: 12px; padding: 2px 8px; }
+      /* ── Checks and radios ── */
+      QCheckBox, QRadioButton { color: %WC_INK%; }
+      QCheckBox::indicator, QRadioButton::indicator, QListWidget#projectsList::indicator {
+        width: 13px; height: 13px; background: %WC_WINDOW%; border-radius: 0;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QRadioButton::indicator { border-radius: 8px; border: 1px solid %WC_SHADOW%; }
+      QCheckBox::indicator:checked, QListWidget#projectsList::indicator:checked { background: %WC_WINDOW%; image: url(%WC_TICK%); }
+      QRadioButton::indicator:checked { background: %WC_WINDOW%; image: url(%WC_RADIO%); }
+      QCheckBox::indicator:hover, QRadioButton::indicator:hover, QListWidget#projectsList::indicator:hover { border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QCheckBox:hover, QRadioButton:hover { color: %WC_INK%; }
+      QCheckBox:focus, QRadioButton:focus { background: transparent; border-radius: 0; }
+      /* Browser .pill-toggle: a raised button whose hover is the ring and whose "on" sinks. */
+      QCheckBox#formulaPill {
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; border-radius: 0;
+        color: %WC_INK%; background: %WC_FACE%; font-size: 13px; padding: 3px 8px;
+      }
+      QCheckBox#formulaPill:hover { background: %WC_FACE%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QCheckBox#formulaPill:checked { background: %WC_LIGHT%; color: %WC_INK%; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; }
+
+      /* ── Docks, lists, tables, tabs ── */
+      QDockWidget { color: %WC_INK%; }
+      QDockWidget::title { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
+      /* Browser .coord-tabs: the hairline runs under the tabs alone, and the picked one covers it. */
+      QWidget#selPanelTitle { background: %WC_FACE%; border-bottom: 0; }
+      QTabBar#selectionTabBar { border-bottom: 1px solid %WC_SHADOW%; }
+      QTabBar#selectionTabBar::tab:!selected { border-bottom: 1px solid %WC_SHADOW%; padding-bottom: 3px; }
+      QWidget#selPanelBody { background: %WC_FACE%; }
+      QListWidget, QTableWidget, QTreeWidget {
+        background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; alternate-background-color: %WC_WINDOW%;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QListWidget::item, QTreeWidget::item { border-radius: 0; }
+      QListWidget::item:hover, QTreeWidget::item:hover { background: %WC_LIGHT%; }
+      QListWidget::item:selected:!hover, QTableWidget::item:selected:!hover,
+      QTreeWidget::item:selected:!hover { background: %WC_SHADOW%; color: %WC_ON_SELECT%; }
+      QListWidget::item:selected:hover, QTableWidget::item:selected:hover,
+      QTreeWidget::item:selected:hover { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QListWidget#projectsList { background: %WC_FACE%; }   /* white rows on the face (browser .projects-list) */
+      QListWidget#projectsList::item, QListWidget#projectsList::item:selected { background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; }
+      QListWidget#projectsList::item:hover, QListWidget#projectsList::item:selected:hover,
+      QListWidget#projectsList::item:selected:hover, QListWidget#connList::item:selected:hover { background: %WC_LIGHT%; }
+      QHeaderView::section, QTableWidget#pointsTable QHeaderView::section,
+      QTableWidget#linesList QHeaderView::section {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; font-weight: normal;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;   /* browser th: raised */
+      }
+      QTableWidget, QTableWidget#pointsTable, QTableWidget#linesList { gridline-color: %WC_LIGHT%; selection-color: %WC_INK%; }
+      /* Browser webcore/chrome.css: a picked row is the navy bar, not the outline; its th is bold. */
+      QTableWidget#pointsTable::item:selected, QTableWidget#linesList::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QTableWidget#pointsTable, QTableWidget#linesList { font-size: 12px; }
+      /* A sub-control takes no font-weight in QSS; the header widget carries it for its sections. */
+      QTableWidget#pointsTable QHeaderView, QTableWidget#linesList QHeaderView { font-size: 12px; font-weight: bold; }
+      QTableWidget#pointsTable QHeaderView::section, QTableWidget#linesList QHeaderView::section { font-size: 12px; font-weight: bold; padding: 0 5px; }
+      /* Qt's own item margins already give these the browser's 27px rows; its 6px would double them. */
+      QTableWidget#pointsTable::item, QTableWidget#linesList::item { padding: 0 5px; }
+      /* The row's bin is the browser's 20x18 .del-pt-btn, or its button padding sets the row height. */
+      QPushButton#pointDelBtn { padding: 0; min-height: 14px; max-height: 14px; min-width: 16px; max-width: 16px; icon-size: 14px; }
+      /* browser webcore .del-pt-btn:hover — the accent ring over the danger tint at 14%. */
+      QPushButton#pointDelBtn:hover { background: %WC_DANGER_SOFT%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QTabWidget::pane { border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QTabBar::tab {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; padding: 3px 12px 4px; margin: 0 2px 0 0;
+        border-top: 2px solid %WC_HILIGHT%; border-left: 2px solid %WC_HILIGHT%;
+        border-bottom: 0; border-right: 2px solid %WC_DARK%; font-size: 12px; font-weight: bold;
+      }
+      QTabBar::tab:hover { color: %WC_INK%; }
+      QTabBar#selectionTabBar { font-weight: bold; }
+      QTabBar#selectionTabBar::tab { font-size: 12px; height: 16px; }
+      /* The Windows style already sinks the unpicked tabs, so the picked one stands taller. */
+      QTabBar::tab:selected { color: %WC_INK%; background: %WC_LIGHT%; border-bottom: 0; }
+      /* Browser chrome.css .coord-tab:hover: the bevel stays, the ring sits inside it; the
+         padding gives back what the wider border takes, so the tab keeps its size. */
+      QTabBar::tab:hover {
+        border-width: 4px 4px 2px 4px; border-image: url(%WC_TAB_RING%) 4 4 2 4 stretch; padding: 1px 10px 2px;
+      }
+      QGroupBox { border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QGroupBox::title { color: %WC_INK%; }
+
+      /* ── Windows: the shell, its navy title strip and the beveled close ── */
+      QDialog { background: %WC_FACE%; color: %WC_INK%; }
+      QWidget#modalShell, QWidget#searchComboPopup {
+        background: %WC_FACE%; border-radius: 0;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QWidget#modalHeader {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %WC_TITLE_A%, stop:1 %WC_TITLE_B%);
+        margin: 2px; padding: 0 2px;
+      }
+      QLabel#modalTitle { color: %WC_TITLE_INK%; font-weight: bold; font-size: 12px; }
+      /* Browser .btn-icon-text in a window: 25px; the close is its 18x16 icon-only box. */
+      QDialog QPushButton, QDialog QPushButton[accentCta="true"], QDialog QPushButton[successCta="true"],
+      QDialog QPushButton[dangerCta="true"], QDialog QPushButton[modalDangerGhost="true"] {
+        padding: 1px 8px; min-height: 19px; max-height: 19px;
+      }
+      QPushButton#modalClosePill:focus { outline: none; }
+      QDialog QPushButton#modalClosePill { padding: 0; min-height: 12px; max-height: 12px; min-width: 14px; max-width: 14px; }
+      QFrame#modalDivider { background: %WC_SHADOW%; border-bottom: 1px solid %WC_HILIGHT%; min-height: 2px; max-height: 2px; }
+      QLabel#modalSection { color: %WC_INK%; letter-spacing: 0; font-weight: bold; }
+      QLabel#cropDims, QLabel#scriptDiag, QLabel#scriptMenuDiag,
+      QLabel#expCalWeekday, QLabel#expLegend, QLabel#hotkeyDefault { color: %WC_INK%; }
+      /* Secondary words take the browser's --text-muted (webcore: --wc-muted), as there. */
+      QLabel#modalFooterHint, QLabel#llmStatus, QLabel#modalEmpty, QFrame#llmNoteBox QLabel { color: %WC_MUTED%; }
+      QLabel#modalPromptReason { color: #800000; }
+      QWidget[vsRow="true"], QWidget[infoRow="true"], QWidget[hotkeyRow="true"] { border-bottom: 1px solid %WC_LIGHT%; }
+      QWidget[hotkeyRow="true"]:hover, QWidget[infoRow="true"]:hover { background: %WC_LIGHT%; }
+      /* Browser webcore .hotkey-head: a raised strip with bold captions, not a hairline. */
+      QWidget#hotkeyHead {
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QLabel#hotkeyTh { font-weight: bold; color: %WC_INK%; }
+      QLabel#hotkeyCell { border-radius: 0; }
+      QLabel#hotkeyCell[capturing="true"] { background: %WC_SELECT%; color: %WC_ON_SELECT%; border: 1px solid %WC_DARK%; }
+      QFrame#expCalendar, QFrame#llmNoteBox { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QToolButton#expCalDay { border-radius: 0; color: %WC_INK%; border: 2px solid transparent; }
+      QToolButton#expCalDay:hover { background: %WC_LIGHT%; }
+      QToolButton#expCalDay[expDay="today"] { border-color: #008000; }
+      QFrame#expSwatchToday { border: 2px solid #008000; border-radius: 0; }
+      QFrame#expSwatchExpiry { border: 2px solid %WC_DARK%; border-radius: 0; background: %WC_LIGHT%; }
+      QFrame[kwChip="true"] { border: 1px solid %WC_SHADOW%; border-radius: 0; background: %WC_WINDOW%; }
+      QPushButton[kwChipX="true"] { border: 0; background: transparent; }
+      QPushButton[kwChipX="true"]:hover { background: %WC_LIGHT%; }
+      QPushButton#biPresetWhite, QPushButton#biPresetBlack { border-radius: 0; }
+      QWidget#scriptMenuPanel QPushButton, QWidget#chatMenuPanel QPushButton#chatSuggestChip { border-radius: 0; }
+      QWidget#searchComboSearchRow { border-bottom: 1px solid %WC_SHADOW%; }
+      QListView#searchComboList { font-size: %WC_FONT_PX%px; }
+      QListView#searchComboList::item { color: %WC_INK%; border-radius: 0; }
+      /* The value the list already holds and the row under the pointer are two different things:
+         the pointer's row takes the navy bar, the current value a grey one. */
+      QListView#searchComboList::item:selected:!hover { background: %WC_SHADOW%; color: %WC_ON_SELECT%; }
+      QListView#searchComboList::item:hover { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QLabel#searchComboNoMatch { color: %WC_MUTED%; font-size: %WC_FONT_PX%px; }
+
+      /* ── Scrollbars: the grey track, raised thumb and arrow buttons ── */
+      QScrollBar:vertical { background: %WC_LIGHT%; width: 16px; margin: 16px 0; }
+      QScrollBar:horizontal { background: %WC_LIGHT%; height: 16px; margin: 0 16px; }
+      QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+        background: %WC_FACE%; border-radius: 0; min-height: 20px; min-width: 20px;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 16px; width: 16px; background: %WC_FACE%; border: 1px solid %WC_SHADOW%; subcontrol-origin: margin; }
+      QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 16px; height: 16px; background: %WC_FACE%; border: 1px solid %WC_SHADOW%; subcontrol-origin: margin; }
+      QScrollBar::add-page, QScrollBar::sub-page { background: %WC_LIGHT%; }
+
+      /* ── The yellow tooltip ── */
+      QToolTip, QFrame#stencilAppTooltip {
+        background: %WC_TIP_BG%; color: %WC_TIP_INK%; border: 1px solid %WC_DARK%; border-radius: 0; padding: 2px 4px;
+      }
+      QLabel#stencilAppTooltipBody { color: %WC_TIP_INK%; }
