@@ -151,7 +151,7 @@
       "var(--dust-ink, #1f1f1f)",
       "#b4b4b4",
       "#6e6e6e",
-      "color-mix(in srgb, var(--accent) 55%, #ffffff)",
+      "color-mix(in srgb, var(--dust-accent, var(--accent)) 55%, #ffffff)",
       "var(--dust-accent-alt, #442082)"
     ],
     "STYLED_CELL_SCALE": 1.4,

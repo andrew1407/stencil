@@ -116,7 +116,7 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
     assert.match(src, /const live = \(hasImage \|\| incognito\) && collapsed;/);
     assert.match(src, /classList\.contains\('controls-collapsed'\)/);
     const css = LAYOUT_CSS;
-    assert.match(css, /body\.controls-collapsed \.info \{ display: none; \}/,
+    assert.match(css, /body\.controls-collapsed \.info \{ height: 0;[^}]*visibility: hidden; \}/,
       'the size line folds away with the rows it belongs to');
     // The bubble reads the info line's own text, never its incognito tag as well.
     assert.match(src, /el\.dataset\.size/);

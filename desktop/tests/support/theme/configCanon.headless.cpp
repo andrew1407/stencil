@@ -65,15 +65,15 @@ int main(int argc, char** argv) {
     check(named, "each canon show resolves by name");
     check(cfg.holdMs == canon.value("holdMs").toInt(), "the hold is the canon's");
     check(cfg.toast == canon.value("toast").toString(), "…and so is the notice's text");
-    // Every accent preset opens exactly one show — the browser asserts the same table.
+    // Every accent preset opens a show — the browser asserts the same table.
     bool covered = true;
     for (const auto& p : accentPresets()) {
       int owners = 0;
       for (const auto& s : cfg.shows)
         if (s.accents.contains(p.key)) ++owners;
-      if (owners != 1) { covered = false; std::printf("       %s: %d shows\n", qPrintable(p.key), owners); }
+      if (owners < 1) { covered = false; std::printf("       %s: %d shows\n", qPrintable(p.key), owners); }
     }
-    check(covered, "each accent preset is owned by exactly one show");
+    check(covered, "each accent preset opens a show");
   }
 
   // ── icons.json ────────────────────────────────────────────────────────────

@@ -138,45 +138,29 @@
     border-bottom-color: var(--accent);
 }
 
-/* ── Lines tab: one row per committed line ── */
-.lines-list { display: flex; flex-direction: column; gap: 3px; max-height: 340px; overflow-y: auto; }
-.lines-empty { color: var(--text-muted); font-size: 12px; padding: 8px 4px; text-align: center; }
-.lines-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 6px;
-    border: 1px solid var(--border-coord);
-    border-radius: 5px;
-    background: var(--bg-coord-table);
-    cursor: pointer;
-    font-size: 12px;
-}
+/* ── Lines tab: one row per committed line, on the points table's own grid ── */
+/* Fixed layout: the name is the only elastic column; every other one states its width below. */
+.lines-table { table-layout: fixed; }
+.lines-row { cursor: pointer; }
 .lines-row:hover { background: var(--bg-coord-hover); }
 /* Canvas-driven counterpart of :hover — the row whose line is under the canvas cursor. */
 .lines-row-hover:not(.lines-row-selected) {
     background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
-.lines-row-selected {
-    border-color: var(--accent);
-    box-shadow: inset 0 0 0 1px var(--accent);
-}
+.lines-row-selected td { box-shadow: inset 0 1px var(--accent), inset 0 -1px var(--accent); }
+.lines-row-selected td:first-child { box-shadow: inset 1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent); }
+.lines-row-selected td:last-child { box-shadow: inset -1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent); }
+/* Wide enough for the word in the header above the chip, not for the 14px chip itself. */
+.lines-swatch-cell { width: 46px; text-align: center; }
+/* Three digits of point count, and no more: the rest of the row belongs to the name. */
+.lines-count-cell { width: 46px; }
 .lines-swatch {
     width: 14px;
     height: 14px;
     border-radius: 3px;
     border: 1px solid var(--border-main);
-    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
 }
-.lines-label { flex: 1; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lines-remove {
-    flex-shrink: 0;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 2px;
-    display: inline-flex;
-    border-radius: 4px;
-}
-.lines-remove:hover { color: var(--danger, #ef4444); background: var(--bg-info); }
+.lines-label { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lines-remove-cell { width: 28px; padding: 4px; }

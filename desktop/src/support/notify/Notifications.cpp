@@ -3,7 +3,10 @@
 #include "DisintegrateOverlay.hpp"
 #include "iconSet.hpp"
 #include "modalReveal.hpp"  // stencil::support::motionReduced()
+#include "ModalBackdrop.hpp"
 #include "logoStageRules.hpp"
+#include "skinPrefs.hpp"
+#include "toastSkin.hpp"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -86,11 +89,10 @@ namespace stencil::gui {
       dismiss(live[i]);
 
     // Browser toast variants: --danger for a failure, --accent for everything else — and gold
-    // for a logo show's own notice (browser .notify-shine).
-    const support::LogoStageConfig& stage = support::logoStageConfig();
-    const QColor bg = special ? QColor(stage.toastGold)
-                     : level == Level::ERROR ? errorBg : normalBg;
-    const QColor ink = special ? QColor(stage.toastInk) : QColor(Qt::white);
+    // for a logo show's own notice (browser .notify-shine). A skin's notice is a system message
+    // box in its own face, the gold one included.
+    const ToastDress dress = toastDress(special, level == Level::ERROR, normalBg, errorBg);
+    const QColor& ink = dress.ink;
     const char* glyph = special ? "egg"
                        : level == Level::SUCCESS ? "check" : level == Level::ERROR ? "x" : "info";
 
@@ -135,12 +137,9 @@ namespace stencil::gui {
     toast->setProperty(TEXT_PROPERTY, text);
     toast->setProperty(LEVEL_PROPERTY, static_cast<int>(level));
     toast->setObjectName("toast");
-    // Browser .notify-toast padding less the 4px the rich-text document adds itself. A show's
-    // notice gives a pixel of it back to its taller mark, so every pill is the same height.
-    toast->setStyleSheet(QString("QLabel#toast { background: %1; color: %2; "
-                                 "padding: %3px 8px; border-radius: 6px; }")
-                             .arg(bg.name(), ink.name())
-                             .arg(special ? 5 : 6));
+    // A toast outranks an open dialog's backdrop, as #notify-balloon outranks .app-modal-overlay.
+    toast->setProperty(support::ModalBackdrop::ABOVE_PROPERTY, true);
+    toast->setStyleSheet(toastSheet(dress, special));
     toast->setAttribute(Qt::WA_TransparentForMouseEvents);
     // Resolve the stylesheet before measuring, or adjustSize() sizes the unstyled label.
     toast->ensurePolished();
@@ -153,6 +152,7 @@ namespace stencil::gui {
       toast->adjustSize();
       toast->setFixedHeight(toast->heightForWidth(cap));
     }
+    if (dress.skinned) new ToastTitleStrip(toast, dress.titleA, dress.titleB);
 
     // The label owns the effect and the animation deletes itself: no lifetime bookkeeping.
     auto* fx = new QGraphicsOpacityEffect(toast);

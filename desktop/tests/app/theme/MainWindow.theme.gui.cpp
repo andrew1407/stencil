@@ -11,7 +11,7 @@ class MainWindowGuiTest : public QObject {
   // The logo's hover fx (browser logoPulse / logoRaysSpin parity): a window-level overlay owns the
   // pixels, the loop genuinely ADVANCES, and leaving stops every animation and hands the icon back.
   void logoHoverFxPulsesWhileHoveredOnly() {
-    const auto motion = withMotion();   // the loop honours motionReduced(), which is on here
+    const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
     win.show();
@@ -128,6 +128,33 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!fx->property("fxActive").toBool());
     for (QVariantAnimation* a : fx->findChildren<QVariantAnimation*>())
       QVERIFY(a->state() != QAbstractAnimation::Running);
+  }
+
+  // Motion off (and the skin, which lays it over the session): the hover grows and glows, still.
+  void logoHoverFxHoldsStillWithMotionOffAndUnderTheSkin() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.settings.motionMode = QStringLiteral("none");
+    win.applySettings(win.settings, /*persist=*/false);
+    QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
+    QToolButton* logo = win.logoBtn;
+    const auto hover = [&] {
+      const QPointF c(logo->rect().center());
+      QEnterEvent enter(c, c, logo->mapToGlobal(logo->rect().center()));
+      QApplication::sendEvent(logo, &enter);
+      bool on = fx->property("fxActive").toBool();
+      for (QVariantAnimation* a : fx->findChildren<QVariantAnimation*>())
+        on = on && a->state() != QAbstractAnimation::Running;
+      QEvent leave(QEvent::Leave);
+      QApplication::sendEvent(logo, &leave);
+      return on && !fx->property("fxActive").toBool();
+    };
+    QVERIFY2(hover(), "motion none left the hover without its still shine");
+    QVERIFY(win.toggleWebcore());
+    QVERIFY2(hover(), "the webcore skin left the hover without its still shine");
+    QVERIFY(!win.toggleWebcore());
   }
 
 };

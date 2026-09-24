@@ -72,6 +72,7 @@ namespace stencil::gui {
       }
     }
     updating = false;
+    syncAlpha();
     // Losing the fill group can cost the flow layout a row; refit now and once the reveal has
     // finished.
     refitHeight();

@@ -183,6 +183,11 @@ stencil_headless_test(stencil_controlswap_headless
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
 
+# Double-click reset (support/control/dblReset.hpp): header-only, so the test is the only unit.
+stencil_headless_test(stencil_dblreset_headless
+  SOURCES tests/support/control/dblReset.headless.cpp
+  LIBS Qt6::Widgets)
+
 # Per-icon hover motion (support/iconMotion.hpp) — the table against the glyph canon,
 # the semantic pins (plus grows / minus shrinks / the fullscreen corners invert / the
 # trash hinges at its lid), and the driver on a live button. Needs iconSet for the
@@ -718,6 +723,11 @@ stencil_headless_test(stencil_logostagerules_headless
     ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets
   INCLUDE_TESTS)
+stencil_headless_test(stencil_logostagecloud_headless
+  SOURCES tests/support/logo/logoStageCloud.headless.cpp ${STENCIL_LOGOSTAGE_SOURCES}
+    ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets
+  INCLUDE_TESTS)
 
 # Drift guards for the assets the desktop reads instead of embedding: themeTokens.json
 # against the Palette, resources/app.qss against buildStylesheet's token map,
@@ -727,6 +737,14 @@ stencil_headless_test(stencil_canonassets_headless
     src/io/deferredWrite.cpp src/io/mediaTypes.cpp ${STENCIL_OPREGISTRY_SOURCES} ${STENCIL_OPSCHEMA_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The webcore skin against the browser's: the picture's cells and the word's lines value for
+# value, the pixel set over every glyph, the overlay with no token unfilled, the session switches.
+stencil_headless_test(stencil_webcore_headless
+  SOURCES tests/support/webcore/rules.headless.cpp ${STENCIL_WEBCORE_SOURCES} ${STENCIL_THEME_SOURCES}
+    resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg
+  INCLUDE_TESTS)
 
 # Saved-connection secrets (net/connectionStore + io/fileStore): the token never lands
 # in QSettings, an older build's plaintext row is migrated out of it on load, and every

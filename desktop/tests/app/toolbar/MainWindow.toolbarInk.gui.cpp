@@ -129,7 +129,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QComboBox* filter = win.imageFilter;
+    QComboBox* filter = win.compareCombo;   // the tint picker is live before an image; compare is not
     QVERIFY(filter);
     // The face colour, plus how loudly the text/caret stand out against it.
     const auto face = [](QWidget* w) {

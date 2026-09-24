@@ -64,25 +64,24 @@ namespace stencil::gui {
       }();
       return tpl;
     }
+  }  // namespace
 
-    // One walk; an unknown token is left alone.
-    QString fillTokens(const QString& tpl, const QHash<QString, QString>& values) {
-      static const QRegularExpression token(QStringLiteral("%[A-Z0-9_]+%"));
-      QString out;
-      out.reserve(tpl.size() + 2048);
-      int pos = 0;
-      QRegularExpressionMatchIterator it = token.globalMatch(tpl);
-      while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        const auto v = values.constFind(m.captured(0));
-        if (v == values.constEnd()) continue;
-        out.append(QStringView(tpl).mid(pos, m.capturedStart() - pos));
-        out.append(*v);
-        pos = m.capturedEnd();
-      }
-      out.append(QStringView(tpl).mid(pos));
-      return out;
+  QString fillStylesheetTokens(const QString& tpl, const QHash<QString, QString>& values) {
+    static const QRegularExpression token(QStringLiteral("%[A-Z0-9_]+%"));
+    QString out;
+    out.reserve(tpl.size() + 2048);
+    int pos = 0;
+    QRegularExpressionMatchIterator it = token.globalMatch(tpl);
+    while (it.hasNext()) {
+      const QRegularExpressionMatch m = it.next();
+      const auto v = values.constFind(m.captured(0));
+      if (v == values.constEnd()) continue;
+      out.append(QStringView(tpl).mid(pos, m.capturedStart() - pos));
+      out.append(*v);
+      pos = m.capturedEnd();
     }
+    out.append(QStringView(tpl).mid(pos));
+    return out;
   }
 
   QString buildStylesheet(bool dark, const QString& accentKey) {
@@ -119,11 +118,12 @@ namespace stencil::gui {
 
     // Tracks browser/css. The sheet is resources/app.qss; only its %TOKEN% values are
     // computed here and filled in ONE pass — previewAccent() rebuilds it per hovered accent row.
-    return fillTokens(stylesheetTemplate(), {
+    return fillStylesheetTokens(stylesheetTemplate(), {
         {"%BTN_FLAT%", c(dark ? p.bgContainer.lighter(112) : p.bgContainer.darker(103))},
         // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
         {"%MENU_PAD_R%", QString::number(MENU_ITEM_RIGHT_PAD_PX)},
         {"%SEP_W%", QString::number(DOCK_SEPARATOR_PX)},
+        {"%FACE_PAD_X%", QString::number(FACE_PAD_X_PX)},
         // theme.hpp onAccentInk; the indicator marks are baked PNGs, so they come as a pair.
         {"%ON_ACCENT%", c(p.onAccent)},
         {"%TICK_IMG%", darkGlyph ? ":/icons/check-dark.png" : ":/icons/check.png"},

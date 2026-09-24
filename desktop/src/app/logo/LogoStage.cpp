@@ -48,30 +48,15 @@ namespace stencil::gui {
   }
 
   QString LogoStage::heldShow() const {
-    return support::resolveShow(hooks.accentKey ? hooks.accentKey() : QString(), support::motionMode());
-  }
-
-  bool LogoStage::activateByName(const QString& name) {
-    const support::StageShow* spec = support::showByName(name);
-    if (!spec || open) return false;
-    if (hooks.bareWindow && !hooks.bareWindow()) return false;
-    // Every showWord's notice is the same: the egg on gold, wearing the golden shining.
-    if (spec->effect == StageEffect::PINK) {
-      if (hooks.pinkVibe) hooks.pinkVibe();
-      if (hooks.toast) hooks.toast(support::logoStageConfig().toast);
-      return true;
-    }
-    start(name);
-    if (hooks.toast) hooks.toast(support::logoStageConfig().toast);
-    return true;
+    return support::resolveShow(hooks.accentKey ? hooks.accentKey() : QString(), support::storedMotionMode());
   }
 
   void LogoStage::start(const QString& name) {
     const support::StageShow* spec = support::showByName(name);
+    const bool swapping = open;   // one show replaces another: same backdrop, same focus to return
     showWord = name;
     effect = spec->effect;
-    reduced = support::motionReduced();
-    takeBackdrop();
+    if (!swapping) takeBackdrop();
     setGeometry(hostWindow->rect());
     const int w = width(), h = height();
     const auto [rest, other] = ends(w, h);
@@ -81,11 +66,8 @@ namespace stencil::gui {
     chase = support::chaseState(w / 2.0, h / 2.0);
     heading = QPointF(0, 0);
     markCentre = QPointF(w / 2.0, h / 2.0);
-    cursorPos = markCentre;
-    remakeMark();
-    support::ParticleStyle style = support::ParticleStyle::DUST;
-    hasCloud = support::showHasCloud(name, &style) && !reduced;
-    cloud.setStyle(style, hasCloud);
+    cursorPos = pointerAt().value_or(markCentre);   // an idle pointer sends no move to open with
+    restyle(true);
     // The mark grows out of the header logo, as the browser's does.
     const QPoint at = logo && logo->isVisible() ? logo->mapTo(hostWindow, logo->rect().center()) : rect().center();
     from = support::StagePose{double(at.x()), double(at.y()), double(logo ? logo->iconSize().width() : 32)};
@@ -98,7 +80,8 @@ namespace stencil::gui {
     if (hooks.coverChrome) hooks.coverChrome(true);
     raise();
     show();
-    priorFocus = QApplication::focusWidget();
+    setCursor(Qt::ArrowCursor);   // the canvas below wears a crosshair; the stage is not it
+    if (!swapping) priorFocus = QApplication::focusWidget();
     setFocus(Qt::OtherFocusReason);
     clock->start(support::frameIntervalMs(this));
     update();
@@ -151,6 +134,7 @@ namespace stencil::gui {
     const double t = since.elapsed();
     const double dt = std::min(50.0, last > 0 ? t - last : 16.7);
     last = t;
+    restyle(false);
     if (refitAt > 0 && t >= refitAt) refit();
     rampBoost(dt);
     if (leftAt >= 0 && t - leftAt >= cfg.hideMs) {
@@ -162,10 +146,8 @@ namespace stencil::gui {
     }
     if (!reduced && leftAt < 0) {
       const int w = width(), h = height();
-      // The pointer is SAMPLED each frame, never taken on trust from a move event: one that does
-      // not reach the stage leaves the chase with nothing to chase and the hand never applied.
-      const QPoint here = mapFromGlobal(QCursor::pos());
-      if (rect().contains(here)) cursorPos = QPointF(here);
+      // The pointer is SAMPLED each frame: a missed move leaves the chase nothing to chase.
+      cursorPos = pointerAt().value_or(cursorPos);
       if (effect == StageEffect::FOLLOW || effect == StageEffect::ESCAPE) {
         support::chaseStep(chase, cursorPos, dt, markPx, w, h, effect == StageEffect::ESCAPE);
         markCentre = QPointF(chase.x, chase.y);
@@ -184,6 +166,12 @@ namespace stencil::gui {
       syncCursor();
     }
     update();
+  }
+
+  std::optional<QPointF> LogoStage::pointerAt() const {
+    const QPoint here = mapFromGlobal(QCursor::pos());
+    if (!rect().contains(here)) return std::nullopt;
+    return QPointF(here);
   }
 
   // The catch is the mark's OWN outline, not a circle round it: a circle reaches past the flat

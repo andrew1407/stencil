@@ -10,20 +10,20 @@ namespace stencil::support {
 
   namespace {
     constexpr double PI = 3.14159265358979323846;
-    double rnd() { return QRandomGenerator::global()->generateDouble(); }
+    double roll(const StageRnd& rnd) { return rnd ? rnd() : QRandomGenerator::global()->generateDouble(); }
     double lerp(const double range[2], double t) { return range[0] + (range[1] - range[0]) * t; }
   }  // namespace
 
-  StageMote newStageMote(double size, double reach, const QPointF& dir) {
+  StageMote newStageMote(double size, double reach, const QPointF& dir, const StageRnd& rnd) {
     const LogoStageConfig& cfg = logoStageConfig();
     // With a heading the grains form a PLUME clear of the mark: born a gap behind it, thrown
     // further back, so the trail reads beside the icon instead of under it. `dir`'s LENGTH is how
     // strongly it forms, so the ring becomes a tail as the mark picks up speed instead of at a step.
     const double pull = std::min(1.0, std::hypot(dir.x(), dir.y()));
     const double spread = PI - (PI - cfg.cloudTailSpreadTurns * 2 * PI) * pull;
-    const double angle = pull > 0 ? std::atan2(-dir.y(), -dir.x()) + (rnd() - 0.5) * 2 * spread
-                                  : rnd() * 2 * PI;
-    const double speed = lerp(cfg.cloudSpeedShare, rnd()) * size * reach
+    const double angle = pull > 0 ? std::atan2(-dir.y(), -dir.x()) + (roll(rnd) - 0.5) * 2 * spread
+                                  : roll(rnd) * 2 * PI;
+    const double speed = lerp(cfg.cloudSpeedShare, roll(rnd)) * size * reach
                          * (1.0 + (cfg.cloudTailSpeedScale - 1.0) * pull);
     // At rest a grain is born along the mark's own rounded-square outline — a ring of radius size/2
     // buries its four corners under the art — and slides out to the plume's gap as the tail forms.
@@ -36,9 +36,9 @@ namespace stencil::support {
     m.y = at.y();
     m.vx = std::cos(angle) * speed;
     m.vy = std::sin(angle) * speed;
-    m.life = lerp(cfg.cloudLifeMs, rnd());
-    m.r = lerp(cfg.cloudSizeShare, rnd()) * size * 0.5;
-    m.w = rnd();
+    m.life = lerp(cfg.cloudLifeMs, roll(rnd));
+    m.r = lerp(cfg.cloudSizeShare, roll(rnd)) * size * 0.5;
+    m.w = roll(rnd);
     m.len = size * 0.5;
     return m;
   }
@@ -58,9 +58,13 @@ namespace stencil::support {
     return p < 0.1 ? p / 0.1 : 1 - (p - 0.1) / 0.9;
   }
 
-  int spawnStageCount(double boost, double dt) {
+  int spawnStageCount(double boost, double dt, const StageRnd& rnd) {
     const double n = logoStageConfig().cloudRate * boost * (dt / 16.7);
-    return int(std::floor(n)) + (rnd() < std::fmod(n, 1.0) ? 1 : 0);
+    return int(std::floor(n)) + (roll(rnd) < std::fmod(n, 1.0) ? 1 : 0);
+  }
+
+  double drawnStageAlpha(double alpha) {
+    return alpha < 0.01 ? 0.0 : std::round(std::min(alpha, 1.0) * 9) / 9;
   }
 
   void LogoStageCloud::setStyle(ParticleStyle style, bool on) {
@@ -71,13 +75,29 @@ namespace stencil::support {
 
   void LogoStageCloud::clear() { motes.clear(); }
 
-  void LogoStageCloud::step(double dt, double size, double boost, const QPointF& dir) {
+  void LogoStageCloud::step(double dt, double size, double boost, const QPointF& dir,
+                            const StageRnd& rnd) {
     if (!on) return;
     const int room = logoStageConfig().cloudMaxLive - motes.size();
-    const int want = std::min(spawnStageCount(boost, dt), std::max(0, room));
-    for (int i = 0; i < want; ++i) motes.push_back(newStageMote(size, boost, dir));
+    const int want = std::min(spawnStageCount(boost, dt, rnd), std::max(0, room));
+    for (int i = 0; i < want; ++i) motes.push_back(newStageMote(size, boost, dir, rnd));
     for (int i = motes.size() - 1; i >= 0; --i)
       if (!stepStageMote(motes[i], dt)) motes.removeAt(i);
+  }
+
+  namespace {
+    // The style's drift points out of the mark, not down the screen, so the ring stays even.
+    QPointF drifted(const StageMote& m, const StyleFrame& f) {
+      const double d = std::hypot(m.x, m.y);
+      if (d <= 0) return QPointF(m.x + f.sx, m.y + f.sy);
+      const double ux = m.x / d, uy = m.y / d, out = std::abs(f.sy);
+      return QPointF(m.x + ux * out + uy * f.sx, m.y + uy * out - ux * f.sx);
+    }
+  }  // namespace
+
+  QPointF LogoStageCloud::placed(const StageMote& m, double ms) const {
+    const double prog = m.life > 0 ? std::min(1.0, m.age / m.life) : 1.0;
+    return drifted(m, styleFrame(style, prog, prog, m.w, m.len, ms));
   }
 
   void LogoStageCloud::draw(QPainter& p, const QPointF& at, double ms, const QColor& accent,
@@ -86,13 +106,14 @@ namespace stencil::support {
     for (const StageMote& m : motes) {
       const double prog = m.life > 0 ? std::min(1.0, m.age / m.life) : 1.0;
       const StyleFrame f = styleFrame(style, prog, prog, m.w, m.len, ms);
-      const double alpha = stageMoteAlpha(m) * f.glow;
-      if (alpha < 0.01) continue;
+      const double alpha = drawnStageAlpha(stageMoteAlpha(m) * f.glow);
+      if (alpha <= 0) continue;
       const int tint = tintOf(m.w);
       const double mix = tint < 0 && style == ParticleStyle::DUST ? dustMix(m.w, false) : f.mix;
-      p.setOpacity(std::clamp(alpha, 0.0, 1.0));
-      sprites.draw(p, at + QPointF((m.x + f.sx) * scale, (m.y + f.sy) * scale), m.r * f.scale * scale,
-                    tintedStop(accent, shade, mix, tint, dark),
+      // The sprite paints at its colour's alpha, so the fade travels in the colour.
+      QColor colour = tintedStop(accent, shade, mix, tint, dark);
+      colour.setAlphaF(alpha);
+      sprites.draw(p, at + drifted(m, f) * scale, m.r * f.scale * scale, colour,
                     grainShape(style, m.w), headingOf(m.vx, m.vy, false));
     }
     p.setOpacity(1.0);

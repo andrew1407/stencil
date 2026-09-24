@@ -129,7 +129,7 @@
     white-space: nowrap;
     vertical-align: middle;   /* centred on the sentence it sits in, not on its baseline */
 }
-.tip-plus { font-size: 13px; color: var(--text-shortcut); margin: 0 1px; vertical-align: middle; }
+.tip-plus { font-size: 13px; color: var(--text-shortcut); margin: 0 3px; vertical-align: middle; }
 /* ── Keycap shake (js/ui/controlTooltip.js) ──────────────────────────────────
    The caps nudge once as the tooltip appears, pointing at the shortcut. Movement only —
    the cap keeps its resting colours, so it reads as the same key throughout. */

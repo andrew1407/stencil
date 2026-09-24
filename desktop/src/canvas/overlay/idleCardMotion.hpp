@@ -14,5 +14,8 @@ namespace stencil::gui {
   inline constexpr double IDLE_GLYPH_ORB_OVERSHOOT = 0.3;  // …keyframes[1] (at 70%)
   // The whole play — the later of the two parts' ends (90 + 300).
   inline constexpr double IDLE_GLYPH_PLAY_MS = 390;
+  // The card's own arrival when a picture leaves (browser @keyframes idleCardArrive).
+  inline constexpr int IDLE_CARD_ARRIVE_MS = 340;
+  inline constexpr double IDLE_CARD_ARRIVE_FROM = 0.86;
 
 }  // namespace stencil::gui

@@ -1,5 +1,6 @@
 #include "LogoHoverFx.hpp"
-#include "modalReveal.hpp"   // support::motionReduced()
+#include "../../support/motionPrefs.hpp"
+#include "../../support/skinPrefs.hpp"
 
 #include <QEvent>
 #include <QPainter>
@@ -21,15 +22,18 @@ namespace stencil::gui {
     const QPointF c = QRectF(rect()).center();   // == the button's icon centre
     const QColor accent = this->accent();
     const QSizeF mark(logo->iconSize());        // logical px; pixmap carries the dpr
-    const qreal beat = anim ? this->beat : 0.0;       // no breath / lift / glow at rest
+    // Motion off: topbar.css's still scale(1.08) and a steady edge glow; the pixel mark never scales.
+    const bool still = support::motionReduced();
+    const qreal glow = still ? 0.6 : this->beat;
+    const qreal beat = anim && !still ? this->beat : 0.0;
     const qreal lift = 2.0 * beat;               // translateY(-2px) at the peak
-    const qreal scale = 1.0 + 0.12 * beat;       // scale(1.12) at the peak
+    const qreal scale = anim && still ? (support::isWebcore() ? 1.0 : 1.08) : 1.0 + 0.12 * beat;
     const QPointF mc(c.x(), c.y() - lift);       // the levitating mark's centre
     // Accent glow, radial falloff — the CSS drop-shadow halo. Hover-only.
     if (anim) {
-      const qreal r = mark.width() * 0.5 * scale + 2.0 + 5.0 * this->beat;
+      const qreal r = mark.width() * 0.5 * scale + 2.0 + 5.0 * glow;
       QRadialGradient g(mc, r);
-      QColor g0 = accent; g0.setAlphaF(0.25 + 0.55 * this->beat);
+      QColor g0 = accent; g0.setAlphaF(0.25 + 0.55 * glow);
       QColor g1 = accent; g1.setAlphaF(0.0);
       g.setColorAt(0.0, g0);
       g.setColorAt(0.55, g0);   // solid to the mark's edge, then fall off
@@ -39,7 +43,7 @@ namespace stencil::gui {
       p.drawEllipse(mc, r, r);
     }
     // 8 spokes, two strokes each (soft halo + bright core) standing in for the CSS conic gradient.
-    if (anim) {
+    if (anim && !still) {
       const qreal alpha = 0.14 + 0.26 * this->beat;
       const qreal r1 = mark.width() * 0.5 + 3.0;
       const qreal r2 = r1 + 3.5;
@@ -62,8 +66,8 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::start() {
-    // Reduced motion: no loop; the button keeps the plain mark (faceSwap / filterFade rule).
-    if (active() || support::motionReduced()) return;
+    // Motion off keeps the hover's grow and edge glow, painted once: no loop, no rays.
+    if (active()) return;
     beat = 0.0;   // every hover begins at the loop's rest pose
     pm = makePixmap();
     blankButtonIcon();
@@ -71,13 +75,16 @@ namespace stencil::gui {
     raise();
     if (box && box->isVisible()) stackUnder(box);   // the glow never paints over the popover
     show();
+    hovering = true;
+    setProperty("fxActive", true);
+    if (support::motionReduced()) { update(); return; }
     pulse->start();
     spin->start();
-    setProperty("fxActive", true);
   }
 
   void LogoHoverFx::stop() {
     if (!active()) return;
+    hovering = false;
     pulse->stop();
     spin->stop();
     setProperty("fxActive", false);

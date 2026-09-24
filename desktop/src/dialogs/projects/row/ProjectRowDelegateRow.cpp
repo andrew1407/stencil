@@ -4,6 +4,7 @@
 #include "displayName.hpp"
 #include "iconSet.hpp"
 #include "theme.hpp"
+#include "../../../support/skinPrefs.hpp"
 
 #include <QApplication>
 #include <QFontMetrics>
@@ -15,6 +16,19 @@
 
 
 namespace stencil::gui {
+
+  namespace {
+    // Browser webcore/windows.css: a badge is a sunken well, the "…" a raised button.
+    void bevelBox(QPainter* p, const QRect& r, bool raised) {
+      const support::SkinBevel b = support::skinBevel();
+      p->fillRect(r, b.face);
+      const QColor lt = raised ? b.hilight : b.shadow, rb = raised ? b.dark : b.hilight;
+      p->fillRect(QRect(r.left(), r.top(), r.width(), 1), lt);
+      p->fillRect(QRect(r.left(), r.top(), 1, r.height()), lt);
+      p->fillRect(QRect(r.left(), r.bottom(), r.width(), 1), rb);
+      p->fillRect(QRect(r.right(), r.top(), 1, r.height()), rb);
+    }
+  }  // namespace
 
   void ProjectRowDelegate::paintRow(QPainter* p, const QStyleOptionViewItem& opt,
                                     const QModelIndex& idx) const {
@@ -39,6 +53,7 @@ namespace stencil::gui {
     const bool current = idx.data(ACTIVE_ROLE).toBool();
     // Highlight = accent, Link = the accent-2 shade (--text-key) — theme.cpp buildQPalette.
     const QColor accent = o.palette.color(QPalette::Highlight);
+    const bool skin = support::isWebcore();
 
     // Browser .project-row borders: gold = server, bronze = .stencil file (each with a soft 1px ring),
     // the accent-2 SHADE for the project open in THIS editor, neutral hairline otherwise.
@@ -49,11 +64,13 @@ namespace stencil::gui {
     else if (current) { edge = o.palette.color(QPalette::Link); }
     else { edge = o.palette.color(QPalette::Dark); }
     p->save();
+    if (skin) edge = ring = QColor();   // the skin's row is a plain white strip
     p->setRenderHint(QPainter::Antialiasing, true);
     p->setBrush(Qt::NoBrush);
-    // DASHED, as the browser's .project-temp.
-    p->setPen(QPen(edge, 1, temp ? Qt::DashLine : Qt::SolidLine));
-    p->drawRoundedRect(QRectF(opt.rect).adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
+    if (edge.isValid()) {   // DASHED, as the browser's .project-temp
+      p->setPen(QPen(edge, 1, temp ? Qt::DashLine : Qt::SolidLine));
+      p->drawRoundedRect(QRectF(opt.rect).adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
+    }
     if (ring.isValid()) {
       p->setPen(QPen(ring, 1));
       p->drawRoundedRect(QRectF(opt.rect).adjusted(0.5, 0.5, -0.5, -0.5), 9, 9);
@@ -70,7 +87,7 @@ namespace stencil::gui {
       QString meta = idx.data(META_ROLE).toString();
       const QColor def = o.palette.color(QPalette::Text);
       QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
-      if (!nameCol.isValid()) nameCol = def;
+      if (!nameCol.isValid() || skin) nameCol = def;
       // Browser .project-name / .project-sub sizes (14 / 12 px), not the app font.
       QFont nameF(o.font);
       nameF.setBold(true);
@@ -108,12 +125,16 @@ namespace stencil::gui {
       const QString gname = remote ? QStringLiteral("server")
                                    : (fileOrigin ? QStringLiteral("file-text")
                                                  : QStringLiteral("monitor"));
-      const QColor gcol = remote ? GOLD_EDGE : (fileOrigin ? BRONZE_EDGE : GREY_ORIGIN);
+      const QColor gcol = skin ? def : remote ? GOLD_EDGE : (fileOrigin ? BRONZE_EDGE : GREY_ORIGIN);
       const QString gtext = remote ? idx.data(Qt::UserRole + 1).toString()
                                    : (fileOrigin ? QStringLiteral(".stencil")
                                                  : QStringLiteral("computer"));
       if (hasIcon(gname)) {
         const int gs = 13;
+        if (skin) {
+          const int bw = gs + 4 + std::min(mfm.horizontalAdvance(gtext), colWidth - (gs + 4)) + 4;
+          bevelBox(p, QRect(colLeft - 2, y - 1, bw, mfm.height() + 2), false);
+        }
         p->setRenderHint(QPainter::Antialiasing, true);
         themedIcon(gname, gcol, gs).paint(
             p, QRect(colLeft, y + (mfm.height() - gs) / 2, gs, gs));
@@ -126,7 +147,17 @@ namespace stencil::gui {
                     Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
                     remote ? mfm.elidedText(gtext, Qt::ElideRight, gw) : gtext);
         tx += gw;
-        if (current) {
+        if (current && skin) {
+          QFont bold(metaF);
+          bold.setBold(true);
+          const QFontMetrics bfm(bold);
+          const QString cur = QStringLiteral("(Current)");
+          const QRect badge(tx + 8, y - 1, bfm.horizontalAdvance(cur) + 6, mfm.height() + 2);
+          bevelBox(p, badge, false);
+          p->setFont(bold);
+          p->setPen(def);
+          p->drawText(badge, Qt::AlignCenter | Qt::TextSingleLine, cur);
+        } else if (current) {
           p->setPen(accent);
           p->drawText(QRect(tx, y, colWidth - (tx - colLeft), mfm.height()),
                       Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
@@ -142,9 +173,14 @@ namespace stencil::gui {
     p->save();
     p->setRenderHint(QPainter::Antialiasing, true);
     p->setPen(Qt::NoPen);
-    p->setBrush(onKebab ? accent.lighter(115) : accent);
-    p->drawRoundedRect(chip, 8, 8);
-    p->setBrush(Qt::white);
+    if (skin) {
+      bevelBox(p, chip, !onKebab);
+      p->setBrush(o.palette.color(QPalette::Text));
+    } else {
+      p->setBrush(onKebab ? accent.lighter(115) : accent);
+      p->drawRoundedRect(chip, 8, 8);
+      p->setBrush(Qt::white);
+    }
     const int cx = chip.center().x();
     const int cy = chip.center().y();
     for (int dx = -5; dx <= 5; dx += 5) p->drawEllipse(QPointF(cx + dx, cy + 2), 1.6, 1.6);

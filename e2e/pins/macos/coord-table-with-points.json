@@ -213,7 +213,7 @@
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "38.1px",
+        "width": "38px",
         "height": "27px",
         "text-align": "left"
       },
@@ -234,7 +234,7 @@
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "78.2px",
+        "width": "78.3px",
         "height": "27px",
         "text-align": "left"
       },
@@ -363,7 +363,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "38.1px",
+        "width": "38px",
         "height": "27px",
         "text-align": "left"
       },
@@ -381,7 +381,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "78.2px",
+        "width": "78.3px",
         "height": "27px",
         "text-align": "left"
       },
@@ -522,7 +522,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "38.1px",
+        "width": "38px",
         "height": "27px",
         "text-align": "left"
       },
@@ -540,7 +540,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "78.2px",
+        "width": "78.3px",
         "height": "27px",
         "text-align": "left"
       },
@@ -680,7 +680,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "38.1px",
+        "width": "38px",
         "height": "27px",
         "text-align": "left"
       },
@@ -698,7 +698,7 @@
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
         "padding": "6px 5px",
-        "width": "78.2px",
+        "width": "78.3px",
         "height": "27px",
         "text-align": "left"
       },

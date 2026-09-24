@@ -35,7 +35,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "width": "560px",
-        "height": "590.4px",
+        "height": "509px",
         "transform": "matrix(1, 0, 0, 1, 0, 0)",
         "box-shadow": "rgba(0, 0, 0, 0.45) 0px 16px 48px 0px",
         "flex-direction": "column",
@@ -155,7 +155,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "14px 18px",
         "width": "558px",
-        "height": "497.4px"
+        "height": "416px"
       }
     },
     {

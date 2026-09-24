@@ -43,7 +43,7 @@ test('single-file build: index.html loads nothing the single-file build ignores'
     .map(m => m[1])
     .filter(v => !/^(?:https?:|data:|#|\/)/.test(v));
   for (const ref of refs) {
-    if (/^css\/(?:layout|components|animations)\//.test(ref)) continue;   // the split stylesheets — vite folds them all in
+    if (/^css\/(?:layout|components|animations|webcore)\//.test(ref)) continue;   // the split stylesheets — vite folds them all in
     assert.ok(handled.has(ref), `index.html loads "${ref}", which the single-file build does not handle — teach vite.config.js about it`);
   }
 });

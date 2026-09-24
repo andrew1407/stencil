@@ -1,4 +1,5 @@
 // Three of the Servers dialog's construction phases; call order lives in ConnectDialog.cpp's ctor.
+#include "../../support/control/dblReset.hpp"
 #include "ConnectDialog.hpp"
 #include "ReorderableListWidget.hpp"
 #include "ServerClient.hpp"
@@ -39,6 +40,7 @@ namespace stencil::gui {
       auto* checks = new QHBoxLayout;
       checks->setSpacing(26);
       autoConnect = new QCheckBox(tr("Auto-connect on open"));
+      support::setResetDefault(autoConnect, true);   // browser connectionStore.js
       autoConnect->setChecked(net::connectionStore::getAutoConnect());
       QObject::connect(autoConnect, &QCheckBox::toggled, this,
                        [](bool on) { net::connectionStore::setAutoConnect(on); });
@@ -46,6 +48,7 @@ namespace stencil::gui {
       syncToServer = new QCheckBox(tr("Sync changes to server"));
       syncToServer->setObjectName(QStringLiteral("connSyncToServer"));
       syncToServer->setChecked(true);
+      support::setResetDefault(syncToServer, true);
       QObject::connect(syncToServer, &QCheckBox::toggled, this,
                        [this](bool on) { emit syncToServerToggled(on); });
       checks->addWidget(syncToServer);
@@ -61,6 +64,7 @@ namespace stencil::gui {
       head->addStretch(1);
       auto* kind = new SearchComboBox(this, /*searchable=*/false);
       kindFilter = kind;
+      support::setResetDefault(kind, 0);   // "all"
       kind->setObjectName(QStringLiteral("connKindFilter"));
       kind->setSizeAdjustPolicy(QComboBox::AdjustToContents);
       kind->setToolTip(tr("Filter the rows: all connections, only those holding an admin "

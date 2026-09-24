@@ -69,6 +69,13 @@ namespace stencil::gui {
     QLabel* empty = nullptr;
     QLineEdit* search = nullptr;
 
+    // The motion rows SHOW what is in force — a skin may be holding the interface still over
+    // the stored switches — so an untouched dialog hands the stored ones back unchanged.
+    QString heldMotionMode;
+    bool heldDrawAnim = true;
+    bool heldBackdrop = true;
+    bool motionTouched = false;
+
     std::function<void(const Settings&)> onChange;
     Settings base;  // preserves fields this dialog doesn't edit (formulas, llm*…)
     QComboBox* theme = nullptr;

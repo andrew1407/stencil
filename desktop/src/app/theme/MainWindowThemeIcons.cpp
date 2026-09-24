@@ -114,7 +114,7 @@ namespace stencil::gui {
     set(actSaveProject, "save");
     set(actSaveProjectFile, "save");     // Projects toolbar: Save Project (.stencil)
     set(actOpenProjectFile, "folder");   // Projects toolbar: Open Project (.stencil)
-    set(actStencilLiveSync, "refresh");  // Projects toolbar: live sync to file
+    set(actStencilLiveSync, "refresh-cw");  // Projects toolbar: live sync to file
     // The two destructive ones keep the danger tint; a plain set() here would repaint them neutral.
     setDanger(actDeleteProjectFile, "trash");
     setDanger(actClearProject, "trash");

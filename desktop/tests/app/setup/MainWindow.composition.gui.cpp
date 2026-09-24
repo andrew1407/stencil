@@ -74,13 +74,15 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     const QStringList chain = focusChain(&win);
-    QCOMPARE(chain.size(), 105);
+    QCOMPARE(chain.size(), 111);
     QCOMPARE(focusRuns(chain),
              QStringLiteral(
                  "stencil::gui::CanvasWidget 1|QScrollArea 1|QToolButton 2|QTabWidget 1|"
-                 "QTabBar 1|QToolButton 2|QTableWidget 1|QListWidget 1|QPushButton 2|"
+                 "QTabBar 1|QToolButton 2|QTableWidget 2|QPushButton 1|"
+                 "stencil::gui::ExprSpinBox 1|QLineEdit 1|QPushButton 1|"
                  "stencil::gui::ExprSpinBox 1|QLineEdit 1|stencil::gui::ExprSpinBox 1|"
-                 "QLineEdit 1|QComboBox 1|QPushButton 4|QToolButton 6|QScrollArea 1|"
+                 "QLineEdit 1|stencil::gui::ExprSpinBox 1|QLineEdit 1|QComboBox 1|QPushButton 3|"
+                 "stencil::gui::ExprSpinBox 1|QLineEdit 1|QPushButton 1|QToolButton 6|QScrollArea 1|"
                  "QToolButton 2|QPlainTextEdit 1|QToolButton 5|QComboBox 2|QLineEdit 1|"
                  "QToolButton 2|QLineEdit 1|QToolButton 21|QComboBox 1|QToolButton 10|"
                  "stencil::gui::ExprSpinBox 1|QLineEdit 1|stencil::gui::ExprSpinBox 1|"
@@ -94,7 +96,7 @@ class MainWindowGuiTest : public QObject {
                             "selectedLineFillSwatch selectedLineFillClear "
                             "selectedLineUnchain selectedLineDeselect chatJumpBtn "
                             "chatJumpBtn chatInput chatSend chatAttach chatGear chatMore "
-                            "chatClear controlsPill projectNameField openImageBtn "
+                            "chatClear zoomCombo controlsPill projectNameField openImageBtn "
                             "openAnotherImageBtn drawFaceBtn drawFaceBtn formulaPill"));
 
     // The canvas overlays stack in the order the ctor makes them: incognito frame, then the

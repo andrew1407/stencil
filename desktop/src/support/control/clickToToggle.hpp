@@ -9,6 +9,7 @@
 #include <QMouseEvent>
 #include <QObject>
 #include <QPointer>
+#include "dblReset.hpp"
 
 namespace stencil::support {
 
@@ -36,6 +37,7 @@ namespace stencil::support {
     if (!caption || !box) return;
     caption->setCursor(Qt::PointingHandCursor);
     caption->installEventFilter(new ClickToToggle(box, caption));
+    caption->setProperty(CAPTION_BOX_PROPERTY, QVariant::fromValue<QObject*>(box));
   }
 
   // The same rule for a read-only field that stands in for its button: clicking the Open

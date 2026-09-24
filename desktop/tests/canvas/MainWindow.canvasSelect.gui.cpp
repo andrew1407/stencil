@@ -33,11 +33,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(static_cast<int>(canvas->getLines().size()), 2);
 
     // --- Lines tab: Delete on the current row removes that line ---
-    auto* linesList = win.findChild<QListWidget*>("linesList");
+    auto* linesList = win.findChild<QTableWidget*>("linesList");
     QVERIFY(linesList);
-    QTRY_COMPARE(linesList->count(), 2);
+    QTRY_COMPARE(linesList->rowCount(), 2);
     QVERIFY2(linesList->focusPolicy() != Qt::NoFocus, "the list must accept focus for a scoped Delete");
-    linesList->setCurrentRow(0);
+    linesList->setCurrentCell(0, 0);
     QTest::keyClick(linesList, Qt::Key_Delete);
     QTRY_COMPARE(static_cast<int>(canvas->getLines().size()), 1);
     // The current row survives the repopulate, so a second press deletes again.
@@ -52,7 +52,7 @@ class MainWindowGuiTest : public QObject {
       beat();
     }
     QCOMPARE(totalPoints(canvas), 3);
-    auto* points = win.findChild<QTableWidget*>();
+    auto* points = win.findChild<QTableWidget*>("pointsTable");
     QVERIFY(points);
     QTRY_COMPARE(points->rowCount(), 3);
     points->setCurrentCell(1, 0);
@@ -93,9 +93,10 @@ class MainWindowGuiTest : public QObject {
 
     const auto& moved = canvas->getLines()[0].points;
     QCOMPARE(static_cast<int>(moved.size()), 4);
+    const double px = std::max(0.5, 1.0 / s);   // the canvas reads whole widget pixels
     for (std::size_t i = 0; i < moved.size(); ++i) {
-      QVERIFY2(std::abs(moved[i].x - (orig[i].x + 30)) < 0.5 &&
-                   std::abs(moved[i].y - (orig[i].y + 25)) < 0.5,
+      QVERIFY2(std::abs(moved[i].x - (orig[i].x + 30)) < px &&
+                   std::abs(moved[i].y - (orig[i].y + 25)) < px,
                qPrintable(QString("point %1 carries the full drag delta").arg(i)));
     }
   }

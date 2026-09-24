@@ -89,7 +89,9 @@ class MainWindowGuiTest : public QObject {
       for (QLabel* l : row->findChildren<QLabel*>("sectionLabel"))
         if (l->text() == QLatin1String("DATA")) data = l->parentWidget();
       QVERIFY2(data, qPrintable(at + "no DATA section on this row"));
-      QVERIFY2(section->x() > data->x(), qPrintable(at + "SETTINGS is not after DATA"));
+      // In reading order: the run flows, so SETTINGS may open the next line.
+      const bool after = section->y() > data->y() || (section->y() == data->y() && section->x() > data->x());
+      QVERIFY2(after, qPrintable(at + "SETTINGS is not after DATA"));
       for (QToolButton* b : section->findChildren<QToolButton*>())
         QVERIFY2(b->isVisible(), qPrintable(at + b->defaultAction()->text() + " is hidden"));
     }

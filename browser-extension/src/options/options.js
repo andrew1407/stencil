@@ -2,6 +2,7 @@
 import './scrollTop.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
+import { installDblReset } from '../lib/control/dblReset.js';
 import { motionModeIcon } from '../lib/motionIcons.js';
 import { pinToWidestOption } from '../lib/highlight/fitWidest.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
@@ -11,6 +12,8 @@ import './general.js';
 import './llm.js';
 import './pins.js';
 import './connections.js';
+
+installDblReset(document);
 
 // The native `title` waits ~1 s and never shows on a disabled control.
 initTooltips();

@@ -96,10 +96,14 @@ test('what a removal REVEALS arrives, it does not simply appear', () => {
 test('the row and its arrival land together, once the ash has thinned', () => {
   // The settle waits the falling leg out, THEN renders and materializes in one turn: rendering as the
   // collapse ends drops the arrival inside a full-strength scatter, where its own motes are invisible.
-  assert.match(projectsSrc, /await new Promise\(\(r\) => setTimeout\(r, ROW_ARRIVE_DELAY_MS\)\);\n\s+render\(\);/,
+  assert.match(projectsSrc, /const arrive = Math\.min\(ROW_ARRIVE_DELAY_MS, wipe\);\n\s+if \(arrive\) await new Promise\(\(r\) => setTimeout\(r, arrive\)\);\n\s+render\(\);/,
     'the ash thins first, then the rebuild');
-  assert.match(projectsSrc, /materialize\(el[\s\S]{0,400}await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipeDurationMs\(\) - ROW_ARRIVE_DELAY_MS\)\)\);/,
+  assert.match(projectsSrc, /materialize\(el[\s\S]{0,400}await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipe - arrive\)\)\);/,
     'and only the remainder of the wipe trails the arrival');
+  // Nothing flies in 'slide'/'none' (or under prefers-reduced-motion), so wipeDurationMs() is 0
+  // and the row must go THEN — it sat on screen for the whole 880ms arrival beat instead.
+  assert.match(projectsSrc, /const wipe = wipeDurationMs\(\);/,
+    'the arrival beat is capped by the wipe it is waiting out, not a bare constant');
 });
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', () => {

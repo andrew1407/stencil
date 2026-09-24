@@ -42,10 +42,18 @@ export function createChatDock(deps) {
     updateNotifyInset();
     publish(EVENTS.chatLayoutChanged);
   };
+// --chat-size does not inherit (panel.css), so it is written on each element that reads it.
+  let chatSize = '';
+  const applySize = () => {
+    if (!chatSize) return;
+    for (const el of [host, document.body, ...document.querySelectorAll('stencil-install, stencil-drop-overlay')])
+      el.style.setProperty('--chat-size', chatSize);
+  };
   const setDock = (mode) => {
     dock = mode;
     for (const d of DOCKS) host.classList.toggle(`chat-dock-${d}`, d === mode);
     host.removeAttribute('style');
+    applySize();
     if (mode === 'float') applyFloatRect();
     for (const b of dockBtns) b.classList.toggle('chat-dock-btn-active', b.dataset.dock === mode);
 // Re-forms out of the new edge; only while on screen.
@@ -70,7 +78,8 @@ export function createChatDock(deps) {
     const setSize = (px) => {
       const max = (dock === 'top' || dock === 'bottom' ? window.innerHeight : window.innerWidth) * DOCK_MAX_FRACTION;
       const clamped = Math.max(DOCK_MIN_SIZE, Math.min(Math.round(max), Math.round(px)));
-      document.documentElement.style.setProperty('--chat-size', clamped + 'px');
+      chatSize = clamped + 'px';
+      applySize();
     };
 // Window-level move/up (pointer capture as an assist) so the resize keeps tracking off
 // the 16px handle. One starter for the docked-axis handle and the float-only handles.

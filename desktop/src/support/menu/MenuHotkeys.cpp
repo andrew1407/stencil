@@ -1,4 +1,5 @@
 #include "MenuHotkeys.hpp"
+#include "../skinPrefs.hpp"
 
 namespace stencil::support {
 
@@ -28,6 +29,7 @@ namespace stencil::support {
     if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) {
       stopShake(current.value(o));
       current.remove(o);
+      if (auto* m = qobject_cast<QMenu*>(o); m && support::isWebcore()) place(m);   // the step goes back
     }
     return false;
   }
@@ -120,7 +122,10 @@ namespace stencil::support {
       if (row.chip->isHidden()) row.chip->show();
       // Right-pinned like the browser's .ctx-hotkey; compact menus have no submenu arrow.
       const int MENU_RIGHT_PAD = compact ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
-      const int x = r.right() - MENU_RIGHT_PAD - row.chip->width();
+      // Under the skin the hovered row's caps step 3px right and stay (browser overlays.css
+      // .ctx-item:hover padding 14 → 17px) instead of shaking.
+      const int nudge = support::isWebcore() && current.value(menu) == row.action ? 3 : 0;
+      const int x = r.right() - MENU_RIGHT_PAD - row.chip->width() + nudge;
       const QPoint at(qMax(r.left(), x), r.top() + (r.height() - row.chip->height()) / 2);
       if (row.chip->pos() != at) row.chip->move(at);
     }
@@ -132,6 +137,10 @@ namespace stencil::support {
     if (!menu->actionGeometry(a).isValid()) return;
     QPointer<QAction>& cur = current[menu];
     if (a == cur) return;
+    if (support::isWebcore()) {   // no keycap shake under the skin, only the step
+      cur = a;
+      return place(menu);
+    }
     stopShake(cur);   // the row being left settles rather than shaking on without a pointer
     cur = a;
     for (auto& row : rows) {

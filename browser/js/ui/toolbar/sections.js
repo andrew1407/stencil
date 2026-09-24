@@ -58,7 +58,7 @@ export const toolbarImageSectionsHtml = () => `            <!-- ── Section: 
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Edit</div>
                 <div class="ctrl-section-row">
-                    <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter">
+                    <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter">
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
                         <option value="sepia">Sepia</option>
@@ -109,7 +109,7 @@ export const toolbarStyleSectionsHtml = () => `            <!-- ── Section: 
                 <div class="ctrl-section-label">Point</div>
                 <div class="ctrl-section-row">
                     <label for="point-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
-                    <input type="color" id="point-color" value="#FFFF00" data-title="Point color — new lines">
+                    <input type="color" id="point-color" value="#FFFF00" data-title="Point color">
                     <label for="point-size" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Size</label>
                     <input type="number" id="point-size" value="4" min="1" max="30" data-title="Point size" style="width:54px">
                 </div>
@@ -137,10 +137,10 @@ export const toolbarStyleSectionsHtml = () => `            <!-- ── Section: 
                         <option value="vertical">Split ↔</option>
                         <option value="horizontal">Split ↕</option>
                     </select>
-                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points (Alt+P)">
+                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points">
                         <input type="checkbox" id="show-points" checked> Points
                     </label>
-                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines (Alt+L)">
+                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
                     <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear">${icon('eraser')}</button>

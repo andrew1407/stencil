@@ -92,19 +92,22 @@ namespace stencil::gui {
     using DockHoverOverlay::DockHoverOverlay;
 
     void setAccent(const QColor& accent) { this->accent = accent; update(); }
+    // The page the band lets through at rest (webcore: --wc-desktop, the browser body); invalid = none.
+    void setBase(const QColor& base) { this->base = base; update(); }
 
    protected:
     void paintEvent(QPaintEvent*) override {
+      QPainter p(this);
+      if (base.isValid()) p.fillRect(rect(), base);
       if (hot <= 0.001 || !accent.isValid()) return;
       QColor c = accent;
       c.setAlphaF(ALPHA * hot);
-      QPainter p(this);
-      p.setRenderHint(QPainter::Antialiasing, true);
       p.fillRect(rect(), c);
     }
 
    private:
     QColor accent;
+    QColor base;
   };
 
 }  // namespace stencil::gui

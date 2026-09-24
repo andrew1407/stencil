@@ -1,4 +1,5 @@
 // Dock state: busy, composer enablement, provider status, icon restyle, scrolling.
+#include "../../support/skinPrefs.hpp"
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "iconSet.hpp"
@@ -8,6 +9,7 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QLabel>
+#include <QLayout>
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
@@ -66,7 +68,7 @@ namespace stencil::gui {
     dangerCache = pal.danger;
     mutedCache = pal.textMuted;
     setStyleSheet(
-        QStringLiteral(
+        (support::isWebcore() ? QString() : QStringLiteral(
             "#chatTitleBar{background:%1;border:1px solid %2;border-bottom:1px solid %2;}"
             // .chat-hbtn has no padding/border, so the 13 px glyph fills the 23 px chip.
             "#chatTitleBar QToolButton{padding:0;border:none;background:transparent;"
@@ -93,7 +95,7 @@ namespace stencil::gui {
                      .arg(pal.textMuted.red())
                      .arg(pal.textMuted.green())
                      .arg(pal.textMuted.blue())
-                     .arg(pal.textMuted.alphaF()))
+                     .arg(pal.textMuted.alphaF())))
         // The bubbles come from the SHARED sheet the context menu's panel applies too.
         + chatCardStyleSheet(pal, chatSwapSides));
     const QColor onAccent = pal.onAccent;
@@ -104,6 +106,9 @@ namespace stencil::gui {
     if (cmp.more) cmp.more->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
     restyleChatMoreMenu(moreRows, pal.textMain);
     chrome.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
+    // A layout does not see a QSS border: webcore.qss's raised chatBody sides stay uncovered.
+    if (QWidget* body = widget(); body && body->layout())
+      body->layout()->setContentsMargins(support::isWebcore() ? QMargins(2, 0, 2, 2) : QMargins());
     updatePlacementState();
     chrome.headerIcon->setPixmap(themedIcon("sparkle", pal.textMain, 16).pixmap(16, 16));
     // browser .chat-drop-cue

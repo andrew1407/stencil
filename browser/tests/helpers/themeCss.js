@@ -41,10 +41,11 @@ const isDerived = (v) => v.includes('var(') || v.includes('color-mix(');
 
 // theme.css → { tokens, derived }, each token name → { light, dark }: `:root` is light,
 // `[data-theme="dark"]` overrides it, and a token the dark block omits keeps its light value.
-export function splitThemeTokens(css) {
+// A skin sheet names its own two rules (css/webcore/tokens.css).
+export function splitThemeTokens(css, { light: lightSel = ':root', dark: darkSel = '[data-theme="dark"]' } = {}) {
   const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const light = declarations(ruleBody(source, ':root'));
-  const dark = declarations(ruleBody(source, '[data-theme="dark"]'));
+  const light = declarations(ruleBody(source, lightSel));
+  const dark = declarations(ruleBody(source, darkSel));
   const tokens = {};
   const derived = {};
   for (const [name, value] of Object.entries(light)) {

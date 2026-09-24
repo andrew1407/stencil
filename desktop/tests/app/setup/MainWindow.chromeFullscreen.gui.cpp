@@ -11,6 +11,7 @@ class MainWindowGuiTest : public QObject {
   // Fullscreen edge-hover: the top toolbars and the right points panel reveal WITH AN ANIMATION and
   // do so MONOTONICALLY (no oscillation = no flicker), then hide and fully restore on exit.
   void fullscreenRevealAnimatesSmoothly() {
+    const auto motion = withMotion();   // `none` (the suite's default) reveals without a fold
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 760);
     win.show();

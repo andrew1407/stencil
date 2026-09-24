@@ -10,7 +10,6 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QListWidget>
 #include <QTabWidget>
 #include <QPainter>
 #include <QPalette>
@@ -39,15 +38,19 @@ namespace stencil::gui {
     }
   }
 
-  void SelectionPanel::restyleIcons(const QColor& iconColor) {
+  void SelectionPanel::restyleIcons(const QColor& iconColor, const QColor& binColor) {
     // Back at 0° (›): the last spin ended with the panel hidden.
     if (collapseBtn) collapseBtn->setIcon(themedIcon("chevron-right", iconColor, TOGGLE_GLYPH));
     this->iconColor = iconColor;
-    if (points) {
-      for (int r = 0; r < points->rowCount(); ++r)
-        if (auto* b = qobject_cast<QPushButton*>(points->cellWidget(r, COL_DEL)))
-          b->setIcon(themedIcon("trash", this->iconColor, 14));
-    }
+    this->binColor = binColor.isValid() ? binColor : iconColor;
+    // Both tabs' rows, built before a skin switch as often as after it.
+    for (QTableWidget* table : {points, lines})
+      if (table)
+        for (QPushButton* b : table->findChildren<QPushButton*>(QStringLiteral("pointDelBtn")))
+          b->setIcon(themedIcon("trash", this->binColor, 14));
+    if (lines)
+      for (QLabel* chip : lines->findChildren<QLabel*>(QStringLiteral("linesSwatch")))
+        chip->setStyleSheet(swatchSheet(chip->property("face").toString(), chip->property("rim").toString()));
   }
 
   void SelectionPanel::setCollapseChevronVisible(bool on) { if (collapseBtn) collapseBtn->setVisible(on); }
@@ -104,13 +107,21 @@ namespace stencil::gui {
     msg->setForeground(palette().color(QPalette::PlaceholderText));
     points->setItem(0, COL_INDEX, msg);
     points->setSpan(0, COL_INDEX, 1, COL_COUNT);
-    points->resizeRowsToContents();
+    fitTableRows(points);
+    // The message stands alone, as the Lines tab's does: column headings over nothing read as a
+    // table that failed to load (browser .coordinates-table:has(.empty-message) thead).
+    points->horizontalHeader()->hide();
   }
 
   bool SelectionPanel::eventFilter(QObject* obj, QEvent* event) {
     if (event->type() == QEvent::Leave) {
-      if (obj == points) emit pointRowHovered(-1);
-      else if (obj == lines) emit lineRowHovered(-1);
+      if (obj == points) {
+        setCanvasHover(-1, canvasHoverLineRow);
+        emit pointRowHovered(-1);
+      } else if (obj == lines) {
+        setCanvasHover(canvasHoverPointRow, -1);
+        emit lineRowHovered(-1);
+      }
     }
     if (event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
@@ -122,7 +133,7 @@ namespace stencil::gui {
       }
       // Same key on the Lines tab removes the current line (browser focused lines-row Delete).
       if (isDelete && obj == lines && lines->currentRow() >= 0 &&
-          lines->currentRow() < lines->count()) {
+          lines->currentRow() < lines->rowCount()) {
         emit lineListRemoveRequested(lines->currentRow());
         return true;
       }

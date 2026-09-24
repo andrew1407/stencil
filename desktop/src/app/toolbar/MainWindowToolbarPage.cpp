@@ -92,8 +92,7 @@ namespace stencil::gui {
     allowFormulas = new QCheckBox("𝑓(x,y)", this);
     // Accent pill toggle (theme.cpp QCheckBox#formulaPill), matching the browser toolbar.
     allowFormulas->setObjectName("formulaPill");
-    allowFormulas->setToolTip(
-        "Enable x/y coordinate transform formulas applied to the points table");
+    allowFormulas->setToolTip("Transform page coordinates with a formula f(x,y)");
     // Content-sized: a stretchable pill swallowed the row's leftover width while its click rect
     // stayed at the left.
     allowFormulas->setSizePolicy(QSizePolicy::Fixed, allowFormulas->sizePolicy().verticalPolicy());

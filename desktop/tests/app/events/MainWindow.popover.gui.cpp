@@ -79,19 +79,28 @@ class MainWindowGuiTest : public QObject {
 
   // The same trap one step further in: a dialog that sizes itself to its content and clamps itself to
   // the screen (OpenImageDialog) must do neither as a popover, or it resizes past the overlay's cap.
+  // Image links sizes its rows to the popover's 420px cap too; greyed without a saved project.
+  void aSelfSizingDialogStaysInsideItsPopoverOverlay_data() {
+    QTest::addColumn<bool>("links");
+    QTest::newRow("open image") << false;
+    QTest::newRow("image links") << true;
+  }
   void aSelfSizingDialogStaysInsideItsPopoverOverlay() {
+    QFETCH(bool, links);
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QAction* act = links ? win.actLinks : win.actOpen;
+    act->setEnabled(true);
 
     QToolButton* icon = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
-      if (it.value() != win.actOpen) continue;
+      if (it.value() != act) continue;
       auto* b = static_cast<QToolButton*>(it.key());
       if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
     }
-    QVERIFY2(icon, "Open Image must be a popover-wired dialog icon");
+    QVERIFY2(icon, "the dialog must be a popover-wired dialog icon");
 
     bool sawPopover = false;
     QRect dlgRect, overlayRect;
@@ -124,7 +133,7 @@ class MainWindowGuiTest : public QObject {
     QApplication::sendEvent(icon, &ctx);
     settle([&] { return sawPopover && !win.pop.active; }, 6000);
 
-    QVERIFY2(sawPopover, "right-click on Open Image must open the compact popover");
+    QVERIFY2(sawPopover, "a right-click on the icon must open the compact popover");
     QCOMPARE(dlgPos, QPoint(0, 0));
     QVERIFY2(dlgRect.width() <= overlayRect.width(),
              "the popover dialog must not grow wider than the overlay framing it");

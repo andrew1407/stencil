@@ -81,7 +81,9 @@ namespace stencil::gui {
     units.pageSize->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     units.pageSize->setMinimumContentsLength(11);
     units.pageSize->setMaximumWidth(150);
-    zoom = new QComboBox(this);
+    // The themed preset list every other selector opens (browser: the zoom menu is an .accent-dd).
+    zoom = new SearchComboBox(this, /*searchable=*/false);
+    zoom->setObjectName(QStringLiteral("zoomCombo"));
     zoom->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
     setTipBase(zoom, "Zoom %");   // browser #zoom-input: greyed with nothing to zoom
     setTipReason(zoom, "Load an image to zoom");

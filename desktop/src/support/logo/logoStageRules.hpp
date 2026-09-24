@@ -12,7 +12,7 @@
 
 namespace stencil::support {
 
-  enum class StageEffect { NEON, SUN, FIRE, WATER, DUST, SHRINK, GROW, FOLLOW, ESCAPE, PINK, FLY };
+  enum class StageEffect { NEON, SUN, FIRE, WATER, DUST, SHRINK, GROW, FOLLOW, ESCAPE, PINK, FLY, WEBCORE };
 
   struct StageShow {
     QString name;
@@ -24,6 +24,7 @@ namespace stencil::support {
 
   struct LogoStageConfig {
     int holdMs = 3000;
+    int typeGapMs = 1200;   // a half-typed word is forgotten after this long without a letter
     QString toast, toastGold, toastInk, toastGlow;
     QVector<StageShow> shows;
     // stage
@@ -62,6 +63,11 @@ namespace stencil::support {
   // its row, and a row naming a motion mode opens only under it.
   QString resolveShow(const QString& accentKey, MotionMode mode);
   const StageShow* showByName(const QString& name);
+  // A styled show (firework, waterShow, dustySpot) flies its own style whatever the mode is.
+  inline bool showHasOwnStyle(const QString& name) {
+    const StageShow* s = showByName(name);
+    return s && !s->motion.isEmpty();
+  }
   QStringList typedWords();   // the show names, lower-cased
 
   // The cloud a show wears: its own for a styled show, the current one for a roaming show.

@@ -33,8 +33,9 @@ int main(int argc, char** argv) {
     check(!cfg.shows.isEmpty(), "logoStage.json qrc alias resolves and parses");
     check(cfg.holdMs == 3000, "the hold is three seconds");
     check(!cfg.toast.isEmpty(), "the notice carries its text");
-    check(cfg.shows.size() == 11, "every show is read");
-    // Every accent preset opens exactly one show — the browser asserts the same.
+    check(cfg.shows.size() == 12, "every show is read");
+    // Every accent preset opens a show — the browser asserts the same. Two rows may share a
+    // colour when their `motion` modes tell them apart (grey: dust while it flies, else webcore).
     QFile f(":/config/accents.json");
     check(f.open(QIODevice::ReadOnly), "accents.json reads");
     const QJsonArray accents = QJsonDocument::fromJson(f.readAll()).array();
@@ -45,9 +46,9 @@ int main(int argc, char** argv) {
       int owners = 0;
       for (const StageShow& s : cfg.shows)
         if (s.accents.contains(key)) ++owners;
-      if (owners != 1) { covered = false; std::printf("       %s is owned by %d shows\n", qPrintable(key), owners); }
+      if (owners < 1) { covered = false; std::printf("       %s is owned by %d shows\n", qPrintable(key), owners); }
     }
-    check(covered, "each preset is owned by exactly one show");
+    check(covered, "each preset opens a show");
   }
 
   std::printf("resolution:\n");
@@ -58,6 +59,8 @@ int main(int argc, char** argv) {
     check(resolveShow("crimson", MotionMode::PARTICLES).isEmpty(), "crimson under dust: nothing");
     check(resolveShow("sky", MotionMode::WATER) == "waterShow", "sky + water: water");
     check(resolveShow("bluegray", MotionMode::PARTICLES) == "dustySpot", "bluegray + dust: dust");
+    check(resolveShow("grey", MotionMode::PARTICLES) == "dustySpot", "grey + dust: dust");
+    check(resolveShow("grey", MotionMode::NONE) == "webcore", "grey with the interface still: the skin");
     check(resolveShow("grey", MotionMode::SLIDE).isEmpty(), "grey under slide: nothing");
     check(resolveShow("grass", MotionMode::NONE) == "makeItSmall", "grass: shrink");
     check(resolveShow("brown", MotionMode::NONE) == "pushToBloat", "brown: grow");
@@ -69,6 +72,10 @@ int main(int argc, char** argv) {
     check(showByName("neonOn") && !showByName("nope"), "a show is found by name, and only a real one");
     check(typedWords().contains("neonno") == false && typedWords().contains("neonon"),
           "the typed words are the names, lower-cased");
+    check(typedWords().contains("webcore") && showByName("webcore")->effect == StageEffect::WEBCORE,
+          "the skin's word is one of them, with its own effect");
+    check(resolveShow("violet", MotionMode::NONE) != "webcore" && !showHasCloud("webcore", nullptr),
+          "…that only grey reaches and that wears no cloud");
   }
 
   std::printf("sizes and the heart:\n");
@@ -110,7 +117,11 @@ int main(int argc, char** argv) {
     setMotionMode(MotionMode::WATER);
     check(styleOf("makeItSmall") == int(ParticleStyle::WATER), "…and follows the style in use");
     setMotionMode(MotionMode::NONE);
-    check(styleOf("makeItSmall") == -1, "particles off: no cloud, the light does it all");
+    check(styleOf("makeItSmall") == int(ParticleStyle::DUST), "particles off: a show still wears dust");
+    setMotionOverride({MotionMode::NONE, false, false});
+    check(styleOf("makeItSmall") == int(ParticleStyle::DUST) && motionOverridden(),
+          "…and a skin's stillness never reaches it");
+    clearMotionOverride();
     setMotionMode(MotionMode::PARTICLES);
   }
 

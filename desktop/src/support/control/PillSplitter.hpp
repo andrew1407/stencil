@@ -10,6 +10,7 @@
 #include <QSplitter>
 #include <QSplitterHandle>
 #include <QVariantAnimation>
+#include "../skinPrefs.hpp"
 
 namespace stencil::gui {
 
@@ -90,6 +91,16 @@ namespace stencil::gui {
       c.setRed(qRound(rest.red() + (accent.red() - rest.red()) * hot));
       c.setGreen(qRound(rest.green() + (accent.green() - rest.green()) * hot));
       c.setBlue(qRound(rest.blue() + (accent.blue() - rest.blue()) * hot));
+      if (support::isWebcore()) {   // browser webcore .chat-input-sizer: an etched 1px pair, lit 2px
+        if (hot > 0.5 && support::skinAccent().isValid()) {
+          p.fillRect(cx - w / 2, height() / 2 - 1, w, 2, support::skinAccent());
+          return;
+        }
+        const support::SkinBevel b = support::skinBevel();
+        p.fillRect(cx - w / 2, height() / 2 - 1, w, 1, b.shadow);
+        p.fillRect(cx - w / 2, height() / 2, w, 1, b.hilight);
+        return;
+      }
       const QRect pill(cx - w / 2, (height() - PILL_H) / 2, w, PILL_H);
       p.setPen(Qt::NoPen);
       p.setBrush(c);

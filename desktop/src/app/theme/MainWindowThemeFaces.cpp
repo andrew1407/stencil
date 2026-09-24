@@ -98,6 +98,7 @@ namespace stencil::gui {
       startDrawBtn->style()->polish(startDrawBtn);
     };
     swapFace(startDrawBtn, face, applyFill, animate && flipped ? FACE_SWAP_MS : 0);
+    centreFaceLabel(startDrawBtn, FACE_PAD_X_PX);
   }
 
   // Line ✎ / Rect ▭: the same swap with a permanent accent fill, like the browser's bare
@@ -119,6 +120,7 @@ namespace stencil::gui {
     const bool flipped =
         drawModeBtn->property(FACE_LABEL_PROPERTY).toString() != face.label;
     swapFace(drawModeBtn, face, {}, animate && flipped ? FACE_SWAP_MS : 0);
+    centreFaceLabel(drawModeBtn, FACE_PAD_X_PX);
   }
 }  // namespace stencil::gui
 

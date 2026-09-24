@@ -2,6 +2,7 @@
 #include "accentDefaults.hpp"
 #include "colorMix.hpp"   // mixSrgb / blendColors, used with everything below
 #include <QColor>
+#include <QHash>
 #include <QPalette>
 #include <QString>
 #include <utility>
@@ -73,6 +74,7 @@ namespace stencil::gui {
   // QSS geometry the code also measures against — interpolated, so the two cannot drift.
   inline constexpr int MENU_ITEM_RIGHT_PAD_PX = 26;   // QMenu::item right padding
   inline constexpr int DOCK_SEPARATOR_PX = 9;       // QMainWindow::separator width
+  inline constexpr int FACE_PAD_X_PX = 6;           // QToolButton#drawFaceBtn side padding
 
   // The app-wide QMenu paddings are sized for the menu bar and read as dead space in flat icon menus.
   inline QString compactMenuQss() {
@@ -80,6 +82,9 @@ namespace stencil::gui {
   }
 
   QString buildStylesheet(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
+
+  // One walk over a %TOKEN% template; an unknown token is left alone. A skin's overlay fills its own.
+  QString fillStylesheetTokens(const QString& tpl, const QHash<QString, QString>& values);
 
   // Browser --sb-thumb; read by the painted bars, since QSS on macOS will not round a QScrollBar handle.
   QColor canvasScrollThumb(bool dark);

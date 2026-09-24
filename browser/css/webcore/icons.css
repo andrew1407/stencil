@@ -1,0 +1,60 @@
+/* The webcore skin's glyphs: pixel art stays pixel art — crisp edges, nothing tinted, nothing
+   that turns, shakes or settles under the pointer (animations/iconHover*.css, iconClick.css). */
+:root[data-skin="webcore"] .ic,
+:root[data-skin="webcore"] .draw-mode-icon,
+:root[data-skin="webcore"] .app-logo {
+    shape-rendering: crispEdges;
+    image-rendering: pixelated;
+    fill: none;
+    stroke: none;
+    transform: none !important;
+    transition: none !important;
+}
+/* The header mark's hover glow is the one light the skin keeps; the art stays still. */
+:root[data-skin="webcore"] .ic,
+:root[data-skin="webcore"] .draw-mode-icon,
+:root[data-skin="webcore"] .app-logo-wrap:not(.logo-hover) .app-logo {
+    filter: none !important;
+    animation: none !important;
+}
+:root[data-skin="webcore"] .ic *,
+:root[data-skin="webcore"] .draw-mode-icon *,
+:root[data-skin="webcore"] .app-logo * {
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+    stroke: none;
+}
+:root[data-skin="webcore"] .app-logo { width: 32px; height: 32px; }
+:root[data-skin="webcore"] .app-logo-frame { display: none; }
+:root[data-skin="webcore"] .app-logo-wrap.logo-hover .app-logo { transform: none !important; }
+/* …with one exception: a fold chevron's angle is STATE, not motion. Without this both
+   toggles point the same way whether the panel is open or shut. */
+:root[data-skin="webcore"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
+:root[data-skin="webcore"] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic {
+    transform: rotate(180deg) !important;
+}
+:root[data-skin="webcore"] .is-loading .ic,
+:root[data-skin="webcore"] .swapping > svg { animation: none !important; }
+:root[data-skin="webcore"] .swap-ghost { display: none; }
+:root[data-skin="webcore"] .icm-spun :is(.ic, .draw-mode-icon) { animation: none !important; }
+:root[data-skin="webcore"] .mm-icon { shape-rendering: crispEdges; }
+:root[data-skin="webcore"] :is(.ic, .draw-mode-icon) rect { stroke: none; }
+/* A menu row's highlight is the navy bar, and pixel art with its colour baked in cannot follow:
+   a dark glyph (the install arrow, the link chain) vanished into it. A one-pixel light halo keeps
+   every one of them legible without re-inking any. */
+:root[data-skin="webcore"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover,
+.accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover,
+.zoom-menu-item:hover, #install-menu [role="menuitem"]:hover, .ctx-checkbox-item:hover,
+.ctx-radio-item:hover) :is(.ic, .draw-mode-icon) {
+    filter: drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight))
+            drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important;
+}
+
+/* A disabled control's glyph is greyed and embossed, the way its word already is
+   (css/webcore/chrome.css): pixel art with its colour baked in reads as live otherwise. */
+:root[data-skin="webcore"] :is(button, select, a, [role="button"]):disabled :is(.ic, .draw-mode-icon),
+:root[data-skin="webcore"] [aria-disabled="true"] :is(.ic, .draw-mode-icon),
+:root[data-skin="webcore"] .is-disabled :is(.ic, .draw-mode-icon) {
+    filter: grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important;
+}

@@ -138,8 +138,7 @@ namespace stencil::gui {
     void pasteImage();
 
    private:
-    // Filter chain in THIS order: a void handler only observes, an optional-returning one that
-    // answers ends the chain. tests/MainWindow.composition.gui.cpp pins the verdicts.
+    // Filter chain in THIS order: a void handler observes, an answering one ends it (composition.gui pins it).
     bool eventFilter(QObject* obj, QEvent* event) override;
     void filterPointerChrome(QObject* obj, QEvent* event);
     void filterDockChrome(QObject* obj, QEvent* event);
@@ -175,8 +174,7 @@ namespace stencil::gui {
     // Qt reads settings.nativeMenuBar only on (re)creation, so a runtime switch rebuilds.
     void applyMenuBarPlacement();
     void buildToolbar();
-    // Ctor phases in exactly this order: construction order is observable (tab order, stacking,
-    // dock placement) and tests/MainWindow.composition.gui.cpp pins it; wireSignals()'s connect ORDER too.
+    // Ctor phases in exactly this order: it is observable (tab order, stacking) and composition.gui pins it.
     void loadHotkeys();
     void setupCanvasArea();
     void installWindowFilters();
@@ -192,6 +190,9 @@ namespace stencil::gui {
     void buildMainToolbar();
     void buildHeaderRow();
     void buildLogoStage();
+    bool toggleWebcore();
+    void unpinFaceWidths();
+    void webcoreScene();
     void buildToolSectionsRow();
     void buildFormulaFields();
     class QToolBar* toolRow() const;
@@ -281,8 +282,8 @@ namespace stencil::gui {
     void scrollTo(int x, int y);
     void setZoomAnchored(double newScale, const QPoint& cursorInViewport);
     void applyTheme();
-    // The drop hint's keycaps are painted pictures, so a theme change rebuilds the line.
     void refreshDropHint();
+    void restyleImageSizeInfo();
     void styleActionIcons(bool dark, const QColor& iconColor);
     void styleDangerToolButtons();
     bool sectionButtonVisible(QAction* act, QToolButton* btn) const;
@@ -299,8 +300,7 @@ namespace stencil::gui {
     void toggleTheme();
     void applySettings(const Settings& s, bool persist);
     void openSettings();
-    // A named pair, NOT an overload: taken by address in connect()s.
-    void openAssistantSettings();
+    void openAssistantSettings();   // a named pair, NOT an overload: taken by address in connect()s
     void openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect = QRect());
     // Parented to the WINDOW so the transcript survives the per-right-click menu rebuild.
     void ensureChatMenuPanel();

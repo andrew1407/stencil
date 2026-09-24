@@ -1,6 +1,6 @@
 // The full-window logo stage and the lock that makes it the only thing the editor listens to.
 import type { DrawingApp } from '../../core/drawingApp.js';
-import type { StageEffect, StagePoint } from './stageRules.js';
+import type { StageEffect, StagePoint, StageStyle } from './stageRules.js';
 
 export declare const STAGE_CLASS: string;
 /** On <body> while a show is up, so its notice can still stand above the stage. */
@@ -24,6 +24,10 @@ export interface LiveStage {
   readonly size: number;
   readonly position: StagePoint;
   readonly cloudLive: number;
+  /** The style the cloud flies now, null when none does; follows the skin and motion mode live. */
+  readonly cloudStyle: StageStyle | null;
+  /** The mark's image source now: the skin's pixel art under webcore, the normal mark otherwise. */
+  readonly markSrc: string | null;
   release(): void;
 }
 /** The stage on screen, or null. */

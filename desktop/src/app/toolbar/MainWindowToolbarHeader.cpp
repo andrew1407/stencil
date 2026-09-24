@@ -21,6 +21,7 @@
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
 #include <QLabel>
 #include <QTimer>
 #include <QToolBar>
@@ -82,7 +83,6 @@ namespace stencil::gui {
       pop.anchor = logoBtn;
       actAccent->trigger();
     });
-    logoBtn->installEventFilter(this);   // catch double-click → custom colour picker (see eventFilter)
     // LogoHoverFx: the browser's logo pulse/levitate/glow/ray loop, purely visual.
     logoFx = new LogoHoverFx(
         logoBtn, [this] { return makeLogoPixmap(HEADER_LOGO); },
@@ -105,7 +105,8 @@ namespace stencil::gui {
     controlsPill->setMaximumHeight(28);
     controlsPill->setAutoRaise(true);
     controlsPill->setCursor(Qt::PointingHandCursor);
-    controlsPill->setToolTip(QString("Show / hide the toolbars (%1)").arg(hotkey("toggleControls", "Alt+C")));
+    setTipBase(controlsPill, "Hide controls");   // browser #toggle-controls; the chord is the keycap
+    setTipHotkey(controlsPill, actToolbars);
     connect(controlsPill, &QToolButton::clicked, this, [this] { if (actToolbars) actToolbars->toggle(); });
     headerToolbar->addWidget(controlsPill);
     headerToolbar->addSeparator();
@@ -113,7 +114,7 @@ namespace stencil::gui {
     // Created here, placed in its own bar below the toolbars (buildImageInfoBar; browser #image-
     // info).
     imageSizeInfo = new QLabel(this);
-    imageSizeInfo->setStyleSheet("color:#9aa0a8;");
+    restyleImageSizeInfo();
     // contentsMargins, not QSS padding, which QLabel's sizeHint ignores; 10px sides (browser .info
     // padding), 11px top/bottom.
     imageSizeInfo->setContentsMargins(10, 11, 10, 11);
@@ -157,6 +158,14 @@ namespace stencil::gui {
       return !fs.active && !QApplication::activeModalWidget() &&
              !QApplication::activePopupWidget() && !pop.active;
     };
+    hooks.clearWay = [this] {
+      if (QWidget* menu = QApplication::activePopupWidget()) menu->close();
+      QWidget* modal = QApplication::activeModalWidget();
+      if (pop.active) dismissPopover();
+      else if (auto* dlg = qobject_cast<QDialog*>(modal)) dlg->reject();
+      else if (modal) modal->close();
+      if (fs.active) toggleFullscreen();
+    };
     hooks.toast = [this](const QString& text) {
       if (!notify) return;
       notify->show(text, Notifications::Level::SUCCESS, 3000, /*special=*/true);
@@ -177,6 +186,7 @@ namespace stencil::gui {
       target.commitLayoutLines(lines);   // one step on the user's own undo stack
       fitToWindow();   // the heart is the show — a page taller than the viewport hides it
     };
+    hooks.webcore = [this] { return toggleWebcore(); };
     hooks.stopClick = [this] { if (logoClickTimer) logoClickTimer->stop(); };
     // LogoHoverFx re-raises itself on hover, so it would paint over the stage; it stands
     // down for the show and paints its resting mark again afterwards.

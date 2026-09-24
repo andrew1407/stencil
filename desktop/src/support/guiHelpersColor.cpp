@@ -2,6 +2,7 @@
 
 #include "theme.hpp"
 #include "iconSet.hpp"
+#include "skinPrefs.hpp"
 #include "modalChrome.hpp"   // confirmModal — the browser-styled yes/no question
 #include "modalReveal.hpp"   // support::motionReduced()
 #include <QAbstractButton>
@@ -66,12 +67,15 @@ namespace stencil::gui {
     btn->setCursor(Qt::PointingHandCursor);
     // Written only when it would change: a live picker preview re-swatches on every drag
     // tick, and each setStyleSheet is a QSS re-parse plus re-polish. Hex sits flush left (browser .vs-color).
+    // A skin squares every corner (support/skinPrefs.hpp), the chip below included.
+    const bool skin = support::isWebcore();
     const QString sheet = QString("QAbstractButton{background:%1;border:1px solid %2;"
                                   "border-radius:%4;padding:%5;%6}"
                                   "QAbstractButton:hover{border-color:%3;}")
                               .arg(pal.inputBg.name(), pal.borderMain.name(),
                                    appPal.color(QPalette::Highlight).name(),   // the LIVE accent
-                                   withHex ? QStringLiteral("6px") : QStringLiteral("7px"),
+                                   skin ? QStringLiteral("0px")
+                                        : withHex ? QStringLiteral("6px") : QStringLiteral("7px"),
                                    withHex ? QStringLiteral("0 10px") : QStringLiteral("0"),
                                    withHex ? QStringLiteral("text-align:left;color:%1;")
                                                  .arg(pal.inputText.name())
@@ -82,11 +86,13 @@ namespace stencil::gui {
     pm.fill(Qt::transparent);
     {
       QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing);
+      p.setRenderHint(QPainter::Antialiasing, !skin);
       const bool lightFill = color.lightnessF() > 0.7;
-      p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
+      p.setPen(QPen(skin ? QColor(Qt::black)
+                         : lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
       p.setBrush(color);
-      p.drawRoundedRect(QRectF(0.5, 0.5, SWATCH_CHIP.width() - 1.0, SWATCH_CHIP.height() - 1.0), 4, 4);
+      const QRectF chip(0.5, 0.5, SWATCH_CHIP.width() - 1.0, SWATCH_CHIP.height() - 1.0);
+      if (skin) p.drawRect(chip); else p.drawRoundedRect(chip, 4, 4);
     }
     btn->setIcon(QIcon(pm));
     btn->setIconSize(pm.size());

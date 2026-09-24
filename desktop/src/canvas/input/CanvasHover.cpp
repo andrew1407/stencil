@@ -82,6 +82,22 @@ namespace stencil::gui {
     emit hoverDetail(ip.x, ip.y, QCursor::pos(), mods, /*immediate=*/true);
   }
 
+  // The card grows in from the centre the editor just emptied (browser @keyframes idleCardArrive).
+  void CanvasWidget::startIdleCardArrival() {
+    if (!idleCardEnterAnim) {
+      idleCardEnterAnim = new QVariantAnimation(this);
+      idleCardEnterAnim->setDuration(IDLE_CARD_ARRIVE_MS);
+      idleCardEnterAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(idleCardEnterAnim, &QVariantAnimation::valueChanged, this,
+              [this](const QVariant& v) { idleCardEnterT = v.toDouble(); update(); });
+    }
+    idleCardEnterAnim->stop();
+    idleCardEnterAnim->setStartValue(0.0);
+    idleCardEnterAnim->setEndValue(1.0);
+    idleCardEnterT = 0.0;
+    idleCardEnterAnim->start();
+  }
+
   // Hover the idle card the way the browser does (.idle-create-btn transitions colour,
   // lift and shadow over 0.2s) rather than snapping between two states.
   void CanvasWidget::setIdleCardHover(bool on) {

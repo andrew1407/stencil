@@ -13,7 +13,10 @@ export const accentHex = (key) =>
   (ACCENTS.find((a) => a.key === key) || ACCENTS[0]).hex;
 
 // The favicon art lives in config/svgArt.json, pinned against favicon.svg by tests/svgArt.test.js.
-export const faviconSvg = (hex) => SVG_ART.favicon.replace('%1', hex);
+// A skin's own art (hex → SVG) is re-inked by every accent change; null = the app's own.
+let faviconArt = null;
+export const setFaviconArt = (fn) => { faviconArt = typeof fn === 'function' ? fn : null; };
+export const faviconSvg = (hex) => (faviconArt ? faviconArt(hex) : SVG_ART.favicon.replace('%1', hex));
 
 // '#rgb' / '#rrggbb' (leading '#' optional) → '#rrggbb' lower-case, or null.
 export const normalizeHex = (value) => {

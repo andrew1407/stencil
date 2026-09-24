@@ -1,0 +1,327 @@
+/* The webcore skin's windows: modals with a navy title strip, flat grey menus, the yellow
+   tooltip, the toast as a system message box, the chat panel and the project rows. */
+:root[data-skin="webcore"] .app-modal-overlay,
+:root[data-skin="webcore"] #chat-backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: none !important; }
+:root[data-skin="webcore"] .app-modal,
+:root[data-skin="webcore"] #settings-modal,
+:root[data-skin="webcore"] .exp-modal,
+:root[data-skin="webcore"] .script-modal {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+    padding: 3px;
+}
+:root[data-skin="webcore"] .settings-header,
+:root[data-skin="webcore"] .app-modal-overlay:not(.modal-popover) .settings-header,
+:root[data-skin="webcore"] .app-modal.modal-dragging .settings-header,
+:root[data-skin="webcore"] .chat-header {
+    background: var(--wc-title);
+    color: var(--wc-title-ink);
+    border: 0;
+    padding: 3px 4px 3px 8px;
+    min-height: 18px;
+}
+/* The title strip is still the window's handle and the frame still its size grips: the skin
+   sets no cursor of its own, so components/modalShell.css keeps saying so. */
+:root[data-skin="webcore"] .settings-header h2,
+:root[data-skin="webcore"] .settings-header .ic,
+:root[data-skin="webcore"] .chat-title,
+:root[data-skin="webcore"] .chat-title-text {
+    color: var(--wc-title-ink);
+    font-weight: 700;
+    font-size: 12px;
+}
+:root[data-skin="webcore"] .app-modal-close,
+:root[data-skin="webcore"] #settings-close,
+:root[data-skin="webcore"] .chat-hbtn {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+    width: 18px;
+    height: 16px;
+    min-width: 0;
+    padding: 0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    margin-left: 2px;
+}
+:root[data-skin="webcore"] .app-modal-close:hover,
+:root[data-skin="webcore"] #settings-close:hover,
+:root[data-skin="webcore"] .chat-hbtn:hover { background: var(--wc-face); color: var(--wc-ink); }
+:root[data-skin="webcore"] .settings-body,
+:root[data-skin="webcore"] .settings-footer,
+:root[data-skin="webcore"] .meta-body,
+:root[data-skin="webcore"] .exp-calendar { background: var(--wc-face); border-color: var(--wc-shadow); box-shadow: none; }
+:root[data-skin="webcore"] .settings-footer { border-top: 1px solid var(--wc-shadow); box-shadow: inset 0 1px var(--wc-hilight); }
+:root[data-skin="webcore"] .vs-section,
+:root[data-skin="webcore"] .info-group-title,
+:root[data-skin="webcore"] .ctx-sub-label { color: var(--wc-ink); letter-spacing: 0; text-transform: none; font-weight: 700; }
+:root[data-skin="webcore"] .vs-row,
+:root[data-skin="webcore"] .info-item,
+:root[data-skin="webcore"] .hotkey-row,
+:root[data-skin="webcore"] .hotkey-head { border-color: var(--wc-light); background: transparent; }
+:root[data-skin="webcore"] .hotkey-head { background: var(--wc-face); box-shadow: var(--wc-raised); }
+:root[data-skin="webcore"] .hotkey-row:hover,
+:root[data-skin="webcore"] .info-item:hover { background: var(--wc-light); }
+:root[data-skin="webcore"] .kw-chip,
+:root[data-skin="webcore"] .kw-chips,
+:root[data-skin="webcore"] .chat-attach-chip {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+:root[data-skin="webcore"] .project-row,
+:root[data-skin="webcore"] .connect-row {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: none;
+    transform: none;
+}
+:root[data-skin="webcore"] .project-thumb,
+:root[data-skin="webcore"] .project-thumb img,
+:root[data-skin="webcore"] .links-preview-wrap { border: 1px solid var(--wc-dark); box-shadow: none; }
+:root[data-skin="webcore"] .project-row:hover .project-thumb img { transform: none; }
+
+/* ── Menus: flat grey, the navy bar for the row under the pointer ── */
+:root[data-skin="webcore"] #ctx-menu,
+:root[data-skin="webcore"] .ctx-sub,
+:root[data-skin="webcore"] .accent-dd-menu,
+:root[data-skin="webcore"] .zoom-menu,
+:root[data-skin="webcore"] .project-menu,
+:root[data-skin="webcore"] .chat-row-menu,
+:root[data-skin="webcore"] .chat-more-menu,
+:root[data-skin="webcore"] #install-menu,
+:root[data-skin="webcore"] .hints-popup {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    /* The outer --wc-dark line: on the dark face the bevel alone melted into the page under it. */
+    box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
+    padding: 3px;
+}
+:root[data-skin="webcore"] .ctx-item,
+:root[data-skin="webcore"] .accent-dd-opt,
+:root[data-skin="webcore"] .zoom-menu-item,
+:root[data-skin="webcore"] .project-menu-item,
+:root[data-skin="webcore"] .chat-row-menu-item,
+:root[data-skin="webcore"] .chat-more-item,
+:root[data-skin="webcore"] #install-menu [role="menuitem"],
+:root[data-skin="webcore"] .ctx-checkbox-item,
+:root[data-skin="webcore"] .ctx-radio-item {
+    background: transparent;
+    color: var(--wc-ink);
+    box-shadow: none;
+    border: 0;
+}
+:root[data-skin="webcore"] .ctx-item:hover,
+:root[data-skin="webcore"] .ctx-item.ctx-open-sub,
+:root[data-skin="webcore"] .ctx-item.ctx-kb,
+:root[data-skin="webcore"] .accent-dd-opt:hover,
+:root[data-skin="webcore"] .accent-dd-opt.dd-hover,
+:root[data-skin="webcore"] .zoom-menu-item:hover,
+:root[data-skin="webcore"] .project-menu-item:hover,
+:root[data-skin="webcore"] .chat-row-menu-item:hover,
+:root[data-skin="webcore"] .chat-more-item:hover:not(:disabled),
+:root[data-skin="webcore"] #install-menu [role="menuitem"]:hover,
+:root[data-skin="webcore"] .ctx-checkbox-item:hover,
+:root[data-skin="webcore"] .ctx-radio-item:hover {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover
+:is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span) {
+    color: var(--wc-on-select);
+}
+/* One bar only: the current value holds it until the pointer takes it to another row, and gets
+   it back when the pointer leaves. */
+:root[data-skin="webcore"] .accent-dd-opt[aria-selected="true"],
+:root[data-skin="webcore"] .zoom-menu-item.active {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.accent-dd-opt[aria-selected="true"], .zoom-menu-item.active)
+:is(.accent-dd-name, .ctx-label, span) { color: var(--wc-on-select); }
+:root[data-skin="webcore"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover),
+:root[data-skin="webcore"] .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover) {
+    background: transparent;
+    color: var(--wc-ink);
+}
+:root[data-skin="webcore"] :is(.accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover),
+.zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)) :is(.accent-dd-name, .ctx-label, span) { color: var(--wc-ink); }
+
+/* A keycap keeps its own grey face on the selected row: white ink on it read as nothing. The
+   "+" between them has no face, so it takes the row's own ink. */
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-key { color: var(--wc-ink); }
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-plus { color: var(--wc-on-select); }
+/* Nothing moves: no keycap shake, no row nudge, no hover lift. */
+:root[data-skin="webcore"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .ctx-item *, .accent-dd-opt,
+.accent-dd-opt *, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default,
+.idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn,
+.coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text) {
+    transform: none !important;
+}
+:root[data-skin="webcore"] .ctx-sep { background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); height: 1px; margin: 3px 1px; }
+:root[data-skin="webcore"] .ctx-item::after,
+:root[data-skin="webcore"] .shimmer::after,
+:root[data-skin="webcore"] .vs-color::after,
+:root[data-skin="webcore"] .oi-color::after { display: none; }
+
+:root[data-skin="webcore"] .project-menu-item.is-danger,
+:root[data-skin="webcore"] .chat-row-menu-item.is-danger { color: var(--wc-ink); }
+
+/* A hovered or canvas-highlighted row is the light face; only a SELECTED row is the navy bar
+   (desktop SelectionPanel does the same). !important over the base rule's accent wash. */
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-highlighted:not(.row-focused),
+.lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected),
+.connect-row:hover:not(.connect-selected)) { background: var(--wc-light) !important; color: var(--wc-ink); }
+/* A navy row carries the on-select ink all the way down; a field or button in it keeps its face. */
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) { background: var(--wc-select) !important; }
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div, .lines-label) {
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon) {
+    color: var(--wc-ink);
+}
+
+/* ── Tooltip: the yellow note ── */
+:root[data-skin="webcore"] #app-tooltip,
+:root[data-skin="webcore"] .tooltip,
+:root[data-skin="webcore"] .chat-status-tip,
+:root[data-skin="webcore"] .ctx-preview-tip {
+    background: var(--wc-tip-bg);
+    color: var(--wc-tip-ink);
+    border: 1px solid var(--wc-dark);
+    box-shadow: none;
+    padding: 3px 6px;
+    font-size: 11px;
+}
+:root[data-skin="webcore"] .tip-title,
+:root[data-skin="webcore"] .tip-term,
+:root[data-skin="webcore"] .tip-desc,
+:root[data-skin="webcore"] .tip-line,
+:root[data-skin="webcore"] .tip-hint,
+:root[data-skin="webcore"] .tip-note,
+:root[data-skin="webcore"] .tip-bullets li { color: var(--wc-tip-ink); }
+/* The cap IS the key; .ctx-hotkey is only the row's slot for one, and giving that a face too
+   drew a second key around the whole combo. Sized as the default skin's caps. */
+:root[data-skin="webcore"] .tip-key,
+:root[data-skin="webcore"] .info-key .tip-key,
+:root[data-skin="webcore"] .hotkey-table .tip-key,
+:root[data-skin="webcore"] .shortcut-hint {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .ctx-hotkey {
+    background: none;
+    box-shadow: none;
+    border: 0;
+    padding-left: 10px;
+}
+
+/* ── Notices: a system message box ── */
+:root[data-skin="webcore"] .notify-toast,
+:root[data-skin="webcore"] .notify-toast.notify-info,
+:root[data-skin="webcore"] .notify-toast.notify-fail,
+:root[data-skin="webcore"] .notify-toast.notify-shine,
+:root[data-skin="webcore"] .image-missing-banner {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+    /* Room at the top for the title strip; the glyph and the words stay on one line. */
+    padding: 23px 12px 8px 8px;
+    position: relative;
+    flex-wrap: nowrap;
+    animation: none;
+}
+/* The strip is laid over the box rather than into it: as a flex item it either stood beside
+   the glyph or pushed the words onto a line of their own. Inset by the bevel's 3px. */
+:root[data-skin="webcore"] .notify-toast::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    top: 3px;
+    height: 15px;
+    background: var(--wc-title);
+}
+:root[data-skin="webcore"] .notify-toast .notify-icon { color: var(--wc-ink); }
+:root[data-skin="webcore"] .toast-glow { display: none; }
+
+/* ── Chat ── */
+:root[data-skin="webcore"] stencil-chat-panel,
+:root[data-skin="webcore"] .chat-transcript,
+:root[data-skin="webcore"] .ctx-assist {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .chat-msg,
+:root[data-skin="webcore"] .chat-msg-user,
+:root[data-skin="webcore"] .chat-msg-assistant,
+:root[data-skin="webcore"] .chat-msg-error,
+:root[data-skin="webcore"] .chat-ask,
+:root[data-skin="webcore"] .chat-error-card {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+:root[data-skin="webcore"] .chat-msg-user { background: var(--wc-light); }
+:root[data-skin="webcore"] .chat-msg::before,
+:root[data-skin="webcore"] .chat-msg::after { display: none; }
+:root[data-skin="webcore"] .chat-suggest,
+:root[data-skin="webcore"] .chat-config-cta,
+:root[data-skin="webcore"] .chat-retry-cta,
+:root[data-skin="webcore"] .chat-reconnect-cta,
+:root[data-skin="webcore"] .chat-ask-submit {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .chat-float-handle::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before,
+:root[data-skin="webcore"] .chat-float-handle.dragging::before { background: var(--wc-focus); }
+/* The raised frame is the window's grip: a corner dot drew as a square over the title's ✕. */
+:root[data-skin="webcore"] .chat-dock-float .chat-resizer::before,
+:root[data-skin="webcore"] :is(.chat-float-handle-nw, .chat-float-handle-ne, .chat-float-handle-sw)::before { display: none; }
+/* Etched like the settings footer: the shadow line, and the hilight line right under it. */
+:root[data-skin="webcore"] .chat-input-row { border-top: 1px solid var(--wc-shadow); box-shadow: inset 0 1px var(--wc-hilight); }
+:root[data-skin="webcore"] .chat-input-sizer::before,
+:root[data-skin="webcore"] .ctx-assist-sizer::before { height: 1px; background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before,
+:root[data-skin="webcore"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before,
+:root[data-skin="webcore"] .ctx-assist-sizer:hover::before { height: 2px; background: var(--wc-focus); box-shadow: none; }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover,
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging {
+    background: color-mix(in srgb, var(--wc-focus) 30%, transparent);
+}
+
+/* ── Bits that glow, blur or float in the app's own skin ── */
+:root[data-skin="webcore"] .incognito-frame .ig-edge { background: var(--wc-select); }
+:root[data-skin="webcore"] .logo-stage { background: rgba(0, 0, 0, 0.5); }
+:root[data-skin="webcore"] .canvas-viewport.remote-editing { box-shadow: var(--wc-sunken), inset 0 0 0 2px #d4a017; }
+:root[data-skin="webcore"] .project-remote-badge,
+:root[data-skin="webcore"] .project-file-badge,
+:root[data-skin="webcore"] .project-local-badge,
+:root[data-skin="webcore"] .project-current-badge,
+:root[data-skin="webcore"] .connect-admin-badge {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+/* The status lamp keeps its state colour (components/connections.css), square in a well. */
+:root[data-skin="webcore"] .conn-status { border: 0; box-shadow: var(--wc-well); animation: none; }

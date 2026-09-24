@@ -48,7 +48,10 @@ export function createCtxNav({ menu }) {
     sub.classList.add('ctx-sub-visible');
     item.classList.add('ctx-open-sub');
 
-    const { left, top } = submenuPlacement(item.getBoundingClientRect(),
+    // Beside the PANEL the row sits in, not the row: a skin's padding or bevel would otherwise
+    // put the flyout over the parent's own arrows.
+    const panel = (item.closest('.ctx-sub, #ctx-menu') || menu).getBoundingClientRect();
+    const { left, top } = submenuPlacement({ left: panel.left, right: panel.right, top: item.getBoundingClientRect().top },
       sub.offsetWidth, sub.offsetHeight, window.innerWidth, window.innerHeight);
     sub.style.left = left + 'px';
     sub.style.top = top  + 'px';

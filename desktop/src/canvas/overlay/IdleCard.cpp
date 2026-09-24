@@ -49,6 +49,17 @@ namespace stencil::gui {
     // Hit-test the RESTING rect, never the lifted one, or a cursor on the bottom edge oscillates.
     idleCardRect = box;
     box.translate(0, -3.0 * t);
+    // The arrival: grown about its own centre and faded up, over the whole card.
+    const double e = std::clamp(idleCardEnterT, 0.0, 1.0);
+    p.save();
+    if (e < 1.0) {
+      const double k = IDLE_CARD_ARRIVE_FROM + (1.0 - IDLE_CARD_ARRIVE_FROM) * e;
+      const QPointF c = box.center();
+      p.translate(c);
+      p.scale(k, k);
+      p.translate(-c);
+      p.setOpacity(e);
+    }
 
     // Drop shadow (0 8px 24px) as expanding rounded rects — QPainter has no blur. Lifted only.
     if (t > 0.01) {
@@ -154,6 +165,7 @@ namespace stencil::gui {
     p.setPen(ink);
     p.drawText(QRectF(content.left(), iconBox.bottom() + GAP, content.width(), textH),
                Qt::AlignCenter, label);
+    p.restore();   // the arrival's transform
   }
 
 }

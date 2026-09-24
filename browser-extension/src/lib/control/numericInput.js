@@ -22,6 +22,19 @@ const quantize = (value, step) => {
   return decimals ? Number(value.toFixed(decimals)) : value;
 };
 
+// What numericExpr.js's tokenizer refuses never gets in, so a letter cannot make the field
+// unparseable; the caret keeps its place among the characters that survived.
+const NOT_EXPRESSION = /[^0-9.+\-*/^() \t]/g;
+const sanitize = (el) => {
+  const typed = el.value;
+  const kept = typed.replace(NOT_EXPRESSION, '');
+  if (kept === typed) return;
+  const caret = el.selectionStart ?? kept.length;
+  const keptBefore = typed.slice(0, caret).replace(NOT_EXPRESSION, '').length;
+  el.value = kept;
+  el.setSelectionRange?.(keptBefore, keptBefore);
+};
+
 const clamp = (value, el) => {
   const lo = num(el.getAttribute('min'), -Infinity);
   const hi = num(el.getAttribute('max'), Infinity);
@@ -85,6 +98,7 @@ export const enhanceNumericInput = (el) => {
   el.addEventListener('input', (e) => {
     if (emitting) return;                 // our own settled value — let it through
     e.stopImmediatePropagation();
+    sanitize(el);
     cancelPending();
     timer = setTimeout(() => commit({ final: false }), COMMIT_DEBOUNCE_MS);
   }, true);

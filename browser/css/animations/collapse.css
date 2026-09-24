@@ -55,6 +55,22 @@
                 visibility 0s linear var(--fold-out-ms);   /* only once it has finished folding */
 }
 
+/* The info line and the gaps around it fold with the rows, on their clock, so the canvas
+   moves with the fold rather than ahead of it. */
+.info {
+    transition: height var(--fold-ms) var(--fold-ease), min-height var(--fold-ms) var(--fold-ease),
+                padding var(--fold-ms) var(--fold-ease), opacity var(--fold-fade-ms) var(--fold-ease), visibility 0s;
+}
+body.controls-collapsed .info {
+    transition: height var(--fold-out-ms) var(--fold-ease), min-height var(--fold-out-ms) var(--fold-ease),
+                padding var(--fold-out-ms) var(--fold-ease), opacity var(--fold-fade-ms) var(--fold-ease),
+                visibility 0s linear var(--fold-out-ms);
+}
+.controls-topbar, .controls-wrapper { transition: margin var(--fold-ms) var(--fold-ease); }
+body:not(.fullscreen-mode) .canvas-viewport { transition: margin-top var(--fold-ms) var(--fold-ease); }
+body.controls-collapsed :is(.controls-topbar, .controls-wrapper) { transition: margin var(--fold-out-ms) var(--fold-ease); }
+body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport { transition: margin-top var(--fold-out-ms) var(--fold-ease); }
+
 /* Both collapse toggles keep ONE chevron and turn it half a revolution (↑⇄↓, →⇄←) on the
    fold's own curve, instead of swapping to the opposite glyph in a single frame. Mirrored
    in the desktop app (MainWindow::positionOverlayArrows + SelectionPanel). */
@@ -103,7 +119,7 @@ body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #controls-body, #controls-body.hidden,
+    #controls-body, #controls-body.hidden, .info, .controls-topbar, .controls-wrapper, .canvas-viewport,
     .coordinates-panel, #coord-body, .coord-tabs,
     #toggle-controls .ic, #toggle-coord-panel .ic { transition: none !important; }
 }

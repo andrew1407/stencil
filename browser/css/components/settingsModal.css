@@ -29,6 +29,9 @@
     justify-content: space-between;
     padding: 14px 18px;
     border-bottom: 1px solid var(--border-main);
+    /* The body is the only elastic row: header and footer keep their height whatever the
+       list's length. */
+    flex: 0 0 auto;
 }
 .settings-header h2 { margin: 0; font-size: 16px; font-weight: bold; }
 #settings-close {
@@ -80,6 +83,7 @@
 .settings-footer {
     padding: 12px 18px;
     border-top: 1px solid var(--border-main);
+    flex: 0 0 auto;
     display: flex;
     /* Hint left, buttons right, on one line. The basis is the hint's floor, not its
        comfortable width: the buttons keep their own row (desktop parity) and the hint

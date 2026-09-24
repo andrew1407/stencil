@@ -1,3 +1,4 @@
+#include "../../support/control/dblReset.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/icon/motionIcons.hpp"
 #include "SettingsDialog.hpp"
@@ -5,6 +6,7 @@
 #include "iconSet.hpp"
 #include "../../support/modal/modalChrome.hpp"   // the browser modal shell + .vs-row rows
 #include "../../support/modal/modalReveal.hpp"
+#include "../../support/motionPrefs.hpp"
 #include "theme.hpp"
 #include <QCheckBox>
 #include <QComboBox>
@@ -80,6 +82,14 @@ namespace stencil::gui {
     resetAll->setAutoDefault(false);
     connect(resetAll, &QPushButton::clicked, this, &SettingsDialog::resetVisuals);
     footer->addWidget(resetAll);
+    // What a double-click puts each row back to (support/control/dblReset.hpp).
+    const Settings d;
+    for (const auto& [w, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{
+             {theme, d.themeMode}, {accent, QString(DEF_ACCENT)}, {nativeMenuBar, d.nativeMenuBar},
+             {autosave, d.autosave}, {showPoints, d.showPoints}, {showLines, d.showLines},
+             {style, QString(DEF_STYLE)}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
+             {modalBackdrop, d.modalBackdrop}, {motionMode, QString(DEF_MOTION_MODE)}})
+      support::setResetDefault(w, v);
 
     connect(search, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
@@ -198,6 +208,8 @@ namespace stencil::gui {
     accent->setCurrentIndex(qMax(0, accent->findData(DEF_ACCENT)));
     drawAnim->setChecked(DEF_DRAW_ANIM);
     motionMode->setCurrentIndex(qMax(0, motionMode->findData(QLatin1String(DEF_MOTION_MODE))));
+    motionTouched = true;   // a reset is the user's own pick: it ends a skin's session override
+    support::clearMotionOverride();
     applyLive();
     emit visualsReset();
   }

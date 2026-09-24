@@ -47,7 +47,7 @@ namespace stencil::gui {
     // toolbar.js #point-color. Empty means inherit (core pointColorOr), so the swatch shows the
     // effective colour.
     pointColorBtn = new QToolButton(this);
-    pointColorBtn->setToolTip("Point color — new lines");
+    pointColorBtn->setToolTip("Point color");
     updateColorSwatch(pointColorBtn, effectiveDefaultPointColor());
 
     // toolbar.js:41-42, min/max mirrored; each keeps an inline caption like the browser's LINE /

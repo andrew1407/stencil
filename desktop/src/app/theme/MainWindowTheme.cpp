@@ -1,3 +1,5 @@
+#include "../../support/skinPrefs.hpp"
+#include "../../support/webcore/stylesheet.hpp"
 #include "MainWindow.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
@@ -19,6 +21,7 @@
 #include "../../support/theme/faceSwap.hpp"
 #include "../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../../support/dust/ThemeSwapOverlay.hpp"
+#include "../../support/modal/ModalBackdrop.hpp"
 
 #include <QApplication>
 #include <QButtonGroup>
@@ -43,7 +46,8 @@
 namespace stencil::gui {
 
   void MainWindow::applyTheme() {
-    const bool dark = resolveDark(settings.themeMode);
+    const bool dark = support::forcedDark().value_or(resolveDark(settings.themeMode));
+    support::setSkinDark(dark);   // before any icon is asked for: the skin's art has two faces
     // A real palette change gets the browser's flood-from-the-centre wipe. Never under reduced
     // motion, and never while one is in flight - stacking snapshots tore the window.
     const bool paletteMoved = dark != paintedDark || settings.accentColor != paintedAccent;
@@ -81,14 +85,26 @@ namespace stencil::gui {
       // Application level so menus, popups and native chrome are themed too; a widget-level sheet
       // left the menubar unthemed on Fedora.
       qApp->setPalette(buildQPalette(dark, settings.accentColor));
-      qApp->setStyleSheet(buildStylesheet(dark, settings.accentColor));
+      qApp->setStyleSheet(support::isWebcore() ? support::buildWebcoreStylesheet(dark, settings.accentColor)
+                                               : buildStylesheet(dark, settings.accentColor));
     }
     // Tooltips are rich text with literal colours (tipContent.hpp), re-taken from the palette on
     // every swap.
     setTooltipPalette(themePalette(dark, settings.accentColor));
     {
       const Palette np = themePalette(dark, settings.accentColor);
-      support::setParticlePalette(np.accent, np.textKey, dark);
+      // The skin repoints the accent at its navy; the particles keep the chosen colour and its
+      // second stop (browser webcore/tokens.css --dust-accent / --dust-accent-2).
+      if (support::isWebcore()) {
+        const QColor a = accentPrimary(settings.accentColor);
+        const QColor edge = dark ? QColor(Qt::white) : QColor(Qt::black);
+        const double k = dark ? 0.78 : 0.86;
+        const QColor b = QColor::fromRgbF(a.redF() * k + edge.redF() * (1 - k), a.greenF() * k + edge.greenF() * (1 - k),
+                                          a.blueF() * k + edge.blueF() * (1 - k));
+        support::setParticlePalette(a, b, dark);
+      } else {
+        support::setParticlePalette(np.accent, np.textKey, dark);
+      }
     }
     // An open accent popover keeps its ✓ on the applied accent, whichever route moved it.
     remarkAccentPopover();
@@ -105,8 +121,12 @@ namespace stencil::gui {
     }
     if (panelGrip || chatEdge) {
       const Palette gp = themePalette(dark, settings.accentColor);
-      if (panelGrip) panelGrip->setColors(gp.borderMain, gp.accent);
-      if (chatEdge) chatEdge->setAccent(gp.accent);   // …and the chat dock's resize edge
+      // Webcore's grip is the ink on the dark face, the shadow on the light one, and never lit.
+      const QColor grip = support::isWebcore() && dark ? gp.textMain : gp.borderMain;
+      // The skin repoints gp.accent at its navy; a lit grip wears the chosen accent (--wc-focus).
+      const QColor lit = support::isWebcore() ? gp.textKey : gp.accent;
+      if (panelGrip) panelGrip->setColors(grip, lit);
+      if (chatEdge) { chatEdge->setAccent(lit); chatEdge->setBase(gp.bgPage); }   // the page shows in the gap, as the browser's body does
     }
     actTheme->setText(dark ? "Light Theme" : "Dark Theme");
 
@@ -115,7 +135,7 @@ namespace stencil::gui {
     // styleActionIcons() reset the copy/save glyphs; re-apply the split-compare override on top.
     syncSplitCopyDownloadSlot();
     retintMenuIconsForSystem(dark, iconCol);
-    if (selPanel) selPanel->restyleIcons(iconCol);
+    if (selPanel) selPanel->restyleIcons(iconCol, themePalette(dark, settings.accentColor).danger);
     if (selectedLineBar) selectedLineBar->restyleIcons(iconCol);
     // The colour chips' palette frame (updateColorSwatch) is re-issued after the snapshot like
     // every other themed control.
@@ -150,6 +170,10 @@ namespace stencil::gui {
       dropHintIcon->setPixmap(themedIcon("lightbulb", themePalette(dark, settings.accentColor).textMuted, 14)
                                     .pixmap(14, 14));
     refreshDropHint();
+    restyleImageSizeInfo();
+    applyProjectNameStyle(false);
+    // Settings' live accent/theme rows restyle a window its modal backdrop froze on open.
+    support::ModalBackdrop::retakeOn(this, wipe ? QList<QWidget*>{wipe} : QList<QWidget*>{});
 
     if (wipe) wipe->start();
   }

@@ -115,6 +115,9 @@ namespace stencil::gui {
     int scrollTop = 0;
   };
 
+  // The first-run display unit from the system locale (core localeUnit; fileStore.cpp).
+  QString localeDefaultUnit();
+
   namespace fileStore {
     QString stateDir();
     QString settingsPath();

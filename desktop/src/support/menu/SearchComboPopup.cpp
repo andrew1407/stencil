@@ -26,8 +26,11 @@ namespace stencil::gui {
     const int bodyH = rows > 0 ? rowH * rows + 2 * list->frameWidth()
                                : noMatch->sizeHint().height();
     const int h = qMin(MAX_POPUP_HEIGHT, chromeH + bodyH);
+    // The bar's width is reserved only when the rows actually overflow; on a two-item picker
+    // ("cm"/"in") that unconditional reserve made the popup visibly wider than its own trigger.
+    const bool scrolls = chromeH + bodyH > MAX_POPUP_HEIGHT;
     const int w = qMax(width(), list->sizeHintForColumn(0) + POPUP_PADDING * 4 +
-                                    list->verticalScrollBar()->sizeHint().width());
+                                    (scrolls ? list->verticalScrollBar()->sizeHint().width() : 0));
     QPoint pos = mapToGlobal(QPoint(0, height() + 2));
     if (QScreen* scr = screen()) {
       const QRect avail = scr->availableGeometry();
@@ -120,6 +123,13 @@ namespace stencil::gui {
           hidePopup();
           return true;
         default:
+          // An editable trigger keeps typing: the key closes the list and lands in the field.
+          if (isEditable() && !searchable && !ke->text().isEmpty()) {
+            hidePopup();
+            lineEdit()->setFocus(Qt::OtherFocusReason);
+            lineEdit()->event(event);
+            return true;
+          }
           break;
       }
     }

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include "mainWindowShared.hpp"
 #include "MainWindow.hpp"
 #include "mainWindowHelpers.hpp"
@@ -88,6 +89,7 @@ namespace stencil::gui {
 
   void MainWindow::setChatShown(bool show, bool animate) {
     if (!chatDock) return;
+    if (support::motionReduced()) animate = false;   // `none`: a plain show/hide, as the browser's
     const bool wasVisible = chatDock->isVisible();
     stopChatAnim();  // re-entrancy: a second toggle mid-slide wins outright
     if (show) {
@@ -125,6 +127,14 @@ namespace stencil::gui {
       if (!tearingDown && !chatDock->isFloating()) pinPanelWhileSharing(dockWidgetArea(chatDock));
       chatDock->setVisible(show);
       stopChatAnim();   // releases the pin immediately — no animation follows it
+      if (show && !tearingDown && !chatDock->isFloating()) {
+        // What the slide's end would have done: the remembered extent, and the caret.
+        const Qt::DockWidgetArea at = dockWidgetArea(chatDock);
+        const bool horiz = at != Qt::TopDockWidgetArea && at != Qt::BottomDockWidgetArea;
+        const int full = chatOpenExtent(chatRestoreExtent, horiz);
+        resizeDocks({chatDock}, {full}, horiz ? Qt::Horizontal : Qt::Vertical);
+      }
+      if (show && !tearingDown) chatDock->focusInput();
       return;
     }
     const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
@@ -135,7 +145,7 @@ namespace stencil::gui {
     };
     const auto pin = chatExtentPin(horiz);
     if (!show && wasVisible && extent() > 80) chatRestoreExtent = extent();
-    const int full = chatRestoreExtent > 80 ? chatRestoreExtent : (horiz ? 345 : 320);
+    const int full = chatOpenExtent(chatRestoreExtent, horiz);
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;

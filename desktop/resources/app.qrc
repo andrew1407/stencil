@@ -11,6 +11,8 @@
     <file alias="icons.json">../../browser/js/config/icons.json</file>
     <file alias="iconMotion.json">../../browser/js/config/iconMotion.json</file>
     <file alias="logoStage.json">../../browser/js/config/logoStage.json</file>
+    <file alias="webcore.json">../../browser/js/config/webcore.json</file>
+    <file alias="iconsWebcore.json">../../browser/js/config/iconsWebcore.json</file>
     <file alias="svgArt.json">../../browser/js/config/svgArt.json</file>
     <file alias="layoutFields.json">../../browser/js/config/layoutFields.json</file>
     <file alias="llm/systemPrompt.json">../../browser/js/config/llm/systemPrompt.json</file>
@@ -30,6 +32,8 @@
          tests/pins/stylesheets.txt cover the whole string: the leading newline and the
          trailing indent are the raw literal this was lifted out of, byte for byte. -->
     <file alias="app.qss">app.qss</file>
+    <!-- The webcore skin's overlay, appended after app.qss while the word is on (support/webcore). -->
+    <file alias="webcore.qss">webcore.qss</file>
   </qresource>
   <qresource prefix="/icons">
     <!-- Same icon as the browser app's favicon, so both front-ends share one

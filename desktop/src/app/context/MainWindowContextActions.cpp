@@ -1,4 +1,5 @@
 // The canvas context menu's persistent action set — port of browser/js/ui/contextMenu/contextMenu.js wire().
+#include "../../support/control/dblReset.hpp"
 #include "MainWindow.hpp"
 #include "CanvasWidget.hpp"
 #include "numericInput.hpp"
@@ -44,6 +45,13 @@ namespace stencil::gui {
     buildContextStyleActions();
     buildContextTooltipActions();
     buildUnitActions();
+    // What a double-click on a menu row restores (support/control/dblReset.hpp).
+    const Settings d;
+    for (const auto& [o, v] : std::initializer_list<std::pair<QObject*, bool>>{
+             {actShowPoints, d.showPoints}, {actShowLines, d.showLines}, {tooltipEnableCheck, d.tooltipEnabled},
+             {ttPageCheck, d.tooltipShowPage}, {ttScreenCheck, d.tooltipShowScreen},
+             {ttCoordsCheck, d.tooltipShowCoords}, {ctxAllowFormulas, d.allowFormulas}})
+      support::setResetDefault(o, v);
   }
 
   void MainWindow::buildContextStyleActions() {

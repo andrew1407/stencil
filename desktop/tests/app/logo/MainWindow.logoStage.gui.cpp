@@ -88,7 +88,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!stage->activateByName("neonOn"), "fullscreen opens nothing");
     win.fs.active = false;
     QVERIFY(stage->activateByName("neonOn"));
-    QVERIFY2(!stage->activateByName("makeSomeSunshine"), "one stage at a time");
+    QVERIFY2(!stage->activateByName("neonOn"), "the show that is up is not restarted");
+    QVERIFY2(stage->activateByName("makeSomeSunshine"), "another show replaces it");
+    QCOMPARE(stage->showName(), QString("makeSomeSunshine"));
     stage->dismiss();
   }
 

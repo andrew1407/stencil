@@ -6,6 +6,7 @@
 #include "modalReveal.hpp"   // support::motionReduced()
 #include "pageMetrics.hpp"
 #include <QAbstractButton>
+#include <QApplication>
 #include <QBuffer>
 #include <QGuiApplication>
 #include <QColor>
@@ -166,6 +167,35 @@ namespace stencil::gui {
       combo->setItemText(i, QString("%1 (%2 × %3)")
                                 .arg(name, num(ps.width * factor), num(ps.height * factor)));
     }
+  }
+
+  namespace {
+    class DisabledCursorFilter : public QObject {
+     public:
+      using QObject::QObject;
+
+     protected:
+      bool eventFilter(QObject*, QEvent* e) override {
+        const QEvent::Type t = e->type();
+        if (t != QEvent::MouseMove && t != QEvent::Enter && t != QEvent::Leave &&
+            t != QEvent::HoverMove)
+          return false;
+        QWidget* under = QApplication::widgetAt(QCursor::pos());
+        const bool blocked = under && !under->isEnabled();
+        if (blocked == showing) return false;
+        showing = blocked;
+        if (blocked) QApplication::setOverrideCursor(Qt::ForbiddenCursor);
+        else QApplication::restoreOverrideCursor();
+        return false;
+      }
+
+     private:
+      bool showing = false;
+    };
+  }  // namespace
+
+  void installDisabledCursor(QApplication* app) {
+    if (app) app->installEventFilter(new DisabledCursorFilter(app));
   }
 }
 

@@ -11,6 +11,7 @@
 #include <QDialog>
 #include <QElapsedTimer>
 #include <QPainter>
+#include <QPalette>
 #include <QPixmap>
 #include <QPointer>
 #include <QWidget>
@@ -30,6 +31,19 @@ static double contrast(const QImage& img) {
   for (int y = 0; y < img.height(); y += 2)
     for (int x = 1; x < img.width(); ++x) {
       sum += std::abs(qGray(img.pixel(x, y)) - qGray(img.pixel(x - 1, y)));
+      ++n;
+    }
+  return n ? sum / n : 0;
+}
+
+// How red a box reads: the marked child is red, the window behind it is not.
+static double redness(const QImage& img, const QRect& box) {
+  double sum = 0;
+  int n = 0;
+  for (int y = box.top(); y < box.bottom(); ++y)
+    for (int x = box.left(); x < box.right(); ++x) {
+      const QRgb c = img.pixel(x, y);
+      sum += qRed(c) - qBlue(c);
       ++n;
     }
   return n ? sum / n : 0;
@@ -127,6 +141,47 @@ int main(int argc, char** argv) {
     QWidget tiny;
     tiny.resize(4, 4);
     check(ModalBackdrop::behind(&dlg, &tiny) == nullptr, "behind: nothing worth photographing");
+  }
+
+  // ── A marked child rides OVER the scrim: browser #notify-balloon (z-index 100002) over
+  //    .app-modal-overlay (100001), so a toast stays readable while a dialog is open ──
+  {
+    const auto redBox = [&host](int y, bool marked) {
+      auto* w = new QWidget(&host);
+      w->setGeometry(20, y, 120, 30);
+      w->setAutoFillBackground(true);
+      QPalette pal = w->palette();
+      pal.setColor(QPalette::Window, Qt::red);
+      w->setPalette(pal);
+      if (marked) w->setProperty(ModalBackdrop::ABOVE_PROPERTY, true);
+      w->show();
+      return w;
+    };
+    QWidget* toast = redBox(200, true);
+    QWidget* plain = redBox(100, false);
+    QDialog dlg(&host);
+    ModalBackdrop* bd = ModalBackdrop::behind(&dlg, &host);
+    check(bd != nullptr, "above: the backdrop is up");
+    check(toast->isVisible(), "above: the marked child is put back after the photograph");
+    const QObjectList kids = host.children();
+    check(kids.indexOf(toast) > kids.indexOf(bd), "above: …and stacked over the backdrop");
+    check(kids.indexOf(plain) < kids.indexOf(bd), "above: an unmarked sibling stays under it");
+    // And nothing of it is baked into the blur: over its box the scrim carries none of its red,
+    // while the unmarked sibling is smeared into the picture as it should be.
+    pump(ModalBackdrop::FADE_IN_MS + 60);
+    QPixmap painted(host.size());
+    bd->render(&painted);
+    const QImage img = painted.toImage();
+    const double ghost = redness(img, toast->geometry());
+    const double baked = redness(img, plain->geometry());
+    check(baked > 8.0, "above: an ordinary child IS photographed and blurred in");
+    check(ghost < baked / 4, "above: the marked one left no ghost under the scrim");
+    std::printf("      ghost %.1f vs baked %.1f\n", ghost, baked);
+    dlg.reject();
+    pump(ModalBackdrop::FADE_OUT_MS);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    delete toast;
+    delete plain;
   }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,

@@ -207,7 +207,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "width": "582px",
-        "height": "214px"
+        "height": "242px"
       }
     },
     {
@@ -243,7 +243,7 @@
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "98.9px",
+        "width": "82.9px",
         "height": "29px",
         "text-align": "left"
       },
@@ -261,7 +261,7 @@
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "235.5px",
+        "width": "243.5px",
         "height": "29px",
         "text-align": "center"
       },
@@ -279,7 +279,7 @@
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "217.5px",
+        "width": "225.5px",
         "height": "29px",
         "text-align": "center"
       },
@@ -343,7 +343,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "98.9px",
+        "width": "82.9px",
         "height": "29px",
         "text-align": "left"
       },
@@ -360,7 +360,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "235.5px",
+        "width": "243.5px",
         "height": "45px",
         "text-align": "center"
       }
@@ -378,7 +378,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "3px 8px",
         "gap": "2px",
-        "width": "137.4px",
+        "width": "141.4px",
         "height": "31px",
         "text-align": "center",
         "justify-content": "center",
@@ -415,7 +415,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -453,7 +453,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "217.5px",
+        "width": "225.5px",
         "height": "37px",
         "text-align": "center"
       }
@@ -469,7 +469,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "gap": "2px",
-        "width": "119.4px",
+        "width": "123.4px",
         "height": "23px",
         "text-align": "center",
         "justify-content": "center",
@@ -506,7 +506,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -612,7 +612,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "98.9px",
+        "width": "82.9px",
         "height": "29px",
         "text-align": "left"
       },
@@ -629,7 +629,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "235.5px",
+        "width": "243.5px",
         "height": "45px",
         "text-align": "center"
       }
@@ -647,7 +647,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "3px 8px",
         "gap": "2px",
-        "width": "156.8px",
+        "width": "160.8px",
         "height": "31px",
         "text-align": "center",
         "justify-content": "center",
@@ -684,7 +684,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -722,7 +722,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "217.5px",
+        "width": "225.5px",
         "height": "37px",
         "text-align": "center"
       }
@@ -738,7 +738,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "gap": "2px",
-        "width": "138.8px",
+        "width": "142.8px",
         "height": "23px",
         "text-align": "center",
         "justify-content": "center",
@@ -775,7 +775,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -865,7 +865,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "width": "582px",
-        "height": "46px",
+        "height": "60px",
         "align-items": "center",
         "overflow": "hidden"
       }
@@ -881,8 +881,8 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "98.9px",
-        "height": "44px",
+        "width": "82.9px",
+        "height": "59px",
         "text-align": "left"
       },
       "text": "Zoom In (Large Step)"
@@ -898,7 +898,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "235.5px",
+        "width": "243.5px",
         "height": "45px",
         "text-align": "center"
       }
@@ -916,7 +916,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "3px 8px",
         "gap": "2px",
-        "width": "196.1px",
+        "width": "204.1px",
         "height": "31px",
         "text-align": "center",
         "justify-content": "center",
@@ -953,7 +953,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -990,7 +990,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1028,7 +1028,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "217.5px",
+        "width": "225.5px",
         "height": "37px",
         "text-align": "center"
       }
@@ -1044,7 +1044,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "gap": "2px",
-        "width": "178.1px",
+        "width": "186.1px",
         "height": "23px",
         "text-align": "center",
         "justify-content": "center",
@@ -1081,7 +1081,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1118,7 +1118,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1208,7 +1208,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "width": "582px",
-        "height": "46px",
+        "height": "60px",
         "align-items": "center",
         "overflow": "hidden"
       }
@@ -1224,8 +1224,8 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "98.9px",
-        "height": "44px",
+        "width": "82.9px",
+        "height": "59px",
         "text-align": "left"
       },
       "text": "Zoom Out (Large Step)"
@@ -1241,7 +1241,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "235.5px",
+        "width": "243.5px",
         "height": "45px",
         "text-align": "center"
       }
@@ -1259,7 +1259,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "3px 8px",
         "gap": "2px",
-        "width": "215.5px",
+        "width": "223.5px",
         "height": "31px",
         "text-align": "center",
         "justify-content": "center",
@@ -1296,7 +1296,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1333,7 +1333,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1371,7 +1371,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 10px",
-        "width": "217.5px",
+        "width": "225.5px",
         "height": "37px",
         "text-align": "center"
       }
@@ -1387,7 +1387,7 @@
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "gap": "2px",
-        "width": "197.5px",
+        "width": "205.5px",
         "height": "23px",
         "text-align": "center",
         "justify-content": "center",
@@ -1424,7 +1424,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"
@@ -1461,7 +1461,7 @@
         "border-color": "rgb(153, 153, 153)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "margin": "0px 1px",
+        "margin": "0px 3px",
         "width": "7.6px",
         "height": "15px",
         "text-align": "center"

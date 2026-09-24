@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QDialog>
+#include <QList>
 #include <QEasingCurve>
 #include <QPainter>
 #include <QPixmap>
@@ -22,6 +23,17 @@ namespace stencil::support {
     // Browser animations/overlays.css: overlayFadeIn/overlayFadeOut, both on CSS `ease`.
     static constexpr int FADE_IN_MS = 220;
     static constexpr int FADE_OUT_MS = 340;
+    // Set on a host child that rides OVER the scrim, unblurred (the browser's #notify-balloon at
+    // z-index 100002, above the overlay's 100001): out of the photograph, then raised back.
+    static constexpr const char* ABOVE_PROPERTY = "stencilAboveBackdrop";
+
+    static QList<QWidget*> aboveChildren(QWidget* host) {
+      QList<QWidget*> out;
+      if (!host) return out;
+      for (QWidget* w : host->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly))
+        if (w->isVisible() && w->property(ABOVE_PROPERTY).toBool()) out.append(w);
+      return out;
+    }
 
     // Downscale-then-upscale: a cheap blur whose cost does not grow with the window.
     static QPixmap blurred(const QPixmap& shot, int radiusPx) {
@@ -41,16 +53,28 @@ namespace stencil::support {
     static ModalBackdrop* behind(QDialog* dlg, QWidget* host) {
       if (!modalBackdrop() || !dlg || !host) return nullptr;
       if (host->width() < 8 || host->height() < 8) return nullptr;
-      const QPixmap shot = host->grab();
+      const QPixmap shot = photograph(host, {});
       if (shot.isNull()) return nullptr;
       auto* bd = new ModalBackdrop(host);
-      bd->shot = blurred(shot, BLUR_PX);
+      bd->shot = shot;
       bd->show();
       bd->raise();
+      for (QWidget* w : aboveChildren(host)) w->raise();
       bd->fadeTo(1.0, FADE_IN_MS, /*thenDrop=*/false);
       // It holds through the dialog's flight back, as the browser's does, and leaves on its own.
       QObject::connect(dlg, &QDialog::finished, bd, [bd] { bd->fadeTo(0.0, FADE_OUT_MS, true); });
       return bd;
+    }
+
+    // Re-photographs the host after a live restyle, or the scrim keeps the palette it opened on.
+    static void retakeOn(QWidget* host, const QList<QWidget*>& skip = {}) {
+      if (!host) return;
+      for (QWidget* w : host->findChildren<QWidget*>(QStringLiteral("modalBackdrop"),
+                                                     Qt::FindDirectChildrenOnly)) {
+        auto* bd = static_cast<ModalBackdrop*>(w);
+        const QPixmap shot = photograph(host, skip + QList<QWidget*>{bd});
+        if (!shot.isNull()) { bd->shot = shot; bd->update(); }
+      }
     }
 
     // EVERY app window behind the dialog, not just its parent's: the assistant settings
@@ -99,6 +123,15 @@ namespace stencil::support {
     }
 
    private:
+    static QPixmap photograph(QWidget* host, const QList<QWidget*>& skip) {
+      QList<QWidget*> hidden;
+      for (QWidget* w : skip + aboveChildren(host))
+        if (w && w->isVisible()) { w->setVisible(false); hidden.append(w); }
+      const QPixmap shot = host->grab();
+      for (QWidget* w : hidden) w->setVisible(true);
+      return blurred(shot, BLUR_PX);
+    }
+
     explicit ModalBackdrop(QWidget* host) : QWidget(host) {
       setObjectName(QStringLiteral("modalBackdrop"));
       setAttribute(Qt::WA_TransparentForMouseEvents);   // the dialog is modal; this only paints

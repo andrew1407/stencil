@@ -58,11 +58,11 @@ namespace stencil::gui {
                  tr("Run this script on the open project (Ctrl+Enter)"));
     makeModalGo(runBtn);   // the one GO action: green, not the accent the others wear
     copyBtn = mk("scriptMenuCopy", tr("Copy"), tr("Copy this script to the clipboard"));
-    downloadBtn = mk("scriptMenuDownload", tr("Download"), tr("Save this script as a .stc file"));
+    downloadBtn = mk("scriptMenuDownload", tr("Download"), tr("Download this script as stencil.stc"));
     uploadBtn = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
     clearBtn = new QPushButton(tr("Clear"), this);
     clearBtn->setObjectName(QStringLiteral("scriptMenuClear"));
-    clearBtn->setToolTip(tr("Empty the script editor"));
+    clearBtn->setToolTip(tr("Clear this script from the editor"));
     clearBtn->setFocusPolicy(Qt::TabFocus);
     makeModalDanger(clearBtn);
     row->addWidget(clearBtn);

@@ -33,8 +33,8 @@ ${StencilOiBlankTab.template()}
                 <div class="oi-status" id="open-image-preview-status"></div>
                 <div class="oi-preview" id="open-image-preview" style="display:none">
                     <div id="open-image-crop-stage" style="position:relative;display:none;line-height:0;max-width:100%;background:#222;">
-                        <video id="open-image-preview-video" muted playsinline preload="auto" style="display:none;width:auto;height:auto;max-width:100%;max-height:38vh;background:#222;"></video>
-                        <img id="open-image-preview-img" alt="Preview" style="display:block;width:auto;height:auto;max-width:100%;max-height:38vh;user-select:none;-webkit-user-drag:none;">
+                        <video id="open-image-preview-video" muted playsinline preload="auto" style="display:none;width:auto;height:auto;max-width:100%;max-height:60vh;background:#222;"></video>
+                        <img id="open-image-preview-img" alt="Preview" style="display:block;width:auto;height:auto;max-width:100%;max-height:60vh;user-select:none;-webkit-user-drag:none;">
                         <div id="open-image-crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
                             <div id="open-image-crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
                         </div>

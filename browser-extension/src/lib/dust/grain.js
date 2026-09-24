@@ -90,10 +90,10 @@ export const edgeReachOf = (style) => (style === STYLE_WATER ? EDGE.water.amp + 
 // slack) still clears the furthest corner when the wipe ends.
 export const edgeBaseOf = (style) => 1 + edgeDipOf(style) + 0.012;
 
-// The palette itself, as CSS: PALETTE_STOPS even mixes of --accent and --accent-2 — so a
-// cloud is violet by default and follows the accent — then the TINT_CSS minority.
+// The palette as CSS: PALETTE_STOPS even mixes of the accent pair (a skin that repoints --accent
+// names it in --dust-accent / --dust-accent-2), then the TINT_CSS minority.
 export const paletteCss = (stops = PALETTE_STOPS) => [
   ...Array.from({ length: stops }, (_, i) =>
-    `color-mix(in srgb, var(--accent) ${Math.round(100 - (100 * i) / (stops - 1))}%, var(--accent-2))`),
+    `color-mix(in srgb, var(--dust-accent, var(--accent)) ${Math.round(100 - (100 * i) / (stops - 1))}%, var(--dust-accent-2, var(--accent-2)))`),
   ...TINT_CSS,
 ];

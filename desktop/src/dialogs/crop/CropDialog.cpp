@@ -1,3 +1,4 @@
+#include "../../support/skinPrefs.hpp"
 #include "CropDialog.hpp"
 #include "cropDialogParts.hpp"
 #include "../../support/modal/modalChrome.hpp"
@@ -168,12 +169,18 @@ namespace stencil::gui {
     p.setBrush(Qt::NoBrush);
     p.drawRect(d.adjusted(1, 1, -1, -1));
 
-    p.setRenderHint(QPainter::Antialiasing, true);
-    p.setBrush(accent);
+    // Under the skin nothing is round (browser webcore `border-radius: 0`): square handles in
+    // its --accent-2, the title strip's second stop.
+    const bool skin = support::isWebcore();
+    p.setRenderHint(QPainter::Antialiasing, !skin);
+    p.setBrush(skin ? support::skinBevel().titleB : accent);
     p.setPen(QPen(Qt::white, 2));
     const QPointF corners[4] = {d.topLeft(), d.topRight(), d.bottomRight(),
                                 d.bottomLeft()};
-    for (const auto& c : corners) p.drawEllipse(c, HANDLE, HANDLE);
+    for (const auto& c : corners) {
+      if (skin) p.drawRect(QRectF(c.x() - HANDLE, c.y() - HANDLE, 2 * HANDLE, 2 * HANDLE));
+      else p.drawEllipse(c, HANDLE, HANDLE);
+    }
   }
 }
 

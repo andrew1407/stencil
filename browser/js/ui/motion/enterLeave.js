@@ -57,12 +57,11 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
   return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
 }
 
-// The wipe as seen: the particles fall for DISINTEGRATE_MS past the short collapse, so a
-// caller swapping in a placeholder waits for the longer one. 0 under reduced motion.
+// The particles fall past the short collapse, so a caller swapping in a placeholder waits for the
+// longer one; a mode that flies NOTHING waits for nothing — the collapse it awaited IS the wipe.
 export const wipeDurationMs = (dustMs = 0) => {
-  if (motionReduced()) return 0;
-  if (dustMs) return dustEnabled() ? Math.max(LEAVE_MS, dustMs) : LEAVE_MS;
-  return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
+  if (!dustEnabled()) return 0;
+  return Math.max(LEAVE_MS, dustMs || DISINTEGRATE_MS);
 };
 
 // Removal-in-flight hold: begin() returns a settle fn that waits out the real wipe and

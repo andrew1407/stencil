@@ -6,6 +6,7 @@
 #include "guiHelpers.hpp"
 #include "../../../support/control/reveal/controlReveal.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
+#include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../../../support/theme/filterFade.hpp"
 #include "../../../support/guiHelpers.hpp"
 #include "../../../support/motion/ShimmerOverlay.hpp"
@@ -79,7 +80,10 @@ namespace stencil::gui {
     it->setData(DOOMED_ROLE, true);   // the delegate paints nothing for it
     it->setFlags(Qt::NoItemFlags);    // no select/check mid-flight
     batch.checked.remove(key);             // …and it stops counting towards the selection bar
-    QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this, key] {
+    // Nothing flew, so there is no dust to outlive: the slot goes with the row (ConnectDialog
+    // parity, browser wipeDurationMs). Held open, an empty gap sat there for a second and a half.
+    const int hold = support::isDustAllowed() ? DisintegrateOverlay::ITEM_MS : 0;
+    QTimer::singleShot(hold, this, [this, key] {
       // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
       for (int i = 0; i < list->count(); ++i)
         if (rowKeyAt(i) == key && list->item(i)->data(DOOMED_ROLE).toBool()) {

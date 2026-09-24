@@ -66,7 +66,8 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/notify
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/share
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/theme
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/tip)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/tip
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/webcore)
 
 # The full GUI translation-unit set MINUS the entry point (main.cpp), shared between
 # the app and the MainWindow GUI e2e test target below so the two never drift.
@@ -271,6 +272,15 @@ set(STENCIL_FILTERFADE_SOURCES
   src/support/theme/filterFade.cpp
   src/support/theme/filterFadeList.cpp)
 
+# The webcore skin (support/webcore/): its table and rules, the picture, the overlay sheet and
+# palette, the pixel icons, and the application look. The window's toggle is app/logo.
+set(STENCIL_WEBCORE_SOURCES
+  src/support/webcore/rules.cpp
+  src/support/webcore/image.cpp
+  src/support/webcore/stylesheet.cpp
+  src/support/webcore/icons.cpp
+  src/support/webcore/look.cpp)
+
 set(STENCIL_THEMESWAP_SOURCES
   src/support/dust/ThemeSwapOverlay.cpp
   src/support/dust/ThemeSwapOverlayPaint.cpp)
@@ -394,6 +404,7 @@ set(STENCIL_GUI_SOURCES
   src/app/logo/LogoStage.cpp
   src/app/logo/LogoStageInput.cpp
   src/app/logo/LogoStagePaint.cpp
+  src/app/logo/MainWindowWebcore.cpp
   src/app/meta/DockZonesOverlay.cpp
   src/app/meta/DataExportController.cpp
   src/app/meta/DataExportImage.cpp
@@ -408,6 +419,7 @@ set(STENCIL_GUI_SOURCES
   src/app/selection/SelectionPanelState.cpp
   src/app/selection/SelectedLineBar.cpp
   src/app/selection/SelectedLineBarRow.cpp
+  src/app/selection/SelectedLineBarAlpha.cpp
   src/llm/dock/ChatDock.cpp
   src/llm/dock/compose/ChatDockComposer.cpp
   src/llm/dock/ChatDockChrome.cpp
@@ -509,6 +521,7 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_LOGOSTAGE_SOURCES}
   ${STENCIL_FILTERFADE_SOURCES}
   ${STENCIL_THEMESWAP_SOURCES}
+  ${STENCIL_WEBCORE_SOURCES}
   ${STENCIL_DISINTEGRATE_SOURCES}
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}

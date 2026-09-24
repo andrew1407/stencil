@@ -47,6 +47,13 @@
     animation: logoRaysSpin 8s linear infinite,
                logoRaysShimmer 1.2s ease-in-out infinite;
 }
+/* Motion "none" (and the webcore skin over it): no pulse and no rays — a still grow and an edge glow. */
+:root[data-motion="none"] .app-logo-wrap.logo-hover .app-logo {
+    animation: none !important;
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+:root[data-motion="none"] .app-logo-wrap::before { content: none; }
 @media (prefers-reduced-motion: reduce) {
     .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout/topbar.css's :hover scale(1.08) remains */
     .app-logo-wrap::before { content: none; }                  /* no static ray ring either */

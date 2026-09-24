@@ -14,9 +14,6 @@
 namespace stencil::gui {
 
 
-  // Default display unit from the system locale (defined in fileStore.cpp).
-  QString localeDefaultUnit();
-
   // Baked at build time to <repo>/desktop/.stencil (see CMakeLists), else the per-user
   // config dir. The env var wins over both: ctest points it at an isolated dir.
 #ifdef STENCIL_STATE_DIR

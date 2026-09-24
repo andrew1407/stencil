@@ -149,7 +149,7 @@ class MainWindowGuiTest : public QObject {
                "the well should sit on the theme's input ground");
       // Four hairlines part the bar as the browser's do: header | colours | geometry | fill |
       // actions. The fill's own comes and goes WITH the group; measured at a two-row width.
-      win.resize(1100, 900);
+      win.resize(1250, 900);
       settleLayout(&win, 300);
       const int barHeightWithFill = win.selectedLineBar->height();
       const auto visibleSeps = [&] {

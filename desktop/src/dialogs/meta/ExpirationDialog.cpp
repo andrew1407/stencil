@@ -1,3 +1,4 @@
+#include "../../support/control/dblReset.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "expirationDialogParts.hpp"
 #include "ExpirationDialog.hpp"
@@ -36,6 +37,7 @@ namespace stencil::gui {
     chrome.body->addWidget(nameLbl);
 
     keepBox = new QCheckBox(tr("Keep forever (never expires)"), this);
+    support::setResetDefault(keepBox, false);
     auto* keepRow = new QHBoxLayout;
     keepRow->addWidget(keepBox);
     keepRow->addStretch(1);
@@ -49,6 +51,7 @@ namespace stencil::gui {
     periodLay->addStretch(1);
     period = new SearchComboBox(this, /*searchable=*/false);
     for (const auto& p : PRESETS) period->addItem(p.label, QString::fromLatin1(p.key));
+    support::setResetDefault(period, QStringLiteral("week"));   // browser projectPeriods.js DEFAULT_PERIOD
     periodLay->addWidget(period);
     refresh = new QPushButton(tr("Refresh"), this);
     makeModalCta(refresh, QStringLiteral("refresh"));
@@ -58,6 +61,7 @@ namespace stencil::gui {
     chrome.body->addWidget(periodRow);
 
     auto_ = new QCheckBox(tr("Refresh expiration each time the project is opened"), this);
+    support::setResetDefault(auto_, true);
     auto* autoRow = new QHBoxLayout;
     autoRow->addWidget(auto_);
     autoRow->addStretch(1);

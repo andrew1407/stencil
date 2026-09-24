@@ -10,6 +10,7 @@
 #include "Notifications.hpp"
 #include "SelectionPanel.hpp"
 #include "theme.hpp"
+#include "../../support/control/textFocus.hpp"
 
 #include <QAbstractSpinBox>
 #include <QApplication>
@@ -43,6 +44,22 @@ namespace stencil::gui {
       return qobject_cast<QLineEdit*>(obj) || qobject_cast<QPlainTextEdit*>(obj) ||
              qobject_cast<QTextEdit*>(obj);
     }
+    // A press on something that takes no focus, or Escape, blurs the field (browser parity).
+    void blurFieldOn(QWidget* win, QObject* obj, QEvent* event) {
+      QWidget* focus = QApplication::focusWidget();
+      if (!focus || focus->window() != win || !support::isTextEntry(focus)) return;
+      auto* w = qobject_cast<QWidget*>(obj);
+      if (!w || w->window() != win) return;
+      if (event->type() == QEvent::KeyPress) {
+        const bool isOwn = w == focus || focus->isAncestorOf(w);
+        if (isOwn && static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)
+          QTimer::singleShot(0, focus, [focus] { focus->clearFocus(); });
+        return;
+      }
+      for (QWidget* p = w; p; p = p->isWindow() ? nullptr : p->parentWidget())
+        if (p->isEnabled() && (p->focusPolicy() & Qt::ClickFocus)) return;
+      focus->clearFocus();
+    }
   }  // namespace
 
   // A chain of handlers in THIS order: void ones observe, an optional-returning one that answers ends the chain.
@@ -51,6 +68,8 @@ namespace stencil::gui {
     filterPointerChrome(obj, event);
     filterDockChrome(obj, event);
     if (const auto r = filterKeyClaims(obj, event)) return *r;
+    if ((event->type() == QEvent::MouseButtonPress || event->type() == QEvent::KeyPress) && !pop.active)
+      blurFieldOn(this, obj, event);
     if (const auto r = filterPopoverGestures(obj, event)) return *r;
     if (const auto r = filterPopoverButton(obj, event)) return *r;
     if (const auto r = filterZoomAndLogo(obj, event)) return *r;

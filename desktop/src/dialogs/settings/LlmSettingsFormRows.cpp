@@ -1,4 +1,5 @@
 // The LLM assistant form's rows; call order and the shared row helpers live in LlmSettingsForm.cpp.
+#include "../../support/control/dblReset.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "LlmSettingsForm.hpp"
@@ -29,6 +30,7 @@ namespace stencil::gui {
     provider->setObjectName("llmProvider");
     provider->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     provider->addItem("None (turned off)", "none");
+    support::setResetDefault(provider, QStringLiteral("none"));   // contract §5: ships off
     for (const char* id : {"ollama", "openai-compat", "stencil-server"})
       provider->addItem(stencil::llm::llmProviderDisplayName(id), id);
     {
@@ -84,6 +86,7 @@ namespace stencil::gui {
 
     server = new SearchComboBox(this, /*searchable=*/false);
     server->setObjectName("llmServer");
+    support::setResetDefault(server, 0);   // the first saved server, as the browser picks
     server->setToolTip(
         "Which configured Stencil collaboration server proxies the LLM "
         "(uses your existing connection token)");
@@ -129,6 +132,7 @@ namespace stencil::gui {
     saveChats = new QCheckBox(tr("Save chats with projects"), this);
     saveChats->setObjectName("llmSaveChats");
     saveChats->setChecked(current.saveChatsWithProject);
+    support::setResetDefault(saveChats, false);   // §12: ships off
     saveChats->setToolTip(
         "Save the assistant conversation with the active project and restore it "
         "when the project is reopened. Text only, most recent 32 turns; incognito "

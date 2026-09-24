@@ -1,6 +1,7 @@
 // Every signal the window owns, wired once at construction: the canvas, the toolbars, the chat dock,
 // the project bar and the collaboration client all meet here.
 #include "mainWindowShellParts.hpp"
+#include "../../support/control/dblReset.hpp"
 
 namespace stencil::gui {
 
@@ -183,5 +184,12 @@ namespace stencil::gui {
             });
     connect(selPanel, &SelectionPanel::lineListRemoveRequested, this,
             [this](int idx) { canvas->removeLineByIndex(idx); });
+    // What a double-click puts each toolbar control back to (support/control/dblReset.hpp).
+    const Settings d;
+    for (const auto& [w, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{
+             {imageFilter, d.imageFilter}, {lineStyle, d.defaultStyle}, {compareCombo, QStringLiteral("none")},
+             {units.unitCombo, localeDefaultUnit()}, {units.pageSize, d.pageSize}, {showPointsCheck, d.showPoints},
+             {showLinesCheck, d.showLines}, {allowFormulas, d.allowFormulas}})
+      support::setResetDefault(w, v);
   }
 }  // namespace stencil::gui

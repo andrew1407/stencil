@@ -141,8 +141,8 @@ namespace stencil::gui {
     // True where the EDITED image shows — the only place the layout is drawn; gates the hover tip.
     bool compareShowsEdited(double imageX, double imageY) const;
 
-    // Export variants (browser export/service.js): "current" filter + lines, "original" crop/rotation
-    // only, "tint" filter only, "split" the compare composite (`withDivider` bakes the bar in).
+    // Export variants (browser export/service.js): "current" filter + lines, "original" crop and
+    // rotation only, "tint" filter only, "split" the composite (`withDivider` bakes the bar in).
     QImage renderToImage(const QString& variant, bool withDivider = false) const;
     QImage renderToImage(bool withOverlay) const;
     const QImage& getImage() const { return image; }
@@ -153,10 +153,8 @@ namespace stencil::gui {
     // Rotation is applied FIRST, then the crop (rotated-original space); a zero-width crop default-crops.
     void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
     void clearImage();
-    // Held OFF while the clear's dust is falling (browser .canvas-clearing hides .idle-create).
-    void setIdleHintHidden(bool on);
-    // GLOBAL rect of the "＋ Blank image" card; empty when it is not showing.
-    QRect idleCardGlobalRect() const;
+    void setIdleHintHidden(bool on);   // off while the clear's dust falls (.canvas-clearing)
+    QRect idleCardGlobalRect() const;  // GLOBAL rect of the card; empty when it is not showing
     bool getIdleHintHidden() const { return idleHintHidden; }
 
     // `preview` = a colour still being picked: the undo step is debounced (scheduleEditCommit).
@@ -333,18 +331,20 @@ namespace stencil::gui {
     bool showLines = true;
     bool isDrawing = false;  // gates left-click point adds
     bool idleHintHidden = false;
-    // Idle card hover blend 0..1 — the browser transitions over 0.2s rather than snapping.
     QRectF idleCardRect;
     bool idleCardHover = false;
-    double idleCardHoverT = 0.0;
+    double idleCardHoverT = 0.0;   // hover blend 0..1, over 0.2s as the browser transitions it
     QVariantAnimation* idleCardAnim = nullptr;
+    double idleCardEnterT = 1.0;   // the arrival when a picture leaves; 1 = resting
+    QVariantAnimation* idleCardEnterAnim = nullptr;
     double idleShimmerT = -1.0;
     QVariantAnimation* idleShimmerAnim = nullptr;
-    // The glyph is stroked by hand (the app-wide watcher knows only QAbstractButtons and would drag
-    // Qt6::Svg into every headless target): iconMotion.json `image` is evaluated in IdleCard.cpp. -1 = rest.
+    // Stroked by hand in IdleCard.cpp (the app-wide watcher knows only QAbstractButtons, and
+    // Qt6::Svg would follow it into every headless target): iconMotion.json `image`. -1 = rest.
     double idleGlyphMs = -1.0;
     QVariantAnimation* idleGlyphAnim = nullptr;
     void setIdleCardHover(bool on);
+    void startIdleCardArrival();
     bool dark = false;
     QString accentKey = DEFAULT_ACCENT_KEY;  // brand accent for the rubber-band previews
     // DEFAULT_VISUALS' own values until setHighlightColors is called.

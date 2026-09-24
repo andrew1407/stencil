@@ -1,0 +1,389 @@
+/* The webcore skin's chrome: the face, the type, and every control as a raised or sunken
+   box — buttons, fields, selects, checks, scrollbars, focus and the disabled state. */
+:root[data-skin="webcore"],
+:root[data-skin="webcore"] body {
+    background: var(--wc-desktop);
+    color: var(--wc-ink);
+}
+:root[data-skin="webcore"] *,
+:root[data-skin="webcore"] *::before,
+:root[data-skin="webcore"] *::after {
+    font-family: var(--wc-font) !important;
+    border-radius: 0 !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+}
+/* `kbd` is excluded on purpose: a keycap is interface type, and monospace drew its glyph
+   (⌥, ⇧) a third smaller than the word beside it. */
+:root[data-skin="webcore"] :is(.script-input, .script-highlight, code, pre) {
+    font-family: 'Menlo', 'Consolas', monospace !important;
+}
+:root[data-skin="webcore"] ::selection { background: var(--wc-select); color: var(--wc-on-select); }
+:root[data-skin="webcore"] :focus-visible { outline: 1px dotted var(--wc-ink); outline-offset: -3px; }
+:root[data-skin="webcore"] a { color: var(--wc-link); }
+
+/* ── Surfaces ── */
+:root[data-skin="webcore"] .container,
+:root[data-skin="webcore"] .controls,
+:root[data-skin="webcore"] .controls-wrapper,
+:root[data-skin="webcore"] .info,
+:root[data-skin="webcore"] .coordinates-panel,
+:root[data-skin="webcore"] #selection-panel,
+:root[data-skin="webcore"] .selection-panel-inner {
+    background: var(--wc-face);
+    border-color: var(--wc-shadow);
+    box-shadow: none;
+}
+:root[data-skin="webcore"] .container { box-shadow: var(--wc-raised); border: 0; }
+:root[data-skin="webcore"] .ctrl-section + .ctrl-section::before,
+:root[data-skin="webcore"] .info-divider,
+:root[data-skin="webcore"] .sel-sep {
+    background: var(--wc-shadow);
+    box-shadow: 1px 0 var(--wc-hilight);
+}
+:root[data-skin="webcore"] .ctrl-section-label,
+:root[data-skin="webcore"] .selection-label,
+:root[data-skin="webcore"] label { color: var(--wc-ink); }
+
+/* ── Buttons: raised; pressed and active sink ── */
+:root[data-skin="webcore"] button,
+:root[data-skin="webcore"] .btn-icon,
+:root[data-skin="webcore"] .btn-icon-text,
+:root[data-skin="webcore"] .zoom-controls button,
+:root[data-skin="webcore"] .name-edit-btn,
+:root[data-skin="webcore"] .idle-create-btn,
+:root[data-skin="webcore"] .chat-hbtn,
+:root[data-skin="webcore"] .chat-abtn,
+:root[data-skin="webcore"] .ctx-assist-abtn,
+:root[data-skin="webcore"] .pill-toggle,
+:root[data-skin="webcore"] #toggle-controls,
+:root[data-skin="webcore"] #toggle-coord-panel,
+:root[data-skin="webcore"] #theme-toggle,
+:root[data-skin="webcore"] #draw-toggle,
+:root[data-skin="webcore"] #zoom-fit,
+:root[data-skin="webcore"] #settings-btn,
+:root[data-skin="webcore"] #visuals-btn,
+:root[data-skin="webcore"] #info-btn,
+:root[data-skin="webcore"] #chat-btn,
+:root[data-skin="webcore"] #voice-chat-btn,
+:root[data-skin="webcore"] #fullscreen-toggle,
+:root[data-skin="webcore"] #incognito-toggle,
+:root[data-skin="webcore"] #install-toggle {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0 !important;   /* the settings row's own outline is !important (components/settings.css) */
+    box-shadow: var(--wc-raised);
+    transform: none;
+    filter: none;
+    opacity: 1;
+}
+:root[data-skin="webcore"] button.primary,
+:root[data-skin="webcore"] button[type="submit"] {
+    box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
+}
+/* The pointer draws a frame in --wc-focus — the mic tile's own answer, which every control now
+   gives. !important because half of them carry an id rule of their own, which outranks any
+   selector this sheet could spell. Depth is still said by the press: a pressed or checked
+   control sinks into its bevel. */
+:root[data-skin="webcore"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn,
+.ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab,
+.accent-dd-trigger):hover:not(:disabled),
+:root[data-skin="webcore"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled),
+:root[data-skin="webcore"] #voice-chat-btn:not(.active):not(:disabled):hover {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border-color: transparent;
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+    transform: none;
+}
+:root[data-skin="webcore"] .accent-dd-trigger:hover:not(:disabled) {
+    background: var(--wc-window);
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+:root[data-skin="webcore"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn):active:not(:disabled),
+:root[data-skin="webcore"] button.active,
+:root[data-skin="webcore"] #draw-toggle.active:not(:disabled),
+:root[data-skin="webcore"] #chat-btn.active,
+:root[data-skin="webcore"] #incognito-toggle.active,
+:root[data-skin="webcore"] #fullscreen-toggle.active,
+:root[data-skin="webcore"] #voice-chat-btn.active,
+:root[data-skin="webcore"] .pill-toggle.on,
+:root[data-skin="webcore"] .chat-dock-btn-active,
+:root[data-skin="webcore"] .oi-tab.is-active,
+:root[data-skin="webcore"] .coord-tab-active {
+    background: var(--wc-light);
+    color: var(--wc-ink);
+    box-shadow: var(--wc-sunken);
+    transform: none;
+}
+:root[data-skin="webcore"] button.danger,
+:root[data-skin="webcore"] button.danger:hover:not(:disabled) {
+    background: var(--wc-face);
+    color: var(--wc-ink);   /* a button's word is read, never colour-coded: Win95 had no red label */
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] :is(button, select, input, textarea):disabled,
+:root[data-skin="webcore"] button.primary:disabled,
+:root[data-skin="webcore"] :is(label, .vs-row, .hotkey-row, .ctrl-section-label):has(> :disabled),
+:root[data-skin="webcore"] [aria-disabled="true"],
+:root[data-skin="webcore"] .is-disabled {
+    background: var(--wc-face);
+    /* --disabled-text, not --wc-shadow: on the dark face the shadow is #1c1c1c and the greyed
+       label vanished into the box. The 1px emboss under it is the skin's own greyed look. */
+    color: var(--disabled-text);
+    text-shadow: 1px 1px var(--wc-hilight) !important;
+    box-shadow: var(--wc-raised);
+    opacity: 1;
+    cursor: not-allowed;
+}
+:root[data-skin="webcore"] :is(input, textarea):disabled { background: var(--wc-face); box-shadow: var(--wc-sunken); }
+:root[data-skin="webcore"] :is(button, select):disabled:hover { box-shadow: var(--wc-raised); }
+
+/* A selector is a sunken field with a raised arrow button, exactly as the desktop's combo is. */
+:root[data-skin="webcore"] .accent-dd-trigger {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-sunken);
+    padding: 2px 22px 2px 6px;
+    position: relative;
+    transform: none;
+}
+:root[data-skin="webcore"] .accent-dd-caret {
+    position: absolute;
+    right: 2px;
+    top: 2px;
+    bottom: 2px;
+    width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wc-face);
+    box-shadow: var(--wc-raised);
+}
+
+/* ── Fields: sunken white wells ── */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="webcore"] select,
+:root[data-skin="webcore"] textarea,
+:root[data-skin="webcore"] .script-editor-wrap,
+:root[data-skin="webcore"] #zoom-input,
+:root[data-skin="webcore"] .coord-px-input,
+:root[data-skin="webcore"] .modal-search,
+:root[data-skin="webcore"] .kw-add input,
+:root[data-skin="webcore"] #chat-input,
+:root[data-skin="webcore"] #ctx-assist-input,
+:root[data-skin="webcore"] .chat-input-wrap {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-sunken);
+    padding-left: 6px;
+}
+/* One height down the row: a field, a spinner and a selector all stand the same. */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="webcore"] select,
+:root[data-skin="webcore"] .accent-dd-trigger {
+    height: 24px;
+    min-height: 24px;
+    padding: 2px 6px;
+    line-height: 18px;
+}
+:root[data-skin="webcore"] .accent-dd-trigger { padding-right: 22px; }
+
+/* The tick fills its well, as the desktop's baked indicator does. */
+:root[data-skin="webcore"] input[type="checkbox"],
+:root[data-skin="webcore"] input[type="radio"] { width: 15px; height: 15px; }
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):focus,
+:root[data-skin="webcore"] select:focus,
+:root[data-skin="webcore"] textarea:focus,
+:root[data-skin="webcore"] select:hover:not(:disabled),
+:root[data-skin="webcore"] .script-editor-wrap:focus-within,
+:root[data-skin="webcore"] .script-editor-wrap:hover {
+    box-shadow: var(--wc-sunken);
+    outline: none;
+}
+/* A field under the pointer wears the 2px focus ring, as a selector does and as the desktop's
+   QLineEdit:hover does; !important because the default skin's accent ring is. */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):hover:not(:disabled):not(:focus) {
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+    border-color: transparent !important;
+    background-image: none;
+    animation: none;
+}
+:root[data-skin="webcore"] #zoom-input { font-weight: normal; }
+:root[data-skin="webcore"] select {
+    appearance: none;
+    padding-right: 22px;
+    background-image: linear-gradient(var(--wc-face), var(--wc-face));
+    background-size: 16px calc(100% - 4px);
+    background-position: right 2px top 2px;
+    background-repeat: no-repeat;
+}
+:root[data-skin="webcore"] #project-name-input,
+:root[data-skin="webcore"] #project-name-input:read-only,
+:root[data-skin="webcore"] #project-name-input:disabled {
+    background: transparent;
+    box-shadow: none;
+    color: var(--wc-ink);
+    font-weight: 700;
+}
+:root[data-skin="webcore"] #project-name-input:not(:read-only),
+:root[data-skin="webcore"] #project-name-input:not(:read-only):focus {
+    background: var(--wc-window);
+    box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] input[type="color"] { box-shadow: var(--wc-raised); background: var(--wc-face); border: 0; padding: 3px; }
+:root[data-skin="webcore"] input[type="color"]::-webkit-color-swatch { border: 1px solid var(--wc-dark); }
+
+/* ── Checks and radios: white wells with a black mark ── */
+:root[data-skin="webcore"] input[type="checkbox"],
+:root[data-skin="webcore"] input[type="radio"] {
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    margin: 0 4px 0 0;
+    background: var(--wc-window);
+    border: 0;
+    box-shadow: var(--wc-sunken);
+    accent-color: var(--wc-ink);
+    vertical-align: -2px;
+}
+:root[data-skin="webcore"] input[type="checkbox"]:checked {
+    background: var(--wc-window) var(--accent-tick) center / 13px no-repeat;
+    box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] :is(input[type="checkbox"], input[type="radio"]):hover:not(:disabled) {
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+:root[data-skin="webcore"] input[type="radio"] { border-radius: 50% !important; }
+:root[data-skin="webcore"] input[type="radio"]:checked {
+    background: radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px);
+}
+:root[data-skin="webcore"] input[type="range"] { accent-color: var(--wc-select); }
+
+/* ── Scrollbars: the grey track, a raised thumb ── */
+/* scrollbar-width/-color back to auto: set, they make Chrome ignore every pseudo-element below,
+   and the base sheet's face-grey thumb vanished on a face-grey dialog. */
+:root[data-skin="webcore"] * { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-skin="webcore"] *::-webkit-scrollbar { width: 16px; height: 16px; }
+:root[data-skin="webcore"] *::-webkit-scrollbar-track,
+:root[data-skin="webcore"] *::-webkit-scrollbar-corner {
+    background: var(--wc-light);
+    background-image: repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%);
+    background-size: 2px 2px;
+}
+:root[data-skin="webcore"] *::-webkit-scrollbar-thumb {
+    background: var(--wc-face);
+    box-shadow: var(--wc-raised);
+    border: 0;
+    border-radius: 0;
+}
+/* Under the pointer the raised thumb takes the chosen accent (--wc-focus), as every skin's does. */
+:root[data-skin="webcore"] *::-webkit-scrollbar-thumb:hover,
+:root[data-skin="webcore"] .sb-hover::-webkit-scrollbar-thumb { background: var(--wc-focus); }
+:root[data-skin="webcore"] .canvas-sb { background: var(--wc-light); }
+:root[data-skin="webcore"] .canvas-sb-thumb {
+    background: var(--wc-face);
+    box-shadow: var(--wc-raised);
+    opacity: 1;
+}
+:root[data-skin="webcore"] .canvas-sb:hover .canvas-sb-thumb,
+:root[data-skin="webcore"] .canvas-sb.canvas-sb-drag .canvas-sb-thumb { background: var(--wc-focus); }
+
+/* ── The canvas and its frame ── */
+/* A REAL border, not the inset bevel every other well wears: an inset shadow paints under the
+   element's own children, so the picture covered the frame's bottom and right edges. */
+:root[data-skin="webcore"] .canvas-viewport {
+    background: var(--wc-desktop);
+    box-shadow: none;
+    border-style: solid;
+    border-width: 2px;
+    border-color: var(--wc-shadow) var(--wc-hilight) var(--wc-hilight) var(--wc-shadow);
+}
+:root[data-skin="webcore"] .canvas-section { background: var(--wc-face); border: 0; box-shadow: none; }
+/* The image-size line is a bar of its own, as the desktop's #imageInfoBar is. */
+:root[data-skin="webcore"] .info {
+    border-top: 1px solid var(--wc-hilight);
+    border-bottom: 1px solid var(--wc-shadow);
+    box-shadow: 0 1px var(--wc-hilight);
+    color: var(--wc-ink);
+}
+:root[data-skin="webcore"] .canvas-container { box-shadow: 2px 2px var(--wc-dark); }
+/* The picture's hard shadow goes with it while it is dust (animations/dust.css hides #canvas). */
+:root[data-skin="webcore"] .canvas-viewport:is(.canvas-assembling, .canvas-clearing) .canvas-container { box-shadow: none; }
+/* The tag rides the info bar's own face, so it takes that face's ink: --accent is the skin's
+   navy, which disappears into the dark face. */
+:root[data-skin="webcore"] .info-incognito { color: var(--wc-ink); }
+:root[data-skin="webcore"] .coord-status,
+:root[data-skin="webcore"] .drop-hint {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+:root[data-skin="webcore"] .empty-message { color: var(--wc-ink); }
+:root[data-skin="webcore"] .idle-create-btn { padding: 10px 18px; }
+:root[data-skin="webcore"] .idle-create-btn:hover .idle-create-icon { transform: none; }
+
+/* A toolbar caption is a caption, not a disabled control: grey reads as greyed-out in this skin,
+   so it takes the ink the desktop's QToolBar labels do. !important because the colour is inline. */
+:root[data-skin="webcore"] .ctrl-section-row :is(label, span)[style*="--text-muted"] { color: var(--wc-ink) !important; }
+
+/* ── Tables and tabs ── */
+:root[data-skin="webcore"] .coordinates-table { background: var(--wc-window); box-shadow: var(--wc-sunken); border: 0; }
+:root[data-skin="webcore"] .coordinates-table th {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    box-shadow: var(--wc-raised);
+    border: 0;
+}
+:root[data-skin="webcore"] .coordinates-table td { border-color: var(--wc-light); }
+/* A row's delete button is a button like any other: at 14px its bevel had no face left, so it
+   read as a shadow beside the desktop's (MainWindow's points table). */
+:root[data-skin="webcore"] :is(.del-pt-btn, .lines-row .btn-icon) { min-width: 20px; min-height: 18px; padding: 0; }
+:root[data-skin="webcore"] .coordinates-table tbody tr.row-focused,
+:root[data-skin="webcore"] .lines-row-selected,
+:root[data-skin="webcore"] .project-row.project-selected,
+:root[data-skin="webcore"] .connect-row.connect-selected {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+    box-shadow: none;
+}
+/* A real tab strip, as the desktop's QTabBar is (webcore.qss QTabBar::tab): each tab a raised
+   box OPEN AT THE BOTTOM, sitting on the panel's own hairline. Two floating buttons read as
+   controls; a tab has to join the surface it names. */
+:root[data-skin="webcore"] .coord-tabs,
+:root[data-skin="webcore"] .oi-tabs {
+    gap: 0;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--wc-shadow);
+}
+:root[data-skin="webcore"] .coord-tab,
+:root[data-skin="webcore"] .oi-tab {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    box-shadow: none;
+    /* !important: a tab is a <button>, and the raised-button rule above zeroes every border so. */
+    border: 0 !important;
+    border-top: 2px solid var(--wc-hilight) !important;
+    border-left: 2px solid var(--wc-hilight) !important;
+    border-right: 2px solid var(--wc-dark) !important;
+    padding: 3px 12px 4px;
+    margin: 2px 2px 0 0;
+}
+/* The picked one lightens and stands a touch taller, breaking through the strip's hairline so
+   it and the panel below are one surface. Both classes, so it outranks the rule above. */
+:root[data-skin="webcore"] .coord-tab.coord-tab-active,
+:root[data-skin="webcore"] .oi-tab.is-active {
+    background: var(--wc-light);
+    color: var(--wc-ink);
+    box-shadow: none;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: -1px;
+    padding-bottom: 5px;
+}
+:root[data-skin="webcore"] .panel-resizer::before,
+:root[data-skin="webcore"] #fs-panel-resizer::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] :is(.panel-resizer, #fs-panel-resizer):is(:hover, .dragging)::before { background: var(--wc-focus); }

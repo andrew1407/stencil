@@ -81,9 +81,11 @@
     "browser/js/ui/tip": 18,
     "browser/js/ui/toolbar": 9,
     "browser/js/ui/visuals": 10,
+    "browser/js/ui/webcore": 15,
     "browser/js/utils": 13,
     "browser/js/worker": 16,
     "browser/tests": 11,
+    "browser/tests/ui/webcore": 4,
     "browser/tools": 11
   },
   "exceptions": {},

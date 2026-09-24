@@ -66,7 +66,10 @@ namespace stencil::gui {
 
     diag = new QLabel(this);
     diag->setObjectName(this->style.diagName);
-    diag->setWordWrap(true);
+    // One line, always held: a report never takes height from the editor, and never widens it.
+    diag->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    diag->ensurePolished();
+    diag->setFixedHeight(diag->fontMetrics().height());
     col->addWidget(diag);
 
     highlighter = new ScriptHighlighter(edit->document());
@@ -124,8 +127,10 @@ namespace stencil::gui {
     painting = true;
     highlighter->restyle();   // the formats hold resolved colours
     painting = false;
+    diag->setToolTip(diag->text());   // the whole of a line the strip clips
     diag->style()->unpolish(diag);
     diag->style()->polish(diag);
+    diag->setFixedHeight(diag->fontMetrics().height());
   }
 
   void ScriptEditorWidget::parseAndPaint(const QString& text, bool withDiagnostics) {
@@ -150,8 +155,10 @@ namespace stencil::gui {
     diag->setProperty("state", first ? (first->isError ? QStringLiteral("error")
                                                         : QStringLiteral("warn"))
                                       : QVariant());
+    diag->setToolTip(diag->text());   // the whole of a line the strip clips
     diag->style()->unpolish(diag);
     diag->style()->polish(diag);
+    diag->setFixedHeight(diag->fontMetrics().height());
   }
 
   /* Hover lights the halo in the accent, focus thickens the border — the browser's

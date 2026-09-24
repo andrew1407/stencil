@@ -1,4 +1,5 @@
 #include "InfoDialog.hpp"
+#include "../../support/skinPrefs.hpp"
 #include "../../support/theme/filterFade.hpp"  // rows fade in/out with the search, never blink
 #include "../../support/icon/KeycapChip.hpp"  // the term's key combos as the tooltips' caps
 #include "../../support/modal/modalChrome.hpp"
@@ -33,10 +34,11 @@ namespace stencil::gui {
       const QString s = QString(term).replace(plus, "+");
       QString out;
       int last = 0;
+      // The skin sets every face to its own (browser webcore/chrome.css `*`), terms included.
+      const QString mono = support::isWebcore() ? QString() : QStringLiteral("font-family:Menlo,Consolas,monospace;");
       const auto plain = [&](const QString& t) {
-        return QString("<span style=\"color:%1;font-family:Menlo,Consolas,monospace;"
-                       "font-size:12px;font-weight:bold;\">%2</span>")
-            .arg(pal.textKey.name(), t.toHtmlEscaped());
+        return QString("<span style=\"color:%1;%2font-size:12px;font-weight:bold;\">%3</span>")
+            .arg(pal.textKey.name(), mono, t.toHtmlEscaped());
       };
       const auto piece = [&](const QString& tok) {
         if (tok.isEmpty()) return;

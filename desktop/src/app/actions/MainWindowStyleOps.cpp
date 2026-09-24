@@ -18,6 +18,7 @@
 #include "SelectionPanel.hpp"
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
+#include "../../support/skinPrefs.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -127,23 +128,27 @@ namespace stencil::gui {
     if (labelled) btn->setMinimumWidth(46);
     else btn->setFixedWidth(46);
     btn->setCursor(Qt::PointingHandCursor);
+    const bool skin = support::isWebcore();   // a skin squares every corner, the chip included
     btn->setStyleSheet(
         QStringLiteral(
-            "QToolButton{background:%1;border:1px solid %2;border-radius:7px;"
+            "QToolButton{background:%1;border:1px solid %2;border-radius:%6px;"
             "color:%4;padding:0 %5px;}"
             "QToolButton:hover{border-color:%3;}")
             .arg(pal.inputBg.name(), pal.borderMain.name(), pal.accent.name(),
-                 pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0")));
+                 pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0"),
+                 skin ? QStringLiteral("0") : QStringLiteral("7")));
     // A luminance-tuned outline keeps a colour near the input background visible in either theme.
     QPixmap pm(32, 16);
     pm.fill(Qt::transparent);
     {
       QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing);
+      p.setRenderHint(QPainter::Antialiasing, !skin);
       const bool lightFill = color.lightnessF() > 0.7;
-      p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
+      p.setPen(QPen(skin ? QColor(Qt::black)
+                         : lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
       p.setBrush(color);
-      p.drawRoundedRect(QRectF(0.5, 0.5, 31.0, 15.0), 4, 4);
+      const QRectF chip(0.5, 0.5, 31.0, 15.0);
+      if (skin) p.drawRect(chip); else p.drawRoundedRect(chip, 4, 4);
     }
     btn->setIcon(QIcon(pm));
     btn->setIconSize(pm.size());

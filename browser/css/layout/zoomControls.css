@@ -34,6 +34,9 @@
     left: auto;
     top: auto;
     z-index: 100002;
+    /* Portaled into <body>, the base `min-width: 100%` would mean the window's width; the
+       inline width placeMenu sets is the real one. */
+    min-width: 0;
 }
 .zoom-menu-item {
     padding: 5px 14px;

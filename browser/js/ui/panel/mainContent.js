@@ -78,7 +78,18 @@ export class StencilMainContent extends StencilElement {
                         </tr>
                     </tbody>
                 </table>
-                <div id="lines-list" class="lines-list" role="tabpanel" style="display:none;"></div>
+                <table class="coordinates-table lines-table" id="lines-list" role="tabpanel" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th class="lines-swatch-cell">Color</th>
+                            <th>Line</th>
+                            <th class="lines-count-cell">Pts</th>
+                            <th class="lines-remove-cell"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lines-body"></tbody>
+                </table>
                 </div>
             </div>
     `;

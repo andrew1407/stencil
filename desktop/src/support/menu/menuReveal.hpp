@@ -17,6 +17,8 @@ namespace stencil::support {
   // this clock, opening and closing alike.
   inline constexpr int SELECT_POPUP_DUST_MS = 510;
   inline constexpr int CONTEXT_MENU_DUST_MS = 510;
+  // A flyout opens this far past its parent's edge, never over it (browser contextMenu/model.js SUB_GAP).
+  inline constexpr int SUBMENU_GAP = 2;
 
   // Call BEFORE exec()/popup() with the GLOBAL click point; the flight starts on the
   // menu's own Show, so it survives the blocking exec(). No-op headless / STENCIL_NO_ANIM.

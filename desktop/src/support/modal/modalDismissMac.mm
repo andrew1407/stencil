@@ -105,10 +105,22 @@ namespace stencil::support {
       QPointer<QDialog> dlg;
     };
 
+    // AppKit zooms and fades a newly ordered window in by itself. Under a still interface that
+    // is a lag nobody asked for, and under a moving one the app's own flight already plays.
+    void noAppearAnimation(QWidget* w) {
+      if (!w || !w->isWindow() || QGuiApplication::platformName() == QLatin1String("offscreen")) return;
+      NSView* v = (__bridge NSView*)reinterpret_cast<void*>(w->winId());
+      if (v.window) v.window.animationBehavior = NSWindowAnimationBehaviorNone;
+    }
+
     class BackdropWatcher : public QObject {
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() == QEvent::Show) attach(qobject_cast<QDialog*>(o));
+        if (e->type() == QEvent::Show) {
+          auto* dlg = qobject_cast<QDialog*>(o);
+          noAppearAnimation(dlg);
+          attach(dlg);
+        }
         return QObject::eventFilter(o, e);
       }
 
@@ -132,6 +144,8 @@ namespace stencil::support {
         backdrop->setGeometry(allScreensPadded());
         backdrop->installEventFilter(new BackdropPress(backdrop, dlg));
         dlg->installEventFilter(new BackdropAnchor(dlg, backdrop));
+        backdrop->winId();
+        noAppearAnimation(backdrop);
         backdrop->show();
 
         // BELOW the dialog so it and its popups stay interactive. Deferred so both native windows exist.

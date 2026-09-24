@@ -27,8 +27,8 @@ test('every selector opens the app dropdown, and hovers as a pointer', async ({ 
     const trig = (id) => document.getElementById(id).parentElement.querySelector('.accent-dd-trigger');
     return {
       live: getComputedStyle(trig('line-style')).cursor,
-      deadCursor: getComputedStyle(trig('image-filter')).cursor,   // no image loaded yet
-      deadDisabled: trig('image-filter').disabled,
+      deadCursor: getComputedStyle(trig('compare-mode')).cursor,   // no image loaded yet
+      deadDisabled: trig('compare-mode').disabled,
     };
   });
   expect(style.live).toBe('pointer');
@@ -47,7 +47,7 @@ test('every selector opens the app dropdown, and hovers as a pointer', async ({ 
   expect(await page.evaluate(() => window.stencil.lineStyle)).toBe('dashed');
 
   // A dead selector opens nothing at all.
-  await page.locator('#image-filter').locator('xpath=..').locator('.accent-dd-trigger')
+  await page.locator('#compare-mode').locator('xpath=..').locator('.accent-dd-trigger')
     .click({ force: true });
   await expect(page.locator('.accent-dd-menu:visible')).toHaveCount(0);
 });

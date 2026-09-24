@@ -13,6 +13,7 @@
 #include "IncognitoOverlay.hpp"
 #include "CropDialog.hpp"
 #include "guiHelpers.hpp"
+#include "iconSet.hpp"
 #include "MenuHotkeys.hpp"
 #include "menuReveal.hpp"
 #include "MenuShimmer.hpp"
@@ -34,6 +35,8 @@
 #include "SettingsDialog.hpp"
 #include "ShortcutsDialog.hpp"
 #include "theme.hpp"
+#include "../../support/skinPrefs.hpp"
+#include <QStyle>
 #include "../../support/tip/AppTooltip.hpp"
 #include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/modal/modalChrome.hpp"
@@ -57,14 +60,21 @@ namespace stencil::gui {
     // A FIRST-CLASS popover dialog (not a QMenu), so the popover system's Alt-peek/glide/linger rules apply. Presets from theme.cpp accentPresets.
     // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accent/picker.js).
     QIcon accentSwatchIcon(const QColor& c, bool current) {
-      QPixmap pm(16, 16);
+      const bool skin = support::isWebcore();
+      const qreal dpr = skin ? 2.0 : 1.0;   // the skin's pixel ✓ needs the room
+      QPixmap pm(QSize(16, 16) * dpr);
+      pm.setDevicePixelRatio(dpr);
       pm.fill(Qt::transparent);
       QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing);
-      p.setPen(QPen(QColor(0, 0, 0, 70), 1));
+      p.setRenderHint(QPainter::Antialiasing, !skin);
+      p.setPen(QPen(skin ? QColor(Qt::black) : QColor(0, 0, 0, 70), 1));
       p.setBrush(c);
-      p.drawRoundedRect(1, 1, 13, 13, 3, 3);
-      if (current) {
+      if (skin) p.drawRect(1, 1, 13, 13); else p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+      if (current && skin) {
+        // The skin's own green ✓ art, never the chip's ink (browser: icon('check') under webcore).
+        const QPixmap tick = themedIcon("check", QColor(), 11, dpr).pixmap(QSize(11, 11), dpr);
+        p.drawPixmap(QRectF(2.5, 2.5, 11, 11), tick, QRectF(tick.rect()));
+      } else if (current) {
         p.setBrush(Qt::NoBrush);
         const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
         p.setPen(QPen(onAccentInk(c), 1.9, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
@@ -72,6 +82,17 @@ namespace stencil::gui {
       }
       p.end();
       return QIcon(pm);
+    }
+
+    // One lit row (browser .logo-accent-menu): the pointer's, else the current preset's.
+    void relightAccentRows(QWidget* pop, const QWidget* hovered) {
+      for (QPushButton* r : pop->findChildren<QPushButton*>()) {
+        const bool lit = hovered ? r == hovered : r->property("currentAccent").toBool();
+        if (r->property("lit").toBool() == lit) continue;
+        r->setProperty("lit", lit);
+        r->style()->unpolish(r);
+        r->style()->polish(r);
+      }
     }
   }  // namespace
 
@@ -88,6 +109,9 @@ namespace stencil::gui {
       r->setIcon(accentSwatchIcon(QColor(accentPrimary(rowKey)), now));
       r->setProperty("currentAccent", now);
     }
+    QPushButton* hovered = nullptr;
+    for (QPushButton* r : pop->findChildren<QPushButton*>()) if (r->underMouse()) hovered = r;
+    relightAccentRows(pop, hovered);
   }
 
   void MainWindow::previewAccent(const QString& key) {
@@ -122,10 +146,15 @@ namespace stencil::gui {
         if (e->type() == QEvent::Enter) {
           auto* w = qobject_cast<QWidget*>(o);
           const QString key = w ? w->property("accentKey").toString() : QString();
-          if (!key.isEmpty()) { pending = key; timer.start(); }   // fires once the pointer rests
+          if (!key.isEmpty()) { pending = key; timer.start(); relightAccentRows(popover, w); }   // previews once rested
         } else if (e->type() == QEvent::Leave && popover) {
           const QPoint p = popover->mapFromGlobal(QCursor::pos());
-          if (!popover->rect().contains(p)) { timer.stop(); pending.clear(); leave(); }  // truly left
+          if (!popover->rect().contains(p)) {   // truly left
+            timer.stop();
+            pending.clear();
+            leave();
+            relightAccentRows(popover, nullptr);
+          }
         }
         return QObject::eventFilter(o, e);
       }
@@ -145,7 +174,8 @@ namespace stencil::gui {
         [this](const QString& key) { previewAccent(key); }, [this] { endAccentPreview(); });
     dlg.installEventFilter(hover);
     auto* col = new QVBoxLayout(&dlg);
-    col->setContentsMargins(8, 8, 8, 8);
+    const int inset = support::isWebcore() ? 3 : 8;   // browser webcore .logo-accent-menu padding
+    col->setContentsMargins(inset, inset, inset, inset);
     col->setSpacing(1);
     // Rows are built once and RE-MARKED in place whenever the accent moves: picking must not rebuild or move the popover.
     for (const AccentPreset& a : accentPresets()) {
@@ -173,6 +203,7 @@ namespace stencil::gui {
       });
       col->addWidget(row);
     }
+    relightAccentRows(&dlg, nullptr);
     execMaybePopover(dlg);
     endAccentPreview();   // closed while a row was still hovered → back to the committed accent
   }

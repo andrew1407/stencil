@@ -92,6 +92,8 @@ namespace stencil::gui {
     setActionTip(actRotateLeft, "Rotate image left");
     setActionTip(actRotateRight, "Rotate image right");
     setActionTip(actFit, "Fit to window");
+    setActionTip(actZoomIn, "Zoom in");
+    setActionTip(actZoomOut, "Zoom out");
     setActionTip(actDownloadJson, "Download Layout JSON");
     setActionTip(actUploadJson, "Upload Layout JSON");
     setActionTip(actScript, "Stencil script (.stc) — write and run a script over this project");

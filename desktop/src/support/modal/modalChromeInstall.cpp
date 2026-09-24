@@ -3,6 +3,7 @@
 #include "iconSet.hpp"
 #include "modalReveal.hpp"
 #include "ShimmerOverlay.hpp"
+#include "../skinPrefs.hpp"
 
 #include <QColor>
 #include <QComboBox>
@@ -98,6 +99,7 @@ namespace stencil::gui {
     new HeaderDrag(headerW, dlg);
     auto* header = new QHBoxLayout(headerW);
     header->setContentsMargins(PAD_X, HEADER_PAD_Y, PAD_X, HEADER_PAD_Y);
+    if (support::isWebcore()) header->setContentsMargins(8, 3, 4, 3);
     header->setSpacing(8);
     if (!iconName.isEmpty()) {
       auto* glyph = new QLabel(dlg);
@@ -113,6 +115,11 @@ namespace stencil::gui {
     c.close->setObjectName(QStringLiteral("modalClosePill"));
     c.close->setProperty(SHIMMER_RADIUS_PROPERTY, 13);   // its QSS radius, so the sweep stays inside
     c.close->setIcon(labelIcon("x", dlg->palette().color(QPalette::WindowText), 14));
+    if (support::isWebcore()) {
+      c.close->setText(QString());
+      c.close->setIcon(QIcon(themedIcon("x", dlg->palette().color(QPalette::WindowText), 14).pixmap(QSize(14, 14))));
+      c.close->setIconSize(QSize(14, 14));
+    }
     c.close->setCursor(Qt::PointingHandCursor);
     // Never the default button: Enter in a form must not dismiss the dialog.
     c.close->setAutoDefault(false);

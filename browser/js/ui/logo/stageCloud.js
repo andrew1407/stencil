@@ -55,6 +55,14 @@ export const spawnStageCount = (intensity, dt, rnd = Math.random) => {
   return Math.floor(n) + (rnd() < n % 1 ? 1 : 0);
 };
 
+// The style's drift points out of the mark, not down the screen, so the ring stays even.
+export const driftedStageMote = (m, f) => {
+  const d = Math.hypot(m.x, m.y);
+  if (d <= 0) return { x: m.x + f.sx, y: m.y + f.sy };
+  const ux = m.x / d, uy = m.y / d, out = Math.abs(f.sy);
+  return { x: m.x + ux * out + uy * f.sx, y: m.y + uy * out - ux * f.sx };
+};
+
 // One emitter per stage: `style` is a dustCloud style name, null for a show that flies none.
 export const createStageCloud = (style) => {
   const motes = [];
@@ -65,6 +73,13 @@ export const createStageCloud = (style) => {
   const poly = [];
   return {
     get live() { return motes.length; },
+    // Each grain's drawn place at tMs, relative to the mark's centre.
+    placed(tMs) {
+      return motes.map((m) => {
+        const p = Math.min(1, m.age / m.life);
+        return driftedStageMote(m, styleFrame(code, p, p, m.w, m.len, tMs, {}));
+      });
+    },
     // `boost` is the stage's: 1 at rest, more under the pointer, most while it is held down.
     step(dt, size, boost = 1, { dir = null, rnd = Math.random } = {}) {
       if (code === null) return 0;
@@ -84,12 +99,13 @@ export const createStageCloud = (style) => {
         styleFrame(code, p, p, m.w, m.len, tMs, out);
         const alpha = stageMoteAlpha(m) * out.glow;
         if (alpha < 0.01) continue;
+        const at = driftedStageMote(m, out);
         const tint = tintOf(m.w);
         const mix = tint < 0 && code === PARTICLE_STYLES.dust ? dustMix(m.w, false) : out.mix;
         const key = Math.min(colours.length - 1, stopOfTint(mix, tint)) * 10 + Math.round(alpha * 9);
         let b = bucket.get(key);
         if (!b) bucket.set(key, (b = []));
-        b.push(x + (m.x + out.sx) * scale, y + (m.y + out.sy) * scale, m.r * out.scale * scale,
+        b.push(x + at.x * scale, y + at.y * scale, m.r * out.scale * scale,
           grainShape(code, m.w), headingOf(m.vx, m.vy, false));
       }
       for (const [key, b] of bucket) {

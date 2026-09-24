@@ -49,8 +49,7 @@ namespace stencil::gui {
     });
     connect(actRotateRight, &QAction::triggered, this, [rotate] { rotate(true); });
     // Cycle the image filter (Alt+B; browser cycleFilter): none → bw → sepia → invert → contour → custom.
-    connect(actCycleFilter, &QAction::triggered, this, [this] {
-      if (!canvas->hasImage()) return;
+    connect(actCycleFilter, &QAction::triggered, this, [this] {   // a tint is chosen ahead too
       static const QStringList order{"none",   "bw",      "sepia",
                                      "invert", "contour", "custom"};
       const int cur = order.indexOf(settings.imageFilter);
