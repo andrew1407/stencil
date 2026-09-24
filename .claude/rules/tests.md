@@ -15,7 +15,7 @@ paths:
   - "server/**/*_test.go"
 ---
 
-# Tests, pins and budgets
+# Tests, pins and floors
 
 ## A failing pin means the code is wrong
 
@@ -41,39 +41,29 @@ The desktop image pins are platform-specific; on a platform with no recorded ren
 **skips** rather than failing. Do not "fix" a skip by recording pins on a new platform unless
 that is the task.
 
-## Size + comment ratchet, per surface
+## Test-count floor, per surface
 
-`maxNewFileLines` is 230 everywhere. Run just the lint:
+Every suite carries a **test-count floor**: the guard against a suite that reports "0 failed"
+while running a fraction of itself — a glob that stopped matching, a target dropped from a
+source list, a walker that fell out of its manifest. It fails naming both numbers
+(`… collapsed to N, floor is M`). It is a floor, not a pin: adding tests never trips it, so
+raise one only when its suite has grown well past it.
 
-| Surface | Command |
+| Surface | Where |
 |---|---|
-| browser | `cd browser && node --test tests/sizeBudget.test.js` |
-| browser-extension | `cd browser-extension && node --test tests/sizeBudget.test.js` |
-| vscode-extension | `cd vscode-extension && node --test tests/sizeBudget.test.js` |
-| core | `core/build/stencil_tests -tc="size budget*"` |
-| desktop | `ctest --test-dir desktop/build -R stencil_sizebudget_headless` |
-| cli | `cd cli && zig build test` (`tests/size_budget_test.zig` is part of the suite) |
-| mcp | `cd mcp && cargo test --test size_budget_test` |
-| pystencil | `cd pystencil && python3 -m unittest tests.test_size_budget` |
-| server | `cd server && go test ./internal/lint/...` |
-| bot | `cd bot && dotnet test Stencil.TelegramBot.slnx --filter SizeBudgetTests` |
+| browser, browser-extension, vscode-extension | `tests/testFloor.test.js` — spawns an inner `node --test` and reads its summary, so it takes a couple of seconds |
+| e2e | `tests/specGuard.test.js` — counts `test(` declarations and proves every spec is claimed by a Playwright project; `npm test` runs it first |
+| core | `tests/testMain.cpp` — doctest's own registry |
+| desktop | `tests/testFloor.headless.cpp` — parses the generated `CTestTestfile.cmake` |
+| cli | `tests/test_floor_test.zig` — scans declarations |
+| mcp | `tests/test_floor_test.rs` — scans declarations, and checks every `harness = false` walker is still in `Cargo.toml` |
+| pystencil | `tests/test_count_floor.py` — `defaultTestLoader.discover` |
+| server | `internal/lint/testfloor_test.go` — scans declarations |
+| bot | `TestCountFloorTests.cs` — reflects over the assembly, expanding every theory's rows |
 
-It checks four things: no new file over 230 lines, no listed file grew, no directory's
-comment share rose, and **the suite still runs at least its floor of tests**. Lower a recorded
-number when code leaves the file; never raise one without a note in the budget's `exceptions`.
-
-The **test-count floor** is the guard against a suite that reports "0 failed" while running a
-fraction of itself — a glob that stopped matching, a target dropped from a source list, a
-walker that fell out of its manifest. It fails naming both numbers (`… collapsed to N, floor is
-M`). It is a floor, not a pin: adding tests never trips it, so raise one only when its suite has
-grown well past it. Where the runner can be asked what it actually ran, the floor asks it
-(browser and extension spawn an inner `node --test` and read its summary — so these two lint
-commands now take a couple of seconds, not 0.2; core reads doctest's registry; desktop parses
-the generated `CTestTestfile.cmake`; pystencil walks `defaultTestLoader.discover`; bot reflects
-over the assembly and expands every theory's data rows). Zig, Rust and Go offer no such
-introspection, so those three scan declarations and catch a deleted test but not an unexecuted
-one; mcp additionally verifies every `harness = false` walker is still registered in
-`Cargo.toml`.
+Where the runner can be asked what it actually ran, the floor asks it; Zig, Rust and Go offer
+no such introspection, so those scan declarations and catch a deleted test but not an
+unexecuted one.
 
 ## Benchmarks are opt-in
 

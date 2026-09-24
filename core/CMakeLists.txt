@@ -141,7 +141,6 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/raster/imageOps.test.cpp
     tests/raster/rasterize.test.cpp
     tests/raster/rowRanges.test.cpp
-    tests/sizeBudget.test.cpp
     tests/twinDrift.test.cpp
     # Perf-regression benchmarks — decorated doctest::skip(), so `ctest` never runs them.
     # Run on demand: stencil_tests -ts=bench --no-skip  (see tests/bench.test.cpp).

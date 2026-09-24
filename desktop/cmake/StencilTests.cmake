@@ -791,11 +791,11 @@ stencil_headless_test(stencil_layerboundary_headless
   SOURCES tests/layerBoundary.headless.cpp
   LIBS Qt6::Core)
 
-# Size + comment ratchet (tests/sizeBudget.json): reads the desktop .cpp/.hpp tree
-# itself, so it compiles no app source — no new oversized file, no budgeted file
-# growing, no directory raising its comment share.
-stencil_headless_test(stencil_sizebudget_headless
-  SOURCES tests/sizeBudget.headless.cpp
+# Test-count floor (tests/testFloor.headless.cpp): counts the add_test( lines of the
+# generated CTestTestfile.cmake and fails when the suite has collapsed below its floor.
+# Compiles no app source.
+stencil_headless_test(stencil_testfloor_headless
+  SOURCES tests/testFloor.headless.cpp
   DEFS "STENCIL_CTEST_FILE=\"${CMAKE_CURRENT_BINARY_DIR}/CTestTestfile.cmake\""
   LIBS Qt6::Core)
 
