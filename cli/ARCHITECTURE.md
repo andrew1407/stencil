@@ -202,7 +202,9 @@ classDiagram
   (`core.rasterizeLine`). `writeOutputLabeled` encodes and prints
   `wrote {path} ({w}x{h} px · {page})` through `report.print`, the one exit for every
   line below the presentation layer (an installed `Writer` captures them headlessly).
-- **A console turn.** `commands.parseCommand` yields a `Command`; `dispatch.handle` routes
+- **A console turn.** The console is POSIX-only: its raw mode is termios, so `main.zig`
+  refuses it on Windows and every one-shot mode still ships there.
+  `commands.parseCommand` yields a `Command`; `dispatch.handle` routes
   a `Verb` to its handler or a transform to `handlers/edit.zig runAction`, which calls
   `applyCrop`, `applyRotate`, `setFilter` or `addLines`. Each dupes the current
   `EditState`, `pushState`s it and `rebuild`s the view (`derivedView.Base` caches rotate →

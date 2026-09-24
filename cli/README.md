@@ -42,6 +42,27 @@ docker run --rm -v "$PWD:/work" -w /work stencil-cli -i in.png -r 1 out.png
 Override the toolchain with `--build-arg ZIG_VERSION=…` (and `ZIG_ARCH=aarch64` on arm64);
 for a Zig nightly, `--build-arg ZIG_URL=…` to the `ziglang.org/builds/` tarball.
 
+### Release packaging
+
+Zig cross-compiles the core and the codecs, so one machine produces every platform's binary:
+
+```bash
+# from this directory (cli/)
+zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast -Dstrip=true   # -> zig-out/bin/stencil
+```
+
+| Platform | Package | Form |
+|---|---|---|
+| Linux | `stencil-cli-<ver>-Linux-<arch>.tar.gz` | static `stencil` (musl, any distro) |
+| macOS | `stencil-cli-<ver>-Darwin-<arch>.tar.gz` | `stencil` |
+| Windows | `stencil-cli-<ver>-Windows-AMD64.zip` | `stencil.exe` |
+
+The macOS binary is unsigned: clear the quarantine flag after downloading (`xattr -d
+com.apple.quarantine stencil`). The Windows build runs every one-shot mode (`-i`, `--blank`,
+`--script`, `--source-site`, `--server`) but not the interactive console. CI builds all of them
+on every `v*` tag and attaches them to the GitHub release
+(`.github/workflows/cli-packages.yml`); a manual run produces them as workflow artifacts.
+
 ## Usage
 
 ```
