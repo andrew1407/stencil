@@ -279,6 +279,18 @@ classDiagram
   `planRunning`: `RemoteSyncController` holds its poll and reload off while it is set (the third
   of its re-entrancy flags, beside `remoteReloading` and `remotePushing`), and `onChatSend`
   ignores a Send, since the dock is already idle by the time the plan runs.
+- **The chat's placement.** The window's central widget is an inner `QMainWindow`, the editor
+  shell (`MainWindow::editor`): it holds the toolbars, the Image Size and Selected Line docks,
+  the points panel and the canvas, and its `saveState` is what `Settings::windowState` keeps.
+  `ChatDock` is the window's own, and only, dock, so whichever side it takes runs the full
+  window edge outside the shell, toolbars included, as the browser's fixed-position
+  `stencil-chat-panel` insets the whole page (`css/components/chat/panel.css`). `dockChatTo`
+  places it and plays the side switch as a slide out of the old edge and in at the new; the
+  drop bands of a title-bar drag span the window between the menu bar and the status bar.
+  The grip and resize-edge overlays are the window's, so they map the shell's dock geometry up;
+  the shell hosts its own surfaces' dust (the tool rows' fold, the points panel, the Selected
+  Line bar), so those motes vanish under a docked chat instead of crossing it, as the browser
+  layers a page surface's cloud below the panel (`surfaces.js` `belowChat`).
 - **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
   (`app/LogoStage*.cpp`), a full-window child of the window that asks its `Hooks` for a bare
   window — not fullscreen, nothing modal, no popover — before it opens; a hold is refused
@@ -374,8 +386,7 @@ one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the sin
 `llmWireFixtures`, `storeFixtures`, `deepLinkFixtures`, `configCanon`, `canonAssets`) prove
 the shared `browser/js/config` corpora on this surface; the LLM suites substitute a mock
 `LlmTransport`, so the whole suite runs offline. `layerBoundary.headless.cpp` is the import
-lint, and `sizeBudget.headless.cpp` the line cap, the comment share and the folder fan-out
-(a header and its `.cpp` count once), scanning through `sizeBudgetParts.hpp`.
+lint, and `testFloor.headless.cpp` holds the suite at its floor of registered ctest targets.
 `uiPins.headless.cpp` pins the app stylesheet hash per theme and accent
 (`tests/pins/stylesheets.txt`) and the rendered states at device pixel ratio 1 and 2
 against `tests/pins/<platform>/`; the render baselines are platform-specific, and a platform

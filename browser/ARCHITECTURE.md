@@ -286,8 +286,8 @@ codec and cursor, the expiry arithmetic and the stateful handle classes; they se
 without the artifact, which CI builds fresh.
 
 The structural lints assert the design rather than behaviour: `layerBoundary` the import
-direction and the `window.stencil` name, `sizeBudget` the line cap, the comment share and the
-folder fan-out (a module and its `.d.ts` count once), `dts` every `.d.ts` against its module's exports in
+direction and the `window.stencil` name, `testFloor` that the suite still runs at least its
+floor of tests, `dts` every `.d.ts` against its module's exports in
 both directions and every exporting module against the frozen list of those still without one, and `events`, `themeTokens`, `csp` and `opRegistryCanon` the drift between
 a config table and its consumer. `cssInventory` pins every declaration `index.html` loads,
 file-blind, and `ui-markup` the static body ids of `layout()`. The fixture walkers run the

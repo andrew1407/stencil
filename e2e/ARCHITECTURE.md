@@ -65,7 +65,7 @@ convention; no lint.
 | `helpers/llm-stub.js` | the scriptable stub LLM (openai-compat / ollama / Anthropic Messages) | **all model traffic ends here**; no spec reaches a real provider |
 | `fixtures/` | host pages the extension scanner loads over http, `project.stencil`, `cli-layout.json` | `project.stencil` is opened by BOTH the browser and the cli specs, so the two surfaces are proven on the same bytes |
 | `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state | only `macos/` is recorded; other platforms skip |
-| `tests/sizeBudget.test.js`, `sizeBudget.json` | the surface's size + comment ratchet: the 230-line cap, the recorded floors, the per-directory comment share | a `node --test` lint, not a spec — it reads `playwright.config.js` to prove every spec is claimed by a project; `npm test` runs it before Playwright |
+| `tests/specGuard.test.js` | the guards on the spec tree: the test-count floor, and that every spec is claimed by a project | a `node --test` lint, not a spec — it reads `playwright.config.js`; `npm test` runs it before Playwright |
 | `tests/browser/`, `tests/browser-extension/`, `tests/fullstack/`, `tests/server/`, `tests/cli/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
 
 ## Entities
@@ -260,10 +260,9 @@ edit fan-out, presence, keepalive reaping and the spend controls, with no browse
 `cli` the argv and stderr grammar against the written PNG's real dimensions, and the `.stc`
 flags and console verb over the shared corpus — which the browser's script window runs too.
 
-The ratchet beside the specs is the one test here that drives nothing: it caps a new file at
-230 lines, holds every recorded file and the shared `helpers/` folder at today's count, and
-fails on a spec no project's `testMatch` claims — which would otherwise report neither pass
-nor skip.
+The guard beside the specs is the one test here that drives nothing: it holds the spec tree
+at its floor of declared cases and fails on a spec no project's `testMatch` claims — which
+would otherwise report neither pass nor skip.
 
 A missing prerequisite is a reported skip, never a pass: the stack-backed specs skip without
 `E2E_STACK=1`, the `cli` project without a binary, the LLM specs when the server reports its

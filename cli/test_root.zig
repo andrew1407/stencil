@@ -29,6 +29,6 @@ test {
     _ = @import("tests/config/page_sizes_drift_test.zig");
     _ = @import("tests/config/theme_tokens_drift_test.zig");
     _ = @import("tests/config/media_types_drift_test.zig");
-    _ = @import("tests/size_budget_test.zig");
+    _ = @import("tests/test_floor_test.zig");
     _ = @import("tests/test_registration_test.zig");
 }

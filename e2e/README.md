@@ -18,7 +18,7 @@ npm run test:ui                        # browser-app + extension — no Docker n
 E2E_STACK=1 npm test                   # all five projects (brings up db+redis+server via ../docker-compose.yml)
 npm run test:stack                     # just fullstack + server-protocol
 npm run report                         # open the HTML report after a run
-npm run lint:size                      # just the size + comment ratchet (no browser, no stack)
+npm run lint:specs                     # just the spec-tree guards (no browser, no stack)
 ```
 
 | Project | Needs Docker stack? | What it drives |

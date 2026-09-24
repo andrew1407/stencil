@@ -2,7 +2,7 @@
 name: verify
 description: >-
   Run Stencil's full local verification matrix — every surface's suite, the UI
-  pins and the size/comment ratchets — one surface at a time. Use before
+  pins and the test-count floors — one surface at a time. Use before
   claiming a refactor is green, at a plan phase gate, or when asked to "run
   everything" / "verify" / "check the matrix". Runs sequentially with capped
   parallelism because the whole matrix at once locks this machine up.
@@ -42,10 +42,10 @@ suites instead: each surface's size-budget test asserts a **test-count floor** a
 both numbers, so a suite that silently stops running most of itself goes red on its own. Raise
 a floor only when its suite has grown well past it.
 
-The size + comment ratchets, the count floors and the UI pins are **inside** these suites
-(`sizeBudget` / `size_budget` / `SizeBudget` targets, `cssInventory.test.js`, `uiPins`
-headless, the CLI TUI goldens), so a green surface already covers its own lint and pins. There
-is nothing extra to run for them.
+The count floors, the structural lints and the UI pins are **inside** these suites
+(`testFloor` / `test_floor` / `TestCountFloor` targets, `layerBoundary`, `cssInventory.test.js`,
+`uiPins` headless, the CLI TUI goldens), so a green surface already covers its own lint and
+pins. There is nothing extra to run for them.
 
 **Chunk 3 is also the parser-copy gate.** `vscode-extension/tests/parserParity.test.js` holds
 `src/parser/script/` byte-equal to `browser/js/core/script/` in both directions, so a

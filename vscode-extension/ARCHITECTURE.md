@@ -255,7 +255,7 @@ classDiagram
    holding a quote, a space, a percent or a semicolon survives as one argument.
 3. **The parser is copied, never edited here.** A change belongs in `core/script/` and
    `browser/js/core/`; this tree re-copies. `tests/parserParity.test.js` fails on any drift,
-   in either direction, and `tests/sizeBudget.json` `exceptions` marks the copies as copies.
+   in either direction.
    The facade vocabulary is the same idea one step out: the prose is this tree's, the member
    list and the signatures are `stencilApi.d.ts`'s, and `tests/lib/vocab/apiVocabulary.test.js` holds them.
 4. **The grammar follows the language, not the other way round.** The directive list is
@@ -305,7 +305,7 @@ reader would see it, and `vocabulary.test.js` holds the documented words to the 
 lists. `manifest.test.js` holds `package.json` to `src/lib/ids.js`,
 to the files it points at — both languages' configurations, grammars and icons, and the
 logo — and every module to its sibling `.d.ts`. `layerBoundary.test.js` scans import direction and
-`sizeBudget.{json,test.js}` is the line and comment ratchet. There is deliberately **no
+`testFloor.test.js` proves the suite still runs at least its floor of tests. There is deliberately **no
 `@vscode/test-electron` end-to-end suite**: it would download a VS Code build per run, which
 this repo's no-new-dependency rule rules out, and the behaviour it would cover is the editor's
 own. The editor-side check is manual — install the `.vsix`, open a fixture `.stc`.

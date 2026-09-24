@@ -60,13 +60,10 @@ A layer may use everything to its left, nothing to its right.
 
 ## 230 lines
 
-`maxNewFileLines` is **230** on every surface. A new file over 230 lines fails the ratchet; a
-file already listed in the budget may not grow. Shrink it and lower its number in the same
-commit. Never raise a number without a note in the budget's `exceptions`.
-
-Budgets: `browser|browser-extension|vscode-extension/tests/sizeBudget.json`,
-`core|desktop/tests/sizeBudget.json`, `cli|mcp|pystencil/tests/size_budget.json`,
-`server/internal/lint/sizebudget.json`, `bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
+A file stays under **230 lines** on every surface. A new file is written under it; a file
+that has grown past it is split by feature when it is next touched, not padded further. The
+few that are over today (`MainWindow.hpp`, `CanvasWidget.hpp`, `drawingApp.js`, `chat/panel.js`)
+are the debt, not the precedent. Nothing enforces this — the review does.
 
 ## Folders
 
@@ -87,14 +84,9 @@ on both sides.
 Nesting stops three levels below the surface's source root. Tests mirror the split one for one:
 a test sits in the folder named for the source it covers, and a case that spans modules or guards
 the whole tree stays at `tests/` root. A mirrored test folder may sit **above** the cap, because a
-module commonly carries several test files; freeze it in `dirs` rather than splitting it by kind.
-A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
-output and never raised.
-
-`maxFilesPerDir` in every surface's budget enforces the cap, and the folders still above it are
-frozen there under `dirs`, exactly like `files`: a frozen number comes down when the folder
-splits and never goes up. Only test folders are frozen today — a case that spans modules has no
-one home, and Cargo can only see an integration test directly in `tests/`.
+module commonly carries several test files; that is the one place the cap does not apply — a
+case that spans modules has no one home, and Cargo can only see an integration test directly
+in `tests/`. Never split a test folder by kind to get under it.
 
 ## C++ member names
 
@@ -126,8 +118,8 @@ see the wiring; it is not content. What earns a line is the meaning: the unit (`
 axis, the formula. Delete the rest rather than rewording it, and never write a comment that
 refers to itself ("where the comment says so").
 
-The ratchet caps comments as a **share per directory**, so padding one file costs you in
-another. Never write: a sprint or phase tag, `(user report)`, "used to", "TODO(name)", or a
+A directory's comment share stays under **a fifth of its lines**; the doc banners alone reach
+that in a folder of small files, so a body comment there has to earn its place. Never write: a sprint or phase tag, `(user report)`, "used to", "TODO(name)", or a
 sentence that restates the next line.
 
 ## Canonical data
