@@ -4305,6 +4305,9 @@
     "outline-offset": "-2px",
     "animation": "rowPulse 0.5s ease"
    },
+   "|.coordinates-table tbody tr:has(.empty-message)": {
+    "cursor": "default"
+   },
    "|.coordinates-table tbody tr:hover": {
     "background-color": "var(--bg-coord-hover)",
     "cursor": "pointer"
@@ -4318,6 +4321,13 @@
     "text-align": "left",
     "border": "1px solid var(--border-coord)",
     "color": "var(--text-main)"
+   },
+   "|.coordinates-table td.empty-message": {
+    "text-align": "center",
+    "color": "var(--text-empty)",
+    "font-style": "italic",
+    "font-family": "system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "font-size": "13px"
    },
    "|.coordinates-table td:first-child, .coordinates-table th:first-child": {
     "width": "38px"
@@ -4845,12 +4855,6 @@
    },
    "|.dust-driven.surface-leaving": {
     "animation": "surfaceLeave var(--dust-ms, 340ms) linear both !important"
-   },
-   "|.empty-message": {
-    "text-align": "center",
-    "padding": "20px",
-    "color": "var(--text-empty)",
-    "font-style": "italic"
    },
    "|.exp-cal-cell": {
     "min-height": "26px",
@@ -9180,7 +9184,8 @@
    "|input[type=\"color\"]",
    "|input[type=\"color\"]::-webkit-color-swatch-wrapper",
    "|input[type=\"color\"]::-webkit-color-swatch",
-   "|.empty-message",
+   "|.coordinates-table td.empty-message",
+   "|.coordinates-table tbody tr:has(.empty-message)",
    "|.coordinates-table:has(.empty-message) thead",
    "|.controls",
    "|.ctrl-section-label",

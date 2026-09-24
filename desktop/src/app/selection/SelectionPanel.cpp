@@ -90,7 +90,7 @@ namespace stencil::gui {
     auto* ptsTab = new QWidget(tabs);
     auto* ptsLay = new QVBoxLayout(ptsTab);
     ptsLay->setContentsMargins(0, 6, 0, 0);
-    points = new QTableWidget(0, COL_COUNT, ptsTab);
+    points = new FitTable(0, COL_COUNT, ptsTab);
     points->setObjectName("pointsTable");
     points->setItemDelegate(new PointRowDelegate(points));  // outline-style selection
     applyUnitHeaders();
@@ -136,7 +136,7 @@ namespace stencil::gui {
     linesLay->setContentsMargins(0, 6, 0, 0);
     // The points table again, with the lines' own columns: one widget is one grid, one header
     // and one cell padding across both tabs (in the browser it is the same table).
-    lines = new QTableWidget(0, LCOL_COUNT, linesTab);
+    lines = new FitTable(0, LCOL_COUNT, linesTab);
     lines->setObjectName("linesList");
     lines->setItemDelegate(new PointRowDelegate(lines, LCOL_COUNT - 1));
     lines->setHorizontalHeaderLabels({"#", "Color", "Line", "Pts", ""});

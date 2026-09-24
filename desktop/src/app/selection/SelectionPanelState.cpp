@@ -2,6 +2,7 @@
 #include "selectionPanelParts.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "../../support/theme/themeTokens.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include <QGuiApplication>
@@ -87,16 +88,22 @@ namespace stencil::gui {
   void SelectionPanel::changeEvent(QEvent* event) {
     QDockWidget::changeEvent(event);
     if (event->type() != QEvent::PaletteChange && event->type() != QEvent::StyleChange) return;
-    if (points && points->rowCount() == 1 && points->columnSpan(0, COL_INDEX) == COL_COUNT)
-      if (QTableWidgetItem* msg = points->item(0, COL_INDEX))
-        msg->setForeground(palette().color(QPalette::PlaceholderText));
+    for (QTableWidget* t : {points, lines})
+      if (isEmptyRow(t, 0))
+        if (QTableWidgetItem* msg = t->item(0, 0)) msg->setForeground(palette().color(QPalette::PlaceholderText));
   }
 
-  // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`.
-  void SelectionPanel::showEmptyPoints() {
-    points->clearSpans();
-    points->setRowCount(1);
-    auto* msg = new QTableWidgetItem(QStringLiteral("No points yet."));
+  bool SelectionPanel::isEmptyRow(const QTableWidget* t, int row) {
+    return t && row == 0 && t->rowCount() == 1 && t->columnSpan(0, 0) > 1;
+  }
+
+  QBrush SelectionPanel::emptyWash() const {
+    if (support::isWebcore()) return rowWash(false);
+    return themeToken("--bg-coord-hover", palette().color(QPalette::Window).lightness() < 128);
+  }
+
+  QTableWidgetItem* SelectionPanel::emptyMessage(const QString& text) const {
+    auto* msg = new QTableWidgetItem(text);
     msg->setFlags(Qt::ItemIsEnabled);
     msg->setTextAlignment(Qt::AlignCenter);
     QFont f = msg->font();
@@ -105,12 +112,20 @@ namespace stencil::gui {
     // PlaceholderText is the role theme.cpp maps to --text-muted; Disabled/WindowText is invisible
     // in the dark theme.
     msg->setForeground(palette().color(QPalette::PlaceholderText));
-    points->setItem(0, COL_INDEX, msg);
+    return msg;
+  }
+
+  // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`.
+  void SelectionPanel::showEmptyPoints() {
+    points->clearSpans();
+    points->setRowCount(1);
+    points->setItem(0, COL_INDEX, emptyMessage(QStringLiteral("No points yet.")));
     points->setSpan(0, COL_INDEX, 1, COL_COUNT);
     fitTableRows(points);
     // The message stands alone, as the Lines tab's does: column headings over nothing read as a
     // table that failed to load (browser .coordinates-table:has(.empty-message) thead).
     points->horizontalHeader()->hide();
+    points->setShowGrid(false);   // a lone message has no cells to divide
   }
 
   bool SelectionPanel::eventFilter(QObject* obj, QEvent* event) {

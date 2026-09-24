@@ -54,12 +54,16 @@ input[type="color"] {
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main); border-radius: 3px; }
-.empty-message {
+/* Outranks `.coordinates-table td` (left, main ink); the system face at 13px is the desktop's
+   empty row (SelectionPanel::emptyMessage). */
+.coordinates-table td.empty-message {
     text-align: center;
-    padding: 20px;
     color: var(--text-empty);
     font-style: italic;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 13px;
 }
+.coordinates-table tbody tr:has(.empty-message) { cursor: default; }
 /* An empty points table shows its message alone, as the Lines tab beside it does: column
    headings over nothing read as a table that failed to load. Desktop twin: PointsTable. */
 .coordinates-table:has(.empty-message) thead { display: none; }
