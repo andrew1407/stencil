@@ -49,16 +49,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `parallel` is the runner's core count — 3 on the small macOS box, 4 elsewhere.
-        # Windows needs Ninja: the Visual Studio generator ignores CMake's compiler
-        # launchers, so it is the one generator that cannot be cached. MSVC is also why it
-        # uses sccache rather than ccache.
+        # One runner per OS and CPU architecture, since Qt only builds for the machine it
+        # runs on. `parallel` is the runner's core count — 3 on the small arm64 macOS box,
+        # 4 elsewhere. Windows needs Ninja: the Visual Studio generator ignores CMake's
+        # compiler launchers, so it is the one generator that cannot be cached. MSVC is
+        # also why it uses sccache rather than ccache.
         include:
-          - { os: macos-latest,   name: macOS,   ext: dmg,    parallel: 3,
+          - { os: macos-latest,     name: macOS-arm64,   ext: dmg,    parallel: 3,
               cachetool: ccache,  generator: '' }
-          - { os: windows-latest, name: Windows, ext: zip,    parallel: 4,
+          - { os: macos-26-intel,   name: macOS-x86_64,  ext: dmg,    parallel: 4,
+              cachetool: ccache,  generator: '' }
+          - { os: windows-latest,   name: Windows-x86_64, ext: zip,   parallel: 4,
               cachetool: sccache, generator: '-G Ninja' }
-          - { os: ubuntu-latest,  name: Linux,   ext: tar.gz, parallel: 4,
+          - { os: ubuntu-latest,    name: Linux-x86_64,  ext: tar.gz, parallel: 4,
+              cachetool: ccache,  generator: '-G Ninja' }
+          - { os: ubuntu-24.04-arm, name: Linux-arm64,   ext: tar.gz, parallel: 4,
               cachetool: ccache,  generator: '-G Ninja' }
     steps:
       - uses: actions/checkout@v5

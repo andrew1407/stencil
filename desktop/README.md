@@ -204,5 +204,6 @@ cpack --config build/CPackConfig.cmake -B build/dist
 Packaging registers the `.stencil` file type and the `stencil://` scheme with the OS. The
 macOS bundle is unsigned and warns on first launch; its icon is generated at configure time
 from `../browser/favicon.svg` (needs `sips` + `iconutil`, otherwise the build is iconless).
-CI builds all three packages on every `v*` tag and attaches them to the GitHub release
+CI builds a package for each OS and CPU architecture (macOS and Linux on arm64 and x86_64,
+Windows on x86_64) on every `v*` tag and attaches them to the GitHub release
 (`.github/workflows/desktop-packages.yml`); a manual run produces them as workflow artifacts.
