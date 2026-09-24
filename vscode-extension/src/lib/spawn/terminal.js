@@ -1,8 +1,6 @@
 // The one place a command line is built. A terminal IS a shell, so every argument that came
 // out of a document or a picker is quoted here, for the shell the user actually runs.
-'use strict';
-
-const { DEFAULT_KIND, shellFor, shellKind } = require('./shellQuote.js');
+import { DEFAULT_KIND, shellFor, shellKind } from './shellQuote.js';
 
 const TERMINAL_NAME = 'Stencil';
 
@@ -33,4 +31,4 @@ const runInTerminal = (vscode, { cli, args, cwd }) => {
   return terminal;
 };
 
-module.exports = { TERMINAL_NAME, commandLine, quoteArg, reuseTerminal, runInTerminal };
+export { TERMINAL_NAME, commandLine, quoteArg, reuseTerminal, runInTerminal };

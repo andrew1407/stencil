@@ -1,8 +1,6 @@
 // The ONE way the browser instance is named: EXPLICIT USER CONFIGURATION, like the CLI path
 // — the `stencil.webUrl` setting, else the default — never a URL out of the open document.
-'use strict';
-
-const { CONFIG_SECTION, DEFAULT_WEB_URL, SETTINGS } = require('../ids.js');
+import { CONFIG_SECTION, DEFAULT_WEB_URL, SETTINGS } from '../ids.js';
 
 const BAD_WEB_URL = 'stencil.webUrl must be an http(s) URL';
 
@@ -25,4 +23,4 @@ const webUrlFor = (vscode) => normalizeWebUrl(
   vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.webUrl, ''),
 );
 
-module.exports = { BAD_WEB_URL, normalizeWebUrl, webUrlFor };
+export { BAD_WEB_URL, normalizeWebUrl, webUrlFor };

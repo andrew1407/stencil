@@ -1,16 +1,14 @@
 // `stencil.` in JavaScript: the same kind of explanation the .stc hover gives, offered in a
 // .stcjs and in any .js that opted in. Additive to the editor's own JavaScript service, which
 // cannot know about a facade a page installs at runtime.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { CONFIG_SECTION, JS_LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, inLineComment, isJsDocument, isJsSource,
-  markerSpan, markerWordsAt } = require('./lib/emit/jsSource.js');
-const { installedIn } = require('./lib/emit/typingsFile.js');
-const { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
-  prefixAt } = require('./lib/vocab/apiVocabulary.js');
+import { CONFIG_SECTION, JS_LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, inLineComment, isJsDocument, isJsSource,
+  markerSpan, markerWordsAt } from './lib/emit/jsSource.js';
+import { installedIn } from './lib/emit/typingsFile.js';
+import { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
+  prefixAt } from './lib/vocab/apiVocabulary.js';
 
 // Both flavours are offered to VS Code; `isJsSource` then decides per request, so turning a
 // plain .js into a Stencil one needs no reload.
@@ -88,5 +86,5 @@ const register = (context) => {
   return { completionProvider, hoverProvider };
 };
 
-module.exports = { SELECTOR, completionProvider, hoverProvider, itemsFor, register,
+export { SELECTOR, completionProvider, hoverProvider, itemsFor, register,
   typescriptAnswers };

@@ -1,11 +1,9 @@
 // Finds the Stencil CLI. The path is EXPLICIT USER CONFIGURATION — the setting, then
 // STENCIL_CLI, then PATH — and is never read out of the document being edited.
-'use strict';
+import { isAbsolute, resolve } from 'node:path';
 
-const { isAbsolute, resolve } = require('node:path');
-
-const { CONFIG_SECTION, SETTINGS } = require('../ids.js');
-const { isExecutableFile, onPath } = require('../pathSearch.js');
+import { CONFIG_SECTION, SETTINGS } from '../ids.js';
+import { isExecutableFile, onPath } from '../pathSearch.js';
 
 // Relative to the workspace folder; null when it names no executable, so callers can say so.
 const resolveConfigured = (configured, baseDir) => {
@@ -28,6 +26,6 @@ const cliFor = (vscode, document) => locateCli({
 
 const MISSING_CLI_MESSAGE = 'Stencil CLI not found — set stencil.cliPath';
 
-module.exports = {
+export {
   MISSING_CLI_MESSAGE, cliFor, isExecutableFile, locateCli, onPath, resolveConfigured,
 };

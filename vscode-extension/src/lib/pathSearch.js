@@ -1,10 +1,8 @@
 // What counts as an executable on disk, and the PATH walk that finds one. No shell is
 // consulted, so nothing is word-split or expanded; the walk is memoized briefly, because an
 // open-and-save burst would otherwise stat every PATH directory twice. A miss sweeps the dead.
-'use strict';
-
-const { accessSync, constants, statSync } = require('node:fs');
-const { delimiter, join } = require('node:path');
+import { accessSync, constants, statSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
 
 const EXE_SUFFIXES = Object.freeze(
   process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']);
@@ -46,4 +44,4 @@ const onPath = (name, env) => {
 
 const forgetPathWalk = () => walked.clear();
 
-module.exports = { EXE_SUFFIXES, WALK_TTL_MS, forgetPathWalk, isExecutableFile, onPath };
+export { EXE_SUFFIXES, WALK_TTL_MS, forgetPathWalk, isExecutableFile, onPath };

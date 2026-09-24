@@ -4,14 +4,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 
 import { buildTypings, DOCS_URL } from '../tools/genTypings.mjs';
 import { installVscodeStub, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
-const require = createRequire(import.meta.url);
-const file = require('../src/lib/emit/typingsFile.js');
-const TABLE = require('../src/config/stencilApiVocabulary.json');
+import * as file from '../src/lib/emit/typingsFile.js';
+import TABLE from '../src/config/stencilApiVocabulary.json' with { type: 'json' };
 
 const COMMITTED = readFileSync(new URL('../typings/stencil.d.ts', import.meta.url), 'utf8');
 
@@ -83,7 +81,7 @@ const withHost = async (options, body) => {
   const { vscode, calls } = makeVscode(options);
   const host = installVscodeStub(vscode);
   try {
-    return await body({ calls, vscode, typings: host.require('typings.js') });
+    return await body({ calls, vscode, typings: await host.import('typings.js') });
   } finally {
     host.restore();
   }

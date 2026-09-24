@@ -2,19 +2,17 @@
 // provider is then driven once through the stub to prove it reads the right line.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
 import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
-const require = createRequire(import.meta.url);
-const { contextFor } = require('../src/lib/vocab/completionContext.js');
+import { contextFor } from '../src/lib/vocab/completionContext.js';
 
-const withHost = (body, settings) => {
+const withHost = async (body, settings) => {
   const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
-    return body({ calls, completion: host.require('completion.js') });
+    return await body({ calls, completion: await host.import('completion.js') });
   } finally {
     host.restore();
   }
@@ -25,58 +23,58 @@ const labels = (linePrefix, text = '') => withHost(({ completion }) => {
   return completion.itemsFor(linePrefix, tokens).map((i) => i.label);
 });
 
-test('an empty statement offers the directives, and only those', () => {
+test('an empty statement offers the directives, and only those', async () => {
   assert.deepEqual(contextFor('    ').groups, ['directive']);
-  const offered = labels('    ');
+  const offered = await labels('    ');
   assert.ok(offered.includes('@source') && offered.includes('@undo'), offered.join(' '));
   assert.equal(offered.length, 12, 'the twelve directives');
   for (const label of offered) assert.match(label, /^@[a-z]+$/);
 });
 
-test('a half-typed directive still offers directives — VS Code does the filtering', () => {
+test('a half-typed directive still offers directives — VS Code does the filtering', async () => {
   assert.deepEqual(contextFor('    @fil').groups, ['directive']);
-  assert.ok(labels('    @fil').includes('@filter'));
+  assert.ok((await labels('    @fil')).includes('@filter'));
 });
 
-test('@filter offers its five modes, then the colour names under them', () => {
-  const offered = labels('    @filter ');
+test('@filter offers its five modes, then the colour names under them', async () => {
+  const offered = await labels('    @filter ');
   assert.deepEqual(offered.slice(0, 5), ['bw', 'sepia', 'invert', 'contour', 'none']);
   assert.ok(offered.includes('red') && offered.includes('transparent'), 'colours too');
 });
 
-test('@use branches on its sub-keyword', () => {
-  assert.deepEqual(labels('    @use ').slice(0, 2), ['line', 'stencil']);
-  const style = labels('    @use line ');
+test('@use branches on its sub-keyword', async () => {
+  assert.deepEqual((await labels('    @use ')).slice(0, 2), ['line', 'stencil']);
+  const style = await labels('    @use line ');
   for (const word of ['solid', 'dashed', 'dotted', 'fill', 'point']) {
     assert.ok(style.includes(word), `${word} is missing`);
   }
   assert.ok(style.includes('px'), 'a thickness takes a unit');
 });
 
-test('@crop offers its named edges', () => {
-  assert.deepEqual(labels('    @crop ').slice(0, 5), ['x1', 'x2', 'y1', 'y2', 'aspect']);
+test('@crop offers its named edges', async () => {
+  assert.deepEqual((await labels('    @crop ')).slice(0, 5), ['x1', 'x2', 'y1', 'y2', 'aspect']);
 });
 
-test('@layout offers its two modes, but only after a path', () => {
-  assert.deepEqual(labels('    @layout '), []);
-  assert.deepEqual(labels('    @layout grid.json '), ['combine', 'replace']);
+test('@layout offers its two modes, but only after a path', async () => {
+  assert.deepEqual(await labels('    @layout '), []);
+  assert.deepEqual(await labels('    @layout grid.json '), ['combine', 'replace']);
 });
 
-test('@use stencil offers the templates this file defines', () => {
+test('@use stencil offers the templates this file defines', async () => {
   const text = '@stencil box frame:\n    @filter bw\n\n@stencil tint:\n    @filter sepia\n';
-  assert.deepEqual(labels('    @use stencil ', text), ['box frame', 'tint']);
-  assert.deepEqual(labels('    @use stencil ', ''), [], 'a file with no template offers none');
+  assert.deepEqual(await labels('    @use stencil ', text), ['box frame', 'tint']);
+  assert.deepEqual(await labels('    @use stencil ', ''), [], 'a file with no template offers none');
 });
 
-test('a length being typed offers whole replacements, number and unit together', () => {
+test('a length being typed offers whole replacements, number and unit together', async () => {
   assert.equal(contextFor('    @crop 10').numberStem, '10');
-  assert.deepEqual(labels('    @crop 10'), ['10px', '10cm', '10mm', '10in', '10%']);
-  assert.deepEqual(labels('    @crop -2.5p'), ['-2.5px', '-2.5cm', '-2.5mm', '-2.5in', '-2.5%']);
+  assert.deepEqual(await labels('    @crop 10'), ['10px', '10cm', '10mm', '10in', '10%']);
+  assert.deepEqual(await labels('    @crop -2.5p'), ['-2.5px', '-2.5cm', '-2.5mm', '-2.5in', '-2.5%']);
 });
 
-test('a directive that names a path offers nothing — the list must not guess a filename', () => {
+test('a directive that names a path offers nothing — the list must not guess a filename', async () => {
   for (const prefix of ['@source ', '    @save ', '    @frame ', '    @undo ']) {
-    assert.deepEqual(labels(prefix), [], prefix);
+    assert.deepEqual(await labels(prefix), [], prefix);
   }
 });
 
@@ -84,8 +82,8 @@ test('a parameter does not shadow the directive it sits under', () => {
   assert.deepEqual(contextFor('    @use line @1, ').groups, ['style', 'color', 'unit']);
 });
 
-test('every item carries the documentation the hover would show', () => {
-  withHost(({ completion }) => {
+test('every item carries the documentation the hover would show', async () => {
+  await withHost(({ completion }) => {
     const items = completion.itemsFor('    @filter ', []);
     const bw = items.find((i) => i.label === 'bw');
     assert.match(bw.documentation.value, /\*\*bw\*\* — Black and white\./);
@@ -102,8 +100,8 @@ test('stencil.completion off returns nothing, without a reload', async () => {
   }, { 'stencil.completion': false });
 });
 
-test('register hands VS Code the provider for stencil-script, triggered on @', () => {
-  withHost(({ calls, completion }) => {
+test('register hands VS Code the provider for stencil-script, triggered on @', async () => {
+  await withHost(({ calls, completion }) => {
     const context = makeContext();
     completion.register(context);
     const [registered] = calls.completionProviders;

@@ -6,21 +6,21 @@ import { readFileSync } from 'node:fs';
 
 import { installVscodeStub, makeContext, makeVscode } from './helpers/vscodeStub.js';
 
-const withHost = (body, settings = {}) => {
+const withHost = async (body, settings = {}) => {
   const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
-    return body({
-      calls, colors: host.require('colors.js'), settings,
-      legend: host.require('semanticTokens.js').TOKEN_TYPES,
+    return await body({
+      calls, colors: await host.import('colors.js'), settings,
+      legend: (await host.import('semanticTokens.js')).TOKEN_TYPES,
     });
   } finally {
     host.restore();
   }
 };
 
-test('register contributes the fourth command id, and it is not a CLI one', () => {
-  withHost(({ calls, colors }) => {
+test('register contributes the fourth command id, and it is not a CLI one', async () => {
+  await withHost(({ calls, colors }) => {
     const context = makeContext();
     colors.register(context);
     assert.deepEqual([...calls.commands.keys()], ['stencil.configureColors']);
@@ -58,8 +58,8 @@ test('an empty object counts as unset, so the command is still useful', async ()
   }, { 'editor.semanticTokenColorCustomizations': {} });
 });
 
-test('every rule names a type in the legend, and the README block agrees', () => {
-  withHost(({ colors, legend }) => {
+test('every rule names a type in the legend, and the README block agrees', async () => {
+  await withHost(({ colors, legend }) => {
     for (const type of Object.keys(colors.DEFAULT_RULES)) {
       assert.ok(legend.includes(type), `${type} is not in the legend`);
     }

@@ -107,10 +107,3 @@ test('index.js exports the parser the rest of the extension asks for, and no was
   assert.match(copy, /export const parseScript = parseScriptJS;/);
   assert.ok(!copy.includes('stencilCore'), 'the wasm loader has no place in this tree');
 });
-
-test('the copies are ESM, scoped by their own package.json', () => {
-  const scope = JSON.parse(readFileSync(`${PARSER}package.json`, 'utf8'));
-  assert.equal(scope.type, 'module');
-  const root = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(root.type, undefined, 'the extension entry point is CommonJS');
-});

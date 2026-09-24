@@ -9,19 +9,19 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { installVscodeStub, makeDocument, makeVscode } from '../../helpers/vscodeStub.js';
 
-const boot = (options) => {
+const boot = async (options) => {
   const { vscode, calls } = makeVscode(options);
   const host = installVscodeStub(vscode);
-  return { calls, host, diagnostics: host.require('diagnostics.js') };
+  return { calls, host, diagnostics: await host.import('diagnostics.js') };
 };
 
-const withHost = (options, body) => {
-  const booted = boot(options);
-  try { return body(booted); } finally { booted.host.restore(); }
+const withHost = async (options, body) => {
+  const booted = await boot(options);
+  try { return await body(booted); } finally { booted.host.restore(); }
 };
 
-test('the check grammar reads one CLI line into a diagnostic entry', () => {
-  withHost({}, ({ diagnostics }) => {
+test('the check grammar reads one CLI line into a diagnostic entry', async () => {
+  await withHost({}, ({ diagnostics }) => {
     const [entry] = diagnostics.parseCheckOutput(
       "a.stc:3:5: error: unknown directive '@crp' [E_UNKNOWN_DIRECTIVE]\n");
     assert.deepEqual(entry, {
@@ -31,8 +31,8 @@ test('the check grammar reads one CLI line into a diagnostic entry', () => {
   });
 });
 
-test('a Windows path keeps its drive letter and a warning stays a warning', () => {
-  withHost({}, ({ diagnostics }) => {
+test('a Windows path keeps its drive letter and a warning stays a warning', async () => {
+  await withHost({}, ({ diagnostics }) => {
     const found = diagnostics.parseCheckOutput([
       'C:\\work\\a.stc:1:1: warning: the block has no operations [W_EMPTY_BLOCK]',
       'not a diagnostic line',
@@ -44,16 +44,16 @@ test('a Windows path keeps its drive letter and a warning stays a warning', () =
   });
 });
 
-test('a diagnostic with no code still parses', () => {
-  withHost({}, ({ diagnostics }) => {
+test('a diagnostic with no code still parses', async () => {
+  await withHost({}, ({ diagnostics }) => {
     const [entry] = diagnostics.parseCheckOutput('a.stc:2:1: error: something went wrong');
     assert.equal(entry.code, '');
     assert.equal(entry.message, 'something went wrong');
   });
 });
 
-test('an entry becomes a 0-based, never-empty range', () => {
-  withHost({}, ({ diagnostics }) => {
+test('an entry becomes a 0-based, never-empty range', async () => {
+  await withHost({}, ({ diagnostics }) => {
     const d = diagnostics.toDiagnostic({ line: 2, col: 13, len: 7, severity: 'error', message: 'nope', code: 'E_X' });
     assert.equal(d.range.start.line, 1);
     assert.equal(d.range.start.character, 12);
@@ -93,8 +93,8 @@ test('a saved buffer with no CLI configured falls back to the parser copies', as
   });
 });
 
-test('register wires the collection and the four document events', () => {
-  withHost({}, ({ calls, diagnostics }) => {
+test('register wires the collection and the four document events', async () => {
+  await withHost({}, ({ calls, diagnostics }) => {
     const context = { subscriptions: [] };
     const collection = diagnostics.register(context);
     assert.equal(collection.name, 'stencil-script');
@@ -220,7 +220,7 @@ test('closing a document drops its squiggles and its pending check', async () =>
 
 test('a CLI that never answers is killed, and the copies take over', POSIX_ONLY, async () => {
   await withCli('cat', async ({ cli, host, script }) => {
-    const { CHECK_TIMEOUT_MS, runCheck } = host.require('lib/scriptCheck.js');
+    const { CHECK_TIMEOUT_MS, runCheck } = await host.import('lib/scriptCheck.js');
     assert.ok(CHECK_TIMEOUT_MS > 0, 'the wait on the child is bounded');
     assert.equal(await runCheck(cli, script, 150), null, 'a kill is no answer, not an empty one');
   });

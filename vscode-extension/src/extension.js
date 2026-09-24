@@ -1,15 +1,15 @@
 // The activation entry point: wiring only. Each feature registers itself and pushes its own
 // disposables onto the context, so deactivate() has nothing left to do.
-'use strict';
-
-const FEATURES = [
-  require('./diagnostics.js'), require('./semanticTokens.js'), require('./completion.js'),
-  require('./hover.js'), require('./decorations.js'), require('./colors.js'),
-  require('./commands.js'), require('./jsHints.js'), require('./webCommands.js'), require('./typings.js'),
-];
-
-const activate = (context) => { for (const feature of FEATURES) feature.register(context); };
-
-const deactivate = () => {};
-
-module.exports = { activate, deactivate };
+import * as colors from './colors.js';
+import * as commands from './commands.js';
+import * as completion from './completion.js';
+import * as decorations from './decorations.js';
+import * as diagnostics from './diagnostics.js';
+import * as hover from './hover.js';
+import * as jsHints from './jsHints.js';
+import * as semanticTokens from './semanticTokens.js';
+import * as typings from './typings.js';
+import * as webCommands from './webCommands.js';
+const FEATURES = [diagnostics, semanticTokens, completion, hover, decorations, colors, commands, jsHints, webCommands, typings];
+export const activate = (context) => { for (const feature of FEATURES) feature.register(context); };
+export const deactivate = () => {};

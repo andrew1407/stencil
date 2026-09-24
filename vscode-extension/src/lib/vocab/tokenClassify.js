@@ -1,9 +1,7 @@
 // The lexer hands back one `directive` kind and one `ident` kind, because that is all the
 // core needs; the colour a reader wants depends on which directive a word sits under.
-'use strict';
-
-const COLOR_NAMES = require('../../config/colorNames.json');
-const { CROP_KEYS, MODES, STYLES, groupOf } = require('./vocabulary.js');
+import COLOR_NAMES from '../../config/colorNames.json' with { type: 'json' };
+import { CROP_KEYS, MODES, STYLES, groupOf } from './vocabulary.js';
 
 // A directive's family → its legend type. The types are picked for what the default themes
 // paint them: namespace/type/class are one colour, so a block opener cannot be `namespace`.
@@ -60,4 +58,4 @@ const classify = (tokens) => {
   });
 };
 
-module.exports = { GROUP_TYPE, KIND_TYPE, classify };
+export { GROUP_TYPE, KIND_TYPE, classify };

@@ -1,11 +1,9 @@
 // Recolouring is VS Code's setting, not one of ours — an extension may not set token colours,
 // only a theme or the user can. This command opens that setting, seeding it first with every
 // row this language uses, labelled, so there is something to edit rather than an empty object.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { COMMANDS } = require('./lib/ids.js');
+import { COMMANDS } from './lib/ids.js';
 
 const SETTING = 'editor.semanticTokenColorCustomizations';
 
@@ -46,4 +44,4 @@ const register = (context) => {
   return registration;
 };
 
-module.exports = { DEFAULT_RULES, SETTING, configureColors, register };
+export { DEFAULT_RULES, SETTING, configureColors, register };

@@ -10,8 +10,8 @@ const withLib = async (body) => {
   try {
     return await body({
       host,
-      parserHost: host.require('lib/parserHost.js'),
-      programCache: host.require('lib/programCache.js'),
+      parserHost: await host.import('lib/parserHost.js'),
+      programCache: await host.import('lib/programCache.js'),
     });
   } finally {
     host.restore();

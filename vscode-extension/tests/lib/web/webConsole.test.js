@@ -11,7 +11,7 @@ const withHost = async (options, body) => {
   const { vscode, calls } = makeVscode(options);
   const host = installVscodeStub(vscode);
   try {
-    return await body({ calls, vscode, webConsole: host.require('lib/web/console.js') });
+    return await body({ calls, vscode, webConsole: await host.import('lib/web/console.js') });
   } finally {
     host.restore();
   }

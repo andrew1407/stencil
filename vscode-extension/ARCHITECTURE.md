@@ -67,7 +67,7 @@ the only root file that may import a sibling root file. Enforced by
 
 | Path | Holds | Rule |
 |---|---|---|
-| `package.json` | the manifest VS Code reads: the two languages and their icons, grammars, commands, settings, menu, keybinding, gallery logo | no root `type` field — the extension is CommonJS; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
+| `package.json` | the manifest VS Code reads: the two languages and their icons, grammars, commands, settings, menu, keybinding, gallery logo | `"type": "module"` — the whole tree is ESM, which the host loads natively; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
 | `language-configuration.json` | `#` line comments, the `()` and `"` pairs, the `@name` word pattern, indent after a `…:` header | its regexes are JS, not Oniguruma — `tests/grammar.test.js` compiles them |
 | `syntaxes/stc.tmLanguage.json` | the TextMate grammar under scope `source.stc` | every scope name ends `.stc`; the directive list is pinned to the parser's `DIRECTIVES` |
 | `language-configuration.stcjs.json` + `syntaxes/stcjs.tmLanguage.json` | the `.stcjs` flavour: JavaScript's own comments, pairs and indent rules, and a grammar whose whole body is `include: source.js` | it defers, never re-spells JavaScript; the editor's own JS service owns the language, this tree adds only the facade's words |
@@ -89,9 +89,9 @@ the only root file that may import a sibling root file. Enforced by
 | `src/typings.js` over `src/lib/emit/typingsFile.js` | the one command that writes the facade's types into a workspace | it writes `stencil.d.ts`, and a `jsconfig.json` only where the project has none — one it already has is the user's |
 | `typings/stencil.d.ts` + `tools/genTypings.mjs` | the facade as ONE ambient script: the app's types flattened, every member carrying its summary, its example and a link to the docs | generated, never hand-edited (`tests/typings.test.js` regenerates and compares); a top-level `export` would make it a module and its declarations would stop being global |
 | `src/lib/` (+ `spawn/`, `web/`, `vocab/`, `emit/`) | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `target.js` (the ONE way the browser instance is named), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `launch.js` (the `#stencil=` hand-off) and `console.js` (the debug configuration, the expression and the two waits), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version), `versionCache.js` under both it and `jsSource.js` (one answer per document version), `vocabularyEntry.js` (how one entry renders, whatever table it came from) under `vocabulary.js` (the one reading of the language's vocabulary table) and `apiVocabulary.js` (the same for the facade's), `jsSource.js` (which JavaScript buffers are Stencil's), `tokenClassify.js` (a legend type per token, from the statement it sits in), `colorFamilies.js` (the user-facing name for each legend type, and the reduction of `stencil.colors`) and `completionContext.js` (which suggestion groups a caret takes) | `vscode` is passed in, never imported, so each is a pure unit |
-| `src/parser/` | `script/`, byte-equal copies of `browser/js/core/script/`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | ESM, scoped by its own `package.json`; pinned both directions by `tests/parserParity.test.js` |
+| `src/parser/` | `script/`, byte-equal copies of `browser/js/core/script/`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | pinned both directions by `tests/parserParity.test.js` |
 | `src/config/` | `colorNames.json`, the one table the copies import, and the two vocabularies, `stcVocabulary.json` and `stencilApiVocabulary.json` | `colorNames.json` is byte-pinned to `browser/js/config/colorNames.json`; both vocabularies are this surface's own prose — no other surface explains the language or the facade to a reader — over somebody else's list: the directive keys are held to the parser's `DIRECTIVES`, the member keys and signatures to `interface Stencil` in `browser/js/console/stencilApi.d.ts` |
-| `tests/` | `node --test` suites and `helpers/vscodeStub.js` | ESM, scoped by its own `package.json`; no editor, no network |
+| `tests/` | `node --test` suites and `helpers/vscodeStub.js` | no editor, no network |
 
 ## Entities
 
@@ -145,7 +145,7 @@ classDiagram
 | Chain of Responsibility | `src/lib/spawn/cliLocator.js`: setting → `STENCIL_CLI` → `PATH` | Each step refuses or answers; no shell is consulted, so nothing is word-split or expanded. |
 | Port (byte-equal copy) → drift test | `src/config/stencilApiVocabulary.json` ← `browser/js/console/stencilApi.d.ts` | The prose is this tree's, the LIST is not: `tests/lib/vocab/apiVocabulary.test.js` parses the interface and asserts the members and their signatures both ways, so a new facade member is unexplained until it is written down. |
 | Strategy | `src/webCommands.js`: hand-off vs. console | The fragment answers "show me this, in my own browser"; the debug evaluate answers "run this, again, and tell me what it said". A `.stcjs` has only the second, because the app never evaluates anything itself. |
-| Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` bridges CommonJS to the ESM copies; both features share the module graph. A rejection is never memoized, so one failure does not outlive itself. |
+| Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` loads the copies on the first parse, not at activation; both features share the module graph. A rejection is never memoized, so one failure does not outlive itself. |
 | Strategy (table) | `src/lib/spawn/shellQuote.js` `SHELLS` | PowerShell, cmd.exe and POSIX each get a row; `vscode.env.shell` picks it. Quoting is never re-derived at a call site. |
 | Cache | `src/lib/spawn/versionCache.js`, under `programCache.js` and `jsSource.js`; the PATH walk in `src/lib/pathSearch.js` | Keyed on what invalidates it — a document's `version`, and the whole `PATH` — so a keystroke lexes once for both features, scans for the marker once, and a burst of opens walks `PATH` once. A buffer with no version is answered and not kept. |
 | Higher-order factory | `src/lib/vocab/vocabularyEntry.js` `makeExplain`, over both vocabulary tables | A table supplies how a word is spelled, looked up, headed and decorated; the rendering of an entry is written once, so the two vocabularies cannot drift in how they read. |
@@ -240,8 +240,8 @@ classDiagram
   two files left behind: `script.js`, whose imports reach the wasm loader and the app's unit
   helpers, and `scriptHandles.js`, which marshals wasm handles. `src/parser/index.js` stands in
   for the first, re-composing lex → parse → lower exactly as `script.js` does when wasm is
-  absent; `tests/parserParity.test.js` pins those declarations line for line. The copies are
-  ESM and the extension is CommonJS, so the only way in is `parserHost`'s dynamic `import()`.
+  absent; `tests/parserParity.test.js` pins those declarations line for line. The copies load
+  lazily, through `parserHost`'s dynamic `import()`.
 
 ## Rules
 
@@ -278,9 +278,9 @@ classDiagram
 ## Tests
 
 `tests/` runs under `node --test`, offline and without VS Code: `helpers/vscodeStub.js`
-answers `require('vscode')` through a `Module._load` hook with a recording stub, so the
-extension's own wiring, the diagnostic collection, the semantic-token rows and the terminal
-lines are all asserted from the outside. The quoting is proved per shell family — and the POSIX
+answers `import 'vscode'` through a `module.registerHooks` resolve hook with a recording stub,
+and gives every install a fresh load of `src/`, so the extension's own wiring, the diagnostic
+collection, the semantic-token rows and the terminal lines are all asserted from the outside. The quoting is proved per shell family — and the POSIX
 line additionally round-tripped through a real `/bin/sh` — while a stub CLI standing in for
 every exit status proves which answers fall back to the copies. The two browser routes are
 asserted the same way, from the outside and without a browser: the fragment is decoded back

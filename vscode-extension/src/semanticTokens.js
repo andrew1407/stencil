@@ -1,13 +1,11 @@
 // Colour from the parser rather than from the grammar: the TextMate rules paint a line at a
 // time, the lexer knows the whole file, so `#ccc` stays a colour and `# note` a comment.
 // Which colour each token gets is lib/tokenClassify.js; this is the legend and the wiring.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { programFor } = require('./lib/programCache.js');
-const { classify } = require('./lib/vocab/tokenClassify.js');
+import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { programFor } from './lib/programCache.js';
+import { classify } from './lib/vocab/tokenClassify.js';
 
 // Standard VS Code token types only: a theme that has never heard of .stc still colours it.
 const TOKEN_TYPES = Object.freeze([
@@ -51,4 +49,4 @@ const register = (context) => {
   return registration;
 };
 
-module.exports = { LEGEND, TOKEN_TYPES, TYPE_INDEX, provider, register, tokenRows };
+export { LEGEND, TOKEN_TYPES, TYPE_INDEX, provider, register, tokenRows };

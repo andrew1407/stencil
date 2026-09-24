@@ -23,7 +23,7 @@ const withHost = async (options, body) => {
   });
   const host = installVscodeStub(vscode);
   try {
-    return await body({ calls, dir, host, vscode, commands: host.require('commands.js') });
+    return await body({ calls, dir, host, vscode, commands: await host.import('commands.js') });
   } finally {
     host.restore();
     rmSync(dir, { recursive: true, force: true });
@@ -88,7 +88,7 @@ test('a path holding a quote, a space or a semicolon cannot break out of its arg
         'the whole path is one quoted argument');
 
       // The real proof: a shell reading the composed line hands the argument back whole.
-      const { commandLine } = host.require('lib/spawn/terminal.js');
+      const { commandLine } = await host.import('lib/spawn/terminal.js');
       const echoed = spawnSync('/bin/sh', ['-c', commandLine('printf', ['%s', nasty])],
         { encoding: 'utf8' });
       assert.equal(echoed.stdout, nasty);
@@ -126,7 +126,7 @@ test('register hands VS Code every script command', async () => {
   await withHost({}, async ({ calls, commands, host }) => {
     const context = { subscriptions: [] };
     commands.register(context);
-    const { COMMANDS } = host.require('lib/ids.js');
+    const { COMMANDS } = await host.import('lib/ids.js');
     assert.deepEqual([...calls.commands.keys()].sort(),
       [COMMANDS.checkScript, COMMANDS.emitScript, COMMANDS.runPythonScript, COMMANDS.runScript,
         COMMANDS.runScriptOnImage].sort());
@@ -173,9 +173,9 @@ test('a saved buffer runs, and the save answer is only consulted when dirty', as
 test('the handler table and the id table are frozen', async () => {
   await withHost({}, async ({ commands, host }) => {
     assert.ok(Object.isFrozen(commands.HANDLERS));
-    const ids = host.require('lib/ids.js');
+    const ids = await host.import('lib/ids.js');
     assert.ok(Object.isFrozen(ids.COMMANDS) && Object.isFrozen(ids.SETTINGS));
-    const tokens = host.require('semanticTokens.js');
+    const tokens = await host.import('semanticTokens.js');
     assert.ok(Object.isFrozen(tokens.TOKEN_TYPES) && Object.isFrozen(tokens.KIND_TYPE));
   });
 });

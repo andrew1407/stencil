@@ -1,6 +1,5 @@
 // The contributed identifiers, in one place: tests/manifest.test.js asserts package.json
 // declares exactly these, so a rename cannot land on only one side.
-'use strict';
 
 const LANGUAGE_ID = 'stencil-script';
 const SCOPE_NAME = 'source.stc';
@@ -45,7 +44,7 @@ const SETTINGS = Object.freeze({
   pythonPath: 'pythonPath',
 });
 
-module.exports = { COMMANDS, CONFIG_SECTION, DEFAULT_WEB_URL, FILE_EXTENSION, JS_FILE_EXTENSION,
+export { COMMANDS, CONFIG_SECTION, DEFAULT_WEB_URL, FILE_EXTENSION, JS_FILE_EXTENSION,
   JS_LANGUAGE_ID, JS_SCOPE_NAME, LANGUAGE_ID, PROJECT_FILE_EXTENSION, PROJECT_LANGUAGE_ID,
   PROJECT_SCOPE_NAME, PY_FILE_EXTENSION, PY_LANGUAGE_ID, PY_SCOPE_NAME, PY_USE_MARKER,
   SCOPE_NAME, SETTINGS, USE_MARKER };

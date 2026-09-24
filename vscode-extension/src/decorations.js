@@ -1,14 +1,12 @@
 // Explicit per-family colours. Semantic tokens carry the default look, but a theme — not an
 // extension — decides what a token type is painted, so an exact colour has to be drawn on top
 // as a decoration. Only the families named in `stencil.colors` get one; the rest stay themed.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { overridesFor } = require('./lib/vocab/colorFamilies.js');
-const { programFor } = require('./lib/programCache.js');
-const { classify } = require('./lib/vocab/tokenClassify.js');
+import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { overridesFor } from './lib/vocab/colorFamilies.js';
+import { programFor } from './lib/programCache.js';
+import { classify } from './lib/vocab/tokenClassify.js';
 
 const DEBOUNCE_MS = 200;
 
@@ -81,4 +79,4 @@ const register = (context) => {
   return { paintAll, typesFor: () => types };
 };
 
-module.exports = { DEBOUNCE_MS, rangesFor, register };
+export { DEBOUNCE_MS, rangesFor, register };

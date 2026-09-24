@@ -1,4 +1,4 @@
-// Shape of parserHost.js — the memoized CommonJS → ESM bridge to the parser copies.
+// Shape of parserHost.js — the memoized lazy loader of the parser copies.
 import type * as parser from '../parser/index.js';
 export declare const loadParser: (
   importer?: () => Promise<typeof parser>,

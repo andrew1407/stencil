@@ -2,16 +2,14 @@
 // surface, and running an emitted `.pystc` on its interpreter. Each runs in the reused
 // `Stencil` terminal with the script's own directory as the working directory, so a relative
 // @source resolves the way it does on the command line.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { COMMANDS, LANGUAGE_ID } = require('./lib/ids.js');
-const { MISSING_CLI_MESSAGE, cliFor } = require('./lib/spawn/cliLocator.js');
-const { MISSING_PYTHON_MESSAGE, pythonFor } = require('./lib/spawn/pythonLocator.js');
-const { emitTarget, pickEmitTarget } = require('./lib/emit/targets.js');
-const { isPySource } = require('./lib/emit/pySource.js');
-const { activeIn, spawn } = require('./lib/spawn/scriptSpawn.js');
+import { COMMANDS, LANGUAGE_ID } from './lib/ids.js';
+import { MISSING_CLI_MESSAGE, cliFor } from './lib/spawn/cliLocator.js';
+import { MISSING_PYTHON_MESSAGE, pythonFor } from './lib/spawn/pythonLocator.js';
+import { emitTarget, pickEmitTarget } from './lib/emit/targets.js';
+import { isPySource } from './lib/emit/pySource.js';
+import { activeIn, spawn } from './lib/spawn/scriptSpawn.js';
 
 const spawnCli = (buildArgs) => spawn(vscode, {
   document: activeIn(vscode, (document) => document.languageId === LANGUAGE_ID),
@@ -62,5 +60,5 @@ const register = (context) => {
   return HANDLERS;
 };
 
-module.exports = { HANDLERS, checkScript, emitScript, register, runPythonScript, runScript,
+export { HANDLERS, checkScript, emitScript, register, runPythonScript, runScript,
   runScriptOnImage };

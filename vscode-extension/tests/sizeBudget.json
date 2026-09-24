@@ -6,19 +6,19 @@
     "vscode-extension/tests": 17
   },
   "files": {
-    "vscode-extension/src/commands.js": 66,
-    "vscode-extension/src/diagnostics.js": 89,
+    "vscode-extension/src/commands.js": 64,
+    "vscode-extension/src/diagnostics.js": 87,
     "vscode-extension/src/extension.js": 15,
-    "vscode-extension/src/lib/spawn/cliLocator.js": 33,
+    "vscode-extension/src/lib/spawn/cliLocator.js": 31,
     "vscode-extension/src/lib/ids.js": 41,
-    "vscode-extension/src/lib/parserHost.js": 12,
-    "vscode-extension/src/lib/pathSearch.js": 49,
-    "vscode-extension/src/lib/programCache.js": 17,
-    "vscode-extension/src/lib/scriptCheck.js": 49,
-    "vscode-extension/src/lib/spawn/shellQuote.js": 45,
-    "vscode-extension/src/lib/spawn/terminal.js": 36,
+    "vscode-extension/src/lib/parserHost.js": 10,
+    "vscode-extension/src/lib/pathSearch.js": 47,
+    "vscode-extension/src/lib/programCache.js": 15,
+    "vscode-extension/src/lib/scriptCheck.js": 47,
+    "vscode-extension/src/lib/spawn/shellQuote.js": 44,
+    "vscode-extension/src/lib/spawn/terminal.js": 34,
     "vscode-extension/src/parser/index.js": 39,
-    "vscode-extension/src/semanticTokens.js": 54
+    "vscode-extension/src/semanticTokens.js": 52
   },
   "commentPct": {
     "vscode-extension/src": 9,

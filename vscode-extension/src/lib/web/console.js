@@ -1,8 +1,6 @@
 // The page's own console: VS Code's BUILT-IN JS debugger opens Chrome/Edge on the instance
 // in a throwaway profile, and a DAP `evaluate` runs there — DevTools, not the app.
-'use strict';
-
-const { CONFIG_SECTION, SETTINGS } = require('../ids.js');
+import { CONFIG_SECTION, SETTINGS } from '../ids.js';
 
 const SESSION_NAME = 'Stencil Web';
 const BROWSERS = Object.freeze({ chrome: 'chrome', edge: 'msedge' });
@@ -116,7 +114,7 @@ const pageSession = async (vscode, url, { timeoutMs = SESSION_TIMEOUT_MS } = {})
   }
 };
 
-module.exports = {
+export {
   BROWSERS, EVAL_TIMEOUT_MS, NO_FACADE, NO_SESSION, POLL_MS, PROBE_TIMEOUT_MS, SESSION_NAME,
   SESSION_TIMEOUT_MS, answersFacade, atUrl, debugConfigFor, evaluate, expressionFor,
   loadExpression, pageSession,

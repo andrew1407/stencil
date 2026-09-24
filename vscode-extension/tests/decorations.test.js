@@ -3,25 +3,23 @@
 // matters is which ranges each colour lands on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
-const require = createRequire(import.meta.url);
-const families = require('../src/lib/vocab/colorFamilies.js');
+import * as families from '../src/lib/vocab/colorFamilies.js';
 const { DEFAULTS, FAMILIES, FAMILY_TYPE, overridesFor } = families;
 
 const LIGHT = 1;
 const mapped = (palette) => Object.fromEntries(
   Object.entries(palette).map(([family, color]) => [FAMILY_TYPE[family], color]));
 
-const withHost = (body, colors = {}, themeKind = 2) => {
+const withHost = async (body, colors = {}, themeKind = 2) => {
   const { vscode, calls } = makeVscode({ settings: { 'stencil.colors': colors }, themeKind });
   const host = installVscodeStub(vscode);
   try {
-    return body({ calls, decorations: host.require('decorations.js'), vscode });
+    return await body({ calls, decorations: await host.import('decorations.js'), host, vscode });
   } finally {
     host.restore();
   }
@@ -29,9 +27,9 @@ const withHost = (body, colors = {}, themeKind = 2) => {
 
 const colorsOf = (calls) => calls.decorationTypes.map((t) => t.options.color);
 
-test('every family names a type that is actually in the legend', () => {
-  withHost(({ decorations }) => {
-    const { TOKEN_TYPES } = require('../src/semanticTokens.js');
+test('every family names a type that is actually in the legend', async () => {
+  await withHost(async ({ decorations, host }) => {
+    const { TOKEN_TYPES } = await host.import('semanticTokens.js');
     assert.equal(FAMILIES.length, TOKEN_TYPES.length, 'one family per legend entry');
     for (const family of FAMILIES) {
       assert.ok(TOKEN_TYPES.includes(FAMILY_TYPE[family]), `${family} maps outside the legend`);
@@ -69,22 +67,22 @@ test('an unknown family or an unusable value leaves the defaults standing', () =
   assert.deepEqual(overridesFor({ source: 42 }), mapped(DEFAULTS.dark));
 });
 
-test('no setting still builds one decoration type per built-in family', () => {
-  withHost(({ calls, decorations }) => {
+test('no setting still builds one decoration type per built-in family', async () => {
+  await withHost(({ calls, decorations }) => {
     decorations.register(makeContext());
     assert.deepEqual(colorsOf(calls).sort(), Object.values(mapped(DEFAULTS.dark)).sort());
   });
 });
 
-test('a light theme builds the same families in the light palette', () => {
-  withHost(({ calls, decorations }) => {
+test('a light theme builds the same families in the light palette', async () => {
+  await withHost(({ calls, decorations }) => {
     decorations.register(makeContext());
     assert.deepEqual(colorsOf(calls).sort(), Object.values(mapped(DEFAULTS.light)).sort());
   }, {}, LIGHT);
 });
 
-test('each overridden family becomes one decoration type, in its exact colour', () => {
-  withHost(({ calls, decorations }) => {
+test('each overridden family becomes one decoration type, in its exact colour', async () => {
+  await withHost(({ calls, decorations }) => {
     decorations.register(makeContext());
     const painted = overridesFor({ filterMode: '#ff8800', source: '#00ff00' });
     assert.equal(painted.macro, '#00ff00', 'the override replaced the default');
@@ -94,8 +92,8 @@ test('each overridden family becomes one decoration type, in its exact colour', 
   }, { filterMode: '#ff8800', source: '#00ff00' });
 });
 
-test('rangesFor puts a token under the type the classifier gave it', () => {
-  withHost(({ decorations }) => {
+test('rangesFor puts a token under the type the classifier gave it', async () => {
+  await withHost(({ decorations }) => {
     const text = '@source a.png:\n    @filter sepia\n';
     const ranges = decorations.rangesFor(parseScript(text).tokens, ['macro', 'enumMember']);
     const [source] = ranges.get('macro');
@@ -105,8 +103,8 @@ test('rangesFor puts a token under the type the classifier gave it', () => {
   });
 });
 
-test('a type with no tokens is painted with an empty list, clearing a stale colour', () => {
-  withHost(({ decorations }) => {
+test('a type with no tokens is painted with an empty list, clearing a stale colour', async () => {
+  await withHost(({ decorations }) => {
     const ranges = decorations.rangesFor(parseScript('@source a.png:\n').tokens, ['enumMember']);
     assert.deepEqual(ranges.get('enumMember'), []);
   });
@@ -141,8 +139,8 @@ test('changing the setting rebuilds the types, with no reload', async () => {
   }, { filterMode: '#ff8800' });
 });
 
-test('switching to a light theme repaints in the light palette', () => {
-  withHost(({ calls, decorations, vscode }) => {
+test('switching to a light theme repaints in the light palette', async () => {
+  await withHost(({ calls, decorations, vscode }) => {
     decorations.register(makeContext());
     const built = calls.decorationTypes.length;
     vscode.window.activeColorTheme.kind = LIGHT;
@@ -151,8 +149,8 @@ test('switching to a light theme repaints in the light palette', () => {
   });
 });
 
-test('the types are disposed when the context is, so a reload leaks nothing', () => {
-  withHost(({ calls, decorations }) => {
+test('the types are disposed when the context is, so a reload leaks nothing', async () => {
+  await withHost(({ calls, decorations }) => {
     const context = makeContext();
     decorations.register(context);
     for (const disposable of context.subscriptions) disposable.dispose?.();

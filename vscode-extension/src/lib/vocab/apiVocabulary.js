@@ -1,10 +1,9 @@
 // The one reading of src/config/stencilApiVocabulary.json: what a `window.stencil` member is
 // and the Markdown explaining it. No `vscode` — jsHints.js makes the editor objects.
-'use strict';
+import VOCABULARY from '../../config/stencilApiVocabulary.json' with { type: 'json' };
+import { makeExplain } from './vocabularyEntry.js';
 
-const { makeExplain } = require('./vocabularyEntry.js');
-
-const MEMBERS = Object.freeze(require('../../config/stencilApiVocabulary.json').members);
+const MEMBERS = Object.freeze(VOCABULARY.members);
 const MEMBER_NAMES = Object.freeze(Object.keys(MEMBERS));
 
 // Anchored on a non-identifier, so `myStencil.` is somebody else's object.
@@ -65,5 +64,5 @@ const explain = makeExplain({
   decorate: (markdown, entry) => (entry.readOnly ? `${markdown}\n\nRead-only.` : markdown),
 });
 
-module.exports = { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
+export { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
   prefixAt };

@@ -5,17 +5,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import * as ids from '../src/lib/ids.js';
+import { FAMILIES, HEX } from '../src/lib/vocab/colorFamilies.js';
 
-const require = createRequire(import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const ids = require('../src/lib/ids.js');
 const contributes = manifest.contributes;
 const here = (rel) => fileURLToPath(new URL(rel, import.meta.url));
 
-test('the extension is CommonJS, and its entry point exists', () => {
-  assert.equal(manifest.type, undefined, 'a root "type" would break require() in src/');
+test('the extension is ESM, and its entry point exists', () => {
+  assert.equal(manifest.type, 'module', 'src/ and the parser copies are ES modules');
   assert.equal(manifest.main, './src/extension.js');
   assert.ok(existsSync(here(`../${manifest.main}`)));
   assert.equal(manifest.name, 'stencil-stc');
@@ -153,7 +152,6 @@ test('every setting the code reads is declared, with its default and an explanat
 });
 
 test('stencil.colors names exactly the families, and takes only a hex colour', () => {
-  const { FAMILIES, HEX } = require('../src/lib/vocab/colorFamilies.js');
   const colors = contributes.configuration.properties['stencil.colors'];
   assert.deepEqual(Object.keys(colors.properties).sort(), [...FAMILIES].sort(),
     'the settings UI drifted from src/lib/colorFamilies.js');

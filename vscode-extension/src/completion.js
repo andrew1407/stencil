@@ -1,17 +1,15 @@
 // The suggestion list. lib/completionContext.js decides WHICH groups belong at the caret;
 // this turns a group into items, each carrying the same Markdown the hover shows.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const COLOR_NAMES = require('./config/colorNames.json');
-const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { contextFor } = require('./lib/vocab/completionContext.js');
-const { programFor } = require('./lib/programCache.js');
-const { markdownFor } = require('./lib/vocab/vocabularyEntry.js');
-const {
+import COLOR_NAMES from './config/colorNames.json' with { type: 'json' };
+import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { contextFor } from './lib/vocab/completionContext.js';
+import { programFor } from './lib/programCache.js';
+import { markdownFor } from './lib/vocab/vocabularyEntry.js';
+import {
   CROP_KEYS, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, explain,
-} = require('./lib/vocab/vocabulary.js');
+} from './lib/vocab/vocabulary.js';
 
 const KIND = () => vscode.CompletionItemKind;
 const COLOR_WORDS = Object.freeze([...Object.keys(COLOR_NAMES), 'transparent']);
@@ -104,4 +102,4 @@ const register = (context) => {
   return registration;
 };
 
-module.exports = { COLOR_WORDS, LAYOUT_MODES, USE_SUBS, itemsFor, provider, register, templateNames };
+export { COLOR_WORDS, LAYOUT_MODES, USE_SUBS, itemsFor, provider, register, templateNames };
