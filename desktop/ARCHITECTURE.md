@@ -50,7 +50,7 @@ the files the lint lists as the core seam. The document state itself lives in `C
 | `src/llm/` (+ `dock/card/`, `dock/compose/`, `plan/executor/`) | `dock/` and `panel/` (the two chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`), `plan/` (op registry, schema, `planExecutor`) | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
-| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `webcore/` (the session skin: its table, picture, overlay sheet, pixel icons and look), `share/`, `notify/` — plus the platform helpers and the session switches (`motionPrefs.hpp`, `skinPrefs.hpp`) (`shareImage*`, `modalDismissMac`, `dragPasteboard*`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
+| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `webcore/` (the session skin: its table, picture, overlay sheet, pixel icons and look), `share/`, `notify/` — plus the platform helpers and the session switches (`motionPrefs.hpp`, `skinPrefs.hpp`) (`shareImage*`, `modalDismissMac`, `dragPasteboard*`, `notify/macBanner`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
 | `resources/` | `app.qrc`: `app.qss`, the `webcore.qss` overlay, and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
 | `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
@@ -244,8 +244,9 @@ classDiagram
   overlay in the browser. `motionReduced()` drops the flight and keeps the dim.
 - **A notice.** Every `notify->info/success/error` and the chat's finished-turn toast go through
   `Notifications` (`support/notify/`), which hands the `Notice` to the sink the stored
-  `notifyChannel` names: `ToastStack`, the corner stack, or `SystemNotifier`, a
-  `QSystemTrayIcon::showMessage` from a tray icon that exists only while that channel is chosen.
+  `notifyChannel` names: `ToastStack`, the corner stack, or `SystemNotifier`: on macOS a
+  `UNUserNotificationCenter` banner (`macBanner`, permission asked when the channel is chosen),
+  elsewhere a `QSystemTrayIcon::showMessage` from a tray icon that exists only while that channel is chosen.
   A sink that cannot deliver — no tray, no message support — returns false and the toasts show
   it, so the setting is a preference, never a way to lose a message; `applySettings` says so once
   when the pick cannot be honoured. Browser twin: `ui/shell/notifySinks.js`.

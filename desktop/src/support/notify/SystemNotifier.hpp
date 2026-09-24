@@ -5,8 +5,8 @@
 
 class QSystemTrayIcon;
 
-// The OS sink: QSystemTrayIcon::showMessage, the one notification centre Qt reaches on every
-// platform. The tray icon exists only while the channel points here. Browser twin: SystemSink.
+// The OS sink: macOS banners through macBanner.hpp, elsewhere QSystemTrayIcon::showMessage from a
+// tray icon that exists only while the channel points here. Browser twin: SystemSink.
 namespace stencil::gui {
 
   class SystemNotifier : public QObject, public NotificationSink {
@@ -21,6 +21,9 @@ namespace stencil::gui {
 
    private:
     QSystemTrayIcon* tray = nullptr;
+#ifdef Q_OS_MACOS
+    bool active = false;
+#endif
     // The newest notice's action; the OS reports a click without saying on which.
     std::function<void()> onClick;
   };

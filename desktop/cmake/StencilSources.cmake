@@ -189,6 +189,15 @@ set(STENCIL_NOTIFY_SOURCES
   src/support/notify/ToastStack.cpp
   src/support/notify/ToastStackReflow.cpp
   src/support/notify/SystemNotifier.cpp)
+# macOS banners go through UserNotifications, which is OS-provided, not a new dependency.
+set(STENCIL_NOTIFY_LIBS)
+if(APPLE)
+  list(APPEND STENCIL_NOTIFY_SOURCES src/support/notify/macBannerMac.mm)
+  set_source_files_properties(src/support/notify/macBannerMac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+  find_library(STENCIL_USERNOTIFICATIONS_LIBRARY UserNotifications REQUIRED)
+  find_library(STENCIL_FOUNDATION_LIBRARY Foundation REQUIRED)
+  list(APPEND STENCIL_NOTIFY_LIBS ${STENCIL_USERNOTIFICATIONS_LIBRARY} ${STENCIL_FOUNDATION_LIBRARY})
+endif()
 
 set(STENCIL_FILESTORE_SOURCES
   src/io/fileStore.cpp
@@ -587,4 +596,4 @@ if(APPLE)
   list(APPEND STENCIL_DRAG_LIBS ${STENCIL_APPKIT_LIBRARY})
 endif()
 list(APPEND STENCIL_GUI_SOURCES ${STENCIL_DRAG_SOURCES})
-list(APPEND STENCIL_SHARE_LIBS ${STENCIL_DRAG_LIBS})
+list(APPEND STENCIL_SHARE_LIBS ${STENCIL_DRAG_LIBS} ${STENCIL_NOTIFY_LIBS})

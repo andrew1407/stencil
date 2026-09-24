@@ -345,7 +345,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     src/support/logo/logoStageRules.cpp
     src/support/modal/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
-  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
 # Deep-link check: the stencil:// URL grammar (parseStencilUrl) + the Telegram
 # start-payload codec (golden vectors shared verbatim with browser/tests/
@@ -372,7 +372,7 @@ stencil_headless_test(stencil_notifications_headless
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp   # the toast dust flight needs motionReduced()
     resources/app.qrc
-  LIBS Qt6::Widgets Qt6::Svg)
+  LIBS Qt6::Widgets Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
 # The notice channel (support/notify/Notifications): toasts by default, the OS sink while the
 # channel says so and it accepts, the toasts again when it declines.
@@ -384,7 +384,7 @@ stencil_headless_test(stencil_notifychannel_headless
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp
     resources/app.qrc
-  LIBS Qt6::Widgets Qt6::Svg)
+  LIBS Qt6::Widgets Qt6::Svg ${STENCIL_NOTIFY_LIBS})
 
 # Servers dialog rows (dialogs/connectDialog): long URLs elide inside the viewport
 # (no horizontal scrollbar), removal retires-then-finalizes (empty state waits for the
