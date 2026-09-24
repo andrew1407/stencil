@@ -14,7 +14,6 @@ import { StencilLinksModal } from './meta/linksModal.js';
 import { StencilConnectModal } from './connect/modal.js';
 import { StencilCropModal } from './modal/cropModal.js';
 import { StencilConfirmModal } from './modal/confirmModal.js';
-import { StencilInstall } from './shell/installButton.js';
 import { StencilChatPanel } from './chat/panel.js';
 import { StencilLlmSettingsModal } from './llmSettings/modal.js';
 import { StencilDescriptionModal } from './meta/descriptionModal.js';
@@ -39,7 +38,6 @@ const REGIONS = [
   StencilConnectModal,
   StencilCropModal,
   StencilConfirmModal,
-  StencilInstall,
   // New regions append at the END only (the order above is load-bearing).
   StencilChatPanel,
   StencilLlmSettingsModal,

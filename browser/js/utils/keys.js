@@ -49,18 +49,6 @@ export const isMacPlatform = (nav = (typeof globalThis !== 'undefined' ? globalT
   return false;
 };
 
-// Null when unknown (mobile, Node). Android matches "Linux" in its UA, so it is excluded.
-export const detectDesktopOS = (nav = (typeof globalThis !== 'undefined' ? globalThis.navigator : undefined)) => {
-  if (!nav) return null;
-  const uaPlat = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || '';
-  const hay = `${uaPlat} ${nav.userAgent || ''}`;
-  if (/android/i.test(hay)) return null;
-  if (isMacPlatform(nav)) return 'mac';
-  if (/win/i.test(hay)) return 'windows';
-  if (/linux|x11/i.test(hay)) return 'linux';
-  return null;
-};
-
 // On Mac, Ctrl → Meta and Delete → Backspace (the primary delete key emits ⌫). Idempotent.
 export const platformizeCombo = (combo, isMac) => {
   if (!isMac || !combo) return combo;

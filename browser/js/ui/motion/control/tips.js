@@ -39,18 +39,16 @@ export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, t
   const box = motionReduced() ? null : foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS);
   toggle?.();
   const away = box && dockAwayPoint(box, dock);
-  (hiding ? surfaceOut : surfaceIn)(el, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs });
+  (hiding ? surfaceOut : surfaceIn)(el, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs, belowChat: true });
 }
 
 // Popups shown by a `:hover` rule alone: by the time pointerleave runs the popup is already
 // display:none, so the hold class puts the box back for as long as the motes need.
 const HOVER_DUST_HOLD_CLASS = 'dust-hold';
 const HOVER_DUST_HOLD_MS = TUNE.HOVER_DUST_HOLD_MS;
-// `anchor`: a host that WRAPS its popup names its trigger, or the measured box covers the
-// open popup (installButton.js).
-export function wireHoverDust(host, popup, { inMs = 300, outMs = 200, anchor = host } = {}) {
+export function wireHoverDust(host, popup, { inMs = 300, outMs = 200 } = {}) {
   if (!host?.addEventListener || !popup?.classList) return;
-  const point = () => (motionReduced() ? null : rectCenter(anchor));
+  const point = () => (motionReduced() ? null : rectCenter(host));
   host.addEventListener('pointerenter', () => surfaceIn(popup, point(), { ms: inMs }));
   host.addEventListener('pointerleave', () => {
     const p = point();

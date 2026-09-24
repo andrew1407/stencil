@@ -85,7 +85,7 @@
 
 /* Print: hide chrome, show only the canvas/coords. */
 @media print {
-    .controls-wrapper, #install-host, #notify-balloon, #ctx-menu,
+    .controls-wrapper, #notify-balloon, #ctx-menu,
     .tooltip, #theme-toggle, .drop-hint { display: none !important; }
     body { padding: 0; background: #fff; }
     .container { box-shadow: none; max-width: none; animation: none; }

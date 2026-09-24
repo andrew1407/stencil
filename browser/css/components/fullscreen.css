@@ -25,9 +25,6 @@ body.fullscreen-mode .info,
 body.fullscreen-mode .drop-hint,
 body.fullscreen-mode .main-content > .coordinates-panel,
 body.fullscreen-mode .panel-resizer,
-/* The install-app affordance floats fixed over the canvas corner and stayed there in fullscreen
-   (user report): fullscreen is the canvas and nothing else. */
-body.fullscreen-mode #install-host,
 body.fullscreen-mode #selection-panel {
     display: none !important;
 }

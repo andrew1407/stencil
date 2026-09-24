@@ -16,6 +16,9 @@
    tileGather, tileGatherSurface, tileScatterSurface, tileFall) are dustCloud's FLIGHTS
    table now; the host still owns the cross-fades below. */
 .disintegrate-host > canvas { position: absolute; display: block; }
+/* A page surface's cloud (surfaces.js belowChat) sits under a docked chat panel (chat/panel.css
+   90000): the tool rows' fold and the points bar leave beneath the chat, not across it. */
+.disintegrate-host.dust-below-chat { z-index: 89990; }
 @media (prefers-reduced-motion: reduce) {
     .disintegrate-host { display: none; }
 }
@@ -82,13 +85,12 @@
    the short --gather-ms each but set off across the reversed sweep, and a host fading on
    the leg alone cut every late mote off at half time. */
 .disintegrate-host.dust-forming { animation: dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both; }
-/* The two popups whose visibility is a pure `:hover` rule (the toolbar's hints bubble
-   and the install menu) still leave as sand. By the time pointerleave runs `:hover` is
+/* A popup whose visibility is a pure `:hover` rule (the toolbar's hints bubble) still
+   leaves as sand. By the time pointerleave runs `:hover` is
    already gone and the box is display:none, so there is nothing left to copy — this
    holds it on screen for the one beat the motes need (motion.js wireHoverDust). Its
    own alpha is the surfaceLeave keyframes', which are down to nothing by then. */
 .hints-popup.dust-hold { display: block; }
-#install-menu.dust-hold { display: flex; }
 @media (prefers-reduced-motion: reduce) {
     /* motion.js never adds these under reduced motion; this is the preference flipped
        mid-flight — the surface must land at its true opacity, not a keyframed one. */

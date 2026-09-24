@@ -41,11 +41,11 @@
 :root[data-skin="webcore"] .mm-icon { shape-rendering: crispEdges; }
 :root[data-skin="webcore"] :is(.ic, .draw-mode-icon) rect { stroke: none; }
 /* A menu row's highlight is the navy bar, and pixel art with its colour baked in cannot follow:
-   a dark glyph (the install arrow, the link chain) vanished into it. A one-pixel light halo keeps
+   a dark glyph (the link chain) vanished into it. A one-pixel light halo keeps
    every one of them legible without re-inking any. */
 :root[data-skin="webcore"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover,
 .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover,
-.zoom-menu-item:hover, #install-menu [role="menuitem"]:hover, .ctx-checkbox-item:hover,
+.zoom-menu-item:hover, .ctx-checkbox-item:hover,
 .ctx-radio-item:hover) :is(.ic, .draw-mode-icon) {
     filter: drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight))
             drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important;
