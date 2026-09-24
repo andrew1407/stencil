@@ -186,4 +186,5 @@ test {
     _ = select;
     _ = clip_mod;
     _ = splice;
+    _ = @import("ansi/restyle.zig");
 }

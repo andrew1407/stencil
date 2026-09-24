@@ -4,6 +4,8 @@ const le = @import("../line_edit.zig");
 const Editor = le.Editor;
 const std = @import("std");
 const logo = @import("../app/logo.zig");
+const skin = @import("../app/skin.zig");
+const restyle = @import("../console/render/ansi/restyle.zig");
 const wrappedRows = le.wrappedRows;
 const max_prompt_rows = le.max_prompt_rows;
 const rowSlice = le.rowSlice;
@@ -58,17 +60,11 @@ pub fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) 
         const seg = rowSlice(line, idx, first_avail, cols);
         self.gotoRow(@intCast(top + row));
         if (idx == 0) {
-            self.writeAll(logo.accentReal());
-            self.writeAll(prompt);
-            // The accent covers the command token only.
-            const split = @min(cmd_end, seg.len);
-            self.writeAll(seg[0..split]);
-            self.writeAll(logo.resetSeq());
-            self.writeAll(seg[split..]);
+            writePromptRow(self, prompt, seg, @min(cmd_end, seg.len));
             // The stored copy is plain text: the prompt plus what this row shows.
             shown_rows[shown_n] = std.fmt.bufPrint(self.prompt_row_buf[shown_n][0..], "{s}{s}", .{ prompt, seg }) catch seg;
         } else {
-            self.writeAll(seg);
+            self.writeAll(restyle.restyleInput(seg));
             shown_rows[shown_n] = seg;
         }
         if (shown_n + 1 < max_prompt_rows) shown_n += 1;
@@ -90,11 +86,7 @@ pub fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) 
 /// The plain (non-full-screen) redraw: one row, the terminal's own autowrap does the rest.
 pub fn refreshFlat(self: *Editor, prompt: []const u8, line: []const u8, pos: usize, cmd_end: usize) void {
     self.gotoLineStart();
-    self.writeAll(logo.accentReal());
-    self.writeAll(prompt);
-    self.writeAll(line[0..cmd_end]);
-    self.writeAll(logo.resetSeq());
-    self.writeAll(line[cmd_end..]);
+    writePromptRow(self, prompt, line, cmd_end);
     self.writeAll("\x1b[K");
     self.gotoLineStart();
     const vis = prompt.len + pos;
@@ -102,6 +94,17 @@ pub fn refreshFlat(self: *Editor, prompt: []const u8, line: []const u8, pos: usi
         var fbuf: [16]u8 = undefined;
         self.writeAll(std.fmt.bufPrint(&fbuf, "\x1b[{d}C", .{vis}) catch return);
     }
+}
+
+/// The prompt and the first row of the line, the command token in the accent — or in gold when
+/// it names a secret — all dressed in the active skin.
+pub fn writePromptRow(self: *Editor, prompt: []const u8, text: []const u8, cmd_end: usize) void {
+    var buf: [le.max_line + 128]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    const secret = cmd_end > 1 and skin.isSecret(text[1..cmd_end]);
+    const parts = [_][]const u8{ logo.accentReal(), prompt, if (secret) logo.colorSeq(skin.gold) else "", text[0..cmd_end], logo.resetSeq(), text[cmd_end..] };
+    for (parts) |part| w.writeAll(part) catch return self.writeAll(text);
+    self.writeAll(restyle.restyleInput(w.buffered()));
 }
 
 /// Move to column 1 of an absolute screen row.
@@ -171,7 +174,7 @@ pub fn listMatches(self: *Editor, completions: []const []const u8, base: []const
     if (self.screen != null) {
         for (completions) |cand| {
             if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base))
-                logo.print("{s}  ", .{cand});
+                logo.print("{s}{s}{s}  ", .{ logo.accentSeq(), cand, logo.resetSeq() }); // like /help's commands
         }
         logo.print("\n", .{});
         return;
@@ -179,7 +182,9 @@ pub fn listMatches(self: *Editor, completions: []const []const u8, base: []const
     self.writeAll("\r\n");
     for (completions) |cand| {
         if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base)) {
+            self.writeAll(logo.accentReal());
             self.writeAll(cand);
+            self.writeAll(logo.resetSeq());
             self.writeAll("  ");
         }
     }

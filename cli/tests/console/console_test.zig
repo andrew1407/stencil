@@ -873,3 +873,32 @@ test "console: only a script that recorded an edit marks the session dirty" {
     _ = try console.handle(&session, io, "/script @crop 25%");
     try testing.expect(session.dirty);
 }
+
+test "console: the secret words are listed only by /eastereggs, and need the full screen to go on" {
+    const skin = @import("../../src/app/skin.zig");
+    const commands = @import("../../src/console/commands.zig");
+    const msg = @import("../../src/app/messages.zig");
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+    var cap = Capture.init(a);
+    defer cap.deinit();
+    cap.install();
+    defer logo.clearSink();
+
+    try testing.expect(!try console.handle(&session, io, "/eastereggs"));
+    for (std.enums.values(skin.Skin)) |s| {
+        const word = skin.traitsOf(s).word;
+        if (word.len == 0) continue;
+        try testing.expect(std.mem.indexOf(u8, cap.text(), word) != null);
+        try testing.expect(commands.verbOf(word) == null); // no Verb, so neither /help nor Tab can name it
+    }
+    cap.buf.clearRetainingCapacity();
+    // Outside the full-screen console a secret only says where it works; nothing goes on.
+    try testing.expect(!try console.handle(&session, io, "/meow"));
+    try testing.expectEqualStrings(msg.eggs_full_screen_only, cap.text());
+    try testing.expectEqual(skin.Skin.none, skin.get());
+}

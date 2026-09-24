@@ -2,6 +2,7 @@
 //! the screen left to right (a fixed number of JUMPS, so it lasts the same at any width)
 //! while the wordmark lights letter by letter and the icon turns as a clock (clock.zig).
 const std = @import("std");
+const skin = @import("../../../app/skin.zig");
 const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
 const screen_mod = @import("../../screen.zig");
@@ -12,13 +13,12 @@ const timing = @import("timing.zig");
 
 const iconDegrees = clock.iconDegrees;
 const iconSpans = clock.iconSpans;
-const sleepOrAbort = timing.sleepOrAbort;
+const waitFrame = timing.waitFrame;
 const spin = timing.spin;
 const inputPending = timing.inputPending;
 const Frame = timing.Frame;
 const icon_cols = clock.icon_cols;
 
-pub const wordmark = "S T E N C I L"; // the logo wordmark, animated on a theme change
 const flourish_step_ms = 115; // per-letter pace of the theme-change wordmark wave
 // How long the logo stays shrunk after a click — the first half of the press-to-recolour
 // lag, kept just long enough to read as a button going down.
@@ -92,7 +92,8 @@ pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
     const reach: u16 = @max(icon_cols, accentReach(self));
     self.wipe_reach = reach;
     const per_jump: u16 = @max(1, (reach + wipe_jumps - 1) / wipe_jumps); // columns per jump
-    const letters = wordmarkLetters();
+    var cells: [48]usize = undefined;
+    const letters = wordmarkLetters(&cells);
     var t: i64 = 0; // ms since the animation began
     var wash_at: i64 = 0;
     var letter_at: i64 = 0;
@@ -106,7 +107,7 @@ pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
             @min(wash_at, letter_at)
         else if (wash_left) wash_at else letter_at;
         if (due > t) {
-            if (sleepOrAbort(self, due - t)) break;
+            if (waitFrame(self, due - t)) break;
             t = due;
         }
         if (wash_left and wash_at <= t) {
@@ -117,16 +118,16 @@ pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
             wash_at = t + wipe_step_ms;
             // The wash repaints the header, which includes the wordmark row — put the lit
             // letter back on top of it so the two animations don't erase each other.
-            if (li > 0 and letters_left) drawWordmark(self, letters[li - 1]);
+            if (li > 0 and letters_left) drawWordmark(self, letters[li - 1], old_accent);
         }
         if (letters_left and letter_at <= t) {
-            drawWordmark(self, letters[li]);
+            drawWordmark(self, letters[li], old_accent);
             li += 1;
             letter_at = t + flourish_step_ms;
         }
     }
     paintRecolored(self, old_header, self.cols, old_accent, new_accent, false); // settle: all new
-    drawWordmark(self, null); // …and the wordmark back to plain, however the loop ended
+    drawWordmark(self, null, old_accent); // …and the wordmark settled, however the loop ended
 }
 
 // One frame of the wipe: every accent-carrying row's first `x` visible columns in `new_accent` and
@@ -167,25 +168,35 @@ fn paintRecolored(self: *Screen, old_header: []const []u8, x: u16, old_accent: [
     self.drawStatusBarWipe(@intCast(@min(@as(u32, self.cols), ruled)), old_accent);
 }
 
-// Letter cells within the 13-char wordmark ("S T E N C I L"): 0,2,4,6,8,10,12 — the wave the
-// accent travels along.
-fn wordmarkLetters() []const usize {
-    return &[_]usize{ 0, 2, 4, 6, 8, 10, 12 };
+// The letter cells of the wordmark on screen (every non-space) — the wave the accent travels along.
+fn wordmarkLetters(cells: *[48]usize) []const usize {
+    var n: usize = 0;
+    for (skin.traitsOf(skin.get()).wordmark, 0..) |ch, ci| {
+        if (ch == ' ' or n == cells.len) continue;
+        cells[n] = ci;
+        n += 1;
+    }
+    return cells[0..n];
 }
 
-// Draw the wordmark with `lit` (a cell index) in the NEW accent, or all plain when null;
-// every other letter keeps its original bold default. Purely cosmetic.
-fn drawWordmark(self: *Screen, lit: ?usize) void {
+// Draw the wordmark mid-wave with `lit` the letter the wave is on (null = settled). A plain
+// wordmark lights that one letter in the NEW accent; one set in the accent turns letter by
+// letter from `old_accent` to the new, up to and including `lit`.
+fn drawWordmark(self: *Screen, lit: ?usize, old_accent: []const u8) void {
     if (!logo.colorEnabled()) return;
     const row = self.wordmark_row;
     if (row == 0) return;
     const accent = logo.accentReal(); // the real escape, never the sentinel (this bypasses clip)
-    var buf: [256]u8 = undefined;
+    const st = skin.traitsOf(skin.get());
+    var buf: [2048]u8 = undefined;
     var fb = std.Io.Writer.fixed(&buf);
     _ = fb.print("\x1b[{d};{d}H", .{ row, self.wordmark_col }) catch {};
-    for (wordmark, 0..) |ch, ci| {
+    for (st.wordmark, 0..) |ch, ci| {
         _ = fb.writeAll("\x1b[1m") catch {}; // bold, like the normal wordmark
-        if (lit == ci) _ = fb.writeAll(accent) catch {}; // active letter → accent
+        if (st.wordmark_accented) {
+            const turned = if (lit) |l| ci <= l else true;
+            _ = fb.writeAll(if (turned) accent else old_accent) catch {};
+        } else if (lit == ci) _ = fb.writeAll(accent) catch {}; // active letter → accent
         _ = fb.writeByte(ch) catch {};
         _ = fb.writeAll("\x1b[0m") catch {};
     }

@@ -4,6 +4,8 @@ const std = @import("std");
 const logo = @import("../../../app/logo.zig");
 const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
+const skin = @import("../../../app/skin.zig");
+const restyle = @import("restyle.zig");
 
 const visColumns = scan.visColumns;
 const appendBytes = scan.appendBytes;
@@ -14,11 +16,11 @@ const csiLen = scan.csiLen;
 // highlight reads as a translucent tint of the theme colour rather than a solid fill.
 const sel_alpha_pct = 55;
 
-/// A background SGR washing the current accent over the terminal background at `sel_alpha_pct`%.
-/// No grey floor, so a low accent stays faint; falls back to reverse video when colour is off.
-fn selHighlightSeq(buf: []u8) []const u8 {
+/// A background SGR washing the current accent (or the skin's colour at `col`) over the terminal
+/// background at `sel_alpha_pct`%; falls back to reverse video when colour is off.
+fn selHighlightSeq(buf: []u8, col: usize) []const u8 {
     if (!logo.colorEnabled()) return "\x1b[7m";
-    const a = logo.accentRgb();
+    const a = skin.washRgb(skin.get(), col, logo.accentRgb());
     const mix = [3]u8{
         @intCast(@as(u16, a[0]) * sel_alpha_pct / 100),
         @intCast(@as(u16, a[1]) * sel_alpha_pct / 100),
@@ -33,9 +35,11 @@ fn selHighlightOff() []const u8 {
 
 /// Render `line` clipped to `cols`, tinting visible columns [c0,c1) with the accent wash. The wash
 /// is re-asserted after every escape, so the row's own SGR resets do not cancel it.
-pub fn clipHighlight(line: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) []const u8 {
+pub fn clipHighlight(raw: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) []const u8 {
+    const line = restyle.restyle(raw);
     var hbuf: [24]u8 = undefined;
-    const on = selHighlightSeq(&hbuf);
+    var on = selHighlightSeq(&hbuf, 0);
+    const per_cell = skin.traitsOf(skin.get()).paints_runs; // the rainbow skins wash each cell in its own hue
     const off = selHighlightOff();
     var oi: usize = 0;
     var vis: u16 = 0;
@@ -57,6 +61,10 @@ pub fn clipHighlight(line: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) [
             continue;
         }
         const want = vis >= c0 and vis < c1;
+        if (want and per_cell) {
+            on = selHighlightSeq(&hbuf, vis);
+            if (span) appendBytes(out, &oi, on);
+        }
         if (want and !span) {
             appendBytes(out, &oi, on);
             span = true;
@@ -65,11 +73,12 @@ pub fn clipHighlight(line: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) [
             span = false;
         }
         const clen = @min(utf8Len(b), line.len - i);
-        if (oi + clen > out.len) break;
+        const w = scan.cellWidth(line, i);
+        if (vis + w > cols or oi + clen > out.len) break;
         @memcpy(out[oi..][0..clen], line[i..][0..clen]);
         oi += clen;
         i += clen;
-        vis += 1;
+        vis += w;
     }
     if (span) appendBytes(out, &oi, off);
     appendBytes(out, &oi, "\x1b[0m");

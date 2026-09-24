@@ -11,9 +11,11 @@ const utf8Len = scan.utf8Len;
 const csiLen = scan.csiLen;
 const visColumns = scan.visColumns;
 const clip = clip_mod.clip;
+const restyle = @import("restyle.zig");
 
-pub fn clipRange(line: []const u8, c0: u16, c1: u16, accent: []const u8, out: []u8, oi: *usize) void {
+pub fn clipRange(raw: []const u8, c0: u16, c1: u16, accent: []const u8, out: []u8, oi: *usize) void {
     if (c0 >= c1) return; // an empty range draws nothing at all, not just no characters
+    const line = restyle.restyle(raw);
     var vis: u16 = 0;
     var i: usize = 0;
     while (i < line.len and vis < c1) {
@@ -30,13 +32,15 @@ pub fn clipRange(line: []const u8, c0: u16, c1: u16, accent: []const u8, out: []
             continue;
         }
         const clen = @min(utf8Len(b), line.len - i);
+        const w = scan.cellWidth(line, i);
+        if (vis + w > c1) return;
         if (vis >= c0) {
             if (oi.* + clen > out.len) return;
             @memcpy(out[oi.*..][0..clen], line[i..][0..clen]);
             oi.* += clen;
         }
         i += clen;
-        vis += 1;
+        vis += w;
     }
 }
 
@@ -51,7 +55,7 @@ pub fn spliceAccent(next: []const u8, prev: []const u8, cols: u16, x: u16, new_a
     const cut = @min(x, cols);
     clipRange(next, 0, cut, new_accent, out, &oi);
     clipRange(prev, cut, cols, old_accent, out, &oi);
-    if (logo.colorEnabled()) appendBytes(out, &oi, "\x1b[0m"); // never bleed colour into the next row
+    appendBytes(out, &oi, restyle.tail()); // never bleed colour into the next row
     return out[0..oi];
 }
 
@@ -68,7 +72,7 @@ pub fn spliceSpans(next: []const u8, prev: []const u8, cols: u16, spans: []const
         at = c1;
     }
     clipRange(prev, at, cols, old_accent, out, &oi);
-    if (logo.colorEnabled()) appendBytes(out, &oi, "\x1b[0m"); // never bleed colour into the next row
+    appendBytes(out, &oi, restyle.tail()); // never bleed colour into the next row
     return out[0..oi];
 }
 

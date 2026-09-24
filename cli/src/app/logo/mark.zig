@@ -4,6 +4,8 @@
 const std = @import("std");
 const logo = @import("../logo.zig");
 const palette = @import("palette.zig");
+const skin = @import("../skin.zig");
+const eggArt = @import("eggArt.zig");
 
 const Ansi = palette.Ansi;
 const print = logo.print;
@@ -21,7 +23,7 @@ const Mv = 0; // vertical dark app-panel margin (rows); curve rows supply the da
 const PANEL_W = FRAME_W + Mh * 2; // inner width between the side borders
 const BODY_H = FRAME_H + Mv * 2; // inner height between the top/bottom borders
 
-const Pt = struct { col: usize, row: usize };
+pub const Pt = struct { col: usize, row: usize };
 // Favicon vertices mapped into the FRAME_W×FRAME_H cell grid. Cells are ~2:1 tall, so the S is
 // snapped to the grid rather than scaled: the bars land ON a row and the joins step one row at a time.
 const verts = [_]Pt{
@@ -51,17 +53,19 @@ const verts_small = [_]Pt{
 }; // so the three bars stagger and still read as an S at half size
 
 // Glyph codes laid into the rasterised frame.
-const G_SPACE = 0;
+pub const G_SPACE = 0;
 const G_UP = 1; // ╱ (segment rising left→right)
 const G_DOWN = 2; // ╲ (segment falling left→right)
 const G_MARK = 3; // ● (polyline vertex)
 const G_FLAT = 4; // ─ (segment level across a row — the S's bars)
+const G_VERT = 5; // │ (segment straight down a column — the P's stem)
 
 fn glyph(code: u8) []const u8 {
     return switch (code) {
         G_UP => "╱",
         G_DOWN => "╲",
         G_FLAT => "─",
+        G_VERT => "│",
         G_MARK => "●",
         else => " ",
     };
@@ -77,7 +81,7 @@ fn rasterise(comptime W: usize, comptime H: usize, comptime vs: []const Pt) [H][
         // The glyph must follow the segment's real slope, which needs BOTH deltas: the S runs right→left
         // across its bars, so a down-LEFT join is ╱, not ╲. A level run gets its own glyph.
         const down_right = (z.row > a.row) == (z.col > a.col);
-        const stroke: u8 = if (z.row == a.row) G_FLAT else if (down_right) G_DOWN else G_UP;
+        const stroke: u8 = if (z.row == a.row) G_FLAT else if (z.col == a.col) G_VERT else if (down_right) G_DOWN else G_UP;
         const dc = @as(i32, @intCast(z.col)) - @as(i32, @intCast(a.col));
         const dr = @as(i32, @intCast(z.row)) - @as(i32, @intCast(a.row));
         const steps = @max(@abs(dc), @abs(dr));
@@ -95,7 +99,7 @@ fn rasterise(comptime W: usize, comptime H: usize, comptime vs: []const Pt) [H][
     return g;
 }
 
-fn spaces(n: usize) void {
+pub fn spaces(n: usize) void {
     var i: usize = 0;
     while (i < n) : (i += 1) print(" ", .{});
 }
@@ -117,7 +121,10 @@ pub fn bannerCompact() void {
 
 fn emitBanner(comptime compact: bool) void {
     const p = accentReal(); // brand accent (violet by default) — themeable via /theme
-    const y = c(Ansi.yellow);
+    const sk = skin.get();
+    const st = skin.traitsOf(sk);
+    // The rainbow paints the S too; the fruit skin draws it banana yellow.
+    const y = if (st.paints_runs) p else if (sk == .fruit) c(comptime palette.fg(.{ 255, 225, 53 })) else c(Ansi.yellow);
     const b = c(Ansi.bold);
     const r = c(Ansi.reset);
     const fbg = c(Ansi.frame_bg);
@@ -127,7 +134,11 @@ fn emitBanner(comptime compact: bool) void {
     // indented further to stay centred, and drops the curved caps (no room for them at 7 rows).
     const fw = if (compact) FRAME_W_S else FRAME_W;
     const fh = if (compact) FRAME_H_S else FRAME_H;
-    const grid = rasterise(fw, fh, if (compact) &verts_small else &verts);
+    const grid = switch (sk) {
+        .pie => rasterise(fw, fh, if (compact) &eggArt.verts_p_small else &eggArt.verts_p),
+        .bifrost => rasterise(fw, fh, if (compact) &eggArt.verts_m_small else &eggArt.verts_m),
+        else => rasterise(fw, fh, if (compact) &verts_small else &verts),
+    };
     const panel_w = fw + Mh * 2;
     const body_h = fh + Mv * 2;
     const indent: usize = if (compact) 4 else 2;
@@ -157,14 +168,26 @@ fn emitBanner(comptime compact: bool) void {
         if (row_idx >= Mv and row_idx < Mv + fh) {
             const fr = row_idx - Mv;
             print("{s}{s}", .{ ibg, y }); // lighter image frame, yellow annotation
-            for (grid[fr]) |code| print("{s}", .{glyph(code)});
+            switch (sk) {
+                .meow => eggArt.catRow(fr, fh, fw),
+                else => for (grid[fr]) |code| print("{s}", .{glyph(code)}),
+            }
             print("{s}", .{fbg}); // back to dark for the right margin
         } else {
             spaces(fw); // dark margin row (top / bottom of the inner frame)
         }
         spaces(Mh); // right dark margin
         print("{s}{s}│{s}", .{ r, p, r }); // right border on default bg
-        if (!compact and row_idx == label_row) print("   {s}S T E N C I L{s}", .{ b, r });
+        if (!compact and row_idx == label_row) {
+            // The blue screen sets the wordmark in its grey title bar, the rainbow in its hues.
+            const open: []const u8 = if (sk == .bluescreen)
+                c("\x1b[7m ")
+            else if (sk == .pie) // spelled out in gold: no pie stands in for these letters
+                c(skin.gold)
+            else if (st.wordmark_accented) p else "";
+            const close: []const u8 = if (sk == .bluescreen) " " else "";
+            print("   {s}{s}{s}{s}{s}", .{ b, open, st.wordmark, close, r });
+        }
         print("\n", .{});
     }
 

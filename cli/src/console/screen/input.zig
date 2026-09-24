@@ -5,11 +5,11 @@ const Screen = sc.Screen;
 const std = @import("std");
 const logo = @import("../../app/logo.zig");
 const Error = sc.Screen.Error;
-const reveal_speed_max = sc.reveal_speed_max;
-const reveal_speed_min = sc.reveal_speed_min;
+const reveal_speed_max = sc.speed_max;
+const reveal_speed_min = sc.speed_min;
 const sinkTrampoline = sc.Screen.sinkTrampoline;
 const ttyWrite = sc.ttyWrite;
-const reveal_speed_default = sc.reveal_speed_default;
+const reveal_speed_default = sc.speed_default;
 const parseRevealSpeed = sc.parseRevealSpeed;
 
 // One byte from `fd` within `ms`, or null (timeout / closed). Used only by the startup

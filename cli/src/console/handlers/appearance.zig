@@ -1,5 +1,5 @@
 //! Session-wide look and history steps: `/undo`/`/redo` acks, `/reset`, `/drop`, `/theme`
-//! (and the logo-click accent cycle), `/mouse` and `/reveal-speed`.
+//! (and the logo-click accent cycle), `/mouse`, `/reveal-speed` and the secret skins.
 const std = @import("std");
 const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
@@ -7,6 +7,8 @@ const theme = @import("../../app/theme.zig");
 const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const screen = @import("../screen.zig");
+const skin = @import("../../app/skin.zig");
+const rain = @import("../render/logoFx/rain.zig");
 const Session = @import("../session.zig").Session;
 
 pub fn doStep(session: *Session, moved: bool, ok: []const u8, none: []const u8) void {
@@ -51,6 +53,7 @@ pub fn doTheme(session: *Session, arg: []const u8) void {
 // Repaint everything in a new accent: the logo's RGB, the stored label and the screen.
 // `announce` prints the "theme set to …" line — typed `/theme` does, logo clicks stay silent.
 fn applyAccent(session: *Session, rgb: [3]u8, label: []const u8, hex: []const u8, announce: bool) void {
+    if (screen.current()) |s| if (skin.get() != .none) wear(s, .none);
     logo.setAccent(rgb);
     ui.setAccent(label);
     // In full-screen mode recapture the pinned logo header in the new accent (keeping the
@@ -76,6 +79,74 @@ pub fn randomCustomTheme(session: *Session, seed: u64) void {
     var hexbuf: [8]u8 = undefined;
     const hex = std.fmt.bufPrint(&hexbuf, "#{x:0>2}{x:0>2}{x:0>2}", .{ rgb[0], rgb[1], rgb[2] }) catch "#??????";
     applyAccent(session, rgb, hex, hex, false);
+}
+
+/// `/eastereggs`: the one place the secrets are written down — the words, nothing else.
+pub fn doEasterEggs() void {
+    const gold = logo.colorSeq(skin.gold);
+    for (std.enums.values(skin.Skin)) |s| {
+        const word = skin.traitsOf(s).word;
+        if (word.len != 0) logo.print("{s}/{s}{s}\n", .{ gold, word, logo.resetSeq() });
+    }
+}
+
+/// A secret skin's word: put it on, or take it off when it is the one already on.
+pub fn doEgg(which: skin.Skin) void {
+    const s = screen.current() orelse return logo.print(msg.eggs_full_screen_only, .{});
+    const was = skin.get();
+    const next: skin.Skin = if (was == which) .none else which;
+    wear(s, next);
+    phrase(skin.traitsOf(was).phrase_off);
+    switch (next) {
+        .matrix => {
+            rain.rain(s);
+            s.fullPaint();
+        },
+        .bluescreen => {
+            const pad = " " ** 40;
+            logo.print(msg.bluescreen_title, .{ pad[0..@min(pad.len, (s.cols -| 9) / 2)], logo.colorSeq("\x1b[7m"), logo.resetSeq() });
+            logo.print(msg.bluescreen_body, .{});
+        },
+        else => {},
+    }
+    phrase(skin.traitsOf(next).phrase);
+}
+
+// A secret's phrase, in the gold every skin leaves alone; nothing when it has none.
+fn phrase(text: []const u8) void {
+    if (text.len == 0) return;
+    logo.print("{s}{s}{s}\n", .{ logo.colorSeq(skin.gold), std.mem.trimEnd(u8, text, "\n"), logo.resetSeq() });
+}
+
+/// A logo click while a skin is on takes the skin off and changes nothing else. True when it did.
+pub fn eggOff() bool {
+    const s = screen.current() orelse return false;
+    const was = skin.get();
+    if (was == .none) return false;
+    wear(s, .none);
+    phrase(skin.traitsOf(was).phrase_off);
+    return true;
+}
+
+var own_accent: [3]u8 = .{ 0, 0, 0 };
+
+// Switch skins and repaint whole: the terminal's own colours follow when either skin paints cells.
+fn wear(s: *screen.Screen, next: skin.Skin) void {
+    const was = skin.get();
+    // The fairy lights borrow the accent; leaving them hands the user's own colour back.
+    if (next == .fairylight and was != .fairylight) own_accent = logo.accentRgb();
+    if (was == .fairylight and next != .fairylight) {
+        logo.setAccent(own_accent);
+        s.painted_accent = own_accent;
+    }
+    skin.set(next);
+    skin.reseed(@truncate(@as(u96, @bitCast(std.Io.Clock.now(.real, s.io).nanoseconds))));
+    skin.startClock(std.Io.Clock.now(.awake, s.io).toMilliseconds());
+    const takes_terminal = skin.traitsOf(was).paints_cells or skin.traitsOf(next).paints_cells;
+    if (logo.colorEnabled() and takes_terminal) screen.ttyWrite(s.fd, skin.traitsOf(next).osc);
+    if (!s.mouseOn()) s.setSelectionTint(true); // the terminal's own highlight follows the skin
+    s.captureHeader();
+    s.fullPaint();
 }
 
 /// `/mouse [on|off]` (bare toggles) — mouse reporting in full-screen mode: OFF hands the mouse back

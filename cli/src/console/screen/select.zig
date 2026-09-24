@@ -7,6 +7,7 @@ const readByteTimeout = screen_mod.Screen.readByteTimeout;
 const ttyWrite = screen_mod.ttyWrite;
 const std = @import("std");
 const logo = @import("../../app/logo.zig");
+const skin = @import("../../app/skin.zig");
 const ansi = @import("../render/ansi.zig");
 
 pub fn selActive(self: *Screen) bool {
@@ -36,7 +37,7 @@ pub fn selDrag(self: *Screen, col: u16, row: u16) void {
     if (!self.sel_active) return;
     // The drag may run from the output down into the input block, so it clamps to the
     // bottom of the screen rather than to the last output row.
-    self.sel_hr = std.math.clamp(row, self.bodyTop(), self.rows);
+    self.sel_hr = std.math.clamp(row, self.bodyTop(), self.rows -| 1); // not the rule under the input
     self.sel_hc = @max(@as(u16, 1), @min(col, self.cols));
     self.has_sel = true;
     self.repaintSelection();
@@ -142,7 +143,7 @@ pub fn setSelectionTint(self: *Screen, on: bool) void {
         }
         return ttyWrite(self.fd, "\x1b]117\x1b\\");
     }
-    const rgb = logo.accentRgb();
+    const rgb = skin.washRgb(skin.get(), 0, logo.accentRgb());
     var buf: [40]u8 = undefined;
     const seq = std.fmt.bufPrint(&buf, "\x1b]17;#{x:0>2}{x:0>2}{x:0>2}\x1b\\", .{ rgb[0], rgb[1], rgb[2] }) catch return;
     ttyWrite(self.fd, seq);

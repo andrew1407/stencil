@@ -9,9 +9,9 @@ const wheel_step = sc.wheel_step;
 pub fn headerRows(self: *Screen) u16 {
     return @intCast(self.header.items.len);
 }
-/// Max rows available for content (between the header and the rule + prompt at the bottom).
+/// Max rows available for content (between the header and the ruled-in prompt at the bottom).
 pub fn bodyRows(self: *Screen) u16 {
-    const used = self.headerRows() + 1 + self.prompt_rows; // 1 rule row + the input block
+    const used = self.headerRows() + 2 + self.prompt_rows; // a rule above the input block, one below
     return if (self.rows > used) self.rows - used else 0;
 }
 
@@ -55,7 +55,7 @@ pub fn lineAtRow(self: *Screen, row: u16) ?[]const u8 {
 /// Rows a drag may select: the output body and the input block (never the logo header).
 pub fn selectableRow(self: *Screen, row: u16) bool {
     if (row >= self.bodyTop() and row <= self.bodyBottom()) return true;
-    return row >= self.promptRow() and row <= self.rows;
+    return row >= self.promptRow() and row < self.rows;
 }
 
 /// The cap `setPromptRows` clamps to — the editor uses it to decide when to scroll the
@@ -79,13 +79,14 @@ pub fn contentShown(self: *Screen) u16 {
     return @intCast(w.end - w.first);
 }
 // The prompt owns the bottom row and the rule sits just above it, both PINNED to the
-// bottom; output fills the gap top-aligned. start() guarantees rows >= headerRows()+4.
+// bottom, with one more rule under the input; output fills the gap top-aligned. start()
+// guarantees rows >= headerRows()+5.
 pub fn statusRow(self: *Screen) u16 {
-    return self.rows - self.prompt_rows;
+    return self.rows -| self.prompt_rows -| 1;
 }
-/// The FIRST row of the input block (it grows downward to the bottom of the screen).
+/// The FIRST row of the input block (it grows downward to the rule on the last row).
 pub fn promptRow(self: *Screen) u16 {
-    return self.rows - self.prompt_rows + 1;
+    return self.rows -| self.prompt_rows;
 }
 /// How many rows that block currently owns — the editor clears all of them when the line
 /// it was holding goes away.

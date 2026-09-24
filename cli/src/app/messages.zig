@@ -128,3 +128,24 @@ pub const mouse_off = "mouse off — you can select/copy text natively now; '/mo
 pub const reveal_full_screen_only = "reveal speed is only available in --console-full-screen\n";
 pub const reveal_usage = "usage: /reveal-speed [{d} … {d}] — {d} slowest, {d} instant (default {d})\n";
 pub const reveal_instant = "{s} {d} — output appears instantly\n";
+
+pub const eggs_full_screen_only = "that one only works in --console-full-screen\n";
+pub const mranderson_on = "WHY, Mr. Anderson, WHY?\n";
+pub const bluescreen_title = "{s}{s} Stencil {s}\n\n";
+pub const bluescreen_body =
+    \\A fatal exception 0E has occurred at 0028:57E4C11. The current
+    \\drawing will not be terminated — nothing is lost.
+    \\
+    \\*  Type /theverybluescreen again to return to Stencil.
+    \\*  Click the logo to restart your colours.
+    \\
+    \\Press any key to continue _
+    \\
+;
+pub const bifrost_on = "Whosoever activates this secret, if they be worthy, shall possess the power of the Stencil.\n";
+pub const sunafterrain_on = "Been saving it for a rainy day!\n";
+pub const pieday_on = "You happen to like aged things.\n";
+pub const fairylight_on = "The world ain't fair. You've gotta take what you need when you can get it.\n";
+pub const meow_on = "Meow)\n";
+pub const meow_off = "Meow(\n";
+pub const fruit_on = "Fruits! Johnny, they're in the trees!\n";

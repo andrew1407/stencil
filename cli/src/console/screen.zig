@@ -10,6 +10,7 @@ const logoFx = @import("render/logoFx.zig");
 const tty = @import("screen/tty.zig");
 const prefs = @import("screen/prefs.zig");
 const mouse = @import("screen/mouse.zig");
+const skin = @import("../app/skin.zig");
 
 pub const ttyWrite = tty.ttyWrite;
 pub const gotoRow = tty.gotoRow;
@@ -34,11 +35,7 @@ pub fn current() ?*Screen {
 pub const max_lines = 5000; // scrollback cap; oldest lines drop past this
 pub const wheel_step = 3; // rows per wheel notch
 pub const header_pad = 1; // blank rows between the logo header and the output
-// `/reveal-speed <speed>`, 0.01 … 1: 1 = instant, smaller = slower (0 would never finish). The
-// constants above are the pace at the default 0.5; each scales by (1-speed)/speed, which is 1 there.
-pub const reveal_speed_min = 0.01;
-pub const reveal_speed_max = 1.0;
-pub const reveal_speed_default = 0.5;
+pub const max_cached_rows = 512; // screen rows whose last paint is remembered; any beyond always repaint
 
 pub const Screen = struct {
     gpa: std.mem.Allocator,
@@ -72,12 +69,15 @@ pub const Screen = struct {
     capturing_header: bool = false,
     scroll_off: usize = 0, // lines scrolled up from the live bottom (0 = live)
     mouse_on: bool = false, // SGR mouse reporting state (toggled by /mouse)
-    reveal_speed: f64 = reveal_speed_default, // how fast new output sweeps in (1 = instantly)
+    reveal_speed: f64 = speed_default, // how fast new output sweeps in (1 = instantly)
     skip_reveal_once: bool = false, // next append lands at once (the echo of a typed command)
     reveal_last_ns: i96 = 0, // when the last sweep finished (0 = none yet) — burst detection
     reveal_burst_ns: i96 = 0, // when the current burst of output began
     wordmark_row: u16 = 0, // 1-based screen row of "S T E N C I L" (0 = not found)
     wordmark_col: u16 = 0, // 1-based starting column of the wordmark
+    // Each row's last paint, hashed (0 = unknown); a skin frame (`skip_unchanged`) writes only rows that moved.
+    row_hashes: [max_cached_rows]u64 = @splat(0),
+    skip_unchanged: bool = false,
     // In-app text selection (drag to highlight) — works while mouse tracking is on, which would
     // otherwise deny native selection. Extracted on release, copied only on Ctrl-S. 1-based cells.
     sel_active: bool = false, // a drag is in progress
@@ -99,7 +99,7 @@ pub const Screen = struct {
         logo.setSink(sinkTrampoline, self);
         errdefer logo.clearSink();
         self.captureHeader();
-        if (self.rows < self.headerRows() + 4 or self.cols < 8) {
+        if (self.rows < self.headerRows() + 5 or self.cols < 8) {
             self.freeAll();
             return Error.TerminalTooSmall;
         }
@@ -109,7 +109,7 @@ pub const Screen = struct {
         // Mouse tracking is ON by default; terminals keep a native-selection escape hatch
         // (Shift/Option+drag), and `/mouse off` or STENCIL_CONSOLE_MOUSE hands the mouse back.
         self.setMouse(mousePreference() orelse true);
-        self.reveal_speed = revealSpeedPreference() orelse reveal_speed_default; // STENCIL_CONSOLE_REVEAL_SPEED sets your own
+        self.reveal_speed = revealSpeedPreference() orelse speed_default; // STENCIL_CONSOLE_REVEAL_SPEED sets your own
         logo.setAccentSentinel(true); // stored accent spans re-tint to the live accent on repaint
         self.painted_accent = logo.accentRgb();
         g_screen = self;
@@ -122,7 +122,7 @@ pub const Screen = struct {
         self.setMouse(false);
         self.setSelectionTint(false); // the terminal keeps its own selection colour after us
         // Restore: re-enable autowrap, leave the alternate screen.
-        ttyWrite(self.fd, "\x1b[?7h\x1b[?1049l");
+        ttyWrite(self.fd, skin.leaveSeq());
         g_screen = null;
         self.freeAll();
     }

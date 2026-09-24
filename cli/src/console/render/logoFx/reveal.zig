@@ -8,6 +8,7 @@ const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
 const Span = ansi.Span;
 const timing = @import("timing.zig");
+const skin = @import("../../../app/skin.zig");
 
 const waitFrame = timing.waitFrame;
 const Frame = timing.Frame;
@@ -86,9 +87,33 @@ pub fn revealNew(self: *Screen, n_new: usize) void {
     var x: u16 = per;
     while (x < reach) : (x +|= per) {
         if (waitFrame(self, p.step_ms)) break;
-        paintNewRows(self, first_new, x);
+        if (!skinFrame(self, first_new, x)) paintNewRows(self, first_new, x);
     }
     self.paintBody(); // settle: the whole text, however the loop ended
+}
+
+/// Move an animated skin to the clock's frame and repaint what it colours: the logo, the rule
+/// and the body — with rows from `first_new` cut at `x` while a sweep is typing them in. False
+/// when no skin moved, so nothing was painted.
+pub fn skinFrame(self: *Screen, first_new: ?usize, x: u16) bool {
+    const s = skin.get();
+    const t = skin.traitsOf(s);
+    if (!t.animated) return false;
+    if (!skin.syncClock(std.Io.Clock.now(.awake, self.io).toMilliseconds())) return false;
+    if (s == .fairylight) { // the next bulb lights with the very wipe a `/theme` change runs
+        if (first_new != null) return false;
+        const rgb = skin.nextBulb() orelse return false;
+        logo.setAccent(rgb);
+        self.onThemeChanged();
+        return true;
+    }
+    if (t.moves_logo) self.captureHeader();
+    self.skip_unchanged = true; // most frames move a picture or two: only those rows go out
+    defer self.skip_unchanged = false;
+    self.paintHeader();
+    self.paintBodyCut(first_new, x);
+    self.drawStatusBar();
+    return true;
 }
 
 // One frame of the sweep: only the arriving rows, each cut to its first `x` visible

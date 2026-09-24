@@ -332,5 +332,7 @@ test "layering: severity has one definition, and only the presentation layer pri
 test {
     _ = palette;
     _ = mark;
+    _ = @import("logo/eggArt.zig");
     _ = help;
+    _ = @import("skin.zig");
 }

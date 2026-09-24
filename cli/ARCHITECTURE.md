@@ -44,7 +44,7 @@ reports through `app/report.zig` and never spells an ANSI escape; `app/logo.zig`
 | Path | Holds | Rule |
 |---|---|---|
 | `build.zig`, `build.zig.zon` | the build (core `.cpp` + `cliApi.cpp` + the stb TUs, libc++) and the pinned stb dependency | the core file list mirrors `STENCIL_CORE_SOURCES` |
-| `src/main.zig`, `help.txt`, `app/` (`logo.zig` + `logo/`, `report.zig`, `brand.zig`, `theme.zig`, `messages.zig`) | the entry point, the generated `--help` body, then the presentation ring: the console logo + layer lint, the report sink, the brand colours, the user-facing strings | every user-facing string is a named constant in `app/messages.zig`, pinned in `tests/pins/` |
+| `src/main.zig`, `help.txt`, `app/` (`logo.zig` + `logo/`, `report.zig`, `brand.zig`, `theme.zig`, `skin.zig`, `messages.zig`) | the entry point, the generated `--help` body, then the presentation ring: the console logo + layer lint, the report sink, the brand colours, the secret console skins, the user-facing strings | every user-facing string is a named constant in `app/messages.zig`, pinned in `tests/pins/` |
 | `src/args.zig` + `params/` | the flag surface: `options.zig` (Options + Mode), `parse.zig` (argv → Options) | the flag surface is `CONTRACT.md`, mirrored by `mcp/src/args/` and the bot's `CliArgvBuilder` |
 | `src/pipeline.zig` + `pipeline/` | orchestration: resolve a source, run the steps, the one-shot run | headless; reports through `report.zig` |
 | `src/script.zig` + `script/` (`core.zig` is the core's script bridge) | `.stc` script modes: read, check, lower to an op plan, emit the script for another surface (`emit/`, one backend per target), expand a `@source` into files, run the lowered ops, name the output | the core owns the language; this owns files, pixels and where output lands. An emit backend is the twin of that surface's own runner, and refuses what stc-contract §10 says the surface cannot honour |
@@ -168,6 +168,7 @@ classDiagram
 | Adapter | `media/layout.zig parse` (browser JSON → `LineDraw`), `server/payload.zig buildLayout` (session → envelope), `media/image.zig` over stb | The CLI never edits the layout schema, it translates to and from it |
 | Pipeline | `pipeline/oneshot.run` over `pipeline/steps.zig` | acquire → crop → rotate → filter → layout → encode; the console drives the same steps one at a time |
 | Table-driven validator | `opSchema.Schema` over the embedded `opRegistry.json`; `registry/table.zig op_registry` | A comptime check pins one descriptor per `Action` variant; forbidden names fail at build |
+| Traits table | `app/skin.zig` `Traits`, one row per `Skin` | Its word, phrase, wordmark and how it paints; every consumer reads a field, none switches on the skin |
 
 ## Design
 
@@ -207,6 +208,13 @@ classDiagram
   `EditState`, `pushState`s it and `rebuild`s the view (`derivedView.Base` caches rotate →
   crop → filter, then the lines). `/undo` and `/redo` move `cursor`; a recorded edit
   `markDirty`s and `flushSync` uploads at the prompt boundary.
+- **A secret skin.** A word `app/skin.zig` knows (listed only by `/eastereggs`, never by
+  `help` or Tab) is caught in `dispatch.zig` before `verbOf`, so it has no `Verb`. The skin
+  is global presentation state: `render/ansi/restyle.zig` re-dresses every row the full-screen
+  console paints (the clip walkers, the status rule, the prompt), `logo/mark.zig` swaps the S
+  art, and an animated skin repaints from the idle hook at a frame rate, writing only the rows
+  whose bytes differ from their last paint (`Screen.row_hashes`). A logo click or `/theme`
+  takes it off.
 - **An LLM turn.** `/prompt` → `console/llm/run.doPrompt`: `Session.llmConfig()` resolves
   the `Config`, the working image, edge map and `Attachment`s ride as images,
   `buildRequestWithHistory` builds the `Request` for the `Provider`, `transport.postJson`
