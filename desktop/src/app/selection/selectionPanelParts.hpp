@@ -33,7 +33,19 @@ namespace stencil::gui {
     t->ensurePolished();
     t->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     t->verticalHeader()->setDefaultSectionSize(t->fontMetrics().height() + 13);
+    t->updateGeometry();
   }
+
+  // A table no taller than its rows: a scroll area's own minimum is its scrollbars' length,
+  // which outgrew the one-row empty message and left a blank band under it.
+  class FitTable : public QTableWidget {
+   public:
+    using QTableWidget::QTableWidget;
+    QSize minimumSizeHint() const override {
+      const QSize base = QTableWidget::minimumSizeHint();
+      return {base.width(), qMin(base.height(), sizeHint().height())};
+    }
+  };
 
   // A cell widget held at the cell's centre (browser td text-align/vertical-align center); a
   // bare one is stretched, or pinned to the top once its QSS caps its height.

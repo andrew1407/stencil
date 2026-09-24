@@ -7,6 +7,7 @@
 #include <vector>
 
 class QTableWidget;
+class QTableWidgetItem;
 class QLabel;
 class QPushButton;
 class QToolButton;
@@ -79,6 +80,10 @@ namespace stencil::gui {
     static QString swatchSheet(const QString& face, const QString& rim);
     void applyUnitHeaders();
     void showEmptyPoints();
+    // The lone "No … yet." row of either table; it hovers neutral grey (browser tr:hover).
+    QTableWidgetItem* emptyMessage(const QString& text) const;
+    static bool isEmptyRow(const QTableWidget* t, int row);
+    QBrush emptyWash() const;
 
     QToolButton* collapseBtn = nullptr;  // header chevron: hide the panel (browser panel header)
     // Lives in the header row beside the chevron (browser .coord-panel-header); `tabs` hides its

@@ -41,16 +41,15 @@ namespace stencil::gui {
     canvasHoverLineRow = -1;
     if (lines.empty()) {
       this->lines->horizontalHeader()->hide();
+      this->lines->setShowGrid(false);   // a lone message has no cells to divide
       this->lines->setRowCount(1);
       this->lines->setSpan(0, 0, 1, LCOL_COUNT);
-      auto* item = new QTableWidgetItem("No lines yet.");
-      item->setFlags(Qt::NoItemFlags);
-      item->setTextAlignment(Qt::AlignCenter);
-      item->setForeground(iconColor);
-      this->lines->setItem(0, 0, item);
+      this->lines->setItem(0, 0, emptyMessage(QStringLiteral("No lines yet.")));
+      fitTableRows(this->lines);
       return;
     }
     this->lines->horizontalHeader()->show();
+    this->lines->setShowGrid(true);
     this->lines->setRowCount(static_cast<int>(lines.size()));
     for (int i = 0; i < static_cast<int>(lines.size()); ++i) {
       const core::Line& ln = lines[i];
@@ -109,6 +108,10 @@ namespace stencil::gui {
   // Kept in one place so setCanvasHover can restyle two rows without rebuilding or scrolling.
   void SelectionPanel::styleLineRow(int i) {
     if (!lines || i < 0 || i >= lines->rowCount()) return;
+    if (isEmptyRow(lines, i)) {
+      if (QTableWidgetItem* it = lines->item(0, 0)) it->setBackground(i == canvasHoverLineRow ? emptyWash() : QBrush());
+      return;
+    }
     const bool sel = std::find(linesSelected.begin(), linesSelected.end(), i) !=
                      linesSelected.end();
     // Browser .lines-row-selected (the delegate strokes the outline) and .lines-row-hover.
@@ -138,7 +141,7 @@ namespace stencil::gui {
     if (points && pointRow != canvasHoverPointRow) {
       const bool wasUpdating = updating;
       updating = true;
-      const QBrush wash = rowWash(false);
+      const QBrush wash = isEmptyRow(points, pointRow) ? emptyWash() : rowWash(false);
       const auto paintRow = [this, &wash](int r, bool on) {
         if (r < 0 || r >= points->rowCount()) return;
         for (int c = 0; c < COL_COUNT; ++c)
@@ -164,6 +167,7 @@ namespace stencil::gui {
 
     if (!line || line->points.empty()) { showEmptyPoints(); return; }
     points->horizontalHeader()->show();   // …and back once there are rows to head
+    points->setShowGrid(true);
 
     // `updating` suppresses itemChanged while cells are set; X/Y editable px, page read-only.
     // Mirrors browser coordTable.js.
