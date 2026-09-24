@@ -130,6 +130,11 @@ export const loadAccent = ({
     get motion() {
       return window.StencilMotion;
     },
+    get skin() {
+      return window.StencilSkin;
+    },
+    /** `<html data-skin="…">` as currently stamped, null when off. */
+    dataSkin: () => documentElement.getAttribute('data-skin'),
     /** `<html data-motion="…">` as currently stamped. */
     dataMotion: () => documentElement.getAttribute('data-motion'),
     /** Flip the OS reduced-motion preference (read live, no event). */

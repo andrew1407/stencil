@@ -1,0 +1,178 @@
+/* The webcore skin's windows: the toolbar headers, the list as an Explorer well, flat grey
+   menus with the navy bar, dialogs with a title strip, the yellow tooltip, the chat and the
+   options cards. Browser twin: css/webcore/windows.css. */
+
+/* ── Toolbars and panes ── */
+:root[data-skin="webcore"] header,
+:root[data-skin="webcore"] .filters {
+  background: var(--wc-face);
+  border-bottom: 1px solid var(--wc-shadow);
+  box-shadow: 0 1px var(--wc-hilight);
+}
+:root[data-skin="webcore"] header .logo { width: 24px; height: 24px; }
+:root[data-skin="webcore"] header h1,
+:root[data-skin="webcore"] .brand h1 { font-weight: 700; color: var(--wc-ink); }
+:root[data-skin="webcore"] :is(.dlbl, .count, label.f, .lbl, .zlabel, .hint, .section-head .chev, .peek-title) {
+  color: var(--wc-ink);
+  letter-spacing: 0;
+}
+:root[data-skin="webcore"] :is(.dlbl, label.f, .lbl, .peek-title) { text-transform: none; font-weight: 700; }
+:root[data-skin="webcore"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note) { color: var(--wc-muted); }
+:root[data-skin="webcore"][data-theme="light"] :is(.help, .status, p.sub, .dialog-note, .pin-sub, .pin-empty, .src-note) { color: #404040; }
+
+/* The list is a white well; a hovered row is the light face, and the row's own cues stay. */
+:root[data-skin="webcore"] :is(.list, .ed-list, .src-list) {
+  background: var(--wc-window);
+  box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] .list { margin: 4px 6px 6px; }
+:root[data-skin="webcore"] :is(.row, .ed-row, .src-row, .pin-row) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transform: none;
+}
+:root[data-skin="webcore"] .pin-row { background: var(--wc-window); box-shadow: var(--wc-well); }
+:root[data-skin="webcore"] :is(.row, .ed-row, .src-row, .pin-row):hover { background: var(--wc-light); }
+:root[data-skin="webcore"] :is(.ed-row.current, .src-row.picked) {
+  background: var(--wc-select);
+  color: var(--wc-on-select);
+  outline: 0;
+  box-shadow: none;
+}
+:root[data-skin="webcore"] :is(.ed-row.current, .src-row.picked) :is(.name, .sub, .dim) { color: var(--wc-on-select); }
+:root[data-skin="webcore"] .row.list-hl { outline: 2px solid var(--wc-focus); outline-offset: -2px; box-shadow: none; }
+:root[data-skin="webcore"] :is(.thumb, .ed-thumb, .pin-thumb, .src-fav) { border: 1px solid var(--wc-dark); background: var(--wc-window); }
+:root[data-skin="webcore"] .meta .name.clickable:hover { color: var(--wc-link); }
+:root[data-skin="webcore"] :is(.badge, .pin-kw, .pin-kind) {
+  background: var(--wc-face);
+  border: 0;
+  box-shadow: var(--wc-well);
+}
+:root[data-skin="webcore"] :is(.badge.fmt, .badge.pinned) { color: var(--wc-ink); }
+:root[data-skin="webcore"] .row.just-pinned { animation: none; }
+
+/* ── Menus: flat grey, the navy bar for the row under the pointer ── */
+:root[data-skin="webcore"] :is(.accent-dd-menu, .action-menu, .action-menu .flyout, .chat-more-menu) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0;
+  /* The outer --wc-dark line: on the dark face the bevel alone melted into the page under it. */
+  box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
+  padding: 3px;
+  animation: none;
+}
+:root[data-skin="webcore"] :is(.accent-dd-opt, .action-menu button, .action-menu .drag-item, .chat-more-item) {
+  background: transparent;
+  color: var(--wc-ink);
+  box-shadow: none;
+  border: 0 !important;
+  transform: none !important;
+}
+:root[data-skin="webcore"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected="true"],
+.action-menu button:hover, .action-menu .drag-item:hover, .action-menu .drag-item.over,
+.action-menu .submenu:hover > .submenu-head, .chat-more-item:hover:not(:disabled)) {
+  background: var(--wc-select);
+  color: var(--wc-on-select);
+  box-shadow: none !important;
+}
+:root[data-skin="webcore"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .accent-dd-opt[aria-selected="true"]) .accent-dd-name,
+:root[data-skin="webcore"] .action-menu .submenu:hover > .submenu-head .caret { color: var(--wc-on-select); }
+/* One bar only: the current value holds it until the pointer takes another row. */
+:root[data-skin="webcore"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover) {
+  background: transparent;
+  color: var(--wc-ink);
+}
+:root[data-skin="webcore"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover) .accent-dd-name { color: var(--wc-ink); }
+:root[data-skin="webcore"] .accent-swatch { border: 1px solid var(--wc-dark); box-shadow: none; }
+:root[data-skin="webcore"] .action-menu .sep { background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); height: 1px; margin: 3px 1px; }
+:root[data-skin="webcore"] .action-menu .label { color: var(--wc-muted); text-transform: none; letter-spacing: 0; font-weight: 700; }
+:root[data-skin="webcore"] .accent-dd-search-row { background: var(--wc-face); border-bottom: 1px solid var(--wc-shadow); }
+
+/* ── Dialogs: a raised window with the navy title strip ── */
+:root[data-skin="webcore"] :is(.dialog-back, .confirm-overlay) { background: rgba(0, 0, 0, 0.25); }
+:root[data-skin="webcore"] :is(.dialog, .confirm-box, #section-peek, .panel, .card) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0;
+  box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .card { padding-top: 8px; }
+:root[data-skin="webcore"] .dialog { padding: 3px 10px 10px; gap: 10px; }
+:root[data-skin="webcore"] .dialog-title {
+  background: var(--wc-title);
+  color: var(--wc-title-ink);
+  font-weight: 700;
+  font-size: 12px;
+  margin: 0 -7px;
+  padding: 3px 6px;
+}
+:root[data-skin="webcore"] .confirm-box { padding: 12px; }
+
+/* ── Tooltip: the yellow note ── */
+:root[data-skin="webcore"] :is(#app-tooltip, .chat-status-tip, .chat-thumb-preview) {
+  background: var(--wc-tip-bg);
+  color: var(--wc-tip-ink);
+  border: 1px solid var(--wc-dark);
+  box-shadow: none;
+}
+:root[data-skin="webcore"] :is(.tip-title, .tip-term, .tip-desc, .tip-line, .tip-hint, .tip-note, .tip-bullets li,
+.chat-status-tip th, .chat-status-tip td, .chat-thumb-preview-cap) { color: var(--wc-tip-ink); }
+:root[data-skin="webcore"] .tip-key {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0;
+  box-shadow: var(--wc-raised);
+  animation: none !important;
+}
+
+/* ── Chat ── */
+:root[data-skin="webcore"] .chat-transcript { background: var(--wc-window); box-shadow: var(--wc-sunken); }
+:root[data-skin="webcore"] #sec-assistant :is(.msg.user, .msg.assistant, .msg.error, .msg.note, .card, .warn, .chat-ask) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0;
+  box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] #sec-assistant .msg.user { background: var(--wc-light); }
+:root[data-skin="webcore"] #sec-assistant .msg.error { color: var(--danger); }
+:root[data-skin="webcore"] #sec-assistant .msg::before,
+:root[data-skin="webcore"] #sec-assistant .msg::after { display: none; }
+:root[data-skin="webcore"] #sec-assistant .chip { background: var(--wc-window); border: 0; box-shadow: var(--wc-well); }
+:root[data-skin="webcore"] .chat-typing i { animation: none; }
+:root[data-skin="webcore"] .chat-status-dot { border: 0; box-shadow: var(--wc-well); }
+
+/* ── Crop page: the stage is a sunken well, the box a dotted marquee ── */
+:root[data-skin="webcore"] .viewport { border: 0; box-shadow: var(--wc-sunken); }
+:root[data-skin="webcore"] .crop-box { outline: 1px dashed var(--wc-hilight); box-shadow: 0 0 0 1px var(--wc-dark); }
+:root[data-skin="webcore"] .handle { background: var(--wc-face); border: 1px solid var(--wc-dark); }
+:root[data-skin="webcore"] .preview-frame { box-shadow: var(--wc-sunken); border: 0; }
+
+/* ── Status lamps keep their colours, square in a well ── */
+:root[data-skin="webcore"] .conn-status { box-shadow: var(--wc-well); animation: none; }
+
+/* ── A logo show's notice: a system message box with its title strip; the stage a flat scrim ── */
+:root[data-skin="webcore"] .notify-toast,
+:root[data-skin="webcore"] .notify-toast.notify-shine {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0;
+  box-shadow: var(--wc-raised);
+  /* Room at the top for the title strip; the glyph and the words stay on one line. */
+  padding: 23px 12px 8px 8px;
+  position: relative;
+  flex-wrap: nowrap;
+  animation: none;
+}
+/* Laid over the box rather than into it, inset by the bevel's 3px. */
+:root[data-skin="webcore"] .notify-toast::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 3px;
+  height: 15px;
+  background: var(--wc-title);
+}
+:root[data-skin="webcore"] .toast-glow { display: none; }
+:root[data-skin="webcore"] .logo-stage { background: rgba(0, 0, 0, 0.5); }

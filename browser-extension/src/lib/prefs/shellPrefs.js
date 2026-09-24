@@ -60,6 +60,14 @@
   };
 
   applyMotion(readMotion());
+  // The mode the webcore skin stilled (browser setMotionOverride); a user's own choice drops it.
+  const HKEY = 'stencil_motion_held';
+  const readHeld = function () { return readPref(HKEY, isMotion, ''); };
+  const writeMotion = function (mode) {
+    writePref(MKEY, mode);
+    applyMotion(mode);
+    try { window.dispatchEvent(new CustomEvent('stencil:motion-changed', { detail: mode })); } catch (e) { /* no DOM */ }
+  };
   window.StencilMotion = {
     modes: MOTION_MODES,
     labels: MOTION_LABELS,
@@ -68,10 +76,11 @@
     // No wipe: a motion change repaints nothing.
     set: function (mode) {
       const next = isMotion(mode) ? mode : MOTION_DEFAULT;
-      writePref(MKEY, next);
-      applyMotion(next);
+      writePref(HKEY, '');
+      writeMotion(next);
       return next;
     },
+    stored: function () { return readHeld() || readMotion(); },
     // The gates lib/motion.js asks (browser prefs.js motionReduced / dustEnabled / particleStyle).
     reduced: motionReduced,
     particles: function () { return particleStyle() !== null; },
@@ -90,7 +99,37 @@
         window.addEventListener('storage', function (e) {
           if (e.key === MKEY || e.key === null) fn(readMotion());
         });
+        window.addEventListener('stencil:motion-changed', function () { fn(readMotion()); });
       } catch (e) { /* no window — not a page context */ }
+    },
+  };
+
+  // The webcore skin (browser css/webcore/): stored, unlike the browser's session-only one,
+  // because a popup lives only while it is open. lib/webcore/ reads <html data-skin>.
+  const SKEY = 'stencil_skin';
+  const SKIN = 'webcore';
+  const readSkin = function () { return readPref(SKEY, function (v) { return v === SKIN; }, '') === SKIN; };
+  const applySkin = function (on) {
+    if (on) document.documentElement.setAttribute('data-skin', SKIN);
+    else document.documentElement.removeAttribute('data-skin');
+  };
+  applySkin(readSkin());
+  window.StencilSkin = {
+    storageKey: SKEY,
+    get: readSkin,
+    set: function (on) {
+      const was = readSkin();
+      if (on && !was && readMotion() !== 'none') {
+        writePref(HKEY, readMotion());
+        writeMotion('none');
+      } else if (!on && was) {
+        const held = readHeld();
+        writePref(HKEY, '');
+        if (held && readMotion() === 'none') writeMotion(held);
+      }
+      writePref(SKEY, on ? SKIN : '');
+      applySkin(!!on);
+      return !!on;
     },
   };
 
@@ -98,6 +137,7 @@
   // writer — so a change in the options page reaches an open side panel without an echo.
   try {
     window.addEventListener('storage', function (e) {
+      if (e.key === SKEY || e.key === null) applySkin(readSkin());
       // Animated here too: a silent palette jump reads as a glitch.
       if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle');   // key===null on localStorage.clear()
       if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');

@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     check(resolveShow("grey", MotionMode::NONE) == "webcore", "grey with the interface still: the skin");
     check(resolveShow("grey", MotionMode::SLIDE).isEmpty(), "grey under slide: nothing");
     check(resolveShow("grass", MotionMode::NONE) == "makeItSmall", "grass: shrink");
-    check(resolveShow("brown", MotionMode::NONE) == "pushToBloat", "brown: grow");
+    check(resolveShow("brown", MotionMode::NONE) == "punchToBloat", "brown: grow");
     check(resolveShow("pink", MotionMode::NONE) == "pinkVibe", "pink: the edit");
     check(resolveShow("#ffffff", MotionMode::PARTICLES) == "chaseMe", "white follows");
     check(resolveShow("#000000", MotionMode::PARTICLES) == "runaway", "black escapes");
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     setMotionMode(MotionMode::PARTICLES);
     check(styleOf("firework") == int(ParticleStyle::FIRE), "a styled show wears its OWN cloud");
     check(styleOf("dustySpot") == int(ParticleStyle::DUST), "…whatever the user is running");
-    check(styleOf("pushToBloat") == int(ParticleStyle::DUST), "every other show wears the current one");
+    check(styleOf("punchToBloat") == int(ParticleStyle::DUST), "every other show wears the current one");
     check(styleOf("chaseMe") == int(ParticleStyle::DUST), "…roaming included");
     check(styleOf("neonOn") == -1, "neon IS the light and never wears a cloud");
     check(styleOf("makeSomeSunshine") == -1, "…nor does sun, which is its own ring of beams");

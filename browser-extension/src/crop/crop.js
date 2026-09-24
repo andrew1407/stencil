@@ -7,6 +7,7 @@ import { watchNumericInputs } from '../lib/control/numericInput.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
+import { installWebcore, wireWebcoreHold } from '../lib/webcore/skin.js';
 import { createCropStage } from './stage.js';
 import { createCropControls } from './controls.js';
 import { buildHandoffPayload } from './handoff.js';
@@ -21,6 +22,8 @@ const postToHost = (type) => {
 // Answered as soon as this script runs: the host's watchdog asks "did the frame load at
 // all?" (a CSP / mixed-content block stops it dead), not "did the image finish loading".
 postToHost('ready');
+installWebcore(document);
+wireWebcoreHold(document.querySelector('header .logo-wrap'));
 
 const statusEl = document.getElementById('status');
 

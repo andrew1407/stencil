@@ -11,6 +11,7 @@ import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { setTip } from '../lib/tip/tip.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
 import { installDblReset } from '../lib/control/dblReset.js';
+import { installWebcore, wireWebcoreHold } from '../lib/webcore/skin.js';
 import { statusEl, themePref, themeBtn, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
 import { state } from './list/model.js';
 import { filterUi, applyFilters } from './list/filters.js';
@@ -26,6 +27,8 @@ import './assistantControls.js';
 import './storageSync.js';
 
 installDblReset(document);
+installWebcore(document);
+wireWebcoreHold(document.querySelector('header .logo-wrap'));
 
 let searchTimer = null;
 document.getElementById('f-search').addEventListener('input', () => {

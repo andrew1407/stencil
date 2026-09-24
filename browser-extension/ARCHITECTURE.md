@@ -40,14 +40,14 @@ Enforced by `tests/layerBoundary.test.js` over every relative import in `src/`.
 |---|---|---|
 | `manifest.json` | MV3 manifest | CSP `script-src 'self'`, no `unsafe-inline`; `web_accessible_resources` is exactly one file (`src/crop/crop.html`) — `tests/manifestSecurity.test.js` |
 | `src/config/` | copies of `browser/js/config/{,llm/}` tables (`motion`, `opRegistry`, `providers`, `systemPrompt`) | byte-pinned to the browser originals by `tests/dataParity.test.js` |
-| `src/lib/` | the shared bottom: `urlGuard` (the ONE fetch guard), `stencil.js` (settings, guarded `imageData`, `editorLaunch`), the scanner, filters, pins, `connections` (+ model/store/rest), `editorTabs`, the menus, `dropZones`, `pollClock`, `overlay` + `shellTheme`, `rasterize`, `videoFrames`, `messages.js`, the ported browser modules, `theme/`, `animations/`, `accent.js` + the pre-paint scripts, `motion/` | pure where possible and node-tested; ported browser files stay byte-identical (`tests/portParity.test.js`) |
+| `src/lib/` | the shared bottom: `urlGuard` (the ONE fetch guard), `stencil.js` (settings, guarded `imageData`, `editorLaunch`), the scanner, filters, pins, `connections` (+ model/store/rest), `editorTabs`, the menus, `dropZones`, `pollClock`, `overlay` + `shellTheme`, `rasterize`, `videoFrames`, `messages.js`, the ported browser modules, `theme/`, `animations/`, `accent.js` + the pre-paint scripts, `motion/`, `webcore/` (the skin's sheets, pixel glyphs and hold), `logo/` (the logo shows' stage, its ported rules and `logoStage.json`) | pure where possible and node-tested; ported browser files stay byte-identical (`tests/portParity.test.js`) |
 | `src/llm/` | settings, client, surface, the registry-driven validator (`opSchema` + `opValidate` + `opPlan`, byte-identical to the browser's), the extension profile (`opProfile`, `opPrompt`), executors, the chat controller | plans validate before any executor runs |
 | `src/background/` | the service worker: `background.js` is wiring only; menus, registrars, tab state, the editor relay, `handlers/` (one per message group), frame capture, context actions | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
 | `src/content/` | `ctxTarget.js` (the one always-on content script), `pageApiMain` + `pageApiBridge` (MAIN ⇄ ISOLATED for `window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, for `stencil.extension`) | MAIN-world files cannot import modules; they mirror `lib/image/pageImages.js` |
 | `src/popup/` | `popup.html` + `popup.js` (wiring only) and the extracted pieces; `mode.js` + its sections; `assistant.js` + `assistant/` | the same controller runs the popup, the side panel and the DevTools panel |
 | `src/sidepanel/`, `src/devtools/` | the docked and the DevTools surfaces | reuse `popup.js` and the popup CSS set; DevTools targets `inspectedWindow.tabId` |
 | `src/crop/` | the quick-crop tool: stage (zoom + drag), controls (page/orientation), handoff | the only web-accessible resource |
-| `src/options/` | `options.html|js` (boot order only) + one section file per group | |
+| `src/options/` | `options.html|js` (boot order only) + one section file per group; `secrets/` — the logo shows' hold, typed words, notice and the page's `window.stencil.EasterEggs` | the shows run on this page only |
 | `tests/` | `node --test` suites, `helpers/` (chrome/DOM stubs), `pins/css.json`, `fixtureOverrides.json` | |
 
 ## Entities
@@ -148,6 +148,26 @@ classDiagram
   `parseOpPlan` against `{ listingLength, tabsLength }`; the `opExecutors` run each
   `PlanAction` through the injected capabilities into cards. If every action only gathered
   context (`continuationOnly`), one more round runs; `clearChat` resolves last.
+- **The webcore skin.** The browser's Win95 look (`css/webcore/`), in both themes. A press
+  held still for 3 s on a page's header mark (`lib/webcore/skin.js` `wireWebcoreHold`) flips it,
+  only while the accent is the grey preset and the motion mode is None — the browser
+  `logoStage.json` webcore row; the release's click is swallowed. `StencilSkin` stores
+  `stencil_skin` and stamps `<html data-skin="webcore">` pre-paint, and the `storage` event
+  carries it to every open page. Turning it on stills the interface: a mode other than None is
+  held in `stencil_motion_held` and None is written; turning it off writes the held mode back,
+  unless the user picked one in between (`StencilMotion.set` drops the hold) — the browser's
+  session override, stored because the skin outlives the popup. `lib/webcore/{tokens,chrome,windows}.css` restyle under that
+  attribute; `installWebcore` swaps every `svg.ic` and the mark to pixel art from
+  `iconsWebcore.json` (a pinned copy of the browser's), inks the mark's ring and `--wc-focus`
+  in the accent, and follows theme, accent and newly added glyphs.
+- **The logo shows.** The options page runs the browser's logo shows (`logoStage.json`, a
+  pinned copy): holding the mark for `holdMs` opens the show its accent and motion mode name
+  (`resolveShow`), typing a show's name outside a field opens that show, and
+  `window.stencil.EasterEggs` (`secrets/easterEggs.js`, the page's own facade) calls each one or
+  switches it with `<name>Mode`. All three go through `secrets/trigger.js` `activateShow`:
+  `webcore` toggles the skin, every other show opens `lib/logo/stage.js`'s full-window canvas,
+  and each posts the gold `Secret activated` notice (`secrets/toast.js`). `pinkVibe` paints an
+  image, so it stays the editor's own.
 - **A server connection.** `addServer(rawUrl, token)` in `lib/connection/connections.js` calls
   `connect` (a session from `POST /auth/token`, proven by `GET /projects`), then
   `upsertConnection` persists a `StoredConnection`. `collectSharedPins` lists every
@@ -181,7 +201,8 @@ classDiagram
    `{ dataUrl, name, crop?, page?, incognito? }`. The fragment never reaches a server; the
    editor consumes it in `DrawingApp.applyExternalLaunch()` and strips it.
 3. **Ports stay byte-identical.** `controlTooltip`, `numericInput`, `dropdownMenu`,
-   `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons`, `rectTween`, `llmClient` and
+   `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons`, `rectTween`, `llmClient`, the
+   logo stage's `stageRules`/`stageMotion`/`stageCloud`/`stagePaint`/`pointer`/`toastGlow` and
    the three `op*` validator files are copies of the browser's, pinned by
    `tests/portParity.test.js`.
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable

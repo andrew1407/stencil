@@ -1,0 +1,197 @@
+/* The webcore skin's chrome: the face, the type, and every control as a raised or sunken box —
+   buttons, pills, fields, selects, checks and scrollbars. Browser twin: css/webcore/chrome.css. */
+:root[data-skin="webcore"],
+:root[data-skin="webcore"] body {
+  background: var(--wc-desktop);
+  color: var(--wc-ink);
+}
+/* A page whose body is its own window (popup, side panel, DevTools, crop) is the grey face. */
+:root[data-skin="webcore"]:has(body > header),
+:root[data-skin="webcore"] body:has(> header) { background: var(--wc-face); }
+:root[data-skin="webcore"] *,
+:root[data-skin="webcore"] *::before,
+:root[data-skin="webcore"] *::after {
+  font-family: var(--wc-font) !important;
+  border-radius: 0 !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-skin="webcore"] :is(code, pre, .chat-composer textarea) { font-family: 'Menlo', 'Consolas', monospace !important; }
+:root[data-skin="webcore"] ::selection { background: var(--wc-select); color: var(--wc-on-select); }
+:root[data-skin="webcore"] :focus-visible { outline: 1px dotted var(--wc-ink); outline-offset: -3px; }
+:root[data-skin="webcore"] a { color: var(--wc-link); }
+:root[data-skin="webcore"] code { background: var(--wc-window); box-shadow: var(--wc-well); }
+
+/* ── Buttons: raised; a press, an open menu or an "on" state sinks ── */
+:root[data-skin="webcore"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn,
+.pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest,
+.chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  border: 0 !important;
+  box-shadow: var(--wc-raised);
+  transform: none !important;
+  filter: none;
+  opacity: 1;
+  animation: none;
+}
+/* The row buttons sit quiet until their row is hovered; the skin keeps them standing. */
+:root[data-skin="webcore"] :is(.more-btn, .pin-btn) { color: var(--wc-ink); }
+:root[data-skin="webcore"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn,
+.pin-clear, .confirm-btn, .chat-send, .chat-retry, .chat-config-cta, .chat-suggest,
+.chat-ask-submit, .chat-jump-btn, .chat-clear, .msg-menu-btn, .x-dismiss, .chk):hover:not(:disabled) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+:root[data-skin="webcore"] :is(button, .icon-btn, .mini, .btn, .zbtn, .more-btn, .pin-btn,
+.confirm-btn, .chat-send, .chk):active:not(:disabled),
+:root[data-skin="webcore"] :is(.more-btn.active, .pin-btn.active, .seg button.active, .chk:has(> input:checked)) {
+  background: var(--wc-light);
+  color: var(--wc-ink);
+  box-shadow: var(--wc-sunken) !important;
+}
+:root[data-skin="webcore"] :is(button.primary, .btn.primary, .dialog-actions button.primary, .confirm-btn.danger) {
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
+}
+/* A button's word is read, never colour-coded: Win95 had no red label. */
+:root[data-skin="webcore"] :is(.pin-btn.danger, .pin-clear, .confirm-btn.danger) { color: var(--wc-ink); }
+:root[data-skin="webcore"] :is(button, select, input, textarea, .chk):disabled,
+:root[data-skin="webcore"] :is(.chk, label):has(> :disabled) {
+  background: var(--wc-face);
+  /* Greyed and embossed, the skin's own disabled look; the muted ink reads on both faces. */
+  color: var(--wc-muted);
+  text-shadow: 1px 1px var(--wc-hilight) !important;
+  box-shadow: var(--wc-raised);
+  opacity: 1;
+  cursor: default;
+}
+:root[data-skin="webcore"] :is(input, textarea):disabled { background: var(--wc-face); box-shadow: var(--wc-sunken); }
+/* No glass sweep and no hover nudge: the skin is still. */
+:root[data-skin="webcore"] :is(.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer)::after { display: none; }
+
+/* ── Fields: sunken white wells ── */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="webcore"] :is(select, textarea, .search, .num, .page-select, .dialog-select,
+.accent-dd-search, .pin-kw-input, .accent-dd-trigger, .chat-composer) {
+  background: var(--wc-window);
+  color: var(--wc-ink);
+  border: 0 !important;
+  box-shadow: var(--wc-sunken) !important;
+}
+:root[data-skin="webcore"] .chat-composer textarea { box-shadow: none !important; background: transparent; }
+/* A field under the pointer wears the 2px focus ring, as the browser's and the desktop's do. */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):hover:not(:disabled):not(:focus),
+:root[data-skin="webcore"] :is(select, textarea, .accent-dd-trigger):hover:not(:disabled):not(:focus) {
+  box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+:root[data-skin="webcore"] :is(input, select, textarea, .accent-dd-search):focus { outline: none; }
+:root[data-skin="webcore"] input::placeholder,
+:root[data-skin="webcore"] textarea::placeholder { color: var(--wc-muted); }
+
+/* A selector is a sunken field with a raised arrow button, as the desktop's combo is. */
+:root[data-skin="webcore"] .accent-dd-trigger { position: relative; padding-right: 24px; }
+:root[data-skin="webcore"] .accent-dd-caret {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wc-face);
+  color: var(--wc-ink);
+  box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] select {
+  appearance: none;
+  padding-right: 22px;
+  background-image: linear-gradient(var(--wc-face), var(--wc-face));
+  background-size: 16px calc(100% - 4px);
+  background-position: right 2px top 2px;
+  background-repeat: no-repeat;
+}
+
+/* ── Checks and radios: white wells with a black mark ── */
+:root[data-skin="webcore"] input[type="checkbox"],
+:root[data-skin="webcore"] input[type="radio"] {
+  width: 13px;
+  height: 13px;
+  min-width: 13px;
+  min-height: 13px;
+  background: var(--wc-window);
+  border: 0;
+  box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] input[type="checkbox"]:checked {
+  background: var(--wc-window) var(--accent-tick) center / 13px no-repeat;
+  box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] input[type="radio"] { border-radius: 50% !important; }
+:root[data-skin="webcore"] input[type="radio"]:checked {
+  background: radial-gradient(circle, var(--wc-ink) 0 2.5px, var(--wc-window) 3px);
+}
+:root[data-skin="webcore"] :is(input[type="checkbox"], input[type="radio"]):hover:not(:disabled) {
+  box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+/* A pill's check is hidden inside it; the pill's own press says the state. */
+:root[data-skin="webcore"] .chk { color: var(--wc-ink); font-weight: normal; }
+:root[data-skin="webcore"] input[type="range"] { accent-color: var(--wc-select); }
+:root[data-skin="webcore"] input[type="color"] { box-shadow: var(--wc-raised); background: var(--wc-face); border: 0; padding: 3px; }
+
+/* ── Scrollbars: the checkered track, a raised thumb that takes the accent under the pointer ──
+   scrollbar-width/-color back to auto: set, Chrome ignores every pseudo-element below. */
+:root[data-skin="webcore"] * { scrollbar-width: auto; scrollbar-color: auto; }
+:root[data-skin="webcore"] *::-webkit-scrollbar { width: 16px; height: 16px; }
+:root[data-skin="webcore"] *::-webkit-scrollbar-track,
+:root[data-skin="webcore"] *::-webkit-scrollbar-corner {
+  background: var(--wc-light);
+  background-image: repeating-conic-gradient(var(--wc-hilight) 0 25%, var(--wc-face) 0 50%);
+  background-size: 2px 2px;
+}
+:root[data-skin="webcore"] *::-webkit-scrollbar-thumb {
+  background: var(--wc-face);
+  box-shadow: var(--wc-raised);
+  border: 0;
+  border-radius: 0;
+}
+:root[data-skin="webcore"] *::-webkit-scrollbar-thumb:hover,
+:root[data-skin="webcore"] .sb-hover::-webkit-scrollbar-thumb { background: var(--wc-focus); }
+
+/* ── Glyphs: pixel art stays pixel art — crisp, untinted, never turning or glowing ── */
+:root[data-skin="webcore"] svg[data-wc],
+:root[data-skin="webcore"] img[data-wc] {
+  shape-rendering: crispEdges;
+  image-rendering: pixelated;
+  fill: none;
+  stroke: none;
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+:root[data-skin="webcore"] svg[data-wc] * { stroke: none; animation: none !important; transform: none !important; }
+:root[data-skin="webcore"] .ic { transform: none !important; animation: none !important; }
+/* The mark's hover is the one light the skin keeps: a still grow and an edge glow in the chosen
+   accent (--wc-focus), never the pulse or the rays, whatever the motion mode. */
+:root[data-skin="webcore"] .logo-wrap .logo { animation: none !important; transition: none !important; }
+:root[data-skin="webcore"] .logo-wrap .logo:hover {
+  transform: scale(1.08) !important;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--wc-focus) 70%, transparent)) !important;
+}
+:root[data-skin="webcore"] .logo-wrap::before { display: none; }
+/* A fold chevron's angle is state, not motion. */
+:root[data-skin="webcore"] .section-head .chev { transition: none; }
+/* A navy row or menu bar swallows dark pixel art; a one-pixel light halo keeps it legible. */
+:root[data-skin="webcore"] :is(.accent-dd-opt:hover, .accent-dd-opt.dd-hover, .action-menu button:hover,
+.action-menu .drag-item.over, .chat-more-item:hover) svg[data-wc] {
+  filter: drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight))
+          drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important;
+}
+:root[data-skin="webcore"] :is(button, .chk):disabled svg[data-wc] {
+  filter: grayscale(1) opacity(0.45) drop-shadow(1px 1px 0 var(--wc-hilight)) !important;
+}
+/* The dark theme's off-pill ink (lib/theme/controls.css) is the accent; here it is the ink. */
+:root[data-skin="webcore"] .chk:not(:has(> input:checked)) { color: var(--wc-ink); }
