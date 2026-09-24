@@ -1,4 +1,4 @@
-#include "Notifications.hpp"
+#include "ToastStack.hpp"
 #include "notificationsParts.hpp"
 #include "DisintegrateOverlay.hpp"
 #include "iconSet.hpp"
@@ -20,29 +20,29 @@
 
 namespace stencil::gui {
 
-  Notifications::Notifications(QWidget* host) : QObject(host), host(host) {
+  ToastStack::ToastStack(QWidget* host) : QObject(host), host(host) {
     if (this->host) this->host->installEventFilter(this);
   }
 
-  void Notifications::setBottomInset(int px) {
+  void ToastStack::setBottomInset(int px) {
     if (bottomInset == px) return;
     bottomInset = px;
     reflow();
   }
 
-  void Notifications::setLeftInset(int px) {
+  void ToastStack::setLeftInset(int px) {
     if (leftInset == px) return;
     leftInset = px;
     reflow();
   }
 
-  void Notifications::setColors(const QColor& normal, const QColor& error) {
+  void ToastStack::setColors(const QColor& normal, const QColor& error) {
     normalBg = normal;
     errorBg = error;
   }
 
   // Called by its own timer AND by the cap in show(); the flag makes the second a no-op.
-  void Notifications::dismiss(QLabel* toast) {
+  void ToastStack::dismiss(QLabel* toast) {
     if (!toast || toast->property(LEAVING_PROPERTY).toBool()) return;
     toast->setProperty(LEAVING_PROPERTY, true);
     entering.remove(toast);   // no longer entering — reflow() must not chase it anymore
@@ -77,7 +77,7 @@ namespace stencil::gui {
   }
 
   // Bottom-left (browser parity), newest at the bottom, growing upward.
-  void Notifications::reflow() {
+  void ToastStack::reflow() {
     if (!host) return;
     // A leaving toast is carried by its own geometry animation; holding its slot would leave a gap.
     const auto toasts = liveToasts();
@@ -102,7 +102,7 @@ namespace stencil::gui {
     }
   }
 
-  bool Notifications::eventFilter(QObject* watched, QEvent* event) {
+  bool ToastStack::eventFilter(QObject* watched, QEvent* event) {
     if (watched == host && event->type() == QEvent::Resize) reflow();
     return QObject::eventFilter(watched, event);
   }

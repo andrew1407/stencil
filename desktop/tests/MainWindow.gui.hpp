@@ -6,6 +6,7 @@
 #include "support/browserCopy.hpp"
 #include "../src/support/dust/ThemeSwapOverlay.hpp"
 #include "../src/support/notify/Notifications.hpp"
+#include "../src/support/notify/ToastStack.hpp"
 #include "../src/support/motion/DisintegrateOverlay.hpp"
 #include "../src/support/dockGrip.hpp"   // DockEdgeOverlay: the chat dock's resize-edge tint
 #include "../src/canvas/overlay/DropZonesOverlay.hpp"

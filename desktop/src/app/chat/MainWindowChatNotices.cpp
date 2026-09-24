@@ -51,14 +51,18 @@ namespace stencil::gui {
   }
 
   void MainWindow::showChatToast(const QString& text, bool success) {
-    if (!chatToast) chatToast = new ChatToast(this);
     QString t = text;
     if (t.size() > TOAST_MAX_CHARS)
       t = t.left(TOAST_MAX_CHARS - 1).trimmed() + QChar(0x2026);
-    static_cast<ChatToast*>(chatToast)->showToast(t, success, [this] {
+    const auto openChat = [this] {
       if (actChat) actChat->setChecked(true);
       else if (chatDock) chatDock->setVisible(true);
-    });
+    };
+    using Level = Notifications::Level;
+    if (notify && notify->showSystem({t, success ? Level::SUCCESS : Level::ERROR, 6000, false, openChat}))
+      return;
+    if (!chatToast) chatToast = new ChatToast(this);
+    static_cast<ChatToast*>(chatToast)->showToast(t, success, openChat);
   }
 
   void MainWindow::onChatStop() {

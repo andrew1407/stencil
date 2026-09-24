@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "ToastStack.hpp"
 #include "mainWindowShared.hpp"
 #include "MainWindow.hpp"
 #include "StayOpenMenu.hpp"
@@ -146,8 +147,8 @@ namespace stencil::gui {
       if (area == Qt::LeftDockWidgetArea) left = chatDock->width();   // the gap is the stack's own
       else if (area == Qt::BottomDockWidgetArea) bottom += chatDock->height() + 8;
     }
-    notify->setLeftInset(left);
-    notify->setBottomInset(bottom);
+    notify->toasts()->setLeftInset(left);
+    notify->toasts()->setBottomInset(bottom);
   }
 
 }  // namespace stencil::gui

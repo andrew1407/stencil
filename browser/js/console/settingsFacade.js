@@ -4,6 +4,7 @@
 // `stencil.lineColor` and `stencil.settings.lineColor` are one setter.
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/settings/accents.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motion/motionPrefs.js';
+import { notifyChannel } from '../core/settings/notifyChannel.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/settings.js';
 import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';
@@ -86,6 +87,9 @@ export const createSettingsFacade = ({ app, guard }) => {
     // its Visuals dialog (support/motionPrefs.hpp modalBackdrop).
     get modalBackdrop() { return motionPrefs().backdrop; },
     set modalBackdrop(v) { app.settings.setMotion('backdrop', !!v); },
+    // Where a notice shows: 'toast' (in the app) | 'system' (the browser's own, once granted).
+    get notifyChannel() { return notifyChannel(); },
+    set notifyChannel(v) { app.settings.setNotifyChannel(v); },
     get fillColor() { return app.defaultFillColor; }, set fillColor(v) { app.settings.setVisualColor('fill', toHexColor(v)); },
     get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },

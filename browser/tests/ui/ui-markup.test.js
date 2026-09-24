@@ -37,7 +37,7 @@ const IDS = [
     'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
     'coordinates-body', 'lines-list', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
     'reset-all-hotkeys', 'visuals-modal-overlay', 'visuals-close', 'vs-line-color', 'vs-thickness', 'vs-point',
-    'vs-style', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'info-modal-overlay',
+    'vs-style', 'vs-notify-channel', 'vs-fill', 'vs-sel-glow', 'vs-hover-ring', 'vs-focus-ring', 'vs-reset', 'info-modal-overlay',
     'info-close', 'info-search', 'info-body',
     // Crop modal (stencil-crop-modal) + its toolbar trigger (cropImage, above).
     'crop-modal-overlay', 'crop-close', 'crop-stage', 'crop-image-el', 'crop-box',
@@ -78,8 +78,8 @@ const IDS = [
     'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 261 IDs', () => {
-    assert.strictEqual(IDS.length, 261);   // +3: keywords-text became input + add + chips + clear
+test('fixture has exactly 262 IDs', () => {
+    assert.strictEqual(IDS.length, 262);   // +1: vs-notify-channel, the Visuals notifications select
 });
 
 test('every static body ID is present exactly once', () => {

@@ -1,10 +1,11 @@
 import { setVal } from '../../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../../ui/control/numericInput.js';
 import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../../ui/motion/motionPrefs.js';
+import { NOTIFY_CHANNELS, setNotifyChannel } from './notifyChannel.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
   readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
-  paintMotionBackdrop,
+  paintMotionBackdrop, paintNotifyChannel,
 } from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './registry.js';
 import { formulaContext } from '../parse/pageMetrics.js';
@@ -187,6 +188,16 @@ export class SettingsController {
       throw new Error(`Unknown motion setting: ${key} (use mode | drawing | backdrop)`);
     }
     return motionPrefs();
+  }
+
+  // Where a notice shows, app-wide like motion: the one funnel for the modal and the facade.
+  setNotifyChannel(value) {
+    const c = String(value).trim().toLowerCase();
+    if (!NOTIFY_CHANNELS.includes(c))
+      throw new Error(`Unknown notification channel: ${value} (use ${NOTIFY_CHANNELS.join(' | ')})`);
+    setNotifyChannel(c);
+    paintNotifyChannel(c);
+    return c;
   }
 
   // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'.

@@ -12,5 +12,6 @@
   "chatAttachmentsChanged": "stencil:chat-attachments-changed",
   "chatPopup": "stencil:chat-popup",
   "voiceStateChanged": "stencil:voice-state-changed",
-  "voiceSettingsChanged": "stencil:voice-settings-changed"
+  "voiceSettingsChanged": "stencil:voice-settings-changed",
+  "notifyChannelChanged": "stencil:notify-channel-changed"
 }

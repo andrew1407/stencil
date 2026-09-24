@@ -7,6 +7,7 @@
 #include "InfoDialog.hpp"
 #include "MediaLoader.hpp"
 #include "Notifications.hpp"
+#include <QLabel>
 #include "DataExportController.hpp"
 #include "RemoteSession.hpp"
 #include "ProjectTransferController.hpp"

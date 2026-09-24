@@ -50,6 +50,7 @@ namespace stencil::gui {
     // Section builders, in the order the browser's modal lists them.
     void buildAppearanceRows(Rows& r, const Settings& current);
     void buildMotionRows(Rows& r, const Settings& current);
+    void buildNotifyRows(Rows& r, const Settings& current);
     void buildDrawingRows(Rows& r, const Settings& current);
     void buildPreferenceRows(Rows& r, const Settings& current);
 
@@ -96,6 +97,7 @@ namespace stencil::gui {
     QCheckBox* drawAnim = nullptr;         // canvas stroke motion (browser vs-draw-anim)
     QCheckBox* modalBackdrop = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
     QComboBox* motionMode = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
+    QComboBox* notifyChannel = nullptr;    // toast | system (browser vs-notify-channel)
     QPushButton* selGlow = nullptr;        // selection highlight glow
     QPushButton* hoverRing = nullptr;      // point hover ring
     QPushButton* focusRing = nullptr;      // focused/clicked point ring

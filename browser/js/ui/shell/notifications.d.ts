@@ -9,8 +9,12 @@ export declare const squeezeLongTokens: (msg: unknown, max?: number) => string;
 export declare class StencilNotifications extends StencilElement {
   static inner(): string;
   static template(): string;
-  /** `onClick` makes the toast clickable (longer linger); `key` replaces a running status;
-   *  `shine` is a logo show's own notice: the egg on gold, with the golden shining around it. */
+  /** Routes by the stored channel: the toasts, or the browser's notifications when granted. */
   notify(msg: string, type?: 'ok' | 'fail' | 'info',
+    opts?: { onClick?: (() => void) | null; key?: string | null; shine?: boolean }): void;
+  /** The in-app delivery. `onClick` makes the toast clickable (longer linger); `key` replaces a
+   *  running status; `shine` is a logo show's own notice: the egg on gold, with the golden
+   *  shining around it. */
+  toast(msg: string, type?: 'ok' | 'fail' | 'info',
     opts?: { onClick?: (() => void) | null; key?: string | null; shine?: boolean }): void;
 }

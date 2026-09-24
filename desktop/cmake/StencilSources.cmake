@@ -183,6 +183,13 @@ set(STENCIL_OPENIMAGE_SOURCES
 
 # Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
 # JSON, the project file and chat doc, the settings, and the session/projects/hotkeys.
+# Notices (support/notify/Notifications.hpp): the router, the toast sink and the OS sink.
+set(STENCIL_NOTIFY_SOURCES
+  src/support/notify/Notifications.cpp
+  src/support/notify/ToastStack.cpp
+  src/support/notify/ToastStackReflow.cpp
+  src/support/notify/SystemNotifier.cpp)
+
 set(STENCIL_FILESTORE_SOURCES
   src/io/fileStore.cpp
   src/io/fileStoreProject.cpp
@@ -505,8 +512,7 @@ set(STENCIL_GUI_SOURCES
   src/io/MediaLoaderVideo.cpp
   src/io/mediaTypes.cpp
   ${STENCIL_THEME_SOURCES}
-  src/support/notify/Notifications.cpp
-  src/support/notify/NotificationsStack.cpp
+  ${STENCIL_NOTIFY_SOURCES}
   src/support/guiHelpers.cpp
   src/support/guiHelpersColor.cpp
   src/support/menu/menuReveal.cpp

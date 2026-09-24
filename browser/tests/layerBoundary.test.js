@@ -150,7 +150,7 @@ const UI_ID_ALLOWANCE = {
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
   'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 10, 'ui/panel/selectionPanel.js': 17,
   'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/modal.js': 5, 'ui/toolbar/toolbar.js': 7,
-  'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1,
+  'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1, 'ui/visuals/notifyRow.js': 1,
 };
 
 test('js/ui reaches the document by id only in the frozen allowance', () => {

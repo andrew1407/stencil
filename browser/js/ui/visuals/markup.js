@@ -2,6 +2,7 @@
 // The searchable rows of visual defaults: accent mount, motion mode, drawing colours.
 import { icon } from '../icons.js';
 import { MOTION_MODE_LABELS } from '../motion/motionPrefs.js';
+import { NOTIFY_CHANNEL_LABELS } from '../../core/settings/notifyChannel.js';
 import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../../llm/voice/settings.js';
 
 export const visualsModalInner = () => `
@@ -35,6 +36,12 @@ export const visualsModalInner = () => `
                 <div class="vs-row"><label>Interface animation</label>
                     <span class="vs-ctrl"><select id="vs-motion-mode" data-cs-skip>
                         ${MOTION_MODE_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}
+                    </select></span>
+                </div>
+                <div class="vs-section">Notifications</div>
+                <div class="vs-row"><label data-title="In the app: the notice stack in the corner. Browser notifications: the browser's own, shown even when this tab is in the background — asks for permission once">Show notifications</label>
+                    <span class="vs-ctrl"><select id="vs-notify-channel">
+                        ${NOTIFY_CHANNEL_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}
                     </select></span>
                 </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>

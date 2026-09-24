@@ -117,7 +117,7 @@ test('a clickable toast runs its action once and dismisses itself', (t) => {
 });
 
 test('the cap matches the desktop stack, and the CSS stacks the column', () => {
-  const hpp = readFileSync(new URL('../../../../desktop/src/support/notify/Notifications.hpp', import.meta.url), 'utf8');
+  const hpp = readFileSync(new URL('../../../../desktop/src/support/notify/ToastStack.hpp', import.meta.url), 'utf8');
   assert.equal(MAX_VISIBLE, Number(/MAX_VISIBLE = (\d+)/.exec(hpp)[1]),
     'browser and desktop must agree on how many toasts are too many');
 

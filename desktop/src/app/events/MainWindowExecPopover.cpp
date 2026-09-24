@@ -1,6 +1,7 @@
 // Running a dialog as an anchored popover rather than a window: the reveal, the chord forwarding
 // while its own event loop runs, and the close flight back to whatever opened it.
 #include "mainWindowShellParts.hpp"
+#include <QLabel>
 
 namespace stencil::gui {
 

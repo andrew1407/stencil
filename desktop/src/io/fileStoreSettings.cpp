@@ -78,6 +78,7 @@ namespace stencil::gui {
     s.drawingAnimations = o.value("drawingAnimations").toBool(s.drawingAnimations);
     s.modalBackdrop = o.value("modalBackdrop").toBool(s.modalBackdrop);
     s.motionMode = o.value("motionMode").toString(s.motionMode);
+    s.notifyChannel = o.value("notifyChannel").toString(s.notifyChannel);
     s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
     s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
     // AI assistant (llm-contract.md §5 persistence keys) + the saved dock state.
@@ -132,6 +133,7 @@ namespace stencil::gui {
     o["drawingAnimations"] = s.drawingAnimations;
     o["modalBackdrop"] = s.modalBackdrop;
     o["motionMode"] = s.motionMode;
+    o["notifyChannel"] = s.notifyChannel;
     o["browserBaseUrl"] = s.browserBaseUrl;
     o["telegramBotUsername"] = s.telegramBotUsername;
     o["llmProvider"] = s.llmProvider;

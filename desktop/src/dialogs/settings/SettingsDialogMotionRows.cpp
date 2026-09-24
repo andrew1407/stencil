@@ -1,4 +1,5 @@
-// The Motion section: the two toggles and the interface-animation mode with its glyphs.
+// The Motion section — the two toggles and the interface-animation mode with its glyphs — and
+// the Notifications section: where a notice shows.
 #include "SettingsDialog.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/icon/motionIcons.hpp"
@@ -60,6 +61,18 @@ namespace stencil::gui {
     }
     addRow(r, tr("Interface animation"), motionMode);
     connect(motionMode, &QComboBox::activated, this, [this, touched] { touched(); applyLive(); });
+  }
+
+  void SettingsDialog::buildNotifyRows(Rows& r, const Settings& current) {
+    addSection(r, tr("Notifications"));
+    notifyChannel = addCombo(r, "In the app: the notice stack in the window's corner.\n"
+                                "System: the OS notification centre, from a tray icon.");
+    notifyChannel->setObjectName(QStringLiteral("notifyChannelCombo"));
+    notifyChannel->addItem(tr("In the app"), "toast");
+    notifyChannel->addItem(tr("System notifications"), "system");
+    notifyChannel->setCurrentIndex(qMax(0, notifyChannel->findData(current.notifyChannel)));
+    addRow(r, tr("Show notifications"), notifyChannel);
+    connect(notifyChannel, &QComboBox::activated, this, &SettingsDialog::applyLive);
   }
 
 }

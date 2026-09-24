@@ -176,7 +176,7 @@ classDiagram
 | Facade over core | `CanvasWidget` over `core::HistoryStack`, `cropGeometry`, `holdDraw`, `pageMetrics`; `PlanTarget` over the same appliers | Toolbar, hotkeys and LLM plans mutate through one set of appliers |
 | Mediator | `MainWindow` | Wires `CanvasWidget`, `ChatDock`, `SelectionPanel`, `RemoteSession` and the controllers; collaborators reach it only through `Hooks` structs |
 | Command | `core::HistoryStack` inside `CanvasWidget` (`commitHistory`, `undo`, `redo`); `PlanTarget::stepHistory` | Every undoable edit is a pushed `core::Lines` snapshot, reverted by the same path |
-| Strategy | `LlmClient::chatOllama` / `chatOpenAi` / `chatServer` picked by `LlmSettings.provider`; `CanvasWidget::setFilter` modes; `MotionMode` → `ParticleStyle` | Table lookup, no growing `if` chain |
+| Strategy | `LlmClient::chatOllama` / `chatOpenAi` / `chatServer` picked by `LlmSettings.provider`; `CanvasWidget::setFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` (`support/notify/`) — `ToastStack` or `SystemNotifier` behind `Notifications`, picked by `Settings.notifyChannel` | Table lookup, no growing `if` chain; every notice comes through `Notifications`, which never knows which sink it holds and falls back to the toasts when the OS declines |
 | Observer | Qt signals: `CanvasWidget::changed`, `selectionChanged`; `ConnectionManager::changed`; `LiveFeed::projectUpdated`; `MediaLoader::loaded`/`failed`; `ChatDock::sendRequested` | Async completions run on the GUI thread and guard captures with `QPointer` |
 | Repository | `fileStore` (settings, session, projects, secrets, hotkeys), `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
 | Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` (`isBlockedHost`, `resolvesToBlocked`, no redirects, byte cap) | The surface's one guard on every untrusted `http(s)` fetch |
@@ -242,6 +242,13 @@ classDiagram
   as `.modal-popover` does. A host child carrying `ModalBackdrop::ABOVE_PROPERTY` — the toasts —
   is kept out of the photograph and raised back over the scrim, as `#notify-balloon` outranks the
   overlay in the browser. `motionReduced()` drops the flight and keeps the dim.
+- **A notice.** Every `notify->info/success/error` and the chat's finished-turn toast go through
+  `Notifications` (`support/notify/`), which hands the `Notice` to the sink the stored
+  `notifyChannel` names: `ToastStack`, the corner stack, or `SystemNotifier`, a
+  `QSystemTrayIcon::showMessage` from a tray icon that exists only while that channel is chosen.
+  A sink that cannot deliver — no tray, no message support — returns false and the toasts show
+  it, so the setting is a preference, never a way to lose a message; `applySettings` says so once
+  when the pick cannot be honoured. Browser twin: `ui/shell/notifySinks.js`.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
   applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
   `MediaLoader`. `openProjectFile`
