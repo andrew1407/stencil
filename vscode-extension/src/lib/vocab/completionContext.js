@@ -1,6 +1,5 @@
 // What may legally follow the caret, decided from the text before it on the line. The tables
 // below are the whole specification; completion.js turns a group name into items.
-'use strict';
 
 const SEPARATORS = /[\s,()=:;]+/;
 const NUMBER_STEM = /^(-?\d+(?:\.\d+)?)([a-z%]*)$/i;
@@ -60,4 +59,4 @@ const contextFor = (linePrefix) => {
   return { groups: groupsFor(words), numberStem: null };
 };
 
-module.exports = { AFTER, AFTER_USE, contextFor, groupsFor, splitPrefix };
+export { AFTER, AFTER_USE, contextFor, groupsFor, splitPrefix };

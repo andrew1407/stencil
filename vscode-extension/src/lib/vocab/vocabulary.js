@@ -1,10 +1,8 @@
 // The one reading of src/config/stcVocabulary.json: what a word is, and the Markdown that
 // explains it. No `vscode` here — hover.js and completion.js turn these into editor objects.
-'use strict';
+import { makeExplain } from './vocabularyEntry.js';
 
-const { makeExplain } = require('./vocabularyEntry.js');
-
-const VOCABULARY = require('../../config/stcVocabulary.json');
+import VOCABULARY from '../../config/stcVocabulary.json' with { type: 'json' };
 
 const DIRECTIVES = VOCABULARY.directives;
 const WORDS = VOCABULARY.words;
@@ -34,7 +32,7 @@ const explain = makeExplain({
   label: (bare, entry) => (DIRECTIVES[bare] === entry ? `@${bare}` : bare),
 });
 
-module.exports = {
+export {
   CROP_KEYS, DIRECTIVES, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, WORDS,
   entryFor, explain, groupOf,
 };

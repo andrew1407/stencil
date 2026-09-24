@@ -1,10 +1,8 @@
 // The CLI's `--script-check` answer, and the grammar of the one line per diagnostic that
 // cli/src/script/load.zig writes. execFile with an argv array and no shell, so the extension
 // host is never blocked and no path is ever word-split.
-'use strict';
-
-const { execFile } = require('node:child_process');
-const { dirname } = require('node:path');
+import { execFile } from 'node:child_process';
+import { dirname } from 'node:path';
 
 // `{file}:{line}:{col}: {severity}: {message} [{CODE}]`. The file field is greedy, so a
 // Windows drive letter stays in it.
@@ -46,4 +44,4 @@ const runCheck = (cli, path, timeout = CHECK_TIMEOUT_MS) => new Promise((settle)
   });
 });
 
-module.exports = { ANSWERED, CHECK_LINE, CHECK_TIMEOUT_MS, fromProgram, parseCheckOutput, runCheck };
+export { ANSWERED, CHECK_LINE, CHECK_TIMEOUT_MS, fromProgram, parseCheckOutput, runCheck };

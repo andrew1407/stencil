@@ -1,11 +1,9 @@
 // What every terminal command does before it runs anything: find the buffer, find the
 // binary, save the file, and hand the argument list to the reused terminal. `vscode` comes
 // in as an argument, so this stays testable without the editor.
-'use strict';
+import { dirname } from 'node:path';
 
-const { dirname } = require('node:path');
-
-const { runInTerminal } = require('./terminal.js');
+import { runInTerminal } from './terminal.js';
 
 // The active buffer, when it is one this command speaks for.
 const activeIn = (vscode, accept) => {
@@ -38,4 +36,4 @@ const spawn = async (vscode, { document, missing, locate, missingBinary, buildAr
   return runInTerminal(vscode, { cli: binary, args, cwd: dirname(path) });
 };
 
-module.exports = { activeIn, spawn };
+export { activeIn, spawn };

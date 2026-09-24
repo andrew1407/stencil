@@ -1,18 +1,16 @@
 // The browser commands. Two routes: a hand-off the user's own browser opens (the `#stencil=`
 // fragment), and the page's console over VS Code's built-in JS debugger. Neither composes a
 // shell line, and neither reads its target from the document — that is target.js's job.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
-} = require('./lib/ids.js');
-const { isJsSource } = require('./lib/emit/jsSource.js');
-const { BAD_WEB_URL, webUrlFor } = require('./lib/web/target.js');
-const { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
-  scriptLaunch } = require('./lib/web/launch.js');
-const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/web/console.js');
-const { programFor } = require('./lib/programCache.js');
+import { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
+} from './lib/ids.js';
+import { isJsSource } from './lib/emit/jsSource.js';
+import { BAD_WEB_URL, webUrlFor } from './lib/web/target.js';
+import { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
+  scriptLaunch } from './lib/web/launch.js';
+import { evaluate, expressionFor, loadExpression, pageSession } from './lib/web/console.js';
+import { programFor } from './lib/programCache.js';
 
 const OUTPUT_NAME = 'Stencil';
 const OPEN_A_FILE = 'Open a .stc script, a .stcjs file or a .stencil project first';
@@ -177,7 +175,7 @@ const register = (context) => {
   return HANDLERS;
 };
 
-module.exports = {
+export {
   HANDLERS, OPEN_A_FILE, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
   openInWeb, openInWebIncognito, register, runExpression, runInWebConsole,
   runSelectionInWebConsole,

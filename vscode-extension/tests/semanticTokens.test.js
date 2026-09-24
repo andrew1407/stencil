@@ -5,21 +5,21 @@ import assert from 'node:assert/strict';
 
 import { installVscodeStub, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
-const withHost = (body, settings) => {
+const withHost = async (body, settings) => {
   const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
-    return body({
-      calls, host, classify: host.require('lib/vocab/tokenClassify.js'),
-      tokens: host.require('semanticTokens.js'),
+    return await body({
+      calls, host, classify: await host.import('lib/vocab/tokenClassify.js'),
+      tokens: await host.import('semanticTokens.js'),
     });
   } finally {
     host.restore();
   }
 };
 
-test('the legend uses only standard VS Code token types', () => {
-  withHost(({ tokens }) => {
+test('the legend uses only standard VS Code token types', async () => {
+  await withHost(({ tokens }) => {
     // The types VS Code REGISTERS, which is narrower than the LSP list: `modifier` is in the
     // spec and in no registry, so a token typed that way is left for the grammar to colour.
     const STANDARD = new Set([
@@ -33,8 +33,8 @@ test('the legend uses only standard VS Code token types', () => {
   });
 });
 
-test('every type the classifier can emit is in the legend', () => {
-  withHost(({ tokens, classify }) => {
+test('every type the classifier can emit is in the legend', async () => {
+  await withHost(({ tokens, classify }) => {
     for (const table of [classify.GROUP_TYPE, classify.KIND_TYPE]) {
       for (const type of Object.values(table)) {
         assert.ok(tokens.TOKEN_TYPES.includes(type), `${type} is in the legend`);
@@ -44,8 +44,8 @@ test('every type the classifier can emit is in the legend', () => {
   });
 });
 
-test('tokenRows drops unclassified and zero-width tokens and goes 0-based', () => {
-  withHost(({ tokens }) => {
+test('tokenRows drops unclassified and zero-width tokens and goes 0-based', async () => {
+  await withHost(({ tokens }) => {
     const rows = tokens.tokenRows([
       { line: 1, col: 1, len: 5, kind: 'directive', text: '@crop' },
       { line: 1, col: 9, len: 4, kind: 'ident', text: 'nope' },
@@ -97,8 +97,8 @@ test('stencil.highlighting off returns nothing, without a reload', async () => {
   }, { 'stencil.highlighting': false });
 });
 
-test('register hands VS Code the provider and the legend for stencil-script', () => {
-  withHost(({ calls, tokens }) => {
+test('register hands VS Code the provider and the legend for stencil-script', async () => {
+  await withHost(({ calls, tokens }) => {
     const context = { subscriptions: [] };
     tokens.register(context);
     const [registered] = calls.semanticProviders;

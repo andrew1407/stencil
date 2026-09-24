@@ -6,14 +6,14 @@ import { spawnSync } from 'node:child_process';
 
 import { installVscodeStub, makeVscode } from '../../helpers/vscodeStub.js';
 
-const withLib = (shell, body) => {
+const withLib = async (shell, body) => {
   const { vscode, calls } = makeVscode({ shell });
   const host = installVscodeStub(vscode);
   try {
-    return body({
+    return await body({
       calls, vscode,
-      shellQuote: host.require('lib/spawn/shellQuote.js'),
-      terminal: host.require('lib/spawn/terminal.js'),
+      shellQuote: await host.import('lib/spawn/shellQuote.js'),
+      terminal: await host.import('lib/spawn/terminal.js'),
     });
   } finally {
     host.restore();
@@ -30,8 +30,8 @@ const SHELLS = {
   'C:\\Program Files\\PowerShell\\7\\pwsh.exe': 'powershell',
 };
 
-test('vscode.env.shell picks the family; an unknown one is POSIX', () => {
-  withLib('/bin/sh', ({ shellQuote }) => {
+test('vscode.env.shell picks the family; an unknown one is POSIX', async () => {
+  await withLib('/bin/sh', ({ shellQuote }) => {
     for (const [shell, kind] of Object.entries(SHELLS)) {
       assert.equal(shellQuote.shellKind(shell), kind, shell);
     }
@@ -40,8 +40,8 @@ test('vscode.env.shell picks the family; an unknown one is POSIX', () => {
   });
 });
 
-test('a path with a space stays one argument in every shell', () => {
-  withLib('/bin/sh', ({ terminal }) => {
+test('a path with a space stays one argument in every shell', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
     const path = 'C:\\a b\\x.stc';
     assert.equal(terminal.quoteArg(path, 'posix'), "'C:\\a b\\x.stc'");
     assert.equal(terminal.quoteArg(path, 'powershell'), "'C:\\a b\\x.stc'");
@@ -49,8 +49,8 @@ test('a path with a space stays one argument in every shell', () => {
   });
 });
 
-test('a single quote is escaped the way each shell escapes it', () => {
-  withLib('/bin/sh', ({ terminal }) => {
+test('a single quote is escaped the way each shell escapes it', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
     const name = "it's.stc";
     assert.equal(terminal.quoteArg(name, 'posix'), "'it'\\''s.stc'", "closed, escaped, reopened");
     assert.equal(terminal.quoteArg(name, 'powershell'), "'it''s.stc'", 'doubled, not backslashed');
@@ -58,8 +58,8 @@ test('a single quote is escaped the way each shell escapes it', () => {
   });
 });
 
-test('each shell quotes what only it treats as special', () => {
-  withLib('/bin/sh', ({ terminal }) => {
+test('each shell quotes what only it treats as special', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
     assert.equal(terminal.quoteArg('100%.stc', 'cmd'), '"100%.stc"', 'cmd expands %NAME%');
     assert.equal(terminal.quoteArg('a,b.stc', 'cmd'), '"a,b.stc"', 'cmd splits on a comma');
     assert.equal(terminal.quoteArg('@a.stc', 'powershell'), "'@a.stc'", 'a leading @ splats');
@@ -68,16 +68,16 @@ test('each shell quotes what only it treats as special', () => {
   });
 });
 
-test('an empty argument survives as a quoted pair, not as nothing', () => {
-  withLib('/bin/sh', ({ terminal }) => {
+test('an empty argument survives as a quoted pair, not as nothing', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
     assert.equal(terminal.quoteArg('', 'posix'), "''");
     assert.equal(terminal.quoteArg(undefined, 'powershell'), "''");
     assert.equal(terminal.quoteArg(null, 'cmd'), '""');
   });
 });
 
-test('PowerShell runs a quoted command word with &; the other shells do not', () => {
-  withLib('/bin/sh', ({ terminal }) => {
+test('PowerShell runs a quoted command word with &; the other shells do not', async () => {
+  await withLib('/bin/sh', ({ terminal }) => {
     const line = (kind) => terminal.commandLine('/opt/a b/stencil', ['--script', 'x.stc'], kind);
     assert.equal(line('powershell'), "& '/opt/a b/stencil' --script x.stc");
     assert.equal(line('posix'), "'/opt/a b/stencil' --script x.stc");
@@ -87,21 +87,21 @@ test('PowerShell runs a quoted command word with &; the other shells do not', ()
   });
 });
 
-test('cmd.exe changes drive with cd /d; the others just cd', () => {
+test('cmd.exe changes drive with cd /d; the others just cd', async () => {
   const run = (shell) => withLib(shell, ({ calls, terminal, vscode }) => {
     terminal.runInTerminal(vscode, { cli: 'stencil', args: ['--script', 'a.stc'], cwd: 'D:\\w s' });
     return calls.terminals[0].sent;
   });
-  assert.deepEqual(run('C:\\WINDOWS\\System32\\cmd.exe'),
+  assert.deepEqual(await run('C:\\WINDOWS\\System32\\cmd.exe'),
     ['cd /d "D:\\w s"', 'stencil --script a.stc']);
-  assert.deepEqual(run('C:\\Program Files\\PowerShell\\7\\pwsh.exe'),
+  assert.deepEqual(await run('C:\\Program Files\\PowerShell\\7\\pwsh.exe'),
     ["cd 'D:\\w s'", 'stencil --script a.stc']);
-  assert.deepEqual(run('/bin/zsh'), ["cd 'D:\\w s'", 'stencil --script a.stc']);
+  assert.deepEqual(await run('/bin/zsh'), ["cd 'D:\\w s'", 'stencil --script a.stc']);
 });
 
 test('the POSIX line round-trips through a real shell, argument for argument',
-  { skip: process.platform === 'win32' ? 'POSIX shell round-trip' : false }, () => {
-    withLib('/bin/sh', ({ terminal }) => {
+  { skip: process.platform === 'win32' ? 'POSIX shell round-trip' : false }, async () => {
+    await withLib('/bin/sh', ({ terminal }) => {
       const nasty = "a b'; rm -rf ~; #.stc";
       const echoed = spawnSync('/bin/sh', ['-c', terminal.commandLine('printf', ['%s', nasty])],
         { encoding: 'utf8' });

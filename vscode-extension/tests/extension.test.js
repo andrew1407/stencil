@@ -4,18 +4,18 @@ import assert from 'node:assert/strict';
 
 import { installVscodeStub, makeContext, makeVscode } from './helpers/vscodeStub.js';
 
-const boot = () => {
+const boot = async () => {
   const { vscode, calls } = makeVscode();
   const host = installVscodeStub(vscode);
-  const extension = host.require('extension.js');
-  const ids = host.require('lib/ids.js');
+  const extension = await host.import('extension.js');
+  const ids = await host.import('lib/ids.js');
   const context = makeContext();
   extension.activate(context);
   return { calls, context, extension, host, ids };
 };
 
-test('activate registers diagnostics, semantic tokens and every contributed command', () => {
-  const { calls, context, ids, host } = boot();
+test('activate registers diagnostics, semantic tokens and every contributed command', async () => {
+  const { calls, context, ids, host } = await boot();
   try {
     assert.equal(calls.collections.length, 1, 'one diagnostic collection');
     assert.equal(calls.semanticProviders.length, 1, 'one semantic tokens provider');
@@ -28,8 +28,8 @@ test('activate registers diagnostics, semantic tokens and every contributed comm
 
 // Two languages get suggestions and explanations: .stc from its own vocabulary, JavaScript
 // from the facade's. Each provider names the languages it answers for.
-test('the script and the facade each get a completion and a hover provider', () => {
-  const { calls, ids, host } = boot();
+test('the script and the facade each get a completion and a hover provider', async () => {
+  const { calls, ids, host } = await boot();
   try {
     const selectors = (list) => list.map((p) => JSON.stringify(p.selector));
     assert.deepEqual(selectors(calls.completionProviders), [
@@ -43,8 +43,8 @@ test('the script and the facade each get a completion and a hover provider', () 
 });
 
 // Nothing is spawned, opened or launched by activation itself.
-test('activation opens no browser, no terminal and no output channel', () => {
-  const { calls, host } = boot();
+test('activation opens no browser, no terminal and no output channel', async () => {
+  const { calls, host } = await boot();
   try {
     assert.deepEqual(calls.opened, []);
     assert.deepEqual(calls.terminals, []);
@@ -56,8 +56,8 @@ test('activation opens no browser, no terminal and no output channel', () => {
 });
 
 // open/save/close/change are diagnostics'; visibleEditors, config and theme are decorations'.
-test('the listeners are the ones the two live features need, and no others', () => {
-  const { calls, host } = boot();
+test('the listeners are the ones the two live features need, and no others', async () => {
+  const { calls, host } = await boot();
   try {
     assert.deepEqual(Object.keys(calls.events).sort(),
       ['change', 'close', 'config', 'open', 'save', 'theme', 'visibleEditors']);
@@ -66,8 +66,8 @@ test('the listeners are the ones the two live features need, and no others', () 
   }
 });
 
-test('deactivate is a no-op; the context owns the disposables', () => {
-  const { extension, host } = boot();
+test('deactivate is a no-op; the context owns the disposables', async () => {
+  const { extension, host } = await boot();
   try {
     assert.equal(extension.deactivate(), undefined);
   } finally {
@@ -75,10 +75,10 @@ test('deactivate is a no-op; the context owns the disposables', () => {
   }
 });
 
-test('extension.js is wiring only — it holds no logic of its own', () => {
-  const { host } = boot();
+test('extension.js is wiring only — it holds no logic of its own', async () => {
+  const { host } = await boot();
   try {
-    const exported = Object.keys(host.require('extension.js')).sort();
+    const exported = Object.keys(await host.import('extension.js')).sort();
     assert.deepEqual(exported, ['activate', 'deactivate']);
   } finally {
     host.restore();

@@ -5,11 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
-const api = require('../../../src/lib/vocab/apiVocabulary.js');
-const TABLE = require('../../../src/config/stencilApiVocabulary.json');
+import * as api from '../../../src/lib/vocab/apiVocabulary.js';
+import TABLE from '../../../src/config/stencilApiVocabulary.json' with { type: 'json' };
 
 const DTS = readFileSync(new URL('../../../../browser/js/console/stencilApi.d.ts', import.meta.url), 'utf8');
 
@@ -74,7 +72,7 @@ test('every entry carries the prose a hint is made of', () => {
   }
 });
 
-test('an example is real JavaScript, and a call says what it hands back', () => {
+test('an example is real JavaScript, and a call says what it hands back', async () => {
   for (const name of api.MEMBER_NAMES) {
     const entry = api.entryFor(name);
     // Parsed, not eyeballed: a broken snippet in a tooltip teaches the wrong thing.
@@ -98,7 +96,7 @@ test('explain renders a member as Markdown, fenced as JavaScript', () => {
     'a doc comment in the .d.ts becomes the detail paragraph');
 });
 
-test('prefixAt answers only where a member really follows the facade', () => {
+test('prefixAt answers only where a member really follows the facade', async () => {
   assert.equal(api.prefixAt('stencil.'), '');
   assert.equal(api.prefixAt('  await window.stencil.rot'), 'rot');
   assert.equal(api.prefixAt('const s = window . stencil . crop'), 'crop');
@@ -107,7 +105,7 @@ test('prefixAt answers only where a member really follows the facade', () => {
   }
 });
 
-test('memberAt names the member the caret is inside, and only through the facade', () => {
+test('memberAt names the member the caret is inside, and only through the facade', async () => {
   assert.equal(api.memberAt('stencil.rotateRight()', 10), 'rotateRight');
   assert.equal(api.memberAt('stencil.rotateRight()', 8), 'rotateRight', 'its first character counts');
   assert.equal(api.memberAt('await stencil.load(url)', 15), 'load');
@@ -117,7 +115,7 @@ test('memberAt names the member the caret is inside, and only through the facade
 });
 
 // The editor's JavaScript service sees a name nothing declares and can only say `any`.
-test('facadeAt finds the global, bare or on window, and never somebody else\'s', () => {
+test('facadeAt finds the global, bare or on window, and never somebody else\'s', async () => {
   assert.equal(api.facadeAt('stencil.crop()', 3), true);
   assert.equal(api.facadeAt('await window.stencil.load(url)', 16), true);
   assert.equal(api.facadeAt('window . stencil . crop()', 11), true);

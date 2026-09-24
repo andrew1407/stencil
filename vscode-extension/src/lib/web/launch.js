@@ -1,9 +1,7 @@
 // The `#stencil=` hand-off the browser app boots on: the URL browser-extension's
 // editorLaunch.js writes, the payload deepLink.js validates, plus a `script` it ignores.
-'use strict';
-
-const { readFileSync } = require('node:fs');
-const { basename, extname } = require('node:path');
+import { readFileSync } from 'node:fs';
+import { basename, extname } from 'node:path';
 
 // Past this, Chrome drops the navigation — the real ceiling, under the validator's 32 MiB.
 // The same number browser-extension/src/lib/menu/editorLaunch.js writes; the tests pin the pair.
@@ -73,7 +71,7 @@ const projectLaunch = (text) => {
 
 const isTooBig = (url) => String(url ?? '').length > MAX_PAYLOAD;
 
-module.exports = {
+export {
   IMAGE_TYPES, MAX_PAYLOAD, buildLaunchUrl, imageDataUrl, imagePart, isRemote,
   isTooBig, localSources, projectLaunch, scriptLaunch,
 };

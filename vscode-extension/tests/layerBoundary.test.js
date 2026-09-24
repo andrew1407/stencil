@@ -15,7 +15,7 @@ const LAYERS = [['config'], ['parser'], ['lib'], [ROOT]];
 const RANK = new Map(LAYERS.flatMap((names, i) => names.map((n) => [n, i])));
 const ENTRY = 'extension.js';
 
-const IMPORT = /^\s*(?:import|export)\b[^'"]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)|\brequire\(\s*['"]([^'"]+)['"]\s*\)/gm;
+const IMPORT = /^\s*(?:import|export)\b[^'"]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/gm;
 
 const walk = (dir, out = []) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -34,7 +34,7 @@ export const scanEdges = (root) => {
   for (const file of walk(root)) {
     const rel = relative(root, file);
     for (const m of readFileSync(file, 'utf8').matchAll(IMPORT)) {
-      const spec = m[1] ?? m[2] ?? m[3] ?? m[4];
+      const spec = m[1] ?? m[2] ?? m[3];
       if (!spec.startsWith('.')) continue;
       const target = relative(root, resolve(dirname(file), spec));
       edges.push({ from: layerOf(rel), to: layerOf(target), file: rel, edge: `${rel} → ${target}` });
@@ -92,9 +92,9 @@ test('an injected right-pointing import is caught', () => {
     for (const dir of ['parser', 'lib']) mkdirSync(join(root, dir));
     writeFileSync(join(root, 'parser/a.js'), "import { x } from '../lib/b.js';\nexport const y = x;\n");
     writeFileSync(join(root, 'lib/b.js'), "export const x = 1;\n");
-    writeFileSync(join(root, 'diagnostics.js'), "const c = require('./commands.js');\n");
-    writeFileSync(join(root, 'commands.js'), "module.exports = {};\n");
-    writeFileSync(join(root, 'extension.js'), "require('./diagnostics.js');\n");
+    writeFileSync(join(root, 'diagnostics.js'), "import * as c from './commands.js';\n");
+    writeFileSync(join(root, 'commands.js'), "export {};\n");
+    writeFileSync(join(root, 'extension.js'), "import './diagnostics.js';\n");
     const found = findViolations(scanEdges(root));
     assert.deepEqual(found.rightward, ['parser/a.js → lib/b.js']);
     assert.deepEqual(found.sibling, ['diagnostics.js → commands.js']);
@@ -102,4 +102,9 @@ test('an injected right-pointing import is caught', () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('src/ is ES modules only: no require() and no module.exports', () => {
+  const cjs = walk(SRC).filter((f) => /\brequire\(|\bmodule\.exports\b/.test(readFileSync(f, 'utf8')));
+  assert.deepEqual(cjs.map((f) => relative(SRC, f)), []);
 });

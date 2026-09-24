@@ -6,7 +6,7 @@ export const withHost = async (settings, body, workspaceFolder = '') => {
   const { vscode, calls } = makeVscode({ settings, workspaceFolder });
   const host = installVscodeStub(vscode);
   try {
-    return await body({ calls, vscode, hints: host.require('jsHints.js') });
+    return await body({ calls, vscode, hints: await host.import('jsHints.js') });
   } finally {
     host.restore();
   }

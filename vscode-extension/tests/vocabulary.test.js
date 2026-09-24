@@ -2,11 +2,10 @@
 // own word lists — a directive the engine knows with nothing to say about it is a hole.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
 import { DIRECTIVES as PARSER_DIRECTIVES, isUnitWord } from '../src/parser/script/types.js';
 
-const vocabulary = createRequire(import.meta.url)('../src/lib/vocab/vocabulary.js');
+import * as vocabulary from '../src/lib/vocab/vocabulary.js';
 
 test('every directive the parser knows is documented, and no other', () => {
   assert.deepEqual([...vocabulary.DIRECTIVE_NAMES].sort(), [...PARSER_DIRECTIVES].sort());

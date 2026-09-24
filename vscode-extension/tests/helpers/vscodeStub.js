@@ -1,16 +1,32 @@
-// `vscode` is injected by the extension host and exists nowhere on disk, so a Module._load
-// hook answers require('vscode') with the stub below. Everything the extension touches is
+// `vscode` is injected by the extension host and exists nowhere on disk, so a resolve hook
+// answers `import 'vscode'` with the stub below. Everything the extension touches is
 // here and records what it was asked to do; nothing simulates the editor.
 import {
   CompletionItem, DebugSession, Diagnostic, Hover, MarkdownString, OutputChannel, Position,
   Range, SemanticTokensBuilder, Terminal,
 } from './vscodeTypes.js';
-import Module from 'node:module';
-import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { registerHooks } from 'node:module';
 
-const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
+const SRC = new URL('../../src/', import.meta.url).href;
+const GENERATION = /\?stub=(\d+)$/;
+const stubs = new Map();
+let generation = 0;
+
+// Every src/ URL carries its install's generation, so each install loads a fresh module graph.
+registerHooks({
+  resolve(specifier, context, next) {
+    const gen = context.parentURL?.match(GENERATION)?.[1];
+    if (gen && specifier === 'vscode') {
+      const names = Object.keys(stubs.get(Number(gen)));
+      const source = names.map((n) => `export const ${n} = globalThis.__vscodeStubs.get(${gen}).${n};`);
+      return { url: `data:text/javascript,${encodeURIComponent(source.join('\n'))}`, shortCircuit: true };
+    }
+    const resolved = next(specifier, context);
+    if (!gen || !resolved.url.startsWith(SRC) || GENERATION.test(resolved.url)) return resolved;
+    return { ...resolved, url: `${resolved.url}?stub=${gen}` };
+  },
+});
+globalThis.__vscodeStubs = stubs;
 
 // `settings` seeds getConfiguration; `calls` collects what was registered or shown.
 export const makeVscode = ({
@@ -142,20 +158,14 @@ export const makeVscode = ({
   return { vscode, calls };
 };
 
-/* Installs the hook and returns a require() rooted at src/. The src/ cache is dropped first,
- * so each install binds the modules to THIS stub; call restore() when done, since the hook
- * is process-wide and node --test shares one process per file. */
+/* Binds a fresh load of src/ to THIS stub and returns its import(), rooted at src/. Call
+ * restore() when done; node --test shares one process per file. */
 export const installVscodeStub = (vscode) => {
-  const original = Module._load;
-  Module._load = function load(request, parent, isMain) {
-    if (request === 'vscode') return vscode;
-    return original.call(this, request, parent, isMain);
-  };
-  const req = createRequire(`${SRC}/`);
-  for (const key of Object.keys(req.cache)) if (key.startsWith(SRC)) delete req.cache[key];
+  const gen = ++generation;
+  stubs.set(gen, vscode);
   return {
-    require: (rel) => req(resolve(SRC, rel)),
-    restore() { Module._load = original; },
+    import: (rel) => import(`${new URL(rel, SRC).href}?stub=${gen}`),
+    restore() { stubs.delete(gen); },
   };
 };
 

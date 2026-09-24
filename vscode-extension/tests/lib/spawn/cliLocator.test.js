@@ -8,15 +8,15 @@ import { join } from 'node:path';
 
 import { installVscodeStub, makeDocument, makeVscode } from '../../helpers/vscodeStub.js';
 
-const withLib = (options, body) => {
+const withLib = async (options, body) => {
   const dir = mkdtempSync(join(tmpdir(), 'stencil-vsce-cli-'));
   const { vscode } = makeVscode(options);
   const host = installVscodeStub(vscode);
   try {
-    return body({
+    return await body({
       dir, vscode,
-      cliLocator: host.require('lib/spawn/cliLocator.js'),
-      pathSearch: host.require('lib/pathSearch.js'),
+      cliLocator: await host.import('lib/spawn/cliLocator.js'),
+      pathSearch: await host.import('lib/pathSearch.js'),
     });
   } finally {
     host.restore();
@@ -33,8 +33,8 @@ const executable = (dir, name = 'stencil') => {
 
 const POSIX_ONLY = { skip: process.platform === 'win32' ? 'POSIX file modes' : false };
 
-test('the chain is the setting, then STENCIL_CLI, then PATH', POSIX_ONLY, () => {
-  withLib({}, ({ cliLocator, dir }) => {
+test('the chain is the setting, then STENCIL_CLI, then PATH', POSIX_ONLY, async () => {
+  await withLib({}, ({ cliLocator, dir }) => {
     const configured = executable(dir, 'from-setting');
     const onPathDir = join(dir, 'bin');
     mkdirSync(onPathDir);
@@ -47,8 +47,8 @@ test('the chain is the setting, then STENCIL_CLI, then PATH', POSIX_ONLY, () => 
   });
 });
 
-test('a setting that names nothing executable is refused, not guessed at', POSIX_ONLY, () => {
-  withLib({}, ({ cliLocator, dir }) => {
+test('a setting that names nothing executable is refused, not guessed at', POSIX_ONLY, async () => {
+  await withLib({}, ({ cliLocator, dir }) => {
     const notExecutable = join(dir, 'plain.txt');
     writeFileSync(notExecutable, 'hello\n');
     assert.equal(cliLocator.locateCli({ configured: notExecutable, env: { PATH: '' } }), null);
@@ -56,16 +56,16 @@ test('a setting that names nothing executable is refused, not guessed at', POSIX
   });
 });
 
-test('a relative setting resolves against the workspace folder', POSIX_ONLY, () => {
-  withLib({}, ({ cliLocator, dir }) => {
+test('a relative setting resolves against the workspace folder', POSIX_ONLY, async () => {
+  await withLib({}, ({ cliLocator, dir }) => {
     const path = executable(dir, 'rel-stencil');
     assert.equal(cliLocator.resolveConfigured('rel-stencil', dir), path);
     assert.equal(cliLocator.resolveConfigured('rel-stencil', ''), null, 'no base, no guess');
   });
 });
 
-test('the PATH walk is memoized per PATH, and a new PATH misses', POSIX_ONLY, () => {
-  withLib({}, ({ dir, pathSearch }) => {
+test('the PATH walk is memoized per PATH, and a new PATH misses', POSIX_ONLY, async () => {
+  await withLib({}, ({ dir, pathSearch }) => {
     const onPathDir = join(dir, 'bin');
     mkdirSync(onPathDir);
     const path = executable(onPathDir);
@@ -79,24 +79,24 @@ test('the PATH walk is memoized per PATH, and a new PATH misses', POSIX_ONLY, ()
   });
 });
 
-test('a name with a separator is a path, never a PATH lookup', POSIX_ONLY, () => {
-  withLib({}, ({ dir, pathSearch }) => {
+test('a name with a separator is a path, never a PATH lookup', POSIX_ONLY, async () => {
+  await withLib({}, ({ dir, pathSearch }) => {
     const path = executable(dir);
     assert.equal(pathSearch.onPath(path, { PATH: dir }), path);
     assert.equal(pathSearch.onPath(join(dir, 'absent'), { PATH: dir }), null);
   });
 });
 
-test('cliFor reads the setting through the editor, per document', POSIX_ONLY, () => {
-  withLib({}, ({ cliLocator, dir, vscode }) => {
+test('cliFor reads the setting through the editor, per document', POSIX_ONLY, async () => {
+  await withLib({}, ({ cliLocator, dir, vscode }) => {
     const configured = executable(dir);
     vscode.workspace.getConfiguration = () => ({ get: () => configured });
     assert.equal(cliLocator.cliFor(vscode, makeDocument()), configured);
   });
 });
 
-test('the executable-suffix table is frozen', () => {
-  withLib({}, ({ pathSearch }) => {
+test('the executable-suffix table is frozen', async () => {
+  await withLib({}, ({ pathSearch }) => {
     assert.ok(Object.isFrozen(pathSearch.EXE_SUFFIXES));
     assert.ok(pathSearch.EXE_SUFFIXES.includes(''), 'a bare name is always tried');
   });

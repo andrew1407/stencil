@@ -1,10 +1,8 @@
 // Which Python buffers are Stencil's: a `.pystc` always, a plain `.py` when a comment line
 // of its own says `# @use stencil`. The document is passed in, so `vscode` is never imported.
 // Twin of lib/jsSource.js, whose marker is the `//` one.
-'use strict';
-
-const { PY_LANGUAGE_ID, PY_USE_MARKER } = require('../ids.js');
-const { versionCache } = require('../spawn/versionCache.js');
+import { PY_LANGUAGE_ID, PY_USE_MARKER } from '../ids.js';
+import { versionCache } from '../spawn/versionCache.js';
 
 const PY_LANGUAGE = 'python';
 
@@ -36,4 +34,4 @@ const isPyDocument = (document) => !!document
 const isPySource = (document) => !!document && (document.languageId === PY_LANGUAGE_ID
   || (document.languageId === PY_LANGUAGE && marksStencil(document)));
 
-module.exports = { PY_LANGUAGE, isPyDocument, isPySource, markerLine, markerSpan, marksStencil };
+export { PY_LANGUAGE, isPyDocument, isPySource, markerLine, markerSpan, marksStencil };

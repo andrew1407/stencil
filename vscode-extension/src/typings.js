@@ -1,12 +1,10 @@
 // One command: put the facade's types in the workspace, so the editor's own JavaScript
 // service types `stencil` rather than calling it `any`. Nothing else here decides anything —
 // where the file goes and what it contains is lib/typingsFile.js.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { COMMANDS } = require('./lib/ids.js');
-const { TYPINGS_FILE, install } = require('./lib/emit/typingsFile.js');
+import { COMMANDS } from './lib/ids.js';
+import { TYPINGS_FILE, install } from './lib/emit/typingsFile.js';
 
 const NO_FOLDER = 'Open a folder first — the types go beside the JavaScript that uses them';
 
@@ -42,4 +40,4 @@ const register = (context) => {
   return HANDLERS;
 };
 
-module.exports = { HANDLERS, NO_FOLDER, addTypings, register, targetFolder };
+export { HANDLERS, NO_FOLDER, addTypings, register, targetFolder };

@@ -2,11 +2,10 @@
 // record. These run real buffers through the parser copies and read the classification back.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
 import { parseScript } from '../../../src/parser/index.js';
 
-const { classify } = createRequire(import.meta.url)('../../../src/lib/vocab/tokenClassify.js');
+import { classify } from '../../../src/lib/vocab/tokenClassify.js';
 
 /* Every token of `text` as `text→type`, punctuation dropped: what a reader would see. */
 const painted = (text) => {

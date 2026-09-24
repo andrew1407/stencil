@@ -20,7 +20,7 @@ export const withHost = async (options, body) => {
   });
   const host = installVscodeStub(vscode);
   try {
-    return await body({ calls, dir, vscode, web: host.require('webCommands.js') });
+    return await body({ calls, dir, vscode, web: await host.import('webCommands.js') });
   } finally {
     host.restore();
     rmSync(dir, { recursive: true, force: true });

@@ -1,12 +1,10 @@
 // What the word under the cursor means. The token under the position comes from the same
 // parse the colours do, so a hover can never land on a word the editor is not colouring.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { programFor } = require('./lib/programCache.js');
-const { explain } = require('./lib/vocab/vocabulary.js');
+import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { programFor } from './lib/programCache.js';
+import { explain } from './lib/vocab/vocabulary.js';
 
 // The token covering a 0-based (line, character), or undefined. Tokens carry 1-based spans.
 const tokenAt = (tokens, position) => (tokens ?? []).find((token) => (
@@ -52,4 +50,4 @@ const register = (context) => {
   return registration;
 };
 
-module.exports = { PARAM_DOC, markdownAt, provider, register, tokenAt };
+export { PARAM_DOC, markdownAt, provider, register, tokenAt };

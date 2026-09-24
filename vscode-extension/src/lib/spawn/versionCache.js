@@ -1,6 +1,5 @@
 // One answer per (document, version): a keystroke asks the same question of several providers,
 // and no answer outlives its edit. A document with no version is never cached.
-'use strict';
 
 const LIMIT = 8;
 
@@ -29,4 +28,4 @@ const versionCache = ({ limit = LIMIT } = {}) => {
   return { forget, get };
 };
 
-module.exports = { LIMIT, keyFor, versionCache };
+export { LIMIT, keyFor, versionCache };

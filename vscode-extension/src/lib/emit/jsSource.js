@@ -1,9 +1,7 @@
 // Which JavaScript buffers are Stencil's: a `.stcjs` always, a plain `.js` when its first
 // line says `// @use stencil`. The document is passed in, so `vscode` is never imported.
-'use strict';
-
-const { JS_LANGUAGE_ID, USE_MARKER } = require('../ids.js');
-const { versionCache } = require('../spawn/versionCache.js');
+import { JS_LANGUAGE_ID, USE_MARKER } from '../ids.js';
+import { versionCache } from '../spawn/versionCache.js';
 
 const JS_LANGUAGE = 'javascript';
 
@@ -96,5 +94,5 @@ const isJsDocument = (document) => !!document
 const isJsSource = (document) => !!document && (document.languageId === JS_LANGUAGE_ID
   || (document.languageId === JS_LANGUAGE && marksStencil(document)));
 
-module.exports = { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, commentStart, inLineComment,
+export { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, commentStart, inLineComment,
   isJsDocument, isJsSource, markerLine, markerSpan, markerWordsAt, marksStencil };

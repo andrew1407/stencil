@@ -1,5 +1,4 @@
 // How ONE vocabulary entry reads, whatever table it came from: a heading over four optional parts.
-'use strict';
 
 /* `**@crop** — Cut the picture down…` over a fenced signature, the prose, then a fenced
  * example. Every section is optional; `fence` is the language the two blocks are lit in. */
@@ -23,4 +22,4 @@ const makeExplain = ({ normalize = String, lookup, label, fence, decorate }) => 
   return decorate ? decorate(markdown, entry) : markdown;
 };
 
-module.exports = { makeExplain, markdownFor };
+export { makeExplain, markdownFor };

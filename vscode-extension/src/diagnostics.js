@@ -1,14 +1,12 @@
 // Squiggles for a .stc buffer. Two sources of the same diagnostics: on save, the CLI's
 // `--script-check` (the compiled core, so an editor never disagrees with a run); while typing,
 // the in-process parser copies. Both land as vscode.Diagnostic.
-'use strict';
+import * as vscode from 'vscode';
 
-const vscode = require('vscode');
-
-const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { cliFor } = require('./lib/spawn/cliLocator.js');
-const { forget, programFor } = require('./lib/programCache.js');
-const { CHECK_LINE, fromProgram, parseCheckOutput, runCheck } = require('./lib/scriptCheck.js');
+import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
+import { cliFor } from './lib/spawn/cliLocator.js';
+import { forget, programFor } from './lib/programCache.js';
+import { CHECK_LINE, fromProgram, parseCheckOutput, runCheck } from './lib/scriptCheck.js';
 
 // Typing must not lex the buffer per character; this is the order of the editor's own idle.
 const DEBOUNCE_MS = 200;
@@ -84,6 +82,6 @@ const register = (context) => {
   return collection;
 };
 
-module.exports = {
+export {
   CHECK_LINE, DEBOUNCE_MS, collect, fromProgram, parseCheckOutput, register, toDiagnostic,
 };

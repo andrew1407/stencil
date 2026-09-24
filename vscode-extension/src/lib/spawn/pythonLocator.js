@@ -1,11 +1,9 @@
 // Finds the Python that runs a .pystc. The interpreter is EXPLICIT USER CONFIGURATION — the
 // setting, then STENCIL_PYTHON, then `python3`/`python` on PATH — and is never read out of
 // the document being edited. Twin of lib/cliLocator.js.
-'use strict';
-
-const { CONFIG_SECTION, SETTINGS } = require('../ids.js');
-const { onPath } = require('../pathSearch.js');
-const { resolveConfigured } = require('./cliLocator.js');
+import { CONFIG_SECTION, SETTINGS } from '../ids.js';
+import { onPath } from '../pathSearch.js';
+import { resolveConfigured } from './cliLocator.js';
 
 const NAMES = ['python3', 'python'];
 
@@ -27,4 +25,4 @@ const pythonFor = (vscode, document) => locatePython({
 
 const MISSING_PYTHON_MESSAGE = 'Python not found — set stencil.pythonPath';
 
-module.exports = { MISSING_PYTHON_MESSAGE, NAMES, locatePython, pythonFor };
+export { MISSING_PYTHON_MESSAGE, NAMES, locatePython, pythonFor };

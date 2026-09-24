@@ -17,7 +17,7 @@ always the wrong move here. Match what each subproject already does:
   its lockfile is tracked and installed with `npm ci`, and nothing in the app may come to
   depend on the build.
 - **browser-extension/** — same: plain MV3, `node --test`, no deps.
-- **vscode-extension/** — plain CommonJS against the `vscode` API the editor provides (never
+- **vscode-extension/** — plain ES modules against the `vscode` API the editor provides (never
   a dependency), `node --test` behind a hand-written stub, and a parser that is a **byte-equal
   copy** of `browser/js/core/script/`, never an npm package. The second sanctioned
   exception: `@vscode/vsce`, exactly pinned, a **dev dependency** used only by

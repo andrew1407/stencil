@@ -6,6 +6,7 @@
   "publisher": "stencil",
   "license": "Apache-2.0",
   "private": true,
+  "type": "module",
   "icon": "icon.png",
   "galleryBanner": {
     "color": "#2b2f3a",

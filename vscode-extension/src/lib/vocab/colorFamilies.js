@@ -1,9 +1,8 @@
 // The names a reader would use for the things .stc colours, and the legend type each maps to.
 // `stencil.colors` is keyed by these, not by VS Code's token types: a user setting a colour
 // for `@source` should not have to know it is contributed as `macro`. No `vscode` here.
-'use strict';
-
 // family → the semantic token type tokenClassify.js emits for it.
+
 const FAMILY_TYPE = Object.freeze({
   source: 'macro',
   template: 'class',
@@ -57,4 +56,4 @@ const overridesFor = (setting, { light = false } = {}) => {
   return Object.fromEntries(Object.entries(merged).map(([f, color]) => [FAMILY_TYPE[f], color]));
 };
 
-module.exports = { DEFAULTS, FAMILIES, FAMILY_TYPE, HEX, defaultsFor, overridesFor };
+export { DEFAULTS, FAMILIES, FAMILY_TYPE, HEX, defaultsFor, overridesFor };

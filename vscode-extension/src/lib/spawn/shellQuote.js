@@ -1,9 +1,8 @@
 // Quoting per shell family, because VS Code's terminal is whichever shell the user picked.
 // PowerShell doubles a quote and evaluates a quoted command word; cmd.exe has no escape at
 // all and needs `cd /d` to change drive; everything else is POSIX.
-'use strict';
-
 // Bytes a POSIX shell passes through untouched.
+
 const SAFE_POSIX = /^[A-Za-z0-9_@%+=:,./-]+$/;
 
 // cmd.exe expands %NAME% even inside quotes and splits an argument on , and =; PowerShell
@@ -42,4 +41,4 @@ const shellKind = (shell) => {
 
 const shellFor = (kind) => SHELLS[kind] ?? SHELLS[DEFAULT_KIND];
 
-module.exports = { DEFAULT_KIND, SAFE_CMD, SAFE_POSIX, SAFE_PS, SHELLS, shellFor, shellKind };
+export { DEFAULT_KIND, SAFE_CMD, SAFE_POSIX, SAFE_PS, SHELLS, shellFor, shellKind };

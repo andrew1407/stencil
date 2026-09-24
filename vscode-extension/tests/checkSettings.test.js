@@ -12,11 +12,11 @@ import { installVscodeStub, makeDocument, makeVscode } from './helpers/vscodeStu
 const POSIX_ONLY = { skip: process.platform === 'win32' ? 'POSIX stub script' : false };
 const TEXT = '@source a.png:\n    @crp 10%\n';
 
-const withHost = (settings, body) => {
+const withHost = async (settings, body) => {
   const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
-    return body({ calls, diagnostics: host.require('diagnostics.js') });
+    return await body({ calls, diagnostics: await host.import('diagnostics.js') });
   } finally {
     host.restore();
   }
