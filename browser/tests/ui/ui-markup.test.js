@@ -42,9 +42,6 @@ const IDS = [
     // Crop modal (stencil-crop-modal) + its toolbar trigger (cropImage, above).
     'crop-modal-overlay', 'crop-close', 'crop-stage', 'crop-image-el', 'crop-box',
     'crop-dims', 'crop-orientation', 'crop-cancel', 'crop-apply',
-    // Install / download button (stencil-install): small bottom-right icon with a
-    // hover menu — PWA option appears only after `beforeinstallprompt`.
-    'install-host', 'install-menu', 'install-pwa-btn', 'install-desktop-btn', 'install-toggle',
     // State-aware Image section: compact load button + image-actions group (download/copy/share/open).
     'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn',
     // Description & attributes section (project meta): description + keywords buttons; links-btn moved here.
@@ -78,8 +75,8 @@ const IDS = [
     'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 262 IDs', () => {
-    assert.strictEqual(IDS.length, 262);   // +1: vs-notify-channel, the Visuals notifications select
+test('fixture has exactly 257 IDs', () => {
+    assert.strictEqual(IDS.length, 257);
 });
 
 test('every static body ID is present exactly once', () => {

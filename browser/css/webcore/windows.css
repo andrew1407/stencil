@@ -95,7 +95,6 @@
 :root[data-skin="webcore"] .project-menu,
 :root[data-skin="webcore"] .chat-row-menu,
 :root[data-skin="webcore"] .chat-more-menu,
-:root[data-skin="webcore"] #install-menu,
 :root[data-skin="webcore"] .hints-popup {
     background: var(--wc-face);
     color: var(--wc-ink);
@@ -110,7 +109,6 @@
 :root[data-skin="webcore"] .project-menu-item,
 :root[data-skin="webcore"] .chat-row-menu-item,
 :root[data-skin="webcore"] .chat-more-item,
-:root[data-skin="webcore"] #install-menu [role="menuitem"],
 :root[data-skin="webcore"] .ctx-checkbox-item,
 :root[data-skin="webcore"] .ctx-radio-item {
     background: transparent;
@@ -127,7 +125,6 @@
 :root[data-skin="webcore"] .project-menu-item:hover,
 :root[data-skin="webcore"] .chat-row-menu-item:hover,
 :root[data-skin="webcore"] .chat-more-item:hover:not(:disabled),
-:root[data-skin="webcore"] #install-menu [role="menuitem"]:hover,
 :root[data-skin="webcore"] .ctx-checkbox-item:hover,
 :root[data-skin="webcore"] .ctx-radio-item:hover {
     background: var(--wc-select);

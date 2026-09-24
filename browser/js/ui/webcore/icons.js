@@ -71,9 +71,6 @@ export const swapIconArt = (root, on, accent = null, dark = false) => {
     const rect = svg.classList.contains('ic-draw-mode-rect') || /ic-box/.test(svg.innerHTML);
     svg.outerHTML = rect ? DRAW_MODE_ICON.rect : DRAW_MODE_ICON.line;
   }
-  // The install button is one big arrow of its own (see iconsWebcore.json `install`).
-  const install = on ? root.querySelector?.('#install-toggle svg.ic') : null;
-  if (install) install.innerHTML = pixelTable(dark).install;
   const logo = root.querySelector('svg.app-logo');
   if (!logo) return;
   if (on) {

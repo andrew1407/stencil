@@ -105,13 +105,9 @@
        An eased position transition makes it trail behind on fast cursor moves. */
 }
 
-/* ── Popups: hints bubble + install menu fade up ────────────────────── */
+/* ── Popups: the hints bubble fades up ──────────────────────────────── */
 #hints-btn:hover .hints-popup {
     animation: popIn 0.16s ease both;
-}
-#install-host:hover #install-menu,
-#install-host:focus-within #install-menu {
-    animation: menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 /* ── Anchored menus: grow OUT OF the control they hang off, shrink back INTO it ──
    The desktop's popovers fly out of their icon (modalFromIcon/modalToIcon do the same
@@ -156,9 +152,6 @@
 /* `.dd-hover` is accentPicker.js's LATCH of that hover: a preview's flood drops real
    :hover, so the row slid back to rest and in again after every one. */
 .accent-dd-opt:hover, .accent-dd-opt.dd-hover { transform: translateX(2px); }
-#install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
-#install-menu [role="menuitem"]:hover { transform: translateX(2px); }
-/* #install-toggle uses the shared hover shimmer — no magnify (consistent hover). */
 
 /* ── AI assistant chat panel: slide in from its dock edge on open (and when the
    dock side changes — the class swap restarts the matching animation); float pops

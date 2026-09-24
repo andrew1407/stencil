@@ -67,8 +67,7 @@
 :root[data-skin="webcore"] #chat-btn,
 :root[data-skin="webcore"] #voice-chat-btn,
 :root[data-skin="webcore"] #fullscreen-toggle,
-:root[data-skin="webcore"] #incognito-toggle,
-:root[data-skin="webcore"] #install-toggle {
+:root[data-skin="webcore"] #incognito-toggle {
     background: var(--wc-face);
     color: var(--wc-ink);
     border: 0 !important;   /* the settings row's own outline is !important (components/settings.css) */

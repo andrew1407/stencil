@@ -56,8 +56,8 @@ test('provider select offers the three contract providers plus the local-only of
   }
 });
 
-test('chat regions append at the END of the body (after the install button)', () => {
-  assert.ok(markup.indexOf('id="install-host"') < markup.indexOf('id="chat-panel"'), 'panel after install');
+test('chat regions append at the END of the body (after the confirm modal)', () => {
+  assert.ok(markup.indexOf('id="confirm-modal-overlay"') < markup.indexOf('id="chat-panel"'), 'panel after confirm');
   assert.ok(markup.indexOf('id="chat-panel"') < markup.indexOf('id="chat-settings-overlay"'), 'modal after panel');
 });
 

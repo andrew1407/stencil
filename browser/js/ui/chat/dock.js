@@ -46,7 +46,7 @@ export function createChatDock(deps) {
   let chatSize = '';
   const applySize = () => {
     if (!chatSize) return;
-    for (const el of [host, document.body, ...document.querySelectorAll('stencil-install, stencil-drop-overlay')])
+    for (const el of [host, document.body, ...document.querySelectorAll('stencil-drop-overlay')])
       el.style.setProperty('--chat-size', chatSize);
   };
   const setDock = (mode) => {

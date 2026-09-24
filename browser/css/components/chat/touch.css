@@ -24,25 +24,19 @@
     stencil-chat-panel .chat-dock-btns, stencil-chat-panel .chat-resizer, .chat-dock-float .chat-float-handle,
     stencil-chat-panel .chat-input-sizer { display: none; }
     stencil-chat-panel .chat-input-row { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
-    /* The floating install button would otherwise sit ON the modal's backdrop. */
-    body:has(stencil-chat-panel.chat-open) #install-host { display: none; }
     /* One suggestion per line: the chips are full sentences, and a wrapped
        two-column grid at 366px turns them into ragged fragments. */
     .chat-empty { flex-direction: column; align-items: stretch; }
     .chat-suggest { text-align: left; }
 }
-/* Touch devices: ≥40px targets for the compact icon buttons (the installButton.js
-   convention); the fiddly resize handles hide — the sheet/dock sizes itself. */
+/* Touch devices: ≥40px targets for the compact icon buttons; the fiddly resize handles
+   hide — the sheet/dock sizes itself. */
 @media (hover: none) and (pointer: coarse) {
     .chat-hbtn, .chat-abtn { width: 40px; height: 40px; }
     .chat-resizer { display: none; }
     .chat-dock-float .chat-float-handle { display: none; }
 }
 
-/* The floating install button must never sit on top of the chat panel: drop it
-   beneath the panel whenever the chat is open, and step it out of a right/bottom
-   dock's band (the panel's live size rides the same --chat-size var). */
-body:has(stencil-chat-panel.chat-open) #install-host { z-index: 89999; }
 /* In fullscreen the slide-in strips (#fs-controls-panel / #fs-points-panel, 10000+)
    ARE the toolbar, and a docked chat at 90000 sat over the strip's own fullscreen
    toggle. The chat goes beneath them there; modal overlays stay above both. */
@@ -79,9 +73,6 @@ body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color
 /* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the padding
    releases on the out-duration, in step with the panel and starting with it. */
 body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s ease; }
-
-body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host { right: calc(var(--chat-size, 340px) + 18px); }
-body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: calc(var(--chat-size, 300px) + 18px); }
 
 /* Gear provider-status tooltip: a themed TABLE (label column muted, status cell
    coloured by state) + a pre-line footer, fixed-positioned above the gear. Uses

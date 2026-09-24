@@ -4795,6 +4795,9 @@
     "position": "absolute",
     "display": "block"
    },
+   "|.disintegrate-host.dust-below-chat": {
+    "z-index": "89990"
+   },
    "|.disintegrate-host.dust-forming": {
     "animation": "dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both"
    },
@@ -10676,6 +10679,7 @@
    "@media (prefers-reduced-motion: reduce)|.filter-entering",
    "|.disintegrate-host",
    "|.disintegrate-host > canvas",
+   "|.disintegrate-host.dust-below-chat",
    "@media (prefers-reduced-motion: reduce)|.disintegrate-host",
    "|.materializing",
    "@keyframes rowMaterialize|from",

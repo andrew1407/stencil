@@ -100,8 +100,8 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   expiry. In the Projects list a single click asks before opening here, a double click opens
   straight away, ⌘/Ctrl+click opens in a new tab; touch rows open on tap and reorder on
   press-and-hold.
-- **PWA** — installable via the "Install app" button or the browser's install UI; runs in its
-  own window and works offline.
+- **PWA** — installable from the browser's own install UI; runs in its own window and works
+  offline.
 - **Servers** — connect to a [collaboration server](../server/README.md) from the Servers
   window to share projects and co-edit live. A connected row offers **Invite**, which copies
   an `<server-url>#token=<token>` link; pasting one into the Connect URL field adopts its
