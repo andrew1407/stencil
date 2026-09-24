@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — Selection: delete in the lists, dragging a whole line, alt-delete and hover cross.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../MainWindow.gui.hpp"
+#include "themeTokens.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -59,6 +60,42 @@ class MainWindowGuiTest : public QObject {
     QTest::keyClick(points, Qt::Key_Delete);
     QTRY_COMPARE(totalPoints(canvas), 2);
     beat();
+  }
+
+  // An empty list is one box as tall as its lone message: no band under it, no grid ticks, and
+  // the neutral hover of browser .coordinates-table tr:hover, not the accent wash.
+  void emptyListsAreOneNeutralBox() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 900);
+    win.show();
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    auto* tabs = win.findChild<QTabWidget*>();
+    for (const auto& [name, tab] : {std::pair{"pointsTable", 0}, std::pair{"linesList", 1}}) {
+      auto* t = win.findChild<QTableWidget*>(name);
+      QVERIFY(t && tabs);
+      tabs->setCurrentIndex(tab);
+      QTRY_COMPARE(t->rowCount(), 1);
+      QVERIFY2(t->columnSpan(0, 0) > 1, name);
+      QVERIFY2(!t->showGrid(), name);
+      QTRY_COMPARE(t->height(), t->rowHeight(0) + 2 * t->frameWidth());
+      emit t->cellEntered(0, 0);
+      const bool dark = t->palette().color(QPalette::Window).lightness() < 128;
+      QCOMPARE(t->item(0, 0)->background().color(), stencil::gui::themeToken("--bg-coord-hover", dark));
+    }
+
+    QAction* start = actionByText(&win, "Start Drawing");
+    QAction* newLine = actionByText(&win, "New Line");
+    QVERIFY(start && newLine);
+    start->trigger();
+    for (const QPoint& p : {QPoint(canvas->width() / 4, canvas->height() / 4), QPoint(canvas->width() / 2, canvas->height() / 3)}) {
+      QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, p);
+      beat();
+    }
+    newLine->trigger();
+    auto* lines = win.findChild<QTableWidget*>("linesList");
+    QTRY_VERIFY(lines->showGrid());
+    QCOMPARE(lines->columnSpan(0, 0), 1);
   }
 
   // Alt+Shift dragging a line must move EVERY point — including when Shift lifts a beat before
