@@ -1,6 +1,7 @@
 //! stencil — a small command-line image tool wrapping the shared C++ core.
 //! Usage and flags: see logo.usage() (or run with --help).
 const std = @import("std");
+const builtin = @import("builtin");
 const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
@@ -10,6 +11,7 @@ const project = @import("project.zig");
 const project_cli = @import("project/cli.zig");
 const llm = @import("llm.zig");
 const logo = @import("app/logo.zig");
+const report = @import("app/report.zig");
 const child = @import("safety/child.zig");
 
 pub fn main(init: std.process.Init) !void {
@@ -42,8 +44,15 @@ pub fn main(init: std.process.Init) !void {
         },
         // The console's /prompt + /llm commands seed their provider config from the
         // STENCIL_LLM_* environment (llm-contract.md §5).
-        .console => |c| return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map)) catch
-            std.process.exit(1),
+        .console => |c| {
+            // The console's raw mode is termios; Windows gets every one-shot mode, not the console.
+            if (builtin.os.tag == .windows) {
+                report.err("the interactive console is not available on Windows\n", .{});
+                std.process.exit(1);
+            }
+            return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map)) catch
+                std.process.exit(1);
+        },
         // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads
         // the matches into <output> (a directory). scrape.run prints its own reason.
         .scrape => return scrape.run(gpa, io, opts) catch std.process.exit(1),

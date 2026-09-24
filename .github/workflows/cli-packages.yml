@@ -1,0 +1,98 @@
+name: CLI packages
+
+# Builds the CLI binary for Linux / macOS / Windows; on a version tag it also attaches
+# them to the GitHub release (the same one desktop-packages.yml fills), otherwise it just
+# uploads them as workflow artifacts so packaging is exercised on every push that
+# touches the tool. Zig cross-compiles the C++ core and the stb codecs for every target,
+# so one Linux runner emits all of them — no per-OS runner as the desktop needs for Qt.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    # A package is the CLI over the core plus the shared JSON build.zig embeds — nothing
+    # else changes a byte of it. (GitHub does not apply path filters to tag pushes: a
+    # release always builds.)
+    paths:
+      - 'cli/**'
+      - 'core/**'
+      - 'browser/js/config/**'
+      - '.github/workflows/cli-packages.yml'
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'core/**'
+      - 'browser/js/config/**'
+      - '.github/workflows/cli-packages.yml'
+      - '!**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # attach assets to the release on a tag push
+
+# Opt bundled JS actions into node24 ahead of the runner's forced switch.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  package:
+    name: Package (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux links musl statically, so the binary runs on any distro regardless of its
+        # glibc. The x86_64 Linux build is the runner's own arch and gets a smoke run;
+        # the Windows binary ships every one-shot mode but not the termios console.
+        include:
+          - { target: x86_64-linux-musl,   name: Linux-x86_64,   ext: tar.gz, smoke: true }
+          - { target: aarch64-linux-musl,  name: Linux-arm64,    ext: tar.gz, smoke: false }
+          - { target: x86_64-macos,        name: Darwin-x86_64,  ext: tar.gz, smoke: false }
+          - { target: aarch64-macos,       name: Darwin-arm64,   ext: tar.gz, smoke: false }
+          - { target: x86_64-windows-gnu,  name: Windows-AMD64,  ext: zip,    smoke: false }
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Build
+        working-directory: cli
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast -Dstrip=true
+
+      - name: Smoke run
+        if: matrix.smoke
+        working-directory: cli
+        run: ./zig-out/bin/stencil --help
+
+      # The archive name mirrors the desktop package's: stencil-<version>-<system>-<arch>.
+      - name: Package
+        working-directory: cli
+        run: |
+          version=$(sed -n 's/^ *\.version = "\(.*\)",$/\1/p' build.zig.zon)
+          name="stencil-cli-${version}-${{ matrix.name }}"
+          mkdir -p dist
+          if [ "${{ matrix.ext }}" = zip ]; then
+            (cd zig-out/bin && zip -q "../../dist/${name}.zip" stencil.exe)
+          else
+            tar -czf "dist/${name}.tar.gz" -C zig-out/bin stencil
+          fi
+          ls -l dist
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: stencil-cli-${{ matrix.name }}
+          path: cli/dist/stencil-cli-*.${{ matrix.ext }}
+          if-no-files-found: error
+
+      - name: Attach to release  # tag push only; creates the release if missing
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes || true
+          gh release upload "${GITHUB_REF_NAME}" cli/dist/stencil-cli-*.${{ matrix.ext }} --clobber

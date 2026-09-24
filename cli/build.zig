@@ -99,6 +99,8 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    // Release packaging passes -Dstrip=true: no debug info in a downloaded binary.
+    const strip = b.option(bool, "strip", "Strip debug info from the CLI binary") orelse false;
 
     // stb_image / stb_image_write: public-domain single-header C codecs (build.zig.zon).
     const stb = b.dependency("stb", .{});
@@ -107,6 +109,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = strip,
     });
     wireNative(b, exe_mod, stb);
 
