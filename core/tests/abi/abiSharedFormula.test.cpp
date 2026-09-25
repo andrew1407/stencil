@@ -3,6 +3,7 @@
 #include "doctest.h"
 #include "cliApi.h"
 
+#include <initializer_list>
 #include <limits>
 
 extern "C" {

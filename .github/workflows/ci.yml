@@ -294,7 +294,7 @@ jobs:
           node-version: '22'
       - name: Parity test against the freshly built module
         working-directory: browser
-        run: node --test tests/wasm-parity.test.js
+        run: node --test tests/wasm/*.test.js
 
   # CLI: Zig tool that recompiles the core + stb_image (Zig ships its own clang, no system toolchain).
   cli:
