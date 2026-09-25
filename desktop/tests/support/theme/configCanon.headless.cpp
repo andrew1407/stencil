@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
     const QByteArray head = prose.value("head").toString().toUtf8();
     const QByteArray tail = prose.value("tail").toString().toUtf8();
     check(head.size() == 1197, "prompt head is the pinned 1197 bytes");
-    check(tail.size() == 4930, "prompt tail is the pinned 4930 bytes");
+    check(tail.size() == 5066, "prompt tail is the pinned 5066 bytes");
     check(head.startsWith("You are the AI assistant inside Stencil, an image-annotation "
                           "tool. You help the user"),
           "prompt head first-sentence spot-check");

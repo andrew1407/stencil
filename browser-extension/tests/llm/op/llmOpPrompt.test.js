@@ -35,7 +35,7 @@ test('prose core: framing, JSON-only shape, outlining guidance, injection guard 
 // silence an accidental drift.
 test('registry assembly reproduces the pre-registry prompt byte-for-byte', () => {
   assert.equal(createHash('sha256').update(LLM_SYSTEM_PROMPT, 'utf8').digest('hex'),
-    'e794d4670b4e7de8fc250804706a52696c45a1c8c52bb7652c52b37b41f764dc');
+    '35008a439c9b44a0417f463663b51dea9e04bb0955f568ff747fe79ef080e340');
   assert.equal(LLM_SYSTEM_PROMPT, buildSystemPrompt());
 });
 

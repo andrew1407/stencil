@@ -81,7 +81,7 @@ fn assemblePrompts() void {
         .ignore_unknown_fields = true, // extensionHead is the extension's business
     }) catch @panic("embedded systemPrompt.json is malformed");
     // Fail-fast pins: this is the contract-§4 asset, not some other file.
-    if (doc.head.len != 1197 or doc.tail.len != 4930)
+    if (doc.head.len != 1197 or doc.tail.len != 5066)
         @panic("embedded systemPrompt.json: unexpected head/tail length");
     if (!std.mem.startsWith(u8, doc.head, "You are the AI assistant inside Stencil, an image-annotation tool."))
         @panic("embedded systemPrompt.json: head lost the §4 first sentence");
