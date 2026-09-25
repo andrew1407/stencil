@@ -77,13 +77,13 @@ namespace stencil::gui {
       const QPointer<QDockWidget> panel(selPanel);
       QTimer::singleShot(0, this, [this, panel] {
         if (panel && !panel->isHidden())
-          resizeDocks({panel.data()}, {PANEL_DEFAULT_WIDTH}, Qt::Horizontal);
+          editor->resizeDocks({panel.data()}, {PANEL_DEFAULT_WIDTH}, Qt::Horizontal);
       });
     }
     if (!settings.windowState.isEmpty()) {
       // Versioned: a state saved against a different toolbar set restores stale row breaks. Bump
       // on every restructure.
-      restoreState(QByteArray::fromBase64(settings.windowState.toLatin1()), TOOLBAR_LAYOUT_VERSION);
+      editor->restoreState(QByteArray::fromBase64(settings.windowState.toLatin1()), TOOLBAR_LAYOUT_VERSION);
       for (QToolBar* tb : findChildren<QToolBar*>()) tb->setVisible(true);
       if (actPanel) {
         QSignalBlocker b(actPanel);

@@ -25,7 +25,7 @@
 
 #include <QEasingCurve>
 
-// The chat panel's show/hide slide and the splitter it shares with the side panel.
+// The chat panel's show/hide slide.
 
 namespace stencil::gui {
 
@@ -34,27 +34,6 @@ namespace stencil::gui {
     if (!panelVeil) return;
     if (selPanel && selPanel->graphicsEffect() == panelVeil) selPanel->setGraphicsEffect(nullptr);
     panelVeil = nullptr;
-  }
-
-  // Pins selPanel at its last settled solo width for the chat slide; stopChatAnim releases it.
-  void MainWindow::pinPanelWhileSharing(Qt::DockWidgetArea chatArea) {
-    // Split first: the slide must trade space with the CANVAS.
-    ensurePanelChatSplit();
-    if (!selPanel || selPanel->isHidden()) return;
-    if (chatArea != Qt::LeftDockWidgetArea && chatArea != Qt::RightDockWidgetArea) return;
-    if (dockWidgetArea(selPanel) != chatArea) return;
-    if (!panelAnim && selPanel->width() > 120) panelRestoreWidth = selPanel->width();
-    selPanel->setFixedWidth(panelRestoreWidth > 120 ? panelRestoreWidth : PANEL_DEFAULT_WIDTH);
-  }
-
-  // Plain addDockWidget stacks two docks VERTICALLY unless explicitly split. Idempotent.
-  void MainWindow::ensurePanelChatSplit() {
-    // Splitting against a hidden dock can park it off-screen; setPanelShown's reveal calls this again.
-    if (!selPanel || selPanel->isHidden() || !chatDock || chatDock->isFloating()) return;
-    const Qt::DockWidgetArea pArea = dockWidgetArea(selPanel);
-    if (pArea != Qt::LeftDockWidgetArea && pArea != Qt::RightDockWidgetArea) return;
-    if (dockWidgetArea(chatDock) != pArea) return;
-    splitDockWidget(selPanel, chatDock, Qt::Horizontal);
   }
 
   // Browser chat-panel slide: ~0.34 s in, ~0.26 s out, ease-out. Pin min==max on every frame so QMainWindow's own
@@ -72,8 +51,6 @@ namespace stencil::gui {
     // An INTERRUPTED slide never runs its completion, so "leaving" is released here too.
     chatClosing = false;
     if (chatDock) chatDock->setClosing(false);
-    // Always released — it must never outlive an interrupted flight.
-    if (selPanel) { selPanel->setMinimumWidth(PANEL_MIN_WIDTH); selPanel->setMaximumWidth(QWIDGETSIZE_MAX); }
     dropChatVeil();
     if (!chatAnim) return;
     chatAnim->stop();
@@ -99,12 +76,7 @@ namespace stencil::gui {
     // A full open re-docks to the area the popover displaced (browser restoreFromCompact parity).
     if (show && chatDock->isFloating() && chatCompactPopover) {
       setChatCompactPopover(false);
-      // Same orientation rule as dockChatTo's place(): top/bottom claim a full-width row.
-      if (chatCompactPrevArea == Qt::TopDockWidgetArea
-          || chatCompactPrevArea == Qt::BottomDockWidgetArea)
-        addDockWidget(chatCompactPrevArea, chatDock, Qt::Vertical);
-      else
-        addDockWidget(chatCompactPrevArea, chatDock);
+      addDockWidget(chatCompactPrevArea, chatDock);
       chatDock->setFloating(false);
     }
     // Floating = its own window: no dock edge to slide from; it flies out of the toolbar icon like a dialog.
@@ -123,10 +95,8 @@ namespace stencil::gui {
       return;
     }
     if (tearingDown || chatDock->isFloating() || !animate) {
-      // An instant show/hide still reflows the dock layout — pin around it too.
-      if (!tearingDown && !chatDock->isFloating()) pinPanelWhileSharing(dockWidgetArea(chatDock));
       chatDock->setVisible(show);
-      stopChatAnim();   // releases the pin immediately — no animation follows it
+      stopChatAnim();   // no animation follows to release the pinned extent — do it now
       if (show && !tearingDown && !chatDock->isFloating()) {
         // What the slide's end would have done: the remembered extent, and the caret.
         const Qt::DockWidgetArea at = dockWidgetArea(chatDock);
@@ -138,7 +108,6 @@ namespace stencil::gui {
       return;
     }
     const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
-    pinPanelWhileSharing(area);   // released by the slide's own stopChatAnim() below
     const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const auto extent = [this, horiz] {
       return horiz ? chatDock->width() : chatDock->height();

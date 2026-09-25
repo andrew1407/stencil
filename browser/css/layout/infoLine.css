@@ -31,9 +31,10 @@ body.controls-collapsed .canvas-viewport { margin-top: 0; }
        the tag are laid out against the row's height instead of deciding it. */
     display: flex;
     align-items: center;
-    line-height: 20px;
-    min-height: 20px;
-    height: 20px;   /* explicit, so the fold (animations/collapse.css) can take it to 0 */
+    /* 27 + 2×10 = 47: the desktop's imageInfoBar, an 11px margin around its 25px line. */
+    line-height: 27px;
+    min-height: 27px;
+    height: 27px;   /* explicit, so the fold (animations/collapse.css) can take it to 0 */
     white-space: nowrap;
     overflow: hidden;
 }

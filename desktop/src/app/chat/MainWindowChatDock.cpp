@@ -30,19 +30,13 @@
 
 namespace stencil::gui {
 
-  // The selection panel owns the right area, so docking there must SPLIT side-by-side - plain
-  // addDockWidget stacks them into two squashed half-height columns.
+  // The chat is the WINDOW's only dock: every side runs the full edge, outside the editor's
+  // toolbars and panel, as the browser's fixed-position panel insets the whole page.
   void MainWindow::dockChatTo(Qt::DockWidgetArea area) {
     if (!chatDock) return;
     const auto place = [this, area] {
-      // pinPanelWhileSharing has already fixed the panel's width, so the split lands on that, not
-      // Qt's even one. Top/bottom need Qt::Vertical for a FULL-WIDTH row.
-      if (area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea)
-        addDockWidget(area, chatDock, Qt::Vertical);
-      else
-        addDockWidget(area, chatDock);
+      addDockWidget(area, chatDock);
       chatDock->setFloating(false);
-      ensurePanelChatSplit();
     };
     // A placement change reads as travel: out of the old edge, in at the new, dusting through
     // chatSurfaceFlight. Skipped when there is nothing on screen to move.
@@ -52,9 +46,8 @@ namespace stencil::gui {
     if (wasFloating && !chatCompactShowing()) chatFloatRect = chatDock->geometry();
     if (tearingDown || !chatDock->isVisible() || support::motionReduced()
         || (!wasFloating && dockWidgetArea(chatDock) == area)) {
-      pinPanelWhileSharing(area);
       place();
-      stopChatAnim();   // no animation follows to release the pin — do it now
+      stopChatAnim();   // no animation follows to release the pinned extent — do it now
       return;
     }
     stopChatAnim();
@@ -72,7 +65,6 @@ namespace stencil::gui {
     // Coming back from a FLOAT there is no edge to leave — it just slides in at the
     // side you picked (the browser plays its dock-in slide here too).
     if (wasFloating) {
-      pinPanelWhileSharing(area);
       place();
       growIn();
       return;
@@ -84,9 +76,8 @@ namespace stencil::gui {
     const auto pinFrom = chatExtentPin(horizFrom);
     QPointer<gui::DisintegrateOverlay> outFx = chatSurfaceFlight(from, /*gather=*/false, 200, pinFrom, extent);
     chatAnim = startExtentSlide(this, extent, 0, 200, pinAndRaiseDust(pinFrom, outFx),
-                                 [this, place, growIn, area] {
+                                 [this, place, growIn] {
       stopChatAnim();          // release the pinned extent before re-docking
-      pinPanelWhileSharing(area);
       place();
       growIn();
     });
@@ -112,9 +103,6 @@ namespace stencil::gui {
     }
     const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
     if (area != Qt::NoDockWidgetArea) chatCompactPrevArea = area;
-    // Same reason as setChatShown/dockChatTo: if the panel shares this side, pin its
-    // width for the whole closing slide so it never fights the chat's own collapse.
-    pinPanelWhileSharing(area);
     const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const auto pin = chatExtentPin(horiz);
     const int full = horiz ? chatDock->width() : chatDock->height();
@@ -153,7 +141,7 @@ namespace stencil::gui {
       releasePanelVeil();
       selPanel->setMinimumWidth(PANEL_MIN_WIDTH);
       selPanel->setMaximumWidth(QWIDGETSIZE_MAX);
-      if (show) resizeDocks({selPanel}, {full}, Qt::Horizontal);   // the layout's own record, or it drifts a pixel a cycle
+      if (show) editor->resizeDocks({selPanel}, {full}, Qt::Horizontal);   // the layout's own record, or it drifts a pixel a cycle
       else selPanel->hide();
       panelAnim = nullptr;
       positionPanelGrip();
@@ -163,9 +151,6 @@ namespace stencil::gui {
     QPointer<gui::DisintegrateOverlay> dustFx;
     if (show) {
       selPanel->show();
-      // The chat may already be docked at this side from while the panel was hidden,
-      // stacked rather than split — re-establish the split now the panel is back.
-      ensurePanelChatSplit();
       // Photographed at the OPEN width; the slide starts from 1px, not 0 - at exactly zero Qt treats
       // the split's anchor pane as vacated and drops the panel out of the layout tree.
       if (animate) dustFx = panelSurfaceFlight(/*gather=*/true, FOLD_DUST_IN_MS, full);

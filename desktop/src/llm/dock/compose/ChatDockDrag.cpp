@@ -33,6 +33,11 @@ namespace stencil::gui {
     auto* mw = qobject_cast<QMainWindow*>(parentWidget());
     const Qt::DockWidgetArea current =
         (!isFloating() && mw) ? mw->dockWidgetArea(this) : Qt::NoDockWidgetArea;
+    // Also asked on every move (below), so a repaint happens only when something it shows changed.
+    const QString key = QStringLiteral("%1|%2|%3|%4").arg(int(current)).arg(int(isFloating()))
+                            .arg(accentCache.name(), textCache.name());
+    if (key == placementKey) return;
+    placementKey = key;
     const QString activeQss = QStringLiteral("background:%1;border:none;border-radius:5px;")
                                   .arg(chipCache.name());
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
@@ -143,6 +148,9 @@ namespace stencil::gui {
                           : QGuiApplication::mouseButtons().testFlag(Qt::LeftButton);
     // Not while WE drive the drag (the event path owns it end to end).
     if (isFloating() && down && !manualDrag) startDragPoll();
+    // A re-dock made straight on the window while the dock is hidden emits no
+    // dockLocationChanged; the move it causes is the one sure word.
+    if (!isFloating()) updatePlacementState();
   }
 
   void ChatDock::closeEvent(QCloseEvent* event) {

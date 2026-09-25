@@ -9,7 +9,7 @@ import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormul
 import { createThumbnailScheduler } from '../image/thumbnail.js';
 import { saveBlockedReason, writeActiveProject } from './save.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
-         promoteTemporary, clearEditorState } from './session.js';
+         promoteTemporary, clearEditorState, collapseCanvas } from './session.js';
 import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
          applyStoredTools, applyImagelessPayload } from './storedLayout.js';
 
@@ -203,11 +203,7 @@ export class Storage {
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
-    // Collapse the backing store + inline CSS size, or the "+ Blank image" card lands off-centre.
-    this.app.canvas.width = 0;
-    this.app.canvas.height = 0;
-    this.app.canvas.style.width = '';
-    this.app.canvas.style.height = '';
+    collapseCanvas(this.app);   // or the "+ Blank image" card lands off-centre
     this.app.scale = 1;
     this.app.renderedScale = null;
     this.app.zoomPan?.setZoomInputValue(100);

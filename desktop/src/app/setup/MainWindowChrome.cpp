@@ -73,9 +73,30 @@ namespace stencil::gui {
     chatEdge->setObjectName(QStringLiteral("chatResizeEdge"));
     {
       const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
-      chatEdge->setAccent(pal.accent);
+      chatEdge->setColors(pal.borderMain, pal.accent);
     }
     chatEdge->hide();
+    // The drag (browser chat/dock.js beginResize): the grabbed extent plus the pointer's travel,
+    // toward the window's centre, through the layout's own resize. A resize adopts the layout.
+    chatEdge->setDragHandlers(
+        [this] {
+          if (!chatDock) return;
+          setChatCompactPopover(false);
+          const Qt::DockWidgetArea a = dockWidgetArea(chatDock);
+          const bool horiz = a == Qt::LeftDockWidgetArea || a == Qt::RightDockWidgetArea;
+          chatEdgeStart = horiz ? chatDock->width() : chatDock->height();
+        },
+        [this](const QPoint& d) {
+          if (!chatDock) return;
+          const Qt::DockWidgetArea a = dockWidgetArea(chatDock);
+          const bool horiz = a == Qt::LeftDockWidgetArea || a == Qt::RightDockWidgetArea;
+          const int travel = a == Qt::LeftDockWidgetArea ? d.x() : a == Qt::RightDockWidgetArea ? -d.x()
+                           : a == Qt::TopDockWidgetArea  ? d.y() : -d.y();
+          const int extent = qMax(1, chatEdgeStart + travel);
+          resizeDocks({chatDock}, {extent}, horiz ? Qt::Horizontal : Qt::Vertical);
+          chatRestoreExtent = extent;   // the size it reopens at; the layout applies it a beat later
+        },
+        {});
     spinControlsPill(false);   // seed the pill's angle from the current toolbar state
     updatePanelReopenButton();
   }
@@ -84,7 +105,7 @@ namespace stencil::gui {
   // through a slide, so it lands with the panel rather than ahead of it (browser: #fs-panel-resizer forms with the list).
   void MainWindow::positionPanelGrip() {
     if (!panelGrip || !selPanel) return;
-    const Qt::DockWidgetArea area = dockWidgetArea(selPanel);
+    const Qt::DockWidgetArea area = editor->dockWidgetArea(selPanel);
     const bool on = !selPanel->isHidden() && !selPanel->isFloating() && !panelAnim && !showCovered
                     && (area == Qt::RightDockWidgetArea || area == Qt::LeftDockWidgetArea);
     panelGrip->setVisible(on);
@@ -93,7 +114,7 @@ namespace stencil::gui {
       panelGripDrag = false;
       return;
     }
-    const QRect pr = selPanel->geometry();
+    const QRect pr(selPanel->mapTo(this, QPoint(0, 0)), selPanel->size());   // the overlay is the window's
     constexpr int SEP_W = DOCK_SEPARATOR_PX;   // the QSS QMainWindow::separator width
     panelGrip->setGeometry(area == Qt::LeftDockWidgetArea
                                 ? QRect(pr.right() + 1, pr.top(), SEP_W, pr.height())
@@ -101,35 +122,30 @@ namespace stencil::gui {
     panelGrip->raise();
   }
 
-  // Horizontal separators are a hairline, so the band is drawn to MIN_THICKNESS while the hit rect stays Qt's strip.
+  // The strip lies INSIDE the dock along the edge it is docked by (browser .chat-resizer): the
+  // dock's inner paddings are wider, so it covers no content; the page gap is the separator's.
   void MainWindow::positionChatEdge() {
     if (!chatEdge || !chatDock) return;
     const bool on = chatDock->isVisible() && !chatDock->isFloating() && !fs.active && !showCovered;
-    chatEdge->setVisible(on);
     if (!on) {
+      chatEdge->hide();
       chatEdge->setHot(false);
-      chatEdgeDrag = false;
-      chatEdgeHit = QRect();
       return;
     }
     const QRect r = chatDock->geometry();
-    const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
-    constexpr int SEP_W = DOCK_SEPARATOR_PX;   // QSS QMainWindow::separator width
-    constexpr int SEP_H = 1;                  // …and its height (theme.cpp)
-    switch (area) {
-      case Qt::LeftDockWidgetArea:   chatEdgeHit = QRect(r.right() + 1, r.top(), SEP_W, r.height()); break;
-      case Qt::RightDockWidgetArea:  chatEdgeHit = QRect(r.left() - SEP_W, r.top(), SEP_W, r.height()); break;
-      case Qt::TopDockWidgetArea:    chatEdgeHit = QRect(r.left(), r.bottom() + 1, r.width(), SEP_H); break;
-      case Qt::BottomDockWidgetArea: chatEdgeHit = QRect(r.left(), r.top() - SEP_H, r.width(), SEP_H); break;
-      default: chatEdgeHit = QRect(); chatEdge->hide(); return;
+    constexpr int T = DockEdgeOverlay::THICKNESS;
+    QRect band;
+    switch (dockWidgetArea(chatDock)) {
+      case Qt::LeftDockWidgetArea:   band = QRect(r.right() + 1 - T, r.top(), T, r.height()); break;
+      case Qt::RightDockWidgetArea:  band = QRect(r.left(), r.top(), T, r.height()); break;
+      case Qt::TopDockWidgetArea:    band = QRect(r.left(), r.bottom() + 1 - T, r.width(), T); break;
+      case Qt::BottomDockWidgetArea: band = QRect(r.left(), r.top(), r.width(), T); break;
+      default: chatEdge->hide(); return;
     }
-    QRect band = chatEdgeHit;
-    const int grow = DockEdgeOverlay::MIN_THICKNESS;
-    if (band.height() < grow && band.width() > band.height())
-      band.adjust(0, -(grow - band.height()) / 2, 0, (grow - band.height() + 1) / 2);
-    else if (band.width() < grow && band.height() > band.width())
-      band.adjust(-(grow - band.width()) / 2, 0, (grow - band.width() + 1) / 2, 0);
+    chatEdge->setAxis(band.height() > band.width() ? Qt::Horizontal : Qt::Vertical);
+    // Placed BEFORE it shows: a widget shown at its old box under the pointer takes an Enter.
     chatEdge->setGeometry(band);
+    chatEdge->show();
     chatEdge->raise();
   }
 

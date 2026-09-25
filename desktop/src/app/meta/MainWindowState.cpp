@@ -162,8 +162,8 @@ namespace stencil::gui {
       selectedLineDock->setVisible(true);
       // splitDockWidget against a hidden dock does not register, so re-affirm the stack once it is
       // on screen. Idempotent.
-      if (imageInfoDock) splitDockWidget(selectedLineDock, imageInfoDock, Qt::Vertical);
-      if (QLayout* l = layout()) l->activate();   // the grab must see the shown bar, not a stale one
+      if (imageInfoDock) editor->splitDockWidget(selectedLineDock, imageInfoDock, Qt::Vertical);
+      if (QLayout* l = editor->layout()) l->activate();   // the grab must see the shown bar, not a stale one
       dustSelectedLineBarIn();
     } else if (!showBar && wasBarVisible) {
       dustSelectedLineBarOut();

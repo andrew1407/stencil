@@ -38,6 +38,7 @@ namespace stencil::gui {
     void showStatic();   // paint the resting mark (no animation), button icon blanked
     void blankButtonIcon();
     void syncGeometry();
+    void watchAncestors();   // the widgets between the button and the window, whose moves carry it
     void leaveSoon();
     bool hoveredAnywhere() const;
 
@@ -47,6 +48,7 @@ namespace stencil::gui {
     QVariantAnimation* pulse = nullptr;
     QVariantAnimation* spin = nullptr;
     QPointer<QWidget> box;           // the open accent popover's in-window box, if any
+    QList<QPointer<QWidget>> ancestors;
     QTimer* grace = nullptr;         // deferred stop across the logo → popover crossing
     QPixmap pm;      // the mark at the CURRENT accent (cached per hover / theme change)
     qreal beat = 0.0;

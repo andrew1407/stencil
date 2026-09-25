@@ -41,7 +41,8 @@ void pinWindowStates(const QString& png) {
   pumpFor(120);
 
   pin("toolbar-default", &win);
-  pin("idle-card-empty-canvas", win.centralWidget());
+  // The window's central widget is the editor shell; the canvas column is ITS central widget.
+  pin("idle-card-empty-canvas", qobject_cast<QMainWindow*>(win.centralWidget())->centralWidget());
 
   // A loaded image plus one selected line: the selection panel's populated state.
   win.openPathFromOS(png);

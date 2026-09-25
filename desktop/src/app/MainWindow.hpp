@@ -258,10 +258,6 @@ namespace stencil::gui {
     void dustSelectedLineBarOut();
     QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
     void setChatShown(bool show, bool animate);
-    // Pins the panel width so a shared-area chat slide eats into the CANVAS column only.
-    void pinPanelWhileSharing(Qt::DockWidgetArea chatArea);
-    // Splitting against a hidden dock can park it off-screen; idempotent.
-    void ensurePanelChatSplit();
     void dockChatTo(Qt::DockWidgetArea area);
     QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool gather, int ms,
                                                          const std::function<void(int)>& pin, int full);
@@ -547,6 +543,9 @@ namespace stencil::gui {
     // A dock area, not a QToolBar row: it stretches to the full width the FlowLayout wraps against.
     class QDockWidget* selectedLineDock = nullptr;
     class QVBoxLayout* centralLayout = nullptr;
+    // The toolbars, the editor docks and the canvas. The chat docks on the window AROUND it,
+    // as the browser's fixed-position panel insets the whole page (chat/panel.css).
+    class QMainWindow* editor = nullptr;
     ChatDock* chatDock = nullptr;
     // QPointer: notify dies with the scroll viewport while dock signals can still fire in teardown.
     QPointer<Notifications> notify;
@@ -652,10 +651,9 @@ namespace stencil::gui {
     class QToolButton* panelReopenBtn = nullptr;
     class DockGripOverlay* panelGrip = nullptr;
     bool panelGripDrag = false, showCovered = false;
-    // chatEdgeHit is the separator's real rect: the band paints thicker but lights only where Qt resizes.
+    // The chat's resize handle, a strip inside the dock's own edge (browser .chat-resizer).
     class DockEdgeOverlay* chatEdge = nullptr;
-    QRect chatEdgeHit;
-    bool chatEdgeDrag = false;
+    int chatEdgeStart = 0;   // the dock's extent when the handle was grabbed
     class QLabel *imageSizeInfo = nullptr, *incognitoTag = nullptr;
     QWidget* imageInfoBar = nullptr;
     QWidget* imageInfoHost = nullptr;

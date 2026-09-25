@@ -43,6 +43,15 @@ export const promoteTemporary = (storage) => {
   return storage.activeId;
 };
 
+// The bare viewport: a picture's backing size and inline CSS size left behind still scroll it.
+export const collapseCanvas = (app) => {
+  const c = app.canvas;
+  if (!c) return;
+  c.width = 0;
+  c.height = 0;
+  if (c.style) { c.style.width = ''; c.style.height = ''; }
+};
+
 // Everything the emptied editor forgets; the canvas itself is the caller's to collapse.
 export const clearEditorState = (app) => {
   app.image = null;

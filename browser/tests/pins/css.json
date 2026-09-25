@@ -1004,16 +1004,6 @@
     "box-shadow": "0 1px 6px var(--accent)",
     "transform": "translateY(-1px)"
    },
-   "@media (hover: none) and (pointer: coarse)|#install-host": {
-    "position": "static",
-    "right": "auto",
-    "bottom": "auto",
-    "align-items": "center",
-    "margin": "14px 0 20px"
-   },
-   "@media (hover: none) and (pointer: coarse)|#install-host:focus-within #install-menu, #install-host:hover #install-menu": {
-    "display": "none"
-   },
    "@media (hover: none) and (pointer: coarse)|.chat-abtn, .chat-hbtn": {
     "width": "40px",
     "height": "40px"
@@ -1189,9 +1179,6 @@
    "@media (max-width: 680px)|body:has(stencil-chat-panel.chat-open) #chat-backdrop": {
     "display": "block",
     "animation": "overlayFadeIn 0.22s ease both"
-   },
-   "@media (max-width: 680px)|body:has(stencil-chat-panel.chat-open) #install-host": {
-    "display": "none"
    },
    "@media (max-width: 680px)|stencil-chat-panel .chat-input-row": {
     "padding-bottom": "calc(8px + env(safe-area-inset-bottom, 0px))"
@@ -1426,7 +1413,7 @@
     "animation": "none",
     "background-image": "none"
    },
-   "@media print|#ctx-menu, #install-host, #notify-balloon, #theme-toggle, .controls-wrapper, .drop-hint, .tooltip": {
+   "@media print|#ctx-menu, #notify-balloon, #theme-toggle, .controls-wrapper, .drop-hint, .tooltip": {
     "display": "none !important"
    },
    "@media print|.container": {
@@ -1956,95 +1943,6 @@
    },
    "|#info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal": {
     "min-height": "min(82vh, 760px)"
-   },
-   "|#install-host": {
-    "position": "fixed",
-    "right": "18px",
-    "bottom": "18px",
-    "z-index": "100000",
-    "display": "flex",
-    "flex-direction": "column",
-    "align-items": "flex-end"
-   },
-   "|#install-host:focus-within #install-menu, #install-host:hover #install-menu": {
-    "display": "flex",
-    "animation": "menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both"
-   },
-   "|#install-host[hidden]": {
-    "display": "none"
-   },
-   "|#install-menu": {
-    "display": "none",
-    "position": "absolute",
-    "right": "0",
-    "bottom": "calc(100% + 8px)",
-    "flex-direction": "column",
-    "gap": "4px",
-    "padding": "6px",
-    "background": "#1f2430",
-    "border": "1px solid rgba(255,255,255,0.25)",
-    "border-radius": "10px",
-    "box-shadow": "0 10px 30px rgba(0,0,0,0.45)"
-   },
-   "|#install-menu .install-ic": {
-    "font-size": "16px"
-   },
-   "|#install-menu [role=\"menuitem\"]": {
-    "display": "flex",
-    "align-items": "center",
-    "gap": "8px",
-    "white-space": "nowrap",
-    "background": "transparent",
-    "color": "#fff",
-    "border": "none",
-    "border-radius": "6px",
-    "padding": "8px 12px",
-    "font-size": "13.5px",
-    "font-weight": "600",
-    "text-align": "left",
-    "text-decoration": "none",
-    "cursor": "pointer",
-    "transition": "background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease"
-   },
-   "|#install-menu [role=\"menuitem\"]:hover": {
-    "background": "rgba(255,255,255,0.14)",
-    "transform": "translateX(2px)"
-   },
-   "|#install-menu [role=\"menuitem\"][hidden]": {
-    "display": "none"
-   },
-   "|#install-menu.dust-hold": {
-    "display": "flex"
-   },
-   "|#install-menu::before": {
-    "content": "''",
-    "position": "absolute",
-    "left": "0",
-    "right": "0",
-    "top": "100%",
-    "height": "8px"
-   },
-   "|#install-toggle": {
-    "width": "33px",
-    "height": "33px",
-    "display": "flex",
-    "align-items": "center",
-    "justify-content": "center",
-    "background": "var(--accent)",
-    "color": "var(--on-accent)",
-    "border": "none",
-    "border-radius": "50%",
-    "font-size": "15px",
-    "line-height": "1",
-    "cursor": "pointer",
-    "box-shadow": "0 6px 24px rgba(0,0,0,0.28)",
-    "transition": "background 0.18s ease, transform 0.18s ease"
-   },
-   "|#install-toggle:active": {
-    "transform": "translateY(1px)"
-   },
-   "|#install-toggle:hover": {
-    "background": "var(--accent-2)"
    },
    "|#notify-balloon": {
     "position": "fixed",
@@ -3551,9 +3449,6 @@
     "background": "transparent",
     "touch-action": "none",
     "user-select": "none"
-   },
-   "|.chat-resizer.dragging, stencil-chat-panel:not(.chat-gesturing) .chat-resizer:hover": {
-    "background": "color-mix(in srgb, var(--accent) 30%, transparent)"
    },
    "|.chat-result": {
     "display": "flex",
@@ -5730,9 +5625,9 @@
     "color": "var(--text-info)",
     "display": "flex",
     "align-items": "center",
-    "line-height": "20px",
-    "min-height": "20px",
-    "height": "20px",
+    "line-height": "27px",
+    "min-height": "27px",
+    "height": "27px",
     "white-space": "nowrap",
     "overflow": "hidden",
     "transition": "height var(--fold-ms) var(--fold-ease), min-height var(--fold-ms) var(--fold-ease), padding var(--fold-ms) var(--fold-ease), opacity var(--fold-fade-ms) var(--fold-ease), visibility 0s"
@@ -5773,8 +5668,8 @@
     "color": "var(--accent)",
     "font-weight": "600",
     "white-space": "nowrap",
-    "line-height": "20px",
-    "height": "20px",
+    "line-height": "27px",
+    "height": "27px",
     "flex": "0 0 auto"
    },
    "|.info-incognito .ic": {
@@ -7754,7 +7649,7 @@
     "background": "rgba(0, 0, 0, 0.25)",
     "backdrop-filter": "none !important"
    },
-   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #install-toggle, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button": {
+   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button": {
     "background": "var(--wc-face)",
     "color": "var(--wc-ink)",
     "border": "0 !important",
@@ -7776,7 +7671,7 @@
     "box-shadow": "var(--wc-sunken)",
     "padding-left": "6px"
    },
-   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] #install-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu": {
+   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu": {
     "background": "var(--wc-face)",
     "color": "var(--wc-ink)",
     "border": "0",
@@ -7785,16 +7680,6 @@
    },
    "|:root[data-skin=\"webcore\"] #fs-panel-resizer::before, :root[data-skin=\"webcore\"] .panel-resizer::before": {
     "background": "var(--resizer-grip)"
-   },
-   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"], :root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item": {
-    "background": "transparent",
-    "color": "var(--wc-ink)",
-    "box-shadow": "none",
-    "border": "0"
-   },
-   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"]:hover, :root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover": {
-    "background": "var(--wc-select)",
-    "color": "var(--wc-on-select)"
    },
    "|:root[data-skin=\"webcore\"] #project-name-input, :root[data-skin=\"webcore\"] #project-name-input:disabled, :root[data-skin=\"webcore\"] #project-name-input:read-only": {
     "background": "transparent",
@@ -7889,6 +7774,16 @@
    "|:root[data-skin=\"webcore\"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected=\"true\"]:not(:hover):not(.dd-hover), :root[data-skin=\"webcore\"] .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)": {
     "background": "transparent",
     "color": "var(--wc-ink)"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item": {
+    "background": "transparent",
+    "color": "var(--wc-ink)",
+    "box-shadow": "none",
+    "border": "0"
+   },
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover": {
+    "background": "var(--wc-select)",
+    "color": "var(--wc-on-select)"
    },
    "|:root[data-skin=\"webcore\"] .accent-dd-opt[aria-selected=\"true\"], :root[data-skin=\"webcore\"] .zoom-menu-item.active": {
     "background": "var(--wc-select)",
@@ -8296,7 +8191,7 @@
    "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover :is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span)": {
     "color": "var(--wc-on-select)"
    },
-   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, #install-menu [role=\"menuitem\"]:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)": {
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)": {
     "filter": "drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight)) drop-shadow(0 1px 0 var(--wc-hilight)) drop-shadow(0 -1px 0 var(--wc-hilight)) !important"
    },
    "|:root[data-skin=\"webcore\"] :is(.del-pt-btn, .lines-row .btn-icon)": {
@@ -8384,8 +8279,11 @@
     "background-position": "right 2px top 2px",
     "background-repeat": "no-repeat"
    },
-   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover": {
-    "background": "color-mix(in srgb, var(--wc-focus) 30%, transparent)"
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover::before": {
+    "background": "var(--wc-focus)"
+   },
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before": {
+    "background": "var(--resizer-grip)"
    },
    "|:root[data-skin=\"webcore\"], :root[data-skin=\"webcore\"] body": {
     "background": "var(--wc-desktop)",
@@ -8559,7 +8457,7 @@
    "|body.fullscreen-mode #fs-right-trigger, body.fullscreen-mode #fs-top-trigger": {
     "display": "block"
    },
-   "|body.fullscreen-mode #install-host, body.fullscreen-mode #selection-panel, body.fullscreen-mode .controls-wrapper, body.fullscreen-mode .drop-hint, body.fullscreen-mode .info, body.fullscreen-mode .main-content > .coordinates-panel, body.fullscreen-mode .panel-resizer": {
+   "|body.fullscreen-mode #selection-panel, body.fullscreen-mode .controls-wrapper, body.fullscreen-mode .drop-hint, body.fullscreen-mode .info, body.fullscreen-mode .main-content > .coordinates-panel, body.fullscreen-mode .panel-resizer": {
     "display": "none !important"
    },
    "|body.fullscreen-mode .canvas-section": {
@@ -8630,15 +8528,6 @@
    },
    "|body:has(stencil-chat-panel.chat-gesturing)": {
     "transition": "background 0.3s, color 0.3s"
-   },
-   "|body:has(stencil-chat-panel.chat-open) #install-host": {
-    "z-index": "89999"
-   },
-   "|body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host": {
-    "bottom": "calc(var(--chat-size, 300px) + 18px)"
-   },
-   "|body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host": {
-    "right": "calc(var(--chat-size, 340px) + 18px)"
    },
    "|body:not(.canvas-empty):not(.canvas-readonly) .canvas-viewport, body:not(.canvas-empty):not(.canvas-readonly) canvas": {
     "cursor": "crosshair"
@@ -8846,9 +8735,6 @@
     "cursor": "nwse-resize",
     "border-radius": "10px 0 10px 0"
    },
-   "|stencil-chat-panel.chat-dock-float .chat-resizer.dragging, stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover": {
-    "background": "transparent"
-   },
    "|stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before, stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before": {
     "background": "var(--accent)",
     "width": "8px",
@@ -8940,6 +8826,32 @@
    },
    "|stencil-chat-panel.chat-open.chat-dock-top": {
     "animation": "chatSlideTop 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
+   },
+   "|stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer.dragging::before, stencil-chat-panel:is(.chat-dock-left, .chat-dock-right):not(.chat-gesturing) .chat-resizer:hover::before": {
+    "background": "var(--accent)",
+    "height": "52px"
+   },
+   "|stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer::before": {
+    "width": "3px",
+    "height": "34px"
+   },
+   "|stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer.dragging::before, stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom):not(.chat-gesturing) .chat-resizer:hover::before": {
+    "background": "var(--accent)",
+    "width": "52px"
+   },
+   "|stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer::before": {
+    "width": "34px",
+    "height": "3px"
+   },
+   "|stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before": {
+    "content": "''",
+    "position": "absolute",
+    "top": "50%",
+    "left": "50%",
+    "transform": "translate(-50%, -50%)",
+    "border-radius": "2px",
+    "background": "var(--border-main)",
+    "transition": "background 0.15s, width 0.15s, height 0.15s"
    },
    "|stencil-fullscreen-layer": {
     "display": "contents"
@@ -9309,7 +9221,7 @@
    "|.tooltip-table td",
    "|body.fullscreen-mode",
    "|body.fullscreen-mode .container",
-   "|body.fullscreen-mode #install-host, body.fullscreen-mode #selection-panel, body.fullscreen-mode .controls-wrapper, body.fullscreen-mode .drop-hint, body.fullscreen-mode .info, body.fullscreen-mode .main-content > .coordinates-panel, body.fullscreen-mode .panel-resizer",
+   "|body.fullscreen-mode #selection-panel, body.fullscreen-mode .controls-wrapper, body.fullscreen-mode .drop-hint, body.fullscreen-mode .info, body.fullscreen-mode .main-content > .coordinates-panel, body.fullscreen-mode .panel-resizer",
    "|body.fullscreen-mode .main-content",
    "|body.fullscreen-mode .canvas-section",
    "|body.fullscreen-mode .canvas-viewport",
@@ -9432,20 +9344,6 @@
    "@keyframes notifyShine|0%, 100%",
    "@keyframes notifyShine|50%",
    "@media (prefers-reduced-motion: reduce)|.notify-toast.notify-shine",
-   "|#install-host[hidden]",
-   "|#install-host",
-   "|#install-toggle",
-   "|#install-toggle:hover",
-   "|#install-toggle:active",
-   "|#install-menu",
-   "|#install-host:focus-within #install-menu, #install-host:hover #install-menu",
-   "|#install-menu::before",
-   "@media (hover: none) and (pointer: coarse)|#install-host",
-   "@media (hover: none) and (pointer: coarse)|#install-host:focus-within #install-menu, #install-host:hover #install-menu",
-   "|#install-menu [role=\"menuitem\"]",
-   "|#install-menu [role=\"menuitem\"]:hover",
-   "|#install-menu [role=\"menuitem\"][hidden]",
-   "|#install-menu .install-ic",
    "|#fullscreen-toggle, #incognito-toggle, #info-btn, #settings-btn, #visuals-btn",
    "|#chat-btn",
    "|#chat-btn.active",
@@ -10071,14 +9969,17 @@
    "|.chat-input-wrap.chat-drop-target textarea",
    "|.chat-drop-cue-icon",
    "|.chat-resizer",
-   "|.chat-resizer.dragging, stencil-chat-panel:not(.chat-gesturing) .chat-resizer:hover",
+   "|stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before",
+   "|stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer::before",
+   "|stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer::before",
+   "|stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer.dragging::before, stencil-chat-panel:is(.chat-dock-left, .chat-dock-right):not(.chat-gesturing) .chat-resizer:hover::before",
+   "|stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer.dragging::before, stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom):not(.chat-gesturing) .chat-resizer:hover::before",
    "|stencil-chat-panel.chat-dock-left .chat-resizer",
    "|stencil-chat-panel.chat-dock-right .chat-resizer",
    "|stencil-chat-panel.chat-dock-top .chat-resizer",
    "|stencil-chat-panel.chat-dock-bottom .chat-resizer",
    "|stencil-chat-panel.chat-dock-float .chat-resizer",
    "|stencil-chat-panel.chat-dock-float .chat-resizer::before",
-   "|stencil-chat-panel.chat-dock-float .chat-resizer.dragging, stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover",
    "|stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before, stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before",
    "|.chat-float-handle",
    "|.chat-dock-float .chat-float-handle",
@@ -10102,13 +10003,11 @@
    "@media (max-width: 680px)|body:has(stencil-chat-panel.chat-open) #chat-backdrop",
    "@media (max-width: 680px)|.chat-dock-float .chat-float-handle, stencil-chat-panel .chat-dock-btns, stencil-chat-panel .chat-input-sizer, stencil-chat-panel .chat-resizer",
    "@media (max-width: 680px)|stencil-chat-panel .chat-input-row",
-   "@media (max-width: 680px)|body:has(stencil-chat-panel.chat-open) #install-host",
    "@media (max-width: 680px)|.chat-empty",
    "@media (max-width: 680px)|.chat-suggest",
    "@media (hover: none) and (pointer: coarse)|.chat-abtn, .chat-hbtn",
    "@media (hover: none) and (pointer: coarse)|.chat-resizer",
    "@media (hover: none) and (pointer: coarse)|.chat-dock-float .chat-float-handle",
-   "|body:has(stencil-chat-panel.chat-open) #install-host",
    "|body.fullscreen-mode stencil-chat-panel",
    "|body",
    "|body:has(stencil-chat-panel.chat-gesturing)",
@@ -10121,8 +10020,6 @@
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) #global-drop-overlay",
    "|body:has(stencil-chat-panel.chat-closing)",
-   "|body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host",
-   "|body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host",
    "|.chat-status-tip",
    "|.chat-status-tip.visible",
    "|.chat-status-tip.dust-driven",
@@ -10485,7 +10382,6 @@
    "|.ctx-item.ctx-kb, .ctx-item:hover",
    "|.tooltip",
    "|#hints-btn:hover .hints-popup",
-   "|#install-host:focus-within #install-menu, #install-host:hover #install-menu",
    "@keyframes menuFromAnchor|0%",
    "@keyframes menuFromAnchor|22%",
    "@keyframes menuFromAnchor|100%",
@@ -10500,8 +10396,6 @@
    "@media (prefers-reduced-motion: reduce)|.accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing",
    "|.accent-dd-opt",
    "|.accent-dd-opt.dd-hover, .accent-dd-opt:hover",
-   "|#install-menu [role=\"menuitem\"]",
-   "|#install-menu [role=\"menuitem\"]:hover",
    "@keyframes chatSlideLeft|from",
    "@keyframes chatSlideLeft|to",
    "@keyframes chatSlideRight|from",
@@ -10601,7 +10495,7 @@
    "@media (hover: none) and (pointer: coarse)|.ctx-checkbox-item, .ctx-radio-item",
    "@media (hover: none) and (pointer: coarse)|.del-pt-btn",
    "@media (hover: none) and (pointer: coarse)|button:not(:disabled):not(.active):hover",
-   "@media print|#ctx-menu, #install-host, #notify-balloon, #theme-toggle, .controls-wrapper, .drop-hint, .tooltip",
+   "@media print|#ctx-menu, #notify-balloon, #theme-toggle, .controls-wrapper, .drop-hint, .tooltip",
    "@media print|body",
    "@media print|.container",
    "@media (prefers-reduced-motion: reduce)|*, *::after, *::before",
@@ -10705,7 +10599,6 @@
    "|.disintegrate-host.dust-leaving",
    "|.disintegrate-host.dust-forming",
    "|.hints-popup.dust-hold",
-   "|#install-menu.dust-hold",
    "@media (prefers-reduced-motion: reduce)|.dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving",
    "|.mark-forming",
    "|.mark-leaving",
@@ -10791,7 +10684,7 @@
    "|:root[data-skin=\"webcore\"] .container",
    "|:root[data-skin=\"webcore\"] .ctrl-section + .ctrl-section::before, :root[data-skin=\"webcore\"] .info-divider, :root[data-skin=\"webcore\"] .sel-sep",
    "|:root[data-skin=\"webcore\"] .ctrl-section-label, :root[data-skin=\"webcore\"] .selection-label, :root[data-skin=\"webcore\"] label",
-   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #install-toggle, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button",
+   "|:root[data-skin=\"webcore\"] #chat-btn, :root[data-skin=\"webcore\"] #draw-toggle, :root[data-skin=\"webcore\"] #fullscreen-toggle, :root[data-skin=\"webcore\"] #incognito-toggle, :root[data-skin=\"webcore\"] #info-btn, :root[data-skin=\"webcore\"] #settings-btn, :root[data-skin=\"webcore\"] #theme-toggle, :root[data-skin=\"webcore\"] #toggle-controls, :root[data-skin=\"webcore\"] #toggle-coord-panel, :root[data-skin=\"webcore\"] #visuals-btn, :root[data-skin=\"webcore\"] #voice-chat-btn, :root[data-skin=\"webcore\"] #zoom-fit, :root[data-skin=\"webcore\"] .btn-icon, :root[data-skin=\"webcore\"] .btn-icon-text, :root[data-skin=\"webcore\"] .chat-abtn, :root[data-skin=\"webcore\"] .chat-hbtn, :root[data-skin=\"webcore\"] .ctx-assist-abtn, :root[data-skin=\"webcore\"] .idle-create-btn, :root[data-skin=\"webcore\"] .name-edit-btn, :root[data-skin=\"webcore\"] .pill-toggle, :root[data-skin=\"webcore\"] .zoom-controls button, :root[data-skin=\"webcore\"] button",
    "|:root[data-skin=\"webcore\"] button.primary, :root[data-skin=\"webcore\"] button[type=\"submit\"]",
    "|:root[data-skin=\"webcore\"] #voice-chat-btn:not(.active):not(:disabled):hover, :root[data-skin=\"webcore\"] :is(#theme-toggle, #draw-toggle, #zoom-fit, #chat-btn, #incognito-toggle, #fullscreen-toggle):hover:not(:disabled), :root[data-skin=\"webcore\"] :is(button, .btn-icon, .btn-icon-text, .chat-hbtn, .chat-abtn, .ctx-assist-abtn, .pill-toggle, .name-edit-btn, .idle-create-btn, .coord-tab, .oi-tab, .accent-dd-trigger):hover:not(:disabled)",
    "|:root[data-skin=\"webcore\"] .accent-dd-trigger:hover:not(:disabled)",
@@ -10865,9 +10758,9 @@
    "|:root[data-skin=\"webcore\"] .connect-row, :root[data-skin=\"webcore\"] .project-row",
    "|:root[data-skin=\"webcore\"] .links-preview-wrap, :root[data-skin=\"webcore\"] .project-thumb, :root[data-skin=\"webcore\"] .project-thumb img",
    "|:root[data-skin=\"webcore\"] .project-row:hover .project-thumb img",
-   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] #install-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu",
-   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"], :root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item",
-   "|:root[data-skin=\"webcore\"] #install-menu [role=\"menuitem\"]:hover, :root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover",
+   "|:root[data-skin=\"webcore\"] #ctx-menu, :root[data-skin=\"webcore\"] .accent-dd-menu, :root[data-skin=\"webcore\"] .chat-more-menu, :root[data-skin=\"webcore\"] .chat-row-menu, :root[data-skin=\"webcore\"] .ctx-sub, :root[data-skin=\"webcore\"] .hints-popup, :root[data-skin=\"webcore\"] .project-menu, :root[data-skin=\"webcore\"] .zoom-menu",
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt, :root[data-skin=\"webcore\"] .chat-more-item, :root[data-skin=\"webcore\"] .chat-row-menu-item, :root[data-skin=\"webcore\"] .ctx-checkbox-item, :root[data-skin=\"webcore\"] .ctx-item, :root[data-skin=\"webcore\"] .ctx-radio-item, :root[data-skin=\"webcore\"] .project-menu-item, :root[data-skin=\"webcore\"] .zoom-menu-item",
+   "|:root[data-skin=\"webcore\"] .accent-dd-opt.dd-hover, :root[data-skin=\"webcore\"] .accent-dd-opt:hover, :root[data-skin=\"webcore\"] .chat-more-item:hover:not(:disabled), :root[data-skin=\"webcore\"] .chat-row-menu-item:hover, :root[data-skin=\"webcore\"] .ctx-checkbox-item:hover, :root[data-skin=\"webcore\"] .ctx-item.ctx-kb, :root[data-skin=\"webcore\"] .ctx-item.ctx-open-sub, :root[data-skin=\"webcore\"] .ctx-item:hover, :root[data-skin=\"webcore\"] .ctx-radio-item:hover, :root[data-skin=\"webcore\"] .project-menu-item:hover, :root[data-skin=\"webcore\"] .zoom-menu-item:hover",
    "|:root[data-skin=\"webcore\"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover :is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span)",
    "|:root[data-skin=\"webcore\"] .accent-dd-opt[aria-selected=\"true\"], :root[data-skin=\"webcore\"] .zoom-menu-item.active",
    "|:root[data-skin=\"webcore\"] :is(.accent-dd-opt[aria-selected=\"true\"], .zoom-menu-item.active) :is(.accent-dd-name, .ctx-label, span)",
@@ -10902,7 +10795,8 @@
    "|:root[data-skin=\"webcore\"] .chat-input-row",
    "|:root[data-skin=\"webcore\"] .chat-input-sizer::before, :root[data-skin=\"webcore\"] .ctx-assist-sizer::before",
    "|:root[data-skin=\"webcore\"] .ctx-assist-sizer:hover::before, :root[data-skin=\"webcore\"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before",
-   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover",
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before",
+   "|:root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging::before, :root[data-skin=\"webcore\"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover::before",
    "|:root[data-skin=\"webcore\"] .incognito-frame .ig-edge",
    "|:root[data-skin=\"webcore\"] .logo-stage",
    "|:root[data-skin=\"webcore\"] .canvas-viewport.remote-editing",
@@ -10920,7 +10814,7 @@
    "|:root[data-skin=\"webcore\"] .icm-spun :is(.ic, .draw-mode-icon)",
    "|:root[data-skin=\"webcore\"] .mm-icon",
    "|:root[data-skin=\"webcore\"] :is(.ic, .draw-mode-icon) rect",
-   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, #install-menu [role=\"menuitem\"]:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)",
+   "|:root[data-skin=\"webcore\"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover, .accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover, .zoom-menu-item:hover, .ctx-checkbox-item:hover, .ctx-radio-item:hover) :is(.ic, .draw-mode-icon)",
    "|:root[data-skin=\"webcore\"] .is-disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] :is(button, select, a, [role=\"button\"]):disabled :is(.ic, .draw-mode-icon), :root[data-skin=\"webcore\"] [aria-disabled=\"true\"] :is(.ic, .draw-mode-icon)"
   ]
  }

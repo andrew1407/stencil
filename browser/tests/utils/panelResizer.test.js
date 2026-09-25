@@ -3,20 +3,29 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from '../helpers/dom.js';
 
-// The coordinates-panel resizer's RESTORE path (js/utils.js wirePanelResizer): a saved
-// width is re-clamped against the live window on every resize; a panel the user never
-// dragged is left on its CSS default — never pinned to whatever it measures at the time.
+// The coordinates-panel resizer (js/utils.js wirePanelResizer): a dragged width is
+// re-clamped against the live window on every resize but stored NOWHERE — a reload comes back
+// at the CSS default; a panel the user never dragged is left on that default too, never
+// pinned to whatever it measures at the time.
 
-const setup = ({ saved = null, winW = 1400, panelW = 405 } = {}) => {
+const setup = ({ winW = 1400, panelW = 405 } = {}) => {
   const style = { props: new Map(), setProperty(k, v) { this.props.set(k, v); }, removeProperty(k) { this.props.delete(k); }, getPropertyValue(k) { return this.props.get(k) || ''; } };
   const doc = installDom({}, {
     window: { innerWidth: winW, listeners: {}, addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); }, removeEventListener() {} },
-    sessionStorage: { getItem: (k) => (k === 'drawingApp_coordPanelWidth' ? saved : null), setItem() {} },
+    sessionStorage: { getItem() { throw new Error('the resizer must not read storage'); }, setItem() { throw new Error('the resizer must not write storage'); } },
   });
   doc.documentElement.style = style;
+  doc.body.style = {};
   const resizer = createStubElement('div');
-  const panel = createStubElement('aside', { getBoundingClientRect: () => ({ width: panelW, height: 300, left: 0, top: 0, right: panelW, bottom: 300 }) });
-  return { doc, style, resizer, panel, resize: () => (globalThis.window.listeners.resize || []).forEach((fn) => fn()) };
+  const width = { now: panelW };
+  const panel = createStubElement('aside', { getBoundingClientRect: () => ({ width: width.now, height: 300, left: 0, top: 0, right: width.now, bottom: 300 }) });
+  const drag = (to) => {
+    resizer.dispatch('mousedown', { clientX: 1000, preventDefault() {} });
+    doc.dispatch('mousemove', { clientX: 1000 - (to - width.now) });
+    width.now = to;
+    doc.dispatch('mouseup', {});
+  };
+  return { doc, style, resizer, panel, drag, resize: () => (globalThis.window.listeners.resize || []).forEach((fn) => fn()) };
 };
 
 test('an undragged panel keeps the CSS default on load and on resize (no width is pinned)', async () => {
@@ -25,7 +34,7 @@ test('an undragged panel keeps the CSS default on load and on resize (no width i
   // the value that used to be fed back as a "preference" and ratcheted it up.
   const t = setup({ winW: 700, panelW: 648 });
   try {
-    wirePanelResizer(t.resizer, t.panel, { maxFactor: 0.7, restore: true });
+    wirePanelResizer(t.resizer, t.panel, { maxFactor: 0.7, track: true });
     assert.strictEqual(t.style.getPropertyValue('--coord-panel-width'), '', 'nothing pinned on load');
     globalThis.window.innerWidth = 2000;
     t.resize();
@@ -33,11 +42,12 @@ test('an undragged panel keeps the CSS default on load and on resize (no width i
   } finally { t.doc.restore(); }
 });
 
-test('a saved width is restored and re-clamped against the live window on every resize', async () => {
+test('a dragged width is re-clamped against the live window on every resize, and never stored', async () => {
   const { wirePanelResizer, clampPanelWidth } = await import('../../js/utils.js');
-  const t = setup({ saved: '600', winW: 1400 });
+  const t = setup({ winW: 1400 });
   try {
-    wirePanelResizer(t.resizer, t.panel, { maxFactor: 0.7, restore: true });
+    wirePanelResizer(t.resizer, t.panel, { maxFactor: 0.7, track: true });
+    t.drag(600);
     assert.strictEqual(t.style.getPropertyValue('--coord-panel-width'), '600px');
     globalThis.window.innerWidth = 700;
     t.resize();
@@ -46,6 +56,8 @@ test('a saved width is restored and re-clamped against the live window on every 
     t.resize();
     assert.strictEqual(t.style.getPropertyValue('--coord-panel-width'), '600px', 'the preference comes back with the room');
   } finally { t.doc.restore(); }
+  const src = readFileSync(new URL('../../js/utils/panelResizer.js', import.meta.url), 'utf8');
+  assert.ok(!/Storage/.test(src), 'a reload comes back at the CSS default: no width is stored');
 });
 
 // Both drag handles must kill .coordinates-panel's width transition (animations/collapse.css):

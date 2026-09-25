@@ -49,8 +49,10 @@ export const wireCanvasScrollbars = (vp) => {
 
   const layout = () => {
     const flying = vp.classList.contains('flip-active');
-    const canY = !flying && vp.scrollHeight > vp.clientHeight;
-    const canX = !flying && vp.scrollWidth > vp.clientWidth;
+// No picture, nothing to scroll: whatever size the canvas element still carries is not content.
+    const empty = document.body.classList.contains('canvas-empty');
+    const canY = !flying && !empty && vp.scrollHeight > vp.clientHeight;
+    const canX = !flying && !empty && vp.scrollWidth > vp.clientWidth;
     const r = vp.getBoundingClientRect();
     const left = r.left + vp.clientLeft;
     const top = r.top + vp.clientTop;
@@ -93,7 +95,11 @@ export const wireCanvasScrollbars = (vp) => {
   onWindowResize(layout);
   window.addEventListener('scroll', layout, { capture: true, passive: true });
   if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(reveal);   // the viewport's box, and the picture's (a zoom)
+// On the frame the viewport shrinks (a panel drag) its children still measure at the old
+// width and read as overflow, so the verdict waits for the layout to settle.
+    const settled = (fn) => (typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame(() => requestAnimationFrame(fn)) : fn());
+    const ro = new ResizeObserver(() => settled(reveal));   // the viewport's box, and the picture's (a zoom)
     ro.observe(vp);
     const canvas = vp.querySelector('#canvas');
     if (canvas) ro.observe(canvas);

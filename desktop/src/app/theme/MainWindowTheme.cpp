@@ -127,7 +127,7 @@ namespace stencil::gui {
       // The skin repoints gp.accent at its navy; a lit grip wears the chosen accent (--wc-focus).
       const QColor lit = support::isWebcore() ? gp.textKey : gp.accent;
       if (panelGrip) panelGrip->setColors(grip, lit);
-      if (chatEdge) { chatEdge->setAccent(lit); chatEdge->setBase(gp.bgPage); }   // the page shows in the gap, as the browser's body does
+      if (chatEdge) chatEdge->setColors(grip, lit);
     }
     actTheme->setText(dark ? "Light Theme" : "Dark Theme");
 

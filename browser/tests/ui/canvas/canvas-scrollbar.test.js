@@ -57,3 +57,19 @@ test('the other panels keep the native thin bars, accent only with the pointer o
   const bindings = readFileSync(new URL('../../../js/ui/bindings/index.js', import.meta.url), 'utf8');
   assert.ok(bindings.includes('wireScrollbarHover();'), 'one document-level wiring, no per-panel list');
 });
+
+// A panel drag shrinks the viewport; on that very frame its children still measure at the old
+// width, so a bar decided there showed over an empty canvas and stayed. The observer's verdict
+// is taken once the layout has settled instead.
+test('an empty canvas never offers a bar, whatever size the element still carries', () => {
+  const mod = readFileSync(new URL('../../../js/ui/canvas/scrollbars.js', import.meta.url), 'utf8');
+  assert.match(mod, /const empty = document\.body\.classList\.contains\('canvas-empty'\);/);
+  assert.match(mod, /const canY = !flying && !empty && vp\.scrollHeight > vp\.clientHeight;/);
+  assert.match(mod, /const canX = !flying && !empty && vp\.scrollWidth > vp\.clientWidth;/);
+});
+
+test('a viewport resize decides the bars only once the layout has settled', () => {
+  const mod = readFileSync(new URL('../../../js/ui/canvas/scrollbars.js', import.meta.url), 'utf8');
+  assert.match(mod, /const settled = \(fn\) => \(typeof requestAnimationFrame === 'function'\s*\? requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\) : fn\(\)\);/);
+  assert.ok(mod.includes('new ResizeObserver(() => settled(reveal))'), 'the observer goes through the settle');
+});

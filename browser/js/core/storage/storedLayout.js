@@ -1,5 +1,6 @@
 // A stored layout (a projectsStore payload) back into editor state, in the groups the
 // window-side adapter paints between: page, drawing, provenance, formulas, tools.
+import { collapseCanvas } from './session.js';
 
 export const applyStoredPage = (app, layout) => {
   if (layout.customPageWidth) app.customPageWidth = layout.customPageWidth;
@@ -54,6 +55,8 @@ export const applyStoredTools = (app, layout) => {
 
 const clearImage = (app) => {
   app.image = null;
+  // The old picture's size would otherwise keep scrolling an empty viewport.
+  collapseCanvas(app);
   app.originalImage = null;
   app.cropRect = null;
   app.rotationQuarters = 0;

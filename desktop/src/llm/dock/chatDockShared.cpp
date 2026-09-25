@@ -9,6 +9,9 @@
 #include <QImage>
 #include <QImageReader>
 #include <QObject>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 #include <QPointer>
 #include <QStyle>
 #include <QToolButton>
@@ -81,6 +84,32 @@ namespace stencil::gui::chatdock {
     QImageReader reader(path);
     reader.setAutoTransform(true);
     return reader.read();
+  }
+
+}  // namespace stencil::gui::chatdock
+
+namespace stencil::gui::chatdock {
+
+  QPixmap coverThumb(const QImage& image, int edge, int radius, const QColor& border, qreal dpr) {
+    QPixmap pm(QSize(edge, edge) * dpr);
+    pm.setDevicePixelRatio(dpr);
+    pm.fill(Qt::transparent);
+    if (image.isNull() || edge <= 0) return pm;
+    const QImage scaled = image.scaled(QSize(edge, edge) * dpr, Qt::KeepAspectRatioByExpanding,
+                                       Qt::SmoothTransformation);
+    const QRect crop((scaled.width() - edge * dpr) / 2, (scaled.height() - edge * dpr) / 2,
+                     edge * dpr, edge * dpr);
+    QPainter p(&pm);
+    p.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+    QPainterPath clip;
+    clip.addRoundedRect(QRectF(0, 0, edge, edge), radius, radius);
+    p.setClipPath(clip);
+    p.drawImage(QRectF(0, 0, edge, edge), scaled, crop);
+    p.setClipping(false);
+    p.setPen(QPen(border, 1));
+    p.setBrush(Qt::NoBrush);
+    p.drawRoundedRect(QRectF(0.5, 0.5, edge - 1, edge - 1), radius, radius);
+    return pm;
   }
 
 }  // namespace stencil::gui::chatdock

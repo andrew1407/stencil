@@ -117,7 +117,7 @@ export function showSelectionPanel(app, line) {
   // selected line) must not replay the gather.
   const wasHidden = panel.style.display !== 'block';
   panel.style.display = 'block';
-  if (wasHidden && !surfaceIn(panel, barDustPoint(panel))) settleSurface(panel);
+  if (wasHidden && !surfaceIn(panel, barDustPoint(panel), { belowChat: true })) settleSurface(panel);
   app.syncFsSelectionPanel(line);
   app.renderLinesList();
 }
@@ -127,7 +127,7 @@ export function hideSelectionPanels() {
   const selPanel = document.getElementById('selection-panel');
   if (selPanel) {
     if (selPanel.style.display === 'block') {
-      if (!surfaceOut(selPanel, barDustPoint(selPanel, /* closing */ true))) settleSurface(selPanel);
+      if (!surfaceOut(selPanel, barDustPoint(selPanel, /* closing */ true), { belowChat: true })) settleSurface(selPanel);
     } else settleSurface(selPanel);
     selPanel.style.display = 'none';
   }

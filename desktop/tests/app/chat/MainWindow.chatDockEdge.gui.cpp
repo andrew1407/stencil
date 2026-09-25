@@ -8,11 +8,11 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The chat dock's resize edge (browser .chat-resizer): the strip is QMainWindow chrome with no
-  // widget of its own, so a mouse-through band is painted where Qt would start the resize.
+  // The chat dock's resize handle (browser .chat-resizer): a strip INSIDE the dock's own edge,
+  // 6px like the browser's, that resizes the dock itself when dragged; the page sits flush outside.
   void chatResizeEdgeFollowsTheDockInEveryArea() {
     MainWindow win(nullptr, false);
-    win.resize(1000, 700);
+    win.resize(1200, 1000);   // room for a top/bottom dock to grow past the editor shell's minimum
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QVERIFY(win.chatDock);
@@ -30,20 +30,30 @@ class MainWindowGuiTest : public QObject {
       win.addDockWidget(a.area, win.chatDock, a.split);
       settleLayout(&win, 120);
       const QRect dock = win.chatDock->geometry();
-      const QRect hit = win.chatEdgeHit;
       const QRect band = edge->geometry();
       QVERIFY2(edge->isVisible(), a.name);
-      QVERIFY2(!hit.isEmpty(), a.name);
-      // The strip sits OUTSIDE the panel, against the edge it is docked by.
-      QVERIFY2(!hit.intersects(dock), a.name);
-      if (a.area == Qt::LeftDockWidgetArea) QCOMPARE(hit.left(), dock.right() + 1);
-      if (a.area == Qt::RightDockWidgetArea) QCOMPARE(hit.right(), dock.left() - 1);
-      if (a.area == Qt::TopDockWidgetArea) QCOMPARE(hit.top(), dock.bottom() + 1);
-      if (a.area == Qt::BottomDockWidgetArea) QCOMPARE(hit.bottom(), dock.top() - 1);
-      // …and the band is drawn AROUND that strip, never thinner than an affordance can
-      // be seen at (the horizontal separators are a hairline by design, theme.cpp).
-      QVERIFY2(band.contains(hit), a.name);
-      QVERIFY2(qMin(band.width(), band.height()) >= stencil::gui::DockEdgeOverlay::MIN_THICKNESS, a.name);
+      QVERIFY2(dock.contains(band), a.name);
+      QCOMPARE(qMin(band.width(), band.height()), stencil::gui::DockEdgeOverlay::THICKNESS);
+      if (a.area == Qt::LeftDockWidgetArea) QCOMPARE(band.right(), dock.right());
+      if (a.area == Qt::RightDockWidgetArea) QCOMPARE(band.left(), dock.left());
+      if (a.area == Qt::TopDockWidgetArea) QCOMPARE(band.bottom(), dock.bottom());
+      if (a.area == Qt::BottomDockWidgetArea) QCOMPARE(band.top(), dock.top());
+      // Dragging the strip resizes the dock: 40px of travel toward the window's centre.
+      const bool horiz = a.split == Qt::Horizontal;
+      const int before = horiz ? win.chatDock->width() : win.chatDock->height();
+      const int sign = (a.area == Qt::LeftDockWidgetArea || a.area == Qt::TopDockWidgetArea) ? 1 : -1;
+      const QPoint at = band.center() - band.topLeft();
+      const QPoint to = at + (horiz ? QPoint(sign * 40, 0) : QPoint(0, sign * 40));
+      QTest::mousePress(edge, Qt::LeftButton, {}, at);
+      QTest::mouseMove(edge, to);
+      QMouseEvent mv(QEvent::MouseMove, to, edge->mapToGlobal(to), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+      QApplication::sendEvent(edge, &mv);
+      QTest::mouseRelease(edge, Qt::LeftButton, {}, to);
+      settleLayout(&win, 120);
+      const int after = horiz ? win.chatDock->width() : win.chatDock->height();
+      QVERIFY2(std::abs((after - before) - 40) <= 2,
+               qPrintable(QString("%1: %2 -> %3 after a 40px drag").arg(a.name).arg(before).arg(after)));
+      QCOMPARE(win.chatRestoreExtent, after);
     }
     // Nothing to grab while it floats — the window frame owns that resize.
     win.chatDock->setFloating(true);
@@ -73,7 +83,7 @@ class MainWindowGuiTest : public QObject {
       dock->setFloating(true);
       QTRY_VERIFY(dock->isFloating());
       stencil::gui::Settings s = stencil::gui::fileStore::loadSettings();
-      s.windowState = QString::fromLatin1(win.saveState().toBase64());
+      s.windowState = QString::fromLatin1(win.editor->saveState().toBase64());
       stencil::gui::fileStore::saveSettings(s);
     }
     // Session 2: chat dock reset to hidden/docked-left/unchecked; the selection

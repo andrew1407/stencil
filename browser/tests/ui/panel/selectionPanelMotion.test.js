@@ -70,7 +70,7 @@ test('showSelectionPanel only gathers on the hidden -> visible edge', () => {
   const displayBlockIdx = fn.indexOf("panel.style.display = 'block';");
   assert.ok(wasHiddenIdx > -1 && displayBlockIdx > -1 && wasHiddenIdx < displayBlockIdx,
     'wasHidden must be captured before the display flip it is judging');
-  assert.match(fn, /if \(wasHidden && !surfaceIn\(panel, barDustPoint\(panel\)\)\) settleSurface\(panel\);/);
+  assert.match(fn, /if \(wasHidden && !surfaceIn\(panel, barDustPoint\(panel\), \{ belowChat: true \}\)\) settleSurface\(panel\);/);
   // Re-populating an already-open bar (switching which line is selected) must NOT
   // re-trigger surfaceIn unconditionally — one call site, and it's the gated one above.
   assert.equal((fn.match(/surfaceIn\(/g) || []).length, 1);
@@ -82,7 +82,7 @@ test('hideSelectionPanels only scatters a bar that was actually visible, and hid
   assert.match(fn, /if \(selPanel\.style\.display === 'block'\) \{/);
   // The `true` here is the whole point: hideSelectionPanels is the CLOSING call site.
   assert.match(fn,
-    /if \(!surfaceOut\(selPanel, barDustPoint\(selPanel, \/\* closing \*\/ true\)\)\) settleSurface\(selPanel\);/);
+    /if \(!surfaceOut\(selPanel, barDustPoint\(selPanel, \/\* closing \*\/ true\), \{ belowChat: true \}\)\) settleSurface\(selPanel\);/);
   assert.match(fn, /\} else settleSurface\(selPanel\);/);
   // The real hide happens unconditionally, outside the branch: surfaceOut's flying cloud is a snapshot of
   // sand, not the element itself (js/ui/motion.js: "A surface NEVER dusts as clones of itself").

@@ -289,7 +289,7 @@ classDiagram
   drop bands of a title-bar drag span the window between the menu bar and the status bar.
   The points panel's grip overlay is the window's, so it maps the shell's dock geometry up; the
   chat's resize handle is a strip inside the dock's own edge that resizes it through
-  `resizeDocks`, the window's separator being a hairline as the browser's page sits flush;
+  `resizeDocks`, and the window's separator is the browser's 10px of page between the two;
   the shell hosts its own surfaces' dust (the tool rows' fold, the points panel, the Selected
   Line bar), so those motes vanish under a docked chat instead of crossing it, as the browser
   layers a page surface's cloud below the panel (`surfaces.js` `belowChat`).

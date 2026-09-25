@@ -100,8 +100,8 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(40);
     };
 
-    // The overlay appears for the whole drag and spans the DOCK REGION: full window width, below
-    // the toolbars, above the status bar — not the central widget, which shrinks as docks appear.
+    // The overlay appears for the whole drag and spans the WINDOW's dock region: full width, from
+    // the editor shell's top (the toolbars are inside it) to above the status bar.
     dragTo(win.mapToGlobal(central.center()));
     QTRY_VERIFY(win.findChild<QWidget*>("chatDockZones"));
     auto* zones = win.findChild<QWidget*>("chatDockZones");
@@ -110,7 +110,7 @@ class MainWindowGuiTest : public QObject {
     const QRect zr = zones->geometry();
     QCOMPARE(zr.left(), 0);
     QCOMPARE(zr.width(), win.width());
-    QVERIFY2(zr.top() > 0 && zr.top() <= central.top(), "starts below the toolbars");
+    QCOMPARE(zr.top(), central.top());   // the chat may dock ABOVE the toolbars
     QVERIFY2(zr.bottom() >= central.bottom(), "reaches past the central area's bottom");
     // Native docking is locked out for the whole drag: the zones are the ONLY
     // docking mechanism (Qt can't show its placeholder or hover-dock).

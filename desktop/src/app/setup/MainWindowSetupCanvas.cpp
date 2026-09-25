@@ -62,7 +62,10 @@ namespace stencil::gui {
     dropHintLay->addWidget(dropHintText, 1);
     centralLayout->addWidget(dropHint);
 
-    setCentralWidget(central);
+    editor = new QMainWindow(this);
+    editor->setWindowFlags(Qt::Widget);   // the ctor ORs Qt::Window in; as a child it is a plain widget
+    editor->setCentralWidget(central);
+    setCentralWidget(editor);
     // The viewport margin around a zoomed-out image must still take Ctrl+wheel / pinch zoom.
     scroll->viewport()->installEventFilter(this);
     // Pan persistence and the scrollbar reveal ride the scrollbar value (browser: storage.js
@@ -134,10 +137,9 @@ namespace stencil::gui {
     selPanel->setMinimumWidth(PANEL_MIN_WIDTH);   // the dock's drag handle stops here
     // Named so QMainWindow::saveState() persists the dock layout.
     selPanel->setObjectName("selectionPanelDock");
-    addDockWidget(Qt::RightDockWidgetArea, selPanel);
-    // Nesting: Qt offers no drop slot in an area whose sole occupant has a fixed width, so the
-    // chat could not dock right.
-    setDockNestingEnabled(true);
+    editor->addDockWidget(Qt::RightDockWidgetArea, selPanel);
+    // Nesting: the Selected Line bar stacks OVER the Image Size dock in the top area.
+    editor->setDockNestingEnabled(true);
 
     // A top dock spans the full window width, unlike a central child; the empty title widget
     // suppresses Qt's.
@@ -147,7 +149,7 @@ namespace stencil::gui {
     selectedLineDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     selectedLineDock->setTitleBarWidget(new QWidget(selectedLineDock));
     selectedLineDock->setWidget(selectedLineBar);
-    addDockWidget(Qt::TopDockWidgetArea, selectedLineDock);
+    editor->addDockWidget(Qt::TopDockWidgetArea, selectedLineDock);
     selectedLineDock->setVisible(false);   // shown only once a line is actually selected
   }
 

@@ -34,7 +34,10 @@ namespace stencil::gui {
                "#chatCardMuted QLabel{color:%7;background:transparent;}"
                // browser .chat-msg-error; the label rule matters — a stylesheet colour beats applyDangerText.
                "#chatCardError{background:%6;border:1px solid %5;%11}"
-               "#chatCardError QLabel{color:%9;background:transparent;}")
+               "#chatCardError QLabel{color:%9;background:transparent;}"
+               // browser .chat-result: the variant card, its label in --text-muted
+               "#chatResult{background:%2;border:1px solid %1;border-radius:8px;}"
+               "#chatResult QLabel{color:%7;background:transparent;}")
         .arg(pal.borderMain.name(), pal.bgContainer.name(),
              // browser color-mix(accent 14%/32%)
              rgba(pal.accent, 0.14), rgba(pal.accent, 0.32),

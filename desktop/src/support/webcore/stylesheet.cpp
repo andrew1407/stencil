@@ -137,6 +137,7 @@ namespace stencil::support {
     values.insert(QStringLiteral("%WC_RADIO%"), dark ? QStringLiteral(":/icons/radio-dot.png") : QStringLiteral(":/icons/radio-dot-dark.png"));
     values.insert(QStringLiteral("%MENU_PAD_R%"), QString::number(stencil::gui::MENU_ITEM_RIGHT_PAD_PX));
     values.insert(QStringLiteral("%SEP_W%"), QString::number(stencil::gui::DOCK_SEPARATOR_PX));
+    values.insert(QStringLiteral("%CHAT_GAP%"), QString::number(stencil::gui::CHAT_PAGE_GAP_PX));
     values.insert(QStringLiteral("%WC_DISABLED%"), tok(dark, dark ? "--wc-muted" : "--wc-shadow").name());
     values.insert(QStringLiteral("%WC_ARROW%"), arrowImagePath(tok(dark, "--wc-ink"), 'd'));
     {

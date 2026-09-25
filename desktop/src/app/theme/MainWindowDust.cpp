@@ -82,13 +82,15 @@ namespace stencil::gui {
   // The points panel's flight: photographed at its OPEN width whichever way the slide runs; the veil hides the real panel, so the motes ARE the panel.
   QPointer<gui::DisintegrateOverlay> MainWindow::panelSurfaceFlight(bool gather, int ms, int full) {
     if (!selPanel) return nullptr;
-    QWidget* dustHost = selPanel->window();
+    // Hosted by the editor shell, as every editor surface's dust is: the motes vanish under a
+    // docked chat instead of crossing it (browser surfaces.js belowChat).
+    QWidget* dustHost = editor;
     if (!dustHost || !support::isDustMotionOk()) return nullptr;
     selPanel->setFixedWidth(full);
-    if (QLayout* l = layout()) l->activate();   // the grab must see the open panel, not the rail
+    if (QLayout* l = editor->layout()) l->activate();   // the grab must see the open panel, not the rail
     const QPixmap snap = selPanel->grab();
     const QRect picture(selPanel->mapTo(dustHost, QPoint(0, 0)), selPanel->size());
-    const Qt::DockWidgetArea area = dockWidgetArea(selPanel) == Qt::LeftDockWidgetArea
+    const Qt::DockWidgetArea area = editor->dockWidgetArea(selPanel) == Qt::LeftDockWidgetArea
                                         ? Qt::LeftDockWidgetArea : Qt::RightDockWidgetArea;
     QPointer<gui::DisintegrateOverlay> fx = gui::DisintegrateOverlay::overSurface(
         snap, picture, dustHost, dockAwayPoint(picture, area), gather, ms,
@@ -109,7 +111,7 @@ namespace stencil::gui {
     QRect picture;
     for (QToolBar* b : bars) {
       if (!b->isVisible() || b->width() < 8 || b->height() < 8) continue;
-      picture |= QRect(b->mapTo(this, QPoint(0, 0)), b->size());
+      picture |= QRect(b->mapTo(editor, QPoint(0, 0)), b->size());
     }
     if (picture.width() < 8 || picture.height() < 8) return nullptr;
     const qreal dpr = devicePixelRatioF();
@@ -118,20 +120,20 @@ namespace stencil::gui {
     snap.fill(Qt::transparent);
     for (QToolBar* b : bars) {
       if (!b->isVisible() || b->width() < 8 || b->height() < 8) continue;
-      b->render(&snap, b->mapTo(this, QPoint(0, 0)) - picture.topLeft(), QRegion(),
+      b->render(&snap, b->mapTo(editor, QPoint(0, 0)) - picture.topLeft(), QRegion(),
                 QWidget::DrawWindowBackground | QWidget::DrawChildren);
     }
     return gui::DisintegrateOverlay::overSurface(
-        snap, picture, this, dockAwayPoint(picture, Qt::TopDockWidgetArea), gather, ms,
+        snap, picture, editor, dockAwayPoint(picture, Qt::TopDockWidgetArea), gather, ms,
         palette().color(QPalette::WindowText));
   }
 
   // Where the bar's motes land. `closing` predicts imageInfoBar's post-close position — dustSelectedLineBarOut() runs before the dock hides.
   QPoint MainWindow::selectedLineBarDustPoint(const QRect& barPicture, bool closing) {
     if (imageInfoBar && imageInfoBar->isVisible()) {
-      const QRect infoRect(imageInfoBar->mapTo(this, QPoint(0, 0)), imageInfoBar->size());
+      const QRect infoRect(imageInfoBar->mapTo(editor, QPoint(0, 0)), imageInfoBar->size());
       if (infoRect.width() >= 8 && infoRect.height() >= 8) {
-        const int dockTop = selectedLineDock ? selectedLineDock->mapTo(this, QPoint(0, 0)).y()
+        const int dockTop = selectedLineDock ? selectedLineDock->mapTo(editor, QPoint(0, 0)).y()
                                               : barPicture.top();
         const int y = closing ? dockTop + infoRect.height() : infoRect.bottom();
         return QPoint(barPicture.center().x(), y);
@@ -145,9 +147,9 @@ namespace stencil::gui {
     if (!selectedLineBar) return;
     if (!support::isDustMotionOk()) return;
     const QPixmap snap = selectedLineBar->grab();
-    const QRect picture(selectedLineBar->mapTo(this, QPoint(0, 0)), selectedLineBar->size());
+    const QRect picture(selectedLineBar->mapTo(editor, QPoint(0, 0)), selectedLineBar->size());
     auto* fx = gui::DisintegrateOverlay::overSurface(
-        snap, picture, this, selectedLineBarDustPoint(picture, /*closing=*/false), /*gather=*/true, 0,
+        snap, picture, editor, selectedLineBarDustPoint(picture, /*closing=*/false), /*gather=*/true, 0,
         palette().color(QPalette::WindowText));
     if (!fx) return;
     // The veil hides the real bar for the gather; released once landed.
@@ -166,9 +168,9 @@ namespace stencil::gui {
     if (!selectedLineBar) return;
     if (!support::isDustMotionOk()) return;
     const QPixmap snap = selectedLineBar->grab();
-    const QRect picture(selectedLineBar->mapTo(this, QPoint(0, 0)), selectedLineBar->size());
+    const QRect picture(selectedLineBar->mapTo(editor, QPoint(0, 0)), selectedLineBar->size());
     gui::DisintegrateOverlay::overSurface(
-        snap, picture, this, selectedLineBarDustPoint(picture, /*closing=*/true), /*gather=*/false, 0,
+        snap, picture, editor, selectedLineBarDustPoint(picture, /*closing=*/true), /*gather=*/false, 0,
         palette().color(QPalette::WindowText));
   }
 

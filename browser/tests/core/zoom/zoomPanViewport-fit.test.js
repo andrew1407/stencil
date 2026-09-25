@@ -93,12 +93,12 @@ test('the untouched panel width is one token, and every fallback reads it', () =
 test('the panel width is re-clamped when the window changes, keeping the preference', () => {
   const src = readFileSync(new URL('../../../js/utils/panelResizer.js', import.meta.url), 'utf8');
   const fn = src.slice(src.indexOf('export const wirePanelResizer'));
-  assert.match(fn, /onWindowResize\(applyStored\)/,
+  assert.match(fn, /onWindowResize\(applyDragged\)/,
     'a window narrowed after the drag re-clamps (via the shared resize coalescer)');
-  // The STORED value is never rewritten by a clamp — only by a real drag — so the width
+  // The DRAGGED value is never rewritten by a clamp — only by a real drag — so the width
   // comes back when the window is big enough for it again.
-  const stores = fn.match(/sessionStorage\.setItem/g) || [];
-  assert.equal(stores.length, 1, 'only the drag persists a width');
+  const writes = fn.match(/\bdragged = /g) || [];
+  assert.equal(writes.length, 1, 'only the drag sets the preference');
   const css = LAYOUT_CSS;
   // Declarations only — the comment above this rule NAMES the trap it avoids, and matching
   // the prose would pass (or fail) for the wrong reason.

@@ -101,10 +101,16 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
   const src = readFileSync(new URL('../../../js/core/storage/storage.js', import.meta.url), 'utf8');
   const at = src.indexOf('  newTemporary({');
   const body = src.slice(at, at + 3000);
-  assert.match(body, /this\.app\.canvas\.width = 0/, 'the backing store keeps its old (zoomed) footprint');
-  assert.match(body, /this\.app\.canvas\.height = 0/, 'the backing store keeps its old (zoomed) footprint');
-  assert.match(body, /this\.app\.canvas\.style\.width = ''/, 'a stale inline CSS width survives the clear');
-  assert.match(body, /this\.app\.canvas\.style\.height = ''/, 'a stale inline CSS height survives the clear');
+  // The collapse is the shared helper (session.js collapseCanvas): an image-less stored layout
+  // empties the editor through the same one, or the old picture's size kept scrolling the viewport.
+  assert.match(body, /collapseCanvas\(this\.app\);/, 'the backing store keeps its old (zoomed) footprint');
+  const helper = readFileSync(new URL('../../../js/core/storage/session.js', import.meta.url), 'utf8')
+    .match(/export const collapseCanvas = \(app\) => \{([\s\S]*?)\n\};/)?.[1] ?? '';
+  assert.match(helper, /c\.width = 0;/, 'the backing store keeps its old (zoomed) footprint');
+  assert.match(helper, /c\.height = 0;/, 'the backing store keeps its old (zoomed) footprint');
+  assert.match(helper, /c\.style\.width = ''; c\.style\.height = '';/, 'a stale inline CSS size survives the clear');
+  const layout = readFileSync(new URL('../../../js/core/storage/storedLayout.js', import.meta.url), 'utf8');
+  assert.match(layout, /const clearImage = \(app\) => \{\s*app\.image = null;[\s\S]*?collapseCanvas\(app\);/, 'an image-less layout leaves the canvas at the old size');
   assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
   assert.match(body, /resetViewportScroll\(\);/, 'the viewport scroll position is never reset on clear');
   // …and that helper (ui/layoutControls.js) is what actually puts it back to the corner.

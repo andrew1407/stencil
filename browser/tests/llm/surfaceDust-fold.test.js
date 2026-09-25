@@ -103,3 +103,22 @@ test('neither fold dusts under reduced motion — the box is not even measured',
   assert.match(fold, /motionReduced\(\) \? null : foldBox\(/,
     'reduced motion skips the two forced layouts as well as the flight');
 });
+
+// A page surface's cloud stays UNDER a docked chat: with the chat on the top edge, the tool
+// rows' away point lands inside the panel, and a cloud above it drew the fold's motes across
+// the chat instead of beneath it.
+test('the fold and the points bar layer their dust below the chat panel', () => {
+  const tipsJs = read('../../js/ui/motion/control/tips.js');
+  const surfacesJs = read('../../js/ui/motion/surface/surfaces.js');
+  const selectionPanelJs = read('../../js/ui/panel/selectionPanel.js');
+  assert.match(tipsJs, /\(hiding \? surfaceOut : surfaceIn\)\(el, away \|\| null, \{[^}]*belowChat: true[^}]*\}\)/);
+  assert.match(selectionPanelJs, /surfaceIn\(panel, barDustPoint\(panel\), \{ belowChat: true \}\)/);
+  assert.match(selectionPanelJs, /surfaceOut\(selPanel, barDustPoint\(selPanel, \/\* closing \*\/ true\), \{ belowChat: true \}\)/);
+  assert.match(surfacesJs, /export const BELOW_CHAT_CLASS = 'dust-below-chat';/);
+  assert.match(surfacesJs, /hostClass: \(gather \? 'dust-forming' : 'dust-leaving'\) \+ \(belowChat \? ` \$\{BELOW_CHAT_CLASS\}` : ''\)/);
+  const panelZ = Number(/stencil-chat-panel\s*\{[^}]*z-index:\s*(\d+)/.exec(read('../../css/components/chat/panel.css'))[1]);
+  const hostZ = Number(/\.disintegrate-host\s*\{[^}]*z-index:\s*(\d+)/.exec(animCss)[1]);
+  const belowZ = Number(/\.disintegrate-host\.dust-below-chat\s*\{[^}]*z-index:\s*(\d+)/.exec(animCss)[1]);
+  assert.ok(hostZ > panelZ, 'an ordinary cloud (a chat menu) still flies over the chat');
+  assert.ok(belowZ < panelZ, 'a page surface cloud sits under the chat panel');
+});

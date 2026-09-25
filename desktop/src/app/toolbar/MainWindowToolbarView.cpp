@@ -164,7 +164,7 @@ namespace stencil::gui {
     imageInfoDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     imageInfoDock->setTitleBarWidget(new QWidget(imageInfoDock));   // no title bar of its own
     imageInfoDock->setWidget(imageInfoHost);
-    addDockWidget(Qt::TopDockWidgetArea, imageInfoDock);
+    editor->addDockWidget(Qt::TopDockWidgetArea, imageInfoDock);
     // splitDockWidget against the still-hidden selectedLineDock does not register;
     // onSelectionChanged re-affirms it once shown.
   }
