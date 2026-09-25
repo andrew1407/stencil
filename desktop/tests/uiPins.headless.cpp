@@ -1,8 +1,8 @@
 // Appearance pins for the desktop app — a regression net for refactors that must not change a rendered
-// pixel: the app stylesheet (theme.cpp buildStylesheet) hashed for every dark × accent combination into
-// tests/pins/stylesheets.txt, and twelve rendered states grabbed at devicePixelRatio 1 AND 2 and diffed
-// against tests/pins/<platform>/*.png with a small tolerance for antialiasing noise. Baselines are per
-// platform, and one with none SKIPS the image half. Rewrite them with STENCIL_UPDATE_UI_PINS=1.
+// pixel: the app stylesheet (theme.cpp buildStylesheet) hashed per dark × accent into tests/pins/
+// stylesheets.txt, and twelve states grabbed at devicePixelRatio 1 AND 2 and diffed, with a small
+// antialiasing tolerance, against the gitignored tests/pins/<platform>/*.png recorded on the pre-change
+// tree with STENCIL_UPDATE_UI_PINS=1. A platform with no recording SKIPS the image half.
 #include "fileStore.hpp"
 #include "theme.hpp"
 #include "uiPins.states.hpp"

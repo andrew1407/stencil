@@ -68,6 +68,11 @@ ui_*.h
 .qmake.stash
 *.autosave
 
+# Desktop render pins (desktop/tests/pins/<platform>/*.png): a local baseline recorded with
+# STENCIL_UPDATE_UI_PINS=1 on the pre-change tree and compared after it, never committed.
+# The stylesheet hashes beside them (stylesheets.txt) are tracked.
+desktop/tests/pins/*/
+
 # Desktop app runtime state (settings / session / projects) — repo-local, never committed
 .stencil/
 desktop/.stencil/
