@@ -105,3 +105,7 @@ test('the heart fits the centred square, n points round, and the line is locked 
   assert.equal(line.color, STAGE.pink.heartStroke);
   assert.equal(line.points.length, STAGE.pink.heartPoints);
 });
+
+test('the neon light breathes 1.5x slower than the beat the sun keeps', () => {
+  assert.equal(STAGE.glow.neonBeatMs, STAGE.stage.beatMs * 1.5);
+});

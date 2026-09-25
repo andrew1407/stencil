@@ -1679,12 +1679,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -2609,6 +2613,7 @@
    "|.logo-wrap:hover::before",
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
    "|:root[data-motion=\"none\"] .logo-wrap::before",
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -5889,12 +5894,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -7093,6 +7102,7 @@
    "|.logo-wrap:hover::before",
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
    "|:root[data-motion=\"none\"] .logo-wrap::before",
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -9297,12 +9307,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -10188,6 +10202,7 @@
    "|.logo-wrap:hover::before",
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
    "|:root[data-motion=\"none\"] .logo-wrap::before",
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -13566,12 +13581,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -14768,6 +14787,7 @@
    "|.logo-wrap:hover::before",
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
    "|:root[data-motion=\"none\"] .logo-wrap::before",
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",
@@ -18048,12 +18068,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
    },
    "|:root[data-motion=\"none\"] .logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
+   },
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -19252,6 +19276,7 @@
    "|.logo-wrap:hover::before",
    "|:root[data-motion=\"none\"] .logo-wrap .logo:hover",
    "|:root[data-motion=\"none\"] .logo-wrap::before",
+   "|:root[data-motion=\"none\"] .logo-wrap:hover::before",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap .logo:hover",
    "@media (prefers-reduced-motion: reduce)|.logo-wrap::before",
    "|.icon-btn, .mini, .more-btn",

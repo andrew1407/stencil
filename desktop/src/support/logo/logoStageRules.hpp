@@ -34,6 +34,7 @@ namespace stencil::support {
     int revealMs = 520, hideMs = 360, beatMs = 1200, spinMs = 8000, holdRampMs = 240;
     // glow / sun
     double glowAlphaMin = 0.3, glowAlphaMax = 0.95, glowReachShare = 0.184, glowSteadyLit = 0.3, glowFloor = 0.45;
+    int glowNeonBeatMs = 1800;
     int sunSpokes = 8;
     double sunGapShare = 0.08, sunLengthShare = 0.14, sunAlphaMin = 0.14, sunAlphaMax = 0.4;
     double sunSoftWidthShare = 0.024, sunBrightWidthShare = 0.012;
@@ -42,6 +43,7 @@ namespace stencil::support {
     double cloudSpeedShare[2] = {0.15, 0.55}, cloudSizeShare[2] = {0.006, 0.02};
     double cloudTailSpreadTurns = 0.17, cloudTailGapShare = 0.55, cloudTailSpeedScale = 8;
     double cloudTailMinSpeedPx = 40, cloudTailFullSpeedPx = 320;
+    double cloudStyleThrowShare = 0.15, cloudLineMinPx = 1.6;
     int cloudMaxLive = 1400;
     // per-effect
     int snapMs = 120, recoverMs = 900;

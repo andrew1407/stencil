@@ -2,7 +2,8 @@
 // fire's lift push a grain out of the mark, never down or up the screen. Desktop twin: drifted().
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStageCloud, driftedStageMote } from '../../../js/ui/logo/stageCloud.js';
+import { createStageCloud, driftedStageMote, newStageMote, styleStageMote } from '../../../js/ui/logo/stageCloud.js';
+import { SHAPE_DISC, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK } from '../../../js/ui/dust/grain.js';
 import { styleFrame, PARTICLE_STYLES } from '../../../js/ui/dust/flight.js';
 
 // Deterministic, so the centroid is the same run to run.
@@ -35,4 +36,23 @@ test('the drift points out of the mark by the size of the sag or lift, its sway 
   const code = PARTICLE_STYLES.water, frame = styleFrame(code, 0.5, 0.5, 0.3, 100, 0, {});
   const m = { x: 0, y: -40 };
   assert.ok(driftedStageMote(m, frame).y <= m.y, 'water above the mark rises away from it, never sinks into it');
+});
+
+test('a small mark\'s styled grains keep dust\'s size, drop the line shapes and lie at their own headings', () => {
+  const rnd = seeded(3), heads = new Set();
+  for (const [style, allowed] of [['water', [SHAPE_OVAL]], ['fire', [SHAPE_TRIANGLE]], ['dust', [SHAPE_DISC]]]) {
+    for (let i = 0; i < 400; i++) {
+      const m = styleStageMote(newStageMote(75, 1, rnd), PARTICLE_STYLES[style]);
+      assert.ok(allowed.includes(m.shape), `${style}: shape ${m.shape}`);
+      assert.ok(m.r <= 0.02 * 75 * 0.5 + 1e-9, `${style}: r ${m.r} is dust-sized`);
+      heads.add(Math.round(m.a * 4));
+    }
+  }
+  assert.ok(heads.size >= 24, 'headings spread all round, not along the flight');
+  const big = [];
+  for (let i = 0; i < 400; i++) big.push(styleStageMote(newStageMote(620, 1, rnd), PARTICLE_STYLES.fire).shape);
+  assert.ok(big.includes(SHAPE_STREAK), 'a big mark keeps its sparks');
+  const water = [];
+  for (let i = 0; i < 400; i++) water.push(styleStageMote(newStageMote(620, 1, rnd), PARTICLE_STYLES.water).shape);
+  assert.ok(water.includes(SHAPE_WAVE), '…and its wave lines');
 });

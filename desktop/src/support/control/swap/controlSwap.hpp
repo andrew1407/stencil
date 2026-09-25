@@ -46,6 +46,8 @@ namespace stencil::gui {
   inline constexpr const char* CHECK_SWAP_OBJECT_NAME = "stencilCheckSwap";
   inline constexpr const char* CHECK_SWAP_OWNER_PROPERTY = "stencilCheckSwapOwner";
 
+  // Browser customSelect's markSwap: the old label scatters (300ms) under the new one's gather (400ms).
+  inline constexpr int VALUE_SWAP_MS = 400;
   inline constexpr int VALUE_SWAP_CELL_PX = 3;
   inline constexpr double VALUE_SWAP_THROW_PX = 11.0;   // the field clips; a word must not explode
   inline constexpr double VALUE_SWAP_PIVOT = 0.34;     // share of the exchange the arrival starts at
@@ -111,7 +113,7 @@ namespace stencil::gui {
   class ValueSwapOverlay : public QWidget {
    public:
     static void play(QComboBox* cb, const QString& from, const QString& to,
-                     int ms = FACE_SWAP_MS);
+                     int ms = VALUE_SWAP_MS);
 
     static void cancel(QComboBox* cb);
 

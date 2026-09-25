@@ -130,8 +130,9 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(a->state() != QAbstractAnimation::Running);
   }
 
-  // Motion off (and the skin, which lays it over the session): the hover grows and glows, still.
-  void logoHoverFxHoldsStillWithMotionOffAndUnderTheSkin() {
+  // The main mark loops under every motion mode, none included; only the skin stills it to a grow and a glow.
+  void logoHoverFxLoopsWithMotionOffAndHoldsStillUnderTheSkin() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
     win.show();
@@ -140,20 +141,20 @@ class MainWindowGuiTest : public QObject {
     win.applySettings(win.settings, /*persist=*/false);
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QToolButton* logo = win.logoBtn;
-    const auto hover = [&] {
+    const auto hover = [&](bool looping) {
       const QPointF c(logo->rect().center());
       QEnterEvent enter(c, c, logo->mapToGlobal(logo->rect().center()));
       QApplication::sendEvent(logo, &enter);
       bool on = fx->property("fxActive").toBool();
       for (QVariantAnimation* a : fx->findChildren<QVariantAnimation*>())
-        on = on && a->state() != QAbstractAnimation::Running;
+        on = on && (a->state() == QAbstractAnimation::Running) == looping;
       QEvent leave(QEvent::Leave);
       QApplication::sendEvent(logo, &leave);
       return on && !fx->property("fxActive").toBool();
     };
-    QVERIFY2(hover(), "motion none left the hover without its still shine");
+    QVERIFY2(hover(true), "motion none stopped the main mark's hover loop");
     QVERIFY(win.toggleWebcore());
-    QVERIFY2(hover(), "the webcore skin left the hover without its still shine");
+    QVERIFY2(hover(false), "the webcore skin left the hover without its still shine");
     QVERIFY(!win.toggleWebcore());
   }
 

@@ -1,8 +1,8 @@
 // The cloud around the stage's mark: motes born on its edge, posed by the shared styleFrame and
 // shaped by the shared grain kit (cloud.js), so fire, water and dust look the same here as
 // everywhere else. Desktop twin: app/LogoStageCloud.cpp.
-import { styleFrame, tintOf, stopOfTint, dustMix, PARTICLE_STYLES } from '../dust/flight.js';
-import { grainShape, headingOf, paletteCss } from '../dust/grain.js';
+import { styleFrame, tintOf, stopOfTint, dustMix, fract, PARTICLE_STYLES, STYLE_WATER, STYLE_FIRE } from '../dust/flight.js';
+import { grainShape, paletteCss, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK } from '../dust/grain.js';
 import { fillGrains, resolveColour } from '../dust/cloud.js';
 import { STAGE, markEdge } from './stageRules.js';
 
@@ -31,8 +31,19 @@ export const newStageMote = (size, reach = 1, rnd = Math.random, dir = null) => 
     vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
     age: 0, life: lerp(CLOUD.lifeMs, rnd()),
     r: lerp(CLOUD.sizeShare, rnd()) * size * 0.5,
-    w: rnd(), len: size * 0.5,
+    w: rnd(), len: size * CLOUD.styleThrowShare,
   };
+};
+
+// A styled grain keeps dust's size; one too thin for a line wears its body shape, since under
+// lineMinPx a streak or a wave reads as a dash. Its heading is its own hash's, never radial.
+const BODY = Object.freeze({ [STYLE_WATER]: SHAPE_OVAL, [STYLE_FIRE]: SHAPE_TRIANGLE });
+export const styleStageMote = (m, code) => {
+  m.a = fract(m.w * 5.19 + 0.63) * 2 * Math.PI;
+  m.shape = grainShape(code, m.w);
+  const isLine = m.shape === SHAPE_STREAK || m.shape === SHAPE_WAVE;
+  if (isLine && m.r < CLOUD.lineMinPx) m.shape = BODY[code];   // only water and fire draw lines
+  return m;
 };
 
 export const stepStageMote = (m, dt) => {
@@ -84,7 +95,7 @@ export const createStageCloud = (style) => {
     step(dt, size, boost = 1, { dir = null, rnd = Math.random } = {}) {
       if (code === null) return 0;
       const want = Math.min(spawnStageCount(boost, dt, rnd), CLOUD.maxLive - motes.length);
-      for (let i = 0; i < want; i++) motes.push(newStageMote(size, boost, rnd, dir));
+      for (let i = 0; i < want; i++) motes.push(styleStageMote(newStageMote(size, boost, rnd, dir), code));
       for (let i = motes.length - 1; i >= 0; i--) if (!stepStageMote(motes[i], dt)) motes.splice(i, 1);
       return motes.length;
     },
@@ -105,8 +116,7 @@ export const createStageCloud = (style) => {
         const key = Math.min(colours.length - 1, stopOfTint(mix, tint)) * 10 + Math.round(alpha * 9);
         let b = bucket.get(key);
         if (!b) bucket.set(key, (b = []));
-        b.push(x + at.x * scale, y + at.y * scale, m.r * out.scale * scale,
-          grainShape(code, m.w), headingOf(m.vx, m.vy, false));
+        b.push(x + at.x * scale, y + at.y * scale, m.r * out.scale * scale, m.shape, m.a);
       }
       for (const [key, b] of bucket) {
         if (!b.length) continue;

@@ -39,7 +39,17 @@ namespace stencil::support {
     m.life = lerp(cfg.cloudLifeMs, roll(rnd));
     m.r = lerp(cfg.cloudSizeShare, roll(rnd)) * size * 0.5;
     m.w = roll(rnd);
-    m.len = size * 0.5;
+    m.len = size * cfg.cloudStyleThrowShare;
+    return m;
+  }
+
+  // Under lineMinPx a streak or a wave reads as a dash, so it wears its style's body shape.
+  StageMote styleStageMote(StageMote m, ParticleStyle style) {
+    m.a = fract(m.w * 5.19 + 0.63) * 2 * PI;
+    m.shape = grainShape(style, m.w);
+    const bool isLine = m.shape == GrainShape::STREAK || m.shape == GrainShape::WAVE;   // water and fire only
+    if (isLine && m.r < logoStageConfig().cloudLineMinPx)
+      m.shape = style == ParticleStyle::FIRE ? GrainShape::TRIANGLE : GrainShape::OVAL;
     return m;
   }
 
@@ -80,7 +90,7 @@ namespace stencil::support {
     if (!on) return;
     const int room = logoStageConfig().cloudMaxLive - motes.size();
     const int want = std::min(spawnStageCount(boost, dt, rnd), std::max(0, room));
-    for (int i = 0; i < want; ++i) motes.push_back(newStageMote(size, boost, dir, rnd));
+    for (int i = 0; i < want; ++i) motes.push_back(styleStageMote(newStageMote(size, boost, dir, rnd), style));
     for (int i = motes.size() - 1; i >= 0; --i)
       if (!stepStageMote(motes[i], dt)) motes.removeAt(i);
   }
@@ -113,8 +123,7 @@ namespace stencil::support {
       // The sprite paints at its colour's alpha, so the fade travels in the colour.
       QColor colour = tintedStop(accent, shade, mix, tint, dark);
       colour.setAlphaF(alpha);
-      sprites.draw(p, at + drifted(m, f) * scale, m.r * f.scale * scale, colour,
-                    grainShape(style, m.w), headingOf(m.vx, m.vy, false));
+      sprites.draw(p, at + drifted(m, f) * scale, m.r * f.scale * scale, colour, m.shape, m.a);
     }
     p.setOpacity(1.0);
   }

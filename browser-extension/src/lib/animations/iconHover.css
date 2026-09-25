@@ -216,13 +216,18 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
     animation: logoRaysSpin 8s linear infinite,
                logoRaysShimmer 1.2s ease-in-out infinite;
 }
-/* Motion "none" (browser animations/logoHover.css): no pulse and no rays — a still grow and an edge glow. */
+/* The main mark keeps its loop under every motion mode, "none" included (motionModes.css collapses
+   every other animation there); only the webcore skin (webcore/chrome.css) stills it to a grow and a glow. */
 :root[data-motion="none"] .logo-wrap .logo:hover {
-    animation: none !important;
-    transform: scale(1.08);
-    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
+    transition-duration: 0.2s !important;
 }
-:root[data-motion="none"] .logo-wrap::before { content: none; }
+:root[data-motion="none"] .logo-wrap::before { transition-duration: 0.25s !important; }
+:root[data-motion="none"] .logo-wrap:hover::before {
+    animation-duration: 8s, 1.2s !important;
+    animation-iteration-count: infinite !important;
+}
 @media (prefers-reduced-motion: reduce) {
     .logo-wrap .logo:hover { animation: none; }   /* the simple scale(1.08) hover remains */
     .logo-wrap::before { content: none; }         /* no static ray ring either */

@@ -26,7 +26,7 @@ void comboValueExchange(QDialog& host, QComboBox* combo, QVBoxLayout* lay, const
           "than the word could");
     // Mid-exchange the overlay is DRAWING: the outgoing word's sand is on its way out
     // and the incoming one's is arriving, so what is on screen is neither settled word.
-    pumpFor(FACE_SWAP_MS / 3);
+    pumpFor(stencil::gui::VALUE_SWAP_MS / 3);
     const QImage mid = fx ? fx->grab().toImage().convertToFormat(QImage::Format_ARGB32)
                           : QImage();
     check(inkedPixels(mid) > 0, "…and it really paints the sand, not an empty layer");
@@ -34,6 +34,8 @@ void comboValueExchange(QDialog& host, QComboBox* combo, QVBoxLayout* lay, const
                      .convertToFormat(QImage::Format_ARGB32),
           "…which is not simply the settled word drawn early");
   }
+  pumpFor(stencil::gui::VALUE_SWAP_MS / 2);   // 5/6 of it gone: past the old 240ms end
+  check(ValueSwapOverlay::running(combo), "the exchange takes the browser's markSwap time, not the button swap's");
   check(pumpUntil([combo] { return !ValueSwapOverlay::running(combo); }),
         "the exchange converges and stops");
   check(combo->currentText() == QLatin1String("Letter"),

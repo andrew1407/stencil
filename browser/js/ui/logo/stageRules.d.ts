@@ -19,12 +19,13 @@ export interface StageConfig {
   stage: { logoShare: number; minShare: number; revealMs: number; hideMs: number; beatMs: number;
     spinMs: number; holdBoost: number; holdRampMs: number; scrimAlpha: number; roamShare: number;
     bounceBigShare: number; markEdgeShare: number; markCornerShare: number };
-  glow: { alphaMin: number; alphaMax: number; reachShare: number; steadyLit: number; floor: number };
+  glow: { alphaMin: number; alphaMax: number; reachShare: number; steadyLit: number; floor: number; neonBeatMs: number };
   sun: { spokes: number; gapShare: number; lengthShare: number; alphaMin: number; alphaMax: number;
     softWidthShare: number; brightWidthShare: number };
   cloud: { rate: number; lifeMs: [number, number]; marginShare: number; maxLive: number;
     speedShare: [number, number]; sizeShare: [number, number]; tailSpreadTurns: number; tailGapShare: number;
-    tailSpeedScale: number; tailMinSpeedPx: number };
+    tailSpeedScale: number; tailMinSpeedPx: number; tailFullSpeedPx: number;
+    styleThrowShare: number; lineMinPx: number };
   bounce: { snapMs: number; recoverMs: number };
   follow: { stiffness: number; dragPerS: number };
   escape: { radiusPx: number; stiffness: number; dragPerS: number };

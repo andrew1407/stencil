@@ -96,6 +96,19 @@ int main(int argc, char** argv) {
     check(within(reach / n, b.meanReach, 1.0), "reaching as far from the mark as the browser's");
   }
   check(drawnStageAlpha(0.005) == 0 && drawnStageAlpha(0.5) == 5.0 / 9, "the nine buckets");
+  // Styled grains, seed 11: {shape, r, heading, throw} as node prints them from styleStageMote.
+  struct Styled { int shape; double r, a, len; };
+  const auto styled = [](ParticleStyle style, double size, std::initializer_list<Styled> want) {
+    const StageRnd rnd = mulberry(11);
+    for (const Styled& w : want) {
+      const StageMote m = styleStageMote(newStageMote(size, 1.0, QPointF(0, 0), rnd), style);
+      check(int(m.shape) == w.shape && within(m.r, w.r, 1e-4) && within(m.a, w.a, 1e-4) && within(m.len, w.len, 1e-9),
+            "a styled grain's shape, dust size, heading and throw are the browser's");
+    }
+  };
+  styled(ParticleStyle::WATER, 75, {{1, 0.5348, 0.2861, 11.25}, {1, 0.5441, 6.0770, 11.25}, {1, 0.5769, 1.0501, 11.25}});
+  styled(ParticleStyle::FIRE, 620, {{4, 4.4213, 0.2861, 93}, {3, 4.4976, 6.0770, 93}, {4, 4.7687, 1.0501, 93},
+                                    {3, 3.5783, 3.6847, 93}});
   std::printf(failures ? "FAILED: %d\n" : "all passed (%d failures)\n", failures);
   return failures ? 1 : 0;
 }

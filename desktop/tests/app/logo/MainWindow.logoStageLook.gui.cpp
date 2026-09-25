@@ -97,6 +97,22 @@ class MainWindowGuiTest : public QObject {
     stage->dismiss();
   }
 
+  // Under slide a roaming mark wears neonOn's light with no cloud; a bouncing one stays unlit.
+  void underSlideTheRoamingShowsGlowNeon() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    QVERIFY(shown(win));
+    setMode(win, QStringLiteral("slide"));
+    LogoStage* stage = stageOf(win);
+    for (const char* name : {"randomWalk", "chaseMe", "runaway", "makeItSmall"}) {
+      QVERIFY(stage->activateByName(name));
+      QTest::qWait(40);
+      QVERIFY2(stage->glowing() == (QByteArray(name) != "makeItSmall"), name);
+      QVERIFY2(!stage->cloudy(), name);
+    }
+    stage->dismiss();
+  }
+
   // Every grain's drawn place, gathered over several frames: centred on the mark and as far out
   // on every side, whichever style is flying.
   void theCloudHugsTheMarkEvenlyInEveryStyle() {

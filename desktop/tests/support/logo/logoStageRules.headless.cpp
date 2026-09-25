@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
   {
     check(!cfg.shows.isEmpty(), "logoStage.json qrc alias resolves and parses");
     check(cfg.holdMs == 3000, "the hold is three seconds");
+    check(cfg.glowNeonBeatMs * 2 == cfg.beatMs * 3, "the neon breathes 1.5x slower than the beat");
     check(!cfg.toast.isEmpty(), "the notice carries its text");
     check(cfg.shows.size() == 12, "every show is read");
     // Every accent preset opens a show — the browser asserts the same. Two rows may share a
