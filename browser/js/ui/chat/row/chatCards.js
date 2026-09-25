@@ -36,7 +36,7 @@ export const chatResultCard = (r) => {
   img.className = 'chat-result-thumb';
   img.src = r.dataUrl;
   img.alt = r.label;
-  img.dataset.title = r.label;
+  wireThumbPreview(img, r.label);
   const label = document.createElement('span');
   label.className = 'chat-result-label';
   label.textContent = r.label;
