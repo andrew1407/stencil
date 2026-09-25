@@ -16,6 +16,8 @@ namespace stencil::support {
 
   struct StageMote {
     double x = 0, y = 0, vx = 0, vy = 0, age = 0, life = 0, r = 0, w = 0, len = 0;
+    GrainShape shape = GrainShape::DISC;   // set by styleStageMote, with the heading `a`
+    double a = 0;
   };
 
   class LogoStageCloud {
@@ -43,6 +45,8 @@ namespace stencil::support {
 
   StageMote newStageMote(double size, double reach, const QPointF& dir = QPointF(0, 0),
                          const StageRnd& rnd = {});
+  // A styled grain keeps dust's size and, too thin for a line, its body shape; `a` is off its hash.
+  StageMote styleStageMote(StageMote m, ParticleStyle style);
   bool stepStageMote(StageMote& m, double dt);
   double stageMoteAlpha(const StageMote& m);
   int spawnStageCount(double boost, double dt, const StageRnd& rnd = {});

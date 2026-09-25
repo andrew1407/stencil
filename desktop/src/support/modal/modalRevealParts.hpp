@@ -37,9 +37,17 @@ namespace stencil::support {
 
   // Set once a call site or the watcher owns the dialog's flight.
   constexpr const char* REVEALED_PROPERTY = "stencilDialogRevealed";
+  // The slide flight (no dust): the browser's modalFromIcon / modalToIcon curves, 1.5x quicker.
+  constexpr int OPEN_MS = 300;
+  constexpr int CLOSE_MS = 360;
+  QEasingCurve cssBezier(double x1, double y1, double x2, double y2) {
+    QEasingCurve c(QEasingCurve::BezierSpline);
+    c.addCubicBezierSegment(QPointF(x1, y1), QPointF(x2, y2), QPointF(1, 1));
+    return c;
+  }
+  QEasingCurve openEase() { return cssBezier(0.22, 0.61, 0.36, 1); }    // overlays.css modalFromIcon
+  QEasingCurve closeEase() { return cssBezier(0.45, 0.05, 0.6, 0.9); }  // overlays.css modalToIcon
   // Dialog clocks run 1.5x the shared surface clock; the close another 1.5x on top.
-  constexpr int OPEN_MS = 450;
-  constexpr int CLOSE_MS = 360 * 3 / 2;
   constexpr int DIALOG_DUST_IN_MS = gui::DisintegrateOverlay::SURFACE_IN_MS * 3 / 2;
   constexpr int DIALOG_DUST_OUT_MS = gui::DisintegrateOverlay::SURFACE_OUT_MS * 9 / 4;
 
@@ -70,38 +78,57 @@ namespace stencil::support {
 
   // A CHILD of the main window, never a top-level: per-frame moves of a real window go
   // through the window server and stutter, and a snapshot has no layout to fight.
-  QLabel* makeGhost(QWidget* host, const QPixmap& shot, const QRect& globalAt) {
+  // A flight reaching past the host (a tall dialog over the window's top edge) is clipped by it,
+  // so the ghost becomes a window of its own there, as the dust layer does (placeForSurface).
+  QLabel* makeGhost(QWidget* host, const QPixmap& shot, const QRect& globalAt, const QRect& otherEnd) {
     auto* ghost = new QLabel(host);
     ghost->setObjectName(QStringLiteral("stencilModalGhost"));  // findable by the GUI tests
     ghost->setAttribute(Qt::WA_TransparentForMouseEvents);
+    const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
+    if (!hostBox.contains(globalAt.united(otherEnd))
+        && QGuiApplication::platformName() != QLatin1String("offscreen")) {
+      ghost->setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
+                            | Qt::WindowTransparentForInput | Qt::WindowDoesNotAcceptFocus
+                            | Qt::NoDropShadowWindowHint);
+      ghost->setAttribute(Qt::WA_ShowWithoutActivating, true);
+      ghost->setAttribute(Qt::WA_TranslucentBackground, true);
+    }
     ghost->setScaledContents(true);
     ghost->setPixmap(shot);
-    ghost->setGeometry(QRect(host->mapFromGlobal(globalAt.topLeft()), globalAt.size()));
+    ghost->setGeometry(ghost->isWindow() ? globalAt
+                                         : QRect(host->mapFromGlobal(globalAt.topLeft()), globalAt.size()));
     ghost->raise();
     ghost->show();
     return ghost;
   }
 
-  // `hold` keeps the box solid while small so the eye follows a window, not a fade.
+  // The fade rides the size's own curve end to end, so the window brightens as it magnifies.
   void flyGhost(QLabel* ghost, QWidget* host, const QRect& fromGlobal, const QRect& toGlobal,
-                int ms, double fromOpacity, double toOpacity, double hold,
-                QEasingCurve::Type easing, std::function<void()> done) {
-    const QRect from(host->mapFromGlobal(fromGlobal.topLeft()), fromGlobal.size());
-    const QRect to(host->mapFromGlobal(toGlobal.topLeft()), toGlobal.size());
-    auto* fx = new QGraphicsOpacityEffect(ghost);
-    fx->setOpacity(fromOpacity);
-    ghost->setGraphicsEffect(fx);
+                int ms, double fromOpacity, double toOpacity,
+                const QEasingCurve& easing, std::function<void()> done) {
+    const bool own = ghost->isWindow();
+    const QRect from = own ? fromGlobal : QRect(host->mapFromGlobal(fromGlobal.topLeft()), fromGlobal.size());
+    const QRect to = own ? toGlobal : QRect(host->mapFromGlobal(toGlobal.topLeft()), toGlobal.size());
+    QObject* fadeTarget = ghost;
+    if (own) {
+      ghost->setWindowOpacity(fromOpacity);
+    } else {
+      auto* effect = new QGraphicsOpacityEffect(ghost);
+      effect->setOpacity(fromOpacity);
+      ghost->setGraphicsEffect(effect);
+      fadeTarget = effect;
+    }
 
     auto* geo = new QPropertyAnimation(ghost, "geometry", ghost);
     geo->setDuration(ms);
     geo->setStartValue(from);
     geo->setEndValue(to);
     geo->setEasingCurve(easing);
-    auto* fade = new QPropertyAnimation(fx, "opacity", ghost);
+    auto* fade = new QPropertyAnimation(fadeTarget, own ? "windowOpacity" : "opacity", ghost);
     fade->setDuration(ms);
-    fade->setKeyValueAt(0.0, fromOpacity);
-    fade->setKeyValueAt(hold, qMax(fromOpacity, toOpacity));
-    fade->setKeyValueAt(1.0, toOpacity);
+    fade->setStartValue(fromOpacity);
+    fade->setEndValue(toOpacity);
+    fade->setEasingCurve(easing);
 
     auto* group = new QParallelAnimationGroup(ghost);
     group->addAnimation(geo);

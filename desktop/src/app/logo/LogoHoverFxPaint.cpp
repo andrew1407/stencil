@@ -41,6 +41,11 @@ namespace stencil::gui {
     }
   }  // namespace
 
+  // STENCIL_NO_ANIM is the one opt-out besides the skin (motionPrefs.hpp motionReduced).
+  bool LogoHoverFx::stillHover() {
+    return support::isWebcore() || !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM");
+  }
+
   void LogoHoverFx::paintEvent(QPaintEvent*) {
     if (pm.isNull()) return;
     const bool anim = active();   // hovering: pulse/glow/rays; at rest: just the mark
@@ -50,11 +55,11 @@ namespace stencil::gui {
     const QPointF c = QRectF(rect()).center();   // == the button's icon centre
     const QColor accent = this->accent();
     const QSizeF mark(logo->iconSize());        // logical px; pixmap carries the dpr
-    // Motion off: topbar.css's still scale(1.08) and a steady edge glow; the pixel mark never scales.
-    const bool still = support::motionReduced();
+    // The main mark loops under every motion mode; only the webcore skin stills it to a grow and a glow.
+    const bool still = stillHover();
     const qreal beat = anim && !still ? this->beat : 0.0;
     const qreal lift = 2.0 * beat;               // translateY(-2px) at the peak
-    const qreal scale = anim && still ? (support::isWebcore() ? 1.0 : 1.08) : 1.0 + 0.12 * beat;
+    const qreal scale = anim && still ? 1.08 : 1.0 + 0.12 * beat;
     const QPointF mc(c.x(), c.y() - lift);       // the levitating mark's centre
     const QSizeF s(mark.width() * scale, mark.height() * scale);
     const QRectF at(mc.x() - s.width() / 2, mc.y() - s.height() / 2, s.width(), s.height());
@@ -93,7 +98,7 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::start() {
-    // Motion off keeps the hover's grow and edge glow, painted once: no loop, no rays.
+    // The webcore skin keeps the hover's grow and edge glow, painted once: no loop, no rays.
     if (active()) return;
     beat = 0.0;   // every hover begins at the loop's rest pose
     pm = makePixmap();
@@ -104,7 +109,7 @@ namespace stencil::gui {
     show();
     hovering = true;
     setProperty("fxActive", true);
-    if (support::motionReduced()) { update(); return; }
+    if (stillHover()) { update(); return; }
     pulse->start();
     spin->start();
   }

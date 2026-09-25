@@ -7543,12 +7543,16 @@
     "scroll-behavior": "auto !important"
    },
    "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover .app-logo": {
-    "animation": "none !important",
-    "transform": "scale(1.08)",
-    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+    "animation-duration": "1.2s !important",
+    "animation-iteration-count": "infinite !important",
+    "transition-duration": "0.2s !important"
+   },
+   "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover::before": {
+    "animation-duration": "8s, 1.2s !important",
+    "animation-iteration-count": "infinite !important"
    },
    "|:root[data-motion=\"none\"] .app-logo-wrap::before": {
-    "content": "none"
+    "transition-duration": "0.25s !important"
    },
    "|:root[data-skin=\"webcore\"]": {
     "--wc-face": "#c0c0c0",
@@ -7831,7 +7835,12 @@
     "display": "none"
    },
    "|:root[data-skin=\"webcore\"] .app-logo-wrap.logo-hover .app-logo": {
-    "transform": "none !important"
+    "animation": "none !important",
+    "transform": "scale(1.08) !important",
+    "filter": "drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent))"
+   },
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap::before": {
+    "content": "none"
    },
    "|:root[data-skin=\"webcore\"] .app-logo-wrap:not(.logo-hover) .app-logo, :root[data-skin=\"webcore\"] .draw-mode-icon, :root[data-skin=\"webcore\"] .ic": {
     "filter": "none !important",
@@ -10331,6 +10340,9 @@
    "|.app-logo-wrap.logo-hover::before",
    "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover .app-logo",
    "|:root[data-motion=\"none\"] .app-logo-wrap::before",
+   "|:root[data-motion=\"none\"] .app-logo-wrap.logo-hover::before",
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap.logo-hover .app-logo",
+   "|:root[data-skin=\"webcore\"] .app-logo-wrap::before",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap.logo-hover .app-logo",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap::before",
    "|.icm-spun :is(.ic, .draw-mode-icon)",
@@ -10807,7 +10819,6 @@
    "|:root[data-skin=\"webcore\"] .app-logo *, :root[data-skin=\"webcore\"] .draw-mode-icon *, :root[data-skin=\"webcore\"] .ic *",
    "|:root[data-skin=\"webcore\"] .app-logo",
    "|:root[data-skin=\"webcore\"] .app-logo-frame",
-   "|:root[data-skin=\"webcore\"] .app-logo-wrap.logo-hover .app-logo",
    "|:root[data-skin=\"webcore\"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, :root[data-skin=\"webcore\"] .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
    "|:root[data-skin=\"webcore\"] .is-loading .ic, :root[data-skin=\"webcore\"] .swapping > svg",
    "|:root[data-skin=\"webcore\"] .swap-ghost",

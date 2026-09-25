@@ -27,7 +27,6 @@
 }
 :root[data-skin="webcore"] .app-logo { width: 32px; height: 32px; }
 :root[data-skin="webcore"] .app-logo-frame { display: none; }
-:root[data-skin="webcore"] .app-logo-wrap.logo-hover .app-logo { transform: none !important; }
 /* …with one exception: a fold chevron's angle is STATE, not motion. Without this both
    toggles point the same way whether the panel is open or shut. */
 :root[data-skin="webcore"] .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,

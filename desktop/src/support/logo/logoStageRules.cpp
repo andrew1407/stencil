@@ -73,6 +73,7 @@ namespace stencil::support {
       c.glowReachShare = g.value("reachShare").toDouble(c.glowReachShare);
       c.glowSteadyLit = g.value("steadyLit").toDouble(c.glowSteadyLit);
       c.glowFloor = g.value("floor").toDouble(c.glowFloor);
+      c.glowNeonBeatMs = g.value("neonBeatMs").toInt(c.glowNeonBeatMs);
       const QJsonObject s = root.value("sun").toObject();
       c.sunSpokes = s.value("spokes").toInt(c.sunSpokes);
       c.sunGapShare = s.value("gapShare").toDouble(c.sunGapShare);
@@ -92,6 +93,8 @@ namespace stencil::support {
       c.cloudTailSpeedScale = cl.value("tailSpeedScale").toDouble(c.cloudTailSpeedScale);
       c.cloudTailMinSpeedPx = cl.value("tailMinSpeedPx").toDouble(c.cloudTailMinSpeedPx);
       c.cloudTailFullSpeedPx = cl.value("tailFullSpeedPx").toDouble(c.cloudTailFullSpeedPx);
+      c.cloudStyleThrowShare = cl.value("styleThrowShare").toDouble(c.cloudStyleThrowShare);
+      c.cloudLineMinPx = cl.value("lineMinPx").toDouble(c.cloudLineMinPx);
       const QJsonObject b = root.value("bounce").toObject();
       c.snapMs = b.value("snapMs").toInt(c.snapMs);
       c.recoverMs = b.value("recoverMs").toInt(c.recoverMs);

@@ -47,13 +47,24 @@
     animation: logoRaysSpin 8s linear infinite,
                logoRaysShimmer 1.2s ease-in-out infinite;
 }
-/* Motion "none" (and the webcore skin over it): no pulse and no rays — a still grow and an edge glow. */
+/* The main mark keeps its loop under every motion mode, "none" included (motionModes.css
+   collapses every other animation there); only the webcore skin stills it to a grow and a glow. */
 :root[data-motion="none"] .app-logo-wrap.logo-hover .app-logo {
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
+    transition-duration: 0.2s !important;
+}
+:root[data-motion="none"] .app-logo-wrap::before { transition-duration: 0.25s !important; }
+:root[data-motion="none"] .app-logo-wrap.logo-hover::before {
+    animation-duration: 8s, 1.2s !important;
+    animation-iteration-count: infinite !important;
+}
+:root[data-skin="webcore"] .app-logo-wrap.logo-hover .app-logo {
     animation: none !important;
-    transform: scale(1.08);
+    transform: scale(1.08) !important;
     filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
 }
-:root[data-motion="none"] .app-logo-wrap::before { content: none; }
+:root[data-skin="webcore"] .app-logo-wrap::before { content: none; }
 @media (prefers-reduced-motion: reduce) {
     .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout/topbar.css's :hover scale(1.08) remains */
     .app-logo-wrap::before { content: none; }                  /* no static ray ring either */

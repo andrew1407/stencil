@@ -113,9 +113,11 @@ export const openLogoStage = (name, { app, origin = null, doc = globalThis.docum
     const beat = beatAt(t);
     // A cloud show's light is a steady lamp the grains fly through: all its motion, and
     // everything a hold adds, belongs to the cloud. Without a cloud the light does it all.
-    const lightBoost = look.style ? 1 : boost;
+    const lightBoost = look.lamp ? 1 : boost;
     // Never all the way down: a neon sign breathes, it does not go out.
-    const lit = look.style ? STAGE.glow.steadyLit : STAGE.glow.floor + (1 - STAGE.glow.floor) * beat;
+    // The neon breathes slower than the beat; the sun keeps it, so its light and its spokes agree.
+    const glowBeat = effect === 'sun' ? beat : beatAt(t, STAGE.glow.neonBeatMs);
+    const lit = look.lamp ? STAGE.glow.steadyLit : STAGE.glow.floor + (1 - STAGE.glow.floor) * glowBeat;
     const reveal = Math.min(1, t / STAGE.stage.revealMs);
     const p = leftAt === null ? reveal : 1 - Math.min(1, (t - leftAt) / STAGE.stage.hideMs);
     const pose = M.revealTween(from, { x: pos.x, y: pos.y, size }, p);

@@ -4,11 +4,15 @@ import type { StageStyle, StagePoint } from './stageRules.js';
 export interface StageMote {
   x: number; y: number; vx: number; vy: number;
   age: number; life: number; r: number; w: number; len: number;
+  /** Set by styleStageMote: the drawn shape and heading. */
+  shape?: number; a?: number;
 }
 /** A mote leaving the edge of a mark of `size`; `reach` widens its flight under a press, and
  *  `dir` (the way the mark travels) lays it behind as a tail instead of all round. */
 export declare const newStageMote: (size: number, reach?: number, rnd?: () => number,
   dir?: StagePoint | null) => StageMote;
+/** Fix a mote's shape and heading for `code` (a PARTICLE_STYLES value) at dust's size. */
+export declare const styleStageMote: (m: StageMote, code: number | null) => StageMote;
 /** Advance a mote by dt ms; false once its life is spent. */
 export declare const stepStageMote: (m: StageMote, dt: number) => boolean;
 export declare const stageMoteAlpha: (m: StageMote) => number;

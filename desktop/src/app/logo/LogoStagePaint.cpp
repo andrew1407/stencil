@@ -72,7 +72,9 @@ namespace stencil::gui {
     if (fresh || withCloud != hasCloud || next != cloudKind) cloud.setStyle(next, withCloud);
     hasCloud = withCloud;
     cloudKind = next;
-    glows = hasCloud || effect == StageEffect::NEON || effect == StageEffect::SUN;
+    // With no cloud flying, under slide a roaming mark wears neonOn's breathing light.
+    const bool slideNeon = support::roams(showWord) && support::motionMode() == support::MotionMode::SLIDE;
+    glows = hasCloud || effect == StageEffect::NEON || effect == StageEffect::SUN || slideNeon;
     const QColor accent = hooks.accent ? hooks.accent() : QColor();
     const QString look = QStringLiteral("%1 %2 %3").arg(support::isWebcore()).arg(accent.name()).arg(support::isParticleDark());
     if (!fresh && look == markLook) return;
@@ -100,7 +102,9 @@ namespace stencil::gui {
     // everything a hold adds, belongs to the cloud. Without a cloud the light does it all.
     const double boost = hasCloud ? 1.0 : boostNow();
     // Never all the way down: a neon sign breathes, it does not go out.
-    const double lit = hasCloud ? cfg.glowSteadyLit : cfg.glowFloor + (1 - cfg.glowFloor) * beat;
+    // The neon breathes slower than the beat; the sun keeps it, so its light and its spokes agree.
+    const double glowBeat = effect == StageEffect::SUN || reduced ? beat : beatAt(t, cfg.glowNeonBeatMs);
+    const double lit = hasCloud ? cfg.glowSteadyLit : cfg.glowFloor + (1 - cfg.glowFloor) * glowBeat;
     const double reveal = reduced ? 1.0 : std::min(1.0, t / double(cfg.revealMs));
     const double p01 = leftAt < 0 ? reveal : 1.0 - std::min(1.0, (t - leftAt) / double(cfg.hideMs));
     const double fade = leftAt < 0 ? std::min(1.0, reduced ? 1.0 : t / double(cfg.revealMs))

@@ -10,6 +10,8 @@ export interface StageLook {
   readonly dusty: boolean;
   /** Whether the light is painted: always for a light-only show, else only while a cloud flies. */
   readonly glows: boolean;
+  /** Whether a cloud flies, so the light is a steady lamp rather than a breathing neon. */
+  readonly lamp: boolean;
   /** Replaced whenever the style or `dusty` changes, so no grain outlives its look. */
   readonly cloud: StageCloud;
   /** The mark now on stage; a redrawn one takes over once it has decoded. */

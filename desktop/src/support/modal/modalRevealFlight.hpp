@@ -22,10 +22,9 @@ namespace stencil::support {
       if (after) after();
       return;
     }
-    QLabel* ghost = makeGhost(host, shot, from);
+    QLabel* ghost = makeGhost(host, shot, from, to);
     flyGhost(ghost, host, from, to, opening ? OPEN_MS : CLOSE_MS,
-             opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? 0.18 : 0.7,
-             opening ? QEasingCurve::OutCubic : QEasingCurve::InCubic,
+             opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(),
              [guard, opening, after] {
                if (guard && opening) guard->setWindowOpacity(1.0);
                if (after) after();
@@ -75,11 +74,10 @@ namespace stencil::support {
       }
       if (to == target) return;
       if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg))) return;
-      QLabel* ghost = makeGhost(host, shot, target);
+      QLabel* ghost = makeGhost(host, shot, target, to);
       // Painted NOW: one deferred frame is the gap the dialog's disappearance shows through.
       ghost->repaint();
-      flyGhost(ghost, host, target, to, CLOSE_MS, 1.0, 0.0, 0.7,
-               QEasingCurve::InCubic, nullptr);
+      flyGhost(ghost, host, target, to, CLOSE_MS, 1.0, 0.0, closeEase(), nullptr);
     }
 
     QPointer<QDialog> dlg;
@@ -134,9 +132,8 @@ namespace stencil::support {
         const QRect from = originRect(anchorGuard.data(), target, anchorRect);
         if (from == target) { restore(); return; }
         if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
-        QLabel* ghost = makeGhost(host, shot, from);
-        flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, 0.18,
-                 QEasingCurve::OutCubic, restore);
+        QLabel* ghost = makeGhost(host, shot, from, target);
+        flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, openEase(), restore);
       });
     }
 

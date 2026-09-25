@@ -33,6 +33,7 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override;
 
    private:
+    static bool stillHover();
     void start();
     void stop();
     void showStatic();   // paint the resting mark (no animation), button icon blanked

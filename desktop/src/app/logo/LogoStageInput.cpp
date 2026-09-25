@@ -33,6 +33,15 @@ namespace stencil::gui {
     }
   }  // namespace
 
+  // A native child (macOS gives one to any widget asked for its NSView) has a QWindow of its own,
+  // and a real press lands on it first: it is still the host's if its parents lead there.
+  bool LogoStage::ownWindow(const QWindow* win) const {
+    const QWindow* host = hostWindow ? hostWindow->windowHandle() : nullptr;
+    for (const QWindow* at = win; host && at; at = at->parent())
+      if (at == host) return true;
+    return false;
+  }
+
   void LogoStage::mouseMoveEvent(QMouseEvent* e) {
     cursorPos = e->position();
     syncCursor();
@@ -150,7 +159,7 @@ namespace stencil::gui {
     // one arrives on the hostWindow HANDLE before any widget sees it, and the lock swallows it
     // there, so the widget cast must not be what decides whether the stage hears it.
     if (t == QEvent::MouseButtonPress) {
-      const bool ours = w ? w->window() == hostWindow : (hostWindow && o == hostWindow->windowHandle());
+      const bool ours = w ? w->window() == hostWindow : ownWindow(qobject_cast<QWindow*>(o));
       if (ours) pressed(mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPosition().toPoint()));
       return true;
     }

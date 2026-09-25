@@ -111,3 +111,16 @@ test('with no cloud flying only the light-only shows glow', async () => {
   setMotionPrefs({ mode: 'particles' });
   for (const name of ['chaseMe', 'runaway', 'randomWalk']) assert.equal(glows(name), true, `${name} with its cloud`);
 });
+
+test('under slide a roaming mark wears the neon light, breathing with no cloud', async () => {
+  const { createStageLook } = await import('../../../js/ui/logo/stageLook.js');
+  const lookOf = (name) => { const l = createStageLook(name, null, globalThis.document); l.unwatch(); return l; };
+  setMotionPrefs({ mode: 'slide' });
+  for (const name of ['chaseMe', 'runaway', 'randomWalk']) {
+    const l = lookOf(name);
+    assert.ok(l.glows && !l.lamp && !l.dusty, name);
+  }
+  assert.equal(lookOf('makeItSmall').glows, false);
+  setMotionPrefs({ mode: 'particles' });
+  assert.equal(lookOf('randomWalk').lamp, true, 'a flying cloud keeps the steady lamp');
+});

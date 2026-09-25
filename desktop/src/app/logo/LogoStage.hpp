@@ -92,6 +92,7 @@ namespace stencil::gui {
     bool stageKey(const QKeyEvent& e);
     void awaitBareWindow(const QString& name);
     bool lockEvent(QObject* o, QEvent* e);
+    bool ownWindow(const QWindow* win) const;
 
     QWidget* hostWindow;
     QToolButton* logo;
