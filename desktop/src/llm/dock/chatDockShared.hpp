@@ -4,6 +4,8 @@
 // also live in other files' anonymous namespaces.
 
 #include <QSize>
+#include <QColor>
+#include <QPixmap>
 #include <QString>
 
 class QImage;
@@ -13,6 +15,9 @@ class QWidget;
 namespace stencil::gui::chatdock {
 
   inline constexpr int THUMB_EDGE = 160;
+  // Browser .chat-result: a 44px cover thumbnail beside a label ellipsised at 120px.
+  inline constexpr int RESULT_THUMB = 44;
+  inline constexpr int RESULT_LABEL_MAX_PX = 120;
   inline constexpr int BUTTON_EDGE = 23;
   inline constexpr int HEADER_ICON = 13;
   // The context menu's assistant panel mirrors these exact numbers.
@@ -46,5 +51,9 @@ namespace stencil::gui::chatdock {
   void repolish(QWidget* w);
 
   QImage readImageFile(const QString& path);
+
+  // Browser .chat-result-thumb: the picture cover-fills an `edge` square, rounded by `radius`,
+  // inside a 1px border; `dpr` keeps it crisp on a Retina screen.
+  QPixmap coverThumb(const QImage& image, int edge, int radius, const QColor& border, qreal dpr);
 
 }  // namespace stencil::gui::chatdock

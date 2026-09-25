@@ -301,10 +301,9 @@
 :root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before,
 :root[data-skin="webcore"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before,
 :root[data-skin="webcore"] .ctx-assist-sizer:hover::before { height: 2px; background: var(--wc-focus); box-shadow: none; }
-:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover,
-:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging {
-    background: color-mix(in srgb, var(--wc-focus) 30%, transparent);
-}
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover::before,
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging::before { background: var(--wc-focus); }
 
 /* ── Bits that glow, blur or float in the app's own skin ── */
 :root[data-skin="webcore"] .incognito-frame .ig-edge { background: var(--wc-select); }

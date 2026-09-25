@@ -137,7 +137,6 @@ namespace stencil::gui {
     void titleDragMoved(const QPoint& globalPos);
     void titleDragFinished(const QPoint& globalPos);
     void titleDragCanceled();
-
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
     // The dock swallows drops that miss the composer, so none reaches the window's drop zone.
@@ -198,6 +197,7 @@ namespace stencil::gui {
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
     Palette paletteCache;
     bool chatSwapSides = false;
+    QString placementKey;   // what the chips last showed: area|floating|accent|text
     void updatePlacementState();
     // The title-drag events are CONSUMED: Qt's own (window-server) move swallows the release.
     bool manualDrag = false, manualDragging = false, compactPopover = false;

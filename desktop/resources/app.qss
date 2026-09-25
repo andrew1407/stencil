@@ -10,6 +10,9 @@
          grows under the cursor, ANIMATED — QSS cannot animate) is painted by
          support/dockGrip.hpp, positioned from MainWindow. */
       QMainWindow::separator { background: %BG_PAGE%; width: %SEP_W%px; height: 1px; }
+      /* The window's own separator is the chat's: the browser's 10px of page between the chat
+         panel and the editor (chat/touch.css body padding); the resizer is INSIDE the chat's edge. */
+      QMainWindow#stencilWindow::separator { width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
 
       /* ── Toolbars: gradient surface, hairline divider, rounded icon buttons ── */
       QToolBar {

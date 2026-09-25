@@ -7,6 +7,7 @@
       /* The window's own face; the teal workspace is what the canvas frame is sunk INTO. */
       QMainWindow, QWidget#centralBackdrop { background: %WC_FACE%; }
       QMainWindow::separator { background: %WC_FACE%; width: %SEP_W%px; height: 1px; }
+      QMainWindow#stencilWindow::separator { width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
       QToolBar { background: %WC_FACE%; border: 0; border-bottom: 1px solid %WC_SHADOW%; }
       QToolBar::separator { background: %WC_SHADOW%; border-radius: 0; border-right: 1px solid %WC_HILIGHT%; }
       QFrame#toolWrapSep { background: %WC_SHADOW%; border-radius: 0; }

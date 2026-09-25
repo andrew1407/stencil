@@ -33,7 +33,7 @@ namespace stencil::gui {
   void MainWindow::buildHeaderRow() {
     // Stays put while the tool rows slide, like the browser's header keeping the "⌃ Controls" pill
     // + title.
-    headerToolbar = addToolBar("Header");
+    headerToolbar = editor->addToolBar("Header");
     headerToolbar->setObjectName("headerToolbar");  // named for QMainWindow::saveState
     headerToolbar->setMovable(false);
     // Clicking the logo cycles the accent preset (browser parity).
@@ -127,7 +127,7 @@ namespace stencil::gui {
     incognitoTag->setContentsMargins(0, 11, 10, 11);
     incognitoTag->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     incognitoTag->hide();
-    addToolBarBreak();
+    editor->addToolBarBreak();
   }
 
   namespace {

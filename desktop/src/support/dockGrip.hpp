@@ -6,6 +6,9 @@
 
 #include <QColor>
 #include <QEasingCurve>
+#include <QEnterEvent>
+#include <QMouseEvent>
+#include <functional>
 #include <QPainter>
 #include <QVariantAnimation>
 #include <QWidget>
@@ -42,6 +45,13 @@ namespace stencil::gui {
    protected:
     double hot = 0.0;      // 0 at rest … 1 fully hovered
 
+    // The grip's colour `hot` of the way from rest to lit.
+    QColor lit(const QColor& rest, const QColor& accent) const {
+      const auto ch = [this](int a, int b) { return int(std::lround(a + (b - a) * hot)); };
+      return QColor(ch(rest.red(), accent.red()), ch(rest.green(), accent.green()),
+                    ch(rest.blue(), accent.blue()));
+    }
+
    private:
     QVariantAnimation* anim = nullptr;
   };
@@ -67,12 +77,9 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
-      const auto ch = [this](int a, int b) { return int(std::lround(a + (b - a) * hot)); };
-      const QColor c(ch(rest.red(), accent.red()), ch(rest.green(), accent.green()),
-                     ch(rest.blue(), accent.blue()));
       const double h = BAR_H + (BAR_HOT_H - BAR_H) * hot;
       p.setPen(Qt::NoPen);
-      p.setBrush(c);
+      p.setBrush(lit(rest, accent));
       p.drawRoundedRect(QRectF((width() - BAR_W) / 2.0, (height() - h) / 2.0, BAR_W, h), 2, 2);
     }
 
@@ -81,33 +88,73 @@ namespace stencil::gui {
     QColor accent;
   };
 
-  // The chat dock's resize EDGE (browser .chat-resizer): a mouse-transparent band over
-  // the separator, driven from MainWindow's eventFilter.
+  // The chat dock's resize HANDLE (browser .chat-resizer): a strip inside the dock's own edge
+  // wearing the panel grip's pill. It takes the pointer itself; the owner resizes on its word.
   class DockEdgeOverlay : public DockHoverOverlay {
    public:
-    static constexpr double ALPHA = 0.30;   // browser: color-mix(--accent 30%, transparent)
-    // The horizontal separators are a hairline (theme.cpp), and a 1px tint is no affordance.
-    static constexpr int MIN_THICKNESS = 6;
+    static constexpr int THICKNESS = 6;   // .chat-resizer: 6px
 
-    using DockHoverOverlay::DockHoverOverlay;
+    explicit DockEdgeOverlay(QWidget* parent) : DockHoverOverlay(parent) {
+      setAttribute(Qt::WA_TransparentForMouseEvents, false);
+    }
 
-    void setAccent(const QColor& accent) { this->accent = accent; update(); }
-    // The page the band lets through at rest (webcore: --wc-desktop, the browser body); invalid = none.
-    void setBase(const QColor& base) { this->base = base; update(); }
+    void setColors(const QColor& rest, const QColor& accent) {
+      this->rest = rest;
+      this->accent = accent;
+      update();
+    }
+    // Which way the strip runs: the cursor and the pill follow it.
+    void setAxis(Qt::Orientation o) { setCursor(o == Qt::Horizontal ? Qt::SplitHCursor : Qt::SplitVCursor); }
+    // `move` gets the pointer's travel since the press, in global pixels.
+    void setDragHandlers(std::function<void()> begin, std::function<void(const QPoint&)> move,
+                         std::function<void()> end) {
+      onBegin = std::move(begin);
+      onMove = std::move(move);
+      onEnd = std::move(end);
+    }
+    bool isDragging() const { return dragging; }
 
    protected:
+    // A widget shown under a pointer it never met gets a synthetic Enter (the offscreen
+    // platform's docs capture): only a pointer actually inside the strip lights it.
+    void enterEvent(QEnterEvent* e) override { setHot(rect().contains(e->position().toPoint())); }
+    void leaveEvent(QEvent*) override { if (!dragging) setHot(false); }
+    void mousePressEvent(QMouseEvent* e) override {
+      if (e->button() != Qt::LeftButton) return;
+      dragging = true;
+      grab = e->globalPosition().toPoint();
+      setHot(true);
+      if (onBegin) onBegin();
+    }
+    void mouseMoveEvent(QMouseEvent* e) override {
+      if (dragging && onMove) onMove(e->globalPosition().toPoint() - grab);
+    }
+    void mouseReleaseEvent(QMouseEvent* e) override {
+      if (e->button() != Qt::LeftButton || !dragging) return;
+      dragging = false;
+      if (onEnd) onEnd();
+      if (!underMouse()) setHot(false);
+    }
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
-      if (base.isValid()) p.fillRect(rect(), base);
-      if (hot <= 0.001 || !accent.isValid()) return;
-      QColor c = accent;
-      c.setAlphaF(ALPHA * hot);
-      p.fillRect(rect(), c);
+      if (!rest.isValid()) return;
+      p.setRenderHint(QPainter::Antialiasing, true);
+      const double len = DockGripOverlay::BAR_H + (DockGripOverlay::BAR_HOT_H - DockGripOverlay::BAR_H) * hot;
+      const double w = DockGripOverlay::BAR_W;
+      const bool flat = width() > height();   // a top/bottom edge lies along x
+      p.setPen(Qt::NoPen);
+      p.setBrush(lit(rest, accent));
+      p.drawRoundedRect(flat ? QRectF((width() - len) / 2.0, (height() - w) / 2.0, len, w)
+                             : QRectF((width() - w) / 2.0, (height() - len) / 2.0, w, len), 2, 2);
     }
 
    private:
+    QColor rest;
     QColor accent;
-    QColor base;
+    std::function<void()> onBegin, onEnd;
+    std::function<void(const QPoint&)> onMove;
+    QPoint grab;
+    bool dragging = false;
   };
 
 }  // namespace stencil::gui

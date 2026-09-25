@@ -146,8 +146,8 @@
     font-weight: 600;
     white-space: nowrap;
     /* Locked to the row's height: the tag can never be what decides it. */
-    line-height: 20px;
-    height: 20px;
+    line-height: 27px;
+    height: 27px;
     flex: 0 0 auto;
 }
 /* display:block drops the glyph's inline baseline contribution — an inline svg sits on

@@ -27,7 +27,7 @@ namespace stencil::gui {
   void MainWindow::buildToolSectionsRow() {
 
     // The tool row wraps, so nothing reaches QToolBar's "»".
-    auto* tb = addToolBar("Main");
+    auto* tb = editor->addToolBar("Main");
     tb->setObjectName("mainToolbar");  // named for QMainWindow::saveState
     tb->setMovable(false);
     tb->setToolButtonStyle(Qt::ToolButtonIconOnly);

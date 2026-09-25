@@ -83,11 +83,11 @@ class MainWindowGuiTest : public QObject {
     chatBtn->click();
     QTRY_VERIFY(dock->isVisible());
 
-    // Right-side docking must work even though the fixed-width selection panel owns that area —
-    // nesting provides the drop slots.
-    QVERIFY(win.isDockNestingEnabled());
+    // The chat docks on the WINDOW; the points panel is the editor shell's, so a right-docked chat
+    // stands outside it rather than sharing its area.
+    QVERIFY(win.editor->isDockNestingEnabled());
     auto* selPanel = win.findChild<QDockWidget*>("selectionPanelDock");
-    QVERIFY(selPanel && win.dockWidgetArea(selPanel) == Qt::RightDockWidgetArea);
+    QVERIFY(selPanel && win.editor->dockWidgetArea(selPanel) == Qt::RightDockWidgetArea);
     win.addDockWidget(Qt::RightDockWidgetArea, dock);
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
     QTRY_VERIFY(dock->isVisible());
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
     {
       const QImage bodyImg = dock->widget()->grab().toImage();
       const QColor cardBg = bodyImg.pixelColor(bodyImg.width() / 2, 4);
-      const QImage centralImg = win.centralWidget()->grab().toImage();
+      const QImage centralImg = win.editor->centralWidget()->grab().toImage();
       // Near the BOTTOM, not the exact vertical centre: the top bars grow with theme or content, so
       // a centre sample can drift onto one; the bottom stays inside the canvas area.
       const QColor canvasBg =

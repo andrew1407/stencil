@@ -5,8 +5,8 @@
    animations/responsive.css) — they read as one panel and must not drift apart. */
 :root { --coord-panel-default: 405px; }
 .coordinates-panel {
-    /* Width is user-resizable via #panel-resizer (drag handle), persisted as --coord-panel-width;
-       clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
+    /* Width is user-resizable via #panel-resizer (drag handle), held in --coord-panel-width for the
+       page's life; clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
     flex: 0 0 auto;
     width: var(--coord-panel-width, var(--coord-panel-default));
     min-width: 240px;

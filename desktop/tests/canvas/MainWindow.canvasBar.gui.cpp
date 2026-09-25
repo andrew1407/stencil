@@ -30,16 +30,17 @@ class MainWindowGuiTest : public QObject {
     beat();
 
     // selectedLineBarDustPoint() is plain geometry, so it runs fine offscreen even
-    // though the flight it feeds does not.
+    // though the flight it feeds does not. Its frame is the editor shell, the dust's host.
     QVERIFY2(win.imageInfoBar && win.imageInfoBar->isVisible(), "no image-info row to anchor to");
-    const QRect barPicture(win.selectedLineBar->mapTo(&win, QPoint(0, 0)),
+    QWidget* shell = win.editor;
+    const QRect barPicture(win.selectedLineBar->mapTo(shell, QPoint(0, 0)),
                            win.selectedLineBar->size());
-    const QRect infoRectNow(win.imageInfoBar->mapTo(&win, QPoint(0, 0)), win.imageInfoBar->size());
-    const int dockTop = win.selectedLineDock->mapTo(&win, QPoint(0, 0)).y();
+    const QRect infoRectNow(win.imageInfoBar->mapTo(shell, QPoint(0, 0)), win.imageInfoBar->size());
+    const int dockTop = win.selectedLineDock->mapTo(shell, QPoint(0, 0)).y();
 
-    // The x is the BAR's own centre — both bars span the full window width (each its own
-    // Qt::TopDockWidgetArea dock), so this already IS the window's centre.
-    QVERIFY2(std::abs(barPicture.center().x() - win.width() / 2) < 4,
+    // The x is the BAR's own centre — both bars span the full shell width (each its own
+    // Qt::TopDockWidgetArea dock), so this already IS the shell's centre.
+    QVERIFY2(std::abs(barPicture.center().x() - shell->width() / 2) < 4,
              "the bar itself is not spanning the full window width — the premise of this test");
     const QPoint openPt = win.selectedLineBarDustPoint(barPicture, /*closing=*/false);
     QCOMPARE(openPt.x(), barPicture.center().x());

@@ -123,6 +123,7 @@ namespace stencil::gui {
         // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
         {"%MENU_PAD_R%", QString::number(MENU_ITEM_RIGHT_PAD_PX)},
         {"%SEP_W%", QString::number(DOCK_SEPARATOR_PX)},
+        {"%CHAT_GAP%", QString::number(CHAT_PAGE_GAP_PX)},
         {"%FACE_PAD_X%", QString::number(FACE_PAD_X_PX)},
         // theme.hpp onAccentInk; the indicator marks are baked PNGs, so they come as a pair.
         {"%ON_ACCENT%", c(p.onAccent)},

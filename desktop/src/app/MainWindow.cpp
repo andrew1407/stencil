@@ -10,6 +10,7 @@ namespace stencil::gui {
   MainWindow::MainWindow(QWidget* parent, bool restoreLast)
       : QMainWindow(parent) {
     setWindowTitle("Stencil");
+    setObjectName("stencilWindow");   // app.qss: the window's own separator is a hairline
     resize(1100, 760);
     setAcceptDrops(true);
 

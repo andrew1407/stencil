@@ -53,8 +53,8 @@ export class StencilFullscreenLayer extends StencilElement {
     fsPointsPanel.addEventListener('mouseenter', pausePointsHide);
     fsPointsPanel.addEventListener('mouseleave', hidePointsPanel);
 
-// Drag sets --coord-panel-width (shared with normal mode + persisted); the panel is on the
-// right, so dragging left widens it.
+// Drag sets --coord-panel-width (shared with normal mode for this page's life); the panel is
+// on the right, so dragging left widens it.
     const fsResizer = document.getElementById('fs-panel-resizer');
     if (fsResizer) {
       const pauseAutoHide = pausePointsHide;

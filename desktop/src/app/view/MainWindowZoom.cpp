@@ -136,10 +136,10 @@ namespace stencil::gui {
     if (show) {
       release();
       for (QToolBar* b : bars) b->show();
-      if (QLayout* l = layout()) l->activate();
+      if (QLayout* l = editor->layout()) l->activate();
       for (QToolBar* b : bars)
         if (WrapRow* row = wrapRowIn(b)) row->remeasure();
-      if (QLayout* l = layout()) l->activate();
+      if (QLayout* l = editor->layout()) l->activate();
     }
     int full = 0;
     for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
@@ -151,7 +151,7 @@ namespace stencil::gui {
     QPointer<gui::DisintegrateOverlay> dustFx;
     if (show) {
       for (QToolBar* b : bars) { b->setFixedHeight(full); b->show(); }
-      if (QLayout* l = layout()) l->activate();
+      if (QLayout* l = editor->layout()) l->activate();
       dustFx = barsSurfaceFlight(bars, /*gather=*/true, FOLD_DUST_IN_MS);
       for (QToolBar* b : bars) b->setFixedHeight(0);
     }

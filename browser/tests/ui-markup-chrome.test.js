@@ -38,16 +38,16 @@ test('the status row is the same box with the incognito tag and without it', () 
     assert.match(row, /display: flex/, 'the row is not a line box');
     assert.match(row, /align-items: center/);
     // …with a floor so the empty and tagged states agree…
-    assert.match(row, /line-height: 20px/);
-    assert.match(row, /min-height: 20px/);
+    assert.match(row, /line-height: 27px/);   // 27 + 2×10 padding: the desktop's 47px bar
+    assert.match(row, /min-height: 27px/);
     // …and no second line to grow onto at a narrow width.
     assert.match(row, /white-space: nowrap/);
     assert.match(row, /overflow: hidden/);
     const tag = css.slice(css.indexOf('.info-incognito {'), css.indexOf('}', css.indexOf('.info-incognito {')));
     // The tag is locked to that same height rather than stretching it, and never grows
     // or shrinks as a flex item.
-    assert.match(tag, /line-height: 20px/);
-    assert.match(tag, /height: 20px/);
+    assert.match(tag, /line-height: 27px/);
+    assert.match(tag, /height: 27px/);
     assert.match(tag, /flex: 0 0 auto/);
     const sep = css.slice(css.indexOf('.info-divider {'), css.indexOf('}', css.indexOf('.info-divider {')));
     assert.match(sep, /flex: 0 0 auto/);

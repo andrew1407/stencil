@@ -50,8 +50,21 @@ namespace stencil::gui {
     setProperty("fxActive", false);
     hide();
     this->logo->installEventFilter(this);
+    watchAncestors();
     // Paint the mark at ALL times: QToolButton draws its icon at half size on Retina. Deferred so the button is laid out first.
     QTimer::singleShot(0, this, [this] { showStatic(); });
+  }
+
+  // The mark is painted in the WINDOW's frame, and a shell between them moving (the editor
+  // beside a docked chat) carries the button along without a Move of its own.
+  void LogoHoverFx::watchAncestors() {
+    for (const QPointer<QWidget>& w : ancestors)
+      if (w) w->removeEventFilter(this);
+    ancestors.clear();
+    for (QWidget* w = logo->parentWidget(); w && w != logo->window(); w = w->parentWidget()) {
+      w->installEventFilter(this);
+      ancestors.append(w);
+    }
   }
 
   void LogoHoverFx::holdWhile(QWidget* box) {
@@ -78,7 +91,13 @@ namespace stencil::gui {
   bool LogoHoverFx::active() const { return hovering; }
 
   bool LogoHoverFx::eventFilter(QObject* o, QEvent* e) {
+    if (o != logo && o != box && (e->type() == QEvent::Move || e->type() == QEvent::Resize)) {
+      if (isVisible()) syncGeometry();   // an ancestor shifted under the button
+      return QWidget::eventFilter(o, e);
+    }
     if (o == logo) {
+      // The button is built on the window and joins the toolbar afterwards.
+      if (e->type() == QEvent::ParentChange) watchAncestors();
       switch (e->type()) {
         case QEvent::Enter:
           grace->stop();

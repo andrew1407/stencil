@@ -74,6 +74,7 @@ namespace stencil::gui {
   // QSS geometry the code also measures against — interpolated, so the two cannot drift.
   inline constexpr int MENU_ITEM_RIGHT_PAD_PX = 26;   // QMenu::item right padding
   inline constexpr int DOCK_SEPARATOR_PX = 9;       // QMainWindow::separator width
+  inline constexpr int CHAT_PAGE_GAP_PX = 10;       // the window's own separator: page between chat and editor
   inline constexpr int FACE_PAD_X_PX = 6;           // QToolButton#drawFaceBtn side padding
 
   // The app-wide QMenu paddings are sized for the menu bar and read as dead space in flat icon menus.

@@ -108,6 +108,9 @@ namespace stencil::gui {
 
   void MainWindow::syncImageInfoDockHeight() {
     if (!imageInfoDock || !imageInfoHost) return;
+    // The host's cached item hint for the bar predates the label height reserveImageInfoHeight
+    // just set, and a bar that is not yet shown never re-announces it on its own.
+    if (imageInfoBar) imageInfoBar->updateGeometry();
     imageInfoDock->setFixedHeight(imageInfoHost->sizeHint().height());
   }
 

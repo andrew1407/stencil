@@ -11,8 +11,6 @@
 #include <QDockWidget>
 #include <QMenuBar>
 #include <QStatusBar>
-#include <QTimer>
-#include <QToolBar>
 
 namespace stencil::gui {
 
@@ -60,32 +58,8 @@ namespace stencil::gui {
       if (notify) notify->info(text);
     });
     connect(chatDock, &ChatDock::lateNotePosted, this, &MainWindow::chatMirrorLateNote);
-    // Edge drop bands over the central dock region for the whole title-bar drag; the release
-    // position decides (browser parity). QPointer-guarded: these also fire during teardown.
-    const QPointer<QDockWidget> panelGuard(selPanel);
-    const QPointer<QDockWidget> chatGuard(chatDock);
-    const auto restorePanelWidth = [this, panelGuard, chatGuard] {
-      if (tearingDown || !panelGuard || !chatGuard || panelGuard->isHidden()) return;
-      if (!chatGuard->isHidden() && !chatGuard->isFloating() &&
-          dockWidgetArea(chatGuard) == dockWidgetArea(panelGuard))
-        return;   // still side by side — leave the split alone
-      const int w = panelRestoreWidth > 120 ? panelRestoreWidth : PANEL_DEFAULT_WIDTH;
-      QTimer::singleShot(0, this, [this, panelGuard, w] {
-        if (panelGuard && !panelGuard->isHidden())
-          resizeDocks({panelGuard.data()}, {w}, Qt::Horizontal);
-      });
-    };
-    connect(chatDock, &QDockWidget::topLevelChanged, this,
-            [this, restorePanelWidth](bool) {
-              // A tear-off mid-slide would carry the pinned min==max extent into the floating
-              // window.
-              stopChatAnim();
-              restorePanelWidth();
-            });
-    connect(chatDock, &QDockWidget::visibilityChanged, this,
-            [restorePanelWidth](bool) { restorePanelWidth(); });
-    connect(chatDock, &QDockWidget::dockLocationChanged, this,
-            [restorePanelWidth](Qt::DockWidgetArea) { restorePanelWidth(); });
+    // A tear-off mid-slide would carry the pinned min==max extent into the floating window.
+    connect(chatDock, &QDockWidget::topLevelChanged, this, [this](bool) { stopChatAnim(); });
     // A deliberate layout choice adopts the current shape (browser chatPanel adoptLayout parity).
     connect(chatDock, &ChatDock::dockRequested, this,
             [this] { setChatCompactPopover(false); });
@@ -95,17 +69,15 @@ namespace stencil::gui {
             [this] { setChatCompactPopover(false); });
     connect(chatDock, &ChatDock::dockRequested, this, &MainWindow::dockChatTo);
     connect(chatDock, &ChatDock::floatToggleRequested, this, &MainWindow::toggleChatFloat);
+    // Edge drop bands for the whole title-bar drag; the release position decides (browser parity).
     connect(chatDock, &ChatDock::titleDragStarted, this, [this] {
       if (!dockZones) dockZones = new DockZonesOverlay(this);
-      // The bands span the dock region (window minus toolbars and status bar), not the central
-      // widget, which shifts with what is docked.
+      // The bands span the window's dock region (between the menu bar and the status bar): the
+      // toolbars are the editor's, inside it, so a top band runs above them.
       QRect target = rect();
       int top = 0;
       if (menuBar() && menuBar()->isVisible())
         top = qMax(top, menuBar()->geometry().bottom() + 1);
-      for (QToolBar* tb : findChildren<QToolBar*>())
-        if (tb->isVisible() && !tb->isFloating() && toolBarArea(tb) == Qt::TopToolBarArea)
-          top = qMax(top, tb->geometry().bottom() + 1);
       int bottom = height() - 1;
       // findChild, not statusBar(): the accessor lazily creates a status bar, and this window
       // keeps none.

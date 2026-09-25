@@ -45,9 +45,11 @@ namespace stencil::gui {
 
   void MainWindow::positionPanelReopenButton() {
     if (!panelReopenBtn) return;
-    // Flush to the WINDOW's right edge at scroll's top: canvas and panel sit below the SAME dock stack, so the Y already matches.
+    // Flush to the EDITOR's right edge (a right-docked chat sits outside it) at scroll's top: canvas
+    // and panel sit below the SAME dock stack, so the Y already matches.
     const int y = (scroll ? scroll->mapTo(this, QPoint(0, 0)).y() : 0) + PANEL_TOGGLE_TOP;
-    panelReopenBtn->move(width() - panelReopenBtn->width() - PANEL_TOGGLE_INSET, y);
+    const int right = editor ? editor->mapTo(this, QPoint(editor->width(), 0)).x() : width();
+    panelReopenBtn->move(right - panelReopenBtn->width() - PANEL_TOGGLE_INSET, y);
   }
 
   void MainWindow::updatePanelReopenButton() {

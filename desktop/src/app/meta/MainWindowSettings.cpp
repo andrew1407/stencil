@@ -57,7 +57,7 @@ namespace stencil::gui {
   void MainWindow::closeEvent(QCloseEvent* event) {
     // The chat dock rides along but resets on boot (session-transient); incognito never writes
     // (persistSettings).
-    settings.windowState = QString::fromLatin1(saveState(TOOLBAR_LAYOUT_VERSION).toBase64());
+    settings.windowState = QString::fromLatin1(editor->saveState(TOOLBAR_LAYOUT_VERSION).toBase64());
     persistSettings();
     fileStore::flushWrites();   // any debounced registry write still inside its window
     QMainWindow::closeEvent(event);

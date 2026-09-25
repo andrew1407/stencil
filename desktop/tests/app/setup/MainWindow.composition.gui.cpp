@@ -114,24 +114,28 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(central.join(u' '),
              QStringLiteral("<layout> QLabel#coordStatus QWidget#dropHintBar"));
 
-    // Toolbar rows, in the order addToolBar/addToolBarBreak ran (4 = Qt::TopToolBarArea).
+    // Toolbar rows of the editor shell, in the order addToolBar/addToolBarBreak ran (4 =
+    // Qt::TopToolBarArea).
     QStringList bars;
     for (QToolBar* tb : win.findChildren<QToolBar*>())
-      bars << tag(tb) + "@" + QString::number(int(win.toolBarArea(tb)));
+      bars << tag(tb) + "@" + QString::number(int(win.editor->toolBarArea(tb)));
     QCOMPARE(bars.join(u' '),
              QStringLiteral("QToolBar#headerToolbar@4 QToolBar#mainToolbar@4"));
 
     // Docks, in creation order, with the area each was added to and its boot visibility (2 = Right,
-    // 4 = Top, 1 = Left). The chat dock is session-transient: hidden at its default left placement.
+    // 4 = Top, 1 = Left): the editor shell's three, then the window's own chat dock, which is
+    // session-transient — hidden at its default left placement.
     QStringList docks;
-    for (QDockWidget* d : win.findChildren<QDockWidget*>())
-      docks << tag(d) + "@" + QString::number(int(win.dockWidgetArea(d))) +
+    for (QDockWidget* d : win.findChildren<QDockWidget*>()) {
+      QMainWindow* host = d == win.chatDock ? static_cast<QMainWindow*>(&win) : win.editor;
+      docks << tag(d) + "@" + QString::number(int(host->dockWidgetArea(d))) +
                    (d->isHidden() ? ":hidden" : ":shown");
+    }
     QCOMPARE(docks.join(u' '),
              QStringLiteral("stencil::gui::SelectionPanel#selectionPanelDock@2:shown "
                             "QDockWidget#selectedLineDock@4:hidden "
-                            "stencil::gui::ChatDock#llmChatDock@1:hidden "
-                            "QDockWidget#imageInfoDock@4:shown"));
+                            "QDockWidget#imageInfoDock@4:shown "
+                            "stencil::gui::ChatDock#llmChatDock@1:hidden"));
 
     // The controllers and overlays the ctor owns all exist, and the window is wired to
     // its own filters (Escape leaves fullscreen from any focus; the viewport zooms).

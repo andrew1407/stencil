@@ -106,6 +106,7 @@ class MainWindowGuiTest : public QObject {
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
     awaitAnim(win.chatAnim);
+    settleLayout(&win, 60);   // the icon rides the editor shell, which widens once the dock leaves
     QWidget* icon = win.buttonForAction(win.actChat);
     QVERIFY2(icon && icon->isVisible(), "no chat icon to fly from");
     const QPoint iconPoint = flightPointOf(icon, &win);

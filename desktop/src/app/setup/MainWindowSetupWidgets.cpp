@@ -63,7 +63,7 @@ namespace stencil::gui {
 
     // browser #coord-status sits between .canvas-viewport and .drop-hint; empty off-canvas, hidden
     // in fullscreen.
-    status = new QLabel(QString(), centralWidget());   // cursor readout only — blank until one hovers the canvas
+    status = new QLabel(QString(), editor->centralWidget());   // cursor readout only — blank until one hovers the canvas
     status->setObjectName("coordStatus");
     status->setAttribute(Qt::WA_StyledBackground, true);
     status->setStyleSheet("font-family: monospace;");

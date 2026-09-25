@@ -1,6 +1,7 @@
-// MainWindow GUI e2e — Changing placement: the animation, a shared panel side, and a hidden panel still splitting.
+// MainWindow GUI e2e — Changing placement: the animation, and the chat standing outside the editor shell.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "theme.hpp"   // DOCK_SEPARATOR_PX
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -58,9 +59,10 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY2(dock->width() > settled / 2, "it never grew in from the float");
   }
 
-  // Browser parity (.main-content flex row): docked on the SAME side as the points panel, the
-  // chat only ever eats into the canvas column; the fixed-width panel beside it never moves.
-  void chatSharingPanelSideKeepsPanelWidthStable() {
+  // The chat docks on the WINDOW, outside the editor shell (browser: a fixed-position panel the
+  // page is inset by): docked right it stands beyond the points panel, running the shell's full
+  // height, toolbars included, and the panel's width never moves through the flight.
+  void chatDockedRightStandsOutsideThePanel() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
@@ -68,20 +70,16 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.selPanel && win.chatDock);
-    QVERIFY(win.dockWidgetArea(win.selPanel) == Qt::RightDockWidgetArea);
+    QVERIFY(win.selPanel && win.chatDock && win.editor);
+    QVERIFY(win.editor->dockWidgetArea(win.selPanel) == Qt::RightDockWidgetArea);
     QTRY_VERIFY(!win.selPanel->isHidden());
 
-    // Chat starts docked LEFT by default — opening it in an UNRELATED area settles QMainWindow's
-    // dock layout onto the panel's real natural width, not its incidental construction size.
     win.actChat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible() && !win.chatDock->isFloating());
     awaitAnim(win.chatAnim);
     const int panelBefore = win.selPanel->width();
     QVERIFY2(panelBefore > 120, "the points panel never reached its natural width");
 
-    // Now place the chat RIGHT, alongside the points panel, and watch the panel's
-    // width through the whole flight.
     emit static_cast<stencil::gui::ChatDock*>(win.chatDock)->dockRequested(Qt::RightDockWidgetArea);
     int maxSeen = 0, minSeen = win.width();
     QVERIFY2(win.chatAnim, "the placement change did not animate");
@@ -96,28 +94,32 @@ class MainWindowGuiTest : public QObject {
     }
     QTRY_COMPARE(win.dockWidgetArea(win.chatDock), Qt::RightDockWidgetArea);
     awaitAnim(win.chatAnim);
-    // They must land SIDE BY SIDE (same row, chat to the right of the panel) —
-    // never stacked vertically (Qt's plain, unsplit addDockWidget default).
-    QCOMPARE(win.selPanel->mapTo(&win, QPoint(0, 0)).y(), win.chatDock->mapTo(&win, QPoint(0, 0)).y());
-    QVERIFY2(win.chatDock->mapTo(&win, QPoint(0, 0)).x() > win.selPanel->mapTo(&win, QPoint(0, 0)).x(),
-             "chat did not land to the right of the points panel");
-    // The panel must never balloon past its pre-share width, nor get squeezed away —
-    // the chat's own slide is what should move, not the panel sitting beside it.
+    const QRect chat(win.chatDock->mapTo(&win, QPoint(0, 0)), win.chatDock->size());
+    const QRect panel(win.selPanel->mapTo(&win, QPoint(0, 0)), win.selPanel->size());
+    const QRect shell(win.editor->mapTo(&win, QPoint(0, 0)), win.editor->size());
+    QVERIFY2(chat.left() >= panel.right(), "chat did not land beyond the points panel");
+    QCOMPARE(chat.top(), shell.top());
+    QCOMPARE(chat.height(), shell.height());
+    QVERIFY2(chat.top() < win.headerToolbar->mapTo(&win, QPoint(0, 0)).y() + win.headerToolbar->height(),
+             "the chat starts under the toolbars instead of beside them");
     QVERIFY2(maxSeen <= panelBefore + 8,
              qPrintable(QString("points panel widened to %1 (was %2)").arg(maxSeen).arg(panelBefore)));
-    QVERIFY2(minSeen >= 100,
-             qPrintable(QString("points panel collapsed to %1 mid-slide").arg(minSeen)));
+    QVERIFY2(minSeen >= panelBefore - 8,
+             qPrintable(QString("points panel squeezed to %1 mid-slide (was %2)").arg(minSeen).arg(panelBefore)));
+    // The header's placement chips follow: the right chevron is the lit one.
+    auto* dock = static_cast<stencil::gui::ChatDock*>(win.chatDock);
+    QCOMPARE(dock->chrome.dockBtns.size(), 4);
+    QCOMPARE(dock->chrome.dockBtns[3]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QStringLiteral("active"));
+    QCOMPARE(dock->chrome.dockBtns[0]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QString());
 
-    // Close the chat: the panel should hand its width right back...
+    // Close the chat: the panel keeps its width...
     win.actChat->setChecked(false);
     QTRY_VERIFY(!win.chatDock->isVisible());
     awaitAnim(win.chatAnim);
     QVERIFY2(win.selPanel->width() >= panelBefore - 8,
              qPrintable(QString("panel stayed narrow after chat closed: %1 (was %2)")
                             .arg(win.selPanel->width()).arg(panelBefore)));
-
-    // …and reopening the chat must not have baked a bad "restore" width into the panel: it settles
-    // back near its own size, never "very wide".
+    // ...and reopening the chat leaves it alone too.
     win.actChat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     awaitAnim(win.chatAnim);
@@ -126,45 +128,76 @@ class MainWindowGuiTest : public QObject {
                             .arg(win.selPanel->width()).arg(panelBefore)));
   }
 
-  // The points panel can be HIDDEN when the chat is placed onto its side, so ensurePanelChatSplit
-  // must repair the split wherever either dock's visibility flips, not only when both show.
-  void chatPlacedWhilePanelHiddenStillSplitsSideBySide() {
+  // Docked top, the chat is a full-width row ABOVE the toolbars and the Image Size dock (browser
+  // .chat-dock-top: top 0, left 0, right 0), and the up chevron is the lit chip.
+  void chatDockedTopSpansTheWindowAboveTheToolbars() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.selPanel && win.chatDock && win.actPanel && win.actChat);
-    QVERIFY(win.dockWidgetArea(win.selPanel) == Qt::RightDockWidgetArea);
-    QTRY_VERIFY(!win.selPanel->isHidden());
+    QVERIFY(win.chatDock && win.editor && win.headerToolbar && win.imageInfoDock);
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible() && !win.chatDock->isFloating());
+    emit static_cast<stencil::gui::ChatDock*>(win.chatDock)->dockRequested(Qt::TopDockWidgetArea);
+    QTRY_COMPARE(win.dockWidgetArea(win.chatDock), Qt::TopDockWidgetArea);
+    awaitAnim(win.chatAnim);
+    const QRect chat(win.chatDock->mapTo(&win, QPoint(0, 0)), win.chatDock->size());
+    QCOMPARE(chat.left(), 0);
+    QCOMPARE(chat.width(), win.width());
+    QVERIFY2(chat.bottom() < win.headerToolbar->mapTo(&win, QPoint(0, 0)).y(),
+             "the toolbars sit above the top-docked chat");
+    QVERIFY2(chat.bottom() < win.imageInfoDock->mapTo(&win, QPoint(0, 0)).y(),
+             "the Image Size dock sits above the top-docked chat");
+    // The browser's 10px of page lies between the chat and the shell (chat/touch.css body padding).
+    const int shellTop = win.editor->mapTo(&win, QPoint(0, 0)).y();
+    QCOMPARE(shellTop - chat.bottom() - 1, stencil::gui::CHAT_PAGE_GAP_PX);
+    auto* dock = static_cast<stencil::gui::ChatDock*>(win.chatDock);
+    QCOMPARE(dock->chrome.dockBtns.size(), 4);
+    QCOMPARE(dock->chrome.dockBtns[1]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QStringLiteral("active"));
+    QCOMPARE(dock->chrome.dockBtns[0]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QString());
+  }
 
-    // Hide the points panel FIRST...
+  // A points panel hidden while the chat takes its side comes back inside the editor shell, at
+  // the shell's central height, beside the chat and never under it.
+  void panelReshownBesideARightDockedChat() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(win.selPanel && win.chatDock && win.actPanel && win.actChat && win.editor);
+    QTRY_VERIFY(!win.selPanel->isHidden());
     win.actPanel->setChecked(false);
     QTRY_VERIFY(win.selPanel->isHidden());
-
-    // ...then place the (unrelated-side) chat onto the panel's side while it's hidden.
     win.actChat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible() && !win.chatDock->isFloating());
     emit static_cast<stencil::gui::ChatDock*>(win.chatDock)->dockRequested(Qt::RightDockWidgetArea);
     QTRY_COMPARE(win.dockWidgetArea(win.chatDock), Qt::RightDockWidgetArea);
     awaitAnim(win.chatAnim);
-
-    // Now reveal the panel again — it must come back BESIDE the chat, not squashed
-    // underneath it.
     win.actPanel->setChecked(true);
     QTRY_VERIFY(!win.selPanel->isHidden());
-    // The re-laid-out row, not a guess at how long it takes to arrive.
-    QTRY_COMPARE_WITH_TIMEOUT(win.selPanel->mapTo(&win, QPoint(0, 0)).y(),
-                              win.chatDock->mapTo(&win, QPoint(0, 0)).y(), 1000);
-    QVERIFY2(win.chatDock->mapTo(&win, QPoint(0, 0)).x() > win.selPanel->mapTo(&win, QPoint(0, 0)).x(),
-             "the panel reappeared stacked under the chat instead of beside it");
-    // Squashed means SHARING a vertical row with the chat, not "shorter than half the window": the
-    // stacked toolbars and the top info dock can leave the whole dock row well under half of it.
-    QCOMPARE(win.selPanel->height(), win.chatDock->height());
-    QVERIFY(win.centralWidget());
-    QVERIFY2(win.selPanel->height() == win.centralWidget()->height(),
-             "the panel came back with a squashed, shared-row height");
+    QTRY_COMPARE_WITH_TIMEOUT(win.selPanel->height(), win.editor->centralWidget()->height(), 1000);
+    QVERIFY2(win.chatDock->mapTo(&win, QPoint(0, 0)).x() >= win.selPanel->mapTo(&win, QPoint(0, 0)).x() + win.selPanel->width(),
+             "the panel reappeared under the chat instead of beside it");
   }
 
+  // The lit placement chip follows a re-dock made straight on the window while the dock is
+  // still hidden (the docs capture, a restored layout), not only one the header buttons asked for.
+  void placementChipFollowsADirectRedock() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* dock = static_cast<stencil::gui::ChatDock*>(win.chatDock);
+    QVERIFY(dock && dock->isHidden());
+    win.addDockWidget(Qt::RightDockWidgetArea, dock, Qt::Horizontal);
+    dock->setFloating(false);
+    dock->show();
+    QTRY_VERIFY(dock->isVisible());
+    QCOMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
+    QCOMPARE(dock->chrome.dockBtns.size(), 4);
+    QTRY_COMPARE(dock->chrome.dockBtns[3]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QStringLiteral("active"));
+    QCOMPARE(dock->chrome.dockBtns[0]->property(stencil::gui::ICON_STATE_PROPERTY).toString(), QString());
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

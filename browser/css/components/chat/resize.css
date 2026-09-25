@@ -2,9 +2,26 @@
    (same wirePanelResizer feel as the coordinates panel splitter). touch-action off
    so the pointer drag owns the gesture on touch devices too. */
 .chat-resizer { position: absolute; background: transparent; touch-action: none; user-select: none; }
+/* Docked: the always-visible grip of .panel-resizer (layout/coordPanel.css), a pill centred
+   along the edge — a bare strip that only tinted on hover read as an edge you cannot drag. */
+stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer::before { width: 3px; height: 34px; }
+stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer::before { width: 34px; height: 3px; }
 /* Hover affordances are gated on :not(.chat-gesturing): while ONE handle drags,
    the others must not light up as the pointer sweeps them. .dragging always shows. */
-stencil-chat-panel:not(.chat-gesturing) .chat-resizer:hover, .chat-resizer.dragging { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+stencil-chat-panel:is(.chat-dock-left, .chat-dock-right):not(.chat-gesturing) .chat-resizer:hover::before,
+stencil-chat-panel:is(.chat-dock-left, .chat-dock-right) .chat-resizer.dragging::before { background: var(--accent); height: 52px; }
+stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom):not(.chat-gesturing) .chat-resizer:hover::before,
+stencil-chat-panel:is(.chat-dock-top, .chat-dock-bottom) .chat-resizer.dragging::before { background: var(--accent); width: 52px; }
 stencil-chat-panel.chat-dock-left   .chat-resizer { top: 0; right: 0;  bottom: 0; width: 6px;  cursor: col-resize; }
 stencil-chat-panel.chat-dock-right  .chat-resizer { top: 0; left: 0;   bottom: 0; width: 6px;  cursor: col-resize; }
 stencil-chat-panel.chat-dock-top    .chat-resizer { left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; }
@@ -26,8 +43,6 @@ stencil-chat-panel.chat-dock-float .chat-resizer::before {
     background: var(--border-main);
     transition: background 0.15s, width 0.15s, height 0.15s;
 }
-stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover,
-stencil-chat-panel.chat-dock-float .chat-resizer.dragging { background: transparent; }
 stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before,
 stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before { background: var(--accent); width: 8px; height: 8px; }
 

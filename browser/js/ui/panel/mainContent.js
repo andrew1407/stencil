@@ -154,9 +154,9 @@ export class StencilMainContent extends StencilElement {
     tabPoints.addEventListener('click', () => selectTab('points'));
     tabLines.addEventListener('click', () => selectTab('lines'));
 
-    // Drag sets --coord-panel-width on :root (persisted); mirrors the desktop splitter.
+    // Drag sets --coord-panel-width on :root for this page's life; mirrors the desktop splitter.
     const resizer = document.getElementById('panel-resizer');
-    if (resizer) wirePanelResizer(resizer, panel, { maxFactor: 0.7, restore: true });
+    if (resizer) wirePanelResizer(resizer, panel, { maxFactor: 0.7, track: true });
   }
 }
 define('stencil-main-content', StencilMainContent);

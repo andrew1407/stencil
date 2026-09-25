@@ -12,5 +12,7 @@ export declare const restoreProjects: (storage: Storage) => void;
 export declare const autoRefreshOnOpen: (storage: Storage, id: string) => void;
 /** Allocates the project id; the caller then save()s. */
 export declare const promoteTemporary: (storage: Storage) => string;
+/** Zeroes the canvas's backing store and inline CSS size, so a bare viewport has nothing to scroll. */
+export declare const collapseCanvas: (app: DrawingApp) => void;
 /** Everything the emptied editor forgets; the canvas itself is the caller's to collapse. */
 export declare const clearEditorState: (app: DrawingApp) => void;

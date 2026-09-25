@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — A chat CARD arriving out of dust, from its own side of the transcript.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/llm/dock/chatDockShared.hpp"   // RESULT_THUMB, RESULT_LABEL_MAX_PX
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -130,6 +131,40 @@ class MainWindowGuiTest : public QObject {
     arrivesFrom("chatCardUser", +1, "a user message must gather from the RIGHT");
     win.chatDock->appendAssistant(QStringLiteral("and the reply, on the left"));
     arrivesFrom("chatCardAssistant", -1, "an assistant message must gather from the LEFT");
+  }
+
+  // Variant results (browser .chat-results): one compact framed card per variant, wrapping in a
+  // row — a 44px cover thumbnail, the label ellipsised at 120px, then two glyph buttons.
+  void variantResultsAreCompactFramedCards() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    QImage tall(300, 900, QImage::Format_ARGB32);
+    tall.fill(Qt::yellow);
+    QImage wide(900, 300, QImage::Format_ARGB32);
+    wide.fill(Qt::cyan);
+    win.chatDock->appendVariants({{QStringLiteral("rotated"), tall, QStringLiteral("p1")},
+                                  {QStringLiteral("a very long variant label that must be cut short"), wide, QString()}});
+    const auto cards = win.chatDock->findChildren<QFrame*>(QStringLiteral("chatResult"));
+    QCOMPARE(cards.size(), 2);
+    for (QFrame* card : cards) {
+      QLabel* thumb = nullptr;
+      QLabel* label = nullptr;
+      for (QLabel* l : card->findChildren<QLabel*>()) { if (!l->pixmap().isNull()) thumb = l; else label = l; }
+      QVERIFY(thumb && label);
+      // Every thumbnail is the same square whatever the picture's shape: cover-cropped, not fitted.
+      QCOMPARE(thumb->size(), QSize(stencil::gui::chatdock::RESULT_THUMB, stencil::gui::chatdock::RESULT_THUMB));
+      QCOMPARE(thumb->pixmap().deviceIndependentSize().toSize(), thumb->size());
+      QVERIFY2(label->fontMetrics().horizontalAdvance(label->text()) <= stencil::gui::chatdock::RESULT_LABEL_MAX_PX,
+               qPrintable(label->text()));
+      QCOMPARE(card->findChildren<QToolButton*>().size(), 2);
+    }
+    // The long label is cut with an ellipsis and keeps its full text as the tooltip.
+    QVERIFY(cards[1]->findChildren<QLabel*>().last()->text().endsWith(QChar(0x2026)) ||
+            cards[1]->findChildren<QLabel*>().first()->text().endsWith(QChar(0x2026)));
   }
 
 };
