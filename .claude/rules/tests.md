@@ -30,16 +30,18 @@ re-pin is the whole commit, with no code motion in it.
 | browser CSS | `browser/tests/pins/css.json` | `cd browser && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
 | browser-extension CSS | `browser-extension/tests/pins/css.json` | `cd browser-extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
 | browser or extension UI (rendered state) | `e2e/pins/*.json` — computed styles + DOM for 21 states | `cd e2e && UPDATE_PINS=1 npm run test:ui` |
-| desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (24 hashes) + `desktop/tests/pins/<platform>/*.png` (24 renders, @1x and @2x) | `STENCIL_UPDATE_UI_PINS=1` on the ui-pins target |
+| desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (24 hashes, tracked) + `desktop/tests/pins/<platform>/*.png` (12 states at @1x and @2x, a gitignored local baseline) | `STENCIL_UPDATE_UI_PINS=1 ctest --test-dir desktop/build -R uipins` |
 | CLI terminal output | `cli/tests/pins/*.txt` (20 TUI goldens) | `cd cli && STENCIL_UPDATE_PINS=1 zig build test` |
 | mcp user-facing text | `mcp/tests/goldens/` | `cd mcp && MCP_UPDATE_GOLDENS=1 cargo test` |
 | pystencil user-facing text | `pystencil/tests/goldens/` | `cd pystencil && PYSTENCIL_UPDATE_GOLDENS=1 python3 -m unittest discover -s tests` |
 | server user-facing text | `server/internal/httpapi/goldens/` | `cd server && SERVER_UPDATE_GOLDENS=1 go test ./internal/httpapi/...` |
 | bot user-facing text | `bot/tests/Stencil.TelegramBot.Tests/Goldens/` | `cd bot && BOT_UPDATE_GOLDENS=1 dotnet test Stencil.TelegramBot.slnx` |
 
-The desktop image pins are platform-specific; on a platform with no recorded renders that half
-**skips** rather than failing. Do not "fix" a skip by recording pins on a new platform unless
-that is the task.
+The desktop renders are a local baseline, not a tracked artifact: record them on the
+pre-change tree with the update flag above, then run the target plain on the changed tree and
+read the diff it prints. They are platform-specific, and a platform with no recorded renders —
+every CI runner — **skips** that half rather than failing; only the stylesheet hashes run
+everywhere. Never commit a render: the folder is gitignored, and their history was scrubbed.
 
 ## Test-count floor, per surface
 

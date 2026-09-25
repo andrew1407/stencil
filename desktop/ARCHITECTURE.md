@@ -287,7 +287,9 @@ classDiagram
   `stencil-chat-panel` insets the whole page (`css/components/chat/panel.css`). `dockChatTo`
   places it and plays the side switch as a slide out of the old edge and in at the new; the
   drop bands of a title-bar drag span the window between the menu bar and the status bar.
-  The grip and resize-edge overlays are the window's, so they map the shell's dock geometry up;
+  The points panel's grip overlay is the window's, so it maps the shell's dock geometry up; the
+  chat's resize handle is a strip inside the dock's own edge that resizes it through
+  `resizeDocks`, the window's separator being a hairline as the browser's page sits flush;
   the shell hosts its own surfaces' dust (the tool rows' fold, the points panel, the Selected
   Line bar), so those motes vanish under a docked chat instead of crossing it, as the browser
   layers a page surface's cloud below the panel (`surfaces.js` `belowChat`).
@@ -389,6 +391,6 @@ the shared `browser/js/config` corpora on this surface; the LLM suites substitut
 lint, and `testFloor.headless.cpp` holds the suite at its floor of registered ctest targets.
 `uiPins.headless.cpp` pins the app stylesheet hash per theme and accent
 (`tests/pins/stylesheets.txt`) and the rendered states at device pixel ratio 1 and 2
-against `tests/pins/<platform>/`; the render baselines are platform-specific, and a platform
-without them skips that half. The desktop build links `core/` via `add_subdirectory(../core)`
+against `tests/pins/<platform>/`; the render baselines are a gitignored local recording taken
+from the pre-change tree, platform-specific, and a platform without them skips that half. The desktop build links `core/` via `add_subdirectory(../core)`
 with the core's own doctest suite off; those tests run under core's own target.
