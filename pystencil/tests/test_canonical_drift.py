@@ -70,7 +70,7 @@ class SystemPromptAssetDriftTests(unittest.TestCase):
     asset = json.loads(_DATA_PROMPT.read_text(encoding="utf-8"))
     head, tail = asset["head"], asset["tail"]
     self.assertEqual(len(head.encode()), 1197)
-    self.assertEqual(len(tail.encode()), 4930)
+    self.assertEqual(len(tail.encode()), 5066)
     self.assertTrue(head.startswith("You are the AI assistant inside Stencil"))
     self.assertTrue(head.endswith("no free-angle rotation):\n"))
     self.assertTrue(tail.startswith("\n\nWhen a choice is genuinely"))
@@ -191,9 +191,9 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
       LLM_SYSTEM_PROMPT,
     )
 
-    self.assertEqual(len(LLM_SYSTEM_PROMPT.encode()), 8678)
+    self.assertEqual(len(LLM_SYSTEM_PROMPT.encode()), 8814)
     self.assertEqual(len(CONSOLE_SETTINGS_PROMPT.encode()), 1532)
-    self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10211)
+    self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10347)
     self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
 
 

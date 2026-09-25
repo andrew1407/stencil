@@ -25,7 +25,7 @@ public sealed class SystemPromptAssetTests
     public void Should_Keep_Pinned_Shape_For_Head_And_Tail()
     {
         Assert.Equal(1197, Encoding.UTF8.GetByteCount(SystemPromptAsset.Head));
-        Assert.Equal(4930, Encoding.UTF8.GetByteCount(SystemPromptAsset.Tail));
+        Assert.Equal(5066, Encoding.UTF8.GetByteCount(SystemPromptAsset.Tail));
         Assert.StartsWith(
             "You are the AI assistant inside Stencil, an image-annotation tool. You help the user",
             SystemPromptAsset.Head);

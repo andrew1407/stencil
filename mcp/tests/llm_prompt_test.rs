@@ -48,7 +48,7 @@ fn the_prompt_prose_comes_verbatim_from_the_canonical_asset() {
     let head = asset["head"].as_str().expect("head must be a string");
     let tail = asset["tail"].as_str().expect("tail must be a string");
     assert_eq!(head.len(), 1197, "asset head changed size");
-    assert_eq!(tail.len(), 4930, "asset tail changed size");
+    assert_eq!(tail.len(), 5066, "asset tail changed size");
     assert!(head.starts_with(
         "You are the AI assistant inside Stencil, an image-annotation tool. You help the user\n\
          edit the working image by planning operations; you never produce image data yourself."
