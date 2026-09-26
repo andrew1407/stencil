@@ -62,6 +62,7 @@ export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy',
   };
   const close = () => {
     if (menu.hidden) return;
+    g.notifyClosed();
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
     hideMenu(menu);
@@ -69,10 +70,14 @@ export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy',
     clearAltPreviewHover();
   };
 
-  wireModalOpenGestures(trigger, {
+  // Alt released over the list lingers until the pointer leaves it, like a mini window.
+  const g = wireModalOpenGestures(trigger, {
     openFull: () => run(primaryVariant()),
     openPopover,
     closePopover: close,
     isPopoverOpen: () => !menu.hidden,
+    isPeekEngaged: () => menu.matches(':hover'),
   });
+  menu.addEventListener('mouseenter', () => g.boxEnter());
+  menu.addEventListener('mouseleave', () => g.boxLeave());
 }

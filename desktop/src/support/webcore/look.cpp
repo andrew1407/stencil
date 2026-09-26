@@ -34,6 +34,7 @@ namespace stencil::support {
     if (on) {
       setSkinPalette(&webcorePalette);
       setSkinIcon(&pixelIconSvg);
+      setSkinPixelIcon(&pixelIconImage);
       installAppStyle("Windows");
       if (!fontHeld()) { priorFont() = QApplication::font(); fontHeld() = true; }
       QApplication::setFont(skinFont());
@@ -41,6 +42,7 @@ namespace stencil::support {
     }
     setSkinPalette(nullptr);
     setSkinIcon(nullptr);
+    setSkinPixelIcon(nullptr);
     installAppStyle("Fusion");
     if (fontHeld()) { QApplication::setFont(priorFont()); fontHeld() = false; }
   }

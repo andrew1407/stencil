@@ -109,6 +109,7 @@ export const DOCUMENTED = [
   'lib/rectTween.d.ts',
   'lib/rowModel.d.ts',
   'lib/stencil.d.ts',
+  'lib/tip/altPeek.d.ts',
   'lib/tip/content.d.ts',
   'lib/tip/controlTooltip.d.ts',
   'lib/tip/popover.d.ts',

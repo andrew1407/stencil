@@ -4,6 +4,7 @@
 #include "shareImage.hpp"
 
 #include <QWidget>
+#include <QWindow>
 #import <AppKit/AppKit.h>
 
 namespace stencil::support {
@@ -22,11 +23,16 @@ namespace stencil::support {
     // `title` is unused here and kept for parity with the other two platforms.
     (void)title;
     gPicker = [[NSSharingServicePicker alloc] initWithItems:@[ url ]];
-    // winId() is the NSView* on macOS; a __bridge cast, not reinterpret_cast, tells ARC
-    // the pointer conveys no ownership.
-    NSView* view = (__bridge NSView*)reinterpret_cast<void*>(anchor->winId());
+    // The WINDOW's view, the button's rect within it: the button's own winId() made it and every
+    // sibling native. Qt's views are flipped, so widget coordinates carry over as they are.
+    QWidget* top = anchor->window();
+    QWindow* handle = top ? top->windowHandle() : nullptr;
+    NSView* view = handle ? (__bridge NSView*)reinterpret_cast<void*>(handle->winId()) : nil;
     if (!view) return false;
-    [gPicker showRelativeToRect:view.bounds ofView:view preferredEdge:NSMinYEdge];
+    const QPoint at = anchor->mapTo(top, QPoint(0, 0));
+    [gPicker showRelativeToRect:NSMakeRect(at.x(), at.y(), anchor->width(), anchor->height())
+                         ofView:view
+                  preferredEdge:NSMinYEdge];
     return true;
   }
 

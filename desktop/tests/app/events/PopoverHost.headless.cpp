@@ -90,7 +90,8 @@ int main(int argc, char** argv) {
     f.accentPopover = true;
     f.onPopoverIcon = true;
     const auto v = PopoverHost::judgePress(f, Qt::MiddleButton);
-    check(v.dismiss && v.armDismissClick, "a middle press is an ordinary dismissal");
+    check(v.dismiss && !v.armDismissClick,
+          "a middle press is an ordinary dismissal, arming nothing: no click follows it");
   }
   {
     // The logo while some OTHER popover is open gets no exemption at all.
@@ -100,6 +101,7 @@ int main(int argc, char** argv) {
     f.onPopoverIcon = true;
     const auto v = PopoverHost::judgePress(f, Qt::RightButton);
     check(v.dismiss && !v.consume, "the exemption belongs to the accent popover, not the logo");
+    check(!v.armDismissClick, "a right press leaves the logo's next left click alone");
   }
   {
     // …and a press inside the accent popover itself still wins over the logo rules.

@@ -39,7 +39,6 @@ namespace stencil::gui {
   void ListFilterFade::dustRowIn(QListWidgetItem* it, QWidget* host, int ms) {
     if (!it || !list || !host || !host->isVisible() || support::motionReduced()) return;
     if (dustBudget >= FILTER_DUST_MAX_ROWS) return;
-    const int cells = FILTER_DUST_CELLS / FILTER_DUST_MAX_ROWS;
     ++dustBudget;
     if (beforeFrame) beforeFrame();
     it->setData(FILTER_DUST_ROLE, 0.0);
@@ -48,7 +47,7 @@ namespace stencil::gui {
     QPointer<QWidget> hostP(host);
     QListWidget* list = this->list;
     QPersistentModelIndex idx(list->indexFromItem(it));
-    const auto fly = [self, list, idx, hostP, cells, ms] {
+    const auto fly = [self, list, idx, hostP, ms] {
       if (!self || !hostP || !idx.isValid()) return;
       QListWidgetItem* row = list->item(idx.row());
       if (!row) return;
@@ -76,7 +75,7 @@ namespace stencil::gui {
       setVeil(0.0);
       auto* fx = DisintegrateOverlay::overRect(list->viewport(), r, hostP,
                                                DisintegrateOverlay::Sweep::GATHER,
-                                               /*dust=*/true, cells, ms,
+                                               /*dust=*/true, FILTER_DUST_ROW_CELLS, ms,
                                                QColor(), shot);
       if (!fx) { unveil(); return; }
       fx->setObjectName(QString::fromLatin1(FILTER_DUST_OBJECT_NAME));

@@ -54,11 +54,15 @@
     // #theme-toggle, so without it the wipe would have to guess.
     set: function (k, from) {
       const next = has(k) ? k : DEFAULT;
+      const el = document.documentElement;
+      // A hover preview already painting this colour is committed in place, not flooded again.
+      const shown = !!previewSnap && el.getAttribute('data-accent') === next && !el.style.getPropertyValue('--accent');
       // Cleared NOW, not inside the swap: the menu's close ends the preview before the
       // deferred apply runs, and a standing snapshot would flood back the previous accent.
       previewSnap = null;
       writePref(KEY, next);
-      swap(function () { apply(next); }, from || 'theme-toggle');
+      if (shown) apply(next);
+      else swap(function () { apply(next); }, from || 'theme-toggle');
       announce(next);
       return next;
     },

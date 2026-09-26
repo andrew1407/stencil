@@ -83,7 +83,7 @@ namespace stencil::net {
                        return;
                      }
                      requestAsync("POST", "/auth/token", "{}", "application/json",
-                                  [this, status, done = std::move(done)](int mint, QByteArray body) {
+                                  [this, done = std::move(done)](int mint, QByteArray body) {
                                     if (isOkStatus(mint)) {
                                       this->token = QJsonDocument::fromJson(body).object().value("token").toString();
                                       if (!this->token.isEmpty()) {
@@ -179,7 +179,7 @@ namespace stencil::net {
     obj.insert("imageH", h);
     requestAsync("POST", "/projects", QJsonDocument(obj).toJson(QJsonDocument::Compact),
                  "application/json",
-                 [this, done = std::move(done)](int status, QByteArray body) {
+                 [done = std::move(done)](int status, QByteArray body) {
                    if (!isOkStatus(status)) {
                      done(false, QString(), 0);
                      return;

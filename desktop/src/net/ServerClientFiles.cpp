@@ -48,12 +48,11 @@ namespace stencil::net {
   }  // namespace
 
   void ServerClient::putGuarded(const QString& id, QJsonObject obj, qint64 version,
-                                const char* verb,
                                 std::function<void(bool, qint64, bool)> done) {
     requestAsync("PUT", QString("/projects/%1").arg(id),
                  QJsonDocument(withVersion(std::move(obj), version)).toJson(QJsonDocument::Compact),
                  "application/json",
-                 [this, verb, done = std::move(done)](int status, QByteArray body) {
+                 [this, done = std::move(done)](int status, QByteArray body) {
                    if (status == 409) {
                      err = "stale version (edited elsewhere)";
                      done(false, 0, true);
@@ -76,7 +75,7 @@ namespace stencil::net {
     QJsonObject obj;
     if (!name.isEmpty()) obj.insert("name", name);
     obj.insert("layout", layout);
-    putGuarded(id, std::move(obj), version, "update", std::move(done));
+    putGuarded(id, std::move(obj), version, std::move(done));
   }
 
   void ServerClient::updateProjectColorAsync(
@@ -84,7 +83,7 @@ namespace stencil::net {
       std::function<void(bool, qint64, bool)> done) {
     QJsonObject obj;
     obj.insert("color", color);  // always sent (even "") so a clear reaches the server
-    putGuarded(id, std::move(obj), version, "update", std::move(done));
+    putGuarded(id, std::move(obj), version, std::move(done));
   }
 
   void ServerClient::updateProjectNameAsync(
@@ -92,7 +91,7 @@ namespace stencil::net {
       std::function<void(bool, qint64, bool)> done) {
     QJsonObject obj;
     obj.insert("name", name);  // colour + layout omitted → server COALESCE leaves them
-    putGuarded(id, std::move(obj), version, "rename", std::move(done));
+    putGuarded(id, std::move(obj), version, std::move(done));
   }
 
   void ServerClient::uploadFileAsync(const QString& id, const QString& kind,
@@ -105,7 +104,7 @@ namespace stencil::net {
     q.addQueryItem("h", QString::number(h));
     path += "?" + q.toString(QUrl::FullyEncoded);
     requestAsync("POST", path, bytes, "application/octet-stream",
-                 [this, done = std::move(done)](int status, QByteArray) {
+                 [done = std::move(done)](int status, QByteArray) {
                    if (!isOkStatus(status)) {
                      done(false);
                      return;
@@ -117,7 +116,7 @@ namespace stencil::net {
   void ServerClient::downloadFileAsync(const QString& id, const QString& kind,
                                        std::function<void(bool, QByteArray)> done) {
     requestAsync("GET", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
-                 [this, done = std::move(done)](int status, QByteArray data) {
+                 [done = std::move(done)](int status, QByteArray data) {
                    done(isOkStatus(status), data);
                  });
   }
@@ -127,7 +126,7 @@ namespace stencil::net {
     // Filestore-only kinds (video/variantN/chat) only; the server answers an
     // idempotent 204 (llm-contract.md §9) and refuses original/result.
     requestAsync("DELETE", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
-                 [this, done = std::move(done)](int status, QByteArray) {
+                 [done = std::move(done)](int status, QByteArray) {
                    if (!isOkStatus(status)) {
                      done(false);
                      return;

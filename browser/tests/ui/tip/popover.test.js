@@ -33,7 +33,7 @@ test('wireModalOpenGestures forwards every option the machine understands', () =
   const wiring = src.slice(src.indexOf('export const wireModalOpenGestures = (btn, {'));
   const forwarded = wiring.slice(0, wiring.indexOf('}) => {'));
   for (const name of ['openFull', 'openPopover', 'closePopover', 'isPopoverOpen',
-                      'isPeekEngaged', 'holdLinger', 'eagerClick']) {
+                      'isPeekEngaged', 'holdLinger', 'holds', 'eagerClick']) {
     assert.ok(machineOpts.includes(name), `${name} is a machine option`);
     assert.ok(forwarded.includes(name), `${name} must be forwarded by the wiring`);
   }

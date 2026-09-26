@@ -72,9 +72,9 @@
     },
     {
       "key": "assistant-settings",
-      "title": "Assistant",
+      "title": "Assistant settings",
       "aliases": [
-        "assistant settings",
+        "assistant",
         "ai assistant settings",
         "ai settings",
         "llm",

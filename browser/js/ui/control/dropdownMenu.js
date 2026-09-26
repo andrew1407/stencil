@@ -22,6 +22,19 @@ export const menuDustPoint = (trigger) => {
   return { x: Math.max(r.left + r.width / 2, r.right - 14), y: r.top + r.height / 2 };
 };
 
+// The slide entrance (menuFromAnchor) grows a list out of the point its motes fly from. `left`
+// is its laid-out left edge; measured with the entrance held off when not given.
+export const growFrom = (menu, point, { left = null, above = false } = {}) => {
+  if (!menu?.style || !Number.isFinite(point?.x)) return;
+  if (!Number.isFinite(left)) {
+    const run = menu.style.animation;
+    menu.style.animation = 'none';
+    left = menu.getBoundingClientRect().left;
+    menu.style.animation = run;
+  }
+  menu.style.transformOrigin = `${Math.round(point.x - left)}px ${above ? '100%' : '0px'}`;
+};
+
 // Where each portaled menu came from, so it can be put back exactly there.
 const home = new WeakMap();
 
@@ -36,10 +49,13 @@ export const placeMenu = (menu, trigger) => {
   const room = Math.max(vh - a.bottom, a.top) - GAP - MARGIN;
   menu.style.maxHeight = `${Math.max(120, Math.min(MAX_H, Math.floor(room)))}px`;
   menu.style.minWidth = `${Math.round(a.width)}px`;
-  const box = menu.getBoundingClientRect();
+  // The layout size, not the painted one: the entrance starts at scale(0.66)
+  // (menuFromAnchor), which placed a list flipped above its trigger over the trigger.
+  const r = menu.getBoundingClientRect();
+  const box = { width: menu.offsetWidth || r.width, height: menu.offsetHeight || r.height };
   const { left, top } = popoverPosition({
     anchor: { left: a.left, top: a.top, bottom: a.bottom },
-    box: { width: box.width, height: box.height },
+    box,
     viewport: { width: vw, height: vh },
     gap: GAP,
     margin: MARGIN,
@@ -49,6 +65,7 @@ export const placeMenu = (menu, trigger) => {
   // A list that had to flip ABOVE its trigger grows out of its bottom edge instead of its
   // top one, so the open/close animation still comes from the corner nearest the control.
   menu.classList.toggle('dd-above', top < a.top);
+  growFrom(menu, menuDustPoint(trigger), { left, above: top < a.top });
 };
 
 // Show `menu` under `trigger`: move it to <body>, unhide it, and place it. Re-places on
@@ -106,7 +123,7 @@ export const hideMenu = (menu) => {
     menu.__ddReflow = null;
   }
   menu.classList.remove('dd-portal');
-  for (const prop of ['left', 'top', 'minWidth', 'maxHeight']) menu.style[prop] = '';
+  for (const prop of ['left', 'top', 'minWidth', 'maxHeight', 'transformOrigin']) menu.style[prop] = '';
   const h = home.get(menu);
   if (!h || !h.parent || menu.parentElement !== document.body) return;
   // The sibling it sat before may itself be gone by now; appending is then correct.

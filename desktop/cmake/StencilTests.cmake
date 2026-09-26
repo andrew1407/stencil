@@ -178,7 +178,8 @@ stencil_headless_test(stencil_controlswap_headless
     tests/support/control/swap/controlSwap.headless.cpp tests/support/control/swap/controlSwapCheck.headless.cpp
     tests/support/control/swap/controlSwapValue.headless.cpp tests/support/control/swap/controlSwapReduced.headless.cpp
     ${STENCIL_THEME_SOURCES} src/support/icon/iconSet.cpp
-    ${STENCIL_FACESWAP_SOURCES} src/support/menu/menuReveal.cpp src/support/modal/modalReveal.cpp
+    ${STENCIL_FACESWAP_SOURCES} src/support/menu/menuReveal.cpp src/support/menu/popupSlide.cpp
+    src/support/modal/modalReveal.cpp
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
@@ -262,6 +263,20 @@ endif()
 # neither can be driven straight off it. Drives a real QMenu, so it links the GUI objects.
 stencil_headless_test(stencil_menuhover_headless
   SOURCES tests/support/menu/menuHover.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
+# The 'slide' entrance of a selector's list (support/menu/popupSlide.hpp): the first frame's
+# maths — the origin kept at its fractional spot, 0.66 scale, the edge above or below.
+stencil_headless_test(stencil_popupslide_headless
+  SOURCES tests/support/menu/popupSlide.headless.cpp
+  LIBS Qt6::Gui
+  INCLUDE_TESTS)
+
+# Alt+hover selector peeks (support/tip/altPeek + support/menu/comboAltPeek): the gesture's
+# peek / linger / glide states, then the app-wide filter over live SearchComboBox and QComboBox.
+stencil_headless_test(stencil_altpeek_headless
+  SOURCES tests/support/menu/comboAltPeek.headless.cpp tests/support/tip/altPeek.headless.cpp
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
@@ -406,6 +421,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     src/support/menu/menuReveal.cpp    # searchCombo's popup plays this dust
+    src/support/menu/popupSlide.cpp    # …or, under 'slide', grows from its caret
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -492,6 +508,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     src/support/menu/menuReveal.cpp    # searchCombo's popup plays this dust
+    src/support/menu/popupSlide.cpp    # …or, under 'slide', grows from its caret
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -519,6 +536,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     src/support/menu/menuReveal.cpp    # searchCombo's popup plays this dust
+    src/support/menu/popupSlide.cpp    # …or, under 'slide', grows from its caret
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp   # the dialog's filter/sort/mode pickers are these now
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -540,6 +558,7 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     src/support/menu/menuReveal.cpp    # searchCombo's popup plays this dust
+    src/support/menu/popupSlide.cpp    # …or, under 'slide', grows from its caret
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp   # the dialog's filter/sort/mode pickers are these now
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)

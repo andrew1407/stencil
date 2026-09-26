@@ -36,15 +36,17 @@ test('the menu grows OUT OF the logo and shrinks back INTO it — anchored, not 
     'the shared copy scales out of its trigger\'s corner');
   assert.match(css, /\.logo-accent-menu, \.cs-dd \.accent-dd-menu \{ transform-origin: left top; \}/,
     'the left-aligned copies scale out of theirs (a centred origin is what made it read as no motion)');
-  assert.match(css, /\.accent-dd-menu:not\(\[hidden\]\) \{ animation: menuFromAnchor 0\.22s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
-    'entrance: the app\'s existing menu easing, in its usual duration range');
+  assert.match(css, /\.accent-dd-menu:not\(\[hidden\]\), \.zoom-menu\.dd-portal:not\(\[hidden\]\) \{\s*animation: menuFromAnchor 0\.22s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
+    'entrance: the app\'s existing menu easing, in its usual duration range — the zoom presets too');
   assert.match(css, /\.logo-accent-menu\.dd-closing \{ animation: menuToAnchor 0\.18s ease/,
     'exit: the reverse, on the same easing the other pop-outs use');
   // Reduced motion drops BOTH — toolbar.js then hides it outright (test above), so a
   // neutralised exit can't leave the menu sitting on screen for the fallback timer.
   const reduced = /@media \(prefers-reduced-motion: reduce\) \{[^}]*\.accent-dd-menu[^}]*\}/.exec(css)?.[0] || '';
-  assert.match(reduced, /\.accent-dd-menu:not\(\[hidden\]\), \.logo-accent-menu\.dd-closing \{ animation: none; \}/,
+  assert.match(reduced, /\.accent-dd-menu:not\(\[hidden\]\),[^{]*\.logo-accent-menu\.dd-closing \{ animation: none; \}/,
     'entrance and exit are both neutralised under prefers-reduced-motion');
+  assert.match(reduced, /\.zoom-menu\.dd-portal:not\(\[hidden\]\),[^{]*\{ animation: none; \}/,
+    'the zoom presets share the entrance, so they drop it too');
 });
 
 test('components.css lifts the shared 280px cap for the logo menu — toolbar.js re-caps per open', () => {

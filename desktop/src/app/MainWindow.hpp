@@ -213,6 +213,7 @@ namespace stencil::gui {
     // Browser twin accentController.previewAccent: instant repaint, no wipe, no persist.
     void previewAccent(const QString& key);
     void endAccentPreview();
+    void commitAccent(const QString& key);   // a pick: apply + persist; the popover is the caller's
     void showContextMenuFromKeyboard();
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
@@ -251,8 +252,10 @@ namespace stencil::gui {
     // Browser mainContent.js surface flight; panelVeil hides the panel so the motes ARE it.
     QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
     void releasePanelVeil();
+    // The rows are veiled for the flight, as the panel and the chat are: the motes ARE the rows.
     QPointer<gui::DisintegrateOverlay> barsSurfaceFlight(const QList<class QToolBar*>& bars,
                                                          bool gather, int ms);
+    void releaseBarsVeil(const QList<class QToolBar*>& bars);
     // Browser selectionPanel.js surfaceIn/Out.
     void dustSelectedLineBarIn();
     void dustSelectedLineBarOut();
@@ -268,6 +271,10 @@ namespace stencil::gui {
     QRect compactChatRect(QWidget* anchor) const;
     // Browser popover.js altHover parity. Closes a compact chat the glide moved off first.
     void altPeekOpen(class QToolButton* btn, QAction* act);
+    // The same once Qt has dispatched the Enter that asked for it, and only while Alt is down.
+    void altPeekOpenSoon(class QToolButton* btn, QAction* act);
+    // A peek opening elsewhere closes a compact chat, unless `opener` sits inside it.
+    void closeCompactChatFor(QWidget* opener);
     void startLingerPoll();
     void stopLingerPoll();
     void dropChatVeil();
@@ -449,7 +456,7 @@ namespace stencil::gui {
     bool settleFailedChatReply(const stencil::llm::LlmReply& reply, bool toastWanted);
     void postChatReplyBubble(const stencil::llm::OpPlan& plan, bool hasWork, bool adoptAttachment);
     void renderChatAskCard(const stencil::llm::OpPlan& plan, stencil::llm::PlanTarget& target);
-    void renderChatVariantCards(const stencil::llm::ExecResult& res, const QString& reply);
+    void renderChatVariantCards(const stencil::llm::ExecResult& res);
     bool maybeContinueChat(const stencil::llm::OpPlan& plan);
     bool chatPlanLoadsWithoutTracing(const stencil::llm::OpPlan& plan) const;
     void flushHeldChatReply();
@@ -649,8 +656,10 @@ namespace stencil::gui {
     QWidget* settingsSection = nullptr;
     QWidget* connectionsSection = nullptr;
     class QToolButton* panelReopenBtn = nullptr;
-    class DockGripOverlay* panelGrip = nullptr;
-    bool panelGripDrag = false, showCovered = false;
+    // The canvas ↔ panel handle (browser .panel-resizer): it takes the pointer, so it wears the resize cursor.
+    class DockEdgeOverlay* panelGrip = nullptr;
+    int panelGripStart = 0;   // the panel's width when the handle was grabbed
+    bool showCovered = false;
     // The chat's resize handle, a strip inside the dock's own edge (browser .chat-resizer).
     class DockEdgeOverlay* chatEdge = nullptr;
     int chatEdgeStart = 0;   // the dock's extent when the handle was grabbed
@@ -850,6 +859,7 @@ namespace stencil::gui {
       QString page;
       // The Open-Image crop stage's rect in original-image px; width 0 = none dragged, so the page-aspect crop centres.
       core::CropRect rect;
+      static QuickCropOpts none() { return {Mode::NONE, false, QString(), {}}; }
     };
     QuickCropOpts pendingCrop;
     bool incognito = false;

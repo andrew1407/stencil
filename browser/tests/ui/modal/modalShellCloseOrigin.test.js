@@ -69,9 +69,11 @@ test('a window whose opener is gone by close time collapses into the canvas', (t
   const boxRect = { left: 400, top: 300, width: 200, height: 150 };
   const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
   const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
-  // The opener measures 0x0 — exactly what a display:none control reports.
+  // Shown when the window opens, then 0x0 — exactly what a display:none control reports.
   const goneRect = { left: 0, top: 0, width: 0, height: 0 };
-  const openBtn = createStubElement('button', { getBoundingClientRect: rectOf(goneRect) });
+  const openBtn = createStubElement('button', {
+    getBoundingClientRect: rectOf({ left: 820, top: 12, width: 28, height: 24 }),
+  });
   // The canvas viewport the shell looks up by id.
   const viewport = createStubElement('div', {
     getBoundingClientRect: rectOf({ left: 100, top: 100, width: 600, height: 400 }),
@@ -82,6 +84,7 @@ test('a window whose opener is gone by close time collapses into the canvas', (t
 
   const shell = wireModalShell(overlay, openBtn, null);
   shell.open(openBtn);
+  openBtn.getBoundingClientRect = rectOf(goneRect);
   shell.close();
 
   // A 40px box centred on the viewport (100+600/2, 100+400/2) = (400, 300).

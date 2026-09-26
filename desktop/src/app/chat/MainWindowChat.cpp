@@ -126,7 +126,7 @@ namespace stencil::gui {
       chatTurnSettled();
       return;
     }
-    renderChatVariantCards(res, plan.reply);
+    renderChatVariantCards(res);
     if (toastWanted) showChatToast(finishedText(res.variants.size(), plan.reply), true);
     chatTurnSettled();
   }

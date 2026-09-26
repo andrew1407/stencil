@@ -1,7 +1,7 @@
 .main-content {
     display: flex;
-    /* Canvas ↔ resizer ↔ panel: 10 + 8 (.panel-resizer) + 10 = 28px total. */
-    gap: 10px;
+    /* Canvas ↔ resizer ↔ panel: 4 + 8 (.panel-resizer) + 4 = 16px, as the desktop's. */
+    gap: 4px;
     align-items: flex-start;
     /* Takes the height the toolbar/info rows leave over (fill chain on body). */
     flex: 1 1 auto;

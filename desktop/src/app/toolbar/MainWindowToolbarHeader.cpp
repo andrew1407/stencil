@@ -19,6 +19,7 @@
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/control/WrapRow.hpp"
+#include "../../support/tip/altPeek.hpp"
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
@@ -73,6 +74,7 @@ namespace stencil::gui {
     actAccent->setObjectName("actAccent");
     connect(actAccent, &QAction::triggered, this, [this] { openAccentPicker(); });
     pop.buttons.insert(logoBtn, actAccent);
+    logoBtn->setProperty(support::ALT_PEEK_TARGET_PROPERTY, true);
     // Right-click opens the popover sticky; QToolButton::clicked never fires for the right button,
     // so it cannot arm the cycle timer.
     logoBtn->setContextMenuPolicy(Qt::CustomContextMenu);

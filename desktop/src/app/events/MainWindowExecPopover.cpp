@@ -1,6 +1,8 @@
 // Running a dialog as an anchored popover rather than a window: the reveal, the chord forwarding
 // while its own event loop runs, and the close flight back to whatever opened it.
 #include "mainWindowShellParts.hpp"
+#include "comboAltPeek.hpp"   // a selector list the popover opened is still the popover
+#include "hoverResync.hpp"
 #include <QLabel>
 
 namespace stencil::gui {
@@ -102,8 +104,9 @@ namespace stencil::gui {
     connect(&glide, &QTimer::timeout, this, [this, anchor] {
       if (!pop.active) return;
       // altHeldForTest: the offscreen GUI test's stand-in for a held Alt (QTest never sets platform modifier state).
-      if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest)
+      if (!support::altKeyHeld() && !altHeldForTest)
         return;
+      if (support::pointerInPopupOf(pop.overlay)) return;   // in a list one of its selectors opened
       const bool onBox = popoverRectGlobal().contains(QCursor::pos());
       for (auto it = pop.buttons.cbegin(); it != pop.buttons.cend(); ++it) {
         auto* b = static_cast<QToolButton*>(it.key());
@@ -177,7 +180,11 @@ namespace stencil::gui {
       alive->hide();
       alive->setParent(nullptr);
     }
-    if (overlayAlive) overlayAlive->deleteLater();
+    if (overlayAlive) {
+      overlayAlive->hide();   // off the hit test now, not when the deferred delete runs
+      overlayAlive->deleteLater();
+    }
+    support::resyncHover(this);
     if (pop.peekNextAction) {
       QTimer::singleShot(0, this, [this] {
         QToolButton* b = pop.peekNextButton.data();

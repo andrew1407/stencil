@@ -15,10 +15,10 @@ int main(int argc, char** argv) {
   serverauth::MockServer mock2;   // a SECOND origin, so one manager can hold two kinds of row
   check(mock2.listen(), "second mock server listens");
 
-  serverauth::checkClassification(mock, mock2);
+  serverauth::checkClassification(mock);
   serverauth::checkCredentialKind(mock, mock2);
-  serverauth::checkRemintAndExpiry(mock, mock2);
-  serverauth::checkInvites(mock, mock2);
+  serverauth::checkRemintAndExpiry(mock);
+  serverauth::checkInvites(mock);
   serverauth::checkAdminRow(mock, mock2);
 
   std::printf(failures ? "FAILURE (%d failures)\n" : "OK\n", failures);

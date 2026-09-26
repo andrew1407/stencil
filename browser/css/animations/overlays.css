@@ -137,7 +137,9 @@
 /* …and a list that flipped above its trigger (dropdownMenu.js placeMenu) grows out of its
    bottom edge, so the motion still starts at the corner nearest the control. */
 .accent-dd-menu.dd-above { transform-origin: left bottom; }
-.accent-dd-menu:not([hidden]) { animation: menuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.accent-dd-menu:not([hidden]), .zoom-menu.dd-portal:not([hidden]) {
+    animation: menuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 /* The logo's right-click copy also LEAVES, shrinking back into the logo instead of
    blinking off — the modal open/close idea, minus the backdrop. Declared after the
    entrance rule so it wins while .dd-closing is up; toolbar.js hides the menu when the
@@ -146,7 +148,8 @@
 @media (prefers-reduced-motion: reduce) {
     /* No growth, no shrink — toolbar.js hides the menu outright instead of waiting for
        an exit that never plays (same idea as #ctx-menu / .chat-row-menu above). */
-    .accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing { animation: none; }
+    .accent-dd-menu:not([hidden]), .zoom-menu.dd-portal:not([hidden]),
+    .logo-accent-menu.dd-closing { animation: none; }
 }
 .accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
 /* `.dd-hover` is accentPicker.js's LATCH of that hover: a preview's flood drops real

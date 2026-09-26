@@ -25,6 +25,7 @@ namespace stencil::support {
   void revealMenu(QMenu& menu, const QPoint& origin, int ms = MENU_POPUP_DUST_MS);
 
   // For a popup that is NOT a QMenu (a QComboBox's list): call once it is on screen and sized.
+  // Under 'slide' it grows from the same origin instead (popupSlide.hpp).
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms = MENU_POPUP_DUST_MS);
 
   // Call before or after hiding: grab() still renders a hidden widget.

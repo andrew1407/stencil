@@ -1,7 +1,7 @@
 #pragma once
-// The canvas ↔ points-panel separator grip — browser .panel-resizer::before (layout.css).
-// The separator is QMainWindow chrome with no widget, so this mouse-transparent overlay
-// paints it; MainWindow's eventFilter drives the hot state. Q_OBJECT-free, no MOC.
+// The resize handles over QMainWindow's separators — the points panel's (browser
+// .panel-resizer) and the chat's edge (.chat-resizer): each takes the pointer, wears the
+// resize cursor and paints the grip pill. Q_OBJECT-free, no MOC.
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QColor>
@@ -16,14 +16,16 @@
 #include <cmath>
 
 namespace stencil::gui {
-  // Both overlays are a mouse-transparent layer over QMainWindow chrome on the app's
-  // 150ms OutCubic (straight to the end state under reduced motion).
+  // The pill's hover on the app's 150ms OutCubic (straight to the end state under reduced motion).
   class DockHoverOverlay : public QWidget {
    public:
     static constexpr int HOVER_MS = 150;
+    // Browser .panel-resizer::before: 3px bar, 34px at rest, 52px and accent hovered, radius 2.
+    static constexpr double BAR_W = 3.0;
+    static constexpr double BAR_H = 34.0;
+    static constexpr double BAR_HOT_H = 52.0;
 
     explicit DockHoverOverlay(QWidget* parent) : QWidget(parent) {
-      setAttribute(Qt::WA_TransparentForMouseEvents, true);   // the separator keeps the drag
       setAttribute(Qt::WA_NoSystemBackground, true);
       anim = new QVariantAnimation(this);
       anim->setDuration(HOVER_MS);
@@ -56,47 +58,13 @@ namespace stencil::gui {
     QVariantAnimation* anim = nullptr;
   };
 
-
-  class DockGripOverlay : public DockHoverOverlay {
-   public:
-    // Browser .panel-resizer::before: 3px bar, 34px at rest, 52px and accent hovered,
-    // radius 2; the browser transitions 0.15s.
-    static constexpr double BAR_W = 3.0;
-    static constexpr double BAR_H = 34.0;
-    static constexpr double BAR_HOT_H = 52.0;
-
-    using DockHoverOverlay::DockHoverOverlay;
-
-    void setColors(const QColor& rest, const QColor& accent) {
-      this->rest = rest;
-      this->accent = accent;
-      update();
-    }
-
-   protected:
-    void paintEvent(QPaintEvent*) override {
-      QPainter p(this);
-      p.setRenderHint(QPainter::Antialiasing, true);
-      const double h = BAR_H + (BAR_HOT_H - BAR_H) * hot;
-      p.setPen(Qt::NoPen);
-      p.setBrush(lit(rest, accent));
-      p.drawRoundedRect(QRectF((width() - BAR_W) / 2.0, (height() - h) / 2.0, BAR_W, h), 2, 2);
-    }
-
-   private:
-    QColor rest;
-    QColor accent;
-  };
-
-  // The chat dock's resize HANDLE (browser .chat-resizer): a strip inside the dock's own edge
-  // wearing the panel grip's pill. It takes the pointer itself; the owner resizes on its word.
+  // A dock's resize HANDLE: the chat's strip inside its own edge (browser .chat-resizer) or the
+  // points panel's over its separator (.panel-resizer). The owner resizes on its word.
   class DockEdgeOverlay : public DockHoverOverlay {
    public:
     static constexpr int THICKNESS = 6;   // .chat-resizer: 6px
 
-    explicit DockEdgeOverlay(QWidget* parent) : DockHoverOverlay(parent) {
-      setAttribute(Qt::WA_TransparentForMouseEvents, false);
-    }
+    using DockHoverOverlay::DockHoverOverlay;
 
     void setColors(const QColor& rest, const QColor& accent) {
       this->rest = rest;
@@ -139,8 +107,8 @@ namespace stencil::gui {
       QPainter p(this);
       if (!rest.isValid()) return;
       p.setRenderHint(QPainter::Antialiasing, true);
-      const double len = DockGripOverlay::BAR_H + (DockGripOverlay::BAR_HOT_H - DockGripOverlay::BAR_H) * hot;
-      const double w = DockGripOverlay::BAR_W;
+      const double len = BAR_H + (BAR_HOT_H - BAR_H) * hot;
+      const double w = BAR_W;
       const bool flat = width() > height();   // a top/bottom edge lies along x
       p.setPen(Qt::NoPen);
       p.setBrush(lit(rest, accent));

@@ -68,8 +68,10 @@ namespace stencil::gui {
     // The host dialog EASES to its new height rather than snapping (browser twin: easeBoxHeight on
     // this same modal) - but only once shown: a resize during construction freezes a too-small size.
     if (mode == RowMode::HIDE_ROWS && window()->isVisible()) {
+      // The form's own layout re-measures the rows it just hid only once its request is run.
+      support::relayout(this);
       if (QLayout* l = window()->layout()) { l->invalidate(); l->activate(); }
-      support::easeWindowHeight(window(), window()->sizeHint().height(), hostH0);
+      support::easeWindowHeight(window(), support::naturalHeight(window()), hostH0);
     }
   }
 

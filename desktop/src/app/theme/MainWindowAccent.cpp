@@ -121,6 +121,13 @@ namespace stencil::gui {
     applyTheme();   // floods the palette out of the logo, exactly as a real change does
   }
 
+  void MainWindow::commitAccent(const QString& key) {
+    accentPreviewActive = false;   // a pick commits; no close or leave may revert it
+    auto next = settings;
+    next.accentColor = key;
+    applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
+  }
+
   void MainWindow::endAccentPreview() {
     if (!accentPreviewActive) return;
     accentPreviewActive = false;
@@ -194,10 +201,7 @@ namespace stencil::gui {
       // The browser row's `transform: translateX(2px)`; after the preview filter so the preview sees Enter first.
       installHoverSlide(row);
       connect(row, &QPushButton::clicked, &dlg, [this, key = a.key] {
-        accentPreviewActive = false;   // a pick commits; the close below must not revert it
-        auto next = settings;
-        next.accentColor = key;
-        applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
+        commitAccent(key);
         // A pick CLOSES the popover (hovering already previews live). Browser twin: the logo menu.
         dismissPopover();
       });

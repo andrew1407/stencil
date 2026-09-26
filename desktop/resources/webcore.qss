@@ -14,8 +14,11 @@
       QToolBar QLabel { color: %WC_INK%; }
       QLabel#sectionLabel { color: %WC_INK%; }
       QWidget#imageInfoBar { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
+      /* The bevel's border-image leaves the viewport unfilled, so the frame carries the desktop
+         teal itself (browser .canvas-viewport background: --wc-desktop). */
       QScrollArea#canvasViewport, QScrollArea#canvasViewport[fsView="true"] {
         border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;
+        background: %WC_DESKTOP%;
       }
       QLabel#coordStatus { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; color: %WC_INK%; }
       QWidget#dropHintBar { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
@@ -170,6 +173,9 @@
         padding: 0; min-width: 14px; max-width: 14px; min-height: 12px; max-height: 12px;
       }
       QWidget#chatBody, QWidget#chatInputArea { background: %WC_FACE%; border: 0; }
+      /* A floating dock's frame takes the palette's window colour, the skin's desktop teal: the
+         browser's panel is one face-grey box, frame included. */
+      QDockWidget#llmChatDock { background: %WC_FACE%; }
       QWidget#chatBody QScrollArea, QWidget#chatBody QScrollArea > QWidget > QWidget { background: %WC_FACE%; border: 0; }
       /* A window like the browser's stencil-chat-panel (--wc-raised) under its title strip, and
          the composer's rule etched like the settings footer (.chat-input-row). */
@@ -210,7 +216,7 @@
       QDockWidget { color: %WC_INK%; }
       QDockWidget::title { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
       /* Browser .coord-tabs: the hairline runs under the tabs alone, and the picked one covers it. */
-      QWidget#selPanelTitle { background: %WC_FACE%; border-bottom: 0; }
+      QWidget#selPanelTitle, QFrame#selPanelCard { background: %WC_FACE%; border-bottom: 0; border-radius: 0; }
       QTabBar#selectionTabBar { border-bottom: 1px solid %WC_SHADOW%; }
       QTabBar#selectionTabBar::tab:!selected { border-bottom: 1px solid %WC_SHADOW%; padding-bottom: 3px; }
       QWidget#selPanelBody { background: %WC_FACE%; }

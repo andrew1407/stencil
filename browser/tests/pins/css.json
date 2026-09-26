@@ -1301,7 +1301,7 @@
     "transition-duration": "0.001ms !important",
     "scroll-behavior": "auto !important"
    },
-   "@media (prefers-reduced-motion: reduce)|.accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing": {
+   "@media (prefers-reduced-motion: reduce)|.accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing, .zoom-menu.dd-portal:not([hidden])": {
     "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.accent-dd-opt:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .ctx-item:hover > .ctx-hotkey .tip-key": {
@@ -2349,7 +2349,7 @@
    "|.accent-dd-menu.dd-preview-hold .accent-dd-opt::after": {
     "animation": "none !important"
    },
-   "|.accent-dd-menu:not([hidden])": {
+   "|.accent-dd-menu:not([hidden]), .zoom-menu.dd-portal:not([hidden])": {
     "animation": "menuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both"
    },
    "|.accent-dd-menu[hidden]": {
@@ -4145,10 +4145,10 @@
     "background": "var(--bg-coord-panel)",
     "padding": "10px 12px",
     "border-radius": "5px",
-    "margin-top": "20px",
+    "margin-top": "10px",
     "transition": "width var(--fold-ms) var(--fold-ease), min-width var(--fold-ms) var(--fold-ease), padding var(--fold-ms) var(--fold-ease)",
     "position": "sticky",
-    "top": "20px",
+    "top": "10px",
     "max-height": "calc(100vh - 40px)",
     "display": "flex",
     "flex-direction": "column"
@@ -5041,6 +5041,11 @@
     "--ic-ms": "0.3s",
     "--ic-play": "icmBob"
    },
+   "|.ic-chat-settings .ic-cog, .ic-script .ic-cog": {
+    "--ic-ms": "0.3s",
+    "transform-origin": "16.6px 17.6px",
+    "transform": "rotate(calc(var(--ic-on) * 45deg))"
+   },
    "|.ic-check .ic-tick": {
     "--ic-ms": "0.64s",
     "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
@@ -5434,11 +5439,6 @@
     "--ic-ms": "0.42s",
     "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
     "--ic-play": "icmRiseIn"
-   },
-   "|.ic-script .ic-cog": {
-    "--ic-ms": "0.3s",
-    "transform-origin": "16.6px 17.6px",
-    "transform": "rotate(calc(var(--ic-on) * 45deg))"
    },
    "|.ic-send": {
     "transform": "translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%))"
@@ -5954,7 +5954,7 @@
    },
    "|.main-content": {
     "display": "flex",
-    "gap": "10px",
+    "gap": "4px",
     "align-items": "flex-start",
     "flex": "1 1 auto",
     "min-height": "0",
@@ -6382,7 +6382,7 @@
     "flex": "0 0 auto",
     "align-self": "stretch",
     "width": "8px",
-    "margin-top": "20px",
+    "margin-top": "10px",
     "border-radius": "3px",
     "cursor": "col-resize",
     "background": "transparent",
@@ -10109,7 +10109,7 @@
    "|.ic-cloud",
    "|.ic-ruler",
    "|.ic-gear",
-   "|.ic-script .ic-cog",
+   "|.ic-chat-settings .ic-cog, .ic-script .ic-cog",
    "|.ic-sun",
    "|.ic-refresh",
    "|.ic-stop",
@@ -10403,9 +10403,9 @@
    "|.accent-dd-menu",
    "|.cs-dd .accent-dd-menu, .logo-accent-menu",
    "|.accent-dd-menu.dd-above",
-   "|.accent-dd-menu:not([hidden])",
+   "|.accent-dd-menu:not([hidden]), .zoom-menu.dd-portal:not([hidden])",
    "|.logo-accent-menu.dd-closing",
-   "@media (prefers-reduced-motion: reduce)|.accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing",
+   "@media (prefers-reduced-motion: reduce)|.accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing, .zoom-menu.dd-portal:not([hidden])",
    "|.accent-dd-opt",
    "|.accent-dd-opt.dd-hover, .accent-dd-opt:hover",
    "@keyframes chatSlideLeft|from",

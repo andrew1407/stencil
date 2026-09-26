@@ -80,7 +80,9 @@ namespace stencil::gui {
         if (button == Qt::RightButton) return {true, false, false, true};
         if (button == Qt::LeftButton) return {f.peekingAccent, false, false, false};
       }
-      return {false, true, f.onPopoverIcon, false};
+      // Only a left press becomes a click that could re-open; any other would leave the swallow
+      // armed for the next real click on that icon (a logo click that then cycled nothing).
+      return {false, true, f.onPopoverIcon && button == Qt::LeftButton, false};
     }
   };
 

@@ -1,5 +1,6 @@
 #include "menuReveal.hpp"
 #include "menuRevealFilters.hpp"
+#include "popupSlide.hpp"
 
 #include <QComboBox>
 #include <QCursor>
@@ -22,8 +23,12 @@ namespace stencil::support {
   }  // namespace
 
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms) {
-    if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
+    if (isSlideMotionOk()) {   // no exit in slide: the browser's selects have none
+      slidePopupIn(popup, popupOriginGlobal(anchor));
+      return true;
+    }
+    if (!isDustMotionOk()) return false;
     QWidget* host = anchor->window();
     return dustPopupIn(&popup, host, popupOriginGlobal(anchor), ms);
   }

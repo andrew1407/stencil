@@ -110,6 +110,7 @@ namespace stencil::gui {
     const auto finishToFloat = [this, icon] {
       stopChatAnim();
       chatDock->setFloating(true);
+      support::veilForReveal(*chatDock);   // setFloating maps it at once; same turn, so no frame shows
       // setFloating() alone derives the top-level placement from the collapsed 0-width docked
       // geometry, which lands off-screen - pin position AND size (browser chat/panel.js parity).
       chatDock->setGeometry(chatFloatRect.isValid() ? chatFloatRect : defaultChatFloatRect());

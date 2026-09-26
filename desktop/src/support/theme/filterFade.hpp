@@ -31,6 +31,7 @@ namespace stencil::gui {
   // (browser scatterGridFor).
   inline constexpr int FILTER_DUST_MAX_ROWS = 8;
   inline constexpr int FILTER_DUST_CELLS = 2400;
+  inline constexpr int FILTER_DUST_ROW_CELLS = FILTER_DUST_CELLS / FILTER_DUST_MAX_ROWS;
   inline constexpr int FILTER_DUST_MS = 253;   // browser FILTER_DUST_MS
   // A row the list GAINS forms on the arrival clock both surfaces share (browser
   // motion/enterLeave.js ROW_ARRIVE_MS, the same number)…

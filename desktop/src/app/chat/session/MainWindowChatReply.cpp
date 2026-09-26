@@ -85,7 +85,7 @@ namespace stencil::gui {
     }
   }
 
-  void MainWindow::renderChatVariantCards(const llm::ExecResult& res, const QString& reply) {
+  void MainWindow::renderChatVariantCards(const llm::ExecResult& res) {
     if (!res.variants.isEmpty()) {
       QVector<ChatDock::VariantCard> cards;
       bool registryChanged = false;

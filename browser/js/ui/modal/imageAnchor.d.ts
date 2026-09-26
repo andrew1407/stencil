@@ -13,7 +13,7 @@ export declare const canvasAnchorRect: () => AnchorRect;
 export declare const openImageAnchorRect: (imageOpen?: boolean) => AnchorRect | DOMRect;
 
 /** Where a toolbar control sits once the editor is empty. */
-export declare const emptiedControlRect: (id: string) => AnchorRect | DOMRect;
+export declare const emptiedControlRect: (id: string) => AnchorRect | DOMRect | null;
 
 /** confirmModal opts: open from the canvas, close into the Open control when an image opens. */
 export declare const openImageConfirmAnchors: (opensImage?: (answer: unknown) => boolean) => {

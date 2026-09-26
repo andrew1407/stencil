@@ -36,12 +36,12 @@ using stencil::net::ServerClient;
 
 namespace serverauth {
 
-static void pumpFor(int ms) {
+inline void pumpFor(int ms) {
   QElapsedTimer t;
   t.start();
   while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
 }
-static void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {
+inline void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {
   QElapsedTimer t;
   t.start();
   while (!pred() && t.elapsed() < timeoutMs)
@@ -90,10 +90,10 @@ struct MockServer {
   }
 };
 
-  void checkClassification(MockServer& mock, MockServer& mock2);
+  void checkClassification(MockServer& mock);
   void checkCredentialKind(MockServer& mock, MockServer& mock2);
-  void checkRemintAndExpiry(MockServer& mock, MockServer& mock2);
-  void checkInvites(MockServer& mock, MockServer& mock2);
+  void checkRemintAndExpiry(MockServer& mock);
+  void checkInvites(MockServer& mock);
   void checkAdminRow(MockServer& mock, MockServer& mock2);
 
 }  // namespace serverauth

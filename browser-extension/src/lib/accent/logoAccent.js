@@ -2,6 +2,9 @@ import { surfaceIn, surfaceOut, centerOf } from '../motion.js';
 import { icon } from '../icons.js';
 import { createAccentPreview } from './preview.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
+import { createModalOpenGesture } from '../tip/popover.js';
+import { growFrom } from '../control/dropdownMenu.js';
+import { pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
 
 export function wireLogoAccent(logo) {
   const A = typeof window !== 'undefined' && window.StencilAccent;
@@ -19,7 +22,7 @@ export function wireLogoAccent(logo) {
     wrap.appendChild(menu);
   }
   const { clearHover, markSel, onRowEnter, pick, restore, scheduleRestore } =
-    createAccentPreview({ menu, logo, accent: A, closeMenu: () => closeMenu() });
+    createAccentPreview({ menu, logo, accent: A, closeMenu: () => { if (!release.picking()) closeMenu(); } });
 
   const fill = () => {
     if (menu.childElementCount) return;
@@ -41,9 +44,13 @@ export function wireLogoAccent(logo) {
     menu.addEventListener('pointerleave', scheduleRestore);
   };
   const menuShowing = () => !menu.hidden;
+  // 'peek' (Alt-opened) or 'sticky' (right-click); only the Alt+click no-op needs it.
+  let kind = null;
+  let pending = null;
   const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
   const onKey = (e) => { if (e.key === 'Escape') closeMenu(); };
   const openMenu = () => {
+    if (pending) kind = pending;
     fill();
     markSel();
     // The space under the logo overrides the shared 280px .accent-dd-menu cap (browser twin: toolbar.js).
@@ -51,14 +58,18 @@ export function wireLogoAccent(logo) {
     if (r && typeof window !== 'undefined' && typeof window.innerHeight === 'number')
       menu.style.maxHeight = `${Math.max(120, window.innerHeight - r.bottom - 16)}px`;
     menu.hidden = false;
+    const logoPoint = centerOf(wrap);
+    growFrom(menu, logoPoint);   // the slide grows out of the logo, as the motes do
     attachMenuScrollbar(menu);   // measurable only once shown
     wrap.classList.add('logo-menu-open');   // lifts the badge's stacking context over the page
-    surfaceIn(menu, centerOf(wrap));
+    surfaceIn(menu, logoPoint);
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
   const closeMenu = () => {
     if (menu.hidden) return;
+    kind = null;
+    g.notifyClosed();
     restore();
     surfaceOut(menu, centerOf(wrap));
     menu.hidden = true;
@@ -66,11 +77,33 @@ export function wireLogoAccent(logo) {
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
   };
-  wrap.addEventListener('contextmenu', (e) => { e.preventDefault(); menuShowing() ? closeMenu() : openMenu(); });
-  wrap.addEventListener('mouseenter', (e) => { if (e.altKey && !menuShowing()) openMenu(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Alt' && wrap.matches?.(':hover') && !menuShowing()) { e.preventDefault?.(); openMenu(); }
+  // The mini-window machine (tip/popover.js), as the editor's logo menu: Alt+hover peeks,
+  // Alt released over the list lingers until the pointer leaves it; a right-click is sticky.
+  const g = createModalOpenGesture({
+    openFull: () => {},
+    openPopover: openMenu,
+    closePopover: closeMenu,
+    isPopoverOpen: menuShowing,
+    isPeekEngaged: () => pointerIn(menu),
   });
+  const altPeek = () => { pending = 'peek'; g.altHover(wrap); pending = null; };
+  wrap.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (menuShowing()) { closeMenu(); return; }
+    pending = 'sticky'; g.contextmenu(); pending = null;
+  });
+  wrap.addEventListener('mouseenter', (e) => { if (e.altKey) altPeek(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Alt' && !e.repeat && wrap.matches?.(':hover')) { e.preventDefault?.(); altPeek(); }
+  });
+  // A peek released on a colour picks it and stays up, lingering like any peek released inside.
+  const release = wireReleasePick(menu, g, '.accent-dd-opt',
+                                  { isPeek: () => kind === 'peek', isShowing: menuShowing });
+  // Blur too — Alt+Tab switches away without delivering the keyup.
+  if (typeof window !== 'undefined') window.addEventListener?.('blur', () => g.altRelease());
+  // A flood's synthetic leave lands on a lingering menu with every preview and pick: the
+  // flood-safe watcher waits the swap out, then the pointer's real place decides.
+  wirePeekBox(menu, g);
 
   const cycle = () => {
     const keys = A.list.map((a) => a.key);
@@ -80,9 +113,11 @@ export function wireLogoAccent(logo) {
   };
   let clickTimer = null;
   logo.addEventListener('click', (e) => {
+    // An Alt-opened menu treats the click as part of the hold; a sticky one toggles closed.
     if (e.altKey) {
       if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-      menuShowing() ? closeMenu() : openMenu();
+      if (menuShowing()) { if (kind !== 'peek') closeMenu(); return; }
+      altPeek();
       return;
     }
     if (clickTimer) return;   // the second click of a double — dblclick handles it

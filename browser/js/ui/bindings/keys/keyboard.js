@@ -3,6 +3,7 @@ import HOTKEY_DEFS from '../../../config/hotkeysConfig.json' with { type: 'json'
 import { hotkeys } from '../../../core/settings/hotkeys.js';
 import { hotkeyActions } from './hotkeyActions.js';
 import { typingHotkeyId } from './hotkeyRules.js';
+import { noteKeyGesture } from '../../canvas/gesturePoint.js';
 export function wireKeyboard(app) {
   const { HK_HANDLERS, EDIT_HOTKEYS, LINE_TRANSFORM_HOTKEYS } = hotkeyActions(app);
   document.addEventListener('keydown', e => {
@@ -10,6 +11,7 @@ export function wireKeyboard(app) {
       const id = typingHotkeyId(e, hotkeys);
       if (id) {
         e.preventDefault();
+        noteKeyGesture(id);
         HK_HANDLERS[id]?.();
       }
       return;
@@ -40,6 +42,7 @@ export function wireKeyboard(app) {
       if (['copyImage', 'copyImageOriginal', 'copyImageTint', 'copyLayout'].includes(def.id)
           && hasTextSelection()) return;
       e.preventDefault();
+      noteKeyGesture(def.id);   // a confirm it raises grows from this hotkey's icon (gesturePoint.js)
       const fn = HK_HANDLERS[def.id];
       if (fn) fn();
       return;

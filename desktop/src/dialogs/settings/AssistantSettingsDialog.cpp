@@ -1,6 +1,7 @@
 #include "AssistantSettingsDialog.hpp"
 #include "LlmSettingsForm.hpp"
 #include "../../support/modal/modalChrome.hpp"
+#include "../../support/easeWindowHeight.hpp"
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -11,11 +12,11 @@ namespace stencil::gui {
                                                    QWidget* parent)
       : QDialog(parent), base(current) {
     setObjectName("assistantSettingsDialog");
-    setWindowTitle("Assistant");
+    setWindowTitle("Assistant settings");
 
-    // The browser modal's shell: sparkle + "Assistant" + the Close pill over a hairline, the form as
-    // the body, footer hint + Cancel/Save under a second hairline (modal.js structure).
-    ModalChrome chrome = installModalChrome(this, "sparkle", tr("Assistant"));
+    // The browser modal's shell: the cogged bubble + "Assistant settings" + the Close pill over a
+    // hairline, the form as the body, footer hint + Cancel/Save under a second hairline (modal.js).
+    ModalChrome chrome = installModalChrome(this, "chat-settings", tr("Assistant settings"));
     form = new LlmSettingsForm(current, LlmSettingsForm::RowMode::HIDE_ROWS, this);
     chrome.body->addWidget(form);
 
@@ -37,6 +38,17 @@ namespace stencil::gui {
     // shrinking to its content (the constraint rewrites the minimum every pass), so it is gone.
     setFixedWidth(MODAL_WIDTH);
     form->focusProvider();
+  }
+
+  // The notes wrap at their real width only once every nested layout has run, so the height is
+  // taken here, before the window is mapped and the reveal photographs it (easeWindowHeight.hpp).
+  void AssistantSettingsDialog::showEvent(QShowEvent* event) {
+    support::relayout(this);
+    form->pinNoteHeights();
+    support::relayout(this);
+    support::pinWidthMinimum(this);
+    resize(width(), support::naturalHeight(this));
+    QDialog::showEvent(event);
   }
 
   Settings AssistantSettingsDialog::result() const {

@@ -3,7 +3,7 @@
 
 namespace connectrow {
 
-  void checkConnectGestures(QTcpServer& server, quint16 port, QListWidget* list, QWidget* row) {
+  void checkConnectGestures(quint16 port) {
   // Return in the URL field connects ONCE: a QLineEdit emits returnPressed and then lets the key reach
   // the dialog's DEFAULT button, so wiring both fired doConnect twice.
   {

@@ -3,7 +3,7 @@
 
 namespace serverauth {
 
-  void checkRemintAndExpiry(MockServer& mock, MockServer& mock2) {
+  void checkRemintAndExpiry(MockServer& mock) {
   // ── mid-session re-mint: the stored credential rescues a lapsed session ──
   std::printf("mid-session re-mint:\n");
   {

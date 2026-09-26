@@ -3,6 +3,8 @@ import { showMenu, hideMenu } from './dropdownMenu.js';
 import { attachMenuScrollbar } from './menuScrollbar.js';
 import { markSwap } from '../motion.js';
 import { buildSelectFace } from './customSelectFace.js';
+import { wireAltPeek } from '../tip/altPeek.js';
+import { isTypingInFocus } from '../../utils.js';
 
 // Custom dropdown overlaying a native <select> (kept as source of truth) — macOS cannot
 // style the native popup, so the toolbar's compact selects looked misplaced there.
@@ -173,6 +175,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
     restorePreview();   // a menu dismissed without a pick reverts to the committed value
+    peek.notifyClosed();
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
@@ -200,6 +203,10 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     e.preventDefault();
     if (selectEl.disabled) return;
     menu.hidden ? open() : close();
+  });
+  const peek = wireAltPeek(wrap, menu, {
+    open, close, isOpen: () => !menu.hidden, enabled: () => !selectEl.disabled,
+    isTyping: isTypingInFocus,
   });
   sync();   // initial trigger label; the menu itself is (re)built on open()
   // Options filled in later (server list, open-in targets) leave no value to set on load;

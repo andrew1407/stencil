@@ -8,7 +8,7 @@ import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
 export const llmSettingsModalInner = () => `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>${icon('sparkle', { size: 18 })} Assistant</h2>
+                <h2>${icon('chat-settings', { size: 18 })} Assistant settings</h2>
                 <button class="app-modal-close btn-icon-text" id="chat-settings-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">

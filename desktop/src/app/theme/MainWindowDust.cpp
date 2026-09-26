@@ -1,5 +1,4 @@
 #include "MainWindow.hpp"
-#include "MainWindow.hpp"
 #include "ChatPlanTarget.hpp"
 #include "OpenImageDialog.hpp"
 #include "OpenInDialog.hpp"
@@ -32,6 +31,8 @@
 namespace stencil::gui {
 
   namespace {
+    constexpr const char* BARS_VEIL_NAME = "barsVeil";   // tells the rows' flight veil from other effects
+
     // Parented to the veil, so an interrupted flight takes the fade with it. Only the
     // selection bar uses it: a surface that SLIDES must hand over at the end instead.
     QPropertyAnimation* fadeVeilUp(QGraphicsOpacityEffect* veil, int ms) {
@@ -88,7 +89,12 @@ namespace stencil::gui {
     if (!dustHost || !support::isDustMotionOk()) return nullptr;
     selPanel->setFixedWidth(full);
     if (QLayout* l = editor->layout()) l->activate();   // the grab must see the open panel, not the rail
-    const QPixmap snap = selPanel->grab();
+    // Children only, on a clear sheet: the page under the hugging card is no part of the panel.
+    const qreal dpr = selPanel->devicePixelRatioF();
+    QPixmap snap(selPanel->size() * dpr);
+    snap.setDevicePixelRatio(dpr);
+    snap.fill(Qt::transparent);
+    selPanel->render(&snap, QPoint(), QRegion(), QWidget::DrawChildren);
     const QRect picture(selPanel->mapTo(dustHost, QPoint(0, 0)), selPanel->size());
     const Qt::DockWidgetArea area = editor->dockWidgetArea(selPanel) == Qt::LeftDockWidgetArea
                                         ? Qt::LeftDockWidgetArea : Qt::RightDockWidgetArea;
@@ -123,9 +129,33 @@ namespace stencil::gui {
       b->render(&snap, b->mapTo(editor, QPoint(0, 0)) - picture.topLeft(), QRegion(),
                 QWidget::DrawWindowBackground | QWidget::DrawChildren);
     }
-    return gui::DisintegrateOverlay::overSurface(
+    QPointer<gui::DisintegrateOverlay> fx = gui::DisintegrateOverlay::overSurface(
         snap, picture, editor, dockAwayPoint(picture, Qt::TopDockWidgetArea), gather, ms,
         palette().color(QPalette::WindowText));
+    if (!fx) return fx;
+    // Held for the whole flight and handed over at its end, as the chat's is: a row revealed
+    // while it still slides shows its controls twice, one copy off the other.
+    QList<QPair<QPointer<QToolBar>, QPointer<QGraphicsEffect>>> veils;
+    for (QToolBar* b : bars) {
+      auto* veil = new QGraphicsOpacityEffect(b);
+      veil->setObjectName(QLatin1String(BARS_VEIL_NAME));
+      veil->setOpacity(0.0);
+      b->setGraphicsEffect(veil);
+      veils.append({b, veil});
+    }
+    // Only its own veils: a fold that interrupted this one has veiled the rows afresh.
+    connect(fx, &QObject::destroyed, this, [veils] {
+      for (const auto& [b, veil] : veils)
+        if (b && veil && b->graphicsEffect() == veil) b->setGraphicsEffect(nullptr);
+    });
+    return fx;
+  }
+
+  void MainWindow::releaseBarsVeil(const QList<QToolBar*>& bars) {
+    for (QToolBar* b : bars) {
+      QGraphicsEffect* fx = b->graphicsEffect();
+      if (fx && fx->objectName() == QLatin1String(BARS_VEIL_NAME)) b->setGraphicsEffect(nullptr);
+    }
   }
 
   // Where the bar's motes land. `closing` predicts imageInfoBar's post-close position — dustSelectedLineBarOut() runs before the dock hides.

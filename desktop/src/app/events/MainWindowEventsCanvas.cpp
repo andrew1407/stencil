@@ -3,6 +3,7 @@
 #include "CanvasWidget.hpp"
 #include "theme.hpp"
 #include "modalReveal.hpp"   // pickColorAnimated
+#include "comboAltPeek.hpp"  // altKeyHeld
 #include <QAbstractItemView>
 #include <QComboBox>
 #include <QCursor>
@@ -40,9 +41,8 @@ namespace stencil::gui {
       return false;   // never consume — the field's caret / typing must behave normally
     }
     // Alt-GLIDE onto the logo: its own copy of the shared peek route, since the logo is excluded from that block.
-    if (obj == logoBtn && event->type() == QEvent::Enter &&
-        QGuiApplication::queryKeyboardModifiers().testFlag(Qt::AltModifier)) {
-      altPeekOpen(logoBtn, actAccent);
+    if (obj == logoBtn && event->type() == QEvent::Enter && support::altKeyHeld()) {
+      altPeekOpenSoon(logoBtn, actAccent);
       return false;   // hover styling (LogoHoverFx) must still see the Enter
     }
     // Consumed whole: a stray Alt+click must not fall through to clicked() and fire the accent CYCLE.

@@ -111,7 +111,7 @@ namespace stencil::gui {
     // Construction order is observable (tab order, findChildren) — tests/ProjectsDialogRows.headless.cpp pins it.
     void buildSearchRow(QVBoxLayout* layout);
     void buildBatchBar(QVBoxLayout* layout);
-    void buildProjectList(QVBoxLayout* layout);
+    void buildProjectList();
     void wireRowGestures();
     void buildFooter(struct ModalChrome& chrome);
     void startRemotePolling();

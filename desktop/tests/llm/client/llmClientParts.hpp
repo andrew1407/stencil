@@ -19,7 +19,7 @@ namespace llmclient {
   using namespace stencil::llm;
 
 // ollama is no longer the default provider (llmSettings.hpp ships "none").
-static LlmSettings ollamaCfg() {
+inline LlmSettings ollamaCfg() {
   LlmSettings c; c.provider = "ollama"; c.baseUrl = defaultLlmBaseUrl("ollama"); return c;
 }
 
@@ -59,7 +59,7 @@ struct MockTransport : LlmTransport {
   }
 };
 
-static QVector<ChatMessage> sampleMessages() {
+inline QVector<ChatMessage> sampleMessages() {
   ChatMessage prior;
   prior.role = "assistant";
   prior.text = "prior reply";

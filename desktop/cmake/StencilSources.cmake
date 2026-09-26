@@ -525,10 +525,14 @@ set(STENCIL_GUI_SOURCES
   src/support/guiHelpers.cpp
   src/support/guiHelpersColor.cpp
   src/support/menu/menuReveal.cpp
+  src/support/menu/popupSlide.cpp
   src/support/modal/modalReveal.cpp
+  src/support/modal/hoverResync.cpp
   ${STENCIL_MODALCHROME_SOURCES}
   src/support/menu/SearchCombo.cpp
   src/support/menu/SearchComboPopup.cpp
+  src/support/menu/comboAltPeek.cpp
+  src/support/tip/altPeek.cpp
   ${STENCIL_APPTOOLTIP_SOURCES}
   ${STENCIL_CONTROLREVEAL_SOURCES}
   ${STENCIL_CONTROLSWAP_SOURCES}

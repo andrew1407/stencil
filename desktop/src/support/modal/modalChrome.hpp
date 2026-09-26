@@ -69,7 +69,9 @@ namespace stencil::gui {
   // Browser .info-empty.
   QLabel* modalEmptyLabel(const QString& text, QWidget* parent = nullptr);
 
-  // Browser modal cap: `width` wide, 82% of the screen tall, at most 760px.
+  // Browser modal cap, min(82vh, 760px): the window the dialog sits over is the viewport.
+  int modalHeightCap(const QDialog* dlg);
+  // `width` wide and as tall as that cap.
   void sizeModalTall(QDialog* dlg, int width);
 
   QFrame* modalDivider(QWidget* parent = nullptr);

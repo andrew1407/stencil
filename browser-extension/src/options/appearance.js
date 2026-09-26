@@ -2,8 +2,9 @@
 // settings, so they apply instantly and flash-free across the extension's pages — no Save.
 import { surfaceIn, surfaceOut } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { menuDustPoint } from '../lib/control/dropdownMenu.js';
+import { menuDustPoint, growFrom } from '../lib/control/dropdownMenu.js';
 import { wireLogoAccent } from '../lib/accent/logoAccent.js';
+import { wireAltPeek } from '../lib/tip/altPeek.js';
 
 const accent = window.StencilAccent;
 if (accent) {
@@ -54,13 +55,14 @@ if (accent) {
   const onDocPtr = (e) => { if (!mount.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   // The list pours out of the CARET (dropdownMenu.js menuDustPoint), like every enhanced select here.
-  const open = () => { menu.hidden = false; surfaceIn(menu, menuDustPoint(trigger)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
-  const close = () => { if (!menu.hidden) surfaceOut(menu, menuDustPoint(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
+  const open = () => { menu.hidden = false; const caret = menuDustPoint(trigger); growFrom(menu, caret); surfaceIn(menu, caret); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
+  const close = () => { peek.notifyClosed(); if (!menu.hidden) surfaceOut(menu, menuDustPoint(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
   // The wipe starts at the trigger's colour SWATCH: the menu is gone by the time the palette
   // floods, and the new colour should visibly pour out of the rect that shows it.
   const choose = (key) => { customHex = null; value = accent.set(key, trigger.querySelector('.js-cur-sw') || trigger); sync(); close(); };
 
   trigger.addEventListener('click', () => { menu.hidden ? open() : close(); });
+  const peek = wireAltPeek(mount, menu, { open, close });
   sync();
 
   // The logo's own gestures move the accent too: a preset shows that preset, a custom hex "Custom".

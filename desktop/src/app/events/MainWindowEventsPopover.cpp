@@ -2,6 +2,7 @@
 #include "MainWindow.hpp"
 #include "mainWindowHelpers.hpp"   // hasTypedContentInside
 #include "ChatDock.hpp"
+#include "comboAltPeek.hpp"   // a selector list the popover opened is still the popover
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QComboBox>
@@ -12,6 +13,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
@@ -30,9 +32,24 @@ namespace stencil::gui {
       auto* combo = qobject_cast<QComboBox*>(f);
       return combo && combo->isEditable();
     }
+
+    // The accent popover's colour row under the pointer now — geometry, not a hover record the
+    // preview's theme swap can leave stale.
+    QPushButton* accentRowAt(QDialog* box, const QPoint& at) {
+      if (!box || box->objectName() != QLatin1String("accentPopover")) return nullptr;
+      for (QPushButton* row : box->findChildren<QPushButton*>())
+        if (row->isVisible() && !row->property("accentKey").toString().isEmpty() &&
+            QRect(row->mapToGlobal(QPoint(0, 0)), row->size()).contains(at))
+          return row;
+      return nullptr;
+    }
   }  // namespace
 
   std::optional<bool> MainWindow::filterPopoverGestures(QObject* obj, QEvent* event) {
+    // The pointer on the open popover's box, or on a list one of its selectors opened.
+    const auto pointerOnPopover = [this] {
+      return popoverRectGlobal().contains(QCursor::pos()) || support::pointerInPopupOf(pop.overlay);
+    };
     // A press back on this window dismisses the popover (its exec() is modal, so the press would be discarded);
     // a press in a NESTED dialog belongs to another window and is left alone.
     if (pop.active && event->type() == QEvent::MouseButtonPress) {
@@ -59,7 +76,7 @@ namespace stencil::gui {
       pop.altPressAt = static_cast<QKeyEvent*>(event)->timestamp();
       // Export-options popups (browser export/optionsMenu.js altHover) are plain QMenus, so there is no exec()/pop.active
       // to fold them into. Checked FIRST and exclusive per keypress: one Alt hover opens at most one thing.
-      bool openedExportMenu = false;
+      bool spent = false;   // this press opened something
       if (!pop.active && !pop.peekExportMenu) {
         auto tryOpen = [this](QAction* act, QMenu* menu) {
           if (!act || !menu || !act->isEnabled()) return false;
@@ -71,12 +88,12 @@ namespace stencil::gui {
           menu->popup(btn->mapToGlobal(QPoint(0, btn->height())));
           return true;
         };
-        openedExportMenu =
+        spent =
             tryOpen(actCopyImage, copyImageOptionsMenu) || tryOpen(actSaveImage, saveImageOptionsMenu);
       }
       // Resting ON an open popover is not resting on the icons its box covers (same guard as the glide poll).
-      const bool onOpenBox = pop.active && popoverRectGlobal().contains(QCursor::pos());
-      if (!openedExportMenu) {
+      const bool onOpenBox = pop.active && pointerOnPopover();
+      if (!spent) {
         for (auto it = pop.buttons.cbegin(); it != pop.buttons.cend(); ++it) {
           auto* btn = static_cast<QToolButton*>(it.key());
           if (!it.value()->isEnabled()) continue;   // a disabled icon opens nothing
@@ -93,9 +110,16 @@ namespace stencil::gui {
             } else {
               altPeekOpen(btn, it.value());
             }
+            spent = true;
             break;
           }
         }
+      }
+      // Spent: the peek's exec() spans the Alt RELEASE, which clears altPress, so the press
+      // climbing on to the next parent would read as a fresh one and reopen what just closed.
+      if (spent) {
+        event->accept();
+        return true;
       }
     }
     // Releasing Alt ends the peek; an ENGAGED peek (cursor inside, or typed content) LINGERS via startLingerPoll.
@@ -105,9 +129,12 @@ namespace stencil::gui {
       pop.altPress = nullptr;
       if (QAction* act = pop.peekAction.data()) {
         pop.peekAction.clear();
-        if (pop.active) {
-          if (popoverRectGlobal().contains(QCursor::pos()) ||
-              hasTypedContentInside(pop.active))
+        // A colour peek released on a row picks it and lingers: the pointer is still inside.
+        if (QPushButton* row = act == actAccent ? accentRowAt(pop.active, QCursor::pos()) : nullptr) {
+          commitAccent(row->property("accentKey").toString());
+          startLingerPoll();
+        } else if (pop.active) {
+          if (pointerOnPopover() || hasTypedContentInside(pop.active))
             startLingerPoll();
           else
             dismissPopover();
@@ -124,9 +151,10 @@ namespace stencil::gui {
         if (!menu->geometry().contains(QCursor::pos())) menu->close();
       }
     }
-    // Losing the keyboard (Cmd-Tab eats a peek's Alt keyup) also ends the popover — except a NESTED dialog took the
-    // focus for us, or the user has typed into the form.
-    if (event->type() == QEvent::WindowDeactivate && pop.active && obj == this) {
+    // Losing the keyboard (Cmd-Tab eats a peek's Alt keyup) also ends the popover — except a NESTED dialog or a list
+    // of its own selector took the focus for us (some platforms activate a popup), or the user has typed into the form.
+    if (event->type() == QEvent::WindowDeactivate && pop.active && obj == this &&
+        !support::popupOf(pop.overlay)) {
       bool nested = false;   // a dialog the popover opened took the focus for us
       for (QWidget* w : QApplication::topLevelWidgets())
         if (w != this && w->isVisible() && w->isWindow() && qobject_cast<QDialog*>(w)) {
@@ -145,10 +173,8 @@ namespace stencil::gui {
     // The logo is IN pop.buttons for the Alt-peek machinery but keeps its own click/dblclick gestures.
     if (QAction* act = pop.buttons.value(obj, nullptr); act && obj != logoBtn) {
       auto* btn = static_cast<QToolButton*>(obj);
-      if (event->type() == QEvent::Enter &&
-          QGuiApplication::queryKeyboardModifiers().testFlag(Qt::AltModifier)) {
-        // The mouse route always peeks; only the Alt KEY-press above defers to a focused text control.
-        altPeekOpen(btn, act);
+      if (event->type() == QEvent::Enter && support::altKeyHeld()) {
+        altPeekOpenSoon(btn, act);   // the mouse route always peeks
         return false;   // hover styling must still see the Enter
       }
       if (event->type() == QEvent::MouseButtonPress &&

@@ -61,6 +61,27 @@ test('a trigger low in the window flips its menu above instead of running off', 
   assert.ok(!below.classes.has('dd-above'), 'a normal one is not');
 });
 
+test('a flipped menu is placed by its layout height, not its mid-entrance painted one', async () => {
+  const { el } = setupDom({ vh: 400 });
+  const { placeMenu } = await import('../../../js/ui/control/dropdownMenu.js');
+  // menuFromAnchor starts at scale(0.66): the rect reads 66 of the list's real 100px.
+  const menu = el({ width: 120, height: 66 }, { offsetWidth: 120, offsetHeight: 100 });
+  placeMenu(menu, el({ left: 20, top: 330, bottom: 360, width: 120 }));
+  assert.equal(menu.style.top, '226px', 'trigger top - gap - the full height, so it never covers the trigger');
+});
+
+test('the slide entrance grows out of the caret, the point the motes fly from', async () => {
+  const { el } = setupDom({ vh: 400 });
+  const { placeMenu } = await import('../../../js/ui/control/dropdownMenu.js');
+  const trigger = el({ left: 20, right: 140, top: 10, bottom: 40, width: 120, height: 30 });
+  const below = el({ width: 160, height: 100 });
+  placeMenu(below, trigger);
+  assert.equal(below.style.transformOrigin, '106px 0px', 'caret = trigger right - 14, from the list\'s top edge');
+  const above = el({ width: 120, height: 200 });
+  placeMenu(above, el({ left: 20, right: 140, top: 330, bottom: 360, width: 120, height: 30 }));
+  assert.equal(above.style.transformOrigin, '106px 100%', 'a flipped list grows from its bottom edge');
+});
+
 test('the height cap follows the room on the roomier side, so a long list scrolls', async () => {
   const { el } = setupDom({ vh: 300 });
   const { placeMenu } = await import('../../../js/ui/control/dropdownMenu.js');

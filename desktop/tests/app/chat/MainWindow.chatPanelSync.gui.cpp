@@ -56,7 +56,7 @@ class MainWindowGuiTest : public QObject {
     };
     // Send through the menu's own input, the way a user does.
     auto sendFromMenu = [&win](const QString& text) {
-      QTimer::singleShot(0, [&win, text] {
+      QTimer::singleShot(0, [text] {
         QMenu* menu = nullptr;
         for (int i = 0; i < 200 && !menu; ++i) {
           menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());

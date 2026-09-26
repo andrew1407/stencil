@@ -13,7 +13,6 @@ namespace stencil::support {
       return lut;
     }
     double clamp01(double v) { return std::max(0.0, std::min(1.0, v)); }
-    double sign(double v) { return v < 0 ? -1.0 : 1.0; }
   }  // namespace
 
   StagePose revealTween(const StagePose& from, const StagePose& to, double p) {

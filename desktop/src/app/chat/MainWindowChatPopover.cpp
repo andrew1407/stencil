@@ -97,6 +97,7 @@ namespace stencil::gui {
     }
     chatDock->setFloating(true);
     chatDock->setGeometry(compactChatRect(anchor));
+    support::veilForReveal(*chatDock);
     chatDock->show();
     // The incoming one flies OUT of the icon; reaching here always means a real open.
     support::revealWindow(*chatDock, buttonForAction(actChat));

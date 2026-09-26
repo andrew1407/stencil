@@ -3,8 +3,13 @@
 // here once for everyone. Not in ui/motion.js: a press is the right origin only for a
 // surface raised by that press (tests/motion.test.js pins that motion.js keeps no pointer state).
 
+import { shownRect } from '../modal/flight.js';
+
 let point = null;
 let at = 0;
+// A shortcut is a gesture too: the hotkey it ran, ordered against the last press.
+let keyHotkey = null;
+let order = 0, pressOrder = 0, keyOrder = 0;
 // Past this a key press is the gesture, and what holds focus is the better answer.
 const GESTURE_FRESH_MS = 1500;
 export const GESTURE_ANCHOR_PX = 26;
@@ -14,7 +19,20 @@ if (typeof document !== 'undefined' && document.addEventListener)
     if (!Number.isFinite(e?.clientX) || !Number.isFinite(e?.clientY)) return;
     point = { x: e.clientX, y: e.clientY };
     at = Date.now();
+    pressOrder = ++order;
   }, true);
+
+// A shortcut ran; `id` names its hotkeysConfig entry.
+export const noteKeyGesture = (id) => {
+  keyHotkey = id || null;
+  keyOrder = ++order;
+};
+
+// The control a hotkey stands for (its data-hk-title), only while it is really on screen.
+const hotkeyControlRect = (id) => {
+  if (!id || typeof document === 'undefined') return null;
+  return shownRect(document.querySelector(`[data-hk-title="${id}"]`));
+};
 
 const boxAt = (p) => {
   const h = GESTURE_ANCHOR_PX / 2;
@@ -25,6 +43,8 @@ const boxAt = (p) => {
 // A small client rect around that point, shaped for a modal flight's anchor. Null when
 // nothing has been pointed at and nothing holds focus.
 export const gestureAnchorRect = () => {
+  // After a shortcut, the icon it stands for; folded away (or none), null: the flight falls from above.
+  if (keyOrder > pressOrder) return hotkeyControlRect(keyHotkey);
   if (point && Date.now() - at < GESTURE_FRESH_MS) return boxAt(point);
   const a = typeof document !== 'undefined' ? document.activeElement : null;
   const r = a && a !== document.body ? a.getBoundingClientRect?.() : null;

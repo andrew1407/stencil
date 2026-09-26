@@ -2,6 +2,8 @@ import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../../core/settin
 import { icon } from '../icons.js';
 import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
+import { wireAltPeek } from '../tip/altPeek.js';
+import { isTypingInFocus } from '../../utils.js';
 
 const PREVIEW_HOVER_MS = 280;
 
@@ -202,6 +204,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
   const close = () => {
     resetHover();     // a menu dismissed mid-hover reverts to the committed accent, and
     preview?.off();   // drops the row's latched hover with it
+    peek.notifyClosed();
     hideMenu(menu);
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocClick, true);
@@ -211,6 +214,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
   const choose = (key) => { value = key; syncTrigger(); onSelect?.(key); close(); };
 
   trigger.addEventListener('click', (e) => { e.preventDefault(); menu.hidden ? open() : close(); });
+  const peek = wireAltPeek(mount, menu, { open, close, isTyping: isTypingInFocus });
   syncTrigger();
   return { set: (k) => { value = k; syncTrigger(); } };
 }

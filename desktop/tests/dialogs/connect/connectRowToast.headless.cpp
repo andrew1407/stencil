@@ -3,7 +3,7 @@
 
 namespace connectrow {
 
-  void checkToastAndHint(QTcpServer& server, quint16 port, QWidget* row) {
+  void checkToastAndHint(quint16 port) {
   // The row's Reconnect toast NAMES the server: with more than one saved connection a bare
   // "Reconnected" says nothing. Browser twin: modal.js `Reconnected to ${url}`.
   {

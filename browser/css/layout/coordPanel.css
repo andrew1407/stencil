@@ -14,12 +14,12 @@
     background: var(--bg-coord-panel);
     padding: 10px 12px;
     border-radius: 5px;
-    margin-top: 20px;
+    margin-top: 10px;   /* level with .canvas-viewport's top (layout/canvasFrame.css) */
     transition: padding 0.2s;
     /* A long point list must scroll INSIDE the panel, not stretch the page under the
        canvas. Sticky keeps it in view while the rest of the page scrolls. */
     position: sticky;
-    top: 20px;
+    top: 10px;
     /* max-height is set by JS (ZoomPan.syncCoordPanelHeight), NOT here: the panel starts
        below the toolbar, so a `calc(100vh - …)` cap over-reports its room by however far
        down it sits and let a ~40-row outline run past the window bottom. This is the
@@ -45,7 +45,7 @@
     flex: 0 0 auto;
     align-self: stretch;
     width: 8px;
-    margin-top: 20px;
+    margin-top: 10px;
     border-radius: 3px;
     cursor: col-resize;
     background: transparent;

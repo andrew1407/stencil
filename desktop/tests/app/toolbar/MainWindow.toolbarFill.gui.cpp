@@ -133,7 +133,7 @@ class MainWindowGuiTest : public QObject {
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
     settleLayout(&win, 150);
-    int live = 0, dead = 0;
+    int live = 0;
     for (QToolBar* tb : win.findChildren<QToolBar*>())
       for (QAbstractButton* b : tb->findChildren<QAbstractButton*>()) {
         if (!b->isVisible()) continue;
@@ -145,7 +145,6 @@ class MainWindowGuiTest : public QObject {
                                   .arg(b->objectName().isEmpty() ? b->text() : b->objectName())
                                   .arg(int(shape))));
         } else {
-          ++dead;
           QVERIFY2(shape == Qt::ForbiddenCursor || shape == Qt::PointingHandCursor,
                    "a dead control should not read as clickable");
         }

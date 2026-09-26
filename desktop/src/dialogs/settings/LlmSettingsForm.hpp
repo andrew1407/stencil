@@ -32,6 +32,7 @@ namespace stencil::gui {
     // Writes ONLY the assistant keys (llm* + saveChatsWithProject); everything else rides through.
     void applyTo(Settings& s) const;
     void focusProvider();
+    void pinNoteHeights();   // each wrapped note line to the height its real width needs
 
    protected:
     // A wrapped label's sizeHint is measured at a GUESSED width, and the layout budgets that
@@ -39,7 +40,6 @@ namespace stencil::gui {
     void resizeEvent(QResizeEvent* event) override;
 
    private:
-    void pinNoteHeights();   // each wrapped note line to the height its real width needs
     // Construction order is observable; a conditional row hands its divider back so syncRows can hide the pair.
     QFrame* rowDivider();
     void hugRight(QWidget* w);

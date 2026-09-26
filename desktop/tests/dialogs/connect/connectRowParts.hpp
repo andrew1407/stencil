@@ -42,13 +42,13 @@ using stencil::net::ConnectionManager;
 #include "../../support/check.hpp"
 #include "../../support/connectNow.hpp"
 
-static void pumpFor(int ms) {
+inline void pumpFor(int ms) {
   QElapsedTimer t;
   t.start();
   while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
 }
 
-static void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {
+inline void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {
   QElapsedTimer t;
   t.start();
   while (!pred() && t.elapsed() < timeoutMs)
@@ -58,9 +58,9 @@ static void pumpUntil(const std::function<bool()>& pred, int timeoutMs = 3000) {
 namespace connectrow {
 
   QWidget* checkRowLayout(const QString& longUrl, QListWidget* list);
-  void checkRowMotion(QTcpServer& server, const QString& longUrl, const QString& shortUrl, ConnectionManager& mgr, ConnectDialog& dlg, QListWidget* list, QWidget* row);
-  void checkScrollEdges(quint16 port, QListWidget* list, QWidget* row);
-  void checkConnectGestures(QTcpServer& server, quint16 port, QListWidget* list, QWidget* row);
-  void checkToastAndHint(QTcpServer& server, quint16 port, QWidget* row);
+  void checkRowMotion(const QString& longUrl, const QString& shortUrl, ConnectionManager& mgr, ConnectDialog& dlg, QListWidget* list, QWidget* row);
+  void checkScrollEdges(quint16 port);
+  void checkConnectGestures(quint16 port);
+  void checkToastAndHint(quint16 port);
 
 }  // namespace connectrow

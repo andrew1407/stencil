@@ -12,6 +12,9 @@
 #include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/modal/modalReveal.hpp"
+#include "../../support/modal/hoverResync.hpp"
+#include "../../support/menu/comboAltPeek.hpp"
+#include "../../support/tip/altPeek.hpp"
 #include <QApplication>
 #include <QDockWidget>
 #include <QGraphicsOpacityEffect>
@@ -19,6 +22,7 @@
 #include <QLabel>
 #include <QScrollBar>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
@@ -130,6 +134,25 @@ namespace stencil::gui {
     support::installDblReset();   // a double-click puts a selector or a check back to its default
     support::installDialogReveal();
     support::installModalDismiss();   // a press outside a modal closes it (browser parity)
+    support::installHoverResync();
+    support::installComboAltPeek();
+    // A selector's peek opening closes the popover or compact chat it does not sit inside; a
+    // glide from a selector's list onto an icon (the list's grab kept its Enter away) opens it.
+    support::addGlideHandle(this, [this](QWidget* opener) {
+      QPointer<QToolButton> btn = qobject_cast<QToolButton*>(opener);
+      QPointer<QAction> next = pop.buttons.value(opener, nullptr);
+      if (pop.active) {
+        if (opener && pop.overlay && pop.overlay->isAncestorOf(opener)) return;
+        pop.peekNextButton = btn;   // execMaybePopover opens it once this one is down
+        pop.peekNextAction = next;
+        pop.peekAction.clear();
+        dismissPopover();
+        return;
+      }
+      closeCompactChatFor(opener);
+      if (btn && next)
+        QTimer::singleShot(0, this, [this, btn, next] { if (btn && next) altPeekOpen(btn, next); });
+    });
   }
 
   void MainWindow::setupDocks() {

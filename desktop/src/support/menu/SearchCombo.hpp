@@ -28,6 +28,7 @@ namespace stencil::gui {
     // currentData() when the pointer leaves; it must only repaint, never persist.
     void setPreview(std::function<void(const QString&)> fn);
     QListView* popupList();
+    QWidget* popupWindow() const { return popup; }   // null until the first open
 
   protected:
     bool eventFilter(QObject* watched, QEvent* event) override;

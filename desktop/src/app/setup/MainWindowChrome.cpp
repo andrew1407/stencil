@@ -60,13 +60,23 @@ namespace stencil::gui {
     connect(panelReopenBtn, &QToolButton::clicked, this,
             [this] { if (actPanel) actPanel->setChecked(true); });
     panelReopenBtn->hide();
-    // The separator is QMainWindow chrome with no widget, so a mouse-transparent overlay paints the grip (browser .panel-resizer).
-    panelGrip = new DockGripOverlay(this);
+    // Over the separator strip, taking its drag as the chat's edge does (browser .panel-resizer).
+    panelGrip = new DockEdgeOverlay(this);
     panelGrip->setObjectName(QStringLiteral("panelGrip"));
     {
       const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
       panelGrip->setColors(pal.borderMain, pal.accent);
     }
+    panelGrip->setAxis(Qt::Horizontal);
+    panelGrip->setDragHandlers(
+        [this] { if (selPanel) panelGripStart = selPanel->width(); },
+        [this](const QPoint& d) {
+          if (!selPanel) return;
+          const bool left = editor->dockWidgetArea(selPanel) == Qt::LeftDockWidgetArea;
+          const int width = qMax(PANEL_MIN_WIDTH, panelGripStart + (left ? d.x() : -d.x()));
+          editor->resizeDocks({selPanel}, {width}, Qt::Horizontal);
+        },
+        {});
     panelGrip->hide();
     // The chat dock's resize edge (browser .chat-resizer), same trick.
     chatEdge = new DockEdgeOverlay(this);
@@ -111,7 +121,6 @@ namespace stencil::gui {
     panelGrip->setVisible(on);
     if (!on) {
       panelGrip->setHot(false);
-      panelGripDrag = false;
       return;
     }
     const QRect pr(selPanel->mapTo(this, QPoint(0, 0)), selPanel->size());   // the overlay is the window's
