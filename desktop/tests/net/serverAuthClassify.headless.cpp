@@ -3,7 +3,7 @@
 
 namespace serverauth {
 
-  void checkClassification(MockServer& mock, MockServer& mock2) {
+  void checkClassification(MockServer& mock) {
   // ── a REFUSED credential is Expired, not Error ──
   std::printf("classification:\n");
   {

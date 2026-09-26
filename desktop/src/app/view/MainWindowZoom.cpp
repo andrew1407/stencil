@@ -101,6 +101,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::setToolbarsVisible(bool on) {
+    releaseBarsVeil(findChildren<QToolBar*>());
     for (QToolBar* tb : findChildren<QToolBar*>()) { tb->setMaximumHeight(QWIDGETSIZE_MAX); tb->setVisible(on); }
     positionOverlayArrows();
   }
@@ -116,6 +117,7 @@ namespace stencil::gui {
     spinControlsPill(animate);   // the pill's chevron turns with the rows
     if (!animate) {
       if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
+      releaseBarsVeil(bars);   // a flight still in the air must not leave the rows invisible
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); b->setVisible(show); }
       positionOverlayArrows();
       return;
@@ -123,8 +125,8 @@ namespace stencil::gui {
     animateBarsHeight(bars, show);
   }
 
-  // Pure geometry (setFixedHeight pins min==max each frame so QMainWindow's layout cannot override
-  // it); no opacity effect, so no flicker.
+  // setFixedHeight pins min==max each frame so QMainWindow's layout cannot override it; the only
+  // opacity is the flight's constant veil, never a per-frame fade, so nothing flickers.
   void MainWindow::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
     if (bars.isEmpty()) return;
     if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }

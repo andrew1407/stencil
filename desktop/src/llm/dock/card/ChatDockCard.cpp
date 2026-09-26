@@ -64,7 +64,7 @@ namespace stencil::gui {
       repositionChatBubbleTails(log.transcript);
     };
     // The slide starts only once the dust actually flies; the card waits fully hidden.
-    const auto slide = [this, card, lay, rest] {
+    const auto slide = [card, lay, rest] {
       auto* anim = new QVariantAnimation(card);
       anim->setDuration(APPEAR_MS);
       anim->setStartValue(0.0);

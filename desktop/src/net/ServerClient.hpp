@@ -98,13 +98,13 @@ namespace stencil::net {
                                        std::function<void(bool ok, qint64 newVersion, bool conflict)> done) {
       QJsonObject obj;
       obj.insert("description", description);
-      putGuarded(id, obj, version, "update", done);
+      putGuarded(id, obj, version, done);
     }
     void updateProjectKeywordsAsync(const QString& id, const QStringList& keywords, qint64 version,
                                     std::function<void(bool ok, qint64 newVersion, bool conflict)> done) {
       QJsonObject obj;
       obj.insert("keywords", QJsonArray::fromStringList(keywords));
-      putGuarded(id, obj, version, "update", done);
+      putGuarded(id, obj, version, done);
     }
     void updateProjectNameAsync(const QString& id, const QString& name, qint64 version,
                                 std::function<void(bool ok, qint64 newVersion, bool conflict)> done);
@@ -136,7 +136,7 @@ namespace stencil::net {
                       std::function<void(int status, QByteArray body)> done,
                       bool retried = false);
     // A 409 arrives as the third `done` arg (conflict).
-    void putGuarded(const QString& id, QJsonObject obj, qint64 version, const char* verb,
+    void putGuarded(const QString& id, QJsonObject obj, qint64 version,
                     std::function<void(bool, qint64, bool)> done);
 
     QNetworkAccessManager* nam;

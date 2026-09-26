@@ -3,7 +3,7 @@
 
 namespace connectrow {
 
-  void checkRowMotion(QTcpServer& server, const QString& longUrl, const QString& shortUrl, ConnectionManager& mgr, ConnectDialog& dlg, QListWidget* list, QWidget* row) {
+  void checkRowMotion(const QString& longUrl, const QString& shortUrl, ConnectionManager& mgr, ConnectDialog& dlg, QListWidget* list, QWidget* row) {
   // ── Removal: retire-then-finalize — slot held, empty state only after the dust.
   QPushButton* disc = row->findChild<QPushButton*>(QStringLiteral("rowDisconnect"));
   check(disc != nullptr, "finds the row's disconnect button");

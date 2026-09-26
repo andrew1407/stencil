@@ -130,15 +130,22 @@ namespace stencil::gui {
     return l;
   }
 
+  int modalHeightCap(const QDialog* dlg) {
+    constexpr int MODAL_MAX_H = 760;
+    constexpr int BROWSER_CHROME_PX = 85;   // a maximised browser's own bars, for an unhosted dialog
+    const QWidget* host = support::dialogHost(dlg);
+    int avail = host && host->isVisible() ? host->height() : 0;
+    if (avail <= 0) {
+      const QScreen* screen = dlg && dlg->screen() ? dlg->screen() : QGuiApplication::primaryScreen();
+      avail = (screen ? screen->availableGeometry().height() : 900) - BROWSER_CHROME_PX;
+    }
+    return qBound(360, int(avail * 0.82), MODAL_MAX_H);
+  }
+
   void sizeModalTall(QDialog* dlg, int width) {
     if (!dlg) return;
-    // The browser's min(82vh, 760px), the 82% taken of the screen less a browser's own chrome.
-    constexpr int MODAL_MAX_H = 760;
-    constexpr int BROWSER_CHROME_PX = 85;
-    const QScreen* screen = dlg->screen() ? dlg->screen() : QGuiApplication::primaryScreen();
-    const int avail = (screen ? screen->availableGeometry().height() : 900) - BROWSER_CHROME_PX;
     dlg->setMinimumSize(width, 360);
-    dlg->resize(width, qBound(360, int(avail * 0.82), MODAL_MAX_H));
+    dlg->resize(width, modalHeightCap(dlg));
   }
 
   QLineEdit* addModalSearchBar(ModalChrome& chrome, const QString& placeholder) {

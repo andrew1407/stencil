@@ -13,6 +13,7 @@
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/modal/imageAnchor.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
+#include "../../support/tip/altPeek.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 
 #include <QAbstractSpinBox>
@@ -76,6 +77,7 @@ namespace stencil::gui {
     const auto wirePopover = [this](QToolButton* btn, QAction* a) {
       if (!a || !pop.dialogActions.contains(a)) return;
       pop.buttons.insert(btn, a);
+      btn->setProperty(support::ALT_PEEK_TARGET_PROPERTY, true);
       btn->setContextMenuPolicy(Qt::CustomContextMenu);
       connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
         if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included

@@ -20,7 +20,8 @@ export interface ModalOpenGesture {
   contextmenu(): void;
   /** True when a shortcut claimed an open peek/linger instead of it toggling. */
   hotkey(): boolean;
-  altHover(): void;
+  /** `origin` is the opener peeking; a window that holds it stays open. */
+  altHover(origin?: Element | null): void;
   altRelease(): void;
   boxEnter(): void;
   boxLeave(): void;
@@ -37,6 +38,7 @@ export interface ModalOpenGestureDeps {
   isPopoverOpen?: () => boolean;
   isPeekEngaged?: () => boolean;
   holdLinger?: () => boolean;
+  holds?: (el: Element) => boolean;
   delay?: number;
   eagerClick?: boolean;
   holdMs?: number;

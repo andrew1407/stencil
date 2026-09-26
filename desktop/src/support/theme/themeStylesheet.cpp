@@ -160,6 +160,9 @@ namespace stencil::gui {
         {"%BG_ROW_HOVER_SOFT%", c(mixSrgb(p.bgContainer, p.bgCoordHover, 0.5))},
         // Browser --bg-coord-even / --text-info (`inherit` on light = the main ink).
         {"%BG_COORD_EVEN%", c(themeToken("--bg-coord-even", dark))},
+        {"%BG_COORD_TABLE%", c(themeToken("--bg-coord-table", dark))},
+        {"%BORDER_COORD%", c(themeToken("--border-coord", dark))},
+        {"%TEXT_COORD_H3%", c(themeToken("--text-coord-h3", dark))},
         {"%TEXT_INFO%", c(dark ? themeToken("--text-info", dark) : p.textMain)},
         {"%BG_INFO%", c(bgInfo)},
         {"%BG_DROP_HINT%", c(dropHintBg)},

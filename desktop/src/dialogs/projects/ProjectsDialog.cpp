@@ -86,8 +86,8 @@ namespace stencil::gui {
                                  const QString& activeProjectId,
                                  const QColor& accentColor)
       : QDialog(parent), projects(projects), now(now),
-        connections(connections), thumbs(thumbs),
-        activeProjectId(activeProjectId) {
+        connections(connections), activeProjectId(activeProjectId),
+        thumbs(thumbs) {
     // `accentColor` is unused: the delegate reads the installed palette's Highlight/Link (theme.cpp
     // publishes accent + accent-2 there). Kept in the signature so callers stay untouched.
     Q_UNUSED(accentColor);
@@ -110,7 +110,7 @@ namespace stencil::gui {
 
     buildSearchRow(layout);
     buildBatchBar(layout);
-    buildProjectList(layout);
+    buildProjectList();
     wireRowGestures();
     buildFooter(chrome);
     startRemotePolling();

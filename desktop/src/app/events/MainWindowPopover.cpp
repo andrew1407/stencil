@@ -25,6 +25,8 @@
 #include "../../support/tip/AppTooltip.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/modal/modalChrome.hpp"
+#include "../../support/tip/altPeek.hpp"
+#include "../../support/menu/comboAltPeek.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -41,12 +43,8 @@ namespace stencil::gui {
     if (!btn || !act || !act->isEnabled() || pop.active) return;
     // Another dialog is up: a peek under it would be unreachable.
     if (QApplication::activeModalWidget()) return;
-    // Gliding off an open compact chat closes it; a docked panel or a user-chosen float is never
-    // touched.
-    if (act != actChat && actChat && actChat->isChecked() && chatCompactShowing()) {
-      pop.peekAction.clear();
-      actChat->setChecked(false);
-    }
+    support::glideFrom(this, btn);   // a selector's peek closes as the icon's opens
+    if (act != actChat) closeCompactChatFor(btn);
     stopLingerPoll();
     if (pop.clickTimer) pop.clickTimer->stop();
     pop.pendingAction.clear();
@@ -66,6 +64,22 @@ namespace stencil::gui {
     if (act != actChat) pop.peekAction.clear();
   }
 
+  // exec() inside the Enter left Qt's last mouse receiver stale for the whole peek, so every
+  // move re-entered widgets; a tick later the hover record is current.
+  void MainWindow::altPeekOpenSoon(QToolButton* btn, QAction* act) {
+    QTimer::singleShot(0, this, [this, b = QPointer<QToolButton>(btn), a = QPointer<QAction>(act)] {
+      if (b && a && support::altKeyHeld()) altPeekOpen(b, a);
+    });
+  }
+
+  // A docked panel or a user-chosen float is never touched.
+  void MainWindow::closeCompactChatFor(QWidget* opener) {
+    if (!actChat || !actChat->isChecked() || !chatCompactShowing()) return;
+    if (opener && chatDock && chatDock->isAncestorOf(opener)) return;
+    pop.peekAction.clear();
+    actChat->setChecked(false);
+  }
+
   // Linger poll: close once the pointer is outside, unless a field or the composer holds typed
   // content.
   void MainWindow::startLingerPoll() {
@@ -78,7 +92,7 @@ namespace stencil::gui {
             : ((chatDock && chatDock->isFloating() && chatDock->isVisible()) ? chatDock : nullptr);
         if (!w) { pop.lingerPoll->stop(); return; }
         const QRect box = pop.active ? popoverRectGlobal() : w->frameGeometry();
-        if (box.contains(QCursor::pos())) return;
+        if (box.contains(QCursor::pos()) || support::pointerInPopupOf(w)) return;
         if (hasTypedContentInside(w)) return;
         if (w == chatDock && chatDock->hasComposerText()) return;
         pop.lingerPoll->stop();

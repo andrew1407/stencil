@@ -172,6 +172,9 @@ namespace stencil::gui {
     list->setStyleSheet(rowStyleSheet());
     // Minimum on the LIST, not the dialog: execMaybePopover drops the dialog-level minimumWidth and shrinks to sizeHint.
     list->setMinimumWidth(420);
+    // Browser #connect-list: 170px at least, else as tall as its rows (the modal's cap scrolls it).
+    list->setMinimumHeight(170);
+    list->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     list->viewport()->installEventFilter(this);
     QObject::connect(list->verticalScrollBar(), &QScrollBar::valueChanged, this,

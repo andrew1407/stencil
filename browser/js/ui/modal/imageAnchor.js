@@ -43,6 +43,8 @@ const settledRect = (el, state) => {
 };
 
 const byId = (id) => document.getElementById(id);
+// Folded away with the tool rows: no rect to aim at, whatever the swap logic above would measure.
+const foldedAway = (id) => !!byId(id)?.closest?.('#controls-body.hidden');
 const liveRect = (id) => {
   const r = byId(id)?.getBoundingClientRect?.();
   return r && r.width > 0 && r.height > 0 ? r : null;
@@ -61,14 +63,16 @@ export const canvasAnchorRect = () => {
 // flight carries, never by what measures now.
 export const openImageAnchorRect = (imageOpen = true) => {
   const state = imageOpen ? LOADED : EMPTY;
+  if (foldedAway(state.show)) return canvasAnchorRect();
   return settledRect(byId(state.show), state)
       || liveRect(state.show) || liveRect(state.hide) || canvasAnchorRect();
 };
 
 // Where a toolbar control sits once the editor is EMPTY: the same aim-before-the-sweep problem,
 // for a control that stays put while the Image section shrinking under it moves the row.
+// Null when the rows are folded: the confirm then pours back where it came from.
 export const emptiedControlRect = (id) =>
-  settledRect(byId(id), EMPTY) || liveRect(id) || canvasAnchorRect();
+  (foldedAway(id) ? null : settledRect(byId(id), EMPTY) || liveRect(id) || canvasAnchorRect());
 
 // The two rules as one pair of opts for confirmModal: in from the canvas centre, back into
 // the Open control when the answer opens an image and back to the canvas centre when not.

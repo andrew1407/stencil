@@ -1,10 +1,11 @@
 import { popoverPosition, wireModalOpenGestures } from '../tip/popover.js';
+import { peekEngaged, wirePeekBox } from '../tip/altPeek.js';
 import { wireModalDrag } from './drag.js';
 import { wireModalResize } from './resize.js';
 import { sweepDust } from '../motion.js';
 import { isTypingTarget } from '../../utils.js';
 import { modalShells, wireEscapeOnce, closeOpenModal } from './registry.js';
-import { createModalFlight } from './flight.js';
+import { createModalFlight, shownRect } from './flight.js';
 import { canvasAnchorRect } from './imageAnchor.js';
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
@@ -32,9 +33,11 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   const defaultOrigin = () => (originFor ? originFor() : openBtn);
   // An anchor is an element or a plain client rect (a control about to hide passes the rect).
   const anchorLike = (v) => !!v && (typeof v.getBoundingClientRect === 'function' || Number.isFinite(v.width));
+  // An element counts only while shown: an opener folded away with the rows falls from above.
   const rectOf = (el) => (typeof el?.getBoundingClientRect === 'function'
-    ? el.getBoundingClientRect()
+    ? shownRect(el)
     : (Number.isFinite(el?.width) ? el : null));
+  let fromAbove = false;   // this open had no shown control, so its close rises back up
   const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
   const onScreenRect = (r) =>
     !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
@@ -50,6 +53,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     drag.reset();   // a window opens where its flight puts it, never where it was dragged
     resize.reset(); // …and at its own size
     onOpen?.();
+    fromAbove = !rectOf(originEl);
     overlay.classList.add('modal-open');
     // The box has no size while display:none.
     if (!reducedMotion() && setOriginVars()) playDust(true);
@@ -69,8 +73,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // `modal-open` is what every caller tests, so it comes off now and the shrink runs under
     // `modal-closing`. Measure first — display:none measures 0.
     const home = (anchorLike(backTo) ? backTo : null) || closeOriginEl || originEl || defaultOrigin();
-    const animate = overlay.classList.contains('modal-open') && !reducedMotion()
-      && setOriginVars(onScreenRect(rectOf(home)) ? home : canvasAnchorRect());
+    const back = onScreenRect(rectOf(home)) ? home : (fromAbove ? null : canvasAnchorRect());
+    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
     if (animate) {
       flight.playClosing();
@@ -125,8 +129,10 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       // The machine only ever closes windows it opened in a popover shape.
       closePopover: close,
       isPopoverOpen: () => overlay.classList.contains('modal-open'),
-      // Engaged = the pointer rests inside the box (typed content is holdLinger's job).
-      isPeekEngaged: () => !!boxOf()?.matches(':hover'),
+      // Engaged = the pointer rests inside the box or a list its dropdowns opened (typed
+      // content is holdLinger's job).
+      isPeekEngaged: () => peekEngaged(boxOf()),
+      holds: (el) => !!boxOf()?.contains(el),
       // Not closed by hover-out while typing in a field WITH CONTENT (several modals
       // auto-focus an empty search on open).
       holdLinger: () => {
@@ -137,10 +143,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     });
     // The pointer crossing the box edge drives the linger close.
     const boxEl = boxOf();
-    if (boxEl) {
-      boxEl.addEventListener('mouseenter', () => g.boxEnter());
-      boxEl.addEventListener('mouseleave', () => g.boxLeave());
-    }
+    if (boxEl) wirePeekBox(boxEl, g);
     // Everything a window raises stacks over it, so read the z-order, not a stale class list.
     const pressedAboveBox = (target) => {
       const mine = parseInt(getComputedStyle(overlay).zIndex, 10);

@@ -1,5 +1,7 @@
 import { markSwap } from '../../motion.js';
 import { showMenu, hideMenu } from '../../control/dropdownMenu.js';
+import { wireAltPeek } from '../../tip/altPeek.js';
+import { isTypingInFocus } from '../../../utils.js';
 export function wireZoomControls(app) {
   const zoomInput = document.getElementById('zoom-input');
   // `commit` (change/Enter/preset-pick) reverts an out-of-range value; live typing just skips
@@ -30,7 +32,15 @@ export function wireZoomControls(app) {
       `<div class="zoom-menu-item${p === cur ? ' active' : ''}" data-val="${p}" role="option">${p}%</div>`).join('');
     showMenu(zoomMenu, zoomInput);
   };
-  const closeZoomMenu = () => { if (zoomMenu && !zoomMenu.hidden) hideMenu(zoomMenu); };
+  const closeZoomMenu = () => {
+    if (!zoomMenu || zoomMenu.hidden) return;
+    peek.notifyClosed();
+    hideMenu(zoomMenu);
+  };
+  const peek = zoomMenu && wireAltPeek(zoomInput, zoomMenu, {
+    open: openZoomMenu, close: closeZoomMenu, enabled: () => !zoomInput.disabled,
+    isTyping: isTypingInFocus,
+  });
   zoomInput.addEventListener('focus', openZoomMenu);
   zoomInput.addEventListener('click', openZoomMenu);
   if (zoomMenu) {

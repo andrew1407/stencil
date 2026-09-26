@@ -67,6 +67,7 @@ test('releasing Alt with the pointer INSIDE the menu lingers — it closes when 
   assert.equal(menu.hidden, false, 'engaged release ⇒ linger, rows stay clickable');
   assert.ok(!menu.classList.contains('dd-closing'));
 
+  menu.matches = () => false;
   menu.dispatch('mouseleave');                    // leaving the lingering box…
   t.mock.timers.tick(LINGER_CLOSE_MS + 10);       // …closes after the grace
   assert.ok(menu.classList.contains('dd-closing') || menu.hidden);
@@ -130,4 +131,57 @@ test('picking a row while peeking applies the accent and leaves the peek up — 
   assert.ok(menu.classList.contains('dd-closing'));
   menu.dispatch('animationend');
   assert.equal(menu.hidden, true);
+});
+
+// ── Release to pick: a peek released ON a colour commits it and stays open ──
+// `row` null = inside the menu but on no row; `inside` false = the pointer left the menu.
+const pointerAt = (menu, row, inside = true) => {
+  menu.matches = (sel) => inside && sel === ':hover';
+  menu.querySelectorAll = () => menu.children;
+  for (const li of menu.children) {
+    li.matches = (sel) => inside && sel === ':hover' && li.dataset.key === row;
+    li.click = () => li.dispatch('click');
+  }
+};
+const picks = (calls) => calls.filter((c) => c[0] === 'setAccent').map((c) => c[1]);
+const shut = (menu) => menu.hidden || menu.classList.contains('dd-closing');
+
+test('releasing Alt on a colour picks it, and the menu stays open while the pointer is inside', () => {
+  const { menu, hover, pressAlt, releaseAlt, calls } = rig();
+  hover(true);
+  pressAlt();
+  pointerAt(menu, 'pink');
+  releaseAlt();
+  assert.deepEqual(picks(calls), ['pink'], 'the row\'s own pick path');
+  assert.equal(shut(menu), false, 'the pointer is inside: no close');
+  assert.deepEqual(marked(menu), ['pink'], 'the check moves to the picked colour');
+});
+
+test('released inside but on no row, it picks nothing and stays open', () => {
+  const { menu, hover, pressAlt, releaseAlt, calls } = rig();
+  hover(true);
+  pressAlt();
+  pointerAt(menu, null);
+  releaseAlt();
+  assert.deepEqual(picks(calls), []);
+  assert.equal(shut(menu), false);
+});
+
+test('released outside the menu, it picks nothing and closes', () => {
+  const { menu, hover, pressAlt, releaseAlt, calls } = rig();
+  hover(true);
+  pressAlt();
+  pointerAt(menu, null, false);
+  releaseAlt();
+  assert.deepEqual(picks(calls), []);
+  assert.equal(shut(menu), true);
+});
+
+test('a sticky (right-click) menu ignores the Alt release: hovering a row picks nothing', () => {
+  const { wrap, menu, releaseAlt, calls } = rig();
+  wrap.dispatch('contextmenu', { preventDefault() {} });
+  pointerAt(menu, 'pink');
+  releaseAlt();
+  assert.deepEqual(picks(calls), []);
+  assert.equal(menu.hidden, false);
 });

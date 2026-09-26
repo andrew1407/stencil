@@ -157,7 +157,7 @@ class MainWindowGuiTest : public QObject {
   // The error card's Resend glyph is NEUTRAL in both themes, never the card's own red: the browser's
   // retry is a .chat-hbtn, which sets `color: var(--text-muted)` and does not inherit --danger.
   void chatErrorRetryGlyphIsNeutral() {
-    for (const QString mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
+    for (const QString& mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
       MainWindow win(nullptr, false);
       win.resize(1100, 760);
       win.show();

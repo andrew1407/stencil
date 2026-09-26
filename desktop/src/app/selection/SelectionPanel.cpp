@@ -5,6 +5,7 @@
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include <QGuiApplication>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QHeaderView>
@@ -38,7 +39,7 @@ namespace stencil::gui {
     titleBar->setObjectName("selPanelTitle");
     titleBar->setAttribute(Qt::WA_StyledBackground, true);
     auto* titleRow = new QHBoxLayout(titleBar);
-    titleRow->setContentsMargins(8, 2, 5, 0);
+    titleRow->setContentsMargins(12, 10, 12, 0);   // the card's own padding (browser .coordinates-panel)
     // The tabs live in the header beside the chevron (browser .coord-panel-header holds only tabs
     // + toggle); the QTabWidget hides its own bar.
     tabBar = new QTabBar(titleBar);
@@ -68,28 +69,39 @@ namespace stencil::gui {
 
     setTitleBarWidget(titleBar);
 
+    // The browser panel is a card that hugs its rows, the page showing below it: the header above
+    // is its top, this frame the rest, and the stretch under it is bare page.
     auto* body = new QWidget(this);
     body->setObjectName("selPanelBody");
-    body->setAttribute(Qt::WA_StyledBackground, true);
-    auto* layout = new QVBoxLayout(body);
-    layout->setContentsMargins(8, 8, 8, 8);
+    auto* bodyLay = new QVBoxLayout(body);
+    bodyLay->setContentsMargins(0, 0, 0, 0);
+    bodyLay->setSpacing(0);
+    auto* card = new QFrame(body);
+    card->setObjectName("selPanelCard");
+    card->setAttribute(Qt::WA_StyledBackground, true);
+    card->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    bodyLay->addWidget(card);
+    bodyLay->addStretch(1);
+    auto* layout = new QVBoxLayout(card);
+    layout->setContentsMargins(12, 8, 12, 10);
 
     // Shown while 2+ lines are multi-selected; the "Selected Line:" bar stays hidden then.
-    multiLabel = new QLabel(body);
+    multiLabel = new QLabel(card);
     multiLabel->setWordWrap(true);
     multiLabel->setStyleSheet("color: palette(highlight); font-weight: 600;");
     multiLabel->setVisible(false);
     layout->addWidget(multiLabel);
 
     // browser mainContent.js coord-tabs; the Lines tab mirrors renderLinesList / #lines-list.
-    tabs = new QTabWidget(body);
+    tabs = new OpenPageTabs(card);
     tabs->setObjectName("selectionTabs");
     tabs->tabBar()->hide();   // the header's own strip drives it (see tabBar above)
+    tabs->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     layout->addWidget(tabs, 1);
 
     auto* ptsTab = new QWidget(tabs);
     auto* ptsLay = new QVBoxLayout(ptsTab);
-    ptsLay->setContentsMargins(0, 6, 0, 0);
+    ptsLay->setContentsMargins(0, 0, 0, 0);
     points = new FitTable(0, COL_COUNT, ptsTab);
     points->setObjectName("pointsTable");
     points->setItemDelegate(new PointRowDelegate(points));  // outline-style selection
@@ -133,7 +145,7 @@ namespace stencil::gui {
     // browser #lines-list: colour chip · "Line N · M pts" · 🗑; Ctrl/⌘+Shift toggles multi-select.
     auto* linesTab = new QWidget(tabs);
     auto* linesLay = new QVBoxLayout(linesTab);
-    linesLay->setContentsMargins(0, 6, 0, 0);
+    linesLay->setContentsMargins(0, 0, 0, 0);
     // The points table again, with the lines' own columns: one widget is one grid, one header
     // and one cell padding across both tabs (in the browser it is the same table).
     lines = new FitTable(0, LCOL_COUNT, linesTab);
@@ -175,6 +187,7 @@ namespace stencil::gui {
     // Bound both ways so a programmatic page change turns the strip too.
     connect(tabBar, &QTabBar::currentChanged, tabs, &QTabWidget::setCurrentIndex);
     connect(tabs, &QTabWidget::currentChanged, tabBar, &QTabBar::setCurrentIndex);
+    connect(tabs, &QTabWidget::currentChanged, tabs, [this] { tabs->updateGeometry(); });
 
     connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int) {
       if (idx < 0) return;

@@ -3,7 +3,7 @@
 
 namespace connectrow {
 
-  void checkScrollEdges(quint16 port, QListWidget* list, QWidget* row) {
+  void checkScrollEdges(quint16 port) {
   // ── Scroll edges: a row the viewport cuts dissolves instead of being sliced
   // across its outline (projects-list parity).
   {

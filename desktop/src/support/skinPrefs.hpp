@@ -3,6 +3,7 @@
 // forces, and the two hooks a skin hangs its palette and its icons on. Header-only like
 // motionPrefs.hpp; nothing here reaches disk.
 #include <QColor>
+#include <QImage>
 #include <QString>
 #include <optional>
 
@@ -18,6 +19,7 @@ namespace stencil::support {
   struct SkinBevel { QColor face, ink, title, titleB, hilight, dark, light, shadow; };
   using PaletteFn = stencil::gui::Palette (*)(bool dark);
   using IconFn = QString (*)(const QString& name);
+  using PixelFn = QImage (*)(const QString& name, bool dark, int scale);
 
   namespace detail {
     inline Skin& skinState() { static Skin s = Skin::DEFAULT; return s; }
@@ -28,6 +30,7 @@ namespace stencil::support {
     inline QColor& skinAccentState() { static QColor c; return c; }
     inline PaletteFn& paletteHookState() { static PaletteFn fn = nullptr; return fn; }
     inline IconFn& iconHookState() { static IconFn fn = nullptr; return fn; }
+    inline PixelFn& pixelHookState() { static PixelFn fn = nullptr; return fn; }
   }  // namespace detail
 
   inline Skin skin() { return detail::skinState(); }
@@ -65,5 +68,8 @@ namespace stencil::support {
   // A complete <svg> document for a name, or empty to fall through to the line-art.
   inline IconFn skinIcon() { return detail::iconHookState(); }
   inline void setSkinIcon(IconFn fn) { detail::iconHookState() = fn; }
+  // The same glyph as a raster, `scale` device pixels a cell, for a painter that cannot load SVG.
+  inline PixelFn skinPixelIcon() { return detail::pixelHookState(); }
+  inline void setSkinPixelIcon(PixelFn fn) { detail::pixelHookState() = fn; }
 
 }  // namespace stencil::support

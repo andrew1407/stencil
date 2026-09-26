@@ -5,6 +5,7 @@
 #include <QColorDialog>
 #include <QFile>
 #include <QFileDialog>
+#include <QPointer>
 #include <QTextStream>
 
 namespace stencil::support {
@@ -44,8 +45,12 @@ namespace stencil::support {
     return accepted ? dlg.selectedColor() : QColor();
   }
 
+  void veilForReveal(QWidget& w) {
+    if (!motionReduced()) w.setWindowOpacity(0.0);
+  }
+
   void revealWindow(QWidget& w, QWidget* anchor) {
-    if (motionReduced()) return;
+    if (motionReduced()) { w.setWindowOpacity(1.0); return; }
     flyWindow(w, anchor, true, nullptr);
   }
 
@@ -82,7 +87,8 @@ namespace stencil::support {
 
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() != QEvent::Show) return QObject::eventFilter(o, e);
+        // A spontaneous Show is the window server handing an open dialog back, not an open.
+        if (e->type() != QEvent::Show || e->spontaneous()) return QObject::eventFilter(o, e);
         auto* dlg = qobject_cast<QDialog*>(o);
         auto* fileDlg = qobject_cast<QFileDialog*>(dlg);
         if (!dlg || dlg->property(REVEALED_PROPERTY).toBool()
@@ -95,9 +101,41 @@ namespace stencil::support {
         return QObject::eventFilter(o, e);
       }
     };
+
+    // Which kind of gesture came last, and the icon the last action stood for, in one order.
+    struct Gesture {
+      quint64 counter = 0, keyAt = 0, pressAt = 0, iconAt = 0;
+      QPointer<QWidget> icon;
+      quint64 now() { return ++counter; }
+    };
+    Gesture& gesture() { static Gesture g; return g; }
+
+    class GestureClock : public QObject {
+     public:
+      using QObject::QObject;
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        const QEvent::Type t = e->type();
+        if (t == QEvent::Shortcut || (t == QEvent::KeyPress && e->spontaneous())) gesture().keyAt = gesture().now();
+        else if (t == QEvent::MouseButtonPress && e->spontaneous()) gesture().pressAt = gesture().now();
+        return QObject::eventFilter(o, e);
+      }
+    };
   }  // namespace
 
+  void noteActionAnchor(QWidget* icon) {
+    gesture().icon = icon;
+    gesture().iconAt = gesture().now();
+  }
+
   QRect gestureAnchorRect() {
+    Gesture& g = gesture();
+    if (g.keyAt > g.pressAt) {
+      QWidget* icon = g.iconAt > g.keyAt ? g.icon.data() : nullptr;
+      if (icon && icon->isVisible() && icon->width() > 0 && icon->height() > 0)
+        return QRect(icon->mapToGlobal(QPoint(0, 0)), icon->size());
+      return QRect();
+    }
     const QPoint p = QCursor::pos();
     return QRect(p.x() - GESTURE_ANCHOR_PX / 2, p.y() - GESTURE_ANCHOR_PX / 2,
                  GESTURE_ANCHOR_PX, GESTURE_ANCHOR_PX);
@@ -150,6 +188,7 @@ namespace stencil::support {
                                  Qt::FindDirectChildrenOnly))
       return;
     app->installEventFilter(new ModalDismissFilter(app));
+    app->installEventFilter(new GestureClock(app));
     installModalDismissNative();
   }
 

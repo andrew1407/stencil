@@ -74,30 +74,6 @@ namespace stencil::gui {
       if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
         positionChatEdge();
     }
-    // The separator belongs to the editor QMainWindow, so ITS hover and drag arrive there (a press it eats never
-    // reaches the window); the grip overlay is the window's, so positions map up. Hot through a drag (browser .panel-resizer `.dragging`).
-    if ((obj == this || obj == editor) && panelGrip && panelGrip->isVisible()) {
-      const QEvent::Type t = event->type();
-      const auto at = [&](const QPointF& p) {
-        return obj == editor ? editor->mapTo(this, p.toPoint()) : p.toPoint();
-      };
-      if (t == QEvent::HoverEnter || t == QEvent::HoverMove) {
-        const QPoint p = at(static_cast<QHoverEvent*>(event)->position());
-        panelGrip->setHot(panelGripDrag || panelGrip->geometry().contains(p));
-      } else if (t == QEvent::MouseButtonPress &&
-                 static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
-        if (panelGrip->geometry().contains(at(static_cast<QMouseEvent*>(event)->position()))) {
-          panelGripDrag = true;
-          panelGrip->setHot(true);
-        }
-      } else if (t == QEvent::MouseButtonRelease && panelGripDrag) {
-        panelGripDrag = false;
-        panelGrip->setHot(
-            panelGrip->geometry().contains(at(static_cast<QMouseEvent*>(event)->position())));
-      } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
-        if (!panelGripDrag) panelGrip->setHot(false);
-      }
-    }
     // A lost-focus window never delivers the held arrows' key-up (browser controlsBinder.js blur listener).
     if (obj == this && event->type() == QEvent::WindowDeactivate) {
       panLeftHeld = panRightHeld = panUpHeld = panDownHeld = panShiftHeld = false;

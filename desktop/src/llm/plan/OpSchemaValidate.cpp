@@ -9,10 +9,6 @@
 #include <algorithm>
 #include <cmath>
 
-// The registry rides in app.qrc; a pre-main caller can reach it before the
-// resource's own global initializer ran (same guard as opRegistry.cpp).
-static void ensureAppResources() { Q_INIT_RESOURCE(app); }
-
 namespace stencil::llm {
 
   // One object against a key map + its holder's presence rules. `skip` names keys that are neither

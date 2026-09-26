@@ -85,6 +85,9 @@ namespace {
 
 // Entry point for the desktop app — the counterpart of browser/js/index.js.
 int main(int argc, char** argv) {
+  // One native child must not turn its siblings native: each became its own macOS view, and a
+  // desktop switch repainted them one by one (the blink).
+  QApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
   StencilApplication app(argc, argv);
   app.setApplicationName("Stencil");
   app.setOrganizationName("Stencil");

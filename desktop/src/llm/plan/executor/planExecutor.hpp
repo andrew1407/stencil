@@ -50,7 +50,7 @@ namespace stencil::llm {
     // history, which a scripted edit must never do to the user's stack.
     virtual void commitLayoutLines(const core::Lines& lines) { setLayoutLines(lines); }
     // The checkpoint a .stc `undo` reverts to; false = this surface keeps none.
-    virtual bool captureEdit(EditState& out) const { return false; }
+    virtual bool captureEdit(EditState& out) const { Q_UNUSED(out); return false; }
     // Puts a checkpoint back: crop, filter and lines together.
     void restoreEdit(const EditState& state);
     // What a formula's names resolve to here: the page this target reports, plus its pixels

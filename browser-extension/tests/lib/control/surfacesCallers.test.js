@@ -21,7 +21,8 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     ['../../../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
     // The Main-theme picker drives its own open/close but borrows the SAME caret point showMenu aims
     // at: its trigger is a full-width field, so the centre put the motes in the middle of the label.
-    ['../../../src/options/appearance.js', 'surfaceIn(menu, menuDustPoint(trigger));', 'surfaceOut(menu, menuDustPoint(trigger));'],
+    ['../../../src/options/appearance.js', 'const caret = menuDustPoint(trigger); growFrom(menu, caret); surfaceIn(menu, caret);',
+                                  'surfaceOut(menu, menuDustPoint(trigger));'],
     // The chat composer's "…" — the last one still hard-cutting on both edges.
     ['../../../src/popup/assistant/composerMenu.js', 'surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })',
                                   'surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS })'],

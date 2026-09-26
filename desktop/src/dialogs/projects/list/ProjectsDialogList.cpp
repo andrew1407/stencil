@@ -18,7 +18,7 @@
 #include "../../../support/motion/ShimmerOverlay.hpp"
 namespace stencil::gui {
 
-  void ProjectsDialog::buildProjectList(QVBoxLayout* layout) {
+  void ProjectsDialog::buildProjectList() {
     auto* reList = new ReorderableListWidget(this);
     list = reList;
     // Rows are delegate-painted (no grip), so drags are view-initiated.

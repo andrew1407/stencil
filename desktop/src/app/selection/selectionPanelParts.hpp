@@ -3,6 +3,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QTableWidget>
+#include <QTabWidget>
 #include <QModelIndex>
 #include <QPainter>
 #include <QPen>
@@ -35,6 +36,21 @@ namespace stencil::gui {
     t->verticalHeader()->setDefaultSectionSize(t->fontMetrics().height() + 13);
     t->updateGeometry();
   }
+
+  // As tall as the OPEN page: a QTabWidget sizes to its tallest one, which left the card slack.
+  class OpenPageTabs : public QTabWidget {
+   public:
+    using QTabWidget::QTabWidget;
+    QSize sizeHint() const override {
+      const QWidget* w = currentWidget();
+      return w ? QSize(QTabWidget::sizeHint().width(), w->sizeHint().height()) : QTabWidget::sizeHint();
+    }
+    QSize minimumSizeHint() const override {
+      const QWidget* w = currentWidget();
+      return w ? QSize(QTabWidget::minimumSizeHint().width(), w->minimumSizeHint().height())
+               : QTabWidget::minimumSizeHint();
+    }
+  };
 
   // A table no taller than its rows: a scroll area's own minimum is its scrollbars' length,
   // which outgrew the one-row empty message and left a blank band under it.

@@ -2001,6 +2001,21 @@
           }
         }
       ]
+    },
+    "chat-settings": {
+      "action": "the assistant's settings",
+      "mode": "hold",
+      "note": "the cog beside the bubble turns one tooth, like the settings gear",
+      "parts": [
+        {
+          "hook": "ic-cog",
+          "origin": [16.6, 17.6],
+          "durationMs": 300,
+          "to": {
+            "rotate": 45
+          }
+        }
+      ]
     }
   },
   "extras": {

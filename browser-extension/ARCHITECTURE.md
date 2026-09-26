@@ -115,6 +115,8 @@ classDiagram
 | Injected function | `scanPageForImages`, `mountDropZones`, `mountStencilModal`, the probe in `registrars.js` | Handed to `chrome.scripting.executeScript({ func })`; each closes over nothing and carries its own mirror of `MSG`. |
 | Table-driven validator | `llm/op/schema.js` `createSchema` + `llm/op/validate.js` `OP_REGISTRY` / `EXT_VALIDATORS` | The op registry is the schema; per-op code adds only listing-bound rules. |
 | Double-click reset | `installDblReset` (`lib/control/dblReset.js`) on the Options page and the popup | The editor's twin: a select or checkbox goes back to its default through `change`; Options still saves on Save. The LLM fields carry `data-default` stamped by `options/llm.js` |
+| Anchored entrance | `growFrom` (`lib/control/dropdownMenu.js`, the ported `placeMenu`), the Options accent picker and the logo's colour menu | The editor's twin: a list's slide entrance grows out of the point its particle cloud flies from — the caret, or the logo's centre |
+| Alt peek | `wireAltPeek` (`lib/tip/altPeek.js`) over the ported `createModalOpenGesture` (`lib/tip/popover.js`), on every enhanced select, the Options accent picker and the logo's colour menu (`lib/accent/logoAccent.js`) | The editor's twin: Alt+hover peeks the list; Alt released over it lingers until the pointer leaves, released elsewhere closes it; a click-opened list ignores Alt; the logo's colour menu, released on a colour, picks it and lingers (`wireReleasePick`) |
 
 ## Design
 

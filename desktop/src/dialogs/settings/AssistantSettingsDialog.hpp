@@ -18,6 +18,9 @@ namespace stencil::gui {
                                      QWidget* parent = nullptr);
     Settings result() const;
 
+   protected:
+    void showEvent(QShowEvent* event) override;
+
    private:
     Settings base;  // every field this dialog doesn't edit rides through
     LlmSettingsForm* form = nullptr;

@@ -6,7 +6,7 @@
 import { icon } from '../icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
 import { attachMenuScrollbar } from './menuScrollbar.js';
-
+import { wireAltPeek } from '../tip/altPeek.js';
 
 // The browser's base.js rowMatches.
 const rowMatches = (text, query) => {
@@ -196,6 +196,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
     restorePreview();
+    peek.notifyClosed();
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
@@ -223,5 +224,6 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     e.preventDefault();
     menu.hidden ? open() : close();
   });
+  const peek = wireAltPeek(wrap, menu, { open, close, enabled: () => !selectEl.disabled });
   sync();
 }

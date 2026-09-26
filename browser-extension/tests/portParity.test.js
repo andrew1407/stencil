@@ -57,6 +57,8 @@ const MANIFEST = [
   ['stagePaint', '../../browser/js/ui/logo/stagePaint.js', '../src/lib/logo/stagePaint.js'],
   ['logoPointer', '../../browser/js/ui/logo/pointer.js', '../src/lib/logo/pointer.js'],
   ['toastGlow', '../../browser/js/ui/dust/toastGlow.js', '../src/lib/logo/toastGlow.js'],
+  // A dropdown's Alt-hover peek, riding the mini window's gesture machine below.
+  ['altPeek', '../../browser/js/ui/tip/altPeek.js', '../src/lib/tip/altPeek.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -93,7 +95,9 @@ for (const [name, browserPath, extPath] of MANIFEST) {
 // A module that ports only PART of a browser module lists functions instead: each must match its
 // browser original verbatim, mid-body comments included. A wasm-routed original keeps a `JS` suffix.
 const FUNCTIONS = [
-  ['popover', '../../browser/js/ui/tip/popover.js', '../src/lib/tip/popover.js', ['popoverPosition']],
+  ['popover', '../../browser/js/ui/tip/popover.js', '../src/lib/tip/popover.js', ['popoverPosition',
+    'DOUBLE_CLICK_MS', 'LONG_PRESS_MS', 'PRESS_SLOP_PX', 'LINGER_CLOSE_MS', 'glideRegistry',
+    'createModalOpenGesture']],
   ['cropGeometry', '../../browser/js/core/parse/cropGeometry.js', '../src/lib/image/cropGeometry.js',
     ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
      'moveCropClamped', 'scaleCropCentered']],

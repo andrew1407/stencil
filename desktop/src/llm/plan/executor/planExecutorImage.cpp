@@ -6,6 +6,8 @@ namespace stencil::llm::exec {
 
   bool applyImageAction(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
                        QStringList* notes, bool* handled, QString* err) {
+    Q_UNUSED(inVariant);   // the shared applyXAction shape; image ops read neither
+    Q_UNUSED(notes);
     *handled = true;
     switch (a.op) {
         case OpKind::CROP: {

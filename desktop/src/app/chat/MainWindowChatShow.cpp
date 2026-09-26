@@ -83,6 +83,7 @@ namespace stencil::gui {
     if (!tearingDown && animate && chatDock->isFloating() && show != wasVisible) {
       QWidget* icon = buttonForAction(actChat);
       if (show) {
+        support::veilForReveal(*chatDock);
         chatDock->show();
         support::revealWindow(*chatDock, icon);
       } else {

@@ -3,7 +3,7 @@
 
 namespace serverauth {
 
-  void checkInvites(MockServer& mock, MockServer& mock2) {
+  void checkInvites(MockServer& mock) {
   // ── invite links: "<url>#token=<tok>" feeds the credential flow ──
   std::printf("invite links:\n");
   {

@@ -140,4 +140,10 @@ namespace stencil::support {
     return isDustAllowed() && QGuiApplication::platformName() != QLatin1String("offscreen");
   }
 
+  // 'slide' in force for a popup's grow-from-its-origin entrance, on the same platform terms.
+  inline bool isSlideMotionOk() {
+    return motionMode() == MotionMode::SLIDE && !motionReduced() &&
+           QGuiApplication::platformName() != QLatin1String("offscreen");
+  }
+
 }  // namespace stencil::support

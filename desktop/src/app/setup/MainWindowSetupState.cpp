@@ -111,9 +111,12 @@ namespace stencil::gui {
     // Follow the OS scheme only in "system" mode; colorSchemeChanged arrived in Qt 6.5, older Qt
     // applies it at startup only.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    // macOS re-announces the scheme as the app comes back to the front; only a real flip re-themes.
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this,
             [this](Qt::ColorScheme) {
-              if (settings.themeMode == "system") applyTheme();
+              if (settings.themeMode == "system" &&
+                  support::forcedDark().value_or(resolveDark(settings.themeMode)) != paintedDark)
+                applyTheme();
             });
 #endif
   }

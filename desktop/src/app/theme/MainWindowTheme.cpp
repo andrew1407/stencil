@@ -173,8 +173,10 @@ namespace stencil::gui {
     refreshDropHint();
     restyleImageSizeInfo();
     applyProjectNameStyle(false);
-    // Settings' live accent/theme rows restyle a window its modal backdrop froze on open.
-    support::ModalBackdrop::retakeOn(this, wipe ? QList<QWidget*>{wipe} : QList<QWidget*>{});
+    // Settings' live accent/theme rows restyle a window its modal backdrop froze on open; with
+    // nothing moved, re-photographing it only made the blurred backdrop blink.
+    if (restyleApp)
+      support::ModalBackdrop::retakeOn(this, wipe ? QList<QWidget*>{wipe} : QList<QWidget*>{});
 
     if (wipe) wipe->start();
   }

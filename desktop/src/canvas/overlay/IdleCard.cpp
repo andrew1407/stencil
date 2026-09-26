@@ -1,10 +1,12 @@
 #include "CanvasWidget.hpp"
 
 #include "theme.hpp"
+#include "../../support/skinPrefs.hpp"
 #include <algorithm>
 #include <cmath>
 #include <QEasingCurve>
 #include <QFontMetricsF>
+#include <QImage>
 #include <QLinearGradient>
 #include <QPainter>
 #include <QPainterPath>
@@ -13,6 +15,42 @@
 
 // The empty canvas: page fill + the "＋ Blank image" card (browser .idle-create-btn, layout.css).
 namespace stencil::gui {
+
+  namespace {
+    // The skin's raised button (browser css/webcore/chrome.css .idle-create-btn, padding 10px 18px):
+    // the face, a two-step bevel, square corners and the pixel picture; no dashes, lift or sweep.
+    QRectF paintSkinCard(QPainter& p, const QRectF& page, const QString& label, const QFont& font,
+                         int iconPx, qreal gap) {
+      const QFontMetricsF fm(font);
+      QRectF box(0, 0, std::max<qreal>(iconPx, fm.horizontalAdvance(label)) + 36,
+                 iconPx + gap + fm.height() + 20);
+      box.moveCenter(page.center());
+      const QRect r = box.toAlignedRect();
+      const support::SkinBevel b = support::skinBevel();
+      const auto band = [&p](const QRect& at, const QColor& lit, const QColor& shade) {
+        p.fillRect(QRect(at.left(), at.top(), at.width(), 1), lit);
+        p.fillRect(QRect(at.left(), at.top(), 1, at.height()), lit);
+        p.fillRect(QRect(at.left(), at.bottom(), at.width(), 1), shade);
+        p.fillRect(QRect(at.right(), at.top(), 1, at.height()), shade);
+      };
+      p.save();
+      p.setRenderHint(QPainter::Antialiasing, false);
+      p.fillRect(r, b.face);
+      band(r, b.hilight, b.dark);
+      band(r.adjusted(1, 1, -1, -1), b.light, b.shadow);
+      const qreal dpr = p.device() ? p.device()->devicePixelRatioF() : 1.0;
+      const int perCell = std::max(1, int(std::lround(iconPx / 16.0 * dpr)));
+      const support::PixelFn pixels = support::skinPixelIcon();
+      QImage glyph = pixels ? pixels(QStringLiteral("image"), support::skinDark(), perCell) : QImage();
+      const QRectF icon(box.center().x() - iconPx / 2.0, box.top() + 10, iconPx, iconPx);
+      if (!glyph.isNull()) p.drawImage(icon, glyph);
+      p.setFont(font);
+      p.setPen(b.ink);
+      p.drawText(QRectF(box.left(), icon.bottom() + gap, box.width(), fm.height()), Qt::AlignCenter, label);
+      p.restore();
+      return box;
+    }
+  }  // namespace
 
   void CanvasWidget::paintIdleCard(QPainter& p, const Palette& pal) {
     p.fillRect(rect(), pal.bgPage);
@@ -35,6 +73,10 @@ namespace stencil::gui {
     box.setWidth(std::min(box.width(), wr.width() - 32.0));
     box.setHeight(std::min(box.height(), wr.height() - 32.0));
     box.moveCenter(wr.center());
+    if (support::isWebcore()) {
+      idleCardRect = paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP);
+      return;
+    }
 
     QColor accent = accentPrimary(accentKey);
     if (!accent.isValid()) accent = pal.textMuted;

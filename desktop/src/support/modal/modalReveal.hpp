@@ -4,6 +4,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QString>
+#include <QWidget>
 
 #include "motionPrefs.hpp"   // motionReduced() / isDustAllowed() / isDustMotionOk()
 
@@ -12,6 +13,11 @@ class QWidget;
 
 // The Qt half of the browser's `modalFromIcon`/`modalToIcon` (ui/base.js).
 namespace stencil::support {
+
+  // The window a dialog sits over (its parent's top level); null for an unparented one.
+  inline QWidget* dialogHost(const QWidget* dlg) {
+    return dlg && dlg->parentWidget() ? dlg->parentWidget()->window() : nullptr;
+  }
 
   // Flush pending layout, scrollbar decisions included. Exposed for the GUI test.
   void settleLayout(QWidget& w);
@@ -28,10 +34,15 @@ namespace stencil::support {
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect,
                     std::function<QRect(bool)> closeRectFor);
 
-  // A box around the user's last press — the origin for a dialog nobody anchored.
+  // The origin for a dialog nobody anchored: a box around the last press; after a shortcut, the
+  // icon it stands for, or invalid (the flight falls from above) when that is folded away.
   QRect gestureAnchorRect();
+  // The icon an action about to run stands for (null when it has no visible one).
+  void noteActionAnchor(QWidget* icon);
 
   // The same flight for a non-modal window: dismissWindow() hides it and flies a snapshot back.
+  // veilForReveal() goes BEFORE the window maps: shown first, it stood whole for a frame.
+  void veilForReveal(QWidget& win);
   void revealWindow(QWidget& win, QWidget* anchor);
   void dismissWindow(QWidget& win, QWidget* anchor);
 

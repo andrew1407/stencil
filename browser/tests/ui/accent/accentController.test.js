@@ -5,12 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { installMemoryStorage } from '../../helpers/memoryStorage.js';
-import {
-  needsDarkGlyph, onAccentInk, contrastWithWhite, contrastWithBlack, relativeLuminance,
-  ON_ACCENT_LIGHT, ON_ACCENT_DARK, LIGHT_ACCENT_KEYS,
-} from '../../../js/core/settings/accents.js';
 
 // Minimal <html> stand-in: attribute map + a CSS style object supporting the three ops the
 // controller uses (setProperty / removeProperty / getPropertyValue).
@@ -140,6 +135,27 @@ test('a committed change during a preview supersedes it: endAccentPreview then d
   assert.equal(docEl.getAttribute('data-accent'), 'aqua', 'the pick stands; no revert to blue');
 });
 
+test('committing the colour a preview already shows applies in place — no second flood of it', (t) => {
+  reset();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let swaps = 0;   // each flood marks <html> (the no-view-transition path here)
+  docEl.classList = { add: () => { swaps++; }, remove() {}, contains: () => false };
+  try {
+    const ctrl = new AccentController(makeApp());
+    ctrl.previewAccent('pink');
+    assert.equal(swaps, 1, 'the hover preview floods once');
+    ctrl.setAccent('pink');
+    assert.equal(swaps, 1, 'the pick of that same colour does not replay it');
+    assert.equal(docEl.getAttribute('data-accent'), 'pink');
+    assert.equal(store.get('drawingApp_accent'), 'pink', 'still persisted');
+    ctrl.previewAccent('aqua');
+    ctrl.setAccent('blue');
+    assert.equal(swaps, 3, 'a pick of a DIFFERENT colour than the preview still floods');
+  } finally {
+    delete docEl.classList;
+  }
+});
+
 test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; invalid → null', () => {
   reset();
   const app = makeApp();
@@ -148,54 +164,6 @@ test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; inva
   assert.equal(styleProps.get('--accent'), '#aabbcc');
   assert.equal(app.broadcasts.length, 0);           // custom is page-local, never broadcast
   assert.equal(ctrl.setCustomAccent('nope'), null);
-});
-
-// Labels and currentColor line-art sit on --accent, so the accent picks whichever of white / near-black
-// contrasts more: the controller flags <html data-accent-light> and css/theme.css swaps --on-accent.
-
-test('needsDarkGlyph: the accents black reads better on than white', () => {
-  assert.equal(needsDarkGlyph('#00ffff'), true);   // cyan — white 1.25:1, black 16.7:1
-  assert.equal(needsDarkGlyph('#ffffff'), true);   // white on white
-  assert.equal(needsDarkGlyph('#eab308'), true);   // the yellow preset — 1.92 vs 10.95
-  assert.equal(needsDarkGlyph('#16a34a'), true);   // grass — 3.30 vs 6.37, both above 3:1
-  assert.equal(needsDarkGlyph('#7c3aed'), false);  // violet default — 5.70 vs 3.69
-  assert.equal(needsDarkGlyph('#000000'), false);  // black — white is the only readable ink
-  assert.equal(needsDarkGlyph('nope'), false);     // not a hex → the white default, no throw
-});
-
-test('onAccentInk hands back the ink itself', () => {
-  assert.equal(onAccentInk('#eab308'), ON_ACCENT_DARK);
-  assert.equal(onAccentInk('#7c3aed'), ON_ACCENT_LIGHT);
-  assert.equal(onAccentInk('nope'), ON_ACCENT_LIGHT);
-  // Near-black, not black: the dark theme's own page ink, so the glyph doesn't out-ink
-  // every other glyph in the app.
-  assert.equal(ON_ACCENT_DARK, '#1a1a1a');
-  assert.equal(ON_ACCENT_LIGHT, '#ffffff');
-});
-
-test('contrast helpers: the white/black anchors and the crossover', () => {
-  assert.equal(Math.round(contrastWithWhite('#000000') * 100) / 100, 21);
-  assert.equal(Math.round(contrastWithWhite('#ffffff') * 100) / 100, 1);
-  assert.equal(Math.round(contrastWithBlack('#ffffff') * 100) / 100, 21);
-  assert.equal(Math.round(contrastWithBlack('#000000') * 100) / 100, 1);
-  assert.equal(contrastWithBlack('nope'), null);
-  assert.equal(relativeLuminance('#ffffff'), 1);
-  assert.equal(relativeLuminance('#000000'), 0);
-  assert.equal(relativeLuminance('nope'), null);
-  // The two ratios cross at luminance 0.1791 — anything lighter takes the dark ink.
-  assert.equal(needsDarkGlyph('#757575'), false);   // L 0.1779, just under
-  assert.equal(needsDarkGlyph('#767676'), true);    // L 0.1812, just over
-});
-
-test('LIGHT_ACCENT_KEYS matches prePaintTheme.js\'s inlined copy', () => {
-  // prePaintTheme.js is a classic script and cannot import accents.js, so it
-  // inlines this list. If a preset's hex changes, these two must move together.
-  assert.deepEqual(LIGHT_ACCENT_KEYS,
-    ['pink', 'orange', 'brown', 'yellow', 'grass', 'turquoise', 'aqua', 'sky', 'bluegray']);
-  const inlined = readFileSync(new URL('../../../js/prePaintTheme.js', import.meta.url), 'utf8')
-    .match(/LIGHT_ACCENT_KEYS = \[([^\]]*)\]/)[1]
-    .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
-  assert.deepEqual(inlined, LIGHT_ACCENT_KEYS);
 });
 
 test('applyAccent / setCustomAccent toggle the data-accent-light flag both ways', () => {

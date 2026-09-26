@@ -1,5 +1,8 @@
 
-      QMainWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
+      /* The editor is the browser's .container; the window around it (the page the chat docks
+         against) keeps --bg-page. */
+      QMainWindow { background: %BG_CONTAINER%; }
+      QMainWindow#stencilWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
       /* Dock-area resize separators. `width` sizes the VERTICAL bars (left/right dock
          resize — the points panel and a side-docked chat keep their drag handle) and
          `height` the HORIZONTAL ones: 1px, effectively removing the draggable strip
@@ -9,10 +12,10 @@
          grip over the canvas ↔ panel separator (a slim bar that tints accent and
          grows under the cursor, ANIMATED — QSS cannot animate) is painted by
          support/dockGrip.hpp, positioned from MainWindow. */
-      QMainWindow::separator { background: %BG_PAGE%; width: %SEP_W%px; height: 1px; }
+      QMainWindow::separator { background: %BG_CONTAINER%; width: %SEP_W%px; height: 1px; }
       /* The window's own separator is the chat's: the browser's 10px of page between the chat
          panel and the editor (chat/touch.css body padding); the resizer is INSIDE the chat's edge. */
-      QMainWindow#stencilWindow::separator { width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
+      QMainWindow#stencilWindow::separator { background: %BG_PAGE%; width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
 
       /* ── Toolbars: gradient surface, hairline divider, rounded icon buttons ── */
       QToolBar {
@@ -520,9 +523,15 @@
          the browser's --bg-coord-panel in both themes. */
       QWidget#selPanelTitle {
         background: %BG_CONTROLS%;
-        border-bottom: 1px solid %BORDER%;
+        border-top-left-radius: 5px; border-top-right-radius: 5px;
       }
-      QWidget#selPanelBody { background: %BG_CONTROLS%; }
+      /* The card below the header hugs its rows (browser .coordinates-panel, 5px radius); the
+         body under it is bare page, as the browser's container shows below the panel. */
+      QWidget#selPanelBody { background: transparent; }
+      QFrame#selPanelCard {
+        background: %BG_CONTROLS%;
+        border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;
+      }
       QToolButton#panelCollapseBtn {
         background: transparent; border: 1px solid %BORDER%; border-radius: 8px; padding: 0;
       }
@@ -589,7 +598,10 @@
       /* One size across the whole panel — cells, header and the Points | Lines strip, so the
          header and the tabs never fall back to the system font and stack two type scales. */
       QTableWidget#pointsTable, QTableWidget#linesList {
-        gridline-color: %BORDER%;
+        /* Browser .coordinates-table: a square box on its own ground, a hairline round each cell. */
+        background: %BG_COORD_TABLE%; alternate-background-color: %BG_COORD_EVEN%;
+        border: 1px solid %BORDER_COORD%; border-radius: 0;
+        gridline-color: %BORDER_COORD%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
         selection-color: %TEXT%;
         font-size: 13px;
@@ -598,7 +610,13 @@
         border-right: 1px solid %BORDER%; border-bottom: 1px solid %BORDER%;
         padding: 6px 5px; font-weight: bold; font-size: 13px;
       }
-      QTabBar#selectionTabBar::tab { font-size: 13px; }
+      /* Browser .coord-tab: bold 12px in the muted ink, the open one lit with the accent rule. */
+      QTabBar#selectionTabBar::tab {
+        font-size: 12px; font-weight: bold; color: %MUTED%; padding: 3px 8px 4px;
+        border-bottom: 2px solid transparent;
+      }
+      QTabBar#selectionTabBar::tab:hover { color: %TEXT_COORD_H3%; }
+      QTabBar#selectionTabBar::tab:selected { color: %TEXT_COORD_H3%; border-bottom: 2px solid %ACCENT%; }
       /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
       QTableWidget#pointsTable::item, QTableWidget#linesList::item { padding: 6px 5px; }
       /* Kill BOTH selection fills (row panel via selection-background-color above + the per-item
@@ -725,6 +743,9 @@
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser
          .confirm-choose-select): the shared combo chrome, full width, 8px radius. */
       QComboBox#modalChooseSelect { padding: 7px 10px; border-radius: 8px; font-size: 13px; }
+      /* The Servers list's filter is sized to its heading, not to a form field (browser
+         .connect-section-row .cs-dd .accent-dd-trigger: 12px text, 6px radius). */
+      QComboBox#connKindFilter { font-size: 12px; border-radius: 6px; min-height: 14px; }
       QComboBox#modalChooseSelect:hover, QComboBox#modalChooseSelect:focus { padding: 6px 9px; }
       /* The Open In… dialog's Telegram fallback (browser #open-in-fallback-cmds): the two
          bot commands as selectable code. */

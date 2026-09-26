@@ -86,15 +86,20 @@ export class AccentController {
 
 // Paint + persist the accent in this tab; returns the resolved key.
   applyAccent(key, originEl = null) {
-    this.#preview = null;
     const next = isAccent(key) ? key : DEFAULT_ACCENT;
-    themeSwap(() => {
-      document.documentElement.style.removeProperty('--accent'); // drop any custom (temp) override
-      document.documentElement.setAttribute('data-accent', next);
+    const el = document.documentElement;
+    // A hover preview already painting this colour is committed in place, not flooded again.
+    const shown = !!this.#preview && el.getAttribute('data-accent') === next && !el.style.getPropertyValue('--accent');
+    this.#preview = null;
+    const paint = () => {
+      el.style.removeProperty('--accent'); // drop any custom (temp) override
+      el.setAttribute('data-accent', next);
       try { localStorage.setItem(ACCENT_STORAGE_KEY, next); } catch { /* storage blocked — accent still applies this session, just won't persist */ }
       applyAccentFavicon(next);
       this.applyGlyphContrast(accentHex(next));
-    }, () => originOf(originEl) || accentOrigin());
+    };
+    if (shown) paint();
+    else themeSwap(paint, () => originOf(originEl) || accentOrigin());
     return next;
   }
 

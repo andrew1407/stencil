@@ -163,10 +163,21 @@ test('the Open Image window collapses into the toolbar control when its outcome 
   shell.close(openImageAnchorRect());
   assert.deepEqual(readShell(), expectedVars(openBtn.getBoundingClientRect()));
 
-  // Cancel names no target, the card is still gone — the canvas centre is the fallback (rule 1).
+  // Cancel names no target and the card went while it was open — the canvas centre is the
+  // fallback (rule 1).
+  const cardRect = rectOf({ left: 300, top: 250, width: 160, height: 120 });
+  blankCard.getBoundingClientRect = cardRect;
   shell.open(blankCard);
+  blankCard.getBoundingClientRect = GONE;
   shell.close();
   assert.deepEqual(readShell(), expectedVars(CANVAS_HOME));
+
+  // No control shown at open (folded away with the rows): it fell from above, and rises back.
+  shell.open(blankCard);
+  const fellFrom = readShell();
+  shell.close();
+  assert.deepEqual(readShell(), fellFrom);
+  assert.equal(fellFrom.sx, '0.4', 'the from-above flight, not an icon-sized one');
 });
 
 // Both anchors are read BEFORE the sweep that gets the toolbar there: the aim is the place the
@@ -195,4 +206,15 @@ test('an anchor is where the control lands, not where the toolbar still has it',
   actions.style.display = '';
   openBtn.getBoundingClientRect = rectOf(TOOLBAR);
   loadBtn.getBoundingClientRect = GONE;
+});
+
+// Folded away with the tool rows, a control has no place to pour into: a confirm it raised goes
+// back where it came from (from above after a shortcut) instead of into the hidden row.
+test('a control folded away with the rows gives no close target', () => {
+  const folded = doc.register('clear-storage-folded', createStubElement('button', {
+    getBoundingClientRect: rectOf(TOOLBAR),
+    closest: (sel) => (sel === '#controls-body.hidden' ? {} : null),
+  }));
+  assert.ok(folded);
+  assert.equal(emptiedControlRect('clear-storage-folded'), null);
 });

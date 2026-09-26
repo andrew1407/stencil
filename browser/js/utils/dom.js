@@ -89,6 +89,9 @@ export const isTypingTarget = t => {
   return t.isContentEditable === true;
 };
 
+// The focused element takes typed keys right now.
+export const isTypingInFocus = () => isTypingTarget(document.activeElement);
+
 // Ctrl+C with a non-empty text selection copies the TEXT, not the image.
 export const hasTextSelection = () => {
   if (typeof window === 'undefined' || !window.getSelection) return false;

@@ -53,10 +53,10 @@ int main(int argc, char** argv) {
   if (!list) return 1;
 
   QWidget* row = connectrow::checkRowLayout(longUrl, list);
-  connectrow::checkRowMotion(server, longUrl, shortUrl, mgr, dlg, list, row);
-  connectrow::checkScrollEdges(port, list, row);
-  connectrow::checkConnectGestures(server, port, list, row);
-  connectrow::checkToastAndHint(server, port, row);
+  connectrow::checkRowMotion(longUrl, shortUrl, mgr, dlg, list, row);
+  connectrow::checkScrollEdges(port);
+  connectrow::checkConnectGestures(port);
+  connectrow::checkToastAndHint(port);
 
   std::printf("%s\n", failures ? "FAILED" : "OK");
   return failures ? 1 : 0;

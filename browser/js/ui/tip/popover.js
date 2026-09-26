@@ -2,7 +2,7 @@
 // right-click and (touch) long press with a small version of it pinned next to the icon
 // (wireModalShell adds `.modal-popover`). Timers are injected for DOM-free tests.
 
-import { isTypingTarget } from '../../utils.js';
+import { isTypingInFocus } from '../../utils.js';
 
 export const DOUBLE_CLICK_MS = 250;
 export const LONG_PRESS_MS = 500;
@@ -32,6 +32,8 @@ export const createModalOpenGesture = ({
   isPopoverOpen = () => false,
   isPeekEngaged = () => false,
   holdLinger = () => false,
+  // An opener inside this window (a dropdown in it): its peek leaves the window open.
+  holds = () => false,
   delay = DOUBLE_CLICK_MS,
   // Open on the first click: the wait protects a full modal from flashing under a dblclick,
   // but a panel whose popover gesture merely re-shapes the same window (the chat) has nothing to flash.
@@ -59,7 +61,9 @@ export const createModalOpenGesture = ({
     if (isPopoverOpen()) closePopover();
   };
   // An Alt glide on another icon closes this window only when it is popover-shaped.
-  const handle = { closeFromGlide: () => { if (mode !== null) closeOwn(); } };
+  const handle = {
+    closeFromGlide: (origin) => { if (mode !== null && !(origin && holds(origin))) closeOwn(); },
+  };
   glideRegistry.add(handle);
   return {
     click() {
@@ -91,10 +95,10 @@ export const createModalOpenGesture = ({
       return true;
     },
     // Leaves this machine's own open window alone and closes every other icon's mini window.
-    altHover() {
+    altHover(origin = null) {
       cancelClick();
       if (isPopoverOpen()) return;
-      for (const h of glideRegistry) if (h !== handle) h.closeFromGlide();
+      for (const h of glideRegistry) if (h !== handle) h.closeFromGlide(origin);
       mode = 'peek';
       openPopover();
     },
@@ -141,11 +145,11 @@ export const createModalOpenGesture = ({
 
 // DOM wiring for the machine above (pen counts as touch — it long-presses the same way).
 export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover, isPopoverOpen,
-                                             isPeekEngaged, holdLinger, eagerClick }) => {
+                                             isPeekEngaged, holdLinger, holds, eagerClick }) => {
   // Explicit list: an option added to createModalOpenGesture must be added here too or it
   // is silently dropped (tests/popover.test.js pins it).
   const g = createModalOpenGesture({ openFull, openPopover, closePopover, isPopoverOpen,
-                                     isPeekEngaged, holdLinger, eagerClick });
+                                     isPeekEngaged, holdLinger, holds, eagerClick });
   // A disabled icon opens nothing. Checked live: disabled controls keep pointer events on
   // (layout/buttonStates.css — the disabled-reason tooltip needs the hover).
   const enabled = () => !btn.disabled;
@@ -162,7 +166,7 @@ export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover
   btn.addEventListener('mouseenter', (e) => { if (e.altKey && enabled()) g.altHover(); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Alt' || !btn.matches(':hover') || !enabled()) return;
-    if (isTypingTarget(document.activeElement)) return;
+    if (isTypingInFocus()) return;
     e.preventDefault();
     g.altHover();
   });

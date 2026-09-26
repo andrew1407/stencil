@@ -7,13 +7,18 @@ namespace stencil::support {
 
   void flyWindow(QWidget& w, QWidget* anchor, bool opening, std::function<void()> after) {
     QPointer<QWidget> guard(&w);
+    // A declined flight must not leave a window veiled by veilForReveal.
+    const auto land = [guard, opening, &after] {
+      if (guard && opening) guard->setWindowOpacity(1.0);
+      if (after) after();
+    };
     QWidget* host = anchor ? anchor->window() : nullptr;
     const QRect target(w.mapToGlobal(QPoint(0, 0)), w.size());
     settleLayout(w);
     const QPixmap shot = w.grab();
-    if (!host || !target.isValid() || shot.isNull()) { if (after) after(); return; }
-    const QRect icon = originRect(anchor, target);
-    if (icon == target) { if (after) after(); return; }
+    if (!host || !target.isValid() || shot.isNull()) return land();
+    const QRect icon = originRect(anchor, target, QRect(), host);
+    if (icon == target) return land();
     const QRect from = opening ? icon : target;
     const QRect to = opening ? target : icon;
     if (opening) w.setWindowOpacity(0.0);
@@ -40,11 +45,12 @@ namespace stencil::support {
                 std::function<QRect(bool)> closeRectFor = {})
         : QObject(dlg), dlg(dlg), anchor(std::move(anchor)),
           anchorRect(anchorRect), closeRect(closeRect), closeRectFor(std::move(closeRectFor)),
-          shot(std::move(shot)) {}
+          shot(std::move(shot)), fromAbove(!this->anchor && !anchorRect.isValid()) {}
 
    protected:
     bool eventFilter(QObject* watched, QEvent* event) override {
-      if (event->type() == QEvent::Hide && watched == dlg && !flown) {
+      // Spontaneous = the window server hid it (a desktop or app switch), not a close.
+      if (event->type() == QEvent::Hide && !event->spontaneous() && watched == dlg && !flown) {
         flown = true;
         fly();
       }
@@ -67,8 +73,9 @@ namespace stencil::support {
       QRect outcome = closeRectFor ? closeRectFor(dlg->result() == QDialog::Accepted) : QRect();
       if (!outcome.isValid()) outcome = closeRect;
       QRect to = outcome.isValid() ? outcome
-                                   : originRect(anchor.data(), target, anchorRect);
-      if (!outcome.isValid() && !anchorOnScreen(anchor.data(), anchorRect)) {
+                                   : originRect(anchor.data(), target, anchorRect, host);
+      // An opener gone by close time pours into the canvas; one that fell from above rises back.
+      if (!outcome.isValid() && !fromAbove && !anchorOnScreen(anchor.data(), anchorRect)) {
         const QRect home = canvasHomeRect(host);
         if (home.isValid()) to = home;
       }
@@ -86,6 +93,7 @@ namespace stencil::support {
     QRect closeRect;
     std::function<QRect(bool)> closeRectFor;
     std::shared_ptr<QPixmap> shot;
+    bool fromAbove = false;   // no icon and no rect at open: the flight fell from the window's top
     bool flown = false;
   };
 
@@ -129,7 +137,7 @@ namespace stencil::support {
         const QPixmap shot = guard->grab();
         *shotWhileOpen = shot;
         if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
-        const QRect from = originRect(anchorGuard.data(), target, anchorRect);
+        const QRect from = originRect(anchorGuard.data(), target, anchorRect, host);
         if (from == target) { restore(); return; }
         if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
         QLabel* ghost = makeGhost(host, shot, from, target);

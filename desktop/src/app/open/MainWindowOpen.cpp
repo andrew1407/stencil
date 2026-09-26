@@ -194,7 +194,7 @@ namespace stencil::gui {
     if (cropToPage)
       pendingCrop = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
     else
-      pendingCrop = {QuickCropOpts::Mode::NONE, false, QString()};
+      pendingCrop = QuickCropOpts::none();
     pendingProvSource = provSource;
     onLaunchImageLoaded(image, localPath);
   }

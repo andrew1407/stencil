@@ -88,6 +88,7 @@ namespace stencil::gui {
                        &ConnectDialog::rebuildList);
 
     rebuildList();
+    setMaximumHeight(modalHeightCap(this));   // the rows grow it to the browser's cap, then scroll
     // The caret lands in the host field, as the browser window does (InfoDialog parity).
     QTimer::singleShot(0, urlEdit, [u = urlEdit] { u->setFocus(); });
   }
