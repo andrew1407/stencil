@@ -37,6 +37,23 @@ public sealed record EditState
 
     public int LineCount => Layout?.Lines.Count ?? 0;
 
+    // A crop given against the view this state renders, composed onto the stored one, the lines
+    // following as the editors' crop recalcs them; an unresolvable spec is stored as sent.
+    public EditState WithViewCrop(string spec, double originalWidth, double originalHeight)
+    {
+        if (CropSpecResolver.Compose(spec, CropSpec, Album, Rotate, originalWidth, originalHeight)
+            is not CropComposition c)
+        {
+            return this with { CropSpec = spec, Album = false };
+        }
+        return this with
+        {
+            CropSpec = c.Spec,
+            Album = false,
+            Layout = Layout?.Recropped(c.ViewWidth, c.ViewHeight, c.Window.Width, c.Window.Height),
+        };
+    }
+
     // A bare original: the pen alone doesn't count as an edit.
     public bool IsEmpty =>
         CropSpec is null && !Album && Rotate == 0 && Filter is null && PageFormat is null && LineCount == 0;

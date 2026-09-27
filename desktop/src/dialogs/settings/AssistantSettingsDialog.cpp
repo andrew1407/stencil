@@ -4,7 +4,6 @@
 #include "../../support/easeWindowHeight.hpp"
 #include <QHBoxLayout>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 namespace stencil::gui {
 
@@ -37,7 +36,13 @@ namespace stencil::gui {
     // The browser .app-modal width, PINNED: under a SetMinimumSize layout constraint the dialog kept
     // shrinking to its content (the constraint rewrites the minimum every pass), so it is gone.
     setFixedWidth(MODAL_WIDTH);
-    form->focusProvider();
+    form->focusEntry();
+  }
+
+  // Saving is the one moment a typed anthropic key is taken, and only into memory.
+  void AssistantSettingsDialog::accept() {
+    form->commitAnthropicKey();
+    QDialog::accept();
   }
 
   // The notes wrap at their real width only once every nested layout has run, so the height is

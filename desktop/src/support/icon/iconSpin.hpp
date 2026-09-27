@@ -1,6 +1,6 @@
 #pragma once
 // iconMotion.json `extras.swap-click-turn`: one clockwise revolution of a control's glyph in answer
-// to a CLICK - the browser twin is css/animations/iconClick.css, and the timing is rotate-cw's.
+// to a CLICK - the browser twin is css/animations/icon/click.css, and the timing is rotate-cw's.
 // Qt has no CSS animation, so each frame re-renders the pixmap the button already wears, turned
 // about its own centre into a box of the SAME size (QPixmap::transformed would grow it and the
 // glyph would appear to pulse). Q_OBJECT-free so a test target needs no extra source.

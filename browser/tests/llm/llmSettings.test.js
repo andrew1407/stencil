@@ -7,7 +7,7 @@ import { installMemoryStorage } from '../helpers/memoryStorage.js';
 
 const mem = installMemoryStorage()._map;
 
-const { defaultSettings, loadLlmSettings, saveLlmSettings, serverBearerToken, PROVIDERS, PROVIDER_BASE_URLS, isHttpUrl } =
+const { defaultSettings, loadLlmSettings, saveLlmSettings, serverBearerToken, PROVIDERS, PROVIDER_BASE_URLS, isHttpUrl, withProvider } =
   await import('../../js/llm/settings.js');
 
 // NEGATIVE: a poisoned store must not aim the client at another scheme. Same check the
@@ -41,11 +41,23 @@ test('defaults match the contract §5 table', () => {
     serverUrl: '',
     saveChats: false,   // §12: chat persistence ships OFF
   });
-  // 'none' is the local-only off switch (contract §5) ahead of the three wire providers,
+  // 'none' is the local-only off switch (contract §5) ahead of the four wire providers,
   // and the first-run default — the assistant is opt-in, not pre-wired to ollama.
-  assert.deepStrictEqual(PROVIDERS, ['none', 'ollama', 'openai-compat', 'stencil-server']);
+  assert.deepStrictEqual(PROVIDERS, ['none', 'ollama', 'openai-compat', 'anthropic', 'stencil-server']);
   assert.strictEqual(PROVIDER_BASE_URLS.ollama, 'http://localhost:11434');
   assert.strictEqual(PROVIDER_BASE_URLS['openai-compat'], 'http://localhost:1234/v1');
+  assert.strictEqual(PROVIDER_BASE_URLS.anthropic, 'https://api.anthropic.com');
+});
+
+// Desktop twin: MainWindow.assistantKey.gui.cpp providerSwitchGivesEachItsDefaultUrl.
+test('a provider switch gives the new provider its default unless the user typed a URL', () => {
+  const via = (provider, baseUrl) => ({ ...defaultSettings(), provider, baseUrl });
+  assert.strictEqual(withProvider(via('ollama', PROVIDER_BASE_URLS.ollama), 'anthropic').baseUrl, 'https://api.anthropic.com');
+  assert.strictEqual(withProvider(via('ollama', PROVIDER_BASE_URLS.ollama), 'stencil-server').baseUrl, '');
+  // Another provider's default left under stencil-server was never typed for it either.
+  assert.strictEqual(withProvider(via('stencil-server', PROVIDER_BASE_URLS.ollama), 'anthropic').baseUrl, 'https://api.anthropic.com');
+  assert.strictEqual(withProvider(via('none', ''), 'openai-compat').baseUrl, 'http://localhost:1234/v1');
+  assert.strictEqual(withProvider(via('ollama', 'http://gpu-box:11434'), 'anthropic').baseUrl, 'http://gpu-box:11434');
 });
 
 test('stencil-server default serverUrl is the FIRST saved server connection', () => {

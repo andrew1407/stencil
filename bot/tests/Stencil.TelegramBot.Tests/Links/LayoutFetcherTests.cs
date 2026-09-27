@@ -64,7 +64,7 @@ public sealed class LayoutFetcherTests
         // DNS, so the always-block predicate rejects it before any socket connect.
         using LayoutFetcher fetcher = new(new BotOptions(), isBlockedAddress: _ => true);
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => fetcher.FetchAsync("https://203.0.113.9/a.json"));
+            () => fetcher.FetchAsync("https://93.184.216.34/a.json"));
         Assert.Contains("private or local address", ex.Message);
     }
 }

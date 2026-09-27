@@ -66,6 +66,24 @@ class ExecuteOpPlanNativeTest(NativeCase):
     self.assertEqual(editor.page_format, "B5")  # canonicalized by the editor
     self.assertEqual(len(editor.layout().lines), 1)
 
+  def test_a_layout_replaces_the_drawn_lines_and_an_empty_one_clears_them(self) -> None:
+    editor = Editor().blank(32, 32)
+    def run(lines):
+      execute_op_plan(parse_op_plan(_plan_json(actions=[{"op": "layout", "lines": lines}])), editor)
+    first = {"points": [{"x": 2, "y": 2}, {"x": 20, "y": 20}], "pointColor": "#00ff00"}
+    second = {"points": [{"x": 4, "y": 4}, {"x": 8, "y": 8}]}
+    run([first])
+    self.assertEqual(editor.layout().lines[0].point_color, "#00ff00")
+    run([second])
+    self.assertEqual([(p.x, p.y) for p in editor.layout().lines[0].points], [(4, 4), (8, 8)])
+    self.assertEqual(len(editor.layout().lines), 1)
+    run([])
+    self.assertEqual(editor.layout().lines, [])
+    editor.undo()  # each layout is one history entry
+    self.assertEqual(len(editor.layout().lines), 1)
+    editor.undo()
+    self.assertEqual(editor.layout().lines[0].point_color, "#00ff00")
+
   def test_prompt_delegate_executes_against_editor(self) -> None:
     editor = Editor().blank(32, 48)
     reply, outputs = editor.prompt(

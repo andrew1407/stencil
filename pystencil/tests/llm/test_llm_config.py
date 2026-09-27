@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 
 from pystencil.llm import LlmConfig, Variant, variant_slug, variant_slugs
+from pystencil.llm.config import KEY_TTL_SECONDS
+from tests.helpers.anthropicmock import FAKE_KEY, FakeClock
+from tests.helpers.fixturebase import _FIXTURES
 
 
 class LlmConfigTest(unittest.TestCase):
@@ -67,6 +71,51 @@ class LlmConfigTest(unittest.TestCase):
       cfg.set_provider("anthropic-direct")
     self.assertEqual(cfg.provider, "ollama")
     self.assertEqual(cfg.base_url, "http://localhost:11434")
+
+
+class AnthropicSessionKeyTest(unittest.TestCase):
+  """§5: the anthropic key is passed in or read from env, held here alone, and lives at
+  most ``sessionKey.ttlMinutes`` after it was set."""
+
+  def test_the_provider_and_its_default_url(self) -> None:
+    cfg = LlmConfig(provider="anthropic", api_key=FAKE_KEY)
+    self.assertEqual(cfg.base_url, "https://api.anthropic.com")
+    self.assertEqual(cfg.session_key(), FAKE_KEY)
+
+  def test_from_env_reads_the_key(self) -> None:
+    cfg = LlmConfig.from_env(
+      {"STENCIL_LLM_PROVIDER": "anthropic", "STENCIL_LLM_API_KEY": " %s " % FAKE_KEY})
+    self.assertEqual((cfg.provider, cfg.api_key), ("anthropic", FAKE_KEY))
+
+  def test_the_ttl_is_the_assets(self) -> None:
+    with open(_FIXTURES / "llm" / "providers.json", encoding="utf-8") as fh:
+      minutes = json.load(fh)["providers"]["anthropic"]["sessionKey"]["ttlMinutes"]
+    self.assertEqual(KEY_TTL_SECONDS, minutes * 60)
+
+  def test_repr_and_str_never_show_the_key(self) -> None:
+    cfg = LlmConfig(provider="anthropic", api_key=FAKE_KEY)
+    for text in (repr(cfg), str(cfg), "%s" % cfg, "{!r}".format([cfg])):
+      self.assertNotIn(FAKE_KEY[-8:], text)
+      self.assertIn("api_key='<redacted>'", text)
+    self.assertIn("api_key=''", repr(LlmConfig(provider="anthropic")))
+
+  def test_the_key_expires_ttl_seconds_after_it_was_set(self) -> None:
+    clock = FakeClock()
+    cfg = LlmConfig(provider="anthropic", api_key=FAKE_KEY, clock=clock)
+    clock.now += KEY_TTL_SECONDS - 1
+    self.assertEqual(cfg.session_key(), FAKE_KEY)
+    self.assertEqual(cfg.key_expires_in(), 1)
+    clock.now += 1
+    self.assertEqual(cfg.session_key(), "")
+    self.assertEqual(cfg.api_key, "")  # dropped, not merely hidden
+
+  def test_setting_the_key_again_restarts_its_ttl(self) -> None:
+    clock = FakeClock()
+    cfg = LlmConfig(provider="anthropic", api_key="old-key-value", clock=clock)
+    clock.now += KEY_TTL_SECONDS - 10
+    cfg.api_key = FAKE_KEY
+    clock.now += KEY_TTL_SECONDS - 10
+    self.assertEqual(cfg.session_key(), FAKE_KEY)
 
 
 class VariantSlugTest(unittest.TestCase):

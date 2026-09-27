@@ -1,17 +1,19 @@
-// One rendered transcript for both surfaces (js/llm/session.js): the append/update/clear
-// row list, the shared logged-turn frame, dropped image URLs and the scatter mesh budget.
+// One rendered transcript for both surfaces (js/llm/chat/session.js): the append/update/clear
+// row list, the shared logged-turn frame, the attachment chip and its hover preview, and the
+// scatter mesh budget.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
   chatLog, onChatLog, appendChatRow, updateChatRow, clearChatLog, resetChatLog,
-  clearSharedConversation, runLoggedChatTurn, attachmentPreviews,
 } from '../../../js/llm/chat/session.js';
 import { fileNameForUrl } from '../../../js/core/pointer/dragImageUrl.js';
 import { scatterGridFor, SCATTER_TILE_BUDGET, SCATTER_MAX_ROWS } from '../../../js/ui/motion.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
+import { wireBothSurfaces, typeAndSend, rowEl, installChatDom } from '../../helpers/chatSurfacesRig.js';
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+const rowTexts = (t) => t.children.filter((c) => c.classList.contains('chat-msg'))
+  .map((c) => c.querySelector('.chat-msg-text').textContent);
 
 // ── One rendered transcript for both surfaces ──
 test('the chat log is append/update/clear with subscribers — one row list, one order', () => {
@@ -48,7 +50,7 @@ test('the chat log is append/update/clear with subscribers — one row list, one
   resetChatLog();
 });
 
-test('a surface renders the history that already exists (not only live appends)', () => {
+test('a surface renders the history that already exists (not only live appends)', async () => {
   resetChatLog();
   // A menu-only conversation…
   appendChatRow({ role: 'user', text: 'from the menu' });
@@ -58,76 +60,59 @@ test('a surface renders the history that already exists (not only live appends)'
   onChatLog((rows) => painted.push(rows.length));
   const atWireTime = chatLog().map((r) => r.text);
   assert.deepStrictEqual(atWireTime, ['from the menu', 'Done.'], 'the log carries the backlog');
-  const src = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('paint();   // renders whatever the conversation already holds'),
-    'the panel paints once at wire time, not only on change');
-  const ctx = contextMenuSource();
-  assert.ok(ctx.includes('onChatLog(paint);') && ctx.includes('\n  paint();'), 'and so does the flyout');
   resetChatLog();
   assert.strictEqual(painted.length, 0, 'no spurious notifications from reading');
-});
-
-test('both send loops run the SAME shared logged-turn frame', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  const menu = contextMenuSource();
-  for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
-    assert.ok(src.includes('await runLoggedChatTurn('), `${name} runs the shared logged-turn frame`);
-    assert.ok(src.includes('renderChatLog('), `${name} renders the log, never its own private DOM`);
+  // Both surfaces paint once at wire time, not only on change.
+  const s = await wireBothSurfaces({ backlog: [{ role: 'user', text: 'from the menu' }, { role: 'assistant', text: 'Done.' }] });
+  for (const [name, surf] of [['panel', s.panel], ['flyout', s.flyout]]) {
+    assert.deepStrictEqual(rowTexts(surf.transcript), ['from the menu', 'Done.'], `${name} paints the backlog`);
   }
-  // The frame itself (session.js) owns the row writes: user turn, pending "…"
-  // reply, and the in-place ok/error patch — so the surfaces cannot drift.
-  const session = readFileSync(new URL('../../../js/llm/chat/session.js', import.meta.url), 'utf8');
-  assert.ok(session.includes("appendChatRow({ role: 'user', text, attachments: attachmentPreviews(controller) });"),
-    'the frame logs the user turn, carrying the images the user attached to it');
-  assert.ok(session.includes("const pending = appendChatRow({ role: 'assistant', text: '…', pending: true });"),
-    'the frame logs a pending reply, marked so the view can animate it');
-  assert.ok(session.includes('updateChatRow(pending.id'), 'the frame resolves that row in place');
-  // The panel's Clear runs the shared clear path (which repaints the flyout too).
-  assert.ok(panel.includes('clearSharedConversation(app);'));
+  s.session.appendChatRow({ role: 'user', text: 'live' });
+  for (const surf of [s.panel, s.flyout]) assert.strictEqual(rowTexts(surf.transcript).at(-1), 'live');
 });
 
-// An image dragged from another PAGE carries no File — only a URL in uri-list/html.
-// The composer used to read Files alone, so such a drop silently attached nothing.
-test('a dropped image URL is fetched into an attachment, not silently dropped', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  assert.ok(panel.includes('const files = mediaFilesFromData(e.dataTransfer);'), 'Files still win');
-  // A failure is reported, never swallowed — that silence was the whole bug.
-  assert.ok(panel.includes("notify(`Couldn't attach that image — ${err.message}. `"));
-  assert.ok(panel.includes("notify('Nothing to attach from that drop', 'fail');"));
-  // Both drops share the canvas's helper rather than growing a second copy; what that
-  // helper DOES is proved against the real module in tests/core/pointer/dragImageUrl.test.js.
-  const binder = readFileSync(new URL('../../../js/ui/bindings/dropPaste.js', import.meta.url), 'utf8');
-  for (const [name, src] of [['panel.js', panel], ['dropPaste.js', binder]]) {
-    assert.match(src, /import \{[^}]*fetchFirstDraggedMediaFile[^}]*\} from '[^']*core\/pointer\/dragImageUrl\.js'/,
-      `${name} fetches a dragged URL through the shared helper`);
-    assert.match(src, /import \{[^}]*extractDraggedImageUrls[^}]*\} from '[^']*core\/pointer\/dragImageUrl\.js'/,
-      `${name} reads the drag's candidates through the shared helper`);
+test('both send loops run the SAME shared logged-turn frame', async () => {
+  const s = await wireBothSurfaces();
+  for (const [name, surf] of [['panel', s.panel], ['flyout', s.flyout]]) {
+    s.ctrl.attachments.push({ name: 'cat.png', kind: 'image', dataUrl: 'data:image/png;base64,AA' });
+    typeAndSend(surf, `from the ${name}`);
+    const [user, reply] = s.session.chatLog().slice(-2);
+    // The frame logs the user turn carrying its images, then a pending reply…
+    assert.deepStrictEqual([user.role, user.text, user.attachments.map((a) => a.name)],
+      ['user', `from the ${name}`, ['cat.png']], `${name} logs the user turn with its attachments`);
+    assert.strictEqual(reply.pending, true);
+    for (const t of [s.panel.transcript, s.flyout.transcript]) {
+      assert.ok(rowEl(t, reply.id).querySelector('.chat-typing'), 'rendered from the log on both surfaces');
+    }
+    // …and resolves that same row in place.
+    s.ctrl.settle({ reply: 'Done.', results: [] });
+    await tick();
+    const last = s.session.chatLog().at(-1);
+    assert.deepStrictEqual([last.id, last.pending, last.text], [reply.id, false, 'Done.']);
+    s.ctrl.attachments.length = 0;
   }
+  // The panel's Clear runs the shared clear path, which repaints the flyout too.
+  s.doc.getElementById('chat-clear').fire('click');
+  assert.deepStrictEqual([s.ctrl.cleared, s.session.chatLog().length], [1, 0]);
+  assert.strictEqual(s.flyout.transcript.querySelectorAll('[data-row]').length, 0, 'the flyout rows leave too');
 });
 
-test('the composer ACTS on a drop; the panel SWALLOWS one (never the canvas)', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  // Attaching is the composer's.
-  assert.ok(panel.includes("const dropRow = $('chat-input-wrap');"));
-  for (const ev of ['dragover', 'dragleave', 'drop']) {
-    assert.ok(panel.includes(`dropRow.addEventListener('${ev}'`), `${ev} is wired on the composer`);
-  }
-  // A drop that MISSES the chat must not fall through to the canvas: the editor's
-  // replace-or-new-page dialog is never what dropping onto a chat means.
-  assert.ok(panel.includes("host.addEventListener('drop'"), 'the panel takes the leftovers');
-  assert.ok(panel.includes("notify('Drop it on the message box to attach it', 'info');"),
-    'and says where to aim instead of silently eating it');
-  // The whole panel owns drops, so the canvas never lights its zones under an open chat.
-  assert.ok(panel.includes("host.toggleAttribute('data-drop-owner', on);"));
-});
-
-test('the attachment chip is a thumbnail, a name and a remove — nothing else', () => {
-  const view = chatViewSource();
-  assert.ok(view.includes("thumb.className = 'chat-attach-thumb';"), 'the queued picture is shown');
-  assert.ok(view.includes('wireThumbPreview(thumb, label);'), 'and magnifies on hover');
-  assert.ok(view.includes('name.dataset.title = label;'), 'the ellipsised name keeps the full one on the tooltip');
-  assert.ok(view.includes('chip.append(name, rm);'), 'name + remove, no analyze/working pill');
-  assert.ok(!view.includes('chat-attach-use'), 'the analyze ↔ working toggle is gone from the chip');
+test('the attachment chip is a thumbnail, a name and a remove — nothing else', async () => {
+  const doc = installChatDom();
+  const { chatAttachmentChips } = await import('../../../js/ui/chat/view.js');
+  const list = doc.createElement('div');
+  const ctrl = { attachments: [{ name: 'cat.png', kind: 'image', dataUrl: 'data:image/png;base64,AA' },
+    { name: 'clip.mp4', kind: 'video', frames: ['data:image/jpeg;base64,BB', 'data:image/jpeg;base64,CC'] }] };
+  chatAttachmentChips(list, ctrl);
+  const [cat, clip] = list.children;
+  assert.deepStrictEqual(cat.children.map((c) => c.className),
+    ['chat-attach-thumb', 'chat-attach-name', 'chat-hbtn chat-attach-remove'], 'no analyze/working pill');
+  assert.strictEqual(cat.children[0].src, 'data:image/png;base64,AA', 'the queued picture is shown');
+  const name = clip.children[1];
+  assert.deepStrictEqual([name.textContent, name.dataset.title], ['clip.mp4 (2 frames)', 'clip.mp4 (2 frames)'],
+    'the ellipsised name keeps the full one on the tooltip');
+  cat.children[0].fire('mouseenter');
+  assert.ok(doc.body.querySelector('.chat-thumb-preview'), 'and magnifies on hover');
   const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-attach-thumb \{[^}]*object-fit: cover/);
   assert.match(css, /\.chat-attach-name \{[^}]*text-overflow: ellipsis/);
@@ -149,14 +134,24 @@ test('a fetched data: URL gets a readable filename, not its base64 payload', () 
     'image.jpg');
 });
 
-test('hovering a small attachment thumbnail shows it large', () => {
-  const view = chatViewSource();
-  assert.ok(view.includes('export const wireThumbPreview = (img, caption = '), 'the preview helper exists');
-  assert.ok(view.includes("wireThumbPreview(img, a.kind === 'video' ? `${a.name} (first frame)` : a.name);"),
-    'and every transcript thumbnail is wired to it');
-  assert.ok(view.includes("cap.textContent = caption;"), 'the filename is text, never markup');
+test('hovering a small attachment thumbnail shows it large', async () => {
+  const doc = installChatDom();
+  const { chatAttachmentStrip } = await import('../../../js/ui/chat/view.js');
+  const strip = chatAttachmentStrip([{ name: '<b>cat</b>.png', kind: 'image', dataUrl: 'data:image/png;base64,AA' },
+    { name: 'clip.mp4', kind: 'video', dataUrl: 'data:image/jpeg;base64,BB' }]);
+  const [cat, clip] = strip.children.map((fig) => fig.children[0]);
+  const shown = () => doc.body.children.filter((c) => c.classList.contains('chat-thumb-preview'));
+  cat.fire('mouseenter');
   // On the BODY: the panel clips its overflow, so an in-place popup would be cut off.
-  assert.ok(view.includes('document.body.appendChild(box);'));
+  const [box] = shown();
+  assert.ok(box, 'every transcript thumbnail is wired to the preview');
+  assert.strictEqual(box.children[0].src, 'data:image/png;base64,AA', 'the same picture, large');
+  const cap = box.children[1];
+  assert.deepStrictEqual([cap.textContent, cap.innerHTML], ['<b>cat</b>.png', ''], 'the filename is text, never markup');
+  clip.fire('mouseenter');
+  assert.deepStrictEqual(shown().map((b) => b.children[1].textContent), ['clip.mp4 (first frame)'], 'one preview at a time');
+  clip.fire('mouseleave');
+  assert.strictEqual(shown().length, 0);
   const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-thumb-preview \{[^}]*position: fixed;/);
   assert.match(css, /\.chat-thumb-preview \{[^}]*pointer-events: none;/, 'it must not steal its own hover');

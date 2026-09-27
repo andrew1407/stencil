@@ -1,5 +1,5 @@
 // The scanned-image list is rebuilt wholesale on every pill/search change, so what enters and
-// leaves is decided purely by the keys of the two renders. Mechanics: tests/motion.test.js.
+// leaves is decided purely by the keys of the two renders. Mechanics: tests/lib/dust/motion.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

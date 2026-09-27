@@ -1,4 +1,4 @@
-// The shared accent row builders (js/ui/picker.js): the preset rows themselves,
+// The shared accent row builders (js/ui/accent/picker.js): the preset rows themselves,
 // the ACTIVE-preset mark, and the Visuals dropdown built on top of them. The logo's copy
 // of the same list is covered by logoAccentMenu.test.js — both go through fillAccentMenu /
 // markSelected here, so the two can never drift.

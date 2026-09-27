@@ -1,6 +1,7 @@
 import { icon } from '../icons.js';
 import { ctxArrow } from '../ctx/arrow.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from '../export/variants.js';
+import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
 
 // The variant rows of a Copy/Download Image flyout (variants.js owns labels, glyphs
 // and order). split/current share the primary combo, filled by syncState.
@@ -76,11 +77,11 @@ export function contextMenuInner() {
             <div class="ctx-sub" id="ctx-style-sub">
                 <div class="ctx-row">
                     <label>Point Size</label>
-                    <input type="number" class="ctx-num" id="ctx-point-size" min="1" max="30">
+                    <input type="number" class="ctx-num" id="ctx-point-size" ${POINT_SIZE_RANGE}>
                 </div>
                 <div class="ctx-row">
                     <label>Line Thickness</label>
-                    <input type="number" class="ctx-num" id="ctx-thickness" min="1" max="20">
+                    <input type="number" class="ctx-num" id="ctx-thickness" ${THICKNESS_RANGE}>
                 </div>
                 <div class="ctx-sub-label">Line Style</div>
                 <div class="ctx-radio-group" id="ctx-style-radios">

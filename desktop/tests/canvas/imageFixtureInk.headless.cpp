@@ -1,5 +1,5 @@
 // On-accent ink (WCAG contrast, the browser's accents.js needsDarkGlyph rule) and the arithmetic a
-// numeric field takes, whose cases mirror browser/tests/numericInput.test.js.
+// numeric field takes, whose cases mirror browser/tests/ui/control/numericInput.test.js.
 #include "numericInput.hpp"
 #include "theme.hpp"
 
@@ -11,7 +11,7 @@
 
 void accentInkAndNumericInput() {
   // On-accent ink: the accent picks whichever of white / near-black contrasts more (WCAG), the same rule
-  // as the browser (accents.js needsDarkGlyph) and the extension (lib/accent.js).
+  // as the browser (accents.js needsDarkGlyph) and the extension (lib/accent/accent.js).
   std::printf("on-accent ink:\n");
   using stencil::gui::accentNeedsDarkGlyph;
   using stencil::gui::onAccentInk;
@@ -37,8 +37,8 @@ void accentInkAndNumericInput() {
   check(stencil::gui::buildStylesheet(false, "violet").contains(":/icons/check.png"),
         "…and a dark accent keeps the white one");
 
-  // Numeric fields take an arithmetic expression (support/numericInput.cpp): the cases mirror
-  // browser/tests/numericInput.test.js, on core/parse/formulaParser's operator set, so all three agree.
+  // Numeric fields take an arithmetic expression (support/control/numericInput.cpp): the cases mirror
+  // browser/tests/ui/control/numericInput.test.js, on core/parse/formulaParser's operator set, so all three agree.
   std::printf("numeric input expressions:\n");
   auto ev = [](const char* text, double current, double* out) {
     bool ok = false;

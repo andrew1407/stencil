@@ -1,10 +1,10 @@
-/* ── Motion mode (lib/accent.js StencilMotion; browser animations/motionModes.css twin) ──
+/* ── Motion mode (lib/accent/accent.js StencilMotion; browser animations/motionModes.css twin) ──
    The user's own switch over everything above, stamped on <html data-motion> before
    first paint and rewritten live when the options page moves it:
 
      data-motion="particles"  the default — every surface forms out of dust;
      data-motion="water" / "fire"  the same particles as drops / embers, in the accent
-                              and its shade (lib/dustCloud.js styleFrame — the JS
+                              and its shade (lib/dust/cloud.js styleFrame — the JS
                               decides, nothing to write here);
      data-motion="slide"      no particles: each surface plays the plain entrance it
                               already owns (stMenuFromAnchor, action-menu-pop, the row

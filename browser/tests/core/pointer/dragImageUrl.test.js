@@ -1,4 +1,4 @@
-// Unit tests for the cross-page drag image-URL extractor (js/core/dragImageUrl.js).
+// Unit tests for the cross-page drag image-URL extractor (js/core/pointer/dragImageUrl.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extractDraggedImageUrl, extractDraggedImageUrls, fetchFirstDraggedMediaFile, looksLikeImageUrl } from '../../../js/core/pointer/dragImageUrl.js';

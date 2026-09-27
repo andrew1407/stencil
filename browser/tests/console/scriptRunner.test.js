@@ -67,12 +67,15 @@ test('a shape op resolves to pixels and combines into the lines', async () => {
   assert.deepEqual(lines[0].points[2], { x: 180, y: 80 });
 });
 
-test('undo and redo step the editor history the requested number of times', async () => {
+test('undo steps the editor history the requested number of times; redo never reaches the runner', async () => {
   const s = fakeStencil();
   await runScript('@filter bw\n@rect (1,1) (2,2)\n@undo 1\n@save', s);
-  // The core rewinds and replays, so the runner sees plain undo/redo steps only.
+  // The core rewinds and replays, so the runner sees plain undo steps only.
   assert.ok(names(s).includes('undo'));
   assert.equal(names(s).at(-1), 'save');
+  const r = fakeStencil();
+  await runScript('@filter bw\n@rect (1,1) (2,2)\n@undo\n@rect (3,3) (4,4)\n@redo\n@save', r);
+  assert.ok(!names(r).includes('redo'), 'the lowerer folds @redo into the ledger');
 });
 
 test('a named save renames the project first', async () => {

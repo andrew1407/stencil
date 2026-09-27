@@ -90,7 +90,7 @@ const measure = (files, re, keepStrings = false) => {
 // Rule 1 — js/core is DOM-free: these files still reach for the DOM (the view paints, the storage
 // adapter reads localStorage's window, the coordinators listen on window). Nothing may join them.
 const CORE_DOM_ALLOWANCE = {
-  'core/settings/accents.js': 6, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 16,
+  'core/settings/accents.js': 6, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 15,
   'core/export/service.js': 3, 'core/launch/extensionBridge.js': 2, 'core/settings/hotkeys.js': 4,
   'core/image/filterCanvas.js': 1, 'core/image/model.js': 2, 'core/image/settle.js': 1,
   'core/pointer/inputController.js': 7, 'core/launch/controller.js': 4, 'core/layoutInstall.js': 1,
@@ -111,7 +111,7 @@ const UI_IMPORT_ALLOWANCE = {
   'core/drawingApp.js': 10, 'core/settings/hotkeys.js': 1, 'core/image/settle.js': 1,
   'core/launch/controller.js': 1, 'core/layoutInstall.js': 1, 'core/project/filePicker.js': 1,
   'core/remote/syncController.js': 1, 'core/settings/controller.js': 3, 'core/settings/registry.js': 1,
-  'core/line/shapeBuilder.js': 1, 'core/storage/storage.js': 4, 'core/line/strokeFx.js': 2,
+  'core/line/shapeBuilder.js': 1, 'core/storage/storage.js': 3, 'core/line/strokeFx.js': 2,
 };
 
 test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen allowance', () => {
@@ -148,7 +148,7 @@ const UI_ID_ALLOWANCE = {
   'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/modal.js': 21,
   'ui/panel/mainContent.js': 9, 'ui/modal/imageAnchor.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
-  'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 10, 'ui/panel/selectionPanel.js': 17,
+  'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 9, 'ui/panel/selectionPanel.js': 16,
   'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/modal.js': 5, 'ui/toolbar/toolbar.js': 7,
   'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1, 'ui/visuals/notifyRow.js': 1,
 };

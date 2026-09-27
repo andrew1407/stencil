@@ -1,54 +1,22 @@
 package hub
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
-	"math/big"
 	"net"
 	"testing"
-	"time"
 
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/testutil"
 	"stencil/server/internal/transport"
 )
-
-// selfSignedTLS builds a throwaway self-signed cert/key for 127.0.0.1, matching
-// how main.go loads a cert into tls.Config{MinVersion: TLS1.2}.
-func selfSignedTLS(t *testing.T) *tls.Config {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpl := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "stencil-test"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(time.Hour),
-		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IsCA:         true,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, &key.PublicKey, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert := tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
-	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
-}
 
 // The raw-TCP edit channel still completes the hello → subscribe → welcome handshake when the listener
 // is wrapped in TLS (as main.go does with TLS_CERT/TLS_KEY) — the live-edit channel is encryptable.
 func TestTCPTransportOverTLS(t *testing.T) {
 	h := newTestHub(t)
 
-	srvConf := selfSignedTLS(t)
+	srvConf := testutil.SelfSignedTLS(t)
 	base, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

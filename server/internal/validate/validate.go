@@ -5,6 +5,7 @@ package validate
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 )
 
@@ -23,3 +24,10 @@ func ListLimit(raw string) (int, error) {
 	}
 	return n, nil
 }
+
+// projectIDPattern is the server-allocated id shape, "p_" + base36(ms) + "_" + base36(salt): the only
+// one the file store touches and the hub admits, so no client-supplied name reaches either.
+var projectIDPattern = regexp.MustCompile(`^p_[0-9a-z]+_[0-9a-z]+$`)
+
+// ProjectID reports whether id has the shape the server allocates.
+func ProjectID(id string) bool { return projectIDPattern.MatchString(id) }

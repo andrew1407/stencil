@@ -1,12 +1,12 @@
 /* ── Icon hover: every glyph mimes its own action ────────────────────────────
-   browser css/animations/iconHover.css icon-motion twin, cut to the glyphs lib/icons.js
+   browser css/animations/icon/hover.css icon-motion twin, cut to the glyphs lib/icons.js
    actually carries (a deliberate SUBSET, pinned by tests/dataParity.test.js). The
    canonical design table is browser/js/config/iconMotion.json: ONE motion per glyph,
    matched to what that glyph's action DOES. One generic move for all of them is worse
    than none — a minus that swells reads as "increase" — so the trash lid lifts, the
    download arrow travels down, the crop brackets close in on the region, the sun
    shakes, the assistant's dots type. Every number below is the canonical one, so the
-   extension and the app genuinely match; tests/iconMotion.test.js pins them together.
+   extension and the app genuinely match; tests/lib/iconMotion.test.js pins them together.
 
    Two modes, one trigger. `--ic-on` is a 0/1 latch the hovered control flips: a HOLD
    motion multiplies its pose by it, so it eases out AND back on the same curve. A
@@ -173,62 +173,4 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
         animation-name: none !important;
         transition: none !important;
     }
-}
-
-/* ── Header logo hover: pulse + levitate + accent shine + orbiting rays ──
-   browser css/animations/iconHover.css logoPulse twin. Every host page (popup, side panel,
-   DevTools panel, quick-crop, options) wraps its .logo in a .logo-wrap span:
-   inline SVGs can't host pseudo-elements, so the ray ring lives on the wrap's
-   ::before. Transform/filter only — the logo's box never changes, so no header
-   reflows. z-index:0 makes the wrap a stacking context, keeping the rays'
-   z-index:-1 behind the mark but above the header. */
-.logo-wrap { flex: 0 0 auto; position: relative; z-index: 0; display: inline-flex; }
-.logo-wrap .logo { transition: transform 0.2s ease, filter 0.2s ease, color 0.2s ease; }
-.logo-wrap .logo:hover { transform: scale(1.08); animation: logoPulse 1.2s ease-in-out infinite; }
-@keyframes logoPulse {
-    0%, 100% { transform: translateY(0) scale(1);
-               filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 25%, transparent)); }
-    50%      { transform: translateY(-2px) scale(1.12);
-               filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 80%, transparent)); }
-}
-/* Ray layer: an accent conic-gradient of 8 soft spokes, clipped to a thin ring
-   just outside the mark by a radial mask. It turns slowly (one revolution / 8s)
-   while its opacity breathes on the SAME 1.2s beat as the pulse. Absolutely
-   positioned + pointer-events:none: no layout shift, and the logo's hover/drop
-   target stays exactly the svg. Hidden at rest. */
-.logo-wrap::before {
-    content: "";
-    position: absolute;
-    inset: -9px;
-    border-radius: 50%;
-    background: repeating-conic-gradient(from -5deg,
-        transparent 0deg, var(--accent) 4deg 6deg, transparent 10deg 45deg);
-    -webkit-mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
-    mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
-    opacity: 0;
-    z-index: -1;
-    pointer-events: none;
-    transition: opacity 0.25s ease;
-}
-@keyframes logoRaysSpin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes logoRaysShimmer { 0%, 100% { opacity: 0.14; } 50% { opacity: 0.4; } }
-.logo-wrap:hover::before {
-    animation: logoRaysSpin 8s linear infinite,
-               logoRaysShimmer 1.2s ease-in-out infinite;
-}
-/* The main mark keeps its loop under every motion mode, "none" included (motionModes.css collapses
-   every other animation there); only the webcore skin (webcore/chrome.css) stills it to a grow and a glow. */
-:root[data-motion="none"] .logo-wrap .logo:hover {
-    animation-duration: 1.2s !important;
-    animation-iteration-count: infinite !important;
-    transition-duration: 0.2s !important;
-}
-:root[data-motion="none"] .logo-wrap::before { transition-duration: 0.25s !important; }
-:root[data-motion="none"] .logo-wrap:hover::before {
-    animation-duration: 8s, 1.2s !important;
-    animation-iteration-count: infinite !important;
-}
-@media (prefers-reduced-motion: reduce) {
-    .logo-wrap .logo:hover { animation: none; }   /* the simple scale(1.08) hover remains */
-    .logo-wrap::before { content: none; }         /* no static ray ring either */
 }

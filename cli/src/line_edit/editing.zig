@@ -1,6 +1,6 @@
 //! Editing the line itself: inserting text and image markers, the word-wise deletes, moving
 //! by wrapped row, history recall and tab completion.
-const le = @import("../line_edit.zig");
+const le = @import("line_edit.zig");
 const Editor = le.Editor;
 const std = @import("std");
 const History = le.History;

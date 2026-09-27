@@ -1,14 +1,29 @@
 #include "formulaParser.hpp"
+#include "decimal.hpp"
 #include "formulaContext.hpp"
-#include <cctype>
 #include <cmath>
+#include <limits>
 
 namespace stencil::core {
 
   namespace {
 
-    bool isNameStart(char c) { return std::isalpha(static_cast<unsigned char>(c)) || c == '_'; }
-    bool isNamePart(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; }
+    // ASCII only, as formulaEngine.js spells them: <cctype> follows a locale the host may set.
+    bool isDigit(char c) { return c >= '0' && c <= '9'; }
+    bool isNameStart(char c) {
+      return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+    }
+    bool isNamePart(char c) { return isNameStart(c) || isDigit(c); }
+    bool isSpace(char c) {
+      return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+    }
+
+    // Math.pow, which differs from std::pow on a NaN exponent and on (±1) ** ±Infinity.
+    double jsPow(double base, double exp) {
+      if (std::isnan(exp) || (std::fabs(base) == 1.0 && std::isinf(exp)))
+        return std::numeric_limits<double>::quiet_NaN();
+      return std::pow(base, exp);
+    }
 
     // On a syntax error `ok` clears and the parse unwinds with a zero result.
     class Eval {
@@ -46,10 +61,7 @@ namespace stencil::core {
       };
 
       void skipSpaces() {
-        while (pos < src.size() &&
-               std::isspace(static_cast<unsigned char>(src[pos]))) {
-          ++pos;
-        }
+        while (pos < src.size() && isSpace(src[pos])) ++pos;
       }
 
       char peek() {
@@ -111,7 +123,7 @@ namespace stencil::core {
         double base = parsePrimary();
         if (match('*', '*')) {           // right-associative: 2 ** 3 ** 2
           const double exp = parseUnary();
-          return std::pow(base, exp);
+          return jsPow(base, exp);
         }
         return base;
       }
@@ -123,7 +135,7 @@ namespace stencil::core {
           return v;
         }
         const char c = peek();
-        if (std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
+        if (isDigit(c) || c == '.') {
           return parseNumber();
         }
         if (isNameStart(c)) {
@@ -136,11 +148,7 @@ namespace stencil::core {
       double parseNumber() {
         skipSpaces();
         const std::size_t start = pos;
-        while (pos < src.size() &&
-               (std::isdigit(static_cast<unsigned char>(src[pos])) ||
-                src[pos] == '.')) {
-          ++pos;
-        }
+        while (pos < src.size() && (isDigit(src[pos]) || src[pos] == '.')) ++pos;
         // optional exponent: e / E [+/-] digits
         if (pos < src.size() && (src[pos] == 'e' || src[pos] == 'E')) {
           std::size_t save = pos;
@@ -148,22 +156,19 @@ namespace stencil::core {
           if (pos < src.size() && (src[pos] == '+' || src[pos] == '-')) {
             ++pos;
           }
-          if (pos < src.size() &&
-              std::isdigit(static_cast<unsigned char>(src[pos]))) {
-            while (pos < src.size() &&
-                   std::isdigit(static_cast<unsigned char>(src[pos]))) {
-              ++pos;
-            }
+          if (pos < src.size() && isDigit(src[pos])) {
+            while (pos < src.size() && isDigit(src[pos])) ++pos;
           } else {
             pos = save;  // not an exponent after all
           }
         }
-        try {
-          return std::stod(src.substr(start, pos - start));
-        } catch (...) {
+        // parseFloat's reading: the longest numeric prefix ("1.2.3" is 1.2), and no infinity.
+        const auto v = parseDecimalPrefix(std::string_view(src).substr(start, pos - start));
+        if (!v || !std::isfinite(*v)) {
           ok = false;
           return 0.0;
         }
+        return *v;
       }
 
       // Longest run wins: `PAGE_WIDTHS` is one unknown name, not a constant plus junk.

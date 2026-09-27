@@ -1,6 +1,6 @@
 // Browser-app smoke: drive the real app in a real browser through window.stencil
 // (browser/js/console/stencilApi.js) and the #stencil= deep-link path
-// (DrawingApp.applyExternalLaunch). No collaboration server needed.
+// (core/launch/controller.js applyExternalLaunch). No collaboration server needed.
 import { test, expect } from '@playwright/test';
 import { gotoApp, expectModalOpen, PNG_DATA_URL } from '../../helpers/boot.js';
 

@@ -1,4 +1,8 @@
 import { setVal, notify } from '../../utils.js';
+import { clampThickness } from '../settings/limits.js';
+import { canvasCoords } from '../pointer/canvasCoords.js';
+import { selectedIndices, updateMultiSelectStatus } from './selection.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // Point / line mutation shared by the coord table, the Lines tab and the console facade.
 // Each keeps the selection, the coord-table target and every cached hover consistent with
@@ -38,7 +42,7 @@ export const removePoint = (app, lineIdx, ptIdx) => {
   }
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
   return this;
 };
 
@@ -55,7 +59,7 @@ export const removeLine = (app, idx) => {
   else if (app.coordLineIdx > idx) app.coordLineIdx -= 1;
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
   const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
   app.coordTable.update(target ? target.points : null, app.coordLineIdx);
   return this;
@@ -64,7 +68,7 @@ export const removeLine = (app, idx) => {
 // Splices from the highest index down, then clears the selection wholesale; one history
 // entry for the batch.
 export const removeSelectedLines = (app) => {
-  const sel = app.selectedIndices()
+  const sel = selectedIndices(app)
     .filter(i => i >= 0 && i < app.lines.length)
     .sort((a, b) => b - a);
   if (!sel.length) return this;
@@ -83,10 +87,10 @@ export const removeSelectedLines = (app) => {
   app.hoverLineIdx = -1;
   app.listHoverLineIdx = -1;
   app.hideSelectionPanels();
-  app.updateMultiSelectStatus();
+  updateMultiSelectStatus(app);
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
   const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
   app.coordTable.update(target ? target.points : null, app.coordLineIdx);
   return this;
@@ -95,7 +99,7 @@ export const removeSelectedLines = (app) => {
 // Alt+wheel: ±1, clamped 1–20. `scheduleSave` is the caller's debounce, so a burst of
 // notches becomes one history entry; it is called only when the value actually moved.
 export const adjustThicknessAtCursor = (app, e, scheduleSave) => {
-  const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+  const { x, y } = canvasCoords(app, e.clientX, e.clientY);
   const delta = e.deltaY > 0 ? -1 : 1;
   const nearPt = app.findNearestPointWithIdx(x, y);
   let lineIdx = -1;
@@ -103,14 +107,14 @@ export const adjustThicknessAtCursor = (app, e, scheduleSave) => {
   else { const li = app.findLineAt(x, y); if (li !== -1) lineIdx = li; }
   if (lineIdx === -1) return false;
   const line = app.lines[lineIdx];
-  const newT = Math.max(1, Math.min(20, (line.thickness || 1) + delta));
+  const newT = clampThickness((line.thickness || 1) + delta);
   if (newT === line.thickness) return true;
   line.thickness = newT;
   if (lineIdx === app.selectedLineIdx) {
     setVal('sel-thickness', newT);
     setVal('fs-sel-thickness', newT);
   }
-  app.renderer.redraw();
+  app.renderer.requestRedraw();
   notify('Line thickness: ' + newT, 'info');
   scheduleSave();
   return true;

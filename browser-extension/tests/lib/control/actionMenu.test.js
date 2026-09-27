@@ -1,4 +1,4 @@
-// Tests for src/lib/actionMenu.js — the floating ⋯ action menu extracted from popup.js:
+// Tests for src/lib/control/actionMenu.js — the floating ⋯ action menu extracted from popup.js:
 // pure placement math (menu flip/clamp, anchored-x, submenu flyout) and the factory's
 // builders + open/close/Escape machinery, driven with a stub document.
 import { test } from 'node:test';

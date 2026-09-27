@@ -1,4 +1,4 @@
-// Shapes for popup/model.js — the panel's live scan + UI state, and the merged local/
+// Shapes for popup/list/model.js — the panel's live scan + UI state, and the merged local/
 // shared image row every other popup module operates on.
 import type { AttributedScanEntry } from '../../lib/image/scan.js';
 

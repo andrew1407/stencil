@@ -1,4 +1,4 @@
-// The §10 project-name helpers of js/llm/session.js: unique naming and name resolution.
+// The §10 project-name helpers of js/llm/chat/session.js: unique naming and name resolution.
 // The capability closures and the logged-turn frame are in the sibling chatSession specs.
 import { test } from 'node:test';
 import assert from 'node:assert';

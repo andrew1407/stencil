@@ -4,21 +4,8 @@
 #include "../../support/theme/filterFade.hpp"  // rows fade in/out with the search, never blink
 #include "../../support/icon/KeycapChip.hpp"  // the combo as keycaps: shake on hover, capture on click
 #include "../../support/modal/modalChrome.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"   // row hover sweep
-#include "iconSet.hpp"
-#include "tipContent.hpp"   // comboKeycapsHtml, currentPalette
-#include <QEvent>
-#include <QGraphicsOpacityEffect>
-#include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QScrollArea>
-#include <QScrollBar>
 #include <QTimer>
 #include <QToolButton>
-#include <QVBoxLayout>
 #include <QWidget>
 
 namespace stencil::gui {
@@ -38,9 +25,7 @@ namespace stencil::gui {
                                                DisintegrateOverlay::Sweep::GATHER,
                                                /*dust=*/true, FORM_CELLS, FORM_MS);
       if (!fx) return;
-      auto* veil = new QGraphicsOpacityEffect(cell);
-      veil->setOpacity(0.0);
-      cell->setGraphicsEffect(veil);
+      veilBehindDust(cell);
       QTimer::singleShot(int(FORM_MS * FORM_VEIL), cell, [cell] { cell->setGraphicsEffect(nullptr); });
     });
   }

@@ -16,8 +16,8 @@ pub struct ScrapeParams {
     /// image/video/background/poster media.
     pub source_site: String,
 
-    /// Destination **directory** for the downloads (created if missing, nested ok).
-    /// Defaults to the current directory.
+    /// Destination **directory** for the downloads, inside the server's roots (created if
+    /// missing, nested ok). Defaults to the first root.
     #[serde(default)]
     pub output: Option<String>,
 

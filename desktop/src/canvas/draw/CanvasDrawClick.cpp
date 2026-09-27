@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "hitTest.hpp"
 
 // A click while drawing: closing the shape, or adding the next point.
@@ -35,8 +34,8 @@ namespace stencil::gui {
     if (drawMode == DrawMode::RECT && mods == Qt::NoModifier) {
       if (!isDrawing) startDrawingMode();
       if (!isDrawing) return;   // declined (no image / read-only) — nothing to sweep
-      rectDrawActive = true;
-      rectDrawStart = rectDrawEnd = widgetPos;
+      gesture.kind = Gesture::RECT_DRAW;
+      gesture.rectStart = gesture.rectEnd = widgetPos;
       update();
       return;
     }

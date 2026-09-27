@@ -1,4 +1,4 @@
-// The drawn menu thumb (js/ui/menuScrollbar.js): it exists only when the list overflows its
+// The drawn menu thumb (js/ui/control/menuScrollbar.js): it exists only when the list overflows its
 // cap, and its length and travel follow the scroll.
 import test from 'node:test';
 import assert from 'node:assert/strict';

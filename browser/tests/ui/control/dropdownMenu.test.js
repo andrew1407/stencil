@@ -1,11 +1,9 @@
-// Select dropdowns escape their container (js/ui/dropdownMenu.js). `.controls` clips its overflow, so a list
+// Select dropdowns escape their container (js/ui/control/dropdownMenu.js). `.controls` clips its overflow, so a list
 // longer than the panel was sliced off at its edge and nothing kept a list inside the WINDOW either: an open
 // menu is moved to <body> and placed in viewport coordinates. These cases pin the placement, the portal and
 // the put-back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { COMPONENTS_CSS } from '../../helpers/css.js';
 
 // A DOM small enough to place a menu in, big enough to move it around.
 const setupDom = ({ vw = 1200, vh = 800 } = {}) => {
@@ -171,19 +169,4 @@ test('an open menu follows its trigger when the page moves under it', async () =
   assert.equal(listeners.length, 0);
   delete globalThis.requestAnimationFrame;
   delete globalThis.cancelAnimationFrame;
-});
-
-test('every select dropdown goes through the portal, and its press-outside sees it', () => {
-  const cs = readFileSync(new URL('../../../js/ui/control/customSelect.js', import.meta.url), 'utf8');
-  const ap = readFileSync(new URL('../../../js/ui/accent/picker.js', import.meta.url), 'utf8');
-  for (const [name, src, host] of [['customSelect', cs, 'wrap'], ['accentPicker', ap, 'mount']]) {
-    assert.match(src, /showMenu\(menu, trigger\)/, `${name} opens through dropdownMenu`);
-    assert.match(src, /hideMenu\(menu\)/, `${name} closes through it`);
-    // The menu is on <body> while open, so an outside press must test it too.
-    assert.match(src, new RegExp(`!${host}\\.contains\\(e\\.target\\) && !menu\\.contains\\(e\\.target\\)`),
-      `${name} does not close on a press inside its own portaled menu`);
-  }
-  const css = COMPONENTS_CSS;
-  assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*position: fixed/, 'the portaled menu is viewport-positioned');
-  assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*right: auto/, 'and anchored from the left it was given');
 });

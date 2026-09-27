@@ -38,14 +38,21 @@ public sealed class UpdateRouter
         _guard = new ErrorGuard(bot, logger);
         MediaIntake media = new(handlers, editing, store, bot, options);
         DocumentIntake documents = new(media, handlers, editing, store, bot);
-        _albums = new AlbumRouter(media, handlers, store, bot, gate, _guard, albums ?? new AlbumCollector());
+        _albums = new AlbumRouter(media, handlers, store, bot, gate, _guard, albums ?? new AlbumCollector(options.AlbumSettle));
         _messages = new MessageRouter(handlers, media, documents, store, bot);
     }
+
+    // The UpdatePump lane: the user this router gates on. Stop gets none, so it never waits behind the
+    // turn it cancels.
+    public static long LaneOf(Message message) => message.From?.Id ?? message.Chat.Id;
+
+    public static long? LaneOf(CallbackQuery query) =>
+        query.Data == CallbackAction.STOP_TOKEN ? null : query.From.Id;
 
     public async Task HandleMessageAsync(Message message, CancellationToken ct)
     {
         long chatId = message.Chat.Id;
-        long userId = message.From?.Id ?? chatId;
+        long userId = LaneOf(message);
         await _guard.RunAsync(chatId, async () =>
         {
             // The allowlist comes before the album buffer: a stranger's media group is never even

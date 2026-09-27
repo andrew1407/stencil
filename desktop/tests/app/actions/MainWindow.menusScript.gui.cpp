@@ -69,7 +69,7 @@ class MainWindowGuiTest : public QObject {
       aliveAfterTyping = sub->isVisible() && menu->isVisible();
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(isFlyout, "the Stencil Script row is still a plain opener, not a submenu");
     QVERIFY2(keptHint, "the Stencil Script row lost its Alt+Shift+S hint");
     QVERIFY2(underAssistant, "the script flyout is not directly under the Assistant");
@@ -104,14 +104,14 @@ class MainWindowGuiTest : public QObject {
       aliveAfterRun = sub->isVisible() && menu->isVisible();
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(survived, "the typed script did not survive the menu closing");
     QVERIFY2(ran, "Run did not apply the script to the canvas");
     QVERIFY2(aliveAfterRun, "running the script closed the menu");
 
     // Upload raises a file dialog, and Qt takes every popup down the moment one opens —
     // native or not. So the hook puts the chain BACK: same place, script row, flyout open.
-    stencil::gui::asScriptMenu(win.scriptMenuPanel)->setScript(QStringLiteral("@crop 10%"));
+    stencil::gui::asScriptMenu(win.ctxMenu.scriptPanel)->setScript(QStringLiteral("@crop 10%"));
     bool reopened = false, kept = false;
     QTimer::singleShot(600, [&] {
       // With the flyout open it IS the active popup; the whole chain goes down either way,

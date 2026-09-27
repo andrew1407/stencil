@@ -1,22 +1,39 @@
 #include "ProjectsDialog.hpp"
 
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
 #include "fetchGuard.hpp"
-#include "../../../support/control/reveal/controlReveal.hpp"
-#include "../../../support/motion/DisintegrateOverlay.hpp"
+#include "../../../support/rowWork.hpp"
 
+#include <QBuffer>
 #include <QIcon>
 #include <QImage>
+#include <QImageReader>
 #include <QPointer>
 #include <QUrl>
+#include <QListWidget>
+#include <QListWidgetItem>
 
 // Row thumbnails: the server/source fetches and what lands on a row.
 
 namespace stencil::gui {
 
   namespace fetchGuard = stencil::net::fetchGuard;
+
+  namespace {
+    // Decoded on the pool straight at the row's 320px, never full size on this thread.
+    void decodeThumb(QObject* ctx, const QByteArray& bytes, std::function<void(QImage)> done) {
+      support::runOnPool<QImage>(ctx, [bytes] {
+        QByteArray data = bytes;
+        QBuffer buf(&data);
+        buf.open(QIODevice::ReadOnly);
+        QImageReader reader(&buf);
+        const QSize full = reader.size();
+        if (full.isValid() && (full.width() > 320 || full.height() > 320))
+          reader.setScaledSize(full.scaled(320, 320, Qt::KeepAspectRatio));
+        return reader.read();
+      }, std::move(done));
+    }
+  }  // namespace
 
   void ProjectsDialog::commitRowEdit(
       const QString& id, const QString& server,
@@ -85,27 +102,31 @@ namespace stencil::gui {
     const QString serverUrl = sp.serverUrl;
     const stencil::net::ServerProject spCopy = sp;
     QPointer<ProjectsDialog> self(this);
-    c->downloadFileAsync(id, "result", [this, self, key, id, serverUrl, spCopy, c](bool ok,
-                                                                                   QByteArray bytes) {
+    // No rendered result — fall back to the uploaded original, then to the `source` web URL.
+    auto original = [this, self, key, id, serverUrl, spCopy, c] {
+      c->downloadFileAsync(id, "original", [this, self, key, id, serverUrl, spCopy](bool ok,
+                                                                                    QByteArray bytes) {
+        if (!self) return;
+        auto source = [this, key, spCopy] {
+          thumbInFlight.remove(key);
+          fetchSourceThumbAsync(key, spCopy);
+        };
+        if (!ok || bytes.isEmpty()) return source();
+        decodeThumb(this, bytes, [this, key, id, serverUrl, source](QImage img) {
+          if (img.isNull()) return source();
+          thumbInFlight.remove(key);
+          applyRemoteThumb(key, id, serverUrl, img);
+        });
+      });
+    };
+    c->downloadFileAsync(id, "result", [this, self, key, id, serverUrl, original](bool ok,
+                                                                                  QByteArray bytes) {
       if (!self) return;
-      QImage img;
-      if (ok && !bytes.isEmpty() && img.loadFromData(bytes)) {
+      if (!ok || bytes.isEmpty()) return original();
+      decodeThumb(this, bytes, [this, key, id, serverUrl, original](QImage img) {
+        if (img.isNull()) return original();
         thumbInFlight.remove(key);
         applyRemoteThumb(key, id, serverUrl, img);
-        return;
-      }
-      // No rendered result — fall back to the uploaded original.
-      c->downloadFileAsync(id, "original", [this, self, key, id, serverUrl, spCopy](bool ok2,
-                                                                                    QByteArray b2) {
-        if (!self) return;
-        thumbInFlight.remove(key);
-        QImage img2;
-        if (ok2 && !b2.isEmpty() && img2.loadFromData(b2)) {
-          applyRemoteThumb(key, id, serverUrl, img2);
-          return;
-        }
-        // No stored bytes at all — fetch the project's `source` web URL (extension-added).
-        fetchSourceThumbAsync(key, spCopy);
       });
     });
   }
@@ -125,10 +146,10 @@ namespace stencil::gui {
     // body, no redirect. A refusal caches like any other miss, and is never retried.
     fetchGuard::get(this, u, /*strict=*/true,
                     [this, key, id, serverUrl](const QByteArray& bytes, const QString&) {
-                      thumbInFlight.remove(key);
-                      QImage img;
-                      img.loadFromData(bytes);
-                      applyRemoteThumb(key, id, serverUrl, img);
+                      decodeThumb(this, bytes, [this, key, id, serverUrl](QImage img) {
+                        thumbInFlight.remove(key);
+                        applyRemoteThumb(key, id, serverUrl, img);
+                      });
                     });
   }
 
@@ -147,6 +168,19 @@ namespace stencil::gui {
           it->data(Qt::UserRole + 1).toString() == serverUrl) {
         it->setIcon(QIcon(squareThumb(pm, 112)));   // uniform square row icon (cover)
         it->setData(Qt::UserRole + 2, pm);          // full-aspect source for hover-magnify
+        break;
+      }
+    }
+  }
+
+  void ProjectsDialog::setLocalThumb(const QString& id, const QPixmap& thumb) {
+    if (thumb.isNull()) return;
+    thumbs.insert(id, thumb);
+    for (int i = 0; list && i < list->count(); ++i) {
+      QListWidgetItem* it = list->item(i);
+      if (it->data(Qt::UserRole).toString() == id && it->data(Qt::UserRole + 1).toString().isEmpty()) {
+        it->setIcon(QIcon(squareThumb(thumb, 112)));
+        it->setData(Qt::UserRole + 2, thumb);
         break;
       }
     }

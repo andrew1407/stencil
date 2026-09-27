@@ -7,6 +7,7 @@
 #include "values.hpp"
 #include "text.hpp"
 
+#include <set>
 #include <utility>
 
 namespace stencil::core::script {
@@ -39,6 +40,17 @@ namespace stencil::core::script {
              toLowerAscii(unquoteWord(st.args[0].text)) == "stencil";
     }
 
+    // Notes whatever lowering one expanded statement reported, however the loop leaves it.
+    struct CallSiteNote {
+      std::vector<Diagnostic>& diags;
+      const Stmt& st;
+      std::set<std::string>& seen;
+      std::size_t from = diags.size();
+      ~CallSiteNote() {
+        if (st.callLine > 0) noteCallSite(diags, from, {st.callLine, st.callCol, st.callLen}, seen);
+      }
+    };
+
   }  // namespace
 
   LowerResult lowerScript(ParseResult& parsed) {
@@ -47,6 +59,8 @@ namespace stencil::core::script {
     std::vector<Token> emptyBlocks;
     bool capped = false;  // a replay that would pass MAX_OPS stops the whole script
     int expansions = 0;   // the whole script's template fan-out, blocks included
+    const TemplateIndex index = indexTemplates(parsed.templates);
+    std::set<std::string> noted;  // template-body diagnostics already reported once
 
     for (RawBlock& raw : parsed.blocks) {
       const int blockIndex = static_cast<int>(out.blocks.size());
@@ -60,7 +74,9 @@ namespace stencil::core::script {
         if (static_cast<int>(block.source.size()) > MAX_SOURCE_CHARS) {
           out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_SOURCE", raw.header,
                                              "the @source spec is too long"));
-          block.source.resize(MAX_SOURCE_CHARS);
+          std::size_t cut = MAX_SOURCE_CHARS;  // back off a UTF-8 continuation byte
+          while (cut > 0 && (static_cast<unsigned char>(block.source[cut]) & 0xC0) == 0x80) --cut;
+          block.source.resize(cut);
         }
         Op open = blankOp(OpKind::OPEN, raw.header, blockIndex);
         open.strs.assign(1, block.source);
@@ -72,7 +88,9 @@ namespace stencil::core::script {
       std::vector<Stmt> body;
       for (Stmt& st : raw.body) {
         if (!isStencilUse(st)) { body.push_back(std::move(st)); continue; }
-        expandStencilUse(st, parsed.templates, 1, expansions, body, out.diagnostics);
+        const std::size_t before = out.diagnostics.size();
+        expandStencilUse(st, parsed.templates, index, 1, expansions, body, out.diagnostics);
+        noteCallSite(out.diagnostics, before, {st.line, st.col, st.len}, noted);
         if (expansions > MAX_TEMPLATE_EXPANSIONS) { capped = true; break; }
       }
       if (capped) break;  // the capped block is not recorded, so nothing of it dumps
@@ -81,6 +99,15 @@ namespace stencil::core::script {
       EditLedger ledger;
       bool sawSave = false, sawEdit = false;
       std::vector<int> frames;
+
+      // Every op counts: a @save or a @frame is an encode per input. Past it the lowering stops.
+      auto hasRoom = [&](const Stmt& at) {
+        if (static_cast<int>(out.ops.size()) < MAX_OPS) return true;
+        out.diagnostics.push_back(
+            makeDiag(Severity::ERROR, "E_LIMIT_OPS", at, "the script has too many ops"));
+        capped = true;
+        return false;
+      };
 
       auto rewindAndReplay = [&](int line, int col) {
         if (ledger.reconcile(out.ops, blockIndex, line, col)) return true;
@@ -91,6 +118,7 @@ namespace stencil::core::script {
       };
 
       for (Stmt& st : body) {
+        const CallSiteNote note{out.diagnostics, st, noted};
         if (st.kind == Directive::USE) {
           bool sawStencil = false;
           argsUse(st, state, sawStencil, out.diagnostics);
@@ -116,7 +144,7 @@ namespace stencil::core::script {
             continue;
           }
           frames.push_back(idx);
-          if (!rewindAndReplay(st.line, st.col)) break;
+          if (!rewindAndReplay(st.line, st.col) || !hasRoom(st)) break;
           ledger.reset();
           out.ops.push_back(std::move(op));
           continue;
@@ -130,7 +158,7 @@ namespace stencil::core::script {
         if (st.kind == Directive::SAVE) {
           Op op = blankOp(OpKind::SAVE, st, blockIndex);
           if (!argsSave(st, op, out.diagnostics)) continue;
-          if (!rewindAndReplay(st.line, st.col)) break;
+          if (!rewindAndReplay(st.line, st.col) || !hasRoom(st)) break;
           out.ops.push_back(std::move(op));
           sawSave = true;
           continue;
@@ -165,11 +193,7 @@ namespace stencil::core::script {
           }
         }
         if (!ok) continue;
-        if (static_cast<int>(out.ops.size()) >= MAX_OPS) {
-          out.diagnostics.push_back(
-              makeDiag(Severity::ERROR, "E_LIMIT_OPS", st, "the script has too many ops"));
-          break;
-        }
+        if (!hasRoom(st)) break;
         // Numbered before the ledger copies it, so a replayed edit dumps as the same edit.
         op.editIndex = ledger.editCount() + 1;
         ledger.addEdit(op, normalizedText(st));

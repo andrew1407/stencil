@@ -20,8 +20,9 @@ from ._ffi.types import NoneType
 MAX_INPUTS = 512
 MAX_SCRIPT_BYTES = 4 << 20
 SUFFIX = "-stencil"
-# The codecs this surface can write, so the only extensions a @save may produce.
-SAVE_FORMATS = ("png", "bmp")
+# The codecs this surface can write, so the only extensions a @save may produce; a JPEG
+# source saves as .jpg whichever spelling it had, as the CLI's Format.ext() does.
+SAVE_FORMATS = {"png": "png", "bmp": "bmp", "jpg": "jpg", "jpeg": "jpg"}
 
 
 def is_media(name: str) -> bool:
@@ -99,6 +100,8 @@ def base_name(path: str) -> str:
 
 
 def dir_of(path: str) -> str:
+  """The directory a result lands beside: a URL's is the working directory (CLI splitPath)."""
+  if is_url(path): return ""
   head, sep, _ = _strip_query(path).replace("\\", "/").rpartition("/")
   return head + sep if sep else ""
 
@@ -112,8 +115,7 @@ def save_format(source_ext: (str | NoneType)) -> str:
   """The codec a ``@save`` falls back to for a result derived from ``source_ext``: the
   source's own when this surface can write it, else PNG. One rule, so the name
   ``--script-plan`` reports and the file ``--script`` writes can never disagree."""
-  ext = (source_ext or "").lower()
-  return ext if ext in SAVE_FORMATS else "png"
+  return SAVE_FORMATS.get((source_ext or "").lower(), "png")
 
 
 def resolve_target(target: str, source: str, frame: (int | NoneType), ext: str) -> str:

@@ -1,14 +1,6 @@
 #include "ServerClient.hpp"
 
-#include <QHostAddress>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QUrl>
-#include <QUrlQuery>
+#include <memory>
 
 namespace stencil::net {
 
@@ -44,7 +36,11 @@ namespace stencil::net {
     st->attempt = std::move(attempt);
     st->resolve = std::move(resolve);
     st->done = std::move(done);
-    st->step = [st]() {
+    // Weak here: a strong self-capture would keep the state, and every capture the caller's
+    // lambdas hold, alive for the process. The in-flight callbacks own it instead.
+    st->step = [weak = std::weak_ptr<State>(st)]() {
+      const std::shared_ptr<State> st = weak.lock();
+      if (!st) return;
       st->attempt(st->version, [st](GuardOutcome o) {
         if (o != GuardOutcome::CONFLICT) {  // Committed or Failed → done
           st->done(o);

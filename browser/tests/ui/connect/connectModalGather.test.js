@@ -74,7 +74,7 @@ test('animations.css: materialize is the leave reversed, veil outranks keyframes
   assert.ok(!/@keyframes rowMaterializeBox \{[^}]*opacity/.test(css), 'the box keyframes carry no alpha');
   assert.match(css, /\.disintegrate-host\.dust-forming \{ animation: dustHostOut var\(--host-ms, var\(--gather-ms, 420ms\)\)/,
     'the forming host lives the whole span');
-  // The gather is the scatter reversed on the one canvas (js/ui/cloud.js): a grain starts
+  // The gather is the scatter reversed on the one canvas (js/ui/dust/cloud.js): a grain starts
   // where the scatter would have flung it and flies home to identity — tileGather, as numbers.
   assert.equal(FLIGHTS.gather.from, 'far', 'a gather grain starts where the scatter would have flung it');
   const grain = { x: 10, y: 20, dx: 30, dy: 40, mx: 18, my: 25, r: 3, s: 0.5, a: 1 };

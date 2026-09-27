@@ -30,7 +30,7 @@ export class AccentController {
   }
 
 // Same tri-state as the desktop (io/fileStore.hpp themeMode) and the extension
-// (lib/shellTheme.js THEME_MODES). `originEl` is the control the wipe floods out of.
+// (lib/prefs/shellTheme.js THEME_MODES). `originEl` is the control the wipe floods out of.
   setThemeMode(mode, originEl = null) {
     const next = THEME_MODES.includes(mode) ? mode : 'system';
 // Only a palette change animates: two modes resolving to the same palette repaint nothing.

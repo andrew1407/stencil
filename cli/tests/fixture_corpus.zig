@@ -1,5 +1,5 @@
 //! Shared plumbing for the cross-surface fixture-corpus walkers
-//! (tests/*_fixtures_test.zig). The corpus lives in the browser tree;
+//! (tests/**/*_fixtures_test.zig). The corpus lives in the browser tree;
 //! `zig build test` runs with cwd = cli/ (verified empirically), so fixtures
 //! resolve via "../browser/js/config/...". std.fs + std.json only.
 const std = @import("std");

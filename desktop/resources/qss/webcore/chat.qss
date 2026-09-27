@@ -1,0 +1,36 @@
+      /* The logo's preset list is a menu, not a stack of buttons (browser .logo-accent-menu):
+         flat rows, one on the navy bar — the pointer's, else the current preset. */
+      QDialog#accentPopover { background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; }
+      QDialog#accentPopover QPushButton {
+        background: transparent; color: %WC_INK%; border: 0; border-radius: 0; border-image: none; text-align: left; padding: 6px 9px;
+      }
+      QDialog#accentPopover QPushButton[lit="true"] { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QDialog#accentPopover QPushButton:focus { outline: none; }
+      /* The assistant dock is a window like the others (browser webcore/chat.css .chat-panel):
+         the navy title strip, its buttons raised, the composer a sunken well. */
+      QWidget#chatTitleBar { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %WC_TITLE_A%, stop:1 %WC_TITLE_B%); border: 0; }
+      QLabel#chatHeaderTitle { color: %WC_TITLE_INK%; font-weight: bold; font-size: 12px; background: transparent; }
+      QWidget#chatTitleBar QToolButton {
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+        padding: 0; min-width: 14px; max-width: 14px; min-height: 12px; max-height: 12px;
+      }
+      QWidget#chatBody, QWidget#chatInputArea { background: %WC_FACE%; border: 0; }
+      /* A floating dock's frame takes the palette's window colour, the skin's desktop teal: the
+         browser's panel is one face-grey box, frame included. */
+      QDockWidget#llmChatDock { background: %WC_FACE%; }
+      QWidget#chatBody QScrollArea, QWidget#chatBody QScrollArea > QWidget > QWidget { background: %WC_FACE%; border: 0; }
+      /* A window like the browser's stencil-chat-panel (--wc-raised) under its title strip, and
+         the composer's rule etched like the settings footer (.chat-input-row). */
+      QWidget#chatBody {
+        border-style: solid; border-color: transparent; border-width: 0 2px 2px 2px;
+        border-image: url(%WC_RAISED_OPEN%) 0 2 2 2 stretch;
+      }
+      QWidget#chatInputArea {
+        border-style: solid; border-color: transparent; border-width: 2px 0 0 0;
+        border-image: url(%WC_ETCH%) 2 0 0 0 stretch;
+      }
+      #chatInput {
+        background: %WC_WINDOW%; color: %WC_INK%; border: 2px solid transparent;
+        border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; padding: 4px 6px; font-size: 12px;
+      }
+      QPushButton#chatSuggestChip { font-size: 12px; padding: 2px 8px; }

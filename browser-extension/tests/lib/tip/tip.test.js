@@ -1,4 +1,4 @@
-// src/lib/tip.js — how a control describes itself, and the rule it exists to enforce:
+// src/lib/tip/tip.js — how a control describes itself, and the rule it exists to enforce:
 // the extension's own UI never sets a native `title`, because Chrome's popup is slow,
 // unstyled, and would show ON TOP of lib/controlTooltip.js's. Everything goes through
 // `data-title`, which that controller already reads.
@@ -33,7 +33,7 @@ test('empty text clears both attributes, and a missing element is a no-op', () =
   assert.equal(setTip({}, 'x').tag, undefined, 'an element with no setAttribute is skipped');
 });
 
-// lib/overlay.js is the one exception: it is injected into the HOST page (executeScript({func}), so
+// lib/drop/overlay.js is the one exception: it is injected into the HOST page (executeScript({func}), so
 // it cannot import), which means controlTooltip.js never runs over it.
 const NATIVE_TITLE_OK = new Set(['src/lib/drop/overlay.js']);
 // controlTooltip.js blanks/restores a native title it finds (a port pinned byte-for-byte

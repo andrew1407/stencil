@@ -1,20 +1,10 @@
 // revealBar (js/ui/motion.js): a bar opens at once but defers its close by its contents'
-// flight, holding then zeroing the whole footprint; plus the modal dust sweep.
+// flight, holding then zeroing the whole footprint. The window dust sweep is in
+// markDust-sweep.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
-import {
-  REVEAL_GROUP_OUT_MS, revealControls, revealBar, BAR_HELD_CLASS, BAR_CLOSING_CLASS,
-} from '../../../js/ui/motion.js';
-import { motionSource } from '../../helpers/motionSource.js';
+import { REVEAL_GROUP_OUT_MS, revealBar, BAR_HELD_CLASS, BAR_CLOSING_CLASS } from '../../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const motionJs = motionSource();
-const swapJs = read('../../../js/ui/control/swap.js');
-const animCss = ANIMATIONS_CSS;
-const selectJs = read('../../../js/ui/control/customSelect.js');
 
 // The bar's slot CLIPS its controls (overflow:hidden under a collapsing max-height), so its
 // hide is deferred and its open immediate, as ConnectDialog::updateBatchBar does (user report).
@@ -63,9 +53,8 @@ test('revealBar defers the CLOSE by its contents\' flight, but opens at once', (
   // The bar's own box is never animated either way — a sliding max-height clips Select all on
   // the way in and leaves a bare grey line on the way out (user report); only the controls fly.
   assert.equal(bar.style.maxHeight, undefined);
-  const src = motionSource();
-  const body = src.slice(src.indexOf('export const revealBar'), src.indexOf('const REVEAL_GROUP_TRANSITION_CLASS'));
-  assert.ok(!/revealControls|slideRevealSize|maxHeight/.test(body), 'a display flip, nothing more');
+  assert.equal(bar.style.maxWidth, undefined, 'a display flip, nothing more');
+  assert.equal(bar.__dustHost, undefined, 'and no cloud of its own');
 });
 
 // The strip's footprint is HELD from the moment it is asked to leave, then height, padding and
@@ -125,83 +114,4 @@ test('the closing bar zeroes its padding and divider, not just its height', () =
       `${prop.split(':')[0]} is animated, not dropped`);
   }
   assert.match(css, /\.bar-held \{[^}]*overflow: hidden/, 'the held slot clips its contents');
-});
-
-// A cloud is parented to <body> to clear the scroller, so it outlives its window: each window
-// sweeps its own on the way out, before its own close flight (user report).
-test('sweepDust takes down the clouds a window started, and only those', async () => {
-  const { sweepDust } = await import('../../../js/ui/motion.js');
-  const made = [];
-  const host = (scope) => {
-    const stopped = { stopped: false };
-    const el = {
-      className: 'disintegrate-host',
-      dataset: scope ? { dustScope: scope } : {},
-      __stop: () => { stopped.stopped = true; },
-      remove: () => { el.removed = true; },
-      removed: false,
-      stopped,
-    };
-    made.push(el);
-    return el;
-  };
-  const mine = host('projects-modal-overlay');
-  const alsoMine = host('projects-modal-overlay');
-  const anothers = host('connect-modal-overlay');
-  const loose = host(null);
-  const realDoc = globalThis.document;
-  globalThis.document = { querySelectorAll: () => made };
-  try {
-    assert.strictEqual(sweepDust('projects-modal-overlay'), 2, 'both of that window\'s clouds');
-    assert.ok(mine.removed && mine.stopped.stopped, 'the layer goes, and its loop stops first');
-    assert.ok(alsoMine.removed);
-    assert.ok(!anothers.removed, 'another window\'s cloud is left alone');
-    assert.ok(!loose.removed, '…and so is one that belongs to no window');
-    assert.strictEqual(sweepDust(null), 0, 'no scope, nothing swept');
-    assert.strictEqual(sweepDust({ id: 'connect-modal-overlay' }), 1, 'an element works too');
-  } finally {
-    globalThis.document = realDoc;
-  }
-});
-
-// …and the shell is what calls it: every window closes the same way (shell.js close()).
-test('every modal shell sweeps its own dust as it closes', () => {
-  const shell = read('../../../js/ui/modal/shell.js');
-  assert.match(shell, /const close = \(backTo = null\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
-    'the shared close sweeps, so no window has to remember to');
-  assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '[^']*motion\.js'/);
-});
-
-// A settle that lands mid-close (a removed project's list re-rendering) must not start a row cloud
-// the sweep has already passed; a window's own flight is not a row and is exempt.
-test('a row cloud starts only while its window is open', async () => {
-  const { disintegrate, dustEnabled } = await import('../../../js/ui/motion.js');
-  assert.ok(dustEnabled(), 'the node default flies particles');
-  const scope = (open, dustScope) => ({ dataset: dustScope ? { dustScope } : {}, matches: () => open });
-  const row = (s) => ({ closest: () => s, getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 20 }) });
-  const realDoc = globalThis.document;
-  let built = 0;
-  globalThis.document = { body: {}, createElement: () => { built++; throw new Error('stub'); } };
-  const start = (s) => disintegrate(row(s), { paintTile: () => {} });
-  try {
-    start(scope(true));
-    assert.strictEqual(built, 1, 'an open window builds its cloud');
-    assert.strictEqual(start(scope(false)), false);
-    assert.strictEqual(start(scope(false, '.chat-open:not(.chat-closing)')), false);
-    assert.strictEqual(built, 1, 'a closing modal or panel builds none');
-  } finally {
-    globalThis.document = realDoc;
-  }
-  const surfaces = read('../../../js/ui/motion/surface/surfaces.js');
-  assert.match(surfaces, /return disintegrate\(el, \{[^}]*scoped: false/, 'a surface flight is not gated');
-});
-
-// The non-modal windows that host row clouds declare their open state and sweep on the way out.
-test('the chat panel and the coordinates panel scope and sweep their row clouds', () => {
-  const chat = read('../../../js/ui/chat/panel.js');
-  assert.match(chat, /data-dust-scope="\.chat-open:not\(\.chat-closing\)"/);
-  assert.match(chat, /sweepDust\(host\);\s*playDust\(false\)/, 'swept before its own close flight');
-  const main = read('../../../js/ui/panel/mainContent.js');
-  assert.match(main, /id="coord-panel" data-dust-scope=":not\(\.coord-collapsed\)"/);
-  assert.match(main, /if \(hidden\) sweepDust\(panel\);\s*foldDust\(/);
 });

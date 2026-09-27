@@ -1,6 +1,6 @@
 // The golden shining a show's notice wears. The same for every show — the colour of the secret,
 // not of the theme — and it follows the pill's own rounded rectangle instead of ringing a circle
-// around it. Desktop twin: support/toastShine.hpp.
+// around it. Desktop twin: support/motion/toastShine.hpp.
 import { beatAt } from '../logo/stagePaint.js';
 import { STAGE } from '../logo/stageRules.js';
 

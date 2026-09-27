@@ -1,4 +1,4 @@
-// The §8/§10 panel-op half of the extension profile (src/llm/plan.js): pin/unpin, rescan,
+// The §8/§10 panel-op half of the extension profile (src/llm/op/plan.js): pin/unpin, rescan,
 // open.mode, scanTab, theme/accent/filter, clearChat, openUrl — and what gathers vs acts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

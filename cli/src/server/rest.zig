@@ -48,17 +48,23 @@ pub const Client = struct {
 
     /// GET/POST/etc. with the bearer header; returns owned response body bytes. A stored session dies with a
     /// server restart, so when connect() was given a credential, re-mint one and retry once in place.
-    pub fn request(
+    pub fn request(self: *Client, method: std.http.Method, path: []const u8, payload: ?[]const u8, content_type: ?[]const u8) ![]u8 {
+        return self.requestWith(method, path, payload, content_type, null);
+    }
+
+    /// `request` with one more header — a `range` for a probe that needs only a file's first bytes.
+    pub fn requestWith(
         self: *Client,
         method: std.http.Method,
         path: []const u8,
         payload: ?[]const u8,
         content_type: ?[]const u8,
+        extra: ?std.http.Header,
     ) ![]u8 {
-        return self.send(method, path, payload, content_type) catch |e| {
+        return self.send(method, path, payload, content_type, extra) catch |e| {
             if (e != Error.Unauthorized or self.credential.len == 0) return e;
             self.remint() catch return e; // surface the original rejection
-            const body = try self.send(method, path, payload, content_type);
+            const body = try self.send(method, path, payload, content_type, extra);
             // It minted AND the retried request works: the credential is an admin token.
             self.credential_kind = .admin;
             return body;
@@ -72,15 +78,16 @@ pub const Client = struct {
         path: []const u8,
         payload: ?[]const u8,
         content_type: ?[]const u8,
+        extra: ?std.http.Header,
     ) ![]u8 {
         const url = try std.fmt.allocPrint(self.gpa, "{s}{s}", .{ self.base, path });
         defer self.gpa.free(url);
-        var headers: [2]std.http.Header = undefined;
+        var headers: [3]std.http.Header = undefined;
         var n: usize = 0;
         headers[n] = .{ .name = "authorization", .value = self.auth };
         n += 1;
-        if (content_type) |ct| {
-            headers[n] = .{ .name = "content-type", .value = ct };
+        for ([_]?std.http.Header{ if (content_type) |ct| .{ .name = "content-type", .value = ct } else null, extra }) |h| {
+            headers[n] = h orelse continue;
             n += 1;
         }
         return self.transport(self.gpa, self.io, url, method, payload, headers[0..n]);
@@ -107,8 +114,21 @@ pub const Client = struct {
         self.auth = auth;
     }
 
+    /// Every project, following `nextCursor` into one `{"projects":[…]}` body; a lone page comes back as sent.
     pub fn listProjects(self: *Client) ![]u8 {
-        return self.request(.GET, "/projects", null, null);
+        const first = try self.request(.GET, "/projects", null, null);
+        if (!parse.hasNextCursor(self.gpa, first)) return first;
+        defer self.gpa.free(first);
+        var pages: parse.ProjectPages = .{ .gpa = self.gpa, .out = .init(self.gpa) };
+        defer pages.deinit();
+        var next = try pages.add(first);
+        while (next) |path| {
+            defer self.gpa.free(path);
+            const body = try self.request(.GET, path, null, null);
+            defer self.gpa.free(body);
+            next = try pages.add(body);
+        }
+        return pages.finish();
     }
 
     pub fn findProjectIdByName(self: *Client, name: []const u8) !?[]u8 {

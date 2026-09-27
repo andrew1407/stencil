@@ -2,6 +2,7 @@
 // createModalOpenGesture) over fake windows: peek, release outside / inside, the linger close
 // on leave, the glide registry, and a deliberate open that Alt never touches.
 #include "altPeek.hpp"
+#include "uiTimings.hpp"
 
 #include <QTest>
 #include <QWidget>
@@ -39,12 +40,12 @@ void runAltPeekGestureChecks() {
   check(a.open && a.g->mode() == M::LINGER, "gesture: released over the list, it lingers");
   a.g->boxLeave();
   a.g->boxEnter();
-  QTest::qWait(stencil::support::LINGER_CLOSE_MS + 100);
+  QTest::qWait(stencil::support::uiTimings().lingerCloseMs + 100);
   check(a.open, "gesture: coming back in before the linger elapses keeps it open");
   a.g->boxLeave();
-  QTest::qWait(stencil::support::LINGER_CLOSE_MS / 2);
-  check(a.open, "gesture: the linger close waits LINGER_CLOSE_MS");
-  QTest::qWait(stencil::support::LINGER_CLOSE_MS);
+  QTest::qWait(stencil::support::uiTimings().lingerCloseMs / 2);
+  check(a.open, "gesture: the linger close waits POPOVER.lingerCloseMs");
+  QTest::qWait(stencil::support::uiTimings().lingerCloseMs);
   check(!a.open && a.g->mode() == M::NONE, "gesture: …then leaving the list closes it");
   a.engaged = false;
 

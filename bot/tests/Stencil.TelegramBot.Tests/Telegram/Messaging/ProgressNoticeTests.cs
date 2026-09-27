@@ -1,4 +1,4 @@
-using Stencil.TelegramBot.Bot.Telegram;
+using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.Enums;
@@ -11,13 +11,15 @@ public sealed class ProgressNoticeTests
 {
     private const long _chatId = 42;
 
+    private static readonly TimeSpan _tick = new BotOptions().ProgressTick;
+
     [Fact]
     public async Task Should_Post_The_First_Frame_Immediately_On_Start_And_Remove_It_On_Stop()
     {
         MockBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, _chatId, "Working on your request…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working on your request…", ChatAction.Typing, _tick, CancellationToken.None);
 
         SendMessageRequest sent = Assert.Single(bot.Requests.OfType<SendMessageRequest>());
         Assert.Equal("◐ Working on your request…", sent.Text);
@@ -34,7 +36,7 @@ public sealed class ProgressNoticeTests
     {
         MockBotClient bot = new();
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, _tick, CancellationToken.None);
 
         await notice.StopAsync();
         await notice.StopAsync(); // a catch path may stop it before the finally does
@@ -48,7 +50,7 @@ public sealed class ProgressNoticeTests
         ThrowingBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, _tick, CancellationToken.None);
         await notice.StopAsync();
 
         Assert.Empty(bot.Requests.OfType<DeleteMessageRequest>());
@@ -63,6 +65,36 @@ public sealed class ProgressNoticeTests
         Assert.Equal(ProgressNotice.Frames.Length, cycle.Distinct().Count());
         Assert.Equal(cycle[0], ProgressNotice.Frame(ProgressNotice.Frames.Length, "x")); // wraps
         Assert.Equal("◐ x", cycle[0]);
+    }
+
+    [Fact]
+    public async Task Should_Spin_On_The_Tick_It_Was_Given()
+    {
+        EditSignallingBotClient bot = new();
+        ProgressNotice notice = await ProgressNotice.StartAsync(
+            bot, _chatId, "Working…", ChatAction.Typing, TimeSpan.FromMilliseconds(10), CancellationToken.None);
+
+        string edited = await bot.Edited.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await notice.StopAsync();
+
+        Assert.Equal("◓ Working…", edited); // the second frame, well inside the default 3 s tick
+    }
+
+    /// <summary>Signals the first spinner edit, which lands off the test's thread.</summary>
+    private sealed class EditSignallingBotClient : MockBotClient
+    {
+        public TaskCompletionSource<string> Edited { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override Task<TResponse> SendRequest<TResponse>(
+            global::Telegram.Bot.Requests.Abstractions.IRequest<TResponse> request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is EditMessageTextRequest edit)
+            {
+                Edited.TrySetResult(edit.Text ?? "");
+            }
+            return base.SendRequest(request, cancellationToken);
+        }
     }
 
     /// <summary>A Telegram that refuses the notice send — the turn must not notice.</summary>

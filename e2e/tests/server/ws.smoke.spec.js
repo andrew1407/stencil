@@ -2,8 +2,8 @@
 // (server/internal/hub). Scripts the hello→subscribe→welcome→edit/save handshake with
 // two clients and asserts edit fan-out, the save ACK, and the raw-TCP path.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, dialTCP, join, T } from '../../helpers/wire.js';
+import { issueToken, createProject, stackEnabled } from '../../helpers/server/api.js';
+import { dialWS, dialTCP, join, T } from '../../helpers/server/wire.js';
 
 test.describe('server live-edit protocol', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

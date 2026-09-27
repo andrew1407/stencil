@@ -1,0 +1,75 @@
+# Where the GUI's headers are found: every source group dir, so a header is included bare.
+# A new folder under src/ joins this list.
+
+# GUI sources are grouped under src/ by role. The headers are included bare
+# (e.g. "fileStore.hpp"), so every group dir goes on the include path below and no
+# cross-group include needs a path prefix.
+set(STENCIL_GUI_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/input
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/draw
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/paint
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/overlay
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/scene
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/io
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/model
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/net
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/actions
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/actions/export
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chrome
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/planTarget
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/session
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/context
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/events
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/events/popover
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/logo
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/meta
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/open
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/open/source
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/project
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/project/flows
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/remote
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/selection
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/setup
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/theme
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/toolbar
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/view
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/connect
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/crop
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta/links
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/meta/keywords
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage/preview
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/openImage/dust
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/row
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/list
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/script
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/settings
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/client
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock/card
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/dock/compose
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/panel
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/plan/executor
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/reveal
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/swap
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/dust
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/icon
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/logo
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/menu
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/modal
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/motion
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/notify
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/share
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/theme
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/tip
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/webcore)

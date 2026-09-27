@@ -9,47 +9,7 @@ import (
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
 	"stencil/server/internal/store"
-	"stencil/server/internal/validate"
 )
-
-// listPage reads the opt-in keyset paging params; both absent = every project.
-func listPage(req *http.Request) (store.ProjectPage, error) {
-	q := req.URL.Query()
-	page := store.ProjectPage{}
-	limit, err := validate.ListLimit(q.Get("limit"))
-	if err != nil {
-		return page, err
-	}
-	page.Limit = limit
-	after, err := store.ParseProjectCursor(q.Get("after"))
-	if err != nil {
-		return page, errors.New("after is not a cursor from a previous page")
-	}
-	page.After = after
-	return page, nil
-}
-
-func (a *API) handleListProjects(rw http.ResponseWriter, req *http.Request) {
-	page, err := listPage(req)
-	if err != nil {
-		writeBadRequest(rw, err.Error())
-		return
-	}
-	ctx, cancel := a.opCtx(req)
-	defer cancel()
-	projects, err := a.deps.Projects.ListProjects(ctx, page)
-	if err != nil {
-		writeInternalError(rw, msgListProjects)
-		return
-	}
-	resp := protocol.ProjectListResponse{Projects: projects}
-	// A full page may have more behind it; a short one is the end of the list.
-	if page.Limit > 0 && len(projects) == page.Limit {
-		last := projects[len(projects)-1]
-		resp.NextCursor = store.ProjectCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}.String()
-	}
-	writeJSON(rw, http.StatusOK, resp)
-}
 
 func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
@@ -63,19 +23,13 @@ func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 		writeInternalError(rw, msgLoadProject)
 		return
 	}
-	resp := protocol.ProjectResponse{
-		Project:         rec,
-		Layout:          rec.Layout,
-		OriginalContent: rec.OriginalContent,
-	}
-	// Avoid duplicating the payload inside Project too.
-	resp.Project.Layout = nil
-	resp.Project.OriginalContent = ""
+	resp := protocol.ProjectResponse{Project: rec, Layout: rec.Layout}
+	resp.Project.Layout = nil // the layout rides once, beside the record
 	writeJSON(rw, http.StatusOK, resp)
 }
 
-// handleCreateProject decodes the request; the image rule and the PROJECT_TTL
-// stamping are policy and live in the service.
+// handleCreateProject decodes the request; the image rule, the PROJECT_TTL stamping and a legacy inline
+// original are policy and live in the service. A refused original answers as its upload would.
 func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
 	var body protocol.CreateProjectRequest
 	if !a.decodeJSON(rw, req, &body) {
@@ -91,6 +45,15 @@ func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
 	switch {
 	case errors.Is(err, service.ErrImageRequired):
 		writeBadRequest(rw, msgImageRequired)
+		return
+	case errors.Is(err, service.ErrBadOriginal):
+		writeBadRequest(rw, msgBadOriginal)
+		return
+	case errors.Is(err, service.ErrRecordFile):
+		writeInternalError(rw, msgRecordFile)
+		return
+	case errors.Is(err, service.ErrStoreOriginal):
+		writeStoreFileErr(rw, err)
 		return
 	case err != nil:
 		writeInternalError(rw, msgCreateProject)

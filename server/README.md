@@ -16,7 +16,11 @@ go run ./cmd/stencil-server   # REST/WS on :8090, TCP edit channel on :8091
 ```
 
 Requires a reachable Postgres (`DATABASE_URL`); the schema is created at boot via embedded
-migrations. Redis is optional (`REDIS_URL`) — without it the server uses an in-process bus
+migrations, each applied once and recorded in `schema_migrations` (instances booting together
+wait on an advisory lock). Upgrading a database whose projects kept their original inline
+moves each one into the file store at `FILESTORE_ROOT` on the first boot, so boot the new
+server with the file store it will serve from; once upgraded, an older server cannot run
+against that database. Redis is optional (`REDIS_URL`) — without it the server uses an in-process bus
 and is single-instance. Run `go mod vendor` once after cloning (or changing `go.mod`); builds
 use the gitignored `server/vendor/` copy.
 
@@ -28,17 +32,43 @@ All keys are documented in [`.env.example`](.env.example):
 |---|---|
 | `LISTEN_ADDR`, `TCP_ADDR` | the HTTP/WS and the raw-TCP listen addresses |
 | `DATABASE_URL`, `DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` | Postgres and its pool sizing (timeout in seconds) |
-| `REDIS_URL`, `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT` | optional Redis fan-out and its client sizing |
+| `REDIS_URL`, `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT`, `REDIS_SUBSCRIBE_TIMEOUT_SECONDS` | optional Redis fan-out, its client sizing, and how long a new subscription waits for Redis to acknowledge it (default 5) |
 | `FILESTORE_ROOT` | where image bytes land; defaults to the relative `./data/filestore` (the server warns at boot — set an absolute path in production) |
 | `STORAGE_QUOTA_BYTES` | aggregate cap on stored bytes; an upload past it is refused `507`; `0` = unlimited |
+| `STORAGE_QUOTA_PER_OWNER_BYTES` | cap on the bytes one owner session's projects hold together, refused the same way; a project with no owner counts only against the aggregate cap; `0` = unlimited (default) |
+| `STORAGE_QUOTA_PER_SESSION_BYTES` | cap on the bytes one session has uploaded, into any project, refused the same way — see [Storage quotas](#storage-quotas); `0` = unlimited (default) |
 | `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS` | token issuance — see [Security](#security) |
 | `CORS_ORIGINS` | allowed browser origins; defaults to loopback only |
-| `MAX_BODY_BYTES`, `OP_TIMEOUT_SECONDS` | REST body cap and the per-handler store timeout |
-| `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES` | project expiration — see below |
-| `AUTH_RATE_PER_MINUTE`, `WRITE_RATE_PER_MINUTE`, `HELLO_RATE_PER_MINUTE` | the abuse buckets |
+| `MAX_BODY_BYTES`, `OP_TIMEOUT_SECONDS` | REST body cap and the store timeout (every handler, the token lookup, the live sessions) |
+| `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `SWEEP_BATCH`/`SWEEP_WORKERS` | project expiration and the sweep's sizing — see below |
+| `PRESENCE_TTL_SECONDS`, `PRESENCE_HEARTBEAT_SECONDS`, `PRESENCE_SETTLE_MS` | how long another instance trusts this one's live projects (default 60; `0` = off, one instance only), how often they are republished (default 15, at most half the TTL), and how long a burst of joins and leaves settles before a republish (default 500 ms, at most the heartbeat) — see below |
+| `FILESTORE_RECONCILE_MINUTES`, `FILESTORE_TMP_MAX_AGE_MINUTES` | the filestore reconcile pass — see below |
+| `AUTH_RATE_PER_MINUTE`, `WRITE_RATE_PER_MINUTE`, `HELLO_RATE_PER_MINUTE`, `RATE_BUCKET_IDLE_MINUTES` | the abuse buckets, and how long an untouched one is kept (default 10, at least 1) |
+| `RETRY_AFTER_SECONDS`, `LLM_BUSY_RETRY_AFTER_SECONDS` | the `Retry-After` a rate-limited answer carries (60, and 5 over the LLM in-flight cap) |
+| `PROJECTS_PAGE_SIZE` | rows in a `GET /projects` that names no `?limit=` (default 100); `0` lists every project |
+| `HUB_OUT_BUFFER`, `HUB_OUT_BUDGET_BYTES`, `HELLO_TIMEOUT_SECONDS`, `BUS_SUB_BUFFER` | live-session queues and the hello wait |
+| `HUB_NOTICE_TIMEOUT_SECONDS`, `BUS_DROP_WARN_INTERVAL_SECONDS` | the deadline on one goodbye frame — the shutdown notice or a token expiry (default 1, at most `SHUTDOWN_TIMEOUT_SECONDS`) — and the shortest gap between two slow-subscriber drop warnings (default 30) |
+| `WS_PING_SECONDS`, `WS_PONG_TIMEOUT_SECONDS`, `TCP_IDLE_TIMEOUT_SECONDS`, `TCP_WRITE_TIMEOUT_SECONDS` | the live transports' keepalive and deadlines |
+| `HTTP_READ_HEADER_TIMEOUT_SECONDS`, `HTTP_READ_TIMEOUT_SECONDS`, `HTTP_WRITE_TIMEOUT_SECONDS`, `HTTP_IDLE_TIMEOUT_SECONDS`, `SHUTDOWN_TIMEOUT_SECONDS` | the HTTP server's timeouts and the shutdown drain |
 | `TRUSTED_PROXY_CIDRS` | networks whose `X-Forwarded-For` is trusted |
 | `TLS_CERT`/`TLS_KEY` | one cert/key secures HTTPS + WSS and the TCP edit channel |
 | `LLM_PROVIDER`, `LLM_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_*` | the LLM proxy — see below |
+
+### Storage quotas
+
+All three are off by default and answer an upload past them with the same `507`
+(`{"code":"internal","message":"server storage quota exceeded"}`):
+
+- `STORAGE_QUOTA_BYTES` caps everything the file store holds.
+- `STORAGE_QUOTA_PER_OWNER_BYTES` caps the projects one session created, whoever uploaded.
+- `STORAGE_QUOTA_PER_SESSION_BYTES` caps what one session has uploaded, whichever projects it
+  landed in — projects are a shared workspace, so this is the cap that follows a writer.
+  Replacing a file moves its bytes to the new uploader; deleting the file or its project, or
+  the session expiring, gives them back. Only uploads made while the cap is on count: a
+  restart with it off forgets every charge, and bytes stored while it was off are charged to
+  no one. Set it the same on every instance.
+
+The admin token cannot upload (it is no session), so it is never charged.
 
 ### Project expiration
 
@@ -47,7 +77,18 @@ default: a project gets an expiry only when a client sets one (the editor's `exp
 command), or when `PROJECT_TTL_HOURS` > 0 stamps `now + TTL` on every new project that
 arrives without one. A background sweep runs at startup and every `EXPIRY_SWEEP_MINUTES`
 (default 60; `0` disables it): it deletes each expired project and its bytes and broadcasts a
-`project-event` (`deleted`) so connected clients drop it live.
+`project-event` (`deleted`) so connected clients drop it live. A project someone is editing in a
+live session waits for the next sweep after they leave. The same pass deletes expired session rows.
+
+With several instances on one database, each publishes its live projects and their editor counts
+to Postgres every `PRESENCE_HEARTBEAT_SECONDS` and whenever an editor joins or leaves, and the
+others trust that list for `PRESENCE_TTL_SECONDS`: a sweep on any instance spares a project
+edited on another, and `DELETE /projects/{id}` counts every instance's editors. An instance that
+stops lets its list lapse after the TTL, which covers its editors reconnecting elsewhere.
+
+A second pass, at startup and every `FILESTORE_RECONCILE_MINUTES` (default 360; `0` disables
+it), removes what a crash or a failed removal left in the file store: a project directory no
+project row owns, and upload temp files older than `FILESTORE_TMP_MAX_AGE_MINUTES` (default 60).
 
 ## REST API
 
@@ -56,22 +97,42 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/auth/token` | issue a token+session (gated by the admin token — set or per-boot generated) |
-| GET | `/projects` | list project metadata, newest-updated first; optional `?limit=&after=` paging |
-| POST | `/projects` | create a project (optional `expiresAt`) |
-| GET | `/projects/{id}` | full project incl. layout + original content |
-| PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
+| GET | `/auth/session` | the bearer's own session, `{sessionId, expiresAt}`: the cheap token probe (401 for an unknown or expired token, and for the admin token, which is no session) |
+| GET | `/projects` | list project metadata, newest-updated first; `?limit=&after=` paging; `ETag` / `If-None-Match` |
+| POST | `/projects` | create a project (optional `expiresAt`); answers with its metadata |
+| GET | `/projects/{id}` | full project incl. layout, `{project, layout}` |
+| PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict); answers with the new metadata |
 | DELETE | `/projects/{id}` | delete project + its files |
 | GET | `/projects/{id}/files/{kind}` | download bytes; kind = `original` \| `result` \| `video` \| `variant1`..`variant8` \| `chat` |
-| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (the server is codec-free: dimensions are passed in); 507 past `STORAGE_QUOTA_BYTES` |
+| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (the server is codec-free: dimensions are passed in); 507 past any [storage quota](#storage-quotas) |
 | DELETE | `/projects/{id}/files/{kind}` | delete one filestore-only kind (`video`/`variantN`/`chat`); idempotent 204 |
 | GET | `/llm/info` | LLM proxy status: `{enabled, model}` |
 | POST | `/llm/chat` | proxy one chat turn upstream (503 `llmDisabled` without a key; 502 `llmUpstream` with the reason when the upstream fails; 429 `rateLimited` over the spend caps) |
 | GET | `/healthz` | liveness |
 
-`GET /projects` returns every project by default. Paging is opt-in: pass `?limit=` (1..500)
-and the response adds `nextCursor`, an opaque token to send back as `?after=`; the walk is a
-keyset over `(updatedAt DESC, id DESC)`, stable while projects change, and ends on the page
-with no `nextCursor`. List rows never carry `layout` or `originalContent`.
+`GET /projects` returns one page: `?limit=` (1..500) rows, or `PROJECTS_PAGE_SIZE` (100 by
+default) when it names none. A full page adds `nextCursor`, an opaque token to send back as
+`?after=`; the walk is a keyset over `(updatedAt DESC, id DESC)`, stable while projects change,
+and ends on the page with no `nextCursor`. Every page carries an `ETag`; sending it back as
+`If-None-Match` answers `304` with no body while the page is unchanged, which is what a poller
+wants. List rows never carry `layout`, and neither do the bodies of `POST`/`PUT /projects…`
+nor any `project-event`: only `GET /projects/{id}` returns it. The original image is served
+only by `GET /projects/{id}/files/original`; no project body carries its bytes.
+
+`POST /projects` still accepts an `originalContent` field — an inline original as a base64
+image data URL (`data:image/png;base64,…`) — for older library callers. It is stored exactly
+as `POST /projects/{id}/files/original` would store it (same size cap, quotas and
+`originalHash`, the data URL's subtype as its extension, `imageW`/`imageH` as its size), and
+the created project answers with its `originalPath`. Anything that is not a base64 `image/*`
+data URL is refused `400`, and a refused original (a quota, an empty payload) leaves no
+project behind.
+
+Every project's metadata — list rows, `GET /projects/{id}`, the create and update answers, a
+`project-event` and a `welcome` — carries `originalHash`, the SHA-256 (lowercase hex) of the
+stored original, taken as the upload streams to disk. A new original replaces it and a
+`result` upload leaves it alone, so equal hashes mean the same picture. It is absent while a
+project has no original, and for an original stored before the server recorded it: read that
+as "unknown" and reload the picture.
 
 The `video`/`variantN`/`chat` file kinds are filestore-only: the bytes upload and download
 through the same routes, but nothing is written to the project record; they are removed with
@@ -125,9 +186,14 @@ optional `clientId`/`name`, and a `projectId`. An empty `projectId` selects the 
 
 Client → server: `hello`, `subscribe`, `edit` (ephemeral op relay), `cursor`, `presence`,
 `save` (commit layout, version-guarded), `ping`.
-Server → client: `welcome` (snapshot: project, layout, version, peers), `peer-join` /
+Server → client: `welcome` (snapshot: project metadata, layout, version, peers), `peer-join` /
 `peer-leave`, `edit` (relayed), `synced` (commit ack/version), `project-event` (global
-feed), `error`, `pong`.
+feed, project metadata only), `error`, `pong`.
+
+A `hello` naming a project that does not exist is refused with `error` `notFound`. An `edit`
+whose `version` (absent = 0) is behind the session's is refused with `badVersion`. A
+connection lives no longer than its token: at the session's expiry it gets `error`
+`unauthorized` and is closed.
 
 Edits are relayed live without persistence; `save` writes the full layout under the version
 guard and broadcasts the new version. A shutdown therefore loses everything since the last
@@ -162,8 +228,11 @@ code `shuttingDown`, so clients can prompt to save and reconnect. A WS keepalive
   root-prefix re-check + symlink-escape guard), and written atomically. It is path-confined,
   not encrypted: bytes land on disk as uploaded.
 - **REST bodies** are size-capped and decoded with unknown-field rejection; the store's
-  aggregate size is capped by `STORAGE_QUOTA_BYTES`. Per-session write abuse is metered by
-  `WRITE_RATE_PER_MINUTE` (default 120: project creations and file uploads),
+  aggregate size is capped by `STORAGE_QUOTA_BYTES`, one owner session's projects together by
+  `STORAGE_QUOTA_PER_OWNER_BYTES`, and what one session uploads by
+  `STORAGE_QUOTA_PER_SESSION_BYTES`. Per-session write abuse is metered by
+  `WRITE_RATE_PER_MINUTE` (default 120: every project or file create, update, upload and
+  delete),
   `AUTH_RATE_PER_MINUTE` (default 10) meters token issuance per client IP. `0` disables
   either.
 - **Transport encryption** is opt-in via `TLS_CERT`/`TLS_KEY` (TLS 1.2 minimum) and covers
@@ -173,8 +242,9 @@ code `shuttingDown`, so clients can prompt to save and reconnect. A WS keepalive
   address, which behind a proxy is the proxy itself. With it set, the client is taken from
   the rightmost `X-Forwarded-For` hop the trusted chain vouched for; empty (the default)
   ignores the header entirely.
-- **Every REST handler** runs its store calls under `OP_TIMEOUT_SECONDS` (default 10), so
-  one stuck query cannot hold a pool connection for the whole write timeout.
+- **Every REST handler** runs its store calls under `OP_TIMEOUT_SECONDS` (default 10), the
+  per-request token lookup and the live sessions included, so one stuck query cannot hold a
+  pool connection for the whole write timeout.
 
 ## Tests
 

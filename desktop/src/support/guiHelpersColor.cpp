@@ -1,30 +1,16 @@
 #include "guiHelpers.hpp"
 
 #include "theme.hpp"
-#include "iconSet.hpp"
 #include "skinPrefs.hpp"
-#include "modalChrome.hpp"   // confirmModal — the browser-styled yes/no question
-#include "modalReveal.hpp"   // support::motionReduced()
 #include <QAbstractButton>
-#include <QBuffer>
 #include <QGuiApplication>
 #include <QColor>
-#include <QComboBox>
-#include <QMenu>
-#include <QDialog>
-#include <QEasingCurve>
 #include <QEvent>
-#include <QFileDialog>
 #include <QIcon>
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
-#include <QPushButton>
-#include <QSignalBlocker>
-#include <QStringList>
-#include <QVariantAnimation>
 #include <QtMath>
-#include <cmath>
 
 namespace stencil::gui {
 

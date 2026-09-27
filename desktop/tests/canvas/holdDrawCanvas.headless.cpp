@@ -1,6 +1,6 @@
 // Headless functional check of the desktop hold-to-draw public surface and the selection-delete paths
 // the Alt+Delete / Alt+Shift+Delete shortcuts invoke, run offscreen. The hold/dwell timing state
-// machine is covered by core/tests/holdDraw.test.cpp; here it is the CanvasWidget wiring (delay clamp
+// machine is covered by core/tests/state/holdDraw.test.cpp; here it is the CanvasWidget wiring (delay clamp
 // + delete API) on the real widget. Returns non-zero on any failed expectation.
 #include "CanvasWidget.hpp"
 #include <QApplication>

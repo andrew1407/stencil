@@ -1,66 +1,15 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
-#include "../../support/guiHelpers.hpp"
-#include "chatWidgets.hpp"
-#include "PillSplitter.hpp"
-#include <QLineEdit>
-#include <QRadioButton>
-#include <QCheckBox>
-#include <QButtonGroup>
 
-#include "iconSet.hpp"
-#include "MediaLoader.hpp"  // isImageFileName / isVideoFileName (attach routing)
 #include "theme.hpp"        // Palette (restyleIcons)
-#include "scrollReveal.hpp"  // transcript cards fade at the viewport edges
-#include "../../support/motion/DisintegrateOverlay.hpp"  // cards scatter on Clear, gather on append
 #include "../../support/control/FlowLayout.hpp"           // the suggestion chips wrap like browser chips
-#include "../../support/modal/modalReveal.hpp"          // support::motionReduced()
-#include "../../support/menu/menuReveal.hpp"           // card menu grows from the click
-#include "../../support/icon/iconMotion.hpp"           // the per-icon hover motion
-#include "../../support/motion/ShimmerOverlay.hpp"       // the shared hover sweep
 
-#include <QApplication>
-#include <QClipboard>
-#include <QCursor>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QEvent>
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QFrame>
-#include <QGraphicsDropShadowEffect>
-#include <QCloseEvent>
-#include <QGraphicsOpacityEffect>
-#include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QImageReader>
-#include <QKeyEvent>
 #include <QLabel>
-#include "../../support/motion/MenuShimmer.hpp"
-#include <QMenu>
-#include <QMimeData>
-#include <QMouseEvent>
-#include <QPixmap>
-#include <QMainWindow>
 #include <QPlainTextEdit>
-#include <QProgressBar>
 #include <QPushButton>
-#include <QScrollArea>
-#include <QScrollBar>
-#include <QSplitter>
 #include <QTextCursor>
-#include <QPainter>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QPointer>
-#include <QScreen>
-#include <QStyle>
-#include <QTimer>
-#include <cmath>
 #include <QToolButton>
-#include <QUrl>
-#include <QVBoxLayout>
-#include <QVariantAnimation>
 #include <functional>
 
 namespace stencil::gui {
@@ -187,7 +136,7 @@ namespace stencil::gui {
   }
 
   // Quiet solid chips: normal border/card background/text, accent border + a
-  // faint accent fill on hover. The boxes are app.qss's; only the palette is live.
+  // faint accent fill on hover. The boxes are qss/app/modals.qss's; only the palette is live.
   void styleSuggestionChips(QWidget* chips, const Palette& pal) {
     if (!chips) return;
     const QString qss =

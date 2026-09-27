@@ -1,5 +1,5 @@
 // WebAssembly ABI for the .stc script engine; the bodies are shared verbatim with the CLI
-// ABI through abi/scriptShared.inc. Driven by browser/tests/wasm-parity.test.js.
+// ABI through abi/scriptShared.inc. Driven by browser/tests/wasm/wasm-parity.test.js.
 
 #include "HandleTable.hpp"
 #include "scriptProgram.hpp"

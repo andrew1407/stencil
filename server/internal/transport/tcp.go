@@ -12,14 +12,24 @@ import (
 // tcpConn adapts a stream net.Conn to Conn using newline-delimited JSON: compact JSON never contains a
 // literal newline, so '\n' is an unambiguous frame delimiter any client can produce and parse.
 type tcpConn struct {
-	conn net.Conn
-	sc   *bufio.Scanner
-	wmu  sync.Mutex
+	conn    net.Conn
+	sc      *bufio.Scanner
+	wmu     sync.Mutex
+	scratch []byte
 }
 
-// tcpIdleTimeout bounds how long a Read with no per-call deadline may block with no bytes before the peer
-// is reaped. A var so tests can shorten it; generous, so a live but idle co-editor is not dropped.
-var tcpIdleTimeout = 5 * time.Minute
+// A Read with no deadline of its own gives up after tcpIdleTimeout (generous: an idle co-editor stays), a
+// frame's Write after tcpWriteTimeout (a peer that stops reading cannot pin its writer). Set by Configure.
+var (
+	tcpIdleTimeout  = 5 * time.Minute
+	tcpWriteTimeout = 30 * time.Second
+)
+
+// frameEnd is the NDJSON delimiter, written with the frame in one call.
+var frameEnd = []byte{'\n'}
+
+// scratchKeep bounds the joined-frame buffer a TLS conn keeps between writes; a larger frame's is dropped.
+const scratchKeep = 64 << 10
 
 // NewTCP wraps an accepted/ dialed net.Conn as a Conn.
 func NewTCP(conn net.Conn) Conn {
@@ -65,18 +75,26 @@ func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
 	return out, nil
 }
 
+// Write sends data and its delimiter in one call, under the earlier of ctx's deadline and tcpWriteTimeout:
+// writev on a plain socket, one joined buffer elsewhere, since a TLS conn seals each Write as its own record.
 func (t *tcpConn) Write(ctx context.Context, data []byte) error {
 	t.wmu.Lock()
 	defer t.wmu.Unlock()
-	if dl, ok := ctx.Deadline(); ok {
-		_ = t.conn.SetWriteDeadline(dl)
-	} else {
-		_ = t.conn.SetWriteDeadline(time.Time{})
+	dl := time.Now().Add(tcpWriteTimeout)
+	if d, ok := ctx.Deadline(); ok && d.Before(dl) {
+		dl = d
 	}
-	if _, err := t.conn.Write(data); err != nil {
+	_ = t.conn.SetWriteDeadline(dl)
+	if _, plain := t.conn.(*net.TCPConn); plain {
+		bufs := net.Buffers{data, frameEnd}
+		_, err := bufs.WriteTo(t.conn)
 		return err
 	}
-	_, err := t.conn.Write([]byte{'\n'})
+	frame := append(append(t.scratch[:0], data...), frameEnd...)
+	_, err := t.conn.Write(frame)
+	if cap(frame) <= scratchKeep {
+		t.scratch = frame
+	}
 	return err
 }
 

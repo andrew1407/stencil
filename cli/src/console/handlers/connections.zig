@@ -1,15 +1,16 @@
 //! `/connect`, `/disconnect`, `/reconnect` and `/connections`: the session's pool of
 //! collaboration-server clients. Only URLs the user typed are ever dialled.
 const std = @import("std");
+const netWait = @import("../netWait.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const commands = @import("../commands.zig");
-const project = @import("../../project.zig");
 const msg = @import("../../app/messages.zig");
 const Session = @import("../session.zig").Session;
 
 /// `/connect <url [token][ url2 ...]>` — open one or more server connections; a token word after a
-/// URL authenticates against a gated server (an admin token mints a session).
+/// URL authenticates against a gated server (an admin token mints a session). Without one, the
+/// URL's `STENCIL_SERVER_TOKENS` entry or `STENCIL_SERVER_TOKEN` does, as for `--server`.
 pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
         logo.err(msg.connect_needs_url, .{});
@@ -17,9 +18,12 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
     }
     const pairs = try commands.parseConnectArgs(session.gpa, arg);
     defer session.gpa.free(pairs);
+    const env = session.server_tokens;
     for (pairs) |p| {
-        var client = server.connect(session.gpa, io, p.url, p.token) catch |e| {
+        const token = server.tokenFor(p.token, env.per_origin, env.single, p.url);
+        var client = server.connect(session.gpa, io, p.url, token) catch |e| {
             server.printConnectError(p.url, e);
+            if (e == server.Error.Cancelled) return; // a Ctrl-C ends the command, not just this URL
             continue;
         };
         if (session.findServer(client.base) != null) {
@@ -27,6 +31,7 @@ pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
             client.deinit();
             continue;
         }
+        client.transport = netWait.transport;
         try session.servers.append(session.gpa, client);
         session.rememberServer(client.base) catch {}; // the pool a plan `connect` resolves against
         logo.print(msg.connected, .{client.base});
@@ -66,7 +71,7 @@ pub fn doReconnect(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
         var ok: usize = 0;
         for (0..session.servers.items.len) |i| {
-            if (reconnectAt(session, io, i)) ok += 1;
+            if (reconnectAt(session, io, i) catch break) ok += 1; // a Ctrl-C ends the round
         }
         logo.print(msg.reconnected_count, .{ ok, session.servers.items.len });
         return;
@@ -77,21 +82,22 @@ pub fn doReconnect(session: *Session, io: std.Io, arg: []const u8) !void {
         logo.print(msg.not_connected_connect_first, .{base});
         return;
     };
-    _ = reconnectAt(session, io, idx);
+    _ = reconnectAt(session, io, idx) catch {};
 }
 
 /// Reconnect the server at `i` in place: a fresh client (new token, reusing any user-supplied
 /// credential) swapped for the old, reviving the events feed if it hosts the active project.
-fn reconnectAt(session: *Session, io: std.Io, i: usize) bool {
+fn reconnectAt(session: *Session, io: std.Io, i: usize) error{Cancelled}!bool {
     // Copy base + credential first — the reconnect frees the old client (and its slices).
     const base = session.gpa.dupe(u8, session.servers.items[i].base) catch return false;
     defer session.gpa.free(base);
     const cred = session.gpa.dupe(u8, session.servers.items[i].credential) catch return false;
     defer session.gpa.free(cred);
-    const fresh = server.connect(session.gpa, io, base, if (cred.len != 0) cred else null) catch |e| {
+    var fresh = server.connect(session.gpa, io, base, if (cred.len != 0) cred else null) catch |e| {
         logo.err(msg.reconnect_failed, .{ base, @errorName(e) });
-        return false;
+        return if (e == server.Error.Cancelled) error.Cancelled else false;
     };
+    fresh.transport = netWait.transport;
     const was_events = session.events_url != null and std.mem.eql(u8, session.events_url.?, base);
     const is_active = session.remote_url != null and std.mem.eql(u8, session.remote_url.?, base);
     session.servers.items[i].deinit();

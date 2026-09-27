@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     win.chatDock->appendUser(QStringLiteral("hi"), {});
     QTest::qWait(120);
@@ -40,11 +40,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     openTranscript(win);   // the dock's real width: a card appended into a sliver lays out wrong
     win.chatDock->appendUser(QStringLiteral("Give me 3 variants"), {});
-    win.chatHistory.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
-    win.chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());
+    win.chatSession->chatHistory.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
+    win.chatSession->chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());
     QTRY_VERIFY(win.chatDock->findChild<QFrame*>("chatCardError"));
     QFrame* errCard = nullptr;
     for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardError")) errCard = f;

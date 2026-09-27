@@ -3,7 +3,7 @@
 
 using namespace stencil::core;
 
-// Mirrors the pure-logic parts of browser/tests/projectsStore.test.js.
+// Mirrors the pure-logic parts of browser/tests/core/project/store/projectsStore.test.js.
 
 static ProjectMeta mk(const std::string& id, const std::string& name,
                       long long updatedAt) {
@@ -29,34 +29,38 @@ TEST_CASE("shouldPersist only with an active, non-temporary project") {
   CHECK_FALSE(ProjectsStore::shouldPersist(std::nullopt, false));
 }
 
-TEST_CASE("upsert inserts then replaces; list is updatedAt-desc") {
+TEST_CASE("load indexes the registry; list is updatedAt-desc without id-less rows") {
   ProjectsStore s;
-  s.upsert(mk("a", "Alpha", 0), 100);
-  s.upsert(mk("b", "Bravo", 0), 200);
-  s.upsert(mk("a", "Alpha2", 0), 300);  // replace a, newest
+  s.load({mk("a", "Alpha", 100), mk("b", "Bravo", 300), mk("", "Orphan", 400), mk("c", "Charlie", 200)});
   const auto list = s.list();
-  REQUIRE(list.size() == 2);
-  CHECK(list[0].id == "a");        // most recently updated first
-  CHECK(list[0].name == "Alpha2");
-  CHECK(list[1].id == "b");
+  REQUIRE(list.size() == 3);
+  CHECK(list[0].id == "b");  // most recently updated first
+  CHECK(list[1].id == "c");
+  CHECK(list[2].id == "a");
+  const auto refs = s.listRefs();
+  REQUIRE(refs.size() == 3);
+  CHECK(refs[0]->id == "b");
+  CHECK(s.getRegistry().size() == 4);  // insertion order, the id-less row kept
+  CHECK(s.getRegistry()[2].name == "Orphan");
+  REQUIRE(s.find("c") != nullptr);
+  CHECK(s.find("c")->name == "Charlie");
+  CHECK(s.find("nope") == nullptr);
 }
 
-TEST_CASE("upsert stamps updatedAt and preserves createdAt") {
+TEST_CASE("a duplicate id finds its first row; remove surfaces the next") {
   ProjectsStore s;
-  ProjectMeta m = s.upsert(mk("a", "Alpha", 0), 100);
-  CHECK(m.createdAt == 100);
-  CHECK(m.updatedAt == 100);
-  m = s.upsert(m, 500);
-  CHECK(m.createdAt == 100);  // unchanged
-  CHECK(m.updatedAt == 500);
-}
-
-TEST_CASE("touch bumps updatedAt; returns false for missing id") {
-  ProjectsStore s;
-  s.upsert(mk("a", "Alpha", 0), 100);
-  CHECK(s.touch("a", 999));
-  CHECK(s.getMeta("a")->updatedAt == 999);
-  CHECK_FALSE(s.touch("nope", 999));
+  s.load({mk("a", "First", 100), mk("b", "Bravo", 200), mk("a", "Second", 300)});
+  REQUIRE(s.find("a") != nullptr);
+  CHECK(s.find("a")->name == "First");
+  s.remove("a");
+  REQUIRE(s.find("a") != nullptr);
+  CHECK(s.find("a")->name == "Second");
+  CHECK(s.find("b")->name == "Bravo");  // positions shifted, the index followed
+  s.remove("a");
+  s.remove("nope");  // unknown id: nothing happens
+  CHECK(s.find("a") == nullptr);
+  REQUIRE(s.list().size() == 1);
+  CHECK(s.list()[0].id == "b");
 }
 
 TEST_CASE("periodMs / addPeriod presets (fixed durations)") {
@@ -115,52 +119,34 @@ TEST_CASE("isExpiringSoon boundary: inclusive at exactly WARN_MS remaining") {
   CHECK_FALSE(s.isExpiringSoon(justOut, now));
 }
 
-TEST_CASE("setExpiration sets fields exactly, no updatedAt bump") {
-  ProjectsStore s;
-  const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  s.upsert(mkE("a", "A", now, now + 1000), now);  // nearly due
-  // Renew via addPeriod, as the Refresh button / open-time snap do.
-  CHECK(s.setExpiration("a", ProjectsStore::addPeriod(now, "month"), "month", true));
-  const auto m = *s.getMeta("a");
-  CHECK(m.expiresAt == now + ProjectsStore::periodMs("month"));
-  CHECK(m.refreshPeriod == "month");
-  CHECK(m.autoRefresh);
-  CHECK(m.updatedAt == now);  // setExpiration must NOT bump updatedAt
-  CHECK_FALSE(s.isExpired(m, now));
-  // Empty period normalises to the default.
-  CHECK(s.setExpiration("a", 0, "", false));
-  CHECK(s.getMeta("a")->refreshPeriod == ProjectsStore::DEFAULT_PERIOD);
-  CHECK(s.getMeta("a")->expiresAt == 0);  // keep forever
-  CHECK_FALSE(s.setExpiration("missing", 0, "week", true));
-}
-
 TEST_CASE("sweepExpired removes only expired and returns their ids") {
   ProjectsStore s;
   const long long now = 10LL * ProjectsStore::EXPIRY_MS;
-  s.upsert(mkE("fresh", "F", now, now + ProjectsStore::EXPIRY_MS), now);
-  s.upsert(mkE("old", "O", now, now - 1), now);
-  s.upsert(mkE("keep", "K", now, 0), now);  // keep forever, must survive
+  s.load({mkE("fresh", "F", now, now + ProjectsStore::EXPIRY_MS), mkE("old", "O", now, now - 1),
+          mkE("keep", "K", now, 0)});  // keep forever, must survive
   const auto removed = s.sweepExpired(now);
   REQUIRE(removed.size() == 1);
   CHECK(removed[0] == "old");
   CHECK(s.list().size() == 2);
-  CHECK(s.getMeta("old") == std::nullopt);
-  CHECK(s.getMeta("keep") != std::nullopt);
+  CHECK(s.find("old") == nullptr);
+  CHECK(s.find("keep") != nullptr);
 }
 
 TEST_CASE("defaultName is one past the highest Untitled index") {
   ProjectsStore s;
   CHECK(s.defaultName() == "Untitled 1");
-  s.upsert(mk("a", "Untitled 1", 0), 1);
-  s.upsert(mk("b", "Untitled 3", 0), 2);
-  s.upsert(mk("c", "My Drawing", 0), 3);
+  std::vector<ProjectMeta> reg = {mk("a", "Untitled 1", 1), mk("b", "Untitled 3", 2), mk("c", "My Drawing", 3)};
+  s.load(reg);
   CHECK(s.defaultName() == "Untitled 4");
+  // Past INT_MAX the index still counts, as projectNaming.js's parseInt does.
+  reg.push_back(mk("d", "Untitled 99999999999", 4));
+  s.load(reg);
+  CHECK(s.defaultName() == "Untitled 100000000000");
 }
 
 TEST_CASE("nameExists: case-insensitive, trims, excludes a given id") {
   ProjectsStore s;
-  s.upsert(mk("a", "Floor Plan", 0), 1);
-  s.upsert(mk("b", "Roof", 0), 2);
+  s.load({mk("a", "Floor Plan", 1), mk("b", "Roof", 2)});
   CHECK(s.nameExists("floor plan"));        // case-insensitive
   CHECK(s.nameExists("  Roof  "));          // trims
   CHECK_FALSE(s.nameExists("Basement"));
@@ -171,7 +157,7 @@ TEST_CASE("nameExists: case-insensitive, trims, excludes a given id") {
 
 TEST_CASE("validateName: ok + reason for empty / too-long / duplicate") {
   ProjectsStore s;
-  s.upsert(mk("a", "Roof", 0), 1);
+  s.load({mk("a", "Roof", 1)});
   CHECK(s.validateName("Floor").ok);
   CHECK_FALSE(s.validateName("   ").ok);
   CHECK(s.validateName("").reason.find("empty") != std::string::npos);
@@ -190,7 +176,8 @@ TEST_CASE("createId has the expected shape") {
 
 TEST_CASE("clearAll empties the registry") {
   ProjectsStore s;
-  s.upsert(mk("a", "A", 0), 1);
+  s.load({mk("a", "A", 1)});
   s.clearAll();
   CHECK(s.list().empty());
+  CHECK(s.find("a") == nullptr);
 }

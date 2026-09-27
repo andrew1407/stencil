@@ -4,6 +4,7 @@
 import type { CropRect } from '../geometry.js';
 import type { DrawingApp } from '../drawingApp.js';
 import type { CropRectInput } from './loadFlow.js';
+import type { EditorMemento } from '../historyStack.js';
 
 export declare class ImageModel {
   app: DrawingApp;
@@ -18,8 +19,12 @@ export declare class ImageModel {
   /** Snaps to integer pixels, clamped inside the rotated original. */
   roundRect(r: CropRectInput, iw?: number, ih?: number): CropRect;
   rebuildCroppedImage(): void;
-  /** dir < 0 rotates left (CCW), dir > 0 right (CW); crop window and lines follow the picture. */
+  /** An undo step's crop and turn, rebuilt from the original when they differ; false when they match. */
+  restoreView(m: Partial<EditorMemento>): boolean;
+  /** The picture under the lines changed: clears the selection, refits, persists and (unless `sync: false`) syncs. */
+  settleView(opts?: { sync?: boolean }): void;
+  /** dir < 0 rotates left (CCW), dir > 0 right (CW); crop window and lines follow the picture — one undo step. */
   rotateImage(dir: number): void;
-  /** With `recalc`, lines are cleared on an orientation flip or rescaled to the new size. */
+  /** With `recalc`, lines are cleared on an orientation flip or rescaled to the new size — one undo step. */
   applyCrop(rect: CropRectInput, opts?: { recalc?: boolean }): void;
 }

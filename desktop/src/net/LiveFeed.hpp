@@ -1,7 +1,7 @@
 #pragma once
 // Read-only subscription to a server's GLOBAL project-events feed over the raw-TCP edit channel
 // (REST port + 1). Plaintext only — an https base is declined and polling covers it.
-// Mirrors the CLI's EditConn (cli/src/server.zig).
+// Mirrors the CLI's EditConn (cli/src/server/client.zig).
 #include <QByteArray>
 #include <QObject>
 #include <QString>

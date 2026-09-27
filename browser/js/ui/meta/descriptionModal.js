@@ -1,6 +1,6 @@
 import { createProjectMetaModal, metaTextField } from './projectMetaModal.js';
 
-// The active project's description; saves through app.setProjectDescription, the same
+// The active project's description; saves through projectTransfer.setProjectDescription, the same
 // store write the projects list's row item makes. Gated on a saved, non-incognito project.
 export const StencilDescriptionModal = createProjectMetaModal({
   name: 'description',
@@ -16,5 +16,5 @@ export const StencilDescriptionModal = createProjectMetaModal({
     commitsOn: (e) => e.ctrlKey || e.metaKey,
   }),
   load: (meta) => meta?.description || '',
-  save: (app, id, value) => app.setProjectDescription(id, value),
+  save: (app, id, value) => app.projectTransfer.setProjectDescription(id, value),
 });

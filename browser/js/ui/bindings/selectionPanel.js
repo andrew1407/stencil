@@ -1,30 +1,37 @@
 import { readColorPair, notify } from '../../utils.js';
+import { applySelectionChange } from '../../core/line/selection.js';
+import { applyFill } from '../panel/selectionPanel.js';
 export function wireSelectionPanelControls(app) {
-  // The swatch and its opacity box are two halves of ONE colour, joined by utils.js's
-  // readColorPair — <input type="color"> cannot carry an alpha byte of its own.
+  // The swatch and its opacity box are ONE colour (readColorPair: a color input has no alpha
+  // byte). `input` previews it; the trailing `change` commits one undo step.
   const wireColorPair = (colorId, alphaId, prop) => {
-    const apply = () => app.applySelectionChange(prop, readColorPair(colorId, alphaId));
-    document.getElementById(colorId).addEventListener('input', apply);
-    document.getElementById(alphaId)?.addEventListener('input', apply);
+    const apply = (commit) => () => applySelectionChange(app, prop, readColorPair(colorId, alphaId), { commit });
+    for (const el of [document.getElementById(colorId), document.getElementById(alphaId)]) {
+      el?.addEventListener('input', apply(false));
+      el?.addEventListener('change', apply(true));
+    }
   };
   wireColorPair('sel-color', 'sel-alpha', 'color');
   wireColorPair('sel-point-color', 'sel-point-alpha', 'pointColor');
-  document.getElementById('sel-thickness').addEventListener('change', e => app.applySelectionChange('thickness', parseInt(e.target.value, 10)));
-  document.getElementById('sel-point-size').addEventListener('change', e => app.applySelectionChange('point-size', parseInt(e.target.value, 10)));
-  document.getElementById('sel-style').addEventListener('change', e => app.applySelectionChange('style', e.target.value));
+  document.getElementById('sel-thickness').addEventListener('change', e => applySelectionChange(app, 'thickness', parseInt(e.target.value, 10)));
+  document.getElementById('sel-point-size').addEventListener('change', e => applySelectionChange(app, 'pointSize', parseInt(e.target.value, 10)));
+  document.getElementById('sel-style').addEventListener('change', e => applySelectionChange(app, 'style', e.target.value));
   // No on/off tick: the fill IS the swatch plus its alpha, and 0 alpha is "none" — so picking a
   // colour on an unfilled area must also raise the alpha off 0, or it applies invisibly.
   const fillAlphaBox = () => document.getElementById('sel-fill-alpha');
-  document.getElementById('sel-fill').addEventListener('input', () => {
+  const fill = document.getElementById('sel-fill');
+  fill.addEventListener('input', () => {
     const a = fillAlphaBox();
     if (a && Number(a.value) <= 0) a.value = '255';
-    app.applyFill();
+    applyFill(app, { commit: false });
   });
-  fillAlphaBox()?.addEventListener('input', () => app.applyFill());
+  fill.addEventListener('change', () => applyFill(app));
+  fillAlphaBox()?.addEventListener('input', () => applyFill(app, { commit: false }));
+  fillAlphaBox()?.addEventListener('change', () => applyFill(app));
   document.getElementById('sel-fill-clear').addEventListener('click', () => {
     const a = fillAlphaBox();
     if (a) a.value = '0';
-    app.applyFill();
+    applyFill(app);
     notify('Fill cleared (transparent)', 'ok');
   });
   document.getElementById('sel-unchain').addEventListener('click', () => app.unchainSelectedLine());

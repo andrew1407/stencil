@@ -1,16 +1,10 @@
 //! The recolour splice: one row rendered half in the new accent and half in the old, with
 //! the seam landing exactly on a visible column — for the wipe and the icon's clock spans.
-const std = @import("std");
-const logo = @import("../../../app/logo.zig");
-const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
-const clip_mod = @import("clip.zig");
 
 const appendBytes = scan.appendBytes;
 const utf8Len = scan.utf8Len;
 const csiLen = scan.csiLen;
-const visColumns = scan.visColumns;
-const clip = clip_mod.clip;
 const restyle = @import("restyle.zig");
 
 pub fn clipRange(raw: []const u8, c0: u16, c1: u16, accent: []const u8, out: []u8, oi: *usize) void {
@@ -27,7 +21,7 @@ pub fn clipRange(raw: []const u8, c0: u16, c1: u16, accent: []const u8, out: []u
         }
         const esc = csiLen(line, i);
         if (esc != 0) { // colour/CSI escape — copied verbatim, no width
-            appendBytes(out, oi, line[i .. i + esc]);
+            appendBytes(out, oi, scan.passable(line[i .. i + esc]));
             i += esc;
             continue;
         }
@@ -92,9 +86,10 @@ pub fn splitAt(line: []const u8, cols: u16) usize {
             i += esc;
             continue;
         }
-        if (vis >= cols) return i;
+        const w = scan.cellWidth(line, i);
+        if (vis + w > cols and vis != 0) return i; // a wide glyph that would straddle the edge wraps whole
         i += @min(utf8Len(b), line.len - i);
-        vis += 1;
+        vis += w;
     }
     return line.len;
 }

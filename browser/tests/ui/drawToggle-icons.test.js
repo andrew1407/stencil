@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createStubElement, installDom } from '../helpers/dom.js';
 
 // Line and Rect are one toggle, so the faces are a matched SET: same box, same stroke, the same two
 // handles — (3,13) and (13,3), the corners a drag starts and ends on — only the shape differs.
@@ -51,18 +52,50 @@ test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid',
 
 // Picking the rect tool is the intent, so the press turns drawing on itself: the sweep required
 // drawing mode to be on already, and rect has no hold-to-draw flow to fall back on.
-test('the rect tool starts its sweep on the press, turning drawing on by itself', () => {
-    const js = readFileSync(new URL('../../js/core/pointer/controller.js', import.meta.url), 'utf8');
-    const branch = js.slice(js.indexOf('// Rect-draw mode:'), js.indexOf("// Alt+Ctrl/⌘+left"));
-    // The gate no longer demands isDrawing…
-    assert.ok(!/if \(app\.isDrawing && app\.drawMode === 'rect'/.test(branch),
-        'the sweep must not require drawing mode to be on already');
-    assert.match(branch, /if \(app\.drawMode === 'rect' && e\.button === 0/);
-    // …it turns it on, and gives up cleanly if that is declined (no image / read-only).
-    assert.match(branch, /if \(!app\.isDrawing\) app\.startDrawingMode\(\);/);
-    assert.match(branch, /if \(!app\.isDrawing\) return;/);
-    assert.ok(branch.indexOf('startDrawingMode') < branch.indexOf('isRectDrawDragging = true'),
-        'drawing goes on before the band starts');
+// One plain left press on the canvas in rect mode, through the real startDrawingMode; `grants` is
+// whether it turns drawing on. A declined start is read-only by the time it asks (the gate passed).
+const pressRect = async ({ drawing, grants }) => {
+  const doc = installDom({}, { window: { innerWidth: 800, innerHeight: 600 } });
+  doc.register('canvas-viewport', createStubElement('div'));
+  try {
+    const { PointerController } = await import('../../js/core/pointer/controller.js');
+    const { Emitter } = await import('../../js/core/emitter.js');
+    const { CHANGE } = await import('../../js/core/app/changes.js');
+    const log = [];
+    let asked = 0;
+    // Drawn at half size: a client px is two image px.
+    const canvas = createStubElement('canvas', {
+      width: 200, height: 200, getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+    });
+    const app = {
+      drawMode: 'rect', image: {}, isDrawing: drawing, canvas, lines: [], selectedLineIdx: -1,
+      color: '#ff0000', thickness: 2, pointSize: 4, style: 'solid',
+      compareReadOnly: () => !grants && ++asked > 1,
+      hideSelectionPanels() {}, renderer: { redraw() {} }, changes: new Emitter(),
+    };
+    app.changes.on(CHANGE.drawing, () => log.push(`start:${!!app.isRectDrawDragging}`));
+    new PointerController(app).wirePanDrag();
+    const e = { button: 0, clientX: 10, clientY: 20, preventDefault: () => log.push('prevent'), stopPropagation() {} };
+    app.canvas.dispatch('mousedown', e);
+    return { log, sweeping: !!app.isRectDrawDragging, from: app.rectDrawStart, asked };
+  } finally {
+    doc.restore();
+  }
+};
+
+test('the rect tool starts its sweep on the press, turning drawing on by itself', async () => {
+    // The gate does not demand isDrawing: the press turns it on before the band starts.
+    const off = await pressRect({ drawing: false, grants: true });
+    assert.deepEqual(off.log, ['start:false', 'prevent'], 'drawing goes on before the band starts');
+    assert.equal(off.sweeping, true, 'the sweep must not require drawing mode to be on already');
+    assert.deepEqual(off.from, { imgX: 20, imgY: 40, cssX: 10, cssY: 20 });
+    // Already drawing: nothing to turn on.
+    const on = await pressRect({ drawing: true, grants: true });
+    assert.deepEqual([on.log, on.sweeping], [['prevent'], true]);
+    // Declined (no image / read-only): it gives up cleanly, with nothing swept or swallowed.
+    const declined = await pressRect({ drawing: false, grants: false });
+    assert.deepEqual([declined.log, declined.sweeping], [[], false]);
+    assert.equal(declined.asked, 2, 'the press tried the start, which declined');
     // The desktop press does the same, so the two tools behave alike.
     const cpp = readFileSync(new URL('../../../desktop/src/canvas/draw/CanvasDrawClick.cpp', import.meta.url), 'utf8');
     const dbranch = cpp.slice(cpp.indexOf('// rect-draw press'), cpp.indexOf('// when not drawing, a left-click'));

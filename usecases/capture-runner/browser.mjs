@@ -7,7 +7,7 @@ import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir } from './lib/paths.mjs';
 import { startAppServer, startMediaServer } from './lib/servers.mjs';
 import { startLlmStub } from './lib/llmStub.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
+import { makeShotRunner } from './lib/shot/runner.mjs';
 import { makeBrowserPages } from './browser/pageTools.mjs';
 import { makeStillSteps } from './browser/stillSteps.mjs';
 import { makeDragSteps } from './browser/dragSteps.mjs';

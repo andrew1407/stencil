@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   createStencil, validateLayout, makeApp, called, lastCall, withProjects,
 } from '../helpers/stencilApiRig.js';
+import { sourceRef } from '../../js/core/project/store/projectSources.js';
 
 // ── Project collections ───────────────────────────────────────────────────────────
 test('project collections: opened / archived / getProjects honour the open set', () => {
@@ -37,6 +38,18 @@ test('active project: source/resource/imageName set live; size/isOpened/layout r
   assert.ok(called(app, 'save').length >= 3);   // each live edit flushes storage
 
   assert.deepEqual(p.layout, {});   // store().get(1).payload.layout
+});
+
+test('a stored project reads its data-URL source in full, though the registry keeps its reference', () => {
+  const app = withProjects();
+  const full = `data:image/png;base64,${'Q'.repeat(512)}`;
+  app._metas[1].source = sourceRef(full);
+  app._projects[2].payload.layout.imageSource = full;
+  app._metas[0].source = 'http://x/a.png';
+  const stencil = createStencil(app);
+  assert.equal(stencil.getProjects({ archived: true }).find((p) => p.id === 2).source, full);
+  app.activeProjectId = 3;
+  assert.equal(stencil.getProjects({ archived: true }).find((p) => p.id === 1).source, 'http://x/a.png');
 });
 
 // Prototype-pollution guards: `apply()` iterates stencil.settings' OWN keys, never Object.keys(opts),

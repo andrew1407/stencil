@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Stencil.TelegramBot.Domain.Llm;
-using Stencil.TelegramBot.Application.Llm.Schema;
 
 namespace Stencil.TelegramBot.Application.Llm.Plan;
 
@@ -61,7 +60,7 @@ public static partial class OpRegistry
     // bound here.
     static OpRegistry()
     {
-        string[] unbound = [.. OpSchema.Bot.Ops.Keys
+        string[] unbound = [.. OpRegistryAsset.Ops.Select(static o => o.Name)
             .Where(name => !_byName.TryGetValue(name, out OpDescriptor? e) || e.Handler is null)
             .Order(StringComparer.Ordinal)];
         if (unbound.Length > 0)
@@ -81,10 +80,10 @@ public static partial class OpRegistry
     private static OpDescriptor makeEntry(
         string[] names, OpHandler handler, bool Profile = false, bool TopLevelOnly = false, string? Capability = null)
     {
-        OpEntry lead = OpSchema.Bot.Ops[names[0]];
+        RegistryOp lead = registered(names[0]);
         foreach (string name in names.Skip(1))
         {
-            if (OpSchema.Bot.Ops[name].BulletSharedWith != names[0])
+            if (registered(name).BulletSharedWith != names[0])
             {
                 throw new InvalidOperationException($"op \"{name}\" does not share \"{names[0]}\"'s bullet in the registry");
             }
@@ -93,6 +92,10 @@ public static partial class OpRegistry
             Profile, TopLevelOnly, Capability, handler);
     }
 
+    private static RegistryOp registered(string name) =>
+        OpRegistryAsset.Ops.FirstOrDefault(o => o.Name == name)
+            ?? throw new InvalidOperationException($"op \"{name}\" is not in the registry's bot profile");
+
     // An entry tagged outside this set is EXCLUDED from the prompt (§13) and falls to §1's
     // unknown-op skip.
     public static readonly IReadOnlyCollection<string> WiredCapabilities =
@@ -100,7 +103,7 @@ public static partial class OpRegistry
 
     // §13's never-model-drivable boundary (forbidden.perSurface.bot); the static ctor and the
     // executor both refuse.
-    public static readonly IReadOnlyCollection<string> ForbiddenOps = OpSchema.Bot.Forbidden;
+    public static readonly IReadOnlyCollection<string> ForbiddenOps = OpRegistryAsset.Forbidden;
 
     public static readonly IReadOnlyList<string> Names =
         Ops.SelectMany(static o => o.Names).ToArray();

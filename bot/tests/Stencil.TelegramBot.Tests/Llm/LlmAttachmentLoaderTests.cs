@@ -1,5 +1,4 @@
 using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Tests.Doubles;
 using Stencil.TelegramBot.Domain.Llm.Wire;
 

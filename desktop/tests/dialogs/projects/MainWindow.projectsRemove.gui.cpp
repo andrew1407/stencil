@@ -21,9 +21,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkMagenta);
-    const QString id = win.addImageProjectEntry(img, "the-only-one");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "the-only-one");
     QVERIFY(!id.isEmpty());
-    QVERIFY(win.loadProjectIntoCanvas(id, false));   // …and it is this window's OPEN project
+    bool landed = false;   // …and it is this window's OPEN project, once its picture decodes
+    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
 
     bool sawRow = false, tempPinned = false, noPlaceholder = true, landedWhereItArrived = false;
     bool arrivedVeiled = false, cloudInFlight = false, landedWhole = false;
@@ -78,7 +80,7 @@ class MainWindowGuiTest : public QObject {
       }
       bailOut();
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(tempPinned, "the emptied list never pinned the window's \"Temporary (unsaved)\" row");
     QVERIFY2(noPlaceholder, "the emptied list still read \"No projects yet\"");
@@ -105,7 +107,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const QString id = win.addImageProjectEntry(img, "doomed-close-row");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "doomed-close-row");
     QVERIFY(!id.isEmpty());
 
     bool sawRow = false, finalized = false, ghostSeen = false, ghostClean = false;
@@ -177,7 +179,7 @@ class MainWindowGuiTest : public QObject {
       }
       bailOut();   // belt and braces — Close already rejected the dialog
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(finalized, "closing mid-scatter left the doomed row in the list");
     QVERIFY2(ghostSeen, "the close flight's ghost was not found");

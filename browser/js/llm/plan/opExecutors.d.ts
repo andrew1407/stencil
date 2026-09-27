@@ -23,6 +23,8 @@ export interface OpDefinition {
   bullet: string | null;
   /** The table-driven check + normalize; throws "Invalid <op> action: …". */
   validate(a: unknown): PlanAction;
+  /** The browser's own normalizer over an action the generic walk already normalized. */
+  finish(out: PlanAction): PlanAction;
   run: OpRunner;
   also?: string;
   alsoOrder?: number;

@@ -61,7 +61,7 @@ test('videoHasFrame: needs decoded data, real dims, not poster-at-0', () => {
   assert.equal(videoHasFrame(null), false);
 });
 
-// ── mergeScanFrames (src/lib/scan.js): flatten all-frames scan results ──
+// ── mergeScanFrames (src/lib/image/scan.js): flatten all-frames scan results ──
 test('mergeScanFrames dedupes by src across frames and keeps frame order', () => {
   const results = [
     { result: [{ src: 'a' }, { src: 'b' }] },

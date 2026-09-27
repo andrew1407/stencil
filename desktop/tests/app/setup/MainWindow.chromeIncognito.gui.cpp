@@ -66,8 +66,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 820);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QLabel* info = win.imageSizeInfo;
-    QLabel* badge = win.incognitoTag;
+    QLabel* info = win.tools.imageSizeInfo;
+    QLabel* badge = win.tools.incognitoTag;
     QVERIFY(info && badge);
     const QString tag = QStringLiteral("Incognito");
 
@@ -77,7 +77,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!badge->isVisible());
 
     // Empty editor, incognito ON: the badge stands beside "No image loaded".
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QTRY_VERIFY2(badge->isVisible(), "no incognito badge on the empty line");
     QVERIFY2(info->text().contains(QStringLiteral("No image loaded")),
              "the empty-state text was replaced instead of extended");
@@ -127,14 +127,14 @@ class MainWindowGuiTest : public QObject {
 
     // …and it goes when incognito does — divider included, so a plain line never
     // ends in a dangling separator. The "?" bubble still carries the fact.
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(false);
     QTRY_VERIFY2(!badge->isVisible(), "the badge outlived incognito");
     QCOMPARE(info->textFormat(), Qt::PlainText);
     QVERIFY2(!info->text().contains(QLatin1Char('|')), "a divider survived on the size line");
     QVERIFY2(!info->text().contains(QStringLiteral("<img")), "an icon survived on the size line");
-    win.actIncognito->setChecked(true);
-    QTRY_VERIFY(win.statusHint->toolTip().contains(tag));
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(true);
+    QTRY_VERIFY(win.tools.statusHint->toolTip().contains(tag));
+    win.acts.incognito->setChecked(false);
 
     // The glyph is rasterised for the SCREEN it will be shown on: at dpr 2 the same 16px element
     // carries a 32px PNG. Offscreen runs at 1x, so the ratio is passed in.
@@ -149,7 +149,7 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The badge comes and goes in whatever motion is SELECTED (support/controlReveal.hpp
+  // The badge comes and goes in whatever motion is SELECTED (support/control/reveal/controlReveal.hpp
   // revealControls, browser toolbar.js): a cloud in the particle modes, the slot alone in
   // `slide`, and a plain show/hide under `none` — the browser's five modes, one for one.
   void incognitoBadgeComesAndGoesInTheSelectedMode() {
@@ -161,7 +161,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 820);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QLabel* badge = win.incognitoTag;
+    QLabel* badge = win.tools.incognitoTag;
     QVERIFY(badge && !badge->isVisible());
     settleLayout(&win, 300);
     const QString cloudName = QString::fromLatin1(stencil::gui::CONTROL_REVEAL_OBJECT_NAME);
@@ -171,7 +171,7 @@ class MainWindowGuiTest : public QObject {
 
     for (const MotionMode mode : {MotionMode::PARTICLES, MotionMode::WATER, MotionMode::FIRE}) {
       stencil::support::setMotionMode(mode);
-      win.actIncognito->setChecked(true);
+      win.acts.incognito->setChecked(true);
       QVERIFY2(badge->isVisible(), "the badge takes its slot at once, whatever flies over it");
       QVERIFY2(slotClosed(), "the slot starts closed, not at a flash of full width");
       QTRY_VERIFY2(clouds() == 1 && badge->graphicsEffect() != nullptr,
@@ -180,7 +180,7 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY_WITH_TIMEOUT(clouds() == 0 && badge->graphicsEffect() == nullptr,
                                stencil::gui::CONTROL_REVEAL_IN_MS + 3000);
 
-      win.actIncognito->setChecked(false);
+      win.acts.incognito->setChecked(false);
       QTRY_VERIFY2(clouds() == 1, "the leaving badge did not come apart");
       QVERIFY2(badge->isVisible(), "the badge holds its slot while the collapse runs");
       QTRY_VERIFY_WITH_TIMEOUT(!badge->isVisible(), stencil::gui::CONTROL_REVEAL_OUT_MS + 3000);
@@ -190,7 +190,7 @@ class MainWindowGuiTest : public QObject {
 
     // `slide`: no particles at all, and the slot is then the whole flight.
     stencil::support::setMotionMode(MotionMode::SLIDE);
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QVERIFY(badge->isVisible() && slotClosed());
     int peak = 0;
     QElapsedTimer t;
@@ -200,7 +200,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!slotClosed(), "slide never opened the badge's slot");
     QCOMPARE(peak, 0);
     QVERIFY2(badge->graphicsEffect() == nullptr, "with no motes to wait for, nothing veils the badge");
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(false);
     QVERIFY2(badge->isVisible(), "slide closes the slot before the badge goes");
     QCOMPARE(clouds(), 0);
     QTRY_VERIFY_WITH_TIMEOUT(!badge->isVisible(), stencil::gui::CONTROL_REVEAL_OUT_MS + 3000);
@@ -209,12 +209,12 @@ class MainWindowGuiTest : public QObject {
     for (const bool viaEnv : {false, true}) {
       stencil::support::setMotionMode(viaEnv ? MotionMode::PARTICLES : MotionMode::NONE);
       if (viaEnv) qputenv("STENCIL_NO_ANIM", "1");
-      win.actIncognito->setChecked(true);
+      win.acts.incognito->setChecked(true);
       QVERIFY(badge->isVisible());
       QCOMPARE(clouds(), 0);
       QVERIFY2(badge->graphicsEffect() == nullptr, "no motion left a veil on the badge");
       QVERIFY2(!slotClosed(), "no motion must not leave the slot part-open");
-      win.actIncognito->setChecked(false);
+      win.acts.incognito->setChecked(false);
       QVERIFY2(!badge->isVisible(), "the badge must go in the same frame");
       QCOMPARE(clouds(), 0);
       if (viaEnv) qunsetenv("STENCIL_NO_ANIM");

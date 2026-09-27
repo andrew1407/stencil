@@ -12,8 +12,9 @@ const CORPUS_FLOOR: usize = 80;
 
 /// The fixture corpora the `harness = false` walkers expand into one reported case each —
 /// the generated bulk of the suite, which no scan of the sources can see.
-const CORPORA: [&str; 8] = [
+const CORPORA: [&str; 9] = [
     "cli/testdata/outcome_fixtures.json",
+    "browser/js/config/fixtures/imageHeader/cases.json",
     "browser/js/config/llm/fixtures/sanitizer/cases.json",
     "browser/js/config/fixtures/layout/payload.json",
     "browser/js/config/fixtures/layout/sparse.json",

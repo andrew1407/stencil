@@ -1,6 +1,6 @@
 //! Folding one action into the single CLI run its plan collapses to — the second half of a
-//! §13 registry entry. [`crate::registry::OpDescriptor`] pairs each fold with the key
-//! schema that validated the action (pystencil's `OpSpec` = `validator` + `applier`).
+//! §13 registry entry. [`crate::registry::OpDescriptor`] pairs each fold with the op whose
+//! bullet the prompt carried and whose action core checked.
 //!
 //! Handed an action it was not registered for, a fold does nothing.
 
@@ -12,7 +12,7 @@ use super::{Action, Dir, FilterMode, FormulaOp, OpPlanError, PageSize};
 pub type Lower = fn(&Action, &mut Fold) -> Result<(), OpPlanError>;
 
 /// The CLI run taking shape: the pipeline order is fixed (source → frame → crop → rotate
-/// → filter → layout), so rotations sum, layout lines concatenate, and the last filter wins.
+/// → filter → layout), so rotations sum, and the last layout and the last filter win.
 #[derive(Default)]
 pub struct Fold {
     pub crop: Option<String>,
@@ -74,7 +74,8 @@ pub fn filter(action: &Action, fold: &mut Fold) -> Result<(), OpPlanError> {
 
 pub fn layout(action: &Action, fold: &mut Fold) -> Result<(), OpPlanError> {
     if let Action::Layout { lines } = action {
-        fold.lines.extend(lines.iter().cloned());
+        // §2: a layout sets the drawn lines to exactly its own; an empty one clears them.
+        fold.lines = lines.clone();
     }
     Ok(())
 }

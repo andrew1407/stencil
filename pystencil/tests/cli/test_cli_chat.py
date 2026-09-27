@@ -9,6 +9,7 @@ import io
 from pystencil import cli
 
 from tests.helpers.clicase import _MockLlmClient, _ReplCase
+from tests.helpers.nativecase import NativeCase, needs_core
 
 
 class ReplChatModeTest(_ReplCase):
@@ -45,6 +46,7 @@ class ReplChatModeTest(_ReplCase):
     self.assertIn("error: /chat takes on | off | clear | show", out.getvalue())
     self.assertFalse(repl._chat_on)  # unchanged
 
+  @needs_core
   def test_chat_on_accumulates_turns_across_prompts(self) -> None:
     client = _MockLlmClient("Just words, no plan.")
     repl, out = self._repl(client)
@@ -116,7 +118,7 @@ class ReplChatModeTest(_ReplCase):
     self.assertIn("/chat [on|off|clear]", out.getvalue())
 
 
-class ReplClearChatOpTest(_ReplCase):
+class ReplClearChatOpTest(_ReplCase, NativeCase):
   """§10 clearChat: deferred to the end of the turn, confirmed with a y/N line
   on the console's own input, and on a yes cleared through the exact /chat
   clear path. Offline like ReplChatModeTest — no image, injected mock client."""

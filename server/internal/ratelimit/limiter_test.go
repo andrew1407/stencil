@@ -51,7 +51,7 @@ func TestEvictsIdleBuckets(t *testing.T) {
 	l := New(5)
 	l.now = func() time.Time { return now }
 	l.Allow("old")
-	now = now.Add(IdleTTL + time.Minute)
+	now = now.Add(idleTTL + time.Minute)
 	l.Allow("new") // a new key triggers the sweep
 	l.mu.Lock()
 	_, stale := l.buckets["old"]
@@ -85,4 +85,30 @@ func TestRefundReturnsOneTokenAtMostToCapacity(t *testing.T) {
 	}
 	var nilLimiter *Limiter
 	nilLimiter.Refund("a") // nil-safe, like Allow
+}
+
+// SetIdleTTL moves the eviction horizon for every limiter; a non-positive TTL leaves it where it was.
+func TestSetIdleTTLMovesTheEvictionHorizon(t *testing.T) {
+	old := idleTTL
+	t.Cleanup(func() { idleTTL = old })
+	if old != 10*time.Minute {
+		t.Fatalf("idle TTL default %v, want 10m", old)
+	}
+	SetIdleTTL(time.Hour)
+	SetIdleTTL(0)
+	if idleTTL != time.Hour {
+		t.Fatalf("idle TTL %v, want the hour set before the ignored 0", idleTTL)
+	}
+	now := time.Unix(0, 0)
+	l := New(5)
+	l.now = func() time.Time { return now }
+	l.Allow("old")
+	now = now.Add(old + time.Minute)
+	l.Allow("new")
+	l.mu.Lock()
+	_, kept := l.buckets["old"]
+	l.mu.Unlock()
+	if !kept {
+		t.Fatal("a bucket idle for less than the configured TTL was swept")
+	}
 }

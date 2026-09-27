@@ -15,20 +15,8 @@ import (
 // defaultSweepLimit caps one DeleteExpiredProjects batch.
 const defaultSweepLimit = 500
 
-// GetProject returns the full project including layout and original content.
-func (s *Store) GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error) {
-	rec, err := scanProjectRow(s.pool.QueryRow(ctx,
-		`SELECT `+projectCols+` FROM projects WHERE id = $1`, id))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return protocol.ProjectRecord{}, ErrNotFound
-	}
-	if err != nil {
-		return protocol.ProjectRecord{}, fmt.Errorf("get project %s: %w", id, err)
-	}
-	return rec, nil
-}
-
-// CreateProject inserts a new project owned by ownerSession.
+// CreateProject inserts a new project owned by ownerSession and returns its metadata: the caller already
+// holds the payload it sent. An inline original is the service's to store as a file, never a column.
 func (s *Store) CreateProject(ctx context.Context, ownerSession string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error) {
 	now := clock.NowMs()
 	id, err := newProjectID(now)
@@ -47,15 +35,15 @@ func (s *Store) CreateProject(ctx context.Context, ownerSession string, req prot
 	if len(req.Layout) > 0 {
 		layout = string(req.Layout)
 	}
-	rec, err := scanProjectRow(s.pool.QueryRow(ctx,
+	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`INSERT INTO projects
 			(id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-			 source, resource, color, description, original_content, layout, owner_session, keywords, keywords_arr, blank_color, version)
-		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,0)
-		 RETURNING `+projectCols,
+			 source, resource, color, description, layout, owner_session, keywords_arr, blank_color, version)
+		 VALUES ($1,$2,$3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,0)
+		 RETURNING `+projectMetaCols,
 		id, name, now, req.ExpiresAt, req.HasImage, req.ImageW, req.ImageH,
-		req.Source, req.Resource, req.Color, req.Description, req.OriginalContent, layout, owner,
-		joinKeywords(req.Keywords), normalizeKeywords(req.Keywords), req.BlankColor))
+		req.Source, req.Resource, req.Color, req.Description, layout, owner,
+		normalizeKeywords(req.Keywords), req.BlankColor), metaOnly)
 	if err != nil {
 		return protocol.ProjectRecord{}, fmt.Errorf("create project: %w", err)
 	}
@@ -74,7 +62,7 @@ type ProjectPatch struct {
 	Layout      json.RawMessage
 }
 
-// UpdateProject applies a last-writer-wins update guarded by expectedVersion.
+// UpdateProject applies a last-writer-wins update guarded by expectedVersion and returns the new metadata.
 // A stale version yields ErrConflict; a missing project yields ErrNotFound.
 func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error) {
 	var layoutArg any
@@ -82,29 +70,32 @@ func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch
 		layoutArg = string(patch.Layout)
 	}
 	// nil => leave keywords untouched (COALESCE); a (possibly empty) slice => set/clear.
-	var kwArg, kwText any
+	var kwArg any
 	if patch.Keywords != nil {
-		kwArg, kwText = normalizeKeywords(*patch.Keywords), joinKeywords(*patch.Keywords)
+		kwArg = normalizeKeywords(*patch.Keywords)
 	}
-	rec, err := scanProjectRow(s.pool.QueryRow(ctx,
+	rec, err := scanProject(s.pool.QueryRow(ctx,
 		`UPDATE projects SET
 			name = COALESCE($2, name),
 			color = COALESCE($3, color),
 			description = COALESCE($10, description),
 			keywords_arr = COALESCE($8::text[], keywords_arr),
-			keywords = COALESCE($11, keywords),
 			blank_color = COALESCE($9, blank_color),
 			expires_at = COALESCE($7, expires_at),
 			layout = COALESCE($4::jsonb, layout),
 			updated_at = $5,
 			version = version + 1
 		 WHERE id = $1 AND version = $6
-		 RETURNING `+projectCols,
+		 RETURNING `+projectMetaCols,
 		id, patch.Name, patch.Color, layoutArg, clock.NowMs(), expectedVersion, patch.ExpiresAt, kwArg,
-		patch.BlankColor, patch.Description, kwText))
+		patch.BlankColor, patch.Description), metaOnly)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Disambiguate not-found from version conflict.
-		if _, e := s.GetProject(ctx, id); errors.Is(e, ErrNotFound) {
+		exists, e := s.ProjectExists(ctx, id)
+		switch {
+		case e != nil:
+			return protocol.ProjectRecord{}, fmt.Errorf("update project %s: %w", id, e)
+		case !exists:
 			return protocol.ProjectRecord{}, ErrNotFound
 		}
 		return protocol.ProjectRecord{}, ErrConflict
@@ -115,26 +106,34 @@ func (s *Store) UpdateProject(ctx context.Context, id string, patch ProjectPatch
 	return rec, nil
 }
 
-// SetFile records a stored file path for a project and bumps version/updated_at.
-// For the original image it also sets has_image and the image dimensions.
-func (s *Store) SetFile(ctx context.Context, id, kind, relPath string, w, h int) (protocol.ProjectRecord, error) {
+// StoredFile is one committed upload as the row records it. W, H and Hash describe an original: the size
+// the uploader measured and the SHA-256 (lowercase hex, "" = unknown, stored as NULL) of its bytes.
+type StoredFile struct {
+	Kind, Path string
+	W, H       int
+	Hash       string
+}
+
+// SetFile records a stored file path for a project, bumps version/updated_at and returns the metadata.
+// For the original image it also sets has_image, the image dimensions and the original's hash.
+func (s *Store) SetFile(ctx context.Context, id string, f StoredFile) (protocol.ProjectRecord, error) {
 	now := clock.NowMs()
 	var (
 		rec protocol.ProjectRecord
 		err error
 	)
-	switch kind {
+	switch f.Kind {
 	case protocol.KindOriginal:
-		rec, err = scanProjectRow(s.pool.QueryRow(ctx,
+		rec, err = scanProject(s.pool.QueryRow(ctx,
 			`UPDATE projects SET original_path=$2, has_image=true, image_w=$3, image_h=$4,
-				updated_at=$5, version=version+1
-			 WHERE id=$1 RETURNING `+projectCols,
-			id, relPath, w, h, now))
+				original_hash=NULLIF($6, ''), updated_at=$5, version=version+1
+			 WHERE id=$1 RETURNING `+projectMetaCols,
+			id, f.Path, f.W, f.H, now, f.Hash), metaOnly)
 	case protocol.KindResult:
-		rec, err = scanProjectRow(s.pool.QueryRow(ctx,
+		rec, err = scanProject(s.pool.QueryRow(ctx,
 			`UPDATE projects SET result_path=$2, updated_at=$3, version=version+1
-			 WHERE id=$1 RETURNING `+projectCols,
-			id, relPath, now))
+			 WHERE id=$1 RETURNING `+projectMetaCols,
+			id, f.Path, now), metaOnly)
 	default:
 		return protocol.ProjectRecord{}, errors.New("store: invalid file kind")
 	}
@@ -142,7 +141,7 @@ func (s *Store) SetFile(ctx context.Context, id, kind, relPath string, w, h int)
 		return protocol.ProjectRecord{}, ErrNotFound
 	}
 	if err != nil {
-		return protocol.ProjectRecord{}, fmt.Errorf("set %s file for project %s: %w", kind, id, err)
+		return protocol.ProjectRecord{}, fmt.Errorf("set %s file for project %s: %w", f.Kind, id, err)
 	}
 	return rec, nil
 }
@@ -153,17 +152,20 @@ func (s *Store) DeleteProject(ctx context.Context, id string) error {
 	return err
 }
 
-// DeleteExpiredProjects removes up to limit projects whose expiry has passed (expires_at in (0, now]) and
-// returns their ids; a zero expires_at is never swept. The caller loops until a pass comes back short.
-func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int) ([]string, error) {
+// DeleteExpiredProjects removes and returns up to limit projects past a non-zero expiry (expires_at in
+// (0, now]) but none in keep; the caller loops until a pass comes back short.
+func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int, keep []string) ([]string, error) {
 	if limit <= 0 || limit > defaultSweepLimit {
 		limit = defaultSweepLimit
 	}
+	if keep == nil {
+		keep = make([]string, 0) // a nil slice is SQL NULL, and NOT (id = ANY(NULL)) excludes every row
+	}
 	rows, err := s.pool.Query(ctx,
 		`DELETE FROM projects WHERE id IN (
-			SELECT id FROM projects WHERE expires_at > 0 AND expires_at <= $1
+			SELECT id FROM projects WHERE expires_at > 0 AND expires_at <= $1 AND NOT (id = ANY($3))
 			ORDER BY expires_at LIMIT $2
-		 ) RETURNING id`, now, limit)
+		 ) RETURNING id`, now, limit, keep)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@
 // contract (server/internal/protocol). Covers auth gating, the project lifecycle,
 // the LWW version guard, file byte round-trips, and strict-JSON rejection.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 
 test.describe('server REST', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');
@@ -21,8 +21,7 @@ test.describe('server REST', () => {
     expect(created.version).toBe(0);
 
     // Appears in the list.
-    const list = await request.get(`${SERVER_URL}/projects`, { headers: bearer(token) });
-    expect((await list.json()).projects.map((p) => p.id)).toContain(created.id);
+    expect((await listProjects(request, token)).map((p) => p.id)).toContain(created.id);
 
     // Fetch the single project.
     const one = await request.get(`${SERVER_URL}/projects/${created.id}`, { headers: bearer(token) });
@@ -59,8 +58,7 @@ test.describe('server REST', () => {
     expect(created.expiresAt).toBe(future);
 
     // …and shows up in the list (the metadata clients render).
-    const listed = (await (await request.get(`${SERVER_URL}/projects`, { headers: bearer(token) })).json())
-      .projects.find((p) => p.id === created.id);
+    const listed = (await listProjects(request, token)).find((p) => p.id === created.id);
     expect(listed.expiresAt).toBe(future);
 
     // An update sets a new expiry under the version guard.
@@ -115,7 +113,6 @@ test.describe('server REST', () => {
     expect(res.status()).toBe(400);
     expect((await res.json()).code).toBe('badRequest');
     // …and nothing was created.
-    const list = await request.get(`${SERVER_URL}/projects`, { headers: bearer(token) });
-    expect((await list.json()).projects.some((p) => p.name === 'no-image')).toBe(false);
+    expect((await listProjects(request, token)).some((p) => p.name === 'no-image')).toBe(false);
   });
 });

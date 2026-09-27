@@ -2,7 +2,21 @@
 // (server/internal/protocol); fetch + WebSocket are injected for `node --test`.
 import { Emitter } from '../core/emitter.js';
 import { timeoutSignal } from './abortable.js';
-import { REMOTE_FLAG, normalizeUrl, buildInviteUrl, wsUrl, isAuthStatus } from './urlRules.js';
+import { REMOTE_FLAG, normalizeUrl, buildInviteUrl, wsUrl, isAuthStatus, isRedirect } from './urlRules.js';
+import { MAX_ERROR_BYTES, readJsonCapped } from './cappedBody.js';
+
+// A server that keeps handing out cursors is cut off here (the cli's max_pages), never followed forever.
+export const MAX_LIST_PAGES = 1000;
+
+// The cursor a page names for the next one, '' on the last; a repeat, or one past MAX_LIST_PAGES, throws.
+const nextPageCursor = (body, seen) => {
+  const next = body && typeof body.nextCursor === 'string' ? body.nextCursor : '';
+  if (!next) return '';
+  if (seen.has(next)) throw new Error('GET /projects: the server handed back the same page cursor twice');
+  if (seen.size + 1 >= MAX_LIST_PAGES) throw new Error(`GET /projects: kept paging past ${MAX_LIST_PAGES} pages`);
+  seen.add(next);
+  return next;
+};
 
 export class ServerConnection {
   #fetch; #WS;
@@ -43,7 +57,9 @@ export class ServerConnection {
       headers['Content-Type'] = 'application/json';
       payload = JSON.stringify(body);
     }
-    const resp = await this.#fetch(url, { method, headers, body: payload, signal: timeoutSignal() });
+    const resp = await this.#fetch(url, { method, headers, body: payload, signal: timeoutSignal(), redirect: 'manual' });
+    // Refused, never followed, so the bearer never reaches the host a 30x names.
+    if (isRedirect(resp)) throw Object.assign(new Error(`${method} ${path}: the server redirected — connect to its final address`), { status: resp.status });
     if (!resp.ok) {
       // A minted session token dies with a server restart: re-mint from the credential once
       // and retry in place (extension parity: connections.js req()).
@@ -63,12 +79,12 @@ export class ServerConnection {
         return out;
       }
       let msg = `HTTP ${resp.status}`;
-      try { const e = await resp.json(); if (e && e.message) msg = e.message; } catch { /* non-JSON */ }
+      try { const e = await readJsonCapped(resp, MAX_ERROR_BYTES); if (e?.message) msg = e.message; } catch { /* non-JSON */ }
       throw Object.assign(new Error(`${method} ${path}: ${msg}`), { status: resp.status });
     }
     if (resp.status === 204) return null;
     if (raw) return resp;
-    return resp.json();
+    return readJsonCapped(resp);
   }
 
   // Acquire/validate a token, then verify access by listing projects.
@@ -119,9 +135,17 @@ export class ServerConnection {
     return this;
   }
 
+  // Every project: each page's `nextCursor` goes back as `after` until a page names none.
   async listProjects() {
-    const r = await this.#req('GET', '/projects');
-    return (r.projects || []).map((p) => this.tagRemote(p));
+    const out = [];
+    const seen = new Set();
+    let after = '';
+    do {
+      const r = await this.#req('GET', '/projects', after ? { query: { after } } : undefined);
+      out.push(...(r?.projects || []));
+      after = nextPageCursor(r, seen);
+    } while (after);
+    return out.map((p) => this.tagRemote(p));
   }
 
   async getProject(id) { return this.#req('GET', `/projects/${encodeURIComponent(id)}`); }

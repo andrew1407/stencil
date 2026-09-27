@@ -24,20 +24,25 @@ import (
 // it implies — the one thing an operator must read before traffic arrives.
 func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, h *hub.Hub, b eventbus.Bus) httpapi.Deps {
 	deps := httpapi.Deps{
-		Projects:        st,
-		Sessions:        st,
-		Files:           fs,
-		LiveSessions:    h,
-		Bus:             b,
-		TokenTTL:        cfg.TokenTTL,
-		ProjectTTL:      cfg.ProjectTTL,
-		MaxBodyBytes:    cfg.MaxBodyBytes,
-		AdminToken:      cfg.AdminToken,
-		AuthOpen:        cfg.AuthOpen,
-		AuthRatePerMin:  cfg.AuthRatePerMin,
-		WriteRatePerMin: cfg.WriteRatePerMin,
-		TrustedProxies:  cfg.TrustedProxies,
-		OpTimeout:       cfg.OpTimeout,
+		Projects:          st,
+		Sessions:          st,
+		Files:             fs,
+		Charges:           st,
+		LiveSessions:      h,
+		Bus:               b,
+		TokenTTL:          cfg.TokenTTL,
+		ProjectTTL:        cfg.ProjectTTL,
+		MaxBodyBytes:      cfg.MaxBodyBytes,
+		SessionQuotaBytes: cfg.SessionQuotaBytes,
+		AdminToken:        cfg.AdminToken,
+		AuthOpen:          cfg.AuthOpen,
+		AuthRatePerMin:    cfg.AuthRatePerMin,
+		WriteRatePerMin:   cfg.WriteRatePerMin,
+		TrustedProxies:    cfg.TrustedProxies,
+		OpTimeout:         cfg.OpTimeout,
+		RetryAfter:        cfg.HTTP.RetryAfter,
+		BusyRetryAfter:    cfg.HTTP.BusyRetryAfter,
+		ProjectsPageSize:  cfg.HTTP.ProjectsPageSize,
 	}
 	if cfg.AuthOpen {
 		log.Printf("WARNING: AUTH_OPEN=1 — token issuance is OPEN: anyone who can reach this server " +
@@ -106,8 +111,18 @@ func filestoreWarning(root string) string {
 // bus (single-instance deployments).
 func openBus(ctx context.Context, cfg config.Config) (eventbus.Bus, error) {
 	if cfg.RedisURL == "" {
-		return eventbus.NewInProc(), nil
+		return eventbus.NewInProcBuffered(cfg.Live.BusSubBuffer), nil
 	}
 	return redisbus.NewWithOptions(ctx, cfg.RedisURL, redisbus.Options{PoolSize: cfg.Redis.PoolSize,
-		DialTimeout: cfg.Redis.DialTimeout, IOTimeout: cfg.Redis.IOTimeout})
+		DialTimeout: cfg.Redis.DialTimeout, IOTimeout: cfg.Redis.IOTimeout, SubBuffer: cfg.Live.BusSubBuffer,
+		SubscribeTimeout: cfg.Redis.SubscribeTimeout})
+}
+
+// hubOptions sizes the hub from config; its store calls share OP_TIMEOUT_SECONDS with the REST handlers.
+func hubOptions(cfg config.Config) []hub.Option {
+	return []hub.Option{
+		hub.WithHelloLimit(cfg.HelloRatePerMin, cfg.TrustedProxies),
+		hub.WithTuning(hub.Tuning{OutBuffer: cfg.Live.OutBuffer, OutBudgetBytes: cfg.Live.OutBudgetBytes,
+			OpTimeout: cfg.OpTimeout, HelloTimeout: cfg.Live.HelloTimeout, NoticeTimeout: cfg.Live.NoticeTimeout}),
+	}
 }

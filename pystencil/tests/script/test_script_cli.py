@@ -11,7 +11,7 @@ import unittest
 from tests.helpers.clicase import _NativeReplCase, _PipelineCase
 
 from pystencil import cli
-from pystencil.cli.scriptplan import MAX_ACTIONS
+from pystencil.cli.plansequence import MAX_ACTIONS
 from pystencil.editor import Editor
 
 
@@ -190,22 +190,22 @@ class ScriptPlanTests(_ScriptFixture):
     self.assertEqual(actions[3]["path"], "out.png")
 
   def test_a_custom_tint_is_written_as_hex_and_undo_carries_its_steps(self):
-    _, plan = self._plan(
-      "@source shots/a.png:\n    @filter aqua\n    @rect (1,1) (2,2)\n    @undo\n    @save o.png\n"
-    )
-    actions = plan["blocks"][0]["plans"][0]["actions"]
-    tint = next(a for a in actions if a["op"] == "filter")
+    _, plan = self._plan("@source shots/a.png:\n  @rect (1,1) (2,2)\n  @filter aqua\n  @undo\n  @save o.png\n")
+    plans = plan["blocks"][0]["plans"]
+    tint = next(a for a in plans[0]["actions"] if a["op"] == "filter")
     self.assertEqual((tint["mode"], tint["tint"]), ("custom", "#00ffff"))
-    self.assertEqual(next(a for a in actions if a["op"] == "undo")["steps"], 1)
+    self.assertEqual([[a["op"] for a in p["actions"]] for p in plans],
+                     [["openFile", "layout", "filter", "undo"], ["save"]])
+    self.assertEqual(plans[0]["actions"][-1]["steps"], 1)
 
-  def test_a_url_block_has_no_dims_so_the_shape_ops_are_dropped(self):
+  def test_a_url_block_that_draws_nothing_is_never_fetched_or_sized(self):
     _, plan = self._plan(
-      "@source https://e.example/a.png:\n    @line (0,0) (10%,10%)\n    @save\n"
+      "@source http://127.0.0.1:1/a.png:\n    @filter bw\n    @save\n"
     )
     block = plan["blocks"][0]
     self.assertIsNone(block["dims"])
     self.assertEqual([a["op"] for a in block["plans"][0]["actions"]],
-                     ["openUrl", "save"])
+                     ["openUrl", "filter", "save"])
 
   def test_an_error_reports_its_diagnostics_and_lowers_to_no_blocks(self):
     code, plan = self._plan("@source shots/a.png:\n  @crp 10%\n")

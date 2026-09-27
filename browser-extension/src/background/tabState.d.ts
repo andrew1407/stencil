@@ -19,7 +19,7 @@ export interface VideoRecord {
   posterShown?: boolean;
 }
 
-/** One entry of the pinned-images store (lib/pins.js). */
+/** One entry of the pinned-images store (lib/prefs/pins.js). */
 export interface PinEntry {
   source: string;
   site: string;

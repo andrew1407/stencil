@@ -12,7 +12,7 @@ const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = 
         chrome.scripting.executeScript({
           target: { tabId: tab.id, ...(allFrames ? { allFrames: true } : {}) },
           ...(s.world ? { world: s.world } : {}),
-          files: [s.file],
+          files: s.files || [s.file],
         }).catch(() => { /* restricted page / no access — ignore */ });
       }
     }
@@ -21,16 +21,22 @@ const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = 
   }
 };
 
+// The probe's files in run order, as manifest.json's content_scripts entry lists them.
+export const CTX_PROBE_FILES = ['src/content/ctxResolve.js', 'src/content/ctxTarget.js'];
+
 // Inject the probe into already-open http(s) tabs, so the menu works without
 // reloading every tab. The probe guards against binding twice (see ctxTarget.js).
 export const injectProbeIntoOpenTabs = () =>
-  injectIntoOpenTabs(['http://*/*', 'https://*/*'], [{ file: 'src/content/ctxTarget.js' }], { allFrames: true });
+  injectIntoOpenTabs(['http://*/*', 'https://*/*'], [{ files: CTX_PROBE_FILES }], { allFrames: true });
 
 // Three sets, registered the same way: the editor bridge, the opt-in page API
 // (window.stencil), and the editor page API (stencil.extension). `matches` = null unregisters.
 const BRIDGE_ID = 'stencil-editor-bridge';
 const BRIDGE_FILE = 'src/content/editorBridge.js';
 const HTTP_PATTERNS = ['http://*/*', 'https://*/*'];
+// One MAIN-world entry, run in this order and sharing one scope: window.stencil's four parts.
+export const PAGE_API_MAIN_FILES = ['pageApiMedia', 'pageApiScan', 'pageApiHighlight', 'pageApiMain']
+  .map((name) => `src/content/${name}.js`);
 
 const SCRIPT_SETS = [
   {
@@ -44,7 +50,7 @@ const SCRIPT_SETS = [
     label: 'page API',
     scripts: [
       { id: 'stencil-page-bridge', file: 'src/content/pageApiBridge.js', world: 'ISOLATED', runAt: 'document_start' },
-      { id: 'stencil-page-main', file: 'src/content/pageApiMain.js', world: 'MAIN', runAt: 'document_idle' },
+      { id: 'stencil-page-main', files: PAGE_API_MAIN_FILES, world: 'MAIN', runAt: 'document_idle' },
     ],
     // Registered for every page; only http(s) tabs can be injected into after the fact.
     openTabs: HTTP_PATTERNS,
@@ -96,7 +102,7 @@ export const setUpScripts = ({ keys, inject = true } = {}) => serializeRegistrat
       return;
     }
     await Promise.all(set.scripts.map((s) => replaceContentScript(s.id, {
-      id: s.id, js: [s.file], matches, runAt: s.runAt, allFrames: false, ...(s.world ? { world: s.world } : {}),
+      id: s.id, js: s.files || [s.file], matches, runAt: s.runAt, allFrames: false, ...(s.world ? { world: s.world } : {}),
     }, set.label)));
     if (inject === true || inject.includes(set.key)) await injectIntoOpenTabs(set.openTabs || matches, set.scripts);
   }));

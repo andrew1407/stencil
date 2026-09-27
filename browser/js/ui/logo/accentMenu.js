@@ -5,7 +5,7 @@ import { surfaceIn, surfaceOut, rectCenter, motionReduced, SURFACE_MENU_IN_MS, S
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { growFrom } from '../control/dropdownMenu.js';
-import { pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
+import { onAltKeys, pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
 // The logo's accent preset menu (right-click / Alt-hover): the Visuals dialog's rows on the
 // shared popup motion.
 export function wireLogoAccentMenu(logo, wrap, app) {
@@ -45,8 +45,8 @@ export function wireLogoAccentMenu(logo, wrap, app) {
     if (!menu.childElementCount) {
       // A pick applies and closes (hovering already previews). Rows are built once.
       resetRowHover = fillAccentMenu(menu,
-                     (key) => { app.setAccent(key, logo); markSelected(menu, key); if (!release.picking()) closeMenu(); },
-                     { on: (key) => app.previewAccent?.(key, logo), off: () => app.endAccentPreview?.(logo) });
+                     (key) => { app.accents.setAccent(key, logo); markSelected(menu, key); if (!release.picking()) closeMenu(); },
+                     { on: (key) => app.accents.previewAccent?.(key, logo), off: () => app.accents.endAccentPreview?.(logo) });
     }
     markSelected(menu, app.customAccent ? null : app.accent);
     // Content-sized (components/accentPicker.css lifts the 280px cap), capped at the space
@@ -73,7 +73,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
     if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
     // Reverts to the committed accent and drops the row's latched hover (picker.js).
     resetRowHover?.();
-    app.endAccentPreview?.();
+    app.accents.endAccentPreview?.();
     menuKind = null;
     // A leaked popover mode would let a later Alt glide "close" a menu already gone.
     g.notifyClosed();
@@ -90,7 +90,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
       menu.classList.remove('dd-closing');
       menu.__ddSbOff?.();
     };
-    // Reduced motion: animations/overlays.css neutralises the exit, so hide outright.
+    // Reduced motion: animations/overlay/overlays.css neutralises the exit, so hide outright.
     if (reducedMotion()) { menuCloseDone(); return; }
     // Hidden once the exit has played, with a timer fallback so a neutralised animation
     // can never wedge the menu open.
@@ -99,7 +99,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
     menuCloseTimer = setTimeout(menuCloseDone, 250);
     menu.addEventListener('animationend', menuCloseDone);
   };
-  // A machine in the glide registry (ui/popover.js), like every modal icon's mini window:
+  // A machine in the glide registry (ui/tip/popover.js), like every modal icon's mini window:
   // Alt+hover peeks, Alt released over it lingers; a right-click open is 'sticky'.
   const g = createModalOpenGesture({
     openFull: () => {},
@@ -117,18 +117,17 @@ export function wireLogoAccentMenu(logo, wrap, app) {
   // Both orders (mirrors popover.js wireModalOpenGestures); only the key route defers to a
   // focused text control, and preventDefault keeps bare Alt off the browser's menu bar.
   wrap.addEventListener('mouseenter', (e) => { if (e.altKey) altPeek(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Alt' || !wrap.matches?.(':hover')) return;
-    if (isTypingInFocus()) return;
-    e.preventDefault?.();
-    altPeek();
+  onAltKeys({
+    press: (e) => {
+      if (!wrap.matches?.(':hover') || isTypingInFocus()) return;
+      e.preventDefault?.();
+      altPeek();
+    },
   });
-  // A peek released on a colour picks it and stays up, lingering like any peek released inside.
+  // A peek released on a colour picks it and stays up, lingering like any peek released inside;
+  // its release also answers a blur.
   const release = wireReleasePick(menu, g, '.accent-dd-opt',
                                   { isPeek: () => menuKind === 'peek', isShowing: menuShowing });
-  if (typeof window !== 'undefined' && window.addEventListener) {
-    window.addEventListener('blur', () => g.altRelease());
-  }
   // A swap's synthetic leave lands on a lingering menu with every pick: the flood-safe watcher
   // waits the swap out, then the pointer's real place decides.
   if (menu) wirePeekBox(menu, g);

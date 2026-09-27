@@ -1,4 +1,4 @@
-// Unit tests for ImageModel (js/core/model.js) — the crop/rotation geometry extracted
+// Unit tests for ImageModel (js/core/image/model.js) — the crop/rotation geometry extracted
 // out of DrawingApp. The pure bits (roundRect, rotatedOriginalDims, defaultCropRect) need only
 // a stub app; the canvas-touching bits (rebuildCroppedImage via rotateImage/applyCrop) run
 // against a minimal document.createElement('canvas') stub so we can assert the crop/rotation
@@ -25,7 +25,7 @@ globalThis.document = {
 const { ImageModel } = await import('../../../js/core/image/model.js');
 
 const makeApp = (over = {}) => {
-  const rec = { save: 0, redraw: 0, remoteSync: 0 };
+  const rec = { save: 0, redraw: 0, remoteSync: 0, pushes: [], resets: 0 };
   return {
     rec,
     originalImage: { width: 200, height: 100 },
@@ -35,10 +35,10 @@ const makeApp = (over = {}) => {
     lines: [], currentLine: null, selectedLineIdx: -1, coordLineIdx: -1, focusedPtIdx: -1,
     canvas: { width: 0, height: 0 },
     image: null, imageDataUrl: 'data:orig',
-    history: { reset() {} },
+    history: { push(m) { rec.pushes.push(structuredClone(m)); }, reset() { rec.resets++; } },
     zoomPan: { fitToWindow() {} },
     renderer: { redraw() { rec.redraw++; } },
-    storage: { save() { rec.save++; } },
+    storage: { saveSoon() { rec.save++; } },
     coordTable: { update() {} },
     hideSelectionPanels() {},
     updateInfo() {}, updateButtons() {}, updateCoordStatus() {},
@@ -117,4 +117,29 @@ test('applyCrop recalc: an orientation flip clears the lines', () => {
   new ImageModel(app).applyCrop({ x: 0, y: 0, width: 80, height: 100 }, { recalc: true });
   assert.equal(app.lines.length, 0);
   assert.deepEqual(app.cropRect, { x: 0, y: 0, width: 80, height: 100 });
+});
+
+// Crop and rotate used to reset the history, so neither could be undone: each is one step now.
+test('rotateImage and applyCrop each push one undo step carrying the new crop and turn', () => {
+  const app = makeApp({ lines: [{ points: [{ x: 1, y: 2 }] }] });
+  const m = new ImageModel(app);
+  m.rotateImage(1);
+  m.applyCrop({ x: 10, y: 20, width: 50, height: 60 });
+  assert.equal(app.rec.resets, 0, 'the history is kept');
+  assert.deepEqual(app.rec.pushes.map((p) => [p.rotationQuarters, p.cropRect]), [
+    [1, { x: 0, y: 0, width: 100, height: 200 }],
+    [1, { x: 10, y: 20, width: 50, height: 60 }],
+  ]);
+  assert.deepEqual(app.rec.pushes[0].lines, [{ points: [{ x: 98, y: 1 }] }], 'the turned lines ride along');
+});
+
+test('restoreView rebuilds from the original only when the step names another crop or turn', () => {
+  const app = makeApp();
+  const m = new ImageModel(app);
+  assert.equal(m.restoreView({ lines: [], cropRect: { x: 0, y: 0, width: 200, height: 100 }, rotationQuarters: 0 }), false);
+  assert.equal(m.restoreView({ lines: [] }), false, 'a lines-only step leaves the view');
+  assert.equal(m.restoreView({ lines: [], cropRect: { x: 0, y: 0, width: 100, height: 200 }, rotationQuarters: 1 }), true);
+  assert.equal(app.rotationQuarters, 1);
+  assert.deepEqual(app.cropRect, { x: 0, y: 0, width: 100, height: 200 });
+  assert.equal(app.canvas.width, 100, 'the working image is rebuilt at the restored size');
 });

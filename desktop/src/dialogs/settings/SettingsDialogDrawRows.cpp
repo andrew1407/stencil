@@ -1,5 +1,6 @@
 // The drawing sections: the defaults new lines take, hold-to-draw, and the highlight rings.
 #include "SettingsDialog.hpp"
+#include "../../support/control/lineLimits.hpp"
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QPushButton>
@@ -15,8 +16,9 @@ namespace stencil::gui {
          "Default line color");
     addRow(r, tr("Line color"), color);
 
+    const support::lineLimits::Table& limits = support::lineLimits::table();
     thickness = new QDoubleSpinBox(r.host);
-    thickness->setRange(1, 20);  // LIMITS.thickMin/thickMax
+    thickness->setRange(limits.thickMin, limits.thickMax);
     thickness->setDecimals(0);   // the browser field is an integer
     thickness->setValue(current.defaultThickness);
     thickness->setToolTip("Default stroke thickness for new lines (px)");
@@ -24,7 +26,7 @@ namespace stencil::gui {
     connect(thickness, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
 
     pointSize = new QDoubleSpinBox(r.host);
-    pointSize->setRange(1, 30);  // LIMITS.pointMin/pointMax
+    pointSize->setRange(limits.pointMin, limits.pointMax);
     pointSize->setDecimals(0);
     pointSize->setValue(current.defaultPointSize);
     pointSize->setToolTip("Default point size for new lines (px)");

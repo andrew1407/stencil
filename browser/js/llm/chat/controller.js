@@ -41,6 +41,7 @@ export const createChatController = ({
   openDialog,             // §10 dialog: async (name|null) => note-string | null (null closes; executor-deferred)
   clearChatConversation,  // §10 clearChat: async () => note-string | null (confirms in-app; executor-deferred)
   setVoiceChat,           // §10 voiceChat: (on) => note-string | null (browser-only; unsupported → note)
+  editorHistory,          // { mark, rewind } over the undo stack: a variant or preview leaves no step
 } = {}) => {
   const history = [];       // [{ role, text, images? }] — canonical wire shape
   const attachments = [];   // pending for the next send: { name, kind, use, dataUrl?, frames?, file? }
@@ -78,7 +79,7 @@ export const createChatController = ({
   // The model round itself (§7), handed the mutable turn state and the §10 capability bag.
   const respond = createResponder({
     stencil, state, history, pushHistory, edgeOf, snapshot, getClient, loadImage, frameAt,
-    exportImage, previewThumb, savedServers, openIncognito,
+    exportImage, previewThumb, savedServers, openIncognito, editorHistory,
     caps: { saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage,
       clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, setChatPlacement,
       openDialog, clearChatConversation, setVoiceChat },

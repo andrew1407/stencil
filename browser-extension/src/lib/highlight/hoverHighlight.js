@@ -1,5 +1,5 @@
 // Outlines the one page element whose source matches a hovered list row. Independent of
-// lib/highlight.js (its own attribute + style); the injected function is self-contained.
+// lib/highlight/highlight.js (its own attribute + style); the injected function is self-contained.
 
 // True when some frame marked the element; false on a restricted page. A falsy
 // `source` clears the outline everywhere.

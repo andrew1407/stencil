@@ -1,6 +1,8 @@
 // MainWindow GUI e2e — Every toolbar tooltip's text, against the browser's own copy.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindowTip.gui.hpp"
+#include <QAccessible>
+#include <QTextDocument>
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -37,46 +39,46 @@ class MainWindowGuiTest : public QObject {
 
     struct Pair { QAction* act; QWidget* widget; const char* browserId; };
     const QList<Pair> pairs{
-        {win.actOpen, nullptr, "load-image-btn"},
-        {win.actOpenAnother, nullptr, "open-image-btn"},
-        {win.actSaveImage, nullptr, "save-image"},
-        {win.actCopyImage, nullptr, "copy-image"},
-        {win.actOpenIn, nullptr, "open-in-btn"},
-        {win.actProjects, nullptr, "projects-btn"},
-        {win.actOpenProjectFile, nullptr, "open-project-btn"},
-        {win.actStencilLiveSync, nullptr, "live-sync-btn"},
-        {win.actDeleteProjectFile, nullptr, "delete-project-btn"},
-        {win.actConnect, nullptr, "connect-btn"},
-        {win.actLinks, nullptr, "links-btn"},
-        {win.actDescription, nullptr, "description-btn"},
-        {win.actKeywords, nullptr, "keywords-btn"},
-        {win.actChat, nullptr, "chat-btn"},
-        {win.actCrop, nullptr, "crop-image"},
-        {win.actRotateLeft, nullptr, "rotate-left"},
-        {win.actRotateRight, nullptr, "rotate-right"},
-        {win.actUndo, nullptr, "undo"},
-        {win.actRedo, nullptr, "redo"},
-        {win.actFit, nullptr, "zoom-fit"},
-        {win.actDownloadJson, nullptr, "download-json"},
-        {win.actUploadJson, nullptr, "upload-json-btn"},
-        {win.actCopyLayout, nullptr, "copy-json-btn"},
-        {win.actClearProject, nullptr, "clear-storage"},
-        {win.actTheme, nullptr, "theme-toggle"},
-        {win.actIncognito, nullptr, "incognito-toggle"},
-        {win.actInfo, nullptr, "info-btn"},
-        {nullptr, win.imageFilter, "image-filter"},
-        {nullptr, win.compareCombo, "compare-mode"},
-        {nullptr, win.filterColorBtn, "filter-color"},
+        {win.acts.open, nullptr, "load-image-btn"},
+        {win.acts.openAnother, nullptr, "open-image-btn"},
+        {win.acts.saveImage, nullptr, "save-image"},
+        {win.acts.copyImage, nullptr, "copy-image"},
+        {win.acts.openIn, nullptr, "open-in-btn"},
+        {win.acts.projects, nullptr, "projects-btn"},
+        {win.acts.openProjectFile, nullptr, "open-project-btn"},
+        {win.acts.stencilLiveSync, nullptr, "live-sync-btn"},
+        {win.acts.deleteProjectFile, nullptr, "delete-project-btn"},
+        {win.acts.connect, nullptr, "connect-btn"},
+        {win.acts.links, nullptr, "links-btn"},
+        {win.acts.description, nullptr, "description-btn"},
+        {win.acts.keywords, nullptr, "keywords-btn"},
+        {win.acts.chat, nullptr, "chat-btn"},
+        {win.acts.crop, nullptr, "crop-image"},
+        {win.acts.rotateLeft, nullptr, "rotate-left"},
+        {win.acts.rotateRight, nullptr, "rotate-right"},
+        {win.acts.undo, nullptr, "undo"},
+        {win.acts.redo, nullptr, "redo"},
+        {win.acts.fit, nullptr, "zoom-fit"},
+        {win.acts.downloadJson, nullptr, "download-json"},
+        {win.acts.uploadJson, nullptr, "upload-json-btn"},
+        {win.acts.copyLayout, nullptr, "copy-json-btn"},
+        {win.acts.clearProject, nullptr, "clear-storage"},
+        {win.acts.theme, nullptr, "theme-toggle"},
+        {win.acts.incognito, nullptr, "incognito-toggle"},
+        {win.acts.info, nullptr, "info-btn"},
+        {nullptr, win.tools.imageFilter, "image-filter"},
+        {nullptr, win.tools.compareCombo, "compare-mode"},
+        {nullptr, win.tools.filterColorBtn, "filter-color"},
         {nullptr, win.nameBar.blankColorBtn, "blank-color-btn"},
         {nullptr, win.zoom, "zoom-input"},
         {nullptr, win.units.pageSize, "page-size"},
         {nullptr, win.units.unitCombo, "unit-select"},
-        {nullptr, win.lineColorBtn, "line-color"},
-        {nullptr, win.lineThickness, "line-thickness"},
-        {nullptr, win.lineStyle, "line-style"},
-        {nullptr, win.pointColorBtn, "point-color"},
-        {nullptr, win.pointSize, "point-size"},
-        {nullptr, win.drawModeBtn, "draw-mode-toggle"},
+        {nullptr, win.tools.lineColorBtn, "line-color"},
+        {nullptr, win.tools.lineThickness, "line-thickness"},
+        {nullptr, win.tools.lineStyle, "line-style"},
+        {nullptr, win.tools.pointColorBtn, "point-color"},
+        {nullptr, win.tools.pointSize, "point-size"},
+        {nullptr, win.tools.drawModeBtn, "draw-mode-toggle"},
         {nullptr, win.nameBar.edit, "project-name-edit"},
         {nullptr, win.nameBar.colorBtn, "project-color-btn"},
         {nullptr, win.nameBar.accept, "project-name-accept"},
@@ -119,17 +121,59 @@ class MainWindowGuiTest : public QObject {
         auto* bound = qobject_cast<QAction*>(
             p.widget->property(stencil::gui::TIP_HOTKEY_PROPERTY).value<QObject*>());
         QVERIFY2(bound, qPrintable(QString("#%1 wears no chord for %2").arg(p.browserId, hk)));
-        QCOMPARE(bound->shortcut(), QKeySequence(win.hotkey(hk, QString())));
+        QCOMPARE(bound->shortcut(), QKeySequence(win.keys.value(hk, QString())));
         QVERIFY2(plain.contains("(" + bound->shortcut().toString(QKeySequence::NativeText) + ")"),
                  qPrintable(QString("#%1: no chord on \"%2\"").arg(p.browserId, plain)));
       }
     }
     // …and the shortcut the shared registry defines for a control really is on it, or the
     // tooltip has no keycap to draw and the chord does nothing.
-    QCOMPARE(win.actStencilLiveSync->shortcut(), QKeySequence(win.hotkey("toggleLiveSync", "Ctrl+Shift+Y")));
-    QCOMPARE(win.actDeleteProjectFile->shortcut(), QKeySequence(win.hotkey("deleteProject", "Ctrl+Shift+Backspace")));
+    QCOMPARE(win.acts.stencilLiveSync->shortcut(), QKeySequence(win.keys.value("toggleLiveSync", "Ctrl+Shift+Y")));
+    QCOMPARE(win.acts.deleteProjectFile->shortcut(), QKeySequence(win.keys.value("deleteProject", "Ctrl+Shift+Backspace")));
   }
 
+  // macOS Hover Text (⌘ held) and screen readers speak a control's accessible description, which Qt
+  // fills from the raw toolTip(): a rich tip must read as the words it draws, a table row as one line.
+  void richTooltipsReadAsTheirTextNeverTheirMarkup() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // What main.cpp does to every plain tip, so each control reads as the app draws it, keycaps included.
+    for (QWidget* w : QApplication::allWidgets())
+      if (const QString rich = stencil::gui::enrichedToolTip(w->toolTip()); !rich.isEmpty()) w->setToolTip(rich);
+    win.chatSession->refreshLlmStatus();
+    auto* more = win.chatDock->findChild<QToolButton*>("chatMore");
+    QVERIFY(more && more->toolTip().contains("<table"));
+    const auto bare = [](QString s) {
+      s.remove(QChar::ObjectReplacementCharacter);
+      return s.remove(QRegularExpression("\\s"));
+    };
+    int rich = 0;
+    for (QWidget* w : QApplication::allWidgets()) {
+      if (!Qt::mightBeRichText(w->toolTip())) continue;
+      ++rich;
+      const QString said = QAccessible::queryAccessibleInterface(w)->text(QAccessible::Description);
+      const QString who = w->objectName().isEmpty() ? QString::fromLatin1(w->metaObject()->className()) : w->objectName();
+      QVERIFY2(!said.contains('<') && !said.contains("&nbsp;") && !said.contains("&amp;"),
+               qPrintable(QString("%1 reads out its markup: %2").arg(who, said.left(120))));
+      QTextDocument drawn;
+      drawn.setHtml(w->toolTip());
+      // Every drawn character is said, in order; a keycap picture is said as its key.
+      const QString want = bare(drawn.toPlainText()), got = bare(said);
+      qsizetype at = 0;
+      for (const QChar c : want)
+        if (at >= 0) at = got.indexOf(c, at) < 0 ? -1 : got.indexOf(c, at) + 1;
+      QVERIFY2(!want.isEmpty() && at > 0, qPrintable(QString("%1 says \"%2\", its tip draws \"%3\"")
+                                                        .arg(who, said, drawn.toPlainText())));
+      if (w == more) {
+        QCOMPARE(got, want);
+        QVERIFY2(said.contains(QRegularExpression("^Provider\\s+\\S", QRegularExpression::MultilineOption)),
+                 qPrintable("the status table's row is not one line: " + said));
+      }
+    }
+    QVERIFY2(rich > 20, qPrintable(QString("only %1 rich tooltips to read").arg(rich)));
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

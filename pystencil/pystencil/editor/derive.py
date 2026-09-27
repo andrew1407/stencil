@@ -152,26 +152,6 @@ class _DeriveApi:
     y = max(0, min(y, h - rh))
     return (x, y, rw, rh)
 
-  def _rotate_rect_quarters(
-    self, rect: CropRect, w: int, h: int, n: int
-  ) -> CropRect:
-    """Map a rect through ``n`` clockwise quarter-turns of its ``w``×``h`` image.
-
-    Pure axis-aligned 90° steps; a direct port of the Zig ``rotateRectQuarters``.
-    """
-    x, y, rw, rh = rect
-    cw, ch = w, h
-    q = self._get_core().normalize_quarters(n)
-    while q > 0:
-      new_x = ch - y - rh
-      new_y = x
-      new_w = rh
-      new_h = rw
-      x, y, rw, rh = new_x, new_y, new_w, new_h
-      cw, ch = ch, cw
-      q -= 1
-    return (x, y, rw, rh)
-
   def _named_page_for_image(self, name: str, w: int, h: int) -> tuple[float, float]:
     """A named format's cm dims oriented to a ``w``x``h`` image — port of
     ``page.namedPageForImage``. A landscape image lays the page on its side.

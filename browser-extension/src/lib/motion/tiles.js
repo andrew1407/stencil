@@ -1,5 +1,5 @@
 // ── The grids and the per-tile maths every cloud is built from ──────────────
-// Mirror of browser js/ui/motion/tiles.js.
+// Mirror of browser js/ui/motion/surface/tiles.js.
 
 // A chat entry comes apart in a finer grid than a list row (browser twin).
 export const CHAT_DISINTEGRATE_COLS = 32;

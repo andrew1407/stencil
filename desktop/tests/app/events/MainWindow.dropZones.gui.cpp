@@ -28,7 +28,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.setChatShown(true, /*animate=*/false);
+    win.parts.dockChrome.setChatShown(true, /*animate=*/false);
     QTest::qWait(50);
   }
 
@@ -45,24 +45,24 @@ class MainWindowGuiTest : public QObject {
   void theZonesSpanTheWholeWindow() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWithChat(win);
-    QVERIFY(win.dropZones && win.chatDock && win.scroll && win.status && win.toolRow());
-    QCOMPARE(win.dropZones->parentWidget(), static_cast<QWidget*>(&win));
+    QVERIFY(win.overlays.dropZones && win.chatDock && win.scroll && win.status && win.parts.toolbarBuilder.toolRow());
+    QCOMPARE(win.overlays.dropZones->parentWidget(), static_cast<QWidget*>(&win));
 
-    win.dropZones->showZones();
-    QCOMPARE(win.dropZones->geometry(), win.rect());
-    QVERIFY2(win.dropZones->width() > win.scroll->viewport()->width(),
+    win.overlays.dropZones->showZones();
+    QCOMPARE(win.overlays.dropZones->geometry(), win.rect());
+    QVERIFY2(win.overlays.dropZones->width() > win.scroll->viewport()->width(),
              "the overlay must be the window's size, not the canvas viewport's");
-    for (QWidget* under : {static_cast<QWidget*>(win.toolRow()),
+    for (QWidget* under : {static_cast<QWidget*>(win.parts.toolbarBuilder.toolRow()),
                            static_cast<QWidget*>(win.chatDock),
                            static_cast<QWidget*>(win.status)}) {
       const QRect box(under->mapTo(&win, QPoint(0, 0)), under->size());
-      QVERIFY2(win.dropZones->geometry().contains(box), qPrintable(under->objectName()));
+      QVERIFY2(win.overlays.dropZones->geometry().contains(box), qPrintable(under->objectName()));
     }
     // The split is painted down the overlay's own middle, and that is now the window's.
-    QCOMPARE(win.dropZones->geometry().x() + win.dropZones->width() / 2, win.width() / 2);
+    QCOMPARE(win.overlays.dropZones->geometry().x() + win.overlays.dropZones->width() / 2, win.width() / 2);
     QVERIFY2(qAbs(viewportMid(win) - win.width() / 2) > 8,
              "the viewport midline must differ from the window's, or nothing is proved");
-    win.dropZones->hideZonesNow();
+    win.overlays.dropZones->hideZonesNow();
   }
 
   // The split the user aims at is the one PAINTED, and a docked panel no longer moves it: both
@@ -70,7 +70,7 @@ class MainWindowGuiTest : public QObject {
   void theLitHalfAndTheDropAgreeWithThePaintedSplit() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWithChat(win);
-    QVERIFY(win.dropZones && win.scroll);
+    QVERIFY(win.overlays.dropZones && win.scroll);
     const int mid = win.width() / 2;
     // Strictly between the two midlines, so the window's rule and the old viewport one disagree.
     const int band = (mid + viewportMid(win)) / 2;
@@ -81,14 +81,15 @@ class MainWindowGuiTest : public QObject {
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(guiTestImage())});
     dragTo(win, mime, QPoint(mid - 6, 300), QEvent::DragEnter);
-    QVERIFY2(win.dropZones->getActiveLeft(), "just left of the painted split is the SAVE half");
+    QVERIFY2(win.overlays.dropZones->getActiveLeft(), "just left of the painted split is the SAVE half");
     dragTo(win, mime, QPoint(mid + 6, 300), QEvent::DragMove);
-    QVERIFY2(!win.dropZones->getActiveLeft(), "and just right of it is the incognito half");
+    QVERIFY2(!win.overlays.dropZones->getActiveLeft(), "and just right of it is the incognito half");
     dragTo(win, mime, QPoint(band, 300), QEvent::DragMove);
-    QCOMPARE(win.dropZones->getActiveLeft(), bandIsSave);
+    QCOMPARE(win.overlays.dropZones->getActiveLeft(), bandIsSave);
 
     dropOn(win, mime, QPoint(band, 300));
     QCOMPARE(win.incognito, !bandIsSave);
+    QTRY_VERIFY(win.canvas->hasImage());
     dismissModal(QStringLiteral("This window"));   // an image is open now, so the drop asks where
     dropOn(win, mime, QPoint(2 * mid - band, 300));
     QCOMPARE(win.incognito, bandIsSave);
@@ -99,17 +100,17 @@ class MainWindowGuiTest : public QObject {
   void aDragOverTheChatDockStillMovesTheLitHalf() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWithChat(win);
-    QVERIFY(win.dropZones && win.chatDock);
+    QVERIFY(win.overlays.dropZones && win.chatDock);
     QVERIFY2(win.chatDock->geometry().right() < win.width() / 2,
              "the chat dock must sit left of the window midline for this case to mean anything");
 
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(guiTestImage())});
     dragTo(win, mime, QPoint(win.width() - 40, 300), QEvent::DragEnter);
-    QVERIFY2(!win.dropZones->getActiveLeft(), "the drag started over the incognito half");
+    QVERIFY2(!win.overlays.dropZones->getActiveLeft(), "the drag started over the incognito half");
     const QPoint overDock = win.chatDock->geometry().center();
     dragTo(win, mime, overDock, QEvent::DragMove);
-    QVERIFY2(win.dropZones->getActiveLeft(),
+    QVERIFY2(win.overlays.dropZones->getActiveLeft(),
              "the dock swallowed the move and left the zones on the wrong half");
   }
 };

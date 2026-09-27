@@ -39,7 +39,7 @@ class QVBoxLayout;
 class QWidget;
 
 // Assistant chat panel (llm-contract.md); browser twin: browser/js/ui/chat/panel.js. Pure UI:
-// MainWindow owns the history, the LlmClient, plan execution and the reachability probes.
+// ChatSessionController owns the history, plan execution and the reachability probes.
 namespace stencil::gui {
 
   class ChatDock : public QDockWidget {
@@ -71,7 +71,7 @@ namespace stencil::gui {
       QString projectId;
     };
     void appendVariants(const QVector<VariantCard>& variants);
-    // The model-side history lives in MainWindow, which clears it on clearRequested.
+    // The model-side history lives in ChatSessionController, which clears it on clearRequested.
     void clearConversation();
 
     void setBusy(bool on);
@@ -86,6 +86,7 @@ namespace stencil::gui {
     void focusInput();
     // Alt-peek release treats un-sent composer text as engagement.
     bool hasComposerText() const;
+    void setComposerText(const QString& text);
     bool dragPollActive() const;
     bool getDragActive() const;
     // Offscreen has no cursor/button state; tests stub how the drag poll reads them.
@@ -104,7 +105,6 @@ namespace stencil::gui {
     // Public: the context menu's assistant panel stages into the same attachment state.
     void pickMedia();
 
-   public:
     // The §11 question card; submitting emits sendRequested() and locks the card.
     void appendAsk(const stencil::llm::AskCard& ask, const QVector<QImage>& previews);
 
@@ -121,7 +121,7 @@ namespace stencil::gui {
     void openVariantRequested(const QString& projectId);
     // A note the dock posted ITSELF; the owner mirrors it onto the menu panel.
     void notePosted(const QString& text);
-    void toastRequested(const QString& text);
+    void toastRequested(const QString& text, bool failure = false);
     void lateNotePosted(const QString& text);
     void settingsRequested();
     void clearRequested();

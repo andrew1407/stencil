@@ -1,12 +1,18 @@
 // Port of core/script/crop.cpp — the two `@crop` forms, keys and positional insets.
 import { whereOf } from './args.js';
 import { makeDiag } from './diagnostics.js';
-import { cursorOf, isPunct, readLength, skipPunct } from './values.js';
+import { unquoteWord } from './types.js';
+import {
+  cursorOf, isMalformedNumber, isPunct, malformedNumberMessage, readLength, skipPunct,
+} from './values.js';
 
 const CROP_KEYS = Object.freeze(['x1', 'x2', 'y1', 'y2', 'aspect']);
 
 // '-10%' flips to the far edge; an inset is the same distance from either side.
 const mirror = (tok) => (tok.startsWith('-') ? tok.slice(1) : `-${tok}`);
+
+// The CROP_ASPECT form resolveCropRect applies: two whole numbers above zero, 'W:H'.
+const isAspectRatio = (s) => /^0*[1-9][0-9]*:0*[1-9][0-9]*$/.test(s);
 
 export const argsCrop = (st, state, op, diags) => {
   const c = cursorOf(st.args);
@@ -33,12 +39,18 @@ export const argsCrop = (st, state, op, diags) => {
           diags.push(makeDiag('error', 'E_BAD_TOKEN', t, "'aspect' needs a W:H ratio"));
           return false;
         }
-        aspect = c.args[c.i].text;
+        const value = c.args[c.i];
+        aspect = unquoteWord(value.text);
         c.i += 1;
         // The lexer splits '3:2' on the ':'; re-join the far side.
         if (c.i < c.args.length && isPunct(c.args[c.i], ':')) {
           c.i += 1;
           if (c.i < c.args.length) { aspect += `:${c.args[c.i].text}`; c.i += 1; }
+        }
+        if (!isAspectRatio(aspect)) {
+          diags.push(makeDiag('error', 'E_BAD_TOKEN', value,
+            "'aspect' needs a W:H ratio of two whole numbers above 0"));
+          return false;
         }
         continue;
       }
@@ -60,6 +72,10 @@ export const argsCrop = (st, state, op, diags) => {
       album = 1;
       c.i += 1;
       continue;
+    }
+    if (isMalformedNumber(t)) {
+      diags.push(makeDiag('error', 'E_BAD_TOKEN', t, malformedNumberMessage(t)));
+      return false;
     }
     diags.push(makeDiag('error', 'E_CROP_UNKNOWN_KEY', t,
       `'${t.text}' is not a crop key (x1, x2, y1, y2, aspect)`));

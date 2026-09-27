@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
       cloudsOnSwap = clouds();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(cloudsOnSwap > 0, "the replaced picture must blow away, not just disappear");
   }
 
@@ -122,7 +122,7 @@ class MainWindowGuiTest : public QObject {
       dlg->reject();                                // closing is the same rule
       onClose = clouds();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(mid > 0, "the arriving picture must raise a cloud to begin with");
     QCOMPARE(onSwitch, 0);
     QVERIFY2(!veiled, "the veil the cloud stood in for must lift with it");
@@ -167,7 +167,7 @@ class MainWindowGuiTest : public QObject {
       }
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(sawAny && followed, "the button's cloud tracks the row through the whole height ease");
   }
 
@@ -211,7 +211,7 @@ class MainWindowGuiTest : public QObject {
       sawLeave = clouds() > 0;
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(sawArrive, "picking Custom must form its W×H fields out of particles");
     QVERIFY2(sawLeave, "leaving Custom must scatter them, not just hide the group");
   }

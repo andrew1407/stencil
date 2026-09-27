@@ -8,6 +8,7 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"sync"
 
 	"stencil/server/internal/protocol"
@@ -46,36 +47,46 @@ type Bus interface {
 	Close() error
 }
 
-// PublishProjectEvent broadcasts a project-lifecycle event on the global feed —
-// the single path for it, so a swept project looks exactly like a manual delete.
+// PublishProjectEvent is the one path onto the global feed, so a swept project looks like a manual delete.
+// It carries metadata only: the feed reaches every subscriber and Redis, and no client reads a payload off it.
 func PublishProjectEvent(ctx context.Context, b Bus, event string, rec protocol.ProjectRecord) {
 	if b == nil {
 		return
 	}
+	rec.Layout = nil
 	msg := protocol.WSMessage{Type: protocol.WSProjectEv, Event: event, Project: &rec}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return
 	}
-	_ = b.Publish(ctx, ChannelEvents, EnvelopeOf(msg, data))
+	if err := b.Publish(ctx, ChannelEvents, EnvelopeOf(msg, data)); err != nil {
+		log.Printf("eventbus: publish %s event for project %s failed: %v", event, rec.ID, err)
+	}
 }
 
-// subBuffer bounds per-subscriber queueing; a slow consumer drops messages rather than stalling the
-// publisher (edit state is reconciled by version, so a dropped relay is recoverable).
-const subBuffer = 64
+// DefaultSubBuffer bounds per-subscriber queueing on both backends (BUS_SUB_BUFFER); a slow consumer drops
+// messages rather than stalling the publisher, and edit state is reconciled by version.
+const DefaultSubBuffer = 64
 
 // inProc is an in-memory Bus for single-instance deployments and tests.
 type inProc struct {
-	drops DropLog
+	drops  DropLog
+	buffer int
 
 	mu   sync.Mutex
 	subs map[string]map[int]chan Envelope
 	next int
 }
 
-// NewInProc creates an in-memory bus.
-func NewInProc() Bus {
-	return &inProc{subs: make(map[string]map[int]chan Envelope)}
+// NewInProc creates an in-memory bus with the default subscriber buffer.
+func NewInProc() Bus { return NewInProcBuffered(DefaultSubBuffer) }
+
+// NewInProcBuffered creates an in-memory bus queueing up to buffer deliveries per subscriber.
+func NewInProcBuffered(buffer int) Bus {
+	if buffer <= 0 {
+		buffer = DefaultSubBuffer
+	}
+	return &inProc{buffer: buffer, subs: make(map[string]map[int]chan Envelope)}
 }
 
 // Publish delivers env to every subscriber of channel without blocking.
@@ -101,7 +112,7 @@ func (b *inProc) Subscribe(channel string) (<-chan Envelope, func()) {
 	}
 	id := b.next
 	b.next++
-	ch := make(chan Envelope, subBuffer)
+	ch := make(chan Envelope, b.buffer)
 	b.subs[channel][id] = ch
 
 	var once sync.Once

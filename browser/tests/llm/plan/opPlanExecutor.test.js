@@ -1,4 +1,4 @@
-// executeOpPlan over the facade stub (js/llm/plan.js): the op-to-facade mapping and
+// executeOpPlan over the facade stub (js/llm/plan/): the op-to-facade mapping and
 // the §1 coordinate re-mapping that puts plan points where the model saw them.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -71,6 +71,14 @@ test('layout with an empty list clears the lines', async () => {
   await executeOpPlan(parseOpPlan(plan({ actions: [{ op: 'layout', lines: [] }] })), stub, {});
   assert.deepStrictEqual(calls, [['setLines', [], undefined]]);
   assert.deepStrictEqual(stub.lines, []);
+});
+
+// §3: a line's pointColor ('' = follow the stroke) reaches the drawn line; the sanitizer keeps it.
+test('layout carries each line\'s pointColor onto the lines it sets', async () => {
+  const { stub, calls } = makeStub();
+  const lines = [{ points: [{ x: 1, y: 2 }], pointColor: '#ff0000' }, { points: [{ x: 3, y: 4 }], pointColor: '' }];
+  await executeOpPlan(parseOpPlan(plan({ actions: [{ op: 'layout', lines }] })), stub, {});
+  assert.deepStrictEqual(calls, [['setLines', lines, undefined]]);
 });
 
 // installLayout refuses silently without an image; the op must not report lines it never took.

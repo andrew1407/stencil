@@ -10,7 +10,7 @@
 #include <vector>
 
 // Walks the shared corpus in browser/js/config/script/fixtures/cases.txt, the same file
-// every surface's walker replays. Mirrors browser/tests/scriptFixtures.test.js.
+// every surface's walker replays. Mirrors browser/tests/core/scriptFixtures.test.js.
 using namespace stencil::core::script;
 
 namespace {

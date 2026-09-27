@@ -1,4 +1,4 @@
-// The extension's server-connection layer (src/lib/connections.js): the pure pin/connection
+// The extension's server-connection layer (src/lib/connection/connections.js): the pure pin/connection
 // transforms plus the REST + chrome.storage wrappers, over an injected fetch and a storage mock.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

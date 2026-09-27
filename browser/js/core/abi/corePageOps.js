@@ -2,16 +2,15 @@
 // format table, the pixel→page mapping, and the in-place rotate / flip / bounding-box centre.
 export const buildPageOps = (core, { F64, allocPoints }) => {
   const cPageFormats = core.cwrap('stencil_pageFormats', 'string', []);
-  const cPageDims   = (name, cw, ch, cuW, cuH, out) =>
-    core.ccall('stencil_pageDimensions', null, ['string', 'number', 'number', 'number', 'number', 'number', 'number'], [name, cw, ch, cuW, cuH, out, out + F64]);
+  // cwrap resolves the export once where ccall looked it up per call; a page name is a few
+  // bytes, so its 'string' marshal on the wasm stack is safe. pixelToPageRaw is parity-only.
+  const cPageDimsFn = core.cwrap('stencil_pageDimensions', null, ['string', 'number', 'number', 'number', 'number', 'number', 'number']);
+  const cPageDims   = (name, cw, ch, cuW, cuH, out) => cPageDimsFn(name, cw, ch, cuW, cuH, out, out + F64);
   const cPixelRaw   = (x, y, dW, dH, cw, ch, out) =>
     core.ccall('stencil_pixelToPageRaw', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, dW, dH, cw, ch, out, out + F64]);
-  const cRotate     = (ptr, n, cx, cy, ang) =>
-    core.ccall('stencil_rotatePoints', null, ['number', 'number', 'number', 'number', 'number'], [ptr, n, cx, cy, ang]);
-  const cFlip       = (ptr, n, horizontal, cx, cy) =>
-    core.ccall('stencil_flipPoints', null, ['number', 'number', 'number', 'number', 'number'], [ptr, n, horizontal, cx, cy]);
-  const cBboxCenter = (ptr, n, out) =>
-    core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
+  const cRotate     = core.cwrap('stencil_rotatePoints', null, ['number', 'number', 'number', 'number', 'number']);
+  const cFlip       = core.cwrap('stencil_flipPoints', null, ['number', 'number', 'number', 'number', 'number']);
+  const cBboxCenter = core.cwrap('stencil_boundingBoxCenter', null, ['number', 'number', 'number']);
 
   // HEAPF64 may have detached if memory grew; re-view before reading back.
   const readPointsBack = (points, ptr, n) => {

@@ -4,7 +4,7 @@ import { composeControlTitle } from '../../utils.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 
 // The Draw group's Start/Stop and Line/Rect faces, driven from updateButtons()
-// (ui/state.js) so core holds no icon markup.
+// (ui/control/state.js) so core holds no icon markup.
 export const syncDrawToggleUI = (app) => {
   const btn = document.getElementById('draw-toggle');
   if (!btn) return;

@@ -5,6 +5,7 @@
 import type { Stencil } from '../../console/stencilApi.js';
 import type { ChatMessage, LlmClient } from '../client.js';
 import type { AskPreview, PlanAsk, SavedServerEntry, VariantResult } from '../plan/opPlan.js';
+import type { EditorHistory } from '../plan/sandbox.js';
 export { CHAT_ATTACHMENTS_EVENT, EDGE_MAP_SENTENCE, HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE,
   VIDEO_FRAME_COUNT, contourDataUrl, downscaleImageToDataUrl, planEditsTheImage,
   planLoadsWithoutTracing, replayMessages, splitDataUrl } from './turn.js';
@@ -54,6 +55,8 @@ export interface ChatCapabilities {
   /** null closes whatever dialog is open. */
   openDialog?: (name: string | null) => Promise<CapabilityNote>;
   setVoiceChat?: (on: boolean) => CapabilityNote;
+  /** Marks and rewinds the undo stack, so a variant or preview leaves no step behind. */
+  editorHistory?: EditorHistory;
 }
 
 export interface ChatControllerOptions extends ChatCapabilities {

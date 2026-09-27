@@ -1,22 +1,19 @@
 //! Painting the prompt: where the wrapped input sits on screen, repainting it in place,
 //! and clearing it out of the way before other output arrives.
-const le = @import("../line_edit.zig");
+const le = @import("line_edit.zig");
 const Editor = le.Editor;
 const std = @import("std");
 const logo = @import("../app/logo.zig");
 const skin = @import("../app/skin.zig");
 const restyle = @import("../console/render/ansi/restyle.zig");
+const tty = @import("../console/screen/tty.zig");
+const frame = @import("../console/screen/frame.zig");
 const wrappedRows = le.wrappedRows;
 const max_prompt_rows = le.max_prompt_rows;
 const rowSlice = le.rowSlice;
 
 pub fn writeAll(self: *Editor, bytes: []const u8) void {
-    var i: usize = 0;
-    while (i < bytes.len) {
-        const n = std.c.write(self.fd_out, bytes[i..].ptr, bytes.len - i); // libc write (no std.posix.write)
-        if (n <= 0) return;
-        i += @intCast(n);
-    }
+    tty.ttyWrite(self.fd_out, bytes);
 }
 
 /// The input block's wrap geometry: how many columns the FIRST row leaves for the line (the prompt
@@ -34,6 +31,8 @@ pub fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) 
     else
         0;
     const s = self.screen orelse return self.refreshFlat(prompt, line, pos, cmd_end);
+    frame.begin(s);
+    defer frame.end(s);
 
     // Full-screen: the input WRAPS onto as many rows as it needs (the block grows upward into the
     // output) instead of scrolling a one-row window sideways, so a long prompt can be read back.
@@ -128,6 +127,8 @@ pub fn gotoLineStart(self: *Editor) void {
 // would scroll the alt-screen and eat the pinned header — clear the row in place instead.
 pub fn endPromptLine(self: *Editor) void {
     if (self.screen) |s| {
+        frame.begin(s);
+        defer frame.end(s);
         self.clearPromptBlock();
         // Hand the rows back: the submitted line is gone, so a block that grew to fit it
         // must shrink or the output stays squeezed under a band of blank rows.
@@ -141,6 +142,8 @@ pub fn endPromptLine(self: *Editor) void {
 /// continuation rows on screen, and nothing repaints them until the block changes height.
 pub fn clearPromptBlock(self: *Editor) void {
     const s = self.screen orelse return;
+    frame.begin(s);
+    defer frame.end(s);
     const top = s.promptRow();
     var i: u16 = 0;
     while (i < s.promptRows()) : (i += 1) {

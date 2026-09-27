@@ -10,8 +10,8 @@ use stencil_mcp::pipeline::EditResult;
 fn result(remotes: Vec<Remote>) -> EditResult {
     EditResult {
         path: "/tmp/out.png".into(),
-        width: 800,
-        height: 600,
+        width: Some(800),
+        height: Some(600),
         remotes,
     }
 }
@@ -81,8 +81,8 @@ fn several_deliveries_are_listed_in_order_one_per_line() {
 fn the_write_line_reports_the_local_dimensions_independently() {
     let summary = EditResult {
         path: "out.webp".into(),
-        width: 1920,
-        height: 1080,
+        width: Some(1920),
+        height: Some(1080),
         remotes: vec![Remote::Updated {
             id: "p_x".into(),
             width: 640,
@@ -101,8 +101,8 @@ fn the_write_line_reports_the_local_dimensions_independently() {
 fn a_path_with_spaces_is_not_quoted_or_escaped() {
     let summary = EditResult {
         path: "/tmp/my shot (final).png".into(),
-        width: 4,
-        height: 4,
+        width: Some(4),
+        height: Some(4),
         remotes: vec![],
     }
     .summary();

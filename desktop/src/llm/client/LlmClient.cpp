@@ -5,10 +5,7 @@
 #include "opRegistry.hpp"
 #include "ServerClient.hpp"
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QRegularExpression>
+#include <utility>
 
 namespace stencil::llm {
 
@@ -49,17 +46,20 @@ namespace stencil::llm {
                                     "to enable it.")));
       return;
     }
-    const QString system = systemPrompt(systemSuffix);
-    if (cfg.provider == QLatin1String("stencil-server")) {
-      chatServer(cfg, messages, system, std::move(done));
-    } else if (cfg.provider == QLatin1String("openai-compat")) {
-      chatOpenAi(cfg, messages, system, std::move(done));
-    } else if (cfg.provider == QLatin1String("ollama")) {
-      chatOllama(cfg, messages, system, std::move(done));
-    } else {
-      done(failReply(LlmFailure::BAD_RESPONSE,
-                     QStringLiteral("Unknown LLM provider \"%1\"").arg(cfg.provider)));
-    }
+    // A mapping is picked by the provider's providers.json `wire`, never by its name (§6).
+    using ChatWire = void (LlmClient::*)(const LlmSettings&, const QVector<ChatMessage>&,
+                                         const QString&, std::function<void(LlmReply)>);
+    static const std::pair<const char*, ChatWire> CHAT_WIRES[] = {
+        {"ollama", &LlmClient::chatOllama},
+        {"openai", &LlmClient::chatOpenAi},
+        {"server", &LlmClient::chatServer},
+        {"anthropic", &LlmClient::chatAnthropic},
+    };
+    const QString wire = providerCanonEntry(cfg.provider).value(QStringLiteral("wire")).toString();
+    for (const auto& [name, fn] : CHAT_WIRES)
+      if (wire == QLatin1String(name)) return (this->*fn)(cfg, messages, systemPrompt(systemSuffix), std::move(done));
+    done(failReply(LlmFailure::BAD_RESPONSE,
+                   QStringLiteral("Unknown LLM provider \"%1\"").arg(cfg.provider)));
   }
 }  // namespace stencil::llm
 

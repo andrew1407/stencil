@@ -4,24 +4,28 @@ const Session = @import("../session.zig").Session;
 const std = @import("std");
 const server = @import("../../server/client.zig");
 const llm = @import("../../llm.zig");
+const netWait = @import("../netWait.zig");
 
 /// True when a fetched server project is active (a target for sync / manual push).
 pub fn hasRemote(self: *const Session) bool {
     return self.remote_id != null and self.remote_url != null;
 }
 
-/// The session's LLM configuration, resolved from the captured environment on first use
-/// (so `/llm` overrides layer on top of the `STENCIL_LLM_*` initial values).
-pub fn llmConfig(self: *Session) !*llm.Config {
-    if (self.llm_cfg == null) self.llm_cfg = try llm.Config.init(self.gpa, self.llm_env);
+/// The session's LLM configuration, resolved from `STENCIL_LLM_*` on first use (`/llm` overrides
+/// layer on top); an anthropic key from the environment starts its session clock then.
+pub fn llmConfig(self: *Session, io: std.Io) !*llm.Config {
+    if (self.llm_cfg == null) {
+        self.llm_cfg = try llm.Config.init(self.gpa, self.llm_env);
+        self.llm_cfg.?.armKey(std.Io.Clock.now(.real, io).toMilliseconds());
+    }
     return &self.llm_cfg.?;
 }
 
 /// Open (or replace) the read-only project-events subscription to `client`'s server.
-/// Best-effort: a failed connect leaves the feed closed and is not fatal.
+/// Best-effort: a failed or Ctrl-C'd connect leaves the feed closed and is not fatal.
 pub fn openEvents(self: *Session, client: *server.Client) void {
     self.closeEvents();
-    const conn = server.EditConn.open(self.gpa, client.io, client.base, client.token, "stencil-cli") catch return;
+    const conn = netWait.openEvents(self.gpa, client) orelse return;
     const url = self.gpa.dupe(u8, client.base) catch {
         var c = conn;
         c.deinit();

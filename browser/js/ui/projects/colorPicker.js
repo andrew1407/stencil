@@ -12,7 +12,7 @@ export function createColorPicker({ app, list, render }) {
   let colorTarget = null;
   colorInput.addEventListener('change', () => {
     if (!colorTarget) return;
-    app.setProjectColor(colorTarget.id, colorInput.value);
+    app.projectTransfer.setProjectColor(colorTarget.id, colorInput.value);
     colorTarget.color = colorInput.value;
     render();
   });

@@ -193,6 +193,14 @@ its CORS allowance (Ollama `OLLAMA_ORIGINS`, LM Studio "enable CORS"); the full 
 is in the [root README](../README.md#ai-assistant--setting-up-a-model), the contract in
 [`contracts/llm/`](../contracts/llm/llm-contract.md).
 
+**Your own Claude key.** Pick **Anthropic API (Claude)** as the provider, paste your API key
+from the Anthropic console and press **Save** — the assistant then talks to Anthropic straight
+from this page, with no Stencil server and no sign-in. The key is kept for this tab only: a
+reload keeps it, closing the tab forgets it, and so do 12 hours. It is never saved — not in
+the browser's storage, a project, an export or a link. The settings show until when the key is
+kept, and **Forget key** drops it at once; a turn sent without one asks for it again. The model
+field suggests the models your key can use (empty = the server's default model).
+
 ## Console API (`window.stencil`)
 
 The editor exposes a chainable scripting API on `window.stencil`. It is a thin facade —
@@ -219,7 +227,9 @@ Orientation:
 - **Scripts**: `await stencil.execScript(text)` runs a `.stc` against the open project;
   `stencil.checkScript(text)` parses only and returns the diagnostics, one string each.
 - **Assistant**: `stencil.llm` (the settings, get/set), `await stencil.prompt(text, { images })`,
-  and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`).
+  and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`). For
+  Anthropic, `stencil.llm.apiKey = '…'` holds your key for this tab and reads back only as
+  `'[redacted]'`; `stencil.llm.keyExpiresAt` and `stencil.llm.forgetKey()` go with it.
 - **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.holdDrawDelay`.
 - **Notifications**: `stencil.notifyChannel` — `'toast'` (in the app) or `'system'`.
 

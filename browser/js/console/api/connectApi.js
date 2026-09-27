@@ -1,3 +1,4 @@
+import { publishIncognitoToServer } from '../../core/launch/incognitoFlow.js';
 // ── window.stencil's server connections ──────────────────────────────────────
 // Thin passes to the session's ConnectionManager (net/connectionManager.js) and to the
 // app's own move/copy paths. The manager itself is built once, in stencilApi.js.
@@ -17,11 +18,11 @@ export const createConnectApi = ({ app, connMgr }) => {
     serverProjects() { return connMgr.remoteProjects(); },
     // Move/copy a SERVER project (a record from serverProjects(), shape { serverUrl, id, … })
     // to local storage, or copy it into an incognito session (opts.newTab opens a new tab).
-    moveServerProjectToLocal(meta) { return app.moveProjectToLocal(meta); },
-    copyServerProjectToLocal(meta, opts = {}) { return app.copyServerProjectToLocal(meta, opts); },
-    copyServerProjectToIncognito(meta, opts = {}) { return app.copyServerProjectToIncognito(meta, opts); },
+    moveServerProjectToLocal(meta) { return app.projectTransfer.moveProjectToLocal(meta); },
+    copyServerProjectToLocal(meta, opts = {}) { return app.projectTransfer.copyServerProjectToLocal(meta, opts); },
+    copyServerProjectToIncognito(meta, opts = {}) { return app.projectTransfer.copyServerProjectToIncognito(meta, opts); },
     // Publish the current incognito session to a server (becomes a normal server project).
-    publishIncognito(address) { return app.publishIncognitoToServer(address); },
+    publishIncognito(address) { return publishIncognitoToServer(app, address); },
   };
 
   return { api, setFacade: (f) => { stencil = f; } };

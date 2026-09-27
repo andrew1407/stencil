@@ -1,5 +1,3 @@
-using Stencil.TelegramBot.Bot.Telegram;
-using Stencil.TelegramBot.Domain.Llm;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.ReplyMarkups;
 using Stencil.TelegramBot.Bot.Telegram.Messaging;

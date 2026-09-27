@@ -2,17 +2,10 @@
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "../../support/guiHelpers.hpp"  // showSaveDialog
-#include "../../support/modal/modalChrome.hpp"  // confirmModalChoice — the browser-styled question
-#include "../../support/icon/iconSet.hpp"
 #include "../../support/share/shareImage.hpp"
-#include <QByteArray>
 #include <QClipboard>
-#include <QFile>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QJsonDocument>
-#include <QPushButton>
 #include <QTemporaryDir>
 
 namespace stencil::gui {

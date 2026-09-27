@@ -2,7 +2,7 @@
 // Byte-pinned PORT of browser/js/ui/motion/icons.js (portParity.test.js): one inline-SVG glyph
 // per interface-motion mode, whose parts carry the classes the row's hover animates
 // (lib/animations/motionIcons.css `.mm-*`). The desktop paints the same shapes with QPainter
-// (support/motionIcons.hpp).
+// (support/icon/motionIcons.hpp).
 
 const svg = (mode, body) =>
   `<svg class="mm-icon mm-${mode}" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ` +

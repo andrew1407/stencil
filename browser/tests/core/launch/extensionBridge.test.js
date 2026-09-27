@@ -1,4 +1,4 @@
-// Drives the REAL extension bridge (js/core/extensionBridge.js) over a stub window bus: the
+// Drives the REAL extension bridge (js/core/launch/extensionBridge.js) over a stub window bus: the
 // `state` snapshot and the import/switch requests. Rig: helpers/extensionBridgeRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

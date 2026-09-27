@@ -1,59 +1,62 @@
-"""BMP decode/encode: 24/32-bit ``BI_RGB`` only, bottom-up rows, BGR(A) <-> RGBA."""
+"""BMP decode through the CLI's stb unit in the native library (else ``bmpdecode``) — top-down
+rows, 1/4/8-bit palettes, 16-bit and ``BI_BITFIELDS`` included — and a 32-bit ``BI_RGB``
+encoder. Decode refuses a side past ``MAX_SIDE``, or pixel data shorter than the header
+claims, before stb allocates.
+"""
 
 from __future__ import annotations
 
 import struct
 
-from .sniff import _BMP_MAGIC, CodecError
+from . import bmpdecode, stblib
+from .sniff import _BMP_MAGIC, CodecError, check_size
+
+_PALETTE_ENTRIES = 256
+
+
+def _header(data: bytes) -> tuple[int, int, int, int, int]:
+  """``(pixel offset, info size, width, height, bits per pixel)``, stb's reading of the header:
+  an OS/2 core header's 16-bit sides, and a negative (top-down) height as its magnitude."""
+  if len(data) < 30:
+    raise CodecError("truncated BMP header (%d bytes)" % len(data))
+  offset, info = struct.unpack_from("<II", data, 10)
+  if info == 12:
+    width, height, _planes, bpp = struct.unpack_from("<HHHH", data, 18)
+    return offset, info, width, height, bpp
+  width, height = struct.unpack_from("<ii", data, 18)
+  return offset, info, width, abs(height), struct.unpack_from("<H", data, 28)[0]
+
+
+def _padded_palette(data: bytes, offset: int, info: int, bpp: int) -> bytes:
+  """``data`` with a short palette grown to 256 black entries: stb looks an index past it up
+  in a stack array it never set, so an out-of-range pixel would carry old stack bytes."""
+  if bpp >= 16: return data
+  entry = 3 if info == 12 else 4
+  # stb's own count of the entries between the header and the pixels.
+  used = (offset - 38) // 3 if info == 12 else (offset - 14 - info) // 4
+  if used <= 0:
+    raise CodecError("BMP has no palette for its %d-bit pixels" % bpp)
+  if used >= _PALETTE_ENTRIES: return data
+  grow = (_PALETTE_ENTRIES - used) * entry
+  return (data[:10] + struct.pack("<I", offset + grow) + data[14:offset] + bytes(grow)
+          + data[offset:])
 
 
 def decode_bmp(data: bytes) -> tuple[int, int, bytearray]:
-  """Decode a 24- or 32-bit ``BI_RGB`` BMP to RGBA8.
-
-  BMP rows are stored bottom-up and padded to 4-byte boundaries, and pixels
-  are BGR(A); we flip the rows and swizzle to RGBA. Compression other than
-  ``BI_RGB`` (0) is not supported.
-  """
+  """Decode a BMP to RGBA8 as the CLI does: a 32-bit alpha that is 0 throughout reads as
+  opaque; RLE and embedded JPEG/PNG are refused."""
   if data[:2] != _BMP_MAGIC:
     raise CodecError("not a BMP (bad signature)")
-
-  # BITMAPFILEHEADER: pixel data offset at byte 10.
-  pixel_offset = struct.unpack("<I", data[10:14])[0]
-  # BITMAPINFOHEADER (we read the fields we need).
-  header_size = struct.unpack("<I", data[14:18])[0]
-  width = struct.unpack("<i", data[18:22])[0]
-  height_raw = struct.unpack("<i", data[22:26])[0]
-  bpp = struct.unpack("<H", data[28:30])[0]
-  compression = struct.unpack("<I", data[30:34])[0]
-
-  if compression != 0:
-    raise CodecError("only uncompressed BI_RGB BMP is supported")
-  if bpp not in (24, 32):
-    raise CodecError("only 24/32-bit BMP is supported (got %d)" % bpp)
-
-  # Negative height means a top-down image (rare, but legal).
-  top_down = height_raw < 0
-  height = abs(height_raw)
-
-  bytes_per_px = bpp // 8
-  # Each row is padded up to a multiple of 4 bytes.
-  row_size = ((width * bytes_per_px + 3) // 4) * 4
-
-  rgba = bytearray(b"\xff" * (width * height * 4))  # alpha defaults to opaque
-  view = memoryview(rgba)
-  for row in range(height):
-    # Source row index, accounting for bottom-up storage.
-    base = pixel_offset + (row if top_down else height - 1 - row) * row_size
-    line = data[base:base + width * bytes_per_px]
-    dst = view[row * width * 4:(row + 1) * width * 4]
-    # BGR(A) -> RGBA, one strided copy per channel.
-    dst[0::4] = line[2::bytes_per_px]
-    dst[1::4] = line[1::bytes_per_px]
-    dst[2::4] = line[0::bytes_per_px]
-    if bytes_per_px == 4:
-      dst[3::4] = line[3::4]
-
-  return width, height, rgba
+  offset, info, width, height, bpp = _header(data)
+  check_size(width, height, "BMP")
+  row_bytes = (width * bpp + 7) // 8
+  # The last row's padding may be left off, so only its pixels have to be present.
+  if offset + (row_bytes + 3) // 4 * 4 * (height - 1) + row_bytes > len(data):
+    raise CodecError("truncated BMP pixel data")
+  lib = stblib.loaded()
+  if lib is None: return bmpdecode.decode_bmp(data)
+  padded = _padded_palette(data, offset, info, bpp)
+  return stblib.decode("BMP", lib, padded, stblib.block_cap(data, width, height))
 
 
 def encode_bmp(width: int, height: int, rgba: bytes | bytearray) -> bytes:

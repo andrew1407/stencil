@@ -1,44 +1,14 @@
-#include "../../../support/menu/SearchCombo.hpp"
-#include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
-#include "guiHelpers.hpp"
-#include "iconSet.hpp"
-#include "../../../support/modal/modalChrome.hpp"
-#include "../../../support/modal/modalReveal.hpp"
-#include "../../../support/control/UnderlineTabBar.hpp"
+#include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "MediaLoader.hpp"
-#include <algorithm>
-#include <QAudioOutput>
 #include <QGraphicsOpacityEffect>
 #include <QPointer>
 #include <QPropertyAnimation>
-#include <QButtonGroup>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QFormLayout>
-#include <QFrame>
-#include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QLabel>
-#include <QLineEdit>
-#include <QMediaPlayer>
 #include <QPixmap>
-#include <QPushButton>
-#include <QRadioButton>
-#include <QResizeEvent>
-#include <QScreen>
-#include <QSignalBlocker>
-#include <QSlider>
 #include <QSpinBox>
+#include <QLabel>
+#include <QSlider>
 #include <QTabWidget>
-#include <QTimer>
-#include <QToolButton>
-#include <QUrl>
-#include <QVBoxLayout>
-#include <QVideoFrame>
-#include <QVideoSink>
 
 namespace stencil::gui {
 
@@ -48,9 +18,7 @@ namespace stencil::gui {
     if (!constructed || measuring || !isVisible() || support::motionReduced()) return;
     QWidget* page = tabs->currentWidget();
     if (!page) return;
-    auto* veil = new QGraphicsOpacityEffect(page);
-    veil->setOpacity(0.0);
-    page->setGraphicsEffect(veil);
+    QGraphicsOpacityEffect* veil = veilBehindDust(page);
     auto* fade = new QPropertyAnimation(veil, "opacity", veil);
     fade->setDuration(180);
     fade->setStartValue(0.0);

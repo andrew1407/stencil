@@ -8,6 +8,7 @@ import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { fullscreenLayerInner } from './markup.js';
 import { populateFsControls, populateFsPoints } from './clones.js';
 import { createFsPanels } from './panels.js';
+import { syncFsSelectionPanel } from '../panel/selectionPanel.js';
 // Fullscreen trigger zones + slide-in panels; exposes the toggle as app.toggleFullscreen
 // (no window global).
 export class StencilFullscreenLayer extends StencilElement {
@@ -121,7 +122,7 @@ export class StencilFullscreenLayer extends StencilElement {
 // One frame, so position:fixed is committed and vp.clientWidth/Height are full-window.
         requestAnimationFrame(() => {
           restoreView();
-          if (app && app.selectedLineIdx >= 0) app.syncFsSelectionPanel(app.lines[app.selectedLineIdx]);
+          if (app?.selectedLineIdx >= 0) syncFsSelectionPanel(app, app.lines[app.selectedLineIdx]);
         });
       } else {
 // Back in flow: restore the full-height frame the normal mode's rule gives it.

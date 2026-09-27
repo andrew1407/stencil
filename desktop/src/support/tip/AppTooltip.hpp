@@ -1,5 +1,5 @@
 #pragma once
-// The app's own tooltip — port of #app-tooltip in browser/css/components.css. Qt's
+// The app's own tooltip — port of #app-tooltip in browser/css/components/. Qt's
 // QTipLabel cannot be animated, so QEvent::ToolTip is swallowed app-wide; Qt keeps the
 // timing (SnappyTooltipStyle.hpp). Item views keep Qt's path. Q_OBJECT-free.
 #include <QApplication>
@@ -37,7 +37,7 @@ namespace stencil::gui {
   // is, and with the faces blanked) and diffing; each is blitted back offset.
   class TipBody : public QLabel {
    public:
-    // browser: @keyframes keycapShake (css/components.css) — one damped left/right flick.
+    // browser: @keyframes keycapShake (css/components/) — one damped left/right flick.
     static constexpr int STOPS = 6;
     static constexpr double STOP_T[STOPS] = {0.0, 0.15, 0.38, 0.62, 0.84, 1.0};
     static constexpr double STOP_X[STOPS] = {0.0, -3.0, 3.0, -2.0, 2.0, 0.0};
@@ -84,7 +84,7 @@ namespace stencil::gui {
     static constexpr int FADE_MS = TOOLTIP_FADE_MS;   // the fallback when there is no dust
     static constexpr int MAX_TIP_WIDTH = 380;   // browser: #app-tooltip max-width
     static constexpr int SHAKE_MS = 320;    // browser: keycapShake 0.32s, one per appearance
-    // The tooltip is sand too (browser js/ui/controlTooltip.js), on the slowed tip clock.
+    // The tooltip is sand too (browser js/ui/tip/controlTooltip.js), on the slowed tip clock.
     static constexpr int DUST_IN_MS = TOOLTIP_DUST_IN_MS;
     static constexpr int DUST_OUT_MS = TOOLTIP_DUST_OUT_MS;
     static constexpr int DUST_HAND_OVER_MS = TOOLTIP_HAND_OVER_MS;

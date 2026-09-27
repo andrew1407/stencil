@@ -5,10 +5,12 @@ import { notify } from '../../utils.js';
 import { resolveInsertIdx } from '../layout.js';
 import { shouldCloseShape } from './transforms.js';
 import { strokeFoot } from '../../ui/motion.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+import { CHANGE, changed } from '../app/changes.js';
 
 // A screen radius divided by the zoom, zoomed out only: core adds its own +8, so hand it the
 // size that makes the total screen-constant (at 25% a fixed image-pixel radius was unhittable).
-const CLOSE_SLACK = 8;
+const CLOSE_SLACK = constants.HIT.closeSlackPx;
 export const closeGrabSize = (app, line) => {
   const ps = line.pointSize ?? app.pointSize;
   const scale = app.scale || 1;
@@ -66,7 +68,7 @@ export const closeShape = (app, { line, idx, isContinuation }) => {
   if (app.selectedLineIdx === areaIdx) app.showSelectionPanel(app.lines[areaIdx]);
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.drawing, CHANGE.lines);
   notify('Shape closed — locked area created', 'ok');
 };
 
@@ -83,7 +85,7 @@ export const insertPointOnSegment = (app, lineIdx, insertIdx, x, y) => {
   app.coordTable.update(line.points, lineIdx);
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
 };
 
 // A new standalone point — or, with a line/point selected, connected to that line's last
@@ -104,7 +106,7 @@ export const addConnectedPoint = (app, x, y) => {
     app.coordTable.update(line.points, app.selectedLineIdx);
     app.saveHistory();
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.lines, CHANGE.selection);
     return;
   }
   const newLine = {
@@ -125,7 +127,7 @@ export const addConnectedPoint = (app, x, y) => {
   app.coordTable.update(newLine.points, idx);
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
 };
 
 // 4 corner points, locked/fillable. With a line selected the corners are appended to it
@@ -151,7 +153,7 @@ export const createRect = (app, x1, y1, x2, y2, connect = false) => {
     app.coordTable.update(line.points, app.continueLineIdx);
     app.saveHistory();
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.lines);
     return;
   }
   if (connect && app.selectedLineIdx >= 0 && app.lines[app.selectedLineIdx]) {
@@ -169,7 +171,7 @@ export const createRect = (app, x1, y1, x2, y2, connect = false) => {
     app.coordTable.update(line.points, app.selectedLineIdx);
     app.saveHistory();
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.lines, CHANGE.selection);
     return;
   }
   const rect = {
@@ -192,5 +194,5 @@ export const createRect = (app, x1, y1, x2, y2, connect = false) => {
   app.coordTable.update(rect.points, idx);
   app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines, CHANGE.selection);
 };

@@ -1,5 +1,5 @@
 // Shared assistant rendering (chat panel + context-menu chat): the same conversation
-// (js/llm/session.js) with the same DOM. Model output is DATA — every string lands
+// (js/llm/chat/session.js) with the same DOM. Model output is DATA — every string lands
 // via textContent, never innerHTML. Re-exports the pieces so callers keep one import.
 
 export { CHAT_SUGGESTIONS, chatDropCueHtml, chatEmptyState, chatSuggestionsHtml, typingDots } from './empty.js';

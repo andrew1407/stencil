@@ -41,7 +41,7 @@ test('apply with invalid expr → original value', () => {
     assert.strictEqual(fe.apply('x+', 'x', 5, true), 5);
 });
 
-// Mirrors core/tests/formula.test.cpp: untrusted formulas (layout JSON, the console facade, server co-edit)
+// Mirrors core/tests/parse/formula.test.cpp: untrusted formulas (layout JSON, the console facade, server co-edit)
 // must never blow the stack or hang, and past the recursion cap are invalid — MAX_DEPTH in lockstep with core.
 test('deeply nested parens are invalid (identity), not a stack overflow', () => {
     assert.strictEqual(fe.validate('('.repeat(200000), 'x'), false);
@@ -61,4 +61,17 @@ test('numeric overflow yields invalid (identity)', () => {
     assert.strictEqual(fe.validate('1e308*1e308', 'x'), false);
     assert.strictEqual(fe.validate('2**2**2**2**2', 'x'), false);
     assert.strictEqual(fe.apply('1e308*1e308', 'x', 7, true), 7);
+});
+
+// The core's wasm build has no exceptions, so these once aborted it; both sides read them alike.
+test('the inputs parseFloat reads differently from std::stod parse as parseFloat does', () => {
+    assert.strictEqual(fe.validate('.', 'x'), false);
+    assert.strictEqual(fe.validate('x*1e999', 'x'), false);
+    assert.strictEqual(fe.apply('1e-400', 'x', 5, true), 0);
+    assert.strictEqual(fe.apply('1.2.3', 'x', 5, true), 1.2);
+    assert.strictEqual(fe.validate('1**(1/0)', 'x'), false);
+    assert.strictEqual(fe.apply('0.5**(1/0)', 'x', 5, true), 0);
+    assert.strictEqual(fe.validate('\u00a0x', 'x'), false); // ASCII whitespace only
+    assert.strictEqual(fe.validate('\u00a0', 'x'), false);
+    assert.strictEqual(fe.validate(' \t\v\f\r\n', 'x'), true);
 });

@@ -1,7 +1,8 @@
-// Fragment-privacy invariant: the handed-off image (the #stencil= URL fragment,
-// DrawingApp.applyExternalLaunch) is local content and must NEVER leave the machine. Browsers
-// do not send a fragment, and the app must not forward the payload either — so every network
-// request the page makes is captured and asserted free of the fragment sentinel, URL and body.
+// Fragment-privacy invariant: the handed-off image (the #stencil= URL fragment, read by
+// core/launch/controller.js applyExternalLaunch) is local content and must NEVER leave the
+// machine. Browsers do not send a fragment, and the app must not forward the payload either —
+// so every network request the page makes is captured and asserted free of the fragment
+// sentinel, URL and body.
 import { test, expect } from '@playwright/test';
 import { gotoApp, PNG_DATA_URL } from '../../helpers/boot.js';
 

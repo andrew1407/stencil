@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { parseOpPlan } from '../../../js/llm/plan/opPlan.js';
+import { build } from '../../../tools/genOpPlanFixtures.mjs';
 
 const FIXTURES_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)), '../../..', 'js', 'config', 'llm', 'fixtures', 'opPlan');
@@ -29,15 +30,16 @@ const fixtures = [
   ...generated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
-// Two digests instead of re-deriving the 211 KB bundle on every run (~10 ms → ~0.4 ms);
-// generated/freshness.json is written by `npm run gen-fixtures`.
-test('the generated bundle is fresh against the registry (npm run gen-fixtures)', () => {
+// Re-derive every generated file (the cases, the normalized golden core is byte-compared against,
+// the grammar and number probes) from the registry, the corpus and the JS reference, and compare.
+test('the generated bundle is fresh against the registry and the JS reference (npm run gen-fixtures)', () => {
   const stored = JSON.parse(read('generated', 'freshness.json'));
   const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
   assert.equal(sha256(readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'))),
     stored.registry, 'opRegistry.json changed without a regen — run `npm run gen-fixtures`');
-  assert.equal(sha256(generatedText), stored.cases,
-    'generated/cases.json was edited by hand — run `npm run gen-fixtures`');
+  for (const [name, text] of Object.entries(build())) {
+    assert.ok(text === read('generated', name), `generated/${name} is stale — run \`npm run gen-fixtures\``);
+  }
 });
 
 // Floors per bundle, not on the total: the 444 generated cases alone clear any combined

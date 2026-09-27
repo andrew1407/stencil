@@ -49,6 +49,9 @@ export interface ProjectTransferDeps {
   host: ProjectTransferHost;
 }
 
+/** What removing `n` projects says: 'Project cleared' for one, 'Projects cleared' for more. */
+export declare const clearedToast: (n: number) => string;
+
 export declare class ProjectTransferController {
   constructor(deps: ProjectTransferDeps);
   storage: Storage;

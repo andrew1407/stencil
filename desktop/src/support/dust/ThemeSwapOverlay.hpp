@@ -25,8 +25,10 @@ namespace stencil::gui {
 
   class ThemeSwapOverlay : public QWidget {
    public:
-    // One length across all three surfaces (browser surface/motion.js THEME_SWAP_MS, extension logo/accent.js SWAP_MS).
-    static constexpr int SWAP_MS = 280;
+    // The wipe's length and a wake grain's life, ms: motion.json's THEME_SWAP_MS / SWAP_DUST_LIFE_MS
+    // through the qrc, the pair the browser's themeSwap.js reads (280 / 340 without it).
+    static int swapMs();
+    static int dustLifeMs();
 
     static double bezierY(double t, double x1, double y1, double x2, double y2);
     static qreal swapEase(qreal t) { return bezierY(t, 0.4, 0.25, 0.95, 1.0); }
@@ -38,7 +40,7 @@ namespace stencil::gui {
     // Q_OBJECT-free, so findChildren<T>() can't reach it — tests locate a live wipe by this name.
     static constexpr const char* OBJECT_NAME = "stencilThemeSwap";
 
-    // The front (browser surface/motion.js swapEdgePolygon ← dust/cloud.js edgeJitter). Keep the
+    // The front (browser surface/themeSwap.js swapEdgePolygon ← dust/cloud.js edgeJitter). Keep the
     // numbers in step with the browser's EDGE table.
     static constexpr int EDGE_POINTS = 240;
     static constexpr double TAU = 6.28318530717958648;   // M_PI is not portable (MSVC)
@@ -50,14 +52,13 @@ namespace stencil::gui {
 
     static double edgeRadiusAt(int k, double e, double full, support::ParticleStyle s = support::ParticleStyle::DUST);
 
-    // Dust in the wake (browser surface/motion.js swapDustSpecs — keep in step). Always just INSIDE
+    // Dust in the wake (browser dust/swapDust.js swapDustSpecs — keep in step). Always just INSIDE
     // the clip: the browser renders through the clip, so motes are never seen ahead of the front.
     static constexpr int DUST_MOTES = 4500;
-    static constexpr int DUST_LIFE_MS = 340;
     // Never at the very ends: at t=0 the ring is a point, and the last ones need their whole life.
     static constexpr double DUST_MIN_T = 0.06;
     static constexpr double DUST_MAX_T = 0.94;
-    // Flares over the first 18% of a grain's life (browser surface/motion.js SWAP_DUST_FLARE).
+    // Flares over the first 18% of a grain's life (browser dust/swapDust.js SWAP_DUST_FLARE).
     static constexpr double GRAIN_FLARE = 0.18;
 
     static double dustNoise(int a, int b);
@@ -91,7 +92,7 @@ namespace stencil::gui {
     QPixmap snap;
     QPoint origin{-1, -1};   // host coords; -1 = fall back to the centre
     double full = 0.0;       // the radius that reaches the furthest corner (start())
-    double timeMs = 0.0;     // the shared clock: wipe over [0, SWAP_MS], wake beyond it
+    double timeMs = 0.0;     // the shared clock: wipe over [0, swapMs()], wake beyond it
     QElapsedTimer clock;     // …read off this wall clock (start())
     support::MoteSprites sprites;   // the wake's grains, drawn once each and blitted
     bool dust = false;       // armed by seedDust — without it the overlay is the old wipe

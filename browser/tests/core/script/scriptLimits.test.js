@@ -1,9 +1,10 @@
-// The caps in js/core/types.js, each proved by the smallest input that trips it.
-// Mirrors core/tests/scriptLimits.test.cpp: both engines must refuse the same way.
+// The caps in js/core/script/types.js, each proved by the smallest input that trips it.
+// Mirrors core/tests/script/scriptLimits.test.cpp: both engines must refuse the same way.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../../../js/core/script.js';
+import { editDistance } from '../../../js/core/script/diagnostics.js';
 import { lexScript } from '../../../js/core/script/lexer.js';
 import {
   MAX_BLOCKS, MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_SOURCE_CHARS, MAX_TEMPLATES,
@@ -33,6 +34,22 @@ test('a script past MAX_LINES is refused before anything is parsed', () => {
 
 test('a script past MAX_OPS is refused while it lowers', () => {
   assert.equal(onlyErrorCode('@filter bw\n'.repeat(MAX_OPS + 1)), 'E_LIMIT_OPS');
+});
+
+test('every @save and @frame counts against MAX_OPS, and the cap stops the lowering', () => {
+  const saves = parseScript(`@source a.png:\n  @filter bw\n${rep('  @save', MAX_OPS)}`);
+  assert.deepEqual(saves.diagnostics.map((d) => d.code), ['E_LIMIT_OPS']);
+  assert.equal(saves.blocks.length, 0);
+  assert.equal(onlyErrorCode(`@source a.mp4:\n${numbered('  @frame ', '\n', MAX_OPS)}`), 'E_LIMIT_OPS');
+});
+
+test('did-you-mean fills only its band, and a name past 64 bytes gets no suggestion', () => {
+  assert.equal(editDistance('crop', 'crp'), 1);
+  assert.equal(editDistance('abcdef', 'badcfe'), 3);
+  assert.equal(editDistance('a'.repeat(65), 'a'.repeat(65)), 3);
+  const name = 'x'.repeat(200000); // a full table here was 4e10 cells
+  assert.equal(onlyErrorCode(`@stencil ${name}:\n  @filter bw\n@use stencil ${name}y\n`),
+    'E_UNDEFINED_TEMPLATE');
 });
 
 test('more than MAX_BLOCKS @source blocks is an error', () => {

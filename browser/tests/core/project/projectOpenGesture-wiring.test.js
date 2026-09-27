@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../../../js/core/project/openGesture.js';
 import { isTouchLike, TOUCH_MEDIA } from '../../../js/utils.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
+import { mountContextMenu } from '../../helpers/ctxMenuMountRig.js';
 import { projectsModalSource } from '../../helpers/projectsModalSource.js';
 
 // ── Wiring contract (what the DOM side must keep doing) ──
@@ -15,8 +15,8 @@ test('the row wires every gesture to the SAME open paths, and stays keyboard-usa
   const src = projectsModalSource();
   // One intent runner, reusing the existing open paths — no duplicated open logic.
   assert.ok(src.includes('const openWithIntent = async ({ confirm = true, target = \'here\', closeAnchor = null } = {}) => {'));
-  assert.ok(src.includes('app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses'));
-  assert.ok(src.includes('app.switchToProject(meta.id);'));
+  assert.ok(src.includes('app.projectTransfer.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses'));
+  assert.ok(src.includes('app.projectTransfer.switchToProject(meta.id);'));
   assert.ok(src.includes('if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;'), 'new-tab wording');
   assert.ok(src.includes('const open = () => openWithIntent({ confirm: true, target: \'here\', closeAnchor: menuBtn });'), 'the ⋯ menu keeps its Open — flying back into the ⋯, not the menu row that is gone');
   // Every gesture goes through the machine.
@@ -50,15 +50,20 @@ test('the row wires every gesture to the SAME open paths, and stays keyboard-usa
   assert.ok(!/navigator\.userAgent/.test(src), 'no UA sniffing');
 });
 
-test('the touch rule is the app-wide media query, shared with the chat surfaces', () => {
+test('the touch rule is the app-wide media query, shared with the chat surfaces', async (t) => {
   assert.ok(TOUCH_MEDIA.includes('(max-width: 680px)') && TOUCH_MEDIA.includes('(hover: none) and (pointer: coarse)'));
   assert.strictEqual(isTouchLike((q) => ({ matches: q === TOUCH_MEDIA })), true);
   assert.strictEqual(isTouchLike(() => ({ matches: false })), false);
   assert.strictEqual(isTouchLike(null), false, 'no matchMedia (Node) → desktop mapping');
   assert.strictEqual(isTouchLike(() => { throw new Error('bad query'); }), false);
-  // The context menu's assistant gate is the very same rule (one helper, one behaviour).
-  const ctx = contextMenuSource();
-  assert.ok(ctx.includes('const plain = isTouchLike();'));
+  // The context menu's assistant and script gates are the very same rule (one helper, one
+  // behaviour): the mounted menu's page answers ONLY TOUCH_MEDIA, so a private query stays a flyout.
+  const m = await mountContextMenu(t, { settings: { provider: 'ollama', baseUrl: 'http://localhost:11434' } });
+  const plain = () => ['ctx-assist-menu', 'ctx-script'].map((id) => m.$(id).dataset.noSub);
+  assert.deepStrictEqual(plain(), ['0', '0'], 'a desktop pointer keeps both flyouts');
+  m.env.touch = true;
+  m.open();
+  assert.deepStrictEqual(plain(), ['1', '1'], 'the shared touch rule makes both plain items');
 });
 
 test('constants + focus ring; the hold stays the reorder pickup, unstyled by us', () => {

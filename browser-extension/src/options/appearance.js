@@ -1,4 +1,4 @@
-// Accent, theme and interface animation live in localStorage via lib/accent.js, not the saved
+// Accent, theme and interface animation live in localStorage via lib/accent/accent.js, not the saved
 // settings, so they apply instantly and flash-free across the extension's pages — no Save.
 import { surfaceIn, surfaceOut } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';

@@ -1,8 +1,9 @@
-// The palette-swap wipe src/lib/accent.js plays: where the circle blooms from, the polygon pair
+// The palette-swap wipe src/lib/accent/accent.js plays: where the circle blooms from, the polygon pair
 // it clips with, and the dust layer seeded in its wake once the transition is ready.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { loadAccent } from '../../helpers/accentSandbox.js';
 
@@ -116,7 +117,7 @@ test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', asy
   assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 100%, var(--dust-accent-2, var(--accent-2)))'), 'accent grains');
   assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--dust-accent, var(--accent)) 0%, var(--dust-accent-2, var(--accent-2)))'), 'shade grains');
   // The whole point of the stage: batched fills — one per (stop, alpha step), each in
-  // chunks of 32 grains (lib/cloud.js FILL_CHUNK) — not one per grain.
+  // chunks of 32 grains (lib/dust/cloud.js FILL_CHUNK) — not one per grain.
   assert.ok(stage.fills.length <= 6 * 8 + Math.ceil(grains / 32), `batched into ${stage.fills.length} fills, not ${grains}`);
   assert.ok(lit.every((f) => f.arcs <= 32), 'no path longer than a chunk');
   assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');
@@ -146,4 +147,13 @@ test('the accent swap anchors to the toggle too, and a cross-page change animate
   page.fireStorage('stencil_accent');
   assert.equal(page.dataAccent(), 'brown');
   assert.deepEqual(page.swapOrigin(), { x: 290, y: 40 });
+});
+
+test('the wipe and its wake run on the motion table the browser reads', () => {
+  const kit = loadAccent().kit;
+  const ui = JSON.parse(readFileSync(new URL('../../../src/config/motion.json', import.meta.url), 'utf8')).ui;
+  const pairs = { SWAP_MS: 'THEME_SWAP_MS', DUST_LIFE_MS: 'SWAP_DUST_LIFE_MS', DUST_MOTES: 'SWAP_DUST_MOTES',
+    DUST_MIN_T: 'SWAP_DUST_MIN_T', DUST_MAX_T: 'SWAP_DUST_MAX_T', EDGE_POINTS: 'SWAP_EDGE_POINTS',
+    GRAIN_STEPS: 'SWAP_DUST_STEPS', GRAIN_FLARE: 'SWAP_DUST_FLARE' };
+  for (const [name, key] of Object.entries(pairs)) assert.equal(kit[name], ui[key], `${name} is motion.json ${key}`);
 });

@@ -1,7 +1,7 @@
 // ── open.actions → editor launch options (contract §8 translation) ──────────
 
 // One §2 crop token to an absolute pixel coordinate on an axis of `length` px; mirrors
-// core/units.js resolveAxisPx minus cm/in (no page metrics here). null = unsupported.
+// core/settings/units.js resolveAxisPx minus cm/in (no page metrics here). null = unsupported.
 const resolveCropToken = (tok, length) => {
   const m = /^(-?)(\d+(?:\.\d+)?|\.\d+)(%|px|cm|in)?$/.exec(String(tok));
   if (!m) return null;

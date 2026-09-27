@@ -1,5 +1,5 @@
 import { core } from '../abi/stencilCore.js';
-import { formulaConstant, isBlankFormula, withProbeAxes } from './formulaContext.js';
+import { formulaConstant, withProbeAxes } from './formulaContext.js';
 
 // Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
 // Function`/`eval`) over `+ - * / ** ( )`, a variable and the FormulaContext constants, so
@@ -7,6 +7,13 @@ import { formulaConstant, isBlankFormula, withProbeAxes } from './formulaContext
 // recursion against adversarial nesting and must equal the core parser's MAX_DEPTH so wasm
 // and this fallback agree.
 const MAX_DEPTH = 256;
+
+// ASCII whitespace, the core's set: /\s/ and trim() also take U+00A0, U+2028 and kin.
+const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v';
+const isBlankFormula = (s) => {
+  for (const c of String(s ?? '')) if (!isSpace(c)) return false;
+  return true;
+};
 
 class Evaluator {
   constructor(src, varName, varValue, ctx) {
@@ -28,7 +35,7 @@ class Evaluator {
   }
 
   skipSpaces() {
-    while (this.pos < this.src.length && /\s/.test(this.src[this.pos])) {
+    while (this.pos < this.src.length && isSpace(this.src[this.pos])) {
       this.pos += 1;
     }
   }
@@ -137,8 +144,8 @@ class Evaluator {
       }
     }
     const text = this.src.slice(start, this.pos);
-// parseFloat mirrors C++ std::stod: the longest numeric prefix ("1.2.3" → 1.2), NaN only
-// when nothing parsed.
+// The longest numeric prefix ("1.2.3" → 1.2), NaN only when nothing parsed; C++ reads it the
+// same way through core::parseDecimalPrefix (core/parse/decimal.hpp), never std::stod.
     const value = parseFloat(text);
     if (!Number.isFinite(value)) {
       this.ok = false;
@@ -187,12 +194,14 @@ export class FormulaEngine {
     return evaluate(expr, varName, 1, null) !== null;
   });
 
-// Returns the original when formulas are off, the expression is empty, or evaluation fails.
-  apply = core.bind('formulaApply', (expr, varName, val, allowFormulas) => {
-    if (!allowFormulas || isBlankFormula(expr)) return val;
+// Returns the original when formulas are off, the expression is empty, or evaluation fails;
+// the first two never cross into wasm.
+  #apply = core.bind('formulaApply', (expr, varName, val) => {
     const result = evaluate(expr, varName, val, null);
     return result !== null ? result : val;
   });
+  apply = (expr, varName, val, allowFormulas) =>
+    (!allowFormulas || isBlankFormula(expr) ? val : this.#apply(expr, varName, val, true));
 
 // The same two with the named constants in reach; an axis `ctx` leaves unset validates at 1.
   validateCtx = core.bind('formulaValidateCtx', (expr, ctx) => {
@@ -201,9 +210,10 @@ export class FormulaEngine {
   });
 
 // `val` still binds `varName` and is the fallback; `ctx` carries the other axis.
-  applyCtx = core.bind('formulaApplyCtx', (expr, varName, val, allowFormulas, ctx) => {
-    if (!allowFormulas || isBlankFormula(expr)) return val;
+  #applyCtx = core.bind('formulaApplyCtx', (expr, varName, val, allowFormulas, ctx) => {
     const result = evaluate(expr, varName, val, ctx);
     return result !== null ? result : val;
   });
+  applyCtx = (expr, varName, val, allowFormulas, ctx) =>
+    (!allowFormulas || isBlankFormula(expr) ? val : this.#applyCtx(expr, varName, val, true, ctx));
 }

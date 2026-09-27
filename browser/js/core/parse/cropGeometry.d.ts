@@ -1,4 +1,4 @@
-// Crop-window geometry, a port of core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned
+// Crop-window geometry, a port of core/geometry/cropGeometry + cropSnap. A crop is an axis-aligned
 // rect in ORIGINAL-image pixels; the public names route to the wasm core when loaded and
 // to the *JS references otherwise (the parity tests drive both).
 import type { CropRect } from '../geometry.js';
@@ -7,6 +7,8 @@ import type { CodecLine } from '../line/linesCodec.js';
 /** Corners: 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left. */
 export type CropCorner = 0 | 1 | 2 | 3;
 export interface CropChange { orientationChanged: boolean; scale: number; }
+/** One quarter-turn of an edit: the snapped window in the turned space, and the 0..3 count. */
+export interface EditTurn { crop: CropRect; quarters: number; }
 type Lines = readonly Pick<CodecLine, 'points'>[];
 
 export declare const isAlbumOrientationJS: (width: number, height: number) => boolean;
@@ -29,6 +31,11 @@ export declare const scaleLinePoints: (lines: Lines, scale: number) => void;
 export declare const rotateCropRectQuarterJS: (r: CropRect, imageW: number, imageH: number, clockwise: boolean) => CropRect;
 /** Rotate every crop-local point one quarter turn inside a boxW × boxH box, in place. */
 export declare const rotateLinePointsQuarter: (lines: Lines, boxW: number, boxH: number, clockwise: boolean) => void;
+/** Integer pixels inside imageW × imageH: sides Math.round-ed into [1, side], origin moved inside. */
+export declare const snapCropRectJS: (r: CropRect, imageW: number, imageH: number) => CropRect;
+/** The window across one quarter-turn of an unturned originalW × originalH picture at `quarters`. */
+export declare const rotateEditQuarterJS: (crop: CropRect, quarters: number, originalW: number,
+  originalH: number, clockwise: boolean) => EditTurn;
 
 export declare const isAlbumOrientation: typeof isAlbumOrientationJS;
 export declare const cropAspect: typeof cropAspectJS;
@@ -40,3 +47,7 @@ export declare const swapCropOrientation: typeof swapCropOrientationJS;
 export declare const cropResizeScale: typeof cropResizeScaleJS;
 export declare const cropChange: typeof cropChangeJS;
 export declare const rotateCropRectQuarter: typeof rotateCropRectQuarterJS;
+export declare const snapCropRect: typeof snapCropRectJS;
+/** Turns the crop-local lines inside the old window in place, then the window itself. */
+export declare const rotateEditQuarter: (lines: Lines, crop: CropRect, quarters: number,
+  originalW: number, originalH: number, clockwise: boolean) => EditTurn;

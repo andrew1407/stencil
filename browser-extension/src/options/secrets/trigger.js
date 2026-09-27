@@ -9,7 +9,7 @@ import { wirePressHold } from '../../lib/logo/hold.js';
 import { centerOf } from '../../lib/motion.js';
 import { notifyShine } from './toast.js';
 
-// browser config/webcore.json strings.off, pinned by tests/options/secrets.test.js.
+// browser config/webcore.json strings.off, pinned by tests/options/secrets/secrets.test.js.
 export const OFF_TOAST = 'Webcore off — your own look is back';
 export const PAGE_SHOWS = Object.freeze(SHOW_NAMES.filter((n) => effectOf(n) !== 'pink'));
 const app = pageApp();

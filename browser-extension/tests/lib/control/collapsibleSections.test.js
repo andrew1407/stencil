@@ -1,4 +1,4 @@
-// Tests for src/lib/collapsibleSections.js — the panel accordion extracted from
+// Tests for src/lib/control/collapsibleSections.js — the panel accordion extracted from
 // popup.js: header click/keyboard toggling, control clicks passing through, the
 // per-section hooks, and the hidden ≠ collapsed rule the drag spring relies on.
 import { test } from 'node:test';

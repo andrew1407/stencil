@@ -4,7 +4,7 @@
 import { fetchAsDataUrl, filenameFromUrl } from '../../lib/stencil.js';
 import { editableSrc } from '../../lib/image/model.js';
 import { guessKindFromUrl } from '../../lib/drop/dragUrl.js';
-import { isAllowedImageUrl } from '../../lib/connection/urlGuard.js';
+import { guardedFetch, readBlobCapped } from '../../lib/connection/urlGuard.js';
 import { splitDataUrl, matchListingIndex, MAX_ATTACHMENTS } from '../../llm/chatController.js';
 import { isVideoFile } from '../../lib/chat/drop.js';
 import { sampleVideoFrames } from '../../lib/image/videoFrames.js';
@@ -66,10 +66,9 @@ export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, ge
     if (!/^(https?|blob|data):/i.test(url)) throw new Error('unsupported URL scheme');
     // Scanned/dropped media URL — same SSRF guard as fetchAsDataUrl (urlGuard.js),
     // with the same scanned-page same-host carve-out.
-    if (!isAllowedImageUrl(url, { allowSameHostAs: pageUrl })) throw new Error('blocked private or internal address');
-    const resp = await fetch(url);
+    const resp = await guardedFetch(url, { allowSameHostAs: pageUrl });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const frames = await sampleVideoFrames(await resp.blob());
+    const frames = await sampleVideoFrames(await readBlobCapped(resp));
     const base = baseName || filenameFromUrl(url, 'video');
     frames.forEach((f, i) => addPending({ image: splitDataUrl(f), name: `${base} — frame ${i + 1}` }));
   };

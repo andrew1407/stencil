@@ -1,4 +1,4 @@
-// Unit tests for the pure live-file-sync classifier (js/core/stencilSync.js).
+// Unit tests for the pure live-file-sync classifier (js/core/remote/stencilSync.js).
 // The controller itself is DOM/File-System-Access-bound; this pins the branch logic that
 // decides apply-vs-prompt when the linked .stencil changes.
 import { test } from 'node:test';

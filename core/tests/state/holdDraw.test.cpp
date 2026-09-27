@@ -5,7 +5,7 @@
 
 using namespace stencil::core;
 
-// Mirrors browser/tests/holdDraw.test.js.
+// Mirrors browser/tests/core/draw/holdDraw.test.js.
 
 static Line lineOf(std::initializer_list<Point> pts) {
   Line l;

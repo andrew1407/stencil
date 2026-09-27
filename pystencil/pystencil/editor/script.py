@@ -1,8 +1,8 @@
 """Running a ``.stc`` script against this editor.
 
 Each lowered op becomes one ordinary editor call — ``crop``/``set_filter``/``draw``/
-``undo``/``redo``/``save`` — so a script and a hand-typed session move through exactly
-the same code. Lengths resolve against the view as it stands at that op, because an
+``undo``/``save`` — so a script and a hand-typed session move through exactly the same
+code. Lengths resolve against the view as it stands at that op, because an
 earlier crop already changed it. Twin of ``cli/src/console/handlers/script.zig``.
 """
 
@@ -102,16 +102,15 @@ def _op_save(editor, program: Script, op: Op, ctx: _OpContext) -> int:
   return 0
 
 
-def _op_history(editor, program: Script, op: Op, ctx: _OpContext) -> int:
-  step = editor.undo if op.kind == "undo" else editor.redo
-  for _ in range(max(1, int(op.num_at(0, 1.0)))): step()
+def _op_undo(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  for _ in range(max(1, int(op.num_at(0, 1.0)))): editor.undo()
   return 0
 
 
 HANDLERS = {
   "open": _op_header, "frame": _op_frame, "crop": _op_crop, "filter": _op_filter,
   "line": _op_shape, "rect": _op_shape, "layout": _op_layout, "save": _op_save,
-  "undo": _op_history, "redo": _op_history,
+  "undo": _op_undo,  # no "redo": stc-contract §7 resolves every @redo statically
 }
 
 

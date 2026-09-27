@@ -1,4 +1,4 @@
-/* ── A field's hover ring (browser twin: css/layout.css; desktop: theme.cpp
+/* ── A field's hover ring (browser twin: css/layout/; desktop: theme.cpp
    QLineEdit:hover) ───────────────────────────────────────────────────────────
    A field RINGS on hover at twice its resting border, the second pixel an INSET shadow
    rather than a thicker border so nothing moves (a field's height is content-driven).
@@ -17,7 +17,7 @@ select:hover:not(:disabled):not(:focus) {
 /* …and the box an input or an icon button draws around itself is that control's OWN ink,
    not a near-invisible grey: a --line outline vanished behind its glyph on the dark theme
    and read as a smudge on the light one (user report, with pictures of both). Browser
-   twins: css/layout.css's input rule and the ghost buttons in components/settings.css. */
+   twins: css/layout.css's input rule and the ghost buttons in components/settings/settings.css. */
 input[type="text"], input[type="number"], input[type="search"], input[type="url"],
 input[type="password"], textarea, select,
 .icon-btn, .more-btn, .pin-btn, .num, .page-select, .dialog-select, .accent-dd-search {

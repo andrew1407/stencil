@@ -49,3 +49,32 @@ test('formulas off, and an invalid formula, both leave the raw page coordinate',
   near(pixelToPageCoords(makeApp({ formulaX: '9', allowFormulas: false }), 300, 200).x, 14.85, 'off');
   near(pixelToPageCoords(makeApp({ formulaX: 'PAGE_WIDTHS' }), 300, 200).x, 14.85, 'unknown name');
 });
+
+// BR-4: hover asks per move, so the identity case never reaches the formula engine (wasm or
+// JS), and the page size is computed once per (page, canvas size).
+test('formulas off or blank never dispatch to the engine', () => {
+  const formula = { applyCtx() { throw new Error('dispatched'); } };
+  for (const over of [{ allowFormulas: false, formulaX: 'x*2' }, { formulaX: '', formulaY: '  ' }]) {
+    const p = pixelToPageCoords(makeApp({ ...over, formula }), 300, 200);
+    near(p.x, 14.85, 'raw x');
+    near(p.y, 10.5, 'raw y');
+  }
+  const calls = [];
+  const one = { applyCtx: (expr, axis, v) => { calls.push(axis); return v * 2; } };
+  const p = pixelToPageCoords(makeApp({ formulaY: 'y*2', formula: one }), 300, 200);
+  assert.deepStrictEqual(calls, ['y'], 'only the axis with a formula is evaluated');
+  near(p.x, 14.85, 'x stays raw');
+  near(p.y, 21, 'y doubled');
+});
+
+test('page dimensions are cached per page and canvas size, and handed out as copies', () => {
+  const app = makeApp();
+  const a = getPageDimensions(app);
+  a.width = -1;
+  assert.deepStrictEqual(getPageDimensions(app), { width: 29.7, height: 21 }, 'a caller cannot poison the cache');
+  app.canvas = { width: 400, height: 600 };
+  assert.deepStrictEqual(getPageDimensions(app), { width: 21, height: 29.7 }, 'a canvas resize recomputes');
+  app.pageSize = 'custom';
+  app.customPageWidth = 10;
+  assert.deepStrictEqual(getPageDimensions(app), { width: 10, height: 29.7 }, 'a page change recomputes');
+});

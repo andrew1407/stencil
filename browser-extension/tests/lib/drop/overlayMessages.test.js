@@ -1,4 +1,4 @@
-// lib/overlay.js drives the in-page modal off window "message" events. The modal is
+// lib/drop/overlay.js drives the in-page modal off window "message" events. The modal is
 // mounted into an ARBITRARY page, so the host can post whatever it likes at it: the
 // envelope {source:'stencil-modal'} is public. Only the extension's own iframe may be
 // obeyed — a forged 'ready' would cancel the tab fallback, a forged 'close' would kill

@@ -79,9 +79,7 @@ func TestRoomIsolation(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
 	a := joinProject(t, addr, "p_t_a", "A")
-	// "p_other" is unknown to the mock store (unowned) so joining is allowed; it is a
-	// distinct room from "p_t_a".
-	other := joinProject(t, addr, "p_other", "B")
+	other := joinProject(t, addr, "p_t_b", "B") // a distinct room from "p_t_a"
 
 	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
 

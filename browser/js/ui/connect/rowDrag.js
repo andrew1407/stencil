@@ -1,5 +1,5 @@
 // Dragging a connection row: reorder by dropping on another row, disconnect by dropping outside
-// the modal. Both the HTML5 and the touch path (ui/drag.js) end in the same two outcomes.
+// the modal. Both the HTML5 and the touch path (ui/canvas/touchDrag.js) end in the same two outcomes.
 import { setTranslucentDragImage } from '../canvas/dragGhost.js';
 import { makeTouchDraggable } from '../canvas/touchDrag.js';
 

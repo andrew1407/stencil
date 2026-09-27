@@ -96,7 +96,7 @@ class CoreTest(unittest.TestCase):
 
   def test_apply_contour_hard_edge(self) -> None:
     # 4x1 black, black, white, white — the hand-computed Sobel fixture from
-    # core/tests/imageFilter.test.cpp (gy = 0; gx = 4 * (l(x+1) - l(x-1)), columns clamped).
+    # core/tests/raster/imageFilter.test.cpp (gy = 0; gx = 4 * (l(x+1) - l(x-1)), columns clamped).
     buf = bytearray(
       (0, 0, 0, 10, 0, 0, 0, 20, 255, 255, 255, 30, 255, 255, 255, 40)
     )
@@ -108,6 +108,14 @@ class CoreTest(unittest.TestCase):
 
   def test_rotated_dims(self) -> None:
     self.assertEqual(self.core.rotated_dims(4, 2, 1), (2, 4))
+
+  def test_snap_crop_rect_keeps_the_window_whole_inside(self) -> None:
+    self.assertEqual(self.core.snap_crop_rect((95, -3, 20, 400), 100, 50), (80, 0, 20, 50))
+
+  def test_rotate_edit_quarter_turns_the_window_and_wraps_the_count(self) -> None:
+    # A 10x4 window at (1,2) of a 100x50 original, right → x = 50 − 2 − 4 in the 50x100 turn.
+    self.assertEqual(self.core.rotate_edit_quarter((1, 2, 10, 4), 0, 100, 50, True), ((44, 1, 4, 10), 1))
+    self.assertEqual(self.core.rotate_edit_quarter((44, 1, 4, 10), 1, 100, 50, False), ((1, 2, 10, 4), 0))
 
   def test_crop_image_rgba(self) -> None:
     # 2x2 image, extract the top-left 1x1 -> 4 bytes.

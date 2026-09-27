@@ -4,6 +4,7 @@
 
 use crate::llm::{self, ChatMessage, ImageAttachment, LlmConfig, Role};
 use crate::llmtransport::LlmTransport;
+use crate::pipeline::progress;
 use crate::{opplan, pipeline};
 
 use super::response::PromptResult;
@@ -59,6 +60,8 @@ pub(super) async fn chat_once(
     }];
     let chat_settings = settings.clone();
     let chat_transport = transport.clone();
+    // A cancelled call drops this future mid-await, and with it the armed guard.
+    let guard = AbortOnDrop(Some(transport.clone()));
     let chat = tokio::task::spawn_blocking(move || {
         llm::chat(
             chat_transport.as_ref(),
@@ -68,10 +71,29 @@ pub(super) async fn chat_once(
         )
     })
     .await;
+    guard.disarm();
     match chat {
         // The error already says the reason once (§6.3) — no preamble around it.
         Ok(result) => result.map_err(|error| error.to_string()),
         Err(join_error) => Err(format!("the LLM request could not be run: {join_error}")),
+    }
+}
+
+/// Aborts the transport when dropped still armed: the blocking pool cannot cancel a task
+/// that is running, so the request is ended at its socket instead.
+struct AbortOnDrop(Option<std::sync::Arc<dyn LlmTransport>>);
+
+impl AbortOnDrop {
+    fn disarm(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        if let Some(transport) = self.0.take() {
+            transport.abort();
+        }
     }
 }
 
@@ -132,12 +154,15 @@ pub async fn execute_plan<R: pipeline::CliRunner + Send + 'static>(
 ) -> Result<Vec<PromptResult>, String> {
     let mut runs = tokio::task::JoinSet::new();
     let mut labels: Vec<Option<String>> = Vec::with_capacity(requests.len());
+    // A spawned task starts outside the call's progress scope; each re-enters it.
+    let sink = progress::current();
     for (index, request) in requests.into_iter().enumerate() {
         labels.push(request.label);
         let runner = runner.clone();
         let params = request.params;
         let project = request.project;
-        runs.spawn(async move {
+        let sink = sink.clone();
+        runs.spawn(progress::scope(sink, async move {
             // A §2.1 `save` writes a `.stencil` document (no dimensions reported).
             let run = if project {
                 pipeline::run::project(runner.as_ref(), &params)
@@ -146,10 +171,10 @@ pub async fn execute_plan<R: pipeline::CliRunner + Send + 'static>(
             } else {
                 pipeline::run::edit(runner.as_ref(), &params)
                     .await
-                    .map(|r| (r.path, Some(r.width), Some(r.height)))
+                    .map(|r| (r.path, r.width, r.height))
             };
             (index, run)
-        });
+        }));
     }
 
     let mut done: Vec<Option<(String, Option<u32>, Option<u32>)>> = vec![None; labels.len()];

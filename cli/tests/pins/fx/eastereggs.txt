@@ -1,0 +1,109 @@
+# /eastereggs
+# echo
+\x01> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m
+@0 355B 6b3b6d17c59c79e6
+\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[0m\x1b[K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@13 39B d88ca2f1d7cf6b88
+\x1b7
+\x1b[17;1H\x1b[1;38;2;255;215;0m/m\x1b[0m\x1b[K\x1b8
+~wait 13
+@26 41B 533a7992d9848ac0
+\x1b7
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mra\x1b[0m\x1b[K\x1b8
+~wait 13
+@39 43B f5abee3728fbec16
+\x1b7
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mrand\x1b[0m\x1b[K\x1b8
+~wait 13
+@52 45B 4b50fdebc3f5232c
+\x1b7
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mrander\x1b[0m\x1b[K\x1b8
+~wait 13
+@65 1386B 2b0b69daf9a5c17e
+\x1b7
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mranderso\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
+\x1b[18;1H\x1b[0m\x1b[K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@78 1473B faf3e896750f8d4c
+\x1b7
+\x1b[18;1H\x1b[1;38;2;255;215;0m/theveryb\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
+\x1b[18;1H\x1b[1;38;2;255;215;0m/theverybluescreen\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
+\x1b[18;1H\x1b[1;38;2;255;215;0m/theverybluescreen\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[0m\x1b[K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@91 1549B 53efdc217c2ba2bd
+~wait 13
+@104 1639B c3bbce90494a3159
+~wait 13
+@117 1662B c6029e2dedbfda1f
+~wait 13
+@130 1650B 735e32535e201d47
+~wait 13
+@143 1610B eb61b87af2f7e5ee
+~wait 13
+@156 1111B c9f137f4241bc1c0
+\x1b7
+\x1b[21;1H\x1b[1;38;2;255;215;0m/fairy\x1b[0m\x1b[K
+\x1b[12;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[13;1H\x1b[38;2;124;58;237m> \x1b[0m\x1b[1;38;2;255;215;0m/eastereggs\x1b[0m\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1;38;2;255;215;0m/mranderson\x1b[0m\x1b[0m\x1b[K
+\x1b[15;1H\x1b[1;38;2;255;215;0m/theverybluescreen\x1b[0m\x1b[0m\x1b[K
+\x1b[16;1H\x1b[1;38;2;255;215;0m/sunafterrain\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1H\x1b[1;38;2;255;215;0m/theyareinthetrees\x1b[0m\x1b[0m\x1b[K
+\x1b[18;1H\x1b[1;38;2;255;215;0m/meow\x1b[0m\x1b[0m\x1b[K
+\x1b[19;1H\x1b[1;38;2;255;215;0m/pieday\x1b[0m\x1b[0m\x1b[K
+\x1b[20;1H\x1b[1;38;2;255;215;0m/bifrost\x1b[0m\x1b[0m\x1b[K
+\x1b[21;1H\x1b[1;38;2;255;215;0m/fairylight\x1b[0m\x1b[0m\x1b[K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m

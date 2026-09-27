@@ -1,39 +1,12 @@
-// A validated op plan against a PlanTarget (llm-contract §1): every action in order, stopping at the
-// first failure. The three op groups live in planExecutor{Image,Edit,State}.cpp.
+// What every PlanTarget shares (llm-contract §1–2, §10): the formula names, the path echo rule and
+// the sandbox's blank page. The run is planExecutorRun.cpp; the op groups planExecutor{Image,Edit,State}.cpp.
 #include "planExecutorParts.hpp"
-
-#include "CanvasWidget.hpp"
-#include "opRegistry.hpp"
+#include "CanvasScene.hpp"
+#include "planExecutor.hpp"
 
 #include <QColor>
-#include <QUrl>
-
-#include <algorithm>
-#include <cmath>
 
 namespace stencil::llm {
-
-  using namespace exec;
-
-  namespace {
-
-    bool applyAction(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
-                     QStringList* notes, QString* err) {
-      // §13 forbidden-op tooth: no registered op uses a forbidden name (a test
-      // pins that), but reject defensively even if one somehow appears.
-      if (rejectForbiddenOp(opName(a.op), err)) return false;
-      bool handled = false;
-      bool ok = applyImageAction(a, target, frame, inVariant, notes, &handled, err);
-      if (handled) return ok;
-      ok = applyEditAction(a, target, frame, inVariant, notes, &handled, err);
-      if (handled) return ok;
-      ok = applyStateAction(a, target, frame, inVariant, notes, &handled, err);
-      if (handled) return ok;
-      *err = QStringLiteral("unhandled op");
-      return false;
-    }
-
-  }  // namespace
 
   core::FormulaContext PlanTarget::formulaContext() const {
     core::FormulaContext ctx;
@@ -137,77 +110,6 @@ namespace stencil::llm {
     if (!keep.empty()) canvas->setLines(keep);
     blank = true;  // loadFromImage doesn't change what this canvas holds
     return true;
-  }
-
-
-  ExecResult executePlan(const OpPlan& plan, PlanTarget& target) {
-    ExecResult res;
-    QString err;
-    FrameMap frame;  // model frame → working frame (contract §1)
-    bool clearChatLast = false;
-    // §10 dialog: modal, so it opens once the plan is done — and only the LAST one asked
-    // for ("close this and open that" ends with that one open; browser flushDeferred).
-    Action dialogLast;
-    bool hasDialog = false;
-    for (const Action& a : plan.actions) {
-      // §10 clearChat is DEFERRED to the end of the plan — wherever the model
-      // put it, every other action (and the variants) runs first.
-      if (a.op == OpKind::CLEAR_CHAT) { clearChatLast = true; continue; }
-      if (a.op == OpKind::DIALOG) { dialogLast = a; hasDialog = true; continue; }
-      if (!applyAction(a, target, frame, /*inVariant=*/false, &res.notes, &err)) {
-        res.error = err;
-        return res;
-      }
-      res.changed = true;
-    }
-    if (!plan.variants.isEmpty()) {
-      // Each variant branches from the image AFTER the top-level actions.
-      const QImage snapshot = target.renderResult();
-      if (snapshot.isNull()) {
-        res.error = QStringLiteral("variants need a working image");
-        return res;
-      }
-      for (int i = 0; i < plan.variants.size(); ++i) {
-        const Variant& v = plan.variants.at(i);
-        CanvasPlanTarget sandbox(snapshot, target.pageCm());
-        // Variant coordinates are model-frame too — start from the mapping the
-        // top-level actions accumulated (the state the variant branches from).
-        FrameMap vframe = frame;
-        for (const Action& a : v.actions) {
-          if (!applyAction(a, sandbox, vframe, /*inVariant=*/true, &res.notes, &err)) {
-            res.error = QStringLiteral("variant %1: %2").arg(i + 1).arg(err);
-            return res;
-          }
-        }
-        QString label = sanitizeLabel(v.label);
-        if (label.isEmpty()) label = QStringLiteral("variant %1").arg(i + 1);
-        res.variants.append({label, sandbox.renderResult()});
-      }
-    }
-    if (hasDialog) {
-      // §10: a window in front of the user is the LAST thing a turn does — the edits
-      // and the reply land first, then the dialog (browser row/plan.js `deferred`).
-      QString note;
-      if (!target.openDialog(dialogLast.current ? QString() : dialogLast.dialog, &note)) {
-        res.error = note;
-        return res;
-      }
-      if (!note.isEmpty()) res.notes << QStringLiteral("dialog: %1").arg(note);
-      res.changed = true;
-    }
-    if (clearChatLast) {
-      // §10: the surface's clear flow (confirm included) runs last; a note
-      // (declined confirm) surfaces without failing the plan.
-      QString note;
-      if (!target.clearChat(&note)) {
-        res.error = note;
-        return res;
-      }
-      if (!note.isEmpty()) res.notes << QStringLiteral("clearChat: %1").arg(note);
-      res.changed = true;
-    }
-    res.ok = true;
-    return res;
   }
 }  // namespace stencil::llm
 

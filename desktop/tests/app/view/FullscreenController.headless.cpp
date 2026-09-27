@@ -1,4 +1,4 @@
-// Headless check of app/FullscreenController.hpp — the arithmetic fullscreen mode runs
+// Headless check of app/view/FullscreenController.hpp — the arithmetic fullscreen mode runs
 // once the window chrome is out of the way: which edge band counts as a hover reveal
 // (and the hysteresis that stops the revealed rows flickering shut under the cursor),
 // and the viewport ratio a fullscreen switch hands the canvas so the change of mode

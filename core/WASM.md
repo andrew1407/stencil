@@ -5,11 +5,14 @@ desktop app (and the Zig CLI) can compile to WebAssembly and back the **browser*
 replacing its hand-written JS engines with one shared, tested implementation.
 
 `core/wasmApi.cpp` is a thin `extern "C"` surface over the core, split on size into
-three siblings: `wasmCropApi.cpp` (crop geometry), `wasmStateApi.cpp` (the handle-based
-holdDraw + history) and `wasmProjectsApi.cpp` (the scalar expiry rules). The
-`if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds all four into `stencil_core.js`
+siblings: `wasmCropApi.cpp` (crop geometry), `wasmStateApi.cpp` (the handle-based
+holdDraw), `wasmHistoryApi.cpp` (the handle-based editor history), `wasmEditApi.cpp` (the
+co-edit merge mask and the chain edits) and `wasmProjectsApi.cpp` (the scalar expiry rules). The
+`if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds them all into `stencil_core.js`
 + `stencil_core.wasm`; `EXPORTED_FUNCTIONS` there is a separate list a new export must
-also join.
+also join. One more, `wasmOpplanApi.cpp` (the LLM op-plan validator of `opplan/`), is compiled
+there but deliberately left out of `EXPORTED_FUNCTIONS`: the browser validates plans with its
+JS twin, so wasm-ld drops those bodies and the module is byte-identical with or without them.
 
 The browser app runs the shared C++ core via WebAssembly. The module is built with
 `SINGLE_FILE=1` (wasm embedded as base64 in the `.js`, so it loads under `file://`
@@ -52,7 +55,9 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `renderer.js` `drawImageWithFilter` (custom duotone) | `stencil_applyFilterRGBA` |
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
-| `zoom/pan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
+| `zoom/pan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` available) |
+| `zoom/pan.js` `rectZoom` — the zoom-to-rect fit, desktop's `core::rectZoom` | `stencil_rectZoom` |
+| `zoom/pan.js` `zoomMin` / `zoomMax` — the clamp's range, which the zoom input's bounds read | `stencil_zoomMin`, `stencil_zoomMax` |
 | `core/parse/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
 
 The bw/sepia/invert filters stay on the browser's native CSS `ctx.filter`
@@ -73,10 +78,11 @@ white page with pinned integer-only math, so the JS fallback
 (`browser/js/core/image/contourFilter.js`) stays byte-identical.
 
 The core's **stateful** classes cross a second, handle-based ABI
-(`wasmStateApi.cpp`): `stencil_holdDraw_*` and `stencil_history_*` create an
-instance, return an opaque int, and take it back on every call, so an unknown
+(`wasmStateApi.cpp`, `wasmHistoryApi.cpp`): `stencil_holdDraw_*` and `stencil_history_*`
+create an instance, return an opaque int, and take it back on every call, so an unknown
 handle is rejected instead of dereferenced. A `Lines` snapshot travels as the flat
-(nums, text) pair in `abi/linesCodec.hpp` — its JS twin is `js/core/line/linesCodec.js`.
+(nums, text) pair in `abi/linesCodec.hpp` — its JS twin is `js/core/line/linesCodec.js` — and an
+editor memento's crop and turn as five doubles beside it, its filter as two C strings.
 `projectsStore`'s registry is not a browser twin (the JS store is localStorage-backed),
 but its scalar expiry rules cross in `wasmProjectsApi.cpp`. The multi-line hit-testers
 — `findLineAt` / `findNearestPoint` / `findNearestSegment` — are still core-only.
@@ -85,15 +91,16 @@ but its scalar expiry rules cross in `wasmProjectsApi.cpp`. The multi-line hit-t
 
 Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
 
-1. **C++ side of the ABI** — all four `wasm*Api.cpp` files are plain STL, so they are
+1. **C++ side of the ABI** — the `wasm*Api.cpp` files are plain STL, so they are
    compiled **natively into `stencil_tests`** and every export is exercised by
    `tests/abi/wasmApi.test.cpp` plus `tests/abi/wasmCropApi.test.cpp` (the `core` job) — as are
-   the handle and project ABIs, by `tests/abi/wasmStateApi.test.cpp` and
+   the handle, edit and project ABIs, by `tests/abi/wasmStateApi.test.cpp`,
+   `tests/abi/wasmHistoryApi.test.cpp`, `tests/abi/wasmEditApi.test.cpp` and
    `tests/abi/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
    point arrays, output pointers, filter-mode enum codes, char-code var names)
-   even on a machine without `emcc`. `core/imageFilter` has its own suite in
+   even on a machine without `emcc`. `core/raster/imageFilter` has its own suite in
    `tests/raster/imageFilter.test.cpp`.
-2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm-parity*.test.js`
+2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm/*.test.js`
    loads the real wasm module in Node and asserts each wrapper agrees with the JS
    reference, covering `js/core/abi/stencilCore.js` (strings, char codes, in/out point
    arrays, output pointers, the RGBA pixel buffer). The module is a gitignored
@@ -120,7 +127,7 @@ From `core/`:
 
 ```sh
 emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
-emmake cmake --build build-wasm -j
+emmake cmake --build build-wasm -j 4
 # -> build-wasm/stencil_core.js  +  build-wasm/stencil_core.wasm
 ```
 
@@ -135,7 +142,7 @@ cd browser && npm run build-wasm
 The native core build is untouched:
 
 ```sh
-cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j
+cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j 4
 ```
 
 ## How it is wired into the browser app

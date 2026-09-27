@@ -1,41 +1,24 @@
 //! The flag parser: argv in, Options out. No I/O and no globals, so every grammar rule
-//! (and every rejection) is unit-tested directly.
+//! (and every rejection) is unit-tested directly. The loop is here; a feature with a block
+//! of flags of its own parses them in its own file (blank, scrape, inspect).
 const std = @import("std");
-const core = @import("../core.zig");
 const logo = @import("../app/logo.zig");
 const testing = std.testing;
 const options = @import("options.zig");
-const Blank = options.Blank;
+const state = @import("state.zig");
+const blank = @import("blank.zig");
+const scrape = @import("scrape.zig");
+const inspect = @import("inspect.zig");
+const plan = @import("plan.zig");
+const thumbnail = @import("thumbnail.zig");
 const Error = options.Error;
 const LayoutFrame = options.LayoutFrame;
 const Options = options.Options;
-
-const ParseState = struct {
-    argv: []const [:0]const u8,
-    i: usize,
-
-    fn next(self: *ParseState) ?[:0]const u8 {
-        if (self.i >= self.argv.len) return null;
-        const v = self.argv[self.i];
-        self.i += 1;
-        return v;
-    }
-};
-
-fn value(st: *ParseState, flag: []const u8) Error![:0]const u8 {
-    return st.next() orelse {
-        logo.err("{s} expects a value\n", .{flag});
-        return Error.MissingValue;
-    };
-}
-
-fn parseU32(s: []const u8) Error!u32 {
-    return std.fmt.parseInt(u32, s, 10) catch return Error.BadNumber;
-}
-
-fn parseI32(s: []const u8) Error!i32 {
-    return std.fmt.parseInt(i32, s, 10) catch return Error.BadNumber;
-}
+const ParseState = state.ParseState;
+const value = state.value;
+const parseU32 = state.parseU32;
+const parseI32 = state.parseI32;
+const eq = state.eq;
 
 /// Parse argv (excluding argv[0]). Allocation-free: argv strings already carry a NUL.
 pub fn parse(argv: []const [:0]const u8) Error!Options {
@@ -57,7 +40,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             opts.frame = try parseU32(try value(&st, "--frame"));
         } else if (eq(arg, "--blank")) {
             if (opts.input != null or opts.source_site != null) return Error.DuplicateSource;
-            opts.blank = try parseBlank(&st);
+            opts.blank = try blank.parseBlank(&st);
         } else if (eq(arg, "-c") or eq(arg, "--crop")) {
             opts.crop = try value(&st, "--crop");
         } else if (eq(arg, "--album")) {
@@ -92,30 +75,13 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             opts.script_emit = try value(&st, "--script-emit");
         } else if (eq(arg, "--confine-output")) {
             opts.confine_output = true;
+        } else if (eq(arg, "--no-clobber")) {
+            opts.no_clobber = true;
+        } else if (eq(arg, "--thumbnail")) {
+            opts.thumbnail = try thumbnail.side(try value(&st, "--thumbnail"));
         } else if (eq(arg, "--server")) {
             if (opts.source_site != null) return Error.DuplicateSource;
             opts.server = try value(&st, "--server");
-        } else if (eq(arg, "--source-site")) {
-            if (opts.input != null or opts.blank != null or opts.server != null) return Error.DuplicateSource;
-            opts.source_site = try value(&st, "--source-site");
-        } else if (eq(arg, "--source-count")) {
-            opts.source_count = try parseU32(try value(&st, "--source-count"));
-        } else if (eq(arg, "--group")) {
-            opts.group = try parseU32(try value(&st, "--group"));
-        } else if (eq(arg, "--source-filter")) {
-            opts.source_filter = try value(&st, "--source-filter");
-        } else if (eq(arg, "--source-format")) {
-            opts.source_format = try value(&st, "--source-format");
-        } else if (eq(arg, "--source-name")) {
-            opts.source_name = try value(&st, "--source-name");
-        } else if (eq(arg, "--source-min-width")) {
-            opts.source_min_width = try parseU32(try value(&st, "--source-min-width"));
-        } else if (eq(arg, "--source-max-width")) {
-            opts.source_max_width = try parseU32(try value(&st, "--source-max-width"));
-        } else if (eq(arg, "--source-min-height")) {
-            opts.source_min_height = try parseU32(try value(&st, "--source-min-height"));
-        } else if (eq(arg, "--source-max-height")) {
-            opts.source_max_height = try parseU32(try value(&st, "--source-max-height"));
         } else if (eq(arg, "--remote")) {
             opts.remote = try value(&st, "--remote");
         } else if (eq(arg, "--remote-name")) {
@@ -124,7 +90,7 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             opts.remote_update = true;
         } else if (eq(arg, "--token")) {
             opts.token = try value(&st, "--token");
-        } else if (arg.len > 1 and arg[0] == '-' and !looksNegativeNumber(arg)) {
+        } else if ((try scrape.flag(&opts, arg, &st)) or (try inspect.flag(&opts, arg, &st)) or (try plan.flag(&opts, arg, &st))) {} else if (arg.len > 1 and arg[0] == '-' and !looksNegativeNumber(arg)) {
             logo.err("unknown flag '{s}'\n", .{arg});
             return Error.UnknownFlag;
         } else {
@@ -136,48 +102,10 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
         logo.err("--script-emit needs --script <file> to read\n", .{});
         return Error.BadValue;
     }
+    try plan.finish(opts);
+    try inspect.finish(opts);
+    try thumbnail.finish(opts);
     return opts;
-}
-
-// --blank takes an optional page-format name (case-insensitive, stored canonical) or a `width height`
-// pair, then an optional colour. Tokens are consumed only when they match, never the output path.
-fn parseBlank(st: *ParseState) Error!Blank {
-    var b = Blank{};
-    if (st.i < st.argv.len) {
-        if (core.canonicalPageFormat(st.argv[st.i])) |name| {
-            b.page = name;
-            st.i += 1;
-        }
-    }
-    if (peekU32(st)) |w| {
-        // A format token names the size, so it excludes explicit dims.
-        if (b.page != null) {
-            logo.err("--blank takes a page format OR explicit dims, not both\n", .{});
-            return Error.BadNumber;
-        }
-        b.width = w;
-        st.i += 1;
-        // A width is only meaningful with a height; require the pair together.
-        b.height = peekU32(st) orelse return Error.BadNumber;
-        st.i += 1;
-    }
-    if (st.i < st.argv.len) {
-        const peek = st.argv[st.i];
-        if (!(peek.len > 0 and peek[0] == '-') and core.parseColor(peek) != null) {
-            b.color = peek;
-            st.i += 1;
-        }
-    }
-    return b;
-}
-
-fn peekU32(st: *ParseState) ?u32 {
-    if (st.i >= st.argv.len) return null;
-    return std.fmt.parseInt(u32, st.argv[st.i], 10) catch null;
-}
-
-fn eq(a: []const u8, b: []const u8) bool {
-    return std.mem.eql(u8, a, b);
 }
 
 // "-1", "-90" etc. are values, not flags (so they aren't misread as unknown flags when
@@ -196,40 +124,6 @@ test "parse: flags and positional output" {
     try testing.expect(o.album);
     try testing.expectEqualStrings("x1=10%", o.crop.?);
     try testing.expectEqualStrings("out.png", o.output.?);
-}
-
-test "parse: blank optional dims and colour" {
-    const a1 = [_][:0]const u8{ "--blank", "800", "600", "red", "out.png" };
-    const o1 = try parse(&a1);
-    try testing.expectEqual(@as(u32, 800), o1.blank.?.width.?);
-    try testing.expectEqualStrings("red", o1.blank.?.color);
-    try testing.expectEqualStrings("out.png", o1.output.?);
-
-    const a2 = [_][:0]const u8{ "--blank", "out.png" };
-    const o2 = try parse(&a2);
-    try testing.expect(o2.blank.?.page == null);
-    try testing.expect(o2.blank.?.width == null);
-    try testing.expectEqualStrings("white", o2.blank.?.color);
-    try testing.expectEqualStrings("out.png", o2.output.?);
-}
-
-test "parse: blank optional page-format token" {
-    // A leading format name (any case) picks the page; the colour still parses after it.
-    const a1 = [_][:0]const u8{ "--blank", "b5", "pink", "out.png" };
-    const o1 = try parse(&a1);
-    try testing.expectEqualStrings("B5", o1.blank.?.page.?);
-    try testing.expect(o1.blank.?.width == null);
-    try testing.expectEqualStrings("pink", o1.blank.?.color);
-    try testing.expectEqualStrings("out.png", o1.output.?);
-
-    const a2 = [_][:0]const u8{ "--blank", "A5", "out.png" };
-    const o2 = try parse(&a2);
-    try testing.expectEqualStrings("A5", o2.blank.?.page.?);
-    try testing.expectEqualStrings("out.png", o2.output.?);
-
-    // A format token and explicit dims are mutually exclusive.
-    const a3 = [_][:0]const u8{ "--blank", "b5", "800", "600", "out.png" };
-    try testing.expectError(Error.BadNumber, parse(&a3));
 }
 
 test "parse: --layout-frame source/current; junk rejected" {
@@ -312,42 +206,20 @@ test "parse: --token rides with --server / --remote" {
     try testing.expectError(Error.MissingValue, parse(&missing));
 }
 
-test "parse: source-site scrape flags" {
-    const argv = [_][:0]const u8{
-        "--source-site",       "https://example.com/",
-        "--source-count",      "3",
-        "--group",             "1",
-        "--source-filter",     "img|background",
-        "--source-format",     "png|jpg",
-        "--source-name",       "cat.*\\.jpg",
-        "--source-min-width",  "100",
-        "--source-max-height", "800",
-        "out",
-    };
-    const o = try parse(&argv);
-    try testing.expectEqualStrings("https://example.com/", o.source_site.?);
-    try testing.expectEqual(@as(u32, 3), o.source_count.?);
-    try testing.expectEqual(@as(u32, 1), o.group);
-    try testing.expectEqualStrings("img|background", o.source_filter.?);
-    try testing.expectEqualStrings("png|jpg", o.source_format.?);
-    try testing.expectEqualStrings("cat.*\\.jpg", o.source_name.?);
-    try testing.expectEqual(@as(u32, 100), o.source_min_width);
-    try testing.expectEqual(@as(u32, 800), o.source_max_height);
+test "parse: --no-clobber is a switch, off unless given" {
+    const on = [_][:0]const u8{ "-i", "in.png", "--no-clobber", "out" };
+    const o = try parse(&on);
+    try testing.expect(o.no_clobber);
     try testing.expectEqualStrings("out", o.output.?);
-    // Defaults when absent.
-    const bare = [_][:0]const u8{ "--source-site", "https://x/", "dir" };
-    const ob = try parse(&bare);
-    try testing.expect(ob.source_count == null);
-    try testing.expectEqual(@as(u32, 0), ob.group);
+    const off = [_][:0]const u8{ "-i", "in.png", "out" };
+    try testing.expect(!(try parse(&off)).no_clobber);
 }
 
-test "parse: source-site is mutually exclusive with -i / --blank / --server" {
-    const a1 = [_][:0]const u8{ "--source-site", "https://x/", "-i", "in.png" };
-    try testing.expectError(Error.DuplicateSource, parse(&a1));
-    const a2 = [_][:0]const u8{ "-i", "in.png", "--source-site", "https://x/" };
-    try testing.expectError(Error.DuplicateSource, parse(&a2));
-    const a3 = [_][:0]const u8{ "--blank", "--source-site", "https://x/" };
-    try testing.expectError(Error.DuplicateSource, parse(&a3));
-    const a4 = [_][:0]const u8{ "--source-site", "https://x/", "--server", "http://h" };
-    try testing.expectError(Error.DuplicateSource, parse(&a4));
+test {
+    _ = blank;
+    _ = scrape;
+    _ = inspect;
+    _ = plan;
+    _ = state;
+    _ = thumbnail;
 }

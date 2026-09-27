@@ -2,12 +2,10 @@
 // `button.active`), the measured width pin, and the swap's CSS. From drawToggle.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { installDom, createStubElement, createStubDocument } from '../../helpers/dom.js';
 import { swapContent, pinWidestFace } from '../../../js/ui/motion.js';
 import { LAYOUT_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const layoutCss = LAYOUT_CSS;
 const animCss = ANIMATIONS_CSS;
 
@@ -42,11 +40,37 @@ test('the filled state uses the app’s on-accent foreground, so a light accent 
 test('the OTHER active controls keep the green light — the repaint was scoped', () => {
   assert.match(layoutCss, /button\.active \{\s*background: var\(--success\);\s*color: #fff;\s*\}/,
     'the global active rule is untouched — a fixed green ground, so white whatever the accent');
-  // The controls that rely on it, by their own class toggles.
-  assert.match(read('../../../js/ui/fullscreen/layer.js'), /fsBtn\.classList\.toggle\('active', isFullscreen\)/);
-  assert.match(read('../../../js/core/drawingApp.js'), /btn\.classList\.toggle\('active', this\.storage\.incognito\)/);
   for (const id of ['#fullscreen-toggle', '#incognito-toggle']) {
     assert.equal(blocksFor(layoutCss, `${id}.active`).length, 0, `${id} was not repainted`);
+  }
+});
+
+test('the fullscreen and incognito toggles light through their own .active', async () => {
+  const doc = installDom({}, {
+    window: { innerWidth: 1000, innerHeight: 700, addEventListener() {} },
+    location: { hash: '', pathname: '/app', search: '' }, history: { replaceState: () => {} },
+    requestAnimationFrame: () => 1,
+  });
+  for (const id of ['fs-controls-panel', 'fs-points-panel', 'fs-top-trigger', 'fs-right-trigger',
+    'fullscreen-toggle', 'canvas-viewport', 'incognito-toggle']) doc.register(id, doc.createElement('div'));
+  try {
+    const { StencilFullscreenLayer } = await import('../../../js/ui/fullscreen/layer.js');
+    const { DrawingApp } = await import('../../../js/core/drawingApp.js');
+    const app = { image: null, zoomPan: { syncViewportHeight() {} } };
+    new StencilFullscreenLayer().wire(app);
+    const fsBtn = doc.getElementById('fullscreen-toggle');
+    const lit = [];
+    for (let i = 0; i < 2; i++) { app.toggleFullscreen(); lit.push(fsBtn.classes.has('active')); }
+    assert.deepEqual(lit, [true, false], 'fullscreen is lit exactly while it is on');
+    const incognito = doc.getElementById('incognito-toggle');
+    for (const on of [true, false]) {
+      DrawingApp.prototype.updateIncognitoUI.call({
+        canToggleIncognito: () => true, storage: { incognito: on }, updateInfo() {}, reportIncognitoSession() {},
+      });
+      assert.equal(incognito.classes.has('active'), on, `incognito ${on ? 'on' : 'off'} is ${on ? '' : 'un'}lit`);
+    }
+  } finally {
+    doc.restore();
   }
 });
 
@@ -132,16 +156,40 @@ test('a face swap never changes the button’s width', () => {
   } finally { win.restore?.(); }
 });
 
-test('both Draw-group toggles pin themselves from their own two faces', () => {
-  const src = read('../../../js/ui/panel/drawToggleUI.js');
-  for (const [sync, faces] of [
-    ['syncDrawToggleUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
-    ['syncDrawModeUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
-  ]) {
-    const body = src.slice(src.indexOf(`${sync} = (app)`), src.indexOf(`${sync} = (app)`) + 1200);
-    assert.match(body, faces, `${sync} pins from BOTH faces, not the one on show`);
-    assert.ok(body.indexOf('pinWidestFace') < body.indexOf('swapContent'),
-      `${sync} pins the box before the face moves into it`);
+// A button whose measured width is its markup's length: every face measures differently.
+const probedBtn = () => {
+  const log = { probed: new Set(), writes: [] };
+  let html = '';
+  const btn = createStubElement('button', {
+    getBoundingClientRect: () => ({ width: btn.style.width === 'auto' ? html.length / 2 : parseFloat(btn.style.width) || 0 }),
+  });
+  Object.defineProperty(btn, 'innerHTML', {
+    get: () => html,
+    set: (v) => { html = v; if (btn.style.width === 'auto') log.probed.add(v); else log.writes.push({ v, width: btn.style.width }); },
+  });
+  return { btn, log };
+};
+
+test('both Draw-group toggles pin themselves from their own two faces', async () => {
+  const doc = installDom({}, {});
+  try {
+    const { syncDrawToggleUI, syncDrawModeUI } = await import('../../../js/ui/panel/drawToggleUI.js');
+    for (const [id, sync, app] of [
+      ['draw-toggle', syncDrawToggleUI, { isDrawing: true }],
+      ['draw-mode-toggle', syncDrawModeUI, { drawMode: 'rect' }],
+    ]) {
+      const { btn, log } = probedBtn();
+      doc.register(id, btn);
+      sync(app);
+      const faces = [...log.probed].filter(Boolean);
+      assert.equal(faces.length, 2, `${id} pins from BOTH faces, not the one on show`);
+      const shown = log.writes.at(-1);
+      assert.ok(faces.includes(shown.v), `${id} shows one of the faces it measured`);
+      assert.equal(shown.width, `${Math.ceil(Math.max(...faces.map((f) => f.length / 2)))}px`,
+        `${id} pins the box to the wider face before the face moves into it`);
+    }
+  } finally {
+    doc.restore();
   }
 });
 

@@ -2,8 +2,8 @@
 #include <QJsonObject>
 #include <QString>
 
-// "Open in…" link builders + Telegram start-payload codec — browser twin js/core/deepLink.js, bot
-// twin Application/Links/DeepLinkCodec.cs; shared golden vectors in the three surfaces' tests.
+// "Open in…" link builders + Telegram start-payload codec — browser twin js/core/launch/deepLink.js, bot
+// twin Infrastructure/Links/DeepLinkCodec.cs; shared golden vectors in the three surfaces' tests.
 namespace stencil::gui::deepLink {
 
   inline constexpr int TELEGRAM_START_LIMIT = 64;

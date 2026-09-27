@@ -32,7 +32,7 @@ export function beginRowRename({ meta, name, app, render, gesture }) {
     wrap.addEventListener(ev, (e) => e.stopPropagation());
   name.replaceWith(wrap);
   // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
-  // draws the check / strikes the cross (animations/iconHover.css .ic-check/.ic-x).
+  // draws the check / strikes the cross (animations/icon/hover.css .ic-check/.ic-x).
   markIn(accept);
   markIn(cancel);
   input.focus();
@@ -46,7 +46,7 @@ export function beginRowRename({ meta, name, app, render, gesture }) {
     markOut(accept);
     markOut(cancel);
     // renameProject re-checks uniqueness; adopt the name only if accepted.
-    if (save && next && next !== meta.name && app.renameProject(meta.id, next)) meta.name = next;
+    if (save && next && next !== meta.name && app.projectTransfer.renameProject(meta.id, next)) meta.name = next;
     render();
   };
   // Live-validated ✓/✗ (always shown here): ✓ enabled only for a changed, valid

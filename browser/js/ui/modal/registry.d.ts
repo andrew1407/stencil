@@ -1,4 +1,4 @@
-/** The live handle ui/shell.js registers for one wired window. */
+/** The live handle ui/modal/shell.js registers for one wired window. */
 export interface ModalShellApi {
   open(from?: unknown, backTo?: unknown, opts?: { stacked?: boolean }): void;
   /** `backTo` overrides where this close lands; anything that is not an anchor is ignored. */

@@ -1,8 +1,8 @@
 // Builds typings/stencil.d.ts: the facade's own types, flattened into ONE ambient script so
 // a workspace can drop it beside its JavaScript and have the editor type `stencil` itself.
-// The shape comes from browser/js/console/stencilApi.d.ts, the prose from
-// src/config/stencilApiVocabulary.json; tests/typings.test.js regenerates and compares, so
-// neither can drift. Run: node tools/genTypings.mjs
+// The shape comes from browser/js/console/stencilApi.d.ts and the parts it re-exports, the
+// prose from src/config/stencilApiVocabulary.json; tests/typings.test.js regenerates and
+// compares, so neither can drift. Run: node tools/genTypings.mjs
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -23,6 +23,18 @@ const OPAQUE = Object.freeze(['DrawingApp', 'CodecLine', 'LayoutPayload', 'WireC
 
 const MEMBER = /^(?:readonly\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*[(:]/;
 const DOC_LINE = /^\/\*\*.*\*\/$/;
+const CLAUSE = /^(?:import|export) type \{[^}]*\} from '[^']+';$/gm;
+const PART = /^export type \{[^}]*\} from '(\.\/[^']+)\.js';$/;
+
+// A wrapped import/export clause becomes one line, and a part file the source re-exports is
+// inlined where that re-export stands, without its banner and imports.
+const flatten = (text, dir) => text.replace(CLAUSE, (clause) => clause.replace(/\s*\n\s*/g, ' '))
+  .split('\n').flatMap((line) => {
+    const part = PART.exec(line);
+    if (!part) return [line];
+    const lines = flatten(readFileSync(join(dir, `${part[1]}.d.ts`), 'utf8'), dir).split('\n');
+    return lines.slice(lines.findIndex((l) => !l.startsWith('//'))).filter((l) => !l.startsWith('import type '));
+  }).join('\n');
 
 // A JSDoc block for one member: what it is, what it hands back, how it is used, and where to
 // read more. The link renders as a link, the way lib.dom.d.ts's "MDN Reference" does.
@@ -41,7 +53,7 @@ export const buildTypings = ({ source = readFileSync(SOURCE, 'utf8'),
   let inFacade = false;
   let pendingDoc = -1;
 
-  for (const raw of source.split('\n')) {
+  for (const raw of flatten(source, dirname(SOURCE)).split('\n')) {
     const line = raw.replace(/\s+$/, '');
     // The imports become opaque aliases, once, where the first one stood.
     if (/^import type /.test(line)) {

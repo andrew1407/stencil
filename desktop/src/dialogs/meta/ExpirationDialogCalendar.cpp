@@ -1,23 +1,11 @@
-#include "../../support/menu/SearchCombo.hpp"
 #include "expirationDialogParts.hpp"
 #include "ExpirationDialog.hpp"
-#include "iconSet.hpp"
-
-#include "../../support/modal/modalChrome.hpp"  // the browser modal shell + its confirm/prompt
 
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDate>
-#include <QDateTime>
-#include <QFrame>
-#include <QGridLayout>
-#include <QHBoxLayout>
 #include <QLabel>
-#include <QLocale>
-#include <QPushButton>
-#include <QSignalBlocker>
 #include <QToolButton>
-#include <QVBoxLayout>
 
 namespace stencil::gui {
 

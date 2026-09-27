@@ -1,7 +1,9 @@
 #pragma once
 #include "models.hpp"
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 // Flat encoding of a Lines snapshot for the extern "C" ABIs, in two caller-owned buffers.
 //   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked,
@@ -51,39 +53,56 @@ namespace stencil::core::abi {
     }
   }
 
-  // Decode what the buffers actually hold. Lengths are honoured, never trusted: a
-  // truncated or malformed snapshot stops at the last complete line.
+  // Layout caps, twins of LIMITS.layoutLinesMax / layoutLinePointsMax / layoutPointsMax in
+  // browser/js/config/constants.json: 64 history snapshots of an uncapped layout exhaust memory.
+  inline constexpr int MAX_LAYOUT_LINES = 50000;
+  inline constexpr int MAX_LINE_POINTS = 100000;
+  inline constexpr int MAX_LAYOUT_POINTS = 1000000;
+
+  // Decode what the buffers actually hold. Lengths are honoured, never trusted: a truncated or
+  // malformed snapshot stops at the last complete line. The caps cut as layout.js sanitizeLines
+  // does: the line that spends the last point is cut there, and every line after it dropped.
   inline Lines decodeLines(const double* nums, int numsLen, const std::uint8_t* text,
                            int textLen) {
     Lines out;
-    if (nums == nullptr || numsLen < 1) return out;
-    const int lineCount = static_cast<int>(nums[0]);
-    if (lineCount <= 0) return out;
-    int i = 1, t = 0;
-    for (int li = 0; li < lineCount; ++li) {
+    if (nums == nullptr || numsLen < 1 || !(nums[0] > 0.0)) return out;
+    // Every count is range-checked as a double first: casting NaN or 1e300 to int is UB.
+    const int lineCount =
+        nums[0] < MAX_LAYOUT_LINES ? static_cast<int>(nums[0]) : MAX_LAYOUT_LINES;
+    int i = 1, t = 0, budget = MAX_LAYOUT_POINTS;
+    for (int li = 0; li < lineCount && budget > 0; ++li) {
       if (i + 8 > numsLen) break;
-      const int ptCount = static_cast<int>(nums[i]);
+      const double declared = nums[i];
       const double thickness = nums[i + 1], pointSize = nums[i + 2];
       const bool locked = nums[i + 3] != 0.0;
       int len[4] = {0, 0, 0, 0};
-      for (int f = 0; f < 4; ++f) len[f] = static_cast<int>(nums[i + 4 + f]);
+      bool ok = true;
+      for (int f = 0; f < 4; ++f) {
+        const double l = nums[i + 4 + f];
+        ok = ok && l >= 0.0 && l <= textLen - t;
+        len[f] = ok ? static_cast<int>(l) : 0;
+      }
       i += 8;
-      if (ptCount < 0 || i + 2 * ptCount > numsLen) break;
+      if (!(declared >= 0.0) || i + 2.0 * declared > numsLen) break;
+      const int ptCount = static_cast<int>(declared);
+      const int kept = std::min({ptCount, MAX_LINE_POINTS, budget});
       Line line;
       line.thickness = thickness;
       line.pointSize = pointSize;
       line.locked = locked;
-      line.points.reserve(static_cast<std::size_t>(ptCount));
-      for (int p = 0; p < ptCount; ++p) line.points.push_back(Point{nums[i + 2 * p], nums[i + 2 * p + 1]});
+      line.points.reserve(static_cast<std::size_t>(kept));
+      for (int p = 0; p < kept; ++p)
+        line.points.push_back(Point{nums[i + 2 * p], nums[i + 2 * p + 1]});
       i += 2 * ptCount;
       std::string* field[4] = {&line.color, &line.style, &line.fillColor, &line.pointColor};
-      bool ok = true;
       for (int f = 0; f < 4 && ok; ++f) {
-        if (len[f] < 0 || text == nullptr || t + len[f] > textLen) { ok = false; break; }
-        field[f]->assign(reinterpret_cast<const char*>(text) + t, static_cast<std::size_t>(len[f]));
+        if (text == nullptr || t + len[f] > textLen) { ok = false; break; }
+        field[f]->assign(reinterpret_cast<const char*>(text) + t,
+                         static_cast<std::size_t>(len[f]));
         t += len[f];
       }
       if (!ok) break;
+      budget -= kept;
       out.push_back(std::move(line));
     }
     return out;

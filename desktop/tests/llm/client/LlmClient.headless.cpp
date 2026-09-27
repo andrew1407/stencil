@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
   llmclient::checkOpRegistry();
   llmclient::checkPromptAssembly();
   llmclient::checkPromptShape();
+  llmclient::checkAnthropic();
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

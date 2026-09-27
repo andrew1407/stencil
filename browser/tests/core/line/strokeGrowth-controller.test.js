@@ -1,4 +1,4 @@
-// The StrokeFx controller (js/core/strokeFx.js): identity survives a splice, the loop runs only
+// The StrokeFx controller (js/core/line/strokeFx.js): identity survives a splice, the loop runs only
 // while something is in the air, and reduced motion plays nothing. From strokeGrowth.test.js.
 import test from 'node:test';
 import assert from 'node:assert';

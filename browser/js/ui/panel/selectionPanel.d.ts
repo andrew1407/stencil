@@ -15,6 +15,6 @@ export declare function showSelectionPanel(app: DrawingApp, line: Record<string,
 /** Hide the selection panel and its fullscreen mirror. */
 export declare function hideSelectionPanels(): void;
 /** Apply the locked-area fill from the selection panel's controls to the selected line. */
-export declare function applyFill(app: DrawingApp): void;
+export declare function applyFill(app: DrawingApp, opts?: { commit?: boolean }): void;
 /** Rebuild + wire the fullscreen mirror of the panel for `line`. */
 export declare function syncFsSelectionPanel(app: DrawingApp, line: Record<string, unknown> | null): void;

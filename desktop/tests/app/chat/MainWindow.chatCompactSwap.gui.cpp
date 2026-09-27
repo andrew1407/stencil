@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     const auto toast = [&]() -> QWidget* {
-      return win.chatToast && win.chatToast->isVisible() ? win.chatToast : nullptr;
+      return win.chatSession->chatToast && win.chatSession->chatToast->isVisible() ? win.chatSession->chatToast : nullptr;
     };
     // Nothing may mark the icon at all now; the lambda stays to prove it.
     const auto unreadShown = [&] {
@@ -27,39 +27,39 @@ class MainWindowGuiTest : public QObject {
 
     // Closed chat: the predicate says "nobody can see this".
     QVERIFY(!win.chatDock->isVisible());
-    QVERIFY2(win.chatSurfaceHidden(), "a closed chat should count as hidden");
-    win.showChatToast(QStringLiteral("Assistant finished — done"), true);
+    QVERIFY2(win.chatSession->chatSurfaceHidden(), "a closed chat should count as hidden");
+    win.chatSession->showChatToast(QStringLiteral("Assistant finished — done"), true);
     QVERIFY2(toast(), "no toast with the chat closed");
     QVERIFY2(!unreadShown(), "the toast is the whole notice — nothing is left on the icon");
 
     // Opening clears the mark, and nothing toasts while the chat is up.
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     QVERIFY2(!unreadShown(), "opening must leave the icon unmarked too");
-    QVERIFY2(!win.chatSurfaceHidden(), "an open chat must not count as hidden");
+    QVERIFY2(!win.chatSession->chatSurfaceHidden(), "an open chat must not count as hidden");
 
     // ITEM A — mid-close: the dock is still isVisible() during its slide, but a
     // result landing then has nowhere to go, so it counts as hidden.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
-    win.actChat->setChecked(false);
+    win.acts.chat->setChecked(false);
     QVERIFY2(win.chatDock->isVisible(), "the close should still be animating");
-    QVERIFY2(win.chatSurfaceHidden(), "a chat mid-close must count as hidden");
+    QVERIFY2(win.chatSession->chatSurfaceHidden(), "a chat mid-close must count as hidden");
     if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim);
     QTRY_VERIFY(!win.chatDock->isVisible());
 
     // ITEM C — the context-menu panel is a chat surface too.
-    win.ensureChatMenuPanel();
-    win.chatMenuPanel->setGeometry(20, 20, 340, 620);
-    win.chatMenuPanel->show();
-    QTRY_VERIFY2(!win.chatSurfaceHidden(), "a visible menu panel must count as a surface");
-    win.chatMenuPanel->hide();
-    QTRY_VERIFY2(win.chatSurfaceHidden(), "a dismissed menu panel leaves nothing to look at");
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 620);
+    win.chatSession->chatMenuPanel->show();
+    QTRY_VERIFY2(!win.chatSession->chatSurfaceHidden(), "a visible menu panel must count as a surface");
+    win.chatSession->chatMenuPanel->hide();
+    QTRY_VERIFY2(win.chatSession->chatSurfaceHidden(), "a dismissed menu panel leaves nothing to look at");
 
     // ITEM B — §3.0: settling a turn is not itself an event. Nothing runs after
     // the reply, so the terminal has no news of its own to toast.
-    if (win.chatToast) win.chatToast->hide();
-    win.chatTurnSettled();
+    if (win.chatSession->chatToast) win.chatSession->chatToast->hide();
+    win.chatSession->chatTurnSettled();
     QVERIFY2(!toast(), "the turn terminal must be silent — nothing runs after the reply");
     QVERIFY2(!unreadShown(), "…and it must not mark the icon either");
     beat();
@@ -77,22 +77,22 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* dock = win.findChild<QDockWidget*>("llmChatDock");
     QVERIFY(dock);
-    auto* icon = qobject_cast<QToolButton*>(win.buttonForAction(win.actChat));
+    auto* icon = qobject_cast<QToolButton*>(win.buttonForAction(win.acts.chat));
 
     // The outgoing FLOAT's exit is a cloud of its own pixels flown inside the main
     // window: it SCATTERS, every mote pouring back into the icon.
     const auto flight = [&win] { return surfaceFlight(&win); };
     // Past the whole surface flight, so a cloud from the LAST swap can never be mistaken
     // for the next one's (the gather is the longer of the two clocks).
-    const auto flushGhosts = [&win] { awaitAnim(win.chatAnim); awaitFlights(&win); };
+    const auto flushGhosts = [&win] { awaitAnim(win.parts.dockChrome.chatAnim); awaitFlights(&win); };
 
     // Put the chat in `floating` shape with a message in it, ready to be swapped.
     const auto arm = [&](bool floating, const QString& mark) {
-      win.setChatShown(false, false);
-      win.chatCompactPopover = false;
+      win.parts.dockChrome.setChatShown(false, false);
+      win.parts.dockChrome.chatCompactPopover = false;
       dock->setFloating(floating);
-      win.actChat->setChecked(true);
-      win.setChatShown(true, false);
+      win.acts.chat->setChecked(true);
+      win.parts.dockChrome.setChatShown(true, false);
       QTRY_VERIFY(dock->isVisible());
       QCOMPARE(dock->isFloating(), floating);
       win.chatDock->appendUser(mark);
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
                  qPrintable(QString("%1: the outgoing float must come APART, not form").arg(route)));
         QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
       } else {
-        QVERIFY2(win.chatAnim != nullptr,
+        QVERIFY2(win.parts.dockChrome.chatAnim != nullptr,
                  qPrintable(QString("%1: the docked panel did not slide out").arg(route)));
         QVERIFY2(!dock->isFloating(),
                  qPrintable(QString("%1: it tore off before the slide played").arg(route)));
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
       {
         const QString mark = shape + " peek";
         arm(floating, mark);
-        win.altPeekOpen(icon, win.actChat);
+        win.parts.popoverGestures.altPeekOpen(icon, win.acts.chat);
         expectSwap(floating, mark, qPrintable(shape + " + alt-peek"));
       }
     }

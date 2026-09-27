@@ -2,13 +2,11 @@
 //! per-platform tools the reader drives.
 const std = @import("std");
 const builtin = @import("builtin");
-const child = @import("../safety/child.zig");
 const shell = @import("shell.zig");
 
 const Error = shell.Error;
 const scratchPath = shell.scratchPath;
 const tmpDir = shell.tmpDir;
-const escapeJs = shell.escapeJs;
 const runOrFail = shell.runOrFail;
 
 pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {

@@ -49,6 +49,11 @@ async fn a_variant_with_a_misplaced_op_is_dropped_and_the_rest_of_the_turn_is_de
 
 #[tokio::test]
 async fn a_plan_that_was_only_a_misplaced_variant_answers_with_a_reply_and_a_warning() {
+    // Core judges the plan, so even a turn that runs nothing needs the CLI.
+    if locate::find_cli().is_err() {
+        eprintln!("skipping e2e: stencil CLI not found (build it in cli/ or set STENCIL_CLI)");
+        return;
+    }
     let dir = tempfile::tempdir().unwrap();
     let transport = SequenceTransport::replying(&[
         r##"{"version":1,"reply":"Saved it.","variants":[
@@ -74,15 +79,14 @@ async fn a_plan_that_was_only_a_misplaced_variant_answers_with_a_reply_and_a_war
 
 // ── the fan-out ──
 
-/// One run of the plan, writing into the test's own directory.
+/// One run of the plan, confined to and writing into the test's own directory.
 fn request(label: Option<&str>, dir: &tempfile::TempDir, name: &str) -> EditRequest {
     let output = dir.path().join(name).to_string_lossy().into_owned();
-    EditRequest {
-        label: label.map(str::to_string),
-        project: false,
-        params: serde_json::from_value(serde_json::json!({"input": FIXTURE, "output": output}))
-            .expect("params should deserialize"),
-    }
+    let mut params: stencil_mcp::args::EditParams =
+        serde_json::from_value(serde_json::json!({"input": FIXTURE, "output": output}))
+            .expect("params should deserialize");
+    params.confine_root = Some(dir.path().to_string_lossy().into_owned());
+    EditRequest { label: label.map(str::to_string), project: false, params }
 }
 
 /// The runs go out together and come back in REQUEST order whatever order they finish in —
@@ -107,8 +111,8 @@ async fn the_plan_runs_overlap_and_keep_their_request_order() {
     assert_eq!(runner.finished(), 3);
 }
 
-/// A cancelled tool call must take its CLI children with it. rmcp cancels by DROPPING the
-/// tool future, so the runs have to be aborted with it — never left running detached.
+/// A cancelled tool call must take its CLI children with it. The call wrapper cancels by
+/// DROPPING the tool future, so the runs have to be aborted with it — never left detached.
 #[tokio::test]
 async fn a_dropped_call_aborts_the_runs_instead_of_detaching_them() {
     let runner = SlowCli::with_delays(&[400, 400]);

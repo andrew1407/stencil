@@ -90,7 +90,7 @@ namespace stencil::support {
   inline QColor particleShade() { return detail::particleShadeState(); }
   inline bool isParticleDark() { return detail::particleDarkState(); }
 
-  // The canvas stroke motion (canvas/strokeGrowth.hpp), switchable on its own.
+  // The canvas stroke motion (canvas/draw/strokeGrowth.hpp), switchable on its own.
   inline bool drawingAnimations() { return detail::live().drawing; }
   inline void setDrawingAnimations(bool on) { detail::storedState().drawing = on; }
 

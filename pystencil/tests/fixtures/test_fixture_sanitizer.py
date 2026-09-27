@@ -43,7 +43,7 @@ class TestSanitizerFixtures(unittest.TestCase):
           self.assertLessEqual(len(inp), 800)
           self.assertIsNone(_URL_RE.search(inp))
           self.assertIsNone(_TOKEN_RUN_RE.search(inp))
-          self.assertIsNone(re.search(r"[\x00-\x1f\x7f]", inp))
+          self.assertIsNone(re.search(r"[\x00-\x1f\x7f-\x9f]", inp))
           want = " ".join(inp.split())
           if len(want) > 200:
             want = want[:199].strip() + "…"

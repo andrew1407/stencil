@@ -4,7 +4,7 @@ Part of the [Stencil LLM contract](llm-contract.md); section numbers continue th
 root document's (code comments cite `§5`/`§6.x` everywhere). The machine-readable
 constants — default base URLs, wire paths, timeouts, the server's Anthropic upstream
 constants — live in
-[`browser/js/config/llm/providers.json`](../browser/js/config/llm/providers.json), the
+[`browser/js/config/llm/providers.json`](../../browser/js/config/llm/providers.json), the
 normative asset for this file's numbers (guarded by `desktop/tests/support/theme/configCanon.headless.cpp`,
 bot `ProvidersAssetTests`, `pystencil/tests/test_canonical_drift.py`, and the cli/mcp
 compile-time embeds). Wire/error behaviour is pinned by the conformance fixtures
@@ -17,7 +17,7 @@ Identical shape in every client (naming adapted to each language's conventions):
 
 ```json
 {
-  "provider":  "ollama" | "openai-compat" | "stencil-server",
+  "provider":  "ollama" | "openai-compat" | "anthropic" | "stencil-server",
   "baseUrl":   "http://localhost:11434",
   "model":     "llama3.2-vision",
   "apiKey":    "",
@@ -28,9 +28,10 @@ Identical shape in every client (naming adapted to each language's conventions):
 - Clients MAY additionally offer a local-only `provider` value **`none`** ("assistant
   off"): the assistant UI is disabled, nothing is probed or sent anywhere, and `none`
   never appears on any wire — it is a client-side switch, not a §6 mapping.
-- `baseUrl`, `model`, `apiKey` apply to `ollama` / `openai-compat`. `apiKey` is optional
-  (LM Studio needs none) and is sent as `Authorization: Bearer <apiKey>` on
-  `openai-compat` only.
+- `baseUrl`, `model`, `apiKey` apply to `ollama` / `openai-compat` / `anthropic`. On
+  `openai-compat` `apiKey` is optional (LM Studio needs none) and is sent as
+  `Authorization: Bearer <apiKey>`; on `anthropic` it is required, it is the user's own
+  Anthropic API key, it is sent as `x-api-key` (§6.5), and it is a **session key** (below).
 - `serverUrl` applies to `stencil-server` only: which configured Stencil collaboration
   server proxies the upstream. The client authenticates with its **existing** bearer
   token for that server. `model` may be empty (server default).
@@ -42,6 +43,7 @@ Identical shape in every client (naming adapted to each language's conventions):
 |---|---|---|
 | `ollama` | `http://localhost:11434` | empty — user picks (e.g. `llama3.2-vision`) |
 | `openai-compat` (LM Studio, llama.cpp, vLLM, …) | `http://localhost:1234/v1` | empty — server serves whatever is loaded |
+| `anthropic` | `https://api.anthropic.com` | empty — `serverDefaults.model`, the same default the server's upstream uses |
 | `stencil-server` | the client's first already-configured Stencil server connection (`defaultBaseUrl: null` in the asset) | empty — server-side default |
 
 **Timeouts** are `providers.json` → `timeouts`: chat requests 120 s, provider probes
@@ -66,14 +68,37 @@ Per-client persistence of overrides:
 | cli (console) | `STENCIL_LLM_*` env (same names, incl. `STENCIL_LLM_SERVER_TOKEN`) as initial values | in-session overrides via `/llm provider|url|model|key|server` console commands; stencil-server auth reuses the console's `/connect` token when URLs match |
 | extension | `chrome.storage` | `llmSettings` (JSON of the §5 shape) |
 
+**The `anthropic` key is a session key.** It reaches Anthropic straight from the client,
+with no Stencil server in between, so it is held only as long as the session that took it,
+and at most `providers.anthropic.sessionKey.ttlMinutes` (720) after it was entered:
+
+| Client | Where the key lives | Gone when |
+|---|---|---|
+| browser | `sessionStorage` (`stencil_llm_session_key`: the key and its expiry) | the tab closes, the TTL passes, or the user forgets it; a reload of the same tab keeps it |
+| extension | `chrome.storage.session` (trusted contexts only) | the browser closes, the extension reloads, the TTL passes, or the user forgets it |
+| desktop | process memory | the app quits, the TTL passes, or the user forgets it |
+| cli and pystencil consoles | process memory, from `/llm key` (hidden input) or `STENCIL_LLM_API_KEY` | the console exits, the TTL passes, or `/llm key forget` |
+| cli one-shot, pystencil library | process memory, from `STENCIL_LLM_API_KEY` or `LlmConfig(api_key=…)` | the process ends or the TTL passes |
+
+mcp (a plain-http transport) and the bot (an operator service) do not offer `anthropic`.
+
+It is never written to localStorage, a settings file, the connection store, a project, an
+export, a hand-off fragment, a URL or a log; the settings shapes above persist everything
+for `anthropic` except the key. An expired key is dropped before the next request, which
+then fails as a missing key so the UI asks for it again.
+
 Note for browser users calling local providers directly: Ollama/LM Studio must allow the
 app's origin (Ollama `OLLAMA_ORIGINS`, LM Studio "enable CORS"). Documented in the
 settings UI help text.
 
 ## 6. Wire mappings
 
-All requests are `POST`, `Content-Type: application/json`, non-streaming (v1). Paths
-below are `providers.json` → `providers.<name>.chatPath` / `infoPath`.
+All chat requests are `POST`, `Content-Type: application/json`, non-streaming (v1). Paths
+below are `providers.json` → `providers.<name>.chatPath` / `infoPath`; §6.4's model list
+and probe take theirs from `modelsPath` / `probePath`. A client selects a mapping by the
+provider's `wire` (`ollama`, `openai`, `anthropic`, `server`), never by its name. No request
+on any wire — chat, model list, probe or `/llm/info` — follows a redirect: a key or bearer
+token must not ride a 30x to a second host, so a 30x fails the request.
 
 ### 6.1 `ollama` — native chat
 
@@ -198,3 +223,79 @@ The server calls
 `anthropic-version: 2023-06-01` (the `providers.json` → `anthropicUpstream` constants);
 images become `{"type":"image","source":{"type":"base64","media_type":…,"data":…}}`
 blocks; the reply is the concatenation of the response's `content[]` text blocks.
+
+### 6.4 Model list and reachability probe
+
+Both are a `GET {base}{path}` under the `timeouts.probeMs` deadline, with the same
+authorization the wire's chat sends (none for `ollama`, the optional key for `openai`, the
+session bearer for `server`, the §6.5 headers for `anthropic`); `{base}` is `baseUrl`, or
+`serverUrl` for `stencil-server`.
+Neither ever spends chat tokens, and neither ever throws to its caller.
+
+| `wire` | `modelsPath` → model names | `probePath` → probe detail |
+|---|---|---|
+| `ollama` | `/api/tags` → `models[].name` | `/api/version` → `v<version>` |
+| `openai` | `/models` → `data[].id` | `/models` → the first `data[].id` |
+| `server` | `/llm/info` → `[model]` when set | `/llm/info` → `model`; `enabled: false` is a failed probe ("LLM disabled on this server") |
+| `anthropic` | `/v1/models` → `data[].id` | `/v1/models` → the first `data[].id`; no key is a failed probe ("no API key for this session") |
+
+A non-2xx answer is an empty model list and a failed probe reading `HTTP <status>`; a
+2xx body that is not JSON reads as `{}`. The model list only suggests: the model field
+stays free-form.
+
+### 6.5 `anthropic` — direct, with a session key
+
+`POST {baseUrl}/v1/messages` straight to Anthropic, no Stencil server in between. Headers:
+`x-api-key: <apiKey>` (the §5 session key), `anthropic-version` (`providers.json` →
+`anthropicUpstream.version`), `Content-Type: application/json`, and — from a web page or
+an extension page only — `anthropic-dangerous-direct-browser-access: true`, without which
+Anthropic refuses a browser origin. No `Authorization` header. The body is exactly the
+server's upstream body (§6.3), so a direct turn and a proxied one reach Anthropic alike:
+
+```json
+{
+  "model": "<model, or serverDefaults.model when empty>",
+  "max_tokens": 32768,
+  "system": "<system prompt>",
+  "messages": [
+    {"role": "user", "content": [
+      {"type": "text", "text": "<text>"},
+      {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "<b64>"}}
+    ]},
+    {"role": "assistant", "content": [{"type": "text", "text": "<prior reply>"}]}
+  ]
+}
+```
+
+`max_tokens` is `serverDefaults.maxTokens`; a turn's text block comes first, then its images
+in order; a turn with empty text sends only its images. Reply text = the concatenation of
+the response's `content[]` blocks whose `type` is `text`. `stop_reason` maps as the
+server's `stopReason` does (§6.3): `max_tokens` is a **truncated** error, `refusal` a
+**refusal** error, anything else a reply; a 2xx body without a `content` array is a
+**bad-reply** error.
+
+A non-2xx answer is an **http** error whose message says WHY, by the server's own rules
+(§6.3, `server/internal/llm/upstream.go`): the Anthropic envelope
+`{"type":"error","error":{"type","message"}}` and the status classify into one reason —
+
+| Condition | Message |
+|---|---|
+| billing (`credit balance`, `billing`, `insufficient_quota`, HTTP 402) | the LLM provider is out of credits or has no active billing |
+| the key (`authentication_error`, `permission_error`, HTTP 401/403) | the LLM provider rejected the API key |
+| the model (`not_found_error`, `model not found`, HTTP 404) | the LLM provider does not have the requested model |
+| `rate_limit_error`, HTTP 429 | the LLM provider is rate-limiting this key |
+| HTTP 408/504 | the LLM provider did not respond in time |
+| `overloaded_error`, `api_error`, HTTP 5xx | the LLM provider is temporarily unavailable |
+| anything else | the LLM provider returned an error (HTTP n): <sanitized upstream text> |
+
+The sanitized text follows `fixtures/sanitizer/`, and the client applies the server's
+secret-fragment veto with its own session key: upstream text containing any 8-character
+run of the key is dropped. A request with no key (never entered, expired or forgotten) is
+not sent; it fails as a **disabled** error reading "no API key for this session", so the
+UI asks for the key again.
+
+**The key travels over https.** Plain `http` is allowed only to a loopback host
+(`localhost`, `127.0.0.0/8`, `::1`) — a local mock or proxy the user named; for any other
+host nothing is sent, and the request fails as a **disabled** error reading
+`refusing to send the API key to '<host>' over plain http — use https`. Redirects are never
+followed, so the key cannot ride a 30x to a second host.

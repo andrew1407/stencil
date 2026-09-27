@@ -43,6 +43,9 @@ class Script:
     self.__resolve_buf = (ctypes.c_double * _RESOLVE_CAP)()
     lib = core._lib
     self.diagnostics: Diagnostics = _read_diagnostics(lib, handle)
+    # Parallel to ``diagnostics``: the ``(line, col, length)`` of the ``@use stencil`` call a
+    # template-body diagnostic came from, None for any other.
+    self.related: tuple = _read_related(lib, handle, len(self.diagnostics))
     self.blocks: Blocks = _read_blocks(lib, handle)
     self.ops: Ops = _read_ops(lib, handle)
 
@@ -132,6 +135,16 @@ def _read_diagnostics(lib, handle: int) -> Diagnostics:
       "warning" if sev.value else "error", _text(code.value),
       line.value, col.value, length.value, _text(msg),
     ))
+  return tuple(out)
+
+
+def _read_related(lib, handle: int, count: int) -> tuple:
+  out = list()
+  line, col, length = (ctypes.c_int() for _ in range(3))
+  for i in range(count):
+    found = lib.stencil_cli_scriptDiagRelated(
+      handle, i, ctypes.byref(line), ctypes.byref(col), ctypes.byref(length))
+    out.append((line.value, col.value, length.value) if found == 1 else None)
   return tuple(out)
 
 

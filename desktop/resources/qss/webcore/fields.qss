@@ -1,0 +1,56 @@
+      /* ── Fields: sunken white wells ── */
+      QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox:hover:enabled, QLineEdit:hover:enabled,
+      QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+      QComboBox:focus, QLineEdit#modalSearch, QLineEdit#modalSearch:hover:enabled, QLineEdit#modalSearch:focus,
+      QComboBox#modalChooseSelect, QComboBox#modalChooseSelect:hover, QComboBox#modalChooseSelect:focus,
+      QLineEdit#projectsRenameEdit, QLineEdit#projectsRenameEdit:focus, QLineEdit#searchComboSearch,
+      QLineEdit#searchComboSearch:focus, QLineEdit#keywordsInput:focus,
+      QWidget#selectedLineCard QComboBox, QWidget#selectedLineCard QComboBox:hover, QWidget#selectedLineCard QComboBox:focus,
+      QWidget#selectedLineCard QSpinBox, QWidget#selectedLineCard QLineEdit, QWidget#selectedLineCard QSpinBox:hover:enabled,
+      QWidget#selectedLineCard QSpinBox:focus, QWidget#selectedLineCard QLineEdit:hover:enabled, QWidget#selectedLineCard QLineEdit:focus,
+      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText, QPlainTextEdit#modalPromptText:hover:enabled,
+      QPlainTextEdit#descriptionText:hover:enabled, QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
+      QPlainTextEdit#chatMenuInput, QPlainTextEdit#chatMenuInput:focus, QFrame#scriptEditorWrap, QFrame#scriptMenuWrap,
+      QFrame#oiFileBox, QScrollArea#keywordsChips {
+        background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; padding: 1px 4px; min-height: 15px;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+        selection-background-color: %WC_SELECT%; selection-color: %WC_ON_SELECT%;
+      }
+      QComboBox:hover:enabled, QLineEdit:hover:enabled, QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled,
+      QPlainTextEdit#descriptionText:hover:enabled { border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled { background: %WC_FACE%; color: %WC_DISABLED%; }
+      /* One height for every field and selector, 24px (browser webcore/fields.css); QSS heights
+         are the CONTENTS: the bevel and padding add 6. */
+      QComboBox, QAbstractSpinBox, QLineEdit { min-height: 18px; max-height: 18px; }
+      QComboBox QLineEdit, QAbstractSpinBox QLineEdit { min-height: 0; max-height: 16777215px; }
+      QLineEdit#projectNameField { min-height: 16px; max-height: 16px; }
+      /* The drop-down and the spin halves are raised buttons carrying a stepped black arrow. */
+      QComboBox::drop-down {
+        subcontrol-origin: padding; subcontrol-position: center right; width: 14px; margin: 1px;
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QComboBox::down-arrow { image: url(%WC_ARROW%); width: 7px; height: 4px; margin: 0; }
+      QComboBox::down-arrow:disabled { image: url(%WC_ARROW_DIM%); }
+      /* The browser's zoom is a bare field whose presets open on focus: no arrow button. */
+      QComboBox#zoomCombo::drop-down { width: 0; margin: 0; border: 0; }
+      QComboBox#zoomCombo::down-arrow { image: none; width: 0; }
+      /* No steppers: the browser's number fields are plain text boxes that take arrow keys and
+         expressions (control/numericInput.js), and the skin shows them as such. */
+      QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0; margin: 0; border: 0; background: transparent; }
+      QAbstractSpinBox::up-arrow, QAbstractSpinBox::down-arrow { image: none; width: 0; height: 0; }
+      QComboBox QAbstractItemView {
+        background: %WC_WINDOW%; color: %WC_INK%; border: 1px solid %WC_DARK%; border-radius: 0; padding: 0;
+        selection-background-color: %WC_SELECT%; selection-color: %WC_ON_SELECT%;
+      }
+      QFrame#metaFieldRing, QFrame#metaFieldRing[ringOn="true"], QFrame#scriptEditorGlow, QFrame#scriptMenuGlow,
+      QFrame#scriptEditorGlow[hovered="true"], QFrame#scriptMenuGlow[hovered="true"],
+      QFrame#scriptEditorGlow[focused="true"], QFrame#scriptMenuGlow[focused="true"] { border-color: transparent; border-radius: 0; }
+      /* Code keeps its monospace under the skin (browser webcore/chrome.css .script-input). */
+      QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
+        color: %WC_INK%; selection-background-color: %WC_SELECT%; font-family: Menlo, Consolas, monospace; font-size: 12px;
+      }
+      QLabel#openInFallbackCmds { font-family: Menlo, Consolas, monospace; font-size: 12px; }
+      QSlider#oiFrameScrub::groove:horizontal { background: %WC_WINDOW%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QSlider#oiFrameScrub::sub-page:horizontal { background: %WC_SELECT%; border-radius: 0; }
+      QSlider#oiFrameScrub::handle:horizontal { background: %WC_FACE%; border: 1px solid %WC_DARK%; border-radius: 0; }
+

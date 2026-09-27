@@ -2,11 +2,11 @@
 // both themes, and the flyout composer resizes on the panel's own slider handle.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { layout } from '../../../js/ui/layout.js';
 import { assistantItemHtml } from '../../../js/ui/contextMenu/contextMenu.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
+import { wireContextMenu } from '../../helpers/ctxMenuChatRig.js';
+import { wireBothSurfaces } from '../../helpers/chatSurfacesRig.js';
 
 // ── Styling: the section must theme with the menu and fit its width ──
 test('components.css sizes the assistant section for the menu in both themes', () => {
@@ -28,7 +28,7 @@ test('components.css sizes the assistant section for the menu in both themes', (
   assert.ok(!/#[0-9a-f]{6}/i.test(block), 'no hardcoded hex colours');
 });
 
-test('the flyout composer is resizable with the panel\'s slider handle', () => {
+test('the flyout composer is resizable with the panel\'s slider handle', async () => {
   const html = assistantItemHtml();
   // The strip sits between the attachments row and the composer, as in the panel.
   const iAttach = html.indexOf('id="ctx-assist-attachments"');
@@ -37,16 +37,30 @@ test('the flyout composer is resizable with the panel\'s slider handle', () => {
   assert.ok(iAttach < iSizer && iSizer < iRow, 'sizer strip above the input, below the chips');
   // No tooltip: a grab handle explains itself, and the panel's carries none either.
   assert.ok(!/id="ctx-assist-sizer"[^>]*title=/.test(html), 'the sizer needs no tooltip');
-  const src = contextMenuSource();
-  // Wired with the SAME helper as the panel; a drag re-places the FLYOUT only…
-  assert.ok(src.includes("wireInputSizer(document.getElementById('ctx-assist-sizer'), input, {"));
-  assert.ok(src.includes('onDrag: () => { if (flyout.classList.contains(\'ctx-sub-visible\')) host.positionSub(item, flyout); },'),
-    'the flyout re-places itself as the composer grows');
-  assert.strictEqual(src.split('placeMenu').length - 1, 2, 'and the ROOT menu is still placed once per open');
-  // …and the drag marks the surface engaged, so a moving flyout is never "left".
-  assert.ok(src.includes('hold: (on) => { resizing = on; },'));
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  assert.ok(panel.includes('wireInputSizer(inputSizer, input, { host });'), 'the panel uses the same helper');
+  // Wired with the SAME helper as the panel; a drag re-places the FLYOUT only, and marks it engaged.
+  const m = await wireContextMenu();
+  let measured = 0;
+  Object.defineProperty(m.menu, 'offsetWidth', { get() { measured += 1; return 120; } });
+  m.openAt();
+  const at = [m.menu.style.left, m.menu.style.top];
+  m.flyout.item.fire('click', { target: m.flyout.item });
+  assert.ok(m.flyout.el.classList.contains('ctx-sub-visible'), 'the flyout is open');
+  const sizer = m.doc.getElementById('ctx-assist-sizer');
+  m.flyout.el.style.left = 'stale';
+  sizer.fire('pointerdown', { clientY: 300 });
+  assert.strictEqual(m.flyout.el._keepOpen(), true, 'a moving flyout is never "left"');
+  window.fire('pointermove', { clientY: 260 });
+  assert.notStrictEqual(m.flyout.el.style.left, 'stale', 'the flyout re-places itself as the composer grows');
+  assert.strictEqual(m.flyout.input.style.height, '40px', 'the drag writes the input height');
+  window.fire('pointerup');
+  assert.deepStrictEqual([measured, m.menu.style.left, m.menu.style.top], [1, ...at],
+    'and the ROOT menu is still placed once per open');
+  const s = await wireBothSurfaces();
+  s.doc.getElementById('chat-input-sizer').fire('pointerdown', { clientY: 300 });
+  assert.ok(s.panel.host.classList.contains('chat-gesturing'), 'the panel uses the same helper');
+  window.fire('pointermove', { clientY: 250 });
+  window.fire('pointerup');
+  assert.deepStrictEqual([s.panel.input.style.height, s.panel.host.classList.contains('chat-gesturing')], ['50px', false]);
   // Clamped by CSS (session-only: the drag writes an inline height, nothing persists).
   const css = COMPONENTS_CSS;
   const inputRule = css.slice(css.indexOf('#ctx-assist-input {'), css.indexOf('}', css.indexOf('#ctx-assist-input {')));

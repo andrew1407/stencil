@@ -1,24 +1,19 @@
 #include "ProjectRowDelegate.hpp"
 
-#include "../../../support/tip/AppTooltip.hpp"
-#include "displayName.hpp"
 #include "iconSet.hpp"
-#include "theme.hpp"
 #include "../../../support/skinPrefs.hpp"
 
 #include <QApplication>
 #include <QFontMetrics>
 #include <QPainter>
-#include <QPainterPath>
 #include <QStyle>
 #include <QStyleOptionViewItem>
 #include <algorithm>
 
-
 namespace stencil::gui {
 
   namespace {
-    // Browser webcore/windows.css: a badge is a sunken well, the "…" a raised button.
+    // Browser webcore/chat.css: a badge is a sunken well, the "…" a raised button.
     void bevelBox(QPainter* p, const QRect& r, bool raised) {
       const support::SkinBevel b = support::skinBevel();
       p->fillRect(r, b.face);

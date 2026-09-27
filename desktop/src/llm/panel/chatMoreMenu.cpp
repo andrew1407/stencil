@@ -2,7 +2,6 @@
 
 #include "../../support/icon/iconSet.hpp"
 
-#include <QAction>
 #include <QMenu>
 
 namespace stencil::gui {

@@ -1,8 +1,6 @@
 #include "MediaLoader.hpp"
 #include "mediaLoaderParts.hpp"
-#include "fetchGuard.hpp"
 #include <QAudioOutput>
-#include <QFileInfo>
 #include <QMediaMetaData>
 #include <QMediaPlayer>
 #include <QTimer>
@@ -11,8 +9,6 @@
 #include <algorithm>
 
 namespace stencil::gui {
-
-  namespace guard = stencil::net::fetchGuard;
 
   void MediaLoader::startVideo(const QUrl& url) {
     if (done) return;
@@ -33,7 +29,7 @@ namespace stencil::gui {
                   s == QMediaPlayer::BufferedMedia)
                 tryStartVideoSeek();
               else if (s == QMediaPlayer::InvalidMedia)
-                fail(QStringLiteral("Not a readable image or video: %1").arg(src));
+                fail(unreadableMessage(src));
             });
     connect(player, &QMediaPlayer::errorOccurred, this,
             [this](QMediaPlayer::Error, const QString& msg) {

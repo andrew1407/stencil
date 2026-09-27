@@ -1,14 +1,22 @@
-// Redis client tunables (REDIS_*; both timeouts in seconds).
+// Redis client tunables (REDIS_*; every timeout in seconds).
 package config
 
-import "time"
+import (
+	"time"
 
-// RedisOptions sizes the go-redis client; a zero field keeps its own default.
+	"stencil/server/internal/redisbus"
+)
+
+// RedisOptions sizes the go-redis client, where a zero field keeps its own default, and the bus's
+// wait for a new subscription.
 type RedisOptions struct {
-	PoolSize    int
-	DialTimeout time.Duration
-	IOTimeout   time.Duration
+	PoolSize         int
+	DialTimeout      time.Duration
+	IOTimeout        time.Duration
+	SubscribeTimeout time.Duration // REDIS_SUBSCRIBE_TIMEOUT_SECONDS: the wait for Redis to acknowledge a SUBSCRIBE
 }
+
+const defaultSubscribeTimeout = redisbus.DefaultSubscribeTimeout
 
 func loadRedis(get getter, cfg *Config) error {
 	var err error
@@ -25,5 +33,6 @@ func loadRedis(get getter, cfg *Config) error {
 	}
 	cfg.Redis.DialTimeout = time.Duration(dial) * time.Second
 	cfg.Redis.IOTimeout = time.Duration(io) * time.Second
-	return nil
+	cfg.Redis.SubscribeTimeout, err = duration(get, "REDIS_SUBSCRIBE_TIMEOUT_SECONDS", defaultSubscribeTimeout, time.Second, 1)
+	return err
 }

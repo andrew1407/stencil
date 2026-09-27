@@ -18,14 +18,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.settings.llmProvider = "ollama";
     win.settings.llmBaseUrl = "http://localhost:11434";
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     win.chatDock->appendUser(QStringLiteral("shimmer me"));
-    win.ensureChatMenuPanel();
-    win.chatMenuPanel->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel->show();
-    win.chatMirror(QStringLiteral("You"), QStringLiteral("shimmer me too"), false);
-    settleLayout(win.chatMenuPanel, 200);
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 640);
+    win.chatSession->chatMenuPanel->show();
+    win.chatSession->chatMirror(QStringLiteral("You"), QStringLiteral("shimmer me too"), false);
+    settleLayout(win.chatSession->chatMenuPanel, 200);
 
     const auto overlayOf = [](QWidget* w) {
       return w ? w->findChild<QWidget*>("shimmerOverlay") : nullptr;
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
     wired(more, "row-menu \"…\"");
 
     QToolButton* panelBtn = nullptr;
-    for (QToolButton* b : win.chatMenuPanel->findChildren<QToolButton*>())
+    for (QToolButton* b : win.chatSession->chatMenuPanel->findChildren<QToolButton*>())
       if (b->isEnabled() && overlayOf(b)) { panelBtn = b; break; }
     QVERIFY2(panelBtn, "no shimmered button in the menu panel");
     sweeps(panelBtn, "menu panel composer button");

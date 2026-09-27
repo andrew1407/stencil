@@ -1,4 +1,4 @@
-// createChatController (js/llm/controller.js): the wire shape of a turn — variant
+// createChatController (js/llm/chat/controller.js): the wire shape of a turn — variant
 // exports, the history record, and the system prompt the browser profile assembles.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -33,6 +33,20 @@ test('a 2-variant plan → 2 exports (no base snapshot), thumbnails returned', a
   assert.equal(calls.filter((c) => c[0] === 'crop').length, 1);
   assert.ok(calls.some((c) => c[0] === 'apply' && c[1].filter === 'sepia'));
   assert.deepStrictEqual(calls.filter((c) => c[0] === 'load'), []);
+});
+
+test('the editorHistory capability reaches every variant and ask preview: marked once, rewound after each', async () => {
+  const log = [];
+  const editorHistory = { mark: () => { log.push('mark'); return log.length; }, rewind: (m) => log.push(`rewind ${m}`) };
+  const ask = { question: 'Which?', options: [{ label: 'L', actions: [{ op: 'rotate', dir: 'left' }] }, { label: 'R', actions: [{ op: 'rotate', dir: 'right' }] }] };
+  const askReply = JSON.stringify({ version: 1, reply: 'Which way?', ask });
+  const { controller } = makeController(makeClient([variantPlan, askReply]), { editorHistory });
+  await controller.send('make variants');
+  assert.deepStrictEqual(log, ['mark', 'rewind 1', 'rewind 1']);
+  log.length = 0;
+  const entry = await controller.send('turn it');
+  assert.strictEqual(entry.askPreviews.length, 2);
+  assert.deepStrictEqual(log, ['mark', 'rewind 1', 'rewind 1']);
 });
 
 test('history keeps the wire shape: user turn + RAW assistant text, chat-only turns too', async () => {

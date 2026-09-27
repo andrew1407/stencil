@@ -1,8 +1,7 @@
-// DrawingApp.updateInfo and canvasMouseMove (js/core/drawingApp.js): the info line's incognito
-// tag, the coords readout in every compare state, and the pointer-transparent overlays.
+// updateInfo (js/ui/projects/window/projectTitle.js) and canvasMouseMove (js/core/pointer/hoverController.js):
+// the info line's incognito tag, the coords readout in every compare state, and the pointer-transparent overlays.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { createStubElement, installDom } from '../helpers/dom.js';
 import { COMPONENTS_CSS } from '../helpers/css.js';
 
@@ -10,7 +9,8 @@ const doc = installDom({}, {
   location: { hash: '', pathname: '/app', search: '' }, history: { replaceState: () => {} },
 });
 
-const { DrawingApp } = await import('../../js/core/drawingApp.js');
+const { updateInfo } = await import('../../js/ui/projects/window/projectTitle.js');
+const { canvasMouseMove } = await import('../../js/core/pointer/hoverController.js');
 
 // The info line carries its own incognito tag, since the "?" bubble appears only with an image and
 // an empty incognito editor announced it nowhere (user report); data-size stays the size alone.
@@ -24,9 +24,9 @@ const infoRig = () => {
   return info;
 };
 const runUpdateInfo = (info, over) => {
-  DrawingApp.prototype.updateInfo.call({
+  updateInfo({
     image: null, canvas: { width: 0, height: 0 },
-    activeIsBlank: () => false, storage: { incognito: false }, ...over,
+    blankColor: '', storage: { incognito: false }, ...over,
   });
   const parts = info.__infoParts;
   return { ...parts, shown: (el) => el.style.display !== 'none' };
@@ -76,17 +76,17 @@ const hoverMock = (over = {}) => {
     readout,
     image: {}, isPanning: false, isDraggingPoint: false,
     compareHoldOriginal: false, isDraggingCompareSplit: false, compareMode: 'horizontal',
-    canvas: { style: {} },
+    // Client (100, 120) is image (12, 34); the split divider sits mid-canvas, far from it.
+    canvas: { width: 1000, height: 1000, style: {},
+      getBoundingClientRect: () => ({ left: 88, top: 86, width: 1000, height: 1000 }) },
     input: { holdEngaged: false },
-    tooltipMgr: { hide() {}, applyHover() {} },
+    tooltip: { hide() {}, applyHover() {} },
     // The compare gate the tooltip consults (drawingApp.compareShowsPoint).
     compareShowsPoint: () => true,
     isDrawing: false, drawMode: 'line', isZoomRectDragging: false,
     hoverPt: null, hoverLineIdx: -1, coordLineIdx: 0, hoveredPtIdx: -1,
     findNearestSegmentWithIdx: () => null,
-    canvasCoords: () => ({ x: 12, y: 34 }),
     updateCoordStatus: (...a) => readout.push(a),
-    nearCompareDivider: () => false,
     compareReadOnly: () => true,
     findNearestPointWithIdx: () => null,
     findLineAt: () => -1,
@@ -108,35 +108,35 @@ test('hovering the canvas updates the coords readout in ALL four states', () => 
     ['compare horizontal', { compareMode: 'horizontal', compareReadOnly: () => true }],
   ];
   for (const [name, over] of states) {
-    let n = 0;
-    const m = hoverMock({ ...over, canvasCoords: () => ({ x: 10 + (n += 1) * 5, y: 34 }) });
-    DrawingApp.prototype.canvasMouseMove.call(m, ev(100));
-    DrawingApp.prototype.canvasMouseMove.call(m, ev(140));
-    assert.deepEqual(m.readout, [[15, 34], [20, 34]], `${name}: the readout follows the cursor`);
+    const m = hoverMock(over);
+    canvasMouseMove(m, ev(100));
+    canvasMouseMove(m, ev(140));
+    assert.deepEqual(m.readout, [[12, 34], [52, 34]], `${name}: the readout follows the cursor`);
   }
   // Over the draggable divider it still reports — and the handle keeps its resize cursor.
-  const div = hoverMock({ nearCompareDivider: () => true, compareReadOnly: () => false });
-  DrawingApp.prototype.canvasMouseMove.call(div, ev(100));
+  // compareSplit 0.034 puts the horizontal divider at image y 34 — right under the cursor.
+  const div = hoverMock({ compareSplit: 0.034, compareReadOnly: () => false });
+  canvasMouseMove(div, ev(100));
   assert.deepEqual(div.readout, [[12, 34]]);
   assert.equal(div.canvas.style.cursor, 'row-resize', 'the handle stays draggable');
   // Compare is still read-only for EDITING — but the coordinate tooltip is DISPLAY, so
   // the hover decision now runs (its own visibility gate decides what to show).
   const cmp = hoverMock();
   const asked = [];
-  cmp.tooltipMgr = { hide() {}, applyHover: (...a) => asked.push(a.slice(0, 4)) };
-  DrawingApp.prototype.canvasMouseMove.call(cmp, ev(100));
+  cmp.tooltip = { hide() {}, applyHover: (...a) => asked.push(a.slice(0, 4)) };
+  canvasMouseMove(cmp, ev(100));
   assert.deepEqual(asked, [[100, 120, 12, 34]], 'the tooltip is offered the hovered point');
   assert.equal(cmp.canvas.style.cursor, 'default', 'while the edit cursor stays suppressed');
   // Over the DIVIDER nothing is offered — dragging it must not pop a point tooltip.
-  const onDiv = hoverMock({ nearCompareDivider: () => true, compareReadOnly: () => false });
+  const onDiv = hoverMock({ compareSplit: 0.034, compareReadOnly: () => false });
   let divHidden = 0;
-  onDiv.tooltipMgr = { hide: () => { divHidden += 1; },
+  onDiv.tooltip = { hide: () => { divHidden += 1; },
     applyHover: () => assert.fail('the divider must not pop a tooltip') };
-  DrawingApp.prototype.canvasMouseMove.call(onDiv, ev(100));
+  canvasMouseMove(onDiv, ev(100));
   assert.equal(divHidden, 1);
   // No image at all → the idle hint, as before (no coordinates to report).
   const empty = hoverMock({ image: null });
-  DrawingApp.prototype.canvasMouseMove.call(empty, ev(100));
+  canvasMouseMove(empty, ev(100));
   assert.deepEqual(empty.readout, [[]]);
 });
 
@@ -156,15 +156,15 @@ test('a drag or hold in progress (any kind) never offers the tooltip a hover —
   for (const [name, over] of cases) {
     const m = hoverMock({ compareMode: 'none', compareReadOnly: () => false, ...over });
     let hidden = 0;
-    m.tooltipMgr = { hide: () => { hidden += 1; },
+    m.tooltip = { hide: () => { hidden += 1; },
       applyHover: () => assert.fail(`${name}: a drag/hold in progress must not pop a tooltip`) };
-    DrawingApp.prototype.canvasMouseMove.call(m, ev(100));
+    canvasMouseMove(m, ev(100));
     assert.equal(hidden, 1, `${name}: any tooltip already up is dropped`);
     assert.deepEqual(m.readout, [], `${name}: the coord readout is not touched mid-gesture either`);
   }
 });
 
-test('the on-canvas overlays never eat the pointer', () => {
+test('the on-canvas overlays never eat the pointer', async () => {
   const css = COMPONENTS_CSS;
   const frame = css.slice(css.indexOf('.incognito-frame {'), css.indexOf('}', css.indexOf('.incognito-frame {')));
   assert.match(frame, /pointer-events: none/, 'the incognito frame is pointer-transparent');
@@ -173,7 +173,8 @@ test('the on-canvas overlays never eat the pointer', () => {
   assert.ok(!/pointer-events/.test(edge), 'the edges inherit the frame\'s transparency');
   // The comparison has no overlay element to eat anything — the split is rendered
   // into the canvas itself, and its divider is a cursor + a pointer handler.
-  const markup = readFileSync(new URL('../../js/ui/panel/mainContent.js', import.meta.url), 'utf8');
+  const { StencilMainContent } = await import('../../js/ui/panel/mainContent.js');
+  const markup = StencilMainContent.inner();
   assert.ok(!/compare-(overlay|divider|handle)/.test(markup), 'the split stays a canvas render');
   const zoomRect = markup.slice(markup.indexOf('id="zoom-rect-overlay"'));
   assert.match(zoomRect.slice(0, zoomRect.indexOf('>')), /pointer-events:none/, 'and the zoom rect too');

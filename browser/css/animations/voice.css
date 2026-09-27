@@ -1,5 +1,5 @@
 /* ── Voice input: both mics shine with the microphone ────────────────────────
-   While the assistant listens (js/llm/voiceModes.js) the mics wear the logo's hover
+   While the assistant listens (js/llm/voice/modes.js) the mics wear the logo's hover
    shine, RUNNING — the accent glow breathing on the 1.2s beat and the ray ring turning
    and shimmering — so a listening mic is alive even in a silent room. On top of that
    `--voice-level` on <html> (voiceLevel.js, ~60 Hz, 0..1) drives the shine's SIZE: the
@@ -76,7 +76,7 @@
     box-shadow: none;   /* the idle 1px inset border would draw a dark rim inside the halo */
     transition: background 0.2s, color 0.2s;
 }
-/* The mics' RAY RING is not CSS: it is drawn on the voice-dust canvas (ui/voiceDust.js)
+/* The mics' RAY RING is not CSS: it is drawn on the voice-dust canvas (ui/dust/voiceDust.js)
    together with the motes, where the tile's rounded rectangle is punched out of every
    frame — so ring and dust sit behind the icon on every browser. (A ::before ring under
    the tile needed mask-composite to cut the tile out, which did not hold everywhere.)

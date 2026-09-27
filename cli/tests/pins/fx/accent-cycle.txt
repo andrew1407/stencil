@@ -1,0 +1,126 @@
+# click
+@0 2887B 7e8dc2a5f82288d5
+~wait 61
+@61 3035B 5fdc8b3b2194ae78
+~wait 54
+@115 144B 9d2c72eea551b106
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;102;0;51mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 7
+@122 3525B c6f775bae12f30da
+~wait 61
+@183 3567B 6a2c99b95725ee58
+~wait 47
+@230 144B 3d799181cea16179
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;102;0;51mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 14
+@244 3567B 502605ee425964f8
+~wait 61
+@305 3337B 7bd2253f9d483f83
+~wait 40
+@345 144B 76757891af13c775
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;102;0;51mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 21
+@366 3371B 25437fa688ad2726
+~wait 61
+@427 3381B 3dce199b446b111f
+~wait 33
+@460 144B 4a484b1db7aa6dbb
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;102;0;51mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 28
+@488 3001B a1e839d0f4f6b728
+~wait 61
+@549 3001B 79ed55ace8025fef
+~wait 26
+@575 144B 2c2ba1476c7416c2
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;102;0;51mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 115
+@690 3139B 71045051c25063d7
+# click
+@690 2853B 28adb4eda7fa1918
+~wait 61
+@751 3009B a4a391cb017217c3
+~wait 54
+@805 146B 97012998383825c9
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;236;72;153mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 7
+@812 3507B 7111ada740cac42c
+~wait 61
+@873 3549B 035dd0a48fb7c294
+~wait 47
+@920 146B 0b1ec8f49caa2505
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;236;72;153mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 14
+@934 3549B c14e1a5ceaf660cf
+~wait 61
+@995 3331B 233fcd3a3f96d940
+~wait 40
+@1035 146B 64dec5094d3bd831
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;236;72;153mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 21
+@1056 3371B 17763a40da382e20
+~wait 61
+@1117 3387B d7872133b63aab7f
+~wait 33
+@1150 146B e92a68b2f209d4a7
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;236;72;153mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 28
+@1178 3007B c73f50fa9dd83364
+~wait 61
+@1239 3007B 53878ce1923a3c79
+~wait 26
+@1265 146B 9b9ad839e5ebd58e
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;236;72;153mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 115
+@1380 3221B 8bc107196ea64d2c
+# double-click
+@1380 2898B 66a757d0f41056d9
+~wait 61
+@1441 3050B 1b1db8e0a74937cb
+~wait 54
+@1495 145B 8cbd205a9644ad5f
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;242;73;81mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 7
+@1502 3547B 936cc3a920df9a15
+~wait 61
+@1563 3590B 2c17eb25b90c6bd4
+~wait 47
+@1610 145B 6db8c0ca09250a34
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;242;73;81mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 14
+@1624 3590B 6053a854edfdf813
+~wait 61
+@1685 3360B 7aa848b3cdb5bc5a
+~wait 40
+@1725 145B c85a3a55419a8f97
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;242;73;81mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 21
+@1746 3396B 5ecea4b19155a7d0
+~wait 61
+@1807 3408B a651b9a3bcd947a1
+~wait 33
+@1840 145B 537657fef28b62ab
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;242;73;81mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 28
+@1868 3024B 28e8b48f5777ea12
+~wait 61
+@1929 3024B 895b5d442a8a0fe1
+~wait 26
+@1955 145B 96fa0b813717e155
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;242;73;81mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 115
+@2070 3180B 17798dd023fee788

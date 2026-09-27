@@ -1,5 +1,5 @@
 // Splits the shared corpus (js/config/script/fixtures/cases.txt) into its cases. The C++
-// walker in core/tests/scriptFixtures.test.cpp reads the same file with the same rules —
+// walker in core/tests/script/scriptFixtures.test.cpp reads the same file with the same rules —
 // plain text, because core/ has no JSON parser.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

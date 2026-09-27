@@ -40,7 +40,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   trigger.className = 'accent-dd-trigger';
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-expanded', 'false');
-  // The trigger inherits the tip and name (data-title, never `title` — see lib/tip.js).
+  // The trigger inherits the tip and name (data-title, never `title` — see lib/tip/tip.js).
   const tip = selectEl.dataset ? selectEl.dataset.title : '';
   if (tip) trigger.setAttribute('data-title', tip);
   const aria = selectEl.getAttribute('aria-label');

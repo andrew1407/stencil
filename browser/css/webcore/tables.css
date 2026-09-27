@@ -1,0 +1,59 @@
+/* The webcore skin's tables and tabs: the coordinates table, the selected row's navy bar, the
+   tab strips and the panel resizers. */
+/* ── Tables and tabs ── */
+:root[data-skin="webcore"] .coordinates-table { background: var(--wc-window); box-shadow: var(--wc-sunken); border: 0; }
+:root[data-skin="webcore"] .coordinates-table th {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    box-shadow: var(--wc-raised);
+    border: 0;
+}
+:root[data-skin="webcore"] .coordinates-table td { border-color: var(--wc-light); }
+/* A row's delete button is a button like any other: at 14px its bevel had no face left, so it
+   read as a shadow beside the desktop's (MainWindow's points table). */
+:root[data-skin="webcore"] :is(.del-pt-btn, .lines-row .btn-icon) { min-width: 20px; min-height: 18px; padding: 0; }
+:root[data-skin="webcore"] .coordinates-table tbody tr.row-focused,
+:root[data-skin="webcore"] .lines-row-selected,
+:root[data-skin="webcore"] .project-row.project-selected,
+:root[data-skin="webcore"] .connect-row.connect-selected {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+    box-shadow: none;
+}
+/* A real tab strip, as the desktop's QTabBar is (desktop qss/webcore/tables.qss QTabBar::tab): each tab a raised
+   box OPEN AT THE BOTTOM, sitting on the panel's own hairline. Two floating buttons read as
+   controls; a tab has to join the surface it names. */
+:root[data-skin="webcore"] .coord-tabs,
+:root[data-skin="webcore"] .oi-tabs {
+    gap: 0;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--wc-shadow);
+}
+:root[data-skin="webcore"] .coord-tab,
+:root[data-skin="webcore"] .oi-tab {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    box-shadow: none;
+    /* !important: a tab is a <button>, and the raised-button rule above zeroes every border so. */
+    border: 0 !important;
+    border-top: 2px solid var(--wc-hilight) !important;
+    border-left: 2px solid var(--wc-hilight) !important;
+    border-right: 2px solid var(--wc-dark) !important;
+    padding: 3px 12px 4px;
+    margin: 2px 2px 0 0;
+}
+/* The picked one lightens and stands a touch taller, breaking through the strip's hairline so
+   it and the panel below are one surface. Both classes, so it outranks the rule above. */
+:root[data-skin="webcore"] .coord-tab.coord-tab-active,
+:root[data-skin="webcore"] .oi-tab.is-active {
+    background: var(--wc-light);
+    color: var(--wc-ink);
+    box-shadow: none;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: -1px;
+    padding-bottom: 5px;
+}
+:root[data-skin="webcore"] .panel-resizer::before,
+:root[data-skin="webcore"] #fs-panel-resizer::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] :is(.panel-resizer, #fs-panel-resizer):is(:hover, .dragging)::before { background: var(--wc-focus); }

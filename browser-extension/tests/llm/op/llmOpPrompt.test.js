@@ -1,4 +1,4 @@
-// The assembled extension system prompt (src/llm/plan.js): the §4 prose core pinned to the
+// The assembled extension system prompt (src/llm/op/plan.js): the §4 prose core pinned to the
 // checked-in copy, the §13 registry bullets, the capability censor and the forbidden names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

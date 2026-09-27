@@ -1,9 +1,10 @@
-//! Child processes (ffmpeg, the clipboard helpers) spawned WITHOUT the LLM environment:
-//! `STENCIL_LLM_API_KEY` and its siblings are the user's credentials, and nothing the CLI
-//! execs has any business inheriting them.
+//! Child processes (ffmpeg, the clipboard helpers) spawned WITHOUT the user's credentials:
+//! `STENCIL_LLM_API_KEY` and its siblings, and the server tokens — nothing the CLI execs has
+//! any business inheriting them.
 const std = @import("std");
 
 const llm_prefix = "STENCIL_LLM_";
+const server_token_keys = [_][]const u8{ "STENCIL_SERVER_TOKEN", "STENCIL_SERVER_TOKENS" };
 
 /// The parent environment, captured once by main(). Null in tests and other embedders, and
 /// then a child simply inherits the process environment as `std.process.run` would.
@@ -13,7 +14,7 @@ pub fn captureEnv(map: *const std.process.Environ.Map) void {
     parent_env = map;
 }
 
-/// `std.process.run`, with the STENCIL_LLM_* keys taken out of the child's environment.
+/// `std.process.run`, with the credentials taken out of the child's environment.
 pub fn run(
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -26,21 +27,26 @@ pub fn run(
     return std.process.run(gpa, io, opts);
 }
 
-/// A copy of the captured environment without the LLM keys; null when none was captured.
+/// A copy of the captured environment without the credentials; null when none was captured.
 fn scrubbedEnv(gpa: std.mem.Allocator) !?std.process.Environ.Map {
     const src = parent_env orelse return null;
     var map: std.process.Environ.Map = .init(gpa);
     errdefer map.deinit();
     for (src.keys(), src.values()) |k, v| {
-        if (std.ascii.startsWithIgnoreCase(k, llm_prefix)) continue;
+        if (std.ascii.startsWithIgnoreCase(k, llm_prefix) or isServerToken(k)) continue;
         try map.put(k, v);
     }
     return map;
 }
 
+fn isServerToken(key: []const u8) bool {
+    for (server_token_keys) |k| if (std.ascii.eqlIgnoreCase(key, k)) return true;
+    return false;
+}
+
 const testing = std.testing;
 
-test "scrubbedEnv drops every STENCIL_LLM_* key and keeps the rest" {
+test "scrubbedEnv drops every STENCIL_LLM_* key and the server tokens, and keeps the rest" {
     const a = testing.allocator;
     var env: std.process.Environ.Map = .init(a);
     defer env.deinit();
@@ -48,6 +54,9 @@ test "scrubbedEnv drops every STENCIL_LLM_* key and keeps the rest" {
     try env.put("STENCIL_LLM_API_KEY", "sk-secret");
     try env.put("STENCIL_LLM_SERVER_TOKEN", "tok");
     try env.put("stencil_llm_base_url", "http://localhost:1234/v1"); // Windows keys fold case
+    try env.put("STENCIL_SERVER_TOKEN", "srv");
+    try env.put("STENCIL_SERVER_TOKENS", "http://h=srv");
+    try env.put("STENCIL_SERVER_URL", "http://h"); // not a credential
 
     captureEnv(&env);
     defer parent_env = null;
@@ -58,7 +67,9 @@ test "scrubbedEnv drops every STENCIL_LLM_* key and keeps the rest" {
     try testing.expect(scrubbed.get("STENCIL_LLM_API_KEY") == null);
     try testing.expect(scrubbed.get("STENCIL_LLM_SERVER_TOKEN") == null);
     try testing.expect(scrubbed.get("stencil_llm_base_url") == null);
-    try testing.expectEqual(@as(usize, 1), scrubbed.keys().len);
+    try testing.expect(scrubbed.get("STENCIL_SERVER_TOKEN") == null);
+    try testing.expect(scrubbed.get("STENCIL_SERVER_TOKENS") == null);
+    try testing.expectEqual(@as(usize, 2), scrubbed.keys().len);
 }
 
 test "no captured environment means no replacement map (plain inheritance)" {

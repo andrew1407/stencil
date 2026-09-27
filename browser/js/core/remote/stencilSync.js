@@ -2,9 +2,11 @@
 // Access only): debounced auto-save on edit + a polled watch that applies external writes
 // in place, or prompts (mine/theirs/merge) on a conflict.
 import { parseProjectFile, serializeProjectFile } from '../project/file.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+import { projectFileState, applyProjectFileInPlace, chooseFileConflict, updateStencilSyncUI } from '../project/fileIO.js';
 
 const LIVE_KEY = 'drawingApp_stencilLiveSync';
-const POLL_MS = 2000;
+const POLL_MS = constants.POLL.remoteMs;
 const DEBOUNCE_MS = 800;
 
 // Over 3 texts (baseline ancestor / current editor / external file):
@@ -39,7 +41,7 @@ export class StencilSync {
   set liveSync(on) {
     try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch { /* storage blocked */ }
     if (on && this.linked) this.startPoll(); else this.stopPoll();
-    this.app.updateStencilSyncUI?.();
+    updateStencilSyncUI(this.app);
   }
 
   // The file's current text becomes the baseline.
@@ -48,7 +50,7 @@ export class StencilSync {
     this.name = name || handle?.name || '.stencil';
     this.baseline = await this.#read();
     if (this.liveSync) this.startPoll();
-    this.app.updateStencilSyncUI?.();
+    updateStencilSyncUI(this.app);
   }
 
   unlink() {
@@ -57,11 +59,14 @@ export class StencilSync {
     this.handle = null;
     this.baseline = null;
     this.name = '';
-    this.app.updateStencilSyncUI?.();
+    updateStencilSyncUI(this.app);
   }
 
-  // The editor's project as .stencil text (what is compared and written).
-  #current() { return serializeProjectFile(this.app.projectFileState({ includeTheme: true })); }
+  // The editor's project as .stencil text (what is compared and written), its image a data URL.
+  async #current() {
+    await this.app.storage?.imageReady;
+    return serializeProjectFile(projectFileState(this.app, { includeTheme: true }));
+  }
 
   async #read() {
     try {
@@ -93,7 +98,7 @@ export class StencilSync {
   }
   async flush() {
     if (!this.linked || !this.liveSync || this.busy) return;
-    const text = this.#current();
+    const text = await this.#current();
     if (text === this.baseline) return;                 // no local change
     const ext = await this.#read();
     if (ext != null && ext !== this.baseline) { await this.#onExternal(ext); return; }  // race: external changed
@@ -121,7 +126,7 @@ export class StencilSync {
   async #onExternal(ext) {
     this.busy = true;
     try {
-      const kind = classifyFileChange(this.baseline, this.#current(), ext);
+      const kind = classifyFileChange(this.baseline, await this.#current(), ext);
       if (kind === 'external') {
         this.#apply(ext);
         this.baseline = ext;
@@ -135,22 +140,22 @@ export class StencilSync {
 
   #apply(ext, opts = {}) {
     const res = parseProjectFile(ext);
-    if (res.ok) this.app.applyProjectFileInPlace(res.project, opts);
+    if (res.ok) applyProjectFileInPlace(this.app, res.project, opts);
   }
 
   async #resolve(ext) {
-    const choice = await this.app.chooseFileConflict?.(this.name);
+    const choice = await chooseFileConflict(this.app, this.name);
     if (choice === 'theirs') {
       this.#apply(ext);
       this.baseline = ext;
       this.app.showSaveStatus?.('Reloaded from file', 'var(--success)', 'info');
     } else if (choice === 'merge') {
       this.#apply(ext, { mergeLines: true });
-      const merged = this.#current();
+      const merged = await this.#current();
       await this.#write(merged);
       this.app.showSaveStatus?.('Merged with file', 'var(--success)', 'check');
     } else if (choice === 'mine') {
-      await this.#write(this.#current());
+      await this.#write(await this.#current());
       this.app.showSaveStatus?.('Kept your version', 'var(--success)', 'check');
     }
     // dismissed → leave the divergence; the next edit/poll re-prompts.

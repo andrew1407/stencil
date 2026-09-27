@@ -1,16 +1,14 @@
 // The Projects dialog's event-filter chain minus the list viewport (ProjectsDialogViewport.cpp).
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
 #include <QCursor>
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QListWidget>
 #include <QPixmap>
-#include <QTimer>
 #include <optional>
-#include "../../support/control/reveal/controlReveal.hpp"
+#include <QListWidget>
+#include <QTimer>
 namespace stencil::gui {
 
   // Run in THIS order; filterHoverPreview only observes, an answering handler ends the chain.

@@ -5,6 +5,10 @@
 #include "ChatDock.hpp"
 #include "../src/llm/client/LlmClient.hpp"
 #include "../src/support/motion/scrollReveal.hpp"
+#include "fileStore.hpp"
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
 #include <QFrame>
 #include <QImage>
 #include <QJsonDocument>
@@ -12,6 +16,7 @@
 #include <QLabel>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QtTest>
 
 namespace stencil::guitest {
@@ -69,6 +74,23 @@ namespace stencil::guitest {
       c.cb(status, response, netError);
     }
   };
+
+  // Where `secret` was written to: any file under the state dir (settings JSON, secrets store,
+  // projects, session) or any QSettings value. Empty = nowhere, as the anthropic key must be.
+  inline QStringList placesHolding(const QString& secret) {
+    QStringList found;
+    const QDir state = QFileInfo(stencil::gui::fileStore::settingsPath()).dir();
+    QDirIterator it(state.absolutePath(), QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+      QFile f(it.next());
+      if (f.open(QIODevice::ReadOnly) && f.readAll().contains(secret.toUtf8())) found << f.fileName();
+    }
+    QSettings qs;
+    for (const QString& k : qs.allKeys())
+      if (qs.value(k).toString().contains(secret) || qs.value(k).toStringList().join(' ').contains(secret))
+        found << QStringLiteral("QSettings ") + k;
+    return found;
+  }
 
   // The first inline <img src="data:image/png;base64,…"> in a rich-text label, decoded.
   inline QImage pngOf(const QString& html) {

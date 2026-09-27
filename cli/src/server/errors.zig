@@ -10,6 +10,7 @@ pub const Error = error{
     BadResponse,
     NotConnected,
     TlsNotSupported,
+    Cancelled, // the console's Ctrl-C ended the wait (see http.watchedRequest)
 };
 
 pub const TransportError = Error || std.mem.Allocator.Error;

@@ -3,7 +3,7 @@
 // any file kind AND, unlike original/result, it is removable on its own via
 // DELETE /projects/{id}/files/chat — server/internal/httpapi/files.go.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 
 test.describe('chat transcript file kind (contract §12)', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

@@ -8,7 +8,7 @@ import { EDGE_MAP_SENTENCE, attachmentSaveName, isImageRejection, planEditsTheIm
 // `state` is the controller's own mutable turn state (attachments, video binding, the text-only
 // latch); `caps` is the §10 capability bag every op execution replays.
 export const createResponder = ({ stencil, state, history, pushHistory, edgeOf, snapshot,
-  getClient, loadImage, frameAt, exportImage, previewThumb, savedServers, openIncognito, caps }) => {
+  getClient, loadImage, frameAt, exportImage, previewThumb, savedServers, openIncognito, editorHistory, caps }) => {
   const { clearChatConversation, openDialog, saveProject } = caps;
 
   // The §4 prompt + §10 settings block plus a short dynamic suffix (§4 allows appending). The
@@ -100,7 +100,7 @@ export const createResponder = ({ stencil, state, history, pushHistory, edgeOf, 
       activeAttachment = at;
     };
     const { results, warnings } = await executeOpPlan(plan, stencil, {
-      ...caps, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment,
+      ...caps, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, editorHistory,
       deferredSink: deferred,
       saveProject: saveProject
         ? (name) => saveProject(name || attachmentSaveName(activeAttachment))
@@ -132,7 +132,7 @@ export const createResponder = ({ stencil, state, history, pushHistory, edgeOf, 
     // §3.0: the turn ends HERE — no post-plan model round follows the reply. §11 option previews
     // render AFTER the edits ran, and against a copy, so the question leaves the image untouched.
     const { previews, warnings: askWarnings } =
-      await renderAskPreviews(plan.ask, stencil, { exportImage, loadFrame });
+      await renderAskPreviews(plan.ask, stencil, { exportImage, loadFrame, editorHistory });
     // The card shows small thumbs only — never store the full-resolution exports.
     const askPreviews = [];
     for (const p of previews) askPreviews.push({ ...p, dataUrl: await previewThumb(p.dataUrl) });

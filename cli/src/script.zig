@@ -8,7 +8,6 @@ pub const emit = @import("script/emit.zig");
 pub const sources = @import("script/sources.zig");
 pub const save = @import("script/save.zig");
 pub const apply = @import("script/apply.zig");
-pub const planActions = @import("script/planActions.zig");
 pub const plan = @import("script/plan.zig");
 pub const run = @import("script/run.zig");
 
@@ -20,7 +19,6 @@ test {
     _ = sources;
     _ = save;
     _ = apply;
-    _ = planActions;
     _ = plan;
     _ = run;
 }

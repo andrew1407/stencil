@@ -98,7 +98,7 @@ async fn prompt_flow_against_a_canned_llm_and_the_real_cli() {
     .expect("chat should succeed");
 
     // 2. Parse and map the plan.
-    let plan = opplan::parse_op_plan(&reply).expect("plan should validate");
+    let plan = opplan::parse_op_plan(&reply).await.expect("plan should validate");
     assert_eq!(plan.reply, "Rotated it; the sepia take is separate.");
     let dir = tempfile::tempdir().unwrap();
     let out_dir = dir.path().to_string_lossy().into_owned();
@@ -114,13 +114,13 @@ async fn prompt_flow_against_a_canned_llm_and_the_real_cli() {
     let base = pipeline::run_edit(&requests[0].params)
         .await
         .expect("base edit should succeed");
-    assert_eq!((base.width, base.height), (12, 16));
+    assert_eq!((base.width, base.height), (Some(12), Some(16)));
     assert!(base.path.ends_with("result.png"), "{}", base.path);
 
     let variant = pipeline::run_edit(&requests[1].params)
         .await
         .expect("variant edit should succeed");
-    assert_eq!((variant.width, variant.height), (12, 16));
+    assert_eq!((variant.width, variant.height), (Some(12), Some(16)));
     assert!(variant.path.ends_with("sepia-tone.png"), "{}", variant.path);
     assert!(std::path::Path::new(&variant.path).exists());
 }

@@ -1,5 +1,5 @@
-// The two injected outliners: lib/highlight.js (the "highlight on page" toggle, which marks
-// EVERY grabbable element) and lib/hoverHighlight.js (the single element a hovered list row
+// The two injected outliners: lib/highlight/highlight.js (the "highlight on page" toggle, which marks
+// EVERY grabbable element) and lib/highlight/hoverHighlight.js (the single element a hovered list row
 // points at). Both run inside the scanned page via chrome.scripting, so they import nothing
 // and are driven here over a fabricated document.
 import { test } from 'node:test';

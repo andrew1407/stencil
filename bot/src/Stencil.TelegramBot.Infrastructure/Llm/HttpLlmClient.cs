@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Llm.Wire;
 

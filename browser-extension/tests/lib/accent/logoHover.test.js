@@ -1,5 +1,5 @@
 // The header logo's hover — pulse + levitate + accent shine + orbiting rays — is a browser-app
-// twin (browser/css/animations.css logoPulse/logoRaysSpin/logoRaysShimmer).
+// twin (browser/css/animations/ logoPulse/logoRaysSpin/logoRaysShimmer).
 // The rays live on a ::before of a .logo-wrap span because an inline <svg> cannot host
 // pseudo-elements, so every host page must carry the wrapper. This asserts the five hosts stay in
 // lockstep and the shared sheet keeps the effect and its reduced-motion fallback.

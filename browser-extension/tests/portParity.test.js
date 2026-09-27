@@ -41,11 +41,15 @@ const MANIFEST = [
   ['llmClient', '../../browser/js/llm/client.js', '../src/llm/client.js'],
   // The typed LlmError and the one JSON POST every provider goes through.
   ['llmHttp', '../../browser/js/llm/http.js', '../src/llm/http.js'],
+  // The capped body read a server's and a provider's reply go through: pure, the whole file.
+  ['cappedBody', '../../browser/js/net/cappedBody.js', '../src/lib/connection/cappedBody.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
   ['opSchema', '../../browser/js/llm/plan/opSchema.js', '../src/llm/op/schema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
   ['opSchemaBase', '../../browser/js/llm/plan/opSchemaBase.js', '../src/llm/op/opSchemaBase.js'],
+  // The §1 JSON caps over a parsed plan (E_JSON_LIMIT): pure, so the copy is the whole file.
+  ['planCaps', '../../browser/js/llm/plan/planCaps.js', '../src/llm/op/planCaps.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
   ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
@@ -59,6 +63,20 @@ const MANIFEST = [
   ['toastGlow', '../../browser/js/ui/dust/toastGlow.js', '../src/lib/logo/toastGlow.js'],
   // A dropdown's Alt-hover peek, riding the mini window's gesture machine below.
   ['altPeek', '../../browser/js/ui/tip/altPeek.js', '../src/lib/tip/altPeek.js'],
+  // The typed boundaries the extension copies unchanged from the browser's own .d.ts.
+  ['dblResetDts', '../../browser/js/ui/control/dblReset.d.ts', '../src/lib/control/dblReset.d.ts'],
+  ['thumbMetricsDts', '../../browser/js/ui/control/thumbMetrics.d.ts', '../src/lib/control/thumbMetrics.d.ts'],
+  ['menuScrollbarDts', '../../browser/js/ui/control/menuScrollbar.d.ts', '../src/lib/control/menuScrollbar.d.ts'],
+  ['dustFlightDts', '../../browser/js/ui/dust/flight.d.ts', '../src/lib/dust/flight.d.ts'],
+  ['dustGrainDts', '../../browser/js/ui/dust/grain.d.ts', '../src/lib/dust/grain.d.ts'],
+  ['rectTweenDts', '../../browser/js/ui/motion/rectTween.d.ts', '../src/lib/rectTween.d.ts'],
+  ['cappedBodyDts', '../../browser/js/net/cappedBody.d.ts', '../src/lib/connection/cappedBody.d.ts'],
+  ['stageRulesDts', '../../browser/js/ui/logo/stageRules.d.ts', '../src/lib/logo/stageRules.d.ts'],
+  ['stageMotionDts', '../../browser/js/ui/logo/stageMotion.d.ts', '../src/lib/logo/stageMotion.d.ts'],
+  ['stageCloudDts', '../../browser/js/ui/logo/stageCloud.d.ts', '../src/lib/logo/stageCloud.d.ts'],
+  ['logoPointerDts', '../../browser/js/ui/logo/pointer.d.ts', '../src/lib/logo/pointer.d.ts'],
+  ['toastGlowDts', '../../browser/js/ui/dust/toastGlow.d.ts', '../src/lib/logo/toastGlow.d.ts'],
+  ['altPeekDts', '../../browser/js/ui/tip/altPeek.d.ts', '../src/lib/tip/altPeek.d.ts'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');

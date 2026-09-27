@@ -1,6 +1,6 @@
-using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Application.Llm.Plan;
+using Stencil.TelegramBot.Tests.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests.Llm.Prompt;
 
@@ -9,7 +9,7 @@ public sealed class AskCardTests
 {
     private static OpPlan parse(string json)
     {
-        OpPlanParseResult result = OpPlanParser.Parse(json);
+        OpPlanParseResult result = RecordedPlans.Parse(json);
         Assert.Null(result.Error);
         Assert.NotNull(result.Plan);
         return result.Plan!;
@@ -17,7 +17,7 @@ public sealed class AskCardTests
 
     private static OpPlanParseResult reject(string json)
     {
-        OpPlanParseResult result = OpPlanParser.Parse(json);
+        OpPlanParseResult result = RecordedPlans.Parse(json);
         Assert.NotNull(result.Error);
         Assert.Null(result.Plan);
         return result;
@@ -64,7 +64,7 @@ public sealed class AskCardTests
     [Fact]
     public void Should_Not_Fetch_An_Image_Url_And_Keep_The_Option_Label()
     {
-        OpPlanParseResult result = OpPlanParser.Parse("""
+        OpPlanParseResult result = RecordedPlans.Parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which?","options":[{"label":"Web","image":{"url":"https://example.com/cat.jpg"}},{"label":"Plain"}]}}
             """);
         Assert.Null(result.Error);
@@ -80,7 +80,7 @@ public sealed class AskCardTests
     public void Should_Keep_The_Option_But_Lose_The_Picture_For_A_Reference_The_Chat_Cannot_Resolve(string image)
     {
         // Built by concatenation: the JSON's own braces fight raw-string interpolation here.
-        OpPlanParseResult result = OpPlanParser.Parse(
+        OpPlanParseResult result = RecordedPlans.Parse(
             """{"version":1,"reply":"pick","ask":{"question":"Which?","options":[{"label":"Elsewhere","image":"""
             + image
             + """},{"label":"Plain"}]}}""");
@@ -93,7 +93,7 @@ public sealed class AskCardTests
     [Fact]
     public void Should_Drop_A_Render_Preview_With_One_Warning_But_Not_The_Option()
     {
-        OpPlanParseResult result = OpPlanParser.Parse("""
+        OpPlanParseResult result = RecordedPlans.Parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which tint?","options":[{"label":"Sepia","actions":[{"op":"filter","mode":"sepia"}]},{"label":"B&W","actions":[{"op":"filter","mode":"bw"}]}]}}
             """);
         Assert.Null(result.Error);
@@ -106,7 +106,7 @@ public sealed class AskCardTests
     [Fact]
     public void Should_Lose_Only_The_Preview_And_Say_Which_For_A_Preview_Carrying_A_Misplaced_Op()
     {
-        OpPlanParseResult result = OpPlanParser.Parse("""
+        OpPlanParseResult result = RecordedPlans.Parse("""
             {"version":1,"reply":"pick","actions":[{"op":"filter","mode":"bw"}],"ask":{"question":"Which?","options":[{"label":"Sepia","actions":[{"op":"filter","mode":"sepia"}]},{"label":"Wiped","actions":[{"op":"clear"}]}]}}
             """);
 
@@ -118,26 +118,6 @@ public sealed class AskCardTests
         Assert.Contains("Wiped", dropped);
         Assert.Single(result.Warnings, w => w.Contains("rendered preview"));   // the Sepia one
     }
-
-    [Theory]
-    [InlineData("""{"version":1,"reply":"x","ask":"hello"}""")]                                                    // not an object
-    [InlineData("""{"version":1,"reply":"x","ask":{"options":[{"label":"A"},{"label":"B"}]}}""")]                  // no question
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"  ","options":[{"label":"A"},{"label":"B"}]}}""")]   // blank question
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[]}}""")]                              // 0 options
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"only"}]}}""")]              // 1 option
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"1"},{"label":"2"},{"label":"3"},{"label":"4"},{"label":"5"},{"label":"6"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","mode":"maybe","options":[{"label":"A"},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A"},{"label":"B"}],"sneaky":1}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","sneaky":1},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":""},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","actions":[],"image":{"url":"https://e/x"}},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{}},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"https://e/x","projectId":"p"}},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"data:image/png;base64,AA"}},{"label":"B"}]}}""")]   // http(s) only (§11.1)
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"file:///etc/passwd"}},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"scanIndex":"2"}},{"label":"B"}]}}""")]
-    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A"},{"label":"B"}],"allowCustom":"yes"}}""")]
-    public void Should_Reject_The_Whole_Plan_For_A_Malformed_Card(string json) => reject(json);
 
     [Fact]
     public void Should_Parse_Five_Options_As_The_Cap()

@@ -12,6 +12,27 @@ import {
 // The centring-margin term every viewport→image conversion needs.
 export { canvasOrigin };
 
+// The zoom range as scales, 5%–3200%: the fallback twin of core/state/zoomPan.hpp
+// ZOOM_MIN / ZOOM_MAX, which the wasm core reports itself once loaded.
+const ZOOM_MIN = 0.05;
+const ZOOM_MAX = 32;
+export const zoomMin = core.bind('zoomMin', () => ZOOM_MIN);
+export const zoomMax = core.bind('zoomMax', () => ZOOM_MAX);
+
+// A swept image-space rect filling the availW x availH viewport, centred, capped at ZOOM_MAX:
+// the fallback twin of core/state/zoomPan.cpp rectZoom.
+export const rectZoom = (x1, y1, rectW, rectH, availW, availH) => {
+  const scale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, availW / rectW, availH / rectH));
+  return {
+    scale,
+    scrollLeft: Math.max(0, x1 * scale - (availW - rectW * scale) / 2),
+    scrollTop: Math.max(0, y1 * scale - (availH - rectH * scale) / 2),
+  };
+};
+
+// The same range in the whole percents the zoom input takes.
+export const zoomPercentBounds = () => ({ min: Math.round(zoomMin() * 100), max: Math.round(zoomMax() * 100) });
+
 // Trailing-edge: a wheel/hold burst writes the final zoom once instead of a full layout +
 // thumbnail write per notch.
 export const ZOOM_SAVE_DEBOUNCE_MS = 400;
@@ -39,7 +60,7 @@ export class ZoomPan {
   }
 
   // The shared C++ core (wasm) clampScale when loaded; the JS bound is the reference + fallback.
-  clampScale = core.bind('clampScale', s => Math.max(0.05, Math.min(32, s)));
+  clampScale = core.bind('clampScale', s => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, s)));
 
   updateZoomRectOverlay() { updateZoomRectOverlay(this.app.zoomRectStart, this.app.zoomRectEnd); }
   hideZoomRectOverlay() { hideZoomRectOverlay(); }

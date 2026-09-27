@@ -1,5 +1,5 @@
 // ── Dropdown menus that escape their container ──────────────────────────────
-// PORT of browser/js/ui/control/dropdownMenu.js — keep the two rule-for-rule; tests/dropdownMenu.test.js
+// PORT of browser/js/ui/control/dropdownMenu.js — keep the two rule-for-rule; tests/lib/control/dropdownMenu.test.js
 // carries the browser suite's cases. An open menu moves to <body> and is placed in viewport
 // coordinates, capped to the room available so a long list scrolls; that matters more here, since
 // the popup window is only ~400x600. While open the menu is NOT inside the component.
@@ -15,11 +15,9 @@ const MENU_IN_MS = SURFACE_MENU_IN_MS;
 const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
 // The motes come from the CARET at the trigger's right edge, not its horizontal centre (a wide
 // select formed out of the middle of its label). Clamped to the centre for a narrow trigger.
-export const menuDustPoint = (trigger) => {
-  const r = trigger?.getBoundingClientRect?.();
-  if (!r || !(r.width > 0 && r.height > 0)) return null;
-  return { x: Math.max(r.left + r.width / 2, r.right - 14), y: r.top + r.height / 2 };
-};
+const caretPoint = (r) => (r?.width > 0 && r.height > 0
+  ? { x: Math.max(r.left + r.width / 2, r.right - 14), y: r.top + r.height / 2 } : null);
+export const menuDustPoint = (trigger) => caretPoint(trigger?.getBoundingClientRect?.());
 
 // The slide entrance (menuFromAnchor) grows a list out of the point its motes fly from. `left`
 // is its laid-out left edge; measured with the entrance held off when not given.
@@ -42,6 +40,7 @@ const home = new WeakMap();
 export const placeMenu = (menu, trigger) => {
   if (!menu || !trigger || !trigger.getBoundingClientRect) return;
   const a = trigger.getBoundingClientRect();
+  menu.__ddAt = a;   // the trigger's box the list was placed against, for the motes' anchor
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   // Whichever side has more room decides the cap — popoverPosition then picks that side.
@@ -78,9 +77,9 @@ export const showMenu = (menu, trigger) => {
   placeMenu(menu, trigger);
   // Kept so hideMenu can send the motes back where they came from, whoever calls it.
   menu.__ddTrigger = trigger;
-  // Placed first, so the motes stream at the box the list will actually occupy.
-  // (surfaceIn settles the menu itself when it can't fly.)
-  surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS });
+  // Placed first, so the motes stream at the box the list will actually occupy; they belong to
+  // the trigger, their `anchor`. (surfaceIn settles the menu itself when it can't fly.)
+  surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger, anchorBox: menu.__ddAt });
   const reflow = () => placeMenu(menu, trigger);
   menu.__ddReflow = reflow;
   window.addEventListener('resize', reflow);
@@ -109,10 +108,12 @@ const trackTrigger = (menu, trigger) => {
 // Hide `menu` and put it back where it was built, clearing everything showMenu set.
 export const hideMenu = (menu) => {
   if (!menu) return;
-  // Measured while it is still up, then hidden at once: the cloud is a copy on <body>
-  // with a life of its own, so the end state never waits for the animation.
-  surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS });
+  // Hidden at once, its cloud a copy on <body>; aimed at the box the list was placed against,
+  // not the trigger's now, which a pick may already have re-laid (a modal easing its height).
+  const at = menu.__ddAt || menu.__ddTrigger?.getBoundingClientRect?.();
+  surfaceOut(menu, menu.hidden ? null : caretPoint(at), { ms: MENU_OUT_MS, anchor: menu.__ddTrigger, anchorBox: at });
   menu.__ddTrigger = null;
+  menu.__ddAt = null;
   menu.hidden = true;
   if (menu.__ddTrack && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(menu.__ddTrack);
   menu.__ddTrack = 0;

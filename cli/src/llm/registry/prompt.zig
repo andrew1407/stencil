@@ -2,7 +2,6 @@
 //! and the ops list is GENERATED from the registry table — the same table the validator's
 //! variant gates read — so the prompt can never promise an op this console cannot run.
 const std = @import("std");
-const transport = @import("../transport.zig");
 const descriptor = @import("descriptor.zig");
 const table = @import("table.zig");
 

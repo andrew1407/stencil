@@ -1,13 +1,18 @@
 // Headless check of app/RemoteSyncController — every guard a peer change has to get past
-// before it swaps the canvas: the op-plan gate, the reload-in-flight gate, the coalescing
-// reload timer and the trailing push debounce. QtCore timers only, no display, no server.
+// before it swaps the canvas (the op-plan gate, the reload-in-flight gate, the coalescing
+// reload timer), the trailing push debounce and the throttled result upload. QtCore timers
+// only, no display, no server.
 #include "RemoteSyncController.hpp"
 #include "RemoteSession.hpp"
+#include "ServerClient.hpp"
 
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QString>
 #include <QTimer>
+#include <functional>
+#include <memory>
+#include <utility>
 
 #include "../../support/check.hpp"
 
@@ -30,7 +35,8 @@ int main(int argc, char** argv) {
 
   bool reloading = false, pushing = false, planRunning = false;
   bool syncOn = true, incognito = false;
-  int reloads = 0, pushes = 0, detaches = 0;
+  int reloads = 0, pushes = 0, detaches = 0, uploads = 0;
+  std::function<void()> finishUpload;
   RemoteSyncController ctrl(
       nullptr, &session, &reloading, &pushing, &planRunning,
       RemoteSyncController::Hooks{
@@ -39,7 +45,12 @@ int main(int argc, char** argv) {
           [&pushes] { ++pushes; },
           [&reloads](const QString&, const QString&, bool) { ++reloads; },
           [&detaches] { ++detaches; },
+          [&uploads, &finishUpload](std::function<void()> done) {
+            ++uploads;
+            finishUpload = std::move(done);
+          },
       });
+  ctrl.setResultTiming(60, 400);
 
   // A peer version ahead of ours reloads, but off the timer, never from the event slot.
   ctrl.onRemoteProjectEvent(ID, 2, false);
@@ -95,6 +106,62 @@ int main(int argc, char** argv) {
   pump(700);
   check(pushes == 0, "an incognito editor pushes nothing");
   incognito = false;
+
+  // The baked result: once per burst of pushes, off the edit, never twice within the gap.
+  check(!ctrl.flushResultUpload(), "nothing to flush before any push committed");
+  for (int i = 0; i < 3; ++i) ctrl.scheduleResultUpload();
+  check(uploads == 0, "the result never renders inside the push that staled it");
+  pump(150);
+  check(uploads == 1, "a burst of committed pushes bakes one result once the edits idle");
+  pushes = 0;
+  ctrl.scheduleRemotePush();
+  pump(500);
+  check(pushes == 0, "a push waits while our own result upload is bumping the version");
+  // Our upload's own version echo arrives while it is in flight; the re-read adopts it.
+  reloads = 0;
+  ctrl.onRemoteProjectEvent(ID, 10, false);
+  session.getLink().version = 10;
+  std::exchange(finishUpload, {})();
+  pump(200);
+  check(pushes == 1, "the held push leaves once the upload has landed");
+  check(reloads == 0, "our own upload's echo never reloads the canvas");
+  ctrl.scheduleResultUpload();
+  pump(150);
+  check(uploads == 2, "a result long after the last one bakes once the edits idle");
+  std::exchange(finishUpload, {})();
+  ctrl.scheduleResultUpload();
+  pump(150);
+  check(uploads == 2, "a result staled right after one landed waits out the gap");
+  pump(400);
+  check(uploads == 3, "…and then bakes again");
+  bool settled = false;
+  check(ctrl.flushResultUpload([&settled] { settled = true; }),
+        "a flush reports the upload still in flight");
+  check(!settled, "…and has not settled while it is");
+  std::exchange(finishUpload, {})();
+  check(settled && !ctrl.resultBusy(), "the flush settles once the last result has landed");
+
+  // The guarded write behind every push lets go of its callbacks once done: they hold the
+  // push guard, and a flag that never clears stops every later poll and reload.
+  {
+    typedef stencil::net::ServerClient::GuardOutcome GO;
+    auto held = std::make_shared<int>(0);
+    const std::weak_ptr<int> watch = held;
+    int tries = 0;
+    stencil::net::ServerClient::runGuardedWriteAsync(
+        3, 1,
+        [held, &tries](qint64, std::function<void(GO)> cb) { cb(++tries < 2 ? GO::CONFLICT : GO::COMMITTED); },
+        [held](qint64, std::function<void(bool, qint64)> cb) { cb(true, 2); },
+        [held](GO) {});
+    held.reset();
+    check(tries == 2 && watch.expired(), "a finished guarded write releases what its callbacks hold");
+  }
+
+  // The timings are the browser's, from constants.json; the qrc-less fallbacks match them.
+  check(RemoteSyncController::tableMs("COEDIT", "resultIdleMs", -1) == RemoteSyncController::RESULT_IDLE_MS &&
+            RemoteSyncController::tableMs("COEDIT", "resultMinGapMs", -1) == RemoteSyncController::RESULT_GAP_MS &&
+            RemoteSyncController::tableMs("POLL", "remoteMs", -1) == RemoteSyncController::POLL_MS,
+        "the co-edit timings are constants.json COEDIT and POLL");
 
   // A delete detaches at once, sync toggle or not — so it goes last: it stops the timers.
   syncOn = false;

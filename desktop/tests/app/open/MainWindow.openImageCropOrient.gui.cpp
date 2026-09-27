@@ -74,7 +74,7 @@ class MainWindowGuiTest : public QObject {
       urlAlbum = dlg->cropStage ? dlg->cropStage->getAlbum() : true;
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(localAlbum, "the wide image's own default is Album");
     QVERIFY2(!urlAlbum, "the portrait video's own default is Portrait, not the other tab's Album");
   }
@@ -114,7 +114,7 @@ class MainWindowGuiTest : public QObject {
       rectChanged = rectAfter.width != rectBefore.width || rectAfter.height != rectBefore.height;
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(albumAfter != albumBefore, "the press must flip the stage's own orientation");
     QVERIFY2(rectChanged, "a flip re-centres the rect to the new aspect, not the old one");
   }
@@ -170,7 +170,7 @@ class MainWindowGuiTest : public QObject {
       projectPageUntouched = dlg->getCropPageSize() == projectPage;
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(ratio11, "1:1 gives a perfectly square rect");
     QVERIFY2(ratio23Distinct, "2:3 gives a distinctly different ratio from 1:1");
     QVERIFY2(customReshaped, "Custom's own aspect actually reshapes the stage");
@@ -212,7 +212,7 @@ class MainWindowGuiTest : public QObject {
       wRow = dlg->cropSizeRow->width();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QCOMPARE(pageLabel, QStringLiteral("Page — Default"));
     QCOMPARE(wAlbum, wPortrait);
     // Its own content width, never stretched (browser twin: .oi-crop-size is inline-flex).

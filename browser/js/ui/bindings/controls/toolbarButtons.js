@@ -5,18 +5,20 @@ import { wireProjectColorButton } from './projectColorButton.js';
 import { wireProjectNameField } from './projectNameField.js';
 import { setupHoldZoom } from '../viewport/holdZoom.js';
 import { emptiedControlRect } from '../../modal/imageAnchor.js';
+import { startDrawingMode, setDrawMode, stopDrawingMode } from '../../../core/draw/mode.js';
+import { canToggleIncognito } from '../../../core/launch/incognitoFlow.js';
 export function wireToolbarButtons(app) {
   wireProjectNameField(app);
   wireProjectColorButton(app);
   wireBlankColorButton(app);
   // One button, both directions — the same branch the context menu's draw toggle uses.
   document.getElementById('draw-toggle').addEventListener('click', () => {
-    if (app.isDrawing) app.stopDrawingMode();
-    else app.startDrawingMode();
+    if (app.isDrawing) stopDrawingMode(app);
+    else startDrawingMode(app);
   });
   document.getElementById('draw-mode-toggle').addEventListener('click', () => {
-    app.setDrawMode(app.drawMode === 'rect' ? 'line' : 'rect');
-    app.storage.save();
+    setDrawMode(app, app.drawMode === 'rect' ? 'line' : 'rect');
+    app.storage.saveSoon();
   });
   document.getElementById('undo').addEventListener('click', () => app.undo());
   document.getElementById('redo').addEventListener('click', () => app.redo());
@@ -57,16 +59,16 @@ export function wireToolbarButtons(app) {
       : 'Clear this project (image + lines) from storage?';
     if (await app.confirm(msg, { title: server ? 'Remove local copy' : 'Clear project', danger: true, confirmIcon: 'trash', closeAnchor: emptiedAnchor })) {
       app.remoteLink = null;   // dropped the local session → no server link to save back to
-      // ONE removal path (drawingApp.removeProject): storage, the stored chat (§12.2),
+      // ONE removal path (projectTransfer.removeProject): storage, the stored chat (§12.2),
       // the drop to a blank editor and the cross-tab notify all happen there.
-      app.removeProject(app.activeProjectId);
+      app.projectTransfer.removeProject(app.activeProjectId);
       if (server) notify(`Local copy removed — still on the server ${server}`, 'info');
       app.showSaveStatus('Project cleared', 'var(--success)', 'check');
     }
   });
   const incognitoBtn = document.getElementById('incognito-toggle');
   if (incognitoBtn) incognitoBtn.addEventListener('click', () => {
-    if (!app.canToggleIncognito()) return;
+    if (!canToggleIncognito(app)) return;
     app.storage.incognito = !app.storage.incognito;
     app.updateIncognitoUI();
     notify(app.storage.incognito

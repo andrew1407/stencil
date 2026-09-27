@@ -10,18 +10,32 @@ use rmcp::ErrorData as McpError;
 
 use crate::args::PromptParams;
 use crate::config::Config;
+use crate::confine::Roots;
 use crate::llm;
 use crate::llmtransport::{clip, LlmTransport, PlainHttpTransport, SNIPPET_LEN};
 use crate::opplan;
+use crate::pipeline::progress;
 use crate::server::tools::err_result;
 
 pub use execute::execute_plan;
 use execute::{attach, chat_once, execute_concurrently, prepare_outputs};
 use merge::{kept_or_error, merged_response};
-pub use response::PromptResult;
+pub use response::{PromptPayload, PromptResult};
 
-/// The tool's whole body: the real plain-http transport, then the flow below.
-pub async fn run(config: &Config, params: PromptParams) -> Result<CallToolResult, McpError> {
+/// The tool's whole body: `output_dir` placed inside the roots and the input anchored on
+/// them, then the flow below over the real plain-http transport.
+pub async fn run(
+    config: &Config,
+    roots: &Roots,
+    mut params: PromptParams,
+) -> Result<CallToolResult, McpError> {
+    if !params.output_dir.trim().is_empty() {
+        match roots.place("output_dir", &params.output_dir) {
+            Ok((_, dir)) => params.output_dir = dir.to_string_lossy().into_owned(),
+            Err(message) => return Ok(err_result(message)),
+        }
+    }
+    params.input = params.input.as_deref().map(|input| roots.resolve(input));
     run_prompt(
         config,
         std::sync::Arc::new(PlainHttpTransport::new()),
@@ -63,14 +77,18 @@ pub async fn run_prompt(
 
     for round in 0..2 {
         let (images, system_suffix) = attach(&round_input, &mut notes).await;
+        progress::report(format!("asking the LLM (round {})", round + 1));
         let reply = match chat_once(&transport, &settings, &text, images, system_suffix).await {
             Ok(reply) => reply,
             Err(detail) => return kept_or_error(first, notes, detail),
         };
 
-        // Parse + validate the op-plan (contract §1–§3); unknown ops become notes.
-        let mut plan = match opplan::parse_op_plan(&reply) {
+        // Core checks the op-plan (contract §1–§3) through the CLI; unknown ops become notes.
+        let mut plan = match opplan::parse_op_plan(&reply).await {
             Ok(plan) => plan,
+            Err(error @ opplan::OpPlanError::Checker(_)) => {
+                return kept_or_error(first, notes, error.to_string());
+            }
             Err(error) => {
                 return kept_or_error(
                     first,

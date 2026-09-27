@@ -46,7 +46,7 @@
   };
 
   // The wipe's edge: browser parity with motion.js swapEdgePolygon / cloud.js
-  // edgeJitter, same numbers as desktop ThemeSwapOverlay.hpp; tests/accent.test.js pins it.
+  // edgeJitter, same numbers as desktop ThemeSwapOverlay.hpp; tests/lib/accent/accent.test.js pins it.
   const EDGE_POINTS = 240;
   const STYLE_WATER = 1, STYLE_FIRE = 2;
   const EDGE_WATER = { waves: 9, amp: 0.028, ripple: 17, rippleAmp: 0.008 };

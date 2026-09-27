@@ -1,4 +1,4 @@
-// The Alt peek (js/ui/toolbar.js): it opens like every other icon's mini window, and Alt owns
+// The Alt peek (js/ui/toolbar/toolbar.js): it opens like every other icon's mini window, and Alt owns
 // its lifetime — release, linger, blur and the swap's synthetic events.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -8,11 +8,9 @@ const shell = @import("shell.zig");
 
 const Error = shell.Error;
 const MAX_IMAGE = shell.MAX_IMAGE;
-const tmpDir = shell.tmpDir;
 const scratchPath = shell.scratchPath;
 const escapeJs = shell.escapeJs;
 const exitedOk = shell.exitedOk;
-const runOrFail = shell.runOrFail;
 
 pub fn readImage(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     return switch (builtin.os.tag) {

@@ -99,6 +99,21 @@ void renderCases(const Palette& pal) {
           "an empty tooltip renders nothing at all");
   }
 
+  {  // Back the other way: what a rich tip draws, read as text (the accessible description).
+    using stencil::gui::tipPlainText;
+    const QString status =
+        "<table cellspacing=\"0\" cellpadding=\"1\"><tr><td style=\"color:#888;\">Provider&nbsp;&nbsp;&nbsp;</td>"
+        "<td><span>Stencil server</span></td></tr><tr><td>Status&nbsp;</td>"
+        "<td><font color=\"#28a745\">Connected &amp; ready</font></td></tr></table>"
+        "<hr style=\"background-color:#ccc;\"><div>Click to configure</div>";
+    check(tipPlainText(status) == "Provider  Stencil server\nStatus  Connected & ready\nClick to configure",
+          "a status table reads a row per line, its entities decoded and its rule dropped");
+    check(tipPlainText(renderTip("Undo (Ctrl+Z)", pal, false)) == "Undo  Ctrl+Z",
+          "a rendered tip reads its heading beside its keycaps, each cap as its key");
+    check(tipPlainText("one<br>two") == "one\ntwo", "a line break is a line");
+    check(tipPlainText("Plain & simple") == "Plain & simple", "plain text is its own reading");
+  }
+
   {  // The app-wide filter must leave alone what is already someone else's HTML.
     check(stencil::gui::enrichedToolTip("<b>AI assistant</b><table></table>").isEmpty(),
           "a hand-composed rich tooltip (the chat gear's) is passed through untouched");

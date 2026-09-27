@@ -1,14 +1,5 @@
 #include "ServerClient.hpp"
 
-#include <QHostAddress>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QUrl>
-#include <QUrlQuery>
 
 namespace stencil::net {
 
@@ -29,6 +20,10 @@ namespace stencil::net {
     const QString base = ServerClient::normalizeBase(stripped);
     if (find(base)) {
       done(false, QStringLiteral("already connected"));
+      return;
+    }
+    if (ServerClient::isRefusedTarget(base)) {
+      done(false, QStringLiteral("refusing a link-local, metadata or reserved server address"));
       return;
     }
     auto* client = new ServerClient(base);

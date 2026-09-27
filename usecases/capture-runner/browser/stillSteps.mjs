@@ -1,9 +1,9 @@
 // The still shots under usecases/docs/browser/img, in the order they are taken. Names ending in
 // -light / -dark are the documented pairs; every other name takes its theme from
 // config/browser.json.
-import { pairNames } from '../lib/themeSelector.mjs';
+import { pairNames } from '../lib/theme/selector.mjs';
 import { canvasSize, waitForAnimations, waitForCanvasChange } from '../lib/waits.mjs';
-import { applyAppTheme } from '../lib/pageTheme.mjs';
+import { applyAppTheme } from '../lib/theme/page.mjs';
 
 export function makeStillSteps({ config, runner, pages, stub, appUrl, browser }) {
   const { fresh, shared, blank, drawLines, openModal, closeModal, chatReplied,

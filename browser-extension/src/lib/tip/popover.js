@@ -4,9 +4,12 @@
 // popoverPosition and createModalOpenGesture — keep them rule-for-rule
 // (tests/portParity.test.js pins both).
 
-export const DOUBLE_CLICK_MS = 250;
-export const LONG_PRESS_MS = 500;
-export const PRESS_SLOP_PX = 10;
+import constants from './constants.json' with { type: 'json' };
+
+const { POPOVER } = constants;
+export const DOUBLE_CLICK_MS = POPOVER.doubleClickMs;
+export const LONG_PRESS_MS = POPOVER.longPressMs;
+export const PRESS_SLOP_PX = POPOVER.pressSlopPx;
 
 /**
  * @param {object} args - `{anchor, box, viewport}` rects; `gap` is the anchor↔box space,
@@ -26,7 +29,7 @@ export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) 
 // interval; dblclick / right-click / long press → sticky popover; Alt+hover → a peek.
 const glideRegistry = new Set();
 
-export const LINGER_CLOSE_MS = 250;
+export const LINGER_CLOSE_MS = POPOVER.lingerCloseMs;
 
 export const createModalOpenGesture = ({
   openFull,

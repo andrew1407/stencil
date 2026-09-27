@@ -2,7 +2,7 @@
 // the one up, an open window and fullscreen. webcoreMode dresses the page and never opens one.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStencil, makeApp } from '../../helpers/stencilApiRig.js';
+import { createStencil, makeApp, blankCanvases } from '../../helpers/stencilApiRig.js';
 import { installDom, createStubElement } from '../../helpers/dom.js';
 import { SHOW_NAMES, STAGE, effectOf } from '../../../js/ui/logo/stageRules.js';
 import { currentLogoStage, closeLogoStage } from '../../../js/ui/logo/stage.js';
@@ -98,14 +98,17 @@ test('a show closes an open window, a leftover overlay and fullscreen before it 
 });
 
 test('webcoreMode = true dresses the page only; webcore() still makes the picture', async () => {
-  const { app, stencil } = eggsOf({ loadImageFromFile() { app.calls.push(['load']); } });
+  const { app, stencil } = eggsOf();
+  const canvases = blankCanvases.length;
   stencil.EasterEggs.neonOn();
   stencil.EasterEggs.webcoreMode = true;
   await Promise.resolve();
   assert.equal(webcoreActive(), true);
   assert.equal(stencil.EasterEggs.webcoreMode, true);
   assert.equal(app.image, null, 'no picture');
-  assert.equal(app.calls.some(([k]) => k === 'load' || k === 'createBlankImage'), false, 'no project either');
+  // A load promotes the temporary editor first; a blank paints a scratch canvas.
+  assert.equal(app.calls.some(([k]) => k === 'promoteTemporaryToProject'), false, 'no project either');
+  assert.equal(blankCanvases.length, canvases, 'and no blank page');
   assert.equal(currentLogoStage()?.name, 'neonOn', 'the skin never closes a show');
   stencil.EasterEggs.makeItSmall();
   assert.equal(currentLogoStage()?.name, 'makeItSmall', 'and a show opens under the skin');
@@ -120,7 +123,7 @@ test('pinkVibeMode is the pink tint: on once, off back to no filter', async () =
   const { app, stencil } = eggsOf({
     image: { width: 200, height: 100 },
     setImageFilter(v) { app.imageFilter = v; },
-    setFilterColor(v) { app.filterColor = v; },
+    setFilter({ filter, filterColor }) { app.imageFilter = filter; app.filterColor = filterColor; },
     installLayout() { app.calls.push(['layout']); return true; },
   });
   const eggs = stencil.EasterEggs;

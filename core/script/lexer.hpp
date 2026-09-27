@@ -19,4 +19,12 @@ namespace stencil::core::script {
   // a '#' does not always open a comment.
   bool isHexColorWord(std::string_view word);
 
+  // What one word lexes to by the §1 rules. `unitAt` is where a UNIT splits off a NUMBER, or
+  // npos; a template argument is re-read through this, so a length stays a length.
+  struct WordClass {
+    TokenKind kind = TokenKind::IDENT;
+    std::size_t unitAt = std::string_view::npos;
+  };
+  WordClass classifyWord(std::string_view word);
+
 }  // namespace stencil::core::script

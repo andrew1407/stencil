@@ -1,13 +1,10 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Editing;
 using Xunit.Abstractions;
-using Stencil.TelegramBot.Application.Llm.Schema;
 using Stencil.TelegramBot.Application.Llm.Plan;
 using Stencil.TelegramBot.Tests.Llm;
-using Stencil.TelegramBot.Tests.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests;
 
@@ -54,53 +51,19 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void Should_Walk_The_Given_Layout_Once_In_Validate_Action()
+    public void Should_Walk_The_Given_Layout_Once_In_The_Typed_Mapper()
     {
-        OpSchema schema = OpSchema.Bot;
-        (JsonElement Action, OpEntry Entry) small = action(schema, layout(lines: 40, points: 20));
-        (JsonElement Action, OpEntry Entry) wide = action(schema, layout(lines: 80, points: 20));
-        (JsonElement Action, OpEntry Entry) deep = action(schema, layout(lines: 40, points: 40));
+        string small = verdict(layout(lines: 40, points: 20));
+        string wide = verdict(layout(lines: 80, points: 20));
+        string deep = verdict(layout(lines: 40, points: 40));
 
-        double baseline = micros("ValidateAction layout 40x20", 500, () => validate(schema, small));
-        double twiceTheLines = micros("ValidateAction layout 80x20", 250, () => validate(schema, wide));
-        double twiceThePoints = micros("ValidateAction layout 40x40", 250, () => validate(schema, deep));
+        double baseline = micros("OpPlanParser.Map layout 40x20", 500, () => OpPlanParser.Map(small));
+        double twiceTheLines = micros("OpPlanParser.Map layout 80x20", 250, () => OpPlanParser.Map(wide));
+        double twiceThePoints = micros("OpPlanParser.Map layout 40x40", 250, () => OpPlanParser.Map(deep));
 
-        // The walk is one pass over lines x points; 2x the work is ~2x the time either way.
+        // The mapping is one pass over lines x points; 2x the work is ~2x the time either way.
         assertRatio("twice the lines", twiceTheLines, baseline, ceiling: 3.0);
         assertRatio("twice the points", twiceThePoints, baseline, ceiling: 3.0);
-    }
-
-    [Fact]
-    public void Should_Stay_In_One_Band_For_Validate_Action_Of_The_Scalar_Ops()
-    {
-        OpSchema schema = OpSchema.Bot;
-        (JsonElement, OpEntry) rotate = action(schema, """{"op":"rotate","dir":"right"}""");
-        (JsonElement, OpEntry) crop = action(schema,
-            """{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"0","y2":"90px","aspect":"4:3"}}""");
-
-        double cheapest = micros("ValidateAction rotate (1 key)", 50_000, () => validate(schema, rotate));
-        double dearest = micros("ValidateAction crop (5 sub-keys)", 50_000, () => validate(schema, crop));
-
-        // Both are fixed-key scalar ops, so the spread is the key count and nothing else: a
-        // wider gap means a per-call cost crept in (a registry re-resolve, say).
-        assertRatio("crop vs rotate", dearest, cheapest, ceiling: 10.0);
-    }
-
-    [Fact]
-    public void Should_Scale_With_The_Case_Count_When_Parsing_The_Bot_Corpus()
-    {
-        string[] all = [.. OpPlanCorpus.All.Where(f => f.AppliesToBot).Select(f => f.InputText)];
-        string[] half = [.. all.Take(all.Length / 2)];
-        int index = 0;
-
-        double whole = micros($"OpPlanParser.Parse ({all.Length} cases)", all.Length * 4,
-            () => OpPlanParser.Parse(all[index++ % all.Length]));
-        index = 0;
-        double part = micros($"OpPlanParser.Parse ({half.Length} cases)", half.Length * 4,
-            () => OpPlanParser.Parse(half[index++ % half.Length]));
-
-        // Per-case cost, not per-corpus: halving the corpus must not change µs/op much.
-        assertRatio("whole vs half corpus", Math.Max(whole, part), Math.Min(whole, part), ceiling: 2.5);
     }
 
     [Fact]
@@ -158,14 +121,9 @@ public sealed class BenchTests
         assertRatio("256 KiB body vs none", withBody, bare, ceiling: 3.0);
     }
 
-    private static void validate(OpSchema schema, (JsonElement Action, OpEntry Entry) pair) =>
-        schema.ValidateAction(pair.Action, pair.Entry);
-
-    private static (JsonElement, OpEntry) action(OpSchema schema, string json)
-    {
-        JsonElement element = JsonDocument.Parse(json).RootElement;
-        return (element, schema.Ops[element.GetProperty("op").GetString()!]);
-    }
+    // Core's verdict on a one-action plan, as --plan-check prints its result.
+    private static string verdict(string action) =>
+        $$"""{"status":"valid","reply":"x","actions":[{{action}}],"variants":[],"ask":null,"warnings":[],"error":null}""";
 
     private static string layout(int lines, int points)
     {

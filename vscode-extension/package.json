@@ -35,6 +35,17 @@
   "activationEvents": [
     "onLanguage:javascript"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "The checks and the run commands spawn the Stencil CLI or Python, so Restricted Mode waits for trust.",
+      "restrictedConfigurations": [
+        "stencil.cliPath",
+        "stencil.pythonPath",
+        "stencil.webUrl"
+      ]
+    }
+  },
   "contributes": {
     "languages": [
       {
@@ -205,8 +216,8 @@
         "stencil.cliPath": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "markdownDescription": "Path to the Stencil CLI binary, used by the run commands and by the check on save. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`."
+          "scope": "machine",
+          "markdownDescription": "Path to the Stencil CLI binary, used by the run commands and by the check on save. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. Read from user settings only: a workspace cannot choose the binary."
         },
         "stencil.checkOnType": {
           "type": "boolean",
@@ -265,8 +276,8 @@
         "stencil.webUrl": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "markdownDescription": "The Stencil web app the browser commands open. Empty uses the published instance, `https://andrew1407.github.io/stencil/`; point it at your own \u2014 `http://localhost:8080/` for a served checkout. It must be an `http(s)` URL, and it is never read out of the file being edited."
+          "scope": "machine",
+          "markdownDescription": "The Stencil web app the browser commands open. Empty uses the published instance, `https://andrew1407.github.io/stencil/`; point it at your own \u2014 `http://localhost:8080/` for a served checkout. It must be an `http(s)` URL, and it is never read out of the file being edited. Read from user settings only: a workspace cannot choose the page a script is handed to."
         },
         "stencil.webBrowser": {
           "type": "string",
@@ -280,8 +291,8 @@
         "stencil.pythonPath": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "markdownDescription": "Path to the Python that runs a `.pystc`. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`."
+          "scope": "machine",
+          "markdownDescription": "Path to the Python that runs a `.pystc`. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. Read from user settings only: a workspace cannot choose the interpreter."
         },
         "stencil.webInlineImages": {
           "type": "boolean",

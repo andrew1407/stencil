@@ -94,7 +94,7 @@ namespace llmopplan {
         "{\"reply\":\"u\",\"variants\":[{\"label\":\"v\",\"actions\":[{\"op\":\"undo\"}]}]}");
     check(v.ok && v.plan.variants.isEmpty(), "undo inside a variant drops the variant");
     check(v.plan.warnings.size() == 1 &&
-              v.plan.warnings[0].contains("Dropped variant \"v\"") &&
+              v.plan.warnings[0].contains("Dropped variant 1 (\"v\")") &&
               v.plan.warnings[0].contains("history"),
           "…named, with its own history wording");
     const auto p = parseOpPlan(

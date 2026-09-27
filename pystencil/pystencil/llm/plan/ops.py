@@ -66,7 +66,8 @@ def _apply_layout(action: dict, editor: Any, frame: (_FrameMap | NoneType) = Non
       x, y = frame.map_point(p.x, p.y) if frame is not None else (p.x, p.y)
       if size is not None: x, y = _clamp_point(x, y, size[0], size[1])
       p.x, p.y = x, y
-  editor.draw(lines)
+  # §2: the drawn lines become exactly these, in one undoable entry; an empty list clears them.
+  editor.draw(lines, combine=False)
 
 
 def _apply_formula(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,

@@ -19,7 +19,7 @@ class MainWindowGuiTest : public QObject {
     win.settings.llmBaseUrl = "http://localhost:11434";
     win.settings.saveChatsWithProject = true;
     MockChatTransport mock;
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     // A local project to file the persisted copy under (§12).
@@ -38,29 +38,29 @@ class MainWindowGuiTest : public QObject {
         "{\"op\":\"clearChat\"},{\"op\":\"units\",\"value\":\"in\"}]}"));
     // The deferred confirm is QUEUED at turn end, so arm the dismissal AFTER
     // the send: its poll then runs inside the modal's own event loop.
-    win.onChatSend("switch to inches, then clear the chat");
+    win.chatSession->onChatSend("switch to inches, then clear the chat");
     dismissModal("Cancel");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(chatTranscriptHas(dock, "clear canceled"),
                  "a declined confirm must land as a note");
     QCOMPARE(win.settings.units, QString("in"));  // ran despite being listed second
-    win.applyUnits("cm");                          // tidy the persisted setting
-    QCOMPARE(win.chatHistory.size(), 2);          // user + assistant kept
+    win.parts.view.applyUnits("cm");                          // tidy the persisted setting
+    QCOMPARE(win.chatSession->chatHistory.size(), 2);          // user + assistant kept
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY2(pr && !pr->chat.isEmpty(), "the persisted copy must survive a decline");
     }
 
     // Accepted round: transcript + history + persisted copy go, latch re-arms.
-    win.chatTextOnlyKey = QStringLiteral("some|other|model");
+    win.chatSession->chatTextOnlyKey = QStringLiteral("some|other|model");
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearChat\"}]}"));
-    win.onChatSend("clear the chat");
+    win.chatSession->onChatSend("clear the chat");
     dismissModal("OK");   // after the send — the confirm is queued (see above)
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_VERIFY2(win.chatHistory.isEmpty(), "the replay history must clear");
+    QTRY_VERIFY2(win.chatSession->chatHistory.isEmpty(), "the replay history must clear");
     QTRY_VERIFY2(assistantBubbleTexts(dock).isEmpty(), "the transcript must clear");
-    QVERIFY2(win.chatTextOnlyKey.isEmpty(), "the §7 text-only latch must re-arm");
+    QVERIFY2(win.chatSession->chatTextOnlyKey.isEmpty(), "the §7 text-only latch must re-arm");
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY2(pr && pr->chat.isEmpty(), "the §12 persisted copy must clear (§12.2)");
@@ -102,8 +102,8 @@ class MainWindowGuiTest : public QObject {
                       "\"lines\":[{\"points\":[{\"x\":40,\"y\":40},{\"x\":80,\"y\":40},"
                       "{\"x\":80,\"y\":80},{\"x\":40,\"y\":40}]}]}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("outline the box");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("outline the box");
     QTRY_VERIFY(!win.chatDock->isBusy());
     QCOMPARE(mock.allBodies.size(), 1);   // the turn, and nothing behind it
 
@@ -125,7 +125,7 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"ok\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.onChatSend("thanks");
+    win.chatSession->onChatSend("thanks");
     QTRY_VERIFY(!win.chatDock->isBusy());
     const QJsonArray msgs2 = mock.allBodies.first().value("messages").toArray();
     // system, user1, assistant1, user2: the replayed user1 keeps exactly its
@@ -157,8 +157,8 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Blank page.\",\"actions\":"
                       "[{\"op\":\"blank\",\"color\":\"#3366cc\",\"format\":\"a6\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("give me a blank a6 page");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("give me a blank a6 page");
     QTRY_VERIFY(!win.chatDock->isBusy());
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 2);   // the turn + exactly one continuation

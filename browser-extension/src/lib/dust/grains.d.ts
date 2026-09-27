@@ -4,6 +4,8 @@ export interface GrainSpec { cx: number; cy: number; size: number; dx: number; d
 export interface GrainOut { x: number; y: number; r: number; alpha: number; }
 export interface StencilKitDustGrains {
   DUST_ALPHA_LEVELS: number;
+  GRAIN_FLARE: number;
+  GRAIN_STEPS: number;
   dustMix(w: number, glint: boolean): number;
   fillGrains(ctx: CanvasRenderingContext2D, b: number[], n: number, poly: number[]): void;
   grainAt(s: GrainSpec, p: number, out: GrainOut): void;

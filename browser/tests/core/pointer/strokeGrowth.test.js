@@ -1,10 +1,9 @@
-// Drawing a stroke: the new vertex FLIES to where you put it (js/ui/motion.js stroke* + js/core/strokeFx.js),
+// Drawing a stroke: the new vertex FLIES to where you put it (js/ui/motion.js stroke* + js/core/line/strokeFx.js),
 // leaving the point it extends — or its foot on the segment it splits — and settling after a bowed path.
 // Pinned: the flight arithmetic, the controller (identity survives a splice, the loop runs only while something
 // is in the air, reduced motion plays nothing), and the wiring. Desktop twin: strokeGrowth.headless.cpp.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 import {
   strokeFlyMs, strokeFlyEase, strokeFlyPoint, strokeBow, strokeBowSign, strokeFlyRadius,
@@ -13,13 +12,6 @@ import {
   STROKE_FLY_MIN_MS, STROKE_FLY_MAX_MS, STROKE_FLY_PX_PER_MS, STROKE_BOW_MAX,
   STROKE_POP_PEAK, STROKE_FLY_R0, STROKE_RIPPLE_MS, STROKE_RIPPLE_REACH, STROKE_WAKE_ALPHA,
 } from '../../../js/ui/motion.js';
-
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const drawingAppJs = read('../../../js/core/drawingApp.js');
-const inputJs = read('../../../js/core/pointer/inputController.js');
-const shapeJs = read('../../../js/core/line/shapeBuilder.js');   // insert / rect routes
-const clickJs = read('../../../js/core/pointer/canvasClick.js');   // the click router
-const exportJs = read('../../../js/core/export/service.js');
 
 // ── 1. The arithmetic ───────────────────────────────────────────────────────
 

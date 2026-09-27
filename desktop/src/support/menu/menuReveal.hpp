@@ -9,7 +9,8 @@ class QWidget;
 // Grow-from-the-cursor pop for the custom context menus; sibling of modalReveal's flight.
 namespace stencil::support {
 
-  // Browser SURFACE_MENU_IN_MS ×1.5.
+  // The desktop's own menu clock, ms, opening and closing alike — kept apart on purpose from the
+  // browser's menus, which run motion.json's SURFACE_MENU_IN_MS / SURFACE_MENU_OUT_MS.
   inline constexpr int MENU_POPUP_DUST_MS = 340;
   // What a menu was armed with, so a test can read the clock back off it.
   inline constexpr const char* DUST_MS_PROP = "stencilDustMs";

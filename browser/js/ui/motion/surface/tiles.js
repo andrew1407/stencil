@@ -44,8 +44,11 @@ export const rowLeaveDust = (count, index, dustMs) => ({
 // Shares of the span (the CSS defaults' 0.48s and 60ms of 0.9s), so a shorter DISINTEGRATE_MS
 // shortens both. The keyword-chip recipe; desktop twin: KeywordChipsMotion.cpp.
 export const CHIP_MOTE_PX = 1.5;
-export const CHIP_DUST_MS = 630;
-export const CHIP_DUST_DRIFT = 0.15;
+export const CHIP_DUST_MS = TUNE.CHIP_DUST_MS;
+export const CHIP_DUST_DRIFT = TUNE.CHIP_DUST_DRIFT;
+// A new chip's fade-in (ms), held back until most of its cloud has landed.
+export const CHIP_ENTER_MS = TUNE.CHIP_ENTER_MS;
+export const CHIP_ENTER_DELAY_MS = TUNE.CHIP_ENTER_DELAY_MS;
 // One budget for every chip flying at once (scatterGridFor caps a LIST at 12 rows).
 export const CHIP_TILE_BUDGET = 1380;
 export const chipGrid = (sharing = 1) => {
@@ -149,6 +152,34 @@ export function retargetDust(el, r = null) {
   if (!(r.width > 0 && r.height > 0)) return;
   el.__dustHost.style.left = `${r.left}px`;
   el.__dustHost.style.top = `${r.top}px`;
+}
+
+// Keep a cloud on `anchor` for `ms` (desktop: DisintegrateOverlay::setFollow), moved by the
+// anchor's shift from `from`, the box it was measured at; display:none (a zero box) stops it.
+export function followDust(host, anchor, ms, from = anchor?.getBoundingClientRect?.()) {
+  if (!host?.style || !anchor?.getBoundingClientRect || !from || typeof requestAnimationFrame !== 'function') return;
+  const left = parseFloat(host.style.left) || 0;
+  const top = parseFloat(host.style.top) || 0;
+  const started = Date.now();
+  const pin = () => {
+    if (!host.parentNode || Date.now() - started >= ms) return false;
+    const r = anchor.getBoundingClientRect();
+    if (!(r.width > 0 || r.height > 0)) return false;
+    host.style.left = `${left + r.left - from.left}px`;
+    host.style.top = `${top + r.top - from.top}px`;
+    return true;
+  };
+// Pinned again after the first layout: a modal's ResizeObserver (easeBoxHeight.js) hands its
+// box back the old height only after that frame's callbacks have read the new one.
+  const settle = typeof ResizeObserver === 'function' ? new ResizeObserver(pin) : null;
+  settle?.observe(anchor);
+  let frames = 0;
+  const step = () => {
+    const more = pin();
+    if (++frames > 1 || !more) settle?.disconnect();
+    if (more) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 export const flightOf = (toward, gather, flight) => flight

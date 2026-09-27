@@ -1,14 +1,12 @@
 #include "ServerClient.hpp"
+#include "fetchGuard.hpp"
 
 #include <QHostAddress>
-#include <QJsonArray>
 #include <QJsonDocument>
-#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
-#include <QUrlQuery>
 
 namespace stencil::net {
 
@@ -16,6 +14,12 @@ namespace stencil::net {
       : nam(new QNetworkAccessManager), base(normalizeBase(url)) {}
 
   ServerClient::~ServerClient() { delete nam; }
+
+  bool ServerClient::isRefusedTarget(const QString& base) {
+    QHostAddress addr;
+    return addr.setAddress(QUrl(base).host()) &&
+           blockedRanges::blocked(addr, blockedRanges::Policy::SERVER_TARGET, {false, true});
+  }
 
   bool ServerClient::isLoopbackHost(const QString& host) {
     if (host.isEmpty()) return false;
@@ -90,7 +94,7 @@ namespace stencil::net {
                                              const QString& bearer) const {
     QNetworkRequest req{QUrl(base + path)};
     // Bounded so a hung/malicious server cannot wedge a transfer forever.
-    req.setTransferTimeout(20000);
+    req.setTransferTimeout(fetchGuard::fetchTimeoutMs());
     const QString& tok = bearer.isEmpty() ? token : bearer;
     if (!tok.isEmpty())
       req.setRawHeader("Authorization", "Bearer " + tok.toUtf8());

@@ -18,7 +18,7 @@ import (
 type persistKind int
 
 const (
-	persistLoad persistKind = iota // GetProject (snapshot)
+	persistLoad persistKind = iota // GetProjectSnapshot
 	persistSave                    // UpdateProject (save)
 )
 
@@ -36,7 +36,8 @@ type persistJob struct {
 type persistResult struct {
 	kind   persistKind
 	member *member
-	rec    protocol.ProjectRecord
+	rec    protocol.ProjectRecord // a save's is metadata only
+	layout json.RawMessage        // the saved layout, which the write did not read back
 	err    error
 }
 
@@ -53,11 +54,11 @@ type snapshotWorker struct {
 	done    <-chan struct{} // closed when the session tears down
 }
 
-func newSnapshotWorker(ctx context.Context, st Store, projectID string, timeout time.Duration, done <-chan struct{}) *snapshotWorker {
+func newSnapshotWorker(ctx context.Context, st Store, projectID string, tune Tuning, done <-chan struct{}) *snapshotWorker {
 	return &snapshotWorker{
-		ctx: ctx, store: st, projectID: projectID, timeout: timeout,
-		jobs:    make(chan persistJob, outBuffer),
-		results: make(chan persistResult, outBuffer),
+		ctx: ctx, store: st, projectID: projectID, timeout: tune.OpTimeout,
+		jobs:    make(chan persistJob, tune.OutBuffer),
+		results: make(chan persistResult, tune.OutBuffer),
 		done:    done,
 	}
 }
@@ -73,11 +74,11 @@ func (w *snapshotWorker) run() {
 			ctx, cancel := context.WithTimeout(w.ctx, w.timeout)
 			switch job.kind {
 			case persistLoad:
-				rec, err := w.store.GetProject(ctx, w.projectID)
+				rec, err := w.store.GetProjectSnapshot(ctx, w.projectID)
 				w.post(persistResult{kind: persistLoad, rec: rec, err: err})
 			case persistSave:
 				rec, err := w.store.UpdateProject(ctx, w.projectID, store.ProjectPatch{Layout: job.layout}, job.version)
-				w.post(persistResult{kind: persistSave, member: job.member, rec: rec, err: err})
+				w.post(persistResult{kind: persistSave, member: job.member, rec: rec, layout: job.layout, err: err})
 			}
 			cancel()
 		}
@@ -103,14 +104,25 @@ func (w *snapshotWorker) post(r persistResult) {
 
 // ----- the run-loop's half -----
 
-// ensureLoaded kicks off the one-time snapshot load if it has not succeeded and
-// is not already in flight. Idempotent; safe to call from any run-loop case.
+// ensureLoaded kicks off a snapshot load when none has succeeded, or a reported write made the cached
+// one stale, and none is in flight. Idempotent; safe to call from any run-loop case.
 func (s *session) ensureLoaded() {
-	if s.loaded || s.loadInFlight {
+	if s.loadInFlight || (s.loaded && !s.stale) {
 		return
 	}
 	s.loadInFlight = true
 	s.persist.dispatch(persistJob{kind: persistLoad})
+}
+
+// refresh marks the snapshot stale once the feed reports a version past the session's (our own save's
+// echo is not). A read already in flight may predate that write, so another follows it.
+func (s *session) refresh(v int64) {
+	if v <= s.version {
+		return
+	}
+	s.stale = true
+	s.reread = s.loadInFlight
+	s.ensureLoaded()
 }
 
 // applyResult applies an off-loop store outcome on the run-loop, keeping all
@@ -120,15 +132,18 @@ func (s *session) applyResult(res persistResult) {
 	case persistLoad:
 		s.loadInFlight = false
 		if res.err != nil {
-			// Load failed; leave loaded=false so a later join retries (never per edit). Pending welcomes still get a
-			// reply below, with an empty record + version 0.
+			// A later join retries (never an edit). Pending welcomes still get a reply below: the stale
+			// snapshot, or an empty record + version 0 before the first.
 			log.Printf("hub: load project %s failed: %v", s.id, res.err)
 		} else {
 			s.loadedRec = res.rec
-			if !s.loaded {
-				s.version = res.rec.Version
-				s.loaded = true
-			}
+			s.version = max(s.version, res.rec.Version)
+			s.loaded, s.stale = true, s.reread
+		}
+		if s.reread {
+			s.reread = false
+			s.ensureLoaded() // the waiting welcomes take the next read
+			return
 		}
 		pending := s.pendingWelcome
 		s.pendingWelcome = nil

@@ -1,5 +1,5 @@
 #pragma once
-// True overlay scrollbars for the canvas viewport; browser parity: js/ui/scrollbars.js.
+// True overlay scrollbars for the canvas viewport; browser parity: js/ui/canvas/scrollbars.js.
 // theme.cpp's QScrollBar stylesheet turns off Qt's native transient mode app-wide, and
 // QAbstractScrollArea then shrinks the viewport to make room on every re-layout. So the base
 // class's own bars are switched off for good - they stay the scroll MODEL that wheel/keyboard/
@@ -20,7 +20,7 @@ namespace stencil::gui {
       vBar = new QScrollBar(Qt::Vertical, this);
       hBar = new QScrollBar(Qt::Horizontal, this);
       // Painted as pills (thin grey thumb, accent + a swell under the pointer) like every
-      // other bar in the app — support/PillScrollBars.hpp; the theme feeds the colours.
+      // other bar in the app — support/control/PillScrollBars.hpp; the theme feeds the colours.
       ScrollBarPill::adopt(vBar);
       ScrollBarPill::adopt(hBar);
       mirror(verticalScrollBar(), vBar);

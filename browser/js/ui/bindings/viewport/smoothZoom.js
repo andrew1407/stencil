@@ -1,4 +1,6 @@
 import { canvasOrigin } from '../../../core/zoom/pan.js';
+import { selectedIndices } from '../../../core/line/selection.js';
+import { rotateSelectedLine } from '../../../core/draw/transformOps.js';
 export function wireSmoothZoom(app) {
   // Rapid wheel events accumulate into one rAF loop. Add `zoom-no-transition` while it runs, or
   // the CSS width/height transition fights it and flickers.
@@ -69,10 +71,10 @@ export function wireSmoothZoom(app) {
 
     // Ctrl+Shift+wheel with a selection → rotate it. One line: around its centre (or the focused
     // point). Multiple lines: all together around their combined centre. Read-only while comparing.
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && selectedIndices(app).length >= 1 && !app.compareReadOnly()) {
       e.preventDefault();
       const dir = e.deltaY > 0 ? 1 : -1;
-      app.rotateSelectedLine(dir * (Math.PI / 60)); // 3° per tick
+      rotateSelectedLine(app, dir * (Math.PI / 60)); // 3° per tick
       return;
     }
 

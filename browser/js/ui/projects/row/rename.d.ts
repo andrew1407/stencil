@@ -9,7 +9,7 @@ export interface ProjectMetaLike {
 
 /**
  * Swap the row's name element for the inline rename editor. Resolves nothing: the editor
- * commits through `app.renameProject` and asks for a re-`render()` either way.
+ * commits through `app.projectTransfer.renameProject` and asks for a re-`render()` either way.
  */
 export function beginRowRename(opts: {
   meta: ProjectMetaLike;

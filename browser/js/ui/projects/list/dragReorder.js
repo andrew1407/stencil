@@ -1,5 +1,6 @@
 import { notify, shortName } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { clearedToast } from '../../../core/project/transferController.js';
 import { setTranslucentDragImage } from '../../canvas/dragGhost.js';
 import { makeTouchDraggable } from '../../canvas/touchDrag.js';
 import { createDropZones } from '../window/projectDropZones.js';
@@ -75,8 +76,8 @@ export function createDragReorder(deps) {
     const meta = info.meta;
     if (!info.isRemote) {
       const id = meta.id;
-      if (action === 'here') { if (await confirmOpen(meta.name)) { app.switchToProject(id); close(); } else render(); }
-      else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(id); render(); }
+      if (action === 'here') { if (await confirmOpen(meta.name)) { app.projectTransfer.switchToProject(id); close(); } else render(); }
+      else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.projectTransfer.openProjectInNewTab(id); render(); }
       else if (action === 'remove') {
         const serverLinked = meta.remoteId && meta.address;
         const note = serverLinked
@@ -86,15 +87,16 @@ export function createDragReorder(deps) {
         const settle = beginRemoval();
         const revive = retireKey(localKey(id));
         await leaveThenRemove(rowById(id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-        app.removeProject(id);
+        app.projectTransfer.removeProject(id);
         await settle();
         revive();
+        notify(clearedToast(1), 'ok');
       }
       return;
     }
     // Server (remote) row.
     if (action === 'here') { if (!(await confirmOpen(meta.name))) { render(); return; } try { await openRemote(meta); close(); } catch (err) { notify(`Could not open server project — ${err.message}`, 'fail'); render(); } }
-    else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openRemoteProjectInNewTab(meta); render(); }
+    else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.projectTransfer.openRemoteProjectInNewTab(meta); render(); }
     else if (action === 'remove') {
       if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
       const conn = app.connections && app.connections.get(meta.serverUrl);
@@ -105,6 +107,7 @@ export function createDragReorder(deps) {
         await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
         await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
         revive();
+        notify(clearedToast(1), 'ok');
       }
       catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
     }

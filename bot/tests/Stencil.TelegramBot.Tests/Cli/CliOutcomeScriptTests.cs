@@ -4,7 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests.Cli;
 
-/// <summary>The <c>--script-plan</c> envelope (cli/CONTRACT.md §5): one JSON object on stdout, diagnostics always, blocks only when the script is clean. Its <c>script</c> label is this adapter's temp leaf, so nothing user-facing may carry it.</summary>
+/// <summary>The <c>--script-plan</c> envelope (cli/CONTRACT.md §4.3): one JSON object on stdout, diagnostics always, blocks only when the script is clean. Its <c>script</c> label is this adapter's temp leaf, so nothing user-facing may carry it.</summary>
 public sealed class CliOutcomeScriptTests
 {
     private const string _envelope = """
@@ -12,7 +12,9 @@ public sealed class CliOutcomeScriptTests
      "blocks":[{"index":0,"source":"https://e.example/a.png","sourceKind":"url",
                 "inputs":["https://e.example/a.png"],"frame":0,"dims":null,
                 "plans":[{"reply":"","actions":[{"op":"openUrl","url":"https://e.example/a.png"},
-                                                {"op":"filter","mode":"bw"}]}],
+                                                {"op":"filter","mode":"bw"}],
+                          "check":{"status":"valid","reply":"Done.","actions":[{"op":"filter","mode":"bw"}],
+                                   "variants":[],"ask":null,"warnings":[],"error":null}}],
                 "saves":[{"input":"https://e.example/a.png","path":"a-stencil.png"}]}]}
     """;
 
@@ -34,9 +36,15 @@ public sealed class CliOutcomeScriptTests
         Assert.Equal(0, block.Index);
         Assert.Equal("url", block.SourceKind);
         Assert.Equal("https://e.example/a.png", block.Source);
-        Assert.Contains("\"op\":\"filter\"", Assert.Single(block.Plans).Replace(" ", ""));
+        Assert.Contains("\"status\":\"valid\"", Assert.Single(block.Checks).Replace(" ", ""));
         Assert.False(plan.HasErrors);
     }
+
+    /// <summary>A chunk without core's verdict would run unjudged, so the envelope is refused whole.</summary>
+    [Fact]
+    public void Should_Refuse_A_Chunk_That_Carries_No_Check() =>
+        Assert.Throws<StencilCliException>(() => CliOutcomeParser.ParseScriptPlan(
+            """{"version":1,"script":"s.stc","diagnostics":[],"blocks":[{"index":0,"source":"","sourceKind":"project","plans":[{"reply":"","actions":[]}]}]}"""));
 
     /// <summary>A url or project block may run; file/dir/glob names a disk the bot has not got.</summary>
     [Theory]

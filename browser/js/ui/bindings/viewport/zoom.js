@@ -2,13 +2,15 @@ import { markSwap } from '../../motion.js';
 import { showMenu, hideMenu } from '../../control/dropdownMenu.js';
 import { wireAltPeek } from '../../tip/altPeek.js';
 import { isTypingInFocus } from '../../../utils.js';
+import { zoomPercentBounds } from '../../../core/zoom/pan.js';
 export function wireZoomControls(app) {
   const zoomInput = document.getElementById('zoom-input');
   // `commit` (change/Enter/preset-pick) reverts an out-of-range value; live typing just skips
-  // invalid values. Full 5%–3200% range — the input max, the presets and core clampScale.
+  // invalid values. The range is the core's clampScale range in percent, as the input's min/max.
   const applyZoomInput = (commit = false) => {
     const val = parseFloat(zoomInput.value);
-    if (!isNaN(val) && val >= 5 && val <= 3200) {
+    const { min, max } = zoomPercentBounds();
+    if (!isNaN(val) && val >= min && val <= max) {
       app.zoomPan.zoomAroundCenter(val / 100);
     } else if (commit) {
       zoomInput.value = Math.round(app.scale * 100);
@@ -23,7 +25,7 @@ export function wireZoomControls(app) {
   // one-click preset selection (the native datalist on number inputs is unreliable). ──
   const ZOOM_PRESETS = [10, 25, 50, 75, 100, 125, 150, 200, 300, 400, 500, 800, 1600, 3200];
   const zoomMenu = document.getElementById('zoom-menu');
-  // Ported to the shared dropdown machinery (js/ui/dropdownMenu.js): same portal,
+  // Ported to the shared dropdown machinery (js/ui/control/dropdownMenu.js): same portal,
   // placement and particle-dust open/close every other popup uses. Markup unchanged.
   const openZoomMenu = () => {
     if (!zoomMenu || zoomInput.disabled || !zoomMenu.hidden) return;

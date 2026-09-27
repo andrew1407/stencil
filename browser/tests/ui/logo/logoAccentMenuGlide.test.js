@@ -1,4 +1,4 @@
-// The glide registry and the click routes (js/ui/popover.js): one mini window at a time in
+// The glide registry and the click routes (js/ui/tip/popover.js): one mini window at a time in
 // both directions, the sticky right-click path, and Alt+click against the plain-click cycle.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

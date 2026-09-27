@@ -1,0 +1,137 @@
+      QDialog { background: %BG_CONTAINER%; color: %TEXT%; }
+      /* Chrome dialogs are frameless + translucent (modalChrome.cpp): the dialog face
+         is see-through and the #modalShell card carries the browser modal's rounded,
+         hairline-bordered surface (.app-modal: radius 10px on --bg-container). */
+      QDialog[modalChrome="true"] { background: transparent; }
+      QWidget#modalShell {
+        background: %BG_CONTAINER%; border: 1px solid %BORDER%; border-radius: 10px;
+      }
+      QWidget#modalHeader { background: transparent; }
+
+      /* ── Browser-modal chrome (support/modal/modalChrome.hpp) — the .settings-header /
+         .vs-section / .settings-footer shell every app modal wears in the browser:
+         16px bold title beside its glyph, an outlined "✕ Close" pill, full-bleed
+         hairline dividers, tracked uppercase section captions, and a muted footer
+         hint. The pill deliberately keeps the browser's rounded-full 12px radius
+         and quiet transparent face rather than the app's gradient button. ── */
+      QLabel#modalTitle { font-size: 16px; font-weight: bold; background: transparent; }
+      QPushButton#modalClosePill {
+        background: transparent; border: 1px solid %BORDER%; border-radius: 13px;
+        color: %TEXT%; font-size: 13px; padding: 4px 12px; min-height: 0px;
+      }
+      QPushButton#modalClosePill:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QPushButton#modalClosePill:pressed { background: %ACCENT_SOFT2%; }
+      QFrame#modalDivider {
+        background: %BORDER%; border: none; min-height: 1px; max-height: 1px;
+      }
+      QLabel#modalSection {
+        color: %MUTED%; font-weight: bold; font-size: 12px; letter-spacing: 1px;
+        background: transparent;
+      }
+      /* 11px, not the browser's 12: Qt's system font tracks a touch wider, and at the
+         shared 560px modal width the connect hint has to land on ONE line as it does
+         in the browser. */
+      QLabel#modalFooterHint { color: %MUTED%; font-size: 11px; background: transparent; }
+      /* The crop dialog's size line under the preview (browser #crop-dims). */
+      QLabel#cropDims { color: %MUTED%; font-size: 13px; background: transparent; }
+      /* The prompt dialog's field (modalChrome.cpp promptModal) — the browser's
+         .confirm-prompt-input and its multi-line twin: the input fill, a hairline
+         that turns accent on focus, 8px radius. The line-edit half already gets
+         that from the shared QLineEdit rule; only the text area needs its own. */
+      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 8px; padding: 5px 7px;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      QPlainTextEdit#modalPromptText:hover:enabled, QPlainTextEdit#descriptionText:hover:enabled {
+        border: 2px solid %ACCENT_RING%; padding: 4px 6px;
+      }
+      QPlainTextEdit#modalPromptText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* The browser's focus ring: a THIN opaque accent contour inside a thicker translucent
+         one, which is a box-shadow there and so a wrapper frame here (projectMetaDialog
+         fieldRing). Always 3px wide, so nothing shifts when it lights up. */
+      QFrame#metaFieldRing { border: 3px solid transparent; border-radius: 11px; background: transparent; }
+      QFrame#metaFieldRing[ringOn="true"] { border: 3px solid %ACCENT_RING%; }
+      /* The thin half, on the fields the ring wraps. */
+      QPlainTextEdit#descriptionText:focus { border: 1px solid %ACCENT%; padding: 5px 7px; }
+      QLineEdit#keywordsInput:focus { border: 1px solid %ACCENT%; padding: 3px 8px; }
+      /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
+         .script-input as one widget, since Qt colours the text in place. The mono face and
+         the gutter are set in code; only the frame and the inks belong here. */
+      /* The FRAME owns the box (browser .script-editor-wrap): ONE accent hairline, at rest and
+         focused alike — a second one lands on top of the first and reads as a doubled edge.
+         The halo above it is the 3px ring the browser draws as a box-shadow. */
+      /* Both editors wear it: the window's (ScriptDialog) and the context menu's flyout
+         (ScriptMenuPanel) — the browser reuses its script-* classes for the flyout too. */
+      QFrame#scriptEditorGlow, QFrame#scriptMenuGlow {
+        background: transparent; border: 3px solid transparent; border-radius: 11px;
+      }
+      QFrame#scriptEditorGlow[hovered="true"],
+      QFrame#scriptMenuGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
+      /* Focus firms that ring rather than adding one; last wins, so hovered-and-focused is
+         the focus ring alone (browser :focus-within overriding :hover on the same shadow). */
+      QFrame#scriptEditorGlow[focused="true"],
+      QFrame#scriptMenuGlow[focused="true"] { border-color: %ACCENT_SOFT2%; }
+      QFrame#scriptEditorWrap, QFrame#scriptMenuWrap {
+        background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
+      }
+      QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
+        background: transparent; color: %TEXT%; border: 1px solid transparent; padding: 0;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      /* The strip under it (browser .script-diag): muted until a run reports something. */
+      QLabel#scriptDiag, QLabel#scriptMenuDiag {
+        color: %MUTED%; font-size: 12px; background: transparent;
+      }
+      QLabel#scriptDiag[state="error"], QLabel#scriptMenuDiag[state="error"] { color: %DANGER%; }
+      QLabel#scriptDiag[state="warn"], QLabel#scriptMenuDiag[state="warn"] { color: %WARNING%; }
+      /* The flyout is that editor at MENU scale (browser css/components/ctx/script.css): it
+         sits straight on the menu's own surface, with a tighter strip and smaller actions. */
+      QWidget#scriptMenuPanel { background: transparent; }
+      QLabel#scriptMenuDiag { font-size: 11px; padding: 4px 2px 0; }
+      QWidget#scriptMenuPanel QPushButton {
+        font-size: 12px; padding: 4px 9px; min-height: 14px;
+      }
+      /* Empty-state prompt chips (browser .chat-suggest, llm/dock/ChatDockChrome.cpp): a quiet
+         pill whose radius is half its height — Qt squares the box off above that. */
+      QPushButton#chatSuggestChip { padding: 4px 12px; border-radius: 14px; }
+      /* …and the assistant flyout wears the browser's .ctx-assist .chat-suggest: menu scale,
+         the same box the script flyout's own buttons take. */
+      QWidget#chatMenuPanel QPushButton#chatSuggestChip {
+        font-size: 12px; padding: 4px 9px; min-height: 14px; border-radius: 12px;
+      }
+      /* The assistant flyout's composer (browser #ctx-assist-input): the chat panel's input
+         at menu scale — two rows tall at rest, and the browser's own box around them. Its
+         height floor is a layout metric (llm/panel/chatMenuPanelParts.hpp). */
+      QPlainTextEdit#chatMenuInput {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 6px 8px; font-size: 13px;
+      }
+      QPlainTextEdit#chatMenuInput:focus { border: 1px solid %ACCENT%; }
+      /* …and the reason a value cannot be saved, under the field (promptModal validate). */
+      QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
+      /* The picker dialog's select (modalChrome.cpp chooseModal — browser
+         .confirm-choose-select): the shared combo chrome, full width, 8px radius. */
+      QComboBox#modalChooseSelect { padding: 7px 10px; border-radius: 8px; font-size: 13px; }
+      /* The Servers list's filter is sized to its heading, not to a form field (browser
+         .connect-section-row .cs-dd .accent-dd-trigger: 12px text, 6px radius). */
+      QComboBox#connKindFilter { font-size: 12px; border-radius: 6px; min-height: 14px; }
+      QComboBox#modalChooseSelect:hover, QComboBox#modalChooseSelect:focus { padding: 6px 9px; }
+      /* The Open In… dialog's Telegram fallback (browser #open-in-fallback-cmds): the two
+         bot commands as selectable code. */
+      QLabel#openInFallbackCmds {
+        font-family: Menlo, Consolas, monospace; font-size: 12px; background: transparent;
+      }
+      /* The logo's accent-preset popover (MainWindow.cpp openAccentPicker): menu-tight
+         rows — a left-aligned label hugging its colour chip, a row-wide hover fill. */
+      QDialog#accentPopover QPushButton {
+        background: transparent; border: none; border-radius: 6px; text-align: left;
+        padding: 5px 14px 5px 4px;
+      }
+      /* A translucent accent WASH, not the solid palette(highlight): the browser's row
+         wears `color-mix(in srgb, var(--accent) 18%, transparent)`, which %ACCENT_SOFT% is
+         (user report: the desktop row was a solid saturated block). The label keeps the
+         normal text colour — highlighted-text is white, meant for a solid fill. */
+      QDialog#accentPopover QPushButton:hover {
+        background: %ACCENT_SOFT%; color: %TEXT%;
+      }

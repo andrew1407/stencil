@@ -1,16 +1,12 @@
 // The crop stage that takes the picture's place while Crop is on, and the page ratio it is
-// cut to. Browser twin: js/ui/openImageCrop.js.
+// cut to. Browser twin: js/ui/openImage/crop.js.
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
 #include "cropGeometry.hpp"
 #include "pageMetrics.hpp"
-#include <QComboBox>
-#include <QLabel>
-#include <QLayout>
 #include <QPushButton>
 #include <QSignalBlocker>
-#include <QSlider>
-#include <QSpinBox>
+#include <QDoubleSpinBox>
 
 namespace stencil::gui {
 

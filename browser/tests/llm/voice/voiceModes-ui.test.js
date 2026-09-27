@@ -3,10 +3,43 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-import { make } from '../../helpers/voiceModesRig.js';
+import { make, fakeEngine } from '../../helpers/voiceModesRig.js';
+import { createVoiceModes } from '../../../js/llm/voice/modes.js';
+import { installVoiceRig } from '../../helpers/voiceInstallRig.js';
+import { installDom, createStubElement } from '../../helpers/dom.js';
+import { closedTurnToast } from '../../../js/llm/chat/session.js';
+
+// The toolbar wired on a stub host with a live voice coordinator; every element it reaches is kept.
+const toolbarWithVoice = (StencilToolbar) => {
+  const reached = [];
+  const keep = (el) => { reached.push(el); return el; };
+  const byId = new Map();
+  const mic = createStubElement('button', { id: 'voice-chat-btn' });
+  const win = createStubElement('window', { dispatchEvent: (ev) => { win.dispatch(ev.type, ev); return true; } });
+  const doc = installDom({
+    getElementById: (id) => (byId.has(id) ? byId.get(id) : byId.set(id, keep(createStubElement('div', { id }))).get(id)),
+    createElement: (tag) => keep(createStubElement(tag)),
+    querySelectorAll: (sel) => (sel === '#voice-chat-btn' ? [mic] : []),
+  }, {
+    window: win,
+    MutationObserver: class { observe() {} disconnect() {} },
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+  });
+  const logoWrap = keep(createStubElement('span'));
+  const logo = keep(createStubElement('img', { closest: () => logoWrap, parentElement: logoWrap }));
+  const host = createStubElement('stencil-toolbar', {
+    querySelector: (sel) => ({ '.app-logo': logo, '#voice-chat-btn': mic })[sel] || keep(createStubElement('div')),
+    querySelectorAll: () => [],
+  });
+  const voice = createVoiceModes({ engine: fakeEngine(), win, loadSettings: () => ({ silenceMs: 1000, language: 'default' }) });
+  StencilToolbar.prototype.wire.call(host, { voice });
+  const fixed = [doc.body, doc.documentElement, host, logo, logoWrap];
+  const classesBesidesMic = () => [...fixed.map((el) => el.className),
+    ...reached.map((el) => el.className).filter((c) => /voice/.test(c))];
+  return { mic, voice, before: classesBesidesMic(), classesBesidesMic, restore: () => { voice.dispose(); doc.restore(); } };
+};
 
 test('a listening mic uncovers its ray ring: no overflow clip, isolated stacking, no glass sweep, level-sized', async () => {
-  const { readFileSync } = await import('node:fs');
   const css = ANIMATIONS_CSS;
   const rule = (selector) => {
     const at = css.indexOf(selector);
@@ -35,38 +68,49 @@ test('a listening mic uncovers its ray ring: no overflow clip, isolated stacking
 // A spoken answer that lands behind a closed panel is announced by its toast alone: hands-free chat
 // never leaves the unread dot on the chat icon (user report).
 test('voice-chat answers behind a closed panel toast but never mark the chat icon unread', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../../../js/llm/voice/modes.js', import.meta.url), 'utf8');
-  const install = src.slice(src.indexOf('export const installVoiceModes'));
-  assert.ok(install.includes('appNotify(toast.text, toast.type, { onClick: () => app.chat?.open?.() });'));
-  // (There is no unread dot on either surface any more — an answer that lands while the
-  // chat is away toasts, and the toast opens it. The voice path never marked one anyway.)
-  assert.ok(!install.includes('markUnread'), 'the voice path marks nothing on the icon');
+  const rig = installVoiceRig({ entry: { reply: 'Made it sepia.', results: [] } });
+  try {
+    await rig.say('make it sepia');
+    const answer = rig.toasts.at(-1);
+    assert.strictEqual(rig.toasts.length, 2, 'the Sent balloon, then the answer');
+    assert.deepStrictEqual([answer.msg, answer.type], [closedTurnToast({ ok: true, entry: { reply: 'Made it sepia.', results: [] } }).text, 'ok']);
+    assert.deepStrictEqual(rig.chatCalls, [], 'the voice path marks nothing on the icon');
+    answer.opts.onClick();
+    assert.deepStrictEqual(rig.chatCalls, ['open'], 'the toast is the way back to the chat');
+  } finally { rig.restore(); }
 });
 
 // …but an answer that ASKS something back (a §11 ask card) opens the panel instead of toasting: a
 // card cannot be answered from a balloon.
 test('a voice answer that asks a question opens the chat; a plain one still just toasts', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../../../js/llm/voice/modes.js', import.meta.url), 'utf8');
-  const onResult = src.slice(src.indexOf('onResult: (res) => {'), src.indexOf('const voice = createVoiceModes'));
-  assert.ok(onResult.includes('res?.ok && res.entry?.ask && !surfaceOpen()'),
-    'the ask card is what opens the panel');
-  assert.ok(onResult.indexOf('app.chat?.open?.();') < onResult.indexOf('closedTurnToast(res)'),
-    'and it opens BEFORE the toast path, which then does not fire');
-  assert.ok(onResult.includes('const toast = closedTurnToast(res);'), 'a plain answer still toasts');
+  const ask = { question: 'Which filter?', mode: 'single', options: [{ label: 'Sepia' }, { label: 'B&W' }] };
+  const asking = installVoiceRig({ entry: { reply: 'Which one?', results: [], ask } });
+  try {
+    await asking.say('make it vintage');
+    assert.deepStrictEqual(asking.chatCalls, ['open'], 'the ask card is what opens the panel');
+    assert.deepStrictEqual(asking.toasts.map((t) => t.msg.slice(0, 5)), ['Sent:'], 'and the toast path then does not fire');
+  } finally { asking.restore(); }
+  const plain = installVoiceRig();
+  try {
+    await plain.say('make it sepia');
+    assert.deepStrictEqual(plain.chatCalls, []);
+    assert.strictEqual(plain.toasts.length, 2, 'a plain answer still toasts');
+  } finally { plain.restore(); }
 });
 
 // The logo's shine is its own hover's (and its accent popover's) — switching the mic on
 // must not light it (user report). Only the two mic faces wear the voice shine.
 test('activating the microphone never latches the logo shine', async () => {
-  const { readFileSync } = await import('node:fs');
-  const toolbar = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
-  const css = ANIMATIONS_CSS;
-  assert.ok(!toolbar.includes('voice-live'), 'no voice latch on the logo wrap');
-  assert.ok(!css.includes('voice-live'), 'no voice rule targets the logo');
-  const dust = readFileSync(new URL('../../../js/ui/dust/voiceDust.js', import.meta.url), 'utf8');
-  assert.ok(dust.includes('ringAngles(now)'), 'the mics keep their ring — on the dust canvas');
+  const { StencilToolbar } = await import('../../../js/ui/toolbar/toolbar.js');
+  assert.ok(!StencilToolbar.inner().includes('voice-live'), 'no voice latch in the toolbar markup');
+  const bar = toolbarWithVoice(StencilToolbar);
+  try {
+    bar.mic.dispatch('click');
+    assert.strictEqual(bar.voice.voiceChat, true);
+    assert.ok(bar.mic.classList.contains('active'), 'the mic wears the voice');
+    assert.deepStrictEqual(bar.classesBesidesMic(), bar.before, 'no other element took a class — the logo least of all');
+  } finally { bar.restore(); }
+  assert.ok(!ANIMATIONS_CSS.includes('voice-live'), 'no voice rule targets the logo');
 });
 
 // The composer sends ONLY on the spoken phrase; a pause ends the dictation ('silence') with the words

@@ -1,7 +1,7 @@
 // Shapes for options/pinsDom.js — shared by pins.js (the render pass) and pinRow.js
 // (one row): the DOM handles, and the two keys a pin/connection row is matched by.
 
-/** One entry of the pinned-images store (lib/pins.js). */
+/** One entry of the pinned-images store (lib/prefs/pins.js). */
 export interface Pin {
   source: string;
   site: string;

@@ -1,6 +1,6 @@
 import { core } from '../abi/stencilCore.js';
-// Port of core/cropGeometry.{hpp,cpp}. A crop is a rect in ORIGINAL-image pixel space; the
-// original is never modified, so moves/resizes/flips are lossless. Aspect is fixed to the
+// Port of core/geometry/cropGeometry + cropSnap. A crop is a rect in ORIGINAL-image pixel space;
+// the original is never modified, so moves/resizes/flips are lossless. Aspect is fixed to the
 // page → corner-only resize. Public functions route to wasm when loaded, else the JS reference.
 
 export const isAlbumOrientationJS = (width, height) => width > height;
@@ -149,6 +149,31 @@ export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
     }
 };
 
+// Integer pixels inside the (turned) original: each side Math.round-ed into [1, the image's
+// side], then the origin moved inside. Twin: core::snapCropRect.
+export const snapCropRectJS = (r, imageW, imageH) => {
+  const width = Math.max(1, Math.min(Math.round(r.width), imageW));
+  const height = Math.max(1, Math.min(Math.round(r.height), imageH));
+  return {
+    x: Math.max(0, Math.min(Math.round(r.x), imageW - width)),
+    y: Math.max(0, Math.min(Math.round(r.y), imageH - height)),
+    width,
+    height,
+  };
+};
+
+// One quarter-turn of an unturned originalW x originalH picture shown at `quarters`: the window
+// follows into the turned space, snapped; the count wraps to 0..3. Twin: core::rotateEditQuarter.
+export const rotateEditQuarterJS = (crop, quarters, originalW, originalH, clockwise) => {
+  const odd = quarters % 2 !== 0;
+  const iw = odd ? originalH : originalW;
+  const ih = odd ? originalW : originalH;
+  return {
+    crop: snapCropRectJS(rotateCropRectQuarterJS(crop, iw, ih, clockwise), ih, iw),
+    quarters: (((quarters + (clockwise ? 1 : -1)) % 4) + 4) % 4,
+  };
+};
+
 export const isAlbumOrientation = core.bind('isAlbumOrientation', isAlbumOrientationJS);
 
 export const cropAspect = core.bind('cropAspect', cropAspectJS);
@@ -166,3 +191,13 @@ export const cropResizeScale = core.bind('cropResizeScale', cropResizeScaleJS);
 export const cropChange = core.bind('cropChange', cropChangeJS);
 
 export const rotateCropRectQuarter = core.bind('rotateCropRectQuarter', rotateCropRectQuarterJS);
+
+export const snapCropRect = core.bind('snapCropRect', snapCropRectJS);
+
+const rotateEditCrop = core.bind('rotateEditQuarter', rotateEditQuarterJS);
+
+// The crop-local lines turn inside the OLD window (in place, JS in both builds), then the window.
+export const rotateEditQuarter = (lines, crop, quarters, originalW, originalH, clockwise) => {
+  rotateLinePointsQuarter(lines, crop.width, crop.height, clockwise);
+  return rotateEditCrop(crop, quarters, originalW, originalH, clockwise);
+};

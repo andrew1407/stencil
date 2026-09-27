@@ -2,7 +2,7 @@ import { dustEnabled } from './motionPrefs.js';
 import { startCloud, resolveColour, paletteCss } from '../dust/cloud.js';
 import { speckPainter } from './surface/painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surface/motion.js';
-import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './surface/tiles.js';
+import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, followDust, reshapeGrid, tileMotion, tileNoise } from './surface/tiles.js';
 import { styleCode } from './tune.js';
 // `data-dust-scope`: the selector its window matches while open; a closed one starts no row cloud.
 const DUST_SCOPE = '.app-modal-overlay, [data-dust-scope]';
@@ -13,7 +13,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,
                                    spread = SURFACE_SPREAD, drift = 1, toBody = false,
                                    hostClass = '', paintTile = null, own = true, box = null,
-                                   delayScale = null, flight = null, scoped = true } = {}) {
+                                   delayScale = null, flight = null, scoped = true, picture = false,
+                                   anchor = null, anchorBox = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
 // Every element-sized cloud is built here, so this is where the motion mode turns
 // particles off; `false` leaves the caller on its own CSS entrance.
@@ -66,14 +67,14 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
 // null is "no ink under this cell" (painters.js inkPainter): line-art flies its shape.
         if (!speck) continue;
-// The sweep is inside the span, never added to it (desktop: `t = (t - delay) / (1 - delay)`),
-// so the whole cloud is done at `span`.
+// The sweep is inside the span, never added to it (desktop: `t = (t - delay) / (1 - delay)`), so the
+// cloud is done at `span` — a gather over a picture too, whose host is gone by 80% (dustHostSettle).
         motes.push({
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
           dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
-          delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
+          delay: m.delay, dur: gather && !picture ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
 // Its own hash for the wobble, twinkle and palette stop (cloud.js turbulenceAt / dustMix).
-          w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
+          w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0, ...(picture && !gather && { cut: 1 }),
         });
       }
     }
@@ -99,6 +100,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const fills = paints.map((css) => resolveColour(document, css, probe));
     probe.remove();
     startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top }, style });
+// `anchor`: what the cloud rides as it moves (a control in a modal easing its height);
+// `anchorBox` is its box when the cloud was measured, if that was not now.
+    if (anchor) followDust(host, anchor, span, anchorBox || (anchor === el && !box ? r : undefined));
     const life = setTimeout(() => {
       host.__stop?.();
       host.remove();

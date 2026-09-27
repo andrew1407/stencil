@@ -3,7 +3,7 @@
 .controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 /* App logo — its panel outline tracks the chosen accent (the rest of the mark is
    fixed brand art). A gentle hover lift to match the toolbar's other affordances;
-   animations/iconHover.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
+   animations/icon/hover.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
    for the absolutely-positioned ray layer (and the parked colour-picker input) —
    z-index:0 makes it a stacking context so the rays' z-index:-1 stays INSIDE it
    (behind the mark, above the toolbar) instead of dropping behind the page. */
@@ -91,7 +91,7 @@
 /* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations/collapse.css,
    so the toolbar animates away instead of vanishing between two frames. */
 
-/* The "?" chip beside the project name (js/ui/toolbar.js, which sets `display` to
+/* The "?" chip beside the project name (js/ui/toolbar/toolbar.js, which sets `display` to
    reveal it once there is something for the bubble to say). */
 .hints-btn {
     display: none;

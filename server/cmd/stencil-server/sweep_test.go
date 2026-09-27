@@ -56,6 +56,14 @@ func (f *fakeSweepStore) has(id string) bool {
 	return ok
 }
 
+// The production defaults (config SWEEP_BATCH / SWEEP_WORKERS).
+const testBatch, testWorkers = 500, 8
+
+// sweepOf is one expiry pass over st and drops, sessions left out.
+func sweepOf(st expiredProjectDeleter, drops projectDropper) maintenance {
+	return maintenance{projects: st, drops: drops, batch: testBatch, workers: testWorkers}
+}
+
 // sweepDrops builds the service tail the sweep drives, over an in-proc eventbus.
 func sweepDrops(fs service.ProjectFiles) *service.ProjectService {
 	return sweepDropsOn(fs, eventbus.NewInProc())
@@ -131,7 +139,7 @@ func TestSweepRemovesOnlyExpiredProjects(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	startExpirySweep(ctx, &wg, st, sweepDropsOn(fs, b), time.Hour) // only the startup pass fires
+	startExpirySweep(ctx, &wg, sweepOf(st, sweepDropsOn(fs, b)), time.Hour) // only the startup pass fires
 
 	pollUntil(t, "the expired project to be swept", func() bool { return !st.has("p_old_a") })
 	if !st.has("p_new_a") || !st.has("p_none_a") {
@@ -170,7 +178,7 @@ func TestSweepRepeatsOnTheTimerAndSurvivesAnError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	startExpirySweep(ctx, &wg, st, sweepDrops(nil), 10*time.Millisecond)
+	startExpirySweep(ctx, &wg, sweepOf(st, sweepDrops(nil)), 10*time.Millisecond)
 
 	// Pass 1 (startup) errors; passes 2+ come from the ticker.
 	pollUntil(t, "at least three sweep passes", func() bool { return st.callCount() >= 3 })
@@ -181,7 +189,7 @@ func TestSweepStopsOnContextCancel(t *testing.T) {
 	st := &fakeSweepStore{expires: map[string]int64{}}
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
-	startExpirySweep(ctx, &wg, st, sweepDrops(nil), 5*time.Millisecond)
+	startExpirySweep(ctx, &wg, sweepOf(st, sweepDrops(nil)), 5*time.Millisecond)
 	pollUntil(t, "the startup pass", func() bool { return st.callCount() >= 1 })
 
 	cancel()
@@ -205,7 +213,7 @@ func TestSweepStopsOnContextCancel(t *testing.T) {
 func TestSweepDisabledByZeroInterval(t *testing.T) {
 	st := &fakeSweepStore{expires: map[string]int64{"p_old_a": 1}}
 	var wg sync.WaitGroup
-	startExpirySweep(context.Background(), &wg, st, sweepDrops(nil), 0)
+	startExpirySweep(context.Background(), &wg, sweepOf(st, sweepDrops(nil)), 0)
 	wg.Wait() // nothing was ever added
 	if st.callCount() != 0 || !st.has("p_old_a") {
 		t.Fatal("a disabled sweep must never touch the store")

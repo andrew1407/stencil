@@ -18,6 +18,19 @@ pub fn cli_timeout() -> Duration {
     Duration::from_secs(secs.filter(|s| *s > 0).unwrap_or(120))
 }
 
+/// How many CLI children may run at once (`STENCIL_MCP_MAX_CONCURRENT_CLI`, default 2): each
+/// decodes a whole image, and a plan fans out one run per variant.
+pub fn max_concurrent_cli() -> usize {
+    let n = env_nonempty("STENCIL_MCP_MAX_CONCURRENT_CLI").and_then(|v| v.parse::<usize>().ok());
+    n.filter(|n| *n > 0).unwrap_or(2)
+}
+
+/// `STENCIL_MCP_ROOTS`: the operator's path list of directories writes may land in.
+pub(super) fn env_roots() -> Option<crate::confine::Roots> {
+    let raw = std::env::var_os("STENCIL_MCP_ROOTS")?;
+    crate::confine::Roots::new(std::env::split_paths(&raw))
+}
+
 /// The default desktop binary location inside a repo checkout.
 pub(super) fn default_desktop_path() -> Option<PathBuf> {
     let candidate = crate::locate::repo_root()?.join("desktop/build/stencil");
@@ -79,19 +92,18 @@ fn parse_dotenv(contents: &str) -> Vec<(String, String)> {
     pairs
 }
 
-/// Locate a `.env` file: the CWD first, then beside the running executable.
+/// Locate a dotenv file beside the running executable, else in the `mcp/` of the checkout
+/// it was built in — never the CWD, which an untrusted workspace controls.
 fn dotenv_path() -> Option<PathBuf> {
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd.join(".env"));
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join(".env"));
-        }
+    let exe = std::env::current_exe().ok()?;
+    let mut candidates: Vec<PathBuf> = exe.parent().map(|d| d.join(DOTENV)).into_iter().collect();
+    if let Some(root) = crate::locate::repo_root() {
+        candidates.push(root.join("mcp").join(DOTENV));
     }
     candidates.into_iter().find(|p| p.is_file())
 }
+
+const DOTENV: &str = ".env";
 
 #[cfg(test)]
 mod tests {

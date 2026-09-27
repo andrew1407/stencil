@@ -1,4 +1,4 @@
-// The canvas viewport's overlay scrollbars (desktop parity: canvas/OverlayScrollArea.hpp).
+// The canvas viewport's overlay scrollbars (desktop parity: canvas/overlay/OverlayScrollArea.hpp).
 // The native bars are hidden (layout/scrollbars.css): scrollbar-color is one colour for
 // both bars and the webkit pseudo-elements are ignored once scrollbar-width is set.
 import { motionReduced } from '../motion.js';
@@ -31,7 +31,12 @@ export const wireCanvasScrollbars = (vp) => {
   let hideTimer = null;
   let held = 0;
 
-  const hide = () => { for (const b of Object.values(bars)) b.bar.classList.remove('canvas-sb-on'); };
+  let tracking = 0;
+  const hide = () => {
+    for (const b of Object.values(bars)) b.bar.classList.remove('canvas-sb-on');
+    if (tracking && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(tracking);
+    tracking = 0;
+  };
   const scheduleHide = () => {
     clearTimeout(hideTimer);
     hideTimer = null;
@@ -81,6 +86,15 @@ export const wireCanvasScrollbars = (vp) => {
     if (flying) hide();
     return { canY, canX };
   };
+  // While shown the bars are re-measured every frame: a viewport moving or shrinking under them (a
+  // fold) left them where it was, over the rows below (user report), and past the overflow, up.
+  const track = () => {
+    tracking = 0;
+    if (!Object.values(bars).some((b) => b.bar.classList.contains('canvas-sb-on'))) return;
+    const { canY, canX } = layout();
+    if (!canY && !canX) { hide(); return; }
+    if (typeof requestAnimationFrame === 'function') tracking = requestAnimationFrame(track);
+  };
   const reveal = () => {
     const { canY, canX } = layout();
     const still = motionReduced();
@@ -88,7 +102,10 @@ export const wireCanvasScrollbars = (vp) => {
       b.bar.classList.toggle('canvas-sb-nomotion', still);
       if (!b.bar.hidden) b.bar.classList.add('canvas-sb-on');
     }
-    if (canY || canX) scheduleHide();
+    if (canY || canX) {
+      scheduleHide();
+      if (!tracking && typeof requestAnimationFrame === 'function') tracking = requestAnimationFrame(track);
+    }
   };
 
   vp.addEventListener('scroll', reveal, { passive: true });
@@ -99,10 +116,11 @@ export const wireCanvasScrollbars = (vp) => {
 // width and read as overflow, so the verdict waits for the layout to settle.
     const settled = (fn) => (typeof requestAnimationFrame === 'function'
       ? requestAnimationFrame(() => requestAnimationFrame(fn)) : fn());
-    const ro = new ResizeObserver(() => settled(reveal));   // the viewport's box, and the picture's (a zoom)
-    ro.observe(vp);
+    // The viewport's own box only re-places them: a fold's frames overflow for a beat and popped
+    // the bars up mid-flight (user report). The picture's box (a zoom) shows them.
+    new ResizeObserver(() => settled(layout)).observe(vp);
     const canvas = vp.querySelector('#canvas');
-    if (canvas) ro.observe(canvas);
+    if (canvas) new ResizeObserver(() => settled(reveal)).observe(canvas);
   }
   if (typeof MutationObserver !== 'undefined')
     new MutationObserver(layout).observe(vp, { attributes: true, attributeFilter: ['class'] });

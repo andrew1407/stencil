@@ -1,12 +1,24 @@
 #pragma once
 #include "opPlan.hpp"
+#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <QVector>
 
+namespace stencil::model {
+  class OpPlanSchema;
+}
+
 // Op registry (llm-contract.md §13): the desktop's view of config/llm/opRegistry.json, the
 // validator source of truth; the prompt's ops sections are ASSEMBLED from it, never hand-embedded.
 namespace stencil::llm {
+
+  // The registry resolved by core/opplan for surface "desktop", built once from the qrc copy.
+  const model::OpPlanSchema& planSchema();
+  // That resolution as JSON: entries (name, bullet, flags, requires, keys), forbidden names, limits.
+  const QJsonObject& planSurface();
+  // A cap by dotted path ("MAX_ACTIONS", "ask.answer"); -1 when unknown.
+  int planLimit(const QString& name);
 
   // §13 "capability truth": assembling with a reduced set EXCLUDES the ops that need the missing ones.
   enum OpCapability : unsigned {

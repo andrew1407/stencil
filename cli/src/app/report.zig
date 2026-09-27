@@ -44,6 +44,12 @@ pub fn note(comptime fmt: []const u8, args: anytype) void {
     emit(.note, fmt, args);
 }
 
+/// Emit what a worker printed while this thread owned the terminal (logo.flushDeferred): a
+/// thread waiting on a worker calls it as it waits and once the worker is done.
+pub fn flushDeferred() void {
+    logo.flushDeferred();
+}
+
 /// The `error: ` prefix, for a caller that composes the whole line itself (scrape's Deps
 /// sink, which hands finished text to one emit function).
 pub fn errPrefix() []const u8 {
@@ -53,10 +59,15 @@ pub fn errPrefix() []const u8 {
 fn emit(sev: Severity, comptime fmt: []const u8, args: anytype) void {
     if (installed) |w| {
         var buf: [8192]u8 = undefined;
-        // Over one chunk the installed writer is skipped rather than half-fed; the default
-        // path (logo.print) has its own stderr fallback for the same case.
-        const s = std.fmt.bufPrint(&buf, fmt, args) catch return;
-        w.emitFn(w.ctx, sev, s);
+        if (std.fmt.bufPrint(&buf, fmt, args)) |s| return w.emitFn(w.ctx, sev, s) else |_| {}
+        // Longer than one chunk: the heap, so the line arrives whole; without memory, what fits.
+        const big = std.fmt.allocPrint(std.heap.page_allocator, fmt, args) catch {
+            var fw = std.Io.Writer.fixed(&buf);
+            fw.print(fmt, args) catch {};
+            return w.emitFn(w.ctx, sev, fw.buffered());
+        };
+        defer std.heap.page_allocator.free(big);
+        w.emitFn(w.ctx, sev, big);
         return;
     }
     switch (sev) {
@@ -83,4 +94,19 @@ test "an installed writer takes the lower layers' lines, with the severity and n
     err("no source for '{s}'\n", .{"x.png"});
     try std.testing.expectEqual(Severity.err, Cap.sev);
     try std.testing.expectEqualStrings("no source for 'x.png'\n", Cap.buf[0..Cap.len]);
+}
+
+test "a line past 8 KB reaches an installed writer whole, never dropped" {
+    const Cap = struct {
+        var len: usize = 0;
+        fn take(_: *anyopaque, _: Severity, text: []const u8) void {
+            len = text.len;
+        }
+    };
+    var unused: u8 = 0;
+    install(.{ .ctx = @ptrCast(&unused), .emitFn = Cap.take });
+    defer uninstall();
+    const long = "y" ** 12000;
+    print("{s}\n", .{long});
+    try std.testing.expectEqual(long.len + 1, Cap.len);
 }

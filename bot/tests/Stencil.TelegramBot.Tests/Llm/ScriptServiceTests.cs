@@ -85,10 +85,10 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
     [Fact]
     public async Task Should_Probe_Nothing_Without_A_Working_Image()
     {
-        _cli.CannedScriptPlan = Plan(ScriptBlock.KIND_URL, "http://203.0.113.9/a.png",
-            """[{"op":"openUrl","url":"http://203.0.113.9/a.png"}]""");
+        _cli.CannedScriptPlan = Plan(ScriptBlock.KIND_URL, "http://93.184.216.34/a.png",
+            """[{"op":"openUrl","url":"http://93.184.216.34/a.png"}]""");
 
-        await _service.RunAsync(UserId, "@source http://203.0.113.9/a.png:\n  @save\n");
+        await _service.RunAsync(UserId, "@source http://93.184.216.34/a.png:\n  @save\n");
 
         Assert.Null(_cli.LastScriptCall!.Value.Input);
     }
@@ -114,7 +114,7 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         await Adopt();
         _cli.CannedScriptPlan = new ScriptPlan(
             [new ScriptDiagnostic("warning", "W_NO_SAVE", 1, 1, "the block never saves")],
-            [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, ["""[{"op":"filter","mode":"bw"}]"""])]);
+            [Block(0, "", ScriptBlock.KIND_PROJECT, """[{"op":"filter","mode":"bw"}]""")]);
 
         ScriptOutcome outcome = await _service.RunAsync(UserId, "@filter bw\n");
 
@@ -142,14 +142,14 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.Null(_cli.LastScriptCall);
     }
 
-    /// <summary>Verbatim stdout from `stencil -i sample.png --script-plan`, parsed and executed, so an upstream envelope change fails here rather than in a chat.</summary>
+    /// <summary>Verbatim stdout from `stencil -i sample.png --script-plan s.stc --plan-surface bot`, parsed and executed, so an upstream envelope change fails here rather than in a chat.</summary>
     [Fact]
     public async Task Should_Run_A_Real_Cli_Envelope()
     {
         await Adopt();
         _cli.CannedScriptPlan = CliOutcomeParser.ParseScriptPlan(
             """
-            {"version":1,"script":"s.stc","diagnostics":[],"blocks":[{"index":0,"source":"","sourceKind":"project","inputs":["sample.png"],"frame":0,"dims":{"width":16,"height":12},"plans":[{"reply":"","actions":[{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"10%","y2":"-10%"}},{"op":"filter","mode":"bw"},{"op":"layout","lines":[{"points":[{"x":0,"y":0},{"x":12.8,"y":9.600000000000001}],"color":"#FFFF00","style":"solid","fillColor":"transparent","thickness":2,"pointSize":4,"locked":false}]}]}],"saves":[]}]}
+            {"version":1,"script":"s.stc","diagnostics":[],"blocks":[{"index":0,"source":"","sourceKind":"project","inputs":["sample.png"],"frame":0,"dims":{"width":16,"height":12},"plans":[{"reply":"","actions":[{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"10%","y2":"-10%"}},{"op":"filter","mode":"bw"},{"op":"layout","lines":[{"points":[{"x":0,"y":0},{"x":12.8,"y":9.600000000000001}],"color":"#FFFF00","style":"solid","fillColor":"transparent","thickness":2,"pointSize":4,"locked":false}]}],"check":{"status":"valid","reply":"Done.","actions":[{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"10%","y2":"-10%"}},{"op":"filter","mode":"bw"},{"op":"layout","lines":[{"points":[{"x":0,"y":0},{"x":12.8,"y":9.600000000000001}],"color":"#FFFF00","thickness":2,"pointSize":4,"style":"solid","locked":false,"fillColor":"transparent"}]}],"variants":[],"ask":null,"warnings":[{"code":"W_REPLY_OMITTED","message":"The model omitted its reply — the plan still ran"}],"error":null}}],"saves":[],"ops":[{"kind":"crop","line":1,"edit":1,"strs":[""],"toks":["10%","-10%","10%","-10%"],"nums":[0]},{"kind":"filter","line":2,"edit":2,"strs":["bw",""],"toks":[],"nums":[]},{"kind":"line","line":3,"edit":3,"strs":["#FFFF00","solid","transparent",""],"toks":["0px","0px","100%","100%"],"nums":[2,4,0]}]}]}
             """);
 
         ScriptOutcome outcome = await _service.RunAsync(UserId, "@crop 10%\n@filter bw\n@line (0,0) (100%,100%)\n");
@@ -159,6 +159,20 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.Equal("x1=10% x2=-10% y1=10% y2=-10%", session.Edits.CropSpec);
         Assert.Equal("bw", session.Edits.Filter);
         Assert.Equal(1, session.Edits.LineCount);
+    }
+
+    /// <summary>--script-plan carries core's verdict per chunk, so a run spawns no --plan-check of its own.</summary>
+    [Fact]
+    public async Task Should_Judge_Each_Chunk_From_The_Envelope_Without_A_Plan_Check_Spawn()
+    {
+        await Adopt();
+        _cli.CannedScriptPlan = Plan(ScriptBlock.KIND_PROJECT, "", """[{"op":"filter","mode":"bw"}]""");
+
+        ScriptOutcome outcome = await _service.RunAsync(UserId, "@filter bw\n");
+
+        Assert.Equal("Script ran: 1 op.", outcome.Reply);
+        Assert.Empty(outcome.Warnings);   // a chunk has no reply by design; that is never news
+        Assert.Equal(0, _cli.PlanCheckCalls);
     }
 
     /// <summary>The registry's MAX_ACTIONS is what the CLI chunks at; a chunk past it is refused.</summary>

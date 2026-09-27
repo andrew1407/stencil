@@ -3,6 +3,7 @@
 // awaiting caller (the §10 `copy` op) still observes the real result.
 import { notify, isSplitCompare } from '../../utils.js';
 import { VARIANT_META } from '../image/variants.js';
+import { currentLayoutPayload } from '../project/meta/projectMeta.js';
 
 // write() MUST run synchronously inside the Cmd/Ctrl+C gesture with a Promise-valued
 // ClipboardItem: deferring into toBlob loses user activation (NotAllowedError, macOS WebKit).
@@ -41,7 +42,7 @@ export const copyLayoutToClipboard = (svc) => {
       notify('No layout to copy', 'fail');
       return Promise.reject(new Error('No layout to copy'));
     }
-    const txt = JSON.stringify(app.currentLayoutPayload(), null, 2);
+    const txt = JSON.stringify(currentLayoutPayload(app), null, 2);
     return navigator.clipboard.writeText(txt)
       .then(() => notify('Layout JSON copied', 'ok'))
       .catch(err => { notify('Copy failed: ' + (err.message || err), 'fail'); throw err; });

@@ -12,7 +12,7 @@
 
 /* A CHAT entry takes its time on the way out (motion.js CHAT_LEAVE_MS): a deleted
    message is a deliberate act, and the old 0.22s snap read as a glitch next to the
-   particles still drifting off it. Browser css/animations/reveal.css chatCardLeave twin. */
+   particles still drifting off it. Browser css/animations/reveal/reveal.css chatCardLeave twin. */
 #sec-assistant .chat-transcript > .leaving, #sec-assistant .chip.leaving {
     animation: chatCardLeave 0.26s cubic-bezier(0.33, 0, 0.2, 1) both;
     will-change: opacity, transform;
@@ -26,7 +26,7 @@
 /* …and it ARRIVES the same way, backwards (motion.js chatIn): its own motes gather over
    it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
    keeps its height, so the transcript grows and scrolls to it exactly as it always did,
-   but it is never seen ahead of its own dust. Browser css/animations/reveal.css twin. */
+   but it is never seen ahead of its own dust. Browser css/animations/reveal/reveal.css twin. */
 #sec-assistant .chat-transcript > .chat-entering,
 #chat-transcript > .chat-entering {
     opacity: 0 !important;

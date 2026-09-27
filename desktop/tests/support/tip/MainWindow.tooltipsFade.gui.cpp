@@ -113,7 +113,7 @@ class MainWindowGuiTest : public QObject {
     // Baseline: hovering the first point (no modifiers, nothing else going on) shows the
     // tooltip after the reveal delay — proves the setup actually can show one at all.
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.overlays.tooltip->isVisible(), 1000);
 
     // Alt-press ON that same point starts a point drag without moving first — the stranding case: the very
     // next move must retract a tooltip already up, not merely skip showing a new one.
@@ -121,12 +121,12 @@ class MainWindowGuiTest : public QObject {
              Qt::LeftButton, Qt::AltModifier);
     sendMouse(QEvent::MouseMove, QPointF(70 * s, 60 * s), Qt::NoButton, Qt::LeftButton,
              Qt::AltModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.overlays.tooltip->isVisible(), 1000);
     // Dragging further — even back over the SECOND point — never re-shows it either.
     sendMouse(QEvent::MouseMove, QPointF(160 * s, 120 * s), Qt::NoButton, Qt::LeftButton,
              Qt::AltModifier);
     QTest::qWait(260);   // outwait the reveal delay — it must still be hidden
-    QVERIFY2(!win.tooltip->isVisible(), "a point drag popped a tooltip mid-drag");
+    QVERIFY2(!win.overlays.tooltip->isVisible(), "a point drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(160 * s, 120 * s), Qt::LeftButton,
              Qt::NoButton, Qt::AltModifier);
     beat();
@@ -135,14 +135,14 @@ class MainWindowGuiTest : public QObject {
     canvas->setLines({line});   // undo the point drag above — point 1 back at (40, 40)
     canvas->setDrawMode(CanvasWidget::DrawMode::RECT);
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.overlays.tooltip->isVisible(), 1000);
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
              Qt::LeftButton, Qt::NoModifier);
     sendMouse(QEvent::MouseMove, QPointF(90 * s, 90 * s), Qt::NoButton, Qt::LeftButton,
              Qt::NoModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.overlays.tooltip->isVisible(), 1000);
     QTest::qWait(260);
-    QVERIFY2(!win.tooltip->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
+    QVERIFY2(!win.overlays.tooltip->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(90 * s, 90 * s), Qt::LeftButton,
              Qt::NoButton, Qt::NoModifier);
     canvas->setDrawMode(CanvasWidget::DrawMode::LINE);
@@ -151,23 +151,23 @@ class MainWindowGuiTest : public QObject {
     // Shift-drag (zoom rect) over a point: still nothing.
     canvas->setLines({line});   // drop the rect-draw commit above, back to the plain line
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.overlays.tooltip->isVisible(), 1000);
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
              Qt::LeftButton, Qt::ShiftModifier);
     // Kept under the 4-image-px commit threshold (mouseReleaseEvent) so releasing does
     // NOT actually zoom — this section only cares about the tooltip during the drag.
     sendMouse(QEvent::MouseMove, QPointF(42 * s, 41 * s), Qt::NoButton, Qt::LeftButton,
              Qt::ShiftModifier);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.overlays.tooltip->isVisible(), 1000);
     QTest::qWait(260);
-    QVERIFY2(!win.tooltip->isVisible(), "a zoom-rect drag popped a tooltip mid-drag");
+    QVERIFY2(!win.overlays.tooltip->isVisible(), "a zoom-rect drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(42 * s, 41 * s), Qt::LeftButton,
              Qt::NoButton, Qt::ShiftModifier);
     beat();
 
     // Back to a plain hover afterwards: the tooltip is not stuck off either.
     moveTo(40, 40);
-    QTRY_VERIFY_WITH_TIMEOUT(win.tooltip->isVisible(), 1000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.overlays.tooltip->isVisible(), 1000);
     beat();
   }
 

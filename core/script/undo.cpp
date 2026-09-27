@@ -46,6 +46,7 @@ namespace stencil::core::script {
     }
     rec.live = false;
     removed.push_back(idx);
+    dirty = true;
     return true;
   }
 
@@ -65,6 +66,7 @@ namespace stencil::core::script {
     ambiguous = matches > 1;
     edits[static_cast<std::size_t>(found)].live = false;
     removed.push_back(found);
+    dirty = true;
     return true;
   }
 
@@ -77,10 +79,12 @@ namespace stencil::core::script {
       edits[static_cast<std::size_t>(removed.back())].live = true;
       removed.pop_back();
     }
+    dirty = true;
     return true;
   }
 
   bool EditLedger::reconcile(std::vector<Op>& out, int block, int line, int col) {
+    if (!dirty) return true;  // every edit so far is both applied and live
     std::vector<int> live;
     for (std::size_t i = 0; i < edits.size(); ++i)
       if (edits[i].live) live.push_back(static_cast<int>(i));
@@ -105,6 +109,7 @@ namespace stencil::core::script {
     for (std::size_t i = k; i < live.size(); ++i)
       out.push_back(edits[static_cast<std::size_t>(live[i])].op);
     applied = std::move(live);
+    dirty = false;
     return true;
   }
 
@@ -112,6 +117,7 @@ namespace stencil::core::script {
     edits.clear();
     applied.clear();
     removed.clear();
+    dirty = false;
   }
 
 }  // namespace stencil::core::script

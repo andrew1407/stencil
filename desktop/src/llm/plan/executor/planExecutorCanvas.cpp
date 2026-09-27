@@ -1,19 +1,15 @@
 #include "planExecutor.hpp"
 
-#include "CanvasWidget.hpp"
-#include "opRegistry.hpp"
+#include "CanvasScene.hpp"
+#include "imageTurn.hpp"
 
 #include <QColor>
-#include <QUrl>
-
-#include <algorithm>
-#include <cmath>
 
 namespace stencil::llm {
 
 
   CanvasPlanTarget::CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm)
-      : canvas(std::make_unique<gui::CanvasWidget>()), page(pageCm) {
+      : canvas(std::make_unique<gui::CanvasScene>()), page(pageCm) {
     canvas->setPageCm(page.width, page.height);
     if (!image.isNull()) {
       // Adopt the snapshot 1:1 — a FULL-frame crop, so a variant starts from
@@ -31,7 +27,7 @@ namespace stencil::llm {
   bool CanvasPlanTarget::hasImage() const { return canvas->hasImage(); }
 
   QSize CanvasPlanTarget::effectiveOriginalSize() const {
-    return canvas->effectiveOriginalImage().size();
+    return model::turnedSize(canvas->getOriginalImage().size(), canvas->getRotationQuarters());
   }
 
   QSize CanvasPlanTarget::workingSize() const { return canvas->getImage().size(); }
@@ -44,8 +40,7 @@ namespace stencil::llm {
   void CanvasPlanTarget::rotateQuarter(bool clockwise) { canvas->rotateImage(clockwise); }
 
   void CanvasPlanTarget::setImageFilter(const QString& mode, const QString& tintHex) {
-    if (tintHex.isEmpty()) canvas->setFilter(mode);
-    else canvas->setImageFilter(mode, QColor(tintHex));
+    canvas->commitFilter(mode, tintHex.isEmpty() ? canvas->getFilterColor() : QColor(tintHex));
   }
 
   void CanvasPlanTarget::setLayoutLines(const core::Lines& lines) {
@@ -56,14 +51,7 @@ namespace stencil::llm {
     canvas->commitLines(lines);
   }
 
-  bool CanvasPlanTarget::captureEdit(EditState& out) const {
-    out.valid = true;
-    out.crop = canvas->getCropRect();
-    out.filterMode = canvas->getImageFilter();
-    out.filterTint = canvas->getFilterColor().name();
-    out.lines = canvas->getLines();
-    return true;
-  }
+  std::optional<core::EditorMemento> CanvasPlanTarget::captureEdit() const { return canvas->memento(); }
 
   void CanvasPlanTarget::setFormula(QChar axis, const QString& expr) {
     (axis == QLatin1Char('x') ? formulaX : formulaY) = expr;

@@ -35,7 +35,7 @@ namespace stencil::gui {
   }
 
 
-  // A FALL / GATHER grain (browser surface/motion.js ghostOut / ghostIn). false = at home, the
+  // A FALL / GATHER grain (browser dust/canvasDustDraw.js ghostOut / ghostIn). false = at home, the
   // picture; true = cut out, `out` is the grain (radius 0 once gone).
   bool DisintegrateOverlay::fallingMote(const QRectF& box, int cx, int cy, double cw, double ch,
                                         Mote* out) const {

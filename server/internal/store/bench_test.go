@@ -8,23 +8,21 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	"stencil/server/internal/protocol"
 )
 
-// seedProjects inserts n projects with a layout and an inline original, so a
-// SELECT * would carry the payload columns ListProjects deliberately omits.
+// seedProjects inserts n projects with a layout, so a SELECT * would carry the
+// payload column ListProjects deliberately omits.
 func seedProjects(b *testing.B, s *Store, n int) {
 	b.Helper()
 	ctx := context.Background()
 	layout := []byte(`{"rows":[{"cells":[{"w":1,"h":1}]}]}`)
-	blob := strings.Repeat("data:image/png;base64,iVBORw0KGgo=", 2000) // text column: no NULs
 	for i := 0; i < n; i++ {
 		if _, err := s.CreateProject(ctx, "", protocol.CreateProjectRequest{
 			Name: "P" + strconv.Itoa(i), HasImage: true, Layout: layout,
-			OriginalContent: blob, Keywords: []string{"maps", "ocean"},
+			Keywords: []string{"maps", "ocean"},
 		}); err != nil {
 			b.Fatal(err)
 		}

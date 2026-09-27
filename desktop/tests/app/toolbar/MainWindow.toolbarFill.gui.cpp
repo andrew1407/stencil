@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QAction* chat = win.actChat;
+    QAction* chat = win.acts.chat;
     QVERIFY(chat && chat->isCheckable());
     QToolButton* btn = qobject_cast<QToolButton*>(win.buttonForAction(chat));
     QVERIFY2(btn, "the AI Assistant icon is not on the toolbar");
@@ -41,6 +41,66 @@ class MainWindowGuiTest : public QObject {
     repolish(btn);
     QVERIFY2(isAccent(ground()), "the toggle does not fill when on");
     chat->setChecked(false);
+  }
+  // The chat toggle is the incognito toggle's bordered ghost (browser #chat-btn shares its box): the
+  // same frame and ground at rest, under the pointer, pressed, lit and dead.
+  void chatToggleWearsTheGhostBoxOfItsSiblingToggle() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    settleLayout(&win, 150);
+    auto* chat = qobject_cast<QToolButton*>(win.buttonForAction(win.acts.chat));
+    auto* incognito = qobject_cast<QToolButton*>(win.buttonForAction(win.acts.incognito));
+    QVERIFY(chat && incognito && incognito->isEnabled());
+    // Grabbed off the window, so a translucent ring is composited as drawn. The left edge at mid
+    // height is the 1px border; three pixels in is the ground.
+    const auto face = [&win](QToolButton* b, bool hovered, bool down) {
+      b->setAttribute(Qt::WA_UnderMouse, hovered);
+      b->setDown(down);
+      b->style()->unpolish(b);
+      b->style()->polish(b);
+      QTest::qWait(20);
+      const QImage im = win.grab(QRect(b->mapTo(&win, QPoint(0, 0)), b->size())).toImage();
+      b->setDown(false);
+      return std::pair<QColor, QColor>{im.pixelColor(0, im.height() / 2), im.pixelColor(3, im.height() / 2)};
+    };
+    const auto mismatch = [&](const char* state, bool hovered, bool down = false) {
+      const auto [chatEdge, chatGround] = face(chat, hovered, down);
+      const auto [twinEdge, twinGround] = face(incognito, hovered, down);
+      if (!nearColor(chatEdge, twinEdge, 6))
+        return QString("%1: the chat button's border is %2, the incognito toggle's %3")
+            .arg(state, chatEdge.name(), twinEdge.name());
+      if (!nearColor(chatGround, twinGround, 6))
+        return QString("%1: the chat button's ground is %2, the incognito toggle's %3")
+            .arg(state, chatGround.name(), twinGround.name());
+      return QString();
+    };
+    QString why = mismatch("at rest", false);
+    QVERIFY2(why.isEmpty(), qPrintable(why));
+    why = mismatch("under the pointer", true);
+    QVERIFY2(why.isEmpty(), qPrintable(why));
+    why = mismatch("pressed", true, true);
+    QVERIFY2(why.isEmpty(), qPrintable(why));
+    // The mean of the pixels a glyph's line-art covers.
+    const auto ink = [](QToolButton* b) {
+      const QImage im = b->icon().pixmap(QSize(18, 18), 1.0).toImage();
+      long r = 0, g = 0, bl = 0, n = 0;
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x)
+          if (const QColor c = im.pixelColor(x, y); c.alpha() > 200) { r += c.red(); g += c.green(); bl += c.blue(); ++n; }
+      return n ? QColor(int(r / n), int(g / n), int(bl / n)) : QColor();
+    };
+    for (QAction* a : {win.acts.chat, win.acts.incognito}) a->setChecked(true);
+    why = mismatch("lit", false);
+    if (why.isEmpty() && !nearColor(ink(chat), ink(incognito), 30))
+      why = QString("lit: the chat glyph is %1, the incognito glyph %2").arg(ink(chat).name(), ink(incognito).name());
+    for (QAction* a : {win.acts.chat, win.acts.incognito}) a->setChecked(false);
+    QVERIFY2(why.isEmpty(), qPrintable(why));
+    for (QAction* a : {win.acts.chat, win.acts.incognito}) a->setEnabled(false);
+    why = mismatch("dead", false);
+    for (QAction* a : {win.acts.chat, win.acts.incognito}) a->setEnabled(true);
+    QVERIFY2(why.isEmpty(), qPrintable(why));
   }
   // Every accent-BACKED control wears the ink the ACCENT picked (theme.hpp onAccentInk), not a fixed
   // white glyph a yellow or sky accent would swallow. Browser twin: --on-accent.
@@ -76,13 +136,13 @@ class MainWindowGuiTest : public QObject {
                                 qPrintable("a filled button's glyph is not the accent's ink" + why), 3000);
 
       // …and the stylesheet hands the same ink to every label on the accent.
-      const QString qss = stencil::gui::buildStylesheet(win.paintedDark, accentKey);
+      const QString qss = stencil::gui::buildStylesheet(win.painted.dark, accentKey);
       QVERIFY2(qss.contains("color: " + ink.name()),
                qPrintable("the QSS carries no on-accent ink" + why));
-      // The empty state's "Open Image" paints its own label (support/OpenImageButton.hpp),
+      // The empty state's "Open Image" paints its own label (support/share/OpenImageButton.hpp),
       // so it reads that ink out of the palette the sheet filled rather than the sheet.
-      QVERIFY(win.openImageBtn);
-      QTRY_VERIFY2(win.openImageBtn->palette().color(QPalette::ButtonText) == ink,
+      QVERIFY(win.tools.openImageBtn);
+      QTRY_VERIFY2(win.tools.openImageBtn->palette().color(QPalette::ButtonText) == ink,
                    qPrintable("Open Image's own painter has no on-accent ink" + why));
     }
   }
@@ -94,12 +154,12 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QToolButton* btn = win.zoomFitBtn;
+    QToolButton* btn = win.tools.zoomFitBtn;
     QVERIFY(btn);
-    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.actZoomOut));
+    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.acts.zoomOut));
     QVERIFY(stepper);
     const stencil::gui::Palette pal =
-        stencil::gui::themePalette(win.paintedDark, win.settings.accentColor);
+        stencil::gui::themePalette(win.painted.dark, win.settings.accentColor);
     const QColor accent = stencil::gui::accentPrimary(win.settings.accentColor);
     // Dead (no image yet): the shared grey chip, the stepper's own face, no accent in it.
     QVERIFY2(!btn->isEnabled(), "the fit button should start disabled, with no image");
@@ -114,7 +174,7 @@ class MainWindowGuiTest : public QObject {
     }
     // …and once it can act, the fill every other acting button carries.
     openLoaded(win);
-    QTRY_VERIFY(win.actFit->isEnabled());
+    QTRY_VERIFY(win.acts.fit->isEnabled());
     QTRY_COMPARE(btn->property("toolFill").toString(), QStringLiteral("accent"));
     const QImage live = btn->grab().toImage();
     QVERIFY2(nearColor(live.pixelColor(live.width() / 2, 3), accent, 50),
@@ -151,7 +211,7 @@ class MainWindowGuiTest : public QObject {
       }
     QVERIFY2(live > 5, "expected several live toolbar controls");
     // A control that goes dead swaps to the refusal cursor.
-    QToolButton* crop = qobject_cast<QToolButton*>(win.buttonForAction(win.actCrop));
+    QToolButton* crop = qobject_cast<QToolButton*>(win.buttonForAction(win.acts.crop));
     QVERIFY(crop);
     QCOMPARE(crop->cursor().shape(), Qt::PointingHandCursor);
     win.canvas->clearImage();

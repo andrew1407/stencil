@@ -17,6 +17,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     const auto moveTo = [](QMenu* m, const QPoint& p) {
       QMouseEvent e(QEvent::MouseMove, QPointF(p), QPointF(m->mapToGlobal(p)),
@@ -81,7 +82,7 @@ class MainWindowGuiTest : public QObject {
 
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
     // Correctness first, and it holds on every platform: our guard really does close a
     // hovered-away submenu (Qt itself leaves it up).
@@ -93,14 +94,22 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(dustOnClose, "no dust while our own guard closed the submenu");
     QVERIFY2(dustOnSecondOpen, "no dust replayed on the second open of the same submenu");
   }
+  // hotkeysConfig.json spells zoom as "Alt+ArrowUp"/"Alt+ArrowDown", which QKeySequence cannot parse
+  // raw: the actions must still carry the chords, as the browser binds them.
+  void zoomActionsCarryTheConfigArrowChords() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    QVERIFY(win.acts.zoomIn && win.acts.zoomOut);
+    QCOMPARE(win.acts.zoomIn->shortcut(), QKeySequence("Alt+Up"));
+    QCOMPARE(win.acts.zoomOut->shortcut(), QKeySequence("Alt+Down"));
+  }
   // Shift+F10 (shared hotkeysConfig contextMenu) opens the canvas context menu from the keyboard: under
   // the pointer while it rests over the viewport, else at the viewport's centre, as the browser does.
   void contextMenuOpensOnShiftF10() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY(win.actContextMenu);
-    QCOMPARE(win.actContextMenu->shortcut(), QKeySequence("Shift+F10"));
+    QVERIFY(win.acts.contextMenu);
+    QCOMPARE(win.acts.contextMenu->shortcut(), QKeySequence("Shift+F10"));
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
     win.activateWindow();
     QVERIFY(QTest::qWaitForWindowActive(&win));   // a WindowShortcut needs the active window
@@ -148,7 +157,7 @@ class MainWindowGuiTest : public QObject {
     QRect vpAt2;
     bool opened2 = false;
     armCloser(opened2, at2, vpAt2);
-    win.actContextMenu->trigger();
+    win.acts.contextMenu->trigger();
     QTRY_VERIFY2_WITH_TIMEOUT(opened2, "the context-menu action did not open the menu", 4000);
     // Against the viewport as it was AT THAT INSTANT: the panel settles into its width after the window
     // opens. x lands on the centre exactly; y may be pulled up to keep the menu on screen.

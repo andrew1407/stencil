@@ -1,5 +1,5 @@
 // The independent point colour (Line.pointColor), a port of the pointColor cases in
-// core/tests/rasterize.test.cpp: the browser strokes with canvas 2D, so `pointColorOf` is the JS twin of
+// core/tests/raster/rasterize.test.cpp: the browser strokes with canvas 2D, so `pointColorOf` is the JS twin of
 // core's `pointColorOr` and the two must agree — including that EMPTY means "inherit the stroke colour".
 
 import { test } from 'node:test';
@@ -61,7 +61,8 @@ test('mergeLines treats an absent pointColor and an empty one as the same line',
 
 // Points take the point-colour SETTING at draw time (empty setting → the line colour then), and a later
 // line-colour change never recolours drawn points: a new line materialises its pointColor at creation.
-import { DrawingApp } from '../../../js/core/drawingApp.js';
+import { startDrawingMode } from '../../../js/core/draw/mode.js';
+import { applySelectionChange } from '../../../js/core/line/selection.js';
 
 const makeDrawApp = () => {
   const app = {
@@ -81,12 +82,9 @@ const makeDrawApp = () => {
     continueLineIdx: -1,
     continueInsertIdx: -1,
     undonePoints: [],
-    startDrawingMode: DrawingApp.prototype.startDrawingMode,
-    applySelectionChange: DrawingApp.prototype.applySelectionChange,
     compareReadOnly() { return false; },
     hideSelectionPanels() {},
     saveHistory() {},
-    updateButtons() {},
     renderer: { redraw() {} },
     coordTable: { update() {} },
   };
@@ -95,13 +93,13 @@ const makeDrawApp = () => {
 
 test('a new line resolves its point colour at draw time', () => {
   const app = makeDrawApp();
-  app.startDrawingMode();
+  startDrawingMode(app);
   assert.equal(app.currentLine.pointColor, '#ff0000',
     'empty point-colour setting resolves to the line colour of that moment');
 
   const explicit = makeDrawApp();
   explicit.pointColor = '#00ff00';
-  explicit.startDrawingMode();
+  startDrawingMode(explicit);
   assert.equal(explicit.currentLine.pointColor, '#00ff00');
 });
 
@@ -110,7 +108,7 @@ test('recolouring a line leaves its rendered point colour untouched', () => {
   // An old line still on the inherit fallback ('' — pre-pointColor layouts).
   app.lines = [{ points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], color: '#ff0000', pointColor: '' }];
   app.selectedLineIdx = 0;
-  app.applySelectionChange('color', '#0000ff');
+  applySelectionChange(app, 'color', '#0000ff');
   assert.equal(app.lines[0].color, '#0000ff');
   assert.equal(pointColorOf(app.lines[0]), '#ff0000',
     'points keep drawing in the colour they had before the stroke recolour');
@@ -120,6 +118,6 @@ test('an explicit point colour survives a line recolour unchanged', () => {
   const app = makeDrawApp();
   app.lines = [{ points: [{ x: 0, y: 0 }], color: '#ff0000', pointColor: '#123456' }];
   app.selectedLineIdx = 0;
-  app.applySelectionChange('color', '#0000ff');
+  applySelectionChange(app, 'color', '#0000ff');
   assert.equal(app.lines[0].pointColor, '#123456');
 });

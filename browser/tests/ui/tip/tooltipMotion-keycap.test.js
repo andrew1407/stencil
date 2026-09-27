@@ -1,15 +1,15 @@
-// The tooltip keycap shake (js/ui/controlTooltip.js): a shortcut press nudges the cap that
-// spells it instead of dismissing the tip, once, and never under reduced motion.
+// The tooltip keycap shake (js/ui/tip/controlTooltip.js): a shortcut press nudges the cap that
+// spells it instead of dismissing the tip, once, and never under reduced motion. Driven on the
+// stub page of tooltipRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
 import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../../../js/ui/tip/controlTooltip.js';
+import { TIP_SHOW_DELAY_MS, TIP_DUST_IN_MS } from '../../../js/ui/motion.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
+import { installTooltipPage } from '../../helpers/tooltipRig.js';
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const componentsCss = COMPONENTS_CSS;
-const tooltipJs = read('../../../js/ui/tip/controlTooltip.js');
+const page = await installTooltipPage();
 
 // A keydown as the DOM reports it. `code` is the PHYSICAL key, which is the only side
 // that still says "A" when a Mac turns Alt+A into "å".
@@ -58,41 +58,69 @@ test('a keystroke matches the cap that spells it — and only that one', () => {
   assert.ok(!comboMatchesEvent('Shift', press('Shift', { code: 'ShiftLeft', shift: true })));
 });
 
+const caps = () => page.tip.querySelectorAll('.tip-key');
+const shaken = () => caps().map((c) => c.classList.contains('key-shake'));
+const reveal = (text, { reduced = false } = {}) => {
+  page.reset();
+  page.page.reduced = reduced;
+  const el = page.control(text);
+  page.over(el);
+  page.run(TIP_SHOW_DELAY_MS);
+  return el;
+};
+
 test('every cap nudges once the tooltip has LANDED, announcing the shortcut', () => {
   // The shake's job is to draw the eye to the shortcut while you are READING the tip,
   // so it fires on the show — not only when the key happens to be pressed.
-  assert.match(tooltipJs, /t\.classList\.add\('visible'\);[\s\S]{0,600}?place\(lastEvent\);[\s\S]{0,600}?shakeKeys\(t\);/,
-    'shaken on every reveal, once it is placed');
+  reveal('Undo (Ctrl+Z / Ctrl+Shift+Z)');
+  assert.deepEqual(shaken(), [false, false, false, false, false], 'still sand: nothing nudges yet');
   // …but only once the motes have arrived: a nudge played while the tip is still
   // assembling is a movement nobody can see, which is the whole point of it.
-  assert.match(tooltipJs,
-    /if \(dusted\) shakeTimer = setTimeout\(\(\) => \{ shakeTimer = null; shakeKeys\(t\); \}, TIP_IN_MS\);\s*\n\s*else shakeKeys\(t\);/,
-    'the shake waits out the gather, and fires at once when there was none');
+  assert.equal(page.run(TIP_DUST_IN_MS), 1, 'the shake waits out the gather');
+  assert.deepEqual(shaken(), [true, true, true, true, true], 'every cap, both combos');
+  reveal('Undo (Ctrl+Z)', { reduced: true });
+  assert.deepEqual(shaken(), [true, true], 'and fires at once when there was no gather');
   // …and a tip dismissed or re-pointed mid-flight never shakes the caps of a tip that
   // has already gone: both routes drop the pending nudge first.
-  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*showTimer = shakeTimer = null;/);
-  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*if \(dusted\)/);
-  assert.match(tooltipJs,
-    /const shakeKeys = \(t\) => \{\s*\n\s*t\.querySelectorAll\('\.tip-key'\)\.forEach\(cap => flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)\);/);
-  // A tip with no shortcut has no caps, so the query is empty and nothing happens —
-  // no guard needed, and none that could get it wrong.
-  assert.ok(!/shakeKeys[\s\S]{0,200}if \(/.test(tooltipJs.slice(tooltipJs.indexOf('const shakeKeys'))),
-    'no special case for a shortcut-less tooltip');
+  reveal('Save (Ctrl+S)');
+  page.fire('pointerdown', {});
+  assert.equal(page.run(TIP_DUST_IN_MS), 0, 'a dismissal drops the pending nudge');
+  reveal('Save (Ctrl+S)');
+  page.over(page.control('Open (Ctrl+O)', { rect: { left: 300, top: 100, width: 30, height: 30 } }));
+  page.run(TIP_SHOW_DELAY_MS);
+  assert.equal(page.run(TIP_DUST_IN_MS), 1, 're-pointing leaves only the new tip\'s nudge');
+  // A tip with no shortcut has no caps, so the query is empty and nothing happens.
+  reveal('Plain words', { reduced: true });
+  assert.deepEqual([page.visible(), caps().length], [true, 0], 'no special case for a shortcut-less tooltip');
 });
 
 test('the shake is wired to the tooltip’s own caps, one shot, and Escape still dismisses', () => {
   // The combos rendered on the live tooltip are kept from the same parse renderTip ran,
   // so a cap can be matched back to the shortcut it spells.
-  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '[^']*content\.js';/);
-  assert.match(tooltipJs, /curCombos = parseTip\(txt\)\.keys;/);
-  assert.match(tooltipJs, /curCombos = \[\];/, 'and cleared with the tooltip');
+  reveal('Undo (Ctrl+Z / Ctrl+Shift+Z)', { reduced: true });
+  caps().forEach((c) => c.classList.remove('key-shake'));
   // Matching key -> shake and KEEP the tooltip; anything else -> the old dismissal.
-  assert.match(tooltipJs, /if \(e\.key !== 'Escape' && shakeMatchingKeys\(e\)\) return;\s*\n\s*hide\(\);/);
-  assert.match(tooltipJs, /flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)/);
+  page.key(press('Z', { code: 'KeyZ', ctrl: true, shift: true }));
+  assert.equal(page.visible(), true, 'the matching shortcut keeps the tooltip up');
+  assert.deepEqual(shaken(), [false, false, true, true, true], 'only the cap that spells it moves');
+  assert.ok(page.delays().includes(340), 'one shot: the class comes off on its own');
+  page.run(340);
+  assert.deepEqual(shaken(), [false, false, false, false, false]);
   // Restart-safe, so pressing the same shortcut twice shakes twice.
-  const flash = tooltipJs.slice(tooltipJs.indexOf('const flashClass ='));
-  assert.match(flash, /classList\.remove\(cls\);\s*\n\s*void el\.offsetWidth;/);
-  assert.match(flash, /el\.__flashTimer = setTimeout\(\(\) => el\.classList\.remove\(cls\), ms\);/);
+  const cap = caps()[2];
+  const ops = [];
+  const { add, remove } = cap.classList;
+  Object.assign(cap.classList, { add: (c) => { ops.push(`+${c}`); add(c); }, remove: (c) => { ops.push(`-${c}`); remove(c); } });
+  page.key(press('z', { code: 'KeyZ', ctrl: true, shift: true }));
+  page.key(press('z', { code: 'KeyZ', ctrl: true, shift: true }));
+  assert.deepEqual(ops, ['-key-shake', '+key-shake', '-key-shake', '+key-shake'], 'the class is re-added, not stacked');
+  page.key(press('x', { code: 'KeyX' }));
+  assert.equal(page.visible(), false, 'any other key dismisses');
+  page.key(press('z', { code: 'KeyZ', ctrl: true }));
+  assert.deepEqual(shaken(), [false, false, true, true, true], 'and the cleared combos shake nothing');
+  reveal('Close (Esc)', { reduced: true });
+  page.key(press('Escape', { code: 'Escape' }));
+  assert.equal(page.visible(), false, 'Escape dismisses, even when a cap spells it');
 });
 
 test('the keycap shake is one brief, non-repeating pass', () => {
@@ -141,7 +169,14 @@ test('the dust forms at the control centre, or at the cursor once that is far fr
 // A descendant that describes ITSELF is a different tooltip, not the same one seen through its icon —
 // the connections row's status dot inside the URL label.
 test('a child with its own text takes the tooltip over from its ancestor', () => {
-  assert.match(tooltipJs,
-    /if \(curEl && curEl\.contains\(e\.target\) && \(!el \|\| el === curEl\)\) return;/,
-    'the guard keeps showing only while the child has no text of its own');
+  const row = reveal('Server row');
+  const icon = page.control('', { parent: row });
+  page.over(icon);
+  assert.deepEqual([page.visible(), page.delays().includes(TIP_SHOW_DELAY_MS)], [true, false],
+    'an icon with no text of its own keeps its ancestor\'s tooltip');
+  const dot = page.control('Connected', { parent: row });
+  page.over(dot);
+  assert.equal(page.visible(), false, 'a child with its own text drops the ancestor\'s');
+  page.run(TIP_SHOW_DELAY_MS);
+  assert.equal(page.visible(), true, 'and shows its own');
 });

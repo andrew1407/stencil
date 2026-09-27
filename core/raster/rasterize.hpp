@@ -9,11 +9,19 @@
 // or unparseable colours are skipped.
 namespace stencil::core {
 
-  void rasterizeLine(std::uint8_t* buf, int w, int h, const Line& line);
+  // One dash cycle in px along the path, whatever the thickness (canvas setLineDash). Twin:
+  // STROKE_DASH in browser/js/config/constants.json, drift-tested in rasterize.test.cpp.
+  struct DashPattern {
+    double on;
+    double off;
+  };
+  inline constexpr DashPattern DASHED{10.0, 5.0};
+  inline constexpr DashPattern DOTTED{2.0, 5.0};
 
-  // NOT splittable per line for a thread pool: blends overlap and are order-dependent,
-  // so two lines touching one pixel must land in list order. Only the fill splits.
-  void rasterizeLines(std::uint8_t* buf, int w, int h, const Lines& lines);
+  // Widest stroke burned, px: twice the 16384 px decode limit. A wider layout value clamps.
+  inline constexpr double MAX_STROKE_THICKNESS = 32768.0;
+
+  void rasterizeLine(std::uint8_t* buf, int w, int h, const Line& line);
 
   // Even-odd scanline fill over the half-open rows [rowFrom, rowTo). A scanline writes
   // only its own row, so ranges may run concurrently.

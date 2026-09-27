@@ -9,7 +9,7 @@ import { createModalFlight, shownRect } from './flight.js';
 import { canvasAnchorRect } from './imageAnchor.js';
 
 // Open/close/overlay-mousedown/Escape for every app modal. onOpen/onClose run BEFORE the
-// modal-open class toggles. The opener answers the popover gestures (ui/popover.js).
+// modal-open class toggles. The opener answers the popover gestures (ui/tip/popover.js).
 // `originEl` resolves the control the flight belongs to when it isn't the opener (null: fall
 // from above); `stacked` shells open over what is showing instead of replacing it.
 const FOCUS_MS = 30;
@@ -31,12 +31,14 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // One shell serves two callers — Open-in replaces from the toolbar, stacks from a row.
   let stackedNow = stacked;
   const defaultOrigin = () => (originFor ? originFor() : openBtn);
-  // An anchor is an element or a plain client rect (a control about to hide passes the rect).
-  const anchorLike = (v) => !!v && (typeof v.getBoundingClientRect === 'function' || Number.isFinite(v.width));
+  // An anchor is an element or a plain client rect (a control about to hide passes the rect). A
+  // click's PointerEvent has a numeric width too, but no top: it is never a rect.
+  const isRect = (v) => Number.isFinite(v?.width) && Number.isFinite(v?.top);
+  const anchorLike = (v) => !!v && (typeof v.getBoundingClientRect === 'function' || isRect(v));
   // An element counts only while shown: an opener folded away with the rows falls from above.
   const rectOf = (el) => (typeof el?.getBoundingClientRect === 'function'
     ? shownRect(el)
-    : (Number.isFinite(el?.width) ? el : null));
+    : (isRect(el) ? el : null));
   let fromAbove = false;   // this open had no shown control, so its close rises back up
   const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
   const onScreenRect = (r) =>
@@ -57,10 +59,15 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     overlay.classList.add('modal-open');
     // The box has no size while display:none.
     if (!reducedMotion() && setOriginVars()) playDust(true);
-    // A window opens ready to be typed into. Deferred past the entrance, which is where the
-    // windows that already did this put it (infoModal, scriptModal).
+    // A window opens ready to be typed into, deferred past the entrance (infoModal, scriptModal),
+    // unless the user picked a field in it meanwhile: that one keeps the caret.
     const focusTarget = typeof focusOnOpen === 'function' ? focusOnOpen() : focusOnOpen;
-    if (focusTarget?.focus) setTimeout(() => { if (api.isOpen()) focusTarget.focus(); }, FOCUS_MS);
+    const heldAtOpen = document.activeElement;
+    if (focusTarget?.focus) setTimeout(() => {
+      const now = document.activeElement;
+      if (!api.isOpen() || (now !== heldAtOpen && boxOf()?.contains(now))) return;
+      focusTarget.focus();
+    }, FOCUS_MS);
   };
   let gestures = null;
   // `backTo` overrides where this one close lands (an outcome that opened an image goes into

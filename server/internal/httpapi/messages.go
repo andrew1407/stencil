@@ -16,9 +16,10 @@ const (
 	msgStaleVersion    = "stale version; reload and retry"
 )
 
-// The two project rules that are policy, not plumbing (internal/service).
+// The project rules that are policy, not plumbing (internal/service).
 const (
 	msgImageRequired = "a project must be created from an image"
+	msgBadOriginal   = "originalContent must be a base64 image data URL"
 	msgProjectInUse  = "project is in use by other clients; cannot delete"
 )
 

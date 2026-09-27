@@ -14,8 +14,8 @@ is deliberately resize-free), so attached images are NOT downscaled to 1568 px �
 pass reasonably-sized images. Media types, the 32-message bound, and the image replay
 rule match the contract.
 
-Split across limits/errors/config/types/frame/run/ops/console/registry/validate/plan/
-ask/prompt/execute/client/chat; this module is the façade, and its import surface is
+Split across limits/errors/config/types/frame/run/ops/console/registry/parse/
+ask/prompt/execute/wire/client/chat; this module is the façade, and its import surface is
 the contract every caller binds to.
 """
 
@@ -65,7 +65,6 @@ from .plan.limits import (
   MAX_STRING_LENGTH,
   MAX_VARIANTS,
   MIN_ASK_OPTIONS,
-  SCHEMA,
   chat_display_text,
 )
 from .plan.parse import parse_op_plan
@@ -82,10 +81,6 @@ from .plan.registry import (
   OP_REGISTRY,
   OpSpec,
   _ACTION_APPLIERS,
-  _ACTION_FIELDS,
-  _ACTION_VALIDATORS,
-  _CONSOLE_SETTINGS_OPS,
-  _TOP_LEVEL_ONLY_OPS,
 )
 from .run import wire_images
 from .types import AskCard, AskOption, OpPlan, Variant, variant_slug, variant_slugs

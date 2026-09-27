@@ -1,30 +1,28 @@
-import { anchorPickerInput } from '../../../utils.js';
 import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion.js';
 import { icon } from '../../icons.js';
 import { normalizeHex } from '../../../core/settings/accents.js';
+import { previewProjectColor } from '../../projects/window/projectTitle.js';
+import { colorTrial } from './colorTrial.js';
 export function wireProjectColorButton(app) {
-  // Project-colour swatch: a native colour picker that paints the project NAME. Live while
-  // dragging; a right-click (or holding Alt at open) clears the colour back to the theme accent.
+  // A native picker for the colour of the project NAME: a drag tries colours on the name alone, closing
+  // on one stores and pushes it once; a right-click (or Alt at open) clears it to the theme accent.
   const colorBtn = document.getElementById('project-color-btn');
   const colorInput = document.getElementById('project-color-input');
   if (colorBtn && colorInput) {
-    const apply = () => {
-      if (app.activeProjectId != null) app.setProjectColor(app.activeProjectId, colorInput.value);
-    };
-    colorInput.addEventListener('input', apply);
-    colorInput.addEventListener('change', apply);
+    const openTrial = colorTrial(colorInput, {
+      onTry: (value) => previewProjectColor(app, value && normalizeHex(value)),
+      onCommit: (value) => {
+        previewProjectColor(app, null);
+        if (app.activeProjectId != null) app.projectTransfer.setProjectColor(app.activeProjectId, value);
+      },
+    });
     const openPicker = () => {
+      previewProjectColor(app, null);
       const cur = app.storage.store.getMeta(app.activeProjectId)?.color || '';
       // No custom colour → open at the neutral grey the name is actually painted in (the unset
       // default), not the theme accent, so the picker reflects the real current state.
       colorInput.value = normalizeHex(cur) || '#80868f';
-      anchorPickerInput(colorInput, colorBtn);
-      try {
-        if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
-        else colorInput.click();
-      } catch {
-        colorInput.click();
-      }
+      openTrial(colorBtn);
     };
     colorBtn.addEventListener('click', e => {
       if (app.activeProjectId == null || app.storage.incognito) return;
@@ -62,7 +60,7 @@ export function wireProjectColorButton(app) {
       // The menu shows only WITH a custom colour set (the guard above), so the clear
       // row is always meaningful here.
       item('palette', 'Choose color…', openPicker);
-      item('x', 'Default (no color)', () => app.setProjectColor(app.activeProjectId, ''));
+      item('x', 'Default (no color)', () => app.projectTransfer.setProjectColor(app.activeProjectId, ''));
       document.body.appendChild(menu);
       const r = colorBtn.getBoundingClientRect();
       const mw = menu.offsetWidth;
@@ -74,7 +72,7 @@ export function wireProjectColorButton(app) {
     });
     colorBtn.addEventListener('contextmenu', e => {
       e.preventDefault();
-      if (app.activeProjectId != null) app.setProjectColor(app.activeProjectId, '');
+      if (app.activeProjectId != null) app.projectTransfer.setProjectColor(app.activeProjectId, '');
     });
   }
 }

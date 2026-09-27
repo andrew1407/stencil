@@ -21,21 +21,21 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
-    QVERIFY(win.vScrollOpacity && win.hScrollOpacity);
+    QVERIFY(win.parts.view.vScrollOpacity && win.parts.view.hScrollOpacity);
 
     win.setZoom(1.0);
-    QCOMPARE(win.vScrollOpacity->opacity(), 1.0);
-    QCOMPARE(win.hScrollOpacity->opacity(), 1.0);
+    QCOMPARE(win.parts.view.vScrollOpacity->opacity(), 1.0);
+    QCOMPARE(win.parts.view.hScrollOpacity->opacity(), 1.0);
     // Overlay bars, browser-style: they float INSIDE the viewport (which spans the whole
     // area — no gutter reserved beside/below it) and are only there while there's overflow.
-    QScrollBar* vbar = win.canvasScrollBar(Qt::Vertical);
-    QScrollBar* hbar = win.canvasScrollBar(Qt::Horizontal);
+    QScrollBar* vbar = win.parts.view.canvasScrollBar(Qt::Vertical);
+    QScrollBar* hbar = win.parts.view.canvasScrollBar(Qt::Horizontal);
     QVERIFY(vbar->isVisible() && hbar->isVisible());
     QVERIFY(win.scroll->viewport()->geometry().contains(vbar->geometry()));
     QVERIFY(win.scroll->viewport()->geometry().contains(hbar->geometry()));
     QCOMPARE(win.scroll->viewport()->geometry(), win.scroll->contentsRect());
     QVERIFY(!vbar->testAttribute(Qt::WA_TransparentForMouseEvents));
-    // The thumb is a painted pill in the browser's thumb grey (support/PillScrollBars.hpp; QSS
+    // The thumb is a painted pill in the browser's thumb grey (support/control/PillScrollBars.hpp; QSS
     // cannot round a handle on macOS): its top-edge midpoint carries it, the slot corner not.
     {
       QStyleOptionSlider opt;
@@ -72,34 +72,34 @@ class MainWindowGuiTest : public QObject {
       QCoreApplication::sendEvent(vbar, &leave0);
       settle([&] { return !swollen(); }, 300);
       QVERIFY2(near(vbar->grab().toImage().pixelColor(side * dpr), slot), "the thumb did not settle back after the pointer left");
-      win.scrollbarHovered = false;
-      win.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled
+      win.parts.view.scrollbarHovered = false;
+      win.parts.view.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled
     }
     // Out on the idle timer's own timeout(), not on an opacity that may never have been
     // 1: a QTRY on the value alone goes green on a fade that never ran.
     const auto hidesOut = [&win] {
-      QSignalSpy fired(win.scrollbarHideTimer, &QTimer::timeout);
-      return win.scrollbarHideTimer->isActive() && fired.wait(1500)
-             && win.vScrollOpacity->opacity() == 0.0 && win.hScrollOpacity->opacity() == 0.0;
+      QSignalSpy fired(win.parts.view.scrollbarHideTimer, &QTimer::timeout);
+      return win.parts.view.scrollbarHideTimer->isActive() && fired.wait(1500)
+             && win.parts.view.vScrollOpacity->opacity() == 0.0 && win.parts.view.hScrollOpacity->opacity() == 0.0;
     };
     QVERIFY(hidesOut());
 
     // A pan (here: the vertical scrollbar's own value, exactly what a drag-pan/wheel-scroll
     // drives — see MainWindow::scrollTo) reveals it again, and it fades back out the same way.
     win.scroll->verticalScrollBar()->setValue(50);
-    QCOMPARE(win.vScrollOpacity->opacity(), 1.0);
+    QCOMPARE(win.parts.view.vScrollOpacity->opacity(), 1.0);
     QVERIFY(hidesOut());
 
     // Hovering the bar itself (to grab it) must never let it fade out from under the cursor.
     QEvent enter(QEvent::Enter);
-    QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &enter);
-    QVERIFY(win.scrollbarHovered);
-    QCOMPARE(win.vScrollOpacity->opacity(), 1.0);
+    QCoreApplication::sendEvent(win.parts.view.canvasScrollBar(Qt::Vertical), &enter);
+    QVERIFY(win.parts.view.scrollbarHovered);
+    QCOMPARE(win.parts.view.vScrollOpacity->opacity(), 1.0);
     QTest::qWait(1200);   // would have hidden by now if hovering didn't suppress it
-    QCOMPARE(win.vScrollOpacity->opacity(), 1.0);
+    QCOMPARE(win.parts.view.vScrollOpacity->opacity(), 1.0);
     QEvent leave(QEvent::Leave);
-    QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &leave);
-    QVERIFY(!win.scrollbarHovered);
+    QCoreApplication::sendEvent(win.parts.view.canvasScrollBar(Qt::Vertical), &leave);
+    QVERIFY(!win.parts.view.scrollbarHovered);
     QVERIFY(hidesOut());
     // Dragging the floating bar drives the real scroll model, and vice versa.
     vbar->setValue(120);

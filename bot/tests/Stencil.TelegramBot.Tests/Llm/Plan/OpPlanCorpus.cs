@@ -18,9 +18,20 @@ internal sealed record OpPlanFixture(
     public bool AppliesToBot => Profiles.Any(p => p is "bot" or "all");
 }
 
-/// <summary>The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>), read once: the hand-written bundle plus the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), keyed by label so <c>[MemberData]</c> carries one short string.</summary>
+/// <summary>One adversarial input of <c>oracle/inputs.json</c>: its reply text and the JS reference's verdict.</summary>
+internal sealed record OpPlanOracleCase(string Name, string Expect, string InputText);
+
+/// <summary>The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>), read once: the hand-written bundle plus the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), keyed by label so <c>[MemberData]</c> carries one short string; the adversarial oracle inputs; and <c>generated/normalized.json</c>, core's result per case under the bot's surface.</summary>
 internal static class OpPlanCorpus
 {
+    private static readonly Lazy<IReadOnlyList<OpPlanOracleCase>> _oracle = new(loadOracle);
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> _golden = new(loadGolden);
+
+    public static IReadOnlyList<OpPlanOracleCase> Oracle => _oracle.Value;
+
+    /// <summary>Case name → core's result JSON for surface <c>bot</c>, as the golden records it.</summary>
+    public static IReadOnlyDictionary<string, string> Golden => _golden.Value;
+
     private static readonly Lazy<IReadOnlyList<OpPlanFixture>> _loaded = new(load);
     private static readonly Lazy<IReadOnlyDictionary<string, OpPlanFixture>> _index =
         new(() => _loaded.Value.ToDictionary(f => f.File, StringComparer.Ordinal));
@@ -55,6 +66,46 @@ internal static class OpPlanCorpus
         return fixtures;
     }
 
+    private static IReadOnlyList<OpPlanOracleCase> loadOracle()
+    {
+        using JsonDocument doc = SharedFixtures.Load(Path.Combine(SharedFixtures.LlmFixtureDir("opPlan"), "oracle", "inputs.json"));
+        return [.. doc.RootElement.GetProperty("cases").EnumerateArray().Select(fx => new OpPlanOracleCase(
+            fx.GetProperty("name").GetString()!, fx.GetProperty("expect").GetString()!, TextOf(fx)))];
+    }
+
+    private static IReadOnlyDictionary<string, string> loadGolden()
+    {
+        using JsonDocument doc = SharedFixtures.Load(
+            Path.Combine(SharedFixtures.LlmFixtureDir("opPlan"), "generated", "normalized.json"));
+        Dictionary<string, string> golden = new(StringComparer.Ordinal);
+        foreach (JsonElement c in doc.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            foreach (JsonElement r in c.GetProperty("results").EnumerateArray())
+            {
+                if (r.GetProperty("surfaces").EnumerateArray().Any(s => s.GetString() == "bot"))
+                {
+                    golden[c.GetProperty("name").GetString()!] = r.GetProperty("json").GetString()!;
+                }
+            }
+        }
+        return golden;
+    }
+
+    /// <summary>A case's reply as a model would send it: verbatim, object-serialised, chunks repeated (<c>parts</c>) or raw bytes decoded as a reply arrives (<c>inputBase64</c>).</summary>
+    public static string TextOf(JsonElement fx)
+    {
+        if (fx.TryGetProperty("parts", out JsonElement parts))
+        {
+            return string.Concat(parts.EnumerateArray().SelectMany(p => Enumerable.Repeat(p[0].GetString()!, p[1].GetInt32())));
+        }
+        if (fx.TryGetProperty("inputBase64", out JsonElement b64))
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b64.GetString()!));
+        }
+        JsonElement input = fx.GetProperty("input");
+        return input.ValueKind == JsonValueKind.String ? input.GetString()! : input.GetRawText();
+    }
+
     private static OpPlanFixture read(string file, JsonElement fx, bool generated)
     {
         bool profilesOk = fx.TryGetProperty("profiles", out JsonElement profiles)
@@ -80,7 +131,7 @@ internal static class OpPlanCorpus
             fx.TryGetProperty("expect", out JsonElement e) ? e.GetString() : null,
             fx.TryGetProperty("reason", out JsonElement r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null,
             hasInput,
-            !hasInput ? "" : input.ValueKind == JsonValueKind.String ? input.GetString()! : input.GetRawText(),
+            hasInput ? TextOf(fx) : "",
             divergences);
     }
 }

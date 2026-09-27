@@ -1,6 +1,6 @@
 // The app's ONE assistant conversation (llm-contract.md §7): the chat panel and the
 // context-menu chat are two views of the SAME conversation — one memoized controller per
-// app, one visible transcript (rows are data; ui/view.js owns the DOM), one turn in
+// app, one visible transcript (rows are data; ui/chat/view.js owns the DOM), one turn in
 // flight at a time. Nothing here touches the DOM.
 import type { DrawingApp } from '../../core/drawingApp.js';
 import type { LlmSettings } from '../settings.js';

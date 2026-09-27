@@ -1,57 +1,20 @@
 #include "ChatPlanTarget.hpp"
 
 #include "MainWindow.hpp"
+#include "ProjectTitleController.hpp"
 #include "../../../support/modal/modalChrome.hpp"  // confirmModal — the browser-styled question
-#include "mainWindowHelpers.hpp"
 #include "DataExportController.hpp"
 #include "RemoteSession.hpp"
 #include "../../../canvas/CanvasWidget.hpp"
-#include "../../../net/connectionStore.hpp"
 #include "../../../net/ServerClient.hpp"
 #include "../../../support/displayName.hpp"
 #include "../../../support/notify/Notifications.hpp"
-#include "../../../support/theme/theme.hpp"
-
-#include <QEventLoop>
-#include <QTimer>
+#include "SiblingWindows.hpp"
+#include <QLineEdit>
 
 namespace stencil::gui {
-  bool ChatPlanTarget::connectServer(const QString& server, QString* err) {
-    // Resolve ONLY against the user's SAVED servers; plans never carry tokens or hosts (contract §10).
-    const auto saved = stencil::net::connectionStore::loadSavedServers();
-    QStringList urls;
-    for (const auto& s : saved) urls << s.url;
-    const QString url = llm::resolveServerRef(server, urls);
-    if (url.isEmpty()) {
-      if (err)
-        *err = QStringLiteral(
-                   "connect: unknown server \"%1\" — only a server you have "
-                   "already saved can be used")
-                   .arg(server);
-      return false;
-    }
-    QString token;
-    auto kind = stencil::net::ServerClient::CredentialKind::NONE;
-    for (const auto& s : saved)
-      if (s.url == url) { token = s.token; kind = stencil::net::ServerClient::kindFromTag(s.kind); break; }
-    // The executor runs ops in order, so this waits out the handshake in the bounded local loop chatLoadSource uses.
-    QString cerr;
-    bool done = false, ok = false;
-    QEventLoop loop;
-    QTimer::singleShot(20000, &loop, [&loop] { loop.quit(); });   // never hang the plan
-    w.ensureConnections()->connectToAsync(url, token, [&](bool o, QString e) {
-      ok = o; cerr = std::move(e); done = true; loop.quit();
-    }, kind);
-    if (!done) loop.exec();
-    if (!ok) {
-      if (err) *err = QStringLiteral("connect: %1").arg(cerr.isEmpty() ? QStringLiteral("timed out") : cerr);
-      return false;
-    }
-    w.notify->success(QStringLiteral("Connected to %1").arg(url));
-    return true;
-  }
   bool ChatPlanTarget::disconnectServer(const QString& server, QString* err) {
-    const QStringList live = w.connections ? w.connections->urls() : QStringList();
+    const QStringList live = w.remote.connections ? w.remote.connections->urls() : QStringList();
     const QString url = llm::resolveServerRef(server, live);
     if (url.isEmpty()) {
       if (err)
@@ -59,25 +22,11 @@ namespace stencil::gui {
                    .arg(server);
       return false;
     }
-    w.connections->disconnectFrom(url);
+    w.remote.connections->disconnectFrom(url);
     w.notify->info(QStringLiteral("Disconnected from %1").arg(url));
     return true;
   }
 
-  // §10 openUrl: the SAME async path as the dialog's "open here"; the executor awaits it (chatLoadSource).
-  bool ChatPlanTarget::openUrl(const QString& url, bool incognito, QString* err) {
-    // Say what happened in OUR words — a silent download reads as "nothing happened".
-    w.notify->info(QStringLiteral("Opening %1%2")
-                         .arg(url, incognito ? QStringLiteral(" (incognito)") : QString()));
-    QString why;
-    if (w.chatLoadSource(url, incognito, &why)) return true;
-    if (err) *err = QStringLiteral("openUrl: %1").arg(why);
-    return false;
-  }
-  // §10 openFile: the same await for a LOCAL path; a .stencil or .json takes its own path.
-  bool ChatPlanTarget::openFile(const QString& path, QString* err) {
-    return w.chatOpenFile(path, err);
-  }
   // §10 copy: the toolbar's "Copy Image to Clipboard" path (DataExportController).
   bool ChatPlanTarget::copyImage(QString*) {
     w.dataExport->copyImageToClipboard();
@@ -131,7 +80,7 @@ namespace stencil::gui {
           *note = QStringLiteral("removal canceled");
           return true;
         }
-        w.resetToBlankEditor();
+        w.parts.projects.resetToBlankEditor();
         w.notify->success("Editor cleared");
         return true;
       }
@@ -152,16 +101,16 @@ namespace stencil::gui {
       *note = QStringLiteral("removal canceled");
       return true;
     }
-    w.eraseLocalProject(id);
+    w.parts.projects.eraseLocalProject(id);
     fileStore::saveProjects(w.projectList);
     w.refreshActions();
-    w.refreshDockMenu();
-    w.notify->info("Project deleted");
+    SiblingWindows::refreshDockMenu(w.projectList);
+    w.notify->success(clearedToast(1));
     return true;
   }
   // §10 renameProject: the commitProjectName path, pre-validated so a duplicate surfaces the store's reason.
   bool ChatPlanTarget::renameActiveProject(const QString& name, QString* note) {
-    const bool remote = !w.remoteSession->getLink().id.isEmpty();
+    const bool remote = !w.remote.session->getLink().id.isEmpty();
     if (!remote && w.activeProjectId.isEmpty()) {
       *note = QStringLiteral("no active saved project to rename");
       return true;
@@ -174,15 +123,15 @@ namespace stencil::gui {
       }
     }
     w.nameBar.field->setText(name);
-    w.commitProjectName();
+    w.projectTitle->commitProjectName();
     return true;
   }
   bool ChatPlanTarget::setProjectColor(const QString& color, QString* note) {
-    if (w.remoteSession->getLink().id.isEmpty() && w.activeProjectId.isEmpty()) {
+    if (w.remote.session->getLink().id.isEmpty() && w.activeProjectId.isEmpty()) {
       *note = QStringLiteral("no active project — open or save one first");
       return true;
     }
-    w.setActiveProjectColor(color);
+    w.parts.projects.setActiveProjectColor(color);
     return true;
   }
 }  // namespace stencil::gui

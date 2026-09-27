@@ -1,8 +1,12 @@
 // The context menu's style, filter, view and tooltip rows.
+import { clampThickness, clampPointSize } from '../../core/settings/limits.js';
+
+const TINT_PREVIEW_MS = 80;
+
 export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
   document.getElementById('ctx-point-size').addEventListener('input', e => {
     const v = parseInt(e.target.value, 10);
-    if (!isNaN(v) && v >= 1 && v <= 30) {
+    if (!isNaN(v) && v === clampPointSize(v)) {
       app.pointSize = v;
       const inp = document.getElementById('point-size');
       if (inp) inp.value = v;
@@ -10,16 +14,16 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     }
   });
   document.getElementById('ctx-point-size').addEventListener('change', e => {
-    const v = Math.max(1, Math.min(30, parseInt(e.target.value, 10) || app.pointSize));
+    const v = clampPointSize(parseInt(e.target.value, 10) || app.pointSize);
     e.target.value = v; app.pointSize = v;
     const inp = document.getElementById('point-size');
     if (inp) inp.value = v;
-    app.renderer.redraw(); app.storage.save();
+    app.renderer.redraw(); app.storage.saveSoon();
   });
 
   document.getElementById('ctx-thickness').addEventListener('input', e => {
     const v = parseInt(e.target.value, 10);
-    if (!isNaN(v) && v >= 1 && v <= 20) {
+    if (!isNaN(v) && v === clampThickness(v)) {
       app.thickness = v;
       const inp = document.getElementById('line-thickness');
       if (inp) inp.value = v;
@@ -27,11 +31,11 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     }
   });
   document.getElementById('ctx-thickness').addEventListener('change', e => {
-    const v = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || app.thickness));
+    const v = clampThickness(parseInt(e.target.value, 10) || app.thickness);
     e.target.value = v; app.thickness = v;
     const inp = document.getElementById('line-thickness');
     if (inp) inp.value = v;
-    app.renderer.redraw(); app.storage.save();
+    app.renderer.redraw(); app.storage.saveSoon();
   });
 
   document.querySelectorAll('input[name="ctxLineStyle"]').forEach(r => {
@@ -39,31 +43,27 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
       app.style = r.value;
       const sel = document.getElementById('line-style');
       if (sel) sel.value = r.value;
-      app.renderer.redraw(); app.storage.save();
+      app.renderer.redraw(); app.storage.saveSoon();
     });
   });
 
   document.querySelectorAll('input[name="ctxFilter"]').forEach(r => {
-    r.addEventListener('change', () => {
-      app.imageFilter = r.value;
-      const sel = document.getElementById('image-filter');
-      if (sel) sel.value = r.value;
-      const mainPicker = document.getElementById('filter-color');
-      if (mainPicker) mainPicker.style.display = (r.value === 'custom') ? 'inline-block' : 'none';
-      document.getElementById('ctx-tint-row').classList.toggle('ctx-tint-visible', r.value === 'custom');
-      app.renderer.redraw(); app.storage.save();
-    });
+    r.addEventListener('change', () => app.settings.setImageFilter(r.value));
   });
 
+  // A tint drag previews (its repaint debounced) and commits on release, as one undo step.
   let ctxTintTimer = null;
-  document.getElementById('ctx-tint-color').addEventListener('input', e => {
+  const ctxTint = document.getElementById('ctx-tint-color');
+  ctxTint.addEventListener('input', e => {
     app.filterColor = e.target.value;
     const mainPicker = document.getElementById('filter-color');
     if (mainPicker) mainPicker.value = e.target.value;
     clearTimeout(ctxTintTimer);
-    ctxTintTimer = setTimeout(() => {
-      if (app.imageFilter === 'custom') { app.renderer.redraw(); app.storage.save(); }
-    }, TINT_DEBOUNCE_MS);
+    ctxTintTimer = setTimeout(() => app.settings.setFilterColor(e.target.value, { persist: false }), TINT_PREVIEW_MS);
+  });
+  ctxTint.addEventListener('change', e => {
+    clearTimeout(ctxTintTimer);
+    app.settings.setFilterColor(e.target.value);
   });
 
   document.getElementById('ctx-fullscreen').addEventListener('click', () => {
@@ -78,20 +78,20 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
 
   document.getElementById('ctx-tt-enabled').addEventListener('change', e => {
     app.tooltipEnabled = e.target.checked;
-    if (!app.tooltipEnabled) app.tooltipMgr.hide();
-    app.storage.save();
+    if (!app.tooltipEnabled) app.tooltip.hide();
+    app.storage.saveSoon();
   });
   document.getElementById('ctx-tt-page').addEventListener('change', e => {
     app.tooltipShowPage = e.target.checked;
-    app.storage.save();
+    app.storage.saveSoon();
   });
   document.getElementById('ctx-tt-screen').addEventListener('change', e => {
     app.tooltipShowScreen = e.target.checked;
-    app.storage.save();
+    app.storage.saveSoon();
   });
   document.getElementById('ctx-tt-coords').addEventListener('change', e => {
     app.tooltipShowCoords = e.target.checked;
-    app.storage.save();
+    app.storage.saveSoon();
   });
 
   // Transformation submenu: formulas — the shared sync (controller.js), so the
@@ -101,7 +101,7 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     app.settings.syncFormulaUI(e.target.checked);
     if (!e.target.checked) { app.formulaX = ''; app.formulaY = ''; app.settings.showFormulaError(false); }
     app.settings.refreshFormulaCoords();
-    app.storage.save();
+    app.storage.saveSoon();
   });
   // Same debounced commit as the toolbar pair, mirroring the other way — one wiring, so
   // both entry points flag errors, persist and sync to peers identically.

@@ -27,22 +27,46 @@ pub const Refusal = struct {
     }
 };
 
-/// A target's string literal. Only the delimiter, a backslash and the two line breaks need
-/// escaping — the lexer never lets another control byte into a token.
+/// A target's string literal. A `.stc` string may carry any byte but a newline, so every
+/// control byte is escaped too — `\xHH` reads the same in JavaScript and Python.
 pub fn writeQuoted(out: *std.Io.Writer, quote: u8, text: []const u8) !void {
     try out.writeByte(quote);
+    try writeEscaped(out, quote, text);
+    try out.writeByte(quote);
+}
+
+/// The inside of a literal delimited by `quote`: what `writeQuoted` writes between the quotes,
+/// for a caller that builds one literal out of several values.
+pub fn writeEscaped(out: *std.Io.Writer, quote: u8, text: []const u8) !void {
     for (text) |ch| {
         switch (ch) {
             '\\' => try out.writeAll("\\\\"),
             '\n' => try out.writeAll("\\n"),
             '\r' => try out.writeAll("\\r"),
+            0...0x09, 0x0b, 0x0c, 0x0e...0x1f, 0x7f => try out.print("\\x{x:0>2}", .{ch}),
             else => {
                 if (ch == quote) try out.writeByte('\\');
                 try out.writeByte(ch);
             },
         }
     }
-    try out.writeByte(quote);
+}
+
+/// Text for a one-line comment: a control byte, or U+2028 / U+2029 (a line break to a
+/// JavaScript parser), becomes '?', so a label can never end the comment and start code.
+pub fn writeCommentText(out: *std.Io.Writer, text: []const u8) !void {
+    var i: usize = 0;
+    while (i < text.len) : (i += 1) {
+        const ch = text[i];
+        const breaks_js = ch == 0xe2 and i + 2 < text.len and text[i + 1] == 0x80 and
+            (text[i + 2] == 0xa8 or text[i + 2] == 0xa9);
+        if (breaks_js) {
+            try out.writeByte('?');
+            i += 2;
+        } else if (ch < 0x20 or ch == 0x7f) {
+            try out.writeByte('?');
+        } else try out.writeByte(ch);
+    }
 }
 
 /// A number as the targets spell it: an integral value without its `.0` tail.
@@ -74,7 +98,7 @@ pub fn pointAt(script: scriptCore.Script, index: u32, op: scriptCore.Op, k: u32)
     return .{ .x = script.opTok(index, k * 2), .y = script.opTok(index, k * 2 + 1) };
 }
 
-/// `@undo`/`@redo` carry their count in nums{0}; both runners floor it at one step.
+/// `@undo` carries its count in nums{0}; both runners floor it at one step.
 pub fn steps(script: scriptCore.Script, index: u32) u32 {
     const n = script.opNum(index, 0) orelse 1;
     if (!(n > 1)) return 1;
@@ -102,11 +126,23 @@ pub fn cropOf(script: scriptCore.Script, index: u32) Crop {
 
 const testing = std.testing;
 
-test "a quoted literal escapes only the delimiter and the backslash" {
+test "a quoted literal escapes the delimiter, the backslash and every control byte" {
     var buf: [64]u8 = undefined;
     var out: std.Io.Writer = .fixed(&buf);
     try writeQuoted(&out, '\'', "it's a \\ path");
     try testing.expectEqualStrings("'it\\'s a \\\\ path'", out.buffered());
+
+    var buf2: [64]u8 = undefined;
+    var out2: std.Io.Writer = .fixed(&buf2);
+    try writeQuoted(&out2, '"', "a\"\n\x00\x0b\x7fb");
+    try testing.expectEqualStrings("\"a\\\"\\n\\x00\\x0b\\x7fb\"", out2.buffered());
+}
+
+test "a comment's text cannot break its line" {
+    var buf: [64]u8 = undefined;
+    var out: std.Io.Writer = .fixed(&buf);
+    try writeCommentText(&out, "a\nimport os\r\u{2028}x\u{2029}");
+    try testing.expectEqualStrings("a?import os??x?", out.buffered());
 }
 
 test "a two-point rect emits its four corners in draw order" {

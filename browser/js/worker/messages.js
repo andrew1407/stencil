@@ -22,4 +22,5 @@ export const PROJECT_ACTION = Object.freeze({
   REMOVED: 'removed',  // a project was deleted → drop to a blank editor if it's ours
   CLEARED: 'cleared',  // all projects deleted → drop to a blank editor
   CLOSE: 'close',      // a tab asks the editor showing this project to drop to blank
+  THUMBNAIL: 'thumbnail', // a project's thumbnail landed → re-read its row, never its editor
 });

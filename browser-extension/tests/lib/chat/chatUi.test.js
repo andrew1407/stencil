@@ -1,4 +1,4 @@
-// Tests for src/lib/ui.js — the assistant transcript's two widgets:
+// Tests for src/lib/chat/ui.js — the assistant transcript's two widgets:
 // dismissible error/notice entries (they used to stack up forever) and the
 // empty-state suggestion chips (which PREFILL the input, never send). Driven with a
 // stub document, like the other DOM-adjacent extension suites.

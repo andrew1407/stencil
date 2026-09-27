@@ -1,7 +1,7 @@
 import { blobToDataUrl } from '../../lib/stencil.js';
-import { loadConnections, collectSharedPins, connectionByUrl, fetchProjectImage } from '../../lib/connection/connections.js';
+import { loadConnections, refreshSharedPins, connectionByUrl, fetchProjectImage } from '../../lib/connection/connections.js';
 import { hostLabel } from '../../lib/image/model.js';
-import { pollClock } from '../../lib/pollClock.js';
+import { createSharedLive } from './sharedLive.js';
 import { state } from '../list/model.js';
 import { previewCache } from '../row/preview.js';
 import { applyFilters } from '../list/filters.js';
@@ -65,10 +65,13 @@ export const resolveSharedThumb = async (image, thumb) => {
   }
 };
 
-// An unreachable server is skipped (collectSharedPins swallows its error).
+// Each server's last list and ETag, so an unchanged list costs a 304.
+const sharedLists = new Map();
+
+// An unreachable server is skipped (refreshSharedPins swallows its error). True when any list changed.
 export const loadShared = async () => {
   state.connections = await loadConnections();
-  const pins = await collectSharedPins(state.connections);
+  const { pins, changed } = await refreshSharedPins(state.connections, sharedLists);
   state.shared = pins.map(sharedToImage);
   // Bytes stay cached while their row does.
   const live = new Set(state.shared.map(sharedRowKey));
@@ -85,6 +88,7 @@ export const loadShared = async () => {
   }
   state.serverHosts = state.connections.map((c) => c.url);
   syncServerFilterUI();
+  return changed;
 };
 
 export const syncServerFilterUI = () => {
@@ -104,11 +108,15 @@ export const syncServerFilterUI = () => {
   }
 };
 
-// Rides the panel's shared clock (lib/pollClock.js), not a second timer on the same tick.
-const pollShared = async () => {
-  await loadShared();
-  applyFilters();
-};
-export const startSharedPolling = () => { if (state.connections.length) pollClock.add(pollShared); };
-export const stopSharedPolling = () => pollClock.remove(pollShared);
+// Server feeds first, the panel's shared clock (lib/pollClock.js) where a server has none.
+const sharedLive = createSharedLive({
+  refresh: async () => {
+    const changed = await loadShared();
+    if (changed) applyFilters();
+    return changed;
+  },
+  getConnections: () => state.connections,
+});
+export const startSharedPolling = () => sharedLive.start();
+export const stopSharedPolling = () => sharedLive.stop();
 window.addEventListener('pagehide', stopSharedPolling);

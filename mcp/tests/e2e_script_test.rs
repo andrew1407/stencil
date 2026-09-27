@@ -19,7 +19,7 @@ async fn an_inline_script_runs_through_the_cli_and_reports_every_save() {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
-    let result = Harness::new()
+    let result = Harness::rooted(dir.path())
         .call("stencil_script", call(TWO_SAVES, dir.path()))
         .await
         .expect("the tool answers");
@@ -45,7 +45,7 @@ async fn a_save_that_climbs_out_of_the_output_directory_is_refused() {
     }
     let dir = tempfile::tempdir().unwrap();
     let nested = dir.path().join("inside");
-    let result = Harness::new()
+    let result = Harness::rooted(dir.path())
         .call("stencil_script", call("@filter bw\n@save ../escaped\n", &nested))
         .await
         .expect("a refused run is a tool error, not a protocol error");
@@ -62,7 +62,7 @@ async fn a_script_with_an_error_writes_nothing_and_reports_the_diagnostic() {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
-    let result = Harness::new()
+    let result = Harness::rooted(dir.path())
         .call("stencil_script", call("@cropp 25%\n@save out\n", dir.path()))
         .await
         .expect("a failed run is a tool error");

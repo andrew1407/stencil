@@ -1,6 +1,10 @@
-// IndexedDB payload storage behind ProjectsStore's synchronous localStorage-shaped
-// contract: an in-memory mirror hydrated once at boot and written through asynchronously.
-// Only stencil_project_<id> keys move to IndexedDB; the registry stays in localStorage.
+// IndexedDB project storage behind ProjectsStore's synchronous localStorage-shaped contract: an
+// in-memory mirror hydrated once at boot and written through asynchronously. The stencil_project_,
+// stencil_image_ and stencil_thumb_ keys move to IndexedDB (an image or thumbnail as a Blob, read
+// back as an object URL); the registry stays in localStorage.
+
+import type { ThumbRecord } from './thumbBlobs.js';
+import type { ImageRecord } from './imageBlobs.js';
 
 /** The localStorage-shaped surface ProjectsStore reads and writes synchronously. */
 export interface StorageLike {
@@ -10,20 +14,25 @@ export interface StorageLike {
   keys?(): Iterable<string>;
 }
 
+/** A payload string, an image or thumbnail record, or an older build's image string. */
+export type StoredValue = string | ImageRecord | ThumbRecord;
+
 /** Minimal promise KV over one object store (injectable for tests as an async Map shim). */
 export interface PayloadKv {
-  get(key: string): Promise<string | undefined>;
-  set(key: string, value: string): Promise<unknown>;
+  get(key: string): Promise<StoredValue | undefined>;
+  set(key: string, value: StoredValue): Promise<unknown>;
   remove(key: string): Promise<unknown>;
-  entries(): Promise<Array<[string, string]>>;
+  entries(): Promise<Array<[string, StoredValue]>>;
 }
 
 export interface ProjectsBackend extends StorageLike {
   /** Async IndexedDB write failure — Storage points this at the save-status line. */
   onWriteError: ((err: unknown) => void) | null;
   keys(): string[];
-  /** Re-read one project's payload (or the whole mirror) after another tab wrote it. */
+  /** Re-read one project's payload, image and thumbnail (or the whole mirror) after another tab wrote them. */
   refresh(id?: string | null): Promise<void>;
+  /** An image key's data URL, its Blob read back; `keep` (default) holds it while its project is open. */
+  materialize(key: string, keep?: boolean): Promise<string | null>;
   /** Resolves once every queued IndexedDB write has settled. */
   flush(): Promise<void>;
 }

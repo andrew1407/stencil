@@ -1,37 +1,14 @@
 // The quick pre-load edits of the add-by-URL section: crop to a page aspect and orientation, or
 // not at all, plus the accent CTA that loads the previewed pixels. Shown once a preview resolves.
 #include "../../../support/menu/SearchCombo.hpp"
-#include "linksDialogParts.hpp"
 #include "LinksDialog.hpp"
 #include "guiHelpers.hpp"
-#include "iconSet.hpp"
-#include "fetchGuard.hpp"
-#include "MediaLoader.hpp"
 #include "../../../support/modal/modalChrome.hpp"
-#include <algorithm>
-#include <QPalette>
-#include <QAudioOutput>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QDesktopServices>
 #include <QFormLayout>
-#include <QFrame>
-#include <QGroupBox>
 #include <QHBoxLayout>
-#include <QKeyEvent>
 #include <QLabel>
-#include <QLineEdit>
-#include <QMediaPlayer>
-#include <QPixmap>
 #include <QPushButton>
-#include <QSignalBlocker>
-#include <QSlider>
-#include <QSpinBox>
-#include <QTimer>
-#include <QUrl>
-#include <QVBoxLayout>
-#include <QVideoFrame>
-#include <QVideoSink>
 
 namespace stencil::gui {
 

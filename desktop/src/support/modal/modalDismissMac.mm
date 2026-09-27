@@ -8,7 +8,6 @@
 #include <QDialog>
 #include <QFileDialog>
 #include <QGuiApplication>
-#include <QMouseEvent>
 #include <QPointer>
 #include <QRect>
 #include <QScreen>
@@ -56,8 +55,9 @@ namespace stencil::support {
           if (w != dlg && w->isVisible() && w->windowFlags() & Qt::Popup
               && w->frameGeometry().contains(at))
             return false;
-        modalDismissLog(QStringLiteral("[modal] native (window-modal) dismiss: %1")
-                            .arg(QString::fromLatin1(dlg->metaObject()->className())));
+        if (modalDismissLogOn())
+          modalDismissLog(QStringLiteral("[modal] native (window-modal) dismiss: %1")
+                              .arg(QString::fromLatin1(dlg->metaObject()->className())));
         rejectSoon(dlg);
         return true;   // swallowed, like the browser's overlay eating the click
       }
@@ -99,8 +99,9 @@ namespace stencil::support {
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
         if (e->type() == QEvent::MouseButtonPress && dismissable(dlg)) {
-          modalDismissLog(QStringLiteral("[modal] backdrop (app-modal) dismiss: %1")
-                              .arg(QString::fromLatin1(dlg->metaObject()->className())));
+          if (modalDismissLogOn())
+            modalDismissLog(QStringLiteral("[modal] backdrop (app-modal) dismiss: %1")
+                                .arg(QString::fromLatin1(dlg->metaObject()->className())));
           rejectSoon(dlg);
           return true;
         }
@@ -186,8 +187,9 @@ namespace stencil::support {
                              nativeView(bdP).window.ignoresMouseEvents = state != Qt::ApplicationActive;
                            });
         });
-        modalDismissLog(QStringLiteral("[modal] backdrop attached to %1")
-                            .arg(QString::fromLatin1(dlg->metaObject()->className())));
+        if (modalDismissLogOn())
+          modalDismissLog(QStringLiteral("[modal] backdrop attached to %1")
+                              .arg(QString::fromLatin1(dlg->metaObject()->className())));
       }
     };
   }  // namespace

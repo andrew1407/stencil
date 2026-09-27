@@ -1,4 +1,4 @@
-// The modal popover's MOUSE gestures (js/ui/popover.js): a single click defers to the full
+// The modal popover's MOUSE gestures (js/ui/tip/popover.js): a single click defers to the full
 // modal, a double click takes the popover, a right-click cancels the pending click.
 import { test } from 'node:test';
 import assert from 'node:assert';

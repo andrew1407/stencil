@@ -41,6 +41,17 @@ test('createRemoteProject routes to createProject + putFile(original) and tracks
   assert.equal(rec.imageW, 4);
 });
 
+test('createRemoteProject never ships a data-URL source or its reference: the bytes are the original', async () => {
+  const server = makeMockServer();
+  const conn = await connectOne(server);
+  const dataUrl = `data:image/png;base64,${'A'.repeat(4096)}`;
+  const a = await createRemoteProject(conn, { name: 'Inline', source: dataUrl, bytes: new Uint8Array([1]) });
+  const b = await createRemoteProject(conn, { name: 'Ref', source: 'stencil-source:image/png;9;00' });
+  assert.equal(server.state.projects.get(a.remoteId).source, '');
+  assert.equal(server.state.projects.get(b.remoteId).source, '');
+  assert.ok(!JSON.stringify(server.state.projects.get(a.remoteId)).includes('base64'));
+});
+
 test('createRemoteProject with no bytes creates a blank project (no upload)', async () => {
   const server = makeMockServer();
   const conn = await connectOne(server);

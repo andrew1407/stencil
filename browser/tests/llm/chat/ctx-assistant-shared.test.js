@@ -1,4 +1,4 @@
-// One controller for the whole app (js/llm/session.js): the panel and the menu share
+// One controller for the whole app (js/llm/chat/session.js): the panel and the menu share
 // the memoized controller, its history and the confirm-gated clear.
 import { test } from 'node:test';
 import assert from 'node:assert';

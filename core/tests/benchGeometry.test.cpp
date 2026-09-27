@@ -2,6 +2,7 @@
 #include "doctest.h"
 
 #include "benchSupport.hpp"
+#include "raster/discStamp.hpp"
 #include "colorNames.hpp"
 #include "hitTest.hpp"
 #include "models.hpp"
@@ -42,9 +43,9 @@ namespace {
 
 TEST_SUITE("bench") {
 
-  // -- Stroke cost: length x thickness^2 --------------------------------------
-  // strokePolyline stamps an AA disc every 0.5 px over a (thickness+2)^2 box.
-  TEST_CASE("bench: rasterize stroke scales with length and thickness^2" * doctest::skip()) {
+  // -- Stroke cost: length x thickness ----------------------------------------
+  // The coverage pass visits each inked pixel once, plus the 1 px rim of every segment.
+  TEST_CASE("bench: rasterize stroke scales with length and thickness" * doctest::skip()) {
     const int w = 4000, h = 4000;
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
     auto run = [&](const Line& ln) {
@@ -59,17 +60,31 @@ TEST_SUITE("bench") {
     volatile std::uint64_t sink = checksum(buf);
     (void)sink;
 
-    // Stamps = 2 per px of path; each covers ~(thickness+2)^2 px of the AA box.
-    const double stamps = 2.0 * len1 * std::sqrt(1.25);
-    const double discPx = stamps * 36.0;  // thickness 4 -> (4+2)^2
-    MESSAGE("stroke len=" << len1 << " t=4 -> " << base << "ms (" << discPx / base / 1e3
-                          << " M disc-px/s)  len x2=" << longer << "ms ratio=" << longer / base
+    const double inkPx = len1 * std::sqrt(1.25) * 6.0;  // thickness 4 plus the 1 px rims
+    MESSAGE("stroke len=" << len1 << " t=4 -> " << base << "ms (" << inkPx / base / 1e3
+                          << " M ink-px/s)  len x2=" << longer << "ms ratio=" << longer / base
                           << "  t x2=" << thick2 << "ms ratio=" << thick2 / base
                           << "  t x4=" << thick4 << "ms ratio=" << thick4 / base);
     CHECK(base > 0.0);
-    CHECK(longer < base * 3.0);   // linear in length; 3x = generous ceiling
-    CHECK(thick2 < base * 8.0);   // quadratic in thickness: ~4x expected
-    CHECK(thick4 < base * 40.0);  // ~16x expected; 40x catches a cubic regression
+    CHECK(longer < base * 3.0);  // linear in length; 3x = generous ceiling
+    CHECK(thick4 < base * 6.0);  // ~2x measured; the disc stamper measured ~8.5x
+  }
+
+  // -- Coverage pass vs. the disc stamper it replaced -------------------------
+  // Timed here; raster/strokeCoverage.test.cpp counts the same scene's pixel work on every run.
+  TEST_CASE("bench: coverage stroke vs a naive disc stamper" * doctest::skip()) {
+    const int w = discStamp::SCENE_W, h = discStamp::SCENE_H;
+    std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 255);
+    const Line ln = discStamp::scene();
+    const double naive = best_ms(2, [&] { discStamp::stampStroke(buf.data(), w, h, ln); });
+    const double pass = best_ms(3, [&] { rasterizeLine(buf.data(), w, h, ln); });
+    volatile std::uint64_t sink = checksum(buf);
+    (void)sink;
+
+    MESSAGE("t=64 translucent polyline: naive stamps=" << naive << "ms  coverage pass=" << pass
+                                                       << "ms  speed-up=" << naive / pass << "x");
+    CHECK(pass > 0.0);
+    CHECK(pass * 10.0 < naive);  // ~180x measured; 10x still proves the O(t^2) path is gone
   }
 
   // -- Scanline fill ----------------------------------------------------------

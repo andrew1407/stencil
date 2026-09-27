@@ -51,7 +51,7 @@ namespace stencil::gui {
     double hoverSlideDx(const QStyleOptionViewItem& opt, const QModelIndex& idx) const;
     void startSlideTick() const;
 
-    // Browser .reveal-item in css/animations.css.
+    // Browser .reveal-item in css/animations/.
     void paintRevealed(QPainter* p, const QStyleOptionViewItem& opt,
                        const QModelIndex& idx) const;
 

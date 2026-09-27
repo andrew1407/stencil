@@ -4240,6 +4240,237 @@
    },
    "expect": "valid",
    "reason": "a variant object tolerates undeclared keys (registry envelope allowUnknown) — only ops are strict about unknown fields; the extension drops variants with a warning, which is also valid"
+  },
+  {
+   "file": "230-proto-op-name-tostring.json",
+   "name": "proto-op-name-tostring",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "toString"
+     },
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "an op NAMED like an Object.prototype member is an ordinary unknown op: skipped with a warning, never a lookup into the prototype (the browser used to throw here)"
+  },
+  {
+   "file": "231-proto-op-name-dunder.json",
+   "name": "proto-op-name-dunder",
+   "profiles": [
+    "all"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"__proto__\"},{\"op\":\"constructor\"},{\"op\":\"hasOwnProperty\"}]}",
+   "expect": "valid",
+   "reason": "\"__proto__\" / \"constructor\" / \"hasOwnProperty\" as op names are unknown ops, skipped with a warning each"
+  },
+  {
+   "file": "232-proto-key-constructor-invalid.json",
+   "name": "proto-key-constructor-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left",
+      "constructor": 1
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "a key named \"constructor\" is an unknown field like any other — it must not resolve through Object.prototype and slip past the unknown-field check"
+  },
+  {
+   "file": "233-proto-key-dunder-invalid.json",
+   "name": "proto-key-dunder-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"__proto__\":{\"times\":3}}]}",
+   "expect": "invalid",
+   "reason": "a \"__proto__\" key is an own, unknown field of the action (JSON.parse makes it a plain property), so the plan fails"
+  },
+  {
+   "file": "234-proto-key-hasownproperty-invalid.json",
+   "name": "proto-key-hasownproperty-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"filter\",\"mode\":\"bw\",\"hasOwnProperty\":\"x\"}]}",
+   "expect": "invalid",
+   "reason": "a \"hasOwnProperty\" key is an unknown field, not a method of the key map"
+  },
+  {
+   "file": "235-proto-key-in-crop-spec-invalid.json",
+   "name": "proto-key-in-crop-spec-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "10%",
+       "toString": "x"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "unknown nested keys fail the plan whatever they are named — \"toString\" inside a crop spec included"
+  },
+  {
+   "file": "236-proto-key-in-ask-invalid.json",
+   "name": "proto-key-in-ask-invalid",
+   "profiles": [
+    "all"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"ask\":{\"question\":\"Q\",\"options\":[{\"label\":\"A\"},{\"label\":\"B\"}],\"__proto__\":{\"mode\":\"multi\"}}}",
+   "expect": "invalid",
+   "reason": "the §11 card rejects undeclared keys, \"__proto__\" included"
+  },
+  {
+   "file": "237-proto-key-on-variant-ignored.json",
+   "name": "proto-key-on-variant-ignored",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"variants\":[{\"label\":\"v\",\"constructor\":1,\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}]}",
+   "expect": "valid",
+   "reason": "a variant object tolerates undeclared keys (allowUnknown), prototype names included"
+  },
+  {
+   "file": "238-layout-line-point-color.json",
+   "name": "layout-line-point-color",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": [
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "color": "#FFFF00",
+        "pointColor": "#ff0000"
+       },
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "color": "#FFFF00",
+        "pointColor": ""
+       },
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "color": "#FFFF00",
+        "pointColor": "red"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "a line's pointColor colours its point markers as lineStyle.pointColor does; \"\" follows the stroke colour, and a CSS name is kept as the line's color is"
+  },
+  {
+   "file": "239-layout-line-point-color-not-string-invalid.json",
+   "name": "layout-line-point-color-not-string-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": [
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "color": "#FFFF00",
+        "pointColor": 5
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "a line's pointColor is a string, like every other colour of the line"
   }
  ]
 }

@@ -1,15 +1,16 @@
-// The tile flight maths (js/ui/motion.js + js/ui/cloud.js): the waypoint, the span a
+// The tile flight maths (js/ui/motion.js + js/ui/dust/cloud.js): the waypoint, the span a
 // late mote has left, and the batched fills one canvas cloud paints with.
 import test from 'node:test';
 import assert from 'node:assert';
 import {
-  tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
-  DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
+  tileWaypoint, tileMotion, surfaceMotion, disintegrate, runDust, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
+  DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS, TILE_GATHER_SHARE,
 } from '../../../js/ui/motion.js';
-import { FLIGHTS, moteFrame } from '../../../js/ui/dust/cloud.js';
-import { motionSource } from '../../helpers/motionSource.js';
+import { FLIGHTS, moteFrame, paletteCss } from '../../../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-import { box } from '../../helpers/motionRig.js';
+import { createStubElement, installDom } from '../../helpers/dom.js';
+import { recordingCtx, argsOf, indexOf } from '../../helpers/recordingCtx.js';
+import { installDustPage, rect } from '../../helpers/dustPageRig.js';
 
 test('tileWaypoint sits part-way along the throw, pushed sideways by its own noise', () => {
   const { mx, my } = tileWaypoint(100, 0, 0.9);
@@ -31,10 +32,16 @@ test('tileWaypoint sits part-way along the throw, pushed sideways by its own noi
 
 // The sweep's per-mote delay is folded into each flight's window
 // (`t = (t - delay) / (1 - delay)`), as in the desktop overlay: the cloud is done AT the span.
-test('the scatter fits inside its span: a late mote flies what is left of it, not more', () => {
-  const src = motionSource();
-  assert.match(src, /dur: gather \? gatherMs : Math\.max\(MIN_TILE_MS, span - m\.delay\)/,
-    'the grain is given the remainder of the span, not the whole of it');
+test('the scatter fits inside its span: a late mote flies what is left of it, not more', (t) => {
+  const page = installDustPage(t);
+  const el = page.entry(() => rect(0, 0, 340, 120), rect(0, 0, 2000, 2000));
+  assert.ok(disintegrate(el, { cols: 34, rows: 16 }));
+  const { motes, span } = el.__dustHost.__cloud;
+  assert.strictEqual(span, DISINTEGRATE_MS);
+  for (const m of motes) {
+    assert.strictEqual(m.dur, Math.max(MIN_TILE_MS, span - m.delay),
+      'the grain is given the remainder of the span, not the whole of it');
+  }
   // Every cell of a row scatter lands within DISINTEGRATE_MS (the floor is the only
   // exception, and it only ever applies to a flight far shorter than a row's).
   for (let cy = 0; cy < 16; cy++) {
@@ -47,8 +54,13 @@ test('the scatter fits inside its span: a late mote flies what is left of it, no
   // A gather is untouched: its flight is the short --gather-ms and the reversed sweep is
   // what fills the rest of the span, so it already landed on time.
   assert.ok(tileMotion(0, 0, 34, 16, true).delay >= 0);
+  assert.ok(disintegrate(el, { cols: 34, rows: 16, gather: true }));
+  const gatherMs = Math.round(DISINTEGRATE_MS * TILE_GATHER_SHARE);
+  const host = el.__dustHost;
+  assert.ok(host.__cloud.motes.every((m) => m.dur === gatherMs));
   // …and the layer is torn down a beat after the last mote, not most of a second later.
-  assert.match(src, /\}, span \+ 150\);/);
+  page.fire(DISINTEGRATE_MS + 150);
+  assert.deepStrictEqual([el.__dustHost, el.parentElement.children.includes(host)], [null, false]);
 });
 
 test('a row’s fall and a surface’s flight both carry the waypoint, deterministically', () => {
@@ -88,7 +100,7 @@ test('every flight bends through the waypoint on its own first leg, and the clou
     // (a mark's fall rides one curve throughout, like the desktop's Sweep::FALL).
     if (name !== 'fall') assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
-  // No node per grain any more: the layer holds ONE canvas (js/ui/cloud.js) and the
+  // No node per grain any more: the layer holds ONE canvas (js/ui/dust/cloud.js) and the
   // flights above are its table — nothing is left in the stylesheet per tile.
   assert.match(css, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
   assert.ok(!/disintegrate-tile/.test(css) && !/@keyframes tile/.test(css), 'no rule left per tile');
@@ -99,22 +111,28 @@ test('every flight bends through the waypoint on its own first leg, and the clou
   assert.ok(!/will-change/.test(wake), 'one layer for the whole wake, not one promoted per grain');
 });
 
-test('canvas dust batches its grains: a few alpha steps, one fill per colour and step', () => {
+test('canvas dust batches its grains: a few alpha steps, one fill per colour and step', (t) => {
   // Eight steps on a 3px grain are below what the eye resolves; fewer would band a
   // slow fade, more would multiply the fills the batching exists to avoid.
   assert.equal(DUST_ALPHA_LEVELS, 8);
-  const motion = motionSource();
-  const dust = motion.slice(motion.indexOf('const drawDust ='), motion.indexOf('const runDust ='));
-  assert.match(dust, /fillGrains\(ctx, lvl\[l\], n, poly\)/, 'grains in the style\'s own shape, batched and chunked');
-  assert.ok(!/drawImage\(snap, p\./.test(dust), 'never a per-grain blit of the picture');
-  // The picture itself stands in for every cell still at home: one blit, then only the
-  // departed cells are cleared out of it — so the front grinds, it does not pop.
-  assert.match(dust, /ctx\.drawImage\(snap, sox, soy, sw \* cols, sh \* rows, 0, 0, dw \* cols, dh \* rows\)/);
-  assert.match(dust, /ctx\.clearRect\(p\.x0, p\.y0, p\.x1 - p\.x0, p\.y1 - p\.y0\)/);
-  // The outer edge of the grid rounds UP: the picture is blitted at its fractional size,
-  // and a last column rounded down left an uncleared hairline of it down the right edge.
-  const parts = motion.slice(motion.indexOf('const dustParts ='), motion.indexOf('const drawDust ='));
-  assert.match(parts, /x1: cx === cols - 1 \? Math\.ceil\(cols \* dw\)/);
-  assert.match(parts, /y1: cy === rows - 1 \? Math\.ceil\(rows \* dh\)/);
-  assert.ok(dust.indexOf('clearRect') < dust.indexOf('const flush'), 'every clear lands before any grain is drawn');
+  const opaque = { drawImage() {}, getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4).fill(255) }) };
+  const doc = installDom({ createElement: (tag) => createStubElement(tag, { getContext: () => opaque }) });
+  t.after(() => doc.restore());
+  const { ctx, calls } = recordingCtx();
+  const snap = { snapshot: true };
+  const [cols, rows, dw, dh] = [20, 10, 5.12, 3.32];
+  runDust({ ctx, snap, cols, rows, sw: 2.5, sh: 2, sox: 1, soy: 2, dw, dh, run: (ms, draw) => draw(0.9) }, 600, false);
+  // The picture stands in for every cell still at home: one blit, never one per grain.
+  assert.deepStrictEqual(argsOf(calls, 'drawImage'), [[snap, 1, 2, 2.5 * cols, 2 * rows, 0, 0, dw * cols, dh * rows]]);
+  // Only the departed cells are cleared out of it, so the front grinds, it does not pop — and
+  // the outer edge of the grid rounds UP, or a hairline of the picture stays down the edge.
+  const clears = argsOf(calls, 'clearRect');
+  assert.ok(clears.some(([x, , w]) => x + w === Math.ceil(cols * dw)), 'the last column reaches the right edge');
+  assert.ok(clears.some(([, y, , h]) => y + h === Math.ceil(rows * dh)), 'the last row reaches the bottom edge');
+  assert.ok(calls.findLastIndex(([k]) => k === 'clearRect') < indexOf(calls, 'fill'),
+    'every clear lands before any grain is drawn');
+  // Grains in the style's own shape, batched per colour and alpha step.
+  const fills = argsOf(calls, 'fill').length;
+  assert.ok(fills > 0 && fills <= paletteCss().length * DUST_ALPHA_LEVELS, `${fills} fills`);
+  assert.ok(calls.filter(([k]) => k === 'arc' || k === 'moveTo').length > fills, 'many grains per fill');
 });

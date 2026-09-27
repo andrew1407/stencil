@@ -1,14 +1,15 @@
 //! Provider configuration for the console LLM assistant (contract §5): the
 //! provider enum + default base URLs (providers.json), the STENCIL_LLM_* env
-//! resolution, the session Config, and the /llm sub-command grammar.
+//! resolution, the session Config with its anthropic session key, and the /llm grammar.
 const std = @import("std");
-
+const providers = @import("providers.zig");
 
 // Providers & configuration (contract §5)
 
 pub const Provider = enum {
     ollama,
     openai_compat,
+    anthropic,
     stencil_server,
 
     /// Parse a provider token (trimmed, case-insensitive); null when unknown.
@@ -17,6 +18,7 @@ pub const Provider = enum {
         const eq = std.ascii.eqlIgnoreCase;
         if (eq(t, "ollama")) return .ollama;
         if (eq(t, "openai-compat")) return .openai_compat;
+        if (eq(t, "anthropic")) return .anthropic;
         if (eq(t, "stencil-server")) return .stencil_server;
         return null;
     }
@@ -25,6 +27,7 @@ pub const Provider = enum {
         return switch (self) {
             .ollama => "ollama",
             .openai_compat => "openai-compat",
+            .anthropic => "anthropic",
             .stencil_server => "stencil-server",
         };
     }
@@ -32,41 +35,15 @@ pub const Provider = enum {
     /// The contract's per-provider default `baseUrl` (§5), from the shared providers.json asset.
     /// `stencil-server` has none — its endpoint is the separately configured server URL.
     pub fn defaultBaseUrl(self: Provider) []const u8 {
-        if (default_urls.ollama.len == 0) parseProviderDefaults();
+        const d = providers.get();
         return switch (self) {
-            .ollama => default_urls.ollama,
-            .openai_compat => default_urls.openai_compat,
+            .ollama => d.ollama_url,
+            .openai_compat => d.openai_url,
+            .anthropic => d.anthropic_url,
             .stencil_server => "",
         };
     }
 };
-
-// Canonical provider defaults (browser/js/config/llm/providers.json, embedded at build time),
-// parsed lazily like theme.zig. The strings slice into the embedded JSON, so they are static.
-const providers_asset_json = @embedFile("providers.json");
-
-var default_urls = struct {
-    ollama: []const u8 = &.{},
-    openai_compat: []const u8 = &.{},
-}{};
-var providers_scratch: [4096]u8 = undefined;
-
-fn parseProviderDefaults() void {
-    const Doc = struct {
-        providers: struct {
-            ollama: struct { defaultBaseUrl: []const u8 },
-            @"openai-compat": struct { defaultBaseUrl: []const u8 },
-        },
-    };
-    var fba = std.heap.FixedBufferAllocator.init(&providers_scratch);
-    const doc = std.json.parseFromSliceLeaky(Doc, fba.allocator(), providers_asset_json, .{
-        .ignore_unknown_fields = true,
-    }) catch @panic("embedded providers.json is malformed");
-    if (doc.providers.ollama.defaultBaseUrl.len == 0 or doc.providers.@"openai-compat".defaultBaseUrl.len == 0)
-        @panic("embedded providers.json: empty default baseUrl");
-    default_urls.ollama = doc.providers.ollama.defaultBaseUrl;
-    default_urls.openai_compat = doc.providers.@"openai-compat".defaultBaseUrl;
-}
 
 /// The raw `STENCIL_LLM_*` values, borrowed from the process environ (stable for its lifetime). A
 /// plain struct, so resolution into a `Config` is pure and testable without the real environment.
@@ -97,14 +74,15 @@ pub const Config = struct {
     base_url: []u8 = &.{}, // ollama / openai-compat endpoint; trailing '/' trimmed
     url_overridden: bool = false, // '/llm url' was used this session → provider changes keep it
     model: []u8 = &.{}, // "" = provider/server default
-    api_key: []u8 = &.{}, // openai-compat only; "" = no Authorization header
+    api_key: []u8 = &.{}, // openai-compat's optional bearer, or the anthropic session key; "" = none
+    key_expires_ms: i64 = 0, // wall-clock ms the anthropic key is dropped at; 0 = not yet armed
     server_url: []u8 = &.{}, // stencil-server only
     server_token: []u8 = &.{}, // stencil-server fallback token (no live /connect match)
 
     pub fn deinit(self: *Config, gpa: std.mem.Allocator) void {
         freeSlice(gpa, self.base_url);
         freeSlice(gpa, self.model);
-        freeSlice(gpa, self.api_key);
+        self.forgetKey(gpa);
         freeSlice(gpa, self.server_url);
         freeSlice(gpa, self.server_token);
         self.* = .{};
@@ -128,8 +106,9 @@ pub const Config = struct {
     }
 
     /// Switch providers; re-fills the default baseUrl unless the user already overrode the
-    /// URL this session (via `/llm url`).
+    /// URL this session (via `/llm url`). A key never follows a switch to or from anthropic.
     pub fn setProvider(self: *Config, gpa: std.mem.Allocator, p: Provider) !void {
+        if ((self.provider == .anthropic) != (p == .anthropic)) self.forgetKey(gpa);
         self.provider = p;
         if (!self.url_overridden) {
             const dup = try gpa.dupe(u8, p.defaultBaseUrl());
@@ -151,10 +130,33 @@ pub const Config = struct {
         self.model = dup;
     }
 
+    /// Replace the key; an anthropic one starts its session clock at the caller's `armKey`.
     pub fn setApiKey(self: *Config, gpa: std.mem.Allocator, key: []const u8) !void {
         const dup = try gpa.dupe(u8, std.mem.trim(u8, key, " \t"));
-        freeSlice(gpa, self.api_key);
+        self.forgetKey(gpa);
         self.api_key = dup;
+    }
+
+    /// Start an anthropic key's session clock (§5): it is held until `now_ms` + ttlMinutes.
+    pub fn armKey(self: *Config, now_ms: i64) void {
+        if (self.provider != .anthropic or self.api_key.len == 0 or self.key_expires_ms != 0) return;
+        self.key_expires_ms = now_ms + providers.keyTtlMs();
+    }
+
+    /// Drop an anthropic key whose time is up, before a request can carry it. True when it went.
+    pub fn expireKey(self: *Config, gpa: std.mem.Allocator, now_ms: i64) bool {
+        if (self.provider != .anthropic or self.api_key.len == 0 or self.key_expires_ms == 0) return false;
+        if (now_ms < self.key_expires_ms) return false;
+        self.forgetKey(gpa);
+        return true;
+    }
+
+    /// Zero the key's bytes and free them.
+    pub fn forgetKey(self: *Config, gpa: std.mem.Allocator) void {
+        std.crypto.secureZero(u8, self.api_key);
+        freeSlice(gpa, self.api_key);
+        self.api_key = &.{};
+        self.key_expires_ms = 0;
     }
 
     pub fn setServerUrl(self: *Config, gpa: std.mem.Allocator, url: []const u8) !void {
@@ -187,6 +189,8 @@ pub const Cmd = union(enum) {
     url: []const u8,
     model: []const u8,
     key: []const u8,
+    key_prompt, // bare `/llm key`: ask for it with the input hidden
+    key_forget, // `/llm key forget`
     server: []const u8,
 };
 
@@ -197,89 +201,16 @@ pub fn parseCmd(arg: []const u8) Cmd {
     const word = if (sp) |i| t[0..i] else t;
     const rest = if (sp) |i| std.mem.trim(u8, t[i + 1 ..], " \t") else "";
     const eq = std.ascii.eqlIgnoreCase;
-    if (rest.len == 0) return .usage; // every sub-command takes a value
+    const key_word = eq(word, "key") or eq(word, "apikey");
+    if (key_word and rest.len == 0) return .key_prompt;
+    if (key_word and eq(rest, "forget")) return .key_forget;
+    if (rest.len == 0) return .usage; // every other sub-command takes a value
     if (eq(word, "provider")) {
         return if (Provider.parse(rest)) |p| .{ .provider = p } else .{ .bad_provider = rest };
     }
     if (eq(word, "url") or eq(word, "base") or eq(word, "baseurl")) return .{ .url = rest };
     if (eq(word, "model")) return .{ .model = rest };
-    if (eq(word, "key") or eq(word, "apikey")) return .{ .key = rest };
+    if (key_word) return .{ .key = rest };
     if (eq(word, "server") or eq(word, "serverurl")) return .{ .server = rest };
     return .usage;
-}
-
-const testing = std.testing;
-
-test "config: env defaults per provider (contract §5)" {
-    const a = testing.allocator;
-
-    // No env at all → ollama + its default baseUrl.
-    var c1 = try Config.init(a, .{});
-    defer c1.deinit(a);
-    try testing.expect(c1.provider == .ollama);
-    try testing.expectEqualStrings("http://localhost:11434", c1.base_url);
-    try testing.expectEqualStrings("", c1.model);
-    try testing.expectEqualStrings("", c1.api_key);
-    try testing.expectEqualStrings("", c1.server_url);
-    try testing.expectEqualStrings("", c1.server_token);
-
-    // Provider from env picks that provider's default URL; the other keys carry over.
-    var c2 = try Config.init(a, .{ .provider = "openai-compat", .model = "qwen", .api_key = "sk-1" });
-    defer c2.deinit(a);
-    try testing.expect(c2.provider == .openai_compat);
-    try testing.expectEqualStrings("http://localhost:1234/v1", c2.base_url);
-    try testing.expectEqualStrings("qwen", c2.model);
-    try testing.expectEqualStrings("sk-1", c2.api_key);
-
-    // An explicit env base URL wins over the default (trailing '/' trimmed) …
-    var c3 = try Config.init(a, .{ .base_url = "http://box:9999/" });
-    defer c3.deinit(a);
-    try testing.expectEqualStrings("http://box:9999", c3.base_url);
-
-    // … and stencil-server has no baseUrl default; serverUrl + token load from env.
-    var c4 = try Config.init(a, .{ .provider = "stencil-server", .server_url = "https://s:8090/", .server_token = "tok" });
-    defer c4.deinit(a);
-    try testing.expect(c4.provider == .stencil_server);
-    try testing.expectEqualStrings("", c4.base_url);
-    try testing.expectEqualStrings("https://s:8090", c4.server_url);
-    try testing.expectEqualStrings("tok", c4.server_token);
-
-    // Unknown provider token / empty values fall back to the defaults.
-    var c5 = try Config.init(a, .{ .provider = "frobnicator", .base_url = "  " });
-    defer c5.deinit(a);
-    try testing.expect(c5.provider == .ollama);
-    try testing.expectEqualStrings("http://localhost:11434", c5.base_url);
-}
-
-test "config: provider change re-fills the default url unless overridden this session" {
-    const a = testing.allocator;
-
-    // Env-supplied URL is an initial value, not a session override → provider change refills.
-    var c = try Config.init(a, .{ .base_url = "http://box:9999" });
-    defer c.deinit(a);
-    try c.setProvider(a, .openai_compat);
-    try testing.expectEqualStrings("http://localhost:1234/v1", c.base_url);
-
-    // A '/llm url' override survives provider changes.
-    try c.setBaseUrl(a, "http://mine:1/v2/");
-    try testing.expectEqualStrings("http://mine:1/v2", c.base_url);
-    try c.setProvider(a, .ollama);
-    try testing.expectEqualStrings("http://mine:1/v2", c.base_url);
-}
-
-test "parseCmd: /llm sub-command grammar" {
-    try testing.expect(parseCmd("") == .show);
-    try testing.expect(parseCmd("   ") == .show);
-    try testing.expect(parseCmd("provider ollama").provider == .ollama);
-    try testing.expect(parseCmd("provider OPENAI-COMPAT").provider == .openai_compat);
-    try testing.expect(parseCmd("provider stencil-server").provider == .stencil_server);
-    try testing.expectEqualStrings("gpt5", parseCmd("provider gpt5").bad_provider);
-    try testing.expectEqualStrings("http://x:1", parseCmd("url http://x:1").url);
-    try testing.expectEqualStrings("http://x:1", parseCmd("baseurl  http://x:1 ").url);
-    try testing.expectEqualStrings("llava", parseCmd("model llava").model);
-    try testing.expectEqualStrings("sk-2", parseCmd("key sk-2").key);
-    try testing.expectEqualStrings("https://s:8090", parseCmd("server https://s:8090").server);
-    try testing.expect(parseCmd("provider") == .usage); // missing value
-    try testing.expect(parseCmd("url") == .usage);
-    try testing.expect(parseCmd("frobnicate x") == .usage); // unknown sub-command
 }

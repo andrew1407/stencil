@@ -1,6 +1,6 @@
 // Pixels → page centimetres. A wasm-parity surface (core/page/pageMetrics): the core owns
 // the named-size table and the pixel→cm scaling when loaded; the JS is the reference and
-// the fallback. Reached as app.getPageDimensions / pixelToPageCoords.
+// the fallback.
 import type { DrawingApp } from '../drawingApp.js';
 import type { FormulaContext } from './formulaContext.js';
 

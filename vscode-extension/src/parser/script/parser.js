@@ -1,7 +1,7 @@
 // Port of core/script/parser.cpp — tokens to statements, grouped into raw blocks.
 import { didYouMean, makeDiag, tokenOfStmt } from './diagnostics.js';
-import { DIRECTIVES, MAX_BLOCKS, MAX_TEMPLATES } from './types.js';
-import { joinWords } from './values.js';
+import { DIRECTIVES, MAX_BLOCKS, MAX_TEMPLATES, unquoteWord } from './types.js';
+import { gluedWords, parseIntClamped } from './values.js';
 
 const isNewline = (t) => t.kind === 'punct' && (t.text === '\n' || t.text === ';');
 
@@ -13,8 +13,8 @@ const highestParam = (body) => {
   for (const s of body) {
     for (const t of s.args) {
       if (t.kind !== 'param') continue;
-      const n = parseInt(t.text.slice(1), 10);
-      if (Number.isFinite(n) && n > top) top = n;
+      const n = parseIntClamped(t.text.slice(1));
+      if (n > top) top = n;
     }
   }
   return top;
@@ -100,7 +100,8 @@ export const parseScript = (tokens) => {
           "'@stencil <name>:' needs a trailing ':'"));
         continue;
       }
-      const name = joinWords(st.args); // every word before the ':' — 'lines and rect' is one name
+      // Every word before the ':' — 'lines and rect' is one name — glued as a call reads it.
+      const name = gluedWords(st.args).map((w) => unquoteWord(w.text)).join(' ');
       if (!name) {
         diagnostics.push(makeDiag('error', 'E_ARG_COUNT', tokenOfStmt(st),
           "'@stencil' needs a name before the ':'"));

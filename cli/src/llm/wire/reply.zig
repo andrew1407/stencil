@@ -5,6 +5,7 @@ const std = @import("std");
 const config = @import("../config.zig");
 const transport = @import("../transport.zig");
 const json = @import("json.zig");
+const anthropic = @import("anthropic.zig");
 
 const Provider = config.Provider;
 const ClipBuf = transport.ClipBuf;
@@ -51,6 +52,12 @@ pub fn extractReply(gpa: std.mem.Allocator, provider: Provider, body: []const u8
                 }
             }
             return badReply(gpa, body);
+        },
+        // §6.5 Messages: the `text` blocks joined; `stop_reason` max_tokens / refusal are typed.
+        .anthropic => return switch ((try anthropic.extract(gpa, root)) orelse return badReply(gpa, body)) {
+            .text => |t| .{ .text = t },
+            .truncated => .truncated,
+            .refusal => |t| .{ .refusal = t },
         },
         // protocol.LlmChatResponse: `text` + `stopReason` (max_tokens / refusal are typed).
         .stencil_server => {

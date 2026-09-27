@@ -43,7 +43,7 @@ func BenchmarkPutStream(b *testing.B) {
 	b.SetBytes(int64(len(data)))
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		if _, err := s.PutStream(validID, protocol.KindResult, "png", bytes.NewReader(data)); err != nil {
+		if _, err := s.PutStreamAs(validID, protocol.KindResult, "png", bytes.NewReader(data), Charge{}); err != nil {
 			b.Fatal(err)
 		}
 	}

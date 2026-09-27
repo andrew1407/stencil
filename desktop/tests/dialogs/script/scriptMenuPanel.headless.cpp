@@ -1,5 +1,5 @@
 // The script flyout hosted in the canvas context menu (dialogs/ScriptMenuPanel). Browser twin
-// browser/tests/ctxScript.test.js: it behaves like the window it mirrors (nothing reported
+// browser/tests/ui/ctx/ctxScript.test.js: it behaves like the window it mirrors (nothing reported
 // until a run, the acting buttons dead while empty) and like a code editor (Tab, Ctrl+Enter).
 #include "ScriptBuffer.hpp"
 #include "ScriptMenuPanel.hpp"

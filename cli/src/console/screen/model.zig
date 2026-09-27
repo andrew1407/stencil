@@ -5,6 +5,8 @@ const Screen = sc.Screen;
 const std = @import("std");
 const Window = sc.Screen.Window;
 const wheel_step = sc.wheel_step;
+const frame = @import("frame.zig");
+const diff = @import("diff.zig");
 
 pub fn headerRows(self: *Screen) u16 {
     return @intCast(self.header.items.len);
@@ -21,14 +23,26 @@ pub fn setPromptRows(self: *Screen, want: u16) void {
     const max: u16 = @max(@as(u16, 1), @min(@as(u16, 8), self.rows / 2));
     const n = @max(@as(u16, 1), @min(want, max));
     if (n == self.prompt_rows) return;
+    const was = self.statusRow();
     self.prompt_rows = n;
     self.clampScroll();
-    self.fullPaint();
+    if (!diff.plain()) return self.fullPaint();
+    // The rule and the input block moved; the rows they left or took are not what a paint drew.
+    frame.begin(self);
+    defer frame.end(self);
+    diff.forget(self, @min(was, self.statusRow()), self.rows);
+    self.skip_unchanged = true;
+    defer self.skip_unchanged = false;
+    self.repaint();
 }
 
 /// Take the input block's freshly painted rows, so a drag can select the line being typed
 /// (the row the mouse most wants and the only one the scrollback never sees).
 pub fn setPromptText(self: *Screen, rows: []const []const u8) void {
+    if (rows.len == self.prompt_lines.items.len) same: {
+        for (rows, self.prompt_lines.items) |r, have| if (!std.mem.eql(u8, r, have)) break :same;
+        return; // a keystroke that moved only the cursor: the rows are what they were
+    }
     for (self.prompt_lines.items) |l| self.gpa.free(l);
     self.prompt_lines.clearRetainingCapacity();
     for (rows) |r| {
@@ -49,7 +63,7 @@ pub fn lineAtRow(self: *Screen, row: u16) ?[]const u8 {
     if (row < self.bodyTop() or row > self.bodyBottom()) return null;
     const w = self.window();
     const idx = w.first + (row - self.bodyTop());
-    return if (idx < w.end) self.lines.items[idx] else null;
+    return if (idx < w.end) self.lines.at(idx) else null;
 }
 
 /// Rows a drag may select: the output body and the input block (never the logo header).
@@ -65,7 +79,7 @@ pub fn maxPromptRows(self: *Screen) u16 {
 }
 pub fn window(self: *Screen) Window {
     const bh = self.bodyRows();
-    const n = self.lines.items.len;
+    const n = self.lines.len;
     const max_off = if (n > bh) n - bh else 0;
     const off = @min(self.scroll_off, max_off);
     const end = n - off;
@@ -106,7 +120,7 @@ pub fn bodyBottom(self: *Screen) u16 {
 
 pub fn maxScroll(self: *Screen) usize {
     const bh = self.bodyRows();
-    const n = self.lines.items.len;
+    const n = self.lines.len;
     return if (n > bh) n - bh else 0;
 }
 pub fn clampScroll(self: *Screen) void {
@@ -116,22 +130,60 @@ pub fn clampScroll(self: *Screen) void {
 
 /// Wheel/PageUp/PageDown/End. `up` older, `!up` newer; `page` uses a viewport-sized step.
 pub fn scroll(self: *Screen, up: bool, page: bool) void {
-    // The highlight is keyed to screen rows, so scrolling would leave it over different text —
-    // drop it first.
-    self.has_sel = false;
-    self.sel_active = false;
+    self.scrollQuiet(up, page);
+    self.settleScroll();
+}
+
+/// `scroll` without the paint, so a burst of queued wheel notches moves the view once and
+/// `settleScroll` paints the result. The body keeps showing the old window until then.
+pub fn scrollQuiet(self: *Screen, up: bool, page: bool) void {
+    oweScroll(self);
     const step: usize = if (page) @max(1, self.bodyRows()) else wheel_step;
     if (up) {
         self.scroll_off = @min(self.scroll_off + step, self.maxScroll());
     } else {
         self.scroll_off -= @min(step, self.scroll_off);
     }
-    self.paintBody();
-    self.drawStatusBar();
+}
+
+/// Back to the newest output (a line was sent), painted as a scroll: the body slides.
+pub fn scrollToBottom(self: *Screen) void {
+    if (self.scroll_off == 0) return;
+    oweScroll(self);
+    self.scroll_off = 0;
+    self.settleScroll();
+}
+
+fn oweScroll(self: *Screen) void {
+    if (!self.scroll_owed) {
+        self.scroll_owed = true;
+        self.owed_first = self.dropped + self.window().first;
+        self.owed_sel = self.has_sel;
+    }
+    // The highlight is keyed to screen rows, so scrolling would leave it over different text.
+    self.has_sel = false;
+    self.sel_active = false;
+    self.drag_owed = false;
+}
+
+/// Paint what the quiet scrolls owe: the body slides by the net distance and only the rows that
+/// came into view are drawn. A no-op when nothing is owed or a paint has since caught up.
+pub fn settleScroll(self: *Screen) void {
+    if (!self.scroll_owed) return;
+    frame.begin(self);
+    defer frame.end(self);
+    if (!diff.plain()) {
+        self.paintBody();
+        self.drawStatusBar();
+        return;
+    }
+    const moved = @as(isize, @intCast(self.dropped + self.window().first)) - @as(isize, @intCast(self.owed_first));
+    if (!self.owed_sel and moved != 0) diff.shiftBody(self, moved);
+    diff.paintChanged(self);
 }
 
 pub fn lineIs(self: *Screen, idx: usize, expect: []const u8) bool {
-    return idx < self.lines.items.len and std.mem.eql(u8, self.lines.items[idx], expect);
+    return idx < self.lines.len and std.mem.eql(u8, self.lines.at(idx), expect);
 }
 
 // header capture (reuses logo.banner via the sink)

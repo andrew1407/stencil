@@ -68,7 +68,6 @@ pub fn testSession(a: std.mem.Allocator) !Session {
     return session;
 }
 
-
 /// A solid `w`x`h` PNG, standing in for an uploaded file's encoded bytes.
 pub fn pngOf(a: std.mem.Allocator, w: usize, h: usize) ![]u8 {
     const px = try a.alloc(u8, w * h * 4);

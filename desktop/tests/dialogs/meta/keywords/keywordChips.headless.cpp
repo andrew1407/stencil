@@ -1,4 +1,4 @@
-// Headless checks for the KEYWORDS field (dialogs/KeywordChips — the browser's ui/keywordChips.js
+// Headless checks for the KEYWORDS field (dialogs/KeywordChips — the browser's ui/meta/keywordChips.js
 // twin), through the dialog that hosts it: a line edit + Add over a chip well of ovals with a bare ✕;
 // Enter ADDS rather than saves and a word already held moves to the front; the ✕ drops one word and
 // Clear all drops them all; a typed phrase is ONE keyword, never split on its space; and
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
     const int r = execWith(dlg, [&] { pressKey(&dlg, Qt::Key_Escape); });
     check(r == QDialog::Rejected, "keywords: Escape cancels");
   }
-  // The browser twin's cases (tests/keywordChips.test.js).
+  // The browser twin's cases (tests/ui/meta/keywordChips.test.js).
   check(KeywordChips::normalize("kitchen remodel") == "kitchen remodel",
         "normalize: a keyword is whatever was typed, however many words");
   check(KeywordChips::normalize("  Field   Notes  ") == "field notes", "normalize: trimmed, collapsed, lowercased");

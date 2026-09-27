@@ -1,4 +1,4 @@
-// The canvas viewport's own overlay scrollbars (js/ui/scrollbars.js): revealed by a
+// The canvas viewport's own overlay scrollbars (js/ui/canvas/scrollbars.js): revealed by a
 // scroll, thin grey pills at rest, and only the bar under the real pointer swells to the
 // accent — the other stays grey — then both fade after the idle spell.
 import { test, expect } from '@playwright/test';

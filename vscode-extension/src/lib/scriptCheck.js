@@ -4,8 +4,8 @@
 import { execFile } from 'node:child_process';
 import { dirname } from 'node:path';
 
-// `{file}:{line}:{col}: {severity}: {message} [{CODE}]`. The file field is greedy, so a
-// Windows drive letter stays in it.
+// `{file}:{line}:{col}: {severity}: {message} [{CODE}]`, `col` a UTF-8 byte column as the parser
+// copies count it. The file field is greedy, so a Windows drive letter stays in it.
 const CHECK_LINE = /^(.*):(\d+):(\d+): (error|warning): (.*?)(?: \[([A-Z_]+)\])?$/;
 
 // 0 is a clean script, 1 is one with errors; anything else is not an answer about the script.

@@ -1,10 +1,10 @@
 //! Header-sniffed pixel dimensions (`stencil_probe`'s fast path).
 //!
 //! The sniff stands in for a whole CLI render, so it must agree with what the CLI reports
-//! and must decline whatever it cannot measure. The CLI's own sniffer
-//! (`cli/src/scrape.zig`) is the reference these headers are written against.
+//! and must decline whatever it cannot measure. The shared corpus walked by
+//! `imagesize_fixtures_test.rs` is the reference these headers are written against.
 
-use stencil_mcp::imagesize::{read_dimensions, sniff};
+use stencil_mcp::imagesize::{read_dimensions, read_info, sniff, sniff_info};
 
 /// A minimal PNG header: signature, the IHDR length + tag, then big-endian width/height.
 fn png(width: u32, height: u32) -> Vec<u8> {
@@ -126,4 +126,39 @@ async fn the_shared_cli_fixture_measures_as_the_cli_reports_it() {
         "/../cli/tests/fixtures/sample.png"
     );
     assert_eq!(read_dimensions(fixture).await, Some((16, 12)));
+}
+
+/// What else the header says: the format always, alpha where the header can tell — PNG's
+/// colour type or a tRNS chunk, WebP's flags; a JPEG never has it, a GIF or BMP is unknown.
+#[test]
+fn the_header_names_the_format_and_what_it_knows_of_alpha() {
+    let alpha_of = |bytes: &[u8]| sniff_info(bytes).map(|i| (i.format, i.alpha));
+    let mut rgba = png(4, 4);
+    rgba.extend_from_slice(&[8, 6]); // bit depth, colour type 6 (RGBA)
+    assert_eq!(alpha_of(&rgba), Some(("png", Some(true))));
+    let mut rgb = png(4, 4);
+    rgb.extend_from_slice(&[8, 2]);
+    assert_eq!(alpha_of(&rgb), Some(("png", Some(false))));
+    rgb.extend_from_slice(b"\0\0\0\x0dIHDR....\0\0\0\x02tRNS");
+    assert_eq!(alpha_of(&rgb), Some(("png", Some(true))), "a tRNS chunk is transparency");
+    assert_eq!(alpha_of(&png(4, 4)), Some(("png", None)), "a header cut before the colour type");
+
+    let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x02, 0x00, 0x03];
+    jpeg.extend_from_slice(&[0u8; 8]);
+    assert_eq!(alpha_of(&jpeg), Some(("jpeg", Some(false))));
+
+    let mut webp = vec![0u8; 30];
+    webp[..4].copy_from_slice(b"RIFF");
+    webp[8..12].copy_from_slice(b"WEBP");
+    webp[12..16].copy_from_slice(b"VP8X");
+    webp[20] = 0x10;
+    assert_eq!(alpha_of(&webp), Some(("webp", Some(true))));
+}
+
+#[tokio::test]
+async fn a_local_file_reports_its_whole_header() {
+    let fixture = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let info = read_info(fixture).await.expect("the fixture is a PNG");
+    assert_eq!((info.width, info.height, info.format), (16, 12, "png"));
+    assert!(info.alpha.is_some());
 }

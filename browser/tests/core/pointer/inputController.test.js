@@ -1,4 +1,4 @@
-// Unit tests for InputController (js/core/inputController.js) — the touch + hold-to-draw input
+// Unit tests for InputController (js/core/pointer/inputController.js) — the touch + hold-to-draw input
 // layer extracted out of DrawingApp. The gesture wiring needs real pointer/touch events (covered
 // by driving the real browser app), so here we pin the two DOM-free public methods: the
 // hold-delay clamp/persist and the preview anchor-point resolution.
@@ -6,7 +6,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { InputController, holdDrawEligible } = await import('../../../js/core/pointer/inputController.js');
+const { InputController } = await import('../../../js/core/pointer/inputController.js');
+const { holdDrawEligible } = await import('../../../js/core/draw/holdDrawView.js');
 
 const makeApp = (over = {}) => {
   const rec = { save: 0 };
@@ -17,7 +18,7 @@ const makeApp = (over = {}) => {
     lines: [],
     continueLineIdx: -1,
     continueInsertIdx: 0,
-    storage: { save() { rec.save++; } },
+    storage: { save() { rec.save++; }, saveSoon() { rec.save++; } },
     ...over,
   };
 };

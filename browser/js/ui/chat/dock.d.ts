@@ -1,4 +1,4 @@
-/** A floating panel's rect in viewport pixels (ui/geometry.js clamps it). */
+/** A floating panel's rect in viewport pixels (ui/chat/geometry.js clamps it). */
 export interface FloatRect { x: number; y: number; w: number; h: number; }
 
 /** Where the panel lives. Session-only: every page load starts closed and docked left. */

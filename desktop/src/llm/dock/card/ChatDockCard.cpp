@@ -1,9 +1,8 @@
 // Transcript card creation and its entrance motion.
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
-#include "../../../support/motion/scrollReveal.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
-#include "../../../support/modal/modalReveal.hpp"
+#include "../../../support/motion/scrollReveal.hpp"
 #include "chatWidgets.hpp"
 
 #include <QFrame>
@@ -14,7 +13,6 @@
 #include <QVariantAnimation>
 #include <QEasingCurve>
 #include <QAbstractAnimation>
-#include <cmath>
 
 namespace stencil::gui {
 
@@ -39,9 +37,7 @@ namespace stencil::gui {
   void ChatDock::animateCardIn(QWidget* card, QVBoxLayout* lay) {
     // Claimed and zeroed NOW: ScrollReveal drives the same effect, and two writers flicker.
     card->setProperty(ScrollReveal::ENTERING_PROPERTY, true);
-    auto* fx = new QGraphicsOpacityEffect(card);
-    fx->setOpacity(0.0);
-    card->setGraphicsEffect(fx);
+    veilBehindDust(card);
     // The dust must be a picture of the FINISHED bubble; the caller's scrollToBottom() is a
     // singleShot(0) queued AFTER this one, so one frame lets that scroll land first.
     if (support::motionReduced()) { startCardEntrance(card, lay); return; }

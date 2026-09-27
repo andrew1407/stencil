@@ -1,5 +1,5 @@
 // scanPageForImages is injected via chrome.scripting, so it is fully self-contained: the
-// helpers inside it are inline copies of lib/pageImages.js — keep them in sync.
+// helpers inside it are inline copies of lib/image/pageImages.js — keep them in sync.
 // MAX_IMAGES caps what one page yields; BLOCKED_SCHEMES can never be injected into.
 export const MAX_IMAGES = 1000;
 export const BLOCKED_SCHEMES = Object.freeze(['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:']);
@@ -28,7 +28,7 @@ export const scanPageForImages = async (limit) => {
       return '';
     }
   };
-  // Inline mirror of lib/pageImages.js cssImageUrls: every url() minus bare #fragment refs.
+  // Inline mirror of lib/image/pageImages.js cssImageUrls: every url() minus bare #fragment refs.
   const cssImageUrls = (cssValue) => {
     const s = String(cssValue || '');
     if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
@@ -42,7 +42,7 @@ export const scanPageForImages = async (limit) => {
     }
     return urls;
   };
-  // Inline mirror of lib/pageImages.js srcsetUrls.
+  // Inline mirror of lib/image/pageImages.js srcsetUrls.
   const srcsetUrls = (srcset) => {
     const s = String(srcset || '').trim();
     if (!s) return [];
@@ -76,9 +76,23 @@ export const scanPageForImages = async (limit) => {
     try {
       const manifestUrl = abs(link.getAttribute('href'));
       // Page-supplied href fetched with the page's cookies, so same-origin ONLY — strictly tighter
-      // than lib/urlGuard.js, which an injected function cannot import.
+      // than lib/connection/urlGuard.js, which an injected function cannot import.
       if (new URL(manifestUrl).origin !== location.origin) return [];
-      const manifest = await (await fetch(manifestUrl, { credentials: 'include' })).json();
+      const resp = await fetch(manifestUrl, { credentials: 'include' });
+      // A manifest is a few KiB: 1 MiB bounds what the page can make this read, inline because an
+      // injected function reaches no module (cappedBody.js).
+      const MAX_MANIFEST_BYTES = 1 << 20;
+      if (Number(resp.headers.get('content-length') || 0) > MAX_MANIFEST_BYTES) return [];
+      const reader = resp.body.getReader();
+      const parts = [];
+      for (let size = 0; ;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_MANIFEST_BYTES) { await reader.cancel(); return []; }
+        parts.push(value);
+      }
+      const manifest = JSON.parse(await new Blob(parts).text());
       return (Array.isArray(manifest.icons) ? manifest.icons : [])
         .filter((ic) => ic && ic.src)
         .map((ic) => ({ src: abs(new URL(ic.src, manifestUrl).href), purpose: ic.purpose || 'app icon' }));

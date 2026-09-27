@@ -1,6 +1,6 @@
 import { getSettings } from '../stencil.js';
 
-// Mirrors the accent list in lib/accent.js — keep in sync (tests/accent.test.js pins it).
+// Mirrors the accent list in lib/accent/accent.js — keep in sync (tests/lib/accent/accent.test.js pins it).
 export const ACCENT_HEX = Object.freeze({
   violet: '#7c3aed', burgundy: '#660033', pink: '#ec4899', crimson: '#be123c',
   maroon: '#550000', orange: '#ea580c', brown: '#a87c50', yellow: '#eab308',
@@ -8,7 +8,7 @@ export const ACCENT_HEX = Object.freeze({
   sky: '#0ea5e9', bluegray: '#7394b3', grey: '#64748b', blue: '#2563eb',
 });
 export const DEFAULT_HL = ACCENT_HEX.violet;
-// Same string as the localStorage key in lib/accent.js.
+// Same string as the localStorage key in lib/accent/accent.js.
 export const ACCENT_STORAGE_KEY = 'stencil_accent';
 
 // 'theme' (or empty) → the accent's hex; otherwise the setting IS the hex.

@@ -13,6 +13,7 @@ import { wireOpenActions } from './actions.js';
 import { openImageAnchorRect, openImageConfirmAnchors } from '../modal/imageAnchor.js';
 import { notify } from '../../utils.js';
 import { waitForImage } from '../../core/image/loadFlow.js';
+import { createBlankImage } from '../../core/image/blankImage.js';
 
 // The single way to get an image into the editor. The three tabs are their own elements under
 // sources/ and speak up on the bubbling `source-change` / `preview-request` / `create-blank`;
@@ -187,7 +188,7 @@ export class StencilOpenImageModal extends StencilElement {
       const { color, width, height } = e.detail;
       if (app.image && !(await app.confirm('Replace the current image with a new blank image?',
         { title: 'Replace image', confirmIcon: 'swap', ...openImageConfirmAnchors() }))) return;
-      app.createBlankImage({ color, width, height, address: target() || undefined })
+      createBlankImage(app, { color, width, height, address: target() || undefined })
         .then(() => closeIntoOpen())
         .then(() => notify(`Blank ${width}×${height} image created`, 'ok'))
         .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));

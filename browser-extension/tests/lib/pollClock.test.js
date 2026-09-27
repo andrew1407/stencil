@@ -62,3 +62,23 @@ test('stop() drops every job and its timer (pagehide)', () => {
   assert.equal(t.live.size, 0);
   t.tick();
 });
+
+// A side panel or DevTools panel out of sight polls nothing, then catches up once on return.
+test('a hidden document skips its ticks and resume() runs once to catch up', () => {
+  const t = fakeTimers();
+  let hidden = true;
+  const clock = createPollClock(POLL_MS, t, () => hidden);
+  let n = 0;
+  clock.add(() => { n++; });
+  t.tick();
+  t.tick();
+  assert.equal(n, 0, 'nothing runs while hidden');
+  hidden = false;
+  clock.resume();
+  clock.resume();
+  assert.equal(n, 1, 'one catch-up, however many ticks were skipped');
+  t.tick();
+  assert.equal(n, 2);
+  clock.resume();
+  assert.equal(n, 2, 'no catch-up when no tick was missed');
+});

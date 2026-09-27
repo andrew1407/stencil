@@ -3,7 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests.Cli;
 
-/// <summary><c>--script-plan</c> argv (cli/CONTRACT.md §5): plan mode fetches, decodes and writes nothing, so — alone among this adapter's spawns — it carries no <c>--confine-output</c>.</summary>
+/// <summary><c>--script-plan</c> and <c>--plan-check</c> argv (cli/CONTRACT.md §4.3, §7): plan mode fetches, decodes and writes nothing, so — alone among this adapter's spawns — it carries no <c>--confine-output</c>.</summary>
 public sealed class CliArgvScriptTests
 {
     [Fact]
@@ -11,7 +11,7 @@ public sealed class CliArgvScriptTests
     {
         IReadOnlyList<string> argv = CliArgvBuilder.BuildScriptPlanArgv("script-abc.stc");
 
-        Assert.Equal(["--script-plan", "script-abc.stc"], argv);
+        Assert.Equal(["--script-plan", "script-abc.stc", "--plan-surface", "bot"], argv);
     }
 
     /// <summary>The frame the script's % lengths resolve against leads, the way -i always does.</summary>
@@ -20,7 +20,7 @@ public sealed class CliArgvScriptTests
     {
         IReadOnlyList<string> argv = CliArgvBuilder.BuildScriptPlanArgv("s.stc", "frame.png");
 
-        Assert.Equal(["-i", "frame.png", "--script-plan", "s.stc"], argv);
+        Assert.Equal(["-i", "frame.png", "--script-plan", "s.stc", "--plan-surface", "bot"], argv);
     }
 
     [Fact]
@@ -48,10 +48,15 @@ public sealed class CliArgvScriptTests
         Assert.Contains("must not start with '-'",
             Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScriptPlanArgv("s.stc", "-i.png")).Message);
 
+    /// <summary>The model's reply rides stdin: argv holds no text a model wrote and no path.</summary>
+    [Fact]
+    public void Should_Judge_A_Plan_From_Stdin_Under_The_Bot_Surface() =>
+        Assert.Equal(["--plan-check", "-", "--plan-surface", "bot"], CliArgvBuilder.BuildPlanCheckArgv());
+
     [Fact]
     public void Should_Drop_An_Absent_Input()
     {
-        Assert.Equal(["--script-plan", "s.stc"], CliArgvBuilder.BuildScriptPlanArgv("s.stc", null));
-        Assert.Equal(["--script-plan", "s.stc"], CliArgvBuilder.BuildScriptPlanArgv("s.stc", ""));
+        Assert.Equal(["--script-plan", "s.stc", "--plan-surface", "bot"], CliArgvBuilder.BuildScriptPlanArgv("s.stc", null));
+        Assert.Equal(["--script-plan", "s.stc", "--plan-surface", "bot"], CliArgvBuilder.BuildScriptPlanArgv("s.stc", ""));
     }
 }

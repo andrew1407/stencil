@@ -1,4 +1,4 @@
-// Alt+hover is hold-to-peek (js/ui/popover.js): it opens on hover, closes on release, never
+// Alt+hover is hold-to-peek (js/ui/tip/popover.js): it opens on hover, closes on release, never
 // adopts a deliberate open, and an engaged peek lingers until the pointer leaves.
 import { test } from 'node:test';
 import assert from 'node:assert';

@@ -13,7 +13,7 @@ not here.
 graph TD
     subgraph E2E["e2e/ (Playwright)"]
       TB["tests/browser"]
-      TE["tests/extension"]
+      TE["tests/browser-extension"]
       TF["tests/fullstack"]
       TS["tests/server"]
       TC["tests/cli"]
@@ -25,48 +25,42 @@ graph TD
     CLI["cli binary"]
     STACK["docker compose"]
 
-    TB --> WEB
+    TB & TF --> WEB
     TE --> EXT
-    TF --> WEB
-    TF --> SRV
-    TS --> SRV
+    TF & TS --> SRV
     TC --> CLI
-    WEB -.-> STUB
-    EXT -.-> STUB
-    CLI -.-> STUB
-    SRV -.-> STUB
+    WEB & EXT & CLI & SRV -.-> STUB
     SRV -.->|"E2E_STACK=1"| STACK
 ```
 
 ## Layers
 
-`helpers/config.js` → the helpers (`serverApi.js` feeds `wire.js`, `cli.js` feeds
-`consoleCli.js`; `boot.js` and `static-server.js` read `config.js`; every other helper stands alone on `@playwright/test`
-and Node built-ins) → `tests/<project>/*.spec.js`. A spec imports helpers, Playwright and
-Node built-ins only; specs never import each other, and no helper imports a spec.
-`playwright.config.js` sits above all three, reading `config.js` for `APP_URL`. By
-convention; no lint.
+`helpers/config.js` → the helpers, grouped per artifact in `helpers/compose/`,
+`helpers/server/` and `helpers/cli/`, each importing only `config.js`, a sibling helper,
+`@playwright/test`, `ws` and Node built-ins → `tests/<project>/*.spec.js`. A spec imports
+helpers, Playwright and Node built-ins only; specs never import each other, and no helper
+imports a spec. `playwright.config.js` sits above all three, reading `config.js` for
+`APP_URL`. By convention; no lint.
 
 ## Where things go
 
 | Path | Holds | Rule |
 |---|---|---|
-| `playwright.config.js` | the test projects, their workers, the `webServer` | `browser-app`, `browser-extension`, `cli` run parallel; `fullstack` and `server-protocol` serial — they share one server's state |
+| `playwright.config.js` | the test projects, their workers, the `webServer` | projects that share one server's state run serially |
 | `helpers/config.js` | the app's host/port (`127.0.0.1:8188`) | the one place; never `:8080`, so a stray `npm run serve` is never reused |
-| `helpers/static-server.js`, `compose.js`, `compose-teardown.js`, `compose.llm.yml` | the Node static server; compose up (only `E2E_STACK=1`) / down (only `E2E_STACK_DOWN=1`); the server's LLM env pointed at the stub | the stack is left running between runs on purpose |
+| `helpers/static-server.js`, `helpers/compose/` | the Node static server; compose up (only `E2E_STACK=1`) / down (only `E2E_STACK_DOWN=1`) with the server's LLM env at the stub | the stack is left running between runs on purpose |
 | `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it; `{ motion: 'none' }` for specs that measure geometry mid-gesture |
-| `helpers/extension.js` | the persistent-context launch + service-worker/extension-id resolution | headed (`headless: false`, `channel: 'chromium'`); CI wraps in xvfb |
-| `helpers/cli.js` | spawns the Zig binary and reads its argv/outcome contract | the same stderr grammar mcp and bot parse |
-| `helpers/consoleCli.js` | pipes `/command` lines into `stencil --console` and collects the run | async spawn, never `spawnSync`: a stub LLM lives in this process and a sync child would block it out |
+| `helpers/extension.js` | the persistent-context launch + extension-id resolution | headed (`headless: false`, `channel: 'chromium'`); CI wraps in xvfb |
+| `helpers/cli/` | one run of the Zig binary read by its argv/outcome contract; `/command` lines piped into `stencil --console` | the stderr grammar mcp and bot parse; the console spawns async, never `spawnSync`: a stub LLM lives in this process and a sync child would block it out |
 | `helpers/stcCases.js` | reads the shared `.stc` corpus (`browser/js/config/script/fixtures/cases.txt`): a case's script and its expected diagnostics | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
-| `helpers/serverApi.js`, `wire.js` | REST helpers (token issuance with `X-Admin-Token`, project CRUD); WS + raw-TCP clients for the live-edit protocol | |
-| `helpers/chat.js`, `drag.js`, `uiPin.js` | LLM wire-shape readers + the chat gestures; the real-finger CDP touch driver; the computed-style + DOM-shape pin recorder | |
-| `helpers/png.js` | `solidPng(w, h, rgb)` / `pngFile(w, h, name)`: a real truecolour PNG encoded with Node's own `zlib` | the picture a spec hands a file input; `fixtures/pixel.png` is 1x1, too small for a preview, a crop or a dust stage |
+| `helpers/server/` | REST helpers (token issuance with `X-Admin-Token`, project CRUD); WS + raw-TCP clients for the live-edit protocol | |
+| `helpers/chat.js`, `drag.js`, `uiPin.js`, `openImage.js` | LLM wire-shape readers + the chat gestures; the real-finger CDP touch driver; the computed-style + DOM-shape pin recorder; the Open Image dialog's driver | |
+| `helpers/png.js` | a real truecolour PNG encoded with Node's own `zlib` | the picture a spec hands a file input; `fixtures/pixel.png` is 1x1, too small for a preview, a crop or a dust stage |
 | `helpers/llm-stub.js` | the scriptable stub LLM (openai-compat / ollama / Anthropic Messages) | **all model traffic ends here**; no spec reaches a real provider |
 | `fixtures/` | host pages the extension scanner loads over http, `project.stencil`, `cli-layout.json` | `project.stencil` is opened by BOTH the browser and the cli specs, so the two surfaces are proven on the same bytes |
 | `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state | only `macos/` is recorded; other platforms skip |
-| `tests/specGuard.test.js` | the guards on the spec tree: the test-count floor, and that every spec is claimed by a project | a `node --test` lint, not a spec — it reads `playwright.config.js`; `npm test` runs it before Playwright |
-| `tests/browser/`, `tests/browser-extension/`, `tests/fullstack/`, `tests/server/`, `tests/cli/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
+| `tests/specGuard.test.js` | the test-count floor, and that every spec is claimed by a project | a `node --test` lint, not a spec; `npm test` runs it before Playwright |
+| `tests/<project>/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
 
 ## Entities
 
@@ -144,40 +138,39 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `PlaywrightProject` | one entry of `projects[]` in `playwright.config.js`: `name`, `testMatch`, `workers`, `fullyParallel`, `use` | the config; one run | selects which `tests/<dir>/` runs, and whether serially |
-| `StencilWindow` | the booted app page, the `Window & { stencil }` typedef in `helpers/boot.js`; `gotoApp()` resolves it once `window.stencil` exists | the spec; one `page` per test (browser-app), one per context (fullstack) | every facade call, `expectPin`, `seedLlmSettings` |
-| `ExtensionLaunch` | `launchExtension()` in `helpers/extension.js`: `{ context, background, extId }`, `extId` read from the service worker's URL host | a `test.describe` via `beforeAll` / `afterAll` | host tabs and `chrome-extension://<extId>/...` pages opened on `context` |
-| `CliRun` | `runCli()` in `helpers/cli.js`: `{ code, stdout, stderr, out }` of one `spawnSync` of `CLI_BIN` | the test; `cwd` is `testInfo.outputPath()` | `parseWrote`, `pngSize` on the written file |
-| `StcCase` | `stcCase(name)` in `helpers/stcCases.js`: one corpus case as `{ script, diagnostics }`, each diagnostic `{ line, col, len, severity, message, code }`; `writeStcCase` drops the script into a run directory as `<name>.stc` | the repo; read per call | the cli's `--script` / `--script-check` / `/script`, and the browser's script window |
+| `PlaywrightProject` | one entry of `projects[]` in `playwright.config.js` | the config; one run | selects which `tests/<dir>/` runs, and whether serially |
+| `StencilWindow` | the booted app page (`Window & { stencil }` in `helpers/boot.js`), resolved once `window.stencil` exists | the spec; one `page` per test (browser-app), one per context (fullstack) | every facade call, `expectPin`, `seedLlmSettings` |
+| `ExtensionLaunch` | `launchExtension()`'s `{ context, background, extId }`, `extId` read from the service worker's URL host | a `test.describe` via `beforeAll` / `afterAll` | host tabs and `chrome-extension://<extId>/...` pages opened on `context` |
+| `CliRun` | `runCli()`'s exit code and output of one `spawnSync` of `CLI_BIN` | the test; `cwd` is `testInfo.outputPath()` | `parseWrote`, `pngSize` on the written file |
+| `StcCase` | one corpus case as `{ script, diagnostics }`, each diagnostic a position, severity, message and code; `writeStcCase` drops it into a run directory as `<name>.stc` | the repo; read per call | the cli's `--script` / `--script-check` / `/script`, and the browser's script window |
 | `WroteLine` | `parseWrote()`: the `wrote <path> (<w>x<h> px · <page>)` success line as `{ path, w, h }` | derived from `CliRun.out` | the CLI contract mcp and bot also parse |
-| `ProjectRecord` | the server's project as returned by `createProject()` / `listProjects()` in `helpers/serverApi.js` | the running server; per test | `Client.join` targets its `id`; PUT guards on its `version`. Canonical in `server/internal/protocol` |
-| `Client` | the class in `helpers/wire.js`: one promise-based shape over WS (`dialWS`, one JSON frame per message) and raw TCP (`dialTCP`, NDJSON); `T` names the frame types | the test, `close()` in `finally` | the `WSMessage` envelope, canonical in `server/internal/protocol` |
-| `LlmStub` | `startLlmStub()` in `helpers/llm-stub.js`: `url`, `port`, `requests`, `queue`, `hold`, `release`, `reset`, `close` | a `test.describe` via `beforeAll` / `afterAll`, `reset()` per test | the app, the CLI and the server dial it; specs assert on `requests` |
+| `ProjectRecord` | the server's project as `createProject()` / `listProjects()` return it | the running server; per test | `Client.join` targets its `id`; PUT guards on its `version`. Canonical in `server/internal/protocol` |
+| `Client` | one promise-based shape over WS (`dialWS`, one JSON frame per message) and raw TCP (`dialTCP`, NDJSON); `T` names the frame types | the test, `close()` in `finally` | the `WSMessage` envelope, canonical in `server/internal/protocol` |
+| `LlmStub` | `startLlmStub()`'s scriptable server: its recorded `requests` and its reply `queue` | a `test.describe` via `beforeAll` / `afterAll`, `reset()` per test | the app, the CLI and the server dial it; specs assert on `requests` |
 | `StubRequest` | one recorded POST, `{ method, path, headers, body }`; GET probes are not recorded | `LlmStub.requests` | `contentText`, `imageUrls` in `helpers/chat.js` read it |
-| `Pin` | `capturePin()` in `helpers/uiPin.js`: `{ name, root, nodes }`, settled by two agreeing reads; each node is `{ path, tag, classes, style, text }` | `pins/<PIN_PLATFORM>/<name>.json`, per platform | `diffPins(baseline, actual)` names the first differing paths |
-| `Fixture` | a file in `fixtures/` served at `APP_URL + '__e2e__/'` by `static-server.js`, or read from disk (`project.stencil`, `cli-layout.json`) | the repo | the scanner's host pages, the CLI's inputs, the browser's project file |
+| `Pin` | `capturePin()`'s `{ name, root, nodes }`, settled by two agreeing reads | `pins/<PIN_PLATFORM>/<name>.json`, per platform | `diffPins(baseline, actual)` names the first differing paths |
+| `Fixture` | a file in `fixtures/` served at `APP_URL + '__e2e__/'`, or read from disk | the repo | the scanner's host pages, the CLI's inputs, the browser's project file |
 
 ## Patterns
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite; the `.stc` corpus through `helpers/stcCases.js` | `project.stencil` is decoded by `tests/browser/projects/project-file.spec.js` and rendered by `tests/cli/pipeline.spec.js`, so two surfaces are proven on one file; the corpus does the same for a script, down to the diagnostic a case expects |
-| Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server answering the openai-compat, ollama and Anthropic Messages shapes; a FIFO `queue` of scripted replies with a chat-only `FALLBACK_TEXT`; `hold` / `release` keep upstream calls in flight for the rate-limit spec |
+| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite; the `.stc` corpus | two surfaces are proven on one `project.stencil`, and on one script down to the diagnostic a case expects |
+| Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server for all three wire shapes; a FIFO `queue` of scripted replies over a chat-only fallback; `hold` / `release` keep upstream calls in flight for the rate-limit spec |
 | Golden / Pin | `expectPin`, `capturePin`, `diffPins` (`helpers/uiPin.js`); `pins/<platform>/` | computed styles + DOM shape, never screenshots; `freezeMotion` pins the app's own motion switch and the light theme first |
-| Driver (page-object style) | `gotoApp`, `seedProjectsAndOpenList`, `settleModalAnimations` (`boot.js`); `openChatPanel`, `sendChat`, `openCanvasMenu` (`chat.js`); `finger`, `ghostBox` (`drag.js`); `launchExtension` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
-| Adapter over the wire | `Client` with `dialWS` / `dialTCP` / `join` (`wire.js`); `issueToken`, `createProject`, `bearer` (`serverApi.js`) | one `send` / `readUntil` shape over two transports; `T` mirrors `protocol.go` |
-| Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli.js`) | the argv/stderr grammar of `cli/`, read the way `mcp/` and `bot/` read it; `pngSize` checks the IHDR so the file, not the claim, is asserted |
-| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `browser-extension`, `cli` are `fullyParallel`; `fullstack` and `server-protocol` run serially because they share one server and one fixed stub port, and a stack run serialises the whole suite |
-| Capability gate (self-skip) | `stackEnabled` (`serverApi.js`), `cliAvailable` (`cli.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
-| Lifecycle hook | `globalSetup` (`compose.js`), `globalTeardown` (`compose-teardown.js`), `webServer` in the config | compose up + `/healthz` poll before any project; the static server for every project |
+| Driver (page-object style) | `boot.js`, `chat.js`, `drag.js`, `openImage.js`, `extension.js` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
+| Adapter over the wire | `Client` and `join` (`server/wire.js`); the REST helpers (`server/api.js`) | one `send` / `readUntil` shape over two transports; `T` mirrors `protocol.go` |
+| Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli/run.js`) | the argv/stderr grammar of `cli/`, read the way `mcp/` and `bot/` read it; `pngSize` checks the IHDR so the file, not the claim, is asserted |
+| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `browser-extension`, `cli` are `fullyParallel`; `fullstack` and `server-protocol` share one server and one fixed stub port, so they run serially, and a stack run serialises the whole suite |
+| Capability gate (self-skip) | `stackEnabled` (`server/api.js`), `cliAvailable` (`cli/run.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
+| Lifecycle hook | `globalSetup` (`compose/setup.js`), `globalTeardown` (`compose/teardown.js`), `webServer` in the config | compose up + `/healthz` poll before any project; the static server for every project |
 
 ## Design
 
 - **A browser spec.** `gotoApp(page, { hash, motion })` adds an init script that clears
   `localStorage` (seeding `drawingApp_motion` when asked), navigates to `APP_URL + hash` and
   waits for `window.stencil`. The spec then works through the facade in `page.evaluate`
-  (`blank`, `layout`, `rotateRight`, `crop`, `connect`, `serverProjects`) and real clicks,
-  with `expectModalOpen` and `settleModalAnimations` as the waits.
+  and real clicks, with `expectModalOpen` and `settleModalAnimations` as the waits.
 - **An extension spec.** `launchExtension()` opens a headed persistent context with
   `--load-extension`, resolves the MV3 service worker and derives `extId` from its URL. The
   suite seeds `chrome.storage.sync` through `background().evaluate` (`editorUrl` at
@@ -185,7 +178,7 @@ classDiagram
   `__e2e__/page-with-image.html`, and drives the popup or side panel as an ordinary
   `chrome-extension://<extId>/src/popup/popup.html` page.
 - **A fullstack spec.** `globalSetup` runs `docker compose up -d --wait db redis server`
-  with the `compose.llm.yml` override (`ADMIN_TOKEN`, `AUTH_RATE_PER_MINUTE=0`,
+  with the `helpers/compose/llm.yml` override (`ADMIN_TOKEN`, `AUTH_RATE_PER_MINUTE=0`,
   `LLM_BASE_URL` at `host.docker.internal:LLM_STUB_PORT`) and polls `/healthz`. The spec
   starts `startLlmStub({ port: LLM_STUB_PORT, host: '0.0.0.0' })`, takes a token from
   `issueToken(request)`, boots a page and calls `window.stencil.connect({ url, token })`,
@@ -203,13 +196,11 @@ classDiagram
   `stub.url`, pipes command lines on stdin, and asserts the queued op plan changed the
   written PNG's dimensions.
 - **A script spec.** `stcCase(name)` takes a case out of the shared corpus. The cli spec
-  writes it into the run directory, drives `--script` over a `-i` input and reads the saved
-  PNG's IHDR, checks `--script-check`'s exit code and rebuilds the
-  `file:line:col: severity: message [CODE]` line from the case's own expected diagnostic, and
-  pipes the one-liner form through `runConsole` as `/script` + `/save`. The browser spec fills
-  the same text into `#script-editor`, reads the highlight layer's `stk-*` spans, clicks Run
-  and asserts on `stencil.lines`; an erroring case leaves the window open with `#script-diag`
-  naming the line and no op run. `stencil.execScript` is the facade's own door onto it.
+  runs it through `--script` and reads the saved PNG's IHDR, rebuilds `--script-check`'s
+  `file:line:col: severity: message [CODE]` line from the case's expected diagnostic, and
+  pipes the one-liner form through the console as `/script` + `/save`. The browser spec fills
+  the same text into `#script-editor`, clicks Run and asserts on `stencil.lines`; an erroring
+  case leaves the window open with `#script-diag` naming the line and no op run.
 - **A UI pin.** `freezeMotion(page)` emulates light + reduced motion and sets the facade's
   `motionMode` / `darkTheme` (or the extension's `StencilMotion` / `StencilTheme`); the spec
   drives a state, and `expectPin(page, { name, root })` captures the subtree until two reads
@@ -242,7 +233,7 @@ appears on leaves only; `<svg>` children are not walked; hidden subtrees are ski
    driven Chrome reports `prefers-color-scheme: light` regardless of the OS).
 5. **Motion is switched off through the app's own setting** (`drawingApp_motion`, read
    before first paint), not by emulating `prefers-reduced-motion`, for the specs that measure
-   geometry mid-gesture (`drag`, `modal-layout`, `project-open-gestures`).
+   geometry mid-gesture.
 6. **Server auth is always admin-gated** (`ADMIN_TOKEN`, default `e2e-admin`), so the LLM
    proxy enables and the llm-proxy spec runs instead of self-skipping.
 7. **Stack-dependent specs self-skip** without `E2E_STACK=1`; the `cli` project self-skips
@@ -252,8 +243,9 @@ appears on leaves only; `<svg>` children are not walked; hidden subtrees are ski
 
 A smoke harness, not a port of any unit suite: each project proves one surface's public
 contract end to end. `browser-app` drives the facade, deep links and fragment privacy,
-`.stencil` files, the chat panel, real-finger drag and the UI pins; `browser-extension` the scanner
-over every HTML and CSS image reference, the editor hand-offs and the panel chrome;
+`.stencil` files, the chat panel (over the direct anthropic wire too, the key held for the tab
+alone), real-finger drag and the UI pins; `browser-extension` the scanner over every HTML and CSS
+image reference, the editor hand-offs, the panel chrome and the session-held anthropic key;
 `fullstack` two browser clients through one server and the browser-to-server-to-stub LLM
 round trip; `server-protocol` the REST lifecycle and last-writer-wins guard, the handshake,
 edit fan-out, presence, keepalive reaping and the spend controls, with no browser at all;
@@ -264,8 +256,7 @@ The guard beside the specs is the one test here that drives nothing: it holds th
 at its floor of declared cases and fails on a spec no project's `testMatch` claims — which
 would otherwise report neither pass nor skip.
 
-A missing prerequisite is a reported skip, never a pass: the stack-backed specs skip without
-`E2E_STACK=1`, the `cli` project without a binary, the LLM specs when the server reports its
-proxy disabled, and the pin specs on a platform with no recorded baselines. Pins are recorded
-per platform because font metrics and native scrollbars differ by OS. All model traffic
-terminates at the stub, so the suite needs no network beyond loopback and the compose network.
+Beyond Rule 7, the LLM specs skip when the server reports its proxy disabled and the pin
+specs on a platform with no recorded baselines — pins are per platform because font metrics
+and native scrollbars differ by OS. All model traffic ends at the stub, so the suite needs no
+network beyond loopback and the compose network.

@@ -53,7 +53,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     // ── §10 openUrl (the /url path: SSRF vetting + user-echo guard + awaited load) ──
 
     /// <summary>A public TEST-NET IP literal: the SSRF guard passes it without touching DNS.</summary>
-    private const string _echoUrl = "http://203.0.113.9/cat.png";
+    private const string _echoUrl = "http://93.184.216.34/cat.png";
 
     [Fact]
     public async Task Should_Load_The_Link_The_User_Wrote_On_Open_Url_And_Act_On_The_Fetched_Image_In_Later_Actions()

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { VOICE_ACTIVE_LEVEL } from '../../../js/llm/voice/modes.js';
 import { make } from '../../helpers/voiceModesRig.js';
+import { installVoiceRig } from '../../helpers/voiceInstallRig.js';
 
 // Hands-free, the only surface is the toast — and a dictated prompt is a paragraph, not
 // a line. The "Sent" balloon echoes just enough of it to prove the mic heard right.
@@ -16,10 +17,14 @@ test('the sent balloon echoes a stub of the spoken prompt, never the whole of it
   assert.ok(long.endsWith('…'));
   // One line: a composer's typed prefix can carry newlines into the dictated text.
   assert.strictEqual(spokenEcho('  make it \n  sepia  '), 'make it sepia');
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../../../js/llm/voice/modes.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('`Sent: "${spokenEcho(text)}"`'),
-    'the voice-chat toast quotes the stub — it is repeating what the mic heard');
+  const rig = installVoiceRig();
+  try {
+    const said = 'crop ten percent off every edge and then rotate it right twice please';
+    await rig.say(said);
+    assert.deepStrictEqual(rig.sent, [said]);
+    assert.deepStrictEqual(rig.toasts[0], { msg: `Sent: "${spokenEcho(said)}"`, type: 'info', opts: { key: 'voice-sent' } },
+      'the voice-chat toast quotes the stub — it is repeating what the mic heard');
+  } finally { rig.restore(); }
 });
 
 test('composer: transcripts drive setText, a spoken phrase sends the stripped text and stops', () => {

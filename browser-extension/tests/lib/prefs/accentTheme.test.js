@@ -1,4 +1,4 @@
-// The Appearance half of src/lib/accent.js: light/dark/system, the chrome.storage.local mirror
+// The Appearance half of src/lib/accent/accent.js: light/dark/system, the chrome.storage.local mirror
 // other contexts read, private-mode degradation, and the cross-page storage-event sync.
 
 import { test } from 'node:test';

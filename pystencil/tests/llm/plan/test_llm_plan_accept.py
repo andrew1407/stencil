@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import OpPlan, Variant, parse_op_plan
 from tests.helpers.stubs import _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class ParseOpPlanAcceptanceTest(unittest.TestCase):
+class ParseOpPlanAcceptanceTest(NativeCase):
   def test_bare_json_plan(self) -> None:
     plan = parse_op_plan(
       _plan_json(actions=[{"op": "rotate", "dir": "right"}])
@@ -50,8 +51,8 @@ class ParseOpPlanAcceptanceTest(unittest.TestCase):
     )
     self.assertEqual(len(plan.actions), 1)
     self.assertEqual(plan.actions[0]["op"], "rotate")
-    self.assertEqual(plan.warnings, ['unknown op "resize" dropped'])
-    self.assertIn('unknown op "resize" dropped', plan.reply)
+    self.assertEqual(plan.warnings, ['Skipped unknown operation "resize"'])
+    self.assertIn('Skipped unknown operation "resize"', plan.reply)
 
   def test_version_other_than_1_is_ignored(self) -> None:
     self.assertEqual(parse_op_plan(_plan_json(version=2)).reply, "ok")

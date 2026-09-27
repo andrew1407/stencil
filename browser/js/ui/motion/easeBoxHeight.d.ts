@@ -1,5 +1,7 @@
 /** The desktop dialog's height-ease duration (openImageDialogParts.hpp OI_RESIZE_MS). */
 export declare const BOX_RESIZE_MS: number;
+/** The easing every box height flight takes. */
+export declare const BOX_RESIZE_EASE: string;
 
 /**
  * Ease a content-sized box between its natural heights instead of snapping.
@@ -12,6 +14,12 @@ export declare const easeBoxHeight: (
   scroller: HTMLElement | null,
   ms?: number,
 ) => (() => void);
+
+/**
+ * Let a list held at `held` px through a removal ease down to its natural height instead of
+ * dropping there in one frame. No-op when it needs no less, or under reduced motion. Returns a cancel.
+ */
+export declare const releaseHeldHeight: (el: HTMLElement, held: number, ms?: number) => (() => void);
 
 /** The onOpen/onClose wiring both modal windows share (start after the entrance). */
 export declare const modalBoxEase: (overlay: Element) => { start: () => void; stop: () => void };

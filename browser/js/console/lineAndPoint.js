@@ -5,6 +5,7 @@
 import { pointColorOf } from '../core/draw/renderer.js';
 import { toHexColor } from '../core/settings/accents.js';
 import { str } from './coerce.js';
+import { setPointCoord, removePoint, removeLine } from '../core/line/editOps.js';
 
 export const createLineWrappers = ({ app, guard }) => {
   let stencil;   // the facade, handed over once it is built
@@ -21,12 +22,12 @@ export const createLineWrappers = ({ app, guard }) => {
       get ptIdx() { return ptIdx; },
       get x() { const p = raw(); return p ? p.x : undefined; },
       get y() { const p = raw(); return p ? p.y : undefined; },
-      set x(v) { app.setPointCoord(lineIdx, ptIdx, 'x', v); },
-      set y(v) { app.setPointCoord(lineIdx, ptIdx, 'y', v); },
+      set x(v) { setPointCoord(app, lineIdx, ptIdx, 'x', v); },
+      set y(v) { setPointCoord(app, lineIdx, ptIdx, 'y', v); },
       // Absolute set of x/y (and optionally the parent line's point size).
       apply({ x, y, size } = {}) {
-        if (x != null) app.setPointCoord(lineIdx, ptIdx, 'x', x);
-        if (y != null) app.setPointCoord(lineIdx, ptIdx, 'y', y);
+        if (x != null) setPointCoord(app, lineIdx, ptIdx, 'x', x);
+        if (y != null) setPointCoord(app, lineIdx, ptIdx, 'y', y);
         if (size != null) {
           const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
           if (line) { line.pointSize = Number(size); app.saveHistory(); app.renderer.redraw(); }
@@ -37,14 +38,14 @@ export const createLineWrappers = ({ app, guard }) => {
       move({ x, y } = {}) {
         const p = raw();
         if (!p) return point;
-        if (x != null) app.setPointCoord(lineIdx, ptIdx, 'x', p.x + Number(x));
-        if (y != null) app.setPointCoord(lineIdx, ptIdx, 'y', p.y + Number(y));
+        if (x != null) setPointCoord(app, lineIdx, ptIdx, 'x', p.x + Number(x));
+        if (y != null) setPointCoord(app, lineIdx, ptIdx, 'y', p.y + Number(y));
         return point;
       },
       // Remove this point; empties the line → the line is dropped too. Returns the
       // owning line (or the facade if the line is gone) so chaining stays useful.
       remove() {
-        app.removePoint(lineIdx, ptIdx);
+        removePoint(app, lineIdx, ptIdx);
         return (lineIdx === -1 || !app.lines[lineIdx]) ? stencil : makeLine(lineIdx);
       },
     };
@@ -145,7 +146,7 @@ export const createLineWrappers = ({ app, guard }) => {
           const ref = indexOrPoint && typeof indexOrPoint === 'object' ? { x: indexOrPoint.x, y: indexOrPoint.y } : null;
           i = ref ? l.points.findIndex(p => p.x === ref.x && p.y === ref.y) : -1;
         }
-        if (i >= 0) app.removePoint(idx, i);
+        if (i >= 0) removePoint(app, idx, i);
         return line;
       },
       // Append another line's points to this one and drop the other line.
@@ -155,7 +156,7 @@ export const createLineWrappers = ({ app, guard }) => {
         const o = oIdx >= 0 ? app.lines[oIdx] : null;
         if (!l || !o || oIdx === idx) return line;
         l.points.push(...o.points.map(p => ({ x: p.x, y: p.y })));
-        app.removeLine(oIdx);                   // saves history + redraws
+        removeLine(app, oIdx);                   // saves history + redraws
         if (oIdx < idx) idx -= 1;               // our index shifts if the other was before us
         return line;
       },

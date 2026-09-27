@@ -509,8 +509,13 @@ interface LlmFacade {
   provider: LlmSettings['provider'];
   baseUrl: string;
   model: string;
+  /** openai-compat: the stored key. anthropic: write-only — held for this tab's session, read back as '[redacted]' ('' when none). */
   apiKey: string;
   serverUrl: string;
+  /** When the anthropic session key lapses, epoch ms; 0 when none is held. */
+  readonly keyExpiresAt: number;
+  /** Drops the anthropic session key now. */
+  forgetKey(): Stencil;
   /** Partial update; unknown providers / non-http(s) URLs throw. */
   setup(opts?: Partial<LlmSettings>): Stencil;
 }

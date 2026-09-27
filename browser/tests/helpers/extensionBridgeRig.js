@@ -30,7 +30,8 @@ export const makeWindow = () => {
 };
 
 // The slice of DrawingApp the bridge reads: active project + image + store, plus spies on the
-// three methods it may call. `over` swaps in a blank editor, an incognito session, …
+// three calls it may make (the resume is the transfer collaborator's). `over` swaps in a blank
+// editor, an incognito session, …
 export const makeApp = (over = {}) => {
   const projects = over.projects || [{ id: 'p1', name: 'Floor plan' }, { id: 'p2', name: 'Roof' }];
   const app = {
@@ -41,6 +42,7 @@ export const makeApp = (over = {}) => {
     imageBaseName: 'plan',
     image: { naturalWidth: 1600, naturalHeight: 1200 },
     canvas: { width: 800, height: 600 },
+    renderer: { layers: () => [app.canvas] },
     storage: {
       incognito: false,
       store: {
@@ -49,7 +51,7 @@ export const makeApp = (over = {}) => {
       },
     },
     updateIncognitoUI() { app.incognitoUiCalls++; },
-    switchToProject(id) { app.switches.push(id); app.activeProjectId = id; return true; },
+    projectTransfer: { switchToProject(id) { app.switches.push(id); app.activeProjectId = id; return true; } },
     importExternalImage(launch, opts) { app.imports.push([launch, opts]); return Promise.resolve(); },
     ...over,
   };

@@ -2,6 +2,9 @@
 // publishing to a server, or keeping it as a local project. Both are explicit user acts.
 import { notify } from '../../utils.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../../net/remoteSync.js';
+import { currentLayoutPayload } from '../project/meta/projectMeta.js';
+import { newEditor } from './openFlow.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // Incognito can be toggled only while the editor is blank, since adding content auto-saves.
 export const canToggleIncognito = (app) =>
@@ -19,7 +22,7 @@ export const reportIncognitoSession = (app) => {
 // Like openImageHere's incognito branch, but keeps the conversation (the assistant's §10 `openUrl`).
 export const adoptIncognitoHere = (app) => {
   if (!app.storage.incognito) app.storage.save();
-  app.newEditor({ keepChat: true });
+  newEditor(app, { keepChat: true });
   app.storage.incognito = true;
   app.updateIncognitoUI();
 };
@@ -43,11 +46,11 @@ export const publishIncognitoToServer = async (app, address) => {
 // Explicit publish, independent of the sync toggle.
   app.remoteLink = await saveRemoteProject(conn, link, {
     name,
-    layout: app.currentLayoutPayload(),
+    layout: currentLayoutPayload(app),
     bytes: await app.remoteSync.renderResultBytes(), ext: 'png', w: app.canvas.width, h: app.canvas.height,
   });
   app.storage.incognito = false;
-  app.updateButtons();
+  changed(app, CHANGE.project);
   notify(`Published to ${conn.url}`, 'ok');
   return app.remoteLink;
 };
@@ -60,7 +63,7 @@ export const promoteIncognitoToLocal = (app) => {
   app.storage.promoteTemporaryToProject();
   app.storage.save();
   app.tabs.reportActive(app.activeProjectId);
-  app.updateButtons();
+  changed(app, CHANGE.project);
   notify('Left incognito — saved as a local project', 'ok');
   return app.activeProjectId;
 };

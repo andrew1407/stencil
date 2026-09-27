@@ -1,5 +1,7 @@
 import * as shapeBuilder from '../line/shapeBuilder.js';
-import { toggleLineSelection } from '../line/selection.js';
+import { toggleLineSelection, updateMultiSelectStatus } from '../line/selection.js';
+import { canvasCoords } from './canvasCoords.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // One router for a canvas click: extend/close the stroke while drawing, Ctrl/Cmd inserts
 // or adds a point, a plain click selects the point or line under the cursor.
@@ -9,7 +11,7 @@ export const canvasClick = (app, e) => {
   if (app.compareReadOnly()) return;
 // Ctrl/⌘+Shift+click multi-select runs BEFORE the alt/shift early-returns below.
   if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-    const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+    const { x, y } = canvasCoords(app, e.clientX, e.clientY);
     const nearPt = app.findNearestPointWithIdx(x, y);
     const idx = (nearPt && nearPt.lineIdx !== -1) ? nearPt.lineIdx : app.findLineAt(x, y);
     if (idx !== -1) toggleLineSelection(app, idx);
@@ -19,7 +21,7 @@ export const canvasClick = (app, e) => {
   if (e.altKey) return;
   if (e.shiftKey) return;
   if (app.dragJustEnded) return;
-  const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+  const { x, y } = canvasCoords(app, e.clientX, e.clientY);
 
   if (app.isDrawing) {
     if (app.drawMode === 'rect') return;
@@ -29,7 +31,7 @@ export const canvasClick = (app, e) => {
     if (e.ctrlKey || e.metaKey) {
       const nearSeg = app.findNearestSegmentWithIdx(x, y);
       if (nearSeg) {
-        app.insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
+        shapeBuilder.insertPointOnSegment(app, nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
 // Inserting shifts later indices right by one; keep the continuation tail anchored.
         if (nearSeg.lineIdx === app.continueLineIdx && nearSeg.ptIdx2 <= app.continueInsertIdx)
           app.continueInsertIdx++;
@@ -38,7 +40,7 @@ export const canvasClick = (app, e) => {
     }
 
 // A click near the first point closes the stroke into a locked area.
-    if (app.tryCloseShapeAt(x, y)) return;
+    if (shapeBuilder.tryCloseShapeAt(app, x, y)) return;
 
     if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
       const line = app.lines[app.continueLineIdx];
@@ -48,7 +50,7 @@ export const canvasClick = (app, e) => {
       app.continueInsertIdx++;
       app.coordTable.update(line.points, app.continueLineIdx);
       app.renderer.redraw();
-      app.updateButtons();
+      changed(app, CHANGE.lines);
       return;
     }
 
@@ -56,22 +58,22 @@ export const canvasClick = (app, e) => {
     app.currentLine.points.push({ x, y });
     app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.history);
     return;
   }
 
   if (e.ctrlKey || e.metaKey) {
     const nearSeg = app.findNearestSegmentWithIdx(x, y);
     if (nearSeg) {
-      app.insertPointOnSegment(nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
+      shapeBuilder.insertPointOnSegment(app, nearSeg.lineIdx, nearSeg.ptIdx2, x, y);
     } else {
-      shapeBuilder.addConnectedPoint(this, x, y);
+      shapeBuilder.addConnectedPoint(app, x, y);
     }
     return;
   }
 
   app.selectedLines = [];
-  app.updateMultiSelectStatus();
+  updateMultiSelectStatus(app);
 
 // Priority 1: a point of any committed line → select it, focus the point in the table.
   const nearPt = app.findNearestPointWithIdx(x, y);

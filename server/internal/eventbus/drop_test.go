@@ -60,12 +60,26 @@ func TestInProcPublishWarnsOnDrop(t *testing.T) {
 	b := NewInProc()
 	_, stop := b.Subscribe("c")
 	defer stop()
-	for i := 0; i < subBuffer+2; i++ {
+	for i := 0; i < DefaultSubBuffer+2; i++ {
 		if err := b.Publish(context.Background(), "c", Envelope{Type: "edit"}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if !strings.Contains(buf.String(), "WARN bus: dropped") {
 		t.Fatalf("an overflowing subscriber should warn: %q", buf.String())
+	}
+}
+
+// SetDropWindow sets the gap for every DropLog; a non-positive gap leaves it alone.
+func TestSetDropWindowIgnoresANonPositiveGap(t *testing.T) {
+	old := dropWindow
+	t.Cleanup(func() { dropWindow = old })
+	if old != 30*time.Second {
+		t.Fatalf("drop window default %v, want 30s", old)
+	}
+	SetDropWindow(time.Hour)
+	SetDropWindow(0)
+	if dropWindow != time.Hour {
+		t.Fatalf("drop window %v, want the hour set before the ignored 0", dropWindow)
 	}
 }

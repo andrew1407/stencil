@@ -7,6 +7,8 @@
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
 use stencil_mcp::config::Config;
+use stencil_mcp::opplan;
+use stencil_mcp::pipeline::ProcessRunner;
 use stencil_mcp::server::StencilServer;
 
 /// Synchronous on purpose: `Config::load` reads the dotenv file with `setenv`, and `setenv`
@@ -26,6 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn serve(config: Config) -> Result<(), Box<dyn std::error::Error>> {
+    // Plans are judged by the CLI's own registry copy; a skewed one is refused per call.
+    tokio::spawn(async {
+        if let Some(warning) = opplan::registry_skew(&ProcessRunner).await {
+            eprintln!("stencil-mcp: warning: {warning}");
+        }
+    });
     let service = StencilServer::new(config)
         .serve(stdio())
         .await

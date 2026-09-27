@@ -1,9 +1,9 @@
 #include "dump.hpp"
 
+#include "jsNumber.hpp"
 #include "scriptProgram.hpp"
 
 #include <array>
-#include <cmath>
 #include <string_view>
 
 namespace stencil::core::script {
@@ -14,18 +14,9 @@ namespace stencil::core::script {
         "open", "frame", "crop", "filter", "line", "rect", "layout", "save", "undo", "redo"};
     constexpr std::array<std::string_view, 5> SOURCE_KIND_NAMES = {"project", "file", "url",
                                                                    "dir", "glob"};
-    // Past 2^53 a double holds no more integers exactly, and the cast would be undefined.
-    constexpr double INTEGRAL_LIMIT = 9007199254740992.0;
-
-    // Trailing zeros make a dump churn on a harmless refactor; print the shortest exact form.
-    std::string num(double v) {
-      if (std::isfinite(v) && std::fabs(v) < INTEGRAL_LIMIT && v == std::trunc(v))
-        return std::to_string(static_cast<long long>(v));
-      std::string s = std::to_string(v);
-      while (s.size() > 1 && s.back() == '0') s.pop_back();
-      if (!s.empty() && s.back() == '.') s.pop_back();
-      return s;
-    }
+    // JavaScript's String(v), from the one formatter core has (to_chars would add ~150 KB of
+    // Ryu tables to wasm), so dump.js prints the same line.
+    std::string num(double v) { return json::jsNumberToString(v); }
 
     std::string quoted(const std::string& s) { return "\"" + s + "\""; }
 

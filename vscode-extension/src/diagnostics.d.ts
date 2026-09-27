@@ -5,8 +5,12 @@ export declare const CHECK_LINE: RegExp;
 export declare const DEBOUNCE_MS: number;
 export declare const parseCheckOutput: (text: string) => DiagnosticEntry[];
 export declare const fromProgram: (program: unknown) => DiagnosticEntry[];
-export declare const toDiagnostic: (entry: Partial<DiagnosticEntry>) => unknown;
+/** An entry, plus the calling `@use stencil` span of a template-body diagnostic. */
+export type RelatedEntry = DiagnosticEntry & { related?: { line: number; col: number; len: number } };
+export declare const toDiagnostic: (
+  entry: Partial<RelatedEntry>, lines?: string[], uri?: unknown,
+) => unknown;
 export declare const collect: (
   document: unknown, options: { saved: boolean },
-) => Promise<DiagnosticEntry[]>;
+) => Promise<RelatedEntry[]>;
 export declare const register: (context: unknown) => unknown;

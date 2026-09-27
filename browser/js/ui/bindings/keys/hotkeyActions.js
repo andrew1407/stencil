@@ -2,6 +2,10 @@ import { isSplitCompare } from '../../../utils.js';
 import { setChecked } from '../../control/swap.js';
 import { COMPARE_MODES } from '../../../core/settings/controller.js';
 import { contextMenuPoint } from './hotkeyRules.js';
+import { startDrawingMode, stopDrawingMode } from '../../../core/draw/mode.js';
+import { selectedIndices } from '../../../core/line/selection.js';
+import { flipSelectedLine, rotateSelectedLineQuarter } from '../../../core/draw/transformOps.js';
+import { removePoint, removeSelectedLines } from '../../../core/line/editOps.js';
 // Every hotkey id the editor answers to, as one table of actions — plus the two sets
 // the dispatcher consults: which are edits (inert while comparing) and which act on
 // the selection. The keydown loop above is the only caller.
@@ -10,7 +14,7 @@ export function hotkeyActions(app) {
     const el = document.getElementById(id);
     if (!el || el.disabled) return;
     // Alt+<letter> presses Alt first, and Alt over an icon opens its window as a hover-peek
-    // (ui/popover.js); without claiming the peek the letter would toggle it straight back shut.
+    // (ui/tip/popover.js); without claiming the peek the letter would toggle it straight back shut.
     if (el.__stencilGestures?.hotkey?.()) return;
     el.click();
   };
@@ -18,8 +22,8 @@ export function hotkeyActions(app) {
   const HK_HANDLERS = {
     undo: () => { if (!document.getElementById('undo').disabled) app.undo(); },
     redo: () => { if (!document.getElementById('redo').disabled) app.redo(); },
-    startDraw: () => { if (app.image && !app.isDrawing) app.startDrawingMode(); },
-    stopDraw: () => { if (app.isDrawing) app.stopDrawingMode(); },
+    startDraw: () => { if (app.image && !app.isDrawing) startDrawingMode(app); },
+    stopDraw: () => { if (app.isDrawing) stopDrawingMode(app); },
     togglePoints: () => {
       const cb = document.getElementById('show-points');
       setChecked(cb, !cb.checked);
@@ -53,14 +57,14 @@ export function hotkeyActions(app) {
     zoomOutBig: () => app.zoomPan.zoomAroundCenter(app.scale - 1.0),
     // With a line selected Alt+R arms the line-rotate chord (Alt+R+←/→, wireArrowPan), so it must
     // not also spin the image. Alt+Shift+R is unaffected by the chord.
-    rotateImageLeft: () => { if (app.image && app.selectedIndices().length === 0) app.imageModel.rotateImage(-1); },
+    rotateImageLeft: () => { if (app.image && selectedIndices(app).length === 0) app.imageModel.rotateImage(-1); },
     rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
     // Alt+Shift+Arrow transforms of the SELECTED line — flip about / rotate ±90 around its bbox
     // centre (same pivot as the arbitrary-angle rotate). The methods no-op without a selection.
-    flipLineHorizontal: () => app.flipSelectedLine(true),
-    flipLineVertical: () => app.flipSelectedLine(false),
-    rotateLineCW90: () => app.rotateSelectedLineQuarter(1),
-    rotateLineCCW90: () => app.rotateSelectedLineQuarter(-1),
+    flipLineHorizontal: () => flipSelectedLine(app, true),
+    flipLineVertical: () => flipSelectedLine(app, false),
+    rotateLineCW90: () => rotateSelectedLineQuarter(app, 1),
+    rotateLineCCW90: () => rotateSelectedLineQuarter(app, -1),
     // Ctrl+C's slot is 'split' while a split compare view is active, else 'current'. Resolved HERE,
     // not in copyImageToClipboard: the write must run synchronously inside this gesture.
     copyImage: () => app.export.copyImageToClipboard(isSplitCompare(app) ? 'split' : 'current'),
@@ -75,15 +79,15 @@ export function hotkeyActions(app) {
     deleteLine: () => {
       if (app.isDrawing) return;
       if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) {
-        app.removePoint(app.coordLineIdx, app.focusedPtIdx);
+        removePoint(app, app.coordLineIdx, app.focusedPtIdx);
         return;
       }
-      app.removeSelectedLines();
+      removeSelectedLines(app);
     },
     // Delete the focused point of the selected line (the point, not the whole line).
     deletePoint: () => {
       if (app.isDrawing) return;
-      if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) app.removePoint(app.coordLineIdx, app.focusedPtIdx);
+      if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) removePoint(app, app.coordLineIdx, app.focusedPtIdx);
     },
     // An open modal owns Escape first: it closes on this very keypress, so also dropping the canvas
     // selection behind it would be an invisible side effect of closing a dialog.

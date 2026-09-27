@@ -17,6 +17,7 @@ namespace stencil::gui {
     explicit AssistantSettingsDialog(const Settings& current,
                                      QWidget* parent = nullptr);
     Settings result() const;
+    void accept() override;
 
    protected:
     void showEvent(QShowEvent* event) override;

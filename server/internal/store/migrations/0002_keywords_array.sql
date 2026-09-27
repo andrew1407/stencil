@@ -1,7 +1,7 @@
 -- Keywords move from a newline-joined text blob to a real text[] column.
 -- The blob was a 1NF violation: it made keyword search impossible and hid the
 -- dedupe/trim/order rule inside a serializer. Post-release columns must use
--- ADD COLUMN IF NOT EXISTS (see 0001_init.sql) — this file is re-run at every boot.
+-- ADD COLUMN IF NOT EXISTS (see 0001_init.sql) — a pre-versioning database re-applies it once.
 
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS keywords_arr text[] NOT NULL DEFAULT '{}';
 

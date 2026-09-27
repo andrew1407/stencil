@@ -5,7 +5,7 @@ import { keysHtml } from '../tip/content.js';
 import { revealControls } from '../motion.js';
 import { EXPORT_VARIANTS, exportVariantState } from '../export/variants.js';
 
-// Reflect the app's live state into the open context menu, polled every 120ms; setHtml
+// Reflect the app's live state into the open context menu, after each updateButtons sweep; setHtml
 // writes only on a real change, so a hovered row's glyph is never rebuilt under the pointer.
 export const ctxSyncState = (app) => {
     if (!app) return;

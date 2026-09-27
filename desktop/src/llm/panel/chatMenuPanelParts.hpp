@@ -14,12 +14,12 @@ namespace stencil::gui {
   inline constexpr int MENU_CHAT_COMPOSER_HEIGHT = 96;  // initial composer slot
   inline constexpr int MENU_CHAT_COMPOSER_MIN = 62;     // splitter floor for it
   // A mirrored row fades while its dust flies, like the dock's cards
-  // (ChatDock.cpp CHAT_LEAVE_MS / browser surface/motion.js CHAT_LEAVE_MS).
+  // (ChatDock.cpp CHAT_LEAVE_MS / browser enterLeave.js CHAT_LEAVE_MS).
   inline constexpr int CHAT_ROW_LEAVE_MS = 260;
   inline constexpr int MENU_CHAT_BUTTON_EDGE = 30;      // the dock's action-button box
   inline constexpr int MENU_CHAT_ICON = 20;
 
-  // The flyout's own boxes, from css/components/ctxAssistant.css. The chips and the composer
+  // The flyout's own boxes, from css/components/ctx/assistant.css. The chips and the composer
   // are the chat panel at MENU scale there, and these are the numbers that scales it.
   inline constexpr QMargins MENU_CHAT_PADDING{12, 2, 12, 4};   // .ctx-assist padding
   inline constexpr int MENU_CHAT_ROW_GAP = 6;         // .ctx-assist-row gap

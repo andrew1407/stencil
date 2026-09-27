@@ -18,7 +18,9 @@ type gatedStore struct {
 	saving  chan struct{}
 }
 
-func (g *gatedStore) GetProject(context.Context, string) (protocol.ProjectRecord, error) {
+func (g *gatedStore) ProjectExists(context.Context, string) (bool, error) { return true, nil }
+
+func (g *gatedStore) GetProjectSnapshot(context.Context, string) (protocol.ProjectRecord, error) {
 	g.entered <- struct{}{}
 	<-g.release
 	return protocol.ProjectRecord{ID: "p_t_a", Version: 3}, nil
@@ -35,7 +37,7 @@ func TestSnapshotWorkerCompletesJobsInDispatchOrder(t *testing.T) {
 	g := &gatedStore{entered: make(chan struct{}, 1), release: make(chan struct{}), saving: make(chan struct{}, 1)}
 	done := make(chan struct{})
 	defer close(done)
-	w := newSnapshotWorker(context.Background(), g, "p_t_a", time.Second, done)
+	w := newSnapshotWorker(context.Background(), g, "p_t_a", defaultTuning, done)
 	go w.run()
 
 	w.dispatch(persistJob{kind: persistLoad})
@@ -60,7 +62,7 @@ func TestSnapshotWorkerCompletesJobsInDispatchOrder(t *testing.T) {
 // guessed, and keeps the cached snapshot in step with it.
 func TestApplySaveResultAdoptsTheCommittedVersion(t *testing.T) {
 	s := &session{id: "p_t_a", members: map[string]*member{}, version: 3}
-	m := newMember("c1", "A", nil)
+	m := newMember("c1", "A", nil, defaultTuning)
 	s.members["c1"] = m
 	s.hub = &Hub{ctx: context.Background(), bus: eventbus.NewInProc()}
 

@@ -12,5 +12,5 @@ export const StencilKeywordsModal = createProjectMetaModal({
   addLabel: 'keywords',
   field: keywordChipsField({ placeholder: 'Add a keyword…' }),
   load: (meta) => meta?.keywords || [],
-  save: (app, id, value) => app.setProjectKeywords(id, value),
+  save: (app, id, value) => app.projectTransfer.setProjectKeywords(id, value),
 });

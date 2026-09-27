@@ -8,7 +8,9 @@ class QComboBox;
 class QFormLayout;
 class QFrame;
 class QLabel;
+class QDateTime;
 class QLineEdit;
+class QPushButton;
 class QTimer;
 class QVBoxLayout;
 
@@ -30,9 +32,17 @@ namespace stencil::gui {
     // Out-of-line so the unique_ptr member's forward-declared type is complete at destruction.
     ~LlmSettingsForm() override;
     // Writes ONLY the assistant keys (llm* + saveChatsWithProject); everything else rides through.
+    // The anthropic key is never among them.
     void applyTo(Settings& s) const;
-    void focusProvider();
+    // The host's Save: a typed anthropic key is held in memory for the session; an empty field
+    // keeps the one already held.
+    void commitAnthropicKey();
+    // The key field when anthropic holds no key, else the provider.
+    void focusEntry();
     void pinNoteHeights();   // each wrapped note line to the height its real width needs
+    // "Key kept until 21:40 or until Stencil quits.", the weekday added when `until` is another
+    // day; an invalid `until` is "No key for this session."
+    static QString keyStatusText(const QDateTime& until, const QDateTime& now);
 
    protected:
     // A wrapped label's sizeHint is measured at a GUESSED width, and the layout budgets that
@@ -44,6 +54,11 @@ namespace stencil::gui {
     QFrame* rowDivider();
     void hugRight(QWidget* w);
     void buildProviderRows(const Settings& current);
+    // The anthropic key field, its status + Forget row; never filled back from memory.
+    void buildAnthropicKeyRows();
+    void renderKeyStatus();
+    // What a probe or a model list sends for anthropic: the typed key, else the held one.
+    QString requestKey() const;
     void buildChatHistoryRows(const Settings& current);
     void wireProviderFields();
     // On a provider switch the base URL re-fills unless the user edited it (it no longer equals the
@@ -61,12 +76,19 @@ namespace stencil::gui {
     QComboBox* model = nullptr;
     QLineEdit* apiKey = nullptr;
     QComboBox* server = nullptr;
+    QLineEdit* anthropicKey = nullptr;
+    QWidget* keyStatusRow = nullptr;
+    QLabel* keyStatus = nullptr;
+    QPushButton* forgetKey = nullptr;
     QCheckBox* saveChats = nullptr;
     QLabel* note = nullptr;
+    QLabel* keyNote = nullptr;
     QLabel* saveChatsHint = nullptr;
     QFrame* baseUrlDiv = nullptr;
     QFrame* modelDiv = nullptr;
     QFrame* apiKeyDiv = nullptr;
+    QFrame* anthropicKeyDiv = nullptr;
+    QFrame* keyStatusDiv = nullptr;
     QFrame* serverDiv = nullptr;
     QFrame* noteBox = nullptr;
     QLabel* statusDot = nullptr;

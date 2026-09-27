@@ -4,7 +4,7 @@
 
 export interface CropRect { x: number; y: number; width: number; height: number; }
 
-/** The quick-crop page's whole mutable state, shared with controls.js/stage.js. */
+/** The quick-crop page's whole mutable state, shared with controls.js and stage.js. */
 export interface CropState {
   srcUrl: string;
   source: string;

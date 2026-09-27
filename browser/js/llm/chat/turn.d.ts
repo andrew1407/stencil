@@ -1,4 +1,4 @@
-// Shapes for llm/turn.js — the pieces of one chat turn (contract §7): its limits, the image
+// Shapes for llm/chat/turn.js — the pieces of one chat turn (contract §7): its limits, the image
 // encoders an attachment goes through, the history replay rule, and what a plan says about the
 // picture. The controller re-exports the public half of this surface.
 import type { ChatImage, ChatMessage } from '../client.js';

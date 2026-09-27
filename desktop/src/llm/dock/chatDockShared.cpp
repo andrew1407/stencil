@@ -1,10 +1,13 @@
 #include "chatDockShared.hpp"
 
+#include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/motion/scrollReveal.hpp"        // ENTERING_PROPERTY — the entrance claims the effect
 #include "../../support/motion/ShimmerOverlay.hpp"  // the shared hover sweep on every ghost button
 #include "../../support/motionPrefs.hpp"
+#include "../../support/rowWork.hpp"
 
 #include <QEasingCurve>
+#include <QFileInfo>
 #include <QGraphicsOpacityEffect>
 #include <QImage>
 #include <QImageReader>
@@ -13,7 +16,6 @@
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPointer>
-#include <QStyle>
 #include <QToolButton>
 #include <QVariantAnimation>
 #include <QWidget>
@@ -34,8 +36,8 @@ namespace stencil::gui::chatdock {
     for (QVariantAnimation* a : w->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
     if (!fx) {
-      fx = new QGraphicsOpacityEffect(w);
-      w->setGraphicsEffect(fx);   // the widget owns the effect
+      fx = veilBehindDust(w);   // the widget owns the effect
+      fx->setOpacity(1.0);
     }
     const double from = fx->opacity();
     fx->setOpacity(from);
@@ -79,11 +81,32 @@ namespace stencil::gui::chatdock {
     w->update();
   }
 
-  // EXIF-aware file decode shared by the attach dialog and paste/drop routing.
-  QImage readImageFile(const QString& path) {
-    QImageReader reader(path);
-    reader.setAutoTransform(true);
-    return reader.read();
+  void readImageFilesThen(QObject* ctx, const QStringList& paths,
+                          std::function<void(const NamedImages&)> done) {
+    support::runOnPool<NamedImages>(ctx, [paths] {
+      NamedImages read;
+      for (const QString& p : paths) {
+        QImageReader reader(p);
+        reader.setAutoTransform(true);
+        read.append({reader.read(), QFileInfo(p).fileName()});
+      }
+      return read;
+    }, std::move(done));
+  }
+
+  bool queueAttachments(QList<QImage>& images, QStringList& names, const NamedImages& read,
+                        QStringList* failed) {
+    bool overCap = false;
+    for (const auto& [img, name] : read) {
+      if (img.isNull()) {
+        if (failed) *failed << name;
+        continue;
+      }
+      if (images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
+      images.append(img);
+      names.append(name);
+    }
+    return overCap;
   }
 
 }  // namespace stencil::gui::chatdock

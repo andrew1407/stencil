@@ -29,7 +29,7 @@ public abstract class ScriptServiceTestBase : IDisposable
         _workspace = new UserWorkspace(options);
         _editing = new EditingService(_cli, _workspace, _store);
         _service = new ScriptService(_cli, _workspace, _store, _editing, new PromptService(
-            new MockLlmClient(), _editing, _store, new LlmOptions(), new MockServerClientFactory()));
+            new MockLlmClient(), _cli, _editing, _store, new LlmOptions(), new MockServerClientFactory()));
     }
 
     public void Dispose()
@@ -39,7 +39,11 @@ public abstract class ScriptServiceTestBase : IDisposable
     }
 
     protected static ScriptPlan Plan(string sourceKind, string source, params string[] actionArrays) =>
-        new([], [new ScriptBlock(0, source, sourceKind, actionArrays)]);
+        new([], [Block(0, source, sourceKind, actionArrays)]);
+
+    /// <summary>A block whose chunks carry core's recorded check, as <c>--plan-surface bot</c> returns them.</summary>
+    protected static ScriptBlock Block(int index, string source, string sourceKind, params string[] actionArrays) =>
+        new(index, source, sourceKind, [.. actionArrays.Select(PlanCheckRecordings.ScriptChunk)]);
 
     protected Task Adopt() => _editing.BlankAsync(UserId, new BlankSpec());
 }

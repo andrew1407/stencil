@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo);
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QVERIFY2(fx, "logo hover fx overlay not installed");
@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QVERIFY(logo && fx);
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
     win.settings.motionMode = QStringLiteral("none");
     win.applySettings(win.settings, /*persist=*/false);
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     const auto hover = [&](bool looping) {
       const QPointF c(logo->rect().center());
       QEnterEvent enter(c, c, logo->mapToGlobal(logo->rect().center()));
@@ -153,9 +153,9 @@ class MainWindowGuiTest : public QObject {
       return on && !fx->property("fxActive").toBool();
     };
     QVERIFY2(hover(true), "motion none stopped the main mark's hover loop");
-    QVERIFY(win.toggleWebcore());
+    QVERIFY(win.parts.theme.toggleWebcore());
     QVERIFY2(hover(false), "the webcore skin left the hover without its still shine");
-    QVERIFY(!win.toggleWebcore());
+    QVERIFY(!win.parts.theme.toggleWebcore());
   }
 
 };

@@ -44,7 +44,7 @@
     .chat-thumb-preview { transition: none; }
 }
 
-/* ── Motion mode (js/ui/motionPrefs.js) ──────────────────────────────────────
+/* ── Motion mode (js/ui/motion/motionPrefs.js) ──────────────────────────────────────
    The user's own switch over everything above, stamped on <html> before first paint
    (js/prePaintTheme.js) and rewritten live when the Visuals modal moves it:
 
@@ -85,7 +85,7 @@
     .chat-slide-in { animation: none; }
 }
 
-/* ── The motion modes' icons (js/ui/motionIcons.js) ──────────────────────────
+/* ── The motion modes' icons (js/ui/motion/icons.js) ──────────────────────────
    Each dropdown row wears its mode's glyph, and hovering the row plays the mode:
    the ⊘ line draws from top-right to bottom-left, the arrow is drawn from bottom-left to
    top-right (its head last),

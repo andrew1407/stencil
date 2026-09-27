@@ -2,16 +2,12 @@
 #include "../../support/icon/iconSpin.hpp"
 #include "cropDialogParts.hpp"
 #include "../../support/modal/modalChrome.hpp"
-#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
-#include <QPainter>
 #include <QWheelEvent>
-#include <QPainterPath>
 #include <QPushButton>
-#include <QScreen>
 #include <algorithm>
 #include <cmath>
 

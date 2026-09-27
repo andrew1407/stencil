@@ -1,4 +1,4 @@
-// Headless check of the shared toggle FACE swap (src/support/faceSwap.hpp) — the one exchange behind
+// Headless check of the shared toggle FACE swap (src/support/theme/faceSwap.hpp) — the one exchange behind
 // Draw's Start▶/Stop■ and its Line/Rect neighbour: the curve (both ends at rest, an invisible pivot,
 // the turn reversing across it), and the driver on a live QToolButton — a swap converges on the face
 // asked for, the caller's state flip runs exactly once, reduced motion lands on the end state, rapid

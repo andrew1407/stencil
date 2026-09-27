@@ -1,0 +1,5 @@
+      /* ── The yellow tooltip ── */
+      QToolTip, QFrame#stencilAppTooltip {
+        background: %WC_TIP_BG%; color: %WC_TIP_INK%; border: 1px solid %WC_DARK%; border-radius: 0; padding: 2px 4px;
+      }
+      QLabel#stencilAppTooltipBody { color: %WC_TIP_INK%; }

@@ -76,3 +76,15 @@ test('listProjects tags every record remote with its serverUrl', async () => {
   assert.equal(list[0][REMOTE_FLAG], true);
   assert.equal(list[0].serverUrl, 'http://srv:9');
 });
+
+test('a 30x from the server is refused, never followed with the bearer', async () => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push({ url, redirect: init.redirect });
+    return { ok: false, status: 0, type: 'opaqueredirect', json: async () => ({}) };
+  };
+  const c = new ServerConnection('http://a:1', { token: 'tok', fetchImpl, WebSocketImpl: StubWS });
+  const err = await c.listProjects().then(() => null, (e) => e);
+  assert.match(err.message, /redirected/);
+  assert.deepEqual(seen, [{ url: 'http://a:1/projects', redirect: 'manual' }]);
+});

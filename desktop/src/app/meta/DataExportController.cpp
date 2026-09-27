@@ -1,19 +1,14 @@
 #include "DataExportController.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
-#include "../../support/guiHelpers.hpp"  // showSaveDialog
+#include "lineUnion.hpp"  // capLayout
 #include "../../support/modal/modalChrome.hpp"  // confirmModalChoice — the browser-styled question
-#include "../../support/icon/iconSet.hpp"
-#include "../../support/share/shareImage.hpp"
 #include <QByteArray>
 #include <QClipboard>
 #include <QFile>
 #include <QFileDialog>
-#include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonDocument>
-#include <QPushButton>
-#include <QTemporaryDir>
 
 namespace stencil::gui {
 
@@ -153,7 +148,7 @@ namespace stencil::gui {
     if (combine) {
       core::Lines merged = canvas->allLines();          // existing first…
       merged.insert(merged.end(), lines.begin(), lines.end());   // …new on top
-      lines = std::move(merged);
+      lines = model::capLayout(std::move(merged));
     }
     canvas->setLines(lines);  // emits changed() -> refresh panel + buttons
     notify->success(combine ? "Layout loaded (combined)" : "Layout loaded");

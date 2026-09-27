@@ -1,3 +1,5 @@
+import { startDrawingMode, stopDrawingMode } from '../core/draw/mode.js';
+import { flipSelectedLine, rotateSelectedLineQuarter } from '../core/draw/transformOps.js';
 // ── window.stencil's chainable editor actions ────────────────────────────────
 // Transforms, the draw/voice toggles, viewport pan/zoom, and the bulk apply() that
 // fans one object out over the settings namespace and these same members.
@@ -10,22 +12,22 @@ export const createEditorActions = ({ app }) => {
     rotateRight() { app.imageModel.rotateImage(1); return stencil; },
     // Transform the SELECTED line about its bbox centre (same pivot as the per-line rotate) —
     // flip left↔right / top↔bottom, or rotate a quarter turn ±90. No selection is a no-op.
-    flipH() { app.flipSelectedLine(true); return stencil; },
-    flipV() { app.flipSelectedLine(false); return stencil; },
-    rotate90() { app.rotateSelectedLineQuarter(1); return stencil; },
-    rotateMinus90() { app.rotateSelectedLineQuarter(-1); return stencil; },
+    flipH() { flipSelectedLine(app, true); return stencil; },
+    flipV() { flipSelectedLine(app, false); return stencil; },
+    rotate90() { rotateSelectedLineQuarter(app, 1); return stencil; },
+    rotateMinus90() { rotateSelectedLineQuarter(app, -1); return stencil; },
     undo() { app.undo(); return stencil; },
     redo() { app.redo(); return stencil; },
-    startDrawing() { app.startDrawingMode(); return stencil; },
-    stopDrawing() { app.stopDrawingMode(); return stencil; },
+    startDrawing() { startDrawingMode(app); return stencil; },
+    stopDrawing() { stopDrawingMode(app); return stencil; },
     // Point-adding mode as a get/set toggle (mirrors the Start/Stop drawing buttons).
     // Enabling needs a loaded image (matches the toolbar's guard).
     get drawing() { return !!app.isDrawing; },
     set drawing(on) {
-      if (on) { if (app.image && !app.isDrawing) app.startDrawingMode(); }
-      else if (app.isDrawing) app.stopDrawingMode();
+      if (on) { if (app.image && !app.isDrawing) startDrawingMode(app); }
+      else if (app.isDrawing) stopDrawingMode(app);
     },
-    // Hands-free voice chat (js/llm/modes.js): listens with the chat closed and sends
+    // Hands-free voice chat (js/llm/voice/modes.js): listens with the chat closed and sends
     // every utterance as a turn. Turning it on stops any composer dictation.
     get voiceChat() { return !!app.voice?.voiceChat; },
     set voiceChat(on) {
@@ -56,12 +58,14 @@ export const createEditorActions = ({ app }) => {
     zoomFit() { app.zoomPan.fitToWindow(); return stencil; },
 
     // The key list is the namespace's own — never Object.keys(opts), which would walk a
-    // __proto__ payload in.
+    // __proto__ payload in. A filter and its tint are one undo step.
     apply(opts = {}) {
       const set = stencil.settings;
-      for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(set))) {
-        if (typeof d.set === 'function' && opts[k] != null) set[k] = opts[k];
-      }
+      app.settings.filterStep(() => {
+        for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(set))) {
+          if (typeof d.set === 'function' && opts[k] != null) set[k] = opts[k];
+        }
+      });
       if (opts.page != null) set.pageSize = opts.page;            // `page` alias for pageSize
       if (opts.showTooltip != null) app.settings.setTooltipOption('enabled', opts.showTooltip);
       if (opts.tooltip && typeof opts.tooltip === 'object')

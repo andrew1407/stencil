@@ -1,4 +1,4 @@
-// Shapes for popup/import.js — importing one scanned row into the editor tab this
+// Shapes for popup/editor/import.js — importing one scanned row into the editor tab this
 // panel stands on. Resolves false when nothing landed (the assistant then falls back to
 // a new-tab hand-off).
 import type { PopupImage } from '../list/model.js';

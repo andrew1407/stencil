@@ -2,7 +2,7 @@ using Stencil.TelegramBot.Infrastructure.Links;
 
 namespace Stencil.TelegramBot.Tests.Links;
 
-/// <summary>The Telegram start-payload codec. GOLDEN VECTORS — duplicated verbatim in browser/tests/deepLink.test.js and desktop/tests/deepLink.headless.cpp; keep the three in sync.</summary>
+/// <summary>The Telegram start-payload codec. GOLDEN VECTORS — duplicated verbatim in browser/tests/core/launch/deepLink.test.js and desktop/tests/io/deepLink.headless.cpp; keep the three in sync.</summary>
 public class DeepLinkCodecTests
 {
     public static TheoryData<string, string, string> GoldenVectors() => new()

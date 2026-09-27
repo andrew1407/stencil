@@ -91,7 +91,7 @@ body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0
     transition: opacity 90ms ease;
 }
 .chat-status-tip.visible { opacity: 1; }
-/* Once the real motes have flown (js/ui/chatPanel.js showGearTip/hideGearTip), the
+/* Once the real motes have flown (js/ui/chat/panel.js showGearTip/hideGearTip), the
    plain fade steps aside for good — same reasoning as #app-tooltip.dust-driven — so
    it can never fight the surfaceForm/surfaceLeave keyframes over the same property. */
 .chat-status-tip.dust-driven { transition: none; }

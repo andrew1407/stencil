@@ -38,7 +38,9 @@ func TestServeNoticesTCPEditorsBeforeHangingUp(t *testing.T) {
 	srv := &http.Server{Addr: "127.0.0.1:0"}
 	served := make(chan error, 1)
 	var sweepWG sync.WaitGroup
-	go func() { served <- serve(rootCtx, srv, tcpLn, h, addr, "drain test", false, stop, &sweepWG) }()
+	go func() {
+		served <- serve(rootCtx, srv, tcpLn, h, addr, "drain test", false, stop, &sweepWG, 10*time.Second)
+	}()
 
 	editor := joinAsEditor(t, addr)
 	stop() // SIGTERM: the signal context is cancelled and serve() drains

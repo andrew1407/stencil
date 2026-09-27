@@ -1,5 +1,9 @@
 #include "DisintegrateOverlay.hpp"
 
+#include <QGraphicsOpacityEffect>
+#include <QStyle>
+#include <QStyleOption>
+
 namespace stencil::gui {
 
 
@@ -35,6 +39,56 @@ namespace stencil::gui {
     });
     w->setWindowOpacity(0.0);
     fade->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
+
+  namespace {
+    // autoFillBackground's fill, laid from the paint event instead: Qt then no longer counts the
+    // widget as covering its rect. PE_Widget is laid again because the fill covers Qt's own pass.
+    class FillFromPaint : public QObject {
+     public:
+      using QObject::QObject;
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() != QEvent::Paint) return false;
+        auto* w = static_cast<QWidget*>(o);
+        QPainter p(w);
+        p.fillRect(static_cast<QPaintEvent*>(e)->rect(), w->palette().brush(w->backgroundRole()));
+        if (w->testAttribute(Qt::WA_StyledBackground)) {
+          QStyleOption opt;
+          opt.initFrom(w);
+          w->style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, w);
+        }
+        return false;
+      }
+    };
+  }  // namespace
+
+
+  // Qt counts an opaque child under an opacity effect as covering its rect, so nothing beneath
+  // repaints there and its last frame shows through the veil; each such child is made non-opaque.
+  QGraphicsOpacityEffect* veilBehindDust(QWidget* surface) {
+    auto* veil = new QGraphicsOpacityEffect(surface);
+    veil->setOpacity(0.0);
+    surface->setGraphicsEffect(veil);   // first: a veil it replaces gives its children back
+    auto* fill = new FillFromPaint(veil);
+    QList<QPointer<QWidget>> filled, opaque;
+    for (QWidget* c : surface->findChildren<QWidget*>()) {
+      if (c->window() != surface->window()) continue;
+      if (c->autoFillBackground() && c->palette().brush(c->backgroundRole()).isOpaque()) {
+        filled << c;
+        c->setAutoFillBackground(false);
+        c->installEventFilter(fill);
+      }
+      if (c->testAttribute(Qt::WA_OpaquePaintEvent)) {
+        opaque << c;
+        c->setAttribute(Qt::WA_OpaquePaintEvent, false);
+      }
+    }
+    QObject::connect(veil, &QObject::destroyed, surface, [filled, opaque] {
+      for (QWidget* c : filled) if (c) c->setAutoFillBackground(true);
+      for (QWidget* c : opaque) if (c) c->setAttribute(Qt::WA_OpaquePaintEvent, true);
+    });
+    return veil;
   }
 
 
@@ -85,7 +139,7 @@ namespace stencil::gui {
   }
 
 
-  // The browser's curves (css/animations.css tileGatherSurface / tileScatterSurface).
+  // The browser's curves (css/animations/ tileGatherSurface / tileScatterSurface).
   const support::EaseLut& DisintegrateOverlay::surfaceLegEase() {
     static const support::EaseLut lut(0.3, 0.3, 0.6, 0.8);
     return lut;
@@ -161,7 +215,7 @@ namespace stencil::gui {
   }
 
 
-  // Browser surface/motion.js reshapeGrid.
+  // Browser surface/tiles.js reshapeGrid.
   void DisintegrateOverlay::dustGrid(const QSize& size, int cellPx, int maxCells, int* cols,
                                      int* rows) {
     *cols = std::max(1, qRound(double(size.width()) / cellPx));

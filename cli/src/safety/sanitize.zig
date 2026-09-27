@@ -1,7 +1,14 @@
 //! The ONE sanitizer for untrusted server/provider prose that may be printed: the LLM
 //! transport's error details and serverClient's rejection messages both go through it.
-//! Pinned by the shared sanitizer fixture corpus (tests/sanitizer_fixtures_test.zig).
+//! Pinned by the shared sanitizer fixture corpus (tests/llm/sanitizer_fixtures_test.zig).
 const std = @import("std");
+const controls = @import("sanitize/controls.zig");
+
+/// Untrusted text with every control byte and escape sequence out (see sanitize/controls.zig).
+pub const stripControls = controls.stripControls;
+pub const Keep = controls.Keep;
+/// Whether an escape sequence is a colour (SGR) and nothing else.
+pub const isSgr = controls.isSgr;
 
 /// How much of a provider's own prose an error may quote (server upstream.go parity).
 pub const detail_limit = 200;
@@ -40,16 +47,32 @@ pub fn sanitizeDetail(text: []const u8, out: *DetailBuf) []const u8 {
     return out[0..n];
 }
 
-/// Word separators: spaces and every control byte (DEL included).
-fn isDetailSep(c: u8) bool {
-    return c <= ' ' or c == 0x7f;
+const Unit = struct { len: usize, sep: bool };
+
+/// One character of `src` at `i`, and whether it separates words: a space or any control — C0,
+/// DEL, and C1 (U+0080–U+009F, or a raw 0x80–0x9F byte that begins no character).
+fn unitAt(src: []const u8, i: usize) Unit {
+    const b = src[i];
+    if (b < 0x80) return .{ .len = 1, .sep = b <= ' ' or b == 0x7f };
+    const n = std.unicode.utf8ByteSequenceLength(b) catch return .{ .len = 1, .sep = b <= 0x9f };
+    if (i + n > src.len) return .{ .len = 1, .sep = false };
+    const cp = std.unicode.utf8Decode(src[i .. i + n]) catch return .{ .len = 1, .sep = false };
+    return .{ .len = n, .sep = cp <= 0x9f };
 }
 
 /// The next separator-delimited word from `src`, advancing `i` past it; null at the end.
 fn nextWord(src: []const u8, i: *usize) ?[]const u8 {
-    while (i.* < src.len and isDetailSep(src[i.*])) i.* += 1;
+    while (i.* < src.len) {
+        const u = unitAt(src, i.*);
+        if (!u.sep) break;
+        i.* += u.len;
+    }
     const start = i.*;
-    while (i.* < src.len and !isDetailSep(src[i.*])) i.* += 1;
+    while (i.* < src.len) {
+        const u = unitAt(src, i.*);
+        if (u.sep) break;
+        i.* += u.len;
+    }
     return if (i.* == start) null else src[start..i.*];
 }
 
@@ -126,9 +149,18 @@ test "sanitizeDetail: bounded, control-free, and never echoing a key or URL" {
         "Check your key and try again.",
         sanitizeDetail("Check your key and try again.", &buf),
     );
+    // C1 separates as C0 does, UTF-8 encoded or a stray byte; a character that merely carries a
+    // 0x80–0x9F continuation byte (… is E2 80 A6) stays whole.
+    try testing.expectEqualStrings("a b 31mc d", sanitizeDetail("a\u{85}b\u{9b}31mc\x9bd", &buf));
+    try testing.expectEqualStrings("fin… é ok", sanitizeDetail("fin…\u{80}é\x80ok", &buf));
+    try testing.expectEqualStrings("\xc3x", sanitizeDetail("\xc3x", &buf));
     var long: [900]u8 = undefined;
     for (&long, 0..) |*c, i| c.* = if (i % 5 == 4) ' ' else 'a';
     const cut = sanitizeDetail(&long, &buf);
     try testing.expect(cut.len <= detail_limit + "…".len);
     try testing.expect(std.mem.endsWith(u8, cut, "…"));
+}
+
+test {
+    _ = controls;
 }

@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
   static void holdLogo(MainWindow& win, LogoStage* stage) {
     auto* hold = stage->findChild<QTimer*>("logoHold");
     QVERIFY(hold);
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     const QPoint c = logo->rect().center();
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(c), logo->mapToGlobal(c),
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
@@ -49,12 +49,12 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(stage->size(), win.rect().size());
 
     // The release after a hold is consumed, so the 250ms accent cycle never arms.
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     const QPoint c = logo->rect().center();
     QMouseEvent release(QEvent::MouseButtonRelease, QPointF(c), logo->mapToGlobal(c),
                         Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(logo, &release);
-    QVERIFY2(!win.logoClickTimer->isActive(), "the accent cycle must not follow a hold");
+    QVERIFY2(!win.tools.logoClickTimer->isActive(), "the accent cycle must not follow a hold");
     QCOMPARE(win.settings.accentColor, QString("violet"));
   }
 
@@ -214,6 +214,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(canvas->getImage().width() * scale <= view.width() + 1
                  && canvas->getImage().height() * scale <= view.height() + 1,
              "the whole page is in view when the show ends");
+    win.acts.undo->trigger();   // the tint and the heart are one step
+    QCOMPARE(int(canvas->getLines().size()), before);
+    QCOMPARE(win.settings.imageFilter, QString("none"));
   }
 
 };

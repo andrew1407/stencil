@@ -1,7 +1,9 @@
 //! One-shot `.stencil` handling — `stencil -i project.stencil out.png` (render) and
-//! `stencil -i photo.png … out.stencil` (bundle); reuses the console `Session` so a project's
-//! crop/rotation/filter/lines derive exactly as the browser/desktop editors render them.
+//! `stencil -i photo.png … out.stencil` (bundle) — and the one-shot `--prompt` turn; reuses the
+//! console `Session` so a project's crop/rotation/filter/lines derive exactly as the
+//! browser/desktop editors render them, and a plan runs through the console's own handlers.
 const std = @import("std");
+const builtin = @import("builtin");
 const args = @import("../args.zig");
 const pipeline = @import("../pipeline.zig");
 const layout_mod = @import("../media/layout.zig");
@@ -10,6 +12,8 @@ const project = @import("../project.zig");
 const logo = @import("../app/logo.zig");
 const confine = @import("../safety/confine.zig");
 const commands = @import("../console/commands.zig");
+const llm = @import("../llm.zig");
+const llmPrompt = @import("../console/llmPrompt.zig");
 const Session = @import("../console/session.zig").Session;
 
 /// Split a `--filter` value into a Session filter (mode, color): named modes pass through,
@@ -21,7 +25,12 @@ fn filterModeColor(f: []const u8) struct { mode: []const u8, color: []const u8 }
 }
 
 pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
-    var sess = Session{ .gpa = gpa };
+    return runWith(gpa, io, opts, .{});
+}
+
+/// `runOneShot` with the `STENCIL_LLM_*` environment a `--prompt` turn resolves its provider from.
+pub fn runWith(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, llm_env: llm.Env) !void {
+    var sess = Session{ .gpa = gpa, .llm_env = llm_env };
     defer sess.deinit();
 
     // Metadata carried into a re-bundled .stencil output (owned; freed at the end).
@@ -104,10 +113,8 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         logo.err("no output path given\n", .{});
         return error.NoOutput;
     };
-    if (opts.confine_output and confine.outsideCwd(out)) {
-        logo.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
-        return error.UnsafeOutputPath;
-    }
+    try checkOutput(gpa, io, opts, &sess, out);
+    if (opts.prompt) |text| try runPrompt(gpa, io, opts, &sess, out, text);
     if (project.isStencilPath(out)) {
         try project.saveInto(&sess, io, out, .{
             .name = meta_name,
@@ -122,4 +129,28 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         defer gpa.free(page_label);
         try pipeline.writeOutputLabeled(gpa, io, sess.current().*, out, sess.default_fmt, page_label);
     }
+}
+
+/// One `--prompt` turn over the loaded input; its key lives in this process only (llm-contract §5).
+/// The assistant is the console's, and POSIX-only as the console is.
+fn runPrompt(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, sess: *Session, out: []const u8, text: []const u8) !void {
+    if (builtin.os.tag == .windows) {
+        logo.err("--prompt is not available on Windows — it runs the console's assistant\n", .{});
+        return error.PromptFailed;
+    }
+    if (!try llmPrompt.promptTurn(sess, io, text)) {
+        if (sess.llm_cfg != null and sess.llm_cfg.?.provider == .anthropic and sess.llm_cfg.?.api_key.len == 0)
+            logo.note("set STENCIL_LLM_API_KEY to your Anthropic API key for this command\n", .{});
+        return error.PromptFailed;
+    }
+    try checkOutput(gpa, io, opts, sess, out); // the plan may have loaded another format
+}
+
+/// The output guards, run before anything is sent or written.
+fn checkOutput(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, sess: *Session, out: []const u8) !void {
+    if (opts.confine_output and confine.escapes(io, std.Io.Dir.cwd(), out)) {
+        logo.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
+        return error.UnsafeOutputPath;
+    }
+    if (opts.no_clobber) try pipeline.refuseClobber(gpa, io, out, sess.default_fmt, project.isStencilPath(out));
 }

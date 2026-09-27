@@ -1,10 +1,10 @@
 #include "args.hpp"
+#include "decimal.hpp"
 #include "diagnostics.hpp"
 #include "values.hpp"
 #include "text.hpp"
 
 #include <array>
-#include <cstdlib>
 
 namespace stencil::core::script {
 
@@ -26,7 +26,7 @@ namespace stencil::core::script {
         if (t.kind == TokenKind::NUMBER) {
           std::string number, unit;
           readLengthRaw(c, number, unit);
-          state.style.thickness = std::strtod(number.c_str(), nullptr);
+          state.style.thickness = parseDecimalPrefix(number).value_or(0.0);
           continue;
         }
         if (isStyleWord(low)) {
@@ -58,7 +58,7 @@ namespace stencil::core::script {
           if (!c.atEnd() && c.peek().kind == TokenKind::NUMBER) {
             std::string number, unit;
             readLengthRaw(c, number, unit);
-            state.style.pointSize = std::strtod(number.c_str(), nullptr);
+            state.style.pointSize = parseDecimalPrefix(number).value_or(0.0);
           }
           continue;
         }
@@ -73,8 +73,9 @@ namespace stencil::core::script {
           ++c.i;
           continue;
         }
-        diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", t,
-                                 "'" + t.text + "' is not a line-style word"));
+        const std::string why = isMalformedNumber(t) ? malformedNumberMessage(t)
+                                                     : "'" + t.text + "' is not a line-style word";
+        diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", t, why));
         return false;
       }
       return true;

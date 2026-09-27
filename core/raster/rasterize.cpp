@@ -1,9 +1,13 @@
 #include "rasterize.hpp"
 
 #include "colorNames.hpp"
-#include "rgba.hpp"  // rgbaOffset
+#include "markers.hpp"
+#include "pixelBlend.hpp"
+#include "strokeCoverage.hpp"
+#include "text.hpp"  // Keyed, lookupPtr
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 
@@ -11,17 +15,19 @@ namespace stencil::core {
 
   namespace {
 
+    using blend::blendPixel;
+    using blend::clampToInt;
+
     // Largest coordinate / size a layout line may carry: unbounded untrusted input would overflow
-    // the int casts and spin the scan/step loops. Lines beyond it are skipped as inert.
+    // the int casts and spin the scan loops. Lines beyond it are skipped as inert.
     constexpr double MAX_COORD = 1e6;
 
-    // `!(v >= lo)` also catches NaN. Clamping scan bounds is output-preserving (blendPixel
-    // skips out-of-bounds writes) and caps the loop length of a far-off or huge stamp.
-    inline int clampToInt(double v, int lo, int hi) {
-      if (!(v >= static_cast<double>(lo))) return lo;
-      if (v > static_cast<double>(hi)) return hi;
-      return static_cast<int>(v);
-    }
+    // The browser's `line.style` words, matched case-sensitively as render.js does; any other
+    // style strokes solid.
+    constexpr std::array<Keyed<DashPattern>, 2> DASH_STYLES = {{
+        {"dashed", DASHED},
+        {"dotted", DOTTED},
+    }};
 
     bool lineWithinBounds(const Line& line) {
       if (!std::isfinite(line.thickness) || std::abs(line.thickness) > MAX_COORD) return false;
@@ -31,126 +37,6 @@ namespace stencil::core {
         if (std::abs(p.x) > MAX_COORD || std::abs(p.y) > MAX_COORD) return false;
       }
       return true;
-    }
-
-    // round(v / 255) for v in [0, 65535], without a divide. Exact over that range,
-    // which covers c*a + d*(255-a) since the two weights sum to 255 (max 255*255).
-    inline std::uint8_t div255(int v) {
-      v += 128;  // round-to-nearest bias
-      return static_cast<std::uint8_t>((v + (v >> 8)) >> 8);
-    }
-
-    // Source-over with `coverage` (0..1) folded into the colour's alpha, quantised to 8
-    // bits; out-of-bounds writes are ignored.
-    void blendPixel(std::uint8_t* buf, int w, int h, int x, int y, const Rgba& c,
-                    double coverage) {
-      if (x < 0 || x >= w || y < 0 || y >= h) return;
-      int a = static_cast<int>(coverage * c.a + 0.5);  // effective alpha, 0..255
-      if (a <= 0) return;
-      if (a > CHANNEL_MAX) a = CHANNEL_MAX;
-      const int ia = CHANNEL_MAX - a;
-      std::uint8_t* p = buf + rgbaOffset(x, y, w);
-      p[0] = div255(c.r * a + p[0] * ia);
-      p[1] = div255(c.g * a + p[1] * ia);
-      p[2] = div255(c.b * a + p[2] * ia);
-      p[3] = div255(CHANNEL_MAX * a + p[3] * ia);
-    }
-
-    void stampDisc(std::uint8_t* buf, int w, int h, double cx, double cy,
-                   double radius, const Rgba& c) {
-      if (radius <= 0.0) return;
-      const int x0 = clampToInt(std::floor(cx - radius - 1.0), 0, w - 1);
-      const int x1 = clampToInt(std::ceil(cx + radius + 1.0), 0, w - 1);
-      const int y0 = clampToInt(std::floor(cy - radius - 1.0), 0, h - 1);
-      const int y1 = clampToInt(std::ceil(cy + radius + 1.0), 0, h - 1);
-      // Coverage = clamp(radius + 0.5 - d, 0, 1) needs the sqrt only in the 1px AA rim;
-      // squared-distance culling of interior/exterior is byte-identical.
-      const double rIn = radius - 0.5;
-      const double rInSq = rIn > 0.0 ? rIn * rIn : -1.0;
-      const double rOut = radius + 0.5;
-      const double rOutSq = rOut * rOut;
-      for (int y = y0; y <= y1; ++y) {
-        for (int x = x0; x <= x1; ++x) {
-          const double dx = (x + 0.5) - cx;
-          const double dy = (y + 0.5) - cy;
-          const double dsq = dx * dx + dy * dy;
-          if (dsq >= rOutSq) continue;                  // exterior: cov == 0
-          if (dsq <= rInSq) {                            // interior: cov == 1
-            blendPixel(buf, w, h, x, y, c, 1.0);
-            continue;
-          }
-          const double cov = radius + 0.5 - std::sqrt(dsq);  // rim only
-          if (cov > 0.0) blendPixel(buf, w, h, x, y, c, cov);
-        }
-      }
-    }
-
-    void stampRing(std::uint8_t* buf, int w, int h, double cx, double cy,
-                   double radius, double lineWidth, const Rgba& c) {
-      const double outer = radius + lineWidth * 0.5 + 1.0;
-      const int x0 = clampToInt(std::floor(cx - outer), 0, w - 1);
-      const int x1 = clampToInt(std::ceil(cx + outer), 0, w - 1);
-      const int y0 = clampToInt(std::floor(cy - outer), 0, h - 1);
-      const int y1 = clampToInt(std::ceil(cy + outer), 0, h - 1);
-      // Coverage is non-zero only in the band [radius - half, radius + half].
-      const double half = lineWidth * 0.5 + 0.5;
-      const double bandOut = radius + half;
-      const double bandOutSq = bandOut * bandOut;
-      const double bandIn = radius - half;
-      const double bandInSq = bandIn > 0.0 ? bandIn * bandIn : -1.0;
-      for (int y = y0; y <= y1; ++y) {
-        for (int x = x0; x <= x1; ++x) {
-          const double dx = (x + 0.5) - cx;
-          const double dy = (y + 0.5) - cy;
-          const double dsq = dx * dx + dy * dy;
-          if (dsq >= bandOutSq || dsq <= bandInSq) continue;  // outside the band
-          const double d = std::sqrt(dsq);
-          const double cov = std::clamp(half - std::abs(d - radius), 0.0, 1.0);
-          if (cov > 0.0) blendPixel(buf, w, h, x, y, c, cov);
-        }
-      }
-    }
-
-    // `pos` is arc length along the path.
-    bool dashOn(double pos, const std::string& style, double thickness) {
-      if (style == "dashed") {
-        const double on = std::max(thickness * 3.0, 1.0);
-        const double off = std::max(thickness * 2.0, 1.0);
-        const double cycle = on + off;
-        return std::fmod(pos, cycle) < on;
-      }
-      if (style == "dotted") {
-        const double on = std::max(thickness, 1.0);
-        const double off = std::max(thickness * 1.5, 1.0);
-        const double cycle = on + off;
-        return std::fmod(pos, cycle) < on;
-      }
-      return true;  // solid (and any unknown style)
-    }
-
-    // Discs of radius thickness/2 stamped every ~0.5px, skipping dash gaps.
-    void strokePolyline(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,
-                        bool closed, double thickness, const std::string& style,
-                        const Rgba& c) {
-      if (pts.size() < 2 || thickness <= 0.0) return;
-      const double radius = std::max(thickness * 0.5, 0.5);
-      const double step = 0.5;
-      double pos = 0.0;
-      const std::size_t segs = closed ? pts.size() : pts.size() - 1;
-      for (std::size_t i = 0; i < segs; ++i) {
-        const Point& a = pts[i];
-        const Point& b = pts[(i + 1) % pts.size()];
-        const double segLen = std::hypot(b.x - a.x, b.y - a.y);
-        const int n = std::max(1, static_cast<int>(std::ceil(segLen / step)));
-        for (int s = 0; s <= n; ++s) {
-          const double u = static_cast<double>(s) / n;
-          const double px = a.x + (b.x - a.x) * u;
-          const double py = a.y + (b.y - a.y) * u;
-          if (dashOn(pos + u * segLen, style, thickness))
-            stampDisc(buf, w, h, px, py, radius, c);
-        }
-        pos += segLen;
-      }
     }
 
   }  // namespace
@@ -169,19 +55,17 @@ namespace stencil::core {
     const auto stroke = parseColor(line.color);
     const bool strokeOn = stroke && stroke->a > 0;
     if (strokeOn)
-      strokePolyline(buf, w, h, line.points, line.locked, line.thickness, line.style,
-                     *stroke);
+      coverage::strokePolyline(buf, w, h, line.points, line.locked, line.thickness,
+                               lookupPtr(DASH_STYLES, line.style), *stroke);
     // Markers (a disc under the editor's dark handle ring) do not ride on the stroke, as
     // canvas/Qt draw them either way; an unset point colour inherits `color`, though.
     if (line.pointSize <= 0.0) return;
     const auto own = parseColor(pointColorOr(line));
     const Rgba fill = (own && own->a > 0) ? *own : (strokeOn ? *stroke : Rgba{0, 0, 0, 0});
     if (fill.a == 0) return;
-    const Rgba outline{0, 0, 0, CHANNEL_MAX};
-    for (const Point& p : line.points) {
-      stampDisc(buf, w, h, p.x, p.y, line.pointSize, fill);
-      stampRing(buf, w, h, p.x, p.y, line.pointSize, 1.0, outline);
-    }
+    // Capped as a stroke is.
+    markers::drawMarkers(buf, w, h, line.points, std::min(line.pointSize, MAX_STROKE_THICKNESS), fill,
+                         Rgba{0, 0, 0, CHANNEL_MAX});
   }
 
   void fillPolygonRows(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,
@@ -212,10 +96,6 @@ namespace stencil::core {
         for (int x = xa; x <= xb; ++x) blendPixel(buf, w, h, x, y, c, 1.0);
       }
     }
-  }
-
-  void rasterizeLines(std::uint8_t* buf, int w, int h, const Lines& lines) {
-    for (const Line& line : lines) rasterizeLine(buf, w, h, line);
   }
 
 }  // namespace stencil::core

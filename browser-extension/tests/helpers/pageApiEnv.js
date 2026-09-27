@@ -1,5 +1,6 @@
-// The stub page the pageApi*.test.js suites run src/content/pageApiMain.js against: it has no
-// exports, so a stub DOM/window goes on globalThis and the IIFE is imported for its side effect.
+// The stub page the pageApi*.test.js suites run window.stencil against: its four MAIN-world parts
+// have no exports, so a stub DOM/window goes on globalThis and each IIFE is imported, in the
+// registered order, for its side effect.
 
 // A stub <img>: scan() reads currentSrc / getAttribute('src'); entryDims reads naturalWidth.
 export const img = (url, { naturalWidth = 100, naturalHeight = 80 } = {}) => ({
@@ -48,9 +49,14 @@ export const setupEnv = ({ imgs = [], bgs = [], videos = [], stencilPreset } = {
   return { posted, win, dispatch };
 };
 
+export const PAGE_API_PARTS = ['pageApiMedia', 'pageApiScan', 'pageApiHighlight', 'pageApiMain'];
+
 let caseId = 0;
-// A fresh module evaluation — the unique ?case= busts the ESM cache.
-export const importApi = () => import(`../../src/content/pageApiMain.js?case=${++caseId}`);
+// A fresh evaluation of every part — the unique ?case= busts the ESM cache.
+export const importApi = async () => {
+  const id = ++caseId;
+  for (const part of PAGE_API_PARTS) await import(`../../src/content/${part}.js?case=${id}`);
+};
 
 // Fresh stub page + a fresh module evaluation; returns { stencil, posted, win, dispatch }.
 export const loadApi = async (opts) => {

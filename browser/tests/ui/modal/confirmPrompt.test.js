@@ -1,4 +1,4 @@
-// app.prompt's live validation (ui/confirmModal.js) — the desktop's PromptSpec::validate. A reason disables
+// app.prompt's live validation (ui/modal/confirmModal.js) — the desktop's PromptSpec::validate. A reason disables
 // Confirm and Enter and says why under the field, so a prompt can never offer an action its caller will then
 // ignore for an empty answer (user report).
 import { test } from 'node:test';
@@ -66,4 +66,33 @@ test('a prompt with no validate behaves exactly as before', () => {
   modal.prompt('Name it');
   assert.equal(confirm.disabled, false, 'nothing to refuse, nothing disabled');
   assert.equal(reasonOf(body), undefined, 'and no reason line is built at all');
+});
+
+test('a prompt answered before its focus timer keeps what was typed (not selected over)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { body } = setup();
+  const modal = new StencilConfirmModal();
+  modal.wire();
+  modal.prompt('Name', { defaultValue: 'draft' });
+  const input = fieldOf(body);
+  const calls = [];
+  input.focus = () => calls.push('focus');
+  input.select = () => calls.push('select');
+  input.value = 'draft typed';
+  t.mock.timers.tick(30);
+  assert.deepEqual(calls, [], 'the late focus/select leaves the typed text alone');
+});
+
+test('an untouched prompt still opens with its default selected', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { body } = setup();
+  const modal = new StencilConfirmModal();
+  modal.wire();
+  modal.prompt('Name', { defaultValue: 'draft' });
+  const input = fieldOf(body);
+  const calls = [];
+  input.focus = () => calls.push('focus');
+  input.select = () => calls.push('select');
+  t.mock.timers.tick(30);
+  assert.deepEqual(calls, ['focus', 'select']);
 });

@@ -4,14 +4,17 @@
 //! Precedence, lowest first: defaults < the dotenv file < process env < `--surface`; a
 //! per-call `surface` parameter overrides it for one call.
 mod env;
+mod servers;
 mod surface;
 
 use std::path::PathBuf;
 
-pub use env::cli_timeout;
+pub use env::{cli_timeout, max_concurrent_cli};
+pub use servers::{origin_of, ServerEntry, Servers};
 pub use surface::{parse_surfaces, Surface};
 
-use env::{arg_value, default_desktop_path, env_nonempty, load_dotenv};
+use crate::confine::Roots;
+use env::{arg_value, default_desktop_path, env_nonempty, env_roots, load_dotenv};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LlmEnv {
@@ -42,6 +45,10 @@ pub struct Config {
     pub auto_open: bool,
     /// LLM provider settings for `stencil_prompt` (raw; resolved per call).
     pub llm: LlmEnv,
+    /// Where writes may land when the client names no roots: `STENCIL_MCP_ROOTS`, else the CWD.
+    pub roots: Roots,
+    /// The collaboration servers `server`/`remote`/`stencil_projects` may reach.
+    pub servers: Servers,
 }
 
 const DEFAULT_BROWSER_URL: &str = "http://localhost:8080";
@@ -54,6 +61,8 @@ impl Default for Config {
             browser_url: DEFAULT_BROWSER_URL.to_string(),
             auto_open: false,
             llm: LlmEnv::default(),
+            roots: Roots::cwd(),
+            servers: Servers::default(),
         }
     }
 }
@@ -116,6 +125,15 @@ impl Config {
                 ));
             }
         }
+
+        if let Some(roots) = env_roots() {
+            config.roots = roots;
+        }
+        config.servers = Servers::parse(
+            env_nonempty("STENCIL_MCP_SERVERS").as_deref(),
+            env_nonempty("STENCIL_MCP_SERVER_TOKENS").as_deref(),
+            &mut warnings,
+        );
 
         (config, warnings)
     }

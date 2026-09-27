@@ -62,8 +62,8 @@ pub fn apply(
             ui.ack(session, mode);
         },
         .layout => |l| {
-            // §4: an empty "lines" array REMOVES every drawn line — the /apply path's
-            // replace mode over nothing, undoable like the draw it undoes.
+            // §2: the lines drawn become exactly these — the /apply path's replace mode, one
+            // undoable entry — so an empty "lines" array REMOVES every drawn line.
             if (std.mem.eql(u8, l.lines_json, "[]")) {
                 session.setLines("{\"lines\":[]}") catch return false;
                 edited.* = true;
@@ -77,7 +77,7 @@ pub fn apply(
             defer gpa.free(remapped);
             const doc = linesDoc(gpa, remapped) catch return false;
             defer gpa.free(doc);
-            session.addLines(doc) catch return false;
+            session.setLines(doc) catch return false;
             edited.* = true;
             ui.ack(session, "drawn");
         },

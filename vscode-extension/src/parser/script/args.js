@@ -2,7 +2,7 @@
 // (crop.js) and `@use` (lineStyle.js).
 import { makeDiag, tokenOfStmt } from './diagnostics.js';
 import { SOURCE_KINDS, classifySource } from './types.js';
-import { cursorOf, isColorToken, joinWords, readPointList } from './values.js';
+import { cursorOf, isColorToken, joinWords, parseIntClamped, readPointList } from './values.js';
 
 // Where a whole-statement complaint points: the first argument, or the directive itself.
 export const whereOf = (st, fallbackText) =>
@@ -76,8 +76,8 @@ export const argsFrame = (st, op, diags) => {
     diags.push(makeDiag('error', 'E_ARG_COUNT', where, '@frame needs a frame index'));
     return false;
   }
-  const n = parseInt(st.args[0].text, 10);
-  if (!Number.isFinite(n) || n < 0) {
+  const n = parseIntClamped(st.args[0].text);
+  if (n < 0) {
     diags.push(makeDiag('error', 'E_BAD_TOKEN', st.args[0], 'a frame index cannot be negative'));
     return false;
   }

@@ -1,12 +1,12 @@
 // Port of core/script/lower.cpp — statements to the flat op stream.
 import { argsFilter, argsFrame, argsLayout, argsSave, argsShape } from './args.js';
 import { argsCrop } from './crop.js';
-import { hasErrors, makeDiag, tokenOfStmt } from './diagnostics.js';
+import { hasErrors, makeDiag, noteCallSite, tokenOfStmt } from './diagnostics.js';
 import { argsUse } from './lineStyle.js';
 import { expandStencilUse, reportUnusedTemplates, templateIndex } from './templates.js';
 import {
   MAX_OPS, MAX_SOURCE_CHARS, MAX_TEMPLATE_EXPANSIONS, SOURCE_KINDS, classifySource,
-  defaultLineStyle, isEditDirective, isStencilUse,
+  defaultLineStyle, isEditDirective, isStencilUse, utf8Length, utf8Truncate,
 } from './types.js';
 import { EditLedger, applyHistoryStmt } from './undo.js';
 import { joinWords } from './values.js';
@@ -47,9 +47,10 @@ export const lowerScript = (parsed) => {
   const blocks = [];
   const ops = [];
   const emptyBlocks = [];
-  const byName = templateIndex(parsed.templates);
+  const index = templateIndex(parsed.templates);
   let capped = false; // a replay that would pass MAX_OPS stops the whole script
   const budget = { used: 0 }; // the whole script fan-out, blocks included
+  const noted = new Set(); // template-body diagnostics already reported once
 
   for (const raw of parsed.blocks) {
     const blockIndex = blocks.length;
@@ -65,10 +66,10 @@ export const lowerScript = (parsed) => {
     if (!raw.implicit) {
       block.source = joinWords(raw.header.args);
       block.kind = classifySource(block.source);
-      if (block.source.length > MAX_SOURCE_CHARS) {
+      if (utf8Length(block.source) > MAX_SOURCE_CHARS) {
         diagnostics.push(makeDiag('error', 'E_LIMIT_SOURCE', tokenOfStmt(raw.header),
           'the @source spec is too long'));
-        block.source = block.source.slice(0, MAX_SOURCE_CHARS);
+        block.source = utf8Truncate(block.source, MAX_SOURCE_CHARS);
       }
       const open = blankOp('open', raw.header, blockIndex);
       open.strs = [block.source];
@@ -80,7 +81,9 @@ export const lowerScript = (parsed) => {
     const body = [];
     for (const st of raw.body) {
       if (st.directive !== 'use' || !isStencilUse(st)) { body.push(st); continue; }
-      expandStencilUse(st, parsed.templates, byName, 1, budget, body, diagnostics);
+      const before = diagnostics.length;
+      expandStencilUse(st, parsed.templates, index, 1, budget, body, diagnostics);
+      noteCallSite(diagnostics, before, { line: st.line, col: st.col, len: st.len }, noted);
       if (budget.used > MAX_TEMPLATE_EXPANSIONS) { capped = true; break; }
     }
     if (capped) break; // the capped block is not recorded, so nothing of it dumps
@@ -91,6 +94,14 @@ export const lowerScript = (parsed) => {
     let sawEdit = false;
     const frames = [];
 
+    // Every op counts: a @save or a @frame is an encode per input. Past it the lowering stops.
+    const hasRoom = (at) => {
+      if (ops.length < MAX_OPS) return true;
+      diagnostics.push(makeDiag('error', 'E_LIMIT_OPS', tokenOfStmt(at), 'the script has too many ops'));
+      capped = true;
+      return false;
+    };
+
     const rewindAndReplay = (line, col) => {
       if (ledger.reconcile(ops, blockIndex, line, col)) return true;
       diagnostics.push(makeDiag('error', 'E_LIMIT_OPS',
@@ -100,67 +111,68 @@ export const lowerScript = (parsed) => {
     };
 
     for (const st of body) {
-      const d = st.directive;
+      const before = diagnostics.length;
+      try {
+        const d = st.directive;
 
-      if (d === 'use') {
-        argsUse(st, state, diagnostics);
-        continue;
-      }
-
-      if (d === 'frame') {
-        if (raw.implicit) {
-          diagnostics.push(makeDiag('error', 'E_FRAME_OUTSIDE_SOURCE', tokenOfStmt(st),
-            '@frame needs a @source block naming a video'));
+        if (d === 'use') {
+          argsUse(st, state, diagnostics);
           continue;
         }
-        const op = blankOp('frame', st, blockIndex);
-        if (!argsFrame(st, op, diagnostics)) continue;
-        const idx = op.nums[0];
-        if (frames.includes(idx)) {
-          diagnostics.push(makeDiag('error', 'E_DUPLICATE_FRAME', tokenOfStmt(st),
-            `frame ${idx} is already used in this block`));
+
+        if (d === 'frame') {
+          if (raw.implicit) {
+            diagnostics.push(makeDiag('error', 'E_FRAME_OUTSIDE_SOURCE', tokenOfStmt(st),
+              '@frame needs a @source block naming a video'));
+            continue;
+          }
+          const op = blankOp('frame', st, blockIndex);
+          if (!argsFrame(st, op, diagnostics)) continue;
+          const idx = op.nums[0];
+          if (frames.includes(idx)) {
+            diagnostics.push(makeDiag('error', 'E_DUPLICATE_FRAME', tokenOfStmt(st),
+              `frame ${idx} is already used in this block`));
+            continue;
+          }
+          frames.push(idx);
+          if (!rewindAndReplay(st.line, st.col) || !hasRoom(st)) break;
+          ledger.reset();
+          ops.push(op);
           continue;
         }
-        frames.push(idx);
-        if (!rewindAndReplay(st.line, st.col)) break;
-        ledger.reset();
+
+        if (d === 'undo' || d === 'redo') {
+          applyHistoryStmt(st, d === 'redo', ledger, diagnostics);
+          continue;
+        }
+
+        if (d === 'save') {
+          const op = blankOp('save', st, blockIndex);
+          argsSave(st, op);
+          if (!rewindAndReplay(st.line, st.col) || !hasRoom(st)) break;
+          ops.push(op);
+          sawSave = true;
+          continue;
+        }
+
+        if (!isEditDirective(d)) {
+          diagnostics.push(makeDiag('error', 'E_BAD_TOKEN', tokenOfStmt(st),
+            `'@${d}' cannot be used here`));
+          continue;
+        }
+
+        const { kind, read } = EDIT_OPS[d];
+        const op = blankOp(kind, st, blockIndex);
+        if (!read(st, state, op, diagnostics)) continue;
+        if (!hasRoom(st)) break;
+        // Numbered before the ledger copies it, so a replayed edit dumps as the same edit.
+        op.editIndex = ledger.editCount + 1;
+        ledger.addEdit(op, normalizedText(st));
         ops.push(op);
-        continue;
+        sawEdit = true;
+      } finally {
+        if (st.call) noteCallSite(diagnostics, before, st.call, noted);
       }
-
-      if (d === 'undo' || d === 'redo') {
-        applyHistoryStmt(st, d === 'redo', ledger, diagnostics);
-        continue;
-      }
-
-      if (d === 'save') {
-        const op = blankOp('save', st, blockIndex);
-        argsSave(st, op);
-        if (!rewindAndReplay(st.line, st.col)) break;
-        ops.push(op);
-        sawSave = true;
-        continue;
-      }
-
-      if (!isEditDirective(d)) {
-        diagnostics.push(makeDiag('error', 'E_BAD_TOKEN', tokenOfStmt(st),
-          `'@${d}' cannot be used here`));
-        continue;
-      }
-
-      const { kind, read } = EDIT_OPS[d];
-      const op = blankOp(kind, st, blockIndex);
-      if (!read(st, state, op, diagnostics)) continue;
-      if (ops.length >= MAX_OPS) {
-        diagnostics.push(makeDiag('error', 'E_LIMIT_OPS', tokenOfStmt(st),
-          'the script has too many ops'));
-        break;
-      }
-      // Numbered before the ledger copies it, so a replayed edit dumps as the same edit.
-      op.editIndex = ledger.editCount + 1;
-      ledger.addEdit(op, normalizedText(st));
-      ops.push(op);
-      sawEdit = true;
     }
 
     if (!capped) rewindAndReplay(block.line, 1);

@@ -125,13 +125,14 @@ with worked examples as the `tour-*` cases in
 Every surface ships an **LLM assistant**: you describe an edit in words ("make it sepia and
 crop 10% off each side", "give me 3 variants: rotated, tinted, contoured") and the model
 answers with a validated *op-plan* that runs through the very same operations the toolbar and
-CLI flags use. Stencil ships **no model and no API key** — you point it at one. Three provider
+CLI flags use. Stencil ships **no model and no API key** — you point it at one. Four provider
 choices, identical everywhere:
 
 | Provider | What it is | Default endpoint |
 |---|---|---|
 | `ollama` | a local Ollama daemon (native `/api/chat`) | `http://localhost:11434` |
 | `openai-compat` | any OpenAI-style server — LM Studio, `llama.cpp`, vLLM | `http://localhost:1234/v1` |
+| `anthropic` | Claude, called straight from the app with **your own** Anthropic API key — no server needed. The key is kept only for the session (until the tab, app or console closes) and for at most 12 hours, and is never saved | `https://api.anthropic.com` |
 | `stencil-server` | a [collaboration server](server/) proxying its own upstream key, which never leaves it | your configured server URL |
 
 The GUI surfaces (browser, desktop, extension) additionally offer **`none` — assistant off**:
@@ -149,8 +150,8 @@ Where you set it, per surface:
 | [browser-extension](browser-extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
 | [cli](cli/README.md) | `STENCIL_LLM_*` env; `/llm provider\|url\|model\|key\|server <value>` in-session (bare `/llm` prints the config). Ask with `/prompt` | env + session state |
 | [pystencil](pystencil/README.md) | same env and console commands; in code, `LlmConfig(provider=…, model=…)` | env / `LlmConfig` args |
-| [bot](bot/README.md) | `STENCIL_LLM_*` (+ `STENCIL_LLM_SERVER_TOKEN`) in `bot/.env`. Ask with `/prompt` or `/chat` mode | env/`.env` |
-| [mcp](mcp/README.md) | `STENCIL_LLM_*` + `STENCIL_LLM_SERVER_TOKEN` in `mcp/.env`; per-call `model` override on `stencil_prompt` | env/`.env` |
+| [bot](bot/README.md) (no `anthropic`) | `STENCIL_LLM_*` (+ `STENCIL_LLM_SERVER_TOKEN`) in `bot/.env`. Ask with `/prompt` or `/chat` mode | env/`.env` |
+| [mcp](mcp/README.md) (no `anthropic`: plain-http transport) | `STENCIL_LLM_*` + `STENCIL_LLM_SERVER_TOKEN` in `mcp/.env`; per-call `model` override on `stencil_prompt` | env/`.env` |
 
 The env family is the same everywhere it applies: `STENCIL_LLM_PROVIDER`,
 `STENCIL_LLM_BASE_URL`, `STENCIL_LLM_MODEL`, `STENCIL_LLM_API_KEY`, `STENCIL_LLM_SERVER_URL`

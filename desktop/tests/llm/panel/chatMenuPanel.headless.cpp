@@ -1,5 +1,5 @@
-// The context menu's assistant flyout (llm/ChatMenuPanel + llm/chatMenuPanelParts.hpp).
-// Browser twin browser/css/components/ctxAssistant.css: the flyout is the chat panel at MENU
+// The context menu's assistant flyout (llm/ChatMenuPanel + llm/panel/chatMenuPanelParts.hpp).
+// Browser twin browser/css/components/ctx/assistant.css: the flyout is the chat panel at MENU
 // scale, so the prompt chips and the composer carry that sheet's own boxes — the numbers
 // here are read straight off it. The dock's chips keep their own, larger, box.
 #include "ChatDock.hpp"
@@ -24,7 +24,7 @@ using namespace stencil::gui;
 
 namespace {
 
-  // browser css/components/ctxAssistant.css, and chat/cards.css for the base chip.
+  // browser css/components/ctx/assistant.css, and chat/cards.css for the base chip.
   constexpr int CSS_CHIP_FONT_PX = 12;      // .ctx-assist .chat-suggest font-size
   constexpr int CSS_CHIP_PAD_Y = 4;         // …and its padding
   constexpr int CSS_CHIP_PAD_X = 9;

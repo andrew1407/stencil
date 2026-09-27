@@ -15,11 +15,12 @@ import { createCtxNav } from './nav.js';
 import { ctxSyncState } from '../ctx/state.js';
 import { wireCtxActions } from '../ctx/actions.js';
 import { wireCtxStyleActions } from '../ctx/styleActions.js';
+import { onButtonsUpdated } from '../control/state.js';
+import { perFrame } from '../../utils.js';
+import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 
 // The custom right-click context menu.
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
-const LIVE_SYNC_INTERVAL_MS = 120;
-const TINT_DEBOUNCE_MS = 80;
 const ASSIST_SCROLL_GRACE_MS = 900; // window in which an assistant-caused scroll can't close the menu
 
 export class StencilContextMenu extends StencilElement {
@@ -31,7 +32,7 @@ export class StencilContextMenu extends StencilElement {
     const canvas = document.getElementById('canvas');
     const viewport = document.getElementById('canvas-viewport');
 
-    // Submenu navigation — ui/nav.js.
+    // Submenu navigation — ui/contextMenu/nav.js.
     const {
       closeSub, closeAllSubs, positionSub, repositionActiveSub, hideSub, closeActiveSub,
       wireSubmenu, wirePlainItem, setPointerTracking, activeSub, setActiveSub,
@@ -59,8 +60,9 @@ export class StencilContextMenu extends StencilElement {
       else if (item.id !== 'ctx-script') wirePlainItem(item);
     });
 
-    // Live-sync keeps the menu current while open (hotkeys may change state).
-    let syncInterval = null;
+    // While open the menu follows the editor: each updateButtons sweep and a fullscreen flip
+    // re-sync it, one pass per frame. The settings reach its fields through their own mirrors.
+    let unfollow = null;
     // Where the menu grew from, so the close pours back into it.
     let openPoint = null;
 
@@ -74,8 +76,7 @@ export class StencilContextMenu extends StencilElement {
       closeAllSubs();
       setKbItem(null);
       setPointerTracking(false);
-      clearInterval(syncInterval);
-      syncInterval = null;
+      unfollow?.();
       hideExportPreview();
       clearAltPreviewHover();
     };
@@ -122,11 +123,10 @@ export class StencilContextMenu extends StencilElement {
       // Opacity only: a live transform would make the menu the containing block for its
       // position:fixed flyouts.
       if (!motionReduced()) surfaceIn(menu, openPoint, { ms: SURFACE_MENU_IN_MS });
-      clearInterval(syncInterval);
-      syncInterval = setInterval(() => {
-        if (menu.classList.contains('ctx-open')) syncState();
-        else { clearInterval(syncInterval); syncInterval = null; }
-      }, LIVE_SYNC_INTERVAL_MS);
+      unfollow?.();
+      const sync = perFrame(() => { if (menuIsOpen()) syncState(); });
+      const offs = [onButtonsUpdated(sync), subscribe(EVENTS.fullscreenChanged, sync)];
+      unfollow = () => { offs.forEach((off) => off()); unfollow = null; };
     };
 
     [canvas, viewport].forEach(el => {

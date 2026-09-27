@@ -200,6 +200,12 @@
    "@keyframes dustHostOut|100%": {
     "opacity": "0"
    },
+   "@keyframes dustHostSettle|0%, 55%": {
+    "opacity": "1"
+   },
+   "@keyframes dustHostSettle|100%, 80%": {
+    "opacity": "0"
+   },
    "@keyframes fadeIn|from": {
     "opacity": "0",
     "transform": "translateY(-4px)"
@@ -1269,6 +1275,34 @@
     "opacity": "0",
     "transition": "none"
    },
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled": {
+    "background": "transparent",
+    "border-color": "transparent",
+    "box-shadow": "none"
+   },
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled #coord-body": {
+    "display": "block",
+    "opacity": "1",
+    "transition": "none"
+   },
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled #toggle-coord-panel": {
+    "border": "1px solid var(--border-main) !important"
+   },
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled .coord-tabs": {
+    "display": "inline-flex",
+    "opacity": "1",
+    "transition": "none"
+   },
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled > #coord-body, .coordinates-panel.coord-veiled > .coord-panel-header": {
+    "position": "fixed",
+    "left": "var(--pin-left)",
+    "top": "var(--pin-top)",
+    "width": "var(--pin-width)",
+    "height": "var(--pin-height)",
+    "box-sizing": "border-box",
+    "margin": "0",
+    "pointer-events": "none"
+   },
    "@media (prefers-reduced-motion: reduce)|#app-tooltip": {
     "transition": "none",
     "transform": "none",
@@ -1469,6 +1503,14 @@
     "--dissolve": "0",
     "transition": "opacity 100ms ease, transform 150ms cubic-bezier(0.16, 1, 0.3, 1), --dissolve 220ms ease"
    },
+   "|#canvas-overlay": {
+    "position": "absolute",
+    "left": "0",
+    "top": "0",
+    "width": "100%",
+    "height": "100%",
+    "pointer-events": "none"
+   },
    "|#chat-backdrop": {
     "display": "none",
     "position": "fixed",
@@ -1599,7 +1641,7 @@
    },
    "|#coord-body, .coord-tabs": {
     "opacity": "1",
-    "transition": "opacity var(--fold-fade-ms) var(--fold-ease), display var(--fold-fade-ms) allow-discrete"
+    "transition": "opacity var(--panel-fade-ms) var(--fold-ease), display var(--panel-fade-ms) allow-discrete"
    },
    "|#ctx-assist-input": {
     "flex": "1 1 auto",
@@ -2155,7 +2197,7 @@
     "cursor": "pointer",
     "line-height": "1.4"
    },
-   "|#toggle-controls .ic, #toggle-coord-panel .ic": {
+   "|#toggle-controls .ic": {
     "transition": "transform var(--fold-ms) var(--fold-ease)"
    },
    "|#toggle-controls:hover": {
@@ -2177,6 +2219,9 @@
     "cursor": "pointer",
     "flex-shrink": "0",
     "margin-left": "auto"
+   },
+   "|#toggle-coord-panel .ic": {
+    "transition": "transform var(--panel-slide-ms) var(--fold-ease)"
    },
    "|#toggle-coord-panel:hover": {
     "background": "var(--bg-info)"
@@ -2753,14 +2798,14 @@
     "user-select": "none",
     "-webkit-touch-callout": "none"
    },
-   "|.canvas-viewport #canvas, .canvas-viewport .idle-create": {
+   "|.canvas-viewport #canvas, .canvas-viewport #canvas-overlay, .canvas-viewport .idle-create": {
     "transition": "opacity 0.28s ease"
    },
-   "|.canvas-viewport.canvas-assembling #canvas": {
+   "|.canvas-viewport.canvas-assembling #canvas, .canvas-viewport.canvas-assembling #canvas-overlay": {
     "opacity": "0",
     "transition": "none"
    },
-   "|.canvas-viewport.canvas-clearing #canvas, .canvas-viewport.canvas-clearing .idle-create": {
+   "|.canvas-viewport.canvas-clearing #canvas, .canvas-viewport.canvas-clearing #canvas-overlay, .canvas-viewport.canvas-clearing .idle-create": {
     "opacity": "0"
    },
    "|.canvas-viewport.flip-active": {
@@ -4146,7 +4191,7 @@
     "padding": "10px 12px",
     "border-radius": "5px",
     "margin-top": "10px",
-    "transition": "width var(--fold-ms) var(--fold-ease), min-width var(--fold-ms) var(--fold-ease), padding var(--fold-ms) var(--fold-ease)",
+    "transition": "width var(--panel-slide-ms) var(--fold-ease), min-width var(--panel-slide-ms) var(--fold-ease), padding var(--panel-slide-ms) var(--fold-ease)",
     "position": "sticky",
     "top": "10px",
     "max-height": "calc(100vh - 40px)",
@@ -4154,11 +4199,12 @@
     "flex-direction": "column"
    },
    "|.coordinates-panel.coord-collapsed": {
-    "transition": "width var(--fold-out-ms) var(--fold-ease), min-width var(--fold-out-ms) var(--fold-ease), padding var(--fold-out-ms) var(--fold-ease)",
+    "transition": "width var(--panel-slide-out-ms) var(--fold-ease), min-width var(--panel-slide-out-ms) var(--fold-ease), padding var(--panel-slide-out-ms) var(--fold-ease)",
     "min-width": "0",
     "max-width": "unset",
-    "width": "36px",
-    "padding": "6px 4px",
+    "width": "40px",
+    "padding": "10px 12px 10px 0",
+    "background": "transparent",
     "overflow": "hidden"
    },
    "|.coordinates-panel.coord-collapsed #coord-body": {
@@ -4696,8 +4742,14 @@
    "|.disintegrate-host.dust-forming": {
     "animation": "dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both"
    },
+   "|.disintegrate-host.dust-forming.dust-over-picture": {
+    "animation-name": "dustHostSettle"
+   },
    "|.disintegrate-host.dust-leaving": {
     "animation": "dustHostIn var(--dust-ms, 340ms) linear both"
+   },
+   "|.disintegrate-host.dust-leaving.dust-over-picture": {
+    "animation": "none"
    },
    "|.draw-mode-icon": {
     "vertical-align": "-2px",
@@ -5610,6 +5662,7 @@
     "top": "0",
     "left": "0",
     "width": "var(--vp-w, 100%)",
+    "max-width": "100%",
     "height": "var(--vp-h, 100%)",
     "margin-bottom": "calc(-1 * var(--vp-h, 0px))",
     "flex": "none",
@@ -7466,9 +7519,9 @@
     "--coord-panel-default": "405px",
     "--remote-gold": "#d4a017",
     "--file-bronze": "#c1783c",
-    "--fold-ms": "470ms",
-    "--fold-out-ms": "705ms",
-    "--fold-fade-ms": "250ms",
+    "--fold-ms": "362ms",
+    "--fold-out-ms": "542ms",
+    "--fold-fade-ms": "192ms",
     "--fold-ease": "cubic-bezier(0.39, 0.575, 0.565, 1)"
    },
    "|:root[data-accent-light]": {
@@ -9067,6 +9120,7 @@
    "|.canvas-section",
    "|.canvas-viewport",
    "|.canvas-container",
+   "|#canvas-overlay",
    "|.canvas-viewport.remote-editing",
    "|.coord-status",
    "|.drop-hint",
@@ -10540,13 +10594,19 @@
    "|body:not(.fullscreen-mode) .canvas-viewport",
    "|body.controls-collapsed :is(.controls-topbar, .controls-wrapper)",
    "|body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport",
-   "|#toggle-controls .ic, #toggle-coord-panel .ic",
+   "|#toggle-controls .ic",
+   "|#toggle-coord-panel .ic",
    "|.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
    "|.coordinates-panel",
    "|.main-content:has(.panel-resizer.dragging) .coordinates-panel, body:has(#fs-panel-resizer.dragging) .coordinates-panel",
    "|#coord-body, .coord-tabs",
    "|.coordinates-panel.coord-collapsed #coord-body, .coordinates-panel.coord-collapsed .coord-tabs",
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs",
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled",
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled > #coord-body, .coordinates-panel.coord-veiled > .coord-panel-header",
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled #coord-body",
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled .coord-tabs",
+   "@media (min-width: 961px)|.coordinates-panel.coord-veiled #toggle-coord-panel",
    "@starting-style|.coordinates-panel:not(.coord-collapsed) #coord-body, .coordinates-panel:not(.coord-collapsed) .coord-tabs",
    "@media (prefers-reduced-motion: reduce)|#controls-body, #controls-body.hidden, #coord-body, #toggle-controls .ic, #toggle-coord-panel .ic, .canvas-viewport, .controls-topbar, .controls-wrapper, .coord-tabs, .coordinates-panel, .info",
    "|#controls-body.fold-instant, #controls-body.fold-instant > *, .coordinates-panel.fold-instant, .coordinates-panel.fold-instant #coord-body, .coordinates-panel.fold-instant .coord-tabs",
@@ -10610,6 +10670,10 @@
    "@keyframes dustHostOut|100%",
    "|.disintegrate-host.dust-leaving",
    "|.disintegrate-host.dust-forming",
+   "@keyframes dustHostSettle|0%, 55%",
+   "@keyframes dustHostSettle|100%, 80%",
+   "|.disintegrate-host.dust-leaving.dust-over-picture",
+   "|.disintegrate-host.dust-forming.dust-over-picture",
    "|.hints-popup.dust-hold",
    "@media (prefers-reduced-motion: reduce)|.dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving",
    "|.mark-forming",
@@ -10618,9 +10682,9 @@
    "@keyframes markForm|100%",
    "|input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked",
    "@media (prefers-reduced-motion: reduce)|.mark-forming",
-   "|.canvas-viewport.canvas-clearing #canvas, .canvas-viewport.canvas-clearing .idle-create",
-   "|.canvas-viewport.canvas-assembling #canvas",
-   "|.canvas-viewport #canvas, .canvas-viewport .idle-create",
+   "|.canvas-viewport.canvas-clearing #canvas, .canvas-viewport.canvas-clearing #canvas-overlay, .canvas-viewport.canvas-clearing .idle-create",
+   "|.canvas-viewport.canvas-assembling #canvas, .canvas-viewport.canvas-assembling #canvas-overlay",
+   "|.canvas-viewport #canvas, .canvas-viewport #canvas-overlay, .canvas-viewport .idle-create",
    "|.canvas-dust",
    "@keyframes dropOverlayOut|from",
    "@keyframes dropOverlayOut|to",

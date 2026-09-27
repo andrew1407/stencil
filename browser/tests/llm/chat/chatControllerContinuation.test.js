@@ -1,4 +1,4 @@
-// §7 auto-continuation (js/llm/controller.js): a plan that loads a picture continues
+// §7 auto-continuation (js/llm/chat/controller.js): a plan that loads a picture continues
 // once, a layout plan does not, and the chain is bounded to one extra round.
 import { test } from 'node:test';
 import assert from 'node:assert';

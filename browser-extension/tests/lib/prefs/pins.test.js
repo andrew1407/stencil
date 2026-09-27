@@ -1,4 +1,4 @@
-// The pure pinned-store helpers (src/lib/pins.js): identity, dedupe, ordering, the keyword
+// The pure pinned-store helpers (src/lib/prefs/pins.js): identity, dedupe, ordering, the keyword
 // normaliser and the search modes that read name + keywords together.
 
 import { test } from 'node:test';

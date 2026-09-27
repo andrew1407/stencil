@@ -15,9 +15,10 @@ from pystencil.llm import (
   format_ask,
   parse_op_plan,
 )
+from tests.helpers.nativecase import NativeCase
 
 
-class AskCardTests(unittest.TestCase):
+class AskCardTests(NativeCase):
   """The §11 interactive-reply card: strict parsing, the console's label-only rendering,
   and answering by number."""
 

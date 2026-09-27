@@ -6,11 +6,16 @@ const core_sources = [_][]const u8{
     "geometry/pointMath.cpp",
     "geometry/hitTest.cpp",
     "geometry/cropGeometry.cpp",
+    "geometry/cropSnap.cpp",
+    "geometry/lineChain.cpp",
     "color/color.cpp",
     "color/colorNames.cpp",
     "raster/imageOps.cpp",
     "raster/rasterize.cpp",
+    "raster/strokeCoverage.cpp",
+    "raster/markers.cpp",
     "raster/imageFilter.cpp",
+    "raster/downscale.cpp",
     "parse/formulaContext.cpp",
     "parse/formulaParser.cpp",
     "parse/DurationParser.cpp",
@@ -19,8 +24,8 @@ const core_sources = [_][]const u8{
     "page/pageMetrics.cpp",
     "page/localeUnit.cpp",
     "format/tooltipRows.cpp",
-    "format/hotkeyFormat.cpp",
     "state/HistoryStack.cpp",
+    "state/lineMerge.cpp",
     "state/ProjectsStore.cpp",
     "state/zoomPan.cpp",
     "state/holdDraw.cpp",
@@ -37,6 +42,23 @@ const core_sources = [_][]const u8{
     "script/lower.cpp",
     "script/program/scriptProgram.cpp",
     "script/dump.cpp",
+    "json/jsText.cpp",
+    "json/jsNumber.cpp",
+    "json/jsonValue.cpp",
+    "json/jsonScan.cpp",
+    "json/jsonReader.cpp",
+    "json/jsonWriter.cpp",
+    "opplan/planGrammars.cpp",
+    "opplan/planPath.cpp",
+    "opplan/planSchema.cpp",
+    "opplan/planSchemaCheck.cpp",
+    "opplan/planChecks.cpp",
+    "opplan/planFields.cpp",
+    "opplan/planRules.cpp",
+    "opplan/planResult.cpp",
+    "opplan/planWalker.cpp",
+    "opplan/planWalkerAsk.cpp",
+    "opplan/planWalk.cpp",
     "cliApi.cpp",
 };
 
@@ -54,12 +76,14 @@ const core_include_dirs = [_][]const u8{
     "../core/page",
     "../core/format",
     "../core/state",
+    "../core/json",
+    "../core/opplan",
 };
 
 // Wire the C/C++ sources + include paths shared by the exe and test builds onto a
 // module: the C++ core (codec-free) and the stb single-header image codecs.
 fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency) void {
-    mod.link_libcpp = true; // C++ runtime for the core (formulaParser uses exceptions)
+    mod.link_libcpp = true; // the core's STL (containers, strings) needs the C++ runtime
     // ".." resolves the C ABI header as "core/cliApi.h"; the core group dirs resolve the
     // core's bare cross-group includes; the stb dependency dir resolves "stb_*.h".
     mod.addIncludePath(b.path(".."));
@@ -74,6 +98,7 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     // @embedFile("<name>") (cross-tree paths need an anonymous import).
     mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../browser/js/config/accents.json") });
     mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../browser/js/config/colorNames.json") });
+    mod.addAnonymousImport("blockedRanges.json", .{ .root_source_file = b.path("../browser/js/config/net/blockedRanges.json") });
     mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../browser/js/config/constants.json") });
     mod.addAnonymousImport("mediaTypes.json", .{ .root_source_file = b.path("../browser/js/config/mediaTypes.json") });
     mod.addAnonymousImport("themeTokens.json", .{ .root_source_file = b.path("../browser/js/config/themeTokens.json") });
@@ -139,10 +164,16 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run the stencil CLI unit + integration tests");
     test_step.dependOn(&run_tests.step);
 
+    // `zig fmt --check` over every Zig file; `test` depends on it, so CI fails on an unformatted one.
+    const fmt = b.addFmt(.{ .paths = &.{ "build.zig", "test_root.zig", "bench_root.zig", "src", "tests" }, .check = true });
+    const fmt_step = b.step("fmt", "Check that every Zig file is zig fmt clean (fix with `zig fmt .`)");
+    fmt_step.dependOn(&fmt.step);
+    test_step.dependOn(&fmt.step);
+
     // `zig build bench` prints timings, it does not assert them, so it is deliberately out of `test`.
     // ReleaseFast whatever the top-level optimize choice, so the numbers reflect a shipped build.
     const bench_mod = b.createModule(.{
-        .root_source_file = b.path("src/bench/bench.zig"),
+        .root_source_file = b.path("bench_root.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });

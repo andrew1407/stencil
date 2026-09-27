@@ -1,6 +1,6 @@
 // What a stage wears — the mark's art, its cloud's style and whether that cloud flies — resolved
 // from the live skin, motion mode, accent and theme, and again on the frame after any of them moves.
-// Desktop twin: app/LogoStage.cpp.
+// Desktop twin: app/logo/LogoStage.cpp.
 import { showDustAllowed, showMotionStyle, motionMode } from '../motion/motionPrefs.js';
 import { faviconSvg } from '../../core/settings/accents.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';

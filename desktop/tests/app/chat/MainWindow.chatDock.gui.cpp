@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
 
-    // The sparkle toolbar button mirrors actChat (setDefaultAction): same
+    // The sparkle toolbar button mirrors acts.chat (setDefaultAction): same
     // toggle, checked while the dock is open (browser sparkle-button parity).
     QToolButton* chatBtn = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>())

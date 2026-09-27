@@ -22,7 +22,7 @@ TEST_SUITE("bench") {
 
   // -- Large-image filters ------------------------------------------------------
   // Contour reads a 3x3 neighbourhood + Sobel; guard it stays a sane multiple of cheap bw.
-  TEST_CASE("bench: large-image filters (bw / sepia / contour)" * doctest::skip()) {
+  TEST_CASE("bench: large-image filters (bw / sepia / contour / custom)" * doctest::skip()) {
     const int w = 3000, h = 2000;  // 6 MP, ~ a phone photo
     const double mp = (static_cast<double>(w) * h) / 1e6;
     auto base = gradient(w, h);
@@ -40,15 +40,21 @@ TEST_SUITE("bench") {
       buf = base;
       applyContourRGBA(buf.data(), w, h);
     });
+    const double custom = best_ms(3, [&] {
+      buf = base;
+      applyFilterRGBA(FilterMode::CUSTOM, buf.data(), static_cast<std::size_t>(w) * h, 124, 58,
+                      237);
+    });
     volatile std::uint64_t sink = checksum(buf);
     (void)sink;
 
     MESSAGE("filters @ " << mp << " MP  bw=" << bw << "ms (" << mp / bw * 1000 << " MP/s)"
                          << "  sepia=" << sepia << "ms  contour=" << contour << "ms ("
-                         << mp / contour * 1000 << " MP/s)");
+                         << mp / contour * 1000 << " MP/s)  custom=" << custom << "ms");
     CHECK(bw > 0.0);
     CHECK(contour < bw * 80.0);   // contour is ~10-20x bw; 80x = generous regression ceiling
     CHECK(sepia < bw * 12.0);     // sepia is a 3x3 matrix; a few x bw at most
+    CHECK(custom < bw * 3.0);     // luma + a 256-entry tint table ~1.5x; rounding per pixel ~4x
   }
 
   // -- Large-image geometry (crop / rotate) ------------------------------------
@@ -108,11 +114,11 @@ TEST_SUITE("bench") {
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
     const double t1 = best_ms(3, [&] {
       std::fill(buf.begin(), buf.end(), std::uint8_t{0});
-      rasterizeLines(buf.data(), w, h, a);
+      for (const Line& ln : a) rasterizeLine(buf.data(), w, h, ln);
     });
     const double t2 = best_ms(3, [&] {
       std::fill(buf.begin(), buf.end(), std::uint8_t{0});
-      rasterizeLines(buf.data(), w, h, b);
+      for (const Line& ln : b) rasterizeLine(buf.data(), w, h, ln);
     });
     volatile std::uint64_t sink = checksum(buf);
     (void)sink;

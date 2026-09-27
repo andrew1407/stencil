@@ -27,6 +27,7 @@ commands:
   /prompt <text>         ask the LLM to edit the image (alias: p); plan actions apply to
                          the session, each variant lands as variant-<label>.png
   /llm [key value]       show the LLM config / set provider | url | model | key | server
+                         '/llm key' asks for the key hidden; '/llm key forget' drops it
   /chat [on|off|clear]   multi-turn /prompt + save chats with the project (default off)
   /help                  this list (aliases: ?, h)
   /exit                  leave (aliases: quit, q)

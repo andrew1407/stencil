@@ -5,7 +5,7 @@
 import { icon } from '../../lib/icons.js';
 import { setTip } from '../../lib/tip/tip.js';
 import { LlmError } from '../../llm/client.js';
-import { turnFailureText, isUnreachableError } from '../../llm/surface.js';
+import { turnFailureText, isUnreachableError, isMissingSessionKey } from '../../llm/surface.js';
 
 export const createTurnRunner = ({ sendBtn, inputEl, view, tray, renderResult, state }) => {
   const { pending, renderTray, syncClearBtn } = tray;
@@ -54,14 +54,15 @@ export const createTurnRunner = ({ sendBtn, inputEl, view, tray, renderResult, s
       if (err?.name === 'AbortError') addRetry(addMsg('error', 'Stopped.'), text, send, attachments);
       else if (err instanceof LlmError && err.kind === 'truncated') addMsg('error', err.message);
       else if (err instanceof LlmError && err.kind === 'refusal') addMsg('error', `The model refused: ${err.message}`);
-      else if (err instanceof LlmError && err.kind === 'disabled') addMsg('error', 'The assistant is not enabled on this server (no API key configured).');
-      else {
+      else if (err instanceof LlmError && err.kind === 'disabled' && !isMissingSessionKey(err, state.llmSettings)) {
+        addMsg('error', 'The assistant is not enabled on this server (no API key configured).');
+      } else {
         // turnFailureText is the browser's error voice, the same words on every surface. Nothing is
         // auto-retried, and a Stop never offers a retry.
         const el = addMsg('error', turnFailureText(state.llmSettings, err));
         // The provider itself is the problem: offer Configure ABOVE Retry (browser
         // chatConfigureButton parity — its card renders the CTA before the retry icon).
-        if (isUnreachableError(err)) addConfigureCta(el);
+        if (isUnreachableError(err, state.llmSettings)) addConfigureCta(el);
         // Icon-only (the composer buttons' shape) — a labelled button inside the
         // bubble reads as part of the message.
         addRetry(el, text, send, attachments);

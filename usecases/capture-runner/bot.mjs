@@ -6,7 +6,7 @@
 import { chromium } from './lib/playwright.mjs';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { expandHome, outDir, repoPath } from './lib/paths.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
+import { makeShotRunner } from './lib/shot/runner.mjs';
 import { settle } from './lib/waits.mjs';
 
 const config = loadCaptureConfig('bot');

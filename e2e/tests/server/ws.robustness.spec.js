@@ -4,8 +4,8 @@
 // non-JSON frame mid-session is dropped on the floor without tearing down the sender
 // or its peers.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, join, T } from '../../helpers/wire.js';
+import { issueToken, createProject, stackEnabled } from '../../helpers/server/api.js';
+import { dialWS, join, T } from '../../helpers/server/wire.js';
 
 test.describe('server WS robustness', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

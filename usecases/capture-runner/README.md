@@ -49,8 +49,8 @@ of a documented pair — then from `theme.steps[<name>]`, then from the app's `t
 | `system` | resolved through `theme.systemPrefers` |
 | `random` | resolved per shot from `theme.randomSeed`, so a re-run reproduces it |
 
-Steps are tables (`browser/stillSteps.mjs`, `browser/clipSteps.mjs`, and the `STEPS` array in
-each other script): a name, and what to do. Waits are for the state being photographed — a
+Steps are tables (`browser/stillSteps.mjs`, `browser/clipSteps.mjs`, `vscode/*Steps.mjs`, and the
+`STEPS` array in each other script): a name, and what to do. Waits are for the state being photographed — a
 finished animation, a decoded canvas, a terminal buffer that stopped changing — not a guessed
 delay; the few remaining pauses are clip timings and live in the config.
 

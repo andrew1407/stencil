@@ -3,25 +3,13 @@
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "../../support/theme/themeTokens.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/icon/iconMotion.hpp"
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QIcon>
-#include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QTabWidget>
-#include <QPainter>
 #include <QPalette>
-#include <QStyledItemDelegate>
 #include <QTableWidget>
-#include <QPixmap>
 #include <QPushButton>
 #include <QToolButton>
 #include <QShowEvent>
-#include <QVBoxLayout>
-#include <QWidget>
 #include <algorithm>
 
 namespace stencil::gui {
@@ -138,18 +126,29 @@ namespace stencil::gui {
         emit lineRowHovered(-1);
       }
     }
-    if (event->type() == QEvent::KeyPress) {
-      auto* ke = static_cast<QKeyEvent*>(event);
-      const bool isDelete =
-          ke->key() == Qt::Key_Delete || ke->key() == Qt::Key_Backspace;
-      if (isDelete && obj == points && points->currentRow() >= 0) {
-        emit pointDeleteRequested(points->currentRow());
-        return true;
-      }
-      // Same key on the Lines tab removes the current line (browser focused lines-row Delete).
-      if (isDelete && obj == lines && lines->currentRow() >= 0 &&
-          lines->currentRow() < lines->rowCount()) {
-        emit lineListRemoveRequested(lines->currentRow());
+    // Browser coordTable.js / linesList.js: Delete or Backspace, whatever the modifiers, on a focused
+    // row removes that row's point or line, and no window shortcut ever sees the key.
+    const QEvent::Type t = event->type();
+    auto* table = obj == points ? points : obj == lines ? lines : nullptr;
+    if (table && (t == QEvent::KeyPress || t == QEvent::ShortcutOverride)) {
+      const int key = static_cast<QKeyEvent*>(event)->key();
+      const int row = table->currentRow();
+      // The empty state's message row spans the table, and is no row to remove.
+      const bool onRow = row >= 0 && row < table->rowCount() && table->columnSpan(row, 0) == 1;
+      if ((key == Qt::Key_Delete || key == Qt::Key_Backspace) && onRow && !(readOnly && readOnly())) {
+        event->accept();   // an accepted override keeps the key from the window's shortcuts
+        if (t == QEvent::ShortcutOverride) return true;
+        if (table == lines) {
+          emit lineListRemoveRequested(row);   // the repopulate keeps the current row on its slot
+          return true;
+        }
+        emit pointDeleteRequested(row);
+        // …and focus moves to the row that took its place (coordTable.js focusRowAfterRemoval).
+        const int n = points->rowCount();
+        if (n > 0 && points->columnSpan(0, 0) == 1) {
+          const QModelIndex next = points->model()->index(std::min(row, n - 1), COL_X);
+          points->selectionModel()->setCurrentIndex(next, QItemSelectionModel::NoUpdate);
+        }
         return true;
       }
     }

@@ -1,183 +1,62 @@
 //! `--script-plan <file>`: the script lowered to op-plan JSON on STDOUT, for the adapters
-//! that drive an editor rather than the pixels (mcp, bot). Nothing is fetched and nothing
-//! is written — a header-only size probe of each block's first local input is the only I/O.
-//! The writer comes in from main.zig: opening a terminal is the console layer's privilege.
+//! that drive an editor rather than the pixels (mcp, bot). Nothing is written. The only reads:
+//! a header probe of each local input, the guarded fetch sizing a URL input whose block draws
+//! lines, and the layout documents a `@layout` names. The writer comes in from main.zig.
 const std = @import("std");
 
 const args = @import("../args.zig");
-const image = @import("../media/image.zig");
-const net = @import("../net.zig");
 const scriptCore = @import("core.zig");
-const video = @import("../media/video.zig");
 
 const load = @import("load.zig");
-const planActions = @import("planActions.zig");
-const save_mod = @import("save.zig");
-const sources = @import("sources.zig");
+const diagnostics = @import("plan/diagnostics.zig");
+const plan_block = @import("plan/block.zig");
+const sequence = @import("plan/sequence.zig");
+const opplan = @import("../core/opplan.zig");
 
-/// Envelope version. Bumped only when a consumer has to change; see cli/CONTRACT.md §5.
+/// Envelope version. Bumped only when a consumer has to change; see cli/CONTRACT.md §4.3.
 pub const VERSION: i64 = 1;
 
-/// A copy of the op-plan envelope's `limits.MAX_ACTIONS` (browser/js/config/llm/opRegistry.json),
-/// which this layer sits below; tests/script_test.zig pins the two together.
-pub const MAX_ACTIONS: usize = 16;
+/// The registry's `limits.MAX_ACTIONS`, a plan's size; tests/script/script_plan_test.zig pins it.
+pub const MAX_ACTIONS = sequence.MAX_ACTIONS;
 
-/// How much of an input's HEAD is read to find its header. Well past any SOF marker, and a
-/// PREFIX rather than a capped whole-file read: a photo bigger than this still probes.
-const PROBE_BYTES: usize = 4 << 20;
-
-fn fmtOf(path: []const u8) image.Format {
-    return image.formatOfPath(path) orelse .png;
-}
-
-/// The size lengths resolve against, or null when the input is not a local still this
-/// build can read a header from (a URL, a video, a missing file).
-fn probeDims(gpa: std.mem.Allocator, io: std.Io, input: []const u8) ?planActions.Dims {
-    if (input.len == 0 or net.isUrl(input) or video.looksLikeVideo(input)) return null;
-    var file = std.Io.Dir.cwd().openFile(io, input, .{}) catch return null;
-    defer file.close(io);
-    const head = gpa.alloc(u8, PROBE_BYTES) catch return null;
-    defer gpa.free(head);
-    var buf: [4096]u8 = undefined;
-    var reader = file.readerStreaming(io, &buf);
-    const n = reader.interface.readSliceShort(head) catch return null;
-    const d = image.dims(head[0..n]) orelse return null;
-    return .{ .w = @floatFromInt(d.width), .h = @floatFromInt(d.height) };
-}
-
-fn writeDiagnostics(js: *std.json.Stringify, script: scriptCore.Script) !void {
-    try js.beginArray();
-    var i: u32 = 0;
-    while (i < script.diagnosticCount()) : (i += 1) {
-        const d = script.diagnostic(i) orelse continue;
-        try js.beginObject();
-        try js.objectField("severity");
-        try js.write(if (d.severity == .err) "error" else "warning");
-        try js.objectField("code");
-        try js.write(d.code);
-        try js.objectField("line");
-        try js.write(d.line);
-        try js.objectField("col");
-        try js.write(d.col);
-        try js.objectField("len");
-        try js.write(d.len);
-        try js.objectField("message");
-        try js.write(d.message);
-        try js.endObject();
-    }
-    try js.endArray();
-}
-
-/// The concrete files a `@save` writes, one entry per input × save op — the same naming
-/// `--script` would use, so an adapter can report a destination without running anything.
-fn writeSaves(
-    a: std.mem.Allocator,
-    js: *std.json.Stringify,
-    script: scriptCore.Script,
-    block: scriptCore.Block,
-    inputs: []const []const u8,
-) !void {
-    try js.beginArray();
-    for (inputs) |input| {
-        const fmt = fmtOf(input);
-        var frame = block.frame;
-        var i: u32 = block.op_start;
-        while (i < block.op_start + block.op_count) : (i += 1) {
-            const op = script.op(i) orelse continue;
-            if (op.kind == .frame) {
-                frame = @intFromFloat(@max(0, script.opNum(i, 0) orelse 0));
-                continue;
-            }
-            if (op.kind != .save) continue;
-            try js.beginObject();
-            try js.objectField("input");
-            try js.write(input);
-            try js.objectField("path");
-            try js.write(try save_mod.resolveTarget(a, script.opStr(i, 0), input, save_mod.frameOf(frame), fmt));
-            try js.endObject();
-        }
-    }
-    try js.endArray();
-}
-
-/// One plan per `MAX_ACTIONS` actions, in order; an empty block yields an empty array.
-fn writePlans(js: *std.json.Stringify, actions: []const std.json.Value) !void {
-    try js.beginArray();
-    var start: usize = 0;
-    while (start < actions.len) : (start += MAX_ACTIONS) {
-        try js.beginObject();
-        try js.objectField("reply");
-        try js.write("");
-        try js.objectField("actions");
-        try js.beginArray();
-        for (actions[start..@min(start + MAX_ACTIONS, actions.len)]) |v| try js.write(v);
-        try js.endArray();
-        try js.endObject();
-    }
-    try js.endArray();
-}
-
-fn writeBlock(
-    a: std.mem.Allocator,
-    io: std.Io,
-    js: *std.json.Stringify,
-    script: scriptCore.Script,
-    opts: args.Options,
-    index: u32,
-) !void {
-    const block = script.block(index) orelse return;
-    var inputs: []const []const u8 = &.{};
-    if (block.kind == .project) {
-        // No @source: the block edits whatever -i named, exactly as the runner does.
-        if (opts.input) |in| inputs = try a.dupe([]const u8, &.{in});
-    } else {
-        // A source that resolved to nothing still plans, with no inputs: §4.3 promises exactly
-        // one envelope on stdout. `expand` has already said on stderr what went wrong.
-        inputs = sources.expand(a, io, block.source, block.kind) catch &.{};
-    }
-    const first = if (inputs.len > 0) inputs[0] else "";
-    const dims = probeDims(a, io, first);
-
-    try js.beginObject();
-    try js.objectField("index");
-    try js.write(index);
-    try js.objectField("source");
-    try js.write(block.source);
-    try js.objectField("sourceKind");
-    try js.write(@tagName(block.kind));
-    try js.objectField("inputs");
-    try js.write(inputs);
-    try js.objectField("frame");
-    try js.write(block.frame);
-    try js.objectField("dims");
-    if (dims) |d| {
-        try js.beginObject();
-        try js.objectField("width");
-        try js.write(@as(i64, @intFromFloat(d.w)));
-        try js.objectField("height");
-        try js.write(@as(i64, @intFromFloat(d.h)));
-        try js.endObject();
-    } else try js.write(null);
-    try js.objectField("plans");
-    try writePlans(js, try planActions.build(a, script, block, first, dims));
-    try js.objectField("saves");
-    try writeSaves(a, js, script, block, inputs);
-    try js.endObject();
-}
-
-/// The whole envelope. A script with an error still reports its diagnostics, but lowers to
-/// no blocks at all — nothing in it is safe to act on.
-pub fn writeEnvelope(
+/// The whole envelope, and whether every block planned. A script with an error still reports
+/// its diagnostics but lowers to no blocks — nothing in it is safe to act on — and so does one
+/// the planner refuses, its reason a diagnostic among the rest.
+pub fn envelope(
     gpa: std.mem.Allocator,
     io: std.Io,
     out: *std.Io.Writer,
     script: scriptCore.Script,
     opts: args.Options,
     label: []const u8,
-) !void {
+) !bool {
     var arena: std.heap.ArenaAllocator = .init(gpa);
     defer arena.deinit();
     const a = arena.allocator();
+
+    var blocks: std.Io.Writer.Allocating = .init(a);
+    var refused: ?scriptCore.Diagnostic = null;
+    if (!script.hasErrors()) {
+        const checker: ?opplan.Schema = if (opts.plan_surface) |surface| opplan.Schema.open(
+            try a.dupeZ(u8, surface),
+            if (opts.plan_capabilities) |cap| try a.dupeZ(u8, cap) else null,
+        ) else null;
+        defer if (checker) |c| c.close();
+        // The bot is url-only (llm-contract §10) and its scripts come from chat users.
+        const remote = if (opts.plan_surface) |surface| std.mem.eql(u8, surface, "bot") else false;
+        var env: sequence.Env = .{ .io = io, .remote = remote };
+        var bjs: std.json.Stringify = .{ .writer = &blocks.writer };
+        try bjs.beginArray();
+        var b: u32 = 0;
+        while (b < script.blockCount()) : (b += 1) plan_block.writeBlock(a, &env, &bjs, script, opts, b, checker) catch |e| switch (e) {
+            error.PlanRefused => {
+                refused = diagnostics.ofRefusal(script, env.refusal.?);
+                break;
+            },
+            else => return e,
+        };
+        if (refused == null) try bjs.endArray(); // a refusal leaves the half-written block unread
+    }
 
     var js: std.json.Stringify = .{ .writer = out };
     try js.beginObject();
@@ -186,16 +65,25 @@ pub fn writeEnvelope(
     try js.objectField("script");
     try js.write(label);
     try js.objectField("diagnostics");
-    try writeDiagnostics(&js, script);
+    try diagnostics.write(&js, script, refused);
     try js.objectField("blocks");
-    try js.beginArray();
-    if (!script.hasErrors()) {
-        var b: u32 = 0;
-        while (b < script.blockCount()) : (b += 1) try writeBlock(a, io, &js, script, opts, b);
-    }
-    try js.endArray();
+    try js.beginWriteRaw();
+    try out.writeAll(if (script.hasErrors() or refused != null) "[]" else blocks.written());
+    js.endWriteRaw();
     try js.endObject();
     try out.writeByte('\n');
+    return !script.hasErrors() and refused == null;
+}
+
+pub fn writeEnvelope(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    out: *std.Io.Writer,
+    script: scriptCore.Script,
+    opts: args.Options,
+    label: []const u8,
+) !void {
+    _ = try envelope(gpa, io, out, script, opts, label);
 }
 
 pub fn run(gpa: std.mem.Allocator, io: std.Io, out: *std.Io.Writer, opts: args.Options, path: []const u8) !void {
@@ -205,17 +93,17 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, out: *std.Io.Writer, opts: args.O
     var script = scriptCore.Script.parse(source) catch return load.Error.ScriptUnreadable;
     defer script.deinit();
 
-    try writeEnvelope(gpa, io, out, script, opts, load.labelFor(path));
+    const planned = try envelope(gpa, io, out, script, opts, load.labelFor(path));
     try out.flush();
-    if (script.hasErrors()) return load.Error.ScriptHasErrors;
+    if (!planned) return load.Error.ScriptHasErrors;
+}
+
+test {
+    _ = diagnostics;
+    _ = plan_block;
 }
 
 const testing = std.testing;
-
-test "an extension picks the save format, unknown falls back to png" {
-    try testing.expectEqual(image.Format.jpeg, fmtOf("https://e.example/a.JPG?x=1"));
-    try testing.expectEqual(image.Format.png, fmtOf("clip.mp4"));
-}
 
 test "the envelope carries the version, the label and one block per @source" {
     const gpa = testing.allocator;
@@ -260,4 +148,50 @@ test "a script with an error reports its diagnostics and lowers to no blocks" {
     const diag = parsed.value.object.get("diagnostics").?.array.items[0].object;
     try testing.expectEqualStrings("error", diag.get("severity").?.string);
     try testing.expectEqualStrings("E_UNKNOWN_DIRECTIVE", diag.get("code").?.string);
+}
+
+test "each block carries its op stream with every length as written, for any input to resolve" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    var s = try scriptCore.Script.parse("@source clip.mp4:\n  @rect (10%, 5px) (-10%, -1in)\n  @save\n");
+    defer s.deinit();
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    try writeEnvelope(gpa, threaded.io(), &out.writer, s, .{}, "a.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, out.written(), .{});
+    defer parsed.deinit();
+    const block = parsed.value.object.get("blocks").?.array.items[0].object;
+    const ops = block.get("ops").?.array.items;
+    try testing.expectEqualStrings("rect", ops[1].object.get("kind").?.string);
+    try testing.expectEqualStrings("10%", ops[1].object.get("toks").?.array.items[0].string);
+    try testing.expectEqualStrings("-1in", ops[1].object.get("toks").?.array.items[3].string);
+    // A video is never probed, so the pixel plan drops the shape the token stream still holds.
+    try testing.expectEqual(@as(usize, 2), block.get("plans").?.array.items[0].object.get("actions").?.array.items.len);
+}
+
+test "with --plan-surface each chunk carries that surface's core verdict" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    var s = try scriptCore.Script.parse("@source https://e.example/a.png:\n  @filter bw\n  @save\n");
+    defer s.deinit();
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    try writeEnvelope(gpa, threaded.io(), &out.writer, s, .{ .plan_surface = "bot" }, "a.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, out.written(), .{});
+    defer parsed.deinit();
+    const plan = parsed.value.object.get("blocks").?.array.items[0].object.get("plans").?.array.items[0].object;
+    const check = plan.get("check").?.object;
+    try testing.expectEqualStrings("valid", check.get("status").?.string);
+    try testing.expectEqual(plan.get("actions").?.array.items.len, check.get("actions").?.array.items.len);
+    // Without the flag the envelope keeps its §4.3 shape.
+    var plain: std.Io.Writer.Allocating = .init(gpa);
+    defer plain.deinit();
+    try writeEnvelope(gpa, threaded.io(), &plain.writer, s, .{}, "a.stc");
+    try testing.expect(std.mem.indexOf(u8, plain.written(), "\"check\"") == null);
 }

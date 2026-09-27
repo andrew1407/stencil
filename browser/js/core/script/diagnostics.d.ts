@@ -1,5 +1,5 @@
 // Shape of diagnostics.js — diagnostic construction and the "did you mean" suggester.
-import type { ScriptDiagnostic, ScriptToken, Severity } from './types.js';
+import type { ScriptDiagnostic, ScriptSpan, ScriptToken, Severity } from './types.js';
 export interface StmtPosition { line: number; col: number; len: number; directive?: string }
 export const editDistance: (a: string, b: string) => number;
 export const didYouMean: (word: string, candidates: string[]) => string;
@@ -9,3 +9,6 @@ export const makeDiag: (
 export const formatDiagnostic: (file: string, d: ScriptDiagnostic) => string;
 export const hasErrors: (diagnostics: ScriptDiagnostic[]) => boolean;
 export const tokenOfStmt: (s: StmtPosition) => ScriptToken;
+export const noteCallSite: (
+  diags: ScriptDiagnostic[], from: number, call: ScriptSpan, seen: Set<string>,
+) => void;

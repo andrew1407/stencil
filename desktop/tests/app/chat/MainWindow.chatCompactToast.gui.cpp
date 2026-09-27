@@ -25,7 +25,7 @@ class MainWindowGuiTest : public QObject {
     stencil::llm::LlmReply ok;
     ok.ok = true;
     ok.text = "{\"version\":1,\"reply\":\"All done, boss\",\"actions\":[]}";
-    win.onChatReply(ok);
+    win.chatSession->onChatReply(ok);
     auto* toast = win.findChild<QWidget*>("chatToast");
     QVERIFY(toast);
     QTRY_VERIFY(toast->isVisible());
@@ -50,7 +50,7 @@ class MainWindowGuiTest : public QObject {
     bad.ok = false;
     bad.failure = stencil::llm::LlmFailure::HTTP;
     bad.error = QString(200, QChar('x'));
-    win.onChatReply(bad);
+    win.chatSession->onChatReply(bad);
     QTRY_VERIFY(toast->isVisible());
     QVERIFY(label->text().startsWith("Assistant failed"));
     QVERIFY(label->text().size() <= 90);
@@ -60,7 +60,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!toast->isVisible());
 
     // Open dock: completions must NOT raise a toast.
-    win.onChatReply(ok);
+    win.chatSession->onChatReply(ok);
     QVERIFY(!toast->isVisible());
     beat();
   }

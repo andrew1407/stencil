@@ -56,8 +56,10 @@ struct MockServer {
   QByteArray mintToken = "tok";  // what a successful mint hands out
   QByteArray goodBearer;     // non-empty: non-mint paths 401 unless this bearer is sent
   QByteArray mintBearer;     // non-empty: the mint itself 401s unless this bearer is sent
+  int sessionStatus = 0;     // non-zero: GET /auth/session answers this (404 = an older server)
   int tokenRequests = 0;
   int requests = 0;
+  QList<QByteArray> lines;   // each request line, in arrival order
 
   bool listen() {
     QObject::connect(&server, &QTcpServer::newConnection, [this] {
@@ -65,9 +67,12 @@ struct MockServer {
         QObject::connect(s, &QTcpSocket::readyRead, [this, s] {
           const QByteArray head = s->readAll();
           ++requests;
+          lines << head.left(head.indexOf("\r\n"));
           const bool mint = head.contains("/auth/token");
           if (mint) ++tokenRequests;
-          const int status = mint ? (!mintBearer.isEmpty() &&
+          const bool session = head.contains("/auth/session");
+          const int status = session && sessionStatus ? sessionStatus
+                           : mint ? (!mintBearer.isEmpty() &&
                                              !head.contains("Bearer " + mintBearer)
                                          ? 401
                                          : tokenStatus)

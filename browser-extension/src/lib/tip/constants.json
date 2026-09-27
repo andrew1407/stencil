@@ -1,0 +1,9 @@
+{
+  "POPOVER": {
+    "doubleClickMs": 250,
+    "doubleTapMs": 350,
+    "longPressMs": 500,
+    "pressSlopPx": 10,
+    "lingerCloseMs": 250
+  }
+}

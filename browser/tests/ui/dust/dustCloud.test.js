@@ -1,4 +1,4 @@
-// js/ui/cloud.js — the one-canvas cloud every element-sized flight rides. The
+// js/ui/dust/cloud.js — the one-canvas cloud every element-sized flight rides. The
 // flights are the old tile keyframes as numbers; these pin the contract the desktop
 // overlay (DisintegrateOverlay.hpp legAt) and the extension's copy share.
 import test from 'node:test';
@@ -101,6 +101,22 @@ test('drawing batches grains into one fill per colour and opacity step', () => {
   calls.length = 0;
   drawCloud(ctx, [{ ...grain, c: 0, delay: 0, dur: 100 }], 'scatter', 500, ['red']);
   assert.equal(calls.filter((c) => c === 'arc').length, 0);
+});
+
+test('a grain cut out of a surface is nothing until it sets off, then flies like any other', () => {
+  const xs = [];
+  const ctx = { globalAlpha: 1, fillStyle: '', beginPath() {}, moveTo: (x) => xs.push(x), arc() {}, fill() {} };
+  const cut = { ...grain, w: 0.3, delay: 60, dur: 400, cut: 1 };
+  drawCloud(ctx, [cut, { ...cut, cut: undefined }], 'surfaceScatter', 59, ['red']);
+  assert.equal(xs.length, 1, 'only the uncut grain holds its home before the delay');
+  let last = -Infinity;
+  for (const t of [61, 120, 200]) {
+    xs.length = 0;
+    drawCloud(ctx, [cut], 'surfaceScatter', t, ['red']);
+    assert.equal(xs.length, 1, `painted from the moment it leaves (${t}ms)`);
+    assert.ok(xs[0] > last, `and on its way out along +dx (${xs[0]})`);
+    last = xs[0];
+  }
 });
 
 test('a plain colour passes through; a var() or color-mix() needs a probe', () => {

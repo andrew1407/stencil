@@ -2,10 +2,18 @@
 // menus, the selection separators and the no-native-title sweep. Split from ui-markup.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 import { layout } from '../js/ui/layout.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
+import { createStubElement, installDom } from './helpers/dom.js';
+
+// A stub DOM for one test: every id resolves to a fresh element, kept for the assertions.
+const withDom = async (run) => {
+    const doc = installDom({ autoCreateById: true }, {
+        window: { addEventListener() {}, dispatchEvent() {}, innerWidth: 1280, innerHeight: 800 },
+    });
+    try { return await run(doc); } finally { doc.restore(); }
+};
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -30,7 +38,7 @@ test('the app logo sits inside its ray-layer wrap, with the accent menu beside i
 
 // The incognito tag is passive decor: both states are the identical box, pinned in CSS, so
 // toggling it moves no pixel (user report on the desktop's equivalent label).
-test('the status row is the same box with the incognito tag and without it', () => {
+test('the status row is the same box with the incognito tag and without it', async () => {
     const css = LAYOUT_CSS;
     const row = css.slice(css.indexOf('\n.info {'), css.indexOf('}', css.indexOf('\n.info {')));
     // A FLEX row is what guarantees it: measured, an inline tag with vertical-align:middle still
@@ -55,9 +63,15 @@ test('the status row is the same box with the incognito tag and without it', () 
     // pixel-or-two that moved the canvas on the desktop.
     assert.match(css, /\.info-incognito \.ic \{ display: block; flex: 0 0 auto; \}/);
     // 13px inside a 20px line box: it cannot exceed what is reserved for it.
-    const app = readFileSync(new URL('../js/ui/projects/window/projectTitle.js', import.meta.url), 'utf8');
-    const size = /icon\('incognito', \{ size: (\d+) \}\)/.exec(app);
-    assert.ok(size && Number(size[1]) < 20, `the glyph (${size?.[1]}px) must fit the line box`);
+    const glyph = await withDom(async () => {
+        const { updateInfo } = await import('../js/ui/projects/window/projectTitle.js');
+        const info = createStubElement('span');
+        document.getElementById = (id) => (id === 'image-info' ? info : null);
+        updateInfo({ image: null, activeIsBlank: () => false, storage: { incognito: true } });
+        return /<svg[^>]*width="(\d+)" height="(\d+)"/.exec(info.__infoParts.tag.innerHTML);
+    });
+    assert.ok(glyph && Number(glyph[1]) < 20 && Number(glyph[2]) < 20,
+        `the glyph (${glyph?.[1]}px) must fit the line box`);
     // …and nothing compensates by resizing the canvas: the frame is an overlay, and no
     // rule keys the viewport off the incognito state.
     const comp = COMPONENTS_CSS;
@@ -93,17 +107,25 @@ test('the row menus are sized to their content, not to a wide floor', () => {
 
 // The selected-line bar is parted into header | colours | geometry | fill | actions by
 // hairlines in its own amber; the fill group's separator comes and goes with the group.
-test('the bar separators part it in four, and the fill one follows its group', () => {
-    const js = readFileSync(new URL('../js/ui/panel/selectionPanel.js', import.meta.url), 'utf8');
-    const inner = js.slice(js.indexOf('static inner()'), js.indexOf('static template()'));
+test('the bar separators part it in four, and the fill one follows its group', async () => {
+    const { StencilSelectionPanel, showSelectionPanel } = await import('../js/ui/panel/selectionPanel.js');
+    const inner = StencilSelectionPanel.inner();
     assert.equal((inner.match(/class="sel-sep"/g) || []).length, 4, 'four separators');
     // The fill group's own one is identified, starts hidden, and is toggled with the group.
     assert.match(inner, /id="sel-fill-sep"[^>]*style="display:none;"/);
-    // …through the same slide+dust the group itself uses (selectionPanelMotion covers the
-    // motion; here it is only that the separator is driven WITH the group, never alone).
-    const show = js.slice(js.indexOf('const fillSep ='), js.indexOf('const panel ='));
-    assert.match(show, /revealControls\(fillSep, true, 'block'\)/, 'shown with the group');
-    assert.match(show, /revealControls\(fillSep, false\)/, 'and hidden with it');
+    const shown = await withDom((doc) => {
+        const [group, sep] = ['sel-fill-group', 'sel-fill-sep'].map((id) => doc.getElementById(id));
+        group.style.display = sep.style.display = 'none';
+        const app = { pointSize: 4, syncFsSelectionPanel() {}, renderLinesList() {} };
+        const states = [];
+        for (const locked of [true, false]) {
+            showSelectionPanel(app, { color: '#ff0000', thickness: 2, locked, points: [] });
+            states.push([group.style.display, sep.style.display]);
+        }
+        return states;
+    });
+    // …through the same reveal the group itself uses: the separator never shows or hides alone.
+    assert.deepEqual(shown, [['flex', 'block'], ['none', 'none']], 'shown with the group, and hidden with it');
     // Deselect wears the bar's own amber token, not an orange literal of its own.
     const css = LAYOUT_CSS;
     const cta = css.slice(css.indexOf('.deselect-btn {'), css.indexOf('}', css.indexOf('.deselect-btn {')));
@@ -136,7 +158,34 @@ test('no native title attribute anywhere — the custom tooltip is the only tool
     }
   }
   assert.deepEqual(offenders, []);
-  const ct = readFileSync(new URL('../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
-  assert.ok(ct.includes("closest('[data-tip], [data-title]')"), 'the tooltip listens for data attributes only');
-  assert.ok(!ct.includes("getAttribute('title')"), 'and never reads the native one');
+});
+
+test('the custom tooltip shows data-tip / data-title, and never the native title', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const shown = await withDom(async (doc) => {
+    const { initTooltips } = await import('../js/ui/tip/controlTooltip.js');
+    initTooltips();
+    // closest() matches a list of bare [attr] selectors, the way the tooltip asks.
+    const control = (attrs) => {
+      const el = createStubElement('button', { isConnected: true });
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      el.dataset = Object.fromEntries(Object.entries(attrs).filter(([k]) => k.startsWith('data-'))
+        .map(([k, v]) => [k.slice(5), v]));
+      el.closest = (sel) => (sel.split(',').some((s) => el.hasAttribute(s.trim().slice(1, -1))) ? el : null);
+      return el;
+    };
+    const hover = (el) => {
+      doc.dispatch('pointerover', { target: el, clientX: 5, clientY: 5 });
+      t.mock.timers.tick(5000);
+      const tip = doc.body.children.find((c) => c.id === 'app-tooltip');
+      const text = tip?.classList.contains('visible') ? tip.innerHTML : '';
+      doc.dispatch('pointerdown', {});
+      return text;
+    };
+    return [{ title: 'native' }, { 'data-title': 'Titled' }, { 'data-tip': 'Tipped', title: 'native' }].map((a) => hover(control(a)));
+  });
+  assert.equal(shown[0], '', 'a native title alone shows nothing');
+  assert.match(shown[1], /Titled/, 'data-title is shown');
+  assert.match(shown[2], /Tipped/, 'data-tip is shown');
+  assert.doesNotMatch(shown.join(''), /native/, 'the native text never reaches the tooltip');
 });

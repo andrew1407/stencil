@@ -1,12 +1,9 @@
 // The Projects dialog's list rebuild; the per-row data is ProjectsDialogRows.cpp; both are pinned by
-// tests/ProjectsDialogRows.headless.cpp.
+// tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp.
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
 #include <QColor>
-#include <QComboBox>
 #include <QIcon>
-#include <QListWidget>
 #include <QPalette>
 #include <QSet>
 #include <QTimer>
@@ -27,7 +24,7 @@ namespace stencil::gui {
 
   void ProjectsDialog::refresh() {
     const int prevRow = list->currentRow();
-    // A row the rebuild ADDS arrives out of the filter's sand (browser surface/motion.js filterDust); the very
+    // A row the rebuild ADDS arrives out of the filter's sand (browser enterLeave.js filterDust); the very
     // first build dusts nothing.
     QSet<QString> keysBefore;
     for (int i = 0; i < list->count(); ++i) {
@@ -101,7 +98,7 @@ namespace stencil::gui {
     }
   }
 
-  // Local + server interleaved by the active sort mode (browser js/ui/projectSort.js); the pinned
+  // Local + server interleaved by the active sort mode (browser js/ui/projects/window/projectSort.js); the pinned
   // unsaved-session row goes above all of them.
   void ProjectsDialog::buildSortedRows(const core::ProjectsStore& store) {
     struct Entry { bool remote; int idx; QString key; QString name; long long date; };

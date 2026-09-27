@@ -1,7 +1,7 @@
 // Headless check of the cross-front-end "Open in…" links: the stencil:// URL grammar (launchOptions
 // parseStencilUrl), the Telegram start-payload codec, and the browser-fragment URL builder's
-// percent-encoding. GOLDEN VECTORS — duplicated verbatim in browser/tests/deepLink.test.js and
-// bot/tests/Stencil.TelegramBot.Tests/DeepLinkCodecTests.cs. Keep the three in sync.
+// percent-encoding. GOLDEN VECTORS — duplicated verbatim in browser/tests/core/launch/deepLink.test.js and
+// bot/tests/Stencil.TelegramBot.Tests/Links/DeepLinkCodecTests.cs. Keep the three in sync.
 #include "deepLink.hpp"
 #include "launchOptions.hpp"
 #include <QCoreApplication>

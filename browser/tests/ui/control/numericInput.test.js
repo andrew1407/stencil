@@ -1,4 +1,4 @@
-// Tests for js/ui/numericInput.js — the arithmetic every numeric field accepts.
+// Tests for js/ui/control/numericInput.js — the arithmetic every numeric field accepts.
 // The evaluator is pure, so it imports straight into Node. Its operator set matches
 // core/parse/formulaParser (+ - * / ** and parens, ** right-associative), minus the
 // variable: a numeric field takes a constant expression, not f(x).

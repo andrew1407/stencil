@@ -21,21 +21,21 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 120);
 
     const bool shares = stencil::support::isShareSheetAvailable();
-    QCOMPARE(win.actShareImage->isVisible(), shares);
+    QCOMPARE(win.acts.shareImage->isVisible(), shares);
     QToolButton* btn = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>())
-      if (b->defaultAction() == win.actShareImage) btn = b;
+      if (b->defaultAction() == win.acts.shareImage) btn = b;
     QVERIFY2(btn, "the Share action has no toolbar button at all");
     QCOMPARE(btn->isVisible(), shares);
     if (shares) {
-      QVERIFY(win.actShareImage->isEnabled());
+      QVERIFY(win.acts.shareImage->isEnabled());
       return;
     }
     // …and the chord is dead with it: Qt will not enable an invisible action, so the
     // refresh that follows every image load cannot bring it back.
-    QVERIFY2(!win.actShareImage->isEnabled(), "the Share chord is live with no share sheet");
-    win.actShareImage->setEnabled(true);
-    QVERIFY2(!win.actShareImage->isEnabled(), "an invisible Share action took enabling");
+    QVERIFY2(!win.acts.shareImage->isEnabled(), "the Share chord is live with no share sheet");
+    win.acts.shareImage->setEnabled(true);
+    QVERIFY2(!win.acts.shareImage->isEnabled(), "an invisible Share action took enabling");
   }
   // The script window's button opens the DATA section (browser toolbar.js puts #script-btn first
   // there) and carries the shared registry's chord. Its dialog is exec()'d, so this checks the wiring.
@@ -53,19 +53,19 @@ class MainWindowGuiTest : public QObject {
     for (QToolButton* b : data->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
     QVERIFY2(!got.isEmpty(), "the DATA section has no buttons");
-    QCOMPARE(got.first(), win.actScript);
+    QCOMPARE(got.first(), win.acts.script);
 
-    QCOMPARE(win.actScript->shortcut(), QKeySequence(win.hotkey("openScript", "Alt+Shift+S")));
+    QCOMPARE(win.acts.script->shortcut(), QKeySequence(win.keys.value("openScript", "Alt+Shift+S")));
     QMenu* dataMenu = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(win.actScript)) dataMenu = m;
+      if (m->actions().contains(win.acts.script)) dataMenu = m;
     QVERIFY2(dataMenu, "the script action is not in any menu");
 
     // A script can open its OWN source, so the window is live with no image loaded.
-    QVERIFY2(win.actScript->isEnabled(), "the script window is gated on an image");
+    QVERIFY2(win.acts.script->isEnabled(), "the script window is gated on an image");
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY2(win.actScript->isEnabled(), "the script window went dead once an image loaded");
+    QVERIFY2(win.acts.script->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
   // One cluster sequence across both surfaces (browser js/ui/toolbar/toolbar.js): Image · Description ·
@@ -90,7 +90,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(sections, want);
     // Where the rows BREAK that sequence is a packing decision, so every row has to survive a narrow
     // window on its own: none may fall back on QToolBar's "»", which is how SETTINGS once vanished.
-    win.allowFormulas->setChecked(true);
+    win.tools.allowFormulas->setChecked(true);
     const int custom = win.units.pageSize->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);
     const int a3 = win.units.pageSize->findData(QStringLiteral("A3"));
@@ -127,7 +127,7 @@ class MainWindowGuiTest : public QObject {
     }
     win.units.pageSize->setCurrentIndex(a3);   // this suite shares the real settings file
   }
-  // A squeezed window WRAPS its tool row (support/WrapRow.hpp) — the browser's flex-wrap.
+  // A squeezed window WRAPS its tool row (support/control/WrapRow.hpp) — the browser's flex-wrap.
   // QToolBar's own answer is the "»" overflow, where a widget action is not drawn at all.
   void narrowToolbarRowsWrapInsteadOfLosingSections() {
     MainWindow win;

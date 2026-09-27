@@ -28,10 +28,29 @@ namespace stencil::core::script {
 
   std::string joinWords(const std::vector<Token>& args) {
     std::string out;
+    bool first = true;
     for (const Token& t : args) {
       if (t.kind == TokenKind::PUNCT) continue;
-      if (!out.empty()) out.push_back(' ');
+      if (!first) out.push_back(' ');  // as JS join: an empty word keeps its separator
       out += unquoteWord(t.text);
+      first = false;
+    }
+    return out;
+  }
+
+  std::vector<Token> gluedWords(const std::vector<Token>& args) {
+    std::vector<Token> out;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+      const Token& t = args[i];
+      if (t.kind == TokenKind::PUNCT) continue;
+      out.push_back(t);
+      const bool unitNext = i + 1 < args.size() && args[i + 1].kind == TokenKind::UNIT &&
+                            args[i + 1].line == t.line && args[i + 1].col == t.col + t.len;
+      if (t.kind == TokenKind::NUMBER && unitNext) {
+        out.back().text += args[i + 1].text;
+        out.back().len += args[i + 1].len;
+        ++i;
+      }
     }
     return out;
   }
@@ -41,6 +60,18 @@ namespace stencil::core::script {
     if (v > INT_MAX) return INT_MAX;
     if (v < INT_MIN) return INT_MIN;
     return static_cast<int>(v);
+  }
+
+  bool isMalformedNumber(const Token& t) {
+    if (t.kind != TokenKind::IDENT || t.text.empty()) return false;
+    std::size_t i = (t.text[0] == '-' || t.text[0] == '+') ? 1 : 0;
+    if (i < t.text.size() && t.text[i] == '.') ++i;
+    return i < t.text.size() && t.text[i] >= '0' && t.text[i] <= '9';
+  }
+
+  std::string malformedNumberMessage(const Token& t) {
+    return "'" + t.text + "' is not a number: write digits, an optional .digits, then px, cm, " +
+           "mm, in or %";
   }
 
   bool isPunct(const Token& t, const char* text) {

@@ -1,7 +1,8 @@
-// The shared editor setters: toolbar handlers AND the console API reach these through
-// DrawingApp's delegators, so top-menu settings have one source of truth. Holds no state
+// The shared editor setters: toolbar handlers AND the console API both call these, so
+// top-menu settings have one source of truth. Holds no state
 // (back-references the app); `persist:false` is for live-drag events that commit later.
 import type { DrawingApp } from '../drawingApp.js';
+import type { FilterSteps } from './filterStep.js';
 
 export { COMPARE_MODES } from './registry.js';
 
@@ -13,6 +14,7 @@ export interface MotionPrefs { mode: string; drawing: boolean; }
 export declare class SettingsController {
   constructor(app: DrawingApp);
   app: DrawingApp;
+  filterSteps: FilterSteps;
   /** Registry-driven setter (registry.js SETTINGS); throws on an unknown key. */
   set(key: string, value: unknown, opts?: SetOptions): void;
   /** Live-apply a setting's VISUAL effect without committing it (dropdown hover preview). */
@@ -27,8 +29,12 @@ export declare class SettingsController {
   setImageFilter(f: string): void;
   setCompareMode(m: string): void;
   /** Divider position for the split compare modes (0..1); transient, redraw only. */
-  setCompareSplit(v: number | string): void;
+  setCompareSplit(v: number | string, opts?: { dragging?: boolean }): void;
   setFilterColor(v: string, opts?: SetOptions): void;
+  /** Mode and tint as one commit and one undo step; `history: false` records none (an undo's restore). */
+  setFilter(next: { filter?: string; filterColor?: string }, opts?: { history?: boolean }): void;
+  /** Runs `fn`; the filter commits it makes land as one undo step. */
+  filterStep<T>(fn: () => T, opts?: { history?: boolean }): T;
   setPageSize(size: string): void;
   /** Custom page sides are stored in cm (the model unit). */
   setCustomPageWidth(cm: number): void;
@@ -43,7 +49,7 @@ export declare class SettingsController {
   /** Throws on an invalid expression so the console surfaces it. */
   setFormula(axis: 'x' | 'y', expr: string | null | undefined): void;
   setTooltipOption(key: TooltipOptionKey, on: boolean): void;
-  /** App-wide motion preference (ui/prefs.js); throws on an unknown key or mode. */
+  /** App-wide motion preference (ui/motion/motionPrefs.js); throws on an unknown key or mode. */
   setMotion(key: 'mode' | 'drawing', value: unknown): MotionPrefs;
-  setVisualColor(key: VisualColorKey, value: string): void;
+  setVisualColor(key: VisualColorKey, value: string, opts?: { persist?: boolean }): void;
 }

@@ -18,6 +18,7 @@ Thumbs.db
 !.claude/agents/
 !.claude/hooks/
 !.claude/rules/
+!.claude/tools/
 
 # Node (`node --test` plus the two sanctioned dev deps, browser/'s vite and
 # vscode-extension/'s @vscode/vsce; no runtime deps anywhere)
@@ -49,6 +50,9 @@ e2e/blob-report/
 build/
 build_ci/
 build-wasm/
+build-asan/
+# clangd's background index (editor tooling, per machine).
+**/.cache/clangd/
 *.o
 *.obj
 *.a
@@ -123,8 +127,10 @@ server/data/
 server/stencil-server
 server/vendor/
 
-# Python package (pystencil/): on-demand compiled core artifact + Python build cruft.
+# Python package (pystencil/): on-demand compiled core artifact + Python build cruft, and
+# the stb headers build.py fetches at the pinned commit and verifies (pystencil/stb/pin.json).
 pystencil/pystencil/_native/
+pystencil/stb/cache/
 __pycache__/
 *.py[cod]
 *.egg-info/

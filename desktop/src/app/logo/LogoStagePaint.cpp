@@ -5,9 +5,6 @@
 #include "../../support/skinPrefs.hpp"
 
 #include <QPainter>
-#include <QPainterPath>
-#include <QRadialGradient>
-#include <QToolButton>
 #include <cmath>
 
 namespace stencil::gui {
@@ -28,7 +25,7 @@ namespace stencil::gui {
   }  // namespace
 
   // Qt has no backdrop-filter, so the hostWindow behind is photographed and blurred, the way a modal's
-  // backdrop is (support/ModalBackdrop.hpp). The stage's own paint is suppressed for the shot, or
+  // backdrop is (support/modal/ModalBackdrop.hpp). The stage's own paint is suppressed for the shot, or
   // it photographs itself — and a resize needs a NEW one, or the old frame stretches over the new.
   void LogoStage::takeBackdrop() {
     if (!hostWindow || hostWindow->width() < 8 || hostWindow->height() < 8) { backdrop = QPixmap(); return; }

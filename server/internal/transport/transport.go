@@ -5,7 +5,10 @@
 // identical protocol messages, so every client editing one project lands in the same hub session.
 package transport
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // MaxMessageBytes caps a single inbound message on either transport, bounding memory against
 // a hostile or buggy peer. Large enough for a base64 image payload in an edit/save.
@@ -29,4 +32,24 @@ type Conn interface {
 	Close(code int, reason string) error
 	// RemoteAddr identifies the peer for logging.
 	RemoteAddr() string
+}
+
+// Timeouts are the transports' keepalive cadence and deadlines; a zero field keeps the current value.
+type Timeouts struct {
+	WSPing        time.Duration // keepalive ping cadence on accepted WebSockets
+	WSPongTimeout time.Duration // an unanswered ping hard-closes the peer after this
+	TCPIdle       time.Duration // a TCP Read with no deadline of its own gives up after this
+	TCPWrite      time.Duration // one TCP frame's write deadline
+}
+
+// Configure applies t to every connection accepted afterwards; call it once at boot, before a listener.
+func Configure(t Timeouts) {
+	for _, f := range []struct {
+		dst *time.Duration
+		v   time.Duration
+	}{{&wsPingInterval, t.WSPing}, {&wsPongTimeout, t.WSPongTimeout}, {&tcpIdleTimeout, t.TCPIdle}, {&tcpWriteTimeout, t.TCPWrite}} {
+		if f.v > 0 {
+			*f.dst = f.v
+		}
+	}
 }

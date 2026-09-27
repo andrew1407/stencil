@@ -1,5 +1,5 @@
-// DrawingApp.applyExternalLaunch and importExternalImage (js/core/drawingApp.js) — the
-// extension's `#stencil=` hand-off, driven through a stub `this`. Pinned: the fragment is
+// applyExternalLaunch (js/core/launch/controller.js) — the extension's `#stencil=` hand-off,
+// driven through a stub app down to the real load and settle. Pinned: the fragment is
 // stripped at once (history.replaceState) so it never reaches the server, a malformed payload
 // notifies instead of throwing, data: vs https: fetch dispatch, and an import into a live editor
 // starts a new project for 'new' while a replace leaves the target's page format alone.
@@ -25,10 +25,28 @@ installDom({}, {
 const fetchStub = installFetchStub((...args) => fetchImpl(...args));
 const fetchCalls = fetchStub.calls;
 
-const { DrawingApp } = await import('../../js/core/drawingApp.js');
+const { applyExternalLaunch } = await import('../../js/core/launch/controller.js');
+
+// The decode boundary: the load reads its file and the picture decodes at once, so the real
+// loadImageFromFile and settleLoadedImage run against the mock. `reads` is every file loaded.
+const reads = [];
+globalThis.FileReader = class {
+  readAsDataURL(file) {
+    reads.push(file);
+    queueMicrotask(() => this.onload?.({ target: { result: 'data:image/png;base64,AAAA' } }));
+  }
+};
+globalThis.Image = class {
+  width = 40; height = 30;
+  set src(v) { this.url = v; queueMicrotask(() => this.onload?.()); }
+  get src() { return this.url; }
+};
+const FULL_FRAME = { x: 0, y: 0, width: 40, height: 30 };
+const DEFAULT_CROP = { x: 5, y: 0, width: 30, height: 30 };
 
 const resetGlobals = () => {
   notifications.length = 0;
+  reads.length = 0;
   replaceStateCalls = [];
   fetchStub.reset();
   fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'image/png' }) });
@@ -36,21 +54,31 @@ const resetGlobals = () => {
   globalThis.history = { replaceState: (...args) => replaceStateCalls.push(args) };
 };
 
-// The minimum `this` applyExternalLaunch touches on the non-private paths we drive.
-const makeMock = (over = {}) => {
-  const loaded = [];
-  return {
-    loaded,
-    storage: { incognito: false, store: {} },
-    loadImageFromFile: (...args) => loaded.push(args),
-    updateIncognitoUI() {},
-    ...over,
-  };
-};
+// The minimum app applyExternalLaunch, the load and its settle touch on the paths we drive: an
+// open project (so nothing is promoted), and an image model whose crop is the identity.
+const makeMock = (over = {}) => ({
+  storage: { incognito: false, temporary: false, store: {}, save() {} },
+  activeProjectId: 'p1',
+  lines: [],
+  canvas: { width: 40, height: 30 },
+  imageModel: {
+    roundRect: (r) => ({ ...r }),
+    rotatedOriginalDims: () => ({ width: 40, height: 30 }),
+    defaultCropRect: () => DEFAULT_CROP,
+    rebuildCroppedImage() {},
+  },
+  history: { reset() {} },
+  zoomPan: { fitToWindow() {} },
+  coordTable: { update() {} },
+  renderer: { redraw() {}, layers: () => [] },
+  tabs: { reportActive() {}, reportIncognito() {} },
+  updateInfo() {}, updateButtons() {}, updateCoordStatus() {}, updateIncognitoUI() {},
+  ...over,
+});
 
 // Encode a payload the way the extension does: #stencil=<encodeURIComponent(JSON)>.
 const fragmentFor = (payload) => '#stencil=' + encodeURIComponent(JSON.stringify(payload));
-const run = (mock) => DrawingApp.prototype.applyExternalLaunch.call(mock);
+const run = (mock) => applyExternalLaunch(mock);
 
 test('no #stencil= fragment → the method is a no-op (no URL rewrite, no fetch)', () => {
   resetGlobals();
@@ -88,7 +116,7 @@ test('a malformed/truncated #stencil= payload is caught (no throw) and reported 
   // Reported via a fail notify, and nothing was fetched/loaded.
   assert.deepEqual(notifications, [['Stencil: could not read the shared image', 'fail']]);
   assert.equal(fetchCalls.length, 0);
-  assert.equal(mock.loaded.length, 0);
+  assert.equal(reads.length, 0);
 });
 
 test('a data: payload fetches without CORS mode and loads the decoded image', async () => {
@@ -102,9 +130,9 @@ test('a data: payload fetches without CORS mode and loads the decoded image', as
   const [url, opts] = fetchCalls[0];
   assert.equal(url, 'data:image/png;base64,AAAA');
   assert.ok(opts.signal && opts.mode === undefined, 'data: URLs get no CORS mode — and every fetch is bounded');
-  assert.equal(mock.loaded.length, 1);           // loadImageFromFile(file, opts) was reached
-  const [file] = mock.loaded[0];
-  assert.equal(file.name, 'shared.png');
+  assert.equal(reads.length, 1);                 // loadImageFromFile(app, file, opts) was reached
+  assert.equal(reads[0].name, 'shared.png');
+  assert.equal(mock.imageBaseName, 'shared');
 });
 
 test('an https src: payload fetches with { mode: "cors" } and loads the image', async () => {
@@ -118,7 +146,8 @@ test('an https src: payload fetches with { mode: "cors" } and loads the image', 
   const [url, opts] = fetchCalls[0];
   assert.equal(url, 'https://cdn.example/i.png');
   assert.ok(opts.signal && opts.mode === 'cors', 'remote image → cross-origin fetch, bounded like the rest');
-  assert.equal(mock.loaded.length, 1);
+  assert.equal(reads.length, 1);
+  assert.equal(mock.imageSource, 'https://cdn.example/i.png', 'the URL is the loaded picture\'s source');
 });
 
 test('a crop in the payload flows through to loadImageFromFile opts (open-image "new tab" + crop)', async () => {
@@ -129,9 +158,8 @@ test('a crop in the payload flows through to loadImageFromFile opts (open-image 
   run(mock);
   await new Promise((r) => setTimeout(r, 0));
 
-  assert.equal(mock.loaded.length, 1);
-  const [, opts] = mock.loaded[0];
-  assert.deepEqual(opts.crop, crop);   // the inline-crop rect rides the fragment to the loader
+  assert.equal(reads.length, 1);
+  assert.deepEqual(mock.cropRect, crop);   // the inline-crop rect rides the fragment to the loader
 });
 
 test('noCrop in the payload flows to loadImageFromFile opts (open-image "new tab", Crop off → whole frame)', async () => {
@@ -141,10 +169,9 @@ test('noCrop in the payload flows to loadImageFromFile opts (open-image "new tab
   run(mock);
   await new Promise((r) => setTimeout(r, 0));
 
-  assert.equal(mock.loaded.length, 1);
-  const [, opts] = mock.loaded[0];
-  assert.equal(opts.noCrop, true);     // Crop-off imports the full frame, not the default auto-crop
-  assert.equal(opts.crop, undefined);
+  assert.equal(reads.length, 1);
+  // Crop-off imports the full frame, not the default auto-crop.
+  assert.deepEqual(mock.cropRect, FULL_FRAME);
 });
 
 test('an explicit crop wins over noCrop when both are present', async () => {
@@ -155,9 +182,8 @@ test('an explicit crop wins over noCrop when both are present', async () => {
   run(mock);
   await new Promise((r) => setTimeout(r, 0));
 
-  const [, opts] = mock.loaded[0];
-  assert.deepEqual(opts.crop, crop);
-  assert.equal(opts.noCrop, undefined);   // crop present ⇒ noCrop is not forwarded
+  assert.equal(reads.length, 1);
+  assert.deepEqual(mock.cropRect, crop);   // crop present ⇒ noCrop is not forwarded
 });
 
 test('a failed fetch is caught and reported as a fail (no throw escapes)', async () => {
@@ -168,6 +194,6 @@ test('a failed fetch is caught and reported as a fail (no throw escapes)', async
   assert.doesNotThrow(() => run(mock));
   await new Promise((r) => setTimeout(r, 0));
 
-  assert.equal(mock.loaded.length, 0);
+  assert.equal(reads.length, 0);
   assert.deepEqual(notifications.at(-1), ['Stencil: failed to load the shared image', 'fail']);
 });

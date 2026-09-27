@@ -1,13 +1,13 @@
 //! The §6 request BODY writers: one per provider shape, sharing the chat-envelope open
 //! and close so the system turn, the replayed history and the current turn always sit in
-//! the same order.
+//! the same order. The §6.5 anthropic body is anthropic.zig's.
 const std = @import("std");
 const config = @import("../config.zig");
 const chatDoc = @import("chatDoc.zig");
+const anthropic = @import("anthropic.zig");
 
 const Config = config.Config;
 const Turn = chatDoc.Turn;
-const boundedHistory = chatDoc.boundedHistory;
 
 pub fn writeBody(js: *std.json.Stringify, cfg: *const Config, system: []const u8, prompt: []const u8, images: []const []const u8, history: []const Turn) std.json.Stringify.Error!void {
     switch (cfg.provider) {
@@ -57,6 +57,7 @@ pub fn writeBody(js: *std.json.Stringify, cfg: *const Config, system: []const u8
             }
             try closeChatBody(js);
         },
+        .anthropic => try anthropic.writeBody(js, cfg, system, prompt, images, history),
         // §6.3 — the collaboration server's Anthropic proxy (protocol.LlmChatRequest).
         .stencil_server => {
             try js.beginObject();

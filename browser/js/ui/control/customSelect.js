@@ -5,6 +5,7 @@ import { markSwap } from '../motion.js';
 import { buildSelectFace } from './customSelectFace.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 import { isTypingInFocus } from '../../utils.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
 // Custom dropdown overlaying a native <select> (kept as source of truth) — macOS cannot
 // style the native popup, so the toolbar's compact selects looked misplaced there.
@@ -23,7 +24,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
 
   // The committed value returns once the pointer leaves the list or the menu closes without a
   // pick; the preview waits for the pointer to settle, so skimming repaints nothing.
-  const PREVIEW_HOVER_MS = 280;
+  const PREVIEW_HOVER_MS = constants.DEBOUNCE.previewHoverMs;
   let previewActive = false;
   let hoverTimer = null;
   const clearHover = () => { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } };

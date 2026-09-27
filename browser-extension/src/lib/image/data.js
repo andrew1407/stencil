@@ -1,6 +1,6 @@
-// Service-worker-safe (no FileReader / DOM). Every fetch goes through lib/urlGuard.js —
+// Service-worker-safe (no FileReader / DOM). Every fetch goes through connection/urlGuard.js —
 // these URLs are harvested from arbitrary pages.
-import { isAllowedImageUrl } from '../connection/urlGuard.js';
+import { guardedFetch, readCapped } from '../connection/urlGuard.js';
 
 const arrayBufferToBase64 = (buf) => {
   const bytes = new Uint8Array(buf);
@@ -24,14 +24,13 @@ export const fetchAsDataUrl = async (url, { pageUrl = '' } = {}) => {
   // be refused. Mirrors the browser app's deep-link allowlist.
   if (!/^(https?|blob):/i.test(url)) throw new Error('unsupported URL scheme');
   // `pageUrl` is TRUSTED (sender.tab.url or a scan-recorded resource, never page-supplied).
-  if (!isAllowedImageUrl(url, { allowSameHostAs: pageUrl })) throw new Error('blocked private or internal address');
-  const resp = await fetch(url);
+  const resp = await guardedFetch(url, { allowSameHostAs: pageUrl });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const type = resp.headers.get('content-type') || guessMime(url);
   // An <img> handed a data:video/… URL just "fails to decode" — refuse before buffering it.
   const lc = type.toLowerCase();
   if (lc.startsWith('video/') || lc.startsWith('audio/')) throw new Error('source is video/audio, not an image');
-  const buf = await resp.arrayBuffer();
+  const buf = await readCapped(resp);
   return `data:${type};base64,${arrayBufferToBase64(buf)}`;
 };
 

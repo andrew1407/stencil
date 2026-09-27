@@ -1,6 +1,16 @@
 // Topbar project name + the image-info line.
 import { icon } from '../../icons.js';
 import { revealControls } from '../../motion.js';
+import { activeIsBlank } from '../../../core/image/blankImage.js';
+
+// The project-colour picker's colour on trial: painted only while the project and its stored
+// colour are the ones it was tried on, so a commit or any other write ends it.
+let trial = null;
+export const previewProjectColor = (app, color) => {
+  const id = app.activeProjectId;
+  trial = color && id != null ? { id, base: app.storage.store.getMeta(id)?.color || '', color } : null;
+  updateProjectTitle(app);
+};
 
 // Editable only with a saved active project. `force` re-syncs even while focused
 // (commit/cancel); the default respects focus so updateButtons() can't clobber typing.
@@ -31,9 +41,10 @@ export const updateProjectTitle = (app, force = false) => {
   }
   // Unset falls back to the CSS neutral grey; the swatch shows only for a saved project.
   if (input) {
-    const projColor = (editable && app.activeProjectId != null)
+    const stored = (editable && app.activeProjectId != null)
       ? (app.storage.store.getMeta(app.activeProjectId)?.color || '')
       : '';
+    const projColor = editable && trial?.id === app.activeProjectId && trial.base === stored ? trial.color : stored;
     // The legibility shadow is CSS-only (--project-name-shadow) so it re-flips on theme toggle.
     input.style.color = projColor || '';
     input.style.textShadow = '';
@@ -89,7 +100,7 @@ export const updateInfo = (app) => {
   const info = document.getElementById('image-info');
   const blankBtn = document.getElementById('blank-color-btn');
   const blankSwatch = document.getElementById('blank-color-swatch');
-  const isBlank = app.activeIsBlank();
+  const isBlank = activeIsBlank(app);
   const { size, sep, tag } = infoParts(info);
   // The shortcut hints live in the "?" popup (hints-btn), not this bar.
   size.nodeValue = app.image

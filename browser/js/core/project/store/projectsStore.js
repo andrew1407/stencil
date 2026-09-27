@@ -1,9 +1,12 @@
-// DOM-free project registry over a storage backend. Keys: registry (stencil_projects_v1),
-// per-project payload (stencil_project_<id>), migration flag (stencil_schema_migrated).
-// Never touches the global drawingApp_theme/_hotkeys keys.
+// DOM-free project registry over a storage backend. Keys: registry (stencil_projects_v1), per-project
+// payload (stencil_project_<id>), image (stencil_image_<id>) and thumbnail (stencil_thumb_<id>),
+// migration flag (stencil_schema_migrated). Never touches the global drawingApp_theme/_hotkeys keys.
 import * as naming from '../meta/projectNaming.js';
 import * as periods from '../meta/projectPeriods.js';
 import * as io from './projectRegistryIo.js';
+import * as thumbs from './projectThumbs.js';
+import * as images from './projectImages.js';
+import * as sources from './projectSources.js';
 import { migrateLegacyProject } from './projectsMigrate.js';
 
 export const REGISTRY_KEY = 'stencil_projects_v1';
@@ -18,6 +21,9 @@ export const shouldPersist = (activeId, temporary) => !temporary && activeId != 
 
 export class ProjectsStore {
   #storage;
+  // The registry parsed from the string last read: an unchanged string, whoever wrote it, skips
+  // the parse. Keyed on the string, not the `storage` event: core is DOM-free.
+  #registry = null;
 
   // `storage` is localStorage-like: { getItem, setItem, removeItem }; keys() (the test shim)
   // is preferred over Object.keys for enumeration.
@@ -32,27 +38,45 @@ export class ProjectsStore {
   #payloadKey(id) { return PROJECT_PREFIX + id; }
 
   #readRegistry() {
-    const arr = this.#readJSON(REGISTRY_KEY, []);
-    if (!Array.isArray(arr)) return [];
-    for (const m of arr) io.normalizeMeta(m);
-    return arr;
+    let raw = null;
+    try { raw = this.#storage.getItem(REGISTRY_KEY); } catch { /* unreadable reads as empty */ }
+    if (!this.#registry || this.#registry.raw !== raw) {
+      const parsed = io.parseJSON(raw, []);
+      const arr = Array.isArray(parsed) ? parsed : [];
+      raw = this.#moveInline(arr, raw);
+      for (const m of arr) io.normalizeMeta(m);
+      this.#registry = { raw, arr };
+    }
+    return io.cloneJson(this.#registry.arr);
   }
 
+  // Rewrites the registry as read, less the thumbnails and data-URL sources moved out; a failed
+  // write leaves the stored rows inline and the next parse tries again.
+  #moveInline(arr, raw) {
+    const thumbed = thumbs.moveInlineThumbs(this.#storage, arr);
+    if (!sources.moveInlineSources(this.#storage, arr, (id) => this.#payloadKey(id)) && !thumbed) return raw;
+    const next = JSON.stringify(arr);
+    try { this.#storage.setItem(REGISTRY_KEY, next); return next; } catch { return raw; }
+  }
+
+  // What was just written is the cache under its own string: the save that wrote it never re-parses.
   #writeRegistry(arr) {
-    this.#writeJSON(REGISTRY_KEY, arr);
+    const raw = JSON.stringify(arr);
+    this.#storage.setItem(REGISTRY_KEY, raw);
+    this.#registry = { raw, arr: io.registryRows(arr) };
   }
-
 
   // Most-recently-updated first. [] on any error.
   list() {
     const arr = this.#readRegistry();
     return arr
       .filter(m => m && m.id != null)
+      .map(m => thumbs.withThumb(this.#storage, m))
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
   getMeta(id) {
-    return this.#readRegistry().find(m => m && m.id === id) || null;
+    return thumbs.withThumb(this.#storage, this.#readRegistry().find(m => m && m.id === id) || null);
   }
 
   get(id) {
@@ -60,9 +84,10 @@ export class ProjectsStore {
     if (!meta) return null;
     const payload = this.#readJSON(this.#payloadKey(id), null);
     if (payload == null) return null;
-    return { meta, payload };
+    return { meta, payload: images.withImage(this.#storage, id, payload) };
   }
 
+  resolveImage(id, image, keep = true) { return images.resolveImage(this.#storage, id, image, keep); }
 
   createId() {
     const rnd = () => Math.random().toString(36).slice(2, 8);
@@ -84,7 +109,7 @@ export class ProjectsStore {
     if (i === -1) return null;
     arr[i][field] = value;
     this.#writeRegistry(arr);
-    return arr[i];
+    return thumbs.withThumb(this.#storage, arr[i]);
   }
 
   rename(id, name) { return this.#patchMeta(id, 'name', name); }
@@ -100,8 +125,14 @@ export class ProjectsStore {
 
   setBlankColor(id, color) { return this.#patchMeta(id, 'blankColor', color); }
 
-  // The idle-time thumbnail lands after the save that scheduled it (thumbnail.js).
-  setThumbnail(id, dataUrl) { return this.#patchMeta(id, 'thumbnail', dataUrl); }
+  // The idle-time thumbnail lands after the save that scheduled it (thumbnail.js); the registry is untouched.
+  setThumbnail(id, dataUrl) {
+    const meta = this.getMeta(id);
+    if (!meta) return null;
+    thumbs.writeThumb(this.#storage, id, dataUrl);
+    meta.thumbnail = dataUrl;
+    return meta;
+  }
 
   findByImage(source, name) { return naming.findByImage(this.list(), source, name); }
 
@@ -109,20 +140,22 @@ export class ProjectsStore {
 
   defaultName() { return naming.defaultName(this.#readRegistry()); }
 
-
   // Bumps updatedAt. QuotaExceededError from the backend propagates.
   upsert(meta, payload) {
     const now = Date.now();
-    const stored = { ...meta, updatedAt: now };
+    const stored = sources.withSourceRef({ ...meta, updatedAt: now });
     if (stored.createdAt == null) stored.createdAt = now;
 
-    // Payload first, so a quota failure leaves the registry untouched.
-    this.#writeJSON(this.#payloadKey(stored.id), payload);
+    // Image, payload and thumbnail first, so a quota failure leaves the registry untouched; the
+    // image is written only when it changed and never re-serialised with the layout.
+    images.writeImage(this.#storage, stored.id, payload?.image);
+    this.#writeJSON(this.#payloadKey(stored.id), images.withoutImage(payload));
+    thumbs.writeThumb(this.#storage, stored.id, stored.thumbnail);
 
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === stored.id);
-    if (i === -1) arr.push(stored);
-    else arr[i] = stored;
+    if (i === -1) arr.push(thumbs.rowOf(stored));
+    else arr[i] = thumbs.rowOf(stored);
     this.#writeRegistry(arr);
     return stored;
   }
@@ -133,7 +166,7 @@ export class ProjectsStore {
     if (i === -1) return null;
     arr[i].updatedAt = now;
     this.#writeRegistry(arr);
-    return arr[i];
+    return thumbs.withThumb(this.#storage, arr[i]);
   }
 
   remove(id) {
@@ -144,15 +177,18 @@ export class ProjectsStore {
     } catch {
       /* registry entry is the source of truth */
     }
+    images.removeImage(this.#storage, id);
+    thumbs.removeThumb(this.#storage, id);
   }
 
-  clearAll() { io.clearProjectKeys(this.#storage, REGISTRY_KEY, PROJECT_PREFIX); }
-
+  clearAll() {
+    io.clearProjectKeys(this.#storage, REGISTRY_KEY, PROJECT_PREFIX);
+    images.clearImages(this.#storage);
+    thumbs.clearThumbs(this.#storage);
+  }
 
   isExpired(meta, now = Date.now()) { return periods.isExpired(meta, now); }
-
   expiresAt(meta) { return periods.expiresAt(meta); }
-
   isExpiringSoon(meta, now = Date.now()) { return periods.isExpiringSoon(meta, now); }
 
   // expiresAt = now + its refresh period (the Refresh button and the open-time snap);
@@ -173,7 +209,7 @@ export class ProjectsStore {
     if (refreshPeriod != null) arr[i].refreshPeriod = refreshPeriod || periods.DEFAULT_PERIOD;
     if (autoRefresh != null) arr[i].autoRefresh = !!autoRefresh;
     this.#writeRegistry(arr);
-    return arr[i];
+    return thumbs.withThumb(this.#storage, arr[i]);
   }
 
   sweepExpired(now = Date.now()) {
@@ -186,7 +222,6 @@ export class ProjectsStore {
     }
     return removed;
   }
-
 
   migrateLegacy(now = Date.now()) {
     return migrateLegacyProject(this, this.#storage, MIGRATED_FLAG, now);

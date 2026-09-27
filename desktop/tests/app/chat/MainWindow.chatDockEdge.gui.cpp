@@ -18,7 +18,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.chatDock);
     win.chatDock->show();
     settleLayout(&win, 120);
-    auto* edge = win.chatEdge;
+    auto* edge = win.parts.dockChrome.chatEdge;
     QVERIFY(edge);
     const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } AREAS[] = {
         {Qt::LeftDockWidgetArea, Qt::Horizontal, "left"},
@@ -53,7 +53,7 @@ class MainWindowGuiTest : public QObject {
       const int after = horiz ? win.chatDock->width() : win.chatDock->height();
       QVERIFY2(std::abs((after - before) - 40) <= 2,
                qPrintable(QString("%1: %2 -> %3 after a 40px drag").arg(a.name).arg(before).arg(after)));
-      QCOMPARE(win.chatRestoreExtent, after);
+      QCOMPARE(win.parts.dockChrome.chatRestoreExtent, after);
     }
     // Nothing to grab while it floats — the window frame owns that resize.
     win.chatDock->setFloating(true);
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
         if (a->text() == "Selection Panel") { panelAct = a; break; }
       QVERIFY(panelAct);
       QVERIFY(panelAct->isChecked());  // synced to the restored visibility
-      // Header chevron path: collapseRequested → actPanel → animated hide.
+      // Header chevron path: collapseRequested → acts.panel → animated hide.
       QVERIFY(QMetaObject::invokeMethod(selPanel, "collapseRequested"));
       QTRY_VERIFY(selPanel->isHidden());
       QVERIFY(!panelAct->isChecked());
@@ -145,7 +145,7 @@ class MainWindowGuiTest : public QObject {
       do {
         s.append(dock->isVisible() ? dock->width() : 0);
         QTest::qWait(16);
-      } while (win.chatAnim && t.elapsed() < 1200);
+      } while (win.parts.dockChrome.chatAnim && t.elapsed() < 1200);
       return s;
     };
     auto hasIntermediate = [](const QList<int>& s, int full) {
@@ -180,7 +180,7 @@ class MainWindowGuiTest : public QObject {
     // Reopening restores the extent it was dismissed at.
     chat->setChecked(true);
     QTRY_VERIFY(dock->width() > 200);
-    awaitAnim(win.chatAnim);
+    awaitAnim(win.parts.dockChrome.chatAnim);
     QVERIFY2(qAbs(dock->width() - full) <= 8, "reopen lost the remembered width");
 
     // Floating: no edge to slide from — plain show/hide, and the tear-off size

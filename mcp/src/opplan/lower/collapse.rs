@@ -1,6 +1,6 @@
 //! Collapsing one action list into a single [`EditParams`] in the CLI's fixed pipeline
 //! order. Each action is folded by the lowering its §13 registry entry carries, so the ops
-//! this stage executes are exactly the ops the validator accepted.
+//! this stage executes are exactly the ops the prompt promised.
 use crate::args::{Blank, Crop, EditParams, LayoutArg};
 use crate::layout::Layout;
 use crate::registry;
@@ -104,10 +104,12 @@ pub fn collapse<'a>(
         // honored_save_path. Iterative prompting re-writes results: no clobber guard.
         confine_root: Some(output_dir.to_string()),
         overwrite: true,
+        preview: false,
         surface: None,
         server: None,
         remote_update: None,
         remote: None,
         remote_name: None,
+        server_tokens: None,
     })
 }

@@ -11,7 +11,7 @@ import { createStubElement, installDom } from '../../helpers/dom.js';
 const rectOf = (r) => () => ({ ...r, bottom: r.top + r.height });
 
 installDom({}, {
-  // base.js and motion.js ask the SAME gate (ui/prefs.js), so reduced motion is off here and
+  // base.js and motion.js ask the SAME gate (ui/motion/motionPrefs.js), so reduced motion is off here and
   // setOriginVars really runs; the particles are switched off through the motion mode instead.
   window: { matchMedia: () => ({ matches: false }), innerWidth: 1000, innerHeight: 800, addEventListener: () => {} },
   matchMedia: () => ({ matches: false }),
@@ -93,4 +93,23 @@ test('a window whose opener is gone by close time collapses into the canvas', (t
     'the exit lands on the canvas, not above the top edge');
   // …and emphatically NOT the fall-from-above shape.
   assert.notDeepEqual(readVars(box), expectedVars(boxRect, null));
+});
+
+// The × hands close() its click, a PointerEvent whose numeric width (1) once passed for a rect with no
+// top: the flight landed on the canvas instead of the icon Cancel and Escape fly back to (user report).
+test('closing by the × flies into the opener, like Cancel and Escape', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const boxRect = { left: 400, top: 300, width: 200, height: 150 };
+  const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
+  const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
+  const btnRect = { left: 20, top: 20, width: 40, height: 32 };
+  const openBtn = createStubElement('button', { getBoundingClientRect: rectOf(btnRect) });
+  const closeBtn = createStubElement('button');
+
+  const shell = wireModalShell(overlay, openBtn, closeBtn);
+  shell.open(openBtn);
+  closeBtn.dispatch('click', { type: 'click', width: 1, height: 1, clientX: 590, clientY: 310 });
+  assert.equal(shell.isOpen(), false);
+  assert.deepEqual(readVars(box), expectedVars(boxRect, openBtn.getBoundingClientRect()),
+    'the × close lands on the opener, not the canvas');
 });

@@ -1,26 +1,20 @@
-//! Registry-driven op-plan schema (contract §1–§2, §11): the cli port of
-//! browser/js/llm/plan/schema.js over the embedded opRegistry.json. Generic checks only —
-//! profile membership, unknown keys, required/types/enums/ranges/caps/grammars and the
-//! cross-field rules (forms / together / exclusive / minFields / onlyWith /
-//! requiredWith). opplan.zig keeps the typed normalizers, executors and cli extras.
+//! The op-plan schema is core's (core/opplan, reached through ../core/opplan.zig): the embedded
+//! opRegistry.json resolved for the cli once, the surface it describes (entries, forbidden names,
+//! limits) read back as JSON, and each model reply walked into core's one result document.
 const std = @import("std");
+const opplan = @import("../core/opplan.zig");
 
-/// The canonical registry (browser/js/config/llm/opRegistry.json), embedded whole.
-pub const registry_json = @embedFile("opRegistry.json");
+pub const registry_json = opplan.registry_json;
 pub const surface = "cli";
 pub const profile = "console";
 
-pub const Value = json.Value;
-pub const ObjectMap = json.ObjectMap;
-pub const Error = json.Error;
+pub const Value = std.json.Value;
+pub const ObjectMap = std.json.ObjectMap;
 
-/// One op this surface registers, resolved for it (surfaceKeys / bulletVariants /
-/// surfaceFlags applied).
+/// One op this surface registers, as core resolved it (surfaceKeys / bulletVariants / surfaceFlags).
 pub const Entry = struct {
     name: []const u8,
-    raw: ObjectMap, // the registry entry: forms / together / exclusive / minFields / rules
     keys: ObjectMap,
-    rules: []const []const u8,
     bullet: ?[]const u8,
     addendum: ?[]const u8, // the console `{addendum}` line riding after the bullets
     top_level_only: bool,
@@ -28,41 +22,12 @@ pub const Entry = struct {
     deferred: bool,
 };
 
-pub const OpsetHit = union(enum) { entry: Entry, fail, none };
-
-pub const grammars = @import("opSchema/grammars.zig");
-pub const json = @import("opSchema/json.zig");
-const ctxm = @import("opSchema/ctx.zig");
-const checks = @import("opSchema/checks.zig");
-const fields = @import("opSchema/fields.zig");
-const load = @import("opSchema/load.zig");
-
-pub const Grammar = grammars.Grammar;
-pub const matches = grammars.matches;
-pub const Diag = ctxm.Diag;
-const Ctx = ctxm.Ctx;
-const getObj = json.getObj;
-const getArr = json.getArr;
-const getStr = json.getStr;
-const strEq = json.strEq;
-const numOf = json.numOf;
-const cropAspectFold = fields.cropAspectFold;
-const checkFields = fields.checkFields;
-const pickFields = fields.pickFields;
-const checkValue = checks.checkValue;
-const resolveEntry = load.resolveEntry;
-
-// the schema: the registry resolved for this surface
-
 pub const Schema = struct {
-    root: ObjectMap,
-    limits: ObjectMap,
-    regexes: ObjectMap,
+    handle: opplan.Schema,
     entries: []const Entry,
     forbidden: []const []const u8,
-    ask: ObjectMap, // the §11 card's key schema (ask.schema)
+    limits: ObjectMap,
     default_custom_label: []const u8,
-    envelope: ObjectMap,
 
     pub fn find(self: *const Schema, op: []const u8) ?*const Entry {
         for (self.entries) |*e| {
@@ -78,110 +43,92 @@ pub const Schema = struct {
         return false;
     }
 
-    /// A cap is a number or a dotted name into `limits` ("MAX_ACTIONS", "ask.label").
-    pub fn limit(self: *const Schema, v: Value) f64 {
-        return switch (v) {
-            .string => |name| self.limitNamed(name),
-            else => numOf(v) orelse std.debug.panic("opRegistry: bad limit", .{}),
-        };
-    }
-
+    /// A cap by its dotted name into `limits` ("MAX_ACTIONS", "ask.label").
     pub fn limitNamed(self: *const Schema, name: []const u8) f64 {
         var cur: Value = .{ .object = self.limits };
         var it = std.mem.splitScalar(u8, name, '.');
-        while (it.next()) |part| {
-            if (cur != .object) break;
-            cur = cur.object.get(part) orelse .null;
-        }
-        return numOf(cur) orelse std.debug.panic("opRegistry: unknown limit \"{s}\"", .{name});
-    }
-
-    pub fn describe(self: *const Schema, g: []const u8) []const u8 {
-        const d = getObj(self.regexes, "describe") orelse return g;
-        return getStr(d, g) orelse g;
-    }
-
-    /// Validate one action against its entry (native rules first). Returns the action
-    /// as validated (post-fold) — feed it to `normalize`. Fails with "invalid <op> action: …".
-    pub fn validateAction(self: *const Schema, a: std.mem.Allocator, diag: *Diag, action: ObjectMap, entry: *const Entry) Error!ObjectMap {
-        diag.prefix = try std.fmt.allocPrint(a, "invalid {s} action: ", .{entry.name});
-        const ctx = Ctx{ .a = a, .diag = diag, .schema = self };
-        var v = action;
-        for (entry.rules) |rule| {
-            if (std.mem.eql(u8, rule, "cropAspectFold")) {
-                v = try cropAspectFold(ctx, v);
-            } else std.debug.panic("opRegistry: unknown native rule \"{s}\"", .{rule});
-        }
-        try checkFields(ctx, v, entry.keys, entry.raw, null, &.{"op"});
-        return v;
-    }
-
-    /// The declared keys present (deep-picked, trims applied) plus defaults.
-    pub fn normalize(_: *const Schema, a: std.mem.Allocator, v: ObjectMap, entry: *const Entry) Error!ObjectMap {
-        return pickFields(a, v, entry.keys);
-    }
-
-    /// The §11 card's structure (option `actions` only shallowly — the caller validates
-    /// them as nested actions). Fails with "invalid plan: …".
-    pub fn validateAsk(self: *const Schema, a: std.mem.Allocator, diag: *Diag, ask: Value) Error!void {
-        diag.prefix = "invalid plan: ";
-        const ctx = Ctx{ .a = a, .diag = diag, .schema = self };
-        if (ask != .object) return ctx.fail("\"ask\" must be an object", .{});
-        try checkFields(ctx, ask.object, getObj(self.ask, "keys").?, self.ask, .{ .root = "ask." }, &.{});
-    }
-
-    pub fn normalizeAsk(self: *const Schema, a: std.mem.Allocator, ask: ObjectMap) Error!ObjectMap {
-        return pickFields(a, ask, getObj(self.ask, "keys").?);
-    }
-
-    /// Check one envelope slot ("actions" / "variants") shallowly, labelled `as`
-    /// ("actions", "variant 2", "ask option 1"). Fails with "invalid plan: …".
-    pub fn checkEnvelope(self: *const Schema, a: std.mem.Allocator, diag: *Diag, v: Value, key: []const u8, as: []const u8) Error!void {
-        diag.prefix = "invalid plan: ";
-        const ctx = Ctx{ .a = a, .diag = diag, .schema = self };
-        try checkValue(ctx, v, getObj(self.envelope, key).?, .{ .key = as }, null);
-    }
-
-    /// Resolve an op inside a nested op set (§8 open.actions): an entry to validate
-    /// with, `fail` for a listed-but-disallowed op, or `none` for an unknown one.
-    pub fn opsetEntry(self: *const Schema, name: []const u8, op: []const u8) OpsetHit {
-        const os = getObj(getObj(self.root, "opsets").?, name) orelse std.debug.panic("opRegistry: unknown opset \"{s}\"", .{name});
-        if (getObj(os, "overrides")) |ov| {
-            if (getObj(ov, op)) |o| return .{ .entry = .{
-                .name = op,
-                .raw = o,
-                .keys = getObj(o, "keys").?,
-                .rules = &.{},
-                .bullet = null,
-                .addendum = null,
-                .top_level_only = false,
-                .settings = false,
-                .deferred = false,
-            } };
-        }
-        for (getArr(os, "ops").?) |x| {
-            if (strEq(x, op)) {
-                for (getArr(self.root, "ops").?) |e| {
-                    if (strEq(e.object.get("id").?, op)) return .{ .entry = resolveEntry(e.object) catch return .none };
-                }
-                return .none;
-            }
-        }
-        if (getArr(os, "failOps")) |fo| for (fo) |x| {
-            if (strEq(x, op)) return .fail;
+        while (it.next()) |part| cur = if (cur == .object) cur.object.get(part) orelse .null else .null;
+        return switch (cur) {
+            .integer => |i| @floatFromInt(i),
+            .float => |f| f,
+            else => std.debug.panic("opRegistry: unknown limit \"{s}\"", .{name}),
         };
-        return .none;
     }
 };
 
-/// The registry resolved for the cli (lazy; the first call parses the embedded JSON).
+pub const Status = opplan.Status;
+
+/// Core's result for one reply: `doc` is {status, reply, actions, variants, ask, warnings, error}.
+pub const Parsed = struct { status: Status, doc: ObjectMap };
+
+// Created once, from the main thread only (scrape's fetch pool never reaches here); lives for the process.
+var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+var instance: ?Schema = null;
+
+fn flag(flags: ObjectMap, name: []const u8) bool {
+    const v = flags.get(name) orelse return false;
+    return v == .bool and v.bool;
+}
+
+fn optString(o: ObjectMap, key: []const u8) ?[]const u8 {
+    const v = o.get(key) orelse return null;
+    return if (v == .string) v.string else null;
+}
+
+fn build() error{OutOfMemory}!Schema {
+    const a = arena.allocator();
+    const h = opplan.Schema.open(surface, null);
+    const why = h.failure();
+    if (why.len != 0) std.debug.panic("embedded opRegistry.json refused by core: {s}", .{why});
+    const doc = (std.json.parseFromSliceLeaky(Value, a, h.entries(), .{ .allocate = .alloc_always }) catch @panic("core wrote malformed schema JSON")).object;
+    if (!std.mem.eql(u8, doc.get("profile").?.string, profile)) @panic("opRegistry.json: the cli is no longer a console-profile surface");
+    var entries: std.ArrayList(Entry) = .empty;
+    for (doc.get("entries").?.array.items) |ev| {
+        const e = ev.object;
+        const flags = e.get("flags").?.object;
+        try entries.append(a, .{
+            .name = e.get("name").?.string,
+            .keys = e.get("keys").?.object,
+            .bullet = optString(e, "bullet"),
+            .addendum = optString(e, "addendum"),
+            .top_level_only = flag(flags, "topLevelOnly"),
+            .settings = flag(flags, "editorSetting") or flag(flags, "consoleSetting"),
+            .deferred = flag(flags, "deferred"),
+        });
+    }
+    var forbidden: std.ArrayList([]const u8) = .empty;
+    for (doc.get("forbidden").?.array.items) |x| try forbidden.append(a, x.string);
+    return .{
+        .handle = h,
+        .entries = try entries.toOwnedSlice(a),
+        .forbidden = try forbidden.toOwnedSlice(a),
+        .limits = doc.get("limits").?.object,
+        .default_custom_label = doc.get("defaultCustomLabel").?.string,
+    };
+}
+
+/// The registry resolved for the cli (lazy; the first call hands the embedded JSON to core).
 pub fn get() *const Schema {
-    return load.get();
+    if (instance == null) instance = build() catch @panic("out of memory resolving opRegistry.json");
+    return &instance.?;
+}
+
+/// Walk one model reply through core; the document lives in `a`.
+pub fn parse(a: std.mem.Allocator, raw: []const u8) error{OutOfMemory}!Parsed {
+    const walked = get().handle.walk(a, raw) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.SchemaRefused => @panic("core refused a reply for a schema it loaded"),
+    };
+    const doc = std.json.parseFromSliceLeaky(Value, a, walked.json, .{}) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => std.debug.panic("core wrote a malformed plan result", .{}),
+    };
+    return .{ .status = walked.status, .doc = doc.object };
 }
 
 const testing = std.testing;
 
-test "schema: the cli's console entries, forbidden set and limits come from the registry" {
+test "schema: the cli's console entries, forbidden set and limits come from core's resolution" {
     const s = get();
     const expected = [_][]const u8{
         "crop",      "rotate", "filter",   "layout",  "formula", "page",   "blank",     "undo",
@@ -191,7 +138,7 @@ test "schema: the cli's console entries, forbidden set and limits come from the 
     try testing.expectEqual(expected.len, s.entries.len);
     for (expected, s.entries) |name, e| try testing.expectEqualStrings(name, e.name);
     // surfaceKeys.cli: crop's spec takes `album`; copy is field-less.
-    try testing.expect(getObj(s.find("crop").?.keys, "spec").?.get("fields").?.object.get("album") != null);
+    try testing.expect(s.find("crop").?.keys.get("spec").?.object.get("fields").?.object.get("album") != null);
     try testing.expectEqual(@as(usize, 0), s.find("copy").?.keys.count());
     // Flags merge, bullets resolve per surface/profile, the console addendum rides crop.
     try testing.expect(s.find("openFile").?.top_level_only and s.find("openFile").?.settings);
@@ -204,16 +151,4 @@ test "schema: the cli's console entries, forbidden set and limits come from the 
     try testing.expectEqual(@as(f64, 16), s.limitNamed("MAX_ACTIONS"));
     try testing.expectEqual(@as(f64, 80), s.limitNamed("ask.label"));
     try testing.expectEqualStrings("Something else…", s.default_custom_label);
-    try testing.expect(s.opsetEntry("extensionOpen", "rotate") == .entry);
-    try testing.expect(s.opsetEntry("extensionOpen", "frame") == .fail);
-    try testing.expect(s.opsetEntry("extensionOpen", "zoom") == .none);
-}
-
-test {
-    _ = grammars;
-    _ = json;
-    _ = ctxm;
-    _ = checks;
-    _ = fields;
-    _ = load;
 }

@@ -7,4 +7,4 @@ export declare const nameField: (el: Element | null) => void;
 /** Name every `[data-title]` control and every field under `root`. */
 export declare const labelControls: (root?: ParentNode) => void;
 /** Name the controls on the page and keep later or renamed ones named. Returns the observer. */
-export declare const watchControlLabels: (root?: Element) => MutationObserver;
+export declare const watchControlLabels: (root?: Element) => void;

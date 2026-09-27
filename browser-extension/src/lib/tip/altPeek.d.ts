@@ -14,6 +14,14 @@ export declare const trackPointer: () => void;
 /** The pointer is over `el`: its :hover, or a hit test at the last pointer position. */
 export declare const pointerIn: (el: Element | null | undefined) => boolean;
 
+/** One Alt trigger on the shared document keydown/keyup + window blur listeners; `isIn` hit-tests
+ *  the pointer once per press for every trigger. */
+export declare const onAltKeys: (entry: {
+  press?: (e: KeyboardEvent, isIn: (el: Element | null | undefined) => boolean) => void;
+  /** `e` is the Alt keyup; a window blur releases with none. */
+  release?: (e?: KeyboardEvent) => void;
+}) => void;
+
 /** Pointer inside `box`, or inside a list one of its dropdowns opened on <body>. */
 export declare const peekEngaged: (box: Element | null | undefined) => boolean;
 

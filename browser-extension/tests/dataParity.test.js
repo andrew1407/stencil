@@ -84,12 +84,28 @@ const MANIFEST = [
     canonical: () => canonical('../../browser/js/config/llm/opRegistry.json'),
   },
   {
+    name: 'SSRF address table: lib/connection/blockedRanges.json ↔ config/net/blockedRanges.json',
+    mode: 'full',
+    extension: () => canonical('../src/lib/connection/blockedRanges.json'),
+    canonical: () => canonical('../../browser/js/config/net/blockedRanges.json'),
+  },
+  {
     name: 'system prompt: src/config/systemPrompt.json ↔ config/llm/systemPrompt.json extension keys',
     mode: 'full',
     extension: () => canonical('../src/config/systemPrompt.json'),
     canonical: () => {
       const { extensionHead, extensionTail } = canonical('../../browser/js/config/llm/systemPrompt.json');
       return { extensionHead, extensionTail };
+    },
+  },
+  {
+    // The gesture timings both copies of tip/popover.js read (portParity pins the declarations).
+    name: 'popover timings: lib/tip/constants.json ↔ config/constants.json POPOVER',
+    mode: 'full',
+    extension: () => canonical('../src/lib/tip/constants.json'),
+    canonical: () => {
+      const { POPOVER } = canonical('../../browser/js/config/constants.json');
+      return { POPOVER };
     },
   },
 ];
@@ -128,6 +144,11 @@ test('DEFAULT_PAGE matches the canonical default format', () => {
 // cannot be imported here; the drift guard reads the file instead.
 const source = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
+test('the SSRF address table copy is byte-identical to its original', () => {
+  assert.equal(source('../src/lib/connection/blockedRanges.json'),
+    source('../../browser/js/config/net/blockedRanges.json'));
+});
+
 test('every stencil:* literal in src/ is a channel from config/events.json', () => {
   const channels = new Set(Object.values(canonical('../../browser/js/config/events.json')));
   const files = ['../src/content/editorBridge.js', '../src/lib/accent/accent.js', '../src/options/options.js'];
@@ -155,6 +176,6 @@ test('pageApiMain VIDEO_FMTS matches config/mediaTypes.json surfaces.extension.v
 test('both format normalizers apply exactly the canonical rewrites, in order', () => {
   const rules = Object.entries(canonical('../../browser/js/config/mediaTypes.json').normalize);
   const chain = rules.map(([from, to]) => `.replace('${from}', '${to}')`).join('');
-  for (const rel of ['../src/lib/highlight/filters.js', '../src/content/pageApiMain.js'])
+  for (const rel of ['../src/lib/highlight/filters.js', '../src/content/pageApiMedia.js'])
     assert.ok(source(rel).includes(`ext.toLowerCase()${chain}`), `${rel} drifted from mediaTypes.normalize`);
 });

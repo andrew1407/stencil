@@ -46,11 +46,7 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     void setDragZones(ProjectDragZones* z) { dragZones = z; }
-
-    void setOpenInAvailable(bool local, bool server) {
-      openInLocalOk = local;
-      openInServerOk = server;
-    }
+    void setOpenInAvailable(bool local, bool server) { openInLocalOk = local; openInServerOk = server; }
 
     // Beyond getAction(): OpenRemote → getSelectedServerUrl() + getSelectedId(); transfers add getNewName();
     // Batch* → batchItems(); SetColor → getSelectedColor(). BatchRemove emits removeRequested instead.
@@ -81,6 +77,8 @@ namespace stencil::gui {
     // the session state in the SAME repaint.
     void setProjects(const std::vector<Project>& projects);
     void setProjects(const std::vector<Project>& projects, bool temporary, bool incognito);
+    // A local row's picture arriving after the rows were built; kept across rebuilds.
+    void setLocalThumb(const QString& id, const QPixmap& thumb);
 
    signals:
     // Every signal is the stay-open pattern: the dialog confirmed in place, the owner acts and calls setProjects().
@@ -108,7 +106,7 @@ namespace stencil::gui {
                        const std::function<void(stencil::net::ServerClient*, qint64,
                                                 std::function<void(bool, qint64)>)>& push,
                        const std::function<void(stencil::net::ServerProject&)>& cache);
-    // Construction order is observable (tab order, findChildren) — tests/ProjectsDialogRows.headless.cpp pins it.
+    // Construction order is observable (tab order, findChildren) — tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp pins it.
     void buildSearchRow(QVBoxLayout* layout);
     void buildBatchBar(QVBoxLayout* layout);
     void buildProjectList();

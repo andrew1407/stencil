@@ -1,4 +1,4 @@
-// Shapes for popup/preview.js — the panel-wide instance of lib/hoverPreview.js's magnifier.
+// Shapes for popup/row/preview.js — the panel-wide instance of lib/hoverPreview.js's magnifier.
 export interface HoverPreview {
   cache: Map<string, string>;
   bind(el: Element, image: unknown): void;

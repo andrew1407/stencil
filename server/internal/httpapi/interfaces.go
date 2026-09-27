@@ -6,17 +6,22 @@ import (
 	"os"
 
 	"stencil/server/internal/auth"
+	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 )
 
-// ProjectStore is the project persistence the API needs.
+// ProjectStore is the project persistence the API needs. Only GET /projects/{id} reads the layout
+// (GetProject); every other route reads metadata or existence, and every write returns metadata.
 type ProjectStore interface {
 	ListProjects(ctx context.Context, page store.ProjectPage) ([]protocol.ProjectRecord, error)
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
+	GetProjectMeta(ctx context.Context, id string) (protocol.ProjectRecord, error)
+	ProjectExists(ctx context.Context, id string) (bool, error)
+	OwnerProjectIDs(ctx context.Context, id string) ([]string, error)
 	CreateProject(ctx context.Context, ownerSession string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error)
 	UpdateProject(ctx context.Context, id string, patch store.ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error)
-	SetFile(ctx context.Context, id, kind, relPath string, w, h int) (protocol.ProjectRecord, error)
+	SetFile(ctx context.Context, id string, f store.StoredFile) (protocol.ProjectRecord, error)
 	DeleteProject(ctx context.Context, id string) error
 }
 
@@ -33,9 +38,9 @@ type SessionCounter interface {
 }
 
 // FileStore is the byte storage the API needs. Nothing here holds a whole file in memory: reads go
-// through FindByKind + OpenByRelPath, and PutStream writes the request body as it arrives.
+// through FindByKind + OpenByRelPath, and PutStreamAs writes the request body as it arrives.
 type FileStore interface {
-	PutStream(id, kind, ext string, r io.Reader) (string, error)
+	PutStreamAs(id, kind, ext string, r io.Reader, c filestore.Charge) (string, error)
 	FindByKind(id, kind string) (string, error)
 	OpenByRelPath(rel string) (*os.File, error)
 	RemoveKind(id, kind string) error

@@ -5,10 +5,15 @@
 
 #include <QSize>
 #include <QColor>
+#include <QImage>
+#include <QList>
+#include <QPair>
 #include <QPixmap>
 #include <QString>
+#include <QStringList>
+#include <functional>
 
-class QImage;
+class QObject;
 class QToolButton;
 class QWidget;
 
@@ -23,7 +28,7 @@ namespace stencil::gui::chatdock {
   // The context menu's assistant panel mirrors these exact numbers.
   inline constexpr int ACCENT_EDGE = 30;
   inline constexpr int ACCENT_ICON = 20;
-  // browser css/animations.css chatCardLeave, surface/motion.js CHAT_LEAVE_MS
+  // browser css/animations/reveal/reveal.css chatCardLeave, enterLeave.js CHAT_LEAVE_MS
   inline constexpr int CHAT_LEAVE_MS = 260;
   inline constexpr int CHIP_NAME_MAX_PX = 150;
   // A removed chip HOLDS its slot so the scatter reads before the neighbours slide.
@@ -50,7 +55,15 @@ namespace stencil::gui::chatdock {
   // Qt matches selectors at polish time, not on every paint.
   void repolish(QWidget* w);
 
-  QImage readImageFile(const QString& path);
+  // Decodes `paths` in order on the pool (EXIF-aware); `done` gets every one with its file name —
+  // a null image where the decode failed — on the GUI thread, never once `ctx` is gone.
+  using NamedImages = QList<QPair<QImage, QString>>;
+  void readImageFilesThen(QObject* ctx, const QStringList& paths,
+                          std::function<void(const NamedImages&)> done);
+  // Queues the decoded ones of `read` in order while there is room (MAX_ATTACHMENTS); true when one
+  // did not fit. `failed` collects the names of those that would not decode.
+  bool queueAttachments(QList<QImage>& images, QStringList& names, const NamedImages& read,
+                        QStringList* failed = nullptr);
 
   // Browser .chat-result-thumb: the picture cover-fills an `edge` square, rounded by `radius`,
   // inside a 1px border; `dpr` keeps it crisp on a Retina screen.

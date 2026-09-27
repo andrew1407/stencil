@@ -54,6 +54,18 @@ export const scaledDataUrl = (source, width, height, maxEdge, type, quality) => 
   return c.toDataURL(type, quality);
 };
 
+// Canvases stacked over one box, drawn bottom first onto one canvas of the first one's size;
+// a single layer is returned as it is.
+export const flattenLayers = (layers) => {
+  if (layers.length === 1) return layers[0];
+  const c = document.createElement('canvas');
+  c.width = layers[0].width;
+  c.height = layers[0].height;
+  const ctx = c.getContext('2d');
+  for (const layer of layers) ctx.drawImage(layer, 0, 0);
+  return c;
+};
+
 // Most desktop browsers cannot share FILES even when navigator.share exists.
 export const supportsShareFiles = () => {
   try {

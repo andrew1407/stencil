@@ -6,12 +6,11 @@ const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
 const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
-const Span = ansi.Span;
 const timing = @import("timing.zig");
 const skin = @import("../../../app/skin.zig");
 
 const waitFrame = timing.waitFrame;
-const Frame = timing.Frame;
+const frame = @import("../../screen/frame.zig");
 
 // New output sweeps in from the left, jump-by-jump like the recolour wipe, but much
 // quicker — it plays on EVERY line, so the total stays ~0.1s and queued keystrokes skip it.
@@ -69,13 +68,13 @@ pub fn revealNew(self: *Screen, n_new: usize) void {
         return;
     }
     const jumps: u16 = if (in_burst) reveal_burst_jumps else reveal_jumps;
-    const first_new = self.lines.items.len - n_new;
+    const first_new = self.lines.len - n_new;
     // How far right the new text actually reaches — sweeping past that is dead time.
     var reach: u16 = 0;
     const w = self.window();
     var i: usize = @max(w.first, first_new);
     while (i < w.end) : (i += 1) {
-        const vis: u16 = @intCast(@min(ansi.visColumns(self.lines.items[i]), @as(usize, self.cols)));
+        const vis: u16 = @intCast(@min(ansi.visColumns(self.lines.at(i)), @as(usize, self.cols)));
         reach = @max(reach, vis);
     }
     if (reach == 0) { // nothing visible arrived (blank lines, or all of it scrolled off)
@@ -83,6 +82,8 @@ pub fn revealNew(self: *Screen, n_new: usize) void {
         return;
     }
     const per: u16 = @max(1, (reach + jumps - 1) / jumps); // columns per jump
+    const kept = frame.keepCursor(self);
+    defer frame.returnCursor(self, kept);
     self.paintBodyCut(first_new, 0); // the settled rows, with the new ones still blank
     var x: u16 = per;
     while (x < reach) : (x +|= per) {
@@ -103,10 +104,18 @@ pub fn skinFrame(self: *Screen, first_new: ?usize, x: u16) bool {
     if (s == .fairylight) { // the next bulb lights with the very wipe a `/theme` change runs
         if (first_new != null) return false;
         const rgb = skin.nextBulb() orelse return false;
+        frame.begin(self);
+        defer frame.end(self);
+        const kept = frame.keepCursor(self);
+        defer frame.returnCursor(self, kept);
         logo.setAccent(rgb);
         self.onThemeChanged();
         return true;
     }
+    frame.begin(self);
+    defer frame.end(self);
+    const kept = frame.keepCursor(self);
+    defer frame.returnCursor(self, kept);
     if (t.moves_logo) self.captureHeader();
     self.skip_unchanged = true; // most frames move a picture or two: only those rows go out
     defer self.skip_unchanged = false;
@@ -116,24 +125,21 @@ pub fn skinFrame(self: *Screen, first_new: ?usize, x: u16) bool {
     return true;
 }
 
-// One frame of the sweep: only the arriving rows, each cut to its first `x` visible
-// columns. Batched into a single write so a frame lands as one terminal update.
+// One frame of the sweep: only the arriving rows, each cut to its first `x` visible columns.
 fn paintNewRows(self: *Screen, first_new: usize, x: u16) void {
     if (self.bodyRows() == 0) return;
     var rb: [8192]u8 = undefined;
-    var frame = Frame{ .fd = self.fd };
     const w = self.window();
     var r: u16 = self.headerRows() + 1;
     var i: usize = w.first;
     while (i < w.end) : (i += 1) {
         if (i >= first_new) {
-            frame.at(r);
-            frame.put(ansi.clipPrefix(self.lines.items[i], self.cols, x, &rb));
-            frame.put("\x1b[K"); // erase what the sweep has not reached yet
+            screen_mod.gotoRow(self.fd, r);
+            screen_mod.ttyWrite(self.fd, ansi.clipPrefix(self.lines.at(i), self.cols, x, &rb));
+            screen_mod.ttyWrite(self.fd, "\x1b[K"); // erase what the sweep has not reached yet
         }
         r += 1;
     }
-    frame.flush();
 }
 
 const testing = std.testing;

@@ -1,4 +1,4 @@
-// The accent list's hover preview (js/ui/picker.js): the resting row latches its hover and
+// The accent list's hover preview (js/ui/accent/picker.js): the resting row latches its hover and
 // a preview holds the replays and the cursor across the palette flood. From accentPicker.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

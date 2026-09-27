@@ -1,6 +1,6 @@
 // The webcore toggle (ui/logo/stageTrigger.js dispatches here): a session-only skin over the
 // whole page — light, still, pixel-drawn — and its undoing. Nothing here writes a store.
-// Desktop twin: MainWindow::toggleWebcore (app/logo/MainWindowWebcore.cpp).
+// Desktop twin: MainWindow::toggleWebcore (app/theme/ThemePainterWebcore.cpp).
 import { accentHex, applyAccentFavicon, applyFaviconHex, normalizeHex, setFaviconArt } from '../../core/settings/accents.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { SKIN_ATTR, SKIN_NAME } from './rules.js';

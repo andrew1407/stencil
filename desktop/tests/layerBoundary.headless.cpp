@@ -2,7 +2,8 @@
 // net/, io/ → support/ → canvas/, dialogs/, llm/ → app/, so this reads every #include in the tree and
 // fails on the directions that cross back: nothing below app/ includes an app/ header, dialogs/ may
 // not include canvas/, and a core/ header may only be reached from model/ — everything still above
-// that seam is a frozen allowance list the lint refuses to grow. Text only; it compiles no source.
+// that seam is a frozen allowance list the lint refuses to grow. No file includes one header twice,
+// and no header passes MainWindow.hpp or (outside canvas/) CanvasWidget.hpp on. Text only.
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
@@ -30,25 +31,23 @@ namespace {
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
-      "app/chat/planTarget/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
+      "app/chat/planTarget/ChatPlanTarget.cpp",         "app/setup/WindowAssemblySignals.cpp",
       "app/selection/SelectedLineBar.hpp",        "app/selection/SelectionPanel.hpp",
-      "canvas/draw/chainEdit.hpp",           "canvas/draw/strokeGrowth.hpp",
+      "canvas/draw/strokeGrowth.hpp",
       "llm/plan/opPlan.hpp",
       "app/MainWindow.hpp",             "app/open/MainWindowBlank.cpp",
-      "app/chat/MainWindowChat.cpp",         "app/view/MainWindowFullscreenZoom.cpp",
-      "app/mainWindowHelpers.hpp",      "app/meta/MainWindowHoverDetail.cpp",
-      "app/open/MainWindowLaunchImage.cpp",  "app/project/MainWindowProjectLoad.cpp",
+      "app/view/EditorViewFullscreen.cpp",
+      "app/mainWindowHelpers.hpp",      "app/meta/HoverTip.cpp",
       "app/view/MainWindowZoom.cpp",         "app/project/ProjectTransferController.hpp",
       "canvas/input/CanvasDrag.cpp",          "canvas/draw/CanvasDrawClick.cpp",
       "canvas/input/CanvasHold.cpp",          "canvas/input/CanvasHover.cpp",
       "canvas/draw/CanvasLineEdit.cpp",      "canvas/input/CanvasRelease.cpp",
-      "canvas/draw/CanvasSelection.cpp",     "canvas/CanvasSettings.cpp",
-      "canvas/paint/CanvasTransform.cpp",     "canvas/CanvasWidget.hpp",
+      "canvas/draw/CanvasSelection.cpp",     "canvas/paint/CanvasTransform.cpp",
       "dialogs/crop/CropDialog.hpp",         "dialogs/meta/ExpirationDialog.cpp",
       "dialogs/openImage/preview/OpenImageDialogCropStage.cpp",
-      "dialogs/projects/ProjectsDialog.cpp",     "dialogs/projects/ProjectsDialog.hpp",
+      "dialogs/projects/ProjectsDialog.hpp",
       "dialogs/projects/row/projectsRowChrome.hpp",  "io/fileStore.cpp",
-      "io/fileStore.hpp",               "llm/plan/opPlanFields.cpp",
+      "io/fileStore.hpp",
       "llm/plan/executor/planExecutorParts.hpp",           "llm/plan/executor/planExecutor.hpp",
       "support/theme/cssColor.hpp",           "support/guiHelpers.cpp",
   };
@@ -109,7 +108,10 @@ int main(int argc, char** argv) {
   // A quoted include, whether written bare ("x.hpp") or with a group prefix ("../app/x.hpp").
   static const QRegularExpression INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+\"([^\"]+)\""));
 
-  QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp;
+  // Any include, quoted or angled; a quoted one is the same header under every path spelling.
+  static const QRegularExpression ANY_INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+([<\"])([^>\"]+)[>\"]"));
+  static const QRegularExpression CONDITIONAL(QStringLiteral("^\\s*#\\s*(if|ifdef|ifndef|endif)\\b"));
+  QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp, twice, passedOn;
   QSet<QString> sawCore, sawApp;
   int scanned = 0;
   QDirIterator it(src.absolutePath(),
@@ -122,10 +124,26 @@ int main(int argc, char** argv) {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) continue;
     ++scanned;
+    QSet<QString> included;
+    int depth = 0;   // an include repeated across #if branches is not a duplicate
     for (const QByteArray& line : f.readAll().split('\n')) {
-      const auto m = INCLUDE.match(QString::fromUtf8(line));
+      const QString text = QString::fromUtf8(line);
+      if (const auto c = CONDITIONAL.match(text); c.hasMatch())
+        depth += c.captured(1) == QStringLiteral("endif") ? -1 : 1;
+      if (const auto any = ANY_INCLUDE.match(text); any.hasMatch() && depth == 0) {
+        const QString key = any.captured(1) == QStringLiteral("\"")
+                                ? QFileInfo(any.captured(2)).fileName() : any.captured(2);
+        if (included.contains(key)) twice << (rel + " → " + key);
+        included.insert(key);
+      }
+      const auto m = INCLUDE.match(text);
       if (!m.hasMatch()) continue;
       const QString inc = QFileInfo(m.captured(1)).fileName();
+      // A header that includes the window or the canvas hands it to every file that includes it.
+      if (rel.endsWith(QStringLiteral(".hpp")) &&
+          (inc == QStringLiteral("MainWindow.hpp") ||
+           (inc == QStringLiteral("CanvasWidget.hpp") && group != QStringLiteral("canvas"))))
+        passedOn << (rel + " → " + inc);
 
       if (coreHeaders.contains(inc) && !owner.contains(inc)) {
         // model/ IS the seam: it may include core/ freely, and nothing above it may.
@@ -158,6 +176,15 @@ int main(int argc, char** argv) {
   // ── Rule 3: core/ enters the GUI through one seam only.
   for (const QString& v : intoCore) std::printf("  core-include: %s\n", qPrintable(v));
   check(intoCore.isEmpty(), "no unlisted file includes a core/ header");
+
+  // ── Rule 4: one include per header per file.
+  for (const QString& v : twice) std::printf("  included twice: %s\n", qPrintable(v));
+  check(twice.isEmpty(), "no file includes the same header twice");
+
+  // ── Rule 5: the window and the canvas are a translation unit's include, never a header's —
+  // a header names them by forward declaration, so its includers do not all recompile with them.
+  for (const QString& v : passedOn) std::printf("  passed on by a header: %s\n", qPrintable(v));
+  check(passedOn.isEmpty(), "no header includes MainWindow.hpp, nor CanvasWidget.hpp outside canvas/");
 
   // ── The allowances are a ratchet, so a stale entry is a failure too: it means the
   // violation is gone and the list should have shrunk with it.

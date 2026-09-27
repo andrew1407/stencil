@@ -5,18 +5,14 @@ const std = @import("std");
 const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
 const logo = @import("../../app/logo.zig");
-const core = @import("../../core.zig");
 const clipboard = @import("../../clipboard.zig");
 const commands = @import("../commands.zig");
-const line_edit = @import("../../line_edit.zig");
+const line_edit = @import("../../line_edit/line_edit.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const Attachment = @import("../session.zig").Attachment;
-const handlers = @import("../handlers.zig");
-const llmPrompt = @import("../llmPrompt.zig");
 const clip = @import("clip.zig");
 
-const clipboardToImage = clip.clipboardToImage;
 const clipError = clip.clipError;
 
 // The editor owns the `[Image #N <label>]` markers in the line, the session the bytes behind them.

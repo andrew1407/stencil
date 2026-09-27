@@ -166,4 +166,4 @@ func TestPutReplacesStaleSiblingExtension(t *testing.T) {
 	}
 }
 
-// ----- aggregate storage quota (NewWithQuota / ErrQuotaExceeded) -----
+// ----- aggregate storage quota (Quotas.Total / ErrQuotaExceeded) -----

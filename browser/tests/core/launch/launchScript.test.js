@@ -17,33 +17,60 @@ let fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'im
 const fetchStub = installFetchStub((...args) => fetchImpl(...args));
 const fetchCalls = fetchStub.calls;
 
-const { DrawingApp } = await import('../../../js/core/drawingApp.js');
-const { MAX_LAUNCH_SCRIPT } = await import('../../../js/core/launch/controller.js');
+const { applyExternalLaunch, MAX_LAUNCH_SCRIPT } = await import('../../../js/core/launch/controller.js');
+
+// The decode boundary: the real load reads its file and the picture decodes after `decode.delayMs`,
+// or never; the settle's crop rebuild is where the mock's picture appears. `reads` is every load.
+const reads = [];
+const decode = { delayMs: 0, never: false };
+globalThis.FileReader = class {
+  readAsDataURL(file) {
+    reads.push(file);
+    queueMicrotask(() => this.onload?.({ target: { result: 'data:image/png;base64,AAAA' } }));
+  }
+};
+globalThis.Image = class {
+  width = 4; height = 3;
+  set src(v) { this.url = v; if (!decode.never) setTimeout(() => this.onload?.(), decode.delayMs); }
+  get src() { return this.url; }
+};
 
 const resetGlobals = () => {
   notifications.length = 0;
+  reads.length = 0;
+  Object.assign(decode, { delayMs: 0, never: false });
   fetchStub.reset();
   globalThis.location = { hash: '', pathname: '/app', search: '' };
   globalThis.history = { replaceState: () => {} };
 };
 
-// `image` stands in for a decoded picture: the load path sets it asynchronously, and a
-// handed-over script must wait for it rather than run against the page behind it.
+// `image` is the decoded picture: the load path sets it asynchronously, and a handed-over
+// script must wait for it rather than run against the page behind it.
 const makeMock = (over = {}) => {
-  const loaded = [];
   const mock = {
-    loaded,
     image: null,
-    storage: { incognito: false, store: {} },
-    loadImageFromFile: (...args) => { loaded.push(args); mock.image = { decoded: true }; },
-    updateIncognitoUI() {},
+    storage: { incognito: false, temporary: false, store: {}, save() {} },
+    activeProjectId: 'p1',
+    lines: [],
+    canvas: { width: 4, height: 3 },
+    imageModel: {
+      roundRect: (r) => ({ ...r }),
+      defaultCropRect: () => ({ x: 0, y: 0, width: 4, height: 3 }),
+      rebuildCroppedImage: () => { mock.image = { decoded: true }; },
+    },
+    history: { reset() {} },
+    zoomPan: { fitToWindow() {} },
+    coordTable: { update() {} },
+    renderer: { redraw() {}, layers: () => [] },
+    tabs: { reportActive() {}, reportIncognito() {} },
+    updateInfo() {}, updateButtons() {}, updateCoordStatus() {}, updateIncognitoUI() {},
     ...over,
   };
   return mock;
 };
 
 const fragmentFor = (payload) => '#stencil=' + encodeURIComponent(JSON.stringify(payload));
-const run = (mock) => DrawingApp.prototype.applyExternalLaunch.call(mock);
+const run = (mock) => applyExternalLaunch(mock);
 
 test('a script rides the fragment onto pendingLaunchScript, and the import promise gates it', async () => {
   resetGlobals();
@@ -52,9 +79,10 @@ test('a script rides the fragment onto pendingLaunchScript, and the import promi
   const done = run(mock);
 
   assert.equal(mock.pendingLaunchScript, '@crop 10%\n');
-  assert.equal(mock.loaded.length, 0, 'nothing has loaded yet — the caller must await');
+  assert.equal(reads.length, 0, 'nothing has loaded yet — the caller must await');
   await done;
-  assert.equal(mock.loaded.length, 1, 'the promise resolves only once the picture is in');
+  assert.equal(reads.length, 1, 'the promise resolves only once the picture is in');
+  assert.deepEqual(mock.image, { decoded: true });
 });
 
 test('a script-only hand-off survives the no-image path (nothing to normalize, still runnable)', async () => {
@@ -117,15 +145,11 @@ test('every applyExternalLaunch exit answers with a promise, so the caller can a
 test('the promise waits for the picture to decode, not just for the load to start', async () => {
   resetGlobals();
   globalThis.location.hash = fragmentFor({ dataUrl: 'data:image/png;base64,AAAA', script: '@crop 10%\n' });
-  let decoded = false;
-  const mock = makeMock({
-    loadImageFromFile: (...args) => {
-      mock.loaded.push(args);
-      setTimeout(() => { decoded = true; mock.image = { decoded: true }; }, 40);
-    },
-  });
+  decode.delayMs = 40;
+  const mock = makeMock();
   await run(mock);
-  assert.equal(decoded, true, 'the caller is handed a picture, not a pending one');
+  assert.equal(reads.length, 1, 'the load started');
+  assert.deepEqual(mock.image, { decoded: true }, 'the caller is handed a picture, not a pending one');
 });
 
 test('a picture that never decodes gives up rather than hanging the boot', async () => {
@@ -136,11 +160,13 @@ test('a picture that never decodes gives up rather than hanging the boot', async
   const realNow = Date.now;
   let clock = realNow();
   Date.now = () => { clock += 1000; return clock; };
-  const mock = makeMock({ loadImageFromFile: (...args) => { mock.loaded.push(args); } });
+  decode.never = true;
+  const mock = makeMock();
   try {
     await run(mock);
   } finally {
     Date.now = realNow;
   }
+  assert.equal(reads.length, 1, 'the load started');
   assert.equal(mock.image, null, 'no picture — and the boot carried on anyway');
 });

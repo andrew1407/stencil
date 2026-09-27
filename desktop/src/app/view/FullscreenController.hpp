@@ -1,11 +1,12 @@
 #pragma once
+#include <QList>
 #include <QPoint>
 #include <QSize>
 #include <algorithm>
 #include <cmath>
 #include <optional>
 
-class QTimer;
+class QToolBar;
 class QVariantAnimation;
 
 namespace stencil::gui {
@@ -20,7 +21,10 @@ namespace stencil::gui {
     // Read these, never isVisible(): an animated hide stays visible until the slide ends.
     bool barsShown = false;
     bool panelShown = false;
-    QTimer* hoverTimer = nullptr;         // ~60 Hz cursor poll (parented to the window)
+    // The tool rows the edge reveal slides, cached on entry. The reveal follows the pointer's
+    // moves; `tickQueued` folds a move's copies (one per ancestor) into one pass.
+    QList<QToolBar*> bars;
+    bool tickQueued = false;
     QVariantAnimation* zoomAnim = nullptr;
     QSize zoomFromViewport;               // viewport size captured before the show/showNormal
     int zoomWaits = 0;                    // ticks spent waiting for the new geometry

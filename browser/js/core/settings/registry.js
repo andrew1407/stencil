@@ -1,6 +1,7 @@
 import { setVal, cmToUnit } from '../../utils.js';
 import { normalizePageSize } from './units.js';
 import { paintTintControls, paintCustomSizeGroup } from '../../ui/settings/settingMirrors.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // The numeric parsers return undefined on NaN to ABORT the set.
 const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };
@@ -11,7 +12,8 @@ const toStr = v => String(v);
 export const COMPARE_MODES = Object.freeze(['none', 'original', 'vertical', 'horizontal']);
 
 // One descriptor per simple setting: `field`, `parse` (undefined ABORTS), `mirror` DOM twins,
-// `afterSet`, `redraw` (always, even on persist:false); save/remoteSync/filterDirty gated on `persist`.
+// `afterSet`, `redraw` (always, even on persist:false); save/remoteSync/filterDirty/history gated
+// on `persist`, `history` meaning one undo step per commit that moves the filter (filterStep.js).
 export const SETTINGS = Object.freeze({
   color: {
     field: 'color', parse: toStr,
@@ -37,7 +39,7 @@ export const SETTINGS = Object.freeze({
   filterColor: {
     field: 'filterColor', parse: toStr,
     mirror: [{ id: 'filter-color', kind: 'value' }, { id: 'ctx-tint-color', kind: 'value' }],
-    redraw: true, save: true, remoteSync: true, filterDirty: true,
+    redraw: true, save: true, remoteSync: true, filterDirty: true, history: true,
   },
   showPoints: {
     field: 'showPoints', parse: b => !!b,
@@ -61,7 +63,7 @@ export const SETTINGS = Object.freeze({
       const app = self.app;
       paintTintControls(app.imageFilter === 'custom');
     },
-    redraw: true, save: true, remoteSync: true, filterDirty: true,
+    redraw: true, save: true, remoteSync: true, filterDirty: true, history: true,
   },
   compareMode: {
     field: 'compareMode',
@@ -73,7 +75,7 @@ export const SETTINGS = Object.freeze({
     },
     mirror: [{ id: 'compare-mode', kind: 'value' }],
     // Compare is read-only: grey out the editing toolbar controls.
-    afterSet: (self) => self.app.updateButtons(),
+    afterSet: (self) => changed(self.app, CHANGE.compare),
     redraw: true,
   },
   pageSize: {

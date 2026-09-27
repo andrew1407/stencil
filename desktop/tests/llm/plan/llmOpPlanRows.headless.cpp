@@ -155,8 +155,8 @@ namespace llmopplan {
     check(r.ok && r.plan.variants.isEmpty(),
           "editor-settings op inside a variant drops the variant");
     check(r.plan.warnings.size() == 1 &&
-              r.plan.warnings[0].contains("Dropped variant \"t\"") &&
-              r.plan.warnings[0].contains("\"theme\" is an editor-settings op"),
+              r.plan.warnings[0].contains("Dropped variant 1 (\"t\")") &&
+              r.plan.warnings[0].contains("editor-settings op \"theme\""),
           "…with a warning naming the variant and the op");
   }
   {

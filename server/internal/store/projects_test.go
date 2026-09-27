@@ -68,9 +68,12 @@ func TestUpdateProjectLWW(t *testing.T) {
 	if upd.Version != 1 {
 		t.Fatalf("version not bumped: %d", upd.Version)
 	}
-	// jsonb normalizes whitespace, so compare semantically, not byte-for-byte.
-	if !sameJSON(t, upd.Layout, layout) {
-		t.Fatalf("layout not persisted: %s", upd.Layout)
+	// The write returns metadata only; the layout is read back. jsonb normalizes whitespace.
+	if upd.Layout != nil {
+		t.Fatalf("UpdateProject returned the layout payload: %s", upd.Layout)
+	}
+	if got, _ := s.GetProject(ctx, p.ID); !sameJSON(t, got.Layout, layout) {
+		t.Fatalf("layout not persisted: %s", got.Layout)
 	}
 	// nil color leaves it unchanged (still empty here).
 	if upd.Color != "" {
@@ -91,7 +94,7 @@ func TestSetFile(t *testing.T) {
 	ctx := context.Background()
 	p, _ := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Img"})
 
-	upd, err := s.SetFile(ctx, p.ID, protocol.KindOriginal, "projects/"+p.ID+"/original.png", 640, 480)
+	upd, err := s.SetFile(ctx, p.ID, StoredFile{Kind: protocol.KindOriginal, Path: "projects/" + p.ID + "/original.png", W: 640, H: 480})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +104,7 @@ func TestSetFile(t *testing.T) {
 	if upd.Version != 1 {
 		t.Fatalf("version not bumped on setfile")
 	}
-	res, err := s.SetFile(ctx, p.ID, protocol.KindResult, "projects/"+p.ID+"/result.png", 0, 0)
+	res, err := s.SetFile(ctx, p.ID, StoredFile{Kind: protocol.KindResult, Path: "projects/" + p.ID + "/result.png"})
 	if err != nil || res.ResultPath == "" {
 		t.Fatalf("result file not set: %v %+v", err, res)
 	}

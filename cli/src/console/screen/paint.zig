@@ -8,26 +8,21 @@ const ansi = @import("../render/ansi.zig");
 const logoFx = @import("../render/logoFx.zig");
 const restyle = @import("../render/ansi/restyle.zig");
 const skin = @import("../../app/skin.zig");
+const frame = @import("frame.zig");
+const diff = @import("diff.zig");
+const rowUnchanged = diff.rowUnchanged;
 const gotoRow = sc.gotoRow;
 const header_pad = sc.header_pad;
 const ttyWrite = sc.ttyWrite;
 const gotoClear = sc.gotoClear;
 
 pub fn fullPaint(self: *Screen) void {
+    frame.begin(self);
+    defer frame.end(self);
     ttyWrite(self.fd, restyle.tail()); // a skin's bg is what the clear fills with
     ttyWrite(self.fd, "\x1b[2J"); // full clear — only for the initial paint / a resize
     @memset(&self.row_hashes, 0);
     self.repaint();
-}
-
-/// Whether `row` already shows `bytes`, by the hash of its last paint from here — recorded on every
-/// paint, honoured only while `skip_unchanged` (an animated skin's frame; see `Screen.row_hashes`).
-pub fn rowUnchanged(self: *Screen, row: u16, bytes: []const u8) bool {
-    if (row == 0 or row > self.row_hashes.len) return false;
-    const slot = &self.row_hashes[row - 1];
-    const h = @max(std.hash.Wyhash.hash(0, bytes), 1); // 0 stays "unknown"
-    defer slot.* = h;
-    return self.skip_unchanged and slot.* == h;
 }
 
 // Repaint every region in place (per-line clears, no full-screen \x1b[2J) — used on a theme
@@ -53,7 +48,12 @@ pub fn paintHeader(self: *Screen) void {
 /// Repaint everything a highlight can cover: the output body and the input block. The editor owns
 /// the input rows normally, so they are redrawn here only while a selection is on them.
 pub fn repaintSelection(self: *Screen) void {
+    self.drag_owed = false; // the highlight is about to show the drag as it now stands
+    frame.begin(self);
+    defer frame.end(self);
+    self.skip_unchanged = diff.plain(); // only the rows the highlight moved over or off
     self.paintBody();
+    self.skip_unchanged = false;
     self.paintPromptSelection();
 }
 
@@ -79,6 +79,7 @@ pub fn paintBody(self: *Screen) void {
 // `paintBody`, with the rows from scrollback index `reveal_from` on drawn only as far as
 // their first `x` visible columns (`null` = the normal, whole-line paint).
 pub fn paintBodyCut(self: *Screen, reveal_from: ?usize, x: u16) void {
+    self.scroll_owed = false; // the body is about to show the window as it now stands
     if (self.bodyRows() == 0) return;
     self.clampScroll();
     const w = self.window();
@@ -90,11 +91,11 @@ pub fn paintBodyCut(self: *Screen, reveal_from: ?usize, x: u16) void {
     while (i < w.end) : (i += 1) {
         const cut = if (reveal_from) |f| i >= f else false;
         const bytes = if (cut) // an arriving row, drawn only as far as the sweep has come
-            ansi.clipPrefix(self.lines.items[i], self.cols, x, &rb)
+            ansi.clipPrefix(self.lines.at(i), self.cols, x, &rb)
         else if (self.selRowCols(r)) |sel| // this row is (partly) selected → draw it highlighted
-            ansi.clipHighlight(self.lines.items[i], self.cols, sel.c0, sel.c1, &rb)
+            ansi.clipHighlight(self.lines.at(i), self.cols, sel.c0, sel.c1, &rb)
         else
-            ansi.clip(self.lines.items[i], self.cols, &rb);
+            ansi.clip(self.lines.at(i), self.cols, &rb);
         if (!rowUnchanged(self, r, bytes)) {
             gotoRow(self.fd, r);
             ttyWrite(self.fd, bytes);
@@ -185,6 +186,10 @@ pub fn captureHeader(self: *Screen) void {
 /// Recapture the header in the new accent, sweep the new colour across the screen, then play
 /// the logo animation — called after a `/theme` change or a logo click.
 pub fn onThemeChanged(self: *Screen) void {
+    frame.begin(self);
+    defer frame.end(self);
+    const kept = frame.keepCursor(self);
+    defer frame.returnCursor(self, kept);
     if (!self.mouse_on) self.setSelectionTint(true); // the terminal's own highlight follows too
     // Take the outgoing header (it still carries the old accent) before recapturing, so the
     // sweep has both renderings of every logo row to splice together.
@@ -197,25 +202,4 @@ pub fn onThemeChanged(self: *Screen) void {
     self.captureHeader();
     logoFx.wipeRecolor(self, old_header.items);
     self.painted_accent = logo.accentRgb();
-}
-
-const testing = std.testing;
-
-test "an animated frame skips a row that already shows the same bytes; a full paint forgets them all" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
-    defer s.freeAll();
-    try testing.expect(!rowUnchanged(&s, 3, "abc")); // first sight of the row
-    try testing.expect(!rowUnchanged(&s, 3, "abc")); // the same again, but not inside a skin frame
-    s.skip_unchanged = true;
-    try testing.expect(rowUnchanged(&s, 3, "abc"));
-    try testing.expect(!rowUnchanged(&s, 3, "abd")); // a change goes out …
-    try testing.expect(rowUnchanged(&s, 3, "abd")); // … and is then what the row shows
-    try testing.expect(!rowUnchanged(&s, 0, "") and !rowUnchanged(&s, sc.max_cached_rows + 1, "")); // never cached
-    try testing.expect(!rowUnchanged(&s, 9, "abd") and rowUnchanged(&s, 9, "abd")); // the prompt row: no paint here touches it
-    s.fullPaint(); // clears the terminal, so every row is unknown again — then paints the body and the rules
-    try testing.expect(!rowUnchanged(&s, 9, "abd"));
-    try testing.expect(rowUnchanged(&s, 3, "")); // the gap clear left this body row blank, and it still is
 }

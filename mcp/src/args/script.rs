@@ -30,10 +30,15 @@ pub struct ScriptParams {
     #[serde(default)]
     pub input: Option<String>,
 
-    /// Directory every `@save` must write inside (created if missing; defaults to the
-    /// current directory). The run is confined to it, so use relative `@save` targets.
+    /// Directory every `@save` must write inside, itself inside the server's roots (created
+    /// if missing; defaults to the first root). Use relative `@save` targets.
     #[serde(default)]
     pub output_dir: Option<String>,
+
+    /// Also return the first images the script wrote (up to 4) as PNG thumbnails (longer side
+    /// at most 512 px) in image content blocks. Defaults to false.
+    #[serde(default)]
+    pub preview: bool,
 }
 
 impl ScriptParams {
@@ -48,25 +53,7 @@ impl ScriptParams {
     /// Every guard that can fail before a file is written or a process spawned: exactly one
     /// script source, a bounded inline script, a `.stc` path, and no dash-leading value.
     pub fn validate(&self) -> Result<(), EditError> {
-        match (&self.script_text, &self.script_path) {
-            (Some(_), Some(_)) => return Err(EditError::ScriptSourceConflict),
-            (None, None) => return Err(EditError::NoScript),
-            _ => {}
-        }
-        if let Some(text) = &self.script_text {
-            if text.trim().is_empty() {
-                return Err(EditError::NoScript);
-            }
-            if text.len() > MAX_SCRIPT_BYTES {
-                return Err(EditError::ScriptTooLarge(text.len()));
-            }
-        }
-        if let Some(path) = &self.script_path {
-            dash_free("script_path", path)?;
-            if !has_stc_suffix(path) {
-                return Err(EditError::ScriptNotStc(path.clone()));
-            }
-        }
+        validate_source(&self.script_text, &self.script_path)?;
         if let Some(input) = &self.input {
             dash_free("input", input)?;
         }
@@ -77,6 +64,33 @@ impl ScriptParams {
     }
 }
 
+/// Exactly one of inline text (bounded, non-blank) or a `.stc` path that is not a flag.
+pub(super) fn validate_source(
+    text: &Option<String>,
+    path: &Option<String>,
+) -> Result<(), EditError> {
+    match (text, path) {
+        (Some(_), Some(_)) => return Err(EditError::ScriptSourceConflict),
+        (None, None) => return Err(EditError::NoScript),
+        _ => {}
+    }
+    if let Some(text) = text {
+        if text.trim().is_empty() {
+            return Err(EditError::NoScript);
+        }
+        if text.len() > MAX_SCRIPT_BYTES {
+            return Err(EditError::ScriptTooLarge(text.len()));
+        }
+    }
+    if let Some(path) = path {
+        dash_free("script_path", path)?;
+        if !has_stc_suffix(path) {
+            return Err(EditError::ScriptNotStc(path.clone()));
+        }
+    }
+    Ok(())
+}
+
 /// A `.stc` extension, matched case-insensitively — only the extension: the language's own
 /// paths are case-sensitive, but a file name is the operating system's business.
 fn has_stc_suffix(path: &str) -> bool {
@@ -85,7 +99,7 @@ fn has_stc_suffix(path: &str) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("stc"))
 }
 
-fn dash_free(field: &'static str, value: &str) -> Result<(), EditError> {
+pub(super) fn dash_free(field: &'static str, value: &str) -> Result<(), EditError> {
     if value.trim().is_empty() {
         return Err(EditError::EmptyValue(field));
     }

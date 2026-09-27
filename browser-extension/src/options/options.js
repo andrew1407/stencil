@@ -27,10 +27,10 @@ installStencilFacade(window, document);
 initTooltips();
 wireScrollbarHover();   // every scrollable's thumb takes the accent under the pointer
 
-// The native <select> is drawn by the OS in system type, ignoring the theme (lib/customSelect.js).
+// The native <select> is drawn by the OS in system type, ignoring the theme (lib/control/customSelect.js).
 for (const el of document.querySelectorAll('select'))
   enhanceSelect(el, { search: el.id === 'page', icons: el.id === 'motion' ? motionModeIcon : null });
 
-// Pinned to its widest label (lib/fitWidest.js) so swapping labels never resizes the wrapping
+// Pinned to its widest label (lib/highlight/fitWidest.js) so swapping labels never resizes the wrapping
 // filter row; the site/storage lists beside it carry arbitrary hostnames.
 pinToWidestOption(pinSearchModeEl);

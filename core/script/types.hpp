@@ -51,6 +51,10 @@ namespace stencil::core::script {
     int col = 1;
     int len = 0;
     std::string message;
+    // The `@use stencil` call a template-body diagnostic came from; relatedLine 0 = none.
+    int relatedLine = 0;
+    int relatedCol = 0;
+    int relatedLen = 0;
   };
 
   // What a block's ops run against. OPEN carries the spec; the adapter resolves it.

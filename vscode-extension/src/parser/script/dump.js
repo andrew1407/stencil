@@ -1,14 +1,8 @@
 // Port of core/script/dump.cpp — the canonical text form the fixtures compare against.
 // A change here re-records every `<name>.dump.txt`.
 
-// Trailing zeros make a dump churn on a harmless refactor; print the shortest exact form.
-const num = (v) => {
-  if (Number.isFinite(v) && Number.isInteger(v)) return String(v);
-  let s = String(v);
-  while (s.length > 1 && s.endsWith('0')) s = s.slice(0, -1);
-  if (s.endsWith('.')) s = s.slice(0, -1);
-  return s;
-};
+// The shortest round-trip form, which dump.cpp spells out to match; '1e-70' keeps its zero.
+const num = (v) => String(v);
 
 const quoted = (s) => `"${s}"`;
 

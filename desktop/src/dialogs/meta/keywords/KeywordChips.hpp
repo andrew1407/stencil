@@ -17,7 +17,7 @@ namespace stencil::gui {
 
   class FlowLayout;
 
-  // One keyword list, edited as chips (browser ui/keywordChips.js twin). The list is the value;
+  // One keyword list, edited as chips (browser ui/meta/keywordChips.js twin). The list is the value;
   // the input only proposes words.
   class KeywordChips : public QWidget {
     Q_OBJECT

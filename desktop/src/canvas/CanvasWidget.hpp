@@ -1,91 +1,60 @@
 #pragma once
-#include "accentDefaults.hpp"
-#include "cropGeometry.hpp"
-#include "idleCardMotion.hpp"   // the idle card's glyph motion (iconMotion.json "image")
-#include "HistoryStack.hpp"
-#include "holdDraw.hpp"
-#include "models.hpp"
-#include "chainEdit.hpp"
+#include "CanvasScene.hpp"
+#include "IdleCard.hpp"
+#include "gesture.hpp"
+#include "holdGlue.hpp"
+#include "liveMarks.hpp"
+#include "pointerTuning.hpp"
 #include "strokeGrowth.hpp"
-#include <QColor>
-#include <QImage>
-#include <QString>
-#include <QWidget>
+#include <QElapsedTimer>
 #include <QPoint>
 #include <QRectF>
-#include <QPolygonF>
-#include <QElapsedTimer>
 #include <QTimer>
+#include <QWidget>
 #include <functional>
 #include <vector>
 
-class QNativeGestureEvent;
-class QVariantAnimation;  // not transitively declared by <QWidget> (unlike QWheelEvent)
-
-// The drawing surface — browser twin renderer.js (what to draw) + zoom/pan.js (scale).
+// The drawing surface — browser twin renderer.js (what to draw) + zoom/pan.js (scale): the
+// CanvasScene plus the pointer, the selection, the view and the motion.
 namespace stencil::gui {
 
-  struct Palette;  // theme.hpp; used by the drawLineScaled paint helpers below
+  namespace chain = core::chain;
 
-  class CanvasWidget : public QWidget {
+  class CanvasWidget : public QWidget, public CanvasScene {
     Q_OBJECT
    public:
     enum class DrawMode { LINE, RECT };
 
     explicit CanvasWidget(QWidget* parent = nullptr);
 
-    // `decoded` = pixels the caller already read off the GUI thread, so a file is never decoded twice.
-    bool loadImage(const QString& path, const QImage& decoded = QImage());
+    // `decoded` = the pixels of `path`, read off the GUI thread; false (nothing changes) without them.
+    bool loadImage(const QString& path, const QImage& decoded);
     void restore(const QString& path, const core::Lines& lines, double scale,
-                 const core::CropRect& cropRect = {}, int rotationQuarters = 0,
-                 const QImage& decoded = QImage());   // …pixels, if the caller has them
-    const QString& getImagePath() const { return imagePath; }
-    void setImagePath(const QString& path) { imagePath = path; }
-    bool hasImage() const { return !image.isNull(); }
-    int imageWidth() const { return image.width(); }
-    int imageHeight() const { return image.height(); }
-
-    // The untouched original; image is the cropped region.
-    const QImage& getOriginalImage() const { return originalImage; }
-    // The original with the rotation baked in — the pixel space cropRect lives in.
-    QImage effectiveOriginalImage() const;
-    core::CropRect getCropRect() const { return cropRect; }
-    // Quarter-turns (0..3, clockwise) applied to the original before the crop.
-    int getRotationQuarters() const { return rotationQuarters; }
+                 const core::CropRect& cropRect, int rotationQuarters, const QImage& decoded);
     void rotateImage(bool clockwise);
-    // Natural page size in cm (NOT orientation-swapped); shapes the default centered crop.
-    void setPageCm(double widthCm, double heightCm);
-    // `recalc`: lines are cleared on an orientation flip, else rescaled.
     void applyCrop(const core::CropRect& rect, bool recalc);
+    void loadFromImage(const QImage& img, bool keepZoom = false);   // keepZoom: no scale reset
+    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
+    void clearImage();
+    void setIdleHintHidden(bool on);   // off while the clear's dust falls (.canvas-clearing)
+    QRect idleCardGlobalRect() const;  // GLOBAL rect of the card; empty when it is not showing
+    bool getIdleHintHidden() const { return idle.hidden; }
 
     void setScale(double scale);
     double getScale() const { return scale; }
+    // Hit thresholds are constant ON SCREEN: base screen px ÷ zoom (browser parity).
+    double hitRadius(double basePx) const { return basePx / (scale > 0 ? scale : 1.0); }
 
-    // Committed lines only; allLines() also includes the in-progress line (for save).
-    const core::Lines& getLines() const { return lines; }
-    const core::Line& getCurrentLine() const { return currentLine; }
-    core::Lines allLines() const;
     void setLines(const core::Lines& lines);     // replace all, reset the history
     void commitLines(const core::Lines& lines);  // replace all, push ONE undo step
-
+    bool commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters);  // ONE step; refits
+    bool commitFilter(const QString& mode, const QColor& tint);  // the scene's pick, plus changed()
     void startNewLine();      // commit the in-progress line, begin a fresh one
     void deleteLastPoint();   // remove the last point of the in-progress line
     void clearAll();          // remove every line
     void unchainSelectedLine();
     void undo();
     void redo();
-    bool canUndo() const { return history.canUndo(); }
-    bool canRedo() const { return history.canRedo(); }
-
-    // `pointColor` empty = follow `color`.
-    void setDefaults(const QString& color, double thickness, double pointSize,
-                     const QString& style, const QString& pointColor = QString());
-    void setShowPoints(bool on);
-    void setShowLines(bool on);
-    void setDark(bool dark);
-    void setAccent(const QString& accentKey);
-    void setHighlightColors(const QColor& selGlow, const QColor& hoverRing,
-                            const QColor& focusRing);
 
     // Selection panel: the line whose points are shown; focused point -1 = none.
     const core::Line* panelLine() const;
@@ -118,45 +87,6 @@ namespace stencil::gui {
     void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
-    // image filters (port of browser/js/core/draw/renderer.js)
-    void setFilter(const QString& mode);
-    void setFilterColor(const QColor& tint);
-    void setImageFilter(const QString& mode, const QColor& tint);
-    const QString& getImageFilter() const { return imageFilter; }
-    const QColor& getFilterColor() const { return filterColor; }
-
-    // Compare view (browser DrawingApp.compareMode): none | original | vertical | horizontal. Transient.
-    void setCompareMode(const QString& mode);
-    const QString& getCompareMode() const { return compareMode; }
-    bool isSplitCompare() const { return compareMode == "vertical" || compareMode == "horizontal"; }
-    void setCompareSplit(double fraction);      // divider position 0..1
-    double getCompareSplit() const { return compareSplit; }
-    void setCompareHoldOriginal(bool on);
-    bool getCompareHoldOriginal() const { return compareHoldOriginal; }
-    // A blank page's colour IS the page, so compare keeps the tint on the "original" side.
-    void setBlankPage(bool on);
-    bool getBlankPage() const { return blankPage; }
-    // A compare view is read-only: highlights and editing gestures are suppressed.
-    bool compareReadOnly() const { return effectiveCompareMode() != "none"; }
-    // True where the EDITED image shows — the only place the layout is drawn; gates the hover tip.
-    bool compareShowsEdited(double imageX, double imageY) const;
-
-    // Export variants (browser export/service.js): "current" filter + lines, "original" crop and
-    // rotation only, "tint" filter only, "split" the composite (`withDivider` bakes the bar in).
-    QImage renderToImage(const QString& variant, bool withDivider = false) const;
-    QImage renderToImage(bool withOverlay) const;
-    const QImage& getImage() const { return image; }
-    QString imageBaseName() const;
-    QString imageExt() const;
-    // `keepZoom` skips the scale reset (browser loadImageFromFile opts.keepZoom).
-    void loadFromImage(const QImage& img, bool keepZoom = false);
-    // Rotation is applied FIRST, then the crop (rotated-original space); a zero-width crop default-crops.
-    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
-    void clearImage();
-    void setIdleHintHidden(bool on);   // off while the clear's dust falls (.canvas-clearing)
-    QRect idleCardGlobalRect() const;  // GLOBAL rect of the card; empty when it is not showing
-    bool getIdleHintHidden() const { return idleHintHidden; }
-
     // `preview` = a colour still being picked: the undo step is debounced (scheduleEditCommit).
     void setSelectedLineColor(const QString& color, bool preview = false);
     void setSelectedLineThickness(double thickness);
@@ -167,11 +97,9 @@ namespace stencil::gui {
     void deleteSelectedLine();
 
     bool getIsDrawing() const { return isDrawing; }
-
     // Hold-to-draw (browser holdDraw.js); the delay (ms) is the hold/dwell threshold from Settings.
     void setHoldDrawDelay(int ms);
-    int holdDrawDelay() const { return holdDelayMs; }
-
+    int holdDrawDelay() const { return hold.delayMs; }
 
    signals:
     void hovered(double imageX, double imageY);  // image-space cursor position
@@ -185,6 +113,7 @@ namespace stencil::gui {
     // lineIdx -1 with a valid ptIdx = the in-progress line; overLineIdx = committed line under the cursor.
     void canvasHoverChanged(int lineIdx, int ptIdx, int overLineIdx);
     void changed();                              // lines or history changed
+    void filterRestored(const QString& mode, const QColor& tint);  // an undo or redo put it back
     void selectionChanged();
     void statusMessage(const QString& text);
     void contextRequested(const QPoint& globalPos);
@@ -204,6 +133,7 @@ namespace stencil::gui {
     void stopDrawingMode();
 
    protected:
+    void sceneChanged() override { update(); }
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -216,54 +146,30 @@ namespace stencil::gui {
     bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
+    friend class GestureRoutes;   // each gesture's move and release
     void toggleLineIndex(int idx);
-
     void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true);
-
+    // The step undo and redo take: the scene restored, the view refitted when it changed.
+    void takeHistoryStep(const std::optional<core::EditorMemento>& step);
     // Widget-space bounds of one line (-1 = in-progress), padded for stroke, rings and flights.
     // strokeFxRect(): lines with a vertex in flight; dragRect(): the ones an Alt-drag moves.
     QRect lineRect(int lineIdx) const;
     QRect strokeFxRect() const;
     QRect dragRect() const;
-    void paintIdleCard(QPainter& p, const Palette& pal);
-    // Scale 1.0 for renderToImage, scale live. `highlight` rings are never baked into exports;
-    // `live`: only the screen flies a freshly-added vertex.
-    void drawLineScaled(class QPainter& p, const core::Line& line, int lineIdx,
-                        double scale, bool highlight, bool live = true) const;
-    // The points as DRAWN this frame (a vertex may be in flight); fills the caller's buffer.
-    void flownPolygon(const core::Line& line, int lineIdx, double scale, bool live,
-                      QPolygonF& poly) const;
-    void drawStrokeWake(QPainter& p, const core::Line& line, const QPolygonF& poly,
-                        int lineIdx, const QColor& stroke) const;
-    void drawStrokeSpark(QPainter& p, const core::Line& line, const QPolygonF& poly,
-                         int lineIdx, const QColor& pointFill) const;
-    void flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
-                    const QPointF* from = nullptr);
+    LiveMarks liveMarks() const;
+    void flyInPoint(int lineIdx, const core::Line& line, int ptIdx, const QPointF* from = nullptr);
     void flyInPoints(int lineIdx, const core::Line& line, int startIdx, int count);
     // A flight is keyed by LINE INDEX: anything that renumbers the lines (undo, restore, removal)
     // must ground them first, or the last one finishes on whatever line inherited its number.
     void resetStrokeFx();
     double fxNow() const;
-    void drawFill(QPainter& p, const core::Line& line, const class QPolygonF& poly) const;
-    void drawGlow(QPainter& p, const core::Line& line, const QPolygonF& poly,
-                  int lineIdx, bool highlight, const Palette& pal) const;
-    void drawStroke(QPainter& p, const core::Line& line, const QPolygonF& poly,
-                    const class QColor& stroke) const;
-    void drawPoints(QPainter& p, const core::Line& line, const QPolygonF& poly,
-                     int lineIdx, bool highlight, const QColor& stroke,
-                     const Palette& pal, bool live) const;
-    double pointScaleAt(int lineIdx, const core::Line& line, int ptIdx, bool live) const;
     // mousePressEvent dispatch; handleCtrlClick returns true when it consumes the click.
-    void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods,
-                      const QPoint& globalPos);
-    // Alt+Ctrl: pull a NEW point out of the line under the cursor, breaking a closed area (chainEdit.hpp).
+    void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods, const QPoint& globalPos);
+    // Alt+Ctrl: pull a NEW point out of the line under the cursor, breaking a closed area (core lineChain).
     bool beginPullOut(const core::Point& ip);
     void beginZoomRect(const QPoint& widgetPos);
     bool handleCtrlClick(const core::Point& ip);
-    void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods,
-                            const QPoint& widgetPos);
-    void updateDrag(const core::Point& ip, bool shift);
-
+    void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods, const QPoint& widgetPos);
     void beginHold(const QPoint& widgetPos);
     void stopHold();
     void handleHoldTick();
@@ -272,27 +178,11 @@ namespace stencil::gui {
     void holdCommit();
     double holdNowMs() const;
     const core::Point* holdAnchor() const;
-
-    // Compare split (renderer.js drawCompareSplit); the divider hit-test stays in widget space.
-    void paintCompareSplit(QPainter& p, const QString& mode, double scale, bool withDivider = true) const;
     bool nearCompareDivider(const QPoint& widgetPos) const;
-    // The "original" side: raw pixels, but a BLANK page as currently coloured. Caller rebuilds the filter cache.
-    const QImage& compareBaseImage() const {
-      return (blankPage && imageFilter != QLatin1String("none") && !filteredImage.isNull())
-                 ? filteredImage
-                 : image;
-    }
-    QString effectiveCompareMode() const {
-      return compareHoldOriginal ? QStringLiteral("original") : compareMode;
-    }
-
     core::Point toImageSpace(int widgetX, int widgetY) const;
     void commitHistory();
-    void applyDefaultsToCurrent();
     core::Line* mutablePanelLine();
     void createRect(double x1, double y1, double x2, double y2);
-    void rebuildFilteredImage();
-
     void insertPointOnSegment(int lineIdx, int insertIdx, double x, double y);
     void addConnectedPoint(double x, double y);
     void closeContinuedShape();
@@ -300,10 +190,8 @@ namespace stencil::gui {
     bool tryCloseShapeAt(const core::Point& ip);
     // Caller must have validated continueLineIdx.
     void insertContinuationPoint(const core::Point& ip, bool advance);
-    // core::shouldCloseShape's slack in image px; closeGrabSize undoes the zoom so it is constant on screen.
-    static constexpr double CLOSE_SLACK = 8.0;
+    // closeGrabSize undoes the zoom on core::shouldCloseShape's slack so it is constant on screen.
     double closeGrabSize(const core::Line& line) const;
-
     bool updateHover(double imageX, double imageY);
     void applyHoverCursor(const core::Point& ip, Qt::KeyboardModifiers mods);
     void refreshHoverForModifiers();
@@ -311,118 +199,27 @@ namespace stencil::gui {
     void scheduleEditCommit();  // debounced commitHistory for wheel edits
     // Pivot: ≥2 selected → combined bbox centre; 1 → focused point, else that line's bbox centre.
     void transformSelection(const std::function<void(std::vector<core::Point>&, double, double)>& op);
-
-    QImage image;
-    // cropRect.width == 0 means "no crop yet".
-    QImage originalImage;
-    core::CropRect cropRect;
-    int rotationQuarters = 0;
-    double pageWidthCm = 29.7;
-    double pageHeightCm = 42.0;
-    core::CropRect defaultCropRect() const;  // centered crop for the rotated original
-    void rebuildCroppedFromOriginal();       // image <- rotated original ∩ cropRect
-    QString imagePath;
-    core::Lines lines;
-    core::Line currentLine;
-    core::HistoryStack history;
-    double scale = 1.0;
-    int selectedPoint = -1;
-    bool showPoints = true;
-    bool showLines = true;
-    bool isDrawing = false;  // gates left-click point adds
-    bool idleHintHidden = false;
-    QRectF idleCardRect;
-    bool idleCardHover = false;
-    double idleCardHoverT = 0.0;   // hover blend 0..1, over 0.2s as the browser transitions it
-    QVariantAnimation* idleCardAnim = nullptr;
-    double idleCardEnterT = 1.0;   // the arrival when a picture leaves; 1 = resting
-    QVariantAnimation* idleCardEnterAnim = nullptr;
-    double idleShimmerT = -1.0;
-    QVariantAnimation* idleShimmerAnim = nullptr;
-    // Stroked by hand in IdleCard.cpp (the app-wide watcher knows only QAbstractButtons, and
-    // Qt6::Svg would follow it into every headless target): iconMotion.json `image`. -1 = rest.
-    double idleGlyphMs = -1.0;
-    QVariantAnimation* idleGlyphAnim = nullptr;
-    void setIdleCardHover(bool on);
-    void startIdleCardArrival();
-    bool dark = false;
-    QString accentKey = DEFAULT_ACCENT_KEY;  // brand accent for the rubber-band previews
-    // DEFAULT_VISUALS' own values until setHighlightColors is called.
-    QColor selGlow{"#ffc800"};
-    QColor hoverRing{DEFAULT_ACCENT_HEX}, focusRing{DEFAULT_ACCENT_HEX};
-
-    // Canonical selection owner; filters/render/line-edit only consume selectedLineIdx.
-    DrawMode drawMode = DrawMode::LINE;
-    int selectedLineIdx = -1;
-    // Empty in single-select mode; with 2+ entries selectedLineIdx is -1 (browser selectedLines).
-    std::vector<int> selectedLines;
-    bool rectDrawActive = false;     // drag-to-create rectangle in progress
-    QPoint rectDrawStart, rectDrawEnd;  // rubber-band corners (widget space)
-
-    // Continuation: clicks extend the committed line at continueInsertIdx; -1 = not continuing.
-    int continueLineIdx = -1;
-    int continueInsertIdx = -1;
-
-    // filteredImage is rebuilt lazily on paint when filterDirty is set.
-    QString imageFilter = "none";
-    QColor filterColor{DEFAULT_ACCENT_HEX};
-    QImage filteredImage;
-    bool filterDirty = true;
-
-    QString compareMode = "none";        // none | original | vertical | horizontal
-    double compareSplit = 0.5;           // divider position (0..1) for the split modes
-    bool compareHoldOriginal = false;    // Alt+Shift+O momentary "peek original"
-    bool draggingCompareSplit = false;   // divider drag in progress
-    bool blankPage = false;              // generated solid-fill page (set by the owner)
-
-    bool panning = false;        // Alt+left or middle-button drag
-    QPoint lastPanPos;           // last cursor pos during a pan (GLOBAL space)
-    bool zoomRectActive = false; // Shift+left drag rubber band
-    QPoint zoomRectStart;        // rubber-band anchor (widget space)
-    QPoint zoomRectEnd;          // rubber-band current corner (widget space)
-
-    QString defColor = "#FFFF00";
-    QString defPointColor = "";   // empty = points follow defColor
-    double defThickness = 2.0;
-    double defPointSize = 4.0;
-    QString defStyle = "solid";
-
-    // Hover under the cursor (-1 = none; lineIdx -1 with a valid pointIdx = the in-progress line).
-    int hoverLineIdx = -1;
-    int hoverPointIdx = -1;
-    int hoverOverLineIdx = -1;
-    // Hover from the panel lists (browser hoveredPtIdx / listHoverLineIdx).
-    int listHoverPointIdx = -1;
-    int listHoverLineIdx = -1;
-    // Hit thresholds are constant ON SCREEN: base screen px ÷ zoom (browser parity).
-    double hitRadius(double basePx) const { return basePx / (scale > 0 ? scale : 1.0); }
+    double lineHitRadius() const { return hitRadius(pointerTuning::table().lineRadiusPx); }
+    double grabHitRadius() const { return hitRadius(pointerTuning::table().grabRadiusPx); }
     // Cleared after any structural change — a stale index would ring a DIFFERENT point.
     void clearHoverCache();
 
-    enum class DragKind { NONE, POINT, SEGMENT, LINE };
-    DragKind dragKind = DragKind::NONE;
-    int dragLineIdx = -1;   // line being edited (-1 = in-progress line, Point only)
-    int dragPtIdx1 = -1;    // dragged point (Point) / grabbed segment endpoint 1
-    int dragPtIdx2 = -1;    // grabbed segment endpoint 2 (Segment/Line fallback)
-    core::Point dragStart;  // image-space cursor at gesture start
-    std::vector<core::Point> dragOrig;  // snapshot of the line's points at start
-    std::vector<std::pair<int, std::vector<core::Point>>> dragMultiOrig;
-    bool dragMoved = false;             // any motion happened (gate history)
-
-    // Debounced so a wheel burst is one undo step (browser saveHistory debounce, ~280 ms).
+    double scale = 1.0;
+    bool isDrawing = false;  // gates left-click point adds
+    DrawMode drawMode = DrawMode::LINE;
+    // Canonical selection owner: with 2+ entries in the ascending selectedLines, selectedLineIdx is -1.
+    int selectedLineIdx = -1;
+    std::vector<int> selectedLines;
+    int selectedPoint = -1;
+    // Continuation: clicks extend the committed line at continueInsertIdx; -1 = not continuing.
+    int continueLineIdx = -1;
+    int continueInsertIdx = -1;
+    HoverMarks hover;
+    CanvasGesture gesture;
+    HoldGlue hold;
+    IdleCard idle{this};
+    // Debounced so a wheel burst is one undo step (browser saveHistory debounce, DEBOUNCE.editCommitMs).
     QTimer editCommitTimer;
-
-    // hold is the pure controller; holdTimer ticks it; holdClock supplies monotonic ms.
-    core::HoldDrawController hold;
-    QTimer holdTimer;
-    QElapsedTimer holdClock;
-    int holdDelayMs = 500;
-    bool holdHasPreview = false;
-    // A hold stroke extending BACKWARD from the first point prepends (index 0).
-    bool holdPrepend = false;
-    core::Point holdPreview;
-    QPoint holdPressPos;
-
     // Every route that adds a point hands it to strokeFx; fxTimer repaints while any is moving.
     stroke::Fx strokeFx;
     QTimer fxTimer;

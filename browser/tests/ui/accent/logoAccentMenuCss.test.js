@@ -2,10 +2,10 @@
 // menu grows out of the logo, and an announced accent change re-marks an open list.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { motionSource } from '../../helpers/motionSource.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
 import { rig, marked } from '../../helpers/logoAccentMenuRig.js';
+import { themeSwap, THEME_INSTANT_CLASS } from '../../../js/ui/motion.js';
+import { AccentController } from '../../../js/ui/accent/controller.js';
 
 // ── CSS contract pins (same style as motion.test.js) ────────────────────
 test('animations.css keys the logo loop on the latch, not :hover', () => {
@@ -57,11 +57,15 @@ test('components.css lifts the shared 280px cap for the logo menu — toolbar.js
 });
 
 test('motion.js raises theme-instant BEFORE startViewTransition — the latch depends on it', () => {
-  const src = motionSource();
-  const add = src.indexOf('root.classList.add(THEME_INSTANT_CLASS)');
-  const svt = src.indexOf('document.startViewTransition(');
-  assert.ok(add !== -1 && svt !== -1 && add < svt,
-    'the class must already be up when the swap\'s synthetic pointerleave lands');
+  const { doc, htmlEl } = rig();
+  let upAtStart = null;
+  doc.startViewTransition = (update) => {
+    upAtStart = htmlEl.classList.contains(THEME_INSTANT_CLASS);
+    update();
+    return { finished: new Promise(() => {}) };
+  };
+  themeSwap(() => {});
+  assert.equal(upAtStart, true, 'the class must already be up when the swap\'s synthetic pointerleave lands');
 });
 
 // A logo click can cycle the preset with the list still open, so the controller announces the NEW value on
@@ -80,9 +84,16 @@ test('an accent change announced while the menu shows moves the ✓; a closed me
   doc.dispatch('keydown', { key: 'Escape' });
   win.dispatch('stencil:accent-changed', { detail: 'pink' });
   assert.deepEqual(marked(menu), ['brown'], 'no re-mark after close');
-  // …and the controller really announces: setAccent / setCustomAccent both dispatch it.
-  const src = readFileSync(new URL('../../../js/ui/accent/controller.js', import.meta.url), 'utf8');
-  assert.match(src, /setAccent\(key, originEl = null\) \{[\s\S]*?this\.announce\(next\);/);
-  assert.match(src, /this\.announce\(norm\);/);
-  assert.match(src, /publish\(EVENTS\.accentChanged, value\)/);
+});
+
+test('the controller announces every accent it paints: a preset and a custom colour alike', () => {
+  const { wrap, menu, win, doc } = rig();
+  doc.head = doc.createElement('head');   // the favicon is re-drawn with the accent
+  win.dispatchEvent = (e) => { win.dispatch(e.type, { detail: e.detail }); return true; };
+  const controller = new AccentController({ tabs: { broadcastAccent() {} } });
+  wrap.dispatch('contextmenu', { preventDefault: () => {} });
+  controller.setAccent('aqua');
+  assert.deepEqual(marked(menu), ['aqua'], 'setAccent announces the new preset');
+  controller.setCustomAccent('#123456');
+  assert.deepEqual(marked(menu), [], 'setCustomAccent announces the custom colour');
 });

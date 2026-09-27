@@ -52,8 +52,8 @@ class TestEncodeDecode(unittest.TestCase):
 
   def test_unsupported_encode_format_raises(self):
     with self.assertRaises(codecs.CodecError) as ctx:
-      self.img.encode("jpeg")
-    self.assertIn("jpeg", str(ctx.exception))
+      self.img.encode("tga")
+    self.assertIn("tga", str(ctx.exception))
 
   def test_decode_returns_a_writable_buffer(self):
     """Decoded images go straight into in-place core ops."""

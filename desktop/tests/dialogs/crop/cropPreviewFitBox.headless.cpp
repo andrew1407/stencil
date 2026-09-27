@@ -1,4 +1,4 @@
-// CropPreview::setFitBox (dialogs/CropDialog.cpp) — an invalid or degenerate box must never fall back
+// CropPreview::setFitBox (dialogs/crop/CropDialog.cpp) — an invalid or degenerate box must never fall back
 // to scale 1.0 (the image's own NATIVE pixels): for a photo or video frame that dwarfs the dialog,
 // that is the "crop covers the whole window" bug. OpenImageDialog's inline stage skips the
 // constructor's screen-relative first fit (autoFitScreen=false) for the same reason.

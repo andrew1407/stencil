@@ -90,6 +90,14 @@ class DrawCombineTests(NativeCase):
     replaced = ed.layout().lines
     self.assertEqual((replaced[0].points[0].x, replaced[0].points[0].y), (5, 5))
 
+  def test_a_combine_past_the_points_cap_is_cut_as_one_layout(self):
+    ed = Editor().blank(20, 10, "white")
+    full = [{"x": i % 20, "y": 1} for i in range(100_000)]
+    ed.draw({"lines": [{"points": full}] * 6})
+    ed.draw({"lines": [{"points": full}] * 6})
+    counts = [len(line.points) for line in ed.layout().lines]
+    self.assertEqual((len(counts), sum(counts)), (10, 1_000_000))
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -1,25 +1,31 @@
 // A control's own mark made of dust: a tick, a chosen word, revealed rows, filtered project
 // rows (js/ui/motion.js markIn / markOut / markSwap / revealControls / filterDust, wired by
-// js/ui/swap.js). Pinned: a mark plays a ROW's fall as the desktop indicator does,
+// js/ui/control/swap.js). Pinned: a mark plays a ROW's fall as the desktop indicator does,
 // scaled down for a control; the end state is written synchronously in both directions; and
 // the veil hides the mark alone, never the control around it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
-import {
-  tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COLS, MARK_ROWS, MOTE_PX,
-  SURFACE_COLS, SURFACE_ROWS, SURFACE_IN_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS, reshapeGrid,
-  markIn, markOut, markSwap, revealControls, settleMark, filterDust,
-} from '../../../js/ui/motion.js';
-import { motionSource } from '../../helpers/motionSource.js';
+import { installDustDom, rect, boxEl, cloudKind } from '../../helpers/dustCloudRig.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const motionJs = motionSource();
-const swapJs = read('../../../js/ui/control/swap.js');
+const dust = installDustDom();
+const {
+  tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COLS, MARK_ROWS, MOTE_PX,
+  SURFACE_COLS, SURFACE_ROWS, SURFACE_IN_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS, reshapeGrid,
+  markIn, markOut, markSwap, revealControls, disintegrate, MARK_LEAVING_CLASS,
+} = await import('../../../js/ui/motion.js');
+const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
 const animCss = ANIMATIONS_CSS;
-const selectJs = read('../../../js/ui/control/customSelect.js');
+
+// A group whose box is its natural size while displayed, nothing while display:none; every
+// read of offsetWidth (the reflow) notes the size property it committed.
+const group = (w = 120, h = 24) => {
+  const el = boxEl(() => (el.style.display === 'none' ? rect(0, 0, 0, 0) : rect(40, 10, w, h)));
+  el.style.display = 'none';
+  el.reflows = [];
+  Object.defineProperty(el, 'offsetWidth', { get: () => { el.reflows.push(el.style.maxWidth ?? el.style.maxHeight); return w; } });
+  return el;
+};
 
 test('the throw scales with the control: a 15px tick cannot fling motes like a list row', () => {
   // Same cell, same hashes — only the distance differs, so the two are the SAME scatter.
@@ -56,88 +62,129 @@ test('a mark is grained finer than a window, under a much smaller ceiling', () =
 
 test('a mark FALLS like a row — it does not fly at a point like a window', () => {
   // The desktop scatters its checkbox indicator with Sweep::FALL / Sweep::GATHER
-  // (support/controlSwap.hpp), so markDust passes no `toward` and takes the tileMotion branch.
-  const body = motionJs.slice(motionJs.indexOf('const markDust ='),
-                              motionJs.indexOf('export function settleMark'));
-  assert.ok(!/toward/.test(body), 'a mark has no point to converge on — it falls');
-  // (paint falls back to markPaint(el) — the app's muted ink, not the window's own
-  // full-contrast text — so a mark never reads as a hard white/black fleck.)
-  assert.match(body, /paintTile: painter \|\| speckPainter\(el, paint \|\| markPaint\(el\)\)/,
-    'and it is specks, never clones');
-  // …but on the SURFACE keyframes: a mark's motes ARE the mark, so they must be visible
-  // from the first frame rather than spending their opening third near-transparent.
-  assert.match(body, /hostClass: gather \? 'dust-forming' : 'dust-falling'/);
+  // (support/control/swap/controlSwap.hpp): every grain is a row's tileMotion at control scale, no point.
+  const el = boxEl(rect(10, 10, 15, 15));
+  assert.equal(markOut(el), true);
+  const { cols, rows } = reshapeGrid(MARK_COLS, MARK_ROWS, 15, 15, MARK_MOTE_PX);
+  const out = el.__dustHost.__cloud;
+  assert.equal(out.flight, 'fall');
+  out.motes.forEach((m, i) => {
+    const t = tileMotion(i % cols, Math.floor(i / cols), cols, rows, false, MARK_DRIFT, MARK_OUT_MS);
+    assert.deepEqual([m.dx, m.dy], [t.dx, t.dy], 'a mark has no point to converge on — it falls');
+  });
+  // …but on the SURFACE keyframes: its motes ARE the mark, visible from the first frame.
+  assert.equal(cloudKind(el), 'dust-falling');
+  markIn(el);
+  assert.equal(cloudKind(el), 'dust-forming');
+  assert.equal(el.__dustHost.__cloud.flight, 'surfaceGather');
+  // Specks, never clones; a caller's painter wins over the muted mark ink.
+  assert.equal(el.__dustHost.children.length, 0);
+  assert.ok(el.__dustHost.__cloud.motes.every((m) => m.a >= 0.78 && m.a <= 1));
+  markIn(el, { painter: () => ({ px: 2, alpha: 0.5 }) });
+  assert.ok(el.__dustHost.__cloud.motes.every((m) => m.a === 0.5 && m.r === 1));
   assert.ok(MARK_IN_MS > MARK_OUT_MS, 'arriving is the half you watch');
   assert.ok(MARK_IN_MS < SURFACE_IN_MS, 'and a mark is brisker than a whole window');
 });
 
-test('showing sets display at once; hiding collapses the slot before it goes', () => {
-  const body = motionJs.slice(motionJs.indexOf('export function revealControls'),
-                              motionJs.indexOf('export function markSwap'));
-  // Shown: display FIRST — the group takes its slot immediately — THEN the gather
-  // plays over the box it now occupies, growing that slot from zero in step.
-  assert.match(body, /el\.style\.display = display;/);
-  assert.match(body, /const played = \(dust && markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\)\) \|\| !motionReduced\(\);/);
-  // Hidden is measured while still laid out, so dust and collapse start from the true box; a
-  // DECLINED flight hides at once, a played one defers display:none until the slot closes.
-  assert.match(body, /const played = \(dust && markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)\)\s*\n\s*\|\| !motionReduced\(\);/);
-  // `dust: false` still SLIDES the slot, skipping only the cloud (a full-width bar's motes are
-  // a grey band); `inMs`/`outMs` are the group defaults unless the caller passes a clock.
-  assert.match(body, /const inMs = ms \|\| REVEAL_GROUP_IN_MS;/);
-  assert.match(body, /const outMs = ms \|\| REVEAL_GROUP_OUT_MS;/);
-  assert.match(body, /el\.style\.display = 'none';\s*\/\/ declined/);
-  // And a group already in the asked-for state is not a flight at all.
-  assert.match(body, /if \(wasShown === !!show\) return false;/);
+test('showing sets display at once; hiding collapses the slot before it goes', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  setMotionPrefs({ mode: 'particles' });
+  // Shown: display FIRST, then the gather plays over the box it now occupies.
+  const el = group();
+  assert.equal(revealControls(el, true), true);
+  assert.equal(el.style.display, 'inline-flex');
+  assert.equal(cloudKind(el), 'dust-forming');
+  assert.equal(el.__dustHost.style.width, '120px', 'measured at its natural size');
+  assert.equal(el.__dustHost.style['--dust-ms'], `${REVEAL_GROUP_IN_MS}ms`, 'the group clock');
+  assert.equal(revealControls(el, true), false, 'a group already shown is not a flight at all');
+  // Hidden: measured while still laid out; a played flight defers display:none to the slot.
+  assert.equal(revealControls(el, false), true);
+  assert.equal(cloudKind(el), 'dust-falling');
+  assert.equal(el.__dustHost.style['--dust-ms'], `${REVEAL_GROUP_OUT_MS}ms`);
+  assert.ok(el.classes.has(MARK_LEAVING_CLASS), 'the real group goes behind a veil');
+  assert.equal(el.style.display, 'inline-flex');
+  t.mock.timers.tick(REVEAL_GROUP_OUT_MS);
+  assert.equal(el.style.display, 'none', '…until the slot closes');
+  // A caller's clock is both the slot's and the dust's.
+  const timed = group();
+  revealControls(timed, true, 'flex', { ms: 222 });
+  assert.equal(timed.__dustHost.style['--dust-ms'], '222ms');
+  // `dust: false` still slides the slot, skipping only the cloud.
+  const plain = group();
+  revealControls(plain, true, 'flex', { dust: false });
+  assert.equal(plain.__dustHost ?? null, null);
+  assert.ok(plain.classes.has('reveal-group-transition'));
+  // A DECLINED flight hides at once.
+  setMotionPrefs({ mode: 'none' });
+  assert.equal(revealControls(timed, false), false);
+  assert.equal(timed.style.display, 'none', 'declined: hidden this very call');
+  setMotionPrefs({ mode: 'particles' });
   // markSwap writes the new value BETWEEN the two flights, so the element is never blank.
-  const swap = motionJs.slice(motionJs.indexOf('export function markSwap'));
-  assert.match(swap.slice(0, swap.indexOf('\n}')), /markOut\([\s\S]*?apply\(\);[\s\S]*?markIn\(/);
+  dust.reset();
+  const word = boxEl(rect(0, 0, 60, 18));
+  let seen = null;
+  markSwap(word, () => { seen = { falling: dust.clouds().some((h) => h.className.endsWith('dust-falling')), forming: !!word.__dustHost }; });
+  assert.deepEqual(seen, { falling: true, forming: false });
+  assert.equal(cloudKind(word), 'dust-forming');
 });
 
-test('a group\'s own slot opens/closes in step with its dust, so a neighbour never jumps', () => {
-  const body = motionJs.slice(motionJs.indexOf('export const REVEAL_GROUP_IN_MS'),
-                              motionJs.indexOf('export function markSwap'));
-  // A TRANSITION, not @keyframes: markIn/markOut may also put `.mark-forming` (an animation) on
-  // this element, and two rules setting `animation` fight over a single winner.
-  assert.match(body, /REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition'/);
-  assert.match(body, /el\.classList\.add\(REVEAL_GROUP_TRANSITION_CLASS\)/g);
-  // The size is committed as the transition's FROM value (a reflow between the two
-  // writes), then the real value is set — never left for CSS to guess mid-flight.
-  assert.match(body, /void el\.offsetWidth;/g);
-  // The TO value waits for a PAINTED frame (double rAF): set in the same busy turn, the box
-  // leaps to wherever the transition's curve has already reached.
-  assert.match(body, /raf\(\(\) => raf\(go\)\);/);
-  assert.match(body, /slideRevealSize\(el, sizeProp, '0px', `\$\{size\}px`, inMs, \{ defer: true, slack: 40 \}\)/);
-  assert.match(body, /slideRevealSize\(el, sizeProp, `\$\{size\}px`, '0px', outMs,/);
-  // block (context-menu rows) collapses height; a horizontal toolbar row collapses
-  // width. A caller may override: a full-width bar is a flex row that opens downward.
-  assert.match(body, /const vertical = axis === null \? display === 'block' : !!axis;/);
-  assert.match(body, /const sizeProp = vertical \? 'maxHeight' : 'maxWidth';/);
-  // A group's slot is a wider move than a single mark, so it has its own longer clock and HANDS
-  // it to the dust — that is what keeps the two landing together.
+test('a group\'s own slot opens/closes in step with its dust, so a neighbour never jumps', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // A TRANSITION, not @keyframes: markIn/markOut may also put `.mark-forming` on it.
+  const el = group();
+  revealControls(el, true);
+  assert.ok(el.classes.has('reveal-group-transition'));
+  // The FROM size is committed by a reflow; the TO waits for a PAINTED frame (double rAF).
+  assert.deepEqual(el.reflows, ['0px']);
+  assert.equal(el.style.maxWidth, '0px');
+  dust.frame();
+  assert.equal(el.style.maxWidth, '0px', 'not in the same busy turn');
+  dust.frame();
+  assert.equal(el.style.maxWidth, '120px');
+  assert.equal(el.style['--reveal-ms'], `${REVEAL_GROUP_IN_MS}ms`, 'the dust rides the slot\'s clock');
+  t.mock.timers.tick(REVEAL_GROUP_IN_MS + 40);
+  assert.ok(!el.classes.has('reveal-group-transition') && el.style.maxWidth === '');
+  revealControls(el, false);
+  assert.deepEqual(el.reflows.slice(-1), ['120px'], 'the close starts from the true size');
+  assert.equal(el.style.maxWidth, '0px', 'and closes at once');
+  assert.equal(el.style['--reveal-ms'], `${REVEAL_GROUP_OUT_MS}ms`);
+  // block (context-menu rows) collapses height; a caller may force the axis.
+  for (const [display, opts, prop] of [['block', {}, 'maxHeight'], ['flex', { vertical: true }, 'maxHeight'], ['flex', {}, 'maxWidth']]) {
+    const g = group();
+    revealControls(g, true, display, opts);
+    assert.equal(g.style[prop], '0px', `${display} ${JSON.stringify(opts)} slides ${prop}`);
+  }
   assert.ok(REVEAL_GROUP_IN_MS > MARK_IN_MS, 'a group opens slower than a single mark');
   assert.ok(REVEAL_GROUP_OUT_MS > MARK_OUT_MS, '…and closes slower too');
-  assert.match(body, /markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\)/, 'the dust rides the slot\'s clock');
-  assert.match(body, /markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)/, '…both ways');
 });
 
 // The desktop's DisintegrateOverlay::setFollow: a control revealed beside a sibling is
 // photographed where it sits, and the sibling's slot then pushes it along the row (user report).
-test('a revealed group\'s cloud FOLLOWS the group while a sibling\'s slot moves it', () => {
-  const body = motionJs.slice(motionJs.indexOf('const followDust ='),
-                              motionJs.indexOf('export function markSwap'));
-  // Re-anchored per painted frame, left/top only: the box the motes fly at is the natural
-  // one, while the slot itself is mid-slide (max-width 0 → its width is not the cloud's).
-  assert.match(body, /requestAnimationFrame\(step\)/);
-  assert.match(body, /host\.style\.left = `\$\{r\.left\}px`;\s*host\.style\.top = `\$\{r\.top\}px`;/);
-  assert.ok(!/style\.width|style\.height/.test(body), 'never resizes the cloud');
-  // Stops with the host, at the end of the flight, or on display:none (an all-zero rect
-  // would park the cloud at the page corner).
-  assert.match(body, /if \(!host \|\| Date\.now\(\) - started >= ms\) return;/);
-  assert.match(body, /if \(!r \|\| \(!r\.width && !r\.height\)\) return;/);
-  // …and both directions of a played, dusted reveal ride it — the way out leaves beside
-  // the count whose slot closes under it too.
-  assert.match(body, /if \(dust && played\) followDust\(el, inMs\);/);
-  assert.match(body, /if \(dust && played\) followDust\(el, outMs\);/);
+test('a revealed group\'s cloud FOLLOWS the group while a sibling\'s slot moves it', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  dust.reset();
+  let at = rect(40, 10, 120, 24);
+  const el = boxEl(() => at);
+  el.style.display = 'none';
+  revealControls(el, true);
+  const host = el.__dustHost;
+  at = rect(90, 30, 30, 24);   // pushed along, and mid-slide: max-width still opening
+  dust.frame();
+  // Re-anchored per painted frame, left/top only: the cloud keeps the natural box's size.
+  assert.deepEqual([host.style.left, host.style.top, host.style.width], ['90px', '30px', '120px']);
+  // Stops on display:none (an all-zero rect would park the cloud at the page corner)…
+  at = rect(0, 0, 0, 0);
+  dust.frame();
+  assert.deepEqual([host.style.left, host.style.top], ['90px', '30px']);
+  assert.equal(dust.frames.length, 0, 'and asks for no further frame');
+  // …and at the end of the flight, the way out included.
+  at = rect(40, 10, 120, 24);
+  revealControls(el, false);
+  const out = el.__dustHost;
+  t.mock.timers.tick(REVEAL_GROUP_OUT_MS);
+  at = rect(300, 300, 120, 24);
+  dust.frame();
+  assert.equal(out.style.left, '40px', 'a finished flight is no longer followed');
 });
 
 test('animations.css: the slot collapse is a real transition, reduced motion off', () => {
@@ -150,7 +197,16 @@ test('animations.css: the slot collapse is a real transition, reduced motion off
 test('an in-place swap plays two clouds over one element, and neither cancels the other', () => {
   // disintegrate() cancels whatever the element owns before it builds — right for a menu opened
   // twice, fatal for a value swap still in the air; `own: false` is the opt-out.
-  assert.match(motionJs, /const left = markOut\(el, \{ ms: outMs, paint, own: false \}\);/);
-  assert.match(motionJs, /if \(own\) cancelDust\(el\);/);
-  assert.match(motionJs, /if \(own\) \{ el\.__dustHost = host; el\.__dustTimer = life; \}/);
+  dust.reset();
+  const menu = boxEl(rect(0, 0, 80, 60));
+  disintegrate(menu, {});
+  const first = menu.__dustHost;
+  disintegrate(menu, {});
+  assert.equal(first.parentNode, null, 'an owned cloud replaces the one before');
+  const word = boxEl(rect(0, 0, 60, 18));
+  markSwap(word, () => {});
+  const layers = dust.clouds().filter((h) => h !== menu.__dustHost);
+  assert.deepEqual(layers.map((h) => h.className.split(' ')[1]), ['dust-falling', 'dust-forming']);
+  assert.equal(word.__dustHost, layers[1], 'the arrival is the flight the element owns');
+  assert.ok(layers.every((h) => h.parentNode), 'and the leaving cloud is still in the air');
 });

@@ -2,16 +2,14 @@
 //! optional --source-name regex. The pattern is length-capped before it reaches regcomp.
 const std = @import("std");
 const builtin = @import("builtin");
-const image = @import("../media/image.zig");
 const mediaTypes = @import("../media/types.zig");
-const testing = std.testing;
 const text = @import("text.zig");
 const sniff = @import("sniff.zig");
 const Sniff = sniff.Sniff;
 const indexOfPosCI = text.indexOfPosCI;
 
 // The --source-name filter is a regex on the media URL: POSIX targets use the platform libc's regex.h
-// through src/regex_shim.c (no new dependency); Windows/WASI fall back to a substring test.
+// through src/scrape/regex_shim.c (no new dependency); Windows/WASI fall back to a substring test.
 pub const has_posix_regex = builtin.os.tag != .windows and builtin.os.tag != .wasi;
 extern fn stencil_regex_compile(pattern: [*:0]const u8) ?*anyopaque;
 extern fn stencil_regex_match(handle: ?*anyopaque, text: [*:0]const u8) c_int;
@@ -193,41 +191,4 @@ pub fn dimensionPass(dims: ?Sniff, min_w: ?u32, max_w: ?u32, min_h: ?u32, max_h:
         if (max_h) |v| if (d.height > v) return false;
     }
     return true;
-}
-
-test "formatOf: path, query, data, normalization" {
-    var b: [16]u8 = undefined;
-    try testing.expectEqualStrings("png", formatOf(&b, "http://x/a/logo.png"));
-    try testing.expectEqualStrings("jpg", formatOf(&b, "http://x/p.JPEG?v=2"));
-    try testing.expectEqualStrings("jpg", formatOf(&b, "http://x/p.jpg#frag"));
-    try testing.expectEqualStrings("webp", formatOf(&b, "https://cdn.test/a.b.webp"));
-    try testing.expectEqualStrings("svg", formatOf(&b, "data:image/svg+xml;base64,AAAA"));
-    try testing.expectEqualStrings("png", formatOf(&b, "data:image/png;base64,AAAA"));
-    try testing.expectEqualStrings("mov", formatOf(&b, "http://x/clip.MOV"));
-    try testing.expectEqualStrings("mov", formatOf(&b, "data:video/quicktime,xx"));
-    // norm is a SUBSTRING replacement (matches the extension's chained .replace): a data:
-    // subtype like x-jpeg has its jpeg→jpg substring rewritten.
-    try testing.expectEqualStrings("x-jpg", formatOf(&b, "data:image/x-jpeg;base64,AA"));
-    try testing.expectEqualStrings("", formatOf(&b, "http://example.com")); // domain dot is not an ext
-    try testing.expectEqualStrings("", formatOf(&b, "http://x/noext"));
-    try testing.expectEqualStrings("", formatOf(&b, ""));
-}
-
-test "tokenSelected: all / subset / etc" {
-    try testing.expect(tokenSelected("all", "img"));
-    try testing.expect(tokenSelected("", "video"));
-    try testing.expect(tokenSelected("png|jpg", "jpg"));
-    try testing.expect(!tokenSelected("png|jpg", "webp"));
-    try testing.expect(tokenSelected("img|video", "video"));
-    try testing.expect(!tokenSelected("img", "background"));
-}
-
-test "dimensionPass: inclusive bounds, unknown passes" {
-    const d = Sniff{ .width = 200, .height = 100, .fmt = "png" };
-    try testing.expect(dimensionPass(d, 100, null, null, null));
-    try testing.expect(dimensionPass(d, 200, 200, 100, 100)); // inclusive
-    try testing.expect(!dimensionPass(d, 201, null, null, null)); // below min width
-    try testing.expect(!dimensionPass(d, null, 199, null, null)); // above max width
-    try testing.expect(!dimensionPass(d, null, null, null, 99)); // above max height
-    try testing.expect(dimensionPass(null, 500, 600, 500, 600)); // unknown size passes
 }

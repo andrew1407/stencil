@@ -179,7 +179,7 @@ export const createChatController = ({
     // `attachments` are images already encoded as LlmImages (`index` marks a drop matched to a
     // listing entry). Typed LlmErrors and invalid-plan errors propagate for the page to render.
     async send(text, { attachments = [], signal } = {}) {
-      const client = getClient();
+      const client = await getClient();
       // One tabs snapshot per turn (best-effort): the listing the model sees and
       // the indices a scanTab op uses must agree for the whole turn.
       let tabs = [];

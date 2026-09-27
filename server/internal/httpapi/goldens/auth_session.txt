@@ -1,0 +1,12 @@
+== GET /auth/session — issued token
+200 application/json
+{"sessionId":"s_1","expiresAt":604801000}
+
+== GET /auth/session — no bearer
+401 application/json
+{"code":"unauthorized","message":"missing or invalid token"}
+
+== GET /auth/session — the admin token
+401 application/json
+{"code":"unauthorized","message":"missing or invalid token"}
+

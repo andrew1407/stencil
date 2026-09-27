@@ -1,6 +1,6 @@
 // Mirror-equality guard for the MAIN-world window.stencil script.
-// src/lib/pageImages.js is the unit-tested source of truth for a handful of pure helpers
-// (bgImageUrl / cssImageUrls / srcsetUrls / nameFromUrl / videoHasFrame). src/content/pageApiMain.js
+// src/lib/image/pageImages.js is the unit-tested source of truth for a handful of pure helpers
+// (bgImageUrl / cssImageUrls / srcsetUrls / nameFromUrl / videoHasFrame). src/content/pageApiMedia.js
 // runs in the page's MAIN world, cannot import modules, and so carries an inline MIRROR of them.
 // This extracts each inline copy, evaluates it and asserts identical output — behavioural equality.
 
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import * as truth from '../../src/lib/image/pageImages.js';
 
 const MAIN_SRC = readFileSync(
-  fileURLToPath(new URL('../../src/content/pageApiMain.js', import.meta.url)),
+  fileURLToPath(new URL('../../src/content/pageApiMedia.js', import.meta.url)),
   'utf8',
 );
 
@@ -22,7 +22,7 @@ const extractFn = (name, { block }) => {
     ? new RegExp(`\\n  const ${name} = ([\\s\\S]*?\\n  };)`)
     : new RegExp(`\\n  const ${name} = ([\\s\\S]*?;)`);
   const m = re.exec(MAIN_SRC);
-  assert.ok(m, `could not locate the inline copy of ${name} in pageApiMain.js`);
+  assert.ok(m, `could not locate the inline copy of ${name} in pageApiMedia.js`);
   // eslint-disable-next-line no-new-func
   return new Function(`return (${m[1].replace(/;\s*$/, '')});`)();
 };

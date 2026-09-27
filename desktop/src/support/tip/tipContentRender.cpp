@@ -1,14 +1,14 @@
 // Rendering a parsed Tip to the HTML Qt draws, and the palette that html carries literally — so a
 // theme change rebuilds every enriched tooltip from its plain text rather than recolouring in place.
+// Back the other way, a rich tip's plain reading: what accessibility reads in place of its markup.
 #include "tipContentParts.hpp"
 #include <QApplication>
 #include <QBuffer>
-#include <QFontMetricsF>
-#include <QGuiApplication>
 #include <QImage>
 #include <QRegularExpression>
-#include <QScreen>
 #include <QTextDocument>
+#include <QTextFrame>
+#include <QTextTable>
 #include <QToolTip>
 #include <QWidget>
 
@@ -119,6 +119,64 @@ namespace stencil::gui {
     QString out = richText;
     out.replace(cap, "\\1" + empty + "\\2");
     return out == richText ? QString() : out;
+  }
+
+  namespace {
+    void appendLines(QTextFrame::iterator it, const QTextFrame::iterator& end, QStringList& out);
+
+    // A row is one line, its cells two spaces apart; a cell holding a block of its own keeps its lines.
+    void appendTable(QTextTable* table, QStringList& out) {
+      for (int r = 0; r < table->rows(); ++r) {
+        QStringList cells;
+        bool block = false;
+        for (int c = 0; c < table->columns(); ++c) {
+          const QTextTableCell cell = table->cellAt(r, c);
+          if (cell.row() != r || cell.column() != c) continue;   // spanned from another slot
+          QStringList lines;
+          appendLines(cell.begin(), cell.end(), lines);
+          block = block || lines.size() > 1;
+          cells += lines;
+        }
+        if (block) out += cells;
+        else if (!cells.isEmpty()) out << cells.join(QStringLiteral("  "));
+      }
+    }
+
+    void appendLines(QTextFrame::iterator it, const QTextFrame::iterator& end, QStringList& out) {
+      for (; it != end; ++it) {
+        if (QTextFrame* frame = it.currentFrame()) {
+          if (auto* table = qobject_cast<QTextTable*>(frame)) appendTable(table, out);
+          else appendLines(frame->begin(), frame->end(), out);
+          continue;
+        }
+        const QString text = it.currentBlock().text().remove(QChar::ObjectReplacementCharacter);
+        for (const QString& part : text.split(QChar::LineSeparator))   // a <br> is a line too
+          if (const QString line = part.simplified(); !line.isEmpty()) out << line;
+      }
+    }
+  }  // namespace
+
+  QString tipPlainText(const QString& richText) {
+    if (!Qt::mightBeRichText(richText)) return richText;
+    static const QRegularExpression img("<img\\b[^>]*?\\balt=\"([^\"]*)\"[^>]*>",
+                                        QRegularExpression::CaseInsensitiveOption);
+    QString html = richText;
+    html.replace(img, QStringLiteral("\\1"));
+    QTextDocument doc;
+    doc.setHtml(html);
+    QStringList lines;
+    appendLines(doc.rootFrame()->begin(), doc.rootFrame()->end(), lines);
+    return lines.join('\n');
+  }
+
+  void syncTipDescription(QWidget* w) {
+    static constexpr const char* OWN = "stencilTipDescription";
+    const QString mine = w->property(OWN).toString();
+    if (w->accessibleDescription() != mine) return;
+    const QString tip = w->toolTip();
+    const QString plain = Qt::mightBeRichText(tip) ? tipPlainText(tip) : QString();
+    w->setProperty(OWN, plain);
+    w->setAccessibleDescription(plain);
   }
 
   QString enrichedToolTip(const QString& plain, const QFont* font) {

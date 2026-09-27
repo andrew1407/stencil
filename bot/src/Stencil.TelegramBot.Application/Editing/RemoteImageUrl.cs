@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using Stencil.TelegramBot.Domain.Configuration;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
@@ -7,7 +8,8 @@ namespace Stencil.TelegramBot.Application.Editing;
 // routable addresses reach the CLI (SSRF / local-file read); the CLI re-resolves in its own process.
 public static class RemoteImageUrl
 {
-    private static readonly TimeSpan _defaultResolveTimeout = TimeSpan.FromSeconds(5);
+    // For a caller without a policy.
+    public static readonly TimeSpan DefaultResolveTimeout = TimeSpan.FromSeconds(IBotPolicy.DEFAULT_RESOLVE_TIMEOUT_SECONDS);
 
     // Throws InvalidOperationException (surfaced verbatim), which also rejects bare local paths and
     // other schemes.
@@ -33,7 +35,7 @@ public static class RemoteImageUrl
         }
         else
         {
-            addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
+            addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
         }
         if (addresses.Count == 0 || addresses.Any(IsBlockedAddress))
         {
@@ -42,9 +44,10 @@ public static class RemoteImageUrl
         }
     }
 
-    // /connect deliberately ALLOWS loopback and private-LAN servers; it blocks only link-local
-    // (169.254.0.0/16 holds cloud metadata; fe80::/10), unspecified and multicast. A bare host is http://.
-    public static async Task ValidateServerUrlAsync(string raw, CancellationToken ct = default, TimeSpan? resolveTimeout = null)
+    // /connect ALLOWS loopback and private-LAN servers unless allowPrivate is off; link-local, cloud
+    // metadata, unspecified, multicast and reserved are always refused. A bare host is http://.
+    public static async Task ValidateServerUrlAsync(string raw, CancellationToken ct = default,
+        TimeSpan? resolveTimeout = null, bool allowPrivate = true)
     {
         string s = (raw ?? "").Trim();
         if (s.Length == 0)
@@ -69,7 +72,7 @@ public static class RemoteImageUrl
         {
             try
             {
-                addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
+                addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
             }
             catch (InvalidOperationException)
             {
@@ -83,7 +86,18 @@ public static class RemoteImageUrl
             throw new InvalidOperationException(
                 "That server address isn't allowed (link-local / cloud-metadata range).");
         }
+        if (!allowPrivate && addresses.Any(isBlockedPublicServer))
+        {
+            throw new InvalidOperationException(PRIVATE_SERVER_REFUSAL);
+        }
     }
+
+    public const string PRIVATE_SERVER_REFUSAL =
+        "That server address isn't allowed (this bot connects only to public servers).";
+
+    // ValidateServerUrlAsync's verdict for the address actually dialled, so a host can't rebind past it.
+    public static Func<IPAddress, bool> ServerAddressGuard(bool allowPrivate) =>
+        allowPrivate ? IsCloudMetadataOrLinkLocal : isBlockedPublicServer;
 
     // A resolver past timeout reads as unreachable; a real caller cancellation propagates.
     private static async Task<IReadOnlyList<IPAddress>> resolveAsync(string host, TimeSpan timeout, CancellationToken ct)
@@ -104,73 +118,13 @@ public static class RemoteImageUrl
         }
     }
 
-    // Loopback, link-local (incl. 169.254.169.254), private/ULA, carrier-grade NAT, multicast and
-    // the unspecified address. IPv4-mapped IPv6 is unwrapped first.
-    public static bool IsBlockedAddress(IPAddress address)
-    {
-        IPAddress ip = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
-        if (IPAddress.IsLoopback(ip))
-        {
-            return true;
-        }
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return ip.IsIPv6LinkLocal
-                || ip.IsIPv6SiteLocal
-                || ip.IsIPv6UniqueLocal
-                || ip.IsIPv6Multicast
-                || ip.Equals(IPAddress.IPv6Any);
-        }
-        byte[] b = ip.GetAddressBytes();
-        if (b[0] is 0 or 10 or 127)
-        {
-            return true; // "this" network, 10.0.0.0/8 private, 127.0.0.0/8 loopback
-        }
-        if (b[0] == 169 && b[1] == 254)
-        {
-            return true; // 169.254.0.0/16 link-local (cloud metadata endpoint lives here)
-        }
-        if (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
-        {
-            return true; // 172.16.0.0/12 private
-        }
-        if (b[0] == 192 && b[1] == 168)
-        {
-            return true; // 192.168.0.0/16 private
-        }
-        if (b[0] == 100 && b[1] >= 64 && b[1] <= 127)
-        {
-            return true; // 100.64.0.0/10 carrier-grade NAT
-        }
-        if (b[0] >= 224)
-        {
-            return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved
-        }
-        return false;
-    }
+    public static bool IsBlockedAddress(IPAddress address) =>
+        AddressRanges.Blocks(AddressRanges.FETCH, address);
 
-    // Link-local, unspecified and multicast/reserved only; loopback and private ranges are allowed
-    // server targets. IPv4-mapped IPv6 is unwrapped first.
-    public static bool IsCloudMetadataOrLinkLocal(IPAddress address)
-    {
-        IPAddress ip = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
-        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return ip.IsIPv6LinkLocal || ip.IsIPv6Multicast || ip.Equals(IPAddress.IPv6Any);
-        }
-        byte[] b = ip.GetAddressBytes();
-        if (b[0] == 169 && b[1] == 254)
-        {
-            return true; // 169.254.0.0/16 link-local (cloud metadata endpoint lives here)
-        }
-        if (b[0] == 0)
-        {
-            return true; // 0.0.0.0/8 "this" network / unspecified
-        }
-        if (b[0] >= 224)
-        {
-            return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved
-        }
-        return false;
-    }
+    // Loopback and private ranges are allowed server targets.
+    public static bool IsCloudMetadataOrLinkLocal(IPAddress address) =>
+        AddressRanges.Blocks(AddressRanges.SERVER_TARGET, address, AddressRanges.ALLOW_PRIVATE);
+
+    private static bool isBlockedPublicServer(IPAddress address) =>
+        AddressRanges.Blocks(AddressRanges.SERVER_TARGET, address);
 }

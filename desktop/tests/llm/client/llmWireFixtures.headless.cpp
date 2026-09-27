@@ -1,6 +1,6 @@
 // Walks the shared provider-wire and sanitizer conformance corpora (browser/js/config/llm/fixtures/
 // providerWire + sanitizer) against the REAL desktop LLM client through a capturing MockTransport (no
-// network) — the desktop counterpart of browser/tests/llmWireFixtures.test.js. The fixtures carry a
+// network) — the desktop counterpart of browser/tests/llm/llmWireFixtures.test.js. The fixtures carry a
 // literal `chat.system`, so the walker passes it AS the suffix and substitutes it back before the deep
 // body compare. LlmClient.cpp is #included so the file-local sanitizeProviderText is walkable.
 #include "LlmClient.cpp"  // NOLINT — grants access to the anon-namespace sanitizer
@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
   walkWireFile("llm/fixtures/providerWire/openai.json", walked, overridden);
   walkWireFile("llm/fixtures/providerWire/server.json", walked, overridden);
   walkWireFile("llm/fixtures/providerWire/httpErrors.json", walked, overridden);
+  walkWireFile("llm/fixtures/providerWire/anthropic.json", walked, overridden);
   std::printf("providerWire: walked %d cases, %d local overrides\n", walked, overridden);
 
   // Sanitizer vectors: `expect` is the BROWSER's output, and a measured desktop difference is pinned in

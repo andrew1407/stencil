@@ -4,16 +4,20 @@ using System.Text.Json;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Infrastructure.Net;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
 public sealed partial class HttpStencilServerClient
 {
+    // A token or an error reply is a few hundred bytes; anything past this is not one.
+    private const long _smallBodyBytes = 64 * 1024;
+
     private async Task<JsonDocument> sendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
         using HttpResponseMessage response = await sendAsync(method, path, content, ct).ConfigureAwait(false);
         await ensureSuccessAsync(response, ct).ConfigureAwait(false);
-        byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+        byte[] body = await readBodyAsync(response, ct).ConfigureAwait(false);
         if (body.Length == 0)
         {
             return JsonDocument.Parse("{}");
@@ -45,7 +49,7 @@ public sealed partial class HttpStencilServerClient
         return response;
     }
 
-    private Task<HttpResponseMessage> sendOnceAsync(HttpMethod method, string path, HttpContent? content, string bearer, CancellationToken ct)
+    private async Task<HttpResponseMessage> sendOnceAsync(HttpMethod method, string path, HttpContent? content, string bearer, CancellationToken ct)
     {
         HttpRequestMessage request = new(method, BaseUrl + path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
@@ -53,8 +57,20 @@ public sealed partial class HttpStencilServerClient
         {
             request.Content = content;
         }
-        return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        try
+        {
+            return await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex) when (GuardedConnect.RefusalIn(ex) is InvalidOperationException refused)
+        {
+            throw refused;
+        }
     }
+
+    private async Task<byte[]> readBodyAsync(HttpResponseMessage response, CancellationToken ct) =>
+        await CappedBody.ReadAsync(response.Content, MaxResponseBytes, ct).ConfigureAwait(false)
+            ?? throw new ServerException(
+                "tooLarge", $"the server's reply is over the {MaxResponseBytes / (1024 * 1024)} MB limit");
 
     // Null on any refusal.
     private async Task<string?> tryMintAsync(CancellationToken ct)
@@ -67,7 +83,11 @@ public sealed partial class HttpStencilServerClient
         }
         try
         {
-            byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            byte[]? body = await CappedBody.ReadAsync(response.Content, _smallBodyBytes, ct).ConfigureAwait(false);
+            if (body is null)
+            {
+                return null;
+            }
             using JsonDocument doc = JsonDocument.Parse(body);
             string token = JsonRead.ReadString(doc.RootElement, "token");
             return token.Length == 0 ? null : token;
@@ -89,7 +109,7 @@ public sealed partial class HttpStencilServerClient
         string message = $"HTTP {status}";
         try
         {
-            byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            byte[] body = await CappedBody.ReadAsync(response.Content, _smallBodyBytes, ct).ConfigureAwait(false) ?? [];
             if (body.Length != 0)
             {
                 using JsonDocument doc = JsonDocument.Parse(body);

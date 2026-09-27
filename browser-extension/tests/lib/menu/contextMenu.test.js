@@ -1,4 +1,4 @@
-// src/lib/contextMenu.js — the two menu roots and what each right-click reveals: the static
+// src/lib/menu/contextMenu.js — the two menu roots and what each right-click reveals: the static
 // native group, the probe-revealed dynamic one, and the rule that no parent shows without children.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

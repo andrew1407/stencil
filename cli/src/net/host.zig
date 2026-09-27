@@ -3,6 +3,8 @@
 //! whether a host may be reached at all. Split out of net.zig so the fetch client holds
 //! only the request logic; net re-exports the names its callers already use.
 const std = @import("std");
+const addr = @import("addr.zig");
+const ranges = @import("ranges.zig");
 
 /// A URL's authority, split once for every caller that needs a host (the fetch guard,
 /// serverClient's connect/cleartext checks, the LLM console's server matcher).
@@ -47,102 +49,36 @@ pub fn hostOf(url: []const u8) ?[]const u8 {
     return if (a.host.len == 0) null else a.host;
 }
 
-/// True for a loopback host — `localhost`/`*.localhost`, `127.0.0.0/8` in any numeric form, or `::1`.
-/// The ONE textual loopback classifier: the fetch guard's strict mode and serverClient share it.
+/// True for a loopback host — `localhost`/`*.localhost`, or any address the table files under
+/// `loopback`, carried or not. The ONE loopback classifier: the fetch guard and serverClient share it.
 pub fn isLoopbackHost(raw: []const u8) bool {
     const host = if (raw.len >= 2 and raw[0] == '[' and raw[raw.len - 1] == ']') raw[1 .. raw.len - 1] else raw;
     if (std.ascii.eqlIgnoreCase(host, "localhost")) return true;
     if (host.len > ".localhost".len and std.ascii.eqlIgnoreCase(host[host.len - ".localhost".len ..], ".localhost")) return true;
-    if (std.Io.net.IpAddress.parse(host, 0)) |addr| return switch (addr) {
-        .ip4 => |v4| isLoopbackV4(v4.bytes),
-        .ip6 => |v6| isLoopbackV6(v6.bytes),
-    } else |_| {}
-    if (parseInetAtonV4(host)) |v4| return isLoopbackV4(v4);
-    return false;
+    const a = addr.parseHost(host) orelse return false;
+    return ranges.isLoopback(a);
 }
 
-fn isLoopbackV4(b: [4]u8) bool {
-    return b[0] == 127; // 127.0.0.0/8
-}
-
-fn isLoopbackV6(b: [16]u8) bool {
-    const mapped = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-    if (std.mem.eql(u8, b[0..12], &mapped)) return isLoopbackV4(b[12..16].*);
-    return std.mem.eql(u8, &b, &[_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }); // ::1
-}
-
-/// SSRF literal check — private / link-local / metadata / reserved hosts, including the alternate
-/// numeric encodings a resolver accepts; `strict` adds loopback. DNS: `hostResolvesToBlocked`.
+/// SSRF literal check under blockedRanges.json's `fetch` policy — every numeric spelling a resolver
+/// accepts; `strict` (a URL from fetched content) refuses loopback too. DNS: `hostResolvesToBlocked`.
 pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
     if (host.len == 0) return true;
-    // IP literal (dotted-quad / IPv6)? Classify it.
-    if (std.Io.net.IpAddress.parse(host, 0)) |addr| {
-        return switch (addr) {
-            .ip4 => |v4| isBlockedV4(v4.bytes, strict),
-            .ip6 => |v6| isBlockedV6(v6.bytes, strict),
-        };
-    } else |_| {}
-    // Alternate numeric IPv4 encodings IpAddress.parse rejects but a libc resolver accepts — decimal,
-    // hex, octal, short-dotted. Canonicalized and classified so they cannot smuggle 169.254.169.254.
-    if (parseInetAtonV4(host)) |v4| return isBlockedV4(v4, strict);
-    // The loopback NAMES (strict only — names, so IpAddress.parse missed them).
-    if (strict and isLoopbackHost(host)) return true;
-    // A real hostname: the DNS resolution check in fetch() covers name→internal.
-    return false;
+    if (addr.parseHost(host)) |a| return ranges.blocked(a, .fetch, .{ .allow_loopback = !strict });
+    // The loopback NAMES (strict only); any other name is judged by what it resolves to.
+    return strict and isLoopbackHost(host);
 }
 
-/// True when `host` is any IP form (literal or an alternate numeric encoding) rather than a DNS
-/// name — used to skip the resolution check for what `isBlockedFetchHost` already classified.
+/// True when `host` is an address in any spelling rather than a DNS name — used to skip the
+/// resolution check for what `isBlockedFetchHost` already judged.
 pub fn isNumericHost(host: []const u8) bool {
-    if (std.Io.net.IpAddress.parse(host, 0)) |_| return true else |_| {}
-    return parseInetAtonV4(host) != null;
+    return addr.parseHost(host) != null;
 }
 
-/// Parse one `inet_aton`-style component: `0x`-hex, leading-`0` octal, else decimal.
-fn parseAtonPart(s: []const u8) ?u64 {
-    if (s.len == 0) return null;
-    if (s.len >= 2 and s[0] == '0' and (s[1] == 'x' or s[1] == 'X'))
-        return std.fmt.parseInt(u64, s[2..], 16) catch null;
-    if (s.len >= 2 and s[0] == '0')
-        return std.fmt.parseInt(u64, s[1..], 8) catch null;
-    return std.fmt.parseInt(u64, s, 10) catch null;
-}
-
-/// Emulate `inet_aton` for 1–4 numeric parts (each decimal/hex/octal) into packed IPv4 bytes, else
-/// null: the encodings resolvers accept but `IpAddress.parse` (dotted-decimal only) rejects.
-fn parseInetAtonV4(host: []const u8) ?[4]u8 {
-    if (host.len == 0 or !std.ascii.isDigit(host[0])) return null; // must start with a digit
-    var parts: [4]u64 = undefined;
-    var n: usize = 0;
-    var it = std.mem.splitScalar(u8, host, '.');
-    while (it.next()) |part| {
-        if (n >= 4) return null; // >4 parts → not an IPv4 numeric form
-        parts[n] = parseAtonPart(part) orelse return null;
-        n += 1;
-    }
-    // inet_aton: the LAST part fills the remaining low bytes; earlier parts are single octets.
-    var value: u64 = 0;
-    switch (n) {
-        1 => value = parts[0],
-        2 => {
-            if (parts[0] > 0xff or parts[1] > 0xff_ffff) return null;
-            value = (parts[0] << 24) | parts[1];
-        },
-        3 => {
-            if (parts[0] > 0xff or parts[1] > 0xff or parts[2] > 0xffff) return null;
-            value = (parts[0] << 24) | (parts[1] << 16) | parts[2];
-        },
-        4 => {
-            for (parts[0..4]) |p| if (p > 0xff) return null;
-            value = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
-        },
-        else => return null,
-    }
-    if (value > 0xffff_ffff) return null;
-    return [4]u8{
-        @intCast((value >> 24) & 0xff), @intCast((value >> 16) & 0xff),
-        @intCast((value >> 8) & 0xff),  @intCast(value & 0xff),
-    };
+/// A collaboration-server target the `serverTarget` policy refuses: link-local, cloud metadata,
+/// unspecified, multicast, reserved — whatever the host literally names. Private ranges pass.
+pub fn isBlockedServerHost(host: []const u8) bool {
+    const a = addr.parseHost(host) orelse return false;
+    return ranges.blocked(a, .server_target, .{ .allow_private = true });
 }
 
 /// Resolve `host` and return true if ANY resolved address is blocked — the "hostname with an internal
@@ -155,44 +91,9 @@ pub fn hostResolvesToBlocked(io: std.Io, host: []const u8, strict: bool) bool {
     // failure we let the real fetch surface the connection error rather than block the URL.
     hn.lookup(io, &q, .{ .port = 0 }) catch return false;
     while (q.getOne(io)) |res| switch (res) {
-        .address => |addr| switch (addr) {
-            .ip4 => |v4| if (isBlockedV4(v4.bytes, strict)) return true,
-            .ip6 => |v6| if (isBlockedV6(v6.bytes, strict)) return true,
-        },
+        .address => |ip| if (ranges.blocked(addr.Addr.fromIp(ip), .fetch, .{ .allow_loopback = !strict })) return true,
         .canonical_name => {},
     } else |_| {}
-    return false;
-}
-
-fn isBlockedV4(b: [4]u8, strict: bool) bool {
-    if (b[0] == 0) return true; // 0.0.0.0/8 this-network
-    if (b[0] == 10) return true; // 10.0.0.0/8 private
-    if (b[0] == 100 and b[1] >= 64 and b[1] <= 127) return true; // 100.64.0.0/10 CGNAT
-    // 127.0.0.0/8 loopback: allowed for user-named URLs, blocked for scanned-content fetches.
-    if (strict and isLoopbackV4(b)) return true;
-    if (b[0] == 169 and b[1] == 254) return true; // 169.254.0.0/16 link-local (metadata)
-    if (b[0] == 172 and b[1] >= 16 and b[1] <= 31) return true; // 172.16.0.0/12 private
-    if (b[0] == 192 and b[1] == 168) return true; // 192.168.0.0/16 private
-    if (b[0] == 192 and b[1] == 0 and (b[2] == 0 or b[2] == 2)) return true; // 192.0.0.0/24, TEST-NET-1
-    if (b[0] == 198 and (b[1] == 18 or b[1] == 19)) return true; // 198.18.0.0/15 benchmarking
-    if (b[0] == 198 and b[1] == 51 and b[2] == 100) return true; // TEST-NET-2
-    if (b[0] == 203 and b[1] == 0 and b[2] == 113) return true; // TEST-NET-3
-    if (b[0] >= 224) return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved + broadcast
-    return false;
-}
-
-fn isBlockedV6(b: [16]u8, strict: bool) bool {
-    // IPv4-mapped ::ffff:0:0/96 — classify the embedded IPv4.
-    const mapped = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-    if (std.mem.eql(u8, b[0..12], &mapped)) return isBlockedV4(b[12..16].*, strict);
-    // :: unspecified is blocked; ::1 loopback is allowed unless strict (see isBlockedV4).
-    if (strict and isLoopbackV6(b)) return true;
-    for (b) |x| {
-        if (x != 0) break;
-    } else return true; // all-zero == :: unspecified
-    if (b[0] == 0xfe and (b[1] & 0xc0) == 0x80) return true; // fe80::/10 link-local
-    if (b[0] == 0xfe and (b[1] & 0xc0) == 0xc0) return true; // fec0::/10 site-local (deprecated)
-    if ((b[0] & 0xfe) == 0xfc) return true; // fc00::/7 unique-local
     return false;
 }
 

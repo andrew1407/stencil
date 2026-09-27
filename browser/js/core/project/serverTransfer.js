@@ -4,6 +4,7 @@ import { PROJECT_ACTION } from '../../worker/messages.js';
 import { buildLayoutPayload, normalizeCropRect } from '../layout.js';
 import { buildExternalLaunchUrl } from '../launch/deepLink.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../../net/remoteSync.js';
+import { keptSource, storedSource } from './store/projectSources.js';
 
 // A NEW server project from a local project's content under `name`; shared by move
 // (then links the local) and copy. Returns { link, proj, meta }.
@@ -138,6 +139,8 @@ export async function importServerProjectToLocal(c, meta, { removeFromServer = f
   const blob = await c.remoteSync.fetchRemoteOriginal(conn, meta.id, src);
   const dataUrl = blob ? await blobToDataUrl(c, blob) : null;
   const sl = full.layout || {};
+  const linked = c.storage.store.list().find(m => m.remoteId === meta.id && m.address === meta.serverUrl);
+  const source = keptSource(src, linked ? storedSource(c.storage.store, linked.id) : '');
   const newId = c.storage.store.createId();
   const base = full.project?.name || meta.name || 'Untitled';
   const projName = (name && name.trim()) || (copy ? `${base}-copy` : base);
@@ -150,7 +153,7 @@ export async function importServerProjectToLocal(c, meta, { removeFromServer = f
     hasImage: !!dataUrl,
     imageW: sl.imageWidth || 0,
     imageH: sl.imageHeight || 0,
-    source: src || null,
+    source: source || null,
     resource: full.project?.resource || null,
     address: null,
     remoteId: null,
@@ -174,7 +177,7 @@ export async function importServerProjectToLocal(c, meta, { removeFromServer = f
       formulaY: sl.formulaY || '',
       imageBaseName: projName,
       imageExt: (blob && blob.type && blob.type.includes('/')) ? blob.type.split('/')[1] : 'png',
-      imageSource: src || null,
+      imageSource: source || null,
       imageResource: full.project?.resource || null,
     },
   });

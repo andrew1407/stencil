@@ -20,6 +20,16 @@ namespace stencil::core {
         {"invert", FilterMode::INVERT},
         {"contour", FilterMode::CONTOUR},
     }};
+
+    // The duotone: dark takes the tint, light goes white, through the pixel's luma alone.
+    Rgb8 tintOfLuma(int l, int tintR, int tintG, int tintB) {
+      const double t = static_cast<double>(l) / CHANNEL_MAX;  // 0 dark->color, 1 light->white
+      return {
+          static_cast<int>(std::lround(tintR + (CHANNEL_MAX - tintR) * t)),
+          static_cast<int>(std::lround(tintG + (CHANNEL_MAX - tintG) * t)),
+          static_cast<int>(std::lround(tintB + (CHANNEL_MAX - tintB) * t)),
+      };
+    }
   }  // namespace
 
   FilterMode filterModeFromString(const std::string& mode) {
@@ -49,15 +59,8 @@ namespace stencil::core {
         return {sr, sg, sb};
       }
 
-      case FilterMode::CUSTOM: {
-        const int l = luma::rec709Truncated(r, g, b);
-        const double t = static_cast<double>(l) / CHANNEL_MAX;  // 0 dark->color, 1 light->white
-        return {
-            static_cast<int>(std::lround(tintR + (CHANNEL_MAX - tintR) * t)),
-            static_cast<int>(std::lround(tintG + (CHANNEL_MAX - tintG) * t)),
-            static_cast<int>(std::lround(tintB + (CHANNEL_MAX - tintB) * t)),
-        };
-      }
+      case FilterMode::CUSTOM:
+        return tintOfLuma(luma::rec709Truncated(r, g, b), tintR, tintG, tintB);
 
       case FilterMode::INVERT:
         return {CHANNEL_MAX - r, CHANNEL_MAX - g, CHANNEL_MAX - b};
@@ -91,11 +94,13 @@ namespace stencil::core {
         case FilterMode::INVERT:
           run([](int r, int g, int b) { return filterPixel(FilterMode::INVERT, r, g, b, 0, 0, 0); });
           return;
-        case FilterMode::CUSTOM:
-          run([&](int r, int g, int b) {
-            return filterPixel(FilterMode::CUSTOM, r, g, b, tintR, tintG, tintB);
-          });
+        case FilterMode::CUSTOM: {
+          // Luma is 0..255, so a call rounds the tint 256 times rather than once per pixel.
+          std::array<Rgb8, CHANNEL_MAX + 1> tint;
+          for (int l = 0; l <= CHANNEL_MAX; ++l) tint[l] = tintOfLuma(l, tintR, tintG, tintB);
+          run([&](int r, int g, int b) { return tint[luma::rec709Truncated(r, g, b)]; });
           return;
+        }
         default:
           return;  // None / Contour: nothing to do here
       }

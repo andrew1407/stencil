@@ -1,20 +1,22 @@
 //! Drift guard between the CLI's two hand-kept flag lists: the `eq(arg, "--x")` arms of
-//! src/params/parse.zig's parser and the `--help` prose in src/help.txt. Neither generates the other
+//! src/params/'s parsers and the `--help` prose in src/help.txt. Neither generates the other
 //! (the arms carry per-flag rules, the prose carries wording), so this test is what makes them agree: a
 //! documented flag the parser does not accept, or a newly parsed flag nobody documented, fails here.
 //! `undocumented` is the explicit exception list — flags deliberately absent from --help.
 const std = @import("std");
 const testing = std.testing;
 
-const args_src = @embedFile("../src/params/parse.zig");
+// The loop and the feature blocks it hands a flag to.
+const parser_srcs = [_][]const u8{
+    @embedFile("../src/params/parse.zig"),
+    @embedFile("../src/params/scrape.zig"),
+    @embedFile("../src/params/inspect.zig"),
+    @embedFile("../src/params/plan.zig"),
+};
 const help_text = @embedFile("../src/help.txt");
 
-// Accepted by the parser, absent from --help on purpose: two spelling aliases, and the
-// collaboration-server flags, which the README documents instead.
-const undocumented = [_][]const u8{
-    "--console-fullscreen", "--remote", "--remote-name", "--remote-update",
-    "--repl",               "--server", "--token",
-};
+// Accepted by the parser, absent from --help on purpose: two spelling aliases.
+const undocumented = [_][]const u8{ "--console-fullscreen", "--repl" };
 
 const Set = std.StringHashMap(void);
 
@@ -22,13 +24,15 @@ const Set = std.StringHashMap(void);
 fn parsedFlags(a: std.mem.Allocator) !Set {
     var out = Set.init(a);
     const needle = "eq(arg, \"";
-    var i: usize = 0;
-    while (std.mem.indexOfPos(u8, args_src, i, needle)) |at| {
-        const start = at + needle.len;
-        const end = std.mem.indexOfScalarPos(u8, args_src, start, '"') orelse break;
-        const word = args_src[start..end];
-        if (word.len > 1 and word[0] == '-') try out.put(word, {});
-        i = end;
+    for (parser_srcs) |src| {
+        var i: usize = 0;
+        while (std.mem.indexOfPos(u8, src, i, needle)) |at| {
+            const start = at + needle.len;
+            const end = std.mem.indexOfScalarPos(u8, src, start, '"') orelse break;
+            const word = src[start..end];
+            if (word.len > 1 and word[0] == '-') try out.put(word, {});
+            i = end;
+        }
     }
     return out;
 }

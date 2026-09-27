@@ -1,8 +1,14 @@
 #pragma once
 // SSRF guard for UNTRUSTED http(s) fetches — port of cli/src/net.zig with its two-tier `strict`:
-// internal ranges always blocked, loopback only when strict (a URL from scanned/shared content).
-// The server-connect path is exempt — users name their own servers (net.zig:71).
+// the blockedRanges `fetch` policy, loopback allowed only when not strict (a URL the user typed).
+// A server the user names is judged by `serverTarget` instead (ServerClient::isRefusedTarget).
+#include "blockedRanges.hpp"
+
 #include <QByteArray>
+#include <QFile>
+#include <QHostAddress>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkRequest>
 #include <QString>
 #include <QUrl>
@@ -12,12 +18,33 @@ class QObject;
 
 namespace stencil::net::fetchGuard {
 
-  // ServerClient.cpp bounds its own requests with the same 20s.
   inline constexpr qint64 MAX_FETCH_BYTES = 64 * 1024 * 1024;
-  inline constexpr int FETCH_TIMEOUT_MS = 20000;
+  // A build without the qrc; tests/net/fetchGuard holds it equal to the table.
+  inline constexpr int FETCH_TIMEOUT_FALLBACK_MS = 30000;
 
-  // Literal check only, including the alternate numeric IPv4 encodings a resolver accepts;
-  // a DNS name is covered by resolvesToBlocked().
+  // ms, constants.json NETWORK.fetchTimeoutMs (the browser's bound too), read once. ServerClient
+  // and the plan's awaits are held to the same bound.
+  inline int fetchTimeoutMs() {
+    static const int ms = [] {
+      QFile f(QStringLiteral(":/config/constants.json"));
+      const int v = f.open(QIODevice::ReadOnly)
+          ? QJsonDocument::fromJson(f.readAll()).object().value(QStringLiteral("NETWORK"))
+                .toObject().value(QStringLiteral("fetchTimeoutMs")).toInt()
+          : 0;
+      return v > 0 ? v : FETCH_TIMEOUT_FALLBACK_MS;
+    }();
+    return ms;
+  }
+
+  // The address a literal host names — brackets and a zone ID dropped, the inet_aton spellings
+  // read — or a null address for a name.
+  QHostAddress hostAddress(const QString& host);
+
+  // A literal host under a policy: refused when either IPv4 reading, or QHostAddress's, is refused.
+  bool refusesLiteral(const QString& host, blockedRanges::Policy policy, blockedRanges::Options options);
+
+  // Literal check only (the `fetch` policy, allowLoopback = !strict); a DNS name is covered by
+  // resolvesToBlocked().
   bool isBlockedHost(const QString& host, bool strict);
 
   bool isNumericHost(const QString& host);
@@ -42,6 +69,6 @@ namespace stencil::net::fetchGuard {
   // `ctx`'s thread with the body, or an empty body and the reason.
   void get(QObject* ctx, const QUrl& url, bool strict,
            std::function<void(QByteArray body, QString error)> done,
-           int deadlineMs = FETCH_TIMEOUT_MS);
+           int deadlineMs = fetchTimeoutMs());
 
 }  // namespace stencil::net::fetchGuard

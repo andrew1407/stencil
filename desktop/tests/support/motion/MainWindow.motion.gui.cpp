@@ -201,7 +201,7 @@ class MainWindowGuiTest : public QObject {
     QTimer::singleShot(300, [] {
       if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
     });
-    win.openSettings();
+    win.parts.dialogs.openSettings();
     qApp->removeEventFilter(&paints);
     QVERIFY(!paints.seen.isEmpty());
     QVERIFY2(paints.seen.first().second, "the first paint came before the scrollbar");

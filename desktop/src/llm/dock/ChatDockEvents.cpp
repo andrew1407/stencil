@@ -3,8 +3,6 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "iconSet.hpp"
-#include "theme.hpp"
-#include "chatWidgets.hpp"
 
 #include <QPlainTextEdit>
 #include <QClipboard>
@@ -18,6 +16,7 @@
 #include <QMouseEvent>
 #include <QTextCursor>
 #include <QToolButton>
+#include <QScrollArea>
 
 namespace stencil::gui {
 
@@ -88,7 +87,7 @@ namespace stencil::gui {
     // Title-bar press starts the drag POLL (never consumed - Qt's own dock drag runs on the same
     // press). Poll-based because the native floating-window drag swallows the move/release events.
     if (obj == chrome.titleBar) {
-      /* Browser parity (ui/dock.js): the compact popover's bar DRAGS like any other, and
+      /* Browser parity (ui/chat/dock.js): the compact popover's bar DRAGS like any other, and
        * the drag adopts the layout — titleDragStarted clears the compact flag, so what moves
        * is a float the user chose, not a popover still pinned to its icon. Only the
        * double-click float/dock toggle stays swallowed: the browser's header has none. */

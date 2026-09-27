@@ -1,4 +1,4 @@
-/* ── Instant control tooltip (lib/controlTooltip.js + lib/tipContent.js) ──
+/* ── Instant control tooltip (lib/tip/controlTooltip.js + lib/tip/content.js) ──
    Replaces the slow, disabled-control-skipping native `title` popup, and renders the
    title as STRUCTURE rather than flat text — the desktop app's tooltip shape: a heading
    with keycaps for its shortcut, term/description rows, bullets, and the muted
@@ -71,7 +71,7 @@
   -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
   mask-composite: add;
 }
-/* …and once the real motes have flown for it (lib/controlTooltip.js surfaceIn), the
+/* …and once the real motes have flown for it (lib/tip/controlTooltip.js surfaceIn), the
    mask, the transition and the entry offset all step aside for good: the sand is a
    cloud of actual particles now, streaming out of the control the tip describes and
    pouring back into it, exactly as a menu or a dialog does. `.dust-driven` is permanent

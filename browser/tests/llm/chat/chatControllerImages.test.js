@@ -1,4 +1,4 @@
-// §7 working-image attachment (js/llm/controller.js): the replay rule for prior turns,
+// §7 working-image attachment (js/llm/chat/controller.js): the replay rule for prior turns,
 // the snapshot every turn carries, and an empty editor sending none.
 import { test } from 'node:test';
 import assert from 'node:assert';

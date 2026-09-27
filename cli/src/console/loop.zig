@@ -2,17 +2,16 @@
 //! buffered reader for piped input. Both hand each line to dispatch.zig.
 const std = @import("std");
 const logo = @import("../app/logo.zig");
-const line_edit = @import("../line_edit.zig");
-const clipboard = @import("../clipboard.zig");
+const line_edit = @import("../line_edit/line_edit.zig");
 const session_mod = @import("session.zig");
 const commands = @import("commands.zig");
 const ui = @import("ui.zig");
-const handlers = @import("handlers.zig");
 const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
-const llmPrompt = @import("llmPrompt.zig");
 const screen = @import("screen.zig");
 const skin = @import("../app/skin.zig");
+const netWait = @import("netWait.zig");
+const key = @import("llm/key.zig");
 
 const Session = session_mod.Session;
 const hooks = @import("hooks.zig");
@@ -35,16 +34,26 @@ const LINE_BUF = 64 * 1024; // piped-input line cap: long crop specs / URLs fit 
 pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor, scr: ?*screen.Screen) void {
     var hist = line_edit.History{ .gpa = gpa };
     defer hist.deinit();
-    // A deferred plan clearChat confirms through the same TTY keypress prompt /upload uses.
-    session.confirm_fn = editorConfirm;
+    // A deferred plan clearChat confirms through the same TTY keypress prompt /upload uses,
+    // and `/llm key` reads through the editor with nothing echoed.
+    session.confirm_fn = hooks.editorConfirm;
     session.confirm_ctx = ed;
+    session.secret_fn = hooks.editorSecret;
+    session.secret_ctx = ed;
+    session.secret_tty = true;
     defer {
         session.confirm_fn = null;
         session.confirm_ctx = null;
+        session.secret_fn = null;
+        session.secret_ctx = null;
+        session.secret_tty = false;
     }
     var buf: [line_edit.max_line]u8 = undefined;
     var armed = false; // one Ctrl-C arms exit; a second one in a row confirms it
     var idle_ctx = IdleCtx{ .session = session, .io = io, .screen = scr };
+    // Server calls run watched: a Ctrl-C ends one rather than waiting out its deadline.
+    const prev_watch = netWait.install(.{ .ctx = ed, .poll = hooks.pollKeep });
+    defer _ = netWait.install(prev_watch);
     ed.idle_cb = idleTick;
     ed.idle_ctx = &idle_ctx;
     ed.pending = .{
@@ -89,30 +98,45 @@ pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed:
             },
             .unpaste => attachments.doUnpaste(session, ""), // Ctrl-Z: take the last one back
             .line => |n| {
-                // In full-screen mode the prompt is a fixed row that gets cleared, so echo the
-                // command into the scrollback first — otherwise its output has no visible source.
-                if (scr) |s| if (n != 0) {
-                    if (s.scroll_off != 0) { // sending a line brings a scrolled-up view back to the bottom
-                        s.scroll_off = 0;
-                        s.has_sel = false;
-                        s.paintBody();
-                        s.drawStatusBar();
-                    }
-                    s.skipRevealOnce(); // the echo is what you just typed, not output arriving
-                    const gold = if (skin.isSecret(commands.parseCommand(buf[0..n]).word)) logo.colorSeq(skin.gold) else "";
-                    logo.print("{s}{s}{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), gold, buf[0..n], logo.resetSeq() });
-                };
-                // Images pasted into the line ride it as `[Image #N …]` markers: lift them off before the command
-                // is parsed — and before it is remembered, since a recalled marker would name a picture long gone.
+                const keyed = key.typesKey(buf[0..n]);
                 var sbuf: [line_edit.max_line]u8 = undefined;
-                const line = line_edit.stripMarkers(&sbuf, buf[0..n]);
-                hist.add(line);
+                const line = recordLine(session, ed, scr, &hist, buf[0..n], &sbuf);
                 if (attachments.drainPending(session, line)) continue; // the paste WAS the command
                 if (!confirmUpload(ed, session, line)) continue; // guard /upload + /source-upload behind a yes/no prompt
-                if (dispatch(session, io, line)) break;
+                const done = dispatch(session, io, line);
+                if (keyed) { // the typed key goes with the line
+                    std.crypto.secureZero(u8, &buf);
+                    std.crypto.secureZero(u8, &sbuf);
+                }
+                if (done) break;
             },
         }
     }
+}
+
+/// What a submitted line leaves behind before it runs — its echo and its history entry — with a
+/// key typed after `/llm key` masked in both (llm-contract §5). Returns the line to run.
+pub fn recordLine(session: *Session, ed: *line_edit.Editor, scr: ?*screen.Screen, hist: *line_edit.History, typed: []const u8, sbuf: *[line_edit.max_line]u8) []const u8 {
+    const keyed = key.typesKey(typed);
+    if (keyed and scr == null) ed.maskCommitted(ui.promptStr(session), typed.len, key.masked_echo);
+    if (scr) |s| if (typed.len != 0) echoCommand(session, s, if (keyed) key.masked_echo else typed);
+    // Images pasted into the line ride it as `[Image #N …]` markers: lift them off before the command
+    // is parsed — and before it is remembered, since a recalled marker would name a picture long gone.
+    const line = line_edit.stripMarkers(sbuf, typed);
+    hist.add(if (keyed) key.masked_history else line);
+    return line;
+}
+
+/// Echo a sent line into the scrollback, a secret word in gold: the full-screen prompt is a
+/// fixed row that gets cleared, so without it the output has no visible source.
+pub fn echoCommand(session: *Session, s: *screen.Screen, line: []const u8) void {
+    screen.beginFrame(s);
+    defer screen.endFrame(s);
+    s.scrollToBottom(); // sending a line brings a scrolled-up view back to the bottom
+    s.skipRevealOnce(); // the echo is what you just typed, not output arriving
+    const secret = commands.slashed(line) and skin.isSecret(commands.parseCommand(line).word);
+    const gold = if (secret) logo.colorSeq(skin.gold) else "";
+    logo.print("{s}{s}{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), gold, line, logo.resetSeq() });
 }
 
 /// The session's cancel hook: the editor's tty watch, behind an opaque pointer so session.zig
@@ -143,37 +167,20 @@ fn confirmUpload(ed: *line_edit.Editor, session: *Session, line: []const u8) boo
     return true;
 }
 
-// The in-app confirm a deferred plan clearChat shows (llm-contract §10): the same TTY
-// keypress prompt the /upload guard uses. `ctx` is the interactive loop's line editor.
-fn editorConfirm(ctx: ?*anyopaque, question: []const u8) bool {
-    const ed: *line_edit.Editor = @ptrCast(@alignCast(ctx.?));
-    return ed.confirm(question);
-}
-
-/// Piped mode's clearChat confirm: read ONE line from the SAME buffered stdin reader the command
-/// loop uses, so a scripted "y" after the /prompt line is seen. EOF — or anything but y/yes — declines.
-pub const PipedConfirm = struct {
-    r: *std.Io.Reader,
-
-    pub fn confirm(ctx: ?*anyopaque, question: []const u8) bool {
-        const self: *PipedConfirm = @ptrCast(@alignCast(ctx.?));
-        logo.print("{s} (y/N) ", .{question});
-        const line = (self.r.takeDelimiter('\n') catch return false) orelse return false;
-        const ans = std.mem.trim(u8, line, " \t\r");
-        return std.ascii.eqlIgnoreCase(ans, "y") or std.ascii.eqlIgnoreCase(ans, "yes");
-    }
-};
-
 pub fn runPiped(io: std.Io, session: *Session) void {
     var buf: [LINE_BUF]u8 = undefined;
     var stdin = std.Io.File.stdin().readerStreaming(io, &buf);
     const r = &stdin.interface;
-    var pc = PipedConfirm{ .r = r };
-    session.confirm_fn = PipedConfirm.confirm;
+    var pc = hooks.PipedConfirm{ .r = r };
+    session.confirm_fn = hooks.PipedConfirm.confirm;
     session.confirm_ctx = &pc;
+    session.secret_fn = hooks.PipedConfirm.secret;
+    session.secret_ctx = &pc;
     defer {
         session.confirm_fn = null;
         session.confirm_ctx = null;
+        session.secret_fn = null;
+        session.secret_ctx = null;
     }
     while (true) {
         logo.print("{s}", .{ui.promptStr(session)});

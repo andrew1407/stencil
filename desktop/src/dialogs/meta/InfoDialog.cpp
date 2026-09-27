@@ -9,7 +9,6 @@
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QRegularExpression>
@@ -114,7 +113,7 @@ namespace stencil::gui {
         auto* h = new QHBoxLayout(row);
         h->setContentsMargins(4, 5, 4, 5);   // .info-item padding
         h->setSpacing(10);
-        // The term, its key combos as caps that shake on hover (support/KeycapChip.hpp).
+        // The term, its key combos as caps that shake on hover (support/icon/KeycapChip.hpp).
         auto* key = new KeycapChip(row);
         key->setObjectName(QStringLiteral("infoKey"));
         key->setWordWrap(true);

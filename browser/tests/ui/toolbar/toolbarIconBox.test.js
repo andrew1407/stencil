@@ -6,6 +6,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
+import { installDom, createStubElement } from '../../helpers/dom.js';
+import { wireOpenState } from '../../../js/ui/chat/panel/openState.js';
+import { resetViewportScroll, scrollViewportTo } from '../../../js/ui/panel/layoutControls.js';
+import { GHOST_MS } from '../../../js/ui/motion.js';
+import { mountStorage } from '../../helpers/storageRig.js';
 
 const SHEETS = { 'layout.css': LAYOUT_CSS, 'components.css': COMPONENTS_CSS, 'animations.css': ANIMATIONS_CSS };
 const read = (f) => SHEETS[f] ?? readFileSync(new URL(`../../../css/${f}`, import.meta.url), 'utf8');
@@ -37,89 +42,151 @@ test('the ghost buttons all agree with each other', () => {
   assert.equal(new Set(pads).size, 1, `the ghost rows disagree: ${pads.join(' vs ')}`);
 });
 
+// The chat panel's open state over a stub host, its toolbar icon at ICON; a right-click on the
+// icon is the compact gesture (tip/popover.js).
+const ICON = { left: 900, top: 10, width: 40, height: 32, right: 940, bottom: 42 };
+const chatRig = (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = installDom({ autoCreateById: true }, {
+    window: { innerWidth: 1280, innerHeight: 800, addEventListener() {}, removeEventListener() {} },
+    matchMedia: () => ({ matches: false }),
+  });
+  t.after(doc.restore);
+  const host = createStubElement('stencil-chat-panel', {
+    getBoundingClientRect: () => ({ left: 300, top: 100, width: 380, height: 520, right: 680, bottom: 620 }),
+  });
+  const [openBtn, input] = [createStubElement('button', { getBoundingClientRect: () => ICON }), createStubElement('textarea')];
+  const state = wireOpenState({
+    host, input, openBtn, resizer: createStubElement('div'), header: createStubElement('div'),
+    backdrop: createStubElement('div'), closeBtn: createStubElement('button'),
+    panelIsOpen: () => host.classList.contains('chat-open') && !host.classList.contains('chat-closing'),
+    refreshStatus: () => {}, invalidatePillRects: () => {},
+  });
+  return { host, input, ...state, compactGesture: () => openBtn.dispatch('contextmenu', { preventDefault() {} }) };
+};
+const has = (el, cls) => el.classList.contains(cls);
+
 // The FLOAT chat is its own little window, so it flies out of the toolbar icon and shrinks back into
 // it — the modals' own modalFromIcon/modalToIcon; panel.js feeds it the icon→panel delta.
-test('the floating chat panel animates from the toolbar icon', () => {
+test('the floating chat panel animates from the toolbar icon', (t) => {
   const css = ANIMATIONS_CSS;
   const open = css.match(/stencil-chat-panel\.chat-open\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   const close = css.match(/stencil-chat-panel\.chat-open\.chat-closing\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   assert.match(open, /modalFromIcon/, `float open is "${open.trim()}"`);
   assert.match(close, /modalToIcon/, `float close is "${close.trim()}"`);
 
-  const js = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
+  const { host, setDock, setOpen } = chatRig(t);
+  setDock('float');
+  setOpen(true);
   // The keyframes read these four; all of them have to be set, or the flight silently
   // falls back to the keyframes' plain-pop defaults.
-  for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy'])
-    assert.ok(js.includes(v), `panel.js never sets ${v}`);
+  const [x, y, w, h] = ['left', 'top', 'width', 'height'].map((k) => parseFloat(host.style[k]));
+  assert.equal(host.style['--modal-dx'], `${Math.round(ICON.left + ICON.width / 2 - (x + w / 2))}px`);
+  assert.equal(host.style['--modal-dy'], `${Math.round(ICON.top + ICON.height / 2 - (y + h / 2))}px`);
+  assert.equal(Number(host.style['--modal-sx']), ICON.width / w);
+  assert.equal(Number(host.style['--modal-sy']), ICON.height / h);
   // The close timer has to outlast the longer float flight, or the panel is torn out of the DOM
-  // mid-motion, so docked shares the same 510ms (CLOSE_MS in panel.js).
-  const closeMs = js.match(/const CLOSE_MS = ([^;]+);/)?.[1] || '';
-  assert.match(closeMs, /^510$/, `the close timer does not match modalToIcon: "${closeMs}"`);
+  // mid-motion, so docked shares the same 510ms.
+  for (const dock of ['float', 'left']) {
+    setDock(dock);
+    setOpen(true);
+    setOpen(false);
+    assert.equal(host.style['--dust-ms'], '510ms', `${dock}: the close dust rides the one clock`);
+    t.mock.timers.tick(509);
+    assert.ok(has(host, 'chat-open'), `${dock}: still on screen 1ms short of the close`);
+    t.mock.timers.tick(1);
+    assert.ok(!has(host, 'chat-open'), `${dock}: gone once the 510ms close is over`);
+  }
 });
 
 // The clear animation runs only when an image was actually there, and a float → compact swap waits
 // for the close animation before playing the compact panel's own entrance.
-test('the float → mini chat swap waits for the close animation', () => {
-  const js = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  const at = js.indexOf('const openCompact = (convert = false) => {');
-  assert.ok(at > 0, 'openCompact is gone');
-  const body = js.slice(at, at + 1400);
-  // Mid-close (the eager click) is ridden out, not cancelled…
-  assert.match(body, /chat-closing'\)\) \{ afterClose = showCompact; return; \}/,
-    'a compact gesture cancels the in-flight close again');
-  // …and an open panel is closed FIRST, with the sequel queued behind it.
-  assert.match(body, /setOpen\(false\);\s*\n\s*afterClose = showCompact;/,
-    'the outgoing shape no longer plays its exit before the swap');
-  // The sequel fires from the close timer itself, after .chat-open comes off — one
-  // panel on screen at a time.
-  assert.match(js, /const next = afterClose;\s*\n\s*afterClose = null;\s*\n\s*next\?\.\(\);/);
-  // Same host, same controller: the swap only re-shapes, it never rebuilds the panel or
-  // the conversation (no re-render/clear of the transcript on this path).
-  const swap = js.slice(at, js.indexOf('showCompact();\n    };', at));
-  assert.ok(!/clearSharedConversation|innerHTML|remove\(\)/.test(swap),
-    'the shape swap must not tear down the conversation');
+test('the float → mini chat swap waits for the close animation', (t) => {
+  const { host, input, setDock, setOpen, chatDock, compactGesture } = chatRig(t);
+  const log = [];
+  for (const m of ['add', 'remove', 'toggle']) {
+    const real = host.classList[m];
+    host.classList[m] = (...a) => { if (a[0] === 'chat-open' || a[1] === 'chat-open') log.push(m); return real(...a); };
+  }
+  setDock('float');
+  setOpen(true);
+  Object.assign(host, { innerHTML: '<div id="chat-transcript">kept</div>' });
+  input.value = 'a draft';
+  // An open panel is closed FIRST, with the sequel queued behind it.
+  log.length = 0;
+  compactGesture();
+  assert.ok(has(host, 'chat-closing') && !chatDock.isCompact(), 'the outgoing shape plays its exit first');
+  t.mock.timers.tick(509);
+  assert.ok(!chatDock.isCompact(), 'no compact panel while the float one is still closing');
+  t.mock.timers.tick(1);
+  assert.ok(chatDock.isCompact() && has(host, 'chat-open') && !has(host, 'chat-closing'));
+  // The sequel fires from the close timer itself, after .chat-open comes off — one panel on screen at a time.
+  assert.deepEqual(log, ['remove', 'toggle'], 'chat-open comes off before the compact shape takes it');
+  // Same host, same controller: the swap only re-shapes, it never rebuilds the panel or the conversation.
+  assert.equal(host.innerHTML, '<div id="chat-transcript">kept</div>', 'the shape swap must not tear down the conversation');
+  assert.equal(input.value, 'a draft');
+  // Mid-close (the eager click) is ridden out, not cancelled or restarted.
+  setOpen(false);
+  t.mock.timers.tick(510);
+  setOpen(true);
+  setOpen(false);
+  t.mock.timers.tick(200);
+  compactGesture();
+  assert.ok(has(host, 'chat-closing'), 'a compact gesture cancels the in-flight close again');
+  t.mock.timers.tick(310);
+  assert.ok(chatDock.isCompact() && has(host, 'chat-open'), 'the compact panel follows the ORIGINAL close');
 });
 
-test('newTemporary only animates when there was an image to clear', () => {
-  const src = readFileSync(new URL('../../../js/core/storage/storage.js', import.meta.url), 'utf8');
-  const at = src.indexOf('  newTemporary({');
-  const body = src.slice(at, at + 3000);
-  const guard = body.match(/const hadImage = ([^;]+);/)?.[1];
-  assert.ok(guard, 'newTemporary no longer records whether an image was present');
-  assert.match(guard, /this\.app\.image/, `the guard reads ${guard}, not the image`);
-  // Both halves of the clear motion — the dust and the empty-state hold — sit behind ghostOut's own
-  // verdict: with no dust under reduced motion, holding the emptied editor back only blanks it.
-  const cond = body.match(/if \(ctx && hadImage && (.+)\) \{([\s\S]*?)\n    \}/);
-  assert.ok(cond, 'the dust is no longer guarded');
-  assert.match(cond[1], /ghostOut\(this\.app\.canvas\)/, 'the hold waits on the dust actually playing');
-  assert.match(cond[2], /canvas-clearing/, 'the empty-state hold is no longer guarded');
+// A real Storage over the stub page (helpers/storageRig.js). Both halves of the clear motion — the
+// dust and the empty-state hold — ride ghostOut's own verdict: with no dust, a hold only blanks it.
+test('newTemporary only animates when there was an image to clear', (t) => {
+  const r = mountStorage(t);
+  const holding = () => r.viewport.classList.contains('canvas-clearing');
+  r.storage.newTemporary();
+  assert.ok(holding(), 'the emptied editor waits under the dust');
+  assert.equal(r.stages().length, 1, 'the dust plays over the viewport');
+  // Snapshotted from the picture and its lines, before the picture is cleared.
+  const cleared = r.ops.findIndex(([el, k]) => el === r.canvas && k === 'clearRect');
+  const layers = [r.canvas, r.overlay];
+  const snap = r.ops.filter(([, k, src], i) => k === 'drawImage' && i < cleared && layers.includes(src));
+  assert.deepEqual(snap.map(([, , src]) => src), layers, 'the snapshot is the picture and its lines');
+  t.mock.timers.tick(GHOST_MS);
+  assert.ok(!holding(), 'handed back once the dust has flown');
+  for (const [what, arm] of [['boot: nothing was on screen', { image: null }],
+                             ['reduced motion: no dust to wait on', { reduced: true }]]) {
+    r.rearm(arm);
+    const stages = r.stages().length;
+    r.storage.newTemporary();
+    assert.ok(!holding() && r.stages().length === stages, what);
+  }
 });
 
 // Clearing resets the canvas backing store and the viewport scroll: the idle "+ Blank image" card is
 // position:absolute inset:0 in that same box and renders at the stale offset (user report).
-test('newTemporary resets the canvas size/zoom and the viewport scroll, not just the pixels', () => {
-  const src = readFileSync(new URL('../../../js/core/storage/storage.js', import.meta.url), 'utf8');
-  const at = src.indexOf('  newTemporary({');
-  const body = src.slice(at, at + 3000);
-  // The collapse is the shared helper (session.js collapseCanvas): an image-less stored layout
-  // empties the editor through the same one, or the old picture's size kept scrolling the viewport.
-  assert.match(body, /collapseCanvas\(this\.app\);/, 'the backing store keeps its old (zoomed) footprint');
-  const helper = readFileSync(new URL('../../../js/core/storage/session.js', import.meta.url), 'utf8')
-    .match(/export const collapseCanvas = \(app\) => \{([\s\S]*?)\n\};/)?.[1] ?? '';
-  assert.match(helper, /c\.width = 0;/, 'the backing store keeps its old (zoomed) footprint');
-  assert.match(helper, /c\.height = 0;/, 'the backing store keeps its old (zoomed) footprint');
-  assert.match(helper, /c\.style\.width = ''; c\.style\.height = '';/, 'a stale inline CSS size survives the clear');
-  const layout = readFileSync(new URL('../../../js/core/storage/storedLayout.js', import.meta.url), 'utf8');
-  assert.match(layout, /const clearImage = \(app\) => \{\s*app\.image = null;[\s\S]*?collapseCanvas\(app\);/, 'an image-less layout leaves the canvas at the old size');
-  assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
-  assert.match(body, /resetViewportScroll\(\);/, 'the viewport scroll position is never reset on clear');
-  // …and that helper (ui/layoutControls.js) is what actually puts it back to the corner.
-  const controls = readFileSync(new URL('../../../js/ui/panel/layoutControls.js', import.meta.url), 'utf8');
-  assert.match(controls, /export const resetViewportScroll = \(\) => scrollViewportTo\(0, 0\);/);
-  const scroll = controls.match(/export const scrollViewportTo[\s\S]{0,200}if \(vp\) \{ ([^}]+) \}/)?.[1];
-  assert.ok(scroll, 'scrollViewportTo must touch the viewport');
-  assert.match(scroll, /vp\.scrollLeft = left \|\| 0/);
-  assert.match(scroll, /vp\.scrollTop = top \|\| 0/);
+test('newTemporary resets the canvas size/zoom and the viewport scroll, not just the pixels', (t) => {
+  const { storage, app, canvas, viewport, rearm } = mountStorage(t);
+  storage.newTemporary();
+  assert.deepEqual([canvas.width, canvas.height], [0, 0], 'the backing store keeps its old (zoomed) footprint');
+  assert.deepEqual([canvas.style.width, canvas.style.height], ['', ''], 'a stale inline CSS size survives the clear');
+  assert.deepEqual([app.scale, app.renderedScale, app.zoomPan.value], [1, null, 100], 'the zoom level is never reset on clear');
+  assert.deepEqual([viewport.scrollLeft, viewport.scrollTop], [0, 0], 'the viewport scroll position is never reset on clear');
+  // An image-less stored layout empties the editor through the same collapse.
+  rearm();
+  storage.loadPayloadIntoApp({ layout: {} });
+  assert.equal(app.image, null);
+  assert.deepEqual([canvas.width, canvas.height, canvas.style.width, canvas.style.height], [0, 0, '', ''],
+    'an image-less layout leaves the canvas at the old size');
+});
+
+// …and that helper (ui/panel/layoutControls.js) is what actually puts it back to the corner.
+test('the viewport scroll reset puts the canvas back at its top-left corner', (t) => {
+  const doc = installDom();
+  t.after(doc.restore);
+  const vp = doc.register('canvas-viewport', { scrollLeft: 240, scrollTop: 180 });
+  resetViewportScroll();
+  assert.deepEqual([vp.scrollLeft, vp.scrollTop], [0, 0]);
+  scrollViewportTo(30, undefined);
+  assert.deepEqual([vp.scrollLeft, vp.scrollTop], [30, 0], 'a missing offset is the edge, never NaN');
 });
 
 // The collapsed rail's chevron is an explicit flex square: as a `display: block` button its height

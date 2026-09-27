@@ -1,6 +1,7 @@
 import { notify } from '../../utils.js';
+import { editorMemento } from '../historyStack.js';
 import constants from '../../config/constants.json' with { type: 'json' };
-import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from '../parse/cropGeometry.js';
+import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter } from '../parse/cropGeometry.js';
 
 const { PAGE_SIZES } = constants;
 
@@ -59,47 +60,71 @@ export class ImageModel {
     return this.#rotatedOriginalCanvas().toDataURL();
   }
 
-// Integer pixels, clamped inside the rotated original.
+// Integer pixels, clamped inside the rotated original; canonical {w,h} wins over {width,height}.
   roundRect(r, iw = this.rotatedOriginalDims().width, ih = this.rotatedOriginalDims().height) {
-// Canonical {w,h} wins over legacy {width,height}.
-    const w = Math.max(1, Math.min(Math.round(r.w ?? r.width), iw));
-    const h = Math.max(1, Math.min(Math.round(r.h ?? r.height), ih));
-    const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
-    const y = Math.max(0, Math.min(Math.round(r.y), ih - h));
-    return { x, y, width: w, height: h };
+    return snapCropRect({ x: r.x, y: r.y, width: r.w ?? r.width, height: r.h ?? r.height }, iw, ih);
   }
 
-// Public so storage can rebuild the view after restoring original + rotation + cropRect.
+// Public so storage can rebuild the view after restoring original + rotation + cropRect. The turn
+// and the crop offset are one transform, so no full-size rotated copy is made (the map stays integral).
   rebuildCroppedImage() {
     const app = this.app;
-    const src = this.#rotatedOriginalCanvas();
+    const img = app.originalImage;
     const r = app.cropRect;
+    const q = ((app.rotationQuarters % 4) + 4) % 4;
     const c = document.createElement('canvas');
     c.width = r.width;
     c.height = r.height;
-    c.getContext('2d').drawImage(src, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+    const ctx = c.getContext('2d');
+    if (q === 0) ctx.drawImage(img, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+    else {
+      const { width: rw, height: rh } = this.rotatedOriginalDims();
+      ctx.translate(rw / 2 - r.x, rh / 2 - r.y);
+      ctx.rotate(q * Math.PI / 2);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    }
     app.image = c;
     app.canvas.width = r.width;
     app.canvas.height = r.height;
   }
 
-// After rotate or crop: clear the selection, reset history to the current lines, refit, persist.
+// An undo step's crop and turn, when they differ from the ones on screen; false when they match
+// (or the step carries none). The rebuild is the one a crop runs: no decode.
+  restoreView(m) {
+    const app = this.app;
+    const r = m.cropRect, c = app.cropRect;
+    if (!app.originalImage || !r) return false;
+    const q = m.rotationQuarters ?? 0;
+    if (q === app.rotationQuarters && c && r.x === c.x && r.y === c.y && r.width === c.width && r.height === c.height) return false;
+    app.rotationQuarters = q;
+    app.cropRect = { x: r.x, y: r.y, width: r.width, height: r.height };
+    this.rebuildCroppedImage();
+    return true;
+  }
+
+// After rotate or crop: one undo step, then the view settles.
   #afterImageGeometryChange() {
+    this.app.history.push(editorMemento(this.app));
+    this.settleView();
+  }
+
+// The picture under the lines changed: clear the selection, refit, persist; `sync: false` for a
+// view a peer's layout brought, which the server already holds.
+  settleView({ sync = true } = {}) {
     const app = this.app;
     app.currentLine = null;
     app.selectedLineIdx = -1;
     app.coordLineIdx = -1;
     app.focusedPtIdx = -1;
     app.hideSelectionPanels();
-    app.history.reset(app.lines);
     app.zoomPan.fitToWindow();
     app.updateInfo();
     app.renderer.redraw();
     app.updateButtons();
     app.updateCoordStatus();
     app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
-    app.storage.save();
-    app.remoteSync.scheduleRemoteSync();
+    app.storage.saveSoon();
+    if (sync) app.remoteSync.scheduleRemoteSync();
   }
 
 // dir < 0 rotates left (CCW), dir > 0 right (CW); the crop window and every line follow.
@@ -109,13 +134,10 @@ export class ImageModel {
       notify('Open an image first', 'fail');
       return;
     }
-    const clockwise = dir > 0;
-    const dims = this.rotatedOriginalDims();
-// Points rotate inside the OLD crop box.
-    rotateLinePointsQuarter(app.lines, app.cropRect.width, app.cropRect.height, clockwise);
-    const rotated = rotateCropRectQuarter(app.cropRect, dims.width, dims.height, clockwise);
-    app.rotationQuarters = (((app.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
-    app.cropRect = this.roundRect(rotated);
+    const img = app.originalImage;
+    const turn = rotateEditQuarter(app.lines, app.cropRect, app.rotationQuarters, img.width, img.height, dir > 0);
+    app.rotationQuarters = turn.quarters;
+    app.cropRect = turn.crop;
     this.rebuildCroppedImage();
     this.#afterImageGeometryChange();
   }

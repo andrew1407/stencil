@@ -1,4 +1,4 @@
-// ZoomPan.syncViewportHeight / syncCoordPanelHeight (js/core/pan.js): the frame takes the
+// ZoomPan.syncViewportHeight / syncCoordPanelHeight (js/core/zoom/pan.js): the frame takes the
 // whole available height, and the panel is capped to the room below its own top.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

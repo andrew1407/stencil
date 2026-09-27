@@ -2,20 +2,16 @@
 #include "../../support/control/dblReset.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
+#include "../../support/motion/ShimmerOverlay.hpp"
 #include "LlmSettingsForm.hpp"
 #include "connectionStore.hpp"
-#include "LlmClient.hpp"
 #include "llmSettings.hpp"
-#include "QtLlmTransport.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPointer>
-#include <QSignalBlocker>
-#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -31,7 +27,7 @@ namespace stencil::gui {
     provider->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     provider->addItem("None (turned off)", "none");
     support::setResetDefault(provider, QStringLiteral("none"));   // contract §5: ships off
-    for (const char* id : {"ollama", "openai-compat", "stencil-server"})
+    for (const char* id : {"ollama", "openai-compat", "anthropic", "stencil-server"})
       provider->addItem(stencil::llm::llmProviderDisplayName(id), id);
     {
       // Unknown values fall back to "None" (the contract default — llmSettings.hpp).
@@ -40,7 +36,7 @@ namespace stencil::gui {
     }
     provider->setToolTip(
         "Where the chat assistant runs: a local Ollama, any OpenAI-compatible "
-        "server, or a Stencil collaboration server");
+        "server, Anthropic's API with your own key, or a Stencil collaboration server");
     form->addRow("Provider", provider);
     hugRight(provider);
     rowDivider();
@@ -83,6 +79,7 @@ namespace stencil::gui {
     form->addRow("API key", apiKey);
     hugRight(apiKey);
     apiKeyDiv = rowDivider();
+    buildAnthropicKeyRows();
 
     server = new SearchComboBox(this, /*searchable=*/false);
     server->setObjectName("llmServer");
@@ -131,6 +128,7 @@ namespace stencil::gui {
     // llm-contract.md §12: provider-independent, ships OFF. Browser .vs-inline-check.
     saveChats = new QCheckBox(tr("Save chats with projects"), this);
     saveChats->setObjectName("llmSaveChats");
+    saveChats->setProperty(NO_SHIMMER_PROPERTY, true);   // the browser's check wears no hover sweep
     saveChats->setChecked(current.saveChatsWithProject);
     support::setResetDefault(saveChats, false);   // §12: ships off
     saveChats->setToolTip(
@@ -182,6 +180,15 @@ namespace stencil::gui {
         note->setSizePolicy(sp);
       }
       noteLay->addWidget(note);
+      keyNote = new QLabel(
+          QStringLiteral("Your key goes straight from Stencil to Anthropic — no Stencil server sees "
+                         "it. It is kept in memory only: quitting Stencil or %1 hours forget it, and "
+                         "it is never saved.").arg(stencil::llm::sessionKeyTtlMinutes() / 60),
+          noteBox);
+      keyNote->setObjectName("llmKeyNote");
+      keyNote->setWordWrap(true);
+      keyNote->setSizePolicy(note->sizePolicy());
+      noteLay->addWidget(keyNote);
       // A FORM row, so its top rides the SAME explicit 9px verticalSpacing every other row shares; on
       // the outer QVBoxLayout it inherits the QStyle's own metric, a real ~70px gap (user report).
       form->addRow(noteBox);

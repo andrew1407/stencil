@@ -1,5 +1,5 @@
 // The Open Image dialog's preview arrival is a dust canvas over the media
-// (browser/js/ui/openImageModal.js dustOver → motion/canvasDustStage.js). It is NOT a
+// (browser/js/ui/openImage/modal.js dustOver → motion/dust/canvasDustStage.js). It is NOT a
 // `.disintegrate-host`, so the shell's sweepDust never reached it: switching tab or closing
 // the window mid-flight left the motes playing over whatever arrived next, with the veil
 // they stood in for still down. Desktop twin: OpenImageDialog::cancelPreviewDust.

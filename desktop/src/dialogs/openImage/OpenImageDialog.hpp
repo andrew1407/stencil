@@ -26,7 +26,7 @@ class QVideoFrame;
 // The GUI e2e drives the VIDEO branch through this seam (no decoder offscreen).
 class MainWindowGuiTest;
 
-// Unified "Open Image" dialog (browser/js/ui/openImageModal.js): the single way into the editor -
+// Unified "Open Image" dialog (browser/js/ui/openImage/modal.js): the single way into the editor -
 // a local FILE, a web URL/reference, or a NEW BLANK canvas - with a live preview (video frames
 // seek-able) and an optional page-aspect crop. exec(); on Accepted read getOutcome() + the getters.
 // Preview, scrub and quick-crop mirror LinksDialog's add-by-URL section, accessor names included,

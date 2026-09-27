@@ -1,4 +1,4 @@
-// Shapes for llm/reply.js — what the user reads when a turn lands or fails (§6.3): the
+// Shapes for llm/chat/reply.js — what the user reads when a turn lands or fails (§6.3): the
 // reply plus its warnings, and the table that maps a failed turn to a kind, a text and a card.
 // Pure; the DOM decisions live in the views.
 import type { LlmSettings } from '../settings.js';

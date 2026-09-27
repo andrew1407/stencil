@@ -19,7 +19,7 @@ pub use sanitize::{error_code, error_reason, sanitize_detail};
 pub(crate) use sanitize::{clip, SNIPPET_LEN};
 pub use url::{parse_http_url, HttpTarget};
 
-/// Connect + read/write timeout applied to every request: the contract's
+/// The budget for one whole request — DNS, connect, write and read: the contract's
 /// `timeouts.chatSeconds`, parsed from the embedded canonical providers.json.
 pub static DEFAULT_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
     let asset: serde_json::Value =
@@ -35,7 +35,6 @@ pub static DEFAULT_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
 /// collaboration server's `maxResponseBytes` (`server/internal/llm/anthropic.go`, 8 MiB).
 const MAX_HEADER_BYTES: usize = 64 * 1024;
 const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;
-const BODY_TOO_LARGE: &str = "response body exceeds 8 MiB";
 
 /// Everything a transport `post_json` can fail with. Hand-written (no `thiserror`), like
 /// `args::EditError`; `Display` is the exact user-facing message.
@@ -106,4 +105,8 @@ pub trait LlmTransport: Send + Sync {
         headers: &[(String, String)],
         body: &str,
     ) -> Result<String, LlmError>;
+
+    /// End the exchange in flight and refuse any later one, so a cancelled call's request
+    /// stops now rather than at its deadline. A transport with nothing to stop ignores it.
+    fn abort(&self) {}
 }

@@ -1,4 +1,4 @@
-// The logo stage's table and rules (js/ui/stageRules.js): every accent preset opens a show, a
+// The logo stage's table and rules (js/ui/logo/stageRules.js): every accent preset opens a show, a
 // custom hex picks by value, a styled show needs its motion mode, and the heart fits.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

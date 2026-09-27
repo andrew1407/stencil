@@ -42,9 +42,7 @@ namespace stencil::gui {
     // Veil and width both start at zero BEFORE Show, so nothing paints at full size first.
     const int savedMax = ctl::parkMaxWidth(w);
     w->setMaximumWidth(0);
-    auto* veil = new QGraphicsOpacityEffect(w);
-    veil->setOpacity(0.0);
-    w->setGraphicsEffect(veil);
+    QGraphicsOpacityEffect* veil = veilBehindDust(w);
     w->setVisible(true);
     QPointer<QWidget> guard(w);
     QPointer<QGraphicsOpacityEffect> veilGuard(veil);
@@ -71,9 +69,7 @@ namespace stencil::gui {
       const int naturalW = natural.width();
       const QRect at(guard->mapTo(host, QPoint(0, 0)), natural);
       guard->setMaximumWidth(0);
-      auto* freshVeil = new QGraphicsOpacityEffect(guard);
-      freshVeil->setOpacity(0.0);
-      guard->setGraphicsEffect(freshVeil);
+      QGraphicsOpacityEffect* freshVeil = veilBehindDust(guard);
       QPointer<QGraphicsOpacityEffect> freshVeilGuard(freshVeil);
       // In `slide` the cloud declines and the slot alone is the flight, so the veil comes off
       // at once — there are no motes for the group to wait behind (browser revealControls).
@@ -108,8 +104,7 @@ namespace stencil::gui {
   // Forming waits behind the motes (browser markForm).
   void paintRevealInPlace(QWidget* w, QWidget* host, bool out, int outMs, int inMs) {
     ctl::settleReveal(w);
-    auto* fx = new QGraphicsOpacityEffect(w);
-    w->setGraphicsEffect(fx);
+    QGraphicsOpacityEffect* fx = veilBehindDust(w);
     const QRect at(w->mapTo(host, QPoint(0, 0)), w->size());
     // Opaque specks (ctl::markSpecks): tiles cut from line-art are nearly all transparent.
     const int cols = std::max(2, qRound(at.width() / 3.0));

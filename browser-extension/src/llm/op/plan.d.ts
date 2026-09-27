@@ -1,4 +1,4 @@
-// Shapes for llm/plan.js — the validated op plan (llm-contract.md §1–§4, §8, §11).
+// Shapes for llm/op/plan.js — the validated op plan (llm-contract.md §1–§4, §8, §11).
 // Model output is DATA: nothing here is trusted until parseOpPlan has returned it.
 
 /** One validated action. `op` is always a name the extension profile registers. */

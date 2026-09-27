@@ -6,6 +6,7 @@ import { ConnectionManager } from '../../js/net/connectionManager.js';
 import { shouldReloadFromEvent } from '../../js/net/remoteSync.js';
 import { installFetchStub } from '../helpers/fetchStub.js';
 import { makeMockServer, StubWS, facadeApp } from '../helpers/connectionsRig.js';
+import { installImageDecode } from '../helpers/projectTransferRig.js';
 
 // ── Live co-edit: shouldReloadFromEvent (the reload decision) ──
 const LINK = { address: 'http://localhost:8090', remoteId: 'p1', version: 5 };
@@ -51,18 +52,20 @@ test('facade load waits for the NEW image, not merely for one to exist', async (
   const firstImage = { width: 2, height: 2 };
   const app = facadeApp(server, { image: firstImage });
   let applied = false;
-  app.loadImageFromFile = () => {
-    // decode lands LATER, exactly like the real loadImageFromFile (no promise returned)
+  // The real loadImageFromFile reads the file; its decode lands LATER (it returns no promise).
+  const decode = installImageDecode(() => {
     setTimeout(() => { app.image = { width: 4, height: 4 }; applied = true; }, 30);
-  };
+  });
   const stencil = createStencil(app);
-  const fetchStub = installFetchStub({ ok: true, blob: { type: 'image/png' } });
+  const fetchStub = installFetchStub({ ok: true, blob: new Blob(['x'], { type: 'image/png' }) });
   try {
     await stencil.load('http://x/y.png');
+    assert.deepEqual(decode.reads(), ['y.png']);
     assert.ok(applied, 'load resolved before the new image was applied');
     assert.notStrictEqual(app.image, firstImage);
   } finally {
     fetchStub.restore();
+    decode.restore();
   }
 });
 

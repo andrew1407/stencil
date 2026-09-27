@@ -1,5 +1,6 @@
 """Provider configuration (contract §5): the provider list, their default base URLs,
-the attachment caps, and :class:`LlmConfig` — env-loaded, never discovered.
+the attachment caps, the direct ``anthropic`` wire's constants, and :class:`LlmConfig` —
+env-loaded or passed in, never discovered.
 """
 
 from __future__ import annotations
@@ -7,7 +8,9 @@ from __future__ import annotations
 import importlib.resources
 import json
 import os
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 from .._ffi.types import NoneType
 
@@ -36,18 +39,31 @@ DEFAULT_BASE_URLS = {
   for name, p in _PROVIDERS_ASSET["providers"].items()
   if p["defaultBaseUrl"]
 }
+# provider -> its wire shape ("ollama" | "openai" | "server") and chat route (§6).
+WIRE_OF = {name: p["wire"] for name, p in _PROVIDERS_ASSET["providers"].items()}
+CHAT_PATHS = {name: p["chatPath"] for name, p in _PROVIDERS_ASSET["providers"].items()}
+
+# §6.5: what a direct anthropic turn sends, and how long its session key lives (seconds).
+ANTHROPIC_VERSION = _PROVIDERS_ASSET["anthropicUpstream"]["version"]
+DEFAULT_MODEL = _PROVIDERS_ASSET["serverDefaults"]["model"]
+MAX_TOKENS = _PROVIDERS_ASSET["serverDefaults"]["maxTokens"]
+KEY_TTL_SECONDS = 60 * _PROVIDERS_ASSET["providers"]["anthropic"]["sessionKey"]["ttlMinutes"]
 
 
 # ── provider configuration (contract §5) ──────────────────────────────────────
-@dataclass
+@dataclass(repr=False)
 class LlmConfig:
   """Which LLM endpoint to talk to — the same shape every client shares.
 
-  ``base_url``/``model``/``api_key`` apply to ``ollama``/``openai-compat`` (the key
-  is optional and sent as a Bearer header on ``openai-compat`` only); ``server_url``
-  applies to ``stencil-server`` only (the collaboration server proxying Anthropic,
-  authenticated with the existing session token). An empty ``base_url`` is pre-filled
-  with the provider's contract default.
+  ``base_url``/``model``/``api_key`` apply to ``ollama``/``openai-compat``/``anthropic``
+  (the key is optional and a Bearer header on ``openai-compat``; on ``anthropic`` it is
+  the user's own key, sent as ``x-api-key``); ``server_url`` applies to
+  ``stencil-server`` only (the collaboration server proxying Anthropic, authenticated
+  with the existing session token). An empty ``base_url`` is pre-filled with the
+  provider's contract default.
+
+  The key lives in this object alone: its repr redacts it, and on ``anthropic`` it is a
+  §5 session key that :meth:`session_key` drops ``KEY_TTL_SECONDS`` after it was set.
   """
 
   provider: str = "ollama"
@@ -55,6 +71,7 @@ class LlmConfig:
   model: str = ""
   api_key: str = ""
   server_url: str = ""
+  clock: Callable[[], float] = field(default=time.time, compare=False)
 
   def __post_init__(self) -> None:
     self.provider = (self.provider or "ollama").strip().lower()
@@ -67,6 +84,28 @@ class LlmConfig:
     # True once a caller pins an explicit base URL via set_base_url();
     # set_provider() then keeps it instead of re-filling the provider default.
     self._url_pinned = False
+    self._key_at = self.clock()
+
+  def __setattr__(self, name: str, value: Any) -> None:
+    super().__setattr__(name, value)
+    # Every assignment of the key restarts its TTL; __post_init__ stamps the first.
+    if name == "api_key" and "_key_at" in self.__dict__:
+      super().__setattr__("_key_at", self.clock())
+
+  def __repr__(self) -> str:
+    return "LlmConfig(provider=%r, base_url=%r, model=%r, api_key=%s, server_url=%r)" % (
+      self.provider, self.base_url, self.model,
+      "'<redacted>'" if self.api_key else "''", self.server_url,
+    )
+
+  def key_expires_in(self) -> float:
+    """Seconds the key has left before :meth:`session_key` drops it (≤ 0: expired)."""
+    return self._key_at + KEY_TTL_SECONDS - self.clock()
+
+  def session_key(self) -> str:
+    """The key a direct ``anthropic`` turn sends, dropped first once its TTL passed."""
+    if self.api_key and self.key_expires_in() <= 0: self.api_key = ""
+    return self.api_key
 
   def set_base_url(self, url: str) -> "LlmConfig":
     """Pin an explicit base URL (a user override): :meth:`set_provider` keeps a

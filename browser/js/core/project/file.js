@@ -71,7 +71,7 @@ export const buildProjectFile = (state = {}) => {
 
 export const serializeProjectFile = (state) => JSON.stringify(buildProjectFile(state), null, 2);
 
-// → { ok:true, project } (the hardened shape for DrawingApp.applyProjectFile) or { ok:false, error }.
+// → { ok:true, project } (the hardened shape for fileIO.js applyProjectFile) or { ok:false, error }.
 export const parseProjectFile = (input) => {
   if (typeof input === 'string' && input.length > MAX_PROJECT_FILE_CHARS) {
     return { ok: false, error: 'Project file is too large (over 32 MiB).' };

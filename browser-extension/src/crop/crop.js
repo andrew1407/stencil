@@ -3,7 +3,7 @@
 import { cropAspect, isAlbumOrientation, pageDims } from '../lib/image/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
-import { watchNumericInputs } from '../lib/control/numericInput.js';
+import { watchNumericInputs } from '../lib/numericWatch.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';

@@ -6,7 +6,7 @@ export function wireTheme(app) {
   document.getElementById('theme-toggle').addEventListener('click', (e) => {
     // Hand the wipe the button that was actually pressed — the fullscreen layer clones
     // this toolbar with duplicate ids, so looking it up by id can find a hidden copy.
-    app.setTheme(app.theme === 'dark' ? 'light' : 'dark', e.currentTarget);
+    app.accents.setTheme(app.theme === 'dark' ? 'light' : 'dark', e.currentTarget);
   });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     if (app.accents.themeMode !== 'system') return;

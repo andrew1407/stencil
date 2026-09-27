@@ -45,7 +45,15 @@ namespace stencil::core::script {
   // Joins a statement's argument words back into one string (paths, names, targets).
   std::string joinWords(const std::vector<Token>& args);
 
+  // The words with every separator dropped and a NUMBER glued to the UNIT written against it,
+  // so "10%" stays one word: a template's name, and a call's name and arguments.
+  std::vector<Token> gluedWords(const std::vector<Token>& args);
+
   // Replaces std::atoi, which is undefined on an overflowing digit run.
   int parseIntClamped(const std::string& text);
+
+  // A word that starts like a number but broke the §1 grammar ("10foo", "+5", "1e3", ".5").
+  bool isMalformedNumber(const Token& t);
+  std::string malformedNumberMessage(const Token& t);
 
 }  // namespace stencil::core::script

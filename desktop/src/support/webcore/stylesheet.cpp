@@ -3,6 +3,7 @@
 #include "icons.hpp"
 #include "rules.hpp"
 #include "../skinPrefs.hpp"
+#include "defaultVisuals.hpp"
 #include "themeTokens.hpp"
 #include "theme.hpp"
 
@@ -21,11 +22,7 @@ namespace stencil::support {
 
   namespace {
     const QString& overlayTemplate() {
-      static const QString tpl = [] {
-        stencil::gui::ensureThemeResources();
-        QFile f(QStringLiteral(":/qss/webcore.qss"));
-        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
-      }();
+      static const QString tpl = stencil::gui::readStylesheet(QStringLiteral("webcore"));
       return tpl;
     }
 
@@ -177,7 +174,7 @@ namespace stencil::support {
                   tok(dark, "--wc-title-b"), tok(dark, "--wc-hilight"), tok(dark, "--wc-dark"),
                   tok(dark, "--wc-light"), tok(dark, "--wc-shadow")});
     Palette p;
-    p.selGlow = stencil::gui::displayColor(QColor("#ffc800"));
+    p.selGlow = stencil::gui::displayColor(QColor(stencil::gui::defaultVisuals::table().selGlow));
     p.hoverRing = stencil::gui::displayColor(QColor(stencil::gui::DEFAULT_ACCENT_HEX));
     p.bgPage = tok(dark, "--wc-desktop");
     p.bgContainer = tok(dark, "--wc-face");

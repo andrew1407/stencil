@@ -1,7 +1,7 @@
 // Server file endpoint depth: error paths and the `result` kind the smoke round-trip
 // (original only) doesn't cover — server/internal/httpapi/files.go.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 
 test.describe('server file endpoints', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

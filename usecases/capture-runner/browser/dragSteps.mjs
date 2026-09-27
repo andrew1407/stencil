@@ -3,7 +3,7 @@
 import { waitForAnimations } from '../lib/waits.mjs';
 
 // The app arms the zones on `dragstart` and highlights from `dragover` on the document
-// (projects/dragReorder.js), so dispatching that pair paints the same overlay a pointer does —
+// (projects/list/dragReorder.js), so dispatching that pair paints the same overlay a pointer does —
 // including the translucent row ghost, which is a real element, not the browser's drag image.
 const HOLD_DRAG = (zone) => `
   const row = document.querySelector('.project-row[data-id]');

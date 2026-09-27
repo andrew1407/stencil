@@ -50,10 +50,10 @@
     width: 1px;
     background: var(--border-main);
 }
-/* …unless the row wrapped in front of this section (ui/toolbarSeparators.js): a hairline
+/* …unless the row wrapped in front of this section (ui/toolbar/separators.js): a hairline
    at the head of a row is a stray, not a divider. */
 .ctrl-section.ctrl-sep-wrapped::before { content: none; }
-/* Blank-image fill chip (js/ui/toolbar.js; drawingApp.js sets `display` on a blank
+/* Blank-image fill chip (js/ui/toolbar/toolbar.js; drawingApp.js sets `display` on a blank
    project). A flat info-coloured control, not an accent action, so it also opts out of
    the toolbar sheen — see the :not() list in animations/controls.css. Descendant-of-.controls so
    it outranks the shared `button` and narrow-viewport `.controls button` rules. */

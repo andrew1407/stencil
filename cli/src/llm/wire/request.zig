@@ -1,28 +1,36 @@
-//! The three §6 provider request mappings: one ready-to-send URL, bearer and JSON body.
+//! The four §6 provider request mappings: one ready-to-send URL, credential and JSON body.
 //! The replayed history rides before the current turn and the §4 suffix after the
 //! canonical system prompt; the body shapes themselves live in body.zig.
 const std = @import("std");
 const config = @import("../config.zig");
+const providers = @import("../providers.zig");
 const registry = @import("../registry.zig");
 const chatDoc = @import("chatDoc.zig");
 const body_mod = @import("body.zig");
 
 const Config = config.Config;
+const Provider = config.Provider;
 const trimUrl = config.trimUrl;
 const systemPrompt = registry.systemPrompt;
 const Turn = chatDoc.Turn;
 const boundedHistory = chatDoc.boundedHistory;
 const writeBody = body_mod.writeBody;
 
-/// One ready-to-send request: URL, optional `Authorization` value, JSON body. All owned.
+/// One ready-to-send request: URL, its credential, JSON body. All owned; credentials are
+/// zeroed on deinit.
 pub const Request = struct {
     url: []u8,
-    auth: ?[]u8 = null, // full header value ("Bearer <…>")
+    auth: ?[]u8 = null, // full `Authorization` value ("Bearer <…>")
+    api_key: ?[]u8 = null, // anthropic's `x-api-key` (§6.5); null = no key for this session
+    provider: Provider = .ollama,
     body: []u8,
 
     pub fn deinit(self: *Request, gpa: std.mem.Allocator) void {
         gpa.free(self.url);
-        if (self.auth) |a| gpa.free(a);
+        inline for (.{ self.auth, self.api_key }) |secret| if (secret) |s| {
+            std.crypto.secureZero(u8, s);
+            gpa.free(s);
+        };
         gpa.free(self.body);
         self.* = .{ .url = &.{}, .body = &.{} };
     }
@@ -86,12 +94,18 @@ pub fn buildRequestWithSystem(
     const url = switch (cfg.provider) {
         .ollama => try std.fmt.allocPrint(gpa, "{s}/api/chat", .{cfg.base_url}),
         .openai_compat => try std.fmt.allocPrint(gpa, "{s}/chat/completions", .{cfg.base_url}),
+        .anthropic => try std.fmt.allocPrint(gpa, "{s}{s}", .{ cfg.base_url, providers.get().anthropic_chat_path }),
         .stencil_server => try std.fmt.allocPrint(gpa, "{s}/llm/chat", .{trimUrl(server_url)}),
     };
     errdefer gpa.free(url);
 
+    // §6.5: anthropic's key rides as `x-api-key`, never as a bearer.
+    if (cfg.provider == .anthropic) {
+        const key: ?[]u8 = if (cfg.api_key.len != 0) try gpa.dupe(u8, cfg.api_key) else null;
+        return .{ .url = url, .api_key = key, .provider = .anthropic, .body = body };
+    }
     const secret: []const u8 = switch (cfg.provider) {
-        .ollama => "",
+        .ollama, .anthropic => "",
         .openai_compat => cfg.api_key,
         .stencil_server => server_token,
     };
@@ -100,5 +114,5 @@ pub fn buildRequestWithSystem(
     else
         null;
 
-    return .{ .url = url, .auth = auth, .body = body };
+    return .{ .url = url, .auth = auth, .provider = cfg.provider, .body = body };
 }

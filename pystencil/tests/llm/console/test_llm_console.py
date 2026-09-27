@@ -14,6 +14,7 @@ from pystencil.llm import (
   url_echoed_by_user,
 )
 from tests.helpers.stubs import _plan_json
+from tests.helpers.nativecase import needs_core
 
 
 class EchoGuardTest(unittest.TestCase):
@@ -26,10 +27,12 @@ class EchoGuardTest(unittest.TestCase):
       _plan_json(actions=[{"op": "openUrl", "url": url or self.URL}])
     )
 
+  @needs_core
   def test_url_in_the_current_text_passes(self):
     self.assertTrue(url_echoed_by_user([], "load %s please" % self.URL, self.URL))
     self.assertIsNone(blocked_open_url(self._plan(), [], "get %s" % self.URL))
 
+  @needs_core
   def test_url_in_a_replayed_user_turn_passes(self):
     history = [
       {"role": "user", "text": "here: %s" % self.URL, "images": []},
@@ -38,6 +41,7 @@ class EchoGuardTest(unittest.TestCase):
     self.assertTrue(url_echoed_by_user(history, "load it", self.URL))
     self.assertIsNone(blocked_open_url(self._plan(), history, "load it"))
 
+  @needs_core
   def test_an_untyped_url_blocks_the_plan(self):
     # The model introduced the host — the guard names the URL, nothing executes.
     self.assertFalse(url_echoed_by_user([], "load the cat picture", self.URL))
@@ -45,6 +49,7 @@ class EchoGuardTest(unittest.TestCase):
       blocked_open_url(self._plan(), [], "load the cat picture"), self.URL
     )
 
+  @needs_core
   def test_assistant_text_never_authorises_a_url(self):
     history = [{"role": "assistant", "text": "try %s" % self.URL, "images": []}]
     self.assertFalse(url_echoed_by_user(history, "yes do that", self.URL))

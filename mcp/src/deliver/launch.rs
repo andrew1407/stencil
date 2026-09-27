@@ -5,16 +5,37 @@
 //! JavaScript's `encodeURIComponent` byte for byte.
 
 use std::path::Path;
+use std::process::Stdio;
 
 use base64::Engine;
 
-/// Build `<browser_url>/#stencil=<encodeURIComponent(JSON)>` carrying the result as a data
-/// URL — the fragment the extension uses to hand images to the editor.
+use crate::pipeline::gui_env;
+
+/// The longest URL handed to the OS opener: under Linux's 128 KiB cap on one argument.
+pub(super) const OPEN_MAX: usize = 96 * 1024;
+
+/// The longest URL returned in a tool result, where every byte is the model's context.
+pub(super) const ECHO_MAX: usize = 32 * 1024;
+
+/// Build `<browser_url>/#stencil=<encodeURIComponent(JSON)>` carrying the result as a data URL,
+/// at most `cap` long: a web page cannot open a local path, so the pixels ride in the fragment.
 pub(super) async fn build_launch_url(
     output_path: &str,
     browser_url: &str,
+    cap: usize,
 ) -> Result<String, String> {
-    // A finished render is megabytes: the read and its base64 go off the JSON-RPC thread.
+    let too_large = |bytes: u64| {
+        format!(
+            "the result is {} KiB, too large for a {} KiB launch URL — open {output_path} in \
+             the editor instead",
+            bytes.div_ceil(1024),
+            cap / 1024
+        )
+    };
+    let size = std::fs::metadata(output_path).map(|m| m.len()).unwrap_or(0);
+    if size.div_ceil(3) * 4 > cap as u64 {
+        return Err(too_large(size));
+    }
     let path = output_path.to_string();
     let read = tokio::task::spawn_blocking(move || {
         std::fs::read(&path)
@@ -33,10 +54,11 @@ pub(super) async fn build_launch_url(
     // The browser's applyExternalLaunch() reads { dataUrl, name } from the fragment.
     let payload = serde_json::json!({ "dataUrl": data_url, "name": name });
     let json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    Ok(format!(
-        "{browser_url}/#stencil={}",
-        encode_uri_component(&json)
-    ))
+    let url = format!("{browser_url}/#stencil={}", encode_uri_component(&json));
+    match url.len() <= cap {
+        true => Ok(url),
+        false => Err(too_large(size)),
+    }
 }
 
 /// Guess a MIME type from the output extension (the formats the CLI can write).
@@ -88,9 +110,13 @@ fn opener_argv(url: &str) -> (&'static str, Vec<&str>) {
 }
 
 /// Open a URL with the platform opener. `tokio::process` reaps the child; std leaves a zombie.
+/// None of its stdio is ours to lend: stdout is the JSON-RPC channel.
 pub(super) fn open_in_os(url: &str) -> Result<(), String> {
     let (program, args) = opener_argv(url);
-    tokio::process::Command::new(program).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
+    let mut command = tokio::process::Command::new(program);
+    command.args(args).env_clear().envs(gui_env(std::env::vars_os()));
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    command.spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -136,9 +162,19 @@ mod tests {
         file.write_all(b"\x89PNG\r\n").unwrap();
         let path = file.path().to_string_lossy().into_owned();
 
-        let url = build_launch_url(&path, "http://localhost:8080").await.unwrap();
+        let url = build_launch_url(&path, "http://localhost:8080", ECHO_MAX).await.unwrap();
         assert!(url.starts_with("http://localhost:8080/#stencil="));
         // The fragment is percent-encoded JSON embedding a PNG data URL.
         assert!(url.contains("data%3Aimage%2Fpng%3Bbase64%2C"));
+    }
+
+    #[tokio::test]
+    async fn a_result_past_the_cap_gets_no_url_but_the_path_to_open() {
+        let mut file = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
+        file.write_all(&vec![7u8; 4096]).unwrap();
+        let path = file.path().to_string_lossy().into_owned();
+
+        let error = build_launch_url(&path, "http://localhost:8080", 1024).await.unwrap_err();
+        assert!(error.contains("too large") && error.contains(&path), "{error}");
     }
 }

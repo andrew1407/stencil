@@ -4,7 +4,7 @@
 // the working-video binding stay continuous. Nothing here touches the DOM.
 import { createChatController, MAX_ATTACHMENTS, CHAT_ATTACHMENTS_EVENT } from './controller.js';
 import { createLlmClient } from '../client.js';
-import { loadLlmSettings, serverBearerToken } from '../settings.js';
+import { loadLlmSettings, serverBearerToken, withSessionKey } from '../settings.js';
 import { describeChatError, settledReplyText } from './reply.js';
 import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
 import { publish } from '../../eventBus/appBus.js';
@@ -27,7 +27,7 @@ export const sharedChatController = (app, { create = createChatController } = {}
     controller = create({
       stencil: typeof window !== 'undefined' ? window.stencil : undefined,
       getClient: () => createLlmClient({
-        settings: loadLlmSettings(),
+        settings: withSessionKey(loadLlmSettings()),
         getToken: (url) => serverBearerToken(app, url),
       }),
       ...mediaAdapters(app),
@@ -48,7 +48,7 @@ export const peekChatController = (app) => CONTROLLERS.get(app) || null;
 export const forgetChatController = (app) => CONTROLLERS.delete(app);
 
 // One conversation ⇒ ONE visible transcript, so a surface opened later renders the history.
-// Rows are data only (the DOM lives in ui/view.js); `text` is always rendered as textContent.
+// Rows are data only (the DOM lives in ui/chat/view.js); `text` is always rendered as textContent.
 const chatRows = [];
 const chatRowListeners = new Set();
 let chatRowSeq = 0;

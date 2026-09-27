@@ -1,4 +1,5 @@
-// MainWindow GUI e2e — Where a reveal flies from: the anchor, the triggered icon, and the colour picker.
+// MainWindow GUI e2e — Where a reveal flies from (the anchor, the triggered icon, the colour picker), and
+// that one out of a floating chat flies above it.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 
@@ -74,8 +75,8 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());   // rotate needs an image to be enabled
     settleLayout(&win, 150);
-    QAction* first = win.actRotateLeft;
-    QAction* second = win.actRotateRight;
+    QAction* first = win.acts.rotateLeft;
+    QAction* second = win.acts.rotateRight;
     QVERIFY(first && second);
     QWidget* b1 = win.buttonForAction(first);
     QWidget* b2 = win.buttonForAction(second);
@@ -88,7 +89,7 @@ class MainWindowGuiTest : public QObject {
     // the "it flew out of the wrong button" case. It has no slot either, so nothing opens.
     auto* iconless = new QAction("Menu-only command", &win);
     win.addAction(iconless);
-    win.bindRevealAnchors();     // idempotent — binds whatever is not bound yet
+    win.parts.actionsBuilder.bindRevealAnchors();     // idempotent — binds whatever is not bound yet
     win.pop.dialogAnchor = b2;
     iconless->trigger();
     QVERIFY2(!win.pop.dialogAnchor, "an icon-less action left the previous icon as the origin");
@@ -119,11 +120,11 @@ class MainWindowGuiTest : public QObject {
     };
 
     // ── an icon-backed dialog ──
-    QWidget* icon = win.buttonForAction(win.actProjects);
+    QWidget* icon = win.buttonForAction(win.acts.projects);
     QVERIFY2(icon && icon->isVisible(), "the Projects icon is not on the toolbar");
     watcher.reset();
     closeSoon();
-    win.actProjects->trigger();
+    win.acts.projects->trigger();
     settle([&] { return watcher.captured; }, 50);
     {
       const QPoint want = flightPointOf(icon, &win);
@@ -136,11 +137,11 @@ class MainWindowGuiTest : public QObject {
     // toolbar icon now, so this synthetic one is bound and wired through the same execMaybePopover path.
     QMenu* help = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(win.actInfo)) { help = m; break; }
+      if (m->actions().contains(win.acts.info)) { help = m; break; }
     QVERIFY2(help, "the Help menu was not found");
     auto* act = new QAction("Test Menu-Only Dialog", &win);
     help->addAction(act);
-    win.bindRevealAnchor(act);
+    win.parts.actionsBuilder.bindRevealAnchor(act);
     connect(act, &QAction::triggered, &win, [&win, act] {
       QDialog dlg(&win);
       dlg.resize(300, 200);
@@ -163,6 +164,51 @@ class MainWindowGuiTest : public QObject {
                             .arg(QDebug::toString(watcher.origin), QDebug::toString(rowInWin))));
   }
 
+  // The compact chat's "…" ▸ Settings: the chat floats above the window, so a cloud left in the
+  // window's own layer passed under it. Both flights ride a tooltip-level window, above a tool window.
+  void aCloudOutOfTheFloatingChatFliesAboveIt() {
+    using stencil::gui::DisintegrateOverlay;
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(780, 740);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openChatCompact(win.buttonForAction(win.acts.chat));
+    QTRY_VERIFY(win.chatCompactShowing());
+    QTest::qWait(900);   // past the float's own arrival
+    QVERIFY(win.chatDock->isWindow() && win.chatDock->windowType() == Qt::Tool);
+    QWidget* more = win.chatDock->moreButton();
+    const QPoint origin = more->mapToGlobal(more->rect().center());
+    const QList<QWidget*> earlier = win.findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::OBJECT_NAME));
+    const auto cloud = [&](bool gathering) -> DisintegrateOverlay* {
+      DisintegrateOverlay* found = nullptr;
+      for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::OBJECT_NAME))) {
+        auto* fx = static_cast<DisintegrateOverlay*>(w);
+        if (!earlier.contains(w) && fx->surfacePicture().isValid() && fx->gathering() == gathering) found = fx;
+      }
+      return found;
+    };
+    const auto verdict = [&](DisintegrateOverlay* fx, const char* which) {
+      if (!fx) return QString("%1: no cloud played").arg(which);
+      if (!fx->isWindow() || fx->windowType() != Qt::ToolTip)
+        return QString("%1: the cloud is a layer of the window, beneath the floating chat").arg(which);
+      if (!fx->geometry().contains(origin)) return QString("%1: the cloud does not reach the \"…\"").arg(which);
+      return QString();
+    };
+    QString opened = "the dialog never opened", closed;
+    QTimer::singleShot(0, [&] {
+      QDialog* dlg = nullptr;
+      settle([&] { return (dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget())) != nullptr; }, 3000);
+      if (!dlg) return;
+      settle([&] { return cloud(true) != nullptr; }, 500);
+      opened = verdict(cloud(true), "arrival");
+      dlg->reject();
+      closed = verdict(cloud(false), "departure");
+    });
+    win.chatDock->moreRows.settings->trigger();
+    QVERIFY2(opened.isEmpty(), qPrintable(opened));
+    QVERIFY2(closed.isEmpty(), qPrintable(closed));
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

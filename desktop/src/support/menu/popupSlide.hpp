@@ -1,7 +1,7 @@
 #pragma once
 // The 'slide' motion mode's entrance for a popup list (a selector's, a control-hung menu's): it
 // grows out of its origin — the combo's caret, where the dust would fly from. Browser twin:
-// css/animations/overlays.css menuFromAnchor, its origin set as ui/control/dropdownMenu.js does.
+// css/animations/overlay/overlays.css menuFromAnchor, its origin set as ui/control/dropdownMenu.js does.
 #include <QPoint>
 #include <QRect>
 #include <QtGlobal>

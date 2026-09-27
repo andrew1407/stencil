@@ -55,3 +55,10 @@ func (a *API) adminAuthorized(req *http.Request) bool {
 	}
 	return subtle.ConstantTimeCompare([]byte(presented), []byte(a.deps.AdminToken)) == 1
 }
+
+// handleSession answers the bearer's own session: the cheap token probe (the guard's one indexed lookup)
+// that replaces listing every project. The admin token is no session, so it still gets 401 here.
+func (a *API) handleSession(rw http.ResponseWriter, req *http.Request) {
+	sess, _ := auth.SessionFromContext(req.Context())
+	writeJSON(rw, http.StatusOK, protocol.SessionResponse{SessionID: sess.ID, ExpiresAt: sess.ExpiresAt})
+}

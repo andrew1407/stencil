@@ -13,7 +13,7 @@ export const sections = createCollapsibleSections({
 sections.setHook(SEARCH_SECTION, (collapsed) => document.body.classList.toggle('search-collapsed', collapsed));
 
 // Alt + hover peek: the panel borrows the REAL .section-body node (wiring intact) and
-// returns it on close. Rules and timers live in lib/sectionPeek.js.
+// returns it on close. Rules and timers live in lib/highlight/sectionPeek.js.
 const peekPanel = document.createElement('div');
 peekPanel.id = 'section-peek';
 peekPanel.hidden = true;

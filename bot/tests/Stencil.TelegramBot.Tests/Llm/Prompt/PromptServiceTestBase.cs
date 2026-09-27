@@ -1,7 +1,6 @@
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
@@ -40,7 +39,7 @@ public abstract class PromptServiceTestBase : IClassFixture<PromptServiceFixture
         _dataDir = fixture.DataDir;
         BotOptions options = new() { DataDir = _dataDir };
         _editing = new EditingService(_cli, new UserWorkspace(options), _store);
-        _service = new PromptService(_llm, _editing, _store, new LlmOptions(), new MockServerClientFactory());
+        _service = new PromptService(_llm, _cli, _editing, _store, new LlmOptions(), new MockServerClientFactory());
     }
 
     protected Task<PromptOutcome> Prompt(string text, LlmImage? image = null) =>
@@ -53,12 +52,12 @@ public abstract class PromptServiceTestBase : IClassFixture<PromptServiceFixture
 
     /// <summary>A service with the attachment loader, arming the §7 edge-map path.</summary>
     protected PromptService WithAttachments() =>
-        new(_llm, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
+        new(_llm, _cli, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
             new LlmAttachmentLoader(new MockImageDownscaler()));
 
     /// <summary>A PromptService whose §2.1 `save` can reach the mock collaboration server.</summary>
     protected PromptService WithProjects(RecordingServerService projects) =>
-        new(_llm, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
+        new(_llm, _cli, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
             new LlmAttachmentLoader(new MockImageDownscaler()), projects);
 
     /// <summary>Base64 of the stub bytes <see cref="MockStencilCli"/> writes to every output.</summary>

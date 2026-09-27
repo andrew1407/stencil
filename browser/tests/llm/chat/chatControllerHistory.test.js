@@ -1,4 +1,4 @@
-// History bounds and attachments (js/llm/controller.js): the 32-message cap, working vs
+// History bounds and attachments (js/llm/chat/controller.js): the 32-message cap, working vs
 // analyze-only images, sampled video frames and the errors that never reach the facade.
 import { test } from 'node:test';
 import assert from 'node:assert';

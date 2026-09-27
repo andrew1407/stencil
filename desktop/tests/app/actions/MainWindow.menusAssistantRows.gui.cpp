@@ -41,7 +41,7 @@ class MainWindowGuiTest : public QObject {
         menuAlive = menu->isVisible();  // checkables toggle in place
         menu->close();
       });
-      win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+      win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
       QVERIFY2(clicked, "the context menu never opened");
       QVERIFY2(menuAlive, "toggling a checkable row closed the menu");
@@ -52,8 +52,8 @@ class MainWindowGuiTest : public QObject {
     // The other half of the same hazard: a click on a TRANSCRIPT ROW inside the chat panel. A QLabel
     // ignores mouse presses, so the re-dispatched event propagated back up to the menu.
     win.settings.llmProvider = "ollama";
-    win.ensureChatMenuPanel();
-    win.chatMirror("You", "hello there", false);
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatMirror("You", "hello there", false);
     bool rowClicked = false, subAlive = false, splitterDragged = false;
     QTimer::singleShot(0, [&] {
       QMenu* menu = nullptr;
@@ -96,7 +96,7 @@ class MainWindowGuiTest : public QObject {
       }
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(rowClicked, "could not click a transcript row in the assistant submenu");
     QVERIFY2(subAlive, "clicking a transcript row closed the menu");
     QVERIFY2(splitterDragged,
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
       menuGoneAfterClick = !menu->isVisible() && !sub->isVisible();
       popupGrabGone = QApplication::activePopupWidget() == nullptr;
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(settingsFound, "the assistant overflow has no Settings row");
     QVERIFY2(menuGoneAfterClick, "Settings left the context menu open");
     QVERIFY2(popupGrabGone, "the popup grab survived the Settings row");

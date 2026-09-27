@@ -1,4 +1,4 @@
-// §13 registry pins for js/llm/plan.js: the op names, their flags, one key phrase per
+// §13 registry pins for js/llm/plan/: the op names, their flags, one key phrase per
 // bullet, capability truth, the prompt censor and the forbidden-name boundary.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -101,18 +101,27 @@ test('§13: every bullet keeps its key semantic phrase', () => {
 // The DEFERRED ops run in their own executor pass at the turn's end (chatRespond
 // flushDeferred), and that pass needs its own capability bag or the op dies on the replay.
 test('every deferred op\'s capability rides the end-of-turn replay', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../../../js/llm/chat/respond.js', import.meta.url), 'utf8');
-  const flush = src.slice(src.indexOf('const flushDeferred'), src.indexOf('// One model round'));
-  // …and the dedup keeps the LAST of each op: "close this window and open that one" is
-  // two dialog actions, and first-wins left the user with neither.
-  assert.ok(flush.includes('for (const a of deferred) byOp.set(a.op, a);'), 'last-wins dedup');
+  const { makeClient, makeController } = await import('../../helpers/chatControllerRig.js');
+  const SAMPLE = { dialog: { op: 'dialog', name: 'projects' }, clearChat: { op: 'clearChat' } };
+  const turn = async (actions, caps) => {
+    const client = makeClient([JSON.stringify({ version: 1, reply: 'ok', actions })]);
+    return makeController(client, caps).controller.send('go');
+  };
   for (const [name, def] of Object.entries(OPS)) {
     if (!def.deferred) continue;
-    for (const cap of def.requires || []) {
-      assert.ok(flush.includes(cap), `deferred op "${name}" needs ${cap} in the replay bag`);
-    }
+    assert.ok(SAMPLE[name], `deferred op "${name}" needs a sample action here`);
+    const called = [];
+    const caps = Object.fromEntries((def.requires || []).map((cap) => [cap, async () => { called.push(cap); return null; }]));
+    const entry = await turn([SAMPLE[name]], caps);
+    assert.deepStrictEqual(called, def.requires || [], `deferred op "${name}" needs its caps in the replay bag`);
+    assert.deepStrictEqual(entry.warnings, [], `deferred op "${name}" ran clean at the turn's end`);
   }
+  // …and the dedup keeps the LAST of each op: "close this window and open that one" is
+  // two dialog actions, and first-wins left the user with neither.
+  const opened = [];
+  await turn([{ op: 'dialog', close: true }, { op: 'dialog', name: 'visuals' }],
+    { openDialog: async (n) => { opened.push(n); return null; } });
+  assert.deepStrictEqual(opened, ['visuals'], 'last-wins dedup');
 });
 
 test('§13 capability truth: an op whose capability is not wired drops out of the prompt', () => {

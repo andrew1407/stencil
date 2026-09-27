@@ -1,7 +1,11 @@
-//! The two parsers a script run adds to the stderr contract: every `wrote` line (one per
-//! `@save`, so a whole-directory script is reportable) and the CLI's `note:` lines.
+//! The parsers the script modes add to the stderr contract: every `wrote` line (one per
+//! `@save`, so a whole-directory script is reportable), the CLI's `note:` lines, the
+//! word-tailed document lines, and `--script-check`'s diagnostics.
 
-use stencil_mcp::outcome::{parse_all_wrote, parse_notes, parse_wrote};
+use stencil_mcp::outcome::{
+    parse_all_wrote, parse_diagnostics, parse_documents, parse_notes, parse_wrote,
+    parse_wrote_project,
+};
 
 #[test]
 fn every_save_line_is_parsed_in_order() {
@@ -60,4 +64,36 @@ fn a_written_file_serializes_as_the_payload_object() {
         serde_json::to_value(&all[0]).unwrap(),
         serde_json::json!({ "path": "out.png", "width": 3, "height": 4 })
     );
+}
+
+/// Word-tailed `wrote` lines are documents: a `.stencil` project and the emitted scripts.
+#[test]
+fn project_and_emit_lines_are_documents_not_images() {
+    let stderr = "wrote a.png (4x4)\nwrote my (1) shot.stencil (project)\nwrote s.pystc (python)\n";
+    assert_eq!(
+        parse_documents(stderr),
+        [
+            ("my (1) shot.stencil".to_string(), "project".to_string()),
+            ("s.pystc".to_string(), "python".to_string()),
+        ]
+    );
+    assert_eq!(parse_wrote_project(stderr).as_deref(), Some("my (1) shot.stencil"));
+    assert_eq!(parse_all_wrote(stderr).len(), 1, "only the image has a size");
+}
+
+/// `--script-check`'s stdout, one diagnostic per line, split from the right so a path with
+/// a colon survives.
+#[test]
+fn check_lines_become_structured_diagnostics() {
+    let stdout = "C:\\work\\a.stc:2:3: error: unknown directive '@crp' — did you mean \
+                  '@crop'? [E_UNKNOWN_DIRECTIVE]\n\
+                  a.stc:9:1: warning: tokens after a block's `:` [W_TRAILING_TOKENS]\n\
+                  a banner line\n";
+    let found = parse_diagnostics(stdout);
+    assert_eq!(found.len(), 2);
+    assert_eq!((found[0].line, found[0].col, found[0].severity.as_str()), (2, 3, "error"));
+    assert_eq!(found[0].code, "E_UNKNOWN_DIRECTIVE");
+    assert_eq!(found[0].message, "unknown directive '@crp' — did you mean '@crop'?");
+    let second = (found[1].severity.as_str(), found[1].code.as_str());
+    assert_eq!(second, ("warning", "W_TRAILING_TOKENS"));
 }

@@ -11,7 +11,6 @@
 #include <QClipboard>
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
-#include <QGraphicsOpacityEffect>
 #include <QGuiApplication>
 #include <QLabel>
 #include <QMenu>

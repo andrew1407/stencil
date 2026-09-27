@@ -9,6 +9,8 @@ export interface ServerProject {
   id: string; name?: string; source?: string; resource?: string; color?: string;
   updatedAt?: number; hasImage?: boolean;
 }
+/** One page of a listing walk: the cursor that asked for it, its ETag, its rows and the cursor it names next. */
+export interface ProjectListPage { after: string; etag: string; projects: ServerProject[]; next?: unknown; }
 export interface SharedPin {
   source: string; origin: string; site: string; resource: string; name: string; color: string;
   kind: 'image'; t: number; shared: true; serverUrl: string; projectId: string;
@@ -32,12 +34,19 @@ export declare const createProject: (conn: Connection, project: { name: string; 
 export declare const fetchProjectImage: (conn: Connection, projectId: string,
   kind?: 'original' | 'result', f?: Fetch) => Promise<Blob>;
 export declare const listProjects: (conn: Connection, f?: Fetch) => Promise<ServerProject[]>;
+export declare const SHARED_LIST_LIMIT: number;
+export declare const listProjectsIfChanged: (conn: Connection, prev?: { pages?: ProjectListPage[] } | null,
+  f?: Fetch) => Promise<{ changed: boolean; etag: string; pages: ProjectListPage[]; projects: ServerProject[] | null }>;
+export declare const checkSession: (conn: { url: string; token: string }, f?: Fetch) => Promise<void>;
 
 export declare const pinTargetMode: (connections: StoredConnection[]) => 'none' | 'one' | 'many';
 export declare const connectionByUrl: (connections: StoredConnection[], url: string) => StoredConnection | null;
 export interface ProjectRequest { name: string; source: string; resource: string; }
 export declare const projectRequestFromImage: (image?: Record<string, unknown>, resource?: string) => ProjectRequest;
 export declare const collectSharedPins: (connections: StoredConnection[], f?: Fetch) => Promise<SharedPin[]>;
+export type SharedListCache = Map<string, { etag: string; pages?: ProjectListPage[]; projects: ServerProject[] | null }>;
+export declare const refreshSharedPins: (connections: StoredConnection[], cache?: SharedListCache,
+  f?: Fetch) => Promise<{ pins: SharedPin[]; changed: boolean }>;
 export declare const addServer: (rawUrl: string, token?: string, f?: Fetch) => Promise<StoredConnection[]>;
 export declare const reconnectServer: (rawUrl: string, f?: Fetch) => Promise<StoredConnection[]>;
 export declare const removeServer: (rawUrl: string) => Promise<StoredConnection[]>;

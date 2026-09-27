@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from './lib/playwright.mjs';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir, scratchPath } from './lib/paths.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
+import { makeShotRunner } from './lib/shot/runner.mjs';
 import { quantizePng } from './lib/gifTools.mjs';
 
 const config = loadCaptureConfig('cli');

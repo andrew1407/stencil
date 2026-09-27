@@ -1,7 +1,7 @@
 // The quick-crop modal, handed to executeScript({ func }): Chrome serialises the function
 // and nothing else, so it must stay self-contained (no imports). If the frame never posts
 // 'ready' (CSP/mixed content), the modal drops and a tab opens instead.
-// The palette arrives as DATA (`theme` from lib/shellTheme.js) with 'system' already
+// The palette arrives as DATA (`theme` from lib/prefs/shellTheme.js) with 'system' already
 // resolved (`theme.resolved`) — never prefers-color-scheme, which a host page answers.
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
@@ -18,7 +18,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
     catch (e) { return false; }
   };
-  // Mirror of lib/shellTheme.js injectedScheme + resolveShellMode — an injected fn can't
+  // Mirror of lib/prefs/shellTheme.js injectedScheme + resolveShellMode — an injected fn can't
   // import. The page's own media query is the last resort.
   const resolveMode = (mode) => {
     if (mode === 'dark' || mode === 'light') return mode;
@@ -136,7 +136,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
 
   const wrap = document.createElement('div');
   wrap.className = 'wrap';   // .wrap.leaving is what plays the dispersal
-  // The one place the extension uses a native `title`: lib/controlTooltip.js never runs
+  // The one place the extension uses a native `title`: lib/tip/controlTooltip.js never runs
   // over the host page, so data-title alone would leave the two icons unexplained.
   wrap.innerHTML =
     '<div class="backdrop"></div>' +
@@ -156,8 +156,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     try { chrome.runtime.sendMessage({ type: 'stencil-open-tab', url }); }
     catch { window.open(url, '_blank'); }
   };
-  // lib/accent.js mirrors the mode + accent KEY into chrome.storage.local, so an open
-  // modal re-themes live. Literal key strings: an injected fn cannot import lib/shellTheme.js.
+  // lib/accent/accent.js mirrors the mode + accent KEY into chrome.storage.local, so an open
+  // modal re-themes live. Literal key strings: an injected fn cannot import lib/prefs/shellTheme.js.
   const onStore = (changes, area) => {
     if (area !== 'local') return;
     if (!changes.stencil_theme && !changes.stencil_theme_resolved && !changes.stencil_accent) return;

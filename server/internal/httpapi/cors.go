@@ -9,9 +9,10 @@ import (
 // Authentication is a bearer token, not cookies, so credentialed CORS is never needed. The default
 // allows only loopback origins; anything wider — including "*" — must be configured.
 const (
-	corsAllowMethods = "GET, POST, PUT, DELETE, OPTIONS"
-	corsAllowHeaders = "Authorization, Content-Type, X-Admin-Token"
-	corsMaxAge       = "600"
+	corsAllowMethods  = "GET, POST, PUT, DELETE, OPTIONS"
+	corsAllowHeaders  = "Authorization, Content-Type, X-Admin-Token, If-None-Match"
+	corsExposeHeaders = "ETag, Retry-After"
+	corsMaxAge        = "600"
 )
 
 // CORS wraps a handler for the given allowed origins: empty allows loopback only, "*" reflects any
@@ -35,6 +36,7 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 				h.Add("Vary", "Origin")
 				h.Set("Access-Control-Allow-Methods", corsAllowMethods)
 				h.Set("Access-Control-Allow-Headers", corsAllowHeaders)
+				h.Set("Access-Control-Expose-Headers", corsExposeHeaders)
 				h.Set("Access-Control-Max-Age", corsMaxAge)
 			}
 			// Answer preflight here so OPTIONS never falls through to the mux.

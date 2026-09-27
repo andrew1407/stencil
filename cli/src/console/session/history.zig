@@ -30,12 +30,19 @@ pub fn state(self: *Session) EditState {
 /// ownership of `next` only on a successful append; a rebuild failure leaves the old view standing.
 pub fn pushState(self: *Session, next: EditState) !void {
     self.dropAfterCursor();
+    if (self.run_floor) |floor| if (self.cursor > floor) {
+        self.history.items[self.cursor].deinit(self.gpa);
+        self.history.items[self.cursor] = next;
+        self.rebuild() catch {};
+        return;
+    };
     try self.history.append(self.gpa, next); // append fails BEFORE ownership → caller frees
     self.cursor = self.history.items.len - 1;
     while (self.history.items.len > max_states) {
         self.history.items[1].deinit(self.gpa);
         _ = self.history.orderedRemove(1);
         self.cursor -= 1;
+        if (self.run_floor) |*floor| floor.* -|= 1; // index 1 sits at or below a run's floor
     }
     self.rebuild() catch {};
 }
@@ -85,6 +92,7 @@ pub fn clearAll(self: *Session) void {
     self.label = null;
     self.temp = false;
     self.default_fmt = .png;
+    self.filter_dirty = false;
     self.clearFormat();
 }
 

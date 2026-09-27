@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
           QTest::qWait(5);
         }
       });
-      win.createBlankImageFromDialog(Qt::white, 200, 200);
+      win.parts.sourceOpener.createBlankImageFromDialog(Qt::white, 200, 200);
       settle([&] { return watcher.captured; }, 600);
       QVERIFY(awaitFlights(&win));
     };
@@ -88,7 +88,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!aimed.contains(QRect(big->mapToGlobal(QPoint(0, 0)), big->size()).center()),
              "the anchor is still the big button the icon replaces");
 
-    win.createBlankImageFromDialog(Qt::white, 200, 200);
+    win.parts.sourceOpener.createBlankImageFromDialog(Qt::white, 200, 200);
     settleLayout(&win, 1200);
     QVERIFY(icon->isVisible());
     QCOMPARE(aimed, QRect(icon->mapToGlobal(QPoint(0, 0)), icon->size()));
@@ -100,11 +100,11 @@ class MainWindowGuiTest : public QObject {
     MainWindow win;
     QVERIFY(openLoaded(win));
     settleLayout(&win, 600);
-    QWidget* trash = win.buttonForAction(win.actClearProject);
+    QWidget* trash = win.buttonForAction(win.acts.clearProject);
     QVERIFY(trash && trash->isVisible());
     const QRect pressed(trash->mapToGlobal(QPoint(0, 0)), trash->size());
     const QRect aimed = stencil::gui::emptiedControlRect(&win, trash);
-    win.resetToBlankEditor();
+    win.parts.projects.resetToBlankEditor();
     settleLayout(&win, 1200);
     QVERIFY(trash->isVisible());
     const QRect landed(trash->mapToGlobal(QPoint(0, 0)), trash->size());

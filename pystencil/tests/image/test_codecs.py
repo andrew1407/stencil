@@ -45,7 +45,7 @@ class TestFormatFromExt(unittest.TestCase):
     self.assertEqual(codecs.format_from_ext("y.BmP"), "bmp")
 
   def test_unknown_ext(self):
-    self.assertIsNone(codecs.format_from_ext("z.jpeg"))
+    self.assertIsNone(codecs.format_from_ext("z.tga"))
     self.assertIsNone(codecs.format_from_ext("noext"))
 
 
@@ -154,10 +154,10 @@ class TestDecodeDispatch(unittest.TestCase):
     self.assertEqual((dw, dh), (2, 1))
     self.assertEqual(bytes(decoded), bytes(pixels))
 
-  def test_jpeg_raises_helpful(self):
+  def test_unknown_data_names_what_is_supported(self):
     with self.assertRaises(codecs.CodecError) as ctx:
-      codecs.decode(b"\xff\xd8\xff\xe0" + b"\x00" * 20)
-    self.assertIn("Zig CLI", str(ctx.exception))
+      codecs.decode(b"GIF89a" + b"\x00" * 20)
+    self.assertIn("PNG, BMP and JPEG", str(ctx.exception))
 
   def test_garbage_raises(self):
     with self.assertRaises(codecs.CodecError):

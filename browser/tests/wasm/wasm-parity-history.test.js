@@ -1,7 +1,7 @@
 // Parity coverage for the line-snapshot history (core/state/HistoryStack.cpp via the handle ABI in
 // core/wasmStateApi.cpp) against its JS twin, js/core/historyStack.js. Snapshots cross as the flat
 // (nums, text) pair, so two things are pinned at once: the cursor semantics — push truncation,
-// canUndo/canRedo, the "step 0 → empty, step -1" undo — and the codec halves (js/core/linesCodec.js ↔
+// canUndo/canRedo, the "step 0 → empty, step -1" undo — and the codec halves (js/core/line/linesCodec.js ↔
 // core/abi/linesCodec.hpp), whose symmetry is proved by pushing a line in and reading it back out.
 import { test, before } from 'node:test';
 import assert from 'node:assert';

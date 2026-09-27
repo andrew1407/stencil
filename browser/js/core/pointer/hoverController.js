@@ -1,5 +1,9 @@
 // Canvas hover + double-click delete: the cursor, the hover ring, the readout/tooltip and
 // the Lines-row tint. Bound through a one-per-frame rAF coalescer (ui/bindings/canvasPointer.js).
+import { canvasGestureActive } from './gesture.js';
+import { nearCompareDivider, canvasCoords } from './canvasCoords.js';
+import { CHANGE, changed } from '../app/changes.js';
+
 export const canvasMouseMove = (app, e) => {
 // A coalesced pass older than the leave would re-hover an empty canvas.
   if (app.mouseLeftAt >= e.timeStamp) return;
@@ -10,37 +14,35 @@ export const canvasMouseMove = (app, e) => {
   const setCursor = (c) => { if (app.canvas.style.cursor !== c) app.canvas.style.cursor = c; };
 
   if (!app.image) {
-    app.tooltipMgr.hide();
+    app.tooltip.hide();
     setCursor('default');
     app.updateCoordStatus();
     return;
   }
 
 // Mid drag/hold the tooltip stays off (the same states tooltip.js refresh() excludes).
-  if (app.isPanning || app.isDraggingPoint || app.isDraggingSegment ||
-      app.isDraggingLine || app.isZoomRectDragging || app.isRectDrawDragging ||
-      app.input.holdEngaged) {
-    app.tooltipMgr.hide();
+  if (canvasGestureActive(app) || app.input.holdEngaged) {
+    app.tooltip.hide();
     return;
   }
 
-  const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+  const { x, y } = canvasCoords(app, e.clientX, e.clientY);
 
 // A passive readout of where the cursor IS, so it must come BEFORE the compare returns.
   app.updateCoordStatus(x, y);
 
 // Over the movable divider: resize cursor only; dragging is handled in PointerController.
   if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && !app.compareHoldOriginal &&
-      (app.nearCompareDivider(e.clientX, e.clientY) || app.isDraggingCompareSplit)) {
+      (nearCompareDivider(app, e.clientX, e.clientY) || app.isDraggingCompareSplit)) {
     setCursor(app.compareMode === 'vertical' ? 'col-resize' : 'row-resize');
-    app.tooltipMgr.hide();
+    app.tooltip.hide();
     return;
   }
 
 // Compare view is read-only for EDITING; the coordinate tooltip is display and still answers.
   if (app.compareReadOnly()) {
     setCursor('default');
-    app.tooltipMgr.applyHover(e.clientX, e.clientY, x, y, e);
+    app.tooltip.applyHover(e.clientX, e.clientY, x, y, e);
     return;
   }
 
@@ -76,7 +78,7 @@ export const canvasMouseMove = (app, e) => {
       const nearSeg = nearPtIdx ? null : app.findNearestSegmentWithIdx(x, y);
       setCursor((nearPtIdx || nearSeg) ? 'move' : 'grab');
     }
-    app.tooltipMgr.hide();
+    app.tooltip.hide();
     return;
   }
 
@@ -92,7 +94,7 @@ export const canvasMouseMove = (app, e) => {
     setCursor('crosshair');
   }
 
-  app.tooltipMgr.applyHover(e.clientX, e.clientY, x, y, e);
+  app.tooltip.applyHover(e.clientX, e.clientY, x, y, e);
 };
 
 export const canvasDblClick = (app, e) => {
@@ -100,7 +102,7 @@ export const canvasDblClick = (app, e) => {
   if (app.compareReadOnly()) return;
   if (e.altKey) return;
 
-  const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+  const { x, y } = canvasCoords(app, e.clientX, e.clientY);
 
   const idx = app.findLineAt(x, y);
   if (idx !== -1) {
@@ -112,7 +114,7 @@ export const canvasDblClick = (app, e) => {
     else if (app.selectedLineIdx > idx) app.selectedLineIdx--;
     app.saveHistory();
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.lines, CHANGE.selection);
     app.coordTable.update();
   }
 };

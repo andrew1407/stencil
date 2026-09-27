@@ -16,6 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     // ── assistant ON ──
     win.settings.llmProvider = "ollama";
@@ -31,7 +32,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     // The menu's attach button feeds the DOCK's attachment state; stage one
     // there and the menu-driven turn must carry it (working image + this one).
     QImage att(12, 8, QImage::Format_RGB32);
@@ -77,20 +78,20 @@ class MainWindowGuiTest : public QObject {
       // Busy → the send button becomes STOP; clicking it THROUGH the menu
       // aborts without closing anything.
       win.chatDock->setBusy(true);
-      win.chatMirrorBusy(true);
-      win.chatMirrorPending(true);
+      win.chatSession->chatMirrorBusy(true);
+      win.chatSession->chatMirrorPending(true);
       sendWasStop = sendBtn->toolTip() == QString("Stop the response");
       QTest::mouseClick(sub, Qt::LeftButton, {},
                         sendBtn->mapTo(sub, sendBtn->rect().center()));
-      stopSeen = win.chatStopRequested && sub->isVisible() && menu->isVisible();
+      stopSeen = win.chatSession->chatStopRequested && sub->isVisible() && menu->isVisible();
       // The canceled reply turns the in-flight row into a muted "Stopped.".
       win.chatDock->setBusy(false);
-      win.chatMirrorBusy(false);
+      win.chatSession->chatMirrorBusy(false);
       stencil::llm::LlmReply canceled;
       canceled.ok = false;
       canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
       canceled.error = "Operation canceled";
-      win.onChatReply(canceled);
+      win.chatSession->onChatReply(canceled);
       for (QLabel* l : panel->findChildren<QLabel*>())
         if (l->text().contains("Stopped.")) stoppedRowSeen = true;
 
@@ -99,7 +100,7 @@ class MainWindowGuiTest : public QObject {
       escClosedSub = !sub->isVisible();
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
     QVERIFY2(assistantOpened, "the Assistant submenu did not open");
     QVERIFY2(chipsHiddenAfterSend, "the chips survived the first message");
@@ -118,8 +119,8 @@ class MainWindowGuiTest : public QObject {
 
     // ONE conversation: the turn typed in the menu is in the shared history AND
     // rendered in the dock.
-    QCOMPARE(win.chatHistory.size(), 2);  // user + assistant
-    QCOMPARE(win.chatHistory.first().text, QString("make it sepia"));
+    QCOMPARE(win.chatSession->chatHistory.size(), 2);  // user + assistant
+    QCOMPARE(win.chatSession->chatHistory.first().text, QString("make it sepia"));
     bool dockSawIt = false;
     for (QLabel* l : win.chatDock->findChildren<QLabel*>())
       if (l->text().contains("make it sepia")) dockSawIt = true;
@@ -138,23 +139,23 @@ class MainWindowGuiTest : public QObject {
             if (l->text().contains("make it sepia")) survived = true;
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(survived, "reopening the menu lost the chat transcript");
 
     // The dock's trash clears both surfaces.
-    win.onChatClear();
-    QVERIFY(win.chatHistory.isEmpty());
-    QVERIFY(win.chatMenuPanel);
+    win.chatSession->onChatClear();
+    QVERIFY(win.chatSession->chatHistory.isEmpty());
+    QVERIFY(win.chatSession->chatMenuPanel);
     // The mirrored rows scatter and then go (dock parity), so they leave on the
     // event loop — a hidden row is already on its way out and doesn't count.
     const auto menuRowsLeft = [&win] {
-      for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>())
+      for (QLabel* l : win.chatSession->chatMenuPanel->findChildren<QLabel*>())
         if (!l->isHidden() && l->text().contains("make it sepia")) return true;
       return false;
     };
     QTRY_VERIFY2(!menuRowsLeft(), "clearing the conversation left the menu transcript");
 
-    win.llmClient.reset();  // drop the mock before it goes out of scope
+    win.parts.chatAppliers.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

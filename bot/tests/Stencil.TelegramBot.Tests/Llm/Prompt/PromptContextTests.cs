@@ -1,5 +1,4 @@
 using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Tests.Doubles;
 using Stencil.TelegramBot.Domain.Llm.Wire;
@@ -69,7 +68,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
             // Stored as /connect stores it: the factory-normalised origin.
             Connections = [new ServerConnectionInfo { Url = "http://localhost:8090", Token = "local-tok" }],
         });
-        PromptService service = new(_llm, _editing, _store, new LlmOptions
+        PromptService service = new(_llm, _cli, _editing, _store, new LlmOptions
         {
             Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             // A bare host, as an env var would plausibly carry it.

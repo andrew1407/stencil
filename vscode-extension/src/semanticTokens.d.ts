@@ -3,7 +3,7 @@ import type { ScriptToken } from './parser/script/types.js';
 export declare const TOKEN_TYPES: readonly string[];
 export declare const TYPE_INDEX: Record<string, number>;
 export declare const LEGEND: unknown;
-export declare const tokenRows: (tokens: ScriptToken[]) => [number, number, number, number][];
+export declare const tokenRows: (tokens: ScriptToken[], lines?: string[]) => [number, number, number, number][];
 export declare const provider: {
   provideDocumentSemanticTokens: (document: unknown) => Promise<unknown>;
 };

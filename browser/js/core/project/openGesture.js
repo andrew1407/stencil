@@ -1,10 +1,11 @@
 // Pure row-open gesture logic — no DOM here.
 import { isTouchLike } from '../../utils.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
 // A projects-row gesture to an open intent. Touch has NO hold gesture: press-and-hold is the
 // drag-to-reorder pickup, and past the slop a pending open is dropped (drag.js).
-export const DOUBLE_CLICK_MS = 250;    // single-click actions wait this long for a dblclick
-export const DRAG_SLOP_PX = 10;        // travel that means "this is a drag/scroll, not a tap"
+export const DOUBLE_CLICK_MS = constants.POPOVER.doubleClickMs;   // single-click actions wait this long for a dblclick
+export const DRAG_SLOP_PX = constants.POPOVER.pressSlopPx;        // travel that means "this is a drag/scroll, not a tap"
 export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
   if (type === 'tap') return { confirm: true, target: 'here' };           // touch only
   const target = (ctrlKey || metaKey) ? 'newtab' : 'here';

@@ -5,15 +5,16 @@ import type { DrawingApp } from '../drawingApp.js';
 
 /** Valid, in-range indices only. */
 export declare const selectedIndices: (app: DrawingApp) => number[];
-export declare const isLineSelected: (app: DrawingApp, i: number) => boolean;
+/** Whether line i is selected, frozen for one frame: a Set lookup per line. */
+export declare const selectionPredicate: (app: DrawingApp) => (i: number) => boolean;
 /** Adds/removes `idx`; exactly one left drops back to single-select. */
 export declare const toggleLineSelection: (app: DrawingApp, idx: number) => void;
 /** "N lines selected" in the status line while 2+ are selected. */
 export declare const updateMultiSelectStatus: (app: DrawingApp) => void;
 /** A click on the letterbox outside the image drops the selection. */
 export declare const deselectEmptyArea: (app: DrawingApp, e: MouseEvent | null | undefined) => void;
-/** One field of the selected line, then a history entry. */
-export declare const applySelectionChange: (app: DrawingApp, prop: string, value: unknown) => void;
+/** One field of the selected line, then a history entry unless `commit` is false (a live preview). */
+export declare const applySelectionChange: (app: DrawingApp, prop: string, value: unknown, opts?: { commit?: boolean }) => void;
 /** The Lines-tab hover glow; -1 or out of range clears it. */
 export declare const setListHoverLine: (app: DrawingApp, idx: number) => void;
 /** Keyed by index so the list and the canvas stay in sync; `ctrlShift` toggles instead. */

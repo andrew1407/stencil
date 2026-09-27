@@ -1,4 +1,4 @@
-// Cross-origin preview media (js/ui/mediaCors.js): the CORS ask, the one plain retry when a
+// Cross-origin preview media (js/ui/canvas/mediaCors.js): the CORS ask, the one plain retry when a
 // host refuses it, and the read-back probe cropping depends on. Node has no DOM, so the
 // element and the probe canvas are the stubs from helpers/dom.js.
 import test from 'node:test';

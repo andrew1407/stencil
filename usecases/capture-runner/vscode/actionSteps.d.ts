@@ -1,5 +1,5 @@
 import type { CaptureConfig } from '../lib/captureConfig.js';
-import type { ShotRunner, ShotStep } from '../lib/shotRunner.js';
+import type { ShotRunner, ShotStep } from '../lib/shot/runner.js';
 
 export function makeActionSteps(opts: {
   config: CaptureConfig; runner: ShotRunner;

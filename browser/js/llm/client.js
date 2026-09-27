@@ -1,17 +1,20 @@
 // ── LLM chat client (llm-contract.md §6 wire mappings) ─────────────────
-// One chat({ system, messages }) over the three providers. Messages use the stencil-server DTO
-// shape as canonical ({ role, text, images: [{ mediaType, data }] }); the ollama / openai-compat
-// bodies derive from it. fetch is injected for `node --test`. Byte-pinned below this header to
-// browser-extension/src/llm/client.js; anything per-surface lives in surface.js.
+// One chat({ system, messages }) over the four wires. Messages use the stencil-server DTO
+// shape as canonical ({ role, text, images: [{ mediaType, data }] }); the ollama / openai-compat /
+// anthropic bodies derive from it. fetch is injected for `node --test`. Byte-pinned below this
+// header to browser-extension/src/llm/client.js; anything per-surface lives in surface.js.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
-import { ASSISTANT_OFF_TEXT, defaultGetToken } from './surface.js';
-import { LlmError, postJson } from './http.js';
+import { ASSISTANT_OFF_TEXT, defaultGetToken, isLoopbackHost } from './surface.js';
+import { LlmError, NO_REDIRECT, getInfo, keyedInit, postJson, readReply, upstreamFailure } from './http.js';
 export { LlmError, sanitizeProviderText } from './http.js';
 
 // Endpoint paths, display names and the probe timeout come from config providers.json (the
 // extension ships a checked-in copy, pinned by its dataParity.test.js).
 const PROVIDER_INFO = PROVIDERS_ASSET.providers;
 const PROBE_TIMEOUT_MS = PROVIDERS_ASSET.timeouts.probeMs;
+const { anthropicUpstream: ANTHROPIC, serverDefaults: ANTHROPIC_DEFAULTS } = PROVIDERS_ASSET;
+export const NO_KEY_TEXT = 'no API key for this session';
+const TRUNCATED_TEXT = 'Response truncated — the model hit its output limit; try a shorter request';
 
 // Human names for status lines ("Ollama @ localhost:11434 — connected").
 // 'none' is the local-only off state — not a provider, so not in providers.json.
@@ -41,6 +44,113 @@ const serverMessage = (m) => (m.images && m.images.length
   ? { role: m.role, text: m.text, images: m.images }
   : { role: m.role, text: m.text });
 
+// Canonical message → Anthropic content blocks: the text (none when empty), then each image.
+const anthropicImage = (i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.data } });
+const anthropicMessage = (m) => ({
+  role: m.role, content: [...(m.text ? [{ type: 'text', text: m.text }] : []), ...(m.images || []).map(anthropicImage)],
+});
+
+const bearer = (secret) => (secret ? { Authorization: 'Bearer ' + secret } : {});
+const listOf = (v) => (Array.isArray(v) ? v : []);
+
+// One strategy per providers.json `wire`: the configured base and its unset message, the auth
+// headers (`session`: from the Stencil session token; `keyed`: nothing is sent without apiKey, `init`
+// its fetch options or refusal), the chat body, reply and failure text, and what models and probe answer.
+const WIRES = Object.freeze({
+  ollama: {
+    base: (s) => s.baseUrl,
+    unset: 'No Ollama base URL configured',
+    auth: () => ({}),
+    body: (s, system, msgs) => ({
+      model: s.model || '',
+      stream: false,
+      messages: [{ role: 'system', content: system }, ...msgs.map(ollamaMessage)],
+    }),
+    // A 2xx body without a reply string (e.g. an error-shaped {"error":…}) is a
+    // typed badReply, never a silent "" (parity with the other surfaces).
+    reply: (r) => {
+      const content = r.message?.content;
+      if (typeof content !== 'string') throw LlmError.badReply('malformed ollama response (no message.content)');
+      return content;
+    },
+    models: (v) => listOf(v.models).map((m) => m?.name),
+    probe: (v) => ({ ok: true, detail: v.version ? `v${v.version}` : '' }),
+  },
+  openai: {
+    base: (s) => s.baseUrl,
+    unset: 'No base URL configured',
+    auth: (s) => bearer(s.apiKey),
+    body: (s, system, msgs) => ({
+      model: s.model || '',
+      stream: false,
+      messages: [{ role: 'system', content: system }, ...msgs.map(openaiMessage)],
+    }),
+    reply: (r) => {
+      const content = r.choices?.[0]?.message?.content;
+      if (typeof content !== 'string') throw LlmError.badReply('malformed response (no choices[0].message.content)');
+      return content;
+    },
+    models: (v) => listOf(v.data).map((m) => m?.id),
+    probe: (v) => ({ ok: true, detail: listOf(v.data)[0]?.id || '' }),
+  },
+  server: {
+    base: (s) => s.serverUrl,
+    unset: 'No Stencil server configured for the assistant',
+    session: true,
+    auth: (s, token) => ({ Authorization: 'Bearer ' + token }),
+    body: (s, system, msgs) => ({ system, messages: msgs.map(serverMessage), ...(s.model ? { model: s.model } : {}) }),
+    // stopReason handling per contract §6.3: truncated/refused replies are typed
+    // errors for the chat UI to render — NEVER parsed as an op-plan.
+    reply: (r) => {
+      if (r.stopReason === 'max_tokens') throw LlmError.truncated(TRUNCATED_TEXT);
+      if (r.stopReason === 'refusal') throw LlmError.refusal(r.text || 'The model refused this request');
+      if (typeof r.text !== 'string') throw LlmError.badReply('malformed server response (no text)');
+      return r.text;
+    },
+    models: (v) => (v?.model ? [v.model] : []),
+    probe: (v) => (v.enabled
+      ? { ok: true, detail: v.model || '' }
+      : { ok: false, detail: 'LLM disabled on this server (no API key configured)' }),
+  },
+  // §6.5: straight to Anthropic with the session key; this client always runs in a web or extension page.
+  anthropic: {
+    base: (s) => s.baseUrl,
+    unset: 'No Anthropic base URL configured',
+    keyed: true,
+    auth: (s) => ({ 'x-api-key': s.apiKey, 'anthropic-version': ANTHROPIC.version, 'anthropic-dangerous-direct-browser-access': 'true' }),
+    body: (s, system, msgs) => ({
+      model: s.model || ANTHROPIC_DEFAULTS.model,
+      max_tokens: ANTHROPIC_DEFAULTS.maxTokens,
+      ...(system ? { system } : {}),
+      messages: msgs.map(anthropicMessage),
+    }),
+    reply: (r) => {
+      const text = listOf(r?.content).map((b) => (b?.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('');
+      if (r?.stop_reason === 'max_tokens') throw LlmError.truncated(TRUNCATED_TEXT);
+      if (r?.stop_reason === 'refusal') throw LlmError.refusal(text || 'The model refused this request');
+      if (!Array.isArray(r?.content)) throw LlmError.badReply('malformed response (no content[] text)');
+      return text;
+    },
+    failure: (s) => upstreamFailure(s.apiKey),
+    init: (url) => keyedInit(url, isLoopbackHost),
+    models: (v) => listOf(v.data).map((m) => m?.id),
+    probe: (v) => ({ ok: true, detail: listOf(v.data)[0]?.id || '' }),
+  },
+});
+
+// A provider's providers.json row and its wire strategy, or nulls for an unknown provider.
+const wireFor = (provider) => {
+  const info = Object.hasOwn(PROVIDER_INFO, provider ?? '') ? PROVIDER_INFO[provider] : null;
+  return { info, wire: info ? WIRES[info.wire] : null };
+};
+
+// The endpoint these settings talk to (the stencil server's URL or the configured base); '' when unset.
+export const providerUrl = (settings) => {
+  const s = settings || {};
+  const { wire } = wireFor(s.provider);
+  return (wire ? wire.base(s) : s.baseUrl) || '';
+};
+
 // `getToken(serverUrl)` resolves the existing Stencil bearer token for stencil-server (sync or
 // async); without one the surface's defaultGetToken applies (surface.js).
 export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(globalThis), getToken } = {}) => {
@@ -50,52 +160,17 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
   // `signal` (optional AbortSignal) cancels the in-flight request — the panel's
   // Stop button rides on it; aborts surface as the runtime's AbortError.
   const chat = async ({ system, messages, signal }) => {
-    const msgs = messages || [];
-
     if (s.provider === 'none') throw LlmError.config(ASSISTANT_OFF_TEXT);
-
-    if (s.provider === 'ollama') {
-      if (!s.baseUrl) throw LlmError.http('No Ollama base URL configured');
-      const r = await postJson(fetchImpl, `${s.baseUrl}${PROVIDER_INFO.ollama.chatPath}`, {
-        model: s.model || '',
-        stream: false,
-        messages: [{ role: 'system', content: system }, ...msgs.map(ollamaMessage)],
-      }, {}, signal);
-      // A 2xx body without a reply string (e.g. an error-shaped {"error":…}) is a
-      // typed badReply, never a silent "" (parity with the other surfaces).
-      const content = r.message?.content;
-      if (typeof content !== 'string') throw LlmError.badReply('malformed ollama response (no message.content)');
-      return content;
-    }
-
-    if (s.provider === 'openai-compat') {
-      if (!s.baseUrl) throw LlmError.http('No base URL configured');
-      const headers = s.apiKey ? { Authorization: 'Bearer ' + s.apiKey } : {};
-      const r = await postJson(fetchImpl, `${s.baseUrl}${PROVIDER_INFO['openai-compat'].chatPath}`, {
-        model: s.model || '',
-        stream: false,
-        messages: [{ role: 'system', content: system }, ...msgs.map(openaiMessage)],
-      }, headers, signal);
-      const content = r.choices?.[0]?.message?.content;
-      if (typeof content !== 'string') throw LlmError.badReply('malformed response (no choices[0].message.content)');
-      return content;
-    }
-
-    if (s.provider === 'stencil-server') {
-      if (!s.serverUrl) throw LlmError.http('No Stencil server configured for the assistant');
-      const token = await resolveToken(s.serverUrl);
-      const body = { system, messages: msgs.map(serverMessage) };
-      if (s.model) body.model = s.model;
-      const r = await postJson(fetchImpl, `${s.serverUrl}${PROVIDER_INFO['stencil-server'].chatPath}`, body, { Authorization: 'Bearer ' + token }, signal);
-      // stopReason handling per contract §6.3: truncated/refused replies are typed
-      // errors for the chat UI to render — NEVER parsed as an op-plan.
-      if (r.stopReason === 'max_tokens') throw LlmError.truncated('Response truncated — the model hit its output limit; try a shorter request');
-      if (r.stopReason === 'refusal') throw LlmError.refusal(r.text || 'The model refused this request');
-      if (typeof r.text !== 'string') throw LlmError.badReply('malformed server response (no text)');
-      return r.text;
-    }
-
-    throw LlmError.http(`Unknown LLM provider "${s.provider}"`);
+    const { info, wire } = wireFor(s.provider);
+    if (!wire) throw LlmError.http(`Unknown LLM provider "${s.provider}"`);
+    const base = wire.base(s);
+    if (!base) throw LlmError.http(wire.unset);
+    if (wire.keyed && !s.apiKey) throw LlmError.disabled(NO_KEY_TEXT);
+    const url = `${base}${info.chatPath}`;
+    const init = wire.init?.(url);
+    const headers = wire.auth(s, wire.session ? await resolveToken(s.serverUrl) : '');
+    const r = await postJson(fetchImpl, url, wire.body(s, system, messages || []), headers, signal, wire.failure?.(s), init);
+    return wire.reply(r);
   };
 
   return { chat };
@@ -105,46 +180,27 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
 // "via server X (model)". Errors propagate (the caller shows "unreachable").
 export const fetchLlmInfo = async (serverUrl, { token = '', fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) => {
   if (!fetchImpl) throw LlmError.http('no fetch implementation available');
-  const resp = await fetchImpl(`${serverUrl}${PROVIDER_INFO['stencil-server'].infoPath}`, { headers: { Authorization: 'Bearer ' + token } });
+  const resp = await fetchImpl(`${serverUrl}${PROVIDER_INFO['stencil-server'].infoPath}`, { headers: { Authorization: 'Bearer ' + token }, redirect: NO_REDIRECT });
   if (!resp.ok) throw LlmError.http(`HTTP ${resp.status}`);
-  return resp.json();
+  return readReply(resp);
 };
+
+// The wire's auth headers outside a chat, where an absent getToken means no token.
+const infoHeaders = async (wire, s, getToken) =>
+  wire.auth(s, wire.session && getToken ? await getToken(s.serverUrl) : '');
 
 // Model suggestions for the settings datalist. Best-effort: NEVER throws, failures resolve [] —
 // the Model field always stays free-form typing.
 export const listModels = async (settings, { fetchImpl = globalThis.fetch?.bind(globalThis), getToken, timeoutMs = PROBE_TIMEOUT_MS } = {}) => {
   const s = settings || {};
-  if (!fetchImpl) return [];
-  const aborter = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = aborter ? setTimeout(() => aborter.abort(), timeoutMs) : null;
-  const signal = aborter ? { signal: aborter.signal } : {};
+  const { info, wire } = wireFor(s.provider);
+  if (!fetchImpl || !wire || !wire.base(s) || (wire.keyed && !s.apiKey)) return [];
   try {
-    if (s.provider === 'ollama' && s.baseUrl) {
-      const resp = await fetchImpl(`${s.baseUrl}/api/tags`, { ...signal });
-      if (!resp.ok) return [];
-      const v = await resp.json().catch(() => ({}));
-      return (Array.isArray(v.models) ? v.models : []).map((m) => m?.name).filter(Boolean);
-    }
-    if (s.provider === 'openai-compat' && s.baseUrl) {
-      const headers = s.apiKey ? { Authorization: 'Bearer ' + s.apiKey } : {};
-      const resp = await fetchImpl(`${s.baseUrl}/models`, { ...signal, headers });
-      if (!resp.ok) return [];
-      const v = await resp.json().catch(() => ({}));
-      return (Array.isArray(v.data) ? v.data : []).map((m) => m?.id).filter(Boolean);
-    }
-    if (s.provider === 'stencil-server' && s.serverUrl) {
-      const token = getToken ? await getToken(s.serverUrl) : '';
-      const info = await fetchLlmInfo(s.serverUrl, {
-        token,
-        fetchImpl: (u, init) => fetchImpl(u, { ...signal, ...init }),
-      }).catch(() => null);
-      return info?.model ? [info.model] : [];
-    }
-    return [];
+    const url = `${wire.base(s)}${info.modelsPath}`;
+    const r = await getInfo(fetchImpl, url, await infoHeaders(wire, s, getToken), timeoutMs, wire.init?.(url));
+    return r.ok ? wire.models(r.body).filter(Boolean) : [];
   } catch {
     return [];
-  } finally {
-    if (timer) clearTimeout(timer);
   }
 };
 
@@ -152,43 +208,20 @@ export const listModels = async (settings, { fetchImpl = globalThis.fetch?.bind(
 // { ok: false, detail }. Short timeout so a status refresh cannot hang.
 export const probeProvider = async (settings, { fetchImpl = globalThis.fetch?.bind(globalThis), getToken, timeoutMs = PROBE_TIMEOUT_MS } = {}) => {
   const s = settings || {};
-  const url = s.provider === 'stencil-server' ? (s.serverUrl || '') : (s.baseUrl || '');
+  const { info, wire } = wireFor(s.provider);
+  const url = providerUrl(s);
   const base = { provider: s.provider, url, model: s.model || '' };
   const fail = (detail) => ({ ...base, ok: false, detail });
   if (s.provider === 'none') return fail('assistant turned off');
   if (!url) return fail('not configured');
   if (!fetchImpl) return fail('no fetch implementation available');
-  const aborter = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = aborter ? setTimeout(() => aborter.abort(), timeoutMs) : null;
-  const signal = aborter ? { signal: aborter.signal } : {};
+  if (!wire) return fail(`unknown provider "${s.provider}"`);
+  if (wire.keyed && !s.apiKey) return fail(NO_KEY_TEXT);
   try {
-    if (s.provider === 'ollama') {
-      const resp = await fetchImpl(`${s.baseUrl}/api/version`, { ...signal });
-      if (!resp.ok) return fail(`HTTP ${resp.status}`);
-      const v = await resp.json().catch(() => ({}));
-      return { ...base, ok: true, detail: v.version ? `v${v.version}` : '' };
-    }
-    if (s.provider === 'openai-compat') {
-      const headers = s.apiKey ? { Authorization: 'Bearer ' + s.apiKey } : {};
-      const resp = await fetchImpl(`${s.baseUrl}/models`, { ...signal, headers });
-      if (!resp.ok) return fail(`HTTP ${resp.status}`);
-      const v = await resp.json().catch(() => ({}));
-      const first = Array.isArray(v.data) && v.data[0]?.id ? v.data[0].id : '';
-      return { ...base, ok: true, detail: first };
-    }
-    if (s.provider === 'stencil-server') {
-      const token = getToken ? await getToken(s.serverUrl) : '';
-      const info = await fetchLlmInfo(s.serverUrl, {
-        token,
-        fetchImpl: (u, init) => fetchImpl(u, { ...signal, ...init }),
-      });
-      if (!info.enabled) return fail('LLM disabled on this server (no API key configured)');
-      return { ...base, ok: true, detail: info.model || '' };
-    }
-    return fail(`unknown provider "${s.provider}"`);
+    const at = `${url}${info.probePath}`;
+    const r = await getInfo(fetchImpl, at, await infoHeaders(wire, s, getToken), timeoutMs, wire.init?.(at));
+    return r.ok ? { ...base, ...wire.probe(r.body) } : fail(`HTTP ${r.status}`);
   } catch (err) {
     return fail(err?.message || 'not reachable');
-  } finally {
-    if (timer) clearTimeout(timer);
   }
 };

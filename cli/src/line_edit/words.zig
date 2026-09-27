@@ -1,6 +1,6 @@
 //! Word boundaries for the word-wise moves and deletes, and the common prefix tab completion
 //! fills in.
-const setCommand = @import("../line_edit.zig").setCommand;
+const setCommand = @import("line_edit.zig").setCommand;
 const std = @import("std");
 const testing = std.testing;
 

@@ -1,11 +1,11 @@
 // Full-stack LLM proxy e2e: the real browser app chats through the real Go server's Anthropic
 // proxy (POST /llm/chat behind bearer auth), which forwards to the harness's stub LLM server —
 // never the real Anthropic API. The server's LLM env is injected by the compose override
-// helpers/compose.llm.yml on every harness-managed `up`; with E2E_SKIP_COMPOSE=1 the override
+// helpers/compose/llm.yml on every harness-managed `up`; with E2E_SKIP_COMPOSE=1 the override
 // is not applied and this spec self-skips off GET /llm/info.
 import { test, expect } from '@playwright/test';
 import { gotoApp } from '../../helpers/boot.js';
-import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 import { startLlmStub, LLM_STUB_PORT } from '../../helpers/llm-stub.js';
 
 test.describe('LLM proxy (stencil-server provider)', () => {
@@ -41,7 +41,7 @@ test.describe('LLM proxy (stencil-server provider)', () => {
     const infoRes = await request.get(`${SERVER_URL}/llm/info`, { headers: bearer(token) });
     expect(infoRes.ok()).toBeTruthy();
     const info = await infoRes.json();
-    test.skip(!info.enabled, 'server is running without the LLM env (helpers/compose.llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
+    test.skip(!info.enabled, 'server is running without the LLM env (helpers/compose/llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
     expect(info.model).toBe('claude-e2e');
 
     // A disabled proxy is a separate contract point (§6.3) — not reachable here, since

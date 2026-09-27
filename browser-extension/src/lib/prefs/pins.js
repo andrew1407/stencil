@@ -1,5 +1,5 @@
 // User pins in chrome.storage.local, keyed by (site origin, source URL); independent of
-// the opened ledger (lib/ledger.js).
+// the opened ledger (lib/prefs/ledger.js).
 export const PINS_KEY = 'stencil-pinned';
 const MAX_PINS = 500;
 

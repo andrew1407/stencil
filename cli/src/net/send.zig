@@ -5,6 +5,7 @@
 const std = @import("std");
 const report = @import("../app/report.zig");
 const fetchPool = @import("fetchPool.zig");
+const pin = @import("pin.zig");
 
 pub const Error = error{ HttpFailed, BlockedHost, TimedOut };
 
@@ -24,9 +25,9 @@ pub const RequestOptions = struct {
     /// Block loopback in addition to the always-blocked internal ranges — pass true for
     /// sub-resource URLs harvested from untrusted scanned content, false for user-named URLs.
     strict: bool = false,
-    /// Skip the host/DNS block entirely (see isBlockedFetchHost: the server-connect path is
-    /// exempt — the user names their own server). The cap and redirect refusal still apply.
-    allow_named_host: bool = false,
+    /// A collaboration server the user named: its host is judged by blockedRanges.json's
+    /// `serverTarget` policy (private admitted) and the exchange dials the address judged.
+    server_target: bool = false,
     /// ms, 0 = wait forever. The LLM path passes its own, longer budget
     /// (llm.request_timeout_ms = providers.json timeouts.perSurface.cli.chatSeconds).
     timeout_ms: u32 = DEFAULT_TIMEOUT_MS,
@@ -39,6 +40,8 @@ pub const Response = struct {
 
 pub const Result = (Error || error{OutOfMemory})!Response;
 
+pub const Pins = pin.Pins;
+
 /// One exchange on THIS thread: the host guard has already run and nothing bounds the wait.
 /// `muted` is set while the waiting side is giving up, whose own message already said why.
 pub fn once(
@@ -46,10 +49,12 @@ pub fn once(
     io: std.Io,
     url: []const u8,
     opts: RequestOptions,
+    pins: Pins,
     muted: ?*const std.atomic.Value(bool),
 ) Result {
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
+    if (pins.len != 0) pin.dial(&client, url, pins) catch |e| return failed(url, e, muted);
 
     // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the cap, aborting
     // the stream instead of growing memory. Page-allocated, so a small response commits its own pages.
@@ -65,21 +70,22 @@ pub fn once(
         // Refuse redirects: a public first hop must not 30x-bounce to an internal
         // host, which would slip past the pre-fetch host check in net.zig.
         .redirect_behavior = .not_allowed,
-    }) catch |e| {
-        if (muted == null or !muted.?.load(.acquire)) {
-            if (e == error.WriteFailed) {
-                report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
-            } else {
-                report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
-            }
-        }
-        return Error.HttpFailed;
-    };
+    }) catch |e| return failed(url, e, muted);
 
     return .{
         .status = @intFromEnum(result.status),
         .body = try gpa.dupe(u8, body.buffered()),
     };
+}
+
+fn failed(url: []const u8, e: anyerror, muted: ?*const std.atomic.Value(bool)) Error {
+    if (muted != null and muted.?.load(.acquire)) return Error.HttpFailed;
+    if (e == error.WriteFailed) {
+        report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
+    } else {
+        report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+    }
+    return Error.HttpFailed;
 }
 
 /// One exchange in flight on a concurrent task, so the waiting side can stop it.
@@ -88,22 +94,24 @@ const Task = struct {
     io: std.Io,
     url: []const u8,
     opts: RequestOptions,
+    pins: Pins,
     muted: std.atomic.Value(bool) = .init(false),
     done: std.Io.Event = .unset,
     out: Result = Error.HttpFailed,
 
     fn run(self: *Task) void {
-        self.out = once(self.gpa, self.io, self.url, self.opts, &self.muted);
+        self.out = once(self.gpa, self.io, self.url, self.opts, self.pins, &self.muted);
         self.done.set(self.io);
     }
 };
 
 /// `once` under `opts.timeout_ms`. Falls back to an unbounded call on this thread only where
 /// the Io cannot spawn — there is then nothing left to wait on the exchange's behalf.
-pub fn deadlined(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) Result {
-    if (opts.timeout_ms == 0) return once(gpa, io, url, opts, null);
-    var task = Task{ .gpa = gpa, .io = io, .url = url, .opts = opts };
-    var fut = io.concurrent(Task.run, .{&task}) catch return once(gpa, io, url, opts, null);
+pub fn deadlined(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions, pins: Pins) Result {
+    if (opts.timeout_ms == 0) return once(gpa, io, url, opts, pins, null);
+    var task = Task{ .gpa = gpa, .io = io, .url = url, .opts = opts, .pins = pins };
+    var fut = io.concurrent(Task.run, .{&task}) catch return once(gpa, io, url, opts, pins, null);
+    defer report.flushDeferred();
     const budget: std.Io.Clock.Duration = .{ .raw = .fromMilliseconds(opts.timeout_ms), .clock = .awake };
     const deadline: std.Io.Clock.Timestamp = .fromNow(io, budget);
     while (!task.done.isSet()) {

@@ -28,8 +28,9 @@ namespace stencil::gui {
     return *it;
   }
 
+  // Per thread: a scene's render copy paints on the pool while the canvas paints here.
   const QColor& paintColor(const std::string& css) {
-    static std::unordered_map<std::string, QColor> cache;
+    static thread_local std::unordered_map<std::string, QColor> cache;
     auto it = cache.find(css);
     if (it == cache.end()) {
       if (cache.size() > 256) cache.clear();

@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Stencil.TelegramBot.Domain.Abstractions;
@@ -16,8 +17,10 @@ namespace Stencil.TelegramBot.Infrastructure.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    // Redis-backed session store when BotOptions.RedisUrl is set, in-memory otherwise.
-    public static IServiceCollection AddStencilInfrastructure(this IServiceCollection services, BotOptions options)
+    // Redis-backed session store when BotOptions.RedisUrl is set, in-memory otherwise. serverAddressGuard
+    // judges every address a server client dials.
+    public static IServiceCollection AddStencilInfrastructure(this IServiceCollection services, BotOptions options,
+        Func<IPAddress, bool>? serverAddressGuard = null)
     {
         services.AddSingleton(options);
         // Handlers and the janitor name the Domain contract, not the record: register both.
@@ -29,7 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(new LlmGate(options.MaxConcurrentLlm));
         services.AddSingleton<IUserWorkspace, UserWorkspace>();
         services.AddSingleton<IStencilCli, ProcessStencilCli>();
-        services.AddSingleton<StencilServerClientFactory>();
+        services.AddSingleton(new StencilServerClientFactory(options, serverAddressGuard));
         services.AddSingleton<IStencilServerClientFactory>(
             static sp => sp.GetRequiredService<StencilServerClientFactory>());
         // One HttpClient over the factory's pooled handler with the contract's slow-call timeout.

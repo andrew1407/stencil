@@ -16,383 +16,294 @@ graph TD
     end
     SRV["server/"]
 
-    MAIN --> CANVAS
-    MAIN --> DLG
-    MAIN --> LLM
-    MAIN --> IO
-    CANVAS --> SUP
-    DLG --> SUP
+    MAIN --> CANVAS & DLG & LLM & IO
+    CANVAS & DLG --> SUP
     LLM --> NET
-    CANVAS --> CORE
-    DLG --> CORE
-    LLM --> CORE
+    CANVAS & DLG & LLM --> CORE
     NET -.->|"REST"| SRV
     LLM -.->|"chat proxy"| SRV
 ```
 
 ## Layers
 
-the core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
-`support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces it: nothing below `app/` includes an `app/`
-header, `dialogs/` never includes `canvas/`, and a `core/` header enters the GUI only through
-the files the lint lists as the core seam. The document state itself lives in `CanvasWidget`
-(`core::Lines` + `core::HistoryStack`); the controllers are the `*Controller` classes and
-`RemoteSession` in `src/app/`.
+The core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
+`support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces
+it: nothing below `app/` includes an `app/` header, `dialogs/` never includes `canvas/`, a `core/`
+header enters the GUI only through the core seam, and no header passes `MainWindow.hpp` (or,
+outside `canvas/`, `CanvasWidget.hpp`) on — a header forward-declares them, and only the units that
+reach into them include them. The document state lives in `CanvasScene` (`core::Lines` +
+`core::EditorHistory`), which `CanvasWidget` is; the controllers are the `*Controller` classes,
+`StencilFileSync`, `ArrowPanner` and `RemoteSession` in `src/app/`.
 
 ## Where things go
 
 | Path | Holds | Rule |
 |---|---|---|
-| `src/app/` | `main.cpp`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with its method groups in feature folders beneath (`chat/` with `session/` + `planTarget/`, `toolbar/`, `project/`, `theme/`, `setup/`, `open/`, `events/`, `actions/`, `context/`, `logo/` (the stage and the webcore toggle), `selection/`, `remote/`, `view/`, `meta/`) | composition only; no logic a controller could hold; a new method group is a new TU in the folder it belongs to, not a longer one |
-| `src/canvas/` (+ `input/`, `draw/`, `paint/`, `overlay/`) | `CanvasWidget` (QPainter) and its tooltip, its TUs banded by gesture, stroke, paint and the overlays that float above it (`DropZonesOverlay` over the whole window) | pixel, geometry and page math come from `core/`, never re-derived |
-| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to), plus `ScriptBuffer`, the session-scoped text the two script hosts share | the core seam — `model/` may include `core/` freely, and nothing above it may; nothing here is persisted |
-| `src/dialogs/` | one folder per window (`projects/` with `row/` + `list/`, `openImage/` with `preview/` + `dust/`, `script/`, `connect/`, `settings/`, `meta/` with `links/` + `keywords/`, `crop/`), one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script — plus `ScriptEditorWidget`, the .stc editor both script surfaces host, and `ScriptMenuPanel`, that script window at menu scale | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a second copy of them |
-| `src/llm/` (+ `dock/card/`, `dock/compose/`, `plan/executor/`) | `dock/` and `panel/` (the two chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`), `plan/` (op registry, schema, `planExecutor`) | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
-| `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
-| `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
-| `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `webcore/` (the session skin: its table, picture, overlay sheet, pixel icons and look), `share/`, `notify/` — plus the platform helpers and the session switches (`motionPrefs.hpp`, `skinPrefs.hpp`) (`shareImage*`, `modalDismissMac`, `dragPasteboard*`, `notify/macBanner`: one declaration, a body per OS) | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
-| `resources/` | `app.qrc`: `app.qss`, the `webcore.qss` overlay, and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
+| `src/app/` | `main.cpp`, the controllers, and `MainWindow`: `MainWindow.hpp` (moc runs on the header) holding the hub and the state groups, `WindowParts.hpp` the parts it composes, a folder per feature | composition only, no logic a controller could hold; a new job is a part or a TU in its feature folder, not a longer one, and a part never reaches into another |
+| `src/canvas/` | `scene/` `CanvasScene`, the document and its paint path with no widget; `CanvasWidget` (QPainter), the scene plus the pointer | pixel, geometry and page math come from `core/` through `model/canvasCore.hpp`, never re-derived; pointer timings, hit radii, the hold ghost's dash and alphas and ring metrics come from `constants.json` through `input/pointerTuning` and `scene/markMetrics`, the thickness and point-size ranges from its `LIMITS` through `support/control/lineLimits`; an offscreen render uses a `CanvasScene`, never a hidden widget; the canvas never reads a file, it adopts pixels decoded off the GUI thread |
+| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `model/` may include `core/`, nothing above it may; nothing here is persisted; a turned crop is cut from the unturned picture, then only that piece turned |
+| `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` (the .stc editor both script surfaces host) and `ScriptMenuPanel` | every prompt/picker goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a copy |
+| `src/llm/` | `dock/` and `panel/` (the chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`, `SessionKey`), `plan/` (registry, typed plan mapping, executor) | plans validate in `core/opplan` against the shared registry before execution; `plan/` only maps core's result to typed actions and shows core's canonical messages; the executor calls the toolbar's appliers |
+| `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix sniffers and `sniffImageHeader`, the image-header corpus's sniffer) | QtCore-only serialization; `MediaLoader` decodes every picture it resolves on the pool and answers only from the event loop; any other decode is the window's (`decodeForCanvas`) |
+| `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore`, `fetchGuard`, `blockedRanges`, `httpStatus` | `fetchGuard` is the one SSRF guard, a port of `cli/src/net.zig`, judging every address by `net/blockedRanges.json` (`fetch`; `serverTarget`, private ranges allowed, for a server the user names); tokens never go in `QSettings`; `httpStatus` is the 2xx/401-403 triage both clients share |
+| `src/support/` | a folder per shared concern (`theme/` the ID-selector QSS, `webcore/` the session skin), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, the platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics; a platform helper is one declaration with a body per OS |
+| `resources/` | `app.qrc`: one `.qss` per feature under `qss/app/`, the `qss/webcore/` overlay, the browser's shared config JSON as aliases | shared tables are aliased from `browser/js/config/`, never copied; sheet pieces load in the one cascade order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists, each once in the qrc |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
-| `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
-| `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` (one QtTest binary per area over one `stencil_gui_objs` library) and the layer lint | every suite reports its own failures |
+| `cmake/` | `StencilSources` and `StencilTests` (indexes over per-area parts), `StencilPackaging`, `StencilDeploy` | source lists live here, not in `CMakeLists.txt`; a source or suite joins its area's part, and parts are included in registration order |
+| `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` and the layer lint | every suite reports its own failures |
 
 ## Entities
 
 ```mermaid
 classDiagram
-    class MainWindow {
-      +Settings settings
-      +vector~Project~ projectList
-      +QVector~ChatMessage~ chatHistory
-    }
-    class CanvasWidget {
-      +QImage image
-      +Lines lines
-      +HistoryStack history
-      +CropRect cropRect
-    }
-    class Settings {
-      +QString themeMode
-      +bool autosave
-      +QString llmProvider
-    }
-    class Session {
-      +QString imagePath
-      +Lines lines
-      +QString activeProjectId
-    }
-    class Project {
-      +ProjectMeta meta
-      +Lines lines
-      +QJsonObject chat
-    }
-    class ProjectFileData {
-      +QByteArray imageBytes
-      +QJsonObject layout
-      +QString themeMode
-    }
-    class ScriptBuffer {
-      +QString text
-    }
-    class LaunchOptions {
-      +QString project
-      +QString src
-      +QString serverProjectId
-    }
-    class ConnectionManager {
-      +QVector~ServerClient*~ clients
-      +snapshot() QVector~SavedServer~
-    }
-    class ServerClient {
-      +QString base
-      +QString token
-      +CredentialKind kind
-    }
-    class ServerProject {
-      +QString id
-      +qint64 version
-      +QString serverUrl
-    }
-    class RemoteLink {
-      +QString address
-      +QString id
-      +qint64 version
-    }
-    class ChatMessage {
-      +QString role
-      +QString text
-      +QVector~ChatImage~ images
-    }
-    class OpPlan {
-      +QVector~Action~ actions
-      +QVector~Variant~ variants
-      +AskCard ask
-    }
-    class Action {
-      +OpKind op
-      +Lines lines
-      +QString path
-    }
+    ChatSessionController : +bool planRunning
+    CanvasScene : +Lines lines
+    CanvasScene : +EditorHistory history
+    CanvasWidget : +CanvasGesture gesture
+    Project : +ProjectMeta meta
+    RemoteLink : +qint64 version
+    SessionKey : +QDateTime expiry
     ScriptDoc <.. ScriptBuffer : parsed from
     MainWindow *-- CanvasWidget : canvas
+    CanvasScene <|-- CanvasWidget : the scene plus the pointer
     MainWindow *-- Settings : settings
     MainWindow o-- Project : projectList
     MainWindow --> Session : autosaves
     MainWindow --> LaunchOptions : applyLaunchOptions
-    MainWindow *-- ConnectionManager : connections
-    MainWindow *-- RemoteLink : remoteSession link
-    MainWindow o-- ChatMessage : chatHistory
+    MainWindow *-- WindowParts : parts
+    WindowParts --> MainWindow : each part holds it by reference
+    MainWindow *-- ConnectionManager : remote.connections
+    MainWindow *-- RemoteLink : remote.session link
+    MainWindow *-- ChatSessionController : chatSession
+    MainWindow *-- ProjectTitleController : projectTitle
+    ChatSessionController o-- ChatMessage : chatHistory
+    ChatSessionController ..> SessionKey : read per request
     ConnectionManager *-- ServerClient : clients
     ServerClient --> ServerProject : lists, gets
     Project --> ProjectFileData : bundles as .stencil
     ChatMessage --> OpPlan : reply parses to
     OpPlan *-- Action : actions, variants
+    Action ..> PlanAwait : an op that waits on I/O
 ```
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `MainWindow` | The editor window and mediator; holds settings, the project list, the active project id and the chat history | `main.cpp`, one per process (a second for "open in new window") | Everything below through signals and `Hooks` structs |
-| `CanvasWidget` | The document state: the working pixels, committed `core::Lines`, the in-progress `core::Line`, the `core::HistoryStack`, crop and rotation | `MainWindow`, window lifetime; `CanvasPlanTarget` owns offscreen copies for variant sandboxes | Every edit applier, `SelectionPanel`, `ChatPlanTarget` |
-| `Settings` | Persisted preferences and default visuals (`io/fileStore.hpp`); the browser's `DEFAULT_VISUALS` plus the desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` is derived from its `llm*` fields |
-| `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
-| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
-| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/project/file.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
-| `ScriptDoc` | One parsed `.stc`: its token stream in QChar columns, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Held by the `ScriptEditorWidget` that parsed it, rebuilt on every keystroke | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
-| `ScriptBuffer` | The one `.stc` both script hosts edit: a session-scoped `QString` with a `changed` signal, so the window and the flyout never diverge | A process-wide instance, alive for the run; never written to settings, a project or a file | `ScriptEditorWidget` reads it at construction and writes it on every keystroke |
-| `EditState` | One checkpoint of the editable state — crop, filter and committed lines — the `.stc` runner keeps per numbered edit, since the canvas history holds lines alone | Transient, one per applied edit for the length of a run | `PlanTarget::captureEdit` / `restoreEdit`, the `@undo` of `contracts/stc` §7 |
-| `LaunchOptions` | Parsed argv or a `stencil://` link; the desktop twin of the browser deep-link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
-| `ConnectionManager` | The set of live `ServerClient`s; its `changed()` persists the `SavedServer` snapshot | `MainWindow`, created lazily by `ensureConnections` | `connectionStore`, `RemoteSession` |
+| `MainWindow` | The editor window and mediator: settings, the project list, the active project id | `main.cpp`, one per process (another for "open in new window") | Everything, through signals, `Hooks` and its parts |
+| `WindowParts` | The parts the window is composed of, one job each: builders, dispatchers and feature parts (`DockChrome`, `ThemePainter`, …) | `MainWindow::parts`, built in member order with the window, destroyed with it | Each holds the window by reference as its named friend |
+| `ChatSessionController` | One assistant conversation across dock and menu panel: the turn, the §7 history and attachments, the `planRunning` gate, the §12 chat doc | `MainWindow::chatSession`, window lifetime | `ChatDock`, `ChatMenuPanel`, `LlmClient`; the window through `Hooks` |
+| `ProjectTitleController` | The project's name as the window wears it (the browser's `updateProjectTitle`): title, name field, chips, rename in place | `MainWindow::projectTitle`, window lifetime | `ProjectNameBar`, `WindowActions`, `RemoteSession`; the window through `Hooks` |
+| `CanvasScene` | The document and its paint path, no widget: pixels, `core::Lines`, the `core::EditorHistory` of `EditorMemento`s (lines, crop, turn, filter), crop, rotation, look, filter, and a picture generation every replacement bumps; a `renderCopy` is what a pool-thread render reads | Base of `CanvasWidget`; alone, owned by a plan sandbox, a thumbnail batch or a co-edit result render | `LiveMarks`, `sceneChanged` |
+| `CanvasWidget` | The scene plus the pointer: selection, `HoverMarks`, the one `CanvasGesture`, zoom, `HoldGlue`, stroke flights | `MainWindow`, window lifetime | Every edit applier, `SelectionPanel`, `ChatPlanTarget` |
+| `Settings` | Persisted preferences and default visuals: the browser's `DEFAULT_VISUALS`, read through `support/theme/defaultVisuals`, plus desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` derives from its `llm*` fields |
+| `Session` | The autosaved in-progress drawing, twin of the browser's localStorage layout blob | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget`, `activeProjectId` |
+| `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore`; `ProjectFileData` for export |
+| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical in `browser/js/core/project/file.js` | Transient: built by `buildStencilBytes`, parsed by `openProjectFile` | `Project`, the linked file watcher |
+| `ScriptDoc` | One parsed `.stc`: tokens in QChar columns, diagnostics, the lowered op stream, and the resolvers from an op to a `core::CropRect` or `core::Line` | The `ScriptEditorWidget` that parsed it, rebuilt per keystroke | `ScriptHighlighter`; `scriptRun` drives `PlanTarget` from its ops |
+| `ScriptBuffer` | The one `.stc` both script hosts edit, a session `QString` with a `changed` signal | Process-wide; never written to settings, a project or a file | `ScriptEditorWidget` |
+| `LaunchOptions` | Parsed argv or a `stencil://` link; twin of the browser deep-link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
+| `ConnectionManager` | The live `ServerClient`s; `changed()` persists the `SavedServer` snapshot | `MainWindow::remote`, created lazily | `connectionStore`, `RemoteSession` |
 | `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients` | `ServerProject`, `LiveFeed` |
-| `ServerProject` | A server project record; mirror of `server/internal/protocol` `ProjectRecord`, which is canonical | Transient reply value stamped with `serverUrl` | `RemoteLink` on open, `ProjectsDialog` rows |
-| `RemoteLink` | The bound server project (address, id, version) of the open editor | `RemoteSession::link`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
-| `ChatMessage` | One chat turn with attached images; replayed in full each call | `MainWindow::chatHistory`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
-| `OpPlan` | A parsed, registry-validated assistant reply; the contract in `contracts/llm/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
+| `ServerProject` | A server project record, mirroring the canonical `server/internal/protocol` `ProjectRecord` | Transient reply value stamped with `serverUrl` | `RemoteLink`, `ProjectsDialog` rows |
+| `RemoteLink` | The server project (address, id, version) bound to the open editor | `RemoteSession::link`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
+| `ChatMessage` | One chat turn with its images, replayed in full each call | `ChatSessionController::chatHistory`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
+| `SessionKey` | The user's Anthropic API key (`llm-providers.md` §5), expiring `sessionKey.ttlMinutes` after entry; a timer drops it, every read re-checks the clock | Process-wide; `forget()`, the TTL or quitting wipes it; never in settings, `QSettings` or `connectionStore` | `LlmSettingsForm` sets and forgets it; the chat reads it per request |
+| `OpPlan` | A registry-validated assistant reply typed from `core/opplan`'s result document; `contracts/llm/llm-contract.md` is canonical | Transient, `parseOpPlan` to the end of its run | `Action`, `Variant`, `AskCard`, `ExecResult` |
 | `Action` | One op of a plan, a tagged union on `OpKind` | Inside `OpPlan` | `PlanTarget` appliers |
+| `PlanAwait` | One plan or `.stc` op waiting on I/O: it settles once (answer, timeout or close) and resumes the run | A child of `MainWindow` until answered, in `PopoverHost::awaits` while unsettled | `PlanTarget`'s `…Then` ops, the close guard |
 
 ## Patterns
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Facade over core | `CanvasWidget` over `core::HistoryStack`, `cropGeometry`, `holdDraw`, `pageMetrics`; `PlanTarget` over the same appliers | Toolbar, hotkeys and LLM plans mutate through one set of appliers |
-| Mediator | `MainWindow` | Wires `CanvasWidget`, `ChatDock`, `SelectionPanel`, `RemoteSession` and the controllers; collaborators reach it only through `Hooks` structs |
-| Command | `core::HistoryStack` inside `CanvasWidget` (`commitHistory`, `undo`, `redo`); `PlanTarget::stepHistory` | Every undoable edit is a pushed `core::Lines` snapshot, reverted by the same path |
-| Strategy | `LlmClient::chatOllama` / `chatOpenAi` / `chatServer` picked by `LlmSettings.provider`; `CanvasWidget::setFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` (`support/notify/`) — `ToastStack` or `SystemNotifier` behind `Notifications`, picked by `Settings.notifyChannel` | Table lookup, no growing `if` chain; every notice comes through `Notifications`, which never knows which sink it holds and falls back to the toasts when the OS declines |
-| Observer | Qt signals: `CanvasWidget::changed`, `selectionChanged`; `ConnectionManager::changed`; `LiveFeed::projectUpdated`; `MediaLoader::loaded`/`failed`; `ChatDock::sendRequested` | Async completions run on the GUI thread and guard captures with `QPointer` |
-| Repository | `fileStore` (settings, session, projects, secrets, hotkeys), `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
-| Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` (`isBlockedHost`, `resolvesToBlocked`, no redirects, byte cap) | The surface's one guard on every untrusted `http(s)` fetch |
-| Adapter | `LlmTransport` → `QtLlmTransport` (production) or a test mock; `PlanTarget` → `ChatPlanTarget` (live editor) / `CanvasPlanTarget` (offscreen sandbox) | One seam per boundary so the tests run offline |
-| Debounced write | `SessionController` (`AUTOSAVE_MS`, `VIEW_SAVE_MS`), `RemoteSyncController` push/poll/reload timers, `io/deferredWrite`, `scheduleStencilAutosave` | Gates (`incognito`, `remoteUnsynced`) are checked at fire time |
-| Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a 409 re-reads, merges and retries a bounded number of times |
-| Hosted menu panel | `ChatMenuPanel` behind the Assistant row, `ScriptMenuPanel` behind the Stencil Script row — a `QWidgetAction` in a `StayOpenMenu`, scoped by `setInteractiveArea(panel, keyTarget)` | The `QWidgetAction` owns the panel, so the transcript and the typed script outlive the per-right-click menu rebuild; a control that needs a modal dismisses the popup chain first |
-| Shared editor widget | `ScriptEditorWidget` — the halo, the box, the editor, the diagnostics strip and one `ScriptHighlighter`, hosted by `ScriptDialog` and `ScriptMenuPanel` | The hosts differ only in the `Style` they pass (names, metrics, which keys the editor owns) and in the buttons around it; the behaviour has one home |
-| Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp` — header-only switches every restyle and animation asks, plus the palette and icon hooks `support/webcore/look.cpp` installs | Read by everything, written to no file: `Settings` never carries a skin, and `applySettings` re-pushes the stored switches only when the user moved one |
-| Golden pin / fixture walker | `tests/uiPins.headless.cpp`; `opPlanFixtures`, `llmWireFixtures`, `storeFixtures`, `deepLinkFixtures` | Pins guard pixels and QSS; walkers prove the shared `browser/js/config` corpora on this surface |
-| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), app-wide; a control opts in with `setResetDefault` | A combo's two quick presses (it opens on the first) or a check's double-click sets the declared default through `activated` / `click()`, so the row's own wiring applies it; a caption resets its box through `captionToggles` |
-| Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), called by `SearchComboBox` and `MenuFlight`; `slidePopupIn` (`support/menu/popupSlide`) | One origin for every mode — a selector's caret, else the control's centre: the particle modes fly dust out of it and back, 'slide' grows the list from it (0.66 scale, 6px lift, the browser's `menuFromAnchor` curve) with no exit, 'none' just shows it. The slide veils at once and starts a tick later, keeps one runner per popup across shows, and lands on the exact geometry; `slideStartRect` is the pure first frame |
-| Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`), app-wide | Port of the browser's `createModalOpenGesture` peek half: Alt+hover peeks — entering with Alt down, or Alt pressed while resting, whatever holds the focus — and Alt release (or the app losing focus) closes unless the pointer is over the list, which then lingers until it leaves (`LINGER_CLOSE_MS`); a click-open list ignores Alt. One filter, kept first on `qApp`, drives a gesture per `QComboBox`, reads Alt from the `Key_Alt` events as well as the modifier query, and polls while a list is up because its `Qt::Popup` grabs the pointer. `MainWindow` registers its popover as a handle: a selector inside the popover peeks without closing it, and the popover counts that selector's list as its own for linger, glide and deactivation; a glide from a list onto an icon marked `ALT_PEEK_TARGET_PROPERTY` opens that icon's peek. An icon's Alt+Enter opens its peek only after Qt has dispatched the Enter (a nested `exec()` inside it leaves Qt's hover record stale), and the Alt press that opened one is consumed so it cannot climb on and reopen it. The accent popover alone picks on release: an Alt peek let go over a colour row (found by the pointer's position, not a hover record) commits it through `commitAccent`, the click's own apply + persist, and lingers like any engaged peek until the pointer leaves; a selector's list only lingers |
+| Facade over core | `CanvasScene` over `core::EditorHistory`, crop and filter; `CanvasWidget` and `HoverTip` over `lineChain`, `holdDraw`, `hitTest`, `pageMetrics`; `PlanTarget` over the same appliers | Toolbar, hotkeys, plans and scripts mutate through one set of appliers; the hover tooltip hits what the browser's does |
+| Pure fabrication + hook | `CanvasScene`, whose `sceneChanged()` the widget overrides to repaint | A thumbnail, plan sandbox or co-edit result renders the same paint path without a widget, its timers or its event filter; a `renderCopy` renders off the GUI thread |
+| State | `CanvasGesture` (`input/gesture.hpp`), `GestureRoutes` (`input/gestureRoutes`) | One gesture at a time, as the browser's `core/pointer/gesture.js`: raising one ends any other. A move or release is looked up by the gesture in one table, as the browser's `onMove` and `ON_RELEASE`, never a chain over it; the compare divider outranks a hold, a hold every other gesture |
+| Mediator | `MainWindow` | Wires canvas, chat, selection panel, remote session and controllers; a controller reaches it only through its `Hooks`, a part through friendship |
+| Parts and dispatchers | `WindowParts`; the builders (`ToolbarBuilder`, `MenuBuilder`, …) and dispatchers (`WindowAssembly`, `WindowEvents`, `ChatPlanTarget`) | A part holds the window by reference, is its one explicit `friend`, and reaches only the hub and state groups; parts are unaware of each other, so a flow spanning two goes through a window method. Only builders and dispatchers reach a part through the window (`w.parts.x`), to connect or forward. A small behaviour stays a controller behind `Hooks` |
+| State group | `WindowActions`, `ToolbarControls`, `PopoverHost`, `RemoteState`, …, held by value in `MainWindow` | Plain structs with no back-reference, read by name (`w.remote.session`) |
+| Memento | `core::EditorHistory` in `CanvasScene`; `PlanTarget::stepHistory` | A stroke, crop, quarter-turn or committed filter pick pushes an `EditorMemento` of the lines, the crop and turn under them and the filter over them; a pick is measured against the step on screen, so a hover preview, a no-op or a picture-less pick pushes none. A restore rebuilds from the original only when crop or turn differ and returns a differing filter through the window's applier, pushing nothing; a load starts the stack with its filter, a peer's filter-only edit is its own step, and a peer's crop or turn is one step rebuilt as a restore is |
+| Strategy | `LlmClient`'s per-wire `chat*` and the probe's `WIRES` table, keyed by `providers.json` `wire`; `CanvasScene::setFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; `Notifications` never knows which sink it holds and falls back to the toasts when the OS declines |
+| Observer | Qt signals (`CanvasWidget::changed`, `LiveFeed::projectUpdated`, `MediaLoader::loaded`, …) | Async completions run on the GUI thread, captures guarded with `QPointer` |
+| Repository | `fileStore`, `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
+| Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` (`isBlockedHost`, `resolvesToBlocked`, no redirects, byte cap) | The one guard on every untrusted `http(s)` fetch; a literal is refused when its `inet_aton` or its `QHostAddress` reading is, and an IPv6 address carrying an IPv4 one is judged as that IPv4 |
+| Adapter | `LlmTransport` → `QtLlmTransport` or a test mock; `PlanTarget` → `ChatPlanTarget` (live editor) / `CanvasPlanTarget` (offscreen sandbox) | One seam per boundary, so the tests run offline |
+| Debounced write | `SessionController`, `RemoteSyncController` and its result throttle (`constants.json` `COEDIT`), `io/deferredWrite`, `StencilFileSync` | Gates (`incognito`, `remoteUnsynced`) are checked at fire time |
+| Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a 409 re-reads, merges (`model::unionLines` over `core::mergeLines`) and retries a bounded number of times |
+| Continuation | `executePlanThen`, `runScriptThen` (`app/scriptRun.cpp`) over `PlanTarget`'s `…Then` ops; `PlanAwait` | An op waiting on I/O suspends the run; its answer resumes it at the next op, never inside the emitter that answered. The run holds only that callback, so a window torn down mid-await takes the plan with it |
+| Off-thread decode | `MainWindow::decodeForCanvas` over `support::runOnPool`, checked against `CanvasScene::pictureGeneration`; `MediaLoader::decodeThen` (its own `loadSerial`) | No user picture decodes on the GUI thread. The pool job touches no GUI object; its answer runs only while its context lives; a load a newer one overtook is dropped |
+| Hosted menu panel | `ChatMenuPanel`, `ScriptMenuPanel`: a `QWidgetAction` in a `StayOpenMenu` | The action owns the panel, so transcript and typed script outlive the per-right-click menu rebuild; a control that needs a modal dismisses the popup chain first |
+| Shared editor widget | `ScriptEditorWidget` in `ScriptDialog` and `ScriptMenuPanel` | Hosts differ only in the `Style` they pass and the buttons around it |
+| Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, and the hooks `support/webcore/look.cpp` installs | Asked by every restyle and animation, written to no file: `Settings` never carries a skin, and `applySettings` re-pushes stored switches only when the user moved one |
+| Golden pin / fixture walker | `uiPins`, `opPlanOracle`; the `*Fixtures` walkers | Pins guard pixels, QSS and typed plan results; walkers prove the shared corpora here |
+| Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), app-wide, opted into by `setResetDefault` | A combo's two quick presses or a check's double-click sets the declared default through `activated` / `click()`, so the row's own wiring applies it |
+| Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), `slidePopupIn` (`support/menu/popupSlide`) | One origin — a selector's caret, else the control's centre: particle modes fly dust out and back, 'slide' grows the list from it (0.66 scale, 6px lift, the browser's `menuFromAnchor` curve) with no exit, 'none' just shows it; the slide lands on the exact geometry |
+| Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`), app-wide | Port of the browser's `createModalOpenGesture` peek half: Alt+hover peeks; Alt release or focus loss closes unless the pointer is over the list, which lingers until it leaves (`LINGER_CLOSE_MS`); a click-open list ignores Alt. One filter, first on `qApp`, drives a gesture per `QComboBox`, polling while a `Qt::Popup` grabs the pointer. A registered handle (the popover) stays open under a selector peeking inside it; a glide onto an icon marked `ALT_PEEK_TARGET_PROPERTY` opens its peek; the Alt press that opened a peek is consumed. Only the accent popover picks on release (`commitAccent`) |
 
 ## Design
 
-- **Boot.** `main.cpp` builds `StencilApplication` (it buffers macOS `QFileOpenEvent`s until a
-  window registers), sets the Fusion style, and parses `LaunchOptions` before any window so
-  bad arguments exit cleanly. `MainWindow(restoreLast)` loads `Settings`, restores the
-  `Session` unless the launch is incognito, and queues `autoConnectServers` over the saved
-  `SavedServer` rows. After `show()`, `applyLaunchOptions` applies theme, then one source by
-  priority: `--project`, a `stencil://` server reference, `--src`, a positional file. Exit
+- **Boot.** `main.cpp` builds `StencilApplication` (holding macOS open events until a window
+  registers), sets Fusion and parses `LaunchOptions` before any window, so bad arguments exit cleanly.
+  `MainWindow(restoreLast)` loads `Settings`, restores the `Session` unless incognito and queues
+  `autoConnectServers`; a first show before the session picture lands stays invisible until it
+  does, holding session writes off. After `show()`, `applyLaunchOptions` applies the theme, then
+  one source by priority: `--project`, a `stencil://` reference, `--src`, a positional file. Exit
   flushes `deferredWrite`.
-- **A canvas press.** `CanvasWidget::mousePressEvent` resolves the gesture by precedence
-  (context menu, pan, alt-drag, zoom-rect, multi-select, drawing click), converts the widget
-  point with `toImageSpace`, and mutates `currentLine` / `lines` through core geometry.
-  `commitHistory` pushes the `core::Lines` snapshot and emits `changed()`;
-  `MainWindow::onCanvasChanged` refreshes actions, rebuilds the `SelectionPanel` rows from
-  core page coordinates, and schedules the session autosave, the remote push and the
-  `.stencil` autosave. The repaint reads its pixels from the core filter and crop results.
-- **Running a script.** Two hosts, one editor, one runner. The Data section's script action
-  opens `ScriptDialog` and the context menu's own row a flyout over `ScriptMenuPanel`; both
-  host a `ScriptEditorWidget`, whose every keystroke re-parses the text through `ScriptDoc`
-  and hands the token stream to `ScriptHighlighter`, which repaints only the lines whose spans
-  moved. A re-colour is itself a document change, so the paint is guarded against the
-  `textChanged` it causes. Nothing is REPORTED until Run: only then do the diagnostics reach
-  the strip under the editor and the wavy underlines reach the tokens, and they read the parse
-  the run itself used, so a Run lexes the text once. Run accepts the dialog, and
-  `MainWindow::openScript` drives `scriptRun` over a `ChatPlanTarget` — the same `PlanTarget`
-  an assistant op plan uses, so a scripted edit and a clicked one take one path. A `@line` or
-  `@rect` COMBINES with the layout already there and commits one undo step; `@crop`, `@filter`
-  and the shapes each leave an `EditState` checkpoint, so the `undo N` the lowerer emits
-  (`contracts/stc` §7) puts the editor back where it was instead of unwinding the user's own
-  history; `@frame` re-opens its own block's source at that frame. A script with any error runs
-  nothing; a failure part-way keeps the edits already applied and names the line. A `.stc`
-  dropped on the open window fills the editor; dropped on the window behind it, or opened from
-  the OS, it runs at once. Both hosts edit ONE script: `model::ScriptBuffer` holds it for the
-  life of the process, so what is typed in either is there when the other opens and Clear
-  empties both — and nothing about it is persisted. The flyout runs in place: typing, running
-  and failing all leave the menu open. Its Upload and Download are the window's, because Qt
-  takes every popup down the moment a file dialog opens; they dismiss the chain themselves and
-  put it BACK on the script row afterwards. The editor owns Tab (it indents) and Ctrl+Enter runs.
-- **An open-image question's flight.** Every dialog in the open-image flow starts and ends at one
-  of two boxes, resolved in `support/modal/imageAnchor.hpp` (the twin of the browser's
-  `ui/modal/imageAnchor.js`): `canvasAnchorRect` is a 40 px box on the canvas viewport's centre,
-  valid with no image open and standing in with the window's own centre before layout, and
-  `openImageAnchorRect` is whichever half of the toolbar's Open pair is showing — the pair swaps on
-  `hasImage`, so the rect is read at flight time, not from a fixed control. A confirm about opening
-  an image (the dropped-image ask, the blank-replace, the paste-replace) grows out of the canvas
-  whatever gesture raised it, and the Open Image window does too when nothing anchored it. Where it
-  lands follows the OUTCOME, asked as the dialog hides (`FlightAnchors::closeRectFor`): an answer
-  that opened an image pours into the Open control, a cancel back into the canvas. Every modal also
-  dims and blurs the windows behind it (`support/modal/ModalBackdrop`, the browser's
-  `.app-modal-overlay` scrim plus its `backdrop-filter`); only the compact popover stays undimmed,
-  as `.modal-popover` does. A host child carrying `ModalBackdrop::ABOVE_PROPERTY` — the toasts —
-  is kept out of the photograph and raised back over the scrim, as `#notify-balloon` outranks the
-  overlay in the browser. `motionReduced()` drops the flight and keeps the dim.
-- **A notice.** Every `notify->info/success/error` and the chat's finished-turn toast go through
-  `Notifications` (`support/notify/`), which hands the `Notice` to the sink the stored
-  `notifyChannel` names: `ToastStack`, the corner stack, or `SystemNotifier`: on macOS a
-  `UNUserNotificationCenter` banner (`macBanner`, permission asked when the channel is chosen),
-  elsewhere a `QSystemTrayIcon::showMessage` from a tray icon that exists only while that channel is chosen.
-  A sink that cannot deliver — no tray, no message support — returns false and the toasts show
-  it, so the setting is a preference, never a way to lose a message; `applySettings` says so once
-  when the pick cannot be honoured, and a macOS refusal that arrives after the pick is told once
-  by `SystemNotifier::onRefused`. A banner needs a signed app (`STENCIL_CODESIGN_IDENTITY`). Browser twin: `ui/shell/notifySinks.js`.
-- **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
-  applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
-  `MediaLoader`. `openProjectFile`
-  reads the bytes, `fileStore::parseProjectFile` yields `ProjectFileData`, the image is decoded,
-  `loadImageWithLayout` fills the canvas, a local `Project` is created and `linkStencilFile`
-  installs the file watcher. `saveProjectFileAs` builds `ProjectFileData` from the untouched
-  source bytes (or a PNG re-encode), `buildLayoutJson`, the theme and the opt-in chat, writes
-  `fileStore::buildProjectFile` and links the file; later edits reach it through
-  `scheduleStencilAutosave`, and an external change comes back through `applyStencilExternal`.
-- **Server connect and project fetch.** `ConnectDialog` or `openServerLaunch` calls
-  `ensureConnections()` then `ConnectionManager::connectToAsync(url, token, kind)`; each
-  `ServerClient` speaks REST over `QNetworkAccessManager` with a bearer token and a 20 s bound,
-  and `changed()` persists `snapshot()` through `connectionStore` (tokens in the 0600 secrets
-  file). `openServerProject` chains `getProjectAsync` (a `ServerProject` plus layout),
-  `downloadFileAsync("original")`, decode, `loadImageWithLayout`, and `RemoteLink::bind`.
-  Writes go through `RemoteSession::putVersionGuardedAsync`; `RemoteSyncController` debounces
-  pushes, polls while linked, and subscribes `LiveFeed` (raw TCP NDJSON, plaintext only).
-- **An LLM turn.** `ChatDock::sendRequested` → `MainWindow::onChatSend` derives `LlmSettings`
-  from `Settings`, appends the `ChatMessage` (text plus downscaled attachments) to
-  `chatHistory`, and calls `LlmClient::chat` with the system prompt assembled from the
-  shared op registry, over `QtLlmTransport`. `onChatReply` runs `parseOpPlan` (validated by
-  `OpSchema::desktop()`), builds a `ChatPlanTarget(*this)` and `executePlan`; the
-  `ExecResult` notes, variants (rendered in `CanvasPlanTarget` sandboxes) and ask card are
-  posted to the dock, and a changed result runs the same refresh and autosave as a toolbar edit.
-  The appliers await server and media work in nested event loops, so the execution is scoped by
-  `planRunning`: `RemoteSyncController` holds its poll and reload off while it is set (the third
-  of its re-entrancy flags, beside `remoteReloading` and `remotePushing`), and `onChatSend`
-  ignores a Send, since the dock is already idle by the time the plan runs.
-- **The chat's placement.** The window's central widget is an inner `QMainWindow`, the editor
-  shell (`MainWindow::editor`): it holds the toolbars, the Image Size and Selected Line docks,
-  the points panel and the canvas, and its `saveState` is what `Settings::windowState` keeps.
-  `ChatDock` is the window's own, and only, dock, so whichever side it takes runs the full
-  window edge outside the shell, toolbars included, as the browser's fixed-position
-  `stencil-chat-panel` insets the whole page (`css/components/chat/panel.css`). `dockChatTo`
-  places it and plays the side switch as a slide out of the old edge and in at the new; the
-  drop bands of a title-bar drag span the window between the menu bar and the status bar.
-  The points panel's grip overlay is the window's, so it maps the shell's dock geometry up; the
-  chat's resize handle is a strip inside the dock's own edge that resizes it through
-  `resizeDocks`, and the window's separator is the browser's 10px of page between the two;
-  the shell hosts its own surfaces' dust (the tool rows' fold, the points panel, the Selected
-  Line bar), so those motes vanish under a docked chat instead of crossing it, as the browser
-  layers a page surface's cloud below the panel (`surfaces.js` `belowChat`).
+- **A canvas press.** `CanvasWidget::mousePressEvent` resolves one gesture by precedence (context
+  menu, pan, alt-drag, zoom-rect, multi-select, draw) and edits in image space through core
+  geometry; `commitHistory` pushes the memento, and `MainWindow::onCanvasChanged` refreshes the
+  actions and `SelectionPanel` and schedules the session, remote and `.stencil` autosaves.
+- **Running a script.** `ScriptDialog` and the context menu's `ScriptMenuPanel` flyout host a
+  `ScriptEditorWidget` over the one `ScriptBuffer`; each keystroke re-parses through `ScriptDoc`,
+  and `ScriptHighlighter` repaints only lines whose spans moved. Nothing is REPORTED until Run,
+  which shows the diagnostics of the parse it ran. `ScriptHost::openScript` drives
+  `runScriptThen` over a `ChatPlanTarget`, so a scripted and a clicked edit take one path. A
+  `@line` or `@rect` COMBINES with the layout as one undo step; `@crop`, `@filter` and the shapes
+  each leave a checkpoint (`PlanTarget::captureEdit`, a `core::EditorMemento`), so the lowerer's
+  `undo N` restores turn, crop, filter and lines without unwinding the user's own history. A
+  script with any error runs nothing; a failure part-way keeps the applied edits and names the
+  line. A `.stc` dropped on the open editor fills it; elsewhere, or opened from the OS, it runs at
+  once. The flyout runs in place; its file dialogs, which take every popup down, reopen the
+  chain on the script row.
+- **An open-image question's flight.** Every open-image dialog starts and ends at
+  `canvasAnchorRect` (40 px on the canvas centre) or `openImageAnchorRect` (the Open half
+  `hasImage` shows, read at flight time), from `support/modal/imageAnchor.hpp`, twin of the
+  browser's `ui/modal/imageAnchor.js`. It grows out of the canvas and lands by OUTCOME
+  (`FlightAnchors::closeRectFor`): an opened image pours into Open, a cancel into the canvas.
+  Every modal but the compact popover dims and blurs what is behind it
+  (`support/modal/ModalBackdrop`, the browser's `.app-modal-overlay`), toasts kept above the
+  scrim; `motionReduced()` drops the flight, keeps the dim. A modal is parented to the window it
+  covers, never a floating chat, centred on its client area, dismissed by an outside press (on
+  macOS through a transparent `Qt::Tool` child) and eased in height about its middle
+  (`support/easeWindowHeight.hpp`).
+- **A notice.** Every notice reaches, through `Notifications` (browser twin
+  `ui/shell/notifySinks.js`), the sink `notifyChannel` names: `ToastStack`, or `SystemNotifier`
+  — a macOS `UNUserNotificationCenter` banner (a signed app, `STENCIL_CODESIGN_IDENTITY`),
+  elsewhere a tray message. A sink that cannot deliver returns false and the toasts show it; the
+  user is told once when the pick cannot be honoured or macOS refuses later.
+- **A picture load.** Every picture decodes on the pool, and what follows runs in its completion,
+  never assuming it landed; an overtaken load hears false and the old picture stays up. Bytes
+  `MediaLoader` cannot decode reach the video decoder only when their header names no still
+  image, so a corrupt still fails at once. A chat drop is taken on its header; one that will not
+  decode gets the browser's attachment-failed toast.
+- **A key in the selection lists.** Delete or Backspace on the focused row of the points table or
+  lines list removes that point or line and focuses the row that took its place (the browser's
+  `coordTable.js` / `linesList.js`); the panel takes the `ShortcutOverride`, so no window shortcut
+  sees it, except in a read-only compare view. A point's line stays selected while it keeps points.
+- **Open and save `.stencil`.** `openProjectFile` parses the bytes, decodes on the pool, fills the
+  canvas, creates a local `Project` and links the file. The save writes
+  `fileStore::buildProjectFile` over the untouched source bytes (or a PNG re-encode), the layout,
+  theme and opt-in chat, and links the file. `StencilFileSync` (the browser's `StencilSync`) owns
+  the link, baseline, watcher and debounced auto-save; an external change returns through
+  `applyStencilExternal`, merged or taken whole after the three-way choice.
+- **Server connect and project fetch.** Each `ServerClient` speaks REST with a bearer token under
+  `constants.json` `NETWORK.fetchTimeoutMs`, the browser's bound too. `listProjectsAsync` walks
+  the `nextCursor` pages, failing on a repeated cursor or past `MAX_LIST_PAGES`.
+  `openServerProject` chains the record, the original, a pool decode and `RemoteLink::bind`. A
+  peer's edit is a silent reopen: with an equal `originalHash` the layout lands in place as one
+  undo step — lines, filter, page format, formulas, and a new crop or turn rebuilt from the
+  original already held (`CanvasScene::commitLayout`); only a changed original is a full reload.
+  Writes go through `RemoteSession::putVersionGuardedAsync`;
+  `RemoteSyncController` debounces pushes, polls while linked and subscribes `LiveFeed` (raw TCP
+  NDJSON, plaintext only). A push marks the baked `result` stale; a `renderCopy` is rendered and
+  encoded on the pool and uploaded once edits idle, never twice within `COEDIT.resultMinGapMs` nor
+  during a push, and a closing window waits (capped) for the last. Save toasts follow outcomes,
+  not pushes; a re-read after our own write adopts only our own version bump, so a peer's edit in
+  between still reloads.
+- **An LLM turn.** `ChatSessionController::onChatSend` appends the `ChatMessage` (text plus
+  downscaled attachments) and calls `LlmClient::chat` with the system prompt built from the shared
+  registry. `onChatReply` runs `parseOpPlan` (walked by `core/opplan`) and `executePlanThen` over
+  `ChatPlanTarget`; notes, variants (rendered in `CanvasPlanTarget` sandboxes) and the ask card go
+  to the dock. The `anthropic` provider posts the server's upstream body straight to Anthropic
+  (contract §6.5) with `x-api-key` and `anthropic-version`, never `Authorization` or the
+  browser-only direct-access header, wording failures as the server does under the
+  secret-fragment veto. Plain http carries the key only to a loopback host; anything else, probe
+  and model list included, fails typed before a request exists (`plainHttpRefusal`), and
+  `QtLlmTransport` follows no redirect. With no `SessionKey` a turn sends nothing and shows the
+  unreachable card; the form never fills a held key back and writes no `llmApiKey` equal to it.
+  An I/O op is a continuation, never a nested loop, so a plan spans event-loop turns under
+  `planRunning`: `RemoteSyncController` holds poll and reload off, and a Send is refused, its text
+  handed back. A close mid-plan lapses every `PopoverHost::awaits` entry as its timeout would; the
+  popover's modal exec, the one nested loop left, registers in `PopoverHost::loops`, and a close
+  inside it ends it first and re-posts itself, so the window is never deleted under a suspended
+  frame.
+- **The chat's placement.** The central widget is an inner `QMainWindow`, the editor shell
+  (`MainWindow::editor`) of toolbars, docks, points panel and canvas, whose `saveState` is
+  `Settings::windowState`. `ChatDock` is the window's only dock, so its side runs the full window
+  edge outside the shell, as the browser's fixed `stencil-chat-panel` insets the page
+  (`css/components/chat/panel.css`). `DockChrome::dockChatTo` places it and slides a side switch
+  across; the chat resizes from a strip inside its own edge, the separator being the browser's
+  10px of page. The shell hosts its own surfaces' dust, so those motes vanish under a docked chat,
+  as `surfaces.js` `belowChat` does.
 - **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
-  (`app/LogoStage*.cpp`), a full-window child of the window that asks its `Hooks` for a bare
-  window — not fullscreen, nothing modal, no popover — before it opens; a hold is refused
-  otherwise, while a typed word has `clearWay` close the modal or popover and leave fullscreen,
-  then opens once the window is bare. Stage shows are exclusive: another word replaces the one
-  that is up (the lock still hears words), its own word does nothing. `logoStage.json` in the
-  qrc is the table both front-ends resolve a show from: which accent opens which effect, the
-  motion mode a styled effect also needs, and the custom hexes. The stage paints the big mark,
-  its light and its cloud (`support/logoStage{Rules,Motion,Cloud}` over `dustKit`), and while it
-  is up it filters `qApp`: it accepts every `ShortcutOverride` so no action fires, swallows the
-  press that follows, and takes Escape as the way out. Each frame it re-resolves what it wears from the skin, the
-  motion mode, the accent and the theme — the mark's art, the cloud's style and whether it flies
-  (a styled show keeps its own), and the light, which with no cloud only the neon and sun shows
-  keep — so a toggle under a running show restyles it without restarting it. The pink show opens no stage — it runs
-  through `ChatPlanTarget`, the same applier a toolbar click and a script op take, so the tint
-  and the heart are one step on the user's own history. `motionReduced()` keeps the stage and
-  drops every loop. The webcore show is a toggle, not a stage, so it neither closes nor waits
-  for one: `MainWindow::toggleWebcore`
-  (`app/logo/MainWindowWebcore.cpp`) sets the session skin, the motion switches and the forced
-  light theme, swaps the Windows style and the skin's face in (`support/webcore/look`), and
-  restyles with `themePainted` cleared, so `applyTheme` re-issues the palette — answered through
-  the skin's hook — the overlay sheet and every icon; an empty editor reopens the local project
-  named by the skin, or else `webcoreScene` leaves
-  incognito, loads the picture `support/webcore/image` paints, installs the word as one step
-  through `ChatPlanTarget` and creates the local project by the skin's name. The same word puts
-  the stored look back through `applySettings(settings, false)`.
-- **Packaging.** `cmake/StencilPackaging.cmake` drives CPack (`macdeployqt` / `windeployqt`;
-  best-effort on Linux, Qt ≥ 6.3). The `.stencil` type and the `stencil://` scheme are
-  registered on macOS (`com.stencil.project` UTI, `CFBundleDocumentTypes`, `CFBundleURLTypes`
-  in `packaging/MacOSXBundleInfo.plist.in`) and Linux (`stencil-mime.xml`, `stencil.desktop`).
-  Icons come from one host tool, `packaging/mkicon.cpp`, built against Qt and run at build
-  time: it rasterises `browser/favicon.svg` straight into a macOS `.icns` or a Windows `.ico`,
-  both of which are typed containers around PNG frames, so no OS image tool takes part. macOS
-  additionally names a themed `AppIcon` where `actool` is present (full Xcode only), compiled
-  from an `.icon` layer bundle whose foreground the same tool renders.
+  (`app/logo/`), a full-window child that needs a bare window: a hold is refused under
+  fullscreen, a modal or the popover, while a typed word clears them first. Stage shows are
+  exclusive: another word replaces the one up, its own word does nothing. `logoStage.json` is the
+  table both front-ends resolve a show from. While up, the stage filters `qApp` — every
+  `ShortcutOverride` accepted, the following press swallowed, Escape the way out — and re-resolves
+  its look each frame from skin, motion mode, accent and theme; `motionReduced()` keeps the stage
+  and drops every loop. The pink show opens no stage: it runs through `ChatPlanTarget`, one step
+  on the user's own history. The webcore show is a toggle: `ThemePainter::toggleWebcore` sets the
+  session skin, motion switches and forced light theme, swaps in the Windows style and the skin's
+  face (`support/webcore/look`) and restyles from scratch; an empty editor reopens or builds the
+  skin's local project, and the same word restores the stored look.
+- **Packaging.** `cmake/StencilDeploy.cmake` drives CPack over Qt's deploy (`macdeployqt`,
+  `windeployqt`, the generic Linux deploy; Qt ≥ 6.3): the installed binary's rpath points at the
+  bundled Qt, Qt's own translations stay out, and `packaging/smoke.sh` / `smoke.ps1` start each
+  package from its own files in CI. The `.stencil` type and `stencil://` scheme are registered on
+  macOS (`packaging/MacOSXBundleInfo.plist.in`) and Linux (`stencil-mime.xml`,
+  `stencil.desktop`). `packaging/mkicon.cpp`, a Qt host tool run at build time, rasterises
+  `browser/favicon.svg` into `.icns` / `.ico` with no OS image tool; with Xcode's `actool`, macOS
+  also gets a themed `AppIcon`.
 
 ## Rules
 
-1. **The core is the logic.** Filters, crop, rotation, page coordinates, history, project
-   expiry all come from the linked `stencil_core`; pixels match the browser by construction.
-2. **Shared data is aliased, not copied.** Hotkeys, info text, theme tokens, motion tunings
-   and the LLM assets are the browser's files in the qrc.
-3. **REST only.** The server connection is `QNetworkAccessManager` REST — no `QWebSocket`,
-   no third-party WebSocket library, no TCP edit channel; server projects refresh by polling
-   while the Projects dialog is open.
-4. **Secrets.** Connection tokens live in the 0600 `connectionStore`; the LLM API key in the
-   settings JSON only. `STENCIL_LLM_*` is never forwarded to child processes.
-5. **Motion** is gated by `support/motionPrefs.hpp` (`drawingAnimations`, `motionMode`,
-   `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dust/cloud.js` value for value.
-   Sprite blits, not `drawEllipse`; a `QTimer` at the screen's refresh rate, not
-   `QVariantAnimation`. A skin (`support/skinPrefs.hpp`) is a session override over these and
-   the theme: it writes nothing, so a restart wears the user's own look.
+1. **The core is the logic.** Filters, crop, rotation, page coordinates, history, project expiry and
+   op-plan verdicts come from the linked `stencil_core`, matching the browser by construction.
+2. **Shared data is aliased, not copied.** Hotkeys, info text, theme tokens, motion, pointer and
+   highlight tunings, the LLM assets and the SSRF address table are the browser's files in the qrc.
+3. **REST only.** The server connection is `QNetworkAccessManager` REST — no WebSocket of any kind,
+   no TCP edit channel; server projects refresh by polling while the Projects dialog is open.
+4. **Secrets.** Connection tokens live in the 0600 `connectionStore`, the openai-compat LLM key in
+   the settings JSON only, the anthropic key in process memory only (`SessionKey`).
+   `STENCIL_LLM_*` never reaches a child process.
+5. **Motion** is gated by `support/motionPrefs.hpp` (`STENCIL_NO_ANIM=1` overrides) and mirrors
+   `browser/js/ui/dust/cloud.js` value for value: sprite blits, not `drawEllipse`; a `QTimer` at
+   the screen's refresh rate, not `QVariantAnimation`. A widget hidden under its dust or a fade
+   wears `veilBehindDust`, never a bare opacity effect, under which Qt still counts an opaque child
+   as covering. A skin (`support/skinPrefs.hpp`) overrides these and the theme for the session only.
 6. **State directory** is baked at build time (`STENCIL_STATE_DIR`): the gitignored
-   `desktop/.stencil/` in dev, the per-user config dir when packaged
-   (`-DSTENCIL_DEV_STATE_DIR=OFF`).
-7. **Every user-facing path is one path.** OS open events, drag-and-drop, file arguments and
-   deep links all route through `openPathFromOS`, which forks on suffix: `.json` a layout,
-   `.stencil` a project, `.stc` a script to RUN, anything else an image or video. The model's
-   `openFile`/`save` ops go through the same, gated to paths the user wrote in the
-   conversation. A dragged picture is not one url but RANKED candidates — whatever names an
-   image first, then the PROMISED FILE, then the `<img src>` (an image whatever its url spells),
-   then the BITMAP the drag source rendered — a `data:` candidate `MediaLoader` decodes itself —
-   then the rest, and `MediaLoader::loadFirstOf` keeps the first that resolves, reporting the
-   FIRST failure when none does. The candidates are not QMimeData's alone: macOS maps only some
-   flavors onto it, so `support/dragPasteboard` reads `public.html`, the urls Qt dropped and the
-   file a browser promises Finder straight off the drag pasteboard, on the drop alone. A promise
-   is fulfilled into a per-user owner-only scratch under a `PROMISE_BUDGET_MS` deadline, so one
-   that never lands cannot hold the drop; the named url still leads, because the promise is bytes
-   already written and costs nothing to fall through to. The list rides `LaunchOptions`, so "New
-   window" gets the same tries. A drag that published LINKS ONLY — every candidate an
-   http(s) url naming no picture, and no bitmap, promised file or `<img>` src behind it — carried
-   no image at all, so the drop opens nothing and SAYS SO: the failure is the drag's, not an
-   unreadable picture's, and the toast names it that way. The save/incognito half is the one the
-   ZONES paint: the overlay is hosted by the WINDOW, as the browser's `#global-drop-overlay`
-   covers the whole page, so it spans toolbar, canvas, status
-   row and docked panel alike and its split is the window midline; both the lit half and the
-   drop read it from the overlay's own rect. It follows the drag wherever Qt delivers it — a
-   child that accepts drops (the chat dock) becomes the target and the window is sent no move
-   of its own. A dock torn off into its own top-level window is not covered: a child overlay
-   cannot paint over another window.
+   `desktop/.stencil/` in dev, the per-user config dir when packaged (`-DSTENCIL_DEV_STATE_DIR=OFF`).
+7. **Every user-facing path is one path.** OS open events, drops, file arguments and deep links
+   route through `openPathFromOS`, which forks on suffix: `.json` a layout, `.stencil` a project,
+   `.stc` a script to RUN, else an image or video; the model's `openFile`/`save` ops too, gated to
+   paths the user wrote in the conversation. A dragged picture is RANKED candidates — whatever
+   names an image, the PROMISED FILE, the `<img src>`, the BITMAP the source rendered, then the
+   rest — and `MediaLoader::loadFirstOf` keeps the first that resolves, reporting the FIRST
+   failure. `support/dragPasteboard` reads what macOS keeps off QMimeData from the drag pasteboard
+   on the drop alone, fulfilling a promise into a per-user owner-only scratch under a
+   `PROMISE_BUDGET_MS` deadline; the list rides `LaunchOptions` into a new window. A drag of LINKS ONLY opens nothing and SAYS SO. The save/incognito
+   ZONES overlay is the WINDOW's, as the browser's `#global-drop-overlay` covers the page, and
+   follows the drag wherever Qt delivers it; a torn-off dock is not covered.
+8. **A tooltip is read as text.** Qt hands the raw `toolTip()` to accessibility, so every rich tip
+   carries its plain reading as the accessible description (`syncTipDescription`), never its markup.
 
 ## Tests
 
-`cmake/StencilTests.cmake` registers every suite through one `stencil_headless_test()` call:
-offscreen (`QT_QPA_PLATFORM=offscreen`), with an isolated `STENCIL_STATE_DIR` per test, so
-nothing touches the developer's app state. Headless suites are one per concern
-(`tests/<concern>.headless.cpp`: crop, hold-draw, chain edit, project file, transfer, deep
-link, server auth, co-edit, LLM op plan, executor, script runner, script open, script dialog, script flyout, settings,
-fetch guard, motion prefs, and the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
-one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the single
-`stencil_gui_objs` object library and sharing `MainWindow.gui.hpp`; they drive the real
-`MainWindow` with `STENCIL_NO_ANIM=1`. The fixture walkers (`opPlanFixtures`,
-`llmWireFixtures`, `storeFixtures`, `deepLinkFixtures`, `configCanon`, `canonAssets`) prove
-the shared `browser/js/config` corpora on this surface; the LLM suites substitute a mock
-`LlmTransport`, so the whole suite runs offline. `layerBoundary.headless.cpp` is the import
-lint, and `testFloor.headless.cpp` holds the suite at its floor of registered ctest targets.
-`uiPins.headless.cpp` pins the app stylesheet hash per theme and accent
-(`tests/pins/stylesheets.txt`) and the rendered states at device pixel ratio 1 and 2
-against `tests/pins/<platform>/`; the render baselines are a gitignored local recording taken
-from the pre-change tree, platform-specific, and a platform without them skips that half. The desktop build links `core/` via `add_subdirectory(../core)`
-with the core's own doctest suite off; those tests run under core's own target.
+`cmake/StencilTests.cmake` defines `stencil_headless_test()`, which registers every suite offscreen
+with an isolated `STENCIL_STATE_DIR` per test, so nothing touches the developer's app state.
+Headless suites are one per concern, each reporting its own failures. The GUI suites are
+`MainWindow.<area>.gui.cpp`, one QtTest binary per area over `stencil_gui_objs`, driving the real
+`MainWindow` with `STENCIL_NO_ANIM=1`; each writes its pictures into its own state dir, since ctest
+runs the areas side by side. A case that opens a picture waits for it to land, never sleeps. The
+suites pin the off-thread decode, the overtaken load and a close mid-decode. The fixture walkers prove the
+shared `browser/js/config` corpora here (core's plan result byte-equal to
+`generated/normalized.json`); `opPlanOracle` pins `parseOpPlan`'s typed result over the corpus and
+adversarial inputs. The LLM suites use a mock `LlmTransport`, so all runs offline; the anthropic key
+is proved on a fake clock, over the wire fixtures, and through the real `QtLlmTransport` to a
+loopback `/v1/messages`, then found in no file under the state dir and no `QSettings`.
+`tests/support/mockRest.hpp` stands in for the server's REST routes. `layerBoundary.headless.cpp`
+is the import lint; `testFloor.headless.cpp` holds the floor of registered targets.
+`uiPins.headless.cpp` pins the stylesheet hash per theme and accent (`tests/pins/stylesheets.txt`)
+and the renders at device pixel ratio 1 and 2 against `tests/pins/<platform>/`, a gitignored
+per-platform baseline recorded from the pre-change tree (a platform without one skips that half).
+Core's doctest suite runs under core's target, not here.

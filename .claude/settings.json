@@ -34,7 +34,7 @@
       "Bash(./build/stencil:*)",
       "Bash(nohup ./build/stencil:*)",
       "Bash(cmake -S . -B build -DCMAKE_BUILD_TYPE=Release)",
-      "Bash(cmake --build build -j)",
+      "Bash(cmake --build build -j 4)",
       "Bash(sips:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
@@ -73,11 +73,22 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Read|Edit|Write|NotebookEdit|WebFetch|WebSearch|mcp__chrome-devtools__evaluate_script|mcp__chrome-devtools__upload_file|mcp__chrome-devtools__navigate_page|mcp__chrome-devtools__new_page",
+        "matcher": "Bash|Read|Edit|Write|NotebookEdit|Grep|Glob|WebFetch|WebSearch|mcp__chrome-devtools__evaluate_script|mcp__chrome-devtools__upload_file|mcp__chrome-devtools__navigate_page|mcp__chrome-devtools__new_page",
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard.mjs"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/tools/syncTwins.mjs\" --hook"
           }
         ]
       }

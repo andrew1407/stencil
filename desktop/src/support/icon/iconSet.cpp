@@ -3,10 +3,8 @@
 #include "LruCache.hpp"
 #include "skinPrefs.hpp"
 #include <algorithm>
-#include <QApplication>
 #include <QGuiApplication>
 #include <QPalette>
-#include <QByteArray>
 #include <QColor>
 #include <QFile>
 #include <QHash>

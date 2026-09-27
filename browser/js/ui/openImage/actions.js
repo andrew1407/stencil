@@ -2,6 +2,7 @@
 // File, then open it here, in a new tab, or over the current project. Split out of openImageModal.
 import { notify } from '../../utils.js';
 import { fetchUrlToFile, toFrameIfVideo } from '../../core/image/sourceLoader.js';
+import { openImageHere, replaceProjectImage } from '../../core/launch/openFlow.js';
 
 export function wireOpenActions({ app, els, preview, src, frameSeconds, openOpts, target, canReplace, close }) {
   const { hereBtn, newTabBtn, replaceBtn, incog, renameEl, keepEl } = els;
@@ -26,7 +27,7 @@ export function wireOpenActions({ app, els, preview, src, frameSeconds, openOpts
     const opts = openOpts();
     const resolved = await resolveSource();
     if (!resolved) return;
-    app.openImageHere(resolved, incog.checked, address, opts);
+    openImageHere(app, resolved, incog.checked, address, opts);
     close();
   });
   newTabBtn.addEventListener('click', async () => {
@@ -41,7 +42,7 @@ export function wireOpenActions({ app, els, preview, src, frameSeconds, openOpts
     if (preview.tab() !== 'file' || !src.chosenFile() || !canReplace()) return;
     const resolved = await resolveSource();
     if (!resolved) return;
-    app.replaceProjectImage(resolved, { rename: renameEl.checked, keepAnnotations: keepEl.checked });
+    replaceProjectImage(app, resolved, { rename: renameEl.checked, keepAnnotations: keepEl.checked });
     close();
   });
 }

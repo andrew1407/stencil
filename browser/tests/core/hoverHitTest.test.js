@@ -1,11 +1,14 @@
-// The canvas hit-test and hover-cache paths (js/core/drawingApp.js). Pinned: removePoint/removeLine must not
-// leave `hoverPt` and the line-hover fields on pre-removal indices, or the renderer rings a different point
-// until the next mousemove; and the hit thresholds are screen-constant (base / scale), since fixed IMAGE px
-// shrink the grab radius to nothing zoomed out and grab from half a screen away zoomed in.
+// The canvas hit-test and hover-cache paths (core/app/editing.js, line/editOps.js, pointer/canvasCoords.js).
+// Pinned: removePoint/removeLine must not leave `hoverPt` and the line-hover fields on pre-removal indices,
+// or the renderer rings a different point until the next mousemove; and the hit thresholds are
+// screen-constant (base / scale), since fixed IMAGE px shrink the grab radius to nothing zoomed out and grab
+// from half a screen away zoomed in.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DrawingApp } from '../../js/core/drawingApp.js';
+import { removePoint, removeLine } from '../../js/core/line/editOps.js';
+import { canvasCoords } from '../../js/core/pointer/canvasCoords.js';
 
 const makeApp = (lines, { scale = 1 } = {}) => {
   const app = {
@@ -22,12 +25,8 @@ const makeApp = (lines, { scale = 1 } = {}) => {
     findLineAt: DrawingApp.prototype.findLineAt,
     findNearestPointWithIdx: DrawingApp.prototype.findNearestPointWithIdx,
     findNearestSegmentWithIdx: DrawingApp.prototype.findNearestSegmentWithIdx,
-    removePoint: DrawingApp.prototype.removePoint,
-    removeLine: DrawingApp.prototype.removeLine,
-    canvasCoords: DrawingApp.prototype.canvasCoords,
     deselectLine() { this.selectedLineIdx = -1; },
     saveHistory() {},
-    updateButtons() {},
     renderer: { redraw() {} },
     coordTable: { update() {} },
   };
@@ -39,7 +38,7 @@ test('removePoint invalidates the cached canvas hover', () => {
   app.hoverPt = { lineIdx: 0, ptIdx: 2 };   // hovering the LAST point
   app.hoverLineIdx = 0;
   app.listHoverLineIdx = 0;
-  app.removePoint(0, 0);                    // removing the FIRST shifts the indices
+  removePoint(app, 0, 0);                   // removing the FIRST shifts the indices
   assert.equal(app.hoverPt, null, 'stale hoverPt would ring a different point');
   assert.equal(app.hoverLineIdx, -1);
   assert.equal(app.listHoverLineIdx, -1);
@@ -52,7 +51,7 @@ test('removeLine invalidates the cached canvas hover', () => {
   ]);
   app.hoverPt = { lineIdx: 1, ptIdx: 0 };
   app.hoverLineIdx = 1;
-  app.removeLine(0);                        // line 1 becomes line 0
+  removeLine(app, 0);                       // line 1 becomes line 0
   assert.equal(app.hoverPt, null);
   assert.equal(app.hoverLineIdx, -1);
 });
@@ -85,7 +84,7 @@ test('canvasCoords maps through the LIVE on-screen size, not the stale scale', (
     height: 50,
     getBoundingClientRect: () => ({ left: 10, top: 20, width: 200, height: 100 }),
   };
-  const { cssX, cssY, x, y } = app.canvasCoords(110, 70);
+  const { cssX, cssY, x, y } = canvasCoords(app, 110, 70);
   assert.equal(cssX, 100);
   assert.equal(cssY, 50);
   assert.equal(x, 50, 'image x derives from rect.width / canvas.width');
@@ -100,7 +99,7 @@ test('canvasCoords falls back to this.scale when the rect has no size', () => {
     height: 50,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0 }),
   };
-  const { x, y } = app.canvasCoords(30, 10);
+  const { x, y } = canvasCoords(app, 30, 10);
   assert.equal(x, 15);
   assert.equal(y, 5);
 });

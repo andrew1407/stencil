@@ -24,16 +24,23 @@ You: /create Shared   → publishes the result as a new server project
 
 ## Build · test · run
 
-Needs the **.NET 10** SDK and the built CLI (`cd cli && zig build`). Video frames and LLM
-image downscaling additionally use `ffmpeg` on `PATH` (optional).
+Needs the **.NET 10** SDK and the built CLI (`cd cli && zig build`) — the CLI also judges every
+assistant and script plan, so build it from the same checkout: at startup the bot logs a warning
+when the CLI carries a different op registry. Video frames and LLM image downscaling additionally
+use `ffmpeg` on `PATH` (optional).
 
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx
 dotnet test  Stencil.TelegramBot.slnx              # offline — no token, server, CLI, LLM or Redis needed
 dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # opt-in benchmarks
+BOT_TEST_CLI=$PWD/../cli/zig-out/bin/stencil dotnet test Stencil.TelegramBot.slnx   # + the checks against the real CLI
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
+
+The tests replay the CLI's plan verdicts from `tests/Stencil.TelegramBot.Tests/Doubles/planChecks.json`;
+a test that sends the assistant a new reply records its verdict with `BOT_UPDATE_GOLDENS=1` and
+`BOT_TEST_CLI` set.
 
 `dotnet restore` fills a repo-local `bot/packages/` folder (gitignored), never `~/.nuget`;
 commit the regenerated `packages.lock.json` whenever you change a `<PackageReference>`.
@@ -77,6 +84,18 @@ Real environment variables always win over `.env`; the real `bot/.env` is gitign
 | `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram photo/video download (a `.json` / `.stencil` document caps at 4 MB) |
 | `STENCIL_BOT_CLI_TIMEOUT_SECONDS` | `120` | Wall-clock limit on one CLI run before it is killed |
 | `STENCIL_BOT_WORKSPACE_TTL_MINUTES` | `60` | Age after which orphaned scratch files are swept |
+| `STENCIL_BOT_WORKSPACE_SWEEP_FLOOR_MINUTES` | `5` | Shortest gap between two sweeps of those files, however short the TTL |
+| `STENCIL_BOT_ALLOW_PRIVATE_SERVERS` | `true` | Whether `/connect` may reach a loopback or private-LAN server; set `false` on a bot whose users must not reach the operator's network. Link-local / cloud-metadata addresses are refused either way |
+| `STENCIL_BOT_UPDATE_WORKERS` | `32` | Updates handled at once; one user holds at most one |
+| `STENCIL_BOT_UPDATE_QUEUE` | `256` | Updates queued or running across all users; full ⇒ polling waits |
+| `STENCIL_BOT_MAX_PENDING_PER_USER` | `64` | Updates one user may have waiting behind their own; past it they are dropped |
+| `STENCIL_BOT_DRAIN_TIMEOUT_SECONDS` | `10` | How long shutdown waits for in-flight updates |
+| `STENCIL_BOT_RESOLVE_TIMEOUT_SECONDS` | `5` | DNS lookup limit for a user-supplied link or server |
+| `STENCIL_BOT_PROGRESS_TICK_SECONDS` | `3` | Beat of the "Working on your request…" spinner |
+| `STENCIL_BOT_SYNC_POLL_SECONDS` | `6` | How often a `/sync`ed chat checks its server for a peer's newer version |
+| `STENCIL_BOT_ALBUM_SETTLE_MS` | `1000` | Quiet time after an album's last photo before the album is handled |
+| `STENCIL_BOT_MAX_SERVER_RESPONSE_MB` | `64` | Max size of one server or LLM reply |
+| `STENCIL_BOT_PROJECT_LIST_LIMIT` | `200` | Projects per page when `/projects`, `/fetch` and the assistant list a server; every page is read (max `500`) |
 
 **AI assistant** (`/prompt`, or `/chat` for hands-free chat mode) — the same `STENCIL_LLM_*`
 keys as every other surface; how to get a model running behind them is in the

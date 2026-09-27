@@ -1,5 +1,5 @@
 // The two editor-mode lists are rebuilt wholesale on every keystroke, so what leaves and arrives
-// is decided by the tab ids of the two renders. Mechanics: tests/motion.test.js.
+// is decided by the tab ids of the two renders. Mechanics: tests/lib/dust/motion.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

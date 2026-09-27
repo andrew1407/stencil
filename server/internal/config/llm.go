@@ -8,11 +8,11 @@ func loadLLM(get getter, cfg *Config) error {
 	cfg.LLMProvider = get("LLM_PROVIDER", "anthropic")
 	cfg.LLMAPIKey = get("LLM_API_KEY", "")
 	cfg.AnthropicKey = get("ANTHROPIC_API_KEY", "")
-	cfg.LLMModel = get("LLM_MODEL", defaultLLMModel)
+	cfg.LLMModel = get("LLM_MODEL", serverLLMDefaults.Model)
 	cfg.LLMBaseURL = get("LLM_BASE_URL", "") // "" = the provider's default
 
 	var err error
-	if cfg.LLMMaxTokens, err = positiveInt(get, "LLM_MAX_TOKENS", defaultLLMMaxTokens, 1); err != nil {
+	if cfg.LLMMaxTokens, err = positiveInt(get, "LLM_MAX_TOKENS", serverLLMDefaults.MaxTokens, 1); err != nil {
 		return err
 	}
 	seconds, err := positiveInt(get, "LLM_TIMEOUT_SECONDS", int(defaultLLMTimeout/time.Second), 1)

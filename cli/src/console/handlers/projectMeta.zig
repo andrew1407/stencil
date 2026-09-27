@@ -1,12 +1,11 @@
 //! `/project-color`, `/blank-color` and `/project-description`: the active server project's
 //! metadata fields, each PUT version-guarded with a 409 re-read-and-retry.
 const std = @import("std");
-const image = @import("../../media/image.zig");
+const inert = @import("../render/inert.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const theme = @import("../../app/theme.zig");
-const project = @import("../../project.zig");
 const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
@@ -167,7 +166,9 @@ pub fn putProjectField(session: *Session, client: *server.Client, id: []const u8
 
 /// Print "<label>: <colour>" with the colour rendered in itself (truecolor) when colour is on
 /// and the hex parses; an empty colour reads as "(none — neutral grey)".
-fn printProjectColor(label: []const u8, color: []const u8) void {
+fn printProjectColor(label: []const u8, raw_color: []const u8) void {
+    var b: inert.Buf = undefined; // the server's value, as stored
+    const color = inert.name(&b, raw_color);
     if (color.len == 0) {
         logo.print(msg.color_none, .{label});
         return;

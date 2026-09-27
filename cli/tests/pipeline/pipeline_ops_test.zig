@@ -1,10 +1,12 @@
 // The raster ops the pipeline composes, run on ONE decode of the committed PNG fixture
-// (16x12 solid #3366cc): crop, quarter-rotate, and the per-format encode/decode seam.
+// (16x12 solid #3366cc): crop, quarter-rotate, the per-format encode/decode seam, and a
+// recorded crop committed inside the image.
 // image.zig's own inline tests cover the codec in isolation; these pin the core ops on
 // real decoded pixels, and the decode guards that run before any buffer is allocated.
 const std = @import("std");
 const core = @import("../../src/core.zig");
 const image = @import("../../src/media/image.zig");
+const steps = @import("../../src/pipeline/steps.zig");
 const testing = std.testing;
 const sample = @embedFile("../fixtures/sample.png");
 
@@ -87,4 +89,57 @@ test "ops: decode refuses a header claiming absurd dimensions before allocating"
     // pixel-AREA cap that refuses it (w*h*4 would overflow the c_int handed back to stb).
     const tga = [_]u8{ 0, 0, 2 } ++ [_]u8{0} ** 9 ++ [_]u8{ 0x40, 0x9c, 0x40, 0x9c, 24, 0 };
     try testing.expectError(error.ImageTooLarge, image.decode(a, &tga));
+}
+
+// The clamp cropToRect ran in Zig before it went through core.snapCropRect: the oracle below.
+fn oldClamp(r: core.Rect, iw: i32, ih: i32) core.Rect {
+    var o = r;
+    o.w = std.math.clamp(o.w, 1, iw);
+    o.h = std.math.clamp(o.h, 1, ih);
+    o.x = std.math.clamp(o.x, 0, iw - o.w);
+    o.y = std.math.clamp(o.y, 0, ih - o.h);
+    return o;
+}
+
+fn gradient(a: std.mem.Allocator, w: usize, h: usize) !image.Rgba8 {
+    const px = try a.alloc(u8, w * h * 4);
+    for (px, 0..) |*b, i| b.* = @truncate(i *% 7);
+    return .{ .width = w, .height = h, .pixels = px };
+}
+
+test "ops: cropToRect commits through core exactly as the old clamp did" {
+    const a = testing.allocator;
+    const big = std.math.maxInt(i32);
+    const small = std.math.minInt(i32);
+    const rects = [_]core.Rect{
+        .{ .x = 1, .y = 1, .w = 3, .h = 2 },
+        .{ .x = -3, .y = -9, .w = 4, .h = 4 }, // a negative origin
+        .{ .x = 2, .y = 1, .w = 0, .h = 0 }, // a zero size
+        .{ .x = 0, .y = 0, .w = -5, .h = -1 }, // a negative size
+        .{ .x = 5, .y = 4, .w = 99, .h = 99 }, // oversize
+        .{ .x = 40, .y = 40, .w = 2, .h = 2 }, // wholly outside
+        .{ .x = big, .y = small, .w = big, .h = small },
+        .{ .x = small, .y = big, .w = 1, .h = big },
+    };
+    for ([_][2]usize{ .{ 7, 5 }, .{ 5, 7 }, .{ 1, 1 } }) |dims| {
+        var turned: [rects.len * 2]core.Rect = undefined; // each rect, then its quarter-turn
+        for (rects, 0..) |r, i| {
+            turned[2 * i] = r;
+            turned[2 * i + 1] = core.rotateEditQuarter(r, 0, @intCast(dims[1]), @intCast(dims[0]), true).crop;
+        }
+        for (turned) |r| {
+            const iw: i32 = @intCast(dims[0]);
+            const ih: i32 = @intCast(dims[1]);
+            try testing.expectEqual(oldClamp(r, iw, ih), core.snapCropRect(r, iw, ih));
+            var want = try gradient(a, dims[0], dims[1]);
+            defer want.deinit(a);
+            var got = try gradient(a, dims[0], dims[1]);
+            defer got.deinit(a);
+            try steps.cropInPlace(a, &want, oldClamp(r, iw, ih));
+            try steps.cropToRect(a, &got, r);
+            try testing.expectEqual(want.width, got.width);
+            try testing.expectEqual(want.height, got.height);
+            try testing.expectEqualSlices(u8, want.pixels, got.pixels);
+        }
+    }
 }

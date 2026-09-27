@@ -1,5 +1,5 @@
 import { normalizeLaunchPayload } from './deepLink.js';
-import { scaledDataUrl } from '../../utils.js';
+import { scaledDataUrl, flattenLayers } from '../../utils.js';
 
 // Editor-page side of "editor mode": the extension posts `stencil-ext-req` and we answer
 // `stencil-ext-res`, always and only after validating — it is data, not an authority.
@@ -15,13 +15,14 @@ const THUMB_MAX = 256;
 // 'new' = its own project (what `#stencil=` does); 'replace'/'replace-keep' swap the active image.
 const IMPORT_MODES = ['new', 'replace', 'replace-keep'];
 
-// Never throws: a blank editor, a tainted canvas and Node's missing canvas all give ''.
-const canvasThumbnail = (canvas, max = THUMB_MAX) => {
+// What the stage shows — the picture and the lines over it. Never throws: a blank editor, a
+// tainted canvas and Node's missing canvas all give ''.
+const canvasThumbnail = (layers, max = THUMB_MAX) => {
   try {
-    const w = canvas?.width || 0;
-    const h = canvas?.height || 0;
+    const w = layers[0]?.width || 0;
+    const h = layers[0]?.height || 0;
     if (!w || !h) return '';
-    return scaledDataUrl(canvas, w, h, max, 'image/jpeg', 0.72);
+    return scaledDataUrl(flattenLayers(layers), w, h, max, 'image/jpeg', 0.72);
   } catch {
     return '';
   }
@@ -45,7 +46,7 @@ const editorState = (app, { thumbnail = true, thumbMax } = {}) => {
     imageSize: (w > 0 && h > 0) ? { w, h } : null,
 // Never persisted — the panel warns before importing over it.
     incognito: !!app.storage?.incognito,
-    thumbnail: thumbnail ? canvasThumbnail(app.canvas, max) : '',
+    thumbnail: thumbnail ? canvasThumbnail(app.renderer.layers(), max) : '',
     projects: (store ? store.list() : []).map(m => ({
       id: m.id, name: m.name || '', active: m.id === activeId,
     })),
@@ -79,7 +80,7 @@ const switchProject = (app, { projectId } = {}) => {
   const store = app.storage?.store || null;
   if (!projectId || !store || !store.list().some(m => m.id === projectId)) throw new Error('unknown project');
 // false = already active: a fulfilled request, not a failure.
-  const switched = app.switchToProject(projectId);
+  const switched = app.projectTransfer.switchToProject(projectId);
   return { ...identity(app), switched: !!switched };
 };
 

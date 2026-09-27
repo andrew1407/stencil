@@ -1,20 +1,11 @@
 #include "../../support/skinPrefs.hpp"
 #include "CropDialog.hpp"
 #include "cropDialogParts.hpp"
-#include "../../support/modal/modalChrome.hpp"
 #include "../../support/motionPrefs.hpp"
 #include <QEasingCurve>
-#include <QGuiApplication>
 #include <QVariantAnimation>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QMouseEvent>
-#include <QNativeGestureEvent>
 #include <QPainter>
-#include <QWheelEvent>
 #include <QPainterPath>
-#include <QPushButton>
-#include <QScreen>
 #include <algorithm>
 #include <cmath>
 

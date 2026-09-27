@@ -1,4 +1,4 @@
-// Headless check of app/ProjectNameBar.hpp — which chips the header row's project-name
+// Headless check of app/project/ProjectNameBar.hpp — which chips the header row's project-name
 // group shows in each state. The rule is browser parity (the topbar name field): ✓/✗ only
 // while renaming, ✎/🎨 only outside it and only inked on hover — but always holding their
 // slots, because taking the slots away shoved the "?" beside them sideways. Pure state;

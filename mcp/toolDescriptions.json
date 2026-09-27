@@ -1,36 +1,150 @@
 {
-  "_doc": "Canonical user-facing prose for the MCP surface, embedded by src/server/mod.rs with include_str!: each tool's wire `description` (what an MCP client lists) and the `instructions` ServerHandler::get_info() returns. `readmePurpose`/`readmeParams` render README.md's generated Tools table, so the prose has one home. Array order is the README table's order. tests/text_golden_test.rs byte-pins the descriptions and the table.",
+  "_doc": "Canonical user-facing prose for the MCP surface, embedded by src/server/ with include_str!: each tool's wire `description` (what an MCP client lists), the `instructions` ServerHandler::get_info() returns, the resources' names and descriptions, and the prompts' descriptions and templates (`{argument}` filled from the call, else the argument's `default`). `readmePurpose`/`readmeParams` render README.md's generated Tools table, so the prose has one home. Array order is the README table's order. tests/text_golden_test.rs byte-pins the descriptions and the instructions; tests/tool_prose_test.rs the shards and the table.",
   "tools": [
     {
       "name": "stencil_edit",
-      "description": "Edit one image or video frame with Stencil's core pipeline (source → crop → rotate → filter → draw layout → encode) and write the result to a file, then deliver it to the selected surface(s). Provide either `input` (a path or http(s) URL) or `blank` (a fresh canvas), plus any of crop/rotate/layout/filter, an `output` path, and an optional `surface` override. To work with a Stencil collaboration server: set `server` to a server URL and `input` to a project NAME to fetch and edit it, add `remote_update` to write the result back; or set `remote` (a server URL) + optional `remote_name` to push the result as a NEW project. `server` and `remote` may point at different servers, so one call can fetch from one and publish to another. The result is always saved locally too. Returns the written path, final dimensions, per-surface delivery notes, and any server projects updated/created.",
+      "description": "Edit one image or video frame with Stencil's core pipeline (source → crop → rotate → filter → draw layout → encode) and write the result to a file, then deliver it to the selected surface(s). Provide either `input` (a path or http(s) URL) or `blank` (a fresh canvas), plus any of crop/rotate/layout/filter, an `output` path, and an optional `surface` override. `rotate` counts quarter-turns (1 = 90°); `layout_frame: \"source\"` reads the layout's coordinates in the input's frame, before the crop and rotate. The `output` must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root; an output ending in `.stencil` bundles a project instead of an image. To work with a Stencil collaboration server — only one the operator allowlisted: set `server` to its URL and `input` to a project NAME to fetch and edit it (`stencil_projects` lists the names), add `remote_update` to write the result back; or set `remote` (a server URL) + optional `remote_name` to push the result as a NEW project. `server` and `remote` may point at different servers, so one call can fetch from one and publish to another. The result is always saved locally too. Set `preview` to also get the written image back as a PNG thumbnail (longer side at most 512 px) in an image content block, to check the edit by eye. Returns the written path, final dimensions, per-surface delivery notes, and any server projects updated/created.",
       "readmePurpose": "Run the full pipeline, write a file, deliver to surface(s), optionally fetch/publish on a collaboration server",
-      "readmeParams": "`input` \\| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface`, `server`, `remote_update`, `remote`, `remote_name`"
+      "readmeParams": "`input` \\| `blank`, `crop`, `rotate`, `layout`, `layout_frame`, `filter`, `frame`, `output`, `overwrite`, `preview`, `surface`, `server`, `remote_update`, `remote`, `remote_name`"
     },
     {
       "name": "stencil_probe",
-      "description": "Read an image's pixel dimensions. Useful before computing crop or layout coordinates. `input` is a path or http(s) URL. Returns width and height.",
-      "readmePurpose": "Read an image's pixel size",
+      "description": "Read an image's pixel dimensions, format, whether it carries alpha and its size in bytes — from its header, without decoding it — or a video's size, duration and frame count. Useful before computing crop or layout coordinates, or before picking a video `frame`. `input` is a path or http(s) URL. Returns width and height, with format, alpha, bytes, duration_ms and frames where known (null otherwise).",
+      "readmePurpose": "Read an image's pixel size, format, alpha and byte size, or a video's length",
       "readmeParams": "`input`"
     },
     {
       "name": "source_site",
-      "description": "Scrape a web page and download the media it references into a DIRECTORY. Give `source_site` (the page's http(s) URL) and an `output` directory (created if missing; defaults to the current directory). Filter what's downloaded with `filter` (category tokens `img|video|background|poster`, `|`-separated; default all), `format` (normalized extension tokens like `png|jpg|webp|mp4`; default all), and `min_width`/`max_width`/`min_height`/`max_height` (inclusive px bounds measured from image bytes; video and unmeasurable items always pass). Page through large result sets with `count` (items per page — omit to take ALL matches) and `group` (a 0-based page index). This is a headless directory download, so it only writes files locally (the `cli` surface). Returns the directory, the page host, and the list of written files with their pixel dimensions.",
+      "description": "Scrape a web page and download the media it references into a DIRECTORY. Give `source_site` (the page's http(s) URL) and an `output` directory (created if missing; defaults to the first root; it must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root). Filter what's downloaded with `filter` (category tokens `img|video|background|poster`, `|`-separated; default all), `format` (normalized extension tokens like `png|jpg|webp|mp4`; default all), and `min_width`/`max_width`/`min_height`/`max_height` (inclusive px bounds measured from image bytes; video and unmeasurable items always pass). Page through large result sets with `count` (items per page — omit for the CLI's default of 5; `0` takes ALL matches) and `group` (a 0-based page index). This is a headless directory download, so it only writes files locally (the `cli` surface). Returns the directory, the page host, and the list of written files with their pixel dimensions.",
       "readmePurpose": "Scrape a web page and download its matching media into a **directory**",
       "readmeParams": "`source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height`"
     },
     {
       "name": "stencil_prompt",
-      "description": "Ask Stencil's configured LLM to plan and run edits from a natural-language `prompt` (see llm-contract.md). `input` is the working image (path or http(s) URL; a local file is also attached for vision). The LLM answers with a strictly validated op-plan (crop / rotate / filter / layout / blank / frame / image / save); its base actions are written to `{output_dir}/result.png` and each variant to `{output_dir}/{label}.png` via the same CLI pipeline as stencil_edit, and each `save` op bundles the image + layout so far into `{output_dir}/{name}.stencil`. This tool carries ONE `input`, so an `image` op may only select index 1 (it restarts from that input); a higher index is noted and skipped. A plan with no actions is a chat-only answer (text, nothing written). A plan that only LOADS a picture (blank/frame, no layout drawn) is applied and the prompt automatically re-sent ONCE with the loaded image attached (llm-contract §7), so e.g. 'create a blank page and draw …' completes in one call. The provider and its endpoint come from the operator's STENCIL_LLM_* env and are NOT settable per call (only `model` is): `ollama`, `openai-compat` (LM Studio etc.), or `stencil-server` (a Stencil collaboration server proxying Anthropic). The built-in transport is plain http:// only and refuses to send credentials off-loopback.",
+      "description": "Ask Stencil's configured LLM to plan and run edits from a natural-language `prompt` (see llm-contract.md). `input` is the working image (path or http(s) URL; a local file is also attached for vision). The LLM answers with a strictly validated op-plan (crop / rotate / filter / layout / blank / frame / image / save); its base actions are written to `{output_dir}/result.png` and each variant to `{output_dir}/{label}.png` via the same CLI pipeline as stencil_edit (`output_dir` must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root), and each `save` op bundles the image + layout so far into `{output_dir}/{name}.stencil`. This tool carries ONE `input`, so an `image` op may only select index 1 (it restarts from that input); a higher index is noted and skipped. A plan with no actions is a chat-only answer (text, nothing written). A plan that only LOADS a picture (blank/frame, no layout drawn) is applied and the prompt automatically re-sent ONCE with the loaded image attached (llm-contract §7), so e.g. 'create a blank page and draw …' completes in one call. The provider and its endpoint come from the operator's STENCIL_LLM_* env and are NOT settable per call (only `model` is): `ollama`, `openai-compat` (LM Studio etc.), or `stencil-server` (a Stencil collaboration server proxying Anthropic). The built-in transport is plain http:// only and refuses to send credentials off-loopback.",
       "readmePurpose": "Ask a configured LLM to plan edits from natural language and run them (see [LLM assistant](#llm-assistant-stencil_prompt))",
       "readmeParams": "`prompt`, `input`, `output_dir`, `model` override"
     },
     {
       "name": "stencil_script",
-      "description": "Run a Stencil script (`.stc`) — the batch language for image edits, parsed and lowered by the shared core (see contracts/stc/stc-contract.md). A script names its own inputs with `@source <file|url|dir/|glob>:` blocks and its own outputs with `@save`, so ONE call can edit a whole directory: `@crop`, `@filter`, `@line`/`@rect`, `@layout`, `@frame`, `@undo`/`@redo`, `@use` for units and line style, and `@stencil` templates. Pass the source as `script_text` (inline .stc, up to 256 KiB) or `script_path` (an existing .stc file) — exactly one. A script with no `@source` block edits the `input` image instead. Every `@save` is confined to `output_dir` (created if missing; defaults to the current directory), so write RELATIVE targets: `@save out/` or `@save shot.png`, never an absolute path — a bare `@save` next to an absolute source is refused by the sandbox, and a `@save` into a subdirectory needs that directory to already exist. A script with any diagnostic error runs nothing and the whole call fails with the CLI's `file:line:col: error: … [CODE]` lines. Returns every file written with its pixel dimensions, plus any notes the run printed.",
+      "description": "Run a Stencil script (`.stc`) — the batch language for image edits, parsed and lowered by the shared core (see contracts/stc/stc-contract.md). A script names its own inputs with `@source <file|url|dir/|glob>:` blocks and its own outputs with `@save`, so ONE call can edit a whole directory: `@crop`, `@filter`, `@line`/`@rect`, `@layout`, `@frame`, `@undo`/`@redo`, `@use` for units and line style, and `@stencil` templates. Pass the source as `script_text` (inline .stc, up to 256 KiB) or `script_path` (an existing .stc file) — exactly one. A script with no `@source` block edits the `input` image instead. Every `@save` is confined to `output_dir` (created if missing; defaults to the first root; it must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root), so write RELATIVE targets: `@save out/` or `@save shot.png`, never an absolute path — a bare `@save` next to an absolute source is refused by the sandbox, and a `@save` into a subdirectory needs that directory to already exist. A script with any diagnostic error runs nothing and the whole call fails with the CLI's `file:line:col: error: … [CODE]` lines. Check a draft with `stencil_script_check` and preview it with `stencil_script_plan` first. Set `preview` to also get the first four images it wrote back as PNG thumbnails (longer side at most 512 px) in image content blocks. Returns every file written with its pixel dimensions, every `.stencil` project, plus any notes the run printed.",
       "readmePurpose": "Run a `.stc` script — batch edits over files, directories or globs, confined to one output directory",
-      "readmeParams": "`script_text` \\| `script_path`, `input`, `output_dir`"
+      "readmeParams": "`script_text` \\| `script_path`, `input`, `output_dir`, `preview`"
+    },
+    {
+      "name": "stencil_script_check",
+      "description": "Check a Stencil script (`.stc`) without running it: the shared core parses and lowers it and every diagnostic comes back — line, column, severity, the stable code from the stc contract's catalogue, and the message. Pass the source as `script_text` (inline .stc, up to 256 KiB) or `script_path` (an existing .stc file) — exactly one. Nothing is fetched, run or written. Returns `valid` (false when any diagnostic is an error), the error and warning counts, and the diagnostics in source order.",
+      "readmePurpose": "Validate a `.stc` script without running it; structured diagnostics",
+      "readmeParams": "`script_text` \\| `script_path`"
+    },
+    {
+      "name": "stencil_script_plan",
+      "description": "Preview a Stencil script (`.stc`) as the op-plans a run would execute, without running it: for each `@source` block, the expanded input files, the validated actions (in the opRegistry.json vocabulary) and the concrete path of every `@save`. Pass the source as `script_text` (inline .stc, up to 256 KiB) or `script_path` (an existing .stc file) — exactly one. Add `input` for a script with no `@source` block; its header sizes the shape ops. Nothing is written. A local input's header is read; an http(s) input is fetched, through the CLI's fetch guard, only when its block draws lines that need its size, and an `@layout` URL is fetched to plan its lines. A script with any error returns its diagnostics and no blocks.",
+      "readmePurpose": "Dry-run a `.stc` script: its inputs, op-plans and save paths",
+      "readmeParams": "`script_text` \\| `script_path`, `input`"
+    },
+    {
+      "name": "stencil_script_emit",
+      "description": "Rewrite a Stencil script (`.stc`) as a runnable file for another surface, without running it. The `output` file's extension picks the target: `.js`/`.stcjs` for the browser editor's `window.stencil` console facade, `.py`/`.pystc` for the pystencil Python package. Templates are expanded and undo/redo resolved; lengths, sources and save targets are written as the script wrote them. Pass the source as `script_text` (inline .stc, up to 256 KiB) or `script_path` (an existing .stc file) — exactly one. The `output` must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root; `overwrite` defaults to false. A directive the target cannot honour is refused with the CLI's error. Returns the written path and its target.",
+      "readmePurpose": "Rewrite a `.stc` script as JavaScript for the browser or Python for pystencil",
+      "readmeParams": "`script_text` \\| `script_path`, `output`, `overwrite`"
+    },
+    {
+      "name": "stencil_projects",
+      "description": "List the projects on a Stencil collaboration server, or read one project's metadata by `id` — the project NAMES are what `stencil_edit` fetches with `server` + `input`. Only servers the operator allowlisted are reachable: `server` names one (omit it when exactly one is allowed), and the operator's token for it is used automatically — it is never a parameter. Page a listing with `limit` (1–500, default 50) and `after` (the previous page's `next_cursor`). With `id`, set `files` to also list the files the project stores — `original`, `result`, `video`, `chat`, `variant1`…`variant8` — each with the format its first bytes name; `stencil_project_file` downloads one. Read-only: no image or layout is downloaded. The read runs through the Stencil CLI, so http:// and https:// servers both work. Returns the server's origin, the projects (id, name, timestamps, image size, description, keywords, source, colours, expiry, version — and with `files`, the files) and the next cursor.",
+      "readmePurpose": "List a collaboration server's projects, or read one's metadata and stored files",
+      "readmeParams": "`server`, `id`, `limit`, `after`, `files`"
+    },
+    {
+      "name": "stencil_project_update",
+      "description": "Change one project's metadata on a Stencil collaboration server — its `name`, `description`, `keywords`, name `color`, a blank project's `blank_color`, or its expiry `expires_at` (epoch ms; 0 keeps it forever) — at least one of them. Name the project by its `id` (`p_…`, as `stencil_projects` lists it). \"\" clears a text field and [] the keywords, but a name cannot be cleared; a colour is `#rrggbb` or a colour name. The write is version-guarded, so a peer's newer save is never overwritten unseen: pass `if_version` (the `version` `stencil_projects` reported) to refuse the change once the project has moved past it; without it the project's current version guards the write. Only servers the operator allowlisted are reachable: `server` names one (omit it when exactly one is allowed), and the operator's token for it is used automatically — it is never a parameter. The image and the layout are left as they are — change those with `stencil_edit` and `remote_update`. Returns the server's origin and the project as the server now holds it, with its new version.",
+      "readmePurpose": "Change a server project's name, description, keywords, colours or expiry",
+      "readmeParams": "`server`, `id`, `name`, `description`, `keywords`, `color`, `blank_color`, `expires_at`, `if_version`"
+    },
+    {
+      "name": "stencil_project_file",
+      "description": "Download one file a project stores on a Stencil collaboration server. `kind` is `original` (the source image), `result` (the rendered edit), `video`, `chat` (the saved assistant chat, JSON) or `variant1`…`variant8` (the assistant's variants); `stencil_projects` with `id` and `files` lists which ones the project holds and their formats. Name the project by its `id` (`p_…`). The file is written to `output` byte for byte as the server stores it — nothing is decoded or converted, so give `output` the extension of its format. The `output` must sit inside the server's roots (the client's workspace roots, else the operator's); a relative path resolves against the first root; `overwrite` defaults to false. Only servers the operator allowlisted are reachable: `server` names one (omit it when exactly one is allowed), and the operator's token for it is used automatically — it is never a parameter. Returns the server's origin, the project id, the kind, the written path, its size in bytes and the format its first bytes name.",
+      "readmePurpose": "Download a file a server project stores: its original, result, video, chat or a variant",
+      "readmeParams": "`server`, `id`, `kind`, `output`, `overwrite`"
     }
   ],
-  "instructions": "Stencil image/video editing. `stencil_edit` runs the full pipeline (source → crop → rotate → filter → layout → encode), writes a file, and delivers it to the configured surface(s) — cli (file), desktop (launch the Qt app), browser (editor launch URL); pass `surface` to override per call. It can also work with Stencil collaboration servers: `server`+`input` fetches a project by name to edit, `remote_update` writes the result back, and `remote` (+`remote_name`) publishes the result as a new project — `server` and `remote` can be different servers in one call. `stencil_probe` returns an image's pixel size. `stencil_script` runs a Stencil script (`.stc`) — the batch language: `@source` blocks over files, directories or globs, `@crop`/`@filter`/`@line`/`@rect`/`@layout`/`@frame`/`@undo` ops, `@stencil` templates, and `@save` targets confined to `output_dir`, so one call edits many files. `source_site` scrapes a web page and downloads its matching media (filter by category/format/dimensions, page with count/group) into a directory. `stencil_prompt` hands a natural-language request (plus the input image, for vision) to a configured LLM — ollama, openai-compat, or a stencil-server Anthropic proxy, via the STENCIL_LLM_* env keys, plain http:// only — and runs the strictly validated op-plan it returns through the same pipeline, writing {output_dir}/result.png plus one file per variant. Coordinates in layouts and crops are image pixels. The server shells out to the Stencil CLI, so set STENCIL_CLI if the binary isn't found in the repo or on PATH."
+  "instructions": "Stencil image/video editing. `stencil_edit` runs the full pipeline (source → crop → rotate → filter → layout → encode), writes a file, and delivers it to the configured surface(s) — cli (file), desktop (launch the Qt app), browser (editor launch URL); pass `surface` to override per call. Every write lands inside the server's roots — the client's workspace roots, else the operator's STENCIL_MCP_ROOTS, else its working directory — and a relative path resolves against the first root. It can also work with the Stencil collaboration servers the operator allowlisted (STENCIL_MCP_SERVERS): `stencil_projects` lists a server's projects (and the files one stores), `stencil_project_update` changes a project's metadata, `stencil_project_file` downloads one of its files, `server`+`input` fetches a project by name to edit, `remote_update` writes the result back, and `remote` (+`remote_name`) publishes the result as a new project — `server` and `remote` can be different servers in one call. `stencil_probe` returns an image's pixel size, format and alpha, or a video's length. `stencil_script` runs a Stencil script (`.stc`) — the batch language: `@source` blocks over files, directories or globs, `@crop`/`@filter`/`@line`/`@rect`/`@layout`/`@frame`/`@undo` ops, `@stencil` templates, and `@save` targets confined to `output_dir`, so one call edits many files; `stencil_script_check` and `stencil_script_plan` validate and preview a script without running it, and `stencil_script_emit` rewrites it for the browser editor or pystencil. `source_site` scrapes a web page and downloads its matching media (filter by category/format/dimensions, page with count/group) into a directory. `stencil_prompt` hands a natural-language request (plus the input image, for vision) to a configured LLM — ollama, openai-compat, or a stencil-server Anthropic proxy, via the STENCIL_LLM_* env keys, plain http:// only — and runs the strictly validated op-plan it returns through the same pipeline, writing {output_dir}/result.png plus one file per variant. The op registry, the .stc contract, page formats, colours and filters are resources; the prompts draft a .stc script and lay out a print page. Coordinates in layouts and crops are image pixels. The server shells out to the Stencil CLI, so set STENCIL_CLI if the binary isn't found in the checkout this server was built in or on PATH.",
+  "resources": [
+    {
+      "uri": "stencil://config/opRegistry.json",
+      "name": "opRegistry.json",
+      "description": "The op-plan registry every Stencil surface validates LLM plans against: the ops, their keys and limits, and which surfaces allow each.",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "stencil://contracts/stc-contract.md",
+      "name": "stc-contract.md",
+      "description": "The .stc script language: lexis, directives, units, templates, undo, the diagnostic catalogue and the limits.",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "stencil://config/page-formats.json",
+      "name": "page-formats.json",
+      "description": "The ISO page formats A0–C10: portrait width and height in centimetres, rendered at 96 dpi.",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "stencil://config/colors.json",
+      "name": "colors.json",
+      "description": "The CSS colour names Stencil accepts, with their #hex values.",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "stencil://config/filters.json",
+      "name": "filters.json",
+      "description": "The image filter modes; a colour name or #hex instead tints the image (duotone).",
+      "mimeType": "application/json"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "write_stc_script",
+      "title": "Write a .stc script",
+      "description": "Draft a Stencil .stc batch script for a task, check it, preview it, then run it.",
+      "arguments": [
+        {
+          "name": "task",
+          "description": "What the script should do, e.g. 'tone every PNG in shots/ sepia and save beside them'",
+          "required": true
+        },
+        {
+          "name": "files",
+          "description": "The files, directory or glob it works on",
+          "required": false,
+          "default": "the files the task names"
+        }
+      ],
+      "template": "Write a Stencil `.stc` script that does this: {task}\nIt works on: {files}.\n\nThe language is specified in the resource stencil://contracts/stc-contract.md: `@source <file|dir/|glob>:` blocks name the inputs, the directives under them edit each file, and `@save` writes it. Then:\n1. Validate the draft with `stencil_script_check` and fix every error it reports.\n2. Preview it with `stencil_script_plan` — the inputs, actions and save paths it would produce.\n3. Run it with `stencil_script`, every `@save` a RELATIVE path inside `output_dir`."
+    },
+    {
+      "name": "print_page_layout",
+      "title": "Print-page layout",
+      "description": "Lay content out on an ISO print page at 96 dpi and draw it with stencil_edit.",
+      "arguments": [
+        {
+          "name": "content",
+          "description": "What goes on the page, e.g. 'a 3x4 grid of cut lines'",
+          "required": true
+        },
+        {
+          "name": "page",
+          "description": "An ISO format name: A0–A10, B0–B10 or C0–C10",
+          "required": false,
+          "default": "A4"
+        },
+        {
+          "name": "orientation",
+          "description": "portrait or landscape",
+          "required": false,
+          "default": "portrait"
+        }
+      ],
+      "template": "Lay out {content} on one page — format {page}, {orientation}.\n\nPage sizes are in the resource stencil://config/page-formats.json, in centimetres, portrait; Stencil renders at 96 dpi, so pixels = cm / 2.54 × 96, with width and height swapped for landscape. Create the page with `stencil_edit` and `blank: { \"page\": \"{page}\" }` for portrait, or explicit pixel `width`/`height` for landscape, then draw with an inline `layout` whose `lines` are polylines in image pixels — close a shape by repeating its first point and set `fillColor` to fill it. Colour names are in stencil://config/colors.json. Check the page's size with `stencil_probe` before drawing to its edges."
+    }
+  ]
 }

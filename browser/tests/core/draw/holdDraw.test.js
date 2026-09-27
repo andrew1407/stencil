@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { HoldDrawController, holdDrawTarget } from '../../../js/core/draw/holdDraw.js';
 
 // ── holdDrawTarget: what an initial hold over (x,y) targets ──────
-// Mirrors core/tests/holdDraw.test.cpp.
+// Mirrors core/tests/state/holdDraw.test.cpp.
 
 const L = (...pts) => ({ points: pts.map(([x, y]) => ({ x, y })) });
 

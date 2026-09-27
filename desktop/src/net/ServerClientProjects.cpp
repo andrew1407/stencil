@@ -1,17 +1,37 @@
 #include "ServerClient.hpp"
 
-#include <QHostAddress>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include <QSet>
 #include <QUrl>
-#include <QUrlQuery>
+#include <memory>
 
 namespace stencil::net {
 
+  namespace {
+    ServerProject projectFrom(const QJsonObject& o, const QString& base) {
+      ServerProject p;
+      p.id = o.value("id").toString();
+      p.name = o.value("name").toString();
+      p.color = o.value("color").toString();
+      p.description = o.value("description").toString();
+      p.blankColor = o.value("blankColor").toString();
+      for (const QJsonValue& kv : o.value("keywords").toArray())
+        if (!kv.toString().isEmpty()) p.keywords << kv.toString();
+      p.hasImage = o.value("hasImage").toBool();
+      p.imageW = o.value("imageW").toInt();
+      p.imageH = o.value("imageH").toInt();
+      p.source = o.value("source").toString();
+      p.resource = o.value("resource").toString();
+      p.createdAt = static_cast<qint64>(o.value("createdAt").toDouble());
+      p.updatedAt = static_cast<qint64>(o.value("updatedAt").toDouble());
+      p.originalHash = o.value("originalHash").toString();
+      p.expiresAt = static_cast<qint64>(o.value("expiresAt").toDouble());
+      p.version = static_cast<qint64>(o.value("version").toDouble());
+      p.serverUrl = base;
+      return p;
+    }
+  }  // namespace
 
   void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done,
                                   CredentialKind hint) {
@@ -74,38 +94,43 @@ namespace stencil::net {
                    });
     } else {
       this->token = token;
-      requestAsync("GET", "/projects", {}, {},
-                   [this, done = std::move(done)](int status, QByteArray) mutable {
-                     if (isOkStatus(status)) {
-                       kind = CredentialKind::SESSION;   // the token IS a session token
-                       this->status = Status::CONNECTED;
-                       done(true);
-                       return;
-                     }
-                     requestAsync("POST", "/auth/token", "{}", "application/json",
-                                  [this, done = std::move(done)](int mint, QByteArray body) {
-                                    if (isOkStatus(mint)) {
-                                      this->token = QJsonDocument::fromJson(body).object().value("token").toString();
-                                      if (!this->token.isEmpty()) {
-                                        kind = CredentialKind::ADMIN;  // it minted: admin
-                                        this->status = Status::CONNECTED;
-                                        done(true);
-                                        return;
-                                      }
-                                      err = "server returned no token";
-                                      this->token.clear();
-                                      this->status = Status::ERROR;
-                                      done(false);
-                                      return;
-                                    }
-                                    // Neither a session nor the admin token: a refused CREDENTIAL, so the row offers a sign-in.
-                                    this->token.clear();
-                                    this->status = Status::EXPIRED;
-                                    qWarning("stencil: token refused by %s — reconnect to sign in again",
-                                             qPrintable(base));
-                                    done(false);
-                                  });
-                   });
+      // A server before GET /auth/session answers it 404; a one-row list proves the token there.
+      auto probed = [this, done = std::move(done)](int status) mutable {
+        if (isOkStatus(status)) {
+          kind = CredentialKind::SESSION;   // the token IS a session token
+          this->status = Status::CONNECTED;
+          done(true);
+          return;
+        }
+        requestAsync("POST", "/auth/token", "{}", "application/json",
+                     [this, done = std::move(done)](int mint, QByteArray body) {
+                       if (isOkStatus(mint)) {
+                         this->token = QJsonDocument::fromJson(body).object().value("token").toString();
+                         if (!this->token.isEmpty()) {
+                           kind = CredentialKind::ADMIN;  // it minted: admin
+                           this->status = Status::CONNECTED;
+                           done(true);
+                           return;
+                         }
+                         err = "server returned no token";
+                         this->token.clear();
+                         this->status = Status::ERROR;
+                         done(false);
+                         return;
+                       }
+                       // Neither a session nor the admin token: a refused CREDENTIAL, so the row offers a sign-in.
+                       this->token.clear();
+                       this->status = Status::EXPIRED;
+                       qWarning("stencil: token refused by %s — reconnect to sign in again",
+                                qPrintable(base));
+                       done(false);
+                     });
+      };
+      requestAsync("GET", "/auth/session", {}, {}, [this, probed](int status, QByteArray) mutable {
+        if (status != 404) return probed(status);
+        requestAsync("GET", "/projects?limit=1", {}, {},
+                     [probed](int listed, QByteArray) mutable { probed(listed); });
+      });
     }
   }
 
@@ -130,41 +155,35 @@ namespace stencil::net {
     });
   }
 
+  // Every page of the list: a nextCursor asks for the rows after it (?after=), as the CLI and the bot
+  // walk it; a cursor handed back twice, or MAX_LIST_PAGES pages, fails the list rather than looping.
   void ServerClient::listProjectsAsync(
       std::function<void(bool, QVector<ServerProject>)> done) {
-    requestAsync("GET", "/projects", {}, {},
-                 [this, done = std::move(done)](int status, QByteArray body) {
-                   QVector<ServerProject> out;
-                   if (!isOkStatus(status)) {
-                     done(false, out);
-                     return;
-                   }
-                   const QJsonArray arr =
-                       QJsonDocument::fromJson(body).object().value("projects").toArray();
-                   for (const QJsonValue& v : arr) {
-                     const QJsonObject o = v.toObject();
-                     ServerProject p;
-                     p.id = o.value("id").toString();
-                     p.name = o.value("name").toString();
-                     p.color = o.value("color").toString();
-                     p.description = o.value("description").toString();
-                     p.blankColor = o.value("blankColor").toString();
-                     for (const QJsonValue& kv : o.value("keywords").toArray())
-                       if (!kv.toString().isEmpty()) p.keywords << kv.toString();
-                     p.hasImage = o.value("hasImage").toBool();
-                     p.imageW = o.value("imageW").toInt();
-                     p.imageH = o.value("imageH").toInt();
-                     p.source = o.value("source").toString();
-                     p.resource = o.value("resource").toString();
-                     p.createdAt = static_cast<qint64>(o.value("createdAt").toDouble());
-                     p.updatedAt = static_cast<qint64>(o.value("updatedAt").toDouble());
-                     p.expiresAt = static_cast<qint64>(o.value("expiresAt").toDouble());
-                     p.version = static_cast<qint64>(o.value("version").toDouble());
-                     p.serverUrl = base;
-                     out.push_back(p);
-                   }
-                   done(true, out);
-                 });
+    struct Walk {
+      QVector<ServerProject> out;
+      QSet<QString> cursors;
+      std::function<void(bool, QVector<ServerProject>)> done;
+      std::function<void(std::shared_ptr<Walk>, const QString&)> page;
+    };
+    auto walk = std::make_shared<Walk>();
+    walk->done = std::move(done);
+    walk->page = [this](std::shared_ptr<Walk> w, const QString& path) {
+      requestAsync("GET", path, {}, {}, [this, w](int status, QByteArray body) {
+        if (!isOkStatus(status)) return w->done(false, {});
+        const QJsonObject page = QJsonDocument::fromJson(body).object();
+        for (const QJsonValue& v : page.value("projects").toArray())
+          w->out.push_back(projectFrom(v.toObject(), base));
+        const QString cursor = page.value("nextCursor").toString();
+        if (cursor.isEmpty()) return w->done(true, w->out);
+        if (w->cursors.contains(cursor) || w->cursors.size() + 1 >= MAX_LIST_PAGES) {
+          err = QStringLiteral("the server kept paging the project list");
+          return w->done(false, {});
+        }
+        w->cursors.insert(cursor);
+        w->page(w, "/projects?after=" + QString::fromLatin1(QUrl::toPercentEncoding(cursor)));
+      });
+    };
+    walk->page(walk, QStringLiteral("/projects"));
   }
 
   void ServerClient::createProjectAsync(

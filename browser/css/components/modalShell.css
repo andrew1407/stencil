@@ -10,12 +10,12 @@
 }
 .app-modal-overlay.modal-open { display: flex; }
 /* The darkening half of the backdrop, on the Visuals switch (motionPrefs modalBackdrop);
-   its blur half is in animations/overlays.css. Never the popover: dimming the page for a
+   its blur half is in animations/overlay/overlays.css. Never the popover: dimming the page for a
    small panel beside its opener reads wrong. */
 :root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover) {
     background: rgba(0,0,0,0.5);
 }
-/* The header is the window's grab handle (ui/modalDrag.js). The popover places itself
+/* The header is the window's grab handle (ui/modal/drag.js). The popover places itself
    with inline left/top, so it is not draggable. The settings shell carries its own id
    instead of the shared class, and moves by its header just the same. */
 :is(.app-modal-overlay, #settings-modal-overlay):not(.modal-popover) .settings-header { cursor: grab; }
@@ -54,7 +54,7 @@
 }
 /* ── Modal popover: the compact anchored shape of any app modal ─────────────
    Opened by dblclick / right-click / long-press on the modal's toolbar icon
-   (ui/popover.js via base.js wireModalShell). The OVERLAY still covers the page —
+   (ui/tip/popover.js via base.js wireModalShell). The OVERLAY still covers the page —
    that is what makes click-outside close it — it is just transparent; the box is
    pinned next to the icon (inline left/top from popoverPosition) and capped small,
    its body scrolling instead of growing. Applies to the shared .app-modal shell and

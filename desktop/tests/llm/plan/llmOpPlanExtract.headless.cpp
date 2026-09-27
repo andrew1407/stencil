@@ -30,10 +30,10 @@ namespace llmopplan {
           "rotate defaults times=1");
   }
   {
-    // Balanced braces that aren't JSON are skipped; the real object still found.
+    // §1 takes the FIRST balanced object only: braces that aren't JSON make the turn chat.
     const auto r = parseOpPlan("The set {a, b} maps to {\"reply\":\"found\"}");
-    check(r.ok && !r.plan.chatOnly && r.plan.reply == "found",
-          "non-JSON balanced braces skipped");
+    check(r.ok && r.plan.chatOnly && r.plan.reply == "The set {a, b} maps to {\"reply\":\"found\"}",
+          "a non-JSON first object leaves the turn chat-only");
   }
   {
     // Braces inside the reply string don't break the brace counter.

@@ -1,7 +1,7 @@
 // Parity coverage for the WebAssembly core (js/wasm/stencilCore.js, compiled from core/). The other JS suites
 // exercise the hand-written fallback path; this one loads the real wasm module and asserts that the compiled
 // C++ agrees with the JS reference — so the fallback stays a faithful stand-in and the shipped .js is in sync
-// — and that the js/core/stencilCore.js marshalling (strings, char codes, flat point arrays, output pointers,
+// — and that the js/core/abi/stencilCore.js marshalling (strings, char codes, flat point arrays, output pointers,
 // the RGBA pixel buffer) round-trips. Node loads the SINGLE_FILE ES module directly, with no emcc.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
@@ -12,6 +12,7 @@ import { core } from '../../js/core/abi/stencilCore.js';
 import { distToSegment, parseHex } from '../../js/utils.js';
 import { FormulaEngine } from '../../js/core/parse/formulaEngine.js';
 import { parseDuration } from '../../js/core/parse/durationParser.js';
+import { ZoomPan, rectZoom, zoomMin, zoomMax } from '../../js/core/zoom/pan.js';
 import constants from '../../js/config/constants.json' with { type: 'json' };
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
@@ -26,13 +27,19 @@ const fe = new FormulaEngine();
 const seg = (px, py, a, b) => ({ px, py, a, b });
 const CASES = {
   dist: [seg(5, 3, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(-3, 0, { x: 0, y: 0 }, { x: 10, y: 0 }), seg(14, 7, { x: 2, y: 2 }, { x: 9, y: 5 })],
-  formula: [['x+9', 'x', 3], ['2**x', 'x', 3], ['(x-1)*4/2', 'x', 7], ['', 'x', 5], ['x +', 'x', 2]],
+  formula: [['x+9', 'x', 3], ['2**x', 'x', 3], ['(x-1)*4/2', 'x', 7], ['', 'x', 5], ['x +', 'x', 2],
+    // Each of these once threw out of std::stod or read differently than parseFloat.
+    ['.', 'x', 4], ['x*1e999', 'x', 4], ['1e-400', 'x', 4], ['1**(1/0)', 'x', 4], ['1.2.3', 'x', 4],
+    ['\u00a0x', 'x', 4], ['\u00a0', 'x', 4], ['0.5**(1/0)', 'x', 4]],
   // [expr, the axis `val` binds, val] against CTX below; the last three are invalid.
   formulaCtx: [['PAGE_WIDTH', 'x', 0], ['PAGE_HEIGHT_IN', 'x', 0], ['IMAGE_WIDTH / 2', 'y', 0],
     ['x / y', 'x', 10], ['PAGE_WIDTH + PAGE_HEIGHT - x / 2', 'x', 8], ['9', 'x', 5],
     ['PAGE_WIDTHS', 'x', 42], ['page_width', 'x', 42], ['IMAGE_DEPTH', 'x', 42]],
   hex: ['#7c3aed', '#000000', '#ffffff', '#0a1b2c', 'nope'],
   duration: ['days 23', 'fortnight', 'month', '3 weeks', 'off', 'banana', 'days 0', 'days 100000000', 'days 200000000'],
+  scale: [99, 0.001, 1, 5, 32, 40, 0.05, -3],
+  // [x1, y1, rectW, rectH, availW, availH]: a fit, the 32x ceiling, the zoomMin floor, off-centre.
+  rect: [[50, 50, 100, 100, 400, 400], [0, 0, 10, 10, 400, 400], [0, 0, 8000, 100, 400, 400], [300, 20, 60, 90, 1024, 700]],
 };
 // A4 landscape behind a 600x400 image; the unbound-field case has no image open.
 const CTX = { x: 10, y: 4, pageWidthCm: 29.7, pageHeightCm: 21, imageWidth: 600, imageHeight: 400, unit: 'cm' };
@@ -47,6 +54,8 @@ const jsRef = {
   hex: CASES.hex.map(h => parseHex(h)),
   // Captured at module-eval time (no wasm installed yet), so this is the JS fallback.
   duration: CASES.duration.map(s => parseDuration(s)),
+  zoom: { min: zoomMin(), max: zoomMax(), clamp: CASES.scale.map(s => new ZoomPan({}).clampScale(s)) },
+  rect: CASES.rect.map(r => rectZoom(...r)),
 };
 
 before(async () => {
@@ -122,6 +131,10 @@ wtest('parseDuration: wasm matches JS reference (ms, 0 for off, null for invalid
   CASES.duration.forEach((s, i) => {
     assert.strictEqual(fn(s), jsRef.duration[i], `duration ${i}: ${s}`);
   });
+  // The spec crosses on the heap: a spec far past the ~64KB wasm stack is refused, the module intact.
+  const huge = `${'9'.repeat(100000)} days`;
+  assert.strictEqual(fn(huge), parseDuration(huge));
+  assert.strictEqual(fn('2 weeks'), parseDuration('2 weeks'), 'and the next call still answers');
 });
 
 wtest('parseHex: wasm matches JS reference, invalid yields null (output-pointer marshalling)', () => {
@@ -136,12 +149,19 @@ wtest('parseHex: wasm matches JS reference, invalid yields null (output-pointer 
   });
 });
 
-wtest('clampScale: wasm matches the JS zoom bound', () => {
+wtest('zoomMin / zoomMax / clampScale: wasm matches the JS fallback range and clamp', () => {
+  assert.strictEqual(core.op('zoomMin')(), jsRef.zoom.min);
+  assert.strictEqual(core.op('zoomMax')(), jsRef.zoom.max);
   const fn = core.op('clampScale');
-  const clampJs = s => Math.max(0.05, Math.min(32, s));
-  for (const s of [99, 0.001, 1, 5, 32, 40, 0.05, -3]) {
-    assert.strictEqual(fn(s), clampJs(s), `scale ${s}`);
-  }
+  CASES.scale.forEach((s, i) => assert.strictEqual(fn(s), jsRef.zoom.clamp[i], `scale ${s}`));
+  // Installed, pan.js's own reads route through the core and still agree.
+  assert.strictEqual(zoomMin(), jsRef.zoom.min);
+  assert.strictEqual(zoomMax(), jsRef.zoom.max);
+});
+
+wtest('rectZoom: wasm matches the JS zoom-to-rect fit (Float64 out-pointer marshalling)', () => {
+  const fn = core.op('rectZoom');
+  CASES.rect.forEach((r, i) => assert.deepStrictEqual(fn(...r), jsRef.rect[i], `rect ${r}`));
 });
 
 wtest('pageDimensions + pixelToPageRaw: wasm matches JS (landscape swap, scaling)', () => {

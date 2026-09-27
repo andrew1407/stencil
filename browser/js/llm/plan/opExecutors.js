@@ -101,15 +101,14 @@ const RUN = { ...IMAGE_RUN, ...SETTINGS_RUN };
 
 // The op registry, one entry per whitelisted op (§13), in registry order — which IS the
 // prompt's bullet order. `editorSetting` marks §10 ops, forbidden in variants.
-export const OPS = {};
+export const OPS = Object.create(null);
 for (const entry of SCHEMA.entries) {
   if (!RUN[entry.name]) throw new Error(`opRegistry: the browser registers "${entry.name}" but has no executor for it`);
+  const finish = (out) => (NORMALIZE[entry.name] ? NORMALIZE[entry.name](out) : out);
   const def = {
     bullet: entry.bullet ?? null,
-    validate(a) {
-      const out = SCHEMA.normalize(SCHEMA.validateAction(a, entry), entry);
-      return NORMALIZE[entry.name] ? NORMALIZE[entry.name](out) : out;
-    },
+    finish,
+    validate: (a) => finish(SCHEMA.accept(a, entry)),
     run: RUN[entry.name],
   };
   if (entry.also) { def.also = entry.also; def.alsoOrder = entry.alsoOrder; }

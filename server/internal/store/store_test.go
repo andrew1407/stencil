@@ -22,9 +22,13 @@ func requireStore(t testing.TB) *Store {
 	if err := Migrate(ctx, s.MigratePool()); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if _, err := s.pool.Exec(ctx, `TRUNCATE projects, sessions CASCADE`); err != nil {
+	if _, err := s.pool.Exec(ctx, `TRUNCATE projects, sessions, project_presence CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	t.Cleanup(s.Close)
 	return s
 }
+
+// RequireTestStore is requireStore for the external store_test package, which drives the store through
+// the services and the REST routes above it.
+func RequireTestStore(t testing.TB) *Store { return requireStore(t) }

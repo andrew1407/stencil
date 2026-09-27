@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — The title's hover ring, chips surviving a cut-short slide, popup rows, and toasts.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/app/project/ProjectTitleController.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -18,9 +19,11 @@ class MainWindowGuiTest : public QObject {
     openLoaded(win);
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const QString id = win.addImageProjectEntry(img, "name-row");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "name-row");
     QVERIFY(!id.isEmpty());
-    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    bool landed = false;   // the picture decodes off the GUI thread
+    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     QVERIFY(win.nameBar.field && win.nameBar.edit && win.nameBar.colorBtn);
     QTRY_VERIFY(win.nameBar.colorBtn->isVisible());   // the chips slide in after the bind
     settleLayout(&win, 300);
@@ -75,21 +78,21 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    settle([&] { return win.canvas->hasImage(); }, 500);
+    QTRY_VERIFY_WITH_TIMEOUT(win.canvas->hasImage(), 5000);
     const auto motion = withMotion();   // the slide is the whole point here
     const int box = win.nameBar.accept->maximumWidth();
     QVERIFY(box > 20);
     for (int i = 0; i < 6; ++i) {   // in and straight back out, mid-slide every time
-      win.enterNameEdit();
+      win.projectTitle->enterNameEdit();
       QTest::qWait(60);
-      win.cancelProjectName();
+      win.projectTitle->cancelProjectName();
       QTest::qWait(60);
     }
-    win.enterNameEdit();
+    win.projectTitle->enterNameEdit();
     QTRY_COMPARE(win.nameBar.accept->width(), box);
     QCOMPARE(win.nameBar.cancel->width(), box);
     QVERIFY2(!win.nameBar.accept->icon().isNull(), "the tick lost its glyph");
-    win.cancelProjectName();
+    win.projectTitle->cancelProjectName();
   }
 
   // A select popup's rows hover like every other item in the app: the glass sweep plus the browser's

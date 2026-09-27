@@ -89,7 +89,7 @@ namespace stencil::gui {
       const int zoneW = (w - 2 * PAD - SPLIT_GAP) / 2;
       const QRect left(PAD, PAD, zoneW, zoneH);
       const QRect right(w - PAD - zoneW, PAD, zoneW, zoneH);
-      // The SAME glyphs as ui/dropOverlay.js, not the text "↑"/"◐" (system-font dependent).
+      // The SAME glyphs as ui/canvas/dropOverlay.js, not the text "↑"/"◐" (system-font dependent).
       drawZone(p, left, accent, textKey, QStringLiteral("upload"), QStringLiteral("Upload & save"),
                QStringLiteral("Load the image and keep it in your projects"),
                zoneFill(accent, LEFT_TINT, activeLeft));

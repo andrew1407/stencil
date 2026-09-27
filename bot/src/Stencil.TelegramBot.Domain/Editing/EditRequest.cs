@@ -1,6 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// One CLI command line as data; the adapter maps it to argv, mirroring mcp/src/args.rs build_argv.
+// One CLI command line as data; the adapter maps it to argv, mirroring mcp/src/args/ build_argv.
 public sealed record EditRequest
 {
     public string? Input { get; init; }

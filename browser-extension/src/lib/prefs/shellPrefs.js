@@ -25,7 +25,7 @@
     const resolved = resolveTheme(mode);
     document.documentElement.setAttribute('data-theme', resolved);
     // The RESOLVED scheme travels too: the service worker has no matchMedia, and an injected
-    // page can answer 'system' differently. lib/shellTheme.js reads it back.
+    // page can answer 'system' differently. lib/prefs/shellTheme.js reads it back.
     mirror({ stencil_theme: mode, stencil_theme_resolved: resolved });
   };
   applyTheme(readTheme());
@@ -85,7 +85,7 @@
     reduced: motionReduced,
     particles: function () { return particleStyle() !== null; },
     style: particleStyle,
-    // Classic-script twin of lib/cloud.js styleFrame; the tests pin the two frame for frame.
+    // Classic-script twin of lib/dust/cloud.js styleFrame; the tests pin the two frame for frame.
     styleFrame: function (style, p, away, w, len, tMs) { return styleFrame(style, p, away, w, len, tMs, {}); },
     edgeJitter: function (style, k, points) { return edgeJitter(style, k, points || EDGE_POINTS); },
     edgePolygon: function (x, y, w, h, grow, style) { return edgePolygon(x, y, w, h, grow, style); },

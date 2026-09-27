@@ -1,4 +1,4 @@
-// js/llm/input.js recovery: no-speech and aborted restart at once, network backs off and
+// js/llm/voice/input.js recovery: no-speech and aborted restart at once, network backs off and
 // turns fatal, each fatal code reports once, and a hot language swap. From voiceInput.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';

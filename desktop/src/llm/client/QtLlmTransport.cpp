@@ -9,9 +9,6 @@
 namespace stencil::llm {
 
   namespace {
-    // Reachability probes must resolve fast (they drive the settings status dot).
-    constexpr int PROBE_TIMEOUT_MS = 8000;
-
     // Qt's default policy follows redirects while re-applying raw headers, which would hand
     // the API key to a second host. Refuse: a 30x surfaces as its own status instead.
     void applyNoRedirect(QNetworkRequest& req) {
@@ -67,7 +64,7 @@ namespace stencil::llm {
       const QUrl& url, const QList<QPair<QByteArray, QByteArray>>& headers,
       std::function<void(int status, QByteArray body, QString error)> cb) {
     QNetworkRequest req(url);
-    req.setTransferTimeout(PROBE_TIMEOUT_MS);
+    req.setTransferTimeout(llmProbeTimeoutMs());
     applyNoRedirect(req);
     for (const auto& h : headers) req.setRawHeader(h.first, h.second);
     dispatch(nam->get(req), std::move(cb));

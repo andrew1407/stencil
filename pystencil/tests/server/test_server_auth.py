@@ -42,9 +42,9 @@ class CredentialRetentionTest(unittest.TestCase):
     self.assertEqual(conn.token, "sess1")
     self.assertEqual(conn.credential, "admintok")
     self.assertEqual(calls, [
-      ("admintok", "GET", "/projects"),
+      ("admintok", "GET", "/auth/session"),
       ("admintok", "POST", "/auth/token"),
-      ("sess1", "GET", "/projects"),
+      ("sess1", "GET", "/auth/session"),
     ])
 
   def test_invite_fragment_token_feeds_credential_mint(self) -> None:
@@ -63,9 +63,9 @@ class CredentialRetentionTest(unittest.TestCase):
     self.assertEqual(conn.token, "sess1")
     self.assertEqual(conn.credential, "admintok")
     self.assertEqual(calls, [
-      ("admintok", "GET", "/projects"),
+      ("admintok", "GET", "/auth/session"),
       ("admintok", "POST", "/auth/token"),
-      ("sess1", "GET", "/projects"),
+      ("sess1", "GET", "/auth/session"),
     ])
 
   def test_connect_probe_500_propagates_without_minting(self) -> None:
@@ -77,7 +77,7 @@ class CredentialRetentionTest(unittest.TestCase):
       conn.connect()
     self.assertEqual(cm.exception.status, 500)
     self.assertEqual(conn.status, "error")
-    self.assertEqual(calls, [("tok", "GET", "/projects")])  # no mint attempt
+    self.assertEqual(calls, [("tok", "GET", "/auth/session")])  # no mint attempt
 
   def test_connect_statusless_error_still_falls_back_to_mint(self) -> None:
     # A ServerError without an HTTP status keeps the pre-existing behavior
@@ -148,3 +148,47 @@ class CredentialRetentionTest(unittest.TestCase):
     with self.assertRaises(ServerError):
       conn.get_project("p1")
     self.assertEqual(len(calls), 1)
+
+
+class SessionProbeTest(unittest.TestCase):
+  """The token probe is ``GET /auth/session``; a server without the route (404) is
+  probed with a one-record project list instead of the whole list."""
+
+  _stubbed = CredentialRetentionTest._stubbed
+
+  def test_a_session_token_is_checked_by_the_session_route_alone(self) -> None:
+    conn, calls = self._stubbed(
+      "sess", lambda b, m, p: {"sessionId": "s1", "expiresAt": "2026-10-01T00:00:00Z"})
+    conn.connect()
+    self.assertEqual((conn.status, conn.credential_kind), ("connected", "session"))
+    self.assertEqual(calls, [("sess", "GET", "/auth/session")])
+
+  def test_a_server_without_the_route_falls_back_to_one_project(self) -> None:
+    def handler(bearer, method, path):
+      if path == "/auth/session":
+        raise ServerError("", "HTTP 404", status=404)
+      return {"projects": []}
+
+    conn, calls = self._stubbed("sess", handler)
+    conn.connect()
+    self.assertEqual(conn.credential_kind, "session")
+    self.assertEqual(calls, [
+      ("sess", "GET", "/auth/session"),
+      ("sess", "GET", "/projects?limit=1"),
+    ])
+
+  def test_an_admin_token_on_an_older_server_still_mints(self) -> None:
+    def handler(bearer, method, path):
+      if path == "/auth/session":
+        raise ServerError("", "HTTP 404", status=404)
+      if path == "/auth/token":
+        return {"token": "sess1"}
+      if bearer != "sess1":
+        raise ServerError("unauthorized", "bad token", status=401)
+      return {"projects": []}
+
+    conn, calls = self._stubbed("admintok", handler)
+    conn.connect()
+    self.assertEqual((conn.token, conn.credential_kind), ("sess1", "admin"))
+    self.assertEqual([c[2] for c in calls], [
+      "/auth/session", "/projects?limit=1", "/auth/token", "/projects?limit=1"])

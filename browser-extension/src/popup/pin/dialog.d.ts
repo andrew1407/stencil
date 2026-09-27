@@ -1,4 +1,4 @@
-// Shapes for popup/dialog.js — "where do you want to pin this?", then the local pin
+// Shapes for popup/pin/dialog.js — "where do you want to pin this?", then the local pin
 // and (if a server was chosen) the project save.
 import type { PopupImage } from '../list/model.js';
 

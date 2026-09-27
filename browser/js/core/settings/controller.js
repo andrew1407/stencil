@@ -8,6 +8,7 @@ import {
   paintMotionBackdrop, paintNotifyChannel,
 } from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './registry.js';
+import { FilterSteps } from './filterStep.js';
 import { formulaContext } from '../parse/pageMetrics.js';
 
 export { COMPARE_MODES } from './registry.js';
@@ -17,10 +18,11 @@ export { COMPARE_MODES } from './registry.js';
 export class SettingsController {
   constructor(app) {
     this.app = app;
+    this.filterSteps = new FilterSteps(app);
   }
 
   // Registry-driven setter: write the model field, mirror every bound element, then the
-  // declared commit (redraw always; save / remoteSync / filterDirty only when persisting).
+  // declared commit (redraw always; save / remoteSync / filterDirty / history only when persisting).
   set(key, value, { persist = true } = {}) {
     const d = SETTINGS[key];
     if (!d) throw new Error(`Unknown setting: ${key}`);
@@ -33,8 +35,9 @@ export class SettingsController {
     if (d.redraw) app.renderer.redraw();
     if (persist) {
       if (d.filterDirty) app.filterDirty = true;
-      if (d.save) app.storage.save();
+      if (d.save) app.storage.saveSoon();
       if (d.remoteSync) app.remoteSync.scheduleRemoteSync();
+      if (d.history) this.filterSteps.committed();
     }
   }
 
@@ -67,15 +70,27 @@ export class SettingsController {
     if (d.redraw) this.app.renderer.redraw();
   }
 
-  // 0..1, clamped so a sliver of each side stays visible. Transient view state — redraw only.
-  setCompareSplit(v) {
+  // 0..1, clamped so a sliver of each side stays visible. Transient view state — redraw only;
+  // a drag's burst of moves paints once per frame.
+  setCompareSplit(v, { dragging = false } = {}) {
     const n = parseFloat(v);
     if (Number.isNaN(n)) return;
     this.app.compareSplit = Math.min(0.98, Math.max(0.02, n));
-    this.app.renderer.redraw();
+    if (dragging) this.app.renderer.requestRedraw();
+    else this.app.renderer.redraw();
   }
 
   setFilterColor(v, opts) { this.set('filterColor', v, opts); }
+
+  // Mode and tint as one commit, and one undo step; either may be left out.
+  setFilter({ filter, filterColor } = {}, opts) {
+    this.filterStep(() => {
+      if (filterColor != null) this.set('filterColor', filterColor);
+      if (filter != null) this.set('imageFilter', filter);
+    }, opts);
+  }
+
+  filterStep(fn, opts) { return this.filterSteps.batch(fn, opts); }
 
   setPageSize(size) { this.set('pageSize', size); }
 
@@ -101,7 +116,7 @@ export class SettingsController {
 
   setAllowFormulas(b) { this.set('allowFormulas', b); }
 
-  // A formula applies when typing SETTLES, on the numeric fields' delay (js/ui/numericInput.js);
+  // A formula applies when typing SETTLES, on the numeric fields' delay (js/ui/control/numericInput.js);
   // the pair being typed is never written back, so the caret stays put.
   wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
     const app = this.app;
@@ -124,7 +139,7 @@ export class SettingsController {
       setVal(mirrorX, fx);
       setVal(mirrorY, fy);
       this.refreshFormulaCoords();
-      app.storage.save();
+      app.storage.saveSoon();
       app.remoteSync.scheduleRemoteSync();
     };
 
@@ -152,7 +167,7 @@ export class SettingsController {
     setVal(`ctx-formula-${a}`, v);
     this.showFormulaError(false);
     this.refreshFormulaCoords();
-    app.storage.save();
+    app.storage.saveSoon();
     app.remoteSync.scheduleRemoteSync();
   }
 
@@ -165,8 +180,8 @@ export class SettingsController {
     if (!prop) throw new Error(`Unknown tooltip option: ${key}`);
     app[prop] = !!on;
     paintTooltipOption(idMap[key], on);
-    app.storage.save();
-    try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
+    app.storage.saveSoon();
+    try { app.tooltip?.refresh?.(); } catch { /* tooltip not mounted */ }
   }
 
   // Motion is app-wide, not part of the project: the shared store, and still the one funnel
@@ -200,8 +215,8 @@ export class SettingsController {
     return c;
   }
 
-  // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'.
-  setVisualColor(key, value) {
+  // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'; `persist:false` is a well's live drag.
+  setVisualColor(key, value, { persist = true } = {}) {
     const app = this.app;
     const propMap = { fill: 'defaultFillColor', selGlow: 'selGlowColor', hoverRing: 'hoverRingColor', focusRing: 'focusRingColor' };
     const idMap = { fill: 'vs-fill', selGlow: 'vs-sel-glow', hoverRing: 'vs-hover-ring', focusRing: 'vs-focus-ring' };
@@ -210,6 +225,6 @@ export class SettingsController {
     app[prop] = String(value);
     setVal(idMap[key], app[prop]);
     app.renderer.redraw();
-    app.storage.save();
+    if (persist) app.storage.saveSoon();
   }
 }

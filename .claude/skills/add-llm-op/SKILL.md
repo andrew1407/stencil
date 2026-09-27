@@ -1,0 +1,39 @@
+---
+name: add-llm-op
+description: >-
+  The file-by-file procedure for adding or changing an LLM op-plan op in Stencil — the
+  opRegistry.json entry, the generated fixtures, each surface's typed mapper and executor,
+  the contract prose and the fixture walkers. Use when asked to add, rename, extend or change
+  the keys/limits of an assistant op (anything in browser/js/config/llm/opRegistry.json), or
+  when an op works on one surface and must reach the others.
+---
+
+# Add an LLM op
+
+The op registry table-drives validation on every surface, so an op is mostly data: the entry,
+a fixture, and a mapper plus executor where the op runs. You write no schema code.
+
+1. `browser/js/config/llm/opRegistry.json` — the entry: `keys`, `profiles`, limits, `bullet`.
+   Read `browser/js/config/llm/opRegistry.README.md` first; the key-spec language is
+   expressive and you rarely need a native rule. Per-surface differences go in `surfaces` /
+   `surfaceKeys` / `bulletVariants` / `surfaceFlags`, never in surface code.
+2. `cd browser && npm run gen-fixtures` — regenerates the mechanical fixture bundle (the
+   browser walker fails while it is stale). Add a hand-written fixture under
+   `browser/js/config/llm/fixtures/opPlan/` for the interesting case. Then
+   `node .claude/tools/syncTwins.mjs` — the registry has checked-in copies in the extension and
+   pystencil.
+3. A typed mapper + executor per surface in the op's profiles; validation is table-driven
+   (`core/opplan/` + the browser JS twin), so there is no validator to touch: browser
+   `js/llm/plan/parser.js` + `js/console/stencilApi.js`; desktop `src/llm/plan/opPlan.cpp` +
+   `src/llm/plan/executor/planExecutor.cpp`; cli `src/llm/opplan.zig`; mcp
+   `src/opplan/actions.rs` + `src/opplan/lower/`; bot
+   `Application/Llm/Plan/OpPlanParser*.cs` + `Application/Llm/Prompt/PromptService.Actions.cs`;
+   pystencil `pystencil/llm/plan/{parse,execute}.py`; extension `src/llm/op/plan.js`.
+4. `contracts/llm/llm-contract.md` (and the split §-files beside it) — the normative prose.
+5. Run every surface's fixture walker — they are the cross-language proof. Before a change to
+   how existing ops normalize, snapshot every fixture's normalized output per surface and
+   diff after: a verdict-only walker misses normalization drift.
+
+Language pins the walkers have caught: a trailing `$` in a registry regex is `\z` / `\Z` in
+.NET, PCRE2 and Python; JSON `3.0` counts as an integer; `""` in `bulletVariants` means "no
+bullet on that surface".

@@ -40,6 +40,12 @@ pub enum EditError {
     BlankHalfDims,
     /// `blank.color` was not a color the core's `parseColor` accepts.
     UnknownColor(String),
+    /// `rotate` was more than three quarter-turns either way.
+    RotateOutOfRange(i32),
+    /// `layout_frame` was neither `current` nor `source`.
+    UnknownLayoutFrame(String),
+    /// A parameter refused before anything runs, with an already-formatted message.
+    Refused(String),
     /// A runtime failure surfaced with an already-formatted message.
     Runtime(String),
 }
@@ -115,7 +121,20 @@ impl std::fmt::Display for EditError {
                 "`blank.color` \"{color}\" is not a recognized color — use a CSS color \
                  name, `transparent`, or `#hex` (3/4/6/8 hex digits)"
             ),
-            EditError::Runtime(message) => f.write_str(message),
+            EditError::RotateOutOfRange(turns) if turns % 90 == 0 => write!(
+                f,
+                "`rotate` is quarter-turns, not degrees: 90° = 1, so pass {} for {turns}°",
+                (turns / 90) % 4
+            ),
+            EditError::RotateOutOfRange(turns) => write!(
+                f,
+                "`rotate` {turns} is out of range — pass -3..3 quarter-turns (1 = 90° clockwise)"
+            ),
+            EditError::UnknownLayoutFrame(frame) => write!(
+                f,
+                "`layout_frame` \"{frame}\" is not a frame — use \"current\" or \"source\""
+            ),
+            EditError::Refused(message) | EditError::Runtime(message) => f.write_str(message),
         }
     }
 }

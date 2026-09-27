@@ -1,4 +1,4 @@
-// The logo's right-click preset menu (js/ui/toolbar.js wireLogoColorPicker): the shared rows,
+// The logo's right-click preset menu (js/ui/toolbar/toolbar.js wireLogoColorPicker): the shared rows,
 // what a pick applies and closes, and the exit animation Escape or an outside press plays.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

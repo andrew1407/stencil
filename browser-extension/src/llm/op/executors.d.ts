@@ -1,4 +1,4 @@
-// Shapes for llm/executors.js — one executor per §8 op, keyed like the validators
+// Shapes for llm/op/executors.js — one executor per §8 op, keyed like the validators
 // (validate.js OP_REGISTRY). Each mutates the shared execution context; every
 // capability is injected, and a surface that lacks one warns instead of throwing.
 import type { ListingItem } from '../chatController.js';

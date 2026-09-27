@@ -1,11 +1,23 @@
-import { ImageFilterCanvas } from '../image/filterCanvas.js';
+import { perFrame } from '../../utils.js';
+import { BaseLayer } from './baseLayer.js';
+import { filteredFill } from '../image/filterCanvas.js';
+import { StageLayers } from './stageLayers.js';
+import { paintOriginalSide, eraseOriginalSide, paintDivider, splitFraction } from './compareSplit.js';
 import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from '../line/render.js';
-// Per-frame composition: filtered image, lines, points, compare split. The filter chain
-// lives in filterCanvas.js, one line/point in render.js.
+import { selectionPredicate } from '../line/selection.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+// Per-frame composition over two layers (stageLayers.js): the picture on #canvas, repainted only
+// when it changes, and the lines, points, hold preview and divider on the overlay above it. The
+// base lives in baseLayer.js, its filter chain in filterCanvas.js, one line/point in render.js.
 export { pointColorOf };
 
+const { HOLD_DRAW } = constants;
+
 export class Renderer {
-  #filters = new ImageFilterCanvas();
+  #base = new BaseLayer(() => this.requestRedraw());
+  #stage = new StageLayers();
+  #frame = null;   // the overlay's context while a layered frame paints
+  #fill = null;    // { image, color, key, css }: a blank's recolour on trial, over that image only
   // Set per-frame in redraw(): true suppresses selection glow + hover/focus rings (the
   // read-only compare views draw a clean picture). Read by lineRender's glow decision.
   suppressHighlight = false;
@@ -14,32 +26,57 @@ export class Renderer {
     this.app = app;
   }
 
-  drawImageWithFilter(ctx) {
-    if (this.app.imageFilter === 'bw') {
-      ctx.filter = 'grayscale(100%)';
-      ctx.drawImage(this.app.image, 0, 0);
-      ctx.filter = 'none';
-    } else if (this.app.imageFilter === 'sepia') {
-      ctx.filter = 'sepia(100%)';
-      ctx.drawImage(this.app.image, 0, 0);
-      ctx.filter = 'none';
-    } else if (this.app.imageFilter === 'invert') {
-      ctx.filter = 'invert(100%)';
-      ctx.drawImage(this.app.image, 0, 0);
-      ctx.filter = 'none';
-    } else if (this.app.imageFilter === 'contour') {
-      // Sobel needs the pixel neighborhood, so no CSS filter exists: blit the cached
-      // filtered copy (rebuilt only when the image changes).
-      ctx.filter = 'none';
-      ctx.drawImage(this.#filters.canvasFor(this.app.image, 'contour', null), 0, 0);
-    } else if (this.app.imageFilter === 'custom') {
-      const color = this.app.filterColor || '#7c3aed';
-      ctx.filter = 'none';
-      ctx.drawImage(this.#filters.canvasFor(this.app.image, 'custom', color), 0, 0);
-    } else {
-      ctx.drawImage(this.app.image, 0, 0);
-    }
+  // A drag's burst of moves paints once, on the next frame; one-shot edits keep redraw().
+  requestRedraw = perFrame(() => this.redraw());
+
+  // Where a line or point paints: the overlay mid-frame, else app.ctx (an export points it at its own canvas).
+  get ctx() { return this.#frame || this.app.ctx; }
+
+  // The view's lines canvas, stacked over #canvas; the next frame repaints the picture without lines.
+  useOverlay(canvas) {
+    this.#stage.attach(canvas);
+    if (this.app.image) this.requestRedraw();
   }
+
+  // A blank recolour on trial: the picture paints as a `color` fill until the image changes; null ends it.
+  previewFill(color) {
+    this.#fill = color && this.app.image ? { image: this.app.image, color, key: null, css: color } : null;
+    this.requestRedraw();
+  }
+
+  // The trial fill as the base would paint it, filter and all; null when none applies.
+  #fillColor(compare) {
+    const f = this.#fill;
+    if (f && f.image !== this.app.image) this.#fill = null;
+    if (!this.#fill) return null;
+    if (compare === 'original') return f.color;
+    const [, filter, tint] = this.#baseKey();
+    if (!f.key || f.key[0] !== filter || f.key[1] !== tint) {
+      f.key = [filter, tint];
+      f.css = filteredFill(f.color, filter, tint);
+    }
+    return f.css;
+  }
+
+  // What the stage shows, bottom layer first: a reader of its pixels composites these in order.
+  layers() { return this.#stage.layers(this.app.canvas); }
+
+  // Every filter blits its cached copy (baseLayer.js); only a pixel, filter or tint change
+  // rebuilds it, so a hover repaint never re-runs a filter over the full image.
+  #paintBase(ctx, source) {
+    if (source !== this.app.image) ctx.filter = 'none';
+    ctx.drawImage(source, 0, 0);
+  }
+
+  #baseKey() {
+    const { image, imageFilter } = this.app;
+    return [image, imageFilter, imageFilter === 'custom' ? (this.app.filterColor || '#7c3aed') : null];
+  }
+
+  // Export's pixels, now; a frame may show the base on screen while a worker copy is painted.
+  restingBase() { return this.#base.now(...this.#baseKey()); }
+
+  drawImageWithFilter(ctx) { this.#paintBase(ctx, this.restingBase()); }
 
   // An Alt+Shift+O hold forces 'original' regardless of the selected mode.
   effectiveCompareMode() {
@@ -47,94 +84,73 @@ export class Renderer {
   }
 
   redraw() {
-    if (!this.app.image) return;
-
-    this.app.ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
+    const app = this.app;
+    const layered = this.#stage.clear(app.canvas);
+    if (!app.image) { this.#stage.invalidate(); return; }
 
     const compare = this.effectiveCompareMode();
-    if (compare === 'original') {
-      this.app.ctx.filter = 'none';
-      this.app.ctx.drawImage(this.app.image, 0, 0);
-      return;
+    const isSplit = compare === 'vertical' || compare === 'horizontal';
+    const fill = this.#fillColor(compare);
+    const source = fill || (compare === 'original' ? app.image : this.#base.frame(...this.#baseKey()));
+    if (this.#stage.stale([source, compare, isSplit ? splitFraction(app) : null, app.canvas.width, app.canvas.height])) {
+      app.ctx.clearRect(0, 0, app.canvas.width, app.canvas.height);
+      if (fill) {
+        app.ctx.filter = 'none';
+        app.ctx.fillStyle = fill;
+        app.ctx.fillRect(0, 0, app.canvas.width, app.canvas.height);
+      } else if (compare === 'original') {
+        app.ctx.filter = 'none';
+        app.ctx.drawImage(app.image, 0, 0);
+      } else this.#paintBase(app.ctx, source);
+      if (layered && isSplit) paintOriginalSide(app.ctx, app, compare);
     }
+    if (compare === 'original') return;
 
-    this.drawImageWithFilter(this.app.ctx);
+    this.#frame = layered ? this.#stage.ctx : null;
+    try {
+      this.#paintAnnotations(isSplit);
+      if (layered && isSplit) { eraseOriginalSide(this.ctx, app, compare); paintDivider(this.ctx, app, compare); }
+    } finally {
+      this.#frame = null;
+    }
+    // The untouched original over the original-side region, then the movable divider.
+    if (!layered && isSplit) this.drawCompareSplit(compare);
+  }
 
-    // A split compare view's edit side is read-only: no selection glow or hover/focus rings.
-    const ro = compare !== 'none';
-    this.suppressHighlight = ro;
+  // Lines (or their points alone) and the hold preview; a split view's edit side is read-only,
+  // so it shows no selection glow or hover/focus rings.
+  #paintAnnotations(readOnly) {
+    const app = this.app;
+    this.suppressHighlight = readOnly;
+    const selected = readOnly ? () => false : selectionPredicate(app);
 
-    if (this.app.showLines) {
-      this.app.lines.forEach((line, i) => this.drawLine(line, ro ? false : this.app.isLineSelected(i), i));
-      if (this.app.currentLine && this.app.currentLine.points.length > 0)
-        this.drawLine(this.app.currentLine, false, -1);
-    } else if (this.app.showPoints) {
+    if (app.showLines) {
+      app.lines.forEach((line, i) => this.drawLine(line, selected(i), i));
+      if (app.currentLine?.points.length > 0)
+        this.drawLine(app.currentLine, false, -1);
+    } else if (app.showPoints) {
       // Committed lines, then the in-progress line, so no combined array is cloned per frame.
       const drawPts = (line, li, sel) => {
-        const ms = line.pointSize ?? this.app.pointSize;
-        const fx = this.app.strokeFx;
+        const ms = line.pointSize ?? app.pointSize;
+        const fx = app.strokeFx;
         const pts = fx.pointsOf(line);
         pts.forEach((p, pi) => {
           const hs = this.pointHighlightState(li, pi);
           this.drawPoint(p, pointColorOf(line), ms * fx.scaleAt(line.points[pi]), sel, hs);
         });
-        fx.paintOver(this.app.ctx, line, pts);
+        fx.paintOver(this.ctx, line, pts);
       };
-      this.app.lines.forEach((line, i) => drawPts(line, i, ro ? false : this.app.isLineSelected(i)));
-      if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
+      app.lines.forEach((line, i) => drawPts(line, i, selected(i)));
+      if (app.currentLine) drawPts(app.currentLine, -1, false);
     }
 
-    if (this.app.holdPreview) this.drawHoldPreview();
-
-    // The untouched original over the original-side region, then the movable divider.
-    if (compare === 'vertical' || compare === 'horizontal') this.drawCompareSplit(compare);
+    if (app.holdPreview) this.drawHoldPreview();
   }
 
-  // `withDivider: false` (the export path's clean split) skips the divider bar/knob.
+  // Both halves into this.ctx; `withDivider: false` (the export path's clean split) skips the bar and knob.
   drawCompareSplit(mode, { withDivider = true } = {}) {
-    const ctx = this.app.ctx;
-    const w = this.app.canvas.width;
-    const h = this.app.canvas.height;
-    const f = Math.min(1, Math.max(0, this.app.compareSplit ?? 0.5));
-
-    ctx.save();
-    ctx.beginPath();
-    if (mode === 'vertical') ctx.rect(0, 0, w * f, h);
-    else ctx.rect(0, 0, w, h * f);
-    ctx.clip();
-    ctx.filter = 'none';
-    ctx.drawImage(this.app.image, 0, 0);
-    ctx.restore();
-
-    if (!withDivider) return;
-
-    // Image space, but a constant on-screen thickness: divided by the zoom.
-    const scale = this.app.scale || 1;
-    const lw = 2 / scale;
-    const knob = 7 / scale;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.lineWidth = lw;
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 3 / scale;
-    ctx.beginPath();
-    if (mode === 'vertical') {
-      const x = w * f;
-      ctx.moveTo(x, 0); ctx.lineTo(x, h);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, h / 2, knob, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      const y = h * f;
-      ctx.moveTo(0, y); ctx.lineTo(w, y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(w / 2, y, knob, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    paintOriginalSide(this.ctx, this.app, mode);
+    if (withDivider) paintDivider(this.ctx, this.app, mode);
   }
 
   // Dashed segment from the stroke's anchor to the live cursor plus a ghost point: where
@@ -143,22 +159,22 @@ export class Renderer {
     const app = this.app;
     const p = app.holdPreview;
     if (!p) return;
-    const ctx = app.ctx;
+    const ctx = this.ctx;
     const anchor = typeof app.input?.holdAnchorPoint === 'function' ? app.input.holdAnchorPoint() : null;
     ctx.save();
     if (anchor) {
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = HOLD_DRAW.ghostLineAlpha;
       ctx.strokeStyle = app.color;
       ctx.lineWidth = app.thickness;
       ctx.lineCap = 'round';
-      ctx.setLineDash([6, 4]);
+      ctx.setLineDash(HOLD_DRAW.ghostDashPx);
       ctx.beginPath();
       ctx.moveTo(anchor.x, anchor.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = HOLD_DRAW.ghostPointAlpha;
     ctx.fillStyle = app.pointColor || app.color;
     ctx.beginPath();
     ctx.arc(p.x, p.y, app.pointSize, 0, Math.PI * 2);

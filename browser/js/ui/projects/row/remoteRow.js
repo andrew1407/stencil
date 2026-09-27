@@ -2,6 +2,7 @@ import { icon } from '../../icons.js';
 import { escapeHtml } from '../../base.js';
 import { notify, shortName } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { clearedToast } from '../../../core/project/transferController.js';
 
 // Thumbnail blobs keyed `serverUrl|id|version`, so the many re-renders (search keystrokes,
 // live events, peer pings) share one fetch per version. Twin: ProjectsDialog::remoteThumbs_.
@@ -148,7 +149,7 @@ export function createRemoteRow(deps) {
         if (!(await app.confirm(
           `Move "${shortName(meta.name || 'Untitled')}" to local storage? It will be removed from the server.`,
           { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
-        try { const newId = await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
+        try { const newId = await app.projectTransfer.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
         catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
       };
       // Detached local copy, leaving the server's in place; opens the new local project.
@@ -156,9 +157,9 @@ export function createRemoteRow(deps) {
         const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
         if (name == null) return;
         try {
-          const newId = await app.copyServerProjectToLocal(meta, { name });
+          const newId = await app.projectTransfer.copyServerProjectToLocal(meta, { name });
           notify('Local copy created', 'ok');
-          app.switchToProject(newId);
+          app.projectTransfer.switchToProject(newId);
           close();
         } catch (err) { notify(`Could not make a local copy — ${err.message}`, 'fail'); }
       };
@@ -170,7 +171,7 @@ export function createRemoteRow(deps) {
             { value: 'newtab', label: 'New tab' },
           ] });
         if (!where) return;
-        try { await app.copyServerProjectToIncognito(meta, { newTab: where === 'newtab' }); if (where === 'here') close(); }
+        try { await app.projectTransfer.copyServerProjectToIncognito(meta, { newTab: where === 'newtab' }); if (where === 'here') close(); }
         catch (err) { notify(`Could not open an incognito copy — ${err.message}`, 'fail'); }
       };
       const deleteFromServer = async () => {
@@ -183,6 +184,7 @@ export function createRemoteRow(deps) {
           await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
           await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
           revive();
+          notify(clearedToast(1), 'ok');
         }
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       };

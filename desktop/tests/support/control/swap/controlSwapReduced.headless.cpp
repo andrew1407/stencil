@@ -35,7 +35,7 @@ void optOutAndReducedMotion(QDialog& host, QVBoxLayout* lay, QCheckBox* box, QCo
   check(liveCheckOverlays(&host) == 0 && !ValueSwapOverlay::running(combo),
         "a hidden dialog's controls change state without animating");
 
-  // The list a combo drops is a surface like every other popup (support/menuReveal.hpp revealPopup),
+  // The list a combo drops is a surface like every other popup (support/menu/menuReveal.hpp revealPopup),
   // armed on the container itself with no call site. The flight declines offscreen, so this pins wiring.
   {
     QWidget* popup = combo->view() ? combo->view()->window() : nullptr;
@@ -52,7 +52,7 @@ void optOutAndReducedMotion(QDialog& host, QVBoxLayout* lay, QCheckBox* box, QCo
     check(filters == 1, "…exactly once");
   }
 
-  // A GROUP of controls coming and going (support/controlReveal.hpp): visibility lands at once in both
+  // A GROUP of controls coming and going (support/control/reveal/controlReveal.hpp): visibility lands at once in both
   // directions, the sand is a snapshot with a life of its own, and an interruption leaves nothing dimmed.
   {
     host.show();

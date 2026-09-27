@@ -39,7 +39,7 @@ class _BranchEditor(_StubEditor):
     return super().result()
 
 
-class VariantRenderConcurrencyTests(unittest.TestCase):
+class VariantRenderConcurrencyTests(NativeCase):
   """Variants branch into independent editors, so their renders run together while
   their outputs stay in plan order."""
 

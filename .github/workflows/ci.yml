@@ -85,9 +85,9 @@ jobs:
           flag pystencil   "^pystencil/|^core/|$cfg"
           flag mcp         "^mcp/|^cli/|^core/|$cfg"
           flag server      "^server/|$cfg"
-          flag bot         "^bot/|$cfg"
+          flag bot         "^bot/|^cli/|^core/|$cfg"
           flag e2e         '^e2e/|^browser/|^browser-extension/|^server/|^cli/|^core/|^docker-compose\.yml$'
-          flag guard       '^\.claude/hooks/'
+          flag guard       '^\.claude/(hooks/|settings\.json$)'
 
           # The image matrix: only the images whose build context changed. Each entry is
           # image,dockerfile,context; browser/cli/mcp/bot build from the repo root.
@@ -213,11 +213,44 @@ jobs:
       - name: Configure
         run: cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build (library + tests)
-        run: ccache --zero-stats && cmake --build core/build -j
+        run: ccache --zero-stats && cmake --build core/build -j 4
       - name: Compiler cache hit rate
         run: ccache --show-stats
       - name: Run C++ tests
         run: ctest --test-dir core/build --output-on-failure
+
+  # Core under ASan + UBSan: the same suite built sanitized (STENCIL_SANITIZE), so a memory
+  # error, a leak or undefined behaviour fails the run instead of passing silently.
+  core-sanitize:
+    name: Core (ASan + UBSan)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 300M
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install toolchain (g++, cmake)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake ninja-build ccache
+      - name: Restore the compiler cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-ci-core-sanitize-${{ github.sha }}
+          restore-keys: ccache-ci-core-sanitize-
+      - name: Configure
+        run: cmake -S core -B core/build-asan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSTENCIL_SANITIZE=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build (library + tests, sanitized)
+        run: ccache --zero-stats && cmake --build core/build-asan -j 4
+      - name: Compiler cache hit rate
+        run: ccache --show-stats
+      - name: Run C++ tests (sanitized)
+        run: ctest --test-dir core/build-asan --output-on-failure
 
   # Desktop: Qt6 GUI over the shared core (doctest OFF here); ctest runs the Qt headless tests.
   desktop:
@@ -247,7 +280,7 @@ jobs:
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build (core + GUI)
         working-directory: desktop
-        run: ccache --zero-stats && cmake --build build -j
+        run: ccache --zero-stats && cmake --build build -j 4
       - name: Compiler cache hit rate
         run: ccache --show-stats
       - name: Run C++ tests
@@ -282,7 +315,7 @@ jobs:
         run: |
           source "$GITHUB_WORKSPACE/emsdk/emsdk_env.sh"
           emcmake cmake -S core -B core/build-wasm -DCMAKE_BUILD_TYPE=Release
-          emmake cmake --build core/build-wasm -j --target stencil_wasm
+          emmake cmake --build core/build-wasm -j 4 --target stencil_wasm
       - name: Place the freshly built module in the browser tree
         # js/wasm/ holds only the gitignored artifact, so it's absent on checkout.
         run: |
@@ -311,6 +344,9 @@ jobs:
       - name: Build
         working-directory: cli
         run: zig build
+      - name: Format
+        working-directory: cli
+        run: zig build fmt
       - name: Test
         working-directory: cli
         run: zig build test --summary all
@@ -469,6 +505,14 @@ jobs:
     if: needs.changes.outputs.bot == 'true'
     steps:
       - uses: actions/checkout@v5
+      # The op-plan verdicts come from the CLI's --plan-check; the gated parity tests need it built.
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build the Stencil CLI (for the --plan-check parity tests)
+        working-directory: cli
+        run: zig build
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -490,14 +534,16 @@ jobs:
       - name: Test
         working-directory: bot
         run: dotnet test Stencil.TelegramBot.slnx --no-build --configuration Release --verbosity normal
+        env:
+          BOT_TEST_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
 
-  # Guard hook: the PreToolUse AI-harness guard (.claude/hooks/guard.mjs) is security-relevant
-  # code — keep its node:test suite green like any other subproject.
+  # Harness: the PreToolUse AI-harness guard (.claude/hooks/guard.mjs) is security-relevant
+  # code, tested when it changes. The .claude/tools suites run on every push, docs-only included: a
+  # move anywhere can strand a path in any doc, and an edit to any original can drift a twin.
   guard-hook:
-    name: Guard hook (JS tests)
+    name: Harness (guard hook, doc paths, twins)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.guard == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -505,7 +551,10 @@ jobs:
         with:
           node-version: '22'
       - name: Run guard tests
-        run: node --test .claude/hooks/guard.test.mjs
+        if: needs.changes.outputs.guard == 'true'
+        run: node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs
+      - name: Run tools tests (doc paths resolve, twins in step)
+        run: node --test .claude/tools/*.test.mjs
 
   # Docker images: assert every shipped Dockerfile still builds (packaging guard, no push).
   # browser/cli/mcp/bot compile core/ so their build context is the REPO ROOT; server is ./server.

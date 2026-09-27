@@ -8,9 +8,10 @@ const brand = @import("brand.zig");
 const palette = @import("logo/palette.zig");
 const mark = @import("logo/mark.zig");
 const help = @import("logo/help.zig");
+const severity = @import("logo/severity.zig");
+const deferred = @import("logo/deferred.zig");
 
 const Ansi = palette.Ansi;
-const fg = palette.fg;
 
 pub const banner = mark.banner;
 pub const bannerCompact = mark.bannerCompact;
@@ -103,13 +104,17 @@ var sink_ctx: *anyopaque = undefined;
 
 /// Route subsequent `print` output to `f` instead of stderr.
 pub fn setSink(f: *const fn (*anyopaque, []const u8) void, ctx: *anyopaque) void {
+    flushDeferred();
+    deferred.own();
     sink_fn = f;
     sink_ctx = ctx;
 }
 
 /// Restore the default stderr destination.
 pub fn clearSink() void {
+    flushDeferred();
     sink_fn = null;
+    if (pre_print_fn == null) release();
 }
 
 // A one-shot hook fired just BEFORE the next print, then disarmed. The line editor arms it around a
@@ -119,6 +124,8 @@ var pre_print_ctx: *anyopaque = undefined;
 
 /// Arm the one-shot pre-print hook (replacing any armed one).
 pub fn armPrePrint(f: *const fn (*anyopaque) void, ctx: *anyopaque) void {
+    flushDeferred();
+    deferred.own();
     pre_print_fn = f;
     pre_print_ctx = ctx;
 }
@@ -126,210 +133,83 @@ pub fn armPrePrint(f: *const fn (*anyopaque) void, ctx: *anyopaque) void {
 /// Disarm it — always paired with armPrePrint, since a hook that never fires must not
 /// outlive the call it was armed for.
 pub fn disarmPrePrint() void {
+    flushDeferred();
     pre_print_fn = null;
+    if (sink_fn == null) release();
 }
 
-/// Print to the CLI's human channel — stderr by default, or the active sink (the full-screen
-/// scrollback) when one is installed. On a formatting overflow it falls back to stderr.
+/// Print to the CLI's human channel — stderr, or the sink (the full-screen scrollback) when one is
+/// installed. Off the thread that installed it or armed the hook, the line waits for that thread.
 pub fn print(comptime fmt: []const u8, args: anytype) void {
-    if (pre_print_fn) |f| {
-        const ctx = pre_print_ctx;
-        pre_print_fn = null; // disarm FIRST: the hook itself may print
-        f(ctx);
+    if (deferred.mine()) {
+        flushDeferred();
+        if (sink_fn != null) return formatted(fmt, args, emitOwned);
+        firePrePrint();
+        return std.debug.print(fmt, args);
     }
-    if (sink_fn) |f| {
-        var buf: [8192]u8 = undefined;
-        if (std.fmt.bufPrint(&buf, fmt, args)) |s| {
-            f(sink_ctx, s);
-            return;
-        } else |_| {} // too long for one chunk — fall through to stderr
-    }
+    if (deferred.owned()) return formatted(fmt, args, emitElsewhere);
     std.debug.print(fmt, args);
 }
 
-// The CLI's whole severity vocabulary: `error: ` and `note: `, word prefixes rather than emoji — the
-// convention grep, CI logs and the mcp/bot adapters parse. Go through err()/note(), never a literal.
-
-/// The `error: ` prefix — bold red on a colour terminal, plain elsewhere.
-pub fn errPrefix() []const u8 {
-    return if (severity_color.load(.monotonic)) Ansi.red ++ "error: " ++ Ansi.reset else "error: ";
+/// Emit what other threads printed while this one owned the channel, in the order they said it; a
+/// no-op on any other thread. The owner calls it on its wait beat and when a worker it joined ends.
+pub fn flushDeferred() void {
+    var said = deferred.take(false);
+    defer said.deinit(deferred.gpa);
+    if (said.items.len != 0) emitOwned(said.items);
 }
 
-/// The `note: ` prefix — the live THEME accent on a colour terminal, via accentSeq() so a note in the
-/// scrollback re-tints. `error:` stays red: "this did not happen" should not move with the theme.
-pub fn notePrefix() []const u8 {
-    if (!severity_color.load(.monotonic)) return "note: ";
-    // Bold FIRST, then the accent: `error:` is bold red, so the two severities carry the same weight and
-    // differ only in hue. In sentinel mode the bold in front survives the accent's expansion.
-    const accent = accentSeq();
-    const reset = c(Ansi.reset);
-    const parts = [_][]const u8{ Ansi.bold, accent, "note: ", reset };
-    var n: usize = 0;
-    for (parts) |part| n += part.len;
-    if (n > note_prefix_buf.len) return "note: ";
-    n = 0;
-    for (parts) |part| {
-        @memcpy(note_prefix_buf[n..][0..part.len], part);
-        n += part.len;
-    }
-    return note_prefix_buf[0..n];
+fn release() void {
+    var said = deferred.take(true);
+    defer said.deinit(deferred.gpa);
+    if (said.items.len != 0) std.debug.print("{s}", .{said.items});
 }
 
-/// Scratch for notePrefix (the accent is not comptime). Thread-local: a worker printing a
-/// fetch failure must not share it with the console.
-threadlocal var note_prefix_buf: [64]u8 = undefined;
-
-/// Print an `error: ` line (the message must supply its own trailing newline).
-pub fn err(comptime fmt: []const u8, args: anytype) void {
-    print("{s}", .{errPrefix()});
-    print(fmt, args);
+fn firePrePrint() void {
+    const f = pre_print_fn orelse return;
+    pre_print_fn = null; // disarm FIRST: the hook itself may print
+    f(pre_print_ctx);
 }
 
-/// Print a `note: ` line (the message must supply its own trailing newline).
-pub fn note(comptime fmt: []const u8, args: anytype) void {
-    print("{s}", .{notePrefix()});
-    print(fmt, args);
+fn emitOwned(bytes: []const u8) void {
+    firePrePrint();
+    if (sink_fn) |f| return f(sink_ctx, bytes);
+    std.debug.print("{s}", .{bytes});
 }
 
-const testing = std.testing;
-
-// Collects `print` output through the same sink seam the full-screen console installs.
-const Cap = struct {
-    buf: std.ArrayList(u8) = .empty,
-    fn sink(ctx: *anyopaque, bytes: []const u8) void {
-        const self: *Cap = @ptrCast(@alignCast(ctx));
-        self.buf.appendSlice(testing.allocator, bytes) catch {};
-    }
-};
-
-test "err/note are byte-for-byte plain when stderr is not a terminal" {
-    var cap = Cap{};
-    defer cap.buf.deinit(testing.allocator);
-    setSink(Cap.sink, &cap);
-    defer clearSink();
-    defer init(false, false); // module defaults, for the tests that follow
-
-    init(false, false); // colour on, but the human channel is redirected
-    err("cannot read '{s}': {s}\n", .{ "a.png", "FileNotFound" });
-    note("skipped save — no working image to save\n", .{});
-    try testing.expectEqualStrings(
-        "error: cannot read 'a.png': FileNotFound\nnote: skipped save — no working image to save\n",
-        cap.buf.items,
-    );
+fn emitElsewhere(bytes: []const u8) void {
+    if (!deferred.push(bytes)) std.debug.print("{s}", .{bytes});
 }
 
-test "err/note colour only the prefix on a terminal, and NO_COLOR turns it off" {
-    var cap = Cap{};
-    defer cap.buf.deinit(testing.allocator);
-    setSink(Cap.sink, &cap);
-    defer clearSink();
-    defer init(false, false);
-
-    init(false, true); // colour on + a terminal
-    err("boom\n", .{});
-    try testing.expectEqualStrings("\x1b[1;38;2;239;68;68merror: \x1b[0mboom\n", cap.buf.items);
-
-    // `note:` wears the LIVE theme accent, not a fixed amber — so it follows /theme.
-    cap.buf.clearRetainingCapacity();
-    setAccent(.{ 10, 20, 30 });
-    note("hm\n", .{});
-    try testing.expectEqualStrings("\x1b[1m\x1b[38;2;10;20;30mnote: \x1b[0mhm\n", cap.buf.items);
-
-    cap.buf.clearRetainingCapacity();
-    setAccent(.{ 200, 100, 50 });
-    note("hm\n", .{});
-    try testing.expectEqualStrings("\x1b[1m\x1b[38;2;200;100;50mnote: \x1b[0mhm\n", cap.buf.items);
-
-    // `error:` does NOT move with the theme — red is the one severity that stays put.
-    cap.buf.clearRetainingCapacity();
-    err("boom\n", .{});
-    try testing.expectEqualStrings("\x1b[1;38;2;239;68;68merror: \x1b[0mboom\n", cap.buf.items);
-
-    cap.buf.clearRetainingCapacity();
-    init(true, true); // NO_COLOR wins over the terminal
-    err("boom\n", .{});
-    try testing.expectEqualStrings("error: boom\n", cap.buf.items);
+// `fmt` rendered whole, then handed on: one chunk on the stack, else the heap (a long line still
+// lands whole), else as much as fits.
+fn formatted(comptime fmt: []const u8, args: anytype, emit: *const fn ([]const u8) void) void {
+    var buf: [8192]u8 = undefined;
+    if (std.fmt.bufPrint(&buf, fmt, args)) |s| return emit(s) else |_| {}
+    const big = std.fmt.allocPrint(std.heap.page_allocator, fmt, args) catch {
+        var w = std.Io.Writer.fixed(&buf);
+        w.print(fmt, args) catch {};
+        return emit(w.buffered());
+    };
+    defer std.heap.page_allocator.free(big);
+    emit(big);
 }
 
-// Only the PRESENTATION layer talks to a terminal; everything below it reports through report.zig.
-// The lint WALKS src/ rather than an embedded list, so a new file below the line is caught at once.
+// The CLI's whole severity vocabulary, `error: ` and `note: `: logo/severity.zig.
+pub const errPrefix = severity.errPrefix;
+pub const notePrefix = severity.notePrefix;
+pub const err = severity.err;
+pub const note = severity.note;
 
-/// Files that may paint a terminal: this module, the sink in front of it, the entry points,
-/// and the two interactive surfaces (see presentation_dirs for their packages).
-const presentation = [_][]const u8{
-    "main.zig", "args.zig", "line_edit.zig", "console.zig", "project/cli.zig",
-};
-const presentation_dirs = [_][]const u8{ "app/", "bench/", "console/", "line_edit/", "params/" };
-
-fn isPresentation(rel: []const u8) bool {
-    for (presentation) |p| if (std.mem.eql(u8, rel, p)) return true;
-    for (presentation_dirs) |d| if (std.mem.startsWith(u8, rel, d)) return true;
-    return false;
-}
-
-/// The shipped half of a source file: everything before the first column-0 `test`, so an
-/// assertion QUOTING a prefix or an escape never counts as a call site.
-fn productionPart(src: []const u8) []const u8 {
-    var i: usize = 0;
-    while (std.mem.indexOfPos(u8, src, i, "\ntest ")) |at| {
-        if (src[at + 6] == '"' or src[at + 6] == '{') return src[0 .. at + 1];
-        i = at + 1;
-    }
-    return src;
-}
-
-test "layering: severity has one definition, and only the presentation layer prints" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    // cwd is cli/ under `zig build test`; tolerate a run from the repo root.
-    var src_dir = std.Io.Dir.cwd().openDir(io, "src", .{ .iterate = true }) catch
-        try std.Io.Dir.cwd().openDir(io, "cli/src", .{ .iterate = true });
-    defer src_dir.close(io);
-
-    const literals = [_][]const u8{ "\"error: ", "\"note: ", "\"warning: " };
-    const prints = [_][]const u8{ "logo.print(", "logo.err(", "logo.note(", "logo.banner(", "std.debug.print(" };
-    const escapes = [_][]const u8{ "\\x1b", "\\x1B", "\\u{1b}", "\\033", "\x1b" };
-
-    var seen: usize = 0;
-    var failures: usize = 0;
-    var walker = try src_dir.walk(a);
-    defer walker.deinit();
-    while (try walker.next(io)) |e| {
-        if (e.kind != .file or !std.mem.endsWith(u8, e.basename, ".zig")) continue;
-        const rel = try a.dupe(u8, e.path);
-        std.mem.replaceScalar(u8, rel, '\\', '/'); // walker paths are host-separated
-        const prod = productionPart(try e.dir.readFileAlloc(io, e.basename, a, .limited(4 << 20)));
-        seen += 1;
-
-        // Every layer: the `error: `/`note: ` wording and colouring live in err()/note().
-        if (!std.mem.eql(u8, rel, "app/logo.zig")) {
-            for (literals) |lit| if (std.mem.indexOf(u8, prod, lit) != null) {
-                std.debug.print("LITERAL PREFIX: {s} spells {s} itself — call err()/note()\n", .{ rel, lit });
-                failures += 1;
-            };
-        }
-        if (isPresentation(rel)) continue;
-
-        // Below the line: no terminal at all — report.zig is the only way out.
-        for (prints) |call| if (std.mem.indexOf(u8, prod, call) != null) {
-            std.debug.print("LAYER BREAK: {s} calls {s} — go through report.zig\n", .{ rel, call });
-            failures += 1;
-        };
-        for (escapes) |esc| if (std.mem.indexOf(u8, prod, esc) != null) {
-            std.debug.print("LAYER BREAK: {s} writes an ANSI escape — styling is the console's\n", .{rel});
-            failures += 1;
-        };
-    }
-    try testing.expect(seen >= 30); // the tree really was walked
-    try testing.expectEqual(@as(usize, 0), failures);
+/// Whether the severity prefixes are coloured: colour on and stderr a terminal (see init).
+pub fn severityColor() bool {
+    return severity_color.load(.monotonic);
 }
 
 test {
+    _ = @import("lint.zig");
+    _ = severity;
+    _ = deferred;
     _ = palette;
     _ = mark;
     _ = @import("logo/eggArt.zig");

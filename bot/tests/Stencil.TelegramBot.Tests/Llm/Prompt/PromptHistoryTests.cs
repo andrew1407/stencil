@@ -1,11 +1,12 @@
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Application.Llm.Plan;
+using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests.Llm.Prompt;
 
-/// <summary>The conversation the model sees: the §7 32-message bound, the image-replay rule, idle-user eviction, and the system prompt assembled from the op registry.</summary>
+/// <summary>The conversation the model sees: the §7 32-message bound, the image-replay rule, idle-user eviction, the §12.1 document's settled replies, and the system prompt assembled from the op registry.</summary>
 public sealed class PromptHistoryTests : PromptServiceTestBase
 {
     public PromptHistoryTests(PromptServiceFixture fixture) : base(fixture) { }
@@ -67,6 +68,37 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
         Reply("chat");
         await _service.PromptAsync(PromptService.MAX_TRACKED_USERS, "again", null, CancellationToken.None);
         Assert.Equal(3, _llm.Requests[^1].Messages.Count);
+    }
+
+    /// <summary>A chat document shows the reply each plan carried, settled when its turn ran — building one spawns no CLI.</summary>
+    [Fact]
+    public async Task Should_Build_The_Chat_Document_From_Replies_Settled_At_Turn_Time()
+    {
+        await SeedImage();
+        Reply("""{"reply":"made it grey","actions":[{"op":"filter","mode":"bw"}]}""");
+        await Prompt("grey please");
+        Reply("just chatting");
+        await Prompt("thanks");
+        int checks = _cli.PlanCheckCalls;
+
+        ChatDocument doc = _service.BuildChatDocument(UserId)!;
+
+        Assert.Equal(["grey please", "made it grey", "thanks", "just chatting"], doc.Messages.Select(m => m.Text));
+        Assert.Equal(2, checks);
+        Assert.Equal(checks, _cli.PlanCheckCalls);
+    }
+
+    /// <summary>A plan check that fails still leaves the exchange in the history, shown as the model wrote it.</summary>
+    [Fact]
+    public async Task Should_Keep_The_Turn_When_The_Plan_Check_Fails()
+    {
+        await SeedImage();
+        _cli.PlanCheckFailure = new StencilCliException("the stencil CLI timed out");
+        Reply("""{"reply":"x","actions":[]}""");
+
+        await Assert.ThrowsAsync<StencilCliException>(() => Prompt("hi"));
+
+        Assert.Equal(["hi", """{"reply":"x","actions":[]}"""], _service.BuildChatDocument(UserId)!.Messages.Select(m => m.Text));
     }
 
     [Fact]

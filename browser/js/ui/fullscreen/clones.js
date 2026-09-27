@@ -48,7 +48,7 @@ export const populateFsPoints = (fsPointsPanel) => {
     clone.querySelectorAll('[id]').forEach(el => {
       el.id = 'fs-clone-' + el.id;
     });
-    clone.classList.remove('coord-collapsed', 'coord-folding');
+    clone.classList.remove('coord-collapsed', 'coord-folding', 'coord-veiled', 'surface-leaving', 'surface-forming');
     clone.style.minWidth = '0';
     clone.style.maxWidth = '100%';
     clone.style.marginTop = '0';

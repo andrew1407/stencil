@@ -1,4 +1,4 @@
-/* ── The logo stage (js/ui/logoStage.js) ──
+/* ── The logo stage (js/ui/logo/stage.js) ──
    One full-window canvas above every window, including the confirm overlay: while it is up it
    is the only thing that takes a pointer, and its own listeners swallow the keyboard. */
 .logo-stage {
@@ -7,7 +7,7 @@
     z-index: 100004;
     cursor: default;
     touch-action: none;
-    /* The backdrop a modal puts up (animations/overlays.css); its scrim half is painted on the
+    /* The backdrop a modal puts up (animations/overlay/overlays.css); its scrim half is painted on the
        canvas instead, so it fades in with the show rather than snapping on. */
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
@@ -18,7 +18,7 @@
     height: 100%;
 }
 /* The pointer is over this canvas, so it takes the stage's hand — outranking both the bare
-   `canvas` arrow and the editor's crosshair (layout/canvasCursor.css). */
+   `canvas` arrow and the editor's crosshair (layout/canvas/cursor.css). */
 .logo-stage canvas,
 body:not(.canvas-empty):not(.canvas-readonly) .logo-stage canvas { cursor: inherit; }
 
@@ -26,7 +26,7 @@ body:not(.canvas-empty):not(.canvas-readonly) .logo-stage canvas { cursor: inher
    notice that can appear while one is up, since the editor is inert. */
 body.logo-stage-open #notify-balloon { z-index: 100006; }
 
-/* The golden shining a show's notice wears (js/ui/toastGlow.js): over the stage with it, but
+/* The golden shining a show's notice wears (js/ui/dust/toastGlow.js): over the stage with it, but
    UNDER the pill, so it rings the notice instead of washing its words out. */
 .toast-glow {
     position: fixed;
@@ -36,7 +36,7 @@ body.logo-stage-open #notify-balloon { z-index: 100006; }
     pointer-events: none;
 }
 
-/* The lit border a show's notice wears (js/ui/notifications.js `shine`) — gold, like the pill
+/* The lit border a show's notice wears (js/ui/shell/notifications.js `shine`) — gold, like the pill
    and the shining around it: the colour of the secret, never of the theme. */
 .notify-toast.notify-shine {
     border: 2px solid #b8871f;

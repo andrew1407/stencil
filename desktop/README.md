@@ -20,7 +20,7 @@ sudo apt install -y g++ cmake qt6-base-dev
 ```bash
 # from this directory (desktop/)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --build build -j 4
 ./build/stencil
 ```
 
@@ -118,6 +118,14 @@ video itself is never sent). The model may also open or save local files, but on
 you yourself wrote in the conversation. Setup guide:
 [root README → AI assistant](../README.md#ai-assistant--setting-up-a-model).
 
+**Using your own Claude key.** Pick **Anthropic API (Claude)** as the provider, paste your
+Anthropic API key into **API key** and press **Save**: the app then talks to Anthropic
+directly — no Stencil server and no sign-in in between. The key is never saved. Stencil keeps
+it in memory only, until you quit the app or 12 hours pass, whichever comes first; the
+settings show when it lapses, and **Forget key** drops it at once. When no key is held, a
+chat turn sends nothing and asks for the key again (**Configure provider** opens the
+settings with the key field focused).
+
 ## Launch options
 
 ```bash
@@ -188,18 +196,18 @@ app:
 ```bash
 # from this directory (desktop/)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF
-cmake --build build --config Release -j
+cmake --build build --config Release -j 4
 cpack --config build/CPackConfig.cmake -B build/dist
 ```
 
-`cpack` runs Qt's deploy helper (`macdeployqt` / `windeployqt`; best-effort on Linux, Qt ≥
-6.3 — on older Qt run the platform's `*deployqt` by hand first) and wraps the result:
+`cpack` runs Qt's deploy helper (`macdeployqt`, `windeployqt` or Qt's generic Linux deploy,
+Qt ≥ 6.3 — on older Qt run the platform's `*deployqt` by hand first) and wraps the result:
 
 | Platform | Package | Form |
 |---|---|---|
 | macOS | `stencil-<ver>-Darwin-<arch>.dmg` | `stencil.app` bundle |
-| Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil.exe` + Qt DLLs |
-| Linux | `stencil-<ver>-Linux-<arch>.tar.gz` | `bin/` + `.desktop` entry & icon |
+| Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil.exe` + Qt DLLs and the VC++ runtime |
+| Linux | `stencil-<ver>-Linux-<arch>.tar.gz` | `bin/` + `lib/`, Qt plugins, `.desktop` entry & icon |
 
 Packaging registers the `.stencil` file type and the `stencil://` scheme with the OS. The
 macOS bundle is unsigned and warns on first launch; its icon is generated at configure time
@@ -207,3 +215,5 @@ from `../browser/favicon.svg` (needs `sips` + `iconutil`, otherwise the build is
 CI builds a package for each OS and CPU architecture (macOS and Linux on arm64 and x86_64,
 Windows on x86_64) on every `v*` tag and attaches them to the GitHub release
 (`.github/workflows/desktop-packages.yml`); a manual run produces them as workflow artifacts.
+Each package is started from its own files before it is kept: `packaging/smoke.sh <package>`
+(`packaging/smoke.ps1` on Windows) does the same on your machine.

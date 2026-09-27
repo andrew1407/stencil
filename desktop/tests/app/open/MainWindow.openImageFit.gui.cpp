@@ -98,7 +98,7 @@ class MainWindowGuiTest : public QObject {
       shortH = dlg->height();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
 
     QVERIFY2(wantTall > 0, "the URL preview must have loaded and grown the sizeHint");
     QVERIFY2(shortH > 0 && shortH < wantTall,
@@ -137,7 +137,7 @@ class MainWindowGuiTest : public QObject {
       wSettled = dlg->previewLabel->maximumWidth();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(wAfter > wBefore, "a wider window must grow the preview's own box");
     QCOMPARE(wSettled, wAfter);   // never keeps climbing on its own
   }

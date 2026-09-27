@@ -1,6 +1,5 @@
 #include "ShortcutsDialog.hpp"
 #include "shortcutsDialogParts.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"   // the dust a new combination forms from
 #include "../../support/theme/filterFade.hpp"  // rows fade in/out with the search, never blink
 #include "../../support/icon/KeycapChip.hpp"  // the combo as keycaps: shake on hover, capture on click
 #include "../../support/modal/modalChrome.hpp"
@@ -8,9 +7,7 @@
 #include "iconSet.hpp"
 #include "tipContent.hpp"   // comboKeycapsHtml, currentPalette
 #include <QEvent>
-#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -18,7 +15,6 @@
 #include <QScrollBar>
 #include <QTimer>
 #include <QToolButton>
-#include <QVBoxLayout>
 #include <QWidget>
 
 namespace stencil::gui {

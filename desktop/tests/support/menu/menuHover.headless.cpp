@@ -1,7 +1,7 @@
-// Hovering a context-menu ROW (support/iconMotion.hpp + support/MenuHotkeys.hpp). A QAction
+// Hovering a context-menu ROW (support/icon/iconMotion.hpp + support/menu/MenuHotkeys.hpp). A QAction
 // has no Enter/Leave, so both are driven off QMenu::hovered and the menu's mouse moves —
 // which re-fire for the row already hovered, and reach every menu in the caused stack. The
-// browser's twin is a plain `:hover` (css/animations/iconHover.css): the play starts once
+// browser's twin is a plain `:hover` (css/animations/icon/hover.css): the play starts once
 // when the pointer arrives, never restarts while it stays, and is cancelled when it goes.
 #include "MenuHotkeys.hpp"
 #include "iconMotion.hpp"

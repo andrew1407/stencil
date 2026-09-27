@@ -13,6 +13,8 @@ import ctypes
 
 # Shorthands for the ctypes pointer types used across the ABI.
 _u8p = ctypes.POINTER(ctypes.c_uint8)
+# A read-only pixel source: ctypes hands bytes and a from_buffer array over without a copy.
+_src = ctypes.c_void_p
 _intp = ctypes.POINTER(ctypes.c_int)
 _dblp = ctypes.POINTER(ctypes.c_double)
 _cstr = ctypes.c_char_p
@@ -30,13 +32,7 @@ def bind(lib: ctypes.CDLL) -> None:
   lib.stencil_cli_pageFormats.argtypes = list()
 
   lib.stencil_cli_defaultBlankSizePx.restype = None
-  lib.stencil_cli_defaultBlankSizePx.argtypes = [
-    ctypes.c_double,
-    ctypes.c_double,
-    ctypes.c_double,
-    _intp,
-    _intp,
-  ]
+  lib.stencil_cli_defaultBlankSizePx.argtypes = [ctypes.c_double] * 3 + [_intp, _intp]
 
   lib.stencil_cli_resolveCrop.restype = ctypes.c_int
   lib.stencil_cli_resolveCrop.argtypes = [
@@ -55,57 +51,29 @@ def bind(lib: ctypes.CDLL) -> None:
   ]
 
   lib.stencil_cli_cropImageRGBA.restype = None
-  lib.stencil_cli_cropImageRGBA.argtypes = [
-    _u8p,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    _u8p,
-  ]
+  lib.stencil_cli_cropImageRGBA.argtypes = [_src] + [ctypes.c_int] * 6 + [_u8p]
 
   lib.stencil_cli_normalizeQuarters.restype = ctypes.c_int
   lib.stencil_cli_normalizeQuarters.argtypes = [ctypes.c_int]
 
   lib.stencil_cli_rotatedDims.restype = None
-  lib.stencil_cli_rotatedDims.argtypes = [
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    _intp,
-    _intp,
-  ]
+  lib.stencil_cli_rotatedDims.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, _intp, _intp]
+
+  _d = ctypes.c_double
+  lib.stencil_cli_snapCropRect.restype = None
+  lib.stencil_cli_snapCropRect.argtypes = [_d] * 6 + [_dblp]
+
+  lib.stencil_cli_rotateEditQuarter.restype = None
+  lib.stencil_cli_rotateEditQuarter.argtypes = [_d] * 4 + [ctypes.c_int, _d, _d, ctypes.c_int, _dblp]
 
   lib.stencil_cli_rotateImageRGBA.restype = None
-  lib.stencil_cli_rotateImageRGBA.argtypes = [
-    _u8p,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    _u8p,
-  ]
+  lib.stencil_cli_rotateImageRGBA.argtypes = [_src, ctypes.c_int, ctypes.c_int, ctypes.c_int, _u8p]
 
   lib.stencil_cli_fillRGBA.restype = None
-  lib.stencil_cli_fillRGBA.argtypes = [
-    _u8p,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-  ]
+  lib.stencil_cli_fillRGBA.argtypes = [_u8p] + [ctypes.c_int] * 5
 
   lib.stencil_cli_applyFilter.restype = None
-  lib.stencil_cli_applyFilter.argtypes = [
-    _cstr,
-    _u8p,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-  ]
+  lib.stencil_cli_applyFilter.argtypes = [_cstr, _u8p] + [ctypes.c_int] * 4
 
   lib.stencil_cli_applyContour.restype = None
   lib.stencil_cli_applyContour.argtypes = [_u8p, ctypes.c_int, ctypes.c_int]
@@ -138,7 +106,6 @@ def bind(lib: ctypes.CDLL) -> None:
     ctypes.c_int,
   ]
 
-  _d = ctypes.c_double
   lib.stencil_cli_validateFormulaCtx.restype = ctypes.c_int
   lib.stencil_cli_validateFormulaCtx.argtypes = [_cstr, _d, _d, _d, _d, _d, _d, _cstr]
 
@@ -152,10 +119,14 @@ def bind(lib: ctypes.CDLL) -> None:
     _cstr,
   ]
 
+  lib.stencil_cli_layoutCaps.restype = None
+  lib.stencil_cli_layoutCaps.argtypes = [_intp, _intp, _intp]
+
   lib.stencil_cli_parseDuration.restype = ctypes.c_int
   lib.stencil_cli_parseDuration.argtypes = [_cstr, ctypes.POINTER(ctypes.c_longlong)]
 
   _bind_script(lib)
+  _bind_opplan(lib)
 
 
 def _bind_script(lib: ctypes.CDLL) -> None:
@@ -179,6 +150,9 @@ def _bind_script(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_scriptDiagAt.restype = _cstr
   lib.stencil_cli_scriptDiagAt.argtypes = [_i, _i, _intp, _intp, _intp, _intp, _cstrp]
+
+  lib.stencil_cli_scriptDiagRelated.restype = _i
+  lib.stencil_cli_scriptDiagRelated.argtypes = [_i, _i, _intp, _intp, _intp]
 
   lib.stencil_cli_scriptTokenCount.restype = _i
   lib.stencil_cli_scriptTokenCount.argtypes = [_i]
@@ -217,3 +191,33 @@ def _bind_script(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_scriptDump.restype = _cstr
   lib.stencil_cli_scriptDump.argtypes = [_i]
+
+
+def _bind_opplan(lib: ctypes.CDLL) -> None:
+  """The op-plan family. Input text travels as pointer + length (never NUL-read); every
+  ``_cstr`` restype points into its handle, copied by ctypes before the handle goes."""
+  _i = ctypes.c_int
+
+  lib.stencil_cli_opplanSchemaCreate.restype = _i
+  lib.stencil_cli_opplanSchemaCreate.argtypes = [_cstr, _i, _cstr, _cstr]
+
+  lib.stencil_cli_opplanSchemaError.restype = _cstr
+  lib.stencil_cli_opplanSchemaError.argtypes = [_i]
+
+  lib.stencil_cli_opplanSchemaEntries.restype = _cstr
+  lib.stencil_cli_opplanSchemaEntries.argtypes = [_i]
+
+  lib.stencil_cli_opplanSchemaDestroy.restype = None
+  lib.stencil_cli_opplanSchemaDestroy.argtypes = [_i]
+
+  lib.stencil_cli_opplanParse.restype = _i
+  lib.stencil_cli_opplanParse.argtypes = [_i, _cstr, _i]
+
+  lib.stencil_cli_opplanStatus.restype = _i
+  lib.stencil_cli_opplanStatus.argtypes = [_i]
+
+  lib.stencil_cli_opplanJson.restype = _cstr
+  lib.stencil_cli_opplanJson.argtypes = [_i]
+
+  lib.stencil_cli_opplanDestroy.restype = None
+  lib.stencil_cli_opplanDestroy.argtypes = [_i]

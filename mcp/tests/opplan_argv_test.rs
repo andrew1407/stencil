@@ -114,7 +114,7 @@ fn custom_filter_maps_to_the_tint_value_and_none_clears() {
         r##"{"reply":"x","actions":[
             {"op":"filter","mode":"sepia"},
             {"op":"filter","mode":"none"},
-            {"op":"rotate","dir":"right"}
+            {"op":"rotate","dir":"right","times":1}
         ]}"##,
     );
     let requests = to_edit_requests(
@@ -142,8 +142,8 @@ fn layout_lines_become_an_inline_layout() {
     ).unwrap();
     match &requests[0].params.layout {
         Some(stencil_mcp::args::LayoutArg::Inline(layout)) => {
-            assert_eq!(layout.lines.len(), 2); // two layout actions concatenate
-            assert_eq!(layout.lines[1].color.as_deref(), Some("#ff0000"));
+            assert_eq!(layout.lines.len(), 1); // the later layout replaces the earlier one
+            assert_eq!(layout.lines[0].color.as_deref(), Some("#ff0000"));
         }
         other => panic!("expected an inline layout, got {other:?}"),
     }
@@ -176,7 +176,7 @@ fn layout_frame_source_rides_plan_layouts_and_current_omits_it() {
     assert_eq!(argv[at - 2], "-l"); // rides right after the layout it qualifies
 
     // No layout in the run → no flag either.
-    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"}]}"##);
+    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right","times":1}]}"##);
     let requests = to_edit_requests(
         &plan,
         Some("a.png"),

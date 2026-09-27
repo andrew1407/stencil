@@ -14,5 +14,7 @@ export declare const applyStoredProvenance: (app: DrawingApp, layout: ProjectLay
 export declare const applyStoredFormulas: (app: DrawingApp, layout: ProjectLayout) => void;
 /** Draw mode, the hold-draw delay and the selection/hover/focus/fill colours. */
 export declare const applyStoredTools: (app: DrawingApp, layout: ProjectLayout) => void;
+/** The stored image becomes the editor's; an object URL is swapped for its data URL once read back. */
+export declare const applyStoredImage: (storage: Storage, id: string | null, image: string) => Promise<void>;
 /** Lines kept pending behind the missing-image banner, or settings only. */
 export declare const applyImagelessPayload: (storage: Storage, layout: ProjectLayout) => void;

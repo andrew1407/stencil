@@ -3,6 +3,7 @@ package hub
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
@@ -18,13 +19,15 @@ type inbound struct {
 // session is the authoritative, single-goroutine owner of a project's live edit state: every field below
 // the channels is touched only by run() (the worker touches immutable fields + the job/result channels).
 type session struct {
-	hub  *Hub
-	id   string
-	refs int // guarded by Hub.mu
+	hub     *Hub
+	id      string
+	refs    int       // guarded by Hub.mu
+	started sync.Once // start: subscribe, then run
 
 	register   chan *member
 	unregister chan *member
 	incoming   chan inbound
+	written    chan int64 // one slot: the newest version the global feed reported (feed.go)
 	done       chan struct{}
 
 	// persist is the session's DB arm: blocking store I/O runs on its own
@@ -36,27 +39,36 @@ type session struct {
 	version        int64
 	loaded         bool
 	loadInFlight   bool
-	loadedRec      protocol.ProjectRecord // cached snapshot, kept current with our own saves
-	pendingWelcome []*member              // members awaiting the initial load before their welcome
+	stale          bool                   // a reported write no completed load has read yet
+	reread         bool                   // that write was reported while a load ran
+	loadedRec      protocol.ProjectRecord // cached snapshot: our own saves update it, others' re-read it
+	pendingWelcome []*member              // members whose welcome waits for a load
 	busCh          <-chan eventbus.Envelope
 	busStop        func()
 }
 
 func newSession(h *Hub, id string) *session {
-	ch, stop := h.bus.Subscribe(eventbus.ProjectChannel(id))
 	s := &session{
 		hub:        h,
 		id:         id,
 		register:   make(chan *member),
 		unregister: make(chan *member),
 		incoming:   make(chan inbound),
+		written:    make(chan int64, 1),
 		done:       make(chan struct{}),
 		members:    map[string]*member{},
-		busCh:      ch,
-		busStop:    stop,
 	}
-	s.persist = newSnapshotWorker(h.ctx, h.store, id, opTimeout, s.done)
+	s.persist = newSnapshotWorker(h.ctx, h.store, id, h.tune, s.done)
 	return s
+}
+
+// start subscribes to the project channel and launches run exactly once; a joiner arriving meanwhile
+// waits here, so nobody registers before the subscription that delivers its frames exists.
+func (s *session) start() {
+	s.started.Do(func() {
+		s.busCh, s.busStop = s.hub.bus.Subscribe(eventbus.ProjectChannel(s.id))
+		go s.run()
+	})
 }
 
 // run is the session's sole goroutine. It serializes registration, inbound
@@ -83,6 +95,8 @@ func (s *session) run() {
 			s.fanout(env)
 		case in := <-s.incoming:
 			s.handle(in.member, in.msg)
+		case v := <-s.written:
+			s.refresh(v)
 		case res := <-s.persist.results:
 			s.applyResult(res)
 		case <-s.done:
@@ -111,10 +125,10 @@ func (s *session) handle(m *member, msg protocol.WSMessage) {
 	}
 }
 
-// sendWelcome replies with project + layout + version + the local peer roster. Before the one-time
-// snapshot loads, the reply is deferred to the run-loop's load result, so no store I/O runs here.
+// sendWelcome replies with project + layout + version + the local peer roster. Before the snapshot loads,
+// or while a refresh re-reads it, the reply waits for the run-loop's load result; no store I/O runs here.
 func (s *session) sendWelcome(m *member) {
-	if !s.loaded {
+	if !s.loaded || s.stale {
 		s.ensureLoaded()
 		s.pendingWelcome = append(s.pendingWelcome, m)
 		return
@@ -133,19 +147,20 @@ func (s *session) replyWelcome(m *member) {
 		peers = append(peers, protocol.Peer{ClientID: id, Name: mem.name})
 	}
 	rec := s.loadedRec
+	rec.Layout = nil // the snapshot rides once, as the frame's own layout
 	s.sendMsg(m, protocol.WSMessage{
 		Type:    protocol.WSWelcome,
 		Project: &rec,
-		Layout:  rec.Layout,
+		Layout:  s.loadedRec.Layout,
 		Version: s.version,
 		Peers:   peers,
 	})
 }
 
-// handleEdit relays a live edit op to peers. Edits are ephemeral (not persisted per-op); a stale version
-// means the sender is behind, so it is told to resync. The version is the one loaded at first join.
+// handleEdit relays a live edit op to peers, unpersisted. A version behind the session's (absent = 0, so
+// stale once a save has landed) means the sender is behind, so it is told to resync instead.
 func (s *session) handleEdit(m *member, msg protocol.WSMessage) {
-	if msg.Version != 0 && msg.Version < s.version {
+	if msg.Version < s.version {
 		s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeBadVersion, Message: "stale; resubscribe"})
 		return
 	}
@@ -182,6 +197,10 @@ func (s *session) applySaveResult(res persistResult) {
 		return
 	}
 	rec := res.rec
+	rec.Layout = s.loadedRec.Layout
+	if len(res.layout) > 0 {
+		rec.Layout = res.layout // an empty save leaves the stored layout, as the store's COALESCE does
+	}
 	s.version = rec.Version
 	s.loadedRec = rec // keep the cached snapshot current with our own committed save
 	// Ack the saver (if still connected) and broadcast the committed version to peers.
@@ -191,7 +210,7 @@ func (s *session) applySaveResult(res persistResult) {
 	synced := protocol.WSMessage{Type: protocol.WSSynced, Version: rec.Version, ResultPath: rec.ResultPath, FromClientID: m.clientID}
 	s.publish(synced)
 	// Notify the global feed so projects lists refresh live.
-	s.publishGlobal(protocol.WSMessage{Type: protocol.WSProjectEv, Event: protocol.EventUpdated, Project: &rec})
+	eventbus.PublishProjectEvent(s.hub.ctx, s.hub.bus, protocol.EventUpdated, rec)
 }
 
 // present reports whether m is still the registered member for its client id

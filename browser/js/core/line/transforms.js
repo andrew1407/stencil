@@ -1,6 +1,7 @@
 // Pure point-list geometry: bbox centre, rotate, mirror. Each is the shared C++ core (wasm)
 // op with the JS body as the reference + fallback — a wasm-parity surface, keep both identical.
 import { core } from '../abi/stencilCore.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
 export const bboxCenterOf = (pts) => {
   const bboxCenter = core.op('boundingBoxCenter');
@@ -44,5 +45,5 @@ export const shouldCloseShape = (points, x, y, pointSize) => {
   if (fn) return fn(points, { x, y }, pointSize);
   if (points.length < 3) return false;
   const p0 = points[0];
-  return Math.hypot(p0.x - x, p0.y - y) <= pointSize + 8;
+  return Math.hypot(p0.x - x, p0.y - y) <= pointSize + constants.HIT.closeSlackPx;
 };

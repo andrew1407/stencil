@@ -1,5 +1,5 @@
 #pragma once
-#include "cropGeometry.hpp"
+#include "HistoryStack.hpp"
 #include "formulaContext.hpp"
 #include "opPlan.hpp"
 #include "pageMetrics.hpp"
@@ -9,24 +9,16 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <functional>
 #include <memory>
+#include <optional>
 
-// Op-plan executor (llm-contract.md §1–2); browser twin: browser/js/llm/plan/plan.js executeOpPlan.
-namespace stencil::gui {
-  class CanvasWidget;
-}
-
+// Op-plan executor (llm-contract.md §1–2); browser twin: browser/js/llm/plan/opPlan.js executeOpPlan.
+namespace stencil::gui { class CanvasScene; }
 namespace stencil::llm {
 
-  /* What a .stc `undo` has to put back (contracts/stc §7). The canvas history holds committed
-   * lines only, so crop and filter ride along in a checkpoint the runner keeps per edit. */
-  struct EditState {
-    bool valid = false;
-    core::CropRect crop;
-    QString filterMode;
-    QString filterTint;
-    core::Lines lines;
-  };
+  // How an op that waits on I/O ends: ok, or the plan error it failed with.
+  using OpDone = std::function<void(bool ok, const QString& err)>;
 
   class PlanTarget {
    public:
@@ -49,10 +41,11 @@ namespace stencil::llm {
     // Installs `lines` and commits ONE undo step; setLayoutLines replaces AND resets the
     // history, which a scripted edit must never do to the user's stack.
     virtual void commitLayoutLines(const core::Lines& lines) { setLayoutLines(lines); }
-    // The checkpoint a .stc `undo` reverts to; false = this surface keeps none.
-    virtual bool captureEdit(EditState& out) const { Q_UNUSED(out); return false; }
-    // Puts a checkpoint back: crop, filter and lines together.
-    void restoreEdit(const EditState& state);
+    // The checkpoint a .stc `undo` reverts to (contracts/stc §7), the step on screen; nullopt =
+    // this surface keeps none.
+    virtual std::optional<core::EditorMemento> captureEdit() const { return std::nullopt; }
+    // Puts a checkpoint back — turn, crop, filter and lines — without stepping the user's history.
+    void restoreEdit(const core::EditorMemento& state);
     // What a formula's names resolve to here: the page this target reports, plus its pixels
     // once an image is open. Display unit: cm unless a target names its own.
     virtual core::FormulaContext formulaContext() const;
@@ -85,6 +78,15 @@ namespace stencil::llm {
     virtual void clearImage() {}
     virtual bool connectServer(const QString& server, QString* err);
     virtual bool disconnectServer(const QString& server, QString* err);
+    // The ops that wait on I/O: a live editor starts the work and answers `done` once it lands,
+    // later, from the event loop; by default the synchronous form runs and answers at once.
+    virtual void connectServerThen(const QString& server, OpDone done);
+    virtual void extractFramesThen(const QVector<int>& indices, OpDone done);
+    virtual void openUrlThen(const QString& url, bool incognito, OpDone done);
+    virtual void openFileThen(const QString& path, OpDone done);
+    virtual void openSourceFrameThen(const QString& spec, int frame, OpDone done);
+    virtual void openProjectNamedThen(const QString& name, bool last, OpDone done);   // ok + err = a note
+    virtual void saveProjectThen(const QString& name, const QString& dest, OpDone done);
     // Runs only with a working image present; no-image is the executor's note+skip.
     virtual bool copyImage(QString* err);
     virtual bool copyLayout(QString* err);
@@ -129,7 +131,7 @@ namespace stencil::llm {
   // its own; `..` voids the grant. Twin of the cli's llm.pathEchoedByUser.
   bool pathEchoedIn(const QString& typed, const QString& path);
 
-  // PlanTarget over an offscreen CanvasWidget: variant sandboxes and the headless test.
+  // PlanTarget over an offscreen CanvasScene: variant sandboxes and the headless test.
   class CanvasPlanTarget : public PlanTarget {
    public:
     CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm);
@@ -144,7 +146,7 @@ namespace stencil::llm {
     void setImageFilter(const QString& mode, const QString& tintHex) override;
     void setLayoutLines(const core::Lines& lines) override;
     void commitLayoutLines(const core::Lines& lines) override;
-    bool captureEdit(EditState& out) const override;
+    std::optional<core::EditorMemento> captureEdit() const override;
     void setFormula(QChar axis, const QString& expr) override;
     void setFormulasEnabled(bool on) override { formulasEnabled = on ? 1 : 0; }
     void setPageFormat(const QString& isoName) override;
@@ -192,7 +194,7 @@ namespace stencil::llm {
     bool copiedLayout = false;
 
    private:
-    std::unique_ptr<gui::CanvasWidget> canvas;
+    std::unique_ptr<gui::CanvasScene> canvas;
     core::PageSize page;
     bool blank = false;         // the canvas holds a `blank`-created page
   };
@@ -207,7 +209,11 @@ namespace stencil::llm {
   };
 
   // Plan coordinates are in the frame of the image the model SAW (§1): layout points are
-  // re-mapped through earlier crop/rotate actions and clamped. Stops at the first failing action.
+  // re-mapped through earlier crop/rotate actions and clamped. Stops at the first failing action;
+  // `done` answers at once, or from the answer of an op that waited on I/O.
+  void executePlanThen(const OpPlan& plan, PlanTarget& target,
+                       std::function<void(const ExecResult&)> done);
+  // The same run over a target whose awaited ops answer at once (sandboxes, tests).
   ExecResult executePlan(const OpPlan& plan, PlanTarget& target);
 
   // Exact URL match first (case-insensitive), else a UNIQUE host match; "" = unknown server.

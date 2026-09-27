@@ -30,6 +30,8 @@
 #include <cmath>
 #include <vector>
 
+class QGraphicsOpacityEffect;
+
 namespace stencil::gui {
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
@@ -38,6 +40,9 @@ namespace stencil::gui {
   void holdFadeKeys(QVariantAnimation* fade, int ms);
 
   void fadeUpBehindDust(QWidget* w, int ms);
+
+  // Hides `surface` while its dust (or a fade) stands in for it; dropping the effect gives it back.
+  QGraphicsOpacityEffect* veilBehindDust(QWidget* surface);
 
   class DisintegrateOverlay : public QWidget, public DisintegrateTunings {
    public:
@@ -119,6 +124,10 @@ namespace stencil::gui {
     static QWidget* surfaceOf(QWidget* inside);
     void bindToSurface(QWidget* inside);
     QWidget* boundSurface() const { return surface; }
+
+    // A tool window the host owns (the compact chat, a torn-off dock) over GLOBAL `rect`, `surface`
+    // aside: it stacks above the host, so a cloud there needs overSurface's alwaysEscape.
+    static QWidget* floatOver(const QWidget* host, const QRect& rect, const QWidget* surface = nullptr);
 
    protected:
     bool eventFilter(QObject* watched, QEvent* e) override;

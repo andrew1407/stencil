@@ -1,9 +1,9 @@
-// Closing a shape, and the two ways back out of one (src/canvas/draw/chainEdit.hpp) — the
-// desktop port of browser/js/core/touch/dragGestures.js, carrying that suite's cases, plus the
+// Closing a shape, and the two ways back out of one (core/geometry/lineChain.hpp, the port of
+// browser/js/core/touch/dragGestures.js) — that suite's cases as the desktop calls them, plus the
 // wiring on the real widget: Alt+Ctrl+drag pulls a new point out of the line under the
 // cursor and breaks a closed area open at that spot. Runs offscreen.
 #include "CanvasWidget.hpp"
-#include "chainEdit.hpp"
+#include "lineChain.hpp"
 
 #include <QApplication>
 #include <QImage>
@@ -14,7 +14,7 @@
 #include "../../support/check.hpp"
 
 using stencil::gui::CanvasWidget;
-namespace chain = stencil::gui::chain;
+namespace chain = stencil::core::chain;
 namespace core = stencil::core;
 
 typedef std::vector<core::Point> Pts;
@@ -116,6 +116,10 @@ int main(int argc, char** argv) {
     core::Line empty;
     check(chain::pullOutPoint(empty, {true, 0}, 0, 0) == -1, "nothing to pull out of");
     check(chain::pullOutPoint(line, {true, -1}, 0, 0) == -1, "…nor from no target");
+    core::Line wrapped = closedShape();
+    check(chain::pullOutPoint(wrapped, {true, -1}, 0, 0) == 3 && !wrapped.locked &&
+              same(wrapped.points, Pts{{10, 10}, {0, 0}, {10, 0}, {10, 10}}),
+          "…but an area opens at a negative index counted from its end, as the JS does");
   }
 
   // ── The gesture, on the real widget ───────────────────────────────────────

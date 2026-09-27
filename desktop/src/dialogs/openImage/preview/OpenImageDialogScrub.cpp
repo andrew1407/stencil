@@ -3,20 +3,17 @@
 // (OpenImageDialogPreview.cpp) because a still never touches any of it.
 #include "MediaLoader.hpp"
 #include "OpenImageDialog.hpp"
-#include "openImageDialogParts.hpp"
 
 #include <QAudioOutput>
-#include <QLabel>
 #include <QMediaPlayer>
 #include <QSignalBlocker>
-#include <QSlider>
 #include <QSpinBox>
-#include <QTimer>
 #include <QVideoFrame>
 #include <QVideoSink>
 
 #include <algorithm>
-#include <cmath>
+#include <QSlider>
+#include <QTimer>
 
 namespace stencil::gui {
 

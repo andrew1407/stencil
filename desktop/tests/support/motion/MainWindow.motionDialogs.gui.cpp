@@ -103,7 +103,7 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Every icon button mimes its OWN action on hover (support/iconMotion.hpp, the port of
+  // Every icon button mimes its OWN action on hover (support/icon/iconMotion.hpp, the port of
   // iconMotion.json): reduced motion wins, the glyph really is repainted, and NOTHING reflows.
   void iconMotionRunsOnToolbarButtonsWithoutReflow() {
     MainWindow win(nullptr, false);

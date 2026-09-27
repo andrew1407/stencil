@@ -7,9 +7,14 @@ import { filterConnections } from '../../src/lib/connection/connections.js';
 import { createFilterTransition } from '../../src/lib/motion.js';
 import { makeList, renderKeys } from '../helpers/listDom.js';
 
+// Source-level pins: the row markup and the CSS it leans on live in files with no DOM to
+// assert against under `node --test`, so the contract is checked as text — the page and its sheet.
+const optionsHtml = () => ['options.html', 'options.css']
+  .map((f) => readFileSync(new URL(`../../src/options/${f}`, import.meta.url), 'utf8')).join('\n');
+
 // ── The options page wires the kind cue + filter ──
 test('options page: golden admin outline and the three-way kind filter', () => {
-  const html = readFileSync(new URL('../../src/options/options.html', import.meta.url), 'utf8');
+  const html = optionsHtml();
   const js = readFileSync(new URL('../../src/options/connections.js', import.meta.url), 'utf8');
   // Gold outline, the same #f5c518 cue a server-backed pin wears.
   assert.match(html, /\.pin-row\.conn-admin\s*\{[^}]*#f5c518/);
@@ -22,9 +27,6 @@ test('options page: golden admin outline and the three-way kind filter', () => {
   assert.match(js, /filterConnections\(all, connKind\(\)\)/, 'the render filters the list');
 });
 
-// Source-level pins: the row markup and the CSS it leans on live in two files with no DOM to
-// assert against under `node --test`, so the contract is checked as text.
-const optionsHtml = () => readFileSync(new URL('../../src/options/options.html', import.meta.url), 'utf8');
 // Just the connections module — the pins renderer beside it has its own buttons.
 const connectionsJs = () =>
   readFileSync(new URL('../../src/options/connections.js', import.meta.url), 'utf8');

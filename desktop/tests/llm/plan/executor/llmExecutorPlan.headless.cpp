@@ -83,7 +83,7 @@ namespace llmexec {
     })");
     check(parsed.ok && parsed.error.isEmpty(), "the plan parses instead of failing");
     check(parsed.plan.warnings.size() == 1 &&
-              parsed.plan.warnings[0].contains("Dropped variant \"wiped\""),
+              parsed.plan.warnings[0].contains("Dropped variant 1 (\"wiped\")"),
           "the dropped variant is a warning, not an error");
 
     CanvasPlanTarget target(img, a4);

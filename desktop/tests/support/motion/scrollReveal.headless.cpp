@@ -1,4 +1,4 @@
-// Headless check of the scroll-reveal curve (src/support/scrollReveal.hpp) — the desktop port of the
+// Headless check of the scroll-reveal curve (src/support/motion/scrollReveal.hpp) — the desktop port of the
 // browser's .reveal-item / .reveal-in rules, driven by js/ui/motion.js. The widget plumbing needs a
 // live view, but the curve that decides how dim a row is does not: full opacity clear of both bands, a
 // ramp inside them, the rest state off-screen, and the asymmetry that keeps a transcript's newest
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
   check(near(revealOpacityForItem(nullptr, QRect(0, 0, 100, 40)), 1.0),
         "a delegate with no viewport paints at full opacity");
 
-  // The dissolve mapping (support/DissolveEffect.hpp is driven by this): the reveal ramp bottoms out at
+  // The dissolve mapping (support/motion/DissolveEffect.hpp is driven by this): the reveal ramp bottoms out at
   // REVEAL_MIN_OPACITY, not 0, so it has to be RESCALED — an out-of-view row must fully dissolve.
   using stencil::gui::ScrollReveal;
   check(near(ScrollReveal::dissolveFor(1.0), 0.0), "a fully revealed row is not dissolved at all");

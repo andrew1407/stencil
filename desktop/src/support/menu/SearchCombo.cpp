@@ -1,18 +1,12 @@
 #include "SearchCombo.hpp"
 #include "searchComboParts.hpp"
-#include "menuReveal.hpp"       // support::revealPopup / dismissPopup — the shared surface dust
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
 #include "ShimmerOverlay.hpp"   // …and takes the app's glass sweep with it
+#include "uiTimings.hpp"
 
-#include <QEvent>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
-#include <QScreen>
-#include <QScrollBar>
-#include <QSignalBlocker>
-#include <QSortFilterProxyModel>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
@@ -86,7 +80,7 @@ namespace stencil::gui {
     if (!searchable) list->installEventFilter(this);                    // whoever has focus
     // Hover preview (repaint only); waits for the pointer to settle so skimming does not repaint per row.
     previewTimer.setSingleShot(true);
-    previewTimer.setInterval(280);
+    previewTimer.setInterval(support::uiTimings().previewHoverMs);
     connect(&previewTimer, &QTimer::timeout, this, [this] {
       if (preview && !pendingPreview.isEmpty()) { previewing = true; preview(pendingPreview); }
     });

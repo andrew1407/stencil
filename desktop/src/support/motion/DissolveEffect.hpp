@@ -1,5 +1,5 @@
 #pragma once
-// Grain dissolve — port of the .reveal-item mask in browser/css/animations.css: a dot
+// Grain dissolve — port of the .reveal-item mask in browser/css/animations/: a dot
 // grain UNIONed with a bottom→top wipe (intersect would punch holes through a settled
 // row), composited DestinationIn. Q_OBJECT-free: reach it with dynamic_cast.
 #include <QBrush>

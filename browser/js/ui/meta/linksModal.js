@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { notify } from '../../utils.js';
 import { icon } from '../icons.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
+import { portableSource } from '../../core/project/store/projectSources.js';
 
 // View/edit the current image's provenance (source URL, resource page); each field commits
 // on change. Adding a new image by URL lives in openImageModal.
@@ -46,7 +47,7 @@ export class StencilLinksModal extends StencilElement {
 
 // Also refreshes live while open (the console's stencil.current.source = … path).
     const syncLinkFields = () => {
-      sourceEl.value = app.imageSource || '';
+      sourceEl.value = portableSource(app.imageSource) || '';
       resourceEl.value = app.imageResource || '';
     };
 
@@ -61,7 +62,7 @@ export class StencilLinksModal extends StencilElement {
       if (overlay.classList.contains('modal-open') && app.image) syncLinkFields();
     });
 
-    const persist = () => { app.storage.save(); };
+    const persist = () => { app.storage.saveSoon(); };
 
     const bindLinkField = (input, openBtn, clearBtn, key) => {
       input.addEventListener('change', () => {

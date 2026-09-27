@@ -29,7 +29,7 @@ const MIRRORS = [
   ['content/pageApiBridge.js',
     ['PAGE_SET_FILTERS', 'PAGE_REQUEST_SYNC'],
     ['PAGE_API', 'PAGE_FILTERS', 'PAGE_PINS', 'PAGE_EDITED', 'PAGE_HL_COLOR']],
-  ['content/pageApiMain.js',
+  ['content/pageApiMedia.js',
     ['PAGE_OPEN', 'PAGE_CROP', 'PAGE_PIN', 'PAGE_REQUEST_SYNC', 'PAGE_DISABLE', 'PAGE_SET_FILTERS'],
     ['PAGE_API', 'PAGE_FILTERS', 'PAGE_PINS', 'PAGE_EDITED', 'PAGE_HL_COLOR']],
   ['content/editorApiMain.js',

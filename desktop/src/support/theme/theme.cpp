@@ -1,17 +1,10 @@
 #include "theme.hpp"
 #include "themeTokens.hpp"
-#include <QDir>
 #include <QFile>
 #include <QGuiApplication>
-#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QPainter>
-#include <QPainterPath>
-#include <QPixmap>
-#include <QRegularExpression>
-#include <QStandardPaths>
 #include <QStyleHints>
 #include <algorithm>
 #include <array>

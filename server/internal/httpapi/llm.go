@@ -30,7 +30,7 @@ func (a *API) handleLLMChat(rw http.ResponseWriter, req *http.Request) {
 	// budget shouldn't get to spend the server's memory either.
 	sess, _ := auth.SessionFromContext(req.Context())
 	if !a.llmRate.Allow(sess.ID) {
-		rw.Header().Set("Retry-After", "60")
+		setRetryAfter(rw, a.deps.RetryAfter)
 		writeErr(rw, http.StatusTooManyRequests, protocol.CodeRateLimited, msgLlmRateLimited)
 		return
 	}
@@ -44,7 +44,7 @@ func (a *API) handleLLMChat(rw http.ResponseWriter, req *http.Request) {
 	}
 	release, ok := a.llmGate.enter()
 	if !ok {
-		rw.Header().Set("Retry-After", "5")
+		setRetryAfter(rw, a.deps.BusyRetryAfter)
 		writeErr(rw, http.StatusTooManyRequests, protocol.CodeRateLimited, msgLlmBusy)
 		return
 	}

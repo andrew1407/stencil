@@ -4,7 +4,6 @@ using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
@@ -131,6 +130,21 @@ public sealed class PromptStopTests : IDisposable
         Assert.Contains(Messages, m => m.Text.Contains("done now"));
         // The turn landed, so the button has nothing left to re-run.
         Assert.Null((await _store.GetAsync(_userId)).LastRetryablePrompt);
+    }
+
+    [Fact]
+    public void Should_Queue_A_Stop_Tap_In_No_Lane_And_Everything_Else_In_Its_Users()
+    {
+        CallbackQuery stop = new() { Id = "a", From = new User { Id = _userId }, Data = CallbackAction.STOP_TOKEN };
+        CallbackQuery other = new() { Id = "b", From = new User { Id = _userId }, Data = "retry:prompt" };
+        Message sent = new() { From = new User { Id = _userId }, Chat = new Chat { Id = _chatId } };
+        Message unsigned = new() { Chat = new Chat { Id = _chatId } };
+
+        // The pump would otherwise queue the stop behind the very turn it cancels.
+        Assert.Null(UpdateRouter.LaneOf(stop));
+        Assert.Equal(_userId, UpdateRouter.LaneOf(other));
+        Assert.Equal(_userId, UpdateRouter.LaneOf(sent));
+        Assert.Equal(_chatId, UpdateRouter.LaneOf(unsigned));
     }
 
     [Fact]

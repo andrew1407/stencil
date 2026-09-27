@@ -4,15 +4,16 @@
 #include "chatDockShared.hpp"
 #include "iconSet.hpp"
 #include "theme.hpp"
-#include "chatWidgets.hpp"
 
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QLabel>
-#include <QLayout>
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+#include <QLayout>
+#include <QScrollBar>
+#include <QTextCursor>
 
 namespace stencil::gui {
 
@@ -48,6 +49,11 @@ namespace stencil::gui {
 
   bool ChatDock::hasComposerText() const { return !input->toPlainText().trimmed().isEmpty(); }
 
+  void ChatDock::setComposerText(const QString& text) {
+    input->setPlainText(text);
+    input->moveCursor(QTextCursor::End);
+  }
+
   void ChatDock::updateSendEnabled() {
     cmp.send->setEnabled(isBusy() || !input->toPlainText().trimmed().isEmpty());
   }
@@ -59,7 +65,7 @@ namespace stencil::gui {
   }
 
   void ChatDock::restyleIcons(const Palette& pal) {
-    // Browser .chat-panel parity; values ported from browser/css/components.css.
+    // Browser .chat-panel parity; values ported from browser/css/components/chat/panel.css.
     paletteCache = pal;
     accentCache = pal.accent;
     chipCache = pal.bgContainer;
@@ -106,7 +112,7 @@ namespace stencil::gui {
     if (cmp.more) cmp.more->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
     restyleChatMoreMenu(moreRows, pal.textMain);
     chrome.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
-    // A layout does not see a QSS border: webcore.qss's raised chatBody sides stay uncovered.
+    // A layout does not see a QSS border: qss/webcore/chat.qss's raised chatBody sides stay uncovered.
     if (QWidget* body = widget(); body && body->layout())
       body->layout()->setContentsMargins(support::isWebcore() ? QMargins(2, 0, 2, 2) : QMargins());
     updatePlacementState();

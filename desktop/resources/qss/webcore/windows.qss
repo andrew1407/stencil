@@ -1,0 +1,55 @@
+      /* ── Windows: the shell, its navy title strip and the beveled close ── */
+      QDialog { background: %WC_FACE%; color: %WC_INK%; }
+      QWidget#modalShell, QWidget#searchComboPopup {
+        background: %WC_FACE%; border-radius: 0;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QWidget#modalHeader {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %WC_TITLE_A%, stop:1 %WC_TITLE_B%);
+        margin: 2px; padding: 0 2px;
+      }
+      QLabel#modalTitle { color: %WC_TITLE_INK%; font-weight: bold; font-size: 12px; }
+      /* Browser .btn-icon-text in a window: 25px; the close is its 18x16 icon-only box. */
+      QDialog QPushButton, QDialog QPushButton[accentCta="true"], QDialog QPushButton[successCta="true"],
+      QDialog QPushButton[dangerCta="true"], QDialog QPushButton[modalDangerGhost="true"] {
+        padding: 1px 8px; min-height: 19px; max-height: 19px;
+      }
+      QPushButton#modalClosePill:focus { outline: none; }
+      QDialog QPushButton#modalClosePill { padding: 0; min-height: 12px; max-height: 12px; min-width: 14px; max-width: 14px; }
+      QFrame#modalDivider { background: %WC_SHADOW%; border-bottom: 1px solid %WC_HILIGHT%; min-height: 2px; max-height: 2px; }
+      QLabel#modalSection { color: %WC_INK%; letter-spacing: 0; font-weight: bold; }
+      QLabel#cropDims, QLabel#scriptDiag, QLabel#scriptMenuDiag,
+      QLabel#expCalWeekday, QLabel#expLegend, QLabel#hotkeyDefault { color: %WC_INK%; }
+      /* Secondary words take the browser's --text-muted (webcore: --wc-muted), as there. */
+      QLabel#modalFooterHint, QLabel#llmStatus, QLabel#llmKeyStatus, QLabel#modalEmpty,
+      QFrame#llmNoteBox QLabel { color: %WC_MUTED%; }
+      QLabel#modalPromptReason { color: #800000; }
+      QWidget[vsRow="true"], QWidget[infoRow="true"], QWidget[hotkeyRow="true"] { border-bottom: 1px solid %WC_LIGHT%; }
+      QWidget[hotkeyRow="true"]:hover, QWidget[infoRow="true"]:hover { background: %WC_LIGHT%; }
+      /* Browser webcore .hotkey-head: a raised strip with bold captions, not a hairline. */
+      QWidget#hotkeyHead {
+        background: %WC_FACE%; border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QLabel#hotkeyTh { font-weight: bold; color: %WC_INK%; }
+      QLabel#hotkeyCell { border-radius: 0; }
+      QLabel#hotkeyCell[capturing="true"] { background: %WC_SELECT%; color: %WC_ON_SELECT%; border: 1px solid %WC_DARK%; }
+      QFrame#expCalendar, QFrame#llmNoteBox { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QToolButton#expCalDay { border-radius: 0; color: %WC_INK%; border: 2px solid transparent; }
+      QToolButton#expCalDay:hover { background: %WC_LIGHT%; }
+      QToolButton#expCalDay[expDay="today"] { border-color: #008000; }
+      QFrame#expSwatchToday { border: 2px solid #008000; border-radius: 0; }
+      QFrame#expSwatchExpiry { border: 2px solid %WC_DARK%; border-radius: 0; background: %WC_LIGHT%; }
+      QFrame[kwChip="true"] { border: 1px solid %WC_SHADOW%; border-radius: 0; background: %WC_WINDOW%; }
+      QPushButton[kwChipX="true"] { border: 0; background: transparent; }
+      QPushButton[kwChipX="true"]:hover { background: %WC_LIGHT%; }
+      QPushButton#biPresetWhite, QPushButton#biPresetBlack { border-radius: 0; }
+      QWidget#scriptMenuPanel QPushButton, QWidget#chatMenuPanel QPushButton#chatSuggestChip { border-radius: 0; }
+      QWidget#searchComboSearchRow { border-bottom: 1px solid %WC_SHADOW%; }
+      QListView#searchComboList { font-size: %WC_FONT_PX%px; }
+      QListView#searchComboList::item { color: %WC_INK%; border-radius: 0; }
+      /* The value the list already holds and the row under the pointer are two different things:
+         the pointer's row takes the navy bar, the current value a grey one. */
+      QListView#searchComboList::item:selected:!hover { background: %WC_SHADOW%; color: %WC_ON_SELECT%; }
+      QListView#searchComboList::item:hover { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QLabel#searchComboNoMatch { color: %WC_MUTED%; font-size: %WC_FONT_PX%px; }
+

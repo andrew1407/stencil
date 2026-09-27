@@ -1,4 +1,4 @@
-// Fullscreen is available on an EMPTY editor (js/core/drawingApp.js updateButtons, js/ui/layer.js
+// Fullscreen is available on an EMPTY editor (js/ui/control/state.js updateButtons, js/ui/fullscreen/layer.js
 // toggleFullscreen): the empty canvas carries the "＋ Blank image" card and the whole toolbar, which is when
 // the extra room is most useful, so no route — the button, Alt+F, the context menu, `stencil.fullscreen` — is
 // gated on `app.image`. The other image-dependent controls (zoom, undo/redo, crop…) stay off.
@@ -10,29 +10,14 @@ import assert from 'node:assert/strict';
 // .style.display on anything it reaches for and we can read it back.
 import { installDom } from '../helpers/dom.js';
 import { COMPONENTS_CSS } from '../helpers/css.js';
+import { makeControlApp } from '../helpers/controlStateRig.js';
 
 const makeDom = () => {
   const doc = installDom({ autoCreateById: true });
   return { el: doc.getElementById, bodyClasses: doc.body.classes };
 };
 
-const makeApp = (over = {}) => ({
-  image: null,
-  lines: [],
-  isDrawing: false,
-  currentLine: null,
-  history: { canUndo: () => false, canRedo: () => false },
-  remoteLink: null,
-  compareReadOnly: () => false,
-  openInAvailable: () => false,
-  syncDrawToggleUI() {},
-  syncDrawModeUI() {},
-  updateStencilSyncUI() {},
-  updateIncognitoUI() {},
-  updateProjectTitle() {},
-  renderLinesList() {},
-  ...over,
-});
+const makeApp = makeControlApp;
 
 test('the fullscreen button stays enabled with no image loaded', async () => {
   const { el, bodyClasses } = makeDom();

@@ -1,5 +1,5 @@
 // Drift guards for the data the desktop READS instead of embedding: themeTokens.json → theme.cpp's
-// Palette and its token helpers, in both themes; resources/app.qss → buildStylesheet's token map;
+// Palette and its token helpers, in both themes; resources/qss/app/ → buildStylesheet's token map;
 // mediaTypes.json `surfaces.desktop` → mediaTypes.cpp's two suffix sniffers; llm/systemPrompt.json
 // contextSuffix* → the chat's per-turn context line; and the committed "Open in…" template → the
 // deep-link scheme. A broken app.qrc alias parses to nothing, so every block fails fast.
@@ -10,6 +10,7 @@
 #include "theme.hpp"
 
 #include <QApplication>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -78,18 +79,23 @@ int main(int argc, char** argv) {
     sameColor(p.hoverRing, vis.value("hoverRingColor").toString(), "DEFAULT_VISUALS.hoverRingColor");
   }
 
-  // ── app.qss → the token map in theme.cpp ──────────────────────────────────
+  // ── qss/app/ → the token map in theme.cpp ─────────────────────────────────
   {
-    QFile qss(QStringLiteral(":/qss/app.qss"));
-    check(qss.open(QIODevice::ReadOnly), "app.qss qrc alias resolves");
-    const QString sheet = QString::fromUtf8(qss.readAll());
-    check(sheet.size() > 40000, "app.qss carries the whole stylesheet");
+    for (const QString& name : {QStringLiteral("app"), QStringLiteral("webcore")}) {
+      QStringList listed = QDir(":/qss/" + name).entryList(QDir::Files), loaded;
+      for (const QString& piece : stylesheetPieces(name)) loaded << piece + ".qss";
+      listed.sort();
+      loaded.sort();
+      check(!listed.isEmpty() && listed == loaded, "every qrc piece of the sheet loads, once");
+    }
+    const QString sheet = readStylesheet(QStringLiteral("app"));
+    check(sheet.size() > 40000, "the app pieces join into the whole stylesheet");
     static const QRegularExpression token(QStringLiteral("%[A-Z0-9_]+%"));
     check(token.match(sheet).hasMatch(), "the template still spends %TOKEN% placeholders");
     for (const bool dark : {false, true}) {
       const QString built = buildStylesheet(dark, QStringLiteral("violet"));
       const QRegularExpressionMatch left = token.match(built);
-      check(!left.hasMatch(), "every %TOKEN% in app.qss is one theme.cpp fills");
+      check(!left.hasMatch(), "every %TOKEN% in qss/app/ is one theme.cpp fills");
       if (left.hasMatch()) std::printf("       unfilled: %s\n", qPrintable(left.captured(0)));
       check(built.size() > sheet.size() - 4000, "the built sheet is the template, filled");
     }

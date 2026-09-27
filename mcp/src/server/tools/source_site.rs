@@ -2,52 +2,65 @@
 
 use rmcp::model::CallToolResult;
 use rmcp::ErrorData as McpError;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use super::{err_result, ok_result};
 use crate::args::ScrapeParams;
+use crate::confine::Roots;
 use crate::outcome::ScrapedFile;
 use crate::pipeline;
 
 /// The `source_site` structured payload: the destination directory, the scraped page's host,
 /// and every downloaded file — `ScrapedFile`'s `Serialize` shapes each `{path,width,height}`.
-#[derive(Serialize)]
-struct ScrapePayload<'a> {
+#[derive(Serialize, JsonSchema)]
+pub struct ScrapePayload<'a> {
     dir: Option<&'a str>,
     host: Option<&'a str>,
     files: &'a [ScrapedFile],
 }
 
-/// The tool's whole body: guard the surface, run the scrape, then report every file.
-pub async fn run(params: ScrapeParams) -> Result<CallToolResult, McpError> {
+/// The tool's whole body: guard the surface, place the directory inside the roots, run the
+/// scrape, then report every file.
+pub async fn run(roots: &Roots, mut params: ScrapeParams) -> Result<CallToolResult, McpError> {
     // Scraping only writes files locally: reject any other surface before the CLI runs.
     if let Err(message) = params.validate_surface() {
         return Ok(err_result(message));
     }
+    if let Err(error) = crate::args::build_scrape_argv(&params) {
+        return Ok(err_result(error.to_string()));
+    }
+    let dir = params.output.clone().unwrap_or_else(|| ".".to_string());
+    let (root, dir) = match roots.place("output", &dir) {
+        Ok(placed) => placed,
+        Err(message) => return Ok(err_result(message)),
+    };
+    params.output = Some(dir.to_string_lossy().into_owned());
 
-    let result = match pipeline::run_scrape(&params).await {
+    let root = root.to_string_lossy();
+    let result = match pipeline::run_scrape(&params, &root).await {
         Ok(result) => result,
         Err(error) => return Ok(err_result(error.to_string())),
     };
 
-        // A human-readable summary: one line per file, then the count/host/dir tail.
-        use std::fmt::Write;
-        let host = result.host.as_deref().unwrap_or("the page");
-        let mut summary = String::new();
-        for file in &result.files {
-            match (file.width, file.height) {
-                (Some(w), Some(h)) => {
-                    let _ = writeln!(summary, "wrote {} ({w}x{h} px)", file.path);
-                }
-                _ => {
-                    let _ = writeln!(summary, "wrote {}", file.path);
-                }
+    // A human-readable summary: one line per file, then the count/host/dir tail.
+    use std::fmt::Write;
+    let host = result.host.as_deref().unwrap_or("the page");
+    let mut summary = String::new();
+    for file in &result.files {
+        match (file.width, file.height) {
+            (Some(w), Some(h)) => {
+                let _ = writeln!(summary, "wrote {} ({w}x{h} px)", file.path);
+            }
+            _ => {
+                let _ = writeln!(summary, "wrote {}", file.path);
             }
         }
-        let _ = write!(summary, "scraped {} file(s) from {host}", result.files.len());
-        if let Some(dir) = &result.dir {
-            let _ = write!(summary, " into {dir}");
-        }
+    }
+    let _ = write!(summary, "scraped {} file(s) from {host}", result.files.len());
+    if let Some(dir) = &result.dir {
+        let _ = write!(summary, " into {dir}");
+    }
 
     let payload = ScrapePayload {
         dir: result.dir.as_deref(),

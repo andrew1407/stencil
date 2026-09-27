@@ -101,7 +101,7 @@
       "name": "variable.other.key.stc"
     },
     "number": {
-      "match": "(?i)(?<![A-Za-z0-9_.])(-?\\d+(?:\\.\\d+)?)(px|cm|mm|in|%)?",
+      "match": "(?i)(?<![A-Za-z0-9_.])(-?\\d+(?:\\.\\d+)?)(px|cm|mm|in|%)?(?![A-Za-z0-9_.])",
       "captures": {
         "1": { "name": "constant.numeric.stc" },
         "2": { "name": "keyword.other.unit.stc" }

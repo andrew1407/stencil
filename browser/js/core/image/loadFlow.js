@@ -1,6 +1,6 @@
 import { settleLoadedImage } from './settle.js';
 
-// DrawingApp.loadImageFromFile's body: the session bookkeeping a load does up front, then
+// Loading a picture into the editor: the session bookkeeping a load does up front, then
 // the decode. What the decoded image settles is settle.js.
 
 // loadImageFromFile decodes async with no promise, so poll. `previous` = the image before the

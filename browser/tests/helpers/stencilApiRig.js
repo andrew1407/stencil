@@ -1,5 +1,7 @@
 // Shared rig for the stencilApi.test.js family: the inert DOM stubs the facade touches and
-// the mock DrawingApp that records every call while really mutating its lines.
+// the mock DrawingApp that records every call while really mutating its lines. The core
+// functions the facade calls (line edits, draw mode, page metrics, the load and blank flows) run
+// for real against it; their collaborators record.
 import { installDom, createStubElement } from './dom.js';
 
 // Inert DOM stubs so the few document/window-touching paths (the viewport pan, color
@@ -14,12 +16,23 @@ let bodyFullscreen = false;
 // applied class is observable.
 export const chatTranscript = createStubElement();
 export const ctxAssistTranscript = createStubElement();
+// The blank flow paints its fill on a scratch canvas: record the size and fill, answer a PNG blob.
+export const blankCanvases = [];
+const scratchCanvas = () => {
+  const cnv = { width: 0, height: 0, fills: [] };
+  const ctx = { fillStyle: '', fillRect: (x, y, w, h) => cnv.fills.push([ctx.fillStyle, x, y, w, h]) };
+  cnv.getContext = () => ctx;
+  cnv.toBlob = (cb, type) => cb(new Blob(['png'], { type }));
+  blankCanvases.push(cnv);
+  return cnv;
+};
 installDom({
   getElementById: (id) => (id === 'canvas-viewport' ? viewport
     : id === 'chat-transcript' ? chatTranscript
     : id === 'ctx-assist-transcript' ? ctxAssistTranscript
     : null),
   body: { classList: { contains: (c) => c === 'fullscreen-mode' && bodyFullscreen } },
+  createElement: (tag) => (tag === 'canvas' ? scratchCanvas() : createStubElement(tag)),
 });
 
 export const { createStencil } = await import('../../js/console/stencilApi.js');
@@ -37,6 +50,8 @@ export const makeApp = (over = {}) => {
     lines: [],
     currentLine: null,
     coordLineIdx: -1,
+    selectedLineIdx: -1, selectedLines: [], focusedPtIdx: -1, hoveredPtIdx: -1,
+    hoverPt: null, hoverLineIdx: -1, listHoverLineIdx: -1,
     image: null,
     originalImage: null,
     scale: 1,
@@ -51,19 +66,24 @@ export const makeApp = (over = {}) => {
     tooltipEnabled: true, tooltipShowPage: true, tooltipShowScreen: true, tooltipShowCoords: true,
     imageBaseName: 'pic.png', imageSource: null, imageResource: null,
 
-    tabs: { onPeers() {}, projectsChanged: rec('projectsChanged') },
-    renderer: { redraw: rec('redraw') },
+    tabs: { onPeers() {}, projectsChanged: rec('projectsChanged'), reportActive: rec('reportActive'),
+      reportIncognito: rec('reportIncognito') },
+    renderer: { redraw: rec('redraw'), requestRedraw: rec('requestRedraw') },
     coordTable: { update: rec('coordTableUpdate') },
     zoomPan: {
       clampScale: (n) => n,
       zoomAroundCenter: rec('zoomAroundCenter'),
       zoomToImagePoint: rec('zoomToImagePoint'),
       fitToWindow: rec('fitToWindow'),
+      syncViewportHeight: rec('syncViewportHeight'),
     },
     storage: {
       incognito: false,
       temporary: true,
       save: rec('save'),
+      saveSoon: rec('saveSoon'),
+      newTemporary: rec('newTemporary'),
+      promoteTemporaryToProject: rec('promoteTemporaryToProject'),
       store: {
         list: () => app._metas,
         getMeta: (id) => app._metas.find((m) => m.id === id) || null,
@@ -78,39 +98,25 @@ export const makeApp = (over = {}) => {
     _projects: {},
 
     saveHistory: rec('saveHistory'),
-    setPointCoord(lineIdx, ptIdx, axis, v) {
-      calls.push(['setPointCoord', lineIdx, ptIdx, axis, v]);
-      const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
-      if (line && line.points[ptIdx]) line.points[ptIdx][axis] = Number(v);
-    },
-    removePoint(lineIdx, ptIdx) {
-      calls.push(['removePoint', lineIdx, ptIdx]);
-      const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
-      if (!line) return;
-      line.points.splice(ptIdx, 1);
-      if (!line.points.length && lineIdx !== -1) app.lines.splice(lineIdx, 1);
-    },
-    removeLine(idx) {
-      calls.push(['removeLine', idx]);
-      app.lines.splice(idx, 1);
-      app.saveHistory(); app.renderer.redraw();
-    },
+    compareReadOnly: () => false,
+    deselectLine: rec('deselectLine'),
+    hideSelectionPanels: rec('hideSelectionPanels'),
+    syncDrawModeUI: rec('syncDrawModeUI'),
     setColor: rec('setColor'), setThickness: rec('setThickness'), setPointSize: rec('setPointSize'),
     setLineStyle: rec('setLineStyle'), setShowPoints: rec('setShowPoints'), setShowLines: rec('setShowLines'),
     setImageFilter: rec('setImageFilter'), setFilterColor: rec('setFilterColor'), setUnit: rec('setUnit'),
+    setFilter: rec('setFilter'), filterStep: (fn) => fn(),
     setPageSize: rec('setPageSize'), setCustomPageWidth: rec('setCustomPageWidth'), setCustomPageHeight: rec('setCustomPageHeight'),
-    setTheme: rec('setTheme'), setDrawMode: rec('setDrawMode'), setHoldDrawDelay: rec('setHoldDrawDelay'), setAllowFormulas: rec('setAllowFormulas'),
+    setTheme: rec('setTheme'), setHoldDrawDelay: rec('setHoldDrawDelay'), setAllowFormulas: rec('setAllowFormulas'),
     setAccent(key) { calls.push(['setAccent', key]); app.accent = key; app.customAccent = null; },
     setCustomAccent(hex) { calls.push(['setCustomAccent', hex]); app.customAccent = hex; return hex; },
     setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
     rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
-    flipSelectedLine: rec('flipSelectedLine'), rotateSelectedLineQuarter: rec('rotateSelectedLineQuarter'),
-    startDrawingMode: rec('startDrawingMode'), stopDrawingMode: rec('stopDrawingMode'),
     clearAllLines: rec('clearAllLines'), saveImage: rec('saveImage'),
     copyLayoutToClipboard: rec('copyLayoutToClipboard'), copyImageToClipboard: rec('copyImageToClipboard'),
     downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
     installLayout: rec('installLayout'),
-    newEditor: rec('newEditor'), updateIncognitoUI: rec('updateIncognitoUI'),
+    updateIncognitoUI: rec('updateIncognitoUI'),
     renameProject: rec('renameProject'), renewProject: rec('renewProject'),
     setProjectExpiration(id, opts) {
       calls.push(['setProjectExpiration', id, opts]);
@@ -145,10 +151,7 @@ export const makeApp = (over = {}) => {
     },
     closeProject: rec('closeProject'), switchToProject: rec('switchToProject'),
     toggleFullscreen() { calls.push(['toggleFullscreen']); bodyFullscreen = !bodyFullscreen; },
-    pixelToPageCoords(x, y) { calls.push(['pixelToPageCoords', x, y]); return { x: x / 10, y: y / 10 }; },
-    getPageDimensions: () => ({ width: 20, height: 30 }),
     canvas: { width: 200, height: 300 },
-    createBlankImage(opts) { calls.push(['createBlankImage', opts]); app.image = { width: opts.width || 100, height: opts.height || 100 }; },
     isDrawing: false,
     ...over,
   };
@@ -156,7 +159,7 @@ export const makeApp = (over = {}) => {
   // the flat recorded method so lastCall(app, name) assertions still hold.
   const delegate = (names) => Object.fromEntries(names.map((n) => [n, (...a) => app[n]?.(...a)]));
   app.settings = delegate(['setColor', 'setThickness', 'setPointSize', 'setLineStyle', 'setShowPoints',
-    'setShowLines', 'setImageFilter', 'setFilterColor', 'setPageSize', 'setCustomPageWidth',
+    'setShowLines', 'setImageFilter', 'setFilterColor', 'setFilter', 'filterStep', 'setPageSize', 'setCustomPageWidth',
     'setCustomPageHeight', 'setUnit', 'setAllowFormulas', 'setFormula', 'setTooltipOption', 'setVisualColor']);
   app.export = delegate(['saveImage', 'shareImage', 'downloadJSON', 'uploadJSON',
     'copyImageToClipboard', 'copyLayoutToClipboard', 'applyPastedLayout', 'installLayout']);
@@ -164,6 +167,12 @@ export const makeApp = (over = {}) => {
     'rebuildCroppedImage', 'rotateImage', 'applyCrop']);
   app.remoteSync = delegate(['scheduleRemoteSync', 'onServerProjectEvent', 'reloadRemoteActive', 'saveToServer']);
   app.input = delegate(['holdAnchorPoint', 'setHoldDrawDelay']);
+  app.accents = delegate(['setTheme', 'setAccent', 'setCustomAccent', 'previewAccent', 'endAccentPreview']);
+  app.projectTransfer = delegate(['openRemoteProject', 'switchToProject', 'openProjectInNewTab',
+    'openRemoteProjectInNewTab', 'clearAllProjects', 'renewProject', 'setProjectExpiration', 'renameProject',
+    'setProjectColor', 'setProjectKeywords', 'setProjectDescription', 'setProjectBlankColor', 'removeProject',
+    'moveProjectToServer', 'copyProjectToServer', 'moveProjectToLocal', 'copyServerProjectToLocal',
+    'copyServerProjectToIncognito']);
   return app;
 };
 

@@ -80,10 +80,10 @@ func TestInProcSlowSubscriberDropsNotBlocks(t *testing.T) {
 	ctx := context.Background()
 	_, cancel := b.Subscribe("c") // never drained
 	defer cancel()
-	// Far more than subBuffer; must not block.
+	// Far more than DefaultSubBuffer; must not block.
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < subBuffer*4; i++ {
+		for i := 0; i < DefaultSubBuffer*4; i++ {
 			b.Publish(ctx, "c", frame("x"))
 		}
 		close(done)

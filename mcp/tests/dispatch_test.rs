@@ -23,8 +23,84 @@ async fn tools_list_reports_every_declared_tool() {
     names.sort_unstable();
     assert_eq!(
         names,
-        ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt", "stencil_script"]
+        [
+            "source_site",
+            "stencil_edit",
+            "stencil_probe",
+            "stencil_project_file",
+            "stencil_project_update",
+            "stencil_projects",
+            "stencil_prompt",
+            "stencil_script",
+            "stencil_script_check",
+            "stencil_script_emit",
+            "stencil_script_plan",
+        ]
     );
+}
+
+/// Every write is fenced into the server's roots — here the working directory, with no
+/// client roots and no STENCIL_MCP_ROOTS: an absolute path elsewhere is refused unrun.
+#[tokio::test]
+async fn a_stencil_edit_outside_the_roots_is_refused() {
+    let h = Harness::new();
+    let outside = "/stencil-mcp-no-such-root/escaped.png";
+    let result = h
+        .call("stencil_edit", json!({ "blank": { "width": 4, "height": 4 }, "output": outside }))
+        .await
+        .expect("a refusal is a tool error");
+
+    assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
+    let message = text_of(&result);
+    assert!(message.contains("outside the allowed roots"), "got: {message}");
+    assert!(!std::path::Path::new(outside).exists());
+}
+
+/// With no operator allowlist, a model-chosen server URL is refused before anything runs.
+#[tokio::test]
+async fn a_server_url_without_the_operator_allowlist_is_refused() {
+    let h = Harness::new();
+    let server = "http://attacker.test:8090";
+    let call = json!({ "input": "Plans", "server": server, "output": "p.png" });
+    let result = h.call("stencil_edit", call).await.expect("a refusal is a tool error");
+
+    let message = text_of(&result);
+    assert!(message.contains("STENCIL_MCP_SERVERS"), "{message}");
+    assert!(message.contains("none is configured"), "{message}");
+}
+
+/// A call the client already cancelled answers at once as a cancelled tool error.
+#[tokio::test]
+async fn a_cancelled_call_answers_as_cancelled() {
+    let h = Harness::new();
+    let context = h.context();
+    context.ct.cancel();
+    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let request = serde_json::from_value(json!({
+        "name": "stencil_probe",
+        "arguments": { "input": png },
+    }))
+    .unwrap();
+    let result = h.server.call_tool(request, context).await.expect("a tool result");
+
+    assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
+    assert!(text_of(&result).contains("cancelled"), "got: {}", text_of(&result));
+}
+
+/// A success carries the payload twice: as a JSON text block and as `structuredContent`.
+#[tokio::test]
+async fn a_probe_answers_with_structured_content() {
+    let h = Harness::new();
+    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let result = h.call("stencil_probe", json!({ "input": png })).await.expect("a result");
+
+    let wire = serde_json::to_value(&result).unwrap();
+    let structured = &wire["structuredContent"];
+    assert_eq!((structured["width"].as_u64(), structured["height"].as_u64()), (Some(16), Some(12)));
+    assert_eq!(structured["format"], "png");
+    assert!(structured["bytes"].as_u64().is_some_and(|b| b > 0), "{structured}");
+    assert_eq!(&common::dispatch::payload_of(&result), structured);
+    assert!(text_of(&result).starts_with("16x12 · png"), "got: {}", text_of(&result));
 }
 
 /// A `tools/call` for `stencil_edit` runs the real body into `args::build_argv`: the unknown

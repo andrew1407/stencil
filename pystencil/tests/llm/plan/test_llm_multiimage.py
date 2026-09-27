@@ -9,11 +9,12 @@ import unittest
 
 from pystencil.llm import LlmPlanError, execute_op_plan, parse_op_plan
 from tests.helpers.stubs import _SavingStubEditor, _StubEditor, _plan_json
+from tests.helpers.nativecase import NativeCase
 
 # ── §2.1 multi-image ops: `image` switches to a turn attachment, `save` persists ──
 
 
-class MultiImageOpValidationTest(unittest.TestCase):
+class MultiImageOpValidationTest(NativeCase):
   def test_image_and_save_shapes(self) -> None:
     plan = parse_op_plan(
       _plan_json(
@@ -73,11 +74,11 @@ class MultiImageOpValidationTest(unittest.TestCase):
       )
       self.assertEqual(plan.variants, [])
       self.assertEqual(len(plan.warnings), 1)
-      self.assertIn("top-level only", plan.warnings[0])
-      self.assertIn('dropped variant 1 ("v")', plan.warnings[0])
+      self.assertIn("is a top-level action only (§2.1)", plan.warnings[0])
+      self.assertIn('Dropped variant 1 ("v")', plan.warnings[0])
 
 
-class MultiImageOpExecutionTest(unittest.TestCase):
+class MultiImageOpExecutionTest(NativeCase):
   """Executor half: attachments, per-action skip warnings, and .stencil naming."""
 
   def setUp(self) -> None:

@@ -1,9 +1,8 @@
 package filestore
 
-// Storage-quota accounting, kept apart from the byte moving: the store asks the
-// meter what a write costs and hands bytes back when one is undone, and never
-// touches a counter itself. STORAGE_QUOTA_BYTES=0 installs the no-op meter, so
-// the unlimited case costs neither a lock nor a directory walk.
+// Storage-quota accounting, kept apart from the byte moving: the store hands the meter each filesystem
+// change together with how to measure it, and never touches a counter itself. With both quotas 0 the
+// no-op meter is installed, so the unlimited case costs neither a lock nor a directory walk.
 
 import (
 	"io/fs"
@@ -13,66 +12,79 @@ import (
 	"sync"
 )
 
-// usageMeter accounts the aggregate bytes held under the store root.
+// usageMeter accounts the aggregate bytes held under the store root. A capped meter runs each change
+// under its lock, measuring before and after, so two writes of one kind cannot both credit the old bytes.
 type usageMeter interface {
-	// reserveReplacing accounts n bytes about to land for (dir, kind), crediting whatever they replace, and
-	// returns the accounted delta. Hand the delta back to release if the write then fails.
-	reserveReplacing(dir, kind string, n int64) (int64, error)
-	// release gives delta bytes back.
-	release(delta int64)
-	// dirBytes is what removing dir would free.
-	dirBytes(dir string) int64
+	// ownedDirs asks owned for the owner's directories only when a per-owner quota needs them.
+	ownedDirs(owned func() ([]string, error)) ([]string, error)
+	// commit runs swap, which replaces whatever (dir, kind) held with n new bytes; refused past a quota.
+	// owned lists the directories of every project dir's owner holds (nil = no owner).
+	commit(dir, kind string, n int64, owned []string, swap func() error) error
+	// free runs remove, crediting what measure reports it freed.
+	free(measure func() int64, remove func() error) error
 }
 
 // unmetered is the quota-off meter: every write fits, nothing is counted.
 type unmetered struct{}
 
-func (unmetered) reserveReplacing(string, string, int64) (int64, error) { return 0, nil }
-func (unmetered) release(int64)                                         {}
-func (unmetered) dirBytes(string) int64                                 { return 0 }
+func (unmetered) ownedDirs(func() ([]string, error)) ([]string, error) { return nil, nil }
+func (unmetered) commit(_, _ string, _ int64, _ []string, swap func() error) error {
+	return swap()
+}
+func (unmetered) free(_ func() int64, remove func() error) error { return remove() }
 
-// capped meters against an aggregate byte cap.
+// capped meters against the aggregate cap, one owner's cap, or both; a zero quota is no cap.
 type capped struct {
-	quota int64
-	mu    sync.Mutex
-	usage int64 // total bytes under root, guarded by mu
+	quota    int64
+	perOwner int64
+	mu       sync.Mutex
+	usage    int64 // total bytes under root, guarded by mu; kept only under an aggregate quota
 }
 
-// newCapped starts the counter by walking the root once; Put/RemoveKind/Remove
-// keep it current after that.
-func newCapped(root string, quota int64) (*capped, error) {
-	usage, err := dirSize(root)
-	if err != nil {
-		return nil, err
+// newCapped starts the counter by walking the root once; commit/free keep it current after that.
+func newCapped(root string, q Quotas) (*capped, error) {
+	c := &capped{quota: q.Total, perOwner: q.PerOwner}
+	if q.Total > 0 {
+		usage, err := dirSize(root)
+		if err != nil {
+			return nil, err
+		}
+		c.usage = usage
 	}
-	return &capped{quota: quota, usage: usage}, nil
+	return c, nil
 }
 
-// reserveReplacing takes the credit and the reservation under one lock, so two
-// concurrent writes cannot both slip past the cap.
-func (c *capped) reserveReplacing(dir, kind string, n int64) (int64, error) {
-	delta := n - kindBytes(dir, kind)
+func (c *capped) ownedDirs(owned func() ([]string, error)) ([]string, error) {
+	if c.perOwner <= 0 || owned == nil {
+		return nil, nil
+	}
+	return owned()
+}
+
+func (c *capped) commit(dir, kind string, n int64, dirs []string, swap func() error) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.usage+delta > c.quota {
-		return 0, ErrQuotaExceeded
+	before := kindBytes(dir, kind)
+	if c.quota > 0 && c.usage+n-before > c.quota {
+		return ErrQuotaExceeded
 	}
-	c.usage += delta
-	return delta, nil
+	if len(dirs) > 0 && ownedBytes(dir, dirs)+n-before > c.perOwner {
+		return ErrQuotaExceeded
+	}
+	if err := swap(); err != nil {
+		return err
+	}
+	c.usage += kindBytes(dir, kind) - before // exact even when a stale sibling could not be removed
+	return nil
 }
 
-func (c *capped) release(delta int64) {
-	if delta == 0 {
-		return
-	}
+func (c *capped) free(measure func() int64, remove func() error) error {
 	c.mu.Lock()
-	c.usage -= delta
-	c.mu.Unlock()
-}
-
-func (c *capped) dirBytes(dir string) int64 {
-	n, _ := dirSize(dir) // 0 when the directory does not exist
-	return n
+	defer c.mu.Unlock()
+	before := measure()
+	err := remove()
+	c.usage -= before - measure()
+	return err
 }
 
 // kindBytes sums the bytes currently held for kind (any extension) in dir.
@@ -90,7 +102,31 @@ func kindBytes(dir, kind string) int64 {
 	return n
 }
 
-// dirSize sums the sizes of every regular file under dir.
+// ownedBytes sums the committed bytes of dir and every directory in dirs, each once; an upload's temp
+// file is not yet stored, so it counts against nobody.
+func ownedBytes(dir string, dirs []string) int64 {
+	seen := map[string]bool{}
+	var n int64
+	for _, d := range append([]string{dir}, dirs...) {
+		if seen[d] {
+			continue
+		}
+		seen[d] = true
+		if entries, err := os.ReadDir(d); err == nil {
+			for _, e := range entries {
+				if e.IsDir() || strings.HasPrefix(e.Name(), tmpPrefix) {
+					continue
+				}
+				if info, err := e.Info(); err == nil {
+					n += info.Size()
+				}
+			}
+		}
+	}
+	return n
+}
+
+// dirSize sums the sizes of every regular file under dir (0 when it does not exist).
 func dirSize(dir string) (int64, error) {
 	var n int64
 	err := filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
@@ -104,5 +140,8 @@ func dirSize(dir string) (int64, error) {
 		n += info.Size()
 		return nil
 	})
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
 	return n, err
 }

@@ -5,7 +5,7 @@ import { highlightColorValue } from '../lib/highlight/color.js';
 import { toggleStencilHighlight } from '../lib/highlight/highlight.js';
 import { icon } from '../lib/icons.js';
 import { MSG } from '../lib/messages.js';
-import { watchNumericInputs } from '../lib/control/numericInput.js';
+import { watchNumericInputs } from '../lib/numericWatch.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { setTip } from '../lib/tip/tip.js';
@@ -23,7 +23,7 @@ import './pin/actions.js';
 import './dragWiring.js';
 import './list/sections.js';
 import './editor/section.js';
-import './assistantControls.js';
+import './assistant/controls.js';
 import './storageSync.js';
 
 installDblReset(document);

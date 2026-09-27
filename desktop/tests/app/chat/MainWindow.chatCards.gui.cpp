@@ -20,24 +20,24 @@ class MainWindowGuiTest : public QObject {
       win.show();
       QVERIFY(QTest::qWaitForWindowExposed(&win));
       if (panel) {
-        win.ensureChatMenuPanel();
-        QVERIFY(win.chatMenuPanel);
-        win.chatMenuPanel->setGeometry(20, 20, 340, 640);
-        win.chatMenuPanel->show();
-        settleLayout(win.chatMenuPanel, 300);   // its width arrives before a grab can read it
+        win.chatSession->ensureChatMenuPanel();
+        QVERIFY(win.chatSession->chatMenuPanel);
+        win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 640);
+        win.chatSession->chatMenuPanel->show();
+        settleLayout(win.chatSession->chatMenuPanel, 300);   // its width arrives before a grab can read it
       } else {
-        win.actChat->setChecked(true);
+        win.acts.chat->setChecked(true);
         QTRY_VERIFY(win.chatDock->isVisible());
       }
       // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers its rows
       // inside itself. Dock rows carry a "chatCard…" name, panel rows the "chatMoreBtn" property.
       const auto dust = [&win, panel, DUST] {
-        return panel ? win.chatMenuPanel->findChild<QWidget*>(DUST)
+        return panel ? win.chatSession->chatMenuPanel->findChild<QWidget*>(DUST)
                      : win.findChild<QWidget*>(DUST);
       };
       const auto rows = [&win, panel] {
         QList<QFrame*> out;
-        QWidget* surface = panel ? static_cast<QWidget*>(win.chatMenuPanel) : win.chatDock;
+        QWidget* surface = panel ? static_cast<QWidget*>(win.chatSession->chatMenuPanel) : win.chatDock;
         for (QFrame* f : surface->findChildren<QFrame*>())
           if (panel ? f->property("chatMoreBtn").isValid()
                     : f->objectName().startsWith(QLatin1String("chatCard")))
@@ -51,7 +51,7 @@ class MainWindowGuiTest : public QObject {
       QVector<std::function<void()>> appends;
       if (panel) {
         appends = {[&win] {
-          win.chatMirror(QStringLiteral("You"), QStringLiteral("crop it square"), false);
+          win.chatSession->chatMirror(QStringLiteral("You"), QStringLiteral("crop it square"), false);
         }};
       } else {
         appends = {
@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 620);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     QImage tall(300, 900, QImage::Format_ARGB32);
     tall.fill(Qt::yellow);

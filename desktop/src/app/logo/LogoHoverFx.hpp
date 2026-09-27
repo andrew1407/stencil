@@ -11,7 +11,7 @@ class QVariantAnimation;
 
 namespace stencil::gui {
 
-  // Logo hover fx (browser css/animations.css logoPulse / logoRaysSpin / logoRaysShimmer): a mouse-through overlay child
+  // Logo hover fx (browser css/animations/logoHover.css logoPulse / logoRaysSpin / logoRaysShimmer): a mouse-through overlay child
   // of the WINDOW paints in a margin around the logo so the toolbar never reflows. Runs ONLY while hovered.
   class LogoHoverFx : public QWidget {
     Q_OBJECT

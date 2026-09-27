@@ -1,7 +1,7 @@
 // Where the user last acted. A confirm dialog is raised by whatever the user just did, from
 // handlers that don't know they are about to ask, so the gesture's own point is recorded
 // here once for everyone. Not in ui/motion.js: a press is the right origin only for a
-// surface raised by that press (tests/motion.test.js pins that motion.js keeps no pointer state).
+// surface raised by that press (tests/ui/motion.test.js pins that motion.js keeps no pointer state).
 
 import { shownRect } from '../modal/flight.js';
 

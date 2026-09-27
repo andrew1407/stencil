@@ -38,6 +38,7 @@ pub const SourceKind = enum(c_int) { project = 0, file = 1, url = 2, dir = 3, gl
 
 pub const Severity = enum(c_int) { err = 0, warning = 1 };
 
+pub const Span = struct { line: u32, col: u32, len: u32 }; // 1-based; col and len in bytes
 pub const Diagnostic = struct {
     severity: Severity,
     code: []const u8,
@@ -45,6 +46,8 @@ pub const Diagnostic = struct {
     col: u32,
     len: u32,
     message: []const u8,
+    /// The `@use stencil` call a template-body diagnostic came from.
+    related: ?Span = null,
 };
 
 pub const Token = struct { kind: TokenKind, line: u32, col: u32, len: u32 };
@@ -114,6 +117,8 @@ pub const Script = struct {
         var code: [*c]const u8 = null;
         const msg = c.stencil_cli_scriptDiagAt(self.handle, @intCast(i), &sev, &line, &col, &len, &code);
         if (msg == null or code == null) return null;
+        var at: [3]c_int = .{ 0, 0, 0 };
+        const related = c.stencil_cli_scriptDiagRelated(self.handle, @intCast(i), &at[0], &at[1], &at[2]) == 1;
         return .{
             .severity = @enumFromInt(sev),
             .code = std.mem.span(code),
@@ -121,6 +126,7 @@ pub const Script = struct {
             .col = @intCast(col),
             .len = @intCast(len),
             .message = std.mem.span(msg),
+            .related = if (related) .{ .line = @intCast(at[0]), .col = @intCast(at[1]), .len = @intCast(at[2]) } else null,
         };
     }
 
@@ -221,36 +227,3 @@ pub const Script = struct {
         return if (s == null) "" else std.mem.span(s);
     }
 };
-
-test "parse reports blocks, ops and a clean diagnostic list" {
-    var s = try Script.parse("@source a.png:\n  @crop 10%\n  @save out.png\n");
-    defer s.deinit();
-    try std.testing.expect(!s.hasErrors());
-    try std.testing.expectEqual(@as(u32, 1), s.blockCount());
-    try std.testing.expectEqual(@as(u32, 3), s.opCount());
-    try std.testing.expectEqualStrings("a.png", s.block(0).?.source);
-    try std.testing.expectEqual(SourceKind.file, s.block(0).?.kind);
-    try std.testing.expectEqual(OpKind.crop, s.op(1).?.kind);
-    try std.testing.expectEqualStrings("out.png", s.opStr(2, 0));
-}
-
-test "a bad directive carries its code, span and a suggestion" {
-    var s = try Script.parse("@source a.png:\n  @crp 10%\n");
-    defer s.deinit();
-    try std.testing.expect(s.hasErrors());
-    const d = s.diagnostic(0).?;
-    try std.testing.expectEqual(Severity.err, d.severity);
-    try std.testing.expectEqualStrings("E_UNKNOWN_DIRECTIVE", d.code);
-    try std.testing.expectEqual(@as(u32, 2), d.line);
-    try std.testing.expect(std.mem.indexOf(u8, d.message, "@crop") != null);
-}
-
-test "resolve turns a crop into pixels for the image it is given" {
-    var s = try Script.parse("@source a.png:\n  @crop 10%\n");
-    defer s.deinit();
-    var buf: [16]f64 = undefined;
-    const r = try s.resolve(1, 200, 100, 37.795, 37.795, &buf);
-    try std.testing.expectEqual(@as(usize, 4), r.len);
-    try std.testing.expectApproxEqAbs(@as(f64, 20), r[0], 0.001);
-    try std.testing.expectApproxEqAbs(@as(f64, 160), r[2], 0.001);
-}

@@ -1,6 +1,6 @@
-// src/lib/content.js is a rule-for-rule PORT of browser/js/ui/tip/content.js. Its
+// src/lib/tip/content.js is a rule-for-rule PORT of browser/js/ui/tip/content.js. Its
 // behavioural cases (parse/render, keycaps, platform key vocabulary) live in
-// browser/tests/tipContent.test.js; portParity.test.js pins the two sources identical,
+// browser/tests/ui/tip/tipContent.test.js; portParity.test.js pins the two sources identical,
 // so the extension no longer duplicates that suite. What remains here is the
 // extension-specific wiring: OUR controller/CSS/pages have to use the module.
 

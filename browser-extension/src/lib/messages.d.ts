@@ -14,7 +14,7 @@ export type Answer<T> = ({ ok: true } & T) | { ok: false; error: string; [extra:
 /** How an image may be imported into an editor tab that already holds one. */
 export type ImportMode = 'new' | 'replace' | 'replace-keep' | 'ask';
 
-/** What one editor tab reports about itself (lib/editorTabs.js normalises it into a row). */
+/** What one editor tab reports about itself (lib/menu/editorTabs.js normalises it into a row). */
 export interface EditorState {
   projectId: string;
   projectName: string;

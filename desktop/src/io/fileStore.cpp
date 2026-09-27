@@ -1,16 +1,13 @@
 #include "fileStore.hpp"
 #include "fileStoreIo.hpp"
-#include "deferredWrite.hpp"
 #include "layoutCanon.hpp"
+#include "linesCodec.hpp"
 #include "localeUnit.hpp"
-#include <QDir>
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
-#include <QRegularExpression>
-#include <QStandardPaths>
+#include <algorithm>
 
 namespace stencil::gui {
 
@@ -46,20 +43,29 @@ namespace stencil::gui {
     return o;
   }
 
-  core::Line fileStore::lineFromJson(const QJsonObject& o) {
-    core::Line line;
-    for (const auto& v : o["points"].toArray()) {
-      const QJsonObject po = v.toObject();
-      line.points.push_back({po["x"].toDouble(), po["y"].toDouble()});
+  namespace {
+    // At most `cap` points: a longer line keeps its first ones (browser layout.js sanitizePoints).
+    core::Line cappedLine(const QJsonObject& o, int cap) {
+      core::Line line;
+      for (const auto& v : o["points"].toArray()) {
+        if (static_cast<int>(line.points.size()) >= cap) break;
+        const QJsonObject po = v.toObject();
+        line.points.push_back({po["x"].toDouble(), po["y"].toDouble()});
+      }
+      const defaultVisuals::Table& def = defaultVisuals::table();
+      line.color = o.value("color").toString(def.color).toStdString();
+      line.thickness = o.value("thickness").toDouble(def.thickness);
+      line.pointSize = o.value("pointSize").toDouble(def.pointSize);
+      line.style = o.value("style").toString(def.style).toStdString();
+      line.locked = o.value("locked").toBool(false);
+      line.fillColor = o.value("fillColor").toString("transparent").toStdString();
+      line.pointColor = o.value("pointColor").toString("").toStdString();
+      return line;
     }
-    line.color = o.value("color").toString("#FFFF00").toStdString();
-    line.thickness = o.value("thickness").toDouble(2.0);
-    line.pointSize = o.value("pointSize").toDouble(4.0);
-    line.style = o.value("style").toString("solid").toStdString();
-    line.locked = o.value("locked").toBool(false);
-    line.fillColor = o.value("fillColor").toString("transparent").toStdString();
-    line.pointColor = o.value("pointColor").toString("").toStdString();
-    return line;
+  }  // namespace
+
+  core::Line fileStore::lineFromJson(const QJsonObject& o) {
+    return cappedLine(o, core::abi::MAX_LINE_POINTS);
   }
 
   QJsonArray fileStore::linesToJson(const core::Lines& lines) {
@@ -68,9 +74,16 @@ namespace stencil::gui {
     return arr;
   }
 
+  // Every stored or received layout is bounded as layout.js sanitizeLines bounds it (the core's
+  // caps): the line that spends the last point is cut there, and every line after it dropped.
   core::Lines fileStore::linesFromJson(const QJsonArray& arr) {
     core::Lines lines;
-    for (const auto& v : arr) lines.push_back(lineFromJson(v.toObject()));
+    int budget = core::abi::MAX_LAYOUT_POINTS;
+    for (const auto& v : arr) {
+      if (static_cast<int>(lines.size()) >= core::abi::MAX_LAYOUT_LINES || budget <= 0) break;
+      lines.push_back(cappedLine(v.toObject(), std::min(core::abi::MAX_LINE_POINTS, budget)));
+      budget -= static_cast<int>(lines.back().points.size());
+    }
     return lines;
   }
 

@@ -1,14 +1,11 @@
 // ── uiStrings.json drift guard ──────────────────────────────────────────────
 // The asset is only real if the app RENDERS it: every string below is looked for in the
-// composed markup (or in the module that exports it), so moving one back into a literal —
+// composed markup (or in what the module that reads it does), so moving one back into a literal —
 // or rewording either copy — fails here. The §12 disclosure and the compare tooltip are
 // contract/UX text: they are pinned byte-for-byte on top of that.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 
 import UI_STRINGS from '../../js/config/uiStrings.json' with { type: 'json' };
 import HOTKEY_DEFS from '../../js/config/hotkeysConfig.json' with { type: 'json' };
@@ -18,8 +15,9 @@ import {
   SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED,
 } from '../../js/ui/chat/view.js';
 import { WINDOWS } from '../../js/console/stencilApi.js';
+import { dialogAdapters } from '../../js/llm/adapters/dialog.js';
+import { installDom, createStubElement } from '../helpers/dom.js';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const markup = layout();
 
 test('the chat suggestion chips come from the asset and reach the markup', () => {
@@ -86,13 +84,25 @@ test('the windows registry is the asset, and every row can actually be opened', 
   assert.equal(UI_STRINGS.windows.length, 13);
 });
 
-test('every §10 dialog button is a window opener, and the module reads the asset', () => {
+test('every §10 dialog button is a window opener, and the module reads the asset', async () => {
   const openers = new Set(UI_STRINGS.windows.flatMap((w) => [w.opener].flat()));
   for (const [name, id] of Object.entries(UI_STRINGS.dialogButtonIds)) {
     assert.ok(openers.has(id), `dialog "${name}" -> ${id} is not a window opener`);
     assert.ok(UI_STRINGS.windows.some((w) => w.key === name || (w.aliases || []).includes(name)),
       `dialog "${name}" names no window`);
   }
-  const src = readFileSync(resolve(ROOT, 'js/llm/adapters/dialog.js'), 'utf8');
-  assert.ok(src.includes('const DIALOG_BUTTON_IDS = UI_STRINGS.dialogButtonIds;'));
+  // The adapter presses exactly the asset's button for every dialog name.
+  const doc = installDom();
+  try {
+    const clicked = [];
+    for (const id of Object.values(UI_STRINGS.dialogButtonIds)) {
+      doc.register(id, createStubElement('button', { click: () => clicked.push(id) }));
+    }
+    const { openDialog } = dialogAdapters({});
+    for (const [name, id] of Object.entries(UI_STRINGS.dialogButtonIds)) {
+      clicked.length = 0;
+      assert.equal(await openDialog(name), null, `dialog "${name}" opens`);
+      assert.deepEqual(clicked, [id], `dialog "${name}" presses ${id}`);
+    }
+  } finally { doc.restore(); }
 });

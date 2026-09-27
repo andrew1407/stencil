@@ -18,6 +18,10 @@ public interface IEditingService
 
     Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default);
 
+    // A crop of the view the session renders, composed onto the stored one; the lines rescale, or
+    // clear on an album/portrait flip (a plan crop, llm-contract §2).
+    Task<UserSession> ComposeCropAsync(long userId, string spec, CancellationToken ct = default);
+
     // Accumulates clockwise, normalised to 0..3.
     Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default);
 

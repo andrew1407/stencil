@@ -1,5 +1,5 @@
 #pragma once
-// The "…" overflow both chat composers carry (browser js/ui/chatComposer.js). ONE builder, so
+// The "…" overflow both chat composers carry (browser js/ui/chat/composer/chatComposer.js). ONE builder, so
 // the dock's menu and the context-menu flyout's cannot drift apart in rows, order or glyph.
 #include <QColor>
 

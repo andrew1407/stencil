@@ -1,0 +1,85 @@
+
+      /* The webcore overlay: appended after the app sheet while the skin is on (support/webcore/
+         stylesheet.cpp), so a rule here wins its twin above at equal weight. %WC_*% are the
+         browser's --wc-* tokens (js/config/webcore.json); the bevel is a light top-left edge
+         and a dark bottom-right one, as QSS has no box-shadow. */
+      * { font-family: %WC_FONT%; font-size: %WC_FONT_PX%px; }
+      /* The window's own face; the teal workspace is what the canvas frame is sunk INTO. */
+      QMainWindow, QWidget#centralBackdrop { background: %WC_FACE%; }
+      QMainWindow::separator { background: %WC_FACE%; width: %SEP_W%px; height: 1px; }
+      QMainWindow#stencilWindow::separator { width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
+      QToolBar { background: %WC_FACE%; border: 0; border-bottom: 1px solid %WC_SHADOW%; }
+      QToolBar::separator { background: %WC_SHADOW%; border-radius: 0; border-right: 1px solid %WC_HILIGHT%; }
+      QFrame#toolWrapSep { background: %WC_SHADOW%; border-radius: 0; }
+      QToolBar QLabel { color: %WC_INK%; }
+      QLabel#sectionLabel { color: %WC_INK%; }
+      QWidget#imageInfoBar { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
+      /* The bevel's border-image leaves the viewport unfilled, so the frame carries the desktop
+         teal itself (browser .canvas-viewport background: --wc-desktop). */
+      QScrollArea#canvasViewport, QScrollArea#canvasViewport[fsView="true"] {
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; border-radius: 0;
+        background: %WC_DESKTOP%;
+      }
+      QLabel#coordStatus { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; color: %WC_INK%; }
+      QWidget#dropHintBar { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QLabel#dropHintLabel { color: %WC_INK%; }
+      QWidget#selectedLineCard { background: %WC_FACE%; border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QLabel#selectedLineLabel, QLabel#selectedLineFieldLabel { color: %WC_INK%; }
+      QFrame#selectedLineSep { background: %WC_SHADOW%; }
+
+      /* ── Buttons: raised; pressed, checked and lit sink ── */
+      QToolButton, QToolButton#controlsPill, QToolButton[nameAffordance="true"], QToolButton[chatAccent="true"],
+      QToolButton[toolFill="accent"], QToolButton[toolFill="danger"], QToolButton[drawToggle="idle"],
+      QToolButton[drawToggle="on"], QToolButton[toolGhostBox="true"], QToolButton#panelCollapseBtn,
+      QToolButton#expCalNav, QToolButton#projectsRenameBtn, QToolButton#hotkeyReset,
+      QPushButton, QPushButton[accentCta="true"], QPushButton[successCta="true"], QPushButton#dangerButton,
+      QPushButton[dangerCta="true"], QPushButton#modalClosePill, QPushButton#chatSuggestChip,
+      QPushButton[modalDangerGhost="true"], QPushButton#pointDelBtn, QPushButton#oiChooseBtn,
+      QWidget#selectedLineCard QPushButton, QWidget#selectedLineCard QPushButton#selectedLineDeselect,
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear, QWidget#selectedLineCard QPushButton#selectedLineUnchain {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; font-weight: normal;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QPushButton[accentCta="true"], QPushButton[successCta="true"] { border-top: 2px solid %WC_HILIGHT%; border-left: 2px solid %WC_HILIGHT%; }
+      QToolButton:hover, QToolButton[nameAffordance="true"]:hover, QToolButton[chatAccent="true"]:hover,
+      QToolButton[toolFill="accent"]:hover, QToolButton[toolFill="danger"]:hover, QToolButton[drawToggle="idle"]:hover,
+      QToolButton[drawToggle="on"]:hover, QToolButton[toolGhostBox="true"]:hover, QToolButton#controlsPill:hover,
+      QToolButton#panelCollapseBtn:hover, QToolButton#expCalNav:hover, QToolButton#chatRetry:hover,
+      QToolButton#projectsRenameBtn:hover:enabled, QToolButton#hotkeyReset:hover,
+      QPushButton:hover, QPushButton[accentCta="true"]:hover, QPushButton[successCta="true"]:hover,
+      QPushButton#dangerButton:hover, QPushButton[dangerCta="true"]:hover, QPushButton#modalClosePill:hover,
+      QPushButton[modalDangerGhost="true"]:hover, QPushButton#pointDelBtn:hover,
+      QWidget#selectedLineCard QPushButton:hover, QWidget#selectedLineCard QPushButton#selectedLineDeselect:hover,
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear:hover, QWidget#selectedLineCard QPushButton#selectedLineUnchain:hover,
+      QToolButton#extension:hover,
+      QToolButton#qt_toolbar_ext_button:hover { background: %WC_FACE%; color: %WC_INK%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QToolButton:pressed, QToolButton:checked, QToolButton:checked:hover, QToolButton[nameAffordance="true"]:pressed,
+      QToolButton[chatAccent="true"]:pressed, QToolButton[toolFill="accent"]:pressed, QToolButton[toolFill="danger"]:pressed,
+      QToolButton[drawToggle="idle"]:pressed, QToolButton[drawToggle="on"], QToolButton[drawToggle="on"]:hover,
+      QToolButton[drawToggle="on"]:pressed, QToolButton[toolGhostBox="true"]:pressed, QToolButton[toolGhostBox="true"]:checked,
+      QToolButton[toolGhostBox="true"]:checked:hover, QToolButton#controlsPill:pressed, QToolButton#expCalDay[expDay="expiry"],
+      QPushButton:pressed, QPushButton#modalClosePill:pressed, QPushButton[modalDangerGhost="true"]:pressed {
+        background: %WC_LIGHT%; color: %WC_INK%;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QToolButton:disabled, QToolButton:checked:disabled, QToolButton[nameAffordance="true"]:disabled,
+      QToolButton[chatAccent="true"]:disabled, QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled,
+      QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled, QToolButton[toolGhostBox="true"]:disabled,
+      QToolButton[toolGhostBox="true"]:checked:disabled, QToolButton#projectsRenameBtn:disabled,
+      QPushButton:disabled, QPushButton[accentCta="true"]:disabled, QPushButton[successCta="true"]:disabled,
+      QPushButton#dangerButton:disabled, QPushButton[dangerCta="true"]:disabled {
+        background: %WC_FACE%; color: %WC_DISABLED%; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QToolButton#drawFaceBtn { font-size: %WC_FONT_PX%px; }
+      /* Toolbar buttons 34 and the pill 28 (browser); QSS heights are contents, +14 and +10. */
+      QWidget[toolRow="true"] QToolButton { max-height: 20px; }
+      QWidget[toolRow="true"] QCheckBox#formulaPill { max-height: 18px; min-height: 18px; }
+      /* The toolbar's own overflow button is Qt's: on the dark face its chevron took the
+         style's own ink and read as a smudge. */
+      QToolBarExtension, QToolButton#qt_toolbar_ext_button {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; padding: 0;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QToolBarExtension::menu-indicator, QToolButton#qt_toolbar_ext_button::menu-indicator { image: none; width: 0; }
+      QLabel#panelSectionHeader { color: %WC_INK%; letter-spacing: 0; }
+

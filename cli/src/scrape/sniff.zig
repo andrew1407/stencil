@@ -1,7 +1,6 @@
 //! Pixel dimensions straight from an image header — PNG/GIF/BMP/JPEG/WebP — so the
 //! dimension filter can judge a candidate without decoding it.
 const std = @import("std");
-const image = @import("../media/image.zig");
 const testing = std.testing;
 
 pub const Sniff = struct { width: u32, height: u32, fmt: []const u8 };
@@ -24,31 +23,37 @@ fn u24le(b: []const u8, o: usize) u32 {
 
 pub const png_sig = [_]u8{ 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a };
 
-/// Sniff pixel dimensions + format from an image byte header (PNG / JPEG / GIF / BMP /
-/// WebP). Returns null for anything it can't measure (e.g. video, SVG, truncated data).
+/// Sniff pixel dimensions + format from an image byte header (PNG / JPEG / GIF / BMP / WebP).
+/// Null for anything it can't measure — video, SVG, truncated data, a zero side, a PNG side past
+/// 2^31−1, a WebP chunk without its signature (browser/js/config/fixtures/imageHeader pins them).
 pub fn sniff(b: []const u8) ?Sniff {
+    const s = measure(b) orelse return null;
+    if (s.width == 0 or s.height == 0) return null;
+    return s;
+}
+
+fn measure(b: []const u8) ?Sniff {
     // PNG: 8-byte signature, then a 4-byte length + "IHDR" + width/height (big-endian).
     if (b.len >= 24 and std.mem.eql(u8, b[0..8], &png_sig) and std.mem.eql(u8, b[12..16], "IHDR")) {
-        return .{ .width = u32be(b, 16), .height = u32be(b, 20), .fmt = "png" };
+        const w = u32be(b, 16);
+        const h = u32be(b, 20);
+        if (w > std.math.maxInt(i32) or h > std.math.maxInt(i32)) return null;
+        return .{ .width = w, .height = h, .fmt = "png" };
     }
     // GIF: "GIF87a"/"GIF89a", then little-endian logical-screen width/height.
     if (b.len >= 10 and (std.mem.eql(u8, b[0..6], "GIF87a") or std.mem.eql(u8, b[0..6], "GIF89a"))) {
         return .{ .width = u16le(b, 6), .height = u16le(b, 8), .fmt = "gif" };
     }
-    // BMP: "BM", then a little-endian (possibly negative) width/height in the DIB header.
+    // BMP: "BM", then a little-endian width and a height that is negative for a top-down image.
     if (b.len >= 26 and b[0] == 'B' and b[1] == 'M') {
         const w: i32 = @bitCast(u32le(b, 18));
         const h: i32 = @bitCast(u32le(b, 22));
         return .{ .width = @abs(w), .height = @abs(h), .fmt = "bmp" };
     }
     // JPEG: FF D8, then walk segments to the first SOF marker.
-    if (b.len >= 4 and b[0] == 0xFF and b[1] == 0xD8) {
-        if (jpegDims(b)) |d| return d;
-    }
+    if (b.len >= 4 and b[0] == 0xFF and b[1] == 0xD8) return jpegDims(b);
     // WebP: RIFF....WEBP + a VP8 / VP8L / VP8X chunk.
-    if (b.len >= 30 and std.mem.eql(u8, b[0..4], "RIFF") and std.mem.eql(u8, b[8..12], "WEBP")) {
-        if (webpDims(b)) |d| return d;
-    }
+    if (b.len >= 30 and std.mem.eql(u8, b[0..4], "RIFF") and std.mem.eql(u8, b[8..12], "WEBP")) return webpDims(b);
     return null;
 }
 
@@ -84,6 +89,7 @@ fn webpDims(b: []const u8) ?Sniff {
     const tag = b[12..16];
     if (std.mem.eql(u8, tag, "VP8 ")) {
         // Lossy: 3-byte frame tag, the 3-byte start code 9D 01 2A, then 14-bit dims.
+        if (!std.mem.eql(u8, b[23..26], &.{ 0x9D, 0x01, 0x2A })) return null;
         return .{
             .width = (u16le(b, 26)) & 0x3FFF,
             .height = (u16le(b, 28)) & 0x3FFF,
@@ -92,6 +98,7 @@ fn webpDims(b: []const u8) ?Sniff {
     }
     if (std.mem.eql(u8, tag, "VP8L") and b.len >= 25) {
         // Lossless: 1-byte signature (0x2F), then packed 14-bit width-1/height-1.
+        if (b[20] != 0x2F) return null;
         const b1 = b[21];
         const b2 = b[22];
         const b3 = b[23];

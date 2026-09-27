@@ -1,4 +1,4 @@
-// Shapes for popup/scan.js — the page/editor scan and the pin/opened/open-in annotation
+// Shapes for popup/list/scan.js — the page/editor scan and the pin/opened/open-in annotation
 // passes that run after it (and on their own storage.onChanged echoes).
 export declare const scan: () => Promise<void>;
 export declare const annotateOpened: () => Promise<void>;

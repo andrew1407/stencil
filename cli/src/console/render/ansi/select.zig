@@ -2,12 +2,10 @@
 //! and the plain visible slice of a row within a column range.
 const std = @import("std");
 const logo = @import("../../../app/logo.zig");
-const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
 const skin = @import("../../../app/skin.zig");
 const restyle = @import("restyle.zig");
 
-const visColumns = scan.visColumns;
 const appendBytes = scan.appendBytes;
 const utf8Len = scan.utf8Len;
 const csiLen = scan.csiLen;
@@ -55,7 +53,7 @@ pub fn clipHighlight(raw: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) []
         }
         const esc = csiLen(line, i);
         if (esc != 0) { // colour escape — keep it
-            appendBytes(out, &oi, line[i .. i + esc]);
+            appendBytes(out, &oi, scan.passable(line[i .. i + esc]));
             if (span) appendBytes(out, &oi, on); // re-assert the wash after any reset in the line
             i += esc;
             continue;
@@ -110,7 +108,7 @@ pub fn visibleSlice(line: []const u8, c0: u16, c1: u16, out: []u8) []const u8 {
             oi += clen;
         }
         i += clen;
-        vis += 1;
+        vis += scan.cellWidth(line, i - clen);
     }
     return out[0..oi];
 }

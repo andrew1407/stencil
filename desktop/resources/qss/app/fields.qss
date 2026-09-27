@@ -1,0 +1,121 @@
+      /* ── Text inputs / combos / spinboxes: rounded, accent focus ring ── */
+      QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
+        /* The outline is the control's own ink, not a near-invisible grey: a %BORDER% box
+           all but vanished behind its glyph on the dark theme and read as a smudge on the
+           light one (user report, with pictures of both). Browser twin: css/layout/. */
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %UI_OUTLINE%;
+        border-radius: 7px; padding: 3px 8px; min-height: 20px;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      /* Every input — a combo included — only RINGS on hover, as the browser's fields and
+         its select trigger do (.accent-dd-trigger:hover). The accent fill this used to take
+         came from the browser leaking its generic `button:hover` onto that trigger; on a
+         pale accent it left white text and a white caret on near-white (user report). */
+      /* Every input RINGS on hover, as the browser's fields and its select trigger do
+         (css/layout/) — twice the resting border, so the hover reads as "this is a
+         control" rather than a tint (user decision). The padding gives back exactly the
+         pixel the border takes, so nothing in the row moves as the pointer crosses it.
+         Enabled only: a dead field must never light up under the pointer. */
+      QLineEdit:hover:enabled, QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled,
+      QComboBox:hover:enabled {
+        border: 2px solid %ACCENT_RING%; padding: 2px 7px;
+      }
+      /* The project NAME at the top is a TITLE at rest — no box — that rings under the
+         pointer. Its look is NOT set here: MainWindow.cpp's applyProjectNameStyle gives that
+         field a stylesheet of its own (it carries the per-project colour), and a widget's own
+         sheet outranks this one for every property it names. Rules here were simply ignored
+         (user report). The rest/hover pair lives beside the colour, in that function. */
+      QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+        border: 2px solid %ACCENT%; padding: 2px 7px;
+      }
+      /* A COMBO keeps keyboard focus after its popup closes, so the solid accent a typed
+         field wears sat on the page selector long after the pick and read as a live state.
+         It takes the hover ring instead — visible when tabbed to, never mistaken for "on".
+         Browser twin: .accent-dd-trigger, which rings on hover and not on focus at all. */
+      QComboBox:focus { border: 2px solid %ACCENT_RING%; padding: 2px 7px; }
+      QComboBox::drop-down { border: 0; width: 18px; }
+      /* The browser's chevron, as a real image. A CSS border-triangle is a browser trick
+         Qt's stylesheet engine does not draw — it came out as a small solid square — and
+         styling the sub-control at all stops the native style painting its own arrow. */
+      QComboBox::down-arrow { image: url(%CARET%); width: 9px; height: 9px; margin-right: 5px; }
+      /* A dead input has to LOOK dead. The rules above paint every combo/field in the live
+         input colours, so a disabled one (the image filter or compare with no image loaded)
+         was pixel-identical to a working one. The browser drops those to
+         --disabled-bg/--disabled-text (button:disabled over .accent-dd-trigger); this is the
+         same step, caret included — a QSS sub-control image is never auto-greyed. */
+      QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
+      }
+      QComboBox::down-arrow:disabled { image: url(%CARET_DIM%); }
+      QComboBox QAbstractItemView {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 3px; outline: none;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 16px; border: 0; background: transparent; }
+
+      /* The Open-Image video scrub bar: the played side and the handle wear the brand
+         accent, outlined in %UI_OUTLINE% so an accent close to the surface behind it still
+         reads. The pointing-hand cursor is set in code — QSS carries no `cursor`. */
+      QSlider#oiFrameScrub::groove:horizontal {
+        height: 5px; border-radius: 4px; background: %BORDER%; border: 1px solid %UI_OUTLINE%;
+      }
+      QSlider#oiFrameScrub::groove:horizontal:hover { background: %MUTED%; }
+      QSlider#oiFrameScrub::sub-page:horizontal { background: %ACCENT%; border-radius: 4px; }
+      QSlider#oiFrameScrub::handle:horizontal {
+        width: 11px; height: 11px; margin: -4px 0; border-radius: 6px;
+        background: %ACCENT%; border: 1px solid %UI_OUTLINE%;
+      }
+
+      QCheckBox { color: %TEXT%; spacing: 7px; }
+      /* A box whose caption is a separate label beside it — openImageDialogParts'
+         checkCaptionRow, SettingsDialog's rows, a chat ask-row's picks. No text of its
+         own, so the 7px gap reserves room for nothing, and the :focus wash below then
+         painted a chip of that empty room. */
+      QCheckBox#captionCheck, QRadioButton#captionCheck { spacing: 0px; }
+      QRadioButton { color: %TEXT%; spacing: 7px; }
+      /* Checkboxes/radios follow the brand accent (matches the browser
+         accent-color: var(--accent)): an empty themed box, filled with the
+         accent when checked. */
+      QCheckBox::indicator, QRadioButton::indicator {
+        width: 16px; height: 16px; border: 1px solid %ACCENT%; background: %INPUT_BG%;
+      }
+      QCheckBox::indicator { border-radius: 4px; }
+      QRadioButton::indicator { border-radius: 9px; }
+      QCheckBox::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%TICK_IMG%);
+      }
+      QRadioButton::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%RADIO_IMG%);
+      }
+      QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
+      /* Keyboard focus (a menu flyout's second → / Tab, StayOpenMenu.cpp): the box itself
+         shows nothing for :focus, so the whole control takes a soft accent wash — the
+         browser's #ctx-menu :focus-visible ring. */
+      QCheckBox:focus, QRadioButton:focus {
+        background: %ACCENT_SOFT%; border-radius: 4px;
+      }
+      /* f(x,y) formula toggle: an accent PILL (matches the browser's .pill-toggle) — an
+         accent outline around the theme's own text when off, accent-filled with white text
+         when on. The word is read, so it takes the ink every other label does, light on a
+         dark theme and dark on a light one (user decision); the outline is what carries the
+         accent. The tick indicator is hidden; the whole chip conveys the state. */
+      QCheckBox#formulaPill {
+        border: 1px solid %UI_OUTLINE%; border-radius: 6px; padding: 4px 10px;
+        color: %TEXT%; font-weight: 600; background: transparent; spacing: 0px;
+      }
+      QCheckBox#formulaPill::indicator { width: 0px; height: 0px; margin: 0px; border: none; }
+      QCheckBox#formulaPill:hover { background: %ACCENT_SOFT%; }
+      QCheckBox#formulaPill:checked { background: %ACCENT%; color: %ON_ACCENT%; border-color: %ACCENT%; }
+      /* Projects-list row checkboxes: a light, clearly-outlined box so it reads on BOTH a dark
+         row and the purple selected row (the default dark-fill box vanished on dark rows). Unified
+         look in every state; checked fills with the accent + a tick. */
+      QListWidget#projectsList::indicator {
+        width: 16px; height: 16px; border-radius: 4px;
+        border: 1px solid %ACCENT%; background: %INPUT_BG%;
+      }
+      QListWidget#projectsList::indicator:hover { border-color: %ACCENT%; }
+      QListWidget#projectsList::indicator:checked {
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%TICK_IMG%);
+      }
+

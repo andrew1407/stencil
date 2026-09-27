@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 import EVENTS from '../../js/config/events.json' with { type: 'json' };
+import { installNullDom } from '../helpers/nullDom.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const jsFiles = (dir, out = []) => {
@@ -54,9 +55,37 @@ test('the cross-surface channels still match the extension bridge byte-for-byte'
   assert.ok(bridge.includes(`'${EVENTS.registryChanged}'`), 'the extension listens for registryChanged');
 });
 
-test('the app listens for switchToSource and dispatches registryChanged', () => {
-  const app = readFileSync(resolve(ROOT, 'js/core/drawingApp.js'), 'utf8');
-  assert.ok(app.includes('window.addEventListener(EVENTS.switchToSource'));
-  const tabs = readFileSync(resolve(ROOT, 'js/core/launch/tabsCoordinator.js'), 'utf8');
-  assert.ok(tabs.includes('new Event(EVENTS.registryChanged)'));
+// The whole app, booted over a null DOM: whatever wires the listener, a switchToSource from the
+// extension resumes the project holding that source, and never in an incognito editor.
+test('a booted app answers switchToSource by resuming the project that holds the source', async (t) => {
+  const dom = installNullDom();
+  t.after(dom.restore);
+  const { DrawingApp } = await import('../../js/core/drawingApp.js');
+  const app = new DrawingApp();
+  const asked = [];
+  const switched = [];
+  app.storage.store.findByImage = (source, name) => { asked.push([source, name]); return [{ id: 'p1', name: 'Plan' }]; };
+  app.projectTransfer.switchToProject = (id) => { switched.push(id); return true; };
+  dom.fire(EVENTS.switchToSource, { source: 'https://example.com/plan.png', name: 'plan.png' });
+  assert.deepEqual(asked, [['https://example.com/plan.png', 'plan']], 'looked up by source and bare name');
+  assert.deepEqual(switched, ['p1'], 'and switched to it, in place');
+  dom.fire(EVENTS.switchToSource, {});
+  app.storage.incognito = true;
+  dom.fire(EVENTS.switchToSource, { source: 'https://example.com/plan.png', name: 'plan.png' });
+  assert.deepEqual(switched, ['p1'], 'nothing named, or an incognito editor: no switch');
+});
+
+test('a projects change nudges the extension bridge with registryChanged', async () => {
+  const sent = [];
+  const saved = { SharedWorker: globalThis.SharedWorker, window: globalThis.window };
+  globalThis.SharedWorker = class { constructor() { this.port = { start() {}, postMessage() {} }; } };
+  globalThis.window = { addEventListener() {}, dispatchEvent: (e) => sent.push(e) };
+  try {
+    const { TabsCoordinator } = await import('../../js/core/launch/tabsCoordinator.js');
+    new TabsCoordinator().projectsChanged({ id: 'p1' });
+  } finally {
+    Object.assign(globalThis, saved);
+  }
+  assert.deepEqual(sent.map((e) => [e.constructor.name, e.type, e.detail]), [['Event', EVENTS.registryChanged, undefined]],
+    'one detail-free Event, so the bridge re-reads the registry itself');
 });

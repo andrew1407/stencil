@@ -3,9 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { dustFitsScroller, chatArrivalPoint, CHAT_ENTER_REACH } from '../../../js/ui/motion.js';
-import { motionSource } from '../../helpers/motionSource.js';
 import { chatViewSource } from '../../helpers/chatViewSource.js';
 import { makeEl, stubDom, rowsOf } from '../../helpers/chatTranscriptRig.js';
+import { installDustPage, rect, cloudAim } from '../../helpers/dustPageRig.js';
 
 // Every arriving entry gathers out of its own dust on the same fine mesh the removal uses,
 // so the two directions read as one surface (motion.js chatIn).
@@ -57,27 +57,41 @@ test('an appearing entry plays the gather; a transcript’s FIRST paint does not
 });
 
 test('the arrivals share ONE mesh budget with the wipe, and run after the scroll', () => {
-  // The dust is a clone per cell, so a Clear that also lands a fresh turn would put two
-  // full meshes in the air at once — the count handed to chatIn is both sides together.
+  // Kept on the source: chatIn reads `count` only through scatterGridFor(count, index).cols,
+  // which is zero by index alone, and it photographs two frames later whatever the call order.
   const view = chatViewSource();
   assert.match(view, /entering\.forEach\(\(el, i\) => chatIn\(el, entering\.length \+ going\.length, i\)\)/);
-  // …and it runs at the END: a cloud taken mid-build would be missing the row's own
-  // text and CTAs, which are appended after the element exists.
+  // …at the END: a cloud taken mid-build would be missing the row's own text and CTAs.
   assert.ok(view.indexOf('entering.forEach') > view.indexOf("el.querySelector('.chat-row-menu-btn')"));
-  // The cloud is measured AFTER the scroll pin: the transcript grows and scrolls to the new
-  // entry, so a pre-scroll box strands the cloud above where the entry lands.
   assert.ok(view.indexOf('entering.forEach') > view.indexOf('stickToBottom(transcript)'),
     'the arrivals are armed after the transcript has been told to scroll');
-  const motion = motionSource();
-  // An arrival is a toast arriving: surfaceDust's speck cloud on <body>, not clones carrying
-  // .chat-msg/[data-row] that anything walking the transcript would read as live rows.
-  assert.match(motion, /surfaceDust\(el, chatArrivalPoint\(el\), \{ ms: CHAT_ENTER_MS, gather: true \}\)/);
-  // Two frames before the measure: frame one is the new entries' layout, frame two the
-  // scroll that follows it (stickToBottom pins on a rAF of its own).
-  assert.match(motion, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
-  // The cloud is torn down explicitly as the veil lifts: its finished state (opaque, at
-  // identity) is an exact second copy sitting over the real entry.
-  assert.match(motion, /unveil\(\);\s*\n\s*cancelDust\(el\);/);
+});
+
+test('an arrival gathers as specks on <body>, two frames after it is appended', async (t) => {
+  const page = installDustPage(t);
+  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, SCATTER_MAX_ROWS } = await import('../../../js/ui/motion.js');
+  const box = rect(180, 300, 216, 40);
+  const el = page.entry(() => box, rect(0, 100, 400, 400));
+  chatIn(el);
+  // Two frames before the measure: the new entries' layout, then the scroll that follows it.
+  page.frame();
+  assert.strictEqual(page.clouds().length, 0, 'nothing is photographed on the first frame');
+  page.frame();
+  // A toast's speck cloud, not clones carrying .chat-msg/[data-row] a transcript walk would read as rows.
+  const [host] = page.clouds();
+  assert.deepStrictEqual([host.__cloud.flight, host.__cloud.span], ['surfaceGather', CHAT_ENTER_MS]);
+  assert.ok(host.classList.contains('dust-forming') && host.children.every((c) => c.dataset?.row === undefined));
+  const aim = cloudAim(host);
+  const point = chatArrivalPoint(el);
+  assert.ok(Math.hypot(aim.x - point.x, aim.y - point.y) < 20, 'out of the edge the entry sits against');
+  // The cloud is torn down as the veil lifts: its finished state is a second copy over the entry.
+  page.fire(CHAT_ENTER_MS);
+  assert.deepStrictEqual([el.classList.contains(CHAT_ENTERING_CLASS), page.clouds().length], [false, 0]);
+  // Past the budget's rows an arrival only fades: no cloud, and the veil lifts at once.
+  const late = page.entry(() => box, rect(0, 100, 400, 400));
+  chatIn(late, SCATTER_MAX_ROWS + 1, SCATTER_MAX_ROWS);
+  page.frame(); page.frame();
+  assert.deepStrictEqual([page.clouds().length, late.classList.contains(CHAT_ENTERING_CLASS)], [0, false]);
 });
 
 test('chatArrivalPoint: an entry gathers out of the edge it sits against', () => {

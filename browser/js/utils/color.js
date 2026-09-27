@@ -1,7 +1,7 @@
 import { core } from '../core/abi/stencilCore.js';
 // Colours are CSS strings written straight into a canvas context: `#rrggbb` opaque,
 // `#rrggbbaa` translucent; core's parseHex checks `< 7`, so the CLI and pystencil read
-// the RGB and ignore the alpha. Desktop twin: support/cssColor.hpp — keep in step.
+// the RGB and ignore the alpha. Desktop twin: support/theme/cssColor.hpp — keep in step.
 
 // A non-hex value (a CSS name, 'transparent') keeps its value and reads as opaque.
 export const cssColorParts = (value) => {

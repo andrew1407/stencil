@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo);
     const QString original = win.settings.accentColor;
     const auto& presets = stencil::gui::accentPresets();
@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo);
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint cursorWas = QCursor::pos();
@@ -88,13 +88,13 @@ class MainWindowGuiTest : public QObject {
           break;
         }
         if (covered) {
-          win.altHeldForTest = true;   // the glide poll's stand-in for a held Alt
+          win.tools.altHeldForTest = true;   // the glide poll's stand-in for a held Alt
           QCursor::setPos(on);
           QTest::qWait(300);            // several glide ticks (80ms)
           stayed = win.pop.active &&
                    win.pop.active->objectName() == QLatin1String("accentPopover");
           armed = !win.pop.peekNextAction.isNull();
-          win.altHeldForTest = false;
+          win.tools.altHeldForTest = false;
           // Never leave a peek queued: it would open (and block) after this unwinds.
           win.pop.peekNextAction.clear();
           win.pop.peekNextButton.clear();
@@ -120,7 +120,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo);
     const auto& presets = stencil::gui::accentPresets();
     QVERIFY(presets.size() >= 2);

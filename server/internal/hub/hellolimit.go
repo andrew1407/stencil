@@ -59,23 +59,24 @@ func (g helloGuard) connIP(ctx context.Context, conn transport.Conn) string {
 }
 
 // checkHello authenticates the hello frame under the per-IP failure limit. It writes the refusal frame
-// and closes the connection itself; a nil return means the caller may join the session.
-func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) error {
+// and closes the connection itself; a nil error means the caller may join, as the returned session.
+func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) (auth.Session, error) {
 	ip := h.hello.connIP(ctx, conn)
 	if !h.hello.rate.Allow(ip) {
 		refuseHello(ctx, conn, protocol.CodeRateLimited, "too many failed handshakes; retry later")
-		return errHelloThrottled
+		return auth.Session{}, errHelloThrottled
 	}
 	// The token lookup is a store round trip, so it is bounded like every other one; the handshake
 	// deadline is already spent by here, and the connection context has none of its own.
-	vctx, cancel := context.WithTimeout(ctx, opTimeout)
+	vctx, cancel := context.WithTimeout(ctx, h.tune.OpTimeout)
 	defer cancel()
-	if _, err := auth.Verify(vctx, h.resolver, hello.Token, clock.NowMs()); err != nil {
+	sess, err := auth.Verify(vctx, h.resolver, hello.Token, clock.NowMs())
+	if err != nil {
 		refuseHello(ctx, conn, protocol.CodeUnauthorized, "invalid token")
-		return err
+		return auth.Session{}, err
 	}
 	h.hello.rate.Refund(ip) // a good token costs nothing
-	return nil
+	return sess, nil
 }
 
 // refuseHello tells the peer why and hangs up.

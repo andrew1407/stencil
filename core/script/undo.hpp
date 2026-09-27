@@ -38,6 +38,7 @@ namespace stencil::core::script {
     std::vector<EditRec> edits;
     std::vector<int> applied;
     std::vector<int> removed;  // LIFO, what @redo brings back
+    bool dirty = false;        // an undo or redo since the last reconcile; an edit keeps it clean
   };
 
   // Applies one `@undo`/`@redo` statement to the ledger.

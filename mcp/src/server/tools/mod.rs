@@ -1,27 +1,43 @@
 //! One file per tool: the whole body of each `#[tool]` method, as a free function the
-//! method delegates to — plus the two result wrappers they all share.
+//! method delegates to — plus the result wrappers and the output-schema helper they share.
 
-use rmcp::model::{CallToolResult, Content};
+use std::sync::Arc;
+
+use rmcp::handler::server::tool::schema_for_output;
+use rmcp::model::{CallToolResult, Content, JsonObject};
 use rmcp::ErrorData as McpError;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 pub mod edit;
+pub mod preview;
 pub mod probe;
+pub mod project_file;
+pub mod project_update;
+pub mod projects;
 pub mod prompt;
 pub mod script;
 pub mod source_site;
 
-/// Wrap a text summary + JSON payload as a successful tool result.
+/// A successful tool result: the text summary, the payload as a JSON text block for clients
+/// that predate structured output, and the same payload as `structuredContent`.
 fn ok_result(summary: String, payload: impl Serialize) -> Result<CallToolResult, McpError> {
-    Ok(CallToolResult::success(vec![
-        Content::text(summary),
-        Content::json(payload)?,
-    ]))
+    let structured = serde_json::to_value(&payload)
+        .map_err(|e| McpError::internal_error(format!("unserializable result: {e}"), None))?;
+    let blocks = vec![Content::text(summary), Content::json(&payload)?];
+    let mut result = CallToolResult::success(blocks);
+    result.structured_content = Some(structured);
+    Ok(result)
 }
 
 /// Wrap a message as a tool error result.
-fn err_result(message: String) -> CallToolResult {
+pub(super) fn err_result(message: String) -> CallToolResult {
     CallToolResult::error(vec![Content::text(message)])
+}
+
+/// The `outputSchema` a payload type publishes.
+pub(super) fn schema<T: JsonSchema + 'static>() -> Arc<JsonObject> {
+    schema_for_output::<T>().unwrap_or_else(|e| panic!("an invalid output schema: {e}"))
 }
 
 #[cfg(test)]
@@ -43,6 +59,7 @@ mod tests {
         assert_eq!(wire["content"][0]["type"], "text");
         assert_eq!(wire["content"][0]["text"], "wrote out.png (2x2)");
         assert_eq!(payload_of(&result), json!({"path":"out.png"}));
+        assert_eq!(wire["structuredContent"], json!({"path":"out.png"}));
     }
 
     #[test]

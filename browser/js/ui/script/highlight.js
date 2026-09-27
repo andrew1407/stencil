@@ -2,13 +2,22 @@
 // flyout (editor.js). The colouring comes from the core's own token stream, so the
 // editors and the runner never disagree about what a line means.
 import { parseScript } from '../../core/script.js';
-import { DIRECTIVES } from '../../core/script/types.js';
+import { DIRECTIVES, unitIndexOfColumn } from '../../core/script/types.js';
+
+// Token and diagnostic columns are UTF-8 bytes (both engines); the <pre> counts UTF-16 units.
+// → { col (1-based unit), len (units) } over the same characters.
+const unitSpan = (lineText, col, len) => {
+  const start = unitIndexOfColumn(lineText, col);
+  return { col: start + 1, len: unitIndexOfColumn(lineText, col + len) - start };
+};
 
 // The lexer classifies on the '@' alone, so only a REAL directive is coloured, lowercased like
 // the lowering (@CROP stays one). Read off the SOURCE: the wasm path leaves token.text empty.
 const DIRECTIVE_WORDS = new Set(DIRECTIVES);
-const knownDirective = (lines, t) =>
-  DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(t.col, t.col - 1 + t.len).toLowerCase());
+const knownDirective = (lines, t) => {
+  const { col, len } = unitSpan(lines[t.line - 1] ?? '', t.col, t.len);
+  return DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(col, col - 1 + len).toLowerCase());
+};
 
 /* The flat run of nodes a paint lands, in the order they sit in the <pre>: `cls` is empty
  * for a plain stretch and set for a span. Two adjacent plain stretches stay two entries,
@@ -72,20 +81,20 @@ export const paintInto = (pre, text, withDiagnostics) => {
   const bucket = (line) => byLine[line] ?? (byLine[line] = []);
   for (const t of program.tokens) {
     if (t.kind === 'directive' && !knownDirective(lines, t)) continue;   // plain text, and still underlined
-    bucket(t.line).push({ col: t.col, len: t.len, cls: `stk-${t.kind}` });
+    bucket(t.line).push({ ...unitSpan(lines[t.line - 1] ?? '', t.col, t.len), cls: `stk-${t.kind}` });
   }
 
   if (withDiagnostics) {
     for (const d of program.diagnostics) {
-      const len = Math.max(1, d.len);
+      const { col, len } = unitSpan(lines[d.line - 1] ?? '', d.col, Math.max(1, d.len));
       const marks = bucket(d.line);
       // A diagnostic underlines the token already there rather than replacing it, so the
       // span keeps its colour AND gains the squiggle.
-      const over = marks.filter((m) => m.col < d.col + len && d.col < m.col + Math.max(1, m.len));
+      const over = marks.filter((m) => m.col < col + len && col < m.col + Math.max(1, m.len));
       if (over.length > 0) { for (const m of over) m.cls += ` stk-${d.severity}`; continue; }
       let at = marks.length;
-      while (at > 0 && marks[at - 1].col > d.col) at -= 1;
-      marks.splice(at, 0, { col: d.col, len, cls: `stk-${d.severity}` });
+      while (at > 0 && marks[at - 1].col > col) at -= 1;
+      marks.splice(at, 0, { col, len, cls: `stk-${d.severity}` });
     }
     // A bad line reads as bad WHOLE: the squiggle stays on the token the diagnostic names,
     // but every token on that line takes the danger ink, not just the offending one.

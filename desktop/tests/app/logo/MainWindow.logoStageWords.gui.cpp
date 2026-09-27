@@ -97,7 +97,7 @@ class MainWindowGuiTest : public QObject {
     stage->dismiss();
     QTest::qWait(500);
 
-    win.toggleFullscreen();
+    win.parts.view.toggleFullscreen();
     QVERIFY(win.fs.active);
     QVERIFY2(!stage->activateByName("firework"), "a bare activation is still refused");
     typeAt(win, QStringLiteral("firework"));
@@ -137,17 +137,17 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     LogoStage* stage = stageOf(win);
     QVERIFY(stage);
-    QVERIFY(win.lineThickness);
-    win.lineThickness->setFocus();
-    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.lineThickness));
-    QTest::keyClicks(win.lineThickness, QStringLiteral("neonon"));
+    QVERIFY(win.tools.lineThickness);
+    win.tools.lineThickness->setFocus();
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.tools.lineThickness));
+    QTest::keyClicks(win.tools.lineThickness, QStringLiteral("neonon"));
     QVERIFY2(!stage->isOpen(), "a word typed into a spin box opens nothing");
 
     // …and so is a combo box's: a closed list jumps to the item the letters spell.
-    QVERIFY(win.lineStyle);
-    win.lineStyle->setFocus();
-    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.lineStyle));
-    QTest::keyClicks(win.lineStyle, QStringLiteral("neonon"));
+    QVERIFY(win.tools.lineStyle);
+    win.tools.lineStyle->setFocus();
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.tools.lineStyle));
+    QTest::keyClicks(win.tools.lineStyle, QStringLiteral("neonon"));
     QVERIFY2(!stage->isOpen(), "a word typed into a combo box opens nothing");
   }
 

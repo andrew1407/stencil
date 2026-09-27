@@ -3,9 +3,19 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { THEME_SWAP_MS, originOfId } from '../../js/ui/motion.js';
-import { motionSource } from '../helpers/motionSource.js';
+import { createStubElement, installDom } from '../helpers/dom.js';
 import { ANIMATIONS_CSS, extensionAnimationsCss } from '../helpers/css.js';
+
+// Every listener the page is given, recorded from BEFORE motion.js is first imported.
+const listened = [];
+const recording = (name, el) => {
+  const add = el.addEventListener;
+  el.addEventListener = (type, fn, opts) => { listened.push(`${name}:${type}`); add(type, fn, opts); };
+  return el;
+};
+const win = recording('window', createStubElement('window', { innerWidth: 1440, innerHeight: 900 }));
+const doc = recording('document', installDom({}, { window: win, matchMedia: () => ({ matches: false }) }));
+const { THEME_SWAP_MS, originOfId, themeSwap } = await import('../../js/ui/motion.js');
 
 // One wipe shared by the browser, the extension and the desktop's Qt overlay: same length
 // and a true ease-out curve, never easing in.
@@ -96,9 +106,17 @@ test('the panel folds are an ease-out, and hold visibility for the whole fold', 
 });
 
 test('motion.js keeps no pointer state for the swap to fall back to', () => {
-  const src = motionSource();
-  assert.ok(!/addEventListener\(\s*'pointerdown'/.test(src),
-    'a remembered press is what put the wipe in the corner — the control is the only origin');
+  // A remembered press is what put the wipe in the corner — the control is the only origin.
+  assert.deepEqual(listened.filter((l) => /pointer|mouse|touch/.test(l)), [], 'no press is ever recorded');
+  const root = doc.documentElement;
+  doc.startViewTransition = (update) => { update(); return { finished: Promise.resolve() }; };
+  try {
+    for (const target of [doc, win]) target.dispatch('pointerdown', { clientX: 5, clientY: 5 });
+    themeSwap(() => {});
+    assert.deepEqual([root.style['--swap-x'], root.style['--swap-y']], ['50%', '50%'],
+      'a press in the corner is forgotten: with no control on screen the wipe blooms from the centre');
+  } finally { delete doc.startViewTransition; }
+  assert.deepEqual(listened.filter((l) => /pointer|mouse|touch/.test(l)), [], '…nor did the swap start listening');
 });
 
 test('originOfId is null when every copy is hidden, and never throws on a stub', () => {

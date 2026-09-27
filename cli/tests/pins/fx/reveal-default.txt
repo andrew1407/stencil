@@ -1,0 +1,164 @@
+# lone line
+@0 294B 087e5e69f50dd3ec
+\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[0m\x1b[K
+\x1b[17;1H\x1b[2K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@13 22B a68e88f0edd14891
+\x1b7
+\x1b[16;1Ha li\x1b[0m\x1b[K\x1b8
+~wait 13
+@26 26B 67f8059816f7e6e8
+\x1b7
+\x1b[16;1Ha line s\x1b[0m\x1b[K\x1b8
+~wait 13
+@39 30B 5c6d46dbfe576700
+\x1b7
+\x1b[16;1Ha line sweep\x1b[0m\x1b[K\x1b8
+~wait 13
+@52 34B 1f3413c59938fb40
+\x1b7
+\x1b[16;1Ha line sweeping \x1b[0m\x1b[K\x1b8
+~wait 13
+@65 38B b667ba50a8cbab69
+\x1b7
+\x1b[16;1Ha line sweeping in f\x1b[0m\x1b[K\x1b8
+~wait 13
+@78 42B 8c281a280cc8f722
+\x1b7
+\x1b[16;1Ha line sweeping in from \x1b[0m\x1b[K\x1b8
+~wait 13
+@91 930B cfccea7186e8dfd9
+\x1b7
+\x1b[16;1Ha line sweeping in from the \x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1H\x1b[2K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+# burst
+@91 329B 72cedd869a3015aa
+\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1H\x1b[0m\x1b[K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@104 1286B d66e3617b305c5ed
+\x1b7
+\x1b[17;1Hhard on i\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1Hhard on its heels\x1b[0m\x1b[K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1Hhard on its heels\x1b[0m\x1b[K
+\x1b[18;1H\x1b[0m\x1b[K
+\x1b[19;1H\x1b[0m\x1b[K
+\x1b[20;1H\x1b[0m\x1b[K
+\x1b[21;1H\x1b[2K\x1b8
+~wait 13
+@117 988B 33db20db8cfd806d
+\x1b7
+\x1b[18;1Hthre\x1b[0m\x1b[K
+\x1b[19;1Hline\x1b[0m\x1b[K
+\x1b[20;1Hat o\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1Hhard on its heels\x1b[0m\x1b[K
+\x1b[18;1Hthree\x1b[0m\x1b[K
+\x1b[19;1Hlines\x1b[0m\x1b[K
+\x1b[20;1Hat once\x1b[0m\x1b[K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+~pause 400
+# after a pause
+@517 375B a3d4a8d5217d7ab5
+\x1b7
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1Hhard on its heels\x1b[0m\x1b[K
+\x1b[18;1Hthree\x1b[0m\x1b[K
+\x1b[19;1Hlines\x1b[0m\x1b[K
+\x1b[20;1Hat once\x1b[0m\x1b[K
+\x1b[21;1H\x1b[0m\x1b[K\x1b8
+~wait 13
+@530 50B b88d548b20762080
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m a\x1b[0m\x1b[K\x1b8
+~wait 13
+@543 60B ae2b09cfb2936e00
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line \x1b[0m\x1b[K\x1b8
+~wait 13
+@556 70B 073c8dfde4d8a9ee
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enoug\x1b[0m\x1b[K\x1b8
+~wait 13
+@569 80B 4a28884c1a6c0040
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap \x1b[0m\x1b[K\x1b8
+~wait 13
+@582 90B 9c83e25bbc416cdb
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap past the e\x1b[0m\x1b[K\x1b8
+~wait 13
+@595 100B 4db7fb3dfb4cb7a9
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap past the eighty colu\x1b[0m\x1b[K\x1b8
+~wait 13
+@608 1145B 6cf1b18e4c888762
+\x1b7
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap past the eighty columns of thi\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;124;58;237m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;124;58;237mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1Ha line sweeping in from the left\x1b[0m\x1b[K
+\x1b[17;1Hhard on its heels\x1b[0m\x1b[K
+\x1b[18;1Hthree\x1b[0m\x1b[K
+\x1b[19;1Hlines\x1b[0m\x1b[K
+\x1b[20;1Hat once\x1b[0m\x1b[K
+\x1b[21;1H\x1b[38;2;124;58;237maccented\x1b[0m and a line long enough to wrap past the eighty columns of this terminal\x1b[0m\x1b[K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;124;58;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m

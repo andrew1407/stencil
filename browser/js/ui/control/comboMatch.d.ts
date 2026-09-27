@@ -1,4 +1,4 @@
-// Shapes for ui/comboMatch.js — a written shortcut and a KeyboardEvent reduced to the same
+// Shapes for ui/control/comboMatch.js — a written shortcut and a KeyboardEvent reduced to the same
 // shape, so the keycaps a tooltip drew can be matched against what was pressed. The module is
 // byte-pinned with browser-extension/src/lib/control/comboMatch.js (browser-extension/tests/portParity.test.js).
 

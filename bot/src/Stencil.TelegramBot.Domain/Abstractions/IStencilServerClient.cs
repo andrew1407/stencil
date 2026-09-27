@@ -8,11 +8,11 @@ public interface IStencilServerClient
 {
     string BaseUrl { get; }
 
-    // No token: mint one via POST /auth/token. A token the list-projects probe refuses may be the
-    // server's ADMIN token: mint a session token with it as bearer and adopt that instead.
+    // No token: mint one via POST /auth/token. A token the session probe refuses may be the server's
+    // ADMIN token: mint a session token with it as bearer and adopt that instead.
     Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default);
 
-    // GET /projects, newest-updated first.
+    // GET /projects, newest-updated first, one bounded page.
     Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default);
 
     Task<ProjectFull> GetProjectAsync(string id, CancellationToken ct = default);

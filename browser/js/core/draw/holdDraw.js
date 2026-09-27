@@ -1,4 +1,8 @@
-import { distToSegment } from '../../utils.js';
+import { findNearestPointWithIdx, findNearestSegmentWithIdx } from './hitTest.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+
+const { HIT, HOLD_DRAW } = constants;
+const NO_POINTS = Object.freeze({ points: [] });
 
 // Hold-to-draw: press-and-hold near-stationary for `holdDelay` ms drops the first point;
 // resting the cursor drops the next; releasing commits. The host owns timers, coordinates
@@ -6,28 +10,13 @@ import { distToSegment } from '../../utils.js';
 
 // 'point' over a point → continue that line; 'segment' over a body → insert there; 'new' in
 // empty space. Topmost wins, as in findNearestPointWithIdx. ptIdx/ptIdx2 = -1 if unused.
-export const holdDrawTarget = (lines, x, y, { pointThreshold = 12, segThreshold = 12 } = {}) => {
-  const list = Array.isArray(lines) ? lines : [];
-  for (let li = list.length - 1; li >= 0; li--) {
-    const pts = (list[li] && list[li].points) || [];
-    for (let pi = 0; pi < pts.length; pi++) {
-      if (Math.hypot(pts[pi].x - x, pts[pi].y - y) < pointThreshold)
-        return { kind: 'point', lineIdx: li, ptIdx: pi, ptIdx2: -1 };
-    }
-  }
-  let bestDist = Infinity;
-  let best = null;
-  for (let li = list.length - 1; li >= 0; li--) {
-    const pts = (list[li] && list[li].points) || [];
-    for (let pi = 0; pi < pts.length - 1; pi++) {
-      const d = distToSegment(x, y, pts[pi], pts[pi + 1]);
-      if (d < segThreshold && d < bestDist) {
-        bestDist = d;
-        best = { kind: 'segment', lineIdx: li, ptIdx: pi, ptIdx2: pi + 1 };
-      }
-    }
-  }
-  return best || { kind: 'new', lineIdx: -1, ptIdx: -1, ptIdx2: -1 };
+export const holdDrawTarget = (lines, x, y, { pointThreshold = HIT.grabRadiusPx, segThreshold = HIT.grabRadiusPx } = {}) => {
+  const list = Array.isArray(lines) ? lines.map((l) => (l?.points ? l : NO_POINTS)) : [];
+  const p = findNearestPointWithIdx(list, null, x, y, pointThreshold);
+  if (p) return { kind: 'point', lineIdx: p.lineIdx, ptIdx: p.ptIdx, ptIdx2: -1 };
+  const s = findNearestSegmentWithIdx(list, x, y, segThreshold);
+  if (s) return { kind: 'segment', lineIdx: s.lineIdx, ptIdx: s.ptIdx1, ptIdx2: s.ptIdx2 };
+  return { kind: 'new', lineIdx: -1, ptIdx: -1, ptIdx2: -1 };
 };
 
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
@@ -49,7 +38,8 @@ export class HoldDrawController {
   #lastDropY = 0;
   #armedForDrop = false;
 
-  constructor({ holdDelay = 500, moveTolerance = 6, rearmDistance = 10 } = {}) {
+  constructor({ holdDelay = HOLD_DRAW.delayMs, moveTolerance = HOLD_DRAW.moveTolerancePx,
+    rearmDistance = HOLD_DRAW.rearmDistancePx } = {}) {
     this.#holdDelay = Math.max(0, holdDelay);
     this.#moveTol = moveTolerance;
     this.#rearm = rearmDistance;

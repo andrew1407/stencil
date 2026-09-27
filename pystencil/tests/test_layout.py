@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import unittest
 
+from tests.helpers.nativecase import needs_core
+
 from pystencil.layout import Layout, Line, Point
 
 
@@ -97,6 +99,7 @@ class LayoutSerializationTests(unittest.TestCase):
     out = layout.to_dict()
     self.assertEqual(out["filterColor"], "#ABCDEF")
 
+  @needs_core
   def test_json_round_trip(self):
     """from_json(to_json()) preserves all data including optionals."""
     layout = Layout(
@@ -111,6 +114,7 @@ class LayoutSerializationTests(unittest.TestCase):
     restored = Layout.from_json(layout.to_json())
     self.assertEqual(restored, layout)
 
+  @needs_core
   def test_from_dict_round_trip_preserves_data(self):
     """Layout.from_dict(L.to_dict()) preserves data (spec requirement)."""
     layout = Layout(

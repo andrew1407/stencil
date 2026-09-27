@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — The image-size padding, the panel chevrons, and the name affordances and chips.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/app/project/ProjectTitleController.hpp"
 
 // The shared box of the panel's two collapse chevrons (mainWindow PANEL_TOGGLE_BOX /
 // selectionPanel TOGGLE_BOX) — asserted equal so the pair can't drift apart.
@@ -17,15 +18,15 @@ class MainWindowGuiTest : public QObject {
   void imageSizeInfoHasRealVerticalPadding() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY(win.imageSizeInfo);
-    // 10px left/right (browser parity: css/layout.css .info padding: 10px), 11px top/bottom
+    QVERIFY(win.tools.imageSizeInfo);
+    // 10px left/right (browser parity: css/layout/ .info padding: 10px), 11px top/bottom
     // so the readout reads as its own band between the toolbars and the canvas.
-    QCOMPARE(win.imageSizeInfo->contentsMargins(), QMargins(10, 11, 10, 11));
+    QCOMPARE(win.tools.imageSizeInfo->contentsMargins(), QMargins(10, 11, 10, 11));
     // Not just set — actually taken into account: the reserved fixed height must exceed
     // the bare font height by at least the vertical margins.
     win.reserveImageInfoHeight();
-    const int fontH = QFontMetrics(win.imageSizeInfo->font()).height();
-    QVERIFY2(win.imageSizeInfo->height() >= fontH + 22,
+    const int fontH = QFontMetrics(win.tools.imageSizeInfo->font()).height();
+    QVERIFY2(win.tools.imageSizeInfo->height() >= fontH + 22,
              "the reserved height leaves no room for 11px top + 11px bottom");
   }
 
@@ -36,11 +37,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actPanel->setChecked(false);
-    settle([&] { return win.panelReopenBtn != nullptr; }, 600);
-    QVERIFY(win.panelReopenBtn);
-    QCOMPARE(win.panelReopenBtn->focusPolicy(), Qt::NoFocus);
-    QCOMPARE(win.panelReopenBtn->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
+    win.acts.panel->setChecked(false);
+    settle([&] { return win.tools.panelReopenBtn != nullptr; }, 600);
+    QVERIFY(win.tools.panelReopenBtn);
+    QCOMPARE(win.tools.panelReopenBtn->focusPolicy(), Qt::NoFocus);
+    QCOMPARE(win.tools.panelReopenBtn->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
     // …and its twin in the panel header, so the pair stays consistent.
     QWidget* bar = nullptr;
     for (QDockWidget* d : win.findChildren<QDockWidget*>())
@@ -70,21 +71,23 @@ class MainWindowGuiTest : public QObject {
     openLoaded(win);
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const QString id = win.addImageProjectEntry(img, "hover-out");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "hover-out");
     QVERIFY(!id.isEmpty());
-    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    bool landed = false;   // the picture decodes off the GUI thread
+    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     settleLayout(&win, 300);
     const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
 
     QCursor::setPos(win.nameBar.group->mapToGlobal(win.nameBar.group->rect().center()));
-    win.updateNameHover();
+    win.projectTitle->updateNameHover();
     QTRY_VERIFY(!paintedOut(win.nameBar.edit));
     QVERIFY(!paintedOut(win.nameBar.colorBtn));
 
     // Onto another control, and the pair goes — driven by the same recompute the app runs
     // when a pointer enters anything else (here: called directly, as the poll would).
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 60, 200)));
-    win.updateNameHover();
+    win.projectTitle->updateNameHover();
     QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.nameBar.edit), 2000);
     QVERIFY(paintedOut(win.nameBar.colorBtn));
     // …and they keep their slots either way: painting out must never move the row.
@@ -103,9 +106,11 @@ class MainWindowGuiTest : public QObject {
     openLoaded(win);
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const QString id = win.addImageProjectEntry(img, "swap-row");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "swap-row");
     QVERIFY(!id.isEmpty());
-    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    bool landed = false;   // the picture decodes off the GUI thread
+    QVERIFY(win.loadProjectIntoCanvas(id, false, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
     settleLayout(&win, 300);
     win.nameBar.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
     const auto held = [&win] {
@@ -116,14 +121,14 @@ class MainWindowGuiTest : public QObject {
       return n;
     };
 
-    win.enterNameEdit();
+    win.projectTitle->enterNameEdit();
     for (int i = 0; i < 10; ++i) {   // through the whole in-flight
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("entering: %1 chips held a slot").arg(held())));
     }
     QVERIFY(win.nameBar.accept->isVisible() && win.nameBar.cancel->isVisible());
 
-    win.cancelProjectName();
+    win.projectTitle->cancelProjectName();
     for (int i = 0; i < 10; ++i) {   // …and the whole way back
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("leaving: %1 chips held a slot").arg(held())));

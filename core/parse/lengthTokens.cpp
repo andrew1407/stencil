@@ -1,10 +1,10 @@
 #include "lengthTokens.hpp"
 
+#include "decimal.hpp"
 #include "text.hpp"
 
 #include <array>
 #include <cctype>
-#include <cstdlib>
 
 namespace stencil::core {
 
@@ -36,7 +36,7 @@ namespace stencil::core {
     std::size_t i = 0;
     bool fromEnd = false;
     if (s[i] == '-') { fromEnd = true; ++i; }
-    while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i]))) ++i;
+    while (i < s.size() && isAsciiSpace(s[i])) ++i;
 
     // Number: \d*\.?\d+ (at least one digit, at most one dot, no trailing dot).
     const std::size_t numStart = i;
@@ -58,9 +58,10 @@ namespace stencil::core {
     if (digits == 0) return std::nullopt;                 // no number at all
     if (dots > 0 && digitsAfterDot == 0) return std::nullopt;  // trailing dot ("5.")
 
-    const double value = std::strtod(s.c_str() + numStart, nullptr);
+    const std::string_view digitsRun = std::string_view(s).substr(numStart, i - numStart);
+    const double value = parseDecimalPrefix(digitsRun).value_or(0.0);
 
-    while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i]))) ++i;
+    while (i < s.size() && isAsciiSpace(s[i])) ++i;
     const std::string unit = s.substr(i);
 
     LengthToken t;

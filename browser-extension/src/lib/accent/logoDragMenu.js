@@ -33,7 +33,7 @@ export const createLogoDragMenu = ({
   });
 
   if (logoEl) {
-    // data-title, never a title attribute: that raises Chrome's own popup over ours (lib/tip.js).
+    // data-title, never a title attribute: that raises Chrome's own popup over ours (lib/tip/tip.js).
     logoEl.dataset.title = LOGO_DROP_HINT;
     const h1 = doc.querySelector('header h1');
     if (h1 && h1.dataset && !h1.dataset.title) h1.dataset.title = LOGO_DROP_HINT;

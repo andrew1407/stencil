@@ -1,16 +1,14 @@
 #pragma once
-// Private seam between the opPlan TUs: the small presence/whitelist checks the field filling and the
-// parsing both use, and the two fillers themselves. Not part of the public opPlan.hpp surface.
+// Private seam between the opPlan TUs: core's result document mapped onto the typed plan — the
+// per-op field filling, the variants and the ask card.
 #include "opPlan.hpp"
 
 #include "opRegistry.hpp"
-#include "OpSchema.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <QRegularExpression>
 
 #include <algorithm>
 #include <cmath>
@@ -28,9 +26,6 @@ namespace stencil::llm {
       const QJsonValue v = o.value(QLatin1String(key));
       return !v.isUndefined() && !v.isNull();
     }
-
-    // desktop extras: checks the registry does not carry (see each op's
-    //    `divergence`), run AFTER the generic check
 
     // The read scope: only the formats this app itself opens, decided by extension so the model can
     // never hand us an arbitrary file to slurp (never a directory). Mirrors the cli's understoodPath.
@@ -50,9 +45,10 @@ namespace stencil::llm {
     bool fillLayout(const QJsonObject& n, Action& a, QString* e);
     bool fillAction(const QString& op, const QJsonObject& n, Action& a, QString* e);
 
-    bool parseActions(const QJsonValue& v, QVector<Action>& out, QStringList& warnings,
-                        bool inVariant, QString* e, QString* scopeDrop = nullptr);
-    bool parseAsk(const QJsonValue& value, AskCard& out, QStringList& warnings, QString* e);
+    // Core's normalized actions / variants / §11 card → typed; `notes` gets the card's own notes.
+    bool fillActions(const QJsonArray& list, QVector<Action>& out, QString* e);
+    bool fillVariants(const QJsonArray& list, QVector<Variant>& out, QString* e);
+    bool fillAsk(const QJsonValue& card, AskCard& out, QVector<QPair<int, QString>>& notes, QString* e);
 
   }  // namespace opdetail
 

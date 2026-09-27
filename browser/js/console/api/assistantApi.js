@@ -2,6 +2,7 @@
 // Settings share the gear dialog's store (llm-contract.md §5) and the chat members
 // delegate to the panel's own scripting surface, so UI and scripting never diverge.
 import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, isHttpUrl } from '../../llm/settings.js';
+import { readSessionKey, setSessionKey, forgetSessionKey } from '../../llm/sessionKey.js';
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
 } from '../../ui/chat/layoutPrefs.js';
@@ -31,7 +32,13 @@ export const createAssistantApi = ({ app, guard }) => {
       }
     }
     if (opts.model != null) next.model = str(opts.model).trim();
-    if (opts.apiKey != null) next.apiKey = str(opts.apiKey);
+    if (opts.apiKey != null) {
+      // The anthropic key is this tab's session key (llm-providers.md §5): held, never saved.
+      if (next.provider !== 'anthropic') next.apiKey = str(opts.apiKey);
+      else if (!setSessionKey(opts.apiKey) && str(opts.apiKey).trim()) {
+        throw new Error('This browser refuses session storage here, so the key cannot be kept');
+      }
+    }
     saveLlmSettings(next);
     // Same live-refresh signal the settings modal fires (panel re-probes status).
     publish(EVENTS.llmSettingsChanged);
@@ -63,8 +70,18 @@ export const createAssistantApi = ({ app, guard }) => {
         set baseUrl(v) { applyLlmSetup({ baseUrl: v }); },
         get model() { return loadLlmSettings().model; },
         set model(v) { applyLlmSetup({ model: v }); },
-        get apiKey() { return loadLlmSettings().apiKey; },
+        // Write-only for anthropic: a held session key reads back redacted, never as itself.
+        get apiKey() {
+          const s = loadLlmSettings();
+          return s.provider !== 'anthropic' ? s.apiKey : readSessionKey() ? '[redacted]' : '';
+        },
         set apiKey(v) { applyLlmSetup({ apiKey: v }); },
+        get keyExpiresAt() { return readSessionKey()?.expiresAt || 0; },
+        forgetKey() {
+          forgetSessionKey();
+          publish(EVENTS.llmSettingsChanged);
+          return stencil;
+        },
         get serverUrl() { return loadLlmSettings().serverUrl; },
         set serverUrl(v) { applyLlmSetup({ serverUrl: v }); },
         // Partial update in one call; unknown providers / non-http(s) URLs throw.

@@ -4,7 +4,7 @@
 // 429 with the code `rateLimited`, told apart here by message + Retry-After. Requests omit
 // `system`: the server rejects any prompt not carrying Stencil's pinned head, and empty is allowed.
 import { test, expect } from '@playwright/test';
-import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 import { startLlmStub, LLM_STUB_PORT } from '../../helpers/llm-stub.js';
 
 const MAX_IN_FLIGHT = 8; // server default LLM_MAX_IN_FLIGHT
@@ -40,7 +40,7 @@ test.describe('LLM proxy spend controls', () => {
   test.afterAll(async () => { await stub?.close(); });
   test.beforeEach(() => stub.reset());
 
-  // The proxy is enabled only when compose.llm.yml was applied (harness-managed
+  // The proxy is enabled only when compose/llm.yml was applied (harness-managed
   // stack). With E2E_SKIP_COMPOSE=1 the server may run without the LLM env.
   async function llmEnabled(request, token) {
     const res = await request.get(`${SERVER_URL}/llm/info`, { headers: bearer(token) });
@@ -52,7 +52,7 @@ test.describe('LLM proxy spend controls', () => {
     test.slow();
     const token = await issueToken(request, 'llm-inflight');
     test.skip(!(await llmEnabled(request, token)),
-      'server is running without the LLM env (helpers/compose.llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
+      'server is running without the LLM env (helpers/compose/llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
 
     // Hold the upstream so accepted calls occupy their gate slot until release().
     stub.hold();
@@ -100,7 +100,7 @@ test.describe('LLM proxy spend controls', () => {
     test.slow();
     const token = await issueToken(request, 'llm-rate');
     test.skip(!(await llmEnabled(request, token)),
-      'server is running without the LLM env (helpers/compose.llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
+      'server is running without the LLM env (helpers/compose/llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
 
     // Sequential, so the in-flight gate cannot fire: a fresh bucket holds RATE_PER_MINUTE tokens and
     // refills at that rate, so the headroom covers refill during the loop.

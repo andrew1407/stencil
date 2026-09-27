@@ -57,8 +57,8 @@ pub fn restyleInto(line: []const u8, s: skin.Skin, accent: []const u8, letters: 
         if (esc != 0) {
             const seq = line[i .. i + esc];
             i += esc;
-            if (seq[seq.len - 1] != 'm' or std.mem.eql(u8, seq, skin.gold)) {
-                appendBytes(out, &oi, seq);
+            if (seq.len < 3 or seq[1] != '[' or seq[seq.len - 1] != 'm' or std.mem.eql(u8, seq, skin.gold)) {
+                appendBytes(out, &oi, scan.passable(seq));
                 run = false;
             } else if (per_cell) {
                 run = accent.len != 0 and std.mem.eql(u8, seq, accent);

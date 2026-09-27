@@ -2,7 +2,6 @@
 #include "searchComboParts.hpp"
 #include "menuReveal.hpp"       // support::revealPopup / dismissPopup — the shared surface dust
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
-#include "ShimmerOverlay.hpp"   // …and takes the app's glass sweep with it
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -12,8 +11,6 @@
 #include <QScreen>
 #include <QScrollBar>
 #include <QSignalBlocker>
-#include <QSortFilterProxyModel>
-#include <QVBoxLayout>
 
 namespace stencil::gui {
 

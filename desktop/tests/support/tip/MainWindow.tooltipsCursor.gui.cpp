@@ -18,14 +18,14 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 30);   // let the toolbar's own deferred layout pass settle first
     // A fresh window has no .stencil link, so live-sync is dead while Projects beside it
     // is live: one row, both states.
-    QVERIFY(!win.actStencilLiveSync->isEnabled());
+    QVERIFY(!win.acts.stencilLiveSync->isEnabled());
     QToolButton* dead = nullptr;
     QToolButton* live = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>()) {
       if (!b->isVisible() || !b->parentWidget()) continue;
       if (!b->parentWidget()->property("toolRow").toBool()) continue;
-      if (b->defaultAction() == win.actStencilLiveSync) dead = b;
-      if (b->defaultAction() == win.actProjects && !live) live = b;
+      if (b->defaultAction() == win.acts.stencilLiveSync) dead = b;
+      if (b->defaultAction() == win.acts.projects && !live) live = b;
     }
     QVERIFY2(dead, "no toolbar button for live sync");
     QWidget* row = dead->parentWidget();
@@ -82,7 +82,7 @@ class MainWindowGuiTest : public QObject {
     line.points = {{60, 100}, {180, 100}};
     canvas->setLines({line});
     const double s = canvas->getScale();
-    QLabel* body = win.tooltip->findChild<QLabel*>();
+    QLabel* body = win.overlays.tooltip->findChild<QLabel*>();
     QVERIFY(body);
 
     // Hover an image-space spot and report what the tooltip says (empty = hidden). The reveal waits out
@@ -92,11 +92,11 @@ class MainWindowGuiTest : public QObject {
       QMouseEvent move(QEvent::MouseMove, QPointF(p), canvas->mapToGlobal(p), Qt::NoButton,
                        Qt::NoButton, Qt::NoModifier);
       QApplication::sendEvent(canvas, &move);
-      settle([&win] { return win.tooltip->isVisible(); }, 240);
-      return win.tooltip->isVisible() ? body->text() : QString();
+      settle([&win] { return win.overlays.tooltip->isVisible(); }, 240);
+      return win.overlays.tooltip->isVisible() ? body->text() : QString();
     };
     const auto compareAt = [&](const char* mode, double split) {
-      win.setCompareModeUi(QString::fromLatin1(mode));
+      win.parts.styleControls.setCompareModeUi(QString::fromLatin1(mode));
       canvas->setCompareSplit(split);
       settleLayout(&win, 60);
     };
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(hoverText(180, 100).isEmpty() && hoverText(150, 100).isEmpty(),
              "the original-only view still labelled the layout");
     // …and the Alt+Shift+O peek is the same view, so it gates the same way.
-    win.setCompareModeUi(QStringLiteral("none"));
+    win.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
     canvas->setCompareHoldOriginal(true);
     QVERIFY2(hoverText(180, 100).isEmpty(), "the held peek still labelled the layout");
     canvas->setCompareHoldOriginal(false);

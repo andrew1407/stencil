@@ -19,8 +19,8 @@ const fakeCanvas = (width, height) => {
 };
 beforeEach(() => { ops.length = 0; });
 
-test('IMAGE_TASK is a frozen table of the two worker tasks', () => {
-  assert.deepEqual(IMAGE_TASK, { SCALE: 'scale', CONTOUR: 'contour' });
+test('IMAGE_TASK is a frozen table of the worker tasks', () => {
+  assert.deepEqual(IMAGE_TASK, { SCALE: 'scale', CONTOUR: 'contour', FILTER: 'filter', RESULT: 'result' });
   assert.ok(Object.isFrozen(IMAGE_TASK));
 });
 

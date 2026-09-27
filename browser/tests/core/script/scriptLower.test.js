@@ -1,10 +1,12 @@
-// Templates, history and source classification. Mirrors core/tests/scriptLower.test.cpp.
+// Templates, history and source classification. Mirrors core/tests/script/scriptLower.test.cpp.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../../../js/core/script.js';
 import { editDistance, didYouMean } from '../../../js/core/script/diagnostics.js';
-import { MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_TEMPLATE_DEPTH } from '../../../js/core/script/types.js';
+import {
+  MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_TEMPLATE_DEPTH, unitIndexOfColumn, utf8Length, utf8Truncate,
+} from '../../../js/core/script/types.js';
 
 const codesOf = (src) => parseScript(src).diagnostics.map((d) => d.code);
 const kindOf = (src) => parseScript(src).blocks[0].kind;
@@ -35,6 +37,18 @@ test('a template that reaches itself stops at the depth cap', () => {
   assert.ok(codesOf(src).includes('E_TEMPLATE_RECURSION'));
 });
 
+test('a template-body diagnostic carries its outermost call as a related span, once', () => {
+  const p = parseScript('@stencil inner:\n  @line (0,0)\n\n@stencil outer:\n'
+    + '  @use stencil inner\n\n@source a.png:\n  @crp\n  @use stencil outer\n  @use stencil outer\n');
+  assert.equal(p.diagnostics.length, 2);
+  const [body, own] = p.diagnostics;
+  assert.equal(own.code, 'E_UNKNOWN_DIRECTIVE');
+  assert.equal(own.related, undefined);
+  assert.equal(body.line, 2);
+  assert.ok(body.message.includes('(from the @use stencil at 9:3)'));
+  assert.deepEqual(body.related, { line: 9, col: 3, len: 4 });
+});
+
 test('undo rewinds and replays so each save sees the right state', () => {
   const p = parseScript('@source a.png:\n  @filter bw\n  @rect (1,1) (2,2)\n'
     + '  @save one.png\n  @undo\n  @save two.png\n  @redo\n  @save three.png\n');
@@ -59,6 +73,8 @@ test('undo selectors: by index, from the end, and by text', () => {
   assert.equal(parseScript(`${base}  @undo @rect (1,1) (2,2)\n`).hasErrors, false);
   assert.ok(codesOf('@source a.png:\n  @filter bw\n  @undo 99\n').includes('E_UNDO_OUT_OF_RANGE'));
   assert.ok(codesOf('@source a.png:\n  @filter bw\n  @redo\n').includes('W_NOTHING_TO_REDO'));
+  assert.ok(codesOf('@source a.png:\n  @filter bw\n  @undo\n  @redo 10foo\n').includes('E_BAD_TOKEN'));
+  assert.ok(codesOf('@source a.png:\n  @filter bw\n  @undo\n  @redo 1 2\n').includes('E_BAD_TOKEN'));
 });
 
 test('@frame starts a fresh set of edits and rejects a repeat', () => {
@@ -100,4 +116,13 @@ test('editDistance is capped, and didYouMean only suggests close words', () => {
   assert.equal(editDistance('crop', 'zzzzzzzz'), 3);
   assert.equal(didYouMean('crp', ['crop', 'filter']), 'crop');
   assert.equal(didYouMean('zzzzzzzz', ['crop', 'filter']), '');
+});
+
+test('columns count UTF-8 bytes, as the core does, and map back to an editor index', () => {
+  const line = '@save ☺.png; @crp 1';
+  const [bad] = parseScript(`${line}\n`).diagnostics.filter((d) => d.code === 'E_UNKNOWN_DIRECTIVE');
+  assert.equal(bad.col, 16); // '☺' is three bytes
+  assert.equal(line.slice(unitIndexOfColumn(line, bad.col)).startsWith('@crp'), true);
+  assert.equal(utf8Length('a😀é'), 7);
+  assert.equal(utf8Truncate('aé😀', 4), 'aé'); // never half a character
 });

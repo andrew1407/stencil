@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"stencil/server/internal/auth"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
@@ -80,8 +81,8 @@ type fileLookup struct {
 	relErr error
 }
 
-// lookupFile reads the project row and, for a filestore-only kind, the stored path concurrently. The row
-// is read for every kind: a missing project must answer 404, so recErr outranks relErr at the call site.
+// lookupFile reads the project's metadata and, for a filestore-only kind, the stored path concurrently. The
+// row is read for every kind: a missing project must answer 404, so recErr outranks relErr at the call site.
 func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
 	var (
 		out fileLookup
@@ -90,7 +91,7 @@ func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		out.rec, out.recErr = a.deps.Projects.GetProject(ctx, id)
+		out.rec, out.recErr = a.deps.Projects.GetProjectMeta(ctx, id)
 	}()
 	if protocol.IsFilestoreOnlyKind(kind) {
 		wg.Add(1)
@@ -115,6 +116,9 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(req.URL.Query().Get("ext"), ".")}
+	if sess, ok := auth.SessionFromContext(req.Context()); ok {
+		put.Writer = sess.ID
+	}
 	put.W, _ = strconv.Atoi(req.URL.Query().Get("w"))
 	put.H, _ = strconv.Atoi(req.URL.Query().Get("h"))
 
@@ -149,14 +153,14 @@ func (a *API) handleDeleteFile(rw http.ResponseWriter, req *http.Request) {
 	}
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
-		writeNotFound(rw, msgProjectNotFound)
-		return
-	} else if err != nil {
+	if ok, err := a.deps.Projects.ProjectExists(ctx, id); err != nil {
 		writeInternalError(rw, msgLoadProject)
 		return
+	} else if !ok {
+		writeNotFound(rw, msgProjectNotFound)
+		return
 	}
-	if err := a.deps.Files.RemoveKind(id, kind); err != nil {
+	if err := a.files.Remove(ctx, id, kind); err != nil {
 		writeInternalError(rw, msgDeleteFile)
 		return
 	}
@@ -175,7 +179,7 @@ func writeStoreFileErr(rw http.ResponseWriter, err error) {
 	case errors.As(err, &unsafe):
 		writeBadRequest(rw, msgRejectedPath)
 	case errors.Is(err, filestore.ErrQuotaExceeded):
-		// STORAGE_QUOTA_BYTES: the server is full, not the request malformed.
+		// Any of the storage quotas: the server is full, not the request malformed.
 		writeErr(rw, http.StatusInsufficientStorage, protocol.CodeInternal, msgQuotaExceeded)
 	default:
 		writeInternalError(rw, msgStoreFile)

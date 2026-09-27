@@ -3,7 +3,8 @@
 // clicked one are one code path. Deliberately not routed through js/llm/: an op plan is
 // model output and carries anti-abuse caps a user's own script must not inherit.
 import { cropSpecOf, parseScript, resolveShape } from '../core/script.js';
-import { timeoutSignal } from '../net/abortable.js';
+import { readJsonCapped } from '../net/cappedBody.js';
+import { guardedFetch } from '../net/fetchGuard.js';
 import { notify } from '../utils.js';
 
 export class ScriptError extends Error {
@@ -96,9 +97,6 @@ const OP_RUNNERS = Object.freeze({
   undo(op, { stencil }) {
     stepHistory(op, () => stencil.undo());
   },
-  redo(op, { stencil }) {
-    stepHistory(op, () => stencil.redo());
-  },
 // §3: a named @save renames the open project first. An incognito editor has no name to
 // take and never persists, and a blank one has no project yet — both just save.
   async save(op, { stencil }) {
@@ -131,13 +129,13 @@ export const runScript = async (text, stencil, { fetchLayout } = {}) => {
     stencil,
     program,
     lastSource: '',
-    // Through the same timeout every other fetcher uses: a stalled layout URL must not
-    // leave the run — and the flyout it holds open — pending for ever.
+    // Through the fetch guard's deadline and the byte cap: a stalled or endless layout URL must
+    // not leave the run — and the flyout it holds open — pending for ever.
     fetchLayout: fetchLayout ?? (async (src, op) => {
       if (!/^https?:\/\//i.test(src)) throw needsUrl({ ...op, strs: [src] });
-      const res = await fetch(src, { signal: timeoutSignal() });
+      const res = await guardedFetch(src);
       if (!res.ok) throw new ScriptError(`could not load the layout '${src}'`, op);
-      return res.json();
+      return readJsonCapped(res);
     }),
   };
 

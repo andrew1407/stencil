@@ -93,7 +93,7 @@ test('share lights every node it has, top to bottom', () => {
   const part = MOTION.icons.share.parts[0];
   assert.equal(part.hook, 'ic-node');
   assert.ok(part.stagger > 0, 'they light in turn, not together');
-  // Markup order IS the sequence — the desktop staggers on it (support/iconMotion.hpp),
+  // Markup order IS the sequence — the desktop staggers on it (support/icon/iconMotion.hpp),
   // so the sheet's nth-of-type delays have to be that same order.
   assert.match(SECTION, /\.ic-share \.ic-node:nth-of-type\(2\) \{ --ic-delay: 0\.12s; \}/);
   assert.match(SECTION, /\.ic-share \.ic-node:nth-of-type\(3\) \{ --ic-delay: 0\.24s; \}/);

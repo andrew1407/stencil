@@ -1,13 +1,11 @@
-// Retry and the turn's end (js/llm/session.js): one turn per click logged once, the shared
+// Retry and the turn's end (js/llm/chat/session.js): one turn per click logged once, the shared
 // in-flight flag both surfaces read, and a settled reply carrying no progress line.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../../../js/llm/chat/session.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
 import { descendants, makeEl, stubDom, rowsOf, PROMPT } from '../../helpers/chatTranscriptRig.js';
+import { wireBothSurfaces, typeAndSend, rowEl, rightClick, openRowMenu, clickRowItem } from '../../helpers/chatSurfacesRig.js';
 
 // ── Retry: one turn per click, logged once ──────────────────────────────────
 const failingController = () => ({
@@ -53,12 +51,23 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
 
   // Both retry/resend entry points consult it, so a click in one surface cannot start a
   // second turn over one the OTHER surface is running (that logged the prompt twice).
-  for (const [name, src] of [['panel', readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8')],
-    ['flyout', contextMenuSource()]]) {
-    assert.ok(src.includes('chatTurnInFlight()'), `${name} guards on the shared flag`);
-    assert.strictEqual(src.split('chatTurnInFlight()').length - 1, 2,
-      `${name} guards BOTH retry and resend`);
-  }
+  const s = await wireBothSurfaces();
+  const user = s.session.appendChatRow({ role: 'user', text: PROMPT });
+  s.session.appendChatRow({ role: 'assistant', text: 'failed', error: true, retryText: PROMPT });
+  const guarded = async (runner, other) => {
+    typeAndSend(runner, 'running');
+    const sent = s.ctrl.sent.length;
+    other.transcript.querySelector('.chat-retry-cta').fire('click');
+    rightClick(other.transcript, rowEl(other.transcript, user.id));
+    clickRowItem(openRowMenu(), 'Resend');
+    assert.strictEqual(s.ctrl.sent.length, sent, 'neither Retry nor Resend starts a second turn');
+    s.ctrl.settle({ reply: 'ok', results: [] });
+    await new Promise((r) => setTimeout(r, 0));
+  };
+  await guarded(s.flyout, s.panel);
+  await guarded(s.panel, s.flyout);
+  s.panel.transcript.querySelector('.chat-retry-cta').fire('click');
+  assert.strictEqual(s.ctrl.sent.at(-1), PROMPT, 'with nothing in flight, Retry sends');
 });
 
 // ── §3.0: nothing is rendered after the reply ───────────────────────────────
@@ -85,9 +94,11 @@ test('a settled reply carries no progress line and no cancel — the turn is ove
   renderChatLog(transcript, log, {});
   assert.strictEqual(descendants(row).filter((d) => d.classList.contains('chat-aux')).length, 0);
   assert.strictEqual(row.textContent, 'Outlined all seventeen.');
-  // The view no longer knows the concept at all.
-  const view = chatViewSource();
-  assert.ok(!/syncAuxNote|auxNoteText|onAuxCancel|chat-aux/.test(view));
+  // The view no longer knows the concept at all: no export, and a stale cancel hook is never reached.
+  const view = await import('../../../js/ui/chat/view.js');
+  assert.deepStrictEqual(Object.keys(view).filter((k) => /aux/i.test(k)), []);
+  renderChatLog(transcript, log, { onAuxCancel: () => assert.fail('no aux cancel exists') });
+  assert.strictEqual(descendants(row).filter((d) => /aux/.test(d.className)).length, 0);
   const css = COMPONENTS_CSS;
   assert.ok(!/\.chat-aux/.test(css), 'and neither does the stylesheet');
 });

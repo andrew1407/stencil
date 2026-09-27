@@ -2,7 +2,7 @@
 // Alt released closes it only when the pointer is outside the list.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { wireAltPeek, wirePeekBox } from '../../../js/ui/tip/altPeek.js';
+import { wireAltPeek, wirePeekBox, wireReleasePick } from '../../../js/ui/tip/altPeek.js';
 import { LINGER_CLOSE_MS, createModalOpenGesture } from '../../../js/ui/tip/popover.js';
 
 const target = () => {
@@ -167,4 +167,43 @@ test('Alt-gliding onto another dropdown closes the first peek', () => {
   b.hover.dispatch('mouseenter', { altKey: true });
   assert.equal(a.menu.hidden, true);
   assert.equal(b.menu.hidden, false);
+});
+
+// One shared document key/blur registry: however many dropdowns wire a peek, Alt is heard by
+// one keydown, one keyup and one blur listener, and each trigger still answers for itself.
+test('every peek trigger shares one keydown, keyup and blur listener', () => {
+  const a = rig();
+  const more = Array.from({ length: 4 }, () => {
+    const hover = target();
+    const menu = { ...target(), hidden: true };
+    const peek = wireAltPeek(hover, menu, {
+      open: () => { menu.hidden = false; }, close: () => { peek.notifyClosed(); menu.hidden = true; },
+    });
+    return { hover, menu };
+  });
+  assert.equal(document.on.keydown.length, 1);
+  assert.equal(document.on.keyup.length, 1);
+  assert.equal(window.on.blur.length, 1);
+  more[2].hover.hovered = true;
+  a.pressAlt();
+  assert.deepEqual(more.map((m) => m.menu.hidden), [true, true, false, true], 'only the hovered trigger peeks');
+  assert.equal(a.menu.hidden, true);
+});
+
+// The release-to-pick menus (the logo's accent list) ride the same registry: a keyup picks the row
+// under the pointer, a blur only releases.
+test('a release pick shares the registry; a blur releases without picking', () => {
+  rig();
+  const menu = target();
+  const row = { clicks: 0, click() { this.clicks++; }, matches: (q) => q === ':hover' };
+  menu.querySelectorAll = () => [row];
+  let releases = 0;
+  const g = { altRelease: () => { releases++; } };
+  wireReleasePick(menu, g, '.row', { isPeek: () => true, isShowing: () => true });
+  assert.equal(document.on.keyup.length, 1);
+  assert.equal(window.on.blur.length, 1);
+  window.dispatch('blur');
+  assert.deepEqual([releases, row.clicks], [1, 0], 'Alt+Tab away picks nothing');
+  document.dispatch('keyup', { key: 'Alt' });
+  assert.deepEqual([releases, row.clicks], [2, 1], 'the release over a row picks it');
 });

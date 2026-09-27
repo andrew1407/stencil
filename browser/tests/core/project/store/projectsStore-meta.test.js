@@ -1,4 +1,4 @@
-// js/core/projectsStore.js metadata: normalizeMeta's legacy default-fill, keywords,
+// js/core/project/store/projectsStore.js metadata: normalizeMeta's legacy default-fill, keywords,
 // description, the one-shot legacy migration and the quota error. From projectsStore.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';

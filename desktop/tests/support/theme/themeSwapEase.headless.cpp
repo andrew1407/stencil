@@ -1,5 +1,5 @@
-// The theme wipe's easing (src/support/ThemeSwapOverlay.hpp swapEase) — the desktop half of the
-// contract browser/tests/motion.test.js holds the browser and extension to. The wipe is a CIRCLE, so
+// The theme wipe's easing (src/support/dust/ThemeSwapOverlay.hpp swapEase) — the desktop half of the
+// contract browser/tests/ui/motion.test.js holds the browser and extension to. The wipe is a CIRCLE, so
 // the area it has recoloured grows as r², and the curve is judged on the AREA it sweeps, not the
 // radius it moves. Split across themeSwapEase*.headless.cpp.
 #include "themeSwapEaseParts.hpp"
@@ -102,13 +102,13 @@ int main(int argc, char** argv) {
 
     bool inside = true, onScreen = true, sane = true, anyLate = false;
     int seen = 0;
-    for (double ms = 20; ms <= ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS; ms += 20) {
+    for (double ms = 20; ms <= ThemeSwapOverlay::swapMs() + ThemeSwapOverlay::dustLifeMs(); ms += 20) {
       const double ring =
-          full * ThemeSwapOverlay::swapEase(std::min(1.0, ms / ThemeSwapOverlay::SWAP_MS));
+          full * ThemeSwapOverlay::swapEase(std::min(1.0, ms / ThemeSwapOverlay::swapMs()));
       for (int i = 0; i < ThemeSwapOverlay::DUST_MOTES; i++) {
         if (!ThemeSwapOverlay::dustMoteAt(i, ms, o, full, bounds, &mote)) continue;
         seen++;
-        anyLate = anyLate || ms > ThemeSwapOverlay::SWAP_MS;
+        anyLate = anyLate || ms > ThemeSwapOverlay::swapMs();
         inside = inside && std::hypot(mote.x - o.x(), mote.y - o.y()) <= ring + 1;
         // Homes are gated to ±16 of the screen; the drift can carry a mote ~29px
         // further before it fades, where the edge clips it — that slack is the bound.
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     check(anyLate, "the wake outlives the wipe — the last motes still get their whole life");
     // …but not forever: past the tail the wake is spent, so deleteLater leaves nothing.
     bool spent = true;
-    const double after = ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS + 1;
+    const double after = ThemeSwapOverlay::swapMs() + ThemeSwapOverlay::dustLifeMs() + 1;
     for (int i = 0; i < ThemeSwapOverlay::DUST_MOTES; i++)
       spent = spent && !ThemeSwapOverlay::dustMoteAt(i, after, o, full, bounds, &mote);
     check(spent, "every mote has burnt out by the overlay's own end");

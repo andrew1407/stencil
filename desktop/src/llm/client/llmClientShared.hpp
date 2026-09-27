@@ -1,6 +1,7 @@
 #pragma once
 // The provider wire helpers — endpoint tags, failure replies and text sanitising — private to the LlmClient*.cpp TUs.
 #include "LlmClient.hpp"
+#include "ServerClient.hpp"
 #include "httpStatus.hpp"
 
 #include <QJsonDocument>
@@ -14,6 +15,11 @@ namespace stencil::llm {
   inline QString trimSlash(QString url) {
     while (url.endsWith(QLatin1Char('/'))) url.chop(1);
     return url;
+  }
+
+  // The provider's providers.json `chatPath`, the tail its chat POST goes to (llm-providers.md §6).
+  inline QString chatPathOf(const QString& provider) {
+    return providerCanonEntry(provider).value(QStringLiteral("chatPath")).toString();
   }
 
   inline LlmReply failReply(LlmFailure kind, const QString& msg) {
@@ -95,6 +101,42 @@ namespace stencil::llm {
       return true;
     }
     return false;
+  }
+
+  // §6.5: the key rides plain http only to a loopback host (a local mock or proxy the user named).
+  // The disabled reason to fail with, or "" when `url` may carry it.
+  inline QString plainHttpRefusal(const QString& url) {
+    const QUrl u(url);
+    if (u.scheme().compare(QLatin1String("http"), Qt::CaseInsensitive) != 0 ||
+        net::ServerClient::isLoopbackHost(u.host()))
+      return QString();
+    return QStringLiteral("refusing to send the API key to '%1' over plain http — use https").arg(u.host());
+  }
+
+  // The §6.5 headers: the session key and the Messages API version. No Authorization, and never the
+  // direct-browser-access header, which only a web or extension page sends.
+  inline QList<QPair<QByteArray, QByteArray>> anthropicHeaders(const QString& key) {
+    const QString version = providersCanon().value(QStringLiteral("anthropicUpstream")).toObject()
+                                .value(QStringLiteral("version")).toString();
+    return {{QByteArrayLiteral("x-api-key"), key.toUtf8()},
+            {QByteArrayLiteral("anthropic-version"), version.toUtf8()}};
+  }
+
+  // §6.3's stop reasons, never parsed as plans: max_tokens is truncated, refusal a refusal. True when
+  // `r` (its text and stopReason filled) was answered as one of them.
+  inline bool settledByStopReason(LlmReply& r, std::function<void(LlmReply)>& done) {
+    if (r.stopReason == QLatin1String("max_tokens")) {
+      r.failure = LlmFailure::TRUNCATED;
+      r.error = QStringLiteral("Response truncated — the model hit its output "
+                               "limit; try a shorter request");
+    } else if (r.stopReason == QLatin1String("refusal")) {
+      r.failure = LlmFailure::REFUSAL;
+      r.error = r.text.isEmpty() ? QStringLiteral("The model refused this request") : r.text;
+    } else {
+      return false;
+    }
+    done(r);
+    return true;
   }
 
   // Shared handler for the ollama / openai-compat chat POSTs: HTTP triage,

@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import LlmPlanError, parse_op_plan
 from tests.helpers.stubs import _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class ConsoleOpValidationTest(unittest.TestCase):
+class ConsoleOpValidationTest(NativeCase):
   """The §10 console-profile ops' validators (shape only — resolution and the
   /delete guards run at execution) and their variant ban."""
 
@@ -91,8 +92,8 @@ class ConsoleOpValidationTest(unittest.TestCase):
     self.assertEqual(plan.actions, [])
     self.assertEqual(
       plan.warnings,
-      ['unknown op "accent" dropped', 'unknown op "reconnect" dropped',
-      'unknown op "copy" dropped'],
+      ['Skipped unknown operation "accent"', 'Skipped unknown operation "reconnect"',
+      'Skipped unknown operation "copy"'],
     )
 
   def test_console_ops_cannot_appear_in_variants(self):
@@ -109,8 +110,10 @@ class ConsoleOpValidationTest(unittest.TestCase):
         _plan_json(variants=[{"label": "v", "actions": [action]}])
       )
       self.assertEqual(plan.variants, [])
+      hint = (" — open the URL as a top-level action; picking images off a web page is the "
+              "extension assistant's job") if action["op"] == "openUrl" else ""
       self.assertEqual(
         plan.warnings,
-        ['dropped variant 1 ("v") — the "%s" op adjusts the console, not the '
-        "image, and cannot appear in a variant" % action["op"]],
+        ['Dropped variant 1 ("v") — editor-settings op "%s" is not allowed inside variants%s; '
+        "the rest of the plan ran" % (action["op"], hint)],
       )

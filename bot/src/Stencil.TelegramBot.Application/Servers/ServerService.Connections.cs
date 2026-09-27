@@ -9,9 +9,10 @@ public sealed partial class ServerService
     {
         // Invite links carry the token as a '#token=' fragment; an explicit token wins.
         (url, token) = InviteLink.Split(url, token);
-        // Open to any Telegram user: link-local / cloud-metadata hosts are rejected before any REST
-        // call.
-        await RemoteImageUrl.ValidateServerUrlAsync(url, ct);
+        // Open to any allowed user: link-local / cloud-metadata hosts (and private ones, when the
+        // operator says so) are rejected before any REST call.
+        await RemoteImageUrl.ValidateServerUrlAsync(
+            url, ct, _policy?.ResolveTimeout, _policy?.AllowPrivateServers ?? true);
         var session = await _store.GetAsync(userId, ct);
         var normalized = _factory.NormalizeUrl(url);
         // A known admin token skips the probe that can only 401 (browser handshake parity).

@@ -37,6 +37,24 @@ namespace serverauth {
     mock.goodBearer.clear();
   }
   {
+    // An older server has no GET /auth/session: its 404 falls back to a one-row list.
+    mock.goodBearer = "old-token";
+    mock.sessionStatus = 404;
+    mock.lines.clear();
+    ConnectionManager mgr;
+    QString err;
+    check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("old-token"), err),
+          "a session token connects to a server without /auth/session");
+    ServerClient* cl = mgr.find(mock.url());
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::SESSION,
+          "…proved a session by the list fallback");
+    check(mock.lines.size() >= 2 && mock.lines.at(0).startsWith("GET /auth/session") &&
+              mock.lines.at(1).startsWith("GET /projects?limit=1"),
+          "…asking /auth/session first and listing one row only after its 404");
+    mock.goodBearer.clear();
+    mock.sessionStatus = 0;
+  }
+  {
     // NONE: nothing was supplied — the session was minted anonymously.
     ConnectionManager mgr;
     QString err;
@@ -83,7 +101,7 @@ namespace serverauth {
     check(cl && cl->isAdmin() && cl->getToken() == QStringLiteral("sess-h"),
           "…minting its session at once");
     check(mock.requests == before + 1,
-          "…in ONE request: a known admin credential never probes /projects");
+          "…in ONE request: a known admin credential never probes the session");
     mock.mintBearer.clear();
     mock.goodBearer.clear();
     mock.mintToken = "tok";

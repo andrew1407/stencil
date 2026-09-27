@@ -1,0 +1,68 @@
+/* The webcore skin's notes: the yellow tooltip with its keycaps, and the toast as a system
+   message box. */
+/* ── Tooltip: the yellow note ── */
+:root[data-skin="webcore"] #app-tooltip,
+:root[data-skin="webcore"] .tooltip,
+:root[data-skin="webcore"] .chat-status-tip,
+:root[data-skin="webcore"] .ctx-preview-tip {
+    background: var(--wc-tip-bg);
+    color: var(--wc-tip-ink);
+    border: 1px solid var(--wc-dark);
+    box-shadow: none;
+    padding: 3px 6px;
+    font-size: 11px;
+}
+:root[data-skin="webcore"] .tip-title,
+:root[data-skin="webcore"] .tip-term,
+:root[data-skin="webcore"] .tip-desc,
+:root[data-skin="webcore"] .tip-line,
+:root[data-skin="webcore"] .tip-hint,
+:root[data-skin="webcore"] .tip-note,
+:root[data-skin="webcore"] .tip-bullets li { color: var(--wc-tip-ink); }
+/* The cap IS the key; .ctx-hotkey is only the row's slot for one, and giving that a face too
+   drew a second key around the whole combo. Sized as the default skin's caps. */
+:root[data-skin="webcore"] .tip-key,
+:root[data-skin="webcore"] .info-key .tip-key,
+:root[data-skin="webcore"] .hotkey-table .tip-key,
+:root[data-skin="webcore"] .shortcut-hint {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .ctx-hotkey {
+    background: none;
+    box-shadow: none;
+    border: 0;
+    padding-left: 10px;
+}
+
+/* ── Notices: a system message box ── */
+:root[data-skin="webcore"] .notify-toast,
+:root[data-skin="webcore"] .notify-toast.notify-info,
+:root[data-skin="webcore"] .notify-toast.notify-fail,
+:root[data-skin="webcore"] .notify-toast.notify-shine,
+:root[data-skin="webcore"] .image-missing-banner {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+    /* Room at the top for the title strip; the glyph and the words stay on one line. */
+    padding: 23px 12px 8px 8px;
+    position: relative;
+    flex-wrap: nowrap;
+    animation: none;
+}
+/* The strip is laid over the box rather than into it: as a flex item it either stood beside
+   the glyph or pushed the words onto a line of their own. Inset by the bevel's 3px. */
+:root[data-skin="webcore"] .notify-toast::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    top: 3px;
+    height: 15px;
+    background: var(--wc-title);
+}
+:root[data-skin="webcore"] .notify-toast .notify-icon { color: var(--wc-ink); }
+:root[data-skin="webcore"] .toast-glow { display: none; }

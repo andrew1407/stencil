@@ -1,1 +1,1 @@
-Read an image's pixel dimensions. Useful before computing crop or layout coordinates. `input` is a path or http(s) URL. Returns width and height.
+Read an image's pixel dimensions, format, whether it carries alpha and its size in bytes — from its header, without decoding it — or a video's size, duration and frame count. Useful before computing crop or layout coordinates, or before picking a video `frame`. `input` is a path or http(s) URL. Returns width and height, with format, alpha, bytes, duration_ms and frames where known (null otherwise).

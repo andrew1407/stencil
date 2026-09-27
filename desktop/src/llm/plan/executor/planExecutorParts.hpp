@@ -4,7 +4,6 @@
 // case body reads exactly as it did inside the one big switch.
 #include "planExecutor.hpp"
 
-#include "CanvasWidget.hpp"
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
 #include "formulaParser.hpp"
@@ -15,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace stencil::llm {
 
@@ -95,6 +95,14 @@ namespace stencil::llm {
                        QStringList* notes, bool* handled, QString* err);
     bool applyStateAction(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
                        QStringList* notes, bool* handled, QString* err);
+
+    // Any op through its group, answering `done` at once — or, for an op that waits on I/O
+    // (isAwaitedOp: connect, frame, openUrl, openFile, openProject, save), once the target answers it.
+    void applyActionThen(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
+                         QStringList* notes, QString* err, const std::function<void(bool)>& done);
+    bool isAwaitedOp(OpKind op);
+    void startAwaitedAction(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
+                            QStringList* notes, QString* err, const std::function<void(bool)>& done);
 
   }  // namespace exec
 

@@ -26,6 +26,7 @@ int main(int argc, char** argv) {
   llmexec::checkHistoryOps(img, a4);
   llmexec::checkAccentOps(img, a4);
   llmexec::checkProjectRows(img, a4);
+  llmexec::checkAwaitedOps(img, a4);
 
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,

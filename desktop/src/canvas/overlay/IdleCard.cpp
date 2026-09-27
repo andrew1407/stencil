@@ -1,4 +1,5 @@
-#include "CanvasWidget.hpp"
+#include "IdleCard.hpp"
+#include "idleCardMotion.hpp"
 
 #include "theme.hpp"
 #include "../../support/skinPrefs.hpp"
@@ -12,12 +13,13 @@
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QVector>
+#include <QWidget>
 
 // The empty canvas: page fill + the "＋ Blank image" card (browser .idle-create-btn, layout.css).
 namespace stencil::gui {
 
   namespace {
-    // The skin's raised button (browser css/webcore/chrome.css .idle-create-btn, padding 10px 18px):
+    // The skin's raised button (browser css/webcore/canvas.css .idle-create-btn, padding 10px 18px):
     // the face, a two-step bevel, square corners and the pixel picture; no dashes, lift or sweep.
     QRectF paintSkinCard(QPainter& p, const QRectF& page, const QString& label, const QFont& font,
                          int iconPx, qreal gap) {
@@ -52,10 +54,10 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  void CanvasWidget::paintIdleCard(QPainter& p, const Palette& pal) {
-    p.fillRect(rect(), pal.bgPage);
+  void IdleCard::paint(QPainter& p, const Palette& pal, bool dark, const QString& accentKey) {
+    p.fillRect(host->rect(), pal.bgPage);
     // The clear's dust is still falling: bare page only (setIdleHintHidden).
-    if (idleHintHidden) { unsetCursor(); return; }
+    if (hidden) { host->unsetCursor(); return; }
     // The card alone is the click/cursor target, never the whole page.
     const QString label = QStringLiteral("＋ Blank image");
     constexpr int ICON_PX = 32;
@@ -66,7 +68,7 @@ namespace stencil::gui {
     const QFontMetricsF fm(cardFont);
     const qreal textW = fm.horizontalAdvance(label);
     const qreal textH = fm.height();
-    const QRectF wr(rect());
+    const QRectF wr(host->rect());
     QRectF box(0, 0, std::max<qreal>(ICON_PX, textW) + PAD_X * 2,
                ICON_PX + GAP + textH + PAD_Y * 2);
     // Never wider/taller than the canvas it sits in, so the dashed border stays whole.
@@ -74,14 +76,14 @@ namespace stencil::gui {
     box.setHeight(std::min(box.height(), wr.height() - 32.0));
     box.moveCenter(wr.center());
     if (support::isWebcore()) {
-      idleCardRect = paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP);
+      cardBox = paintSkinCard(p, wr, label, cardFont, ICON_PX, GAP);
       return;
     }
 
     QColor accent = accentPrimary(accentKey);
     if (!accent.isValid()) accent = pal.textMuted;
     // The whole hover is a blend on `t` (components.css .idle-create-btn:hover + animations.css).
-    const double t = idleCardHoverT;
+    const double t = hoverT;
     // --border-hint as theme.cpp derives it for %BORDER_HINT% (css/theme.css).
     const QColor borderHint = dark ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
                                     : mixSrgb(QColor(Qt::white), accent, 0.35);
@@ -89,10 +91,10 @@ namespace stencil::gui {
     const QColor edge = mixSrgb(borderHint, pal.borderMain, t);
     const QColor ink = mixSrgb(pal.textMain, QColor(Qt::white), t);
     // Hit-test the RESTING rect, never the lifted one, or a cursor on the bottom edge oscillates.
-    idleCardRect = box;
+    cardBox = box;
     box.translate(0, -3.0 * t);
     // The arrival: grown about its own centre and faded up, over the whole card.
-    const double e = std::clamp(idleCardEnterT, 0.0, 1.0);
+    const double e = std::clamp(enterT, 0.0, 1.0);
     p.save();
     if (e < 1.0) {
       const double k = IDLE_CARD_ARRIVE_FROM + (1.0 - IDLE_CARD_ARRIVE_FROM) * e;
@@ -129,9 +131,9 @@ namespace stencil::gui {
     p.drawPath(border);
 
     // Glass sweep (browser layout.css ::after + @keyframes ui-shimmer).
-    if (idleShimmerT >= 0.0) {
+    if (shimmerT >= 0.0) {
       const double w = box.width();
-      const double x = box.left() - 1.35 * w + idleShimmerT * 2.7 * w;
+      const double x = box.left() - 1.35 * w + shimmerT * 2.7 * w;
       QLinearGradient band(x, box.top(), x + w * 0.9, box.bottom());
       QColor glass(Qt::white);
       glass.setAlphaF(dark ? 0.30 : 0.55);
@@ -148,8 +150,8 @@ namespace stencil::gui {
 
     const QRectF content = box.adjusted(PAD_X, PAD_Y, -PAD_X, -PAD_Y);
     // iconMotion.json "image", mode "settle", hand-evaluated (see the glyph note below); IDLE_GLYPH_*
-    // mirror the canon, pinned by tests/idleCardMotion.headless.cpp. A settle finishes on leave: its end IS rest.
-    const double gm = idleGlyphMs;
+    // mirror the canon, pinned by tests/support/icon/iconMotionDriver.headless.cpp. A settle finishes on leave: its end IS rest.
+    const double gm = glyphMs;
     // The sun: keyframes 0 → −1.6, 70% → +0.3, 100% → 0 on the settle default (OutBack).
     const auto orbDy = [](double ms) {
       const double local = ms - IDLE_GLYPH_ORB_DELAY_MS;

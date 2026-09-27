@@ -4,6 +4,7 @@
 #include "marshal.hpp"
 
 #include "color.hpp"
+#include "cropSnap.hpp"
 #include "DurationParser.hpp"
 #include "formulaParser.hpp"
 #include "hitTest.hpp"
@@ -117,6 +118,10 @@ extern "C" {
 
   double stencil_clampScale(double scale) { return clampScale(scale); }
 
+  // The clamp's range as scales; the browser reads it rather than mirroring it (zoom/pan.js).
+  double stencil_zoomMin(void) { return ZOOM_MIN; }
+  double stencil_zoomMax(void) { return ZOOM_MAX; }
+
   // Both zooms -> out[0..2] = {scale, scrollLeft, scrollTop}.
   void stencil_anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
                             double cursorY, double oldScale, double newScale,
@@ -136,7 +141,7 @@ extern "C" {
     out[2] = z.scrollTop;
   }
 
-  // Five more exports come from abi/shared.inc, verbatim with the CLI ABI.
+  // The rest come from abi/shared.inc, verbatim with the CLI ABI.
 #define STENCIL_ABI(wasmName, cliName) stencil_##wasmName
 #include "shared.inc"
 #undef STENCIL_ABI

@@ -59,6 +59,9 @@ namespace stencil::support {
 
   inline constexpr const char* NO_DIALOG_REVEAL_PROPERTY = "stencilNoDialogReveal";
 
+  // Every parented dialog window lands with its frame on its host's client centre. Idempotent.
+  void installDialogCentring();
+
   // Click-outside dismissal (browser ui/base.js). Qt hands a modal's blocked windows
   // nothing, so this watches the press before QApplication drops it. Idempotent.
   void installModalDismiss();
@@ -67,6 +70,8 @@ namespace stencil::support {
   void installModalDismissNative();
 
   // Written to the file named by STENCIL_MODAL_LOG; stderr is unreadable under LaunchServices.
+  // The variable is read once; a caller asks modalDismissLogOn() before it formats a line.
+  bool modalDismissLogOn();
   void modalDismissLog(const QString& line);
 
   inline constexpr const char* NO_OUTSIDE_DISMISS_PROPERTY = "stencilNoOutsideDismiss";

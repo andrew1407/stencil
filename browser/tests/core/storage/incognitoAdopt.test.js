@@ -13,7 +13,8 @@ installDom({}, {
   history: { replaceState: () => {} },
 });
 
-const { DrawingApp } = await import('../../../js/core/drawingApp.js');
+const { adoptIncognitoHere } = await import('../../../js/core/launch/incognitoFlow.js');
+const { mountStorage } = await import('../../helpers/storageRig.js');
 
 const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -21,54 +22,74 @@ const makeMock = (over = {}) => {
   const calls = [];
   return {
     calls,
-    storage: { incognito: false, save() { calls.push(['save']); } },
-    newEditor(opts) { calls.push(['newEditor', opts]); },
+    storage: {
+      incognito: false,
+      save() { calls.push(['save']); },
+      newTemporary(opts) { calls.push(['newTemporary', opts]); this.incognito = false; },
+    },
+    zoomPan: { syncViewportHeight() {} },
+    tabs: { reportActive() {}, reportIncognito() {} },
     updateIncognitoUI() { calls.push(['updateIncognitoUI']); },
     ...over,
   };
 };
 
-const adopt = (mock) => DrawingApp.prototype.adoptIncognitoHere.call(mock);
+// The real newEditor (core/launch/openFlow.js) resets through storage.newTemporary, recorded here.
+const adopt = (mock) => adoptIncognitoHere(mock);
 
 test('adoptIncognitoHere: flush, reset (keeping the chat), incognito on', () => {
   const mock = makeMock();
   adopt(mock);
   assert.deepEqual(mock.calls, [
     ['save'],
-    ['newEditor', { keepChat: true }],
+    ['newTemporary', { keepChat: true }],
     ['updateIncognitoUI'],
   ]);
   assert.equal(mock.storage.incognito, true);
 });
 
 test('adoptIncognitoHere: an already-incognito editor has nothing to flush', () => {
-  const mock = makeMock({ storage: { incognito: true, save() { mock.calls.push(['save']); } } });
+  const mock = makeMock();
+  mock.storage.incognito = true;
   adopt(mock);
-  assert.deepEqual(mock.calls.map(([n]) => n), ['newEditor', 'updateIncognitoUI']);
+  assert.deepEqual(mock.calls.map(([n]) => n), ['newTemporary', 'updateIncognitoUI']);
+  assert.equal(mock.storage.incognito, true);
 });
 
 // storage.newTemporary swaps the §12 chat scope (projectOpened(null) clears the visible transcript AND the
 // replay history): right for a project switch, fatal mid-turn, so the adoption is the one caller that opts out.
-test('newTemporary({ keepChat }) is what protects the live conversation', () => {
-  const body = src('../../../js/core/storage/storage.js');
-  const at = body.indexOf('  newTemporary({');
-  assert.ok(at > 0, 'newTemporary no longer takes options');
-  const method = body.slice(at, at + 1200);
-  assert.match(method, /if \(!keepChat\) this\.app\.chatPersistence\?\.projectOpened\(null\)/,
-    'the chat-scope swap is no longer guarded by keepChat');
+test('newTemporary({ keepChat }) is what protects the live conversation', (t) => {
+  const { storage, chatScopes } = mountStorage(t, { image: false });
+  storage.newTemporary();
+  assert.deepEqual(chatScopes, [null], 'a plain reset opens the fresh, project-less chat scope');
+  storage.newTemporary({ keepChat: true });
+  assert.deepEqual(chatScopes, [null], 'keepChat leaves the live conversation where it is');
+});
+
+test('adoptIncognitoHere over a real Storage keeps the conversation and ends incognito', (t) => {
+  const { app, chatScopes } = mountStorage(t, { image: false });
+  adoptIncognitoHere(app);
+  assert.deepEqual(chatScopes, [], 'the adoption swaps no chat scope');
+  assert.deepEqual([app.storage.incognito, app.storage.temporary], [true, true]);
 });
 
 // The §10 removeProject fallback resets the editor the same way, mid-turn — so it takes
 // the same keepChat route, and its confirm names what actually goes (there is no project).
-test('the removeProject fallback clears with keepChat and an accurate confirm', () => {
-  const session = src('../../../js/llm/adapters/project.js');
-  const at = session.indexOf('clearWorkingImage: async () =>');
-  assert.ok(at > 0, 'the clearWorkingImage capability is gone');
-  const body = session.slice(at, at + 700);
-  assert.match(body, /app\.newEditor\(\{ keepChat: true \}\)/, 'the fallback wipes the conversation');
-  assert.match(body, /incognito editor/, 'the incognito wording is gone');
-  assert.match(body, /unsaved image and its lines/, 'the unsaved wording is gone');
-  assert.match(body, /return 'removal canceled'/, 'a declined confirm no longer reports back');
+test('the removeProject fallback clears with keepChat and an accurate confirm', async () => {
+  const { projectAdapters } = await import('../../../js/llm/adapters/project.js');
+  for (const [incognito, what] of [[true, 'the image in this incognito editor'],
+                                   [false, 'the unsaved image and its lines']]) {
+    const asked = [];
+    const mock = makeMock({ image: {}, lines: [], confirm: async (msg) => { asked.push(msg); return true; } });
+    mock.storage.incognito = incognito;
+    assert.equal(await projectAdapters(mock).clearWorkingImage(), null);
+    assert.deepEqual(asked, [`Remove ${what}? This cannot be undone.`]);
+    assert.deepEqual(mock.calls.find(([n]) => n === 'newTemporary'), ['newTemporary', { keepChat: true }],
+      'the fallback keeps the conversation');
+  }
+  const declined = makeMock({ image: {}, lines: [], confirm: async () => false });
+  assert.equal(await projectAdapters(declined).clearWorkingImage(), 'removal canceled');
+  assert.deepEqual(declined.calls, [], 'a declined confirm touches nothing');
 });
 
 // The load-bearing guard: a chat-driven openUrl must never navigate, reload or spawn a

@@ -1,32 +1,14 @@
 #include "ChatMenuPanel.hpp"
 #include "chatMenuPanelParts.hpp"
 
-#include "chatWidgets.hpp"   // placeChatBubbleTail / ChatBubbleTail
-#include "../../support/control/PillSplitter.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/icon/iconSet.hpp"
-#include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
-#include "../../support/theme/theme.hpp"
-
-#include <QEasingCurve>
 #include <QFrame>
-#include <QGraphicsOpacityEffect>
-#include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
-#include <QScreen>
 #include <QScrollArea>
-#include <QScrollBar>
-#include <QShowEvent>
-#include <QStyle>
-#include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
-#include <QVariantAnimation>
 
 namespace stencil::gui {
 
@@ -162,7 +144,7 @@ namespace stencil::gui {
     applyChatBubbleWidths(body, scroll);   // the dock's wrap/measure pass
     scrollToBottom();
     // It arrives out of its own dust, the leave played backwards (the dock's animateCardIn / browser
-    // surface/motion.js chatIn). Measured widths AND the scroll first: the gather is a photograph.
+    // control/chatFx.js chatIn). Measured widths AND the scroll first: the gather is a photograph.
     gatherRow(card);
   }
 

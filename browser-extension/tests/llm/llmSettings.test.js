@@ -19,10 +19,11 @@ const installStorageMock = () => {
 };
 
 test('provider table matches contract §5', () => {
-  // 'none' is the local-only off switch (contract §5) ahead of the three wire providers.
-  assert.deepEqual(PROVIDERS, ['none', 'ollama', 'openai-compat', 'stencil-server']);
+  // 'none' is the local-only off switch (contract §5) ahead of the four wire providers.
+  assert.deepEqual(PROVIDERS, ['none', 'ollama', 'openai-compat', 'anthropic', 'stencil-server']);
   assert.equal(PROVIDER_BASE_URLS.ollama, 'http://localhost:11434');
   assert.equal(PROVIDER_BASE_URLS['openai-compat'], 'http://localhost:1234/v1');
+  assert.equal(PROVIDER_BASE_URLS.anthropic, 'https://api.anthropic.com');
   assert.equal(PROVIDER_BASE_URLS['stencil-server'], '');
 });
 

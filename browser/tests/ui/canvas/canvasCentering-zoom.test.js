@@ -1,54 +1,9 @@
-// The zoom math through the centring margins (js/core/pan.js): canvasOrigin, originAt, the
-// focal-pixel pins and the source pins on who sizes the frame. From canvasCentering.test.js.
+// The zoom math through the centring margins (js/core/zoom/pan.js): canvasOrigin, originAt and
+// the focal-pixel pins. Who sizes the frame is canvasCentering-frame.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { ZoomPan, canvasOrigin } from '../../../js/core/zoom/pan.js';
-
-// A viewport modelled the way the browser lays this out: centred by auto margins while it fits, the
-// scroll offset clamped to the real range. Fullscreen, where the frame is fixed on both axes.
-const installViewport = ({ vpW = 1000, vpH = 700, imgW = 600, imgH = 400, scale = 1 } = {}) => {
-  const canvas = { width: imgW, height: imgH, style: {}, classList: { add() {}, remove() {} } };
-  const shown = (side) => parseFloat(canvas.style[side]) || 0;
-  const clamp = (v, max) => Math.max(0, Math.min(v, Math.max(0, max)));
-  const vp = {
-    clientWidth: vpW, clientHeight: vpH, style: {}, sl: 0, st: 0,
-    get scrollWidth() { return Math.max(vpW, shown('width')); },
-    get scrollHeight() { return Math.max(vpH, shown('height')); },
-    get scrollLeft() { return this.sl; },
-    set scrollLeft(v) { this.sl = clamp(v, this.scrollWidth - vpW); },
-    get scrollTop() { return this.st; },
-    set scrollTop(v) { this.st = clamp(v, this.scrollHeight - vpH); },
-  };
-  // `margin: auto`, as the browser resolves it: half the free space, nothing when negative.
-  const container = {
-    get offsetLeft() { return Math.max(0, (vpW - shown('width')) / 2); },
-    get offsetTop() { return Math.max(0, (vpH - shown('height')) / 2); },
-  };
-  globalThis.document = {
-    getElementById: (id) => (id === 'canvas-viewport' ? vp : id === 'canvas-container' ? container : null),
-    querySelectorAll: () => [],
-    body: { classList: { contains: (c) => c === 'fullscreen-mode' } },
-    activeElement: null,
-  };
-  globalThis.window = { innerWidth: vpW, innerHeight: vpH };
-  globalThis.getComputedStyle = () => ({ borderTopWidth: '0px', borderBottomWidth: '0px',
-                                         paddingTop: '0px', paddingBottom: '0px' });
-  // Run the zoom animation straight to its final frame: the landing place is what matters.
-  globalThis.performance = { now: () => 0 };
-  globalThis.requestAnimationFrame = (cb) => { cb(1e6); return 1; };
-  globalThis.cancelAnimationFrame = () => {};
-  const app = { image: { width: imgW, height: imgH }, canvas, scale, storage: { save() {} } };
-  const zp = new ZoomPan(app);
-  zp.setZoom(scale, false);            // lay the canvas out at the starting zoom
-  return { app, vp, zp };
-};
-
-// Where an image point sits inside the frame right now (0 = the frame's left/top edge).
-const seenAt = (app, vp, x, y) => ({
-  x: canvasOrigin().x + x * app.scale - vp.scrollLeft,
-  y: canvasOrigin().y + y * app.scale - vp.scrollTop,
-});
+import { canvasOrigin } from '../../../js/core/zoom/pan.js';
+import { installViewport, seenAt } from '../../helpers/zoomViewportRig.js';
 
 test('canvasOrigin: half the free space while the picture fits, 0 once it overflows', () => {
   const { app, vp, zp } = installViewport();
@@ -154,34 +109,4 @@ test('zoomToImagePoint pins the focal pixel through the centring margins', () =>
   // Without the origin term the focal point would be derived 200px (x) / 150px (y) of
   // screen off, and the zoom would land somewhere else entirely.
   assert.deepEqual(seenAt(app, vp, 450, 300), before);
-});
-
-// controlsBinder's Ctrl+wheel zoom writes the scroll offset itself, frame by frame, so it has to
-// include the centring margin: in a full-height frame it is real once a zoom crosses into overflow.
-test('the wheel zoom pins the cursor through the centring margins (source pin)', () => {
-  const src = readFileSync(new URL('../../../js/ui/bindings/viewport/smoothZoom.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('const runSmoothZoom'), src.indexOf("document.addEventListener('wheel'"));
-  assert.equal((fn.match(/zoomPan\.originAt\(/g) || []).length, 2,
-    'both the per-frame write and the final snap go through originAt');
-  assert.ok(!/style\.maxHeight/.test(fn), 'and it no longer resizes the frame per frame');
-});
-
-// Sizing is syncViewportHeight's job alone (utils/viewportMetrics.js) now: zoomAroundCenter
-// used to write its own hugging height, then read clientHeight out of the box it just changed.
-test('only syncViewportHeight sizes the frame (source pin)', () => {
-  const src = readFileSync(new URL('../../../js/utils/viewportMetrics.js', import.meta.url), 'utf8');
-  const writes = src.match(/vp\.style\.(max|min)Height\s*=/g) || [];
-  assert.equal(writes.length, 1, 'one writer, inside syncViewportHeight');
-  assert.ok(!/viewportMaxHeightPx/.test(src), 'the image-hugging cap is gone');
-});
-
-// Fullscreen owns the box while it is on (components.css pins it to the window) and hands
-// it back on the way out — through the same rule, not a height of its own.
-test('leaving fullscreen restores the frame through syncViewportHeight (source pin)', () => {
-  const src = readFileSync(new URL('../../../js/ui/fullscreen/layer.js', import.meta.url), 'utf8');
-  assert.match(src, /zoomPan\.syncViewportHeight\(\)/, 'the exit path re-measures');
-  // The exit flight is animated: measured as it starts, the toolbar rows are still coming
-  // back and the frame lands ~60px too tall (a permanent page scrollbar).
-  assert.match(src, /setTimeout\(\(\) => app\.zoomPan\.syncViewportHeight\(\), FLIP_MS/,
-    '…and again once the flight has landed');
 });

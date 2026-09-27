@@ -1,14 +1,10 @@
-// The two motion switches (js/ui/prefs.js): the canvas stroke animation, and the
+// The two motion switches (js/ui/motion/motionPrefs.js): the canvas stroke animation, and the
 // five interface modes — particles (dust) / water / fire / slide / none. Everything that
-// moves asks one of the two gates below, so these pin what each mode means.
+// moves asks one of the two gates below, so these pin what each mode means; who asks which
+// gate, and where the switches live, is motionPrefs-wiring.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { motionSource } from '../../helpers/motionSource.js';
 import { installDom } from '../../helpers/dom.js';
-import { ANIMATIONS_CSS } from '../../helpers/css.js';
-
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 // A localStorage stand-in, installed BEFORE the module reads it at import time.
 const store = new Map();
@@ -125,72 +121,6 @@ test('prefers-reduced-motion wins over any stored mode', () => {
   assert.equal(drawMotionEnabled(), false);
   reduced = false;
   assert.equal(motionReduced(), false);
-});
-
-// ── The wiring: who asks which gate ─────────────────────────────────────────
-test('every cloud in the app is built behind the dust gate, and the strokes behind the drawing one', () => {
-  const motion = motionSource();
-  // disintegrate() is the one door every element-sized cloud goes through.
-  const body = motion.slice(motion.indexOf('export function disintegrate('),
-                            motion.indexOf('export const reintegrate'));
-  assert.ok(body.includes('if (!dustEnabled()) return false;'), 'the cloud is built behind the gate');
-  // …and the three clouds that are NOT built there: the theme wipe's grain and the
-  // canvas ghost in both directions.
-  assert.match(motion, /typeof requestAnimationFrame !== 'function' \|\| !dustEnabled\(\)/);
-  assert.equal(motion.match(/if \(!dustEnabled\(\)\) return false;/g).length, 3, 'disintegrate + ghostIn + ghostOut');
-  // …and every one of them wears the style: the element cloud, the canvas ghost and the
-  // theme wake all read styleCode() and paint a styled cloud from the accent palette.
-  assert.ok(body.includes('const style = styleCode();') && body.includes('const paints = paletteCss();'), 'disintegrate');
-  assert.match(motion, /const runDust = [\s\S]*?const style = styleCode\(\);[\s\S]*?style, ms, palette: paletteCss\(\)\.map/, 'the canvas ghost');
-  assert.match(motion, /return \{ palette: paletteCss\(\)\.map\(\(css\) => resolveColour\(document, css\)\) \};/, 'the theme wake, in the OLD palette');
-  // The voice mic's motes and ray ring are particles too.
-  assert.match(read('../../../js/ui/dust/voiceDust.js'), /isOn\(\) && dustEnabled\(\)/);
-  // The canvas stroke flight answers the drawing switch instead.
-  assert.match(read('../../../js/core/line/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
-  // One gate, asked in one place: no component still reads the media query by hand.
-  for (const f of ['../../../js/ui/modal/flight.js', '../../../js/ui/toolbar/toolbar.js', '../../../js/ui/motion.js'])
-    assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);
-});
-
-test('the mode reaches the CSS before first paint, and stops what CSS alone drives', () => {
-  const prePaint = read('../../../js/prePaintTheme.js');
-  assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as prefs.js');
-  assert.match(prePaint, /root\.setAttribute\('data-motion',/);
-  assert.ok(prePaint.includes(`[${MOTION_MODES.map((m) => `'${m}'`).join(', ')}]`), 'the inlined mode list is the module\'s');
-  const css = ANIMATIONS_CSS;
-  assert.match(css, /:root\[data-motion="none"\] \*,/);
-  assert.match(css, /animation-duration: 0\.01ms !important;/);
-  // 'slide' needs no rules of its own — each surface keeps its own entrance — except the
-  // chat entry, whose only entrance ever WAS its dust.
-  assert.match(css, /\.chat-slide-in \{ animation: chatRiseIn/);
-});
-
-test('every switch is in the Visuals modal and on the console facade', () => {
-  const markup = read('../../../js/ui/visuals/markup.js');
-  assert.match(markup, /<div class="vs-section">Motion<\/div>/);
-  assert.match(markup, /id="vs-draw-anim"/);
-  assert.match(markup, /id="vs-modal-backdrop"/);
-  assert.match(markup, /id="vs-motion-mode"/);
-  const modal = read('../../../js/ui/visuals/modal.js');
-  // The checkboxes are one table — id ↔ motionPrefs key — read on sync, written on change.
-  assert.match(modal, /\['vs-draw-anim', 'drawing'\], \['vs-modal-backdrop', 'backdrop'\]/);
-  assert.match(modal, /setMotion\(key, box\.checked\)/);
-  assert.match(modal, /app\.settings\.setMotion\('mode', motionMode\.value\)/);
-  // Reset All restores every one of them along with the colours, from the same table.
-  assert.match(modal, /\['drawing', DEFAULT_DRAWING_ANIMATIONS\]/);
-  assert.match(modal, /\['backdrop', DEFAULT_MODAL_BACKDROP\]/);
-  assert.match(modal, /\['mode', DEFAULT_MOTION_MODE\]/);
-  assert.match(modal, /for \(const \[k, v\] of motionDefaults\) app\.settings\.setMotion\(k, v\)/);
-  const api = read('../../../js/console/settingsFacade.js');   // the facade's settings namespace
-  assert.match(api, /get drawingAnimations\(\) \{ return motionPrefs\(\)\.drawing; \}/);
-  assert.match(api, /set modalBackdrop\(v\) \{ app\.settings\.setMotion\('backdrop', !!v\); \}/);
-  assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
-  // Both surfaces come through the ONE setter, which is also what rejects a bad mode.
-  const controller = read('../../../js/core/settings/controller.js');
-  assert.match(controller, /if \(!MOTION_MODES\.includes\(m\)\)\s*\n?\s*throw new Error\(`Unknown motion mode/);
-  assert.match(controller, /paintMotionMode\(m\)/);
-  // …which is the modal's own control (ui/settingMirrors.js owns the element).
-  assert.match(read('../../../js/ui/settings/settingMirrors.js'), /setVal\('vs-motion-mode', mode\)/);
 });
 
 // A session override (the webcore skin) sits over the stored prefs: every reader sees it, the

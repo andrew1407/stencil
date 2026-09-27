@@ -2,31 +2,19 @@
 #include "chatMenuPanelParts.hpp"
 
 #include "chatWidgets.hpp"   // placeChatBubbleTail / ChatBubbleTail
-#include "../../support/control/PillSplitter.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/icon/iconSet.hpp"
-#include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
-#include "../../support/theme/theme.hpp"
 
 #include <QEasingCurve>
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPointer>
-#include <QPushButton>
-#include <QScreen>
-#include <QScrollArea>
-#include <QScrollBar>
-#include <QShowEvent>
 #include <QStyle>
 #include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
+#include <QTextCursor>
 
 namespace stencil::gui {
 
@@ -103,11 +91,7 @@ namespace stencil::gui {
     if (!card || support::motionReduced()) return;
     // Veiled from the first frame — the row keeps its height (so the panel grows and
     // scrolls to it as usual) but is never seen ahead of its own motes.
-    if (!card->graphicsEffect()) {
-      auto* fx = new QGraphicsOpacityEffect(card);
-      fx->setOpacity(0.0);
-      card->setGraphicsEffect(fx);
-    }
+    if (!card->graphicsEffect()) veilBehindDust(card);
     QPointer<QFrame> cp(card);
     QTimer::singleShot(CHAT_GATHER_SETTLE_MS, card, [this, cp] {
       if (!cp) return;
@@ -138,8 +122,8 @@ namespace stencil::gui {
     for (QVariantAnimation* a : l->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(l->graphicsEffect());
     if (!fx) {
-      fx = new QGraphicsOpacityEffect(l);
-      l->setGraphicsEffect(fx);
+      fx = veilBehindDust(l);
+      fx->setOpacity(1.0);
     }
     auto* anim = new QVariantAnimation(l);
     anim->setDuration(CHAT_ROW_LEAVE_MS);

@@ -38,20 +38,20 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return filter->isVisible(); }, 1000);
       opened = filter->isVisible();
       QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
-      hiddenAtStart = !win.tintColorAction->isVisible();
+      hiddenAtStart = !win.ctxMenu.tintColorAction->isVisible();
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter: None
       QTest::qWait(50);
       for (int i = 0; i < 5; ++i) { QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down); QTest::qWait(60); }
       QTest::qWait(100);
-      shownOnCustom = win.settings.imageFilter == "custom" && win.tintColorAction->isVisible();
-      rowLaidOut = filter->actionGeometry(win.tintColorAction).isValid()
-                   && filter->height() >= filter->actionGeometry(win.tintColorAction).bottom();
+      shownOnCustom = win.settings.imageFilter == "custom" && win.ctxMenu.tintColorAction->isVisible();
+      rowLaidOut = filter->actionGeometry(win.ctxMenu.tintColorAction).isValid()
+                   && filter->height() >= filter->actionGeometry(win.ctxMenu.tintColorAction).bottom();
       QTest::keyClick(QApplication::focusWidget(), Qt::Key_Up);
       QTest::qWait(100);
-      hiddenAgain = win.settings.imageFilter == "contour" && !win.tintColorAction->isVisible();
+      hiddenAgain = win.settings.imageFilter == "contour" && !win.ctxMenu.tintColorAction->isVisible();
       root->close();
     });
-    win.showContextMenu(at);
+    win.parts.canvasMenu.showContextMenu(at);
     QVERIFY2(opened, "Right on the Image Filter row did not open its flyout");
     QVERIFY2(hiddenAtStart, "the tint row was showing with no custom filter active");
     QVERIFY2(shownOnCustom, "picking Custom Tint did not show the tint row");
@@ -86,15 +86,15 @@ class MainWindowGuiTest : public QObject {
       lowOpened = filter->isVisible();
       QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       QAbstractButton* custom = nullptr;
-      for (QAbstractButton* b : win.filterButtons->buttons()) if (b->property("filterValue") == "custom") custom = b;
+      for (QAbstractButton* b : win.ctxMenu.filterButtons->buttons()) if (b->property("filterValue") == "custom") custom = b;
       QTest::mouseClick(custom, Qt::LeftButton, Qt::NoModifier, custom->rect().center());
       QTest::qWait(300);
       onScreen = avail.contains(filter->geometry());
-      const QRect row = filter->actionGeometry(win.tintColorAction);
+      const QRect row = filter->actionGeometry(win.ctxMenu.tintColorAction);
       rowOnScreen = row.isValid() && avail.contains(QRect(filter->mapToGlobal(row.topLeft()), row.size()));
       root->close();
     });
-    win.showContextMenu(low);
+    win.parts.canvasMenu.showContextMenu(low);
     QVERIFY2(lowOpened, "the low flyout did not open");
     QVERIFY2(onScreen, "the flyout grew off the bottom of the screen");
     QVERIFY2(rowOnScreen, "the tint row landed off screen");
@@ -169,7 +169,7 @@ class MainWindowGuiTest : public QObject {
       enteredPick = win.settings.imageFilter == "bw" && filter->isVisible();
       root->close();
     });
-    win.showContextMenu(at);
+    win.parts.canvasMenu.showContextMenu(at);
     QVERIFY2(revealed, "Right on the Image Filter row did not reveal its flyout");
     QVERIFY2(downFolded, qPrintable("Down on a revealed flyout did not walk the parent on and fold it — root row: " + rootAfterDown));
     QVERIFY2(upBack, "Up did not walk the parent back to Image Filter");

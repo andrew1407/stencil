@@ -40,16 +40,15 @@ func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls
 		rw.WriteHeader(http.StatusOK)
 		_, _ = rw.Write([]byte("ok"))
 	})
+	// WS conns are hijacked on upgrade, so the read/write timeouts never cut a live edit session.
 	return &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           httpapi.CORS(cfg.CORSOrigins)(mux),
-		ReadHeaderTimeout: 10 * time.Second,
-		// 5m fits a 32 MiB upload on a slow link and an LLM proxy call (LLM_TIMEOUT_SECONDS, default 120s).
-		// WS conns are hijacked on upgrade, so live edit sessions are unaffected.
-		ReadTimeout:  5 * time.Minute,
-		WriteTimeout: 5 * time.Minute,
-		IdleTimeout:  2 * time.Minute,
-		TLSConfig:    tlsConf,
+		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,
+		ReadTimeout:       cfg.HTTP.ReadTimeout,
+		WriteTimeout:      cfg.HTTP.WriteTimeout,
+		IdleTimeout:       cfg.HTTP.IdleTimeout,
+		TLSConfig:         tlsConf,
 	}
 }
 
@@ -66,9 +65,9 @@ func listenTCP(cfg config.Config, tlsConf *tls.Config) (net.Listener, error) {
 	return ln, nil
 }
 
-// serve runs both listeners until a signal arrives or HTTP fails, then drains in
-// order: the sweep goroutine, TCP accepts, every live edit conn, then HTTP.
-func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub, tcpAddr, banner string, tlsOn bool, stop func(), sweepWG *sync.WaitGroup) error {
+// serve runs both listeners until a signal arrives or HTTP fails, then drains within drain, in order: the
+// sweep goroutines, TCP accepts, every live edit conn, then HTTP.
+func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub, tcpAddr, banner string, tlsOn bool, stop func(), sweepWG *sync.WaitGroup, drain time.Duration) error {
 	go func() {
 		log.Printf("TCP edit listener on %s (tls=%v)", tcpAddr, tlsOn)
 		_ = h.ServeListener(tcpLn)
@@ -88,7 +87,7 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 		return err
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), drain)
 	defer cancel()
 	stop()            // cancel rootCtx so the expiry-sweep goroutine winds down
 	sweepWG.Wait()    // join it before run()'s deferred st.Close()/b.Close() fire

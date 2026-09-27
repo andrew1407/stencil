@@ -1,0 +1,986 @@
+[
+  {
+    "name": "plain single turn — empty model sends serverDefaults.model and max_tokens, x-api-key + anthropic-version, no Authorization",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"version\":1,\"actions\":[]}"
+        }
+      ]
+    },
+    "expectReply": "{\"version\":1,\"actions\":[]}"
+  },
+  {
+    "name": "explicit model rides as \"model\"",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef",
+      "model": "claude-haiku-4-5"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "hi"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-haiku-4-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hi"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-haiku-4-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "hello"
+        }
+      ]
+    },
+    "expectReply": "hello"
+  },
+  {
+    "name": "images follow the turn's text block as base64 sources; history turns are text blocks by role",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "what is this?",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGk="
+            },
+            {
+              "mediaType": "image/jpeg",
+              "data": "/9j/"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "a cat"
+        },
+        {
+          "role": "user",
+          "text": "crop to it"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "what is this?"
+            },
+            {
+              "type": "image",
+              "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "aGk="
+              }
+            },
+            {
+              "type": "image",
+              "source": {
+                "type": "base64",
+                "media_type": "image/jpeg",
+                "data": "/9j/"
+              }
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "a cat"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop to it"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "ok"
+        }
+      ]
+    },
+    "expectReply": "ok"
+  },
+  {
+    "name": "a turn with empty text sends only its images",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "",
+          "images": [
+            {
+              "mediaType": "image/png",
+              "data": "aGk="
+            }
+          ]
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image",
+              "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "aGk="
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "seen"
+        }
+      ]
+    },
+    "expectReply": "seen"
+  },
+  {
+    "name": "reply is the concatenation of the text blocks; other block types are skipped",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "part one "
+        },
+        {
+          "type": "thinking",
+          "thinking": "x"
+        },
+        {
+          "type": "text",
+          "text": "part two"
+        }
+      ]
+    },
+    "expectReply": "part one part two"
+  },
+  {
+    "name": "stop_reason max_tokens is a typed truncation error, never parsed",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "max_tokens",
+      "content": [
+        {
+          "type": "text",
+          "text": "partial…"
+        }
+      ]
+    },
+    "expectError": {
+      "kind": "truncated",
+      "message": "Response truncated — the model hit its output limit; try a shorter request"
+    }
+  },
+  {
+    "name": "stop_reason refusal surfaces the reply text as a refusal error",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "refusal",
+      "content": [
+        {
+          "type": "text",
+          "text": "I cannot help with that."
+        }
+      ]
+    },
+    "expectError": {
+      "kind": "refusal",
+      "message": "I cannot help with that."
+    }
+  },
+  {
+    "name": "a 2xx body without a content array is a typed badReply error",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn"
+    },
+    "expectError": {
+      "kind": "badReply",
+      "message": "malformed response (no content[] text)"
+    }
+  },
+  {
+    "name": "billing: a spent balance says so once, without Anthropic's prose",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 400,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider is out of credits or has no active billing",
+      "status": 400
+    }
+  },
+  {
+    "name": "401 authentication_error: the key was rejected",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 401,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "authentication_error",
+          "message": "invalid x-api-key"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider rejected the API key",
+      "status": 401
+    }
+  },
+  {
+    "name": "403 permission_error: the key was rejected",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 403,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "permission_error",
+          "message": "Your API key does not have permission to use the specified resource."
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider rejected the API key",
+      "status": 403
+    }
+  },
+  {
+    "name": "404 not_found_error: the model is unknown",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 404,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "not_found_error",
+          "message": "model: claude-nope"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider does not have the requested model",
+      "status": 404
+    }
+  },
+  {
+    "name": "429 rate_limit_error: rate-limited",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 429,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "rate_limit_error",
+          "message": "Number of request tokens has exceeded your per-minute rate limit"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider is rate-limiting this key",
+      "status": 429
+    }
+  },
+  {
+    "name": "529 overloaded_error: temporarily unavailable",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 529,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "overloaded_error",
+          "message": "Overloaded"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider is temporarily unavailable",
+      "status": 529
+    }
+  },
+  {
+    "name": "an unrecognised failure carries the sanitized upstream text and its status",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 400,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "messages: bad"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider returned an error (HTTP 400): messages: bad",
+      "status": 400
+    }
+  },
+  {
+    "name": "secret-fragment veto: upstream text echoing any 8-character run of the session key is dropped",
+    "comment": "01234567 is an 8-character run of the fixture key, short enough that no token redaction hides it; the detail is dropped whole",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "https://api.anthropic.test/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "errorResponse": {
+      "status": 400,
+      "body": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "bad header value 01234567 in request"
+        }
+      }
+    },
+    "expectError": {
+      "kind": "http",
+      "message": "the LLM provider returned an error (HTTP 400)",
+      "status": 400
+    }
+  },
+  {
+    "name": "no session key (never entered, expired or forgotten): no request is sent, a typed disabled error",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "https://api.anthropic.test",
+      "apiKey": ""
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectNoRequest": true,
+    "expectError": {
+      "kind": "disabled",
+      "message": "no API key for this session"
+    }
+  },
+  {
+    "name": "plain http to a loopback host carries the key (a local mock or proxy)",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "http://127.0.0.1:8787",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectUrl": "http://127.0.0.1:8787/v1/messages",
+    "expectHeaders": {
+      "x-api-key": "sk-ant-test-0123456789abcdef",
+      "anthropic-version": "2023-06-01"
+    },
+    "expectBody": {
+      "model": "claude-opus-5",
+      "max_tokens": 32768,
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "crop 10% off the left"
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "model": "claude-opus-5",
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "ok"
+        }
+      ]
+    },
+    "expectReply": "ok"
+  },
+  {
+    "name": "plain http to any other host: nothing is sent, a typed disabled error",
+    "provider": "anthropic",
+    "settings": {
+      "baseUrl": "http://api.anthropic.test",
+      "apiKey": "sk-ant-test-0123456789abcdef"
+    },
+    "chat": {
+      "system": "You are the Stencil image-editing assistant. Answer with a v1 op-plan.",
+      "messages": [
+        {
+          "role": "user",
+          "text": "crop 10% off the left"
+        }
+      ]
+    },
+    "expectNoRequest": true,
+    "expectError": {
+      "kind": "disabled",
+      "message": "refusing to send the API key to 'api.anthropic.test' over plain http — use https"
+    }
+  }
+]

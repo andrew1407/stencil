@@ -1,4 +1,4 @@
-// buildProjectMeta (js/core/projectMeta.js) rebuilds the WHOLE registry row on every save,
+// buildProjectMeta (js/core/project/meta/projectMeta.js) rebuilds the WHOLE registry row on every save,
 // and ProjectsStore.upsert replaces the row wholesale — so any field the row owns but the
 // live app does not must be carried over from `prev`, or a plain edit silently erases it.
 // Keywords were the field that got missed (an edit reset them, breaking keyword search).

@@ -36,7 +36,7 @@
 }
 /* The Start/Stop toggle is an ACCENT toggle, not a status light: outlined while idle
    ("Start"), accent-filled while drawing ("Stop") — the .pill-toggle convention in
-   components/projects.css. It deliberately opts out of the global green `button.active`, which
+   components/projects/projects.css. It deliberately opts out of the global green `button.active`, which
    stays as-is for the other active controls (#fullscreen-toggle, #incognito-toggle,
    the chat button). box-sizing is border-box, so the outline costs no width and the
    pinned .btn-draw-fixed box never changes between the two states. */

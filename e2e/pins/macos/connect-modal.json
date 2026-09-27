@@ -522,7 +522,7 @@
         "font-size": "12px",
         "font-weight": "700",
         "font-family": "Arial, sans-serif",
-        "width": "459.7px",
+        "width": "416px",
         "height": "14px"
       },
       "text": "Connections"
@@ -538,7 +538,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "50.3px",
+        "width": "94px",
         "height": "22px"
       }
     },
@@ -558,7 +558,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "3px 8px",
         "gap": "6px",
-        "width": "50.3px",
+        "width": "94px",
         "height": "22px",
         "text-align": "left",
         "align-items": "center",
@@ -575,7 +575,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "12px",
         "font-family": "Arial, sans-serif",
-        "width": "13.3px",
+        "width": "57px",
         "height": "14px",
         "text-align": "left"
       },

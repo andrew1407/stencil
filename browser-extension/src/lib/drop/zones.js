@@ -7,7 +7,7 @@ export const quadrantAt = (x, y, w, h) => {
   return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
 };
 
-// `mode` is the Appearance choice already RESOLVED by the panel (lib/shellTheme.js
+// `mode` is the Appearance choice already RESOLVED by the panel (lib/prefs/shellTheme.js
 // injectedScheme) — a host page answers prefers-color-scheme differently; never use it here.
 export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'system') => {
   if (window.__stencilDropZones) return;
@@ -87,7 +87,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
     return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
   };
 
-  // Mirrors lib/dragUrl.js extractDraggedUrl; custom MIME types don't survive a
+  // Mirrors lib/drop/dragUrl.js extractDraggedUrl; custom MIME types don't survive a
   // cross-document drag, so only the standard text types are read.
   const readUrl = (dt) => {
     const get = (t) => { try { return dt.getData(t) || ''; } catch { return ''; } };

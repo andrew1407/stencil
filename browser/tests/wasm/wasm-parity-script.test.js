@@ -19,11 +19,17 @@ const wtest = MODULE_BUILT ? test : test.skip;
 const CASES = readScriptCases();
 const source = (c) => c.script;
 
+// The call-site span each diagnostic carries, which the dump text has no field for.
+const relatedOf = (p) => p.diagnostics.map((d) => d.related ?? null);
+const NESTED = '@stencil inner:\n  @line (0,0)\n\n@stencil outer:\n  @use stencil inner\n\n'
+  + '@source a.png:\n  @use stencil outer\n  @use stencil outer\n';
+
 // Captured BEFORE wasm is installed, so these are the hand-written fallback's results.
 const jsRef = CASES.map((c) => {
   const p = parseScript(c.script);
-  return { dump: scriptDump(p), diags: scriptDiagnostics(p), errors: p.errorCount };
+  return { dump: scriptDump(p), diags: scriptDiagnostics(p), errors: p.errorCount, related: relatedOf(p) };
 });
+const jsNested = relatedOf(parseScript(NESTED));
 
 before(async () => {
   if (!MODULE_BUILT) return;
@@ -42,6 +48,15 @@ wtest('wasm lowers every fixture exactly as the JS fallback does', () => {
     assert.strictEqual(scriptDiagnostics(program), jsRef[i].diags, `diagnostics ${c.name}`);
     assert.strictEqual(program.errorCount, jsRef[i].errors, `errorCount ${c.name}`);
   });
+});
+
+wtest('a template-body diagnostic crosses with the same call-site span on both sides', () => {
+  CASES.forEach((c, i) => {
+    assert.deepStrictEqual(relatedOf(parseScript(c.script)), jsRef[i].related, `related ${c.name}`);
+  });
+  assert.ok(jsRef.some((r) => r.related.some(Boolean)), 'the corpus holds a template-body error');
+  assert.deepStrictEqual(relatedOf(parseScript(NESTED)), jsNested);
+  assert.deepStrictEqual(jsNested, [{ line: 8, col: 3, len: 4 }]);
 });
 
 wtest('the blocks and ops cross the ABI with their structure intact', () => {

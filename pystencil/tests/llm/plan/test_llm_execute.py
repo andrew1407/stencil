@@ -7,9 +7,10 @@ import unittest
 from pystencil.layout import Line
 from pystencil.llm import LlmExecutionError, execute_op_plan, parse_op_plan
 from tests.helpers.stubs import _StubEditor, _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class ExecuteOpPlanStubTest(unittest.TestCase):
+class ExecuteOpPlanStubTest(NativeCase):
   def setUp(self) -> None:
     _StubEditor.instances = list()
     self.editor = _StubEditor()
@@ -72,11 +73,25 @@ class ExecuteOpPlanStubTest(unittest.TestCase):
         ]
       )
     )
-    name, lines = self.editor.calls[0]
-    self.assertEqual(name, "draw")
+    name, lines, mode = self.editor.calls[0]
+    self.assertEqual((name, mode), ("draw", "replace"))
     self.assertIsInstance(lines[0], Line)
     self.assertEqual(lines[0].style, "dashed")
     self.assertEqual([(p.x, p.y) for p in lines[0].points], [(1, 2), (3, 4)])
+
+  def test_layout_line_keeps_its_point_colour(self) -> None:
+    line = {"points": [{"x": 1, "y": 2}, {"x": 3, "y": 4}], "pointColor": "#ff0000"}
+    self._run(_plan_json(actions=[{"op": "layout", "lines": [line]}]))
+    self.assertEqual(self.editor.calls[0][1][0].point_color, "#ff0000")
+
+  def test_empty_layout_replaces_the_lines_with_none(self) -> None:
+    self._run(_plan_json(actions=[{"op": "layout", "lines": []}]))
+    self.assertEqual(self.editor.calls[0], ("draw", [], "replace"))
+
+  def test_every_layout_replaces_what_is_drawn(self) -> None:
+    line = {"points": [{"x": 1, "y": 2}, {"x": 3, "y": 4}]}
+    self._run(_plan_json(actions=[{"op": "layout", "lines": [line]}] * 2))
+    self.assertEqual([c[2] for c in self.editor.calls if c[0] == "draw"], ["replace", "replace"])
 
   def test_no_working_output_without_actions(self) -> None:
     # "4 variants, empty actions => 4 result images" (contract §1).

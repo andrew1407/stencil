@@ -2,6 +2,7 @@
 // the `@undo` / `@redo` statements that drive it.
 import { makeDiag, tokenOfStmt } from './diagnostics.js';
 import { MAX_OPS } from './types.js';
+import { gluedWords, parseIntClamped } from './values.js';
 
 /* Edits are numbered 1..n as written and never renumbered. Undoing marks an edit dead; the
  * ledger then RE-DERIVES the image state at each @save by emitting one undo{steps} back to
@@ -12,6 +13,8 @@ export class EditLedger {
   #applied = [];
 
   #removed = []; // LIFO, what @redo brings back
+
+  #dirty = false; // an undo or redo since the last reconcile; an edit keeps it clean
 
   addEdit(op, text) {
     this.#edits.push({ op, text, live: true });
@@ -46,6 +49,7 @@ export class EditLedger {
     }
     this.#edits[idx].live = false;
     this.#removed.push(idx);
+    this.#dirty = true;
     return { ok: true };
   }
 
@@ -66,6 +70,7 @@ export class EditLedger {
     }
     this.#edits[found].live = false;
     this.#removed.push(found);
+    this.#dirty = true;
     return { ok: true, ambiguous: matches > 1 };
   }
 
@@ -74,6 +79,7 @@ export class EditLedger {
     for (let k = 0; k < times && this.#removed.length > 0; k += 1) {
       this.#edits[this.#removed.pop()].live = true;
     }
+    this.#dirty = true;
     return { ok: true };
   }
 
@@ -81,6 +87,7 @@ export class EditLedger {
    * counts against MAX_OPS like a fresh edit: false when it would not fit, having appended
    * nothing, and the caller stops the script there. */
   reconcile(out, block, line, col) {
+    if (!this.#dirty) return true; // every edit so far is both applied and live
     const live = [];
     for (let i = 0; i < this.#edits.length; i += 1) if (this.#edits[i].live) live.push(i);
 
@@ -95,6 +102,7 @@ export class EditLedger {
     }
     for (let i = k; i < live.length; i += 1) out.push(this.#edits[live[i]].op);
     this.#applied = live;
+    this.#dirty = false;
     return true;
   }
 
@@ -103,6 +111,7 @@ export class EditLedger {
     this.#edits = [];
     this.#applied = [];
     this.#removed = [];
+    this.#dirty = false;
   }
 }
 
@@ -117,11 +126,25 @@ const selectorText = (st) => {
   return out;
 };
 
+const isWholeCount = (t) => t.kind === 'number' && /^[0-9]+$/.test(t.text);
+
 export const applyHistoryStmt = (st, isRedo, ledger, diags) => {
   if (isRedo) {
+    const words = gluedWords(st.args);
     let times = 1;
-    if (st.args.length > 0 && st.args[0].kind === 'number') times = parseInt(st.args[0].text, 10);
-    if (!Number.isFinite(times) || times < 1) times = 1;
+    if (words.length > 0) {
+      times = isWholeCount(words[0]) ? parseIntClamped(words[0].text) : 0;
+      if (times < 1) {
+        diags.push(makeDiag('error', 'E_BAD_TOKEN', words[0],
+          `'${words[0].text}' is not a redo count: write a whole number from 1`));
+        return false;
+      }
+    }
+    if (words.length > 1) {
+      diags.push(makeDiag('error', 'E_BAD_TOKEN', words[1],
+        `'${words[1].text}' is extra: @redo takes one count`));
+      return false;
+    }
     const r = ledger.redo(times);
     if (!r.ok) {
       diags.push(makeDiag('warning', 'W_NOTHING_TO_REDO', tokenOfStmt(st), r.reason));
@@ -159,7 +182,7 @@ export const applyHistoryStmt = (st, isRedo, ledger, diags) => {
       diags.push(makeDiag('error', 'E_BAD_TOKEN', t, `'${t.text}' is not an edit number`));
       return false;
     }
-    const selector = parseInt(t.text, 10);
+    const selector = parseIntClamped(t.text);
     if (selector === 0) {
       diags.push(makeDiag('error', 'E_UNDO_OUT_OF_RANGE', t,
         'edits are numbered from 1; use -1 for the last one'));

@@ -53,8 +53,9 @@ FROM rust:slim-bookworm AS server
 WORKDIR /src/mcp
 COPY mcp/ ./
 # Separate stage, separate filesystem: the crate include_str!s the same shared JSON
-# (src/../../browser/js/config/…), so this stage needs its own copy of it.
+# (src/../../browser/js/config/…) and the .stc contract it serves, so this stage copies both.
 COPY browser/js/config/ /src/browser/js/config/
+COPY contracts/stc/ /src/contracts/stc/
 # cargo fetches the rmcp SDK and other crates on demand (needs network).
 RUN cargo build --release
 

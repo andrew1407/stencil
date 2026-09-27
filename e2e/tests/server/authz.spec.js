@@ -4,8 +4,8 @@
 // with at most one; unauthenticated callers are rejected at the door (401).
 // Mirrors server/internal/httpapi/projects.go and hub_test.go.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, join } from '../../helpers/wire.js';
+import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
+import { dialWS, join } from '../../helpers/server/wire.js';
 
 test.describe('server shared-workspace access + delete guard', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');
@@ -42,8 +42,7 @@ test.describe('server shared-workspace access + delete guard', () => {
     expect((await putB.json()).version).toBe(current.project.version + 1);
 
     // B lists it.
-    const listB = await request.get(`${SERVER_URL}/projects`, { headers: bearer(tokenB) });
-    expect((await listB.json()).projects.map((r) => r.id)).toContain(p.id);
+    expect((await listProjects(request, tokenB)).map((r) => r.id)).toContain(p.id);
 
     // Cleanup (no live sessions → delete allowed).
     expect((await request.delete(`${SERVER_URL}/projects/${p.id}`, { headers: bearer(tokenA) })).status()).toBe(204);

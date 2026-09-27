@@ -65,9 +65,9 @@ func TestFileKindAllowlist(t *testing.T) {
 	}
 }
 
-func TestGetByRelPathConfined(t *testing.T) {
+func TestOpenByRelPathConfined(t *testing.T) {
 	s := newTestStore(t)
-	if _, err := s.GetByRelPath("../../../etc/passwd"); err == nil {
+	if _, err := s.OpenByRelPath("../../../etc/passwd"); err == nil {
 		t.Fatalf("expected confinement error")
 	}
 }

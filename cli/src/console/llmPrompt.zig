@@ -9,6 +9,7 @@ const fixture = @import("llm/fixture.zig");
 
 pub const doLlm = config.doLlm;
 pub const doPrompt = run.doPrompt;
+pub const promptTurn = run.promptTurn;
 pub const applyPlanAction = plan.applyPlanAction;
 
 // Test fixtures (llm/fixture.zig), reached through this name by the console's own suites.
@@ -26,4 +27,5 @@ test {
     _ = @import("llm/settings.zig");
     _ = @import("llm/planOps.zig");
     _ = @import("llm/variants.zig");
+    _ = @import("llm/key.zig");
 }

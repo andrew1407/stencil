@@ -48,14 +48,14 @@ func TestProjectRecordOptionalFieldNames(t *testing.T) {
 		HasImage: true, ImageW: 4, ImageH: 5,
 		Source: "https://e/i.png", Resource: "https://e/", Color: "#ff0000",
 		Keywords: []string{"k"}, Description: "d",
-		BlankColor: "#ffffff", Blank: true,
-		OriginalPath: "a", ResultPath: "b", OriginalContent: "c",
+		BlankColor: "#ffffff", Blank: true, OriginalHash: "e3b0",
+		OriginalPath: "a", ResultPath: "b",
 		Layout: json.RawMessage(`{"lines":[]}`), Version: 7, OwnerSession: "s1",
 	})
 	for _, k := range []string{
 		"id", "name", "createdAt", "updatedAt", "expiresAt", "hasImage", "imageW", "imageH",
 		"source", "resource", "color", "keywords", "description", "blankColor", "blank",
-		"originalPath", "resultPath", "originalContent", "layout", "version", "ownerSession",
+		"originalHash", "originalPath", "resultPath", "layout", "version", "ownerSession",
 	} {
 		if !got[k] {
 			t.Errorf("populated ProjectRecord is missing key %q", k)
@@ -181,5 +181,15 @@ func TestTokenAndFileWriteResponseShapes(t *testing.T) {
 	if got := keys(t, FileWriteResponse{Path: "p"}); !reflect.DeepEqual(got,
 		map[string]bool{"path": true, "w": true, "h": true}) {
 		t.Errorf("FileWriteResponse emitted %v, want path/w/h", got)
+	}
+	if got := keys(t, FileWriteResponse{Path: "p", OriginalHash: "ab"}); !got["originalHash"] {
+		t.Errorf("an original's FileWriteResponse emitted %v, want originalHash too", got)
+	}
+}
+
+// GET /auth/session: both keys always present, so a client can read expiresAt without a presence check.
+func TestSessionResponseShape(t *testing.T) {
+	if got := keys(t, SessionResponse{}); !reflect.DeepEqual(got, map[string]bool{"sessionId": true, "expiresAt": true}) {
+		t.Errorf("SessionResponse{} emitted %v", got)
 	}
 }

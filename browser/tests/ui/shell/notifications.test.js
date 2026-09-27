@@ -1,15 +1,14 @@
-// The bottom-left toast stack (js/ui/notifications.js). It used to be ONE balloon that
-// each message overwrote; it now stacks, which means it also needs a ceiling — a burst
-// (flipping the theme a few times) otherwise walls off the side of the canvas.
-// Node has no DOM, so the component runs against the minimum stub one it actually
-// touches: createElement, appendChild, children, classList, querySelector, remove.
+// The bottom-left toast stack (js/ui/shell/notifications.js): one toast per message, under a
+// ceiling, so a burst (flipping the theme a few times) never walls off the side of the canvas.
+// The stack runs on the minimum stub it touches: createElement, appendChild, children, classList.
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-
 import { StencilNotifications, MAX_VISIBLE } from '../../../js/ui/shell/notifications.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
 import { desktopSource } from '../../helpers/desktopSource.js';
+import { installDom, createStubElement } from '../../helpers/dom.js';
+import { recordingCtx } from '../../helpers/recordingCtx.js';
 
 const mkEl = () => {
   const classes = new Set();
@@ -140,7 +139,6 @@ test('the cap matches the desktop stack, and the CSS stacks the column', () => {
 
 // A duplicate message EXTENDS, never stacks: one toast whose lifetime keeps growing, the same element, so
 // the entrance animation is never replayed and nothing flickers.
-
 test('an identical toast coalesces: same element, extended lifetime, no flicker', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   withDom(() => {
@@ -190,20 +188,41 @@ test('clickable toasts never coalesce — each carries its own action', (t) => {
 
 // One timing function drives both a mote's travel and its alpha, and tileScatterSurface holds alpha near 1
 // until 55%, so only the default ease-out fades with the distance: the toast overrides no curve.
-test('the toast exit rides the shared scatter curve, on a short clock', () => {
-    const js = readFileSync(new URL('../../../js/ui/shell/notifications.js', import.meta.url), 'utf8');
-    const enter = Number(/const ENTER_DUST_MS = SURFACE_MENU_IN_MS \* (\d+)/.exec(js)[1]) * 340;
-    const leave = Number(/const LEAVE_DUST_MS = (\d+)/.exec(js)[1]);
-    assert.ok(leave < enter, `the exit (${leave}ms) must not outlast the entrance (${enter}ms)`);
-    assert.ok(leave <= 480, `${leave}ms is long enough to grow a tail again`);
-    // No curve override: both attempts at one made the tail worse, each in its own way.
-    assert.ok(!/--dust-ease/.test(js), 'the toast must not override the scatter curve');
-    assert.ok(!/LEAVE_EASE/.test(js), 'and the constant that carried it is gone');
-    // The cloud still leaves TOGETHER — a staggered one strands a few motes behind it.
-    const stagger = Number(/const TOAST_LEAVE_STAGGER = ([0-9.]+)/.exec(js)[1]);
-    assert.ok(stagger <= 0.2, `stagger ${stagger} is enough to leave stragglers`);
-    // …and the desktop leaves on the same clock (its constants live in the .cpp).
-    const cpp = desktopSource('support/notify/notifications');
-    assert.equal(Number(/constexpr int TOAST_OUT_MS = (\d+)/.exec(cpp)[1]), leave,
-        'the two apps must not drift on the exit clock');
+test('the toast exit rides the shared scatter curve, on a short clock', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const doc = installDom({
+    createElement: (tag) => {
+      const parts = {};
+      const el = createStubElement(tag, {
+        getBoundingClientRect: () => ({ left: 16, top: 600, width: 240, height: 40, right: 256, bottom: 640 }),
+        querySelector: (sel) => (parts[sel] ||= { innerHTML: '', textContent: '' }),
+      });
+      if (tag === 'canvas') el.getContext = () => recordingCtx().ctx;
+      return el;
+    },
+  }, {
+    getComputedStyle: () => ({ getPropertyValue: () => '', color: 'rgb(0,0,0)', backgroundColor: 'rgb(255,255,255)' }),
+    requestAnimationFrame: () => 1, cancelAnimationFrame: () => {}, matchMedia: () => ({ matches: false }),
+  });
+  t.after(doc.restore);
+  const stack = mkStack();
+  stack.toast('Saved', 'ok');
+  const toast = stack.children[0];
+  const enter = toast.__dustHost.__cloud.span;
+  t.mock.timers.tick(2400);
+  const { __cloud: cloud } = toast.__dustHost, leave = cloud.span;
+  assert.equal(toast.style['--dust-ms'], `${leave}ms`, 'the toast leaves on its own exit clock');
+  assert.ok(leave < enter, `the exit (${leave}ms) must not outlast the entrance (${enter}ms)`);
+  assert.ok(leave <= 480, `${leave}ms is long enough to grow a tail again`);
+  // No curve override: both attempts at one made the tail worse, each in its own way.
+  for (const el of [toast, toast.__dustHost])
+    assert.equal(el.style['--dust-ease'], undefined, 'the toast must not override the scatter curve');
+  // The cloud still leaves TOGETHER: surfaceMotion's sweep is at most 0.57 of the span per unit of
+  // stagger, so a stagger past 0.2 leaves stragglers.
+  const sweep = Math.max(...cloud.motes.map((m) => m.delay)) / leave;
+  assert.ok(sweep <= 0.57 * 0.2, `a ${sweep.toFixed(3)} sweep is enough to leave stragglers`);
+  // …and the desktop leaves on the same clock (its constants live in the .cpp).
+  const cpp = desktopSource('support/notify/notifications');
+  assert.equal(Number(/constexpr int TOAST_OUT_MS = (\d+)/.exec(cpp)[1]), leave,
+      'the two apps must not drift on the exit clock');
 });

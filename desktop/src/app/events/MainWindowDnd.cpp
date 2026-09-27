@@ -1,32 +1,14 @@
 #include "MainWindow.hpp"
 #include <QScrollArea>
-#include "MainWindow.hpp"
 #include "mainWindowHelpers.hpp"
-#include "ChatPlanTarget.hpp"
-#include "LogoHoverFx.hpp"
-#include "DockZonesOverlay.hpp"
-#include "planExecutor.hpp"
-#include "OpenImageDialog.hpp"
-#include "OpenInDialog.hpp"
-#include "CanvasTooltip.hpp"
 #include "CanvasWidget.hpp"
 #include "DropZonesOverlay.hpp"
 #include "dragPasteboard.hpp"
 #include "dropSources.hpp"
-#include "IncognitoOverlay.hpp"
-#include "launchOptions.hpp"
-#include "LinksDialog.hpp"
-#include "MediaLoader.hpp"
 #include "Notifications.hpp"
-#include "ProjectsDialog.hpp"
-#include "RemoteSyncController.hpp"
-#include "LiveFeed.hpp"
-#include "ServerClient.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/modal/imageAnchor.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
@@ -40,6 +22,7 @@
 #include <QTimer>
 #include <QVariant>
 #include <QVariantAnimation>
+#include <QGraphicsOpacityEffect>
 
 // Photoshop-style drop-to-open, and the arrival motion a dropped picture plays.
 
@@ -85,20 +68,20 @@ namespace stencil::gui {
   void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
     if (!canDrop(event->mimeData())) return;
     event->acceptProposedAction();
-    if (dropZones) {
-      dropZones->showZones();   // fits the window first, so the read below is the painted split
-      dropZones->setActiveLeft(onSaveHalf(this, dropZones, event->position()));
+    if (overlays.dropZones) {
+      overlays.dropZones->showZones();   // fits the window first, so the read below is the painted split
+      overlays.dropZones->setActiveLeft(onSaveHalf(this, overlays.dropZones, event->position()));
     }
   }
 
   void MainWindow::dragMoveEvent(QDragMoveEvent* event) {
     if (!canDrop(event->mimeData())) return;
     event->acceptProposedAction();
-    if (dropZones) dropZones->setActiveLeft(onSaveHalf(this, dropZones, event->position()));
+    if (overlays.dropZones) overlays.dropZones->setActiveLeft(onSaveHalf(this, overlays.dropZones, event->position()));
   }
 
   void MainWindow::dragLeaveEvent(QDragLeaveEvent*) {
-    if (dropZones) dropZones->hideZones();
+    if (overlays.dropZones) overlays.dropZones->hideZones();
   }
 
   void MainWindow::dropEvent(QDropEvent* event) {
@@ -106,8 +89,8 @@ namespace stencil::gui {
     logDroppedMime(event->mimeData(), native);
     const QString bitmap = draggedBitmapUrl(event->mimeData());
     const DropSrc src = droppableSource(event->mimeData(), bitmap, native);
-    const bool incognito = !onSaveHalf(this, dropZones, event->position());
-    if (dropZones) dropZones->hideZones();
+    const bool incognito = !onSaveHalf(this, overlays.dropZones, event->position());
+    if (overlays.dropZones) overlays.dropZones->hideZones();
     if (src.kind == DropSrc::NONE) return;
     event->acceptProposedAction();
 
@@ -120,15 +103,15 @@ namespace stencil::gui {
     // A .json layout and a .stc script ignore the save/incognito split: neither opens an image.
     if (src.kind == DropSrc::LOCAL_FILE) {
       const QString suffix = QFileInfo(src.value).suffix();
-      if (suffix.compare("json", Qt::CaseInsensitive) == 0) { applyLayoutFromSource(src.value); return; }
-      if (suffix.compare("stc", Qt::CaseInsensitive) == 0) { runScriptFromFile(src.value); return; }
+      if (suffix.compare("json", Qt::CaseInsensitive) == 0) { parts.sourceOpener.applyLayoutFromSource(src.value); return; }
+      if (suffix.compare("stc", Qt::CaseInsensitive) == 0) { parts.scriptHost.runScriptFromFile(src.value); return; }
     }
 
     const QString source = src.value;
     const bool isLocal = src.kind == DropSrc::LOCAL_FILE;
     const QStringList fallbacks = src.fallbacks;
-    const auto openHere = [&] { if (isLocal) openImageHere(source, incognito); else openSourceHere(source, -1, incognito, fallbacks); };
-    const auto openNew = [&] { if (isLocal) openImageInNewWindow(source, incognito); else openSourceInNewWindow(source, -1, incognito, fallbacks); };
+    const auto openHere = [&] { if (isLocal) parts.sourceOpener.openImageHere(source, incognito); else parts.sourceOpener.openSourceHere(source, -1, incognito, fallbacks); };
+    const auto openNew = [&] { if (isLocal) parts.sourceOpener.openImageInNewWindow(source, incognito); else parts.sourceOpener.openSourceInNewWindow(source, -1, incognito, fallbacks); };
 
     const DropTarget where = askDropTarget(this, canvas->hasImage());
     if (where == DropTarget::CANCEL) return;
@@ -148,9 +131,7 @@ namespace stencil::gui {
                                          scroll->viewport(), DisintegrateOverlay::Sweep::GATHER,
                                          false, DisintegrateOverlay::DUST_MAX_CELLS,
                                          CANVAS_DUST_MS);
-    auto* fx = new QGraphicsOpacityEffect(canvas);
-    fx->setOpacity(0.0);
-    canvas->setGraphicsEffect(fx);
+    QGraphicsOpacityEffect* fx = veilBehindDust(canvas);
     // Only ever tear down OUR effect: a second arrival mid-flight has its own.
     const QPointer<QGraphicsOpacityEffect> mine(fx);
     const auto done = [this, mine] {

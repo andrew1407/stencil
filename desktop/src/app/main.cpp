@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
   // Fusion honours widget-level QSS uniformly (the native gtk style leaves the menubar unthemed).
   stencil::support::installAppStyle("Fusion");
   stencil::gui::installDisabledCursor(&app);
+  stencil::gui::installPointerCursor(&app);
   // Parse before the window so --help/bad args exit cleanly; apply after show() (resolution is async).
   const stencil::gui::LaunchOptions opts = stencil::gui::parseLaunchOptions(app);
   // An incognito launch starts empty — no session restore.

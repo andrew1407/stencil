@@ -8,11 +8,16 @@ import { installDom, createStubElement } from '../helpers/dom.js';
 // at the CSS default; a panel the user never dragged is left on that default too, never
 // pinned to whatever it measures at the time.
 
+// Records every touch too, so a store wrapped in try/catch is still caught.
+const storageTouches = [];
+const refusingStorage = () => Object.fromEntries(['getItem', 'setItem', 'removeItem'].map((m) =>
+  [m, (k) => { storageTouches.push(`${m}(${k})`); throw new Error(`the resizer must not ${m}`); }]));
+
 const setup = ({ winW = 1400, panelW = 405 } = {}) => {
   const style = { props: new Map(), setProperty(k, v) { this.props.set(k, v); }, removeProperty(k) { this.props.delete(k); }, getPropertyValue(k) { return this.props.get(k) || ''; } };
   const doc = installDom({}, {
     window: { innerWidth: winW, listeners: {}, addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); }, removeEventListener() {} },
-    sessionStorage: { getItem() { throw new Error('the resizer must not read storage'); }, setItem() { throw new Error('the resizer must not write storage'); } },
+    sessionStorage: refusingStorage(), localStorage: refusingStorage(),
   });
   doc.documentElement.style = style;
   doc.body.style = {};
@@ -55,14 +60,13 @@ test('a dragged width is re-clamped against the live window on every resize, and
     globalThis.window.innerWidth = 1400;
     t.resize();
     assert.strictEqual(t.style.getPropertyValue('--coord-panel-width'), '600px', 'the preference comes back with the room');
+    assert.deepStrictEqual(storageTouches, [], 'a reload comes back at the CSS default: no width is stored');
   } finally { t.doc.restore(); }
-  const src = readFileSync(new URL('../../js/utils/panelResizer.js', import.meta.url), 'utf8');
-  assert.ok(!/Storage/.test(src), 'a reload comes back at the CSS default: no width is stored');
 });
 
 // Both drag handles must kill .coordinates-panel's width transition (animations/collapse.css):
 // an easing curve between the pointer and the panel edge reads as lag, not polish.
-test('the suppression rule names both handles, by hooks that exist', () => {
+test('the suppression rule names both handles, by hooks that exist', async () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
   const rule = read('../../css/animations/collapse.css')
     .match(/^([^{}]*\.coordinates-panel[^{}]*)\{\s*transition:\s*none;\s*\}/m);
@@ -70,8 +74,20 @@ test('the suppression rule names both handles, by hooks that exist', () => {
   const covers = (hook) => rule[1].split(',').some((s) => s.includes(`${hook}.dragging`));
   assert.ok(covers('.panel-resizer'), `in-flow handle uncovered: ${rule[1]}`);
   assert.ok(covers('#fs-panel-resizer'), `fullscreen handle uncovered: ${rule[1]}`);
-  const markup = read('../../js/ui/panel/mainContent.js') + read('../../js/ui/fullscreen/markup.js');
-  assert.ok(markup.includes('class="panel-resizer"'), 'no element carries .panel-resizer');
-  assert.ok(markup.includes('id="fs-panel-resizer"'), 'no element carries #fs-panel-resizer');
-  assert.ok(read('../../js/utils/panelResizer.js').includes("classList.add('dragging')"), 'the drag no longer flags its handle');
+  const { StencilMainContent } = await import('../../js/ui/panel/mainContent.js');
+  const { fullscreenLayerInner } = await import('../../js/ui/fullscreen/markup.js');
+  assert.match(StencilMainContent.inner(), /<div class="panel-resizer"/, 'no element carries .panel-resizer');
+  assert.match(fullscreenLayerInner(), /<div id="fs-panel-resizer">/, 'no element carries #fs-panel-resizer');
+});
+
+test('a drag flags its handle while it runs, and only then', async () => {
+  const { wirePanelResizer } = await import('../../js/utils.js');
+  const t = setup();
+  try {
+    wirePanelResizer(t.resizer, t.panel, { maxFactor: 0.7 });
+    t.resizer.dispatch('mousedown', { clientX: 1000, preventDefault() {} });
+    assert.ok(t.resizer.classList.contains('dragging'), 'the drag no longer flags its handle');
+    t.doc.dispatch('mouseup', {});
+    assert.ok(!t.resizer.classList.contains('dragging'), 'the flag outlives the drag');
+  } finally { t.doc.restore(); }
 });

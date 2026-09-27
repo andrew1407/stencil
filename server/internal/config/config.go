@@ -1,7 +1,7 @@
 // Package config loads server configuration from the environment, with an
 // optional .env file (KEY=VALUE lines) layered underneath real env vars. No
 // third-party config library: a small parser keeps this stdlib-only, mirroring
-// mcp/src/config.rs.
+// mcp/src/config/env.rs.
 package config
 
 import (
@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"stencil/server/internal/store"
 )
 
 // Config holds every tunable for the server.
@@ -31,9 +33,12 @@ type Config struct {
 	AuthOpen            bool          // AUTH_OPEN: POST /auth/token needs no admin bearer (explicit opt-in)
 	CORSOrigins         []string      // browser origins allowed to call the REST API; empty = loopback only, "*" = any
 	AuthRatePerMin      int           // POST /auth/token attempts per minute, per client IP (0 = off)
-	WriteRatePerMin     int           // per-session project creations + file uploads per minute (0 = off)
+	WriteRatePerMin     int           // per-session project and file writes (create, update, upload, delete) per minute (0 = off)
 	HelloRatePerMin     int           // FAILED WS/TCP hello handshakes per minute, per client IP (0 = off)
+	RateBucketIdle      time.Duration // RATE_BUCKET_IDLE_MINUTES: how long an untouched limiter bucket is kept
 	StorageQuotaBytes   int64         // aggregate filestore cap in bytes (0 = unlimited)
+	OwnerQuotaBytes     int64         // one owner session's filestore cap in bytes (0 = unlimited)
+	SessionQuotaBytes   int64         // what one session may write, in bytes, whoever owns the projects (0 = unlimited)
 	OpTimeout           time.Duration // deadline around one REST store operation
 	DBMaxConns          int           // DB_MAX_CONNS: pool ceiling (0 = pgx default)
 	DBMinConns          int           // DB_MIN_CONNS: warm connections (0 = pgx default)
@@ -41,6 +46,10 @@ type Config struct {
 	// TrustedProxies are the peers whose X-Forwarded-For is believed when a
 	// limiter keys on the client IP. Empty (default) ignores the header.
 	TrustedProxies []netip.Prefix
+	Live           LiveOptions     // hub queues, transport keepalive and deadlines (live.go)
+	HTTP           HTTPOptions     // HTTP server timeouts, Retry-After, the default list page (httpserver.go)
+	Sweep          SweepOptions    // expiry sweep sizing and the filestore reconcile pass (sweep.go)
+	Presence       PresenceOptions // cross-instance liveness heartbeat (presence.go)
 
 	// LLM proxy (llm-contract.md §6); the key never leaves this process. The two key vars are deliberately NOT
 	// merged: a key named for Anthropic must not reach another host through a provider switch (see main.go).
@@ -63,11 +72,6 @@ const (
 	defaultTokenTTL     = 7 * 24 * time.Hour
 	defaultMaxBodyBytes = 32 << 20  // 32 MiB
 	defaultSweep        = time.Hour // expired-project sweep cadence
-	defaultLLMModel     = "claude-opus-5"
-	defaultLLMBaseURL   = "https://api.anthropic.com" // anthropic; see llm.DefaultBaseURL
-	// Headroom for the biggest legitimate plan: a contract §2.1 multi-image turn
-	// carrying a full set of traced outlines per image runs well past 8k.
-	defaultLLMMaxTokens = 32768
 	defaultLLMTimeout   = 120 * time.Second
 	// Both caps are ON by default — every accepted turn spends the operator's upstream; 0 opts out. 30/min is
 	// far above human chat pace and still bounds a runaway client.
@@ -80,9 +84,9 @@ const (
 	// Only FAILED hellos spend this (a good token refunds), so it bounds a
 	// brute-force loop while leaving room for a reconnect storm behind one NAT.
 	defaultHelloRatePerMin = 30
-	// One store call, not one request: long enough for a cold index scan, short
-	// enough that a stuck query releases its pool connection.
-	defaultOpTimeout = 10 * time.Second
+	// At least a minute: a bucket idle that long has refilled, so sweeping it hands out no spare tokens.
+	defaultRateBucketIdle = 10 * time.Minute
+	defaultOpTimeout      = store.DefaultOpTimeout
 )
 
 // Load reads .env (if present in the working directory) then the process
@@ -140,7 +144,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.SweepInterval = time.Duration(sweepMinutes) * time.Minute
-	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis} {
+	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis, loadLive, loadHTTP, loadSweep, loadPresence} {
 		if err := load(get, &cfg); err != nil {
 			return Config{}, err
 		}
@@ -154,6 +158,9 @@ func Load() (Config, error) {
 	if cfg.HelloRatePerMin, err = positiveInt(get, "HELLO_RATE_PER_MINUTE", defaultHelloRatePerMin, 0); err != nil {
 		return Config{}, err
 	}
+	if cfg.RateBucketIdle, err = duration(get, "RATE_BUCKET_IDLE_MINUTES", defaultRateBucketIdle, time.Minute, 1); err != nil {
+		return Config{}, err
+	}
 	opSeconds, err := positiveInt(get, "OP_TIMEOUT_SECONDS", int(defaultOpTimeout/time.Second), 1)
 	if err != nil {
 		return Config{}, err
@@ -162,13 +169,15 @@ func Load() (Config, error) {
 	if cfg.TrustedProxies, err = parseCIDRs(get("TRUSTED_PROXY_CIDRS", "")); err != nil {
 		return Config{}, err
 	}
-	// Aggregate filestore quota in bytes; unset/0 = unlimited.
-	if v := get("STORAGE_QUOTA_BYTES", ""); v != "" {
-		b, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || b < 0 {
-			return Config{}, fmt.Errorf("config: invalid STORAGE_QUOTA_BYTES %q", v)
-		}
-		cfg.StorageQuotaBytes = b
+	// Filestore quotas in bytes, aggregate, per owner session and per writing session; unset/0 = unlimited.
+	if cfg.StorageQuotaBytes, err = byteCount(get, "STORAGE_QUOTA_BYTES"); err != nil {
+		return Config{}, err
+	}
+	if cfg.OwnerQuotaBytes, err = byteCount(get, "STORAGE_QUOTA_PER_OWNER_BYTES"); err != nil {
+		return Config{}, err
+	}
+	if cfg.SessionQuotaBytes, err = byteCount(get, "STORAGE_QUOTA_PER_SESSION_BYTES"); err != nil {
+		return Config{}, err
 	}
 	// Explicit opt-in to open token issuance (main.go warns loudly).
 	if v := get("AUTH_OPEN", ""); v != "" {

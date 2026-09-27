@@ -8,7 +8,7 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A palette change gets the flood-from-the-centre wipe (support/ThemeSwapOverlay.hpp, the twin of
+  // A palette change gets the flood-from-the-centre wipe (support/dust/ThemeSwapOverlay.hpp, the twin of
   // themeSwap in surface/motion.js): it plays on a real change only, never on boot or a same-palette re-apply.
   void themeSwapWipesOnlyOnRealChanges() {
     const auto motion = withMotion();   // the wipe is motion: reduced motion just restyles
@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
 
     // A real flip does wipe…
     Settings flipped = win.settings;
-    flipped.themeMode = win.paintedDark ? "light" : "dark";
+    flipped.themeMode = win.painted.dark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
     QCOMPARE(overlays(), 1);
     // …and reaps itself when the animation lands, leaving no lingering child.
@@ -62,17 +62,17 @@ class MainWindowGuiTest : public QObject {
     const QString original = win.settings.themeMode;
     QTRY_COMPARE(overlays(), 0);
 
-    win.toggleTheme();
+    win.parts.theme.toggleTheme();
     const QString mid = win.settings.themeMode;
     QCOMPARE(overlays(), 1);
     // Dropped, not queued: two presses mid-wipe leave the palette exactly where it was.
-    win.toggleTheme();
-    win.toggleTheme();
+    win.parts.theme.toggleTheme();
+    win.parts.theme.toggleTheme();
     QCOMPARE(win.settings.themeMode, mid);
     QCOMPARE(overlays(), 1);
     // …and the toggle is live again the moment the wipe has reaped itself.
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
-    win.toggleTheme();
+    win.parts.theme.toggleTheme();
     QVERIFY2(win.settings.themeMode != mid, "the toggle stayed blocked after the wipe ended");
 
     // Leave the persisted theme as we found it — the settings are shared across tests.
@@ -95,11 +95,11 @@ class MainWindowGuiTest : public QObject {
                                         Qt::FindDirectChildrenOnly).size();
     };
     QTRY_COMPARE(overlays(), 0);
-    QVERIFY(win.lineColorBtn && win.lineColorBtn->isVisible());
+    QVERIFY(win.tools.lineColorBtn && win.tools.lineColorBtn->isVisible());
 
     const QImage before = win.grab().toImage();
     Settings flipped = win.settings;
-    flipped.themeMode = win.paintedDark ? "light" : "dark";
+    flipped.themeMode = win.painted.dark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
     QCOMPARE(overlays(), 1);
     // The wipe has not ticked yet, so the whole window is still the snapshot.
@@ -111,7 +111,7 @@ class MainWindowGuiTest : public QObject {
       return QRect(qRound(r.x() * dpr), qRound(r.y() * dpr),
                    qRound(r.width() * dpr), qRound(r.height() * dpr));
     };
-    for (QToolButton* chip : {win.lineColorBtn, win.pointColorBtn}) {
+    for (QToolButton* chip : {win.tools.lineColorBtn, win.tools.pointColorBtn}) {
       const QRect r = deviceRect(chip, &win);
       QVERIFY2(before.rect().contains(r), "the chip is off-window; nothing was compared");
       QCOMPARE(during.copy(r), before.copy(r));

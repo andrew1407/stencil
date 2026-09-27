@@ -11,7 +11,7 @@ import { getDraggingRow } from './gestures.js';
 import { sections } from './list/sections.js';
 
 // Spring-loaded drop targets: a collapsed section cannot accept a drop, so the one the
-// pointer dwells on unfolds (lib/dragSections.js owns the rules).
+// pointer dwells on unfolds (lib/drop/dragSections.js owns the rules).
 export const dragSections = createDragSectionOpener({
   sections: (IS_SIDE_PANEL || IS_DEVTOOLS) ? [ASSISTANT_SECTION, SEARCH_SECTION] : [ASSISTANT_SECTION],
   // Read through an arrow: ./sections.js's controller can still be in flight here.

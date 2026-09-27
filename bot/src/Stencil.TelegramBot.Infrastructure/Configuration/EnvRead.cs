@@ -21,6 +21,15 @@ internal static class EnvRead
     public static bool Truthy(string? value) =>
         value is not null && value.Trim().ToLowerInvariant() is "1" or "true" or "yes";
 
+    // 1/true/yes/on or 0/false/no/off; anything else keeps the fallback, so a typo can't flip it.
+    public static bool Flag(string? value, bool fallback) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            "1" or "true" or "yes" or "on" => true,
+            "0" or "false" or "no" or "off" => false,
+            _ => fallback,
+        };
+
     // An unparseable entry is dropped: a typo must neither widen the list nor stop the bot from
     // starting.
     public static IReadOnlySet<long> UserIds(string? value)

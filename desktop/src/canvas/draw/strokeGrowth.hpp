@@ -1,5 +1,5 @@
 #pragma once
-// Drawing a stroke: port of browser/js/ui/motion.js "vertex in flight" + js/core/strokeFx.js.
+// Drawing a stroke: port of browser/js/ui/motion.js "vertex in flight" + js/core/line/strokeFx.js.
 // A flight is keyed by (line index, target coordinates): inserting a point splices
 // core::Line::points, invalidating any pointer or index. Header-only, no MOC.
 #include <QPointF>
@@ -13,7 +13,7 @@
 
 namespace stencil::gui::stroke {
 
-  // Lengths are IMAGE px on both sides, so zoom does not change the timing (surface/motion.js strokeFlyMs).
+  // Lengths are IMAGE px on both sides, so zoom does not change the timing (strokeFly.js strokeFlyMs).
   constexpr double FLY_MIN_MS = 150.0;
   constexpr double FLY_MAX_MS = 420.0;
   constexpr double FLY_PX_PER_MS = 2.4;
@@ -70,7 +70,7 @@ namespace stencil::gui::stroke {
 
   QPointF foot(const core::Point& a, const core::Point& b, double x, double y);
 
-  // The flights themselves (browser js/core/strokeFx.js)
+  // The flights themselves (browser js/core/line/strokeFx.js)
   struct Flight {
     int lineIdx = -1;      // index into lines, or -1 for the in-progress line
     QPointF to;            // the vertex's resting place — also its identity

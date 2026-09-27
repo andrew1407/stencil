@@ -4,11 +4,22 @@ image and context plumbing one prompt round needs.
 
 from __future__ import annotations
 
+import getpass
+import math
+
 from ..._ffi.types import NoneType
 from ...editor import Editor
 from ...llm import PROVIDERS, ConsoleServer, LlmClient, console_context
 from ..console import mask as _mask
 from ..registry import command
+
+#: What the console says wherever an anthropic turn lacks its session key (§5).
+KEY_HINT = "'/llm key' asks for it, hidden"
+
+
+def _hours(seconds: float) -> str:
+  minutes = max(math.ceil(seconds / 60), 0)
+  return "%dh %02dm" % (minutes // 60, minutes % 60)
 
 
 class _LlmCommands:
@@ -87,15 +98,23 @@ class _LlmCommands:
     self._say("llm provider %s" % cfg.provider)
     self._say("  url    %s" % (cfg.base_url or "(none)"))
     self._say("  model  %s" % (cfg.model or "(default)"))
-    self._say("  key    %s" % _mask(cfg.api_key))
+    self._say("  key    %s" % self.__key_status())
     conn = self.__llm_server_conn()
     if conn is not None:
       self._say("  server %s (token from live connection)" % conn.base)
     else:
       self._say("  server %s" % (cfg.server_url or "(none)"))
 
+  def __key_status(self) -> str:
+    """The key's row: masked, and for anthropic whether this session holds one and how long."""
+    cfg = self._llm
+    if cfg.provider != "anthropic": return _mask(cfg.api_key)
+    if not cfg.session_key(): return "(none) — " + KEY_HINT
+    return "%s (memory only, expires in %s)" % (_mask(cfg.api_key), _hours(cfg.key_expires_in()))
+
   @command("llm", usage="/llm [key value]",
-      help="show the LLM config / set provider | url | model | key | server")
+      help="show the LLM config / set provider | url | model | key | server\n"
+           "'/llm key' asks for the key hidden; '/llm key forget' drops it")
   def _cmd_llm(self, arg: str) -> None:
     """/llm: bare shows the config; ``<key> <value>`` sets an in-session override."""
     parts = arg.split(None, 1)
@@ -124,6 +143,8 @@ class _LlmCommands:
     # pinned one with /llm url (set_base_url); everything else carries over.
     self._llm.set_provider(val)
     self._say("llm provider %s (url %s)" % (val, self._llm.base_url or "-"))
+    if val == "anthropic" and not self._llm.session_key():
+      self._note("no API key for this session — " + KEY_HINT)
 
   def __set_url(self, val: str) -> None:
     if not val:
@@ -137,8 +158,32 @@ class _LlmCommands:
     self._say("llm model %s" % (val or "(default)"))
 
   def __set_key(self, val: str) -> None:
-    self._llm.api_key = val
-    self._say("llm key %s" % ("set" if val else "cleared"))
+    """``/llm key`` asks without echo, ``/llm key forget`` drops the key, a value sets it."""
+    if val.lower() == "forget":
+      self._llm.api_key = ""
+      self._say("llm key forgotten")
+      return
+    key = val or self._read_secret("llm key (hidden): ")
+    if not key:
+      self._say("llm key unchanged")
+      return
+    self._llm.api_key = key
+    if self._llm.provider == "anthropic":
+      self._say("llm key set (memory only, expires in %s)" % _hours(self._llm.key_expires_in()))
+    else:
+      self._say("llm key set")
+
+  def _read_secret(self, prompt: str) -> str:
+    """One line nobody sees typed: getpass on a terminal (never echoed, never in a
+    history), else the command stream's next line. Cancelled or at EOF, ""."""
+    src = self._in
+    if src is None: return ""
+    try:
+      if getattr(src, "isatty", lambda: False)():
+        return getpass.getpass(prompt, stream=self._out).strip()
+      return src.readline().strip()
+    except (EOFError, KeyboardInterrupt):
+      return ""
 
   def __set_server(self, val: str) -> None:
     self._llm.server_url = val

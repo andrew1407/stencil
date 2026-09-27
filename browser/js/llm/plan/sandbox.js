@@ -1,33 +1,42 @@
 // ── Sandboxing variants / ask previews ──────────────────────────
-// Ops run against the LIVE facade (§13: never new editor logic), so a sandbox is a
-// snapshot plus an exact inverse: crop/rotate are undone through the model (the original
-// bitmap never changes), settings and lines are written back. Only `blank` and `frame`
-// replace the original, and only they reload the pixel snapshot.
+// Ops run against the LIVE facade (§13: never new editor logic), so a sandbox is a snapshot
+// plus a way back: the editor history's mark rewound (stack, cursor and memento), else the
+// exact inverse through the model. Only `blank`/`frame` replace the original and reload pixels.
 import { SCHEMA } from './schema.js';
+import { editorMemento } from '../../core/historyStack.js';
 
 // The layout line fields the registry declares — what a preview snapshot copies back.
 const LINE_FIELDS = Object.keys(SCHEMA.ops.get('layout').keys.lines.items.fields);
 
-const rectOf = (r) => (r ? { x: r.x, y: r.y, w: r.w ?? r.width, h: r.h ?? r.height } : null);
-const sameRect = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+const cropOf = (r) => (r ? { x: r.x, y: r.y, width: r.width ?? r.w, height: r.height ?? r.h } : null);
+const sameRect = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
-export const captureEditorState = (stencil) => {
+// Read from `lines` (the LIVE list), not `layout` — that getter is the persisted project layout
+// and goes stale. Copied to plain data: facade proxies dereference to nothing.
+const plainLines = (stencil) => (stencil.lines || []).map((l) => {
+  const out = { points: (l.points || []).map((p) => ({ x: p.x, y: p.y })) };
+  for (const k of LINE_FIELDS) if (k !== 'points' && l[k] != null) out[k] = l[k];
+  return out;
+});
+
+// An editor memento read off the facade, beside what a plan may change outside it. The facade
+// names no quarter turn: that is the history mark's (`editorHistory`, the surface's capability).
+export const captureEditorState = (stencil, editorHistory) => {
+  const mark = editorHistory ? editorHistory.mark() : null;
   return {
-    filter: stencil.filter,
-    filterColor: stencil.filterColor,
+    ...editorMemento({
+      lines: plainLines(stencil),
+      cropRect: cropOf(stencil.cropRect),
+      rotationQuarters: mark?.memento?.rotationQuarters ?? 0,
+      imageFilter: stencil.filter,
+      filterColor: stencil.filterColor,
+    }),
+    mark,
     pageSize: stencil.pageSize,
     allowFormulas: stencil.allowFormulas,
     formulaX: stencil.formulaX,
     formulaY: stencil.formulaY,
-    // Read from `lines` (the LIVE list), not `layout` — that getter is the persisted project
-    // layout and goes stale. Copied to plain data: facade proxies dereference to nothing.
-    lines: (stencil.lines || []).map((l) => {
-      const out = { points: (l.points || []).map((p) => ({ x: p.x, y: p.y })) };
-      for (const k of LINE_FIELDS) if (k !== 'points' && l[k] != null) out[k] = l[k];
-      return out;
-    }),
     size: stencil.imageSize,
-    cropRect: rectOf(stencil.cropRect),
   };
 };
 
@@ -86,22 +95,29 @@ const netTurns = (actions) => {
   return ((q % 4) + 4) % 4;
 };
 
-// `actions` are the ops that actually RAN. Rotates are turned back and the crop re-committed
-// to the saved rect — both exact on the untouched original — so no frame settles.
-export const restoreWorkingImage = async (stencil, pixels, state, actions) => {
+// `actions` are the ops that actually RAN. The rewind leaves no undo step behind; without it,
+// rotates are turned back and the crop re-committed — exact on the untouched original. A reload
+// starts a fresh history, so the filter goes back first and rides its base step.
+export const restoreWorkingImage = async (stencil, pixels, state, actions, editorHistory) => {
   const ran = actions || [];
   if (needsPixelSnapshot(ran)) {
+    stencil.apply({ filter: state.filter, filterColor: state.filterColor });
     await stencil.load(pixels);
     applySettings(stencil, state);
     await settleLinesAfterReload(stencil, state);
+    return;
+  }
+  if (editorHistory && state.mark) {
+    editorHistory.rewind(state.mark);
+    applySettings(stencil, state);
     return;
   }
   const q = netTurns(ran);
   if (q === 3) stencil.rotateRight();
   else for (let i = 0; i < q; i++) stencil.rotateLeft();
   const r = state.cropRect;
-  if (r && !sameRect(rectOf(stencil.cropRect), r)) {
-    stencil.crop({ x1: `${r.x}px`, x2: `${r.x + r.w}px`, y1: `${r.y}px`, y2: `${r.y + r.h}px` });
+  if (r && !sameRect(cropOf(stencil.cropRect), r)) {
+    stencil.crop({ x1: `${r.x}px`, x2: `${r.x + r.width}px`, y1: `${r.y}px`, y2: `${r.y + r.height}px` });
   }
   applySettings(stencil, state);
   // Lines are written back only when the ops disturbed them — never as UI noise.

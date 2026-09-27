@@ -1,4 +1,4 @@
-// Lexing, parsing and argument grammar for .stc. Mirrors core/tests/script.test.cpp:
+// Lexing, parsing and argument grammar for .stc. Mirrors core/tests/script/script.test.cpp:
 // the two engines must answer the same way, case for case.
 import test from 'node:test';
 import assert from 'node:assert/strict';

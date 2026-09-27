@@ -5,7 +5,7 @@
   "sanitizer": {
     "zero-width/format characters are stripped too": {
       "expect": "invisible​space‌here",
-      "note": "browser strips \\p{Cf}; pystencil _CONTROLISH covers only [\\x00-\\x1f\\x7f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
+      "note": "browser strips \\p{Cf}; pystencil _CONTROLISH covers only [\\x00-\\x1f\\x7f-\\x9f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
     }
   },
   "layout/sparse": {
@@ -16,8 +16,6 @@
             { "x": 3, "y": 4 },
             { "x": 1, "y": 0 },
             { "x": "NaN", "y": 2 },
-            { "x": 0, "y": 0 },
-            { "x": 0, "y": 0 },
             { "x": 0, "y": 7 },
             { "x": 8, "y": 9 }
           ],
@@ -30,7 +28,7 @@
           "pointColor": ""
         }
       ],
-      "note": "browser drops junk points; pystencil Point.from_dict coerces every entry (non-dict -> origin, missing coord -> 0, 'NaN' -> float nan, kept as the string 'NaN' here)"
+      "note": "browser drops junk points; pystencil Line.from_dict skips the non-dict ones as the browser does but coerces every mapping (missing coord -> 0, 'NaN' -> float nan, kept as the string 'NaN' here)"
     },
     "field-type-coercion-and-drops": {
       "expectFilled": [

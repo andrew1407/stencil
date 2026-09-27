@@ -5,6 +5,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { installDom, createStubElement } from '../../helpers/dom.js';
+import { hotkeyActions } from '../../../js/ui/bindings/keys/hotkeyActions.js';
+import { paintInto } from '../../../js/ui/script/highlight.js';
+import { wireScriptEditor } from '../../../js/ui/script/editor.js';
+import { wireDropPaste } from '../../../js/ui/bindings/dropPaste.js';
+import { StencilDropOverlay } from '../../../js/ui/canvas/dropOverlay.js';
 
 import { layout } from '../../../js/ui/layout.js';
 import { HOTKEYS_WHILE_TYPING } from '../../../js/ui/bindings/keys/hotkeyRules.js';
@@ -60,7 +66,17 @@ test('the hotkey is registered, openable while typing, and drives the opener', (
   assert.equal(entry.default, 'Alt+Shift+S');
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openScript'),
     'the window must close from inside its own editor');
-  assert.match(src('../../../js/ui/bindings/keys/hotkeyActions.js'), /openScript: \(\) => clickIfActive\('script-btn'\)/);
+  const doc = installDom();
+  try {
+    const clicks = [];
+    const btn = doc.register('script-btn', createStubElement('button', { click: () => clicks.push('script-btn') }));
+    const { HK_HANDLERS } = hotkeyActions({});
+    HK_HANDLERS.openScript();
+    assert.deepEqual(clicks, ['script-btn'], 'the hotkey presses the opener');
+    btn.disabled = true;
+    HK_HANDLERS.openScript();
+    assert.deepEqual(clicks, ['script-btn'], 'and a disabled opener stays shut');
+  } finally { doc.restore(); }
 });
 
 test('the window is in the openWindow registry, pointing at its own overlay and opener', () => {
@@ -72,10 +88,18 @@ test('the window is in the openWindow registry, pointing at its own overlay and 
 });
 
 test('the highlight layer is built from nodes, never from markup', () => {
-  const code = src('../../../js/ui/script/highlight.js');
-  assert.ok(!/innerHTML/.test(code), 'a script is untrusted text — it never becomes markup');
-  assert.match(code, /createElement\('span'\)/);
-  assert.match(code, /textContent = /);
+  const markup = [];
+  const noMarkup = (el) => Object.defineProperty(el, 'innerHTML', { get: () => '', set: (v) => markup.push(v) });
+  const doc = installDom({ createElement: (tag) => noMarkup(createStubElement(tag)) });
+  try {
+    const pre = noMarkup(createStubElement('pre'));
+    const text = '# <img src=x onerror=alert(1)>\n@crop 10%';
+    paintInto(pre, text, false);
+    assert.deepEqual(markup, [], 'a script is untrusted text — it never becomes markup');
+    const spans = pre.childNodes.filter((n) => n.tagName === 'SPAN');
+    assert.ok(spans.length > 0 && spans.every((n) => n.className.startsWith('stk-')), 'tokens are spans');
+    assert.equal(pre.childNodes.map((n) => n.textContent).join(''), text, 'set as text, character for character');
+  } finally { doc.restore(); }
 });
 
 test('the window and the context-menu flyout paint through the ONE highlighter', () => {
@@ -91,20 +115,54 @@ test('the window and the context-menu flyout paint through the ONE highlighter',
   }
 });
 
-test('a dropped .stc is routed to the one loader, and the overlay says so', () => {
-  const drop = src('../../../js/ui/bindings/dropPaste.js');
-  assert.match(drop, /endsWith\('\.stc'\)/);
-  assert.match(drop, /loadScriptFile\(file\)/);
-  assert.match(src('../../../js/ui/canvas/dropOverlay.js'), /\.stc script/);
+test('a dropped .stc is routed to the one loader, and the overlay says so', async () => {
+  const toasts = [];
+  const doc = installDom({}, { window: { innerWidth: 1000 } });
+  try {
+    doc.register('global-drop-overlay', createStubElement('div'));
+    doc.register('notify-balloon', createStubElement('div', { notify: (msg) => toasts.push(msg) }));
+    doc.register('script-overlay', createStubElement('div')).classList.add('modal-open');
+    const inputs = [];
+    const editor = doc.register('script-editor', createStubElement('textarea', { dispatchEvent: (e) => inputs.push(e.type) }));
+    wireDropPaste({ image: null });
+    const file = { name: 'crop.stc', type: '', text: async () => '@crop 5%' };
+    doc.dispatch('drop', { preventDefault() {}, clientX: 10, clientY: 10, dataTransfer: { types: ['Files'], files: [file] } });
+    await new Promise((r) => setTimeout(r, 0));
+    assert.equal(editor.value, '@crop 5%', 'the open window takes the dropped script');
+    assert.deepEqual(inputs, ['input'], 'as if typed, so the buffer and the paint follow');
+    assert.deepEqual(toasts, ['Loaded crop.stc into the script window']);
+  } finally { doc.restore(); }
+  assert.match(StencilDropOverlay.inner(), /\.stc script/);
 });
 
-test('Run is gated on the script having something to do, and Ctrl+Enter obeys the same gate', () => {
-  const wiring = src('../../../js/ui/script/editor.js');
-  // A comment-only script lowers to no ops: running it did nothing and said nothing.
-  assert.match(wiring, /program\.ops\.length === 0 && program\.diagnostics\.length === 0/);
-  // An errored script keeps Run live — the strip and the underlines are how errors surface.
-  assert.match(wiring, /runBtn\.disabled = blank \|\| idle/);
-  // Copy, Download and Clear only need text, so they stay on the blank check.
-  assert.match(wiring, /for \(const id of \[ids\.copy, ids\.download, ids\.clear\]\)/);
-  assert.match(wiring, /if \(busy\(\) \|\| \$\(ids\.run\)\?\.disabled\) return;/);
+test('Run is gated on the script having something to do, and Ctrl+Enter obeys the same gate', async () => {
+  const doc = installDom();
+  try {
+    doc.createTextNode = (text) => ({ nodeType: 3, textContent: text });
+    const ids = { run: 'g-run', copy: 'g-copy', download: 'g-download', clear: 'g-clear' };
+    for (const id of Object.values(ids)) doc.register(id, createStubElement('button'));
+    const editor = createStubElement('textarea');
+    const runs = [];
+    let busy = false;
+    const { dispose } = wireScriptEditor({ editor, pre: createStubElement('pre'), strip: createStubElement('div'), ids,
+      app: {}, onRun: async (t) => { runs.push(t); }, onUpload: () => {}, busy: () => busy });
+    const gates = (text) => {
+      editor.value = text;
+      editor.dispatch('input');
+      return Object.values(ids).map((id) => doc.getElementById(id).disabled);
+    };
+    const ctrlEnter = () => editor.dispatch('keydown', { key: 'Enter', ctrlKey: true, preventDefault() {} });
+    // [run, copy, download, clear]: a comment-only script lowers to no ops — running it did nothing.
+    assert.deepEqual(gates(''), [true, true, true, true]);
+    assert.deepEqual(gates('# just a note'), [true, false, false, false], 'Copy, Download and Clear only need text');
+    ctrlEnter();
+    assert.deepEqual(runs, [], 'Ctrl+Enter obeys the disabled Run');
+    assert.deepEqual(gates('@nope 5'), [false, false, false, false], 'an errored script keeps Run live');
+    ctrlEnter();
+    await new Promise((r) => setTimeout(r, 0));
+    busy = true;
+    ctrlEnter();
+    assert.deepEqual(runs, ['@nope 5'], 'one run; a busy surface refuses the second');
+    dispose();
+  } finally { doc.restore(); }
 });

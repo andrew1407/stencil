@@ -51,22 +51,8 @@ namespace stencil::core {
     // Insertion order, unsorted, and still holding the id-less rows list() drops.
     const std::vector<ProjectMeta>& getRegistry() const { return registry; }
 
-    std::optional<ProjectMeta> getMeta(const std::string& id) const;
-
-    // getMeta without the copy; valid until the next mutation.
+    // Valid until the next mutation; nullptr for an unknown id.
     const ProjectMeta* find(const std::string& id) const;
-
-    // Stamps updatedAt = now (and createdAt if unset); returns the stored row.
-    ProjectMeta upsert(ProjectMeta meta, long long now);
-
-    // upsert without the copies; the reference is valid until the next mutation.
-    const ProjectMeta& upsertMoved(ProjectMeta&& meta, long long now);
-
-    bool touch(const std::string& id, long long now);
-
-    // Exact set, no snap and no updatedAt bump; expiresAt == 0 is "keep forever".
-    bool setExpiration(const std::string& id, long long expiresAt,
-                       const std::string& refreshPeriod, bool autoRefresh);
 
     void remove(const std::string& id);
 

@@ -1,5 +1,7 @@
 import { supportsShareFiles } from '../../../utils.js';
 import { wireExportOptionsMenu } from '../../export/optionsMenu.js';
+
+const TINT_PREVIEW_MS = 80;
 export function wireStyleControls(app) {
   // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn,
   // #open-image-btn and the blank shortcuts all open it.
@@ -23,13 +25,18 @@ export function wireStyleControls(app) {
   document.getElementById('point-size').addEventListener('change', e => app.settings.setPointSize(e.target.value));
   document.getElementById('line-style').addEventListener('change', e => app.settings.setLineStyle(e.target.value));
   document.getElementById('image-filter').addEventListener('change', e => app.settings.setImageFilter(e.target.value));
+  // A tint drag previews (its repaint debounced) and commits on release, as one undo step.
   let filterColorTimer = null;
-  document.getElementById('filter-color').addEventListener('input', e => {
-    // Reflect the model + mirror immediately; debounce the redraw/persist commit.
+  const tint = document.getElementById('filter-color');
+  tint.addEventListener('input', e => {
     app.filterColor = e.target.value;
     const ctxTint = document.getElementById('ctx-tint-color');
     if (ctxTint) ctxTint.value = e.target.value;
     clearTimeout(filterColorTimer);
-    filterColorTimer = setTimeout(() => app.settings.setFilterColor(e.target.value), 80);
+    filterColorTimer = setTimeout(() => app.settings.setFilterColor(e.target.value, { persist: false }), TINT_PREVIEW_MS);
+  });
+  tint.addEventListener('change', e => {
+    clearTimeout(filterColorTimer);
+    app.settings.setFilterColor(e.target.value);
   });
 }

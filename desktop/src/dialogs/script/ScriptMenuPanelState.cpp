@@ -5,7 +5,6 @@
 #include "../../support/theme/theme.hpp"
 #include "scriptMenuPanelParts.hpp"
 
-#include <QHBoxLayout>
 #include <QPushButton>
 
 // The script flyout's behaviour: what it reports, what it gates, and how a theme flip re-inks it.
@@ -14,7 +13,7 @@ namespace stencil::gui {
   void ScriptMenuPanel::showRunDiagnostics() { edit->showRunDiagnostics(); }
 
   // Copy, Download and Clear need text; Upload always has something to do. Run needs
-  // something to RUN (browser js/ui/editor.js gateActions).
+  // something to RUN (browser js/ui/script/editor.js gateActions).
   void ScriptMenuPanel::gateActions() {
     const bool blank = edit->isEmpty();
     copyBtn->setEnabled(!blank);

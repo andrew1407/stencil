@@ -1,10 +1,14 @@
 #pragma once
 // Spread independent work over the global thread pool. core/ owns no threading policy:
 // it exposes half-open row slices of its kernels and leaves the policy to each adapter.
+#include <QFutureWatcher>
+#include <QObject>
+#include <QPromise>
 #include <QSemaphore>
 #include <QThreadPool>
 #include <algorithm>
 #include <functional>
+#include <memory>
 
 namespace stencil::support {
 
@@ -30,6 +34,25 @@ namespace stencil::support {
     }
     body(0, std::min(step, count));
     done.acquire(handed);
+  }
+
+  // `work` runs on the pool and must touch no GUI object; `done` runs later on `ctx`'s thread,
+  // and never once `ctx` is gone (the watcher dies with it).
+  template <typename T>
+  void runOnPool(QObject* ctx, std::function<T()> work, std::function<void(T)> done) {
+    auto* watcher = new QFutureWatcher<T>(ctx);
+    auto promise = std::make_shared<QPromise<T>>();
+    QObject::connect(watcher, &QFutureWatcherBase::finished, watcher,
+                     [watcher, done = std::move(done)] {
+                       watcher->deleteLater();
+                       if (watcher->future().resultCount() > 0) done(watcher->result());
+                     });
+    watcher->setFuture(promise->future());
+    promise->start();
+    QThreadPool::globalInstance()->start([promise, work = std::move(work)] {
+      promise->addResult(work());
+      promise->finish();
+    });
   }
 
 }  // namespace stencil::support

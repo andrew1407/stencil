@@ -6,12 +6,7 @@ const image = @import("../../media/image.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
-const project = @import("../../project.zig");
-const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
-const poll = @import("poll.zig");
-
-const clearPromptLine = poll.clearPromptLine;
 
 // Each edit sets a cheap `dirty` flag (markDirty) and the REPL flushes once the input burst
 // settles (flushSync, at the prompt boundary) — one upload per run of edits, not per action.
@@ -59,8 +54,8 @@ pub fn pushResult(session: *Session) void {
     logo.print("synced to {s}\n", .{client.base});
 }
 
-/// PUT the current structured layout, version-guarded. On a 409 (a peer saved first) re-read the
-/// version and retry — last-writer-wins for the CLI's edits.
+/// PUT the current structured layout, version-guarded. On a 409 (a peer saved first) merge the
+/// peer's lines in and retry at its version, re-merged on every pass so no bump drops our edit.
 fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
     var tries: u8 = 0;
     while (tries < 4) : (tries += 1) {
@@ -68,19 +63,30 @@ fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
         defer session.gpa.free(layout);
         client.updateProject(id, layout, session.remote_version) catch |e| {
             if (e == server.Error.Conflict) {
-                if (client.getProjectVersion(id)) |v| {
-                    session.remote_version = v;
-                    continue; // re-read won the race; retry the PUT
-                } else |_| return;
+                mergePeer(session, client, id) catch return;
+                continue;
             }
             logo.print("sync: layout update failed ({s})\n", .{@errorName(e)});
             return;
         };
+        session.filter_dirty = false; // the server holds our filter now
         if (client.getProjectVersion(id)) |v| {
             session.remote_version = v;
         } else |_| {}
         return;
     }
+}
+
+/// The browser's mergePeer: adopt the server's version and merge its layout into ours as one
+/// history state (session/peerMerge.zig).
+fn mergePeer(session: *Session, client: *server.Client, id: []const u8) !void {
+    const body = try client.getProject(id);
+    defer session.gpa.free(body);
+    const version = try server.parseProjectVersion(session.gpa, body);
+    const layout_json = try extractLayoutObject(session.gpa, body);
+    defer session.gpa.free(layout_json);
+    try session.mergePeer(layout_json);
+    session.remote_version = version;
 }
 
 /// With /chat on, fetch the project's persisted chat (§9 `chat` file kind) and adopt it as the

@@ -1,14 +1,34 @@
 // Shared rig for the projectTransferController specs: a recording server connection and a
-// projects-store / storage / tabs / host stand-in, plus the FileReader Node lacks.
+// projects-store / storage / tabs / host stand-in, plus the FileReader and Image decode Node lacks.
 import { ProjectTransferController } from '../../js/core/project/transferController.js';
 
 export const FAKE_DATA_URL = 'data:image/png;base64,ZmFrZQ==';
+// `reads` lists every blob handed to it, in order; onload gets the event the load flow reads.
 export class FakeFileReader {
-  readAsDataURL() {
+  static reads = [];
+  readAsDataURL(blob) {
+    FakeFileReader.reads.push(blob);
     this.result = FAKE_DATA_URL;
-    queueMicrotask(() => this.onload && this.onload());
+    queueMicrotask(() => this.onload && this.onload({ target: this }));
   }
 }
+
+// The decode boundary of the real load flow (core/image/loadFlow.js): the file is read, and the
+// original "decodes" by `onDecode(file, img)` — which stands in for settle.js (its own specs),
+// or calls `img.onload()` to run it.
+export const installImageDecode = (onDecode) => {
+  const saved = { FileReader: globalThis.FileReader, Image: globalThis.Image };
+  FakeFileReader.reads = [];
+  globalThis.FileReader = FakeFileReader;
+  globalThis.Image = class {
+    set src(v) { this._src = v; queueMicrotask(() => onDecode(FakeFileReader.reads.at(-1), this)); }
+    get src() { return this._src; }
+  };
+  return {
+    reads: () => FakeFileReader.reads.map((f) => f?.name),
+    restore: () => Object.assign(globalThis, saved),
+  };
+};
 
 // A recording server connection covering the REST surface the transfer flows touch.
 export const makeConn = (url = 'https://srv.example', over = {}) => {

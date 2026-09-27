@@ -4,7 +4,10 @@
 import { guardedFetch } from '../../net/fetchGuard.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import { videoFrameDataUrl } from '../../core/export/videoFrame.js';
-import { waitForImage as waitForImageOn } from '../../core/image/loadFlow.js';
+import { waitForImage as waitForImageOn, loadImageFromFile } from '../../core/image/loadFlow.js';
+import { newEditor, createRemoteBlank } from '../../core/launch/openFlow.js';
+import { adoptIncognitoHere } from '../../core/launch/incognitoFlow.js';
+import { createBlankImage } from '../../core/image/blankImage.js';
 
 export const createSessionApi = ({ app, connMgr }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
@@ -17,8 +20,8 @@ export const createSessionApi = ({ app, connMgr }) => {
     newEditor(opts = {}) {
       const address = opts.address || null;
       if (address) requireConnection(connMgr, address);   // validate before resetting
-      app.newEditor();
-      if (address) return app.createRemoteBlank(address).then(() => stencil);
+      newEditor(app);
+      if (address) return createRemoteBlank(app, address).then(() => stencil);
       return stencil;
     },
     // Create a solid-color blank image to draw on. `color` is any CSS color; opts.size =
@@ -30,7 +33,7 @@ export const createSessionApi = ({ app, connMgr }) => {
       const previous = app.image;   // a blank over a blank: wait for the SWAP, not for "an image exists"
       const blankOpts = { color, width: size.width, height: size.height };
       if (address) blankOpts.address = address;
-      await app.createBlankImage(blankOpts);
+      await createBlankImage(app, blankOpts);
       await waitForImage(8000, previous);
       return stencil;
     },
@@ -69,8 +72,8 @@ export const createSessionApi = ({ app, connMgr }) => {
       const previous = app.image;
       // Adopt only once the bytes are in hand: a failed fetch must leave the editor
       // exactly as it was, never reset into an empty incognito session.
-      if (opts.incognito) app.adoptIncognitoHere();
-      app.loadImageFromFile(file, loadOpts);
+      if (opts.incognito) adoptIncognitoHere(app);
+      loadImageFromFile(app, file, loadOpts);
       await waitForImage(8000, previous);
       return stencil;
     },

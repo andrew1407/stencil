@@ -2,19 +2,11 @@
 #include "ProjectsDialog.hpp"
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
-#include "../../../support/motion/ShimmerOverlay.hpp"
-#include <QApplication>
-#include <QCursor>
 #include <QGuiApplication>
-#include <QKeyEvent>
-#include <QListWidget>
 #include <QMouseEvent>
-#include <QTimer>
 #include <optional>
-#include "ReorderableListWidget.hpp"
-#include "ProjectDragZones.hpp"
-#include "../../../support/motion/scrollReveal.hpp"
+#include <QListWidget>
+#include <QListWidgetItem>
 #include "../../../support/tip/AppTooltip.hpp"
 namespace stencil::gui {
 
@@ -54,7 +46,7 @@ namespace stencil::gui {
         const QString tip = !it ? QString()
                                 : (onKebab ? KEBAB_TIP : it->toolTip());
         if (tip.isEmpty()) { gui::appTooltip()->hideTip(); return true; }
-        // …forming out of the CURSOR, where the browser's tooltip flies from (ui/tooltip.js dust).
+        // …forming out of the CURSOR, where the browser's tooltip flies from (ui/tip/tooltip.js dust).
         hover.tipRowText = tip;
         gui::appTooltip()->showFor(list->viewport(), tip, he->globalPos(),
                                    QRect(he->globalPos(), QSize(1, 1)));

@@ -5,12 +5,17 @@ import { normalizeHex } from '../settings/accents.js';
 import { playCanvasArrival } from '../../ui/motion.js';
 import { requireConnection, createRemoteProject } from '../../net/remoteSync.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
+import { originalHashOf } from '../remote/peerLayout.js';
+import { editorMemento } from '../historyStack.js';
+import { portableSource } from '../project/store/projectSources.js';
+import { reportIncognitoSession } from '../launch/incognitoFlow.js';
 
 // The second half of the load flow (loadFlow.js), once the original has decoded;
 // `plan` is what the first half worked out.
 
 // Best-effort.
-const requestUnpin = (source, resource, name) => {
+const requestUnpin = (pinned, resource, name) => {
+  const source = portableSource(pinned);
   if (!source && !resource) return;
   try {
     window.postMessage({
@@ -20,17 +25,26 @@ const requestUnpin = (source, resource, name) => {
   } catch { /* postMessage unavailable (non-DOM context) — nothing to do */ }
 };
 
+// The hash the server answered in the upload's JSON body; an older server names none, and the bytes
+// give the same one.
+const uploadedHash = async (wrote, bytes) => {
+  let told = '';
+  try { told = (await wrote.json())?.originalHash || ''; } catch { /* no JSON body */ }
+  return told || originalHashOf(bytes);
+};
+
 // All-or-nothing on the sync toggle (matches edit-in-memory).
 const replaceServerOriginal = async (app, file) => {
   if (!app.remoteLink || !getSyncToServer()) return;
   try {
     const conn = requireConnection(app.connections, app.remoteLink.address);
     const bytes = new Uint8Array(await file.arrayBuffer());
-    await conn.putFile(app.remoteLink.remoteId, 'original', bytes, {
+    const wrote = await conn.putFile(app.remoteLink.remoteId, 'original', bytes, {
       ext: app.imageExt || 'png',
       w: app.originalImage ? app.originalImage.width : 0,
       h: app.originalImage ? app.originalImage.height : 0,
     });
+    app.remoteSync.noteOwnOriginal(await uploadedHash(wrote, bytes));
     await app.remoteSync.saveToServer();   // push the new layout + rendered result
   } catch (err) { notify(`Could not update the server image — ${err.message}`, 'fail'); }
 };
@@ -39,6 +53,7 @@ const replaceServerOriginal = async (app, file) => {
 const createRemoteForSession = async (app, address, file) => {
   const conn = requireConnection(app.connections, address);
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const hashing = originalHashOf(bytes);
   app.remoteLink = await createRemoteProject(conn, {
     name: app.imageBaseName || 'Untitled',
     source: app.imageSource || '',
@@ -48,6 +63,8 @@ const createRemoteForSession = async (app, address, file) => {
     w: app.originalImage ? app.originalImage.width : 0,
     h: app.originalImage ? app.originalImage.height : 0,
   });
+  // The picture uploaded here, never a re-read that could name a peer's replacement in between.
+  app.remoteSync.noteServerImage({ hasImage: true, originalHash: await hashing });
   notify(`Saved to ${conn.url}`, 'ok');
   return app.remoteLink;
 };
@@ -126,7 +143,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
   }
 
   app.currentLine = null;
-  app.history.reset(app.lines);
+  app.history.reset(editorMemento(app));
 // A blank load passes it; an ordinary load clears it; a replace-in-place recolour keeps it.
   if (opts.blankColor != null) app.blankColor = opts.blankColor;
   else if (!replaceInPlace) app.blankColor = '';
@@ -140,7 +157,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 // The dust-assembly arrival (ghostIn); only an in-place replace is exempt.
   if (!replaceInPlace && opts.landing !== false) {
 // Synchronously: a frame's delay would flash the finished image before hiding it.
-    playCanvasArrival(app.canvas, { from: opts.from });
+    playCanvasArrival(app.canvas, { from: opts.from, layers: app.renderer.layers() });
   }
   app.updateButtons();
   app.updateCoordStatus();
@@ -160,7 +177,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 // Replace-in-place post-steps.
   if (replaceInPlace) {
     if (opts.rename) {
-      if (app.activeProjectId != null) app.renameProject(app.activeProjectId, app.imageBaseName);
+      if (app.activeProjectId != null) app.projectTransfer.renameProject(app.activeProjectId, app.imageBaseName);
       app.updateProjectTitle();
     }
     requestUnpin(oldImageSource, oldImageResource, app.imageBaseName);
@@ -172,5 +189,5 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
     try { await createRemoteForSession(app, remoteCreateAddress, file); }
     catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
   }
-  app.reportIncognitoSession();
+  reportIncognitoSession(app);
 };

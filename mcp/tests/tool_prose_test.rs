@@ -105,7 +105,19 @@ fn every_tool_the_server_exposes_has_one_entry() {
     names.sort_unstable();
     assert_eq!(
         names,
-        ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt", "stencil_script"]
+        [
+            "source_site",
+            "stencil_edit",
+            "stencil_probe",
+            "stencil_project_file",
+            "stencil_project_update",
+            "stencil_projects",
+            "stencil_prompt",
+            "stencil_script",
+            "stencil_script_check",
+            "stencil_script_emit",
+            "stencil_script_plan",
+        ]
     );
     assert!(
         !asset["instructions"]

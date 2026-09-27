@@ -4,9 +4,8 @@ const std = @import("std");
 const image = @import("../../media/image.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
-const llm = @import("../../llm.zig");
-const project = @import("../../project.zig");
 const ui = @import("../ui.zig");
+const inert = @import("../render/inert.zig");
 const Session = @import("../session.zig").Session;
 const adoptServerLayout = @import("push.zig").adoptServerLayout;
 
@@ -49,7 +48,8 @@ pub fn pollEvents(session: *Session, io: std.Io) bool {
             .ignore => {},
             .deleted => {
                 clearPromptLine(&printed);
-                logo.print("🔴 \"{s}\" was deleted on the server\n", .{e.name});
+                var b: inert.Buf = undefined;
+                logo.print("🔴 \"{s}\" was deleted on the server\n", .{inert.name(&b, e.name)});
             },
             .pull => {
                 session.remote_version = e.version;
@@ -69,9 +69,10 @@ pub fn pollEvents(session: *Session, io: std.Io) bool {
                 _ = applyMetaUpdate(session, e.name); // metadata is cheap and clobbers nothing
                 clearPromptLine(&printed);
                 var tb: [32]u8 = undefined;
+                var b: inert.Buf = undefined;
                 logo.print(
                     "↺ \"{s}\" changed on the server ({s}) — you have local edits; '/save' to push yours or '/fetch' to take theirs\n",
-                    .{ e.name, server.formatAgo(&tb, now, e.updated_at) },
+                    .{ inert.name(&b, e.name), server.formatAgo(&tb, now, e.updated_at) },
                 );
             },
         }
@@ -103,10 +104,12 @@ pub fn applyMetaUpdate(session: *Session, name: []const u8) bool {
 /// the undo history to it and clears the dirty flag — the session now matches the server.
 pub fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
     const client = session.findServer(session.remote_url.?) orelse return;
+    var nb: inert.Buf = undefined;
+    const shown = inert.name(&nb, e.name);
     // Pull the ORIGINAL + the layout and rebuild the view from them (rotate/crop/filter/lines),
     // the same way the GUIs reconstruct a peer's change — never the baked result.
     const bytes = client.downloadFile(session.remote_id.?, "original") catch |err| {
-        logo.print("↺ \"{s}\" changed but the image could not be pulled ({s})\n", .{ e.name, @errorName(err) });
+        logo.print("↺ \"{s}\" changed but the image could not be pulled ({s})\n", .{ shown, @errorName(err) });
         return;
     };
     defer session.gpa.free(bytes);
@@ -127,7 +130,7 @@ pub fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
     session.dirty = false; // the working image now matches the server
     var tb: [32]u8 = undefined;
     ui.redraw(session);
-    logo.print("↺ pulled \"{s}\" from the server (changed {s})\n", .{ e.name, server.formatAgo(&tb, now, e.updated_at) });
+    logo.print("↺ pulled \"{s}\" from the server (changed {s})\n", .{ shown, server.formatAgo(&tb, now, e.updated_at) });
 }
 
 //

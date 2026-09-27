@@ -17,6 +17,7 @@ import (
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/ratelimit"
 	"stencil/server/internal/service"
+	"stencil/server/internal/store"
 )
 
 // Deps bundles everything the API handlers require.
@@ -24,20 +25,30 @@ type Deps struct {
 	Projects     ProjectStore
 	Sessions     SessionStore
 	Files        FileStore
-	LiveSessions SessionCounter // optional: live edit-session connection counts (the hub)
-	LLM          LLM            // optional: Anthropic proxy; nil = LLM routes disabled
+	Charges      service.ChargeLedger // optional: the per-session ledger, touched only under SessionQuotaBytes
+	LiveSessions SessionCounter       // optional: live edit-session connection counts (the hub)
+	LLM          LLM                  // optional: Anthropic proxy; nil = LLM routes disabled
 	Bus          eventbus.Bus
 	TokenTTL     time.Duration
 	ProjectTTL   time.Duration // default project lifetime; 0 = no expiry (off)
 	MaxBodyBytes int64
-	AdminToken   string // when set, gates POST /auth/token
-	AuthOpen     bool   // opt-in open issuance: POST /auth/token needs no admin bearer
+	// STORAGE_QUOTA_PER_SESSION_BYTES: what one session may write across every project; 0 = off.
+	SessionQuotaBytes int64
+	AdminToken        string // when set, gates POST /auth/token
+	AuthOpen          bool   // opt-in open issuance: POST /auth/token needs no admin bearer
 	// Spend controls for /llm/chat (llmlimit.go); 0 = unlimited.
 	LLMRatePerMin  int // per-session turns per minute
 	LLMMaxInFlight int // concurrent upstream calls, server-wide
 	// Abuse guards for the non-LLM writes (ratelimit.go); 0 = off.
 	AuthRatePerMin  int // POST /auth/token attempts per minute, per client IP
-	WriteRatePerMin int // project creations + file uploads per minute, per session
+	WriteRatePerMin int // project and file writes (create, update, delete, upload) per minute, per session
+	// Retry-After on a rate-limited answer, and on /llm/chat over the in-flight cap; 0 = 60 s and 5 s.
+	RetryAfter     time.Duration
+	BusyRetryAfter time.Duration
+	// Rows in a GET /projects that names no ?limit=; 0 lists every project.
+	ProjectsPageSize int
+	// Live editors on the other instances sharing the database (service.Presence); nil = one instance.
+	RemoteSessions service.RemoteSessions
 	// Peers whose X-Forwarded-For is believed when keying a per-IP limiter;
 	// empty (the default) ignores the header entirely.
 	TrustedProxies []netip.Prefix
@@ -53,7 +64,7 @@ type API struct {
 	llmRate   *ratelimit.Limiter // per-session, POST /llm/chat
 	llmGate   *llmGate
 	authRate  *ratelimit.Limiter // per-IP, POST /auth/token
-	writeRate *ratelimit.Limiter // per-session, project creation + file uploads
+	writeRate *ratelimit.Limiter // per-session, every project and file write
 }
 
 // New constructs the API handler set.
@@ -65,12 +76,23 @@ func New(deps Deps) *API {
 		deps.TokenTTL = 7 * 24 * time.Hour
 	}
 	if deps.OpTimeout <= 0 {
-		deps.OpTimeout = defaultOpTimeout
+		deps.OpTimeout = store.DefaultOpTimeout
 	}
+	if deps.RetryAfter <= 0 {
+		deps.RetryAfter = defaultRetryAfter
+	}
+	if deps.BusyRetryAfter <= 0 {
+		deps.BusyRetryAfter = defaultBusyRetryAfter
+	}
+	files := service.NewFiles(deps.Projects, deps.Files, deps.Bus)
+	files.Charges, files.SessionQuota = deps.Charges, deps.SessionQuotaBytes
+	projects := service.NewProjects(deps.Projects, deps.Files, liveSessions(deps), deps.Bus, deps.ProjectTTL)
+	projects.Originals = files
+	projects.Remote = deps.RemoteSessions
 	return &API{
 		deps:      deps,
-		projects:  service.NewProjects(deps.Projects, deps.Files, liveSessions(deps), deps.Bus, deps.ProjectTTL),
-		files:     service.NewFiles(deps.Projects, deps.Files, deps.Bus),
+		projects:  projects,
+		files:     files,
 		llmRate:   ratelimit.New(deps.LLMRatePerMin),
 		llmGate:   newLLMGate(deps.LLMMaxInFlight),
 		authRate:  ratelimit.New(deps.AuthRatePerMin),
@@ -87,8 +109,11 @@ func liveSessions(deps Deps) service.SessionCounter {
 	return deps.LiveSessions
 }
 
-// defaultOpTimeout is the fallback for Deps.OpTimeout (OP_TIMEOUT_SECONDS).
-const defaultOpTimeout = 10 * time.Second
+// The fallbacks for Deps.RetryAfter and BusyRetryAfter (config sets both).
+const (
+	defaultRetryAfter     = time.Minute // a bucket holds a minute's spend
+	defaultBusyRetryAfter = 5 * time.Second
+)
 
 // opCtx bounds one store operation: the request context alone runs to the server's 5-minute write
 // timeout, a long time to pin a pool connection. Streaming a download still uses the request itself.
@@ -101,16 +126,18 @@ func (a *API) opCtx(req *http.Request) (context.Context, context.CancelFunc) {
 func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /auth/token", a.limitByIP(a.authRate, a.handleIssueToken))
 
-	guard := auth.Middleware(a.deps.Sessions)
+	guard := auth.Middleware(a.deps.Sessions, a.deps.OpTimeout)
+	write := func(h http.HandlerFunc) http.HandlerFunc { return a.limitBySession(a.writeRate, h) }
 	protected := map[string]http.HandlerFunc{
+		"GET /auth/session":                  a.handleSession,
 		"GET /projects":                      a.handleListProjects,
-		"POST /projects":                     limitBySession(a.writeRate, a.handleCreateProject),
+		"POST /projects":                     write(a.handleCreateProject),
 		"GET /projects/{id}":                 a.handleGetProject,
-		"PUT /projects/{id}":                 a.handleUpdateProject,
-		"DELETE /projects/{id}":              a.handleDeleteProject,
+		"PUT /projects/{id}":                 write(a.handleUpdateProject),
+		"DELETE /projects/{id}":              write(a.handleDeleteProject),
 		"GET /projects/{id}/files/{kind}":    a.handleGetFile,
-		"POST /projects/{id}/files/{kind}":   limitBySession(a.writeRate, a.handlePutFile),
-		"DELETE /projects/{id}/files/{kind}": a.handleDeleteFile,
+		"POST /projects/{id}/files/{kind}":   write(a.handlePutFile),
+		"DELETE /projects/{id}/files/{kind}": write(a.handleDeleteFile),
 		"GET /llm/info":                      a.handleLLMInfo,
 		"POST /llm/chat":                     a.handleLLMChat,
 	}

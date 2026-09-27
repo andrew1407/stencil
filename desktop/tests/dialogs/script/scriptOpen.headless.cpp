@@ -10,6 +10,7 @@
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QMimeData>
@@ -18,6 +19,7 @@
 #include <QUrl>
 #include <QWindow>
 #include <cstdio>
+#include <functional>
 
 #include "../../support/check.hpp"
 
@@ -48,6 +50,15 @@ namespace {
     QDropEvent drop(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     qApp->sendEvent(window, &drop);
     return drop.isAccepted();
+  }
+
+  // The script's @source decodes on the pool, so its run finishes from the event loop: pump it
+  // until `done` holds, bounded.
+  bool waitFor(const std::function<bool()>& done, int capMs = 5000) {
+    QElapsedTimer t;
+    t.start();
+    while (!done() && t.elapsed() < capMs) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    return done();
   }
 
   CanvasWidget* showWindow(MainWindow& win) {
@@ -82,6 +93,7 @@ int main(int argc, char** argv) {
     CanvasWidget* canvas = showWindow(win);
     check(canvas && !canvas->hasImage(), "the window starts empty");
     win.openPathFromOS(drawsRect);
+    check(waitFor([canvas] { return canvas->getLines().size() == 1; }), "the run finished");
     check(canvas->hasImage(), "the script's @source filled the canvas");
     check(canvas->getLines().size() == 1, "the @rect landed as a layout line");
     if (canvas->getLines().size() == 1)
@@ -93,6 +105,7 @@ int main(int argc, char** argv) {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = showWindow(win);
     check(dropPath(&win, drawsLine), "the window took the drop");
+    check(waitFor([canvas] { return canvas->getLines().size() == 1; }), "the run finished");
     check(canvas->hasImage(), "the dropped script opened its own source");
     check(canvas->getLines().size() == 1, "the @line landed as a layout line");
     if (canvas->getLines().size() == 1)

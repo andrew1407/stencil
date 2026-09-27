@@ -1,10 +1,11 @@
-// Shapes for llm/respond.js — one model round of a chat turn (contract §7): the wire copy's
+// Shapes for llm/chat/respond.js — one model round of a chat turn (contract §7): the wire copy's
 // edge map, the text-only retry, plan execution, the auto-continuation round and the §10 deferred
 // flush. The controller owns the state this is handed; nothing here is persisted.
 import type { Stencil } from '../../console/stencilApi.js';
 import type { ChatImage, ChatMessage, LlmClient } from '../client.js';
 import type { Attachment, ChatCapabilities, TurnResult } from './controller.js';
 import type { SavedServerEntry } from '../plan/opPlan.js';
+import type { EditorHistory } from '../plan/sandbox.js';
 
 /** The controller's mutable turn state, shared with the send loop. */
 export interface TurnState {
@@ -30,6 +31,8 @@ export interface ResponderOptions {
   previewThumb: (dataUrl: string) => Promise<string>;
   savedServers?: () => SavedServerEntry[];
   openIncognito?: (url: string) => Promise<void>;
+  /** Marks and rewinds the undo stack around a variant or preview. */
+  editorHistory?: EditorHistory;
   /** The §10 capability bag every op execution replays. */
   caps: ChatCapabilities;
 }

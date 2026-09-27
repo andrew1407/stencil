@@ -21,18 +21,40 @@ Options
                              the crop/rotation and clamped into the output
       --filter <f>           Apply bw | sepia | invert | contour | <color>;
                              overrides the layout filter
+      --thumbnail <px>       Shrink the result so its longer side is at most <px>
+                             (area-averaged, aspect kept; never enlarges)
       --script <file>        Run a .stc script ('-' reads stdin). With no @source
                              block it edits the -i input; see contracts/stc/
       --script-check <file>  Print the script's diagnostics and exit 1 on an error
       --script-plan <file>   Print the script lowered to an op plan (JSON, stdout)
       --script-emit <out>    Re-write --script's .stc as a runnable script for another
                              surface; <out>'s extension picks it (.js/.stcjs, .py/.pystc)
+      --plan-check <file>    Print core's verdict on a model reply's op plan (JSON,
+                             stdout; '-' reads stdin); exit 1 when the plan is invalid
+      --plan-surface <s>     The surface whose schema judges --plan-check, and whose
+                             verdict --script-plan adds to each chunk: cli (default),
+                             mcp, bot, pystencil, desktop or browser
+      --plan-capabilities <a,b>
+                             Only these capabilities are wired: an op that requires
+                             another is an unknown op (default: all)
       --console              Interactive console: /upload, /crop, /rotate, /save, ...
       --console-full-screen  Console in a full-screen TUI: pinned logo header,
                              scrollback (wheel/PgUp/PgDn), click logo to change theme
       --confine-output       Refuse an output path outside the working directory
                              (absolute or ~); for adapters forwarding chosen paths
+      --no-clobber           Refuse to overwrite an existing output (checked after
+                             the missing extension is filled in)
+      --probe                Print -i's format, size, alpha and bytes as JSON (a
+                             video adds durationMs + frames via ffprobe); writes nothing
   -h, --help                 Show this help
+
+Assistant
+      --prompt "<text>"      Ask the configured model to plan edits on the input, run
+                             the plan and write <output>. The model is chosen by
+                             STENCIL_LLM_PROVIDER (ollama, openai-compat, anthropic,
+                             stencil-server), STENCIL_LLM_BASE_URL and STENCIL_LLM_MODEL;
+                             anthropic talks to Claude directly with your own key in
+                             STENCIL_LLM_API_KEY, held by this process only
 
 Scrape a web page (mutually exclusive with the source flags)
       --source-site <url>    Fetch a page, extract + download its media into <output>
@@ -47,6 +69,40 @@ Scrape a web page (mutually exclusive with the source flags)
       --source-min-height <px> /  --source-max-height <px>
                              Inclusive pixel bounds (0 = unset; images measured)
 
+Collaboration server
+      --server <url>         Connect to a server; -i then names a server project
+                             to fetch and edit
+      --remote-update        With --server, write the result back into that project
+      --remote <url>         Upload the result as a new project on a server
+      --remote-name <name>   Name for the --remote project (default: the input's
+                             base name)
+      --token <tok>          Access token for --server / --remote: a session token
+                             or the server's admin token. Without it the token comes
+                             from STENCIL_SERVER_TOKENS (origin=token,...), matched to
+                             each URL's origin, else STENCIL_SERVER_TOKEN
+      --list-projects        With --server, print every project's metadata (JSON)
+      --project-info <id|name>
+                             With --server, print one project's metadata (JSON)
+      --project-update <id>  With --server, change a project's metadata and print
+                             it (JSON), guarded by the version it has now; one or
+                             more of the fields below
+      --set-name <text>      A new name
+      --set-description <text>
+                             A new description ('' clears it)
+      --set-keywords <a,b>   New keywords, comma-separated ('' clears them)
+      --set-color <#hex>     A name colour: #rrggbb or a colour name ('' clears it)
+      --set-blank-color <#hex>
+                             A blank project's fill colour ('' makes it not blank)
+      --set-expires <ms>     An expiry in epoch ms (0 = never)
+      --if-version <n>       Refuse the update once a peer has saved past version <n>
+      --project-files <id>   With --server, print a project's metadata and each file
+                             it stores (original, result, video, chat, variant1..8)
+                             with its format (JSON)
+      --project-file <id> <kind>
+                             With --server, download one stored file to <output> as
+                             it is (no extension is filled in) and print what it
+                             wrote (JSON)
+
 Output
   <output>                   Result path (or, in scrape mode, the destination
                              directory). A missing extension is filled in from
@@ -56,6 +112,10 @@ Examples
   stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
   stencil --blank 800 600 red --layout notes.json --filter sepia out
   stencil --blank b5 pink page.png
+  STENCIL_LLM_PROVIDER=anthropic stencil -i photo.jpg --prompt "crop 10% off the left" out.png
   stencil -i clip.mp4 -f 24 frame.png
   stencil --source-site https://example.com --source-filter img --source-min-width 200 out/
+  stencil --server http://host:8090 -i Shared --filter sepia --remote-update out.png
+  stencil --server https://host --list-projects
+  stencil --server https://host --project-update p_1_a --set-name "Plans v2"
   stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)

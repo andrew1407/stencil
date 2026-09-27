@@ -96,7 +96,7 @@ export const FILTER_ENTERING_CLASS = 'filter-entering';
 // A shorter, non-destructive throw, never mistakable for a deletion's scatter.
 export const FILTER_DUST_MS = TUNE.FILTER_DUST_MS;
 // A row the list GAINS forms half again as briskly as a filter's — the desktop's arrival
-// clock, shared (support/filterFade.hpp ROW_ARRIVE_MS).
+// clock, shared (support/theme/filterFade.hpp ROW_ARRIVE_MS).
 export const ROW_ARRIVE_MS = Math.round(FILTER_DUST_MS / 1.5);
 // Waits out the falling leg (the share by which the leaving motes have mostly travelled) —
 // far short of the whole DISINTEGRATE_MS wipe, or the arrival's motes are lost in it.

@@ -209,7 +209,8 @@ go to the **Stencil** output channel. The browser is launched in a throwaway pro
 your everyday one.
 
 Point `stencil.webUrl` at your own instance — `http://localhost:8080/` for a served checkout —
-or leave it empty for the published one.
+or leave it empty for the published one. It is read from your user settings only, never a
+workspace's.
 
 ## Commands
 
@@ -251,7 +252,7 @@ means on the command line.
 | `stencil.hover` | `true` | Explain the word under the pointer. |
 | `stencil.colors` | `{}` | An exact colour per family, over the eight the extension already paints — see [Colours](#colours). A named family wins over the theme and applies even with `stencil.highlighting` off. |
 | `stencil.pythonPath` | *(empty)* | The Python that runs a `.pystc`. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. A relative path is taken from the workspace folder. |
-| `stencil.webUrl` | *(empty)* | The instance the browser commands open. Empty uses `https://andrew1407.github.io/stencil/`. Must be an `http(s)` URL, and it is never read out of the file being edited. |
+| `stencil.webUrl` | *(empty)* | The instance the browser commands open. Empty uses `https://andrew1407.github.io/stencil/`. Must be an `http(s)` URL, and it is never read out of the file being edited. User settings only. |
 | `stencil.webBrowser` | `chrome` | Which browser the console command launches — `chrome` or `edge`. |
 | `stencil.webInlineImages` | `true` | Let a picked local image travel into the browser as a `data:` URL. Off, only `http(s)` images can be opened. |
 

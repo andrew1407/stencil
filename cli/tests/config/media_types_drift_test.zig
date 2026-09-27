@@ -11,7 +11,7 @@ const testing = std.testing;
 
 const media_types_json = @embedFile("mediaTypes.json");
 
-// What src/video.zig held as `video_exts` before it read the canon. Byte-identical, in order.
+// What src/media/video.zig held as `video_exts` before it read the canon. Byte-identical, in order.
 const historic_video_exts = [_][]const u8{
     ".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".wmv", ".flv", ".ts", ".gifv",
 };

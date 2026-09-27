@@ -3,8 +3,8 @@
 // server/internal/hub the smoke handshake doesn't reach.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, join, T } from '../../helpers/wire.js';
+import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
+import { dialWS, join, T } from '../../helpers/server/wire.js';
 
 test.describe('server events + session lifecycle', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

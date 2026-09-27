@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import execute_op_plan, parse_op_plan
 from tests.helpers.stubs import _StubConsole, _StubEditor, _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class HistoryOpExecutionTest(unittest.TestCase):
+class HistoryOpExecutionTest(NativeCase):
   """§2 undo/redo/reset + the new §2 forms, dispatched over the stub editor."""
 
   def setUp(self) -> None:
@@ -54,7 +55,7 @@ class HistoryOpExecutionTest(unittest.TestCase):
     self.assertIn(("crop", "x1=10%"), self.editor.calls)
 
 
-class ConsoleOpExecutionTest(unittest.TestCase):
+class ConsoleOpExecutionTest(NativeCase):
   """Console-profile ops execute through the attached console hooks, in plan
   order; without a console they are skipped with a note (the library API)."""
 

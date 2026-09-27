@@ -1,4 +1,4 @@
-// Shapes for llm/schema.js — the registry-driven half of every op validator. The module
+// Shapes for llm/op/schema.js — the registry-driven half of every op validator. The module
 // is a byte-pinned port of browser/js/llm/plan/schema.js (tests/portParity.test.js); this
 // file documents what createSchema hands back, which the surface's own rules build on.
 

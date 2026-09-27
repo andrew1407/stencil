@@ -1,4 +1,4 @@
-// The extension's crop geometry (src/lib/cropGeometry.js).
+// The extension's crop geometry (src/lib/image/cropGeometry.js).
 // The six functions ported from browser/js/core/parse/cropGeometry.js are pinned to that original by
 // portParity.test.js and behaviourally by the browser suite, so none of those run twice here.
 // What remains is the extension's own half: the page-format table (a checked-in copy that

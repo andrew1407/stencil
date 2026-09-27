@@ -1,57 +1,17 @@
 #include "ConnectDialog.hpp"
 #include "connectDialogParts.hpp"
-#include "../../support/motion/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
 #include "../../support/motion/DisintegrateOverlay.hpp"  // disconnected rows come apart
-#include "../../support/motion/DissolveEffect.hpp"       // scroll-edge grain dissolve
-#include "../../support/theme/filterFade.hpp"           // filtered-out rows fade + collapse
-#include "../../support/control/FlowLayout.hpp"           // the batch bar wraps, never clips
-#include "../../support/guiHelpers.hpp"           // confirmYesNo()
 #include "../../support/modal/modalChrome.hpp"          // the browser modal shell
-#include "../../support/modal/modalReveal.hpp"          // motionReduced()
-#include "../../support/control/reveal/controlReveal.hpp"     // the batch bar comes and goes as sand
-#include "../../support/motion/ShimmerOverlay.hpp"       // the row's glass hover sweep
 
-#include "connectionStore.hpp"
-#include "iconSet.hpp"
-#include "theme.hpp"   // infoBackground: the browser's --bg-info, for the row hover
-#include "ReorderableListWidget.hpp"
-#include "SearchCombo.hpp"
-#include "ServerClient.hpp"
-
-#include <QCheckBox>
-#include <QComboBox>
-#include <QClipboard>
-#include <QCursor>
-#include <QEnterEvent>
-#include <QEvent>
-#include <QColor>
-#include <QGuiApplication>
-#include <QFont>
-#include <QFrame>
-#include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QLabel>
-#include <QKeyEvent>
 #include <QLineEdit>
-#include <QListWidget>
-#include <QPainter>
 #include <QPalette>
-#include <QPen>
-#include <QPixmap>
 #include <QPointer>
 #include <QPushButton>
-#include <QResizeEvent>
-#include <QScrollBar>
-#include <QSignalBlocker>
-#include <QSize>
-#include <QSizePolicy>
-#include <QStyle>
 #include <QTimer>
 #include <QVBoxLayout>
-
-#include <algorithm>
 
 namespace stencil::gui {
 

@@ -3,6 +3,8 @@
 // so a refused plan reads as words rather than failing.
 import { toHexColor } from '../../core/settings/accents.js';
 import { resolveProjectByName } from '../projectNames.js';
+import { newEditor } from '../../core/launch/openFlow.js';
+import { activeIsBlank, setBlankColor } from '../../core/image/blankImage.js';
 export const projectAdapters = (app) => ({
   removeProjectNamed: async (name) => {
     const { meta, note } = resolveProjectByName(app, name);
@@ -10,7 +12,7 @@ export const projectAdapters = (app) => ({
     const ok = await app.confirm(`Remove project "${meta.name}"? This cannot be undone.`,
       { title: 'Remove project', danger: true, confirmIcon: 'trash' });
     if (!ok) return 'removal canceled';
-    app.removeProject(meta.id);
+    app.projectTransfer.removeProject(meta.id);
     return null;
   },
   clearWorkingImage: async () => {
@@ -20,7 +22,7 @@ export const projectAdapters = (app) => ({
     const ok = await app.confirm(`Remove ${what}? This cannot be undone.`,
       { title: 'Remove image', danger: true, confirmIcon: 'trash' });
     if (!ok) return 'removal canceled';
-    app.newEditor({ keepChat: true });
+    newEditor(app, { keepChat: true });
     return null;
   },
   openProjectNamed: async (name, last = false) => {
@@ -37,7 +39,7 @@ export const projectAdapters = (app) => ({
         { title: 'Open project', confirmLabel: 'Open', confirmIcon: 'folder' });
       if (!ok) return 'open canceled';
     }
-    return app.switchToProject(meta.id) ? null : `could not open "${meta.name}"`;
+    return app.projectTransfer.switchToProject(meta.id) ? null : `could not open "${meta.name}"`;
   },
   // §10 renameProject: the inline rename control's path; the store's own
   // duplicate-name refusal surfaces as the note.
@@ -45,18 +47,18 @@ export const projectAdapters = (app) => ({
     const id = app.activeProjectId;
     if (id == null) return 'no active saved project to rename';
     if (app.storage.store.nameExists(name, id)) return `a project named "${name}" already exists`;
-    return app.renameProject(id, name) ? null : `could not rename to "${name}"`;
+    return app.projectTransfer.renameProject(id, name) ? null : `could not rename to "${name}"`;
   },
   // §10 blankColor: valid only on a BLANK project (keeps the drawn lines).
   // CSS names resolve to hex first (the setters take normalizeHex forms only).
   setBlankColor: async (color) => {
     const hex = toHexColor(color);
     if (app.activeProjectId != null) {
-      return app.setProjectBlankColor(app.activeProjectId, hex)
+      return app.projectTransfer.setProjectBlankColor(app.activeProjectId, hex)
         ? null : 'only a blank project has a recolourable background';
     }
-    if (!app.activeIsBlank() || !app.image) return 'only a blank project has a recolourable background';
-    app.setBlankColor(hex);
+    if (!activeIsBlank(app) || !app.image) return 'only a blank project has a recolourable background';
+    setBlankColor(app, hex);
     return null;
   },
   // §10 clearProjects: every saved local project, or every one BUT the open one (`keepCurrent`)
@@ -74,8 +76,8 @@ export const projectAdapters = (app) => ({
       : `Delete every saved local project (${doomed.length})? This cannot be undone.`,
       { title: kept ? 'Clear other projects' : 'Clear all projects', danger: true, confirmIcon: 'trash' });
     if (!ok) return 'clear canceled';
-    if (!kept) app.clearAllProjects();
-    else for (const m of doomed) app.removeProject(m.id);
+    if (!kept) app.projectTransfer.clearAllProjects();
+    else for (const m of doomed) app.projectTransfer.removeProject(m.id);
     return null;
   },
 });

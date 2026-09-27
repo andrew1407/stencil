@@ -1,0 +1,102 @@
+/* The webcore skin's menus: flat grey boxes, the navy bar for the row under the pointer, and
+   the selected table, line, project and connection rows. */
+/* ── Menus: flat grey, the navy bar for the row under the pointer ── */
+:root[data-skin="webcore"] #ctx-menu,
+:root[data-skin="webcore"] .ctx-sub,
+:root[data-skin="webcore"] .accent-dd-menu,
+:root[data-skin="webcore"] .zoom-menu,
+:root[data-skin="webcore"] .project-menu,
+:root[data-skin="webcore"] .chat-row-menu,
+:root[data-skin="webcore"] .chat-more-menu,
+:root[data-skin="webcore"] .hints-popup {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    /* The outer --wc-dark line: on the dark face the bevel alone melted into the page under it. */
+    box-shadow: 0 0 0 1px var(--wc-dark), var(--wc-raised);
+    padding: 3px;
+}
+:root[data-skin="webcore"] .ctx-item,
+:root[data-skin="webcore"] .accent-dd-opt,
+:root[data-skin="webcore"] .zoom-menu-item,
+:root[data-skin="webcore"] .project-menu-item,
+:root[data-skin="webcore"] .chat-row-menu-item,
+:root[data-skin="webcore"] .chat-more-item,
+:root[data-skin="webcore"] .ctx-checkbox-item,
+:root[data-skin="webcore"] .ctx-radio-item {
+    background: transparent;
+    color: var(--wc-ink);
+    box-shadow: none;
+    border: 0;
+}
+:root[data-skin="webcore"] .ctx-item:hover,
+:root[data-skin="webcore"] .ctx-item.ctx-open-sub,
+:root[data-skin="webcore"] .ctx-item.ctx-kb,
+:root[data-skin="webcore"] .accent-dd-opt:hover,
+:root[data-skin="webcore"] .accent-dd-opt.dd-hover,
+:root[data-skin="webcore"] .zoom-menu-item:hover,
+:root[data-skin="webcore"] .project-menu-item:hover,
+:root[data-skin="webcore"] .chat-row-menu-item:hover,
+:root[data-skin="webcore"] .chat-more-item:hover:not(:disabled),
+:root[data-skin="webcore"] .ctx-checkbox-item:hover,
+:root[data-skin="webcore"] .ctx-radio-item:hover {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover
+:is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span) {
+    color: var(--wc-on-select);
+}
+/* One bar only: the current value holds it until the pointer takes it to another row, and gets
+   it back when the pointer leaves. */
+:root[data-skin="webcore"] .accent-dd-opt[aria-selected="true"],
+:root[data-skin="webcore"] .zoom-menu-item.active {
+    background: var(--wc-select);
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.accent-dd-opt[aria-selected="true"], .zoom-menu-item.active)
+:is(.accent-dd-name, .ctx-label, span) { color: var(--wc-on-select); }
+:root[data-skin="webcore"] .accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover),
+:root[data-skin="webcore"] .zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover) {
+    background: transparent;
+    color: var(--wc-ink);
+}
+:root[data-skin="webcore"] :is(.accent-dd-menu:has(.accent-dd-opt:hover, .dd-hover) .accent-dd-opt[aria-selected="true"]:not(:hover):not(.dd-hover),
+.zoom-menu:has(.zoom-menu-item:hover) .zoom-menu-item.active:not(:hover)) :is(.accent-dd-name, .ctx-label, span) { color: var(--wc-ink); }
+
+/* A keycap keeps its own grey face on the selected row: white ink on it read as nothing. The
+   "+" between them has no face, so it takes the row's own ink. */
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-key { color: var(--wc-ink); }
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt):hover .tip-plus { color: var(--wc-on-select); }
+/* Nothing moves: no keycap shake, no row nudge, no hover lift. */
+:root[data-skin="webcore"] :is(.tip-key, .tip-key.key-shake, .ctx-item, .ctx-item *, .accent-dd-opt,
+.accent-dd-opt *, .project-row, .project-thumb img, .info-item, .hotkey-cell, .hotkey-default,
+.idle-create-btn, .idle-create-icon, .lines-row, .connect-row, .chat-suggest, .deselect-btn,
+.coordinates-table tbody tr, button, select, .btn-icon, .btn-icon-text) {
+    transform: none !important;
+}
+:root[data-skin="webcore"] .ctx-sep { background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); height: 1px; margin: 3px 1px; }
+:root[data-skin="webcore"] .ctx-item::after,
+:root[data-skin="webcore"] .shimmer::after,
+:root[data-skin="webcore"] .vs-color::after,
+:root[data-skin="webcore"] .oi-color::after { display: none; }
+
+:root[data-skin="webcore"] .project-menu-item.is-danger,
+:root[data-skin="webcore"] .chat-row-menu-item.is-danger { color: var(--wc-ink); }
+
+/* A hovered or canvas-highlighted row is the light face; only a SELECTED row is the navy bar
+   (desktop SelectionPanel does the same). !important over the base rule's accent wash. */
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-highlighted:not(.row-focused),
+.lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected),
+.connect-row:hover:not(.connect-selected)) { background: var(--wc-light) !important; color: var(--wc-ink); }
+/* A navy row carries the on-select ink all the way down; a field or button in it keeps its face. */
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) { background: var(--wc-select) !important; }
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div, .lines-label) {
+    color: var(--wc-on-select);
+}
+:root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
+.project-row.project-selected, .connect-row.connect-selected) :is(input, select, button, .btn-icon) {
+    color: var(--wc-ink);
+}

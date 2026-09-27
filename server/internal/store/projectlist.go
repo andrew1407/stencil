@@ -9,14 +9,6 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// projectListCols is projectCols minus original_content and layout, same order (scanProject skips exactly
-// that pair). One row's original_content can hold a whole MAX_BODY_BYTES image.
-const projectListCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-	source, resource, color, description, original_path, result_path, owner_session, version, keywords_arr, blank_color`
-
-// defaultListLimit bounds one keyset page when a caller asks for an absurd one.
-const defaultListLimit = 500
-
 // ProjectCursor is a position in the (updated_at DESC, id DESC) list order.
 type ProjectCursor struct {
 	UpdatedAt int64
@@ -44,16 +36,17 @@ func ParseProjectCursor(s string) (ProjectCursor, error) {
 	return ProjectCursor{UpdatedAt: n, ID: id}, nil
 }
 
-// ProjectPage bounds one ListProjects call; a zero Limit lists every project.
+// ProjectPage bounds one ListProjects call; a zero Limit lists every project. Limit is validated at the
+// request boundary (validate.ListLimit), so the store takes it as given.
 type ProjectPage struct {
 	Limit int
 	After ProjectCursor
 }
 
-// ListProjects returns project metadata (never layout/original content), newest
+// ListProjects returns project metadata (never the layout), newest
 // first. The id tiebreak makes the order total, so a page cannot skip or repeat.
 func (s *Store) ListProjects(ctx context.Context, page ProjectPage) ([]protocol.ProjectRecord, error) {
-	q := `SELECT ` + projectListCols + ` FROM projects`
+	q := `SELECT ` + projectMetaCols + ` FROM projects`
 	args := make([]any, 0)
 	if page.After.ID != "" {
 		q += ` WHERE (updated_at, id) < ($1, $2)`
@@ -61,9 +54,6 @@ func (s *Store) ListProjects(ctx context.Context, page ProjectPage) ([]protocol.
 	}
 	q += ` ORDER BY updated_at DESC, id DESC`
 	if page.Limit > 0 {
-		if page.Limit > defaultListLimit {
-			page.Limit = defaultListLimit
-		}
 		q += ` LIMIT $` + strconv.Itoa(len(args)+1)
 		args = append(args, page.Limit)
 	}
@@ -74,7 +64,7 @@ func (s *Store) ListProjects(ctx context.Context, page ProjectPage) ([]protocol.
 	defer rows.Close()
 	out := make([]protocol.ProjectRecord, 0)
 	for rows.Next() {
-		rec, err := scanProject(rows, withoutPayload)
+		rec, err := scanProject(rows, metaOnly)
 		if err != nil {
 			return nil, err
 		}

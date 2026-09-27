@@ -1,11 +1,11 @@
-// The injected modal shell (lib/overlay.js) cannot link lib/theme/, so its palette travels
-// as data — mode, and the scheme 'system' RESOLVED TO. lib/shellPrefs.js mirrors that from
+// The injected modal shell (lib/drop/overlay.js) cannot link lib/theme/, so its palette travels
+// as data — mode, and the scheme 'system' RESOLVED TO. lib/prefs/shellPrefs.js mirrors that from
 // the extension's own documents, because a target page can answer the media query
 // differently (an emulated or forced scheme) and then an overlay would disagree with the
 // panel that opened it.
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../highlight/color.js';
 
-// Same string as the localStorage key in lib/accent.js.
+// Same string as the localStorage key in lib/accent/accent.js.
 export const THEME_STORAGE_KEY = 'stencil_theme';
 export const RESOLVED_STORAGE_KEY = 'stencil_theme_resolved';
 export const THEME_MODES = Object.freeze(['system', 'light', 'dark']);

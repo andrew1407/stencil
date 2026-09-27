@@ -1,16 +1,12 @@
 #include "ProjectTransferController.hpp"
 #include "projectTransferParts.hpp"
+#include "../../support/rowWork.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "ServerClient.hpp"
-#include <QBuffer>
-#include <QDateTime>
 #include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QImage>
 #include <QJsonObject>
-#include <QRandomGenerator>
 #include <algorithm>
 
 namespace stencil::gui {
@@ -18,26 +14,25 @@ namespace stencil::gui {
   // Local → server copy, default name "<name>-copy"; mirrors browser copyProjectToServer.
   void ProjectTransferController::copyLocalProjectToServer(const QString& serverUrl,
                                                            const QString& id, const QString& name) {
-    stencil::net::ServerClient* c = requireClient(serverUrl);
-    if (!c) return;
-    Project* pr = this->h.findProject(id.toStdString());
-    if (!pr) {
+    if (!requireClient(serverUrl)) return;
+    Project* found = this->h.findProject(id.toStdString());
+    if (!found) {
       notify->error("Project not found");
       return;
     }
-    QByteArray bytes;
-    QString ext;
-    int w = 0;
-    int h = 0;
-    if (!localProjectOriginal(*pr, bytes, ext, w, h)) return;
-    const QString copyName = name.trimmed().isEmpty()
-                                 ? (QString::fromStdString(pr->meta.name) + "-copy")
-                                 : name.trimmed();
-    createServerFromLocal(c, *pr, copyName, bytes, ext, w, h,
-                          [this, copyName, serverUrl](bool ok, QString, qint64) {
-      if (!ok) return;
-      this->h.afterChange();
-      notify->success(QString("Copied \"%1\" to %2").arg(copyName, serverUrl));
+    localProjectOriginal(*found, [this, serverUrl, id, name](const Original& o) {
+      stencil::net::ServerClient* c = requireClient(serverUrl);
+      Project* pr = c ? this->h.findProject(id.toStdString()) : nullptr;
+      if (!pr) return;   // disconnected, or removed while its picture was read
+      const QString copyName = name.trimmed().isEmpty()
+                                   ? (QString::fromStdString(pr->meta.name) + "-copy")
+                                   : name.trimmed();
+      createServerFromLocal(c, *pr, copyName, o.bytes, o.ext, o.w, o.h,
+                            [this, copyName, serverUrl](bool ok, QString, qint64) {
+        if (!ok) return;
+        this->h.afterChange();
+        notify->success(QString("Copied \"%1\" to %2").arg(copyName, serverUrl));
+      });
     });
   }
 
@@ -50,10 +45,13 @@ namespace stencil::gui {
     importServerProjectToLocal(serverUrl, id, /*removeFromServer=*/true, "",
                                [this, wasOpen](bool ok, QString newId) {
       if (!ok) return;
+      const auto moved = [this] {
+        this->h.afterChange();
+        notify->success("Moved to local storage");
+      };
       // A rebind, not an arrival.
-      if (wasOpen) this->h.loadProjectIntoCanvas(newId, /*animate=*/false);
-      this->h.afterChange();
-      notify->success("Moved to local storage");
+      if (wasOpen) this->h.loadProjectIntoCanvas(newId, /*animate=*/false, moved);
+      else moved();
     });
   }
 
@@ -64,8 +62,8 @@ namespace stencil::gui {
                                [this](bool ok, QString newId) {
       if (!ok) return;
       this->h.afterChange();
-      this->h.loadProjectIntoCanvas(newId, /*animate=*/true);  // the detached copy OPENS (clears the remote link)
-      notify->success("Local copy created");
+      // The detached copy OPENS (clears the remote link).
+      this->h.loadProjectIntoCanvas(newId, /*animate=*/true, [this] { notify->success("Local copy created"); });
     });
   }
 
@@ -89,48 +87,51 @@ namespace stencil::gui {
           if (done) done(false, QString());
           return;
         }
-        QImage img;
-        if (!img.loadFromData(bytes)) {
-          notify->error("Server image could not be decoded");
-          if (done) done(false, QString());
-          return;
-        }
-        // Local projects reference an on-disk imagePath.
-        Project pr;
-        pr.meta.id = store->createId(nowMs(), makeSalt());
+        // Local projects reference an on-disk imagePath; the decode and the PNG write run on the pool.
+        const std::string newId = store->createId(nowMs(), makeSalt());
         const QString imgDir = fileStore::stateDir() + "/images";
-        QDir().mkpath(imgDir);
-        const QString path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";
-        if (!img.save(path, "PNG")) {
-          notify->error("Could not write the image to local storage");
-          if (done) done(false, QString());
-          return;
-        }
-        const QString baseName = meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name;
-        pr.meta.name = (name.trimmed().isEmpty() ? baseName : name.trimmed()).toStdString();
-        pr.meta.createdAt = pr.meta.updatedAt = nowMs();
-        // One-week default expiration (mirrors the browser).
-        pr.meta.expiresAt = core::ProjectsStore::addPeriod(
-            pr.meta.updatedAt, core::ProjectsStore::DEFAULT_PERIOD);
-        pr.meta.hasImage = true;
-        pr.meta.source = meta.source.toStdString();
-        pr.meta.resource = meta.resource.toStdString();
-        pr.imagePath = path;
-        int lw = 0, lh = 0;
-        pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters);
-        const QString newId = QString::fromStdString(pr.meta.id);
-        projectList->push_back(pr);
-        fileStore::saveProjects(*projectList);
-        if (removeFromServer) {
-          c->deleteProjectAsync(id, [this, c, newId, done](bool dok) {
-            if (!dok)
-              notify->error(QString("Copied locally, but server delete failed — %1")
-                                 .arg(c->lastError()));
-            if (done) done(true, newId);
-          });
-        } else {
-          if (done) done(true, newId);
-        }
+        const QString path = imgDir + "/" + QString::fromStdString(newId) + ".png";
+        enum class Stored { OK, UNDECODABLE, UNWRITABLE };
+        support::runOnPool<Stored>(canvas, [bytes, imgDir, path] {
+          QImage img;
+          if (!img.loadFromData(bytes)) return Stored::UNDECODABLE;
+          QDir().mkpath(imgDir);
+          return img.save(path, "PNG") ? Stored::OK : Stored::UNWRITABLE;
+        }, [this, c, id, name, removeFromServer, meta, layout, done, newId, path](Stored stored) {
+          if (stored != Stored::OK) {
+            notify->error(stored == Stored::UNDECODABLE ? "Server image could not be decoded"
+                                                        : "Could not write the image to local storage");
+            if (done) done(false, QString());
+            return;
+          }
+          Project pr;
+          pr.meta.id = newId;
+          const QString baseName = meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name;
+          pr.meta.name = (name.trimmed().isEmpty() ? baseName : name.trimmed()).toStdString();
+          pr.meta.createdAt = pr.meta.updatedAt = nowMs();
+          // One-week default expiration (mirrors the browser).
+          pr.meta.expiresAt = core::ProjectsStore::addPeriod(
+              pr.meta.updatedAt, core::ProjectsStore::DEFAULT_PERIOD);
+          pr.meta.hasImage = true;
+          pr.meta.source = meta.source.toStdString();
+          pr.meta.resource = meta.resource.toStdString();
+          pr.imagePath = path;
+          int lw = 0, lh = 0;
+          pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters);
+          const QString localId = QString::fromStdString(newId);
+          projectList->push_back(pr);
+          fileStore::saveProjects(*projectList);
+          if (removeFromServer) {
+            c->deleteProjectAsync(id, [this, c, localId, done](bool dok) {
+              if (!dok)
+                notify->error(QString("Copied locally, but server delete failed — %1")
+                                   .arg(c->lastError()));
+              if (done) done(true, localId);
+            });
+          } else {
+            if (done) done(true, localId);
+          }
+        });
       };
       c->downloadFileAsync(id, "original", [this, meta, persist](bool dok, QByteArray bytes) {
         if (dok && !bytes.isEmpty()) {

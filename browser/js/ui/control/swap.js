@@ -2,7 +2,7 @@ import { markIn, markOut } from '../motion.js';
 
 // A checkbox's checked indicator is a mark: it forms and scatters like every mark
 // (motion.js markIn / markOut); the box itself never moves. One delegated listener,
-// like the desktop's application-wide filter (support/controlSwap.hpp); programmatic
+// like the desktop's application-wide filter (support/control/swap/controlSwap.hpp); programmatic
 // changes fire no `change`, so the settings mirror calls setChecked() instead.
 
 // The desktop's NO_CONTROL_SWAP_PROPERTY.
@@ -34,7 +34,7 @@ function playCheckDust(el, on) {
   return on ? markIn(el, { paint }) : markOut(el, { paint });
 }
 
-// Set a checkbox from code and animate the change (core/controller.js writes through here).
+// Set a checkbox from code and animate the change (core/settings/controller.js writes through here).
 export function setChecked(el, value) {
   if (!el) return;
   const on = !!value;

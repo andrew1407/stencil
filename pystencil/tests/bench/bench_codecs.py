@@ -1,19 +1,27 @@
-"""decode_png timings: the per-scanline unfilter and the per-channel expansion.
+"""decode_png / encode_png timings: the fallback decoder's per-scanline unfilter, wavefront,
+per-channel expansion and 12 MP case, and stb's decode against it.
 
-The decoder is pure Python, so its cost model is "how much of the work happens inside a C
+The fallback is pure Python, so its cost model is "how much of the work happens inside a C
 builtin". Up/Sub reverse a whole scanline with bigint SWAR arithmetic; Average and Paeth
-need the reconstructed byte to their left and stay per-byte loops. These ceilings are what
-fails if a whole-row path regresses to a per-byte one.
+need the reconstructed byte to their left and run as an anti-diagonal wavefront over a
+band of rows (``pngwave``). These ceilings are what fails if either regresses to a
+per-byte loop.
 """
 
 from __future__ import annotations
 
+import random
 import struct
 import zlib
+from unittest import mock
 
 from tests.bench.benchsupport import BenchCase
 
-from pystencil.codecs import decode_png, encode_png
+from tests.helpers.nativecase import require_stb
+
+from pystencil import codecs
+from pystencil.codecs import encode_png, pngfilter
+from pystencil.codecs.pngdecode import decode_png
 
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
@@ -27,7 +35,7 @@ def _gradient(width: int, height: int) -> bytearray:
   return rows
 
 
-# PNG colour type -> samples per pixel at 8-bit depth (codecs/png.py's _CHANNELS).
+# PNG colour type -> samples per pixel at 8-bit depth (codecs/pngdecode.py's CHANNELS).
 _CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 
 
@@ -37,20 +45,25 @@ def _chunk(ctype: bytes, payload: bytes) -> bytes:
 
 
 def _filtered_png(width: int, height: int, ftype: int, color_type: int = 6,
-         extra: bytes = b"") -> bytes:
+         extra: bytes = b"", noise: bool = False) -> bytes:
   """A PNG whose every scanline carries filter ``ftype`` over non-flat sample bytes, so
-  the decoder runs that filter's real reconstruction path on every row."""
+  the decoder runs that filter's real reconstruction path on every row. ``noise`` fills
+  the rows from a seeded generator, the fast way to a 12 MP plane."""
   stride = width * _CHANNELS[color_type]
+  rnd = random.Random(12)
   raw = bytearray()
   for y in range(height):
     raw.append(ftype)
-    raw += bytes(((x * 31 + y * 17) & 0xFF) for x in range(stride))
+    if noise:
+      raw += rnd.getrandbits(8 * stride).to_bytes(stride, "big")
+    else:
+      raw += bytes(((x * 31 + y * 17) & 0xFF) for x in range(stride))
   ihdr = struct.pack(">IIBBBBB", width, height, 8, color_type, 0, 0, 0)
   return (
     _PNG_MAGIC
     + _chunk(b"IHDR", ihdr)
     + extra
-    + _chunk(b"IDAT", zlib.compress(bytes(raw), 6))
+    + _chunk(b"IDAT", zlib.compress(bytes(raw), 1 if noise else 6))
     + _chunk(b"IEND", b"")
   )
 
@@ -67,7 +80,7 @@ class DecodePngBench(BenchCase):
     wide = encode_png(400, 150, _gradient(400, 150))
     tall = encode_png(200, 300, _gradient(200, 300))
 
-    base = self.micros("decode_png 200x150 (filter 0)", 40, lambda: decode_png(small))
+    base = self.micros("decode_png 200x150 (own encoding)", 40, lambda: decode_png(small))
     twice_wide = self.micros("decode_png 400x150", 20, lambda: decode_png(wide))
     twice_tall = self.micros("decode_png 200x300", 20, lambda: decode_png(tall))
 
@@ -76,36 +89,58 @@ class DecodePngBench(BenchCase):
     self.ratio("twice the width", twice_wide, base, ceiling=3.0)
     self.ratio("twice the height", twice_tall, base, ceiling=3.0)
 
-  def test_the_whole_row_filters_stay_off_the_per_byte_path(self):
+  def test_every_filter_stays_off_the_per_byte_path(self):
     none = _filtered_png(300, 200, 0)
     up = _filtered_png(300, 200, 2)
     sub = _filtered_png(300, 200, 1)
+    average = _filtered_png(300, 200, 3)
     paeth = _filtered_png(300, 200, 4)
 
     flat = self.micros("decode_png filter 0 (none)", 20, lambda: decode_png(none))
     up_us = self.micros("decode_png filter 2 (Up)", 20, lambda: decode_png(up))
     sub_us = self.micros("decode_png filter 1 (Sub)", 20, lambda: decode_png(sub))
-    paeth_us = self.micros("decode_png filter 4 (Paeth)", 5, lambda: decode_png(paeth))
+    avg_us = self.micros("decode_png filter 3 (Average)", 10, lambda: decode_png(average))
+    paeth_us = self.micros("decode_png filter 4 (Paeth)", 10, lambda: decode_png(paeth))
 
     # Up is a fixed handful of whole-row C passes; Sub repeats its add log2(stride/bpp) times.
-    # Both must stay inside a small multiple of no unfilter at all.
     self.ratio("Up vs none", up_us, flat, ceiling=16.0)
     self.ratio("Sub vs none", sub_us, flat, ceiling=50.0)
-    # Paeth is per-byte BY DESIGN: every byte needs the reconstructed byte to its
-    # left, so there is no whole-row form. Bounded only against getting dearer still.
-    self.ratio("Paeth vs Up", paeth_us, up_us, ceiling=250.0)
+    # Average and Paeth are a few dozen whole-diagonal passes per diagonal: a small
+    # multiple of Up, where the per-byte loop they replaced ran ~60x (Paeth) of it.
+    self.ratio("Average vs Up", avg_us, up_us, ceiling=12.0)
+    self.ratio("Paeth vs Up", paeth_us, up_us, ceiling=30.0)
 
-  def test_sub_beats_its_own_per_byte_twin(self):
-    # Average has Sub's left-neighbour dependency and stays a per-byte loop, so it is
-    # the control: Sub costing a FRACTION of it is the evidence Sub reverses rows in C.
-    sub = _filtered_png(300, 200, 1)
-    average = _filtered_png(300, 200, 3)
+  def test_the_wavefront_beats_the_per_byte_loop(self):
+    # The same Paeth band both ways: the cost model forced to each path in turn.
+    paeth = _filtered_png(1000, 256, 4, noise=True)
+    with mock.patch.object(pngfilter, "_PER_BYTE", 0):
+      rows_us = self.micros("decode_png Paeth, per-byte rows", 1, lambda: decode_png(paeth))
+    with mock.patch.object(pngfilter, "_PER_BYTE", 10 ** 9):
+      wave_us = self.micros("decode_png Paeth, wavefront", 3, lambda: decode_png(paeth))
+    self.ratio("wavefront vs per-byte", wave_us, rows_us, ceiling=0.25)
 
-    sub_us = self.micros("decode_png filter 1 (Sub, whole-row)", 20, lambda: decode_png(sub))
-    avg_us = self.micros("decode_png filter 3 (Average, per-byte)", 5, lambda: decode_png(average))
+  def test_a_12_megapixel_image(self):
+    # 4000 x 3000: the size a phone photo arrives at. A Paeth plane must stay a small
+    # multiple of the whole-row Up one, and the encoder a small multiple of its deflate.
+    up = _filtered_png(4000, 3000, 2, noise=True)
+    paeth = _filtered_png(4000, 3000, 4, noise=True)
+    up_us = self.micros("decode_png 12 MP, Up", 1, lambda: decode_png(up))
+    paeth_us = self.micros("decode_png 12 MP, Paeth", 1, lambda: decode_png(paeth))
+    self.ratio("12 MP Paeth vs Up", paeth_us, up_us, ceiling=15.0)
 
-    # Collapsing toward 1.0 means Sub regressed to a per-byte scan.
-    self.ratio("Sub vs Average", sub_us, avg_us, ceiling=0.5)
+    _, _, pixels = decode_png(up)
+    enc_us = self.micros("encode_png 12 MP", 1, lambda: encode_png(4000, 3000, pixels))
+    deflate_us = self.micros("zlib level 6 over the same plane", 1,
+                             lambda: zlib.compress(pixels, 6))
+    self.ratio("12 MP encode vs its deflate", enc_us, deflate_us, ceiling=4.0)
+
+  def test_stb_decodes_a_12_megapixel_paeth_image_faster_than_the_fallback(self):
+    require_stb()
+    paeth = _filtered_png(4000, 3000, 4, noise=True)
+    stb_us = self.micros("codecs.decode_png 12 MP, Paeth (stb)", 1,
+                         lambda: codecs.decode_png(paeth))
+    python_us = self.micros("pngdecode 12 MP, Paeth (fallback)", 1, lambda: decode_png(paeth))
+    self.ratio("stb vs the fallback", stb_us, python_us, ceiling=0.5)
 
   def test_expansion_of_a_narrower_sample_model_is_a_strided_copy(self):
     gray = _filtered_png(300, 200, 0, color_type=0)

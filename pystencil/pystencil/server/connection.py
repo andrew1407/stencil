@@ -17,7 +17,7 @@ from typing import Any
 from .._ffi.types import NoneType
 from .._net import _unverified_ssl_context
 from .files import _FileApi
-from .http import ServerError, _http_open, _json_request, _parse_http_error
+from .http import ServerError, _http_open, _json_request, _parse_http_error, _set_bearer
 from .projects import _ProjectApi
 from .urls import normalize_url, split_invite_token
 
@@ -70,13 +70,12 @@ class ServerConnection(_ProjectApi, _FileApi):
       url += "?" + urllib.parse.urlencode(query)
     tok = self.token if token is None else token
     if raw and body is not None:
-      headers = {
-        "Authorization": "Bearer " + (tok or ""),
-        "Content-Type": "application/octet-stream",
-      }
-      return urllib.request.Request(
-        url, data=bytes(body), headers=headers, method=method
+      req = urllib.request.Request(
+        url, data=bytes(body), headers={"Content-Type": "application/octet-stream"},
+        method=method,
       )
+      _set_bearer(req, tok or "")
+      return req
     return _json_request(method, url, body, bearer=tok or "")
 
   def _open(self, req: urllib.request.Request, raw: bool = False) -> Any:
@@ -133,7 +132,7 @@ class ServerConnection(_ProjectApi, _FileApi):
     """Acquire (or validate) a token, mirroring browser handshake().
 
     Without a token we mint one via POST /auth/token; with a token we
-    validate it by listing projects. Sets `status` accordingly.
+    validate it through :meth:`_probe`. Sets `status` accordingly.
     """
     try:
       if not self.token:
@@ -141,17 +140,17 @@ class ServerConnection(_ProjectApi, _FileApi):
         self.token = (r or {}).get("token", "")
       else:
         try:
-          self._request("GET", "/projects")  # validate access
+          self._probe()
           # A probe that passed without _request re-minting (which would have
           # said "admin" already) means an ordinary session token.
           if self.credential_kind != "admin": self.credential_kind = "session"
         except ServerError as err:
-          # Browser/desktop parity: the value may be the server's ADMIN token — it cannot list
-          # projects but it can MINT. Only an auth failure means that; a 500 propagates as-is.
+          # Browser/desktop parity: the value may be the server's ADMIN token — it holds no
+          # session but it can MINT. Only an auth failure means that; a 500 propagates as-is.
           if err.status is not None and err.status not in (401, 403): raise
           r = self._request("POST", "/auth/token", body={})
           self.token = (r or {}).get("token", "")
-          self._request("GET", "/projects")
+          self._probe()
           # Minted, and the session it minted works: proven admin credential.
           self.credential_kind = "admin"
     except Exception:
@@ -159,6 +158,15 @@ class ServerConnection(_ProjectApi, _FileApi):
       raise
     self.status = "connected"
     return self
+
+  def _probe(self) -> None:
+    """Validate the session token with ``GET /auth/session``; a server that predates the
+    route answers 404 and is probed with a one-record ``GET /projects?limit=1``."""
+    try:
+      self._request("GET", "/auth/session")
+    except ServerError as err:
+      if err.status != 404: raise
+      self._request("GET", "/projects", query={"limit": "1"})
 
   def close(self) -> None:
     """Drop the connection (REST-only, so just flips status)."""

@@ -3,7 +3,7 @@ import { normalizeUrl, sharedPinsFromProjects } from './model.js';
 import {
   dropConnection, isAdminConnection, loadConnections, saveConnections, upsertConnection,
 } from './store.js';
-import { connect, fetchImpl, listProjects } from './rest.js';
+import { connect, fetchImpl, listProjectsIfChanged } from './rest.js';
 
 export {
   CONNECTIONS_KEY, isLoopbackHost, mergePins, normalizeUrl, parseInviteUrl,
@@ -12,7 +12,9 @@ export {
 export {
   dropConnection, filterConnections, isAdminConnection, loadConnections, upsertConnection,
 } from './store.js';
-export { connect, createProject, fetchProjectImage, listProjects } from './rest.js';
+export {
+  checkSession, connect, createProject, fetchProjectImage, listProjects, listProjectsIfChanged, SHARED_LIST_LIMIT,
+} from './rest.js';
 
 // 'none' (local only) | 'one' (a "store on server" checkbox) | 'many' (a server picker).
 export const pinTargetMode = (connections) => {
@@ -32,17 +34,30 @@ export const projectRequestFromImage = (image = {}, resource = '') => ({
   resource: image.resource || resource || '',
 });
 
-// Best-effort per server.
-export const collectSharedPins = async (connections, f = fetchImpl()) => {
+// Best-effort per server, each list riding its last pages' ETags in `cache` (url → { etag, pages, projects });
+// `changed` is false only when every server answered what it answered last time.
+export const refreshSharedPins = async (connections, cache = new Map(), f = fetchImpl()) => {
   const out = [];
+  const listed = new Set();
+  let changed = false;
   await Promise.all((connections || []).map(async (conn) => {
+    listed.add(conn.url);
+    const prev = cache.get(conn.url);
+    let next = { etag: '', pages: [], projects: null };   // unreachable server → skipped
     try {
-      const projects = await listProjects(conn, f);
-      out.push(...sharedPinsFromProjects(projects, conn.url));
-    } catch { /* unreachable server → skip */ }
+      const r = await listProjectsIfChanged(conn, prev && prev.projects ? prev : null, f);
+      next = r.changed ? { etag: r.etag, pages: r.pages, projects: r.projects } : (prev || next);
+    } catch { /* keep the empty answer */ }
+    if (!prev || JSON.stringify(prev.projects) !== JSON.stringify(next.projects)) changed = true;
+    cache.set(conn.url, next);
+    if (next.projects) out.push(...sharedPinsFromProjects(next.projects, conn.url));
   }));
-  return out;
+  for (const url of [...cache.keys()]) if (!listed.has(url)) { cache.delete(url); changed = true; }
+  return { pins: out, changed };
 };
+
+export const collectSharedPins = async (connections, f = fetchImpl()) =>
+  (await refreshSharedPins(connections, new Map(), f)).pins;
 
 export const addServer = async (rawUrl, token = '', f = fetchImpl()) => {
   const conn = await connect(rawUrl, token, f);

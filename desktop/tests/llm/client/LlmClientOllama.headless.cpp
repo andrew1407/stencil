@@ -15,6 +15,8 @@ namespace llmclient {
     LlmReply got;
     client.chat(cfg, sampleMessages(), "suffix here", [&](LlmReply r) { got = r; });
     check(t.url.toString() == "http://localhost:11434/api/chat", "POST {base}/api/chat");
+    check(t.url.path() == providerCanonEntry("ollama").value("chatPath").toString(),
+          "the path is providers.json ollama chatPath");
     check(t.header("Authorization").isEmpty(), "no auth header for ollama");
     check(t.body.value("model").toString() == "llama3.2-vision" &&
               t.body.value("stream") == QJsonValue(false),
@@ -86,6 +88,8 @@ namespace llmclient {
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(t.url.toString() == "http://localhost:1234/v1/chat/completions",
           "POST {base}/chat/completions (base already ends in /v1)");
+    check(t.url.path() == "/v1" + providerCanonEntry("openai-compat").value("chatPath").toString(),
+          "the path is providers.json openai-compat chatPath");
     check(t.header("Authorization") == "Bearer sk-test", "Bearer apiKey header");
     const QJsonArray msgs = t.body.value("messages").toArray();
     check(msgs.at(1).toObject().value("content").isString(),

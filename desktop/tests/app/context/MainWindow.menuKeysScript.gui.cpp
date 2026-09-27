@@ -41,17 +41,17 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return flyout->isVisible(); }, 1000);
       opened = flyout->isVisible();
       QTest::qWait(80);
-      revealedOnly = QApplication::focusWidget() != win.scriptMenuEditor;
+      revealedOnly = QApplication::focusWidget() != win.ctxMenu.scriptEditor;
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
-      entered = QApplication::focusWidget() == win.scriptMenuEditor;
+      entered = QApplication::focusWidget() == win.ctxMenu.scriptEditor;
 
       auto* edit = flyout->findChild<QPlainTextEdit*>("scriptMenuText");
       if (!edit) { root->close(); return; }
       edit->clear();
       QTest::keyClick(flyout, Qt::Key_Tab);
       indented = edit->toPlainText() == QLatin1String("  ");
-      stillInEditor = QApplication::focusWidget() == win.scriptMenuEditor;
+      stillInEditor = QApplication::focusWidget() == win.ctxMenu.scriptEditor;
 
       const int before = int(canvas->allLines().size());
       edit->setPlainText(QStringLiteral("@line (1,1) (10,1) (10,8)"));
@@ -60,7 +60,7 @@ class MainWindowGuiTest : public QObject {
       ran = int(canvas->allLines().size()) == before + 1 && flyout->isVisible();
       root->close();
     });
-    win.showContextMenu(at);
+    win.parts.canvasMenu.showContextMenu(at);
     QVERIFY2(opened, "Right on the Stencil Script row did not open the editor flyout");
     QVERIFY2(revealedOnly, "the first Right already put the caret in the editor");
     QVERIFY2(entered, "the second Right did not focus the editor");

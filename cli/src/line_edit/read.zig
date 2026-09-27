@@ -2,30 +2,20 @@
 //! edit, a motion, a chord the caller handles, or a deferred logo click. Bound as a method
 //! on `Editor` by line_edit.zig.
 const std = @import("std");
-const logo = @import("../app/logo.zig");
 const skin = @import("../app/skin.zig");
-const line_edit = @import("../line_edit.zig");
+const line_edit = @import("line_edit.zig");
 
 const Editor = line_edit.Editor;
 const History = line_edit.History;
 const Input = line_edit.Input;
 const max_line = line_edit.max_line;
 const double_click_ms = Editor.double_click_ms;
-const PasteResult = line_edit.PasteResult;
-const wordLeft = words.wordLeft;
-const wordRight = words.wordRight;
-const rowMove = wrap.rowMove;
-const rowStart = wrap.rowStart;
-const wrappedRows = wrap.wrappedRows;
-const markerBefore = markers.markerBefore;
-const markerEnd = markers.markerEnd;
-const stripMarkers = markers.stripMarkers;
-const markers = @import("markers.zig");
 const words = @import("words.zig");
-const wrap = @import("wrap.zig");
 
 // An animated secret skin repaints on the idle hook, so the hook runs at its frame rate.
 const frame_ms = skin.frame_ms;
+// How long an ESC waits for the byte that would make it a sequence (terminals send them together).
+const lone_esc_ms = 30;
 
 /// Read one edited line into `buf`: a submitted `.line`, or a chord the caller handles (`.eof`,
 /// `.interrupt`, `.copy`, `.paste`). `armed` carries the two-Ctrl-C exit guard across calls.
@@ -44,6 +34,12 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
     self.refresh(prompt, buf[0..len], pos);
 
     while (true) {
+        // A burst of wheel notches or drag reports has been read: paint where it left the view.
+        if (self.screen) |s| if ((s.scroll_owed or s.drag_owed) and !self.waitReadable(0)) {
+            s.settleScroll();
+            s.settleDrag();
+            self.refresh(prompt, buf[0..len], pos);
+        };
         // Input that never pauses (a wheel scroll, a drag) must not freeze an animated skin:
         // between events, the hook runs as soon as a frame is due.
         if (skin.animating() and self.idle_cb != null and self.nowMs() - frame_at >= frame_ms) {
@@ -155,7 +151,8 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                 if (ch == self.erase or ch == 127) self.backspace(prompt, buf, &len, &pos) else self.deleteWordBack(prompt, buf, &len, &pos);
             },
             27 => { // ESC: a nav/mouse sequence, or an Alt/Meta-modified chord
-                const nxt = self.readByte() orelse continue; // lone ESC: ignore
+                // A lone ESC has nothing behind it: wait a moment, never block the idle hook on it.
+                const nxt = self.pollNext(lone_esc_ms) orelse continue;
                 switch (nxt) {
                     3 => { // Ctrl-Alt-C: copy the image to the clipboard
                         self.abortPending();
@@ -174,11 +171,11 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                     },
                     // Meta (Alt/Option) word chords — emacs bindings, also Option+←/→.
                     'b' => { // Alt-b: word left
-                        pos = wordLeft(buf[0..len], pos);
+                        pos = words.wordLeft(buf[0..len], pos);
                         self.refresh(prompt, buf[0..len], pos);
                     },
                     'f' => { // Alt-f: word right
-                        pos = wordRight(buf[0..len], pos);
+                        pos = words.wordRight(buf[0..len], pos);
                         self.refresh(prompt, buf[0..len], pos);
                     },
                     'd' => self.deleteWordFwd(prompt, buf, &len, &pos), // Alt-d: delete word forward
@@ -193,9 +190,14 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                             self.csi(params[0..r.np], r.final, true, prompt, buf, &len, &pos, hist, &hidx, &stash, &stash_len);
                         }
                     },
+                    // A terminal's late answer to a query (OSC 17's colour, DA1, a mode report) is
+                    // not typing: swallowed whole, never inserted into the line.
+                    ']', 'P', '_', '^' => self.drainString(),
                     '[' => {
                         const b2 = self.readByte() orelse continue;
-                        if (b2 == '<') { // SGR mouse report
+                        if (b2 == '?' or b2 == '>' or b2 == '=') {
+                            self.drainCsi();
+                        } else if (b2 == '<') { // SGR mouse report
                             self.handleMouse(prompt, buf, &len, &pos, &click_pending, &click_at);
                         } else {
                             // Collect the CSI params so a modified key like Alt-Left

@@ -8,3 +8,8 @@ export declare const openInLaunchPayload: (
   app: DrawingApp,
   opts?: { incognito?: boolean; id?: string | null },
 ) => LaunchPayload | null;
+/** The same, its image a data URL: a stored project's object URL is read back first. */
+export declare const openInLaunchPayloadResolved: (
+  app: DrawingApp,
+  opts?: { incognito?: boolean; id?: string | null },
+) => Promise<LaunchPayload | null>;

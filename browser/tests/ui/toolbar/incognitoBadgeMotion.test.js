@@ -4,8 +4,7 @@
 // modes, the slot alone in `slide`, and a plain show/hide under `none` or reduced motion.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { installDom } from '../../helpers/dom.js';
+import { createStubElement, installDom } from '../../helpers/dom.js';
 
 const store = new Map();
 globalThis.localStorage = {
@@ -34,7 +33,7 @@ const doc = installDom({ autoCreateById: true }, {
 
 const { StencilToolbar } = await import('../../../js/ui/toolbar/toolbar.js');
 const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
-const { settleMark, MARK_FORMING_CLASS, MARK_LEAVING_CLASS } =
+const { settleMark, revealControls, MARK_FORMING_CLASS, MARK_LEAVING_CLASS } =
   await import('../../../js/ui/motion.js');
 
 const SLOT_CLASS = 'reveal-group-transition';
@@ -137,12 +136,20 @@ test('`none` and the OS preference show and hide it outright — no cloud, no sl
 });
 
 test('the badge is wired to the shared reveal, not to a per-mode effect of its own', () => {
-  const src = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
-  assert.match(src, /revealControls\(incognitoLine, live && incognito, 'flex'\);/);
-  assert.match(src, /import \{[^}]*\brevealControls\b[^}]*\} from '\.\.\/motion\.js';/);
-  // No mode of its own: every branch belongs to the shared helper.
-  assert.ok(!/motionMode|dustEnabled|particleStyle/.test(src),
-    'the toolbar must not fork on the motion mode itself');
-  assert.match(src, /incognitoLine\.style\.display = 'none';/,
-    'the standing badge starts hidden, so the first reveal is a real arrival');
+  // A twin element driven by revealControls itself must end every edge exactly where the badge does.
+  const snap = (el) => ({ display: el.style.display, maxWidth: el.style.maxWidth, dust: !!el.__dustHost,
+    classes: [...el.classes].filter((c) => c !== 'hints-incognito').sort() });
+  for (const mode of ['particles', 'water', 'slide', 'none']) {
+    const { badge, setIncognito } = rig();
+    setMotionPrefs({ mode });
+    const twin = createStubElement('span', { getBoundingClientRect: badge.getBoundingClientRect });
+    twin.style.display = 'none';
+    for (const on of [true, false]) {
+      setIncognito(on);
+      revealControls(twin, on, 'flex');
+      assert.deepEqual(snap(badge), snap(twin), `${mode}, ${on ? 'in' : 'out'}: the shared reveal, nothing of its own`);
+    }
+    settleMark(badge);
+    settleMark(twin);
+  }
 });

@@ -1,4 +1,4 @@
-// Shapes for popup/hoverHighlight.js — the two-way row↔page hover outline.
+// Shapes for popup/row/hoverHighlight.js — the two-way row↔page hover outline.
 import type { PopupImage } from '../list/model.js';
 
 export declare const runHoverHighlight: (source: string, rowTabId?: number | null) => Promise<void>;

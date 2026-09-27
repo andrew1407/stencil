@@ -29,10 +29,10 @@ namespace stencil::gui {
   // The Level the toast was raised at, so a caller's severity is assertable.
   inline constexpr const char* LEVEL_PROPERTY = "stencilToastLevel";
 
-  // Toast dust (browser surface/motion.js surfaceIn/surfaceOut). The entrance runs LONGER than the
+  // Toast dust (browser surface/surfaces.js surfaceIn/surfaceOut). The entrance runs LONGER than the
   // browser's 680: at the desktop's size the arrival read as a flash rather than a landing.
   inline constexpr int TOAST_IN_MS = 840;
-  // Shorter than the entrance. Browser twin: js/ui/notifications.js LEAVE_DUST_MS.
+  // Shorter than the entrance. Browser twin: browser/js/ui/shell/notifications.js LEAVE_DUST_MS.
   inline constexpr int TOAST_OUT_MS = 420;
 
 

@@ -20,13 +20,13 @@ class MainWindowGuiTest : public QObject {
     MockChatTransport mock;
     mock.status = 0;
     mock.netError = "network down";
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(24, 24, QImage::Format_RGB32);
     att.fill(Qt::green);
     dock->addAttachmentImage(att, "cat.png");
-    win.onChatSend("highlight the cat");
+    win.chatSession->onChatSend("highlight the cat");
     QTRY_VERIFY(!dock->isBusy());
     QCOMPARE(dock->attachedImages().size(), 0);   // the send drained the tray
     const int firstImages = mock.body.value("messages").toArray().last().toObject()
@@ -68,13 +68,13 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"Which photo first?\",\"actions\":[]}"}}}})
                        .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkMagenta);
     dock->addAttachmentImage(att, "cat.png");
-    win.onChatSend("edit these photos");
+    win.chatSession->onChatSend("edit these photos");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY(!win.canvas->hasImage());
     QCOMPARE(dock->attachedImages().size(), 0);   // the send drained the tray
@@ -86,7 +86,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Making it black and white.\",\"actions\":"
                       "[{\"op\":\"filter\",\"mode\":\"bw\"}]}"}}}})
                        .toJson(QJsonDocument::Compact);
-    win.onChatSend("the first one");
+    win.chatSession->onChatSend("the first one");
     QTRY_VERIFY(win.canvas->hasImage());
     beat();
   }
@@ -110,7 +110,7 @@ class MainWindowGuiTest : public QObject {
         "{\"op\":\"image\",\"index\":1},{\"op\":\"filter\",\"mode\":\"bw\"},{\"op\":\"save\"},"
         "{\"op\":\"image\",\"index\":2},{\"op\":\"filter\",\"mode\":\"sepia\"},"
         "{\"op\":\"save\",\"name\":\"second\"}]}"));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage shore(64, 48, QImage::Format_RGB32);
@@ -127,9 +127,9 @@ class MainWindowGuiTest : public QObject {
       if (name.startsWith(QStringLiteral("shore")) || name.startsWith(QStringLiteral("second")))
         stale << QString::fromStdString(p.meta.id);
     }
-    for (const QString& id : stale) win.eraseLocalProject(id);
+    for (const QString& id : stale) win.parts.projects.eraseLocalProject(id);
     const int before = int(win.projectList.size());
-    win.onChatSend("make the first b&w and the second sepia, then save both");
+    win.chatSession->onChatSend("make the first b&w and the second sepia, then save both");
     QTRY_VERIFY(!dock->isBusy());
     // One project per image, in plan order: the unnamed save took the name of
     // the attachment it was working on, the named one kept its own.
@@ -156,7 +156,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Saved again.\",\"actions\":["
         "{\"op\":\"image\",\"index\":1},{\"op\":\"save\"}]}"));
-    win.onChatSend("save the first one again");
+    win.chatSession->onChatSend("save the first one again");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList.size()), before + 3);
     QCOMPARE(QString::fromStdString(win.projectList.at(before + 2).meta.name),
@@ -182,13 +182,13 @@ class MainWindowGuiTest : public QObject {
                       "{\"points\":[{\"x\":4,\"y\":4},{\"x\":20,\"y\":4},"
                       "{\"x\":20,\"y\":20},{\"x\":4,\"y\":4}]}]}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkYellow);
     dock->addAttachmentImage(att, "cat.jpg");
-    win.onChatSend("outline both");
+    win.chatSession->onChatSend("outline both");
     QTRY_VERIFY(!dock->isBusy());
     QCOMPARE(mock.allBodies.size(), 1);   // nothing went out behind the turn
     QVERIFY2(!chatTranscriptHas(dock, "correction"),

@@ -42,7 +42,7 @@ export function themeSwap(apply, origin = null) {
   };
   write(at());
 // Raised BEFORE startViewTransition: the browser drops :hover as the transition starts,
-// and hover-latches (ui/toolbar.js logo) tell that synthetic leave from a real one by this.
+// and hover-latches (ui/toolbar/toolbar.js logo) tell that synthetic leave from a real one by this.
   root.classList.add(THEME_INSTANT_CLASS);
   const settle = () => root.classList.remove(THEME_INSTANT_CLASS);
   let t;

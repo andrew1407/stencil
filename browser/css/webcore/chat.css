@@ -1,0 +1,68 @@
+/* The webcore skin's chat panel and its sizers, and the bits that glow, blur or float in the
+   app's own skin: the incognito frame, the logo stage, the badges and the status lamp. */
+/* ── Chat ── */
+:root[data-skin="webcore"] stencil-chat-panel,
+:root[data-skin="webcore"] .chat-transcript,
+:root[data-skin="webcore"] .ctx-assist {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .chat-msg,
+:root[data-skin="webcore"] .chat-msg-user,
+:root[data-skin="webcore"] .chat-msg-assistant,
+:root[data-skin="webcore"] .chat-msg-error,
+:root[data-skin="webcore"] .chat-ask,
+:root[data-skin="webcore"] .chat-error-card {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+:root[data-skin="webcore"] .chat-msg-user { background: var(--wc-light); }
+:root[data-skin="webcore"] .chat-msg::before,
+:root[data-skin="webcore"] .chat-msg::after { display: none; }
+:root[data-skin="webcore"] .chat-suggest,
+:root[data-skin="webcore"] .chat-config-cta,
+:root[data-skin="webcore"] .chat-retry-cta,
+:root[data-skin="webcore"] .chat-reconnect-cta,
+:root[data-skin="webcore"] .chat-ask-submit {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-raised);
+}
+:root[data-skin="webcore"] .chat-float-handle::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before,
+:root[data-skin="webcore"] .chat-float-handle.dragging::before { background: var(--wc-focus); }
+/* The raised frame is the window's grip: a corner dot drew as a square over the title's ✕. */
+:root[data-skin="webcore"] .chat-dock-float .chat-resizer::before,
+:root[data-skin="webcore"] :is(.chat-float-handle-nw, .chat-float-handle-ne, .chat-float-handle-sw)::before { display: none; }
+/* Etched like the settings footer: the shadow line, and the hilight line right under it. */
+:root[data-skin="webcore"] .chat-input-row { border-top: 1px solid var(--wc-shadow); box-shadow: inset 0 1px var(--wc-hilight); }
+:root[data-skin="webcore"] .chat-input-sizer::before,
+:root[data-skin="webcore"] .ctx-assist-sizer::before { height: 1px; background: var(--wc-shadow); box-shadow: 0 1px var(--wc-hilight); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before,
+:root[data-skin="webcore"] :is(.chat-input-sizer, .ctx-assist-sizer).dragging::before,
+:root[data-skin="webcore"] .ctx-assist-sizer:hover::before { height: 2px; background: var(--wc-focus); box-shadow: none; }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before { background: var(--resizer-grip); }
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-gesturing, .chat-dock-float) .chat-resizer:hover::before,
+:root[data-skin="webcore"] stencil-chat-panel:not(.chat-dock-float) .chat-resizer.dragging::before { background: var(--wc-focus); }
+
+/* ── Bits that glow, blur or float in the app's own skin ── */
+:root[data-skin="webcore"] .incognito-frame .ig-edge { background: var(--wc-select); }
+:root[data-skin="webcore"] .logo-stage { background: rgba(0, 0, 0, 0.5); }
+:root[data-skin="webcore"] .canvas-viewport.remote-editing { box-shadow: var(--wc-sunken), inset 0 0 0 2px #d4a017; }
+:root[data-skin="webcore"] .project-remote-badge,
+:root[data-skin="webcore"] .project-file-badge,
+:root[data-skin="webcore"] .project-local-badge,
+:root[data-skin="webcore"] .project-current-badge,
+:root[data-skin="webcore"] .connect-admin-badge {
+    background: var(--wc-face);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-well);
+}
+/* The status lamp keeps its state colour (components/connect/connections.css), square in a well. */
+:root[data-skin="webcore"] .conn-status { border: 0; box-shadow: var(--wc-well); animation: none; }

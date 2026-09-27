@@ -50,7 +50,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 200);
     // A section row is the widget whose sibling is the "sectionLabel" caption. The tool run WRAPS
-    // (support/WrapRow.hpp), so the baseline is shared per LINE, grouped by where the flow put them.
+    // (support/control/WrapRow.hpp), so the baseline is shared per LINE, grouped by where the flow put them.
     QHash<int, QList<QPair<QString, int>>> byRow;
     for (QWidget* rowWidget : win.findChildren<QWidget*>()) {
       QWidget* section = rowWidget->parentWidget();
@@ -89,9 +89,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas->clearImage();
     win.refreshActions();
-    QTRY_VERIFY2(win.openImageBtn->isVisible(), "the labelled button is not on screen");
+    QTRY_VERIFY2(win.tools.openImageBtn->isVisible(), "the labelled button is not on screen");
     settleLayout(&win, 200);
-    const QImage im = win.openImageBtn->grab().toImage();
+    const QImage im = win.tools.openImageBtn->grab().toImage();
     // Ink is everything that is not the button's own fill (glyph + label are white on it).
     const QColor fill = im.pixelColor(1, im.height() / 2);
     int minx = im.width(), maxx = -1;
@@ -107,7 +107,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(qAbs(left - right) <= 2,
              qPrintable(QString("icon+text is off-centre: %1px left, %2px right").arg(left).arg(right)));
     // …and the label is the browser's 14px, not the smaller platform default.
-    QCOMPARE(win.openImageBtn->font().pixelSize(), 14);
+    QCOMPARE(win.tools.openImageBtn->font().pixelSize(), 14);
   }
   // Nothing to zoom without an image, so the whole ZOOM cluster is dead until one is loaded — the
   // browser gates zoom-in / zoom-out / zoom-fit / zoom-input on exactly that (updateButtons).
@@ -118,14 +118,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
     QVERIFY(win.zoom);
-    for (QAction* a : {win.actZoomIn, win.actZoomOut, win.actFit}) {
+    for (QAction* a : {win.acts.zoomIn, win.acts.zoomOut, win.acts.fit}) {
       QVERIFY(a);
       QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " is live with no image loaded"));
     }
     QVERIFY2(!win.zoom->isEnabled(), "the % field is live with no image loaded");
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.actFit->isEnabled());
-    QVERIFY(win.actZoomIn->isEnabled() && win.actZoomOut->isEnabled());
+    QTRY_VERIFY(win.acts.fit->isEnabled());
+    QVERIFY(win.acts.zoomIn->isEnabled() && win.acts.zoomOut->isEnabled());
     QVERIFY2(win.zoom->isEnabled(), "the % field stayed dead with an image loaded");
   }
 };

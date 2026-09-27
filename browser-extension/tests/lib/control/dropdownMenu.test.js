@@ -1,6 +1,6 @@
-// src/lib/dropdownMenu.js is a rule-for-rule PORT of browser/js/ui/control/dropdownMenu.js. Its
+// src/lib/control/dropdownMenu.js is a rule-for-rule PORT of browser/js/ui/control/dropdownMenu.js. Its
 // behavioural cases (placement, flip, clamp, height cap, portal + put-back) live in
-// browser/tests/dropdownMenu.test.js; portParity.test.js pins the two sources identical,
+// browser/tests/ui/control/dropdownMenu.test.js; portParity.test.js pins the two sources identical,
 // so the extension no longer duplicates that suite. What remains here is the
 // extension-specific wiring: OUR pages and CSS have to use the module.
 

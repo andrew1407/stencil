@@ -1,4 +1,4 @@
-// The Alt-hover export preview (js/ui/preview.js). The tip's <img> gets its data: URL synchronously
+// The Alt-hover export preview (js/ui/export/preview.js). The tip's <img> gets its data: URL synchronously
 // but the browser decodes it asynchronously, so the first show measured an empty <img> and laid out at
 // zero size: the tip re-places once the image's own `load` fires.
 

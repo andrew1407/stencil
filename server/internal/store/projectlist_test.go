@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,30 +10,18 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// The list query must not select the two payload columns. It runs without a database — it reads the SQL
-// the list path is built from.
-func TestProjectListColsCarryNoPayload(t *testing.T) {
-	for _, col := range []string{"original_content", "layout"} {
-		if strings.Contains(projectListCols, col) {
-			t.Errorf("projectListCols must not select %s", col)
-		}
-		if !strings.Contains(projectCols, col) {
-			t.Errorf("projectCols should still select %s", col)
-		}
+// The metadata column set, which lists, write RETURNINGs and the file routes read, never selects the
+// layout, the whole row only appends it, and neither names the dropped inline original. No database.
+func TestProjectMetaColsCarryNoPayload(t *testing.T) {
+	if strings.Contains(projectMetaCols, "layout") {
+		t.Error("projectMetaCols must not select layout")
 	}
-	full, list := splitCols(projectCols), splitCols(projectListCols)
-	if len(full) != len(list)+2 {
-		t.Fatalf("list has %d columns, full has %d; want exactly two fewer", len(list), len(full))
+	if strings.Contains(projectCols, "original_content") {
+		t.Error("no column set may select the dropped original_content")
 	}
-	// Same order, so one scanner can read both (scanProject skips the pair).
-	var want []string
-	for _, c := range full {
-		if c != "original_content" && c != "layout" {
-			want = append(want, c)
-		}
-	}
-	if strings.Join(want, ",") != strings.Join(list, ",") {
-		t.Fatalf("column order diverged:\n full: %v\n list: %v", want, list)
+	meta, full := splitCols(projectMetaCols), splitCols(projectCols)
+	if strings.Join(full[:len(meta)], ",") != strings.Join(meta, ",") || len(full) != len(meta)+1 {
+		t.Fatalf("projectCols must be projectMetaCols plus the layout:\n meta: %v\n full: %v", meta, full)
 	}
 }
 
@@ -65,13 +54,12 @@ func TestProjectCursorRoundTrip(t *testing.T) {
 	}
 }
 
-// DB-gated (TEST_DATABASE_URL): the list path returns no payload while GetProject
+// DB-gated (TEST_DATABASE_URL): the list path returns no layout while GetProject
 // still does.
 func TestListProjectsOmitsPayload(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()
-	p, err := s.CreateProject(ctx, "", protocol.CreateProjectRequest{
-		Name: "Heavy", OriginalContent: strings.Repeat("A", 4096), Layout: []byte(`{"lines":[]}`)})
+	p, err := s.CreateProject(ctx, "", protocol.CreateProjectRequest{Name: "Heavy", Layout: []byte(`{"lines":[]}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,13 +67,32 @@ func TestListProjectsOmitsPayload(t *testing.T) {
 	if err != nil || len(list) != 1 {
 		t.Fatalf("list: %v %d rows", err, len(list))
 	}
-	if list[0].OriginalContent != "" || list[0].Layout != nil {
-		t.Fatalf("list row carried a payload: content=%d layout=%d",
-			len(list[0].OriginalContent), len(list[0].Layout))
+	if list[0].Layout != nil {
+		t.Fatalf("list row carried a layout of %d bytes", len(list[0].Layout))
 	}
 	full, err := s.GetProject(ctx, p.ID)
-	if err != nil || len(full.OriginalContent) != 4096 || full.Layout == nil {
-		t.Fatalf("get should still carry the payload: %v %+v", err, full)
+	if err != nil || full.Layout == nil {
+		t.Fatalf("get should still carry the layout: %v %+v", err, full)
+	}
+	if p.Layout != nil {
+		t.Fatal("CreateProject echoed the layout back")
+	}
+	snap, err := s.GetProjectSnapshot(ctx, p.ID)
+	if err != nil || snap.Layout == nil {
+		t.Fatalf("a snapshot carries the layout: %v %+v", err, snap)
+	}
+	meta, err := s.GetProjectMeta(ctx, p.ID)
+	if err != nil || meta.Layout != nil || meta.Name != "Heavy" {
+		t.Fatalf("metadata read: %v %+v", err, meta)
+	}
+	if ok, err := s.ProjectExists(ctx, p.ID); err != nil || !ok {
+		t.Fatalf("exists: %v %v", ok, err)
+	}
+	if ok, err := s.ProjectExists(ctx, "p_gone_x"); err != nil || ok {
+		t.Fatalf("a missing id exists: %v %v", ok, err)
+	}
+	if _, err := s.GetProjectMeta(ctx, "p_gone_x"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("metadata of a missing id: %v", err)
 	}
 }
 

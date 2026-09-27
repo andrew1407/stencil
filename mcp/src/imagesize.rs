@@ -1,8 +1,8 @@
-//! Pixel dimensions straight out of an image file's header — a port of the CLI's own
-//! sniffer (`cli/src/scrape.zig`, `sniff`) and of the bot's `ImageDimensionReader`.
-//!
-//! The header carries the answer for PNG / GIF / BMP / JPEG / WebP; everything else
-//! (video frames, URLs, exotic formats) falls back to a whole CLI render.
+//! Pixel dimensions straight out of an image file's header — the twin of the CLI's
+//! `cli/src/scrape/sniff.zig` and the bot's `ImageDimensionReader`, held to the corpus
+//! `browser/js/config/fixtures/imageHeader/cases.json`. The header answers for PNG / GIF /
+//! BMP / JPEG / WebP — size, format and whether it can carry alpha; everything else (video,
+//! URLs, exotic formats) falls back to a whole CLI render.
 
 /// How much of the file the sniff reads. A JPEG's frame header sits past whatever EXIF and
 /// thumbnail data precede it, so this is generous; the other formats need < 32 bytes.
@@ -10,14 +10,29 @@ const HEADER_BYTES: u64 = 64 * 1024;
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 
+/// What a header says about an image: its size, its format, and whether it has alpha
+/// (`None` where the header cannot tell).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageInfo {
+    pub width: u32,
+    pub height: u32,
+    pub format: &'static str,
+    pub alpha: Option<bool>,
+}
+
 /// Read a local image file's dimensions, or `None` if it is not a readable local file in a
 /// format this can measure. The bounded read runs off the async runtime.
 pub async fn read_dimensions(input: &str) -> Option<(u32, u32)> {
+    read_info(input).await.map(|i| (i.width, i.height))
+}
+
+/// The same read, reporting everything the header says.
+pub async fn read_info(input: &str) -> Option<ImageInfo> {
     let path = std::path::PathBuf::from(input);
     if !path.is_file() {
         return None;
     }
-    tokio::task::spawn_blocking(move || sniff(&read_header(&path)?))
+    tokio::task::spawn_blocking(move || sniff_info(&read_header(&path)?))
         .await
         .ok()
         .flatten()
@@ -38,28 +53,52 @@ fn read_header(path: &std::path::Path) -> Option<Vec<u8>> {
 /// Dimensions from an image header, or `None` when the bytes are not one of the five
 /// formats (or are truncated before the field that carries them).
 pub fn sniff(b: &[u8]) -> Option<(u32, u32)> {
-    // PNG: the 8-byte signature, a 4-byte length, "IHDR", then big-endian width/height.
+    sniff_info(b).map(|i| (i.width, i.height))
+}
+
+/// Size, format and alpha from an image header.
+pub fn sniff_info(b: &[u8]) -> Option<ImageInfo> {
+    let info = |format, (width, height), alpha| ImageInfo { width, height, format, alpha };
+    // PNG: the 8-byte signature, a 4-byte length, "IHDR", then big-endian width/height; colour
+    // types 4 and 6 carry alpha, as does a tRNS chunk.
     if b.len() >= 24 && b[..8] == PNG_SIGNATURE && &b[12..16] == b"IHDR" {
-        return checked(u32be(b, 16), u32be(b, 20));
+        let trns = || b.windows(4).any(|w| w == b"tRNS");
+        let alpha = b.get(25).map(|kind| matches!(kind, 4 | 6) || trns());
+        let (width, height) = (u32be(b, 16), u32be(b, 20));
+        if width > i32::MAX as u32 || height > i32::MAX as u32 {
+            return None; // the PNG spec caps a side at 2^31 - 1
+        }
+        return Some(info("png", checked(width, height)?, alpha));
     }
     // GIF87a/GIF89a: little-endian logical-screen width/height after the signature.
     if b.len() >= 10 && (&b[..6] == b"GIF87a" || &b[..6] == b"GIF89a") {
-        return checked(u16le(b, 6), u16le(b, 8));
+        return Some(info("gif", checked(u16le(b, 6), u16le(b, 8))?, None));
     }
     // BMP: a little-endian, possibly negative (top-down) size in the DIB header.
     if b.len() >= 26 && &b[..2] == b"BM" {
-        return checked(
+        let dims = checked(
             (u32le(b, 18) as i32).unsigned_abs(),
             (u32le(b, 22) as i32).unsigned_abs(),
-        );
+        )?;
+        return Some(info("bmp", dims, None));
     }
     if b.len() >= 4 && b[0] == 0xFF && b[1] == 0xD8 {
-        return jpeg(b);
+        return Some(info("jpeg", jpeg(b)?, Some(false)));
     }
     if b.len() >= 30 && &b[..4] == b"RIFF" && &b[8..12] == b"WEBP" {
-        return webp(b);
+        return Some(info("webp", webp(b)?, webp_alpha(b)));
     }
     None
+}
+
+/// VP8L's alpha hint bit and VP8X's alpha flag; lossy VP8 has none.
+fn webp_alpha(b: &[u8]) -> Option<bool> {
+    match &b[12..16] {
+        b"VP8 " => Some(false),
+        b"VP8L" => Some(u32le(b, 21) >> 28 & 1 == 1),
+        b"VP8X" => Some(b[20] & 0x10 != 0),
+        _ => None,
+    }
 }
 
 /// JPEG: walk the marker segments to the first SOFn frame header.
@@ -67,7 +106,8 @@ fn jpeg(b: &[u8]) -> Option<(u32, u32)> {
     let mut pos = 2usize;
     while pos + 9 <= b.len() {
         if b[pos] != 0xFF {
-            return None; // lost sync where a marker must start
+            pos += 1; // bytes that are no marker are skipped, as the decoder skips them
+            continue;
         }
         let marker = b[pos + 1];
         if marker == 0xFF {
@@ -96,7 +136,9 @@ fn jpeg(b: &[u8]) -> Option<(u32, u32)> {
 fn webp(b: &[u8]) -> Option<(u32, u32)> {
     match &b[12..16] {
         // Lossy: a 3-byte frame tag, the 9D 01 2A start code, then 14-bit dimensions.
-        b"VP8 " => checked(u16le(b, 26) & 0x3FFF, u16le(b, 28) & 0x3FFF),
+        b"VP8 " if b[23..26] == [0x9D, 0x01, 0x2A] => {
+            checked(u16le(b, 26) & 0x3FFF, u16le(b, 28) & 0x3FFF)
+        }
         // Lossless: a 0x2F signature byte, then packed 14-bit (width-1)/(height-1).
         b"VP8L" if b[20] == 0x2F => {
             let bits = u32le(b, 21);

@@ -1,17 +1,20 @@
-//! The console's secret skins — reached only by typing their word, never listed by `help` or
-//! Tab: one `Traits` row per skin (its word, what it says, how it paints), which one is on and
-//! the animation clock. `console/render/ansi/restyle.zig` applies the skin to every row the
-//! full-screen console paints.
+//! The console's secret skins — reached only by typing their word as a command, slash and all,
+//! never listed by `help` or Tab: one `Traits` row per skin (its word, what it says, how it
+//! paints), which one is on and the animation clock. `console/render/ansi/restyle.zig` applies
+//! the skin to every row the full-screen console paints.
 const std = @import("std");
-const theme = @import("theme.zig");
 const msg = @import("messages.zig");
 const pictures = @import("skin/pictures.zig");
 const cat = @import("skin/cat.zig");
+const hues = @import("skin/hues.zig");
 
 pub const fruits = pictures.fruits;
 pub const pictureAt = pictures.pictureAt;
 pub const picture = pictures.picture;
 pub const catPose = cat.catPose;
+pub const cellSgr = hues.cellSgr;
+pub const washRgb = hues.washRgb;
+pub const nextBulb = hues.nextBulb;
 
 pub const Skin = enum { none, matrix, bluescreen, rainbow, fruit, meow, pie, bifrost, fairylight };
 
@@ -80,8 +83,6 @@ var seed: u64 = 0;
 var phase: u32 = 0; // animation frames since the skin went on
 var clock_start_ms: i64 = 0; // when the animation's frame 0 was
 pub const frame_ms = 80; // one animation frame; the idle prompt polls at this pace while a skin moves
-var bulb: usize = 0; // the fairy-light colour last lit
-var bulb_due: u32 = 0; // the frame the next one lights on
 
 pub fn get() Skin {
     return current;
@@ -110,7 +111,15 @@ pub fn seedValue() u64 {
 pub fn reseed(s: u64) void {
     seed = s;
     phase = 0;
-    bulb_due = 0;
+    hues.rewind();
+}
+
+/// Back to the console's own look with every counter at zero, the fairy lights included.
+pub fn resetForTest() void {
+    current = .none;
+    reseed(0);
+    clock_start_ms = 0;
+    hues.resetForTest();
 }
 
 /// Start the animation clock: frame 0 is now.
@@ -159,43 +168,6 @@ pub fn leaveSeq() []const u8 {
     return if (traitsOf(current).paints_cells) osc_reset ++ leave else leave;
 }
 
-// Degrees of hue per screen column: a full spectrum every ~16 cells.
-const hue_step = 22;
-
-/// The fg escape a run-painting skin gives the accent cell at screen column `col` (0-based).
-pub fn cellSgr(s: Skin, col: usize, buf: []u8) []const u8 {
-    const rgb = hueAt(s, col);
-    return std.fmt.bufPrint(buf, "\x1b[38;2;{d};{d};{d}m", .{ rgb[0], rgb[1], rgb[2] }) catch "";
-}
-
-/// The selection wash's colour at screen column `col`: the skin's own, else the theme accent.
-pub fn washRgb(s: Skin, col: usize, accent: [3]u8) [3]u8 {
-    const t = traitsOf(s);
-    if (t.paints_runs) return hueAt(s, col);
-    return t.wash orelse accent;
-}
-
-fn hueAt(s: Skin, col: usize) [3]u8 {
-    const slid: i64 = @as(i64, @intCast(col)) - if (traitsOf(s).slides) @as(i64, phase) else 0;
-    const hue: f64 = @floatFromInt(@mod(slid * hue_step, 360));
-    return theme.hsvToRgb(hue, 0.75, 1.0);
-}
-
-// Bulb colours bright enough to read on a dark terminal: red, gold, green, blue, pink, cyan.
-const bulbs = [_][3]u8{ .{ 255, 70, 70 }, .{ 255, 200, 40 }, .{ 70, 225, 100 }, .{ 80, 150, 255 }, .{ 255, 100, 210 }, .{ 70, 225, 235 } };
-
-// Each bulb stays lit this many frames — the `/theme` recolour wipe that lights it, then a rest.
-const bulb_frames = 30;
-
-/// The fairy lights' next colour, when its turn has come: the console lights it with the same
-/// recolour wipe a `/theme` change runs, so the lights change at exactly that pace.
-pub fn nextBulb() ?[3]u8 {
-    if (phase < bulb_due) return null;
-    bulb_due = phase + bulb_frames;
-    bulb +%= 1;
-    return bulbs[bulb % bulbs.len];
-}
-
 const testing = std.testing;
 
 test "skin: secret words map to skins, case-insensitively, and nothing else does" {
@@ -226,37 +198,6 @@ test "skin: every skin but none has a word, and only the picture skins swap lett
     }
 }
 
-test "skin: the rainbow walks the hue wheel column by column" {
-    var a: [24]u8 = undefined;
-    var b: [24]u8 = undefined;
-    try testing.expectEqualStrings("\x1b[38;2;255;64;64m", cellSgr(.rainbow, 0, &a));
-    try testing.expect(!std.mem.eql(u8, cellSgr(.rainbow, 0, &a), cellSgr(.rainbow, 3, &b)));
-}
-
-test "skin: the bifrost slides its rainbow right" {
-    var a: [24]u8 = undefined;
-    var b: [24]u8 = undefined;
-    reseed(1);
-    defer reseed(0);
-    const first = try testing.allocator.dupe(u8, cellSgr(.bifrost, 4, &a));
-    defer testing.allocator.free(first);
-    tick();
-    try testing.expectEqualStrings(first, cellSgr(.bifrost, 5, &b)); // one column on, one frame later
-    try testing.expectEqual(hueAt(.rainbow, 4), washRgb(.rainbow, 4, .{ 0, 0, 0 }));
-    try testing.expectEqual([3]u8{ 1, 2, 3 }, washRgb(.none, 4, .{ 1, 2, 3 }));
-}
-
-test "skin: a fairy light stays lit for its turn, then the next one comes" {
-    reseed(0);
-    defer reseed(0);
-    const first = nextBulb().?;
-    try testing.expect(nextBulb() == null);
-    for (0..bulb_frames - 1) |_| tick();
-    try testing.expect(nextBulb() == null);
-    tick();
-    try testing.expect(!std.meta.eql(first, nextBulb().?));
-}
-
 test "skin: the animation clock moves a frame every 80ms, never backwards" {
     defer reseed(0);
     startClock(1000);
@@ -271,4 +212,5 @@ test "skin: the animation clock moves a frame every 80ms, never backwards" {
 test {
     _ = pictures;
     _ = cat;
+    _ = hues;
 }

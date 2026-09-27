@@ -21,8 +21,8 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"later reply\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    QVERIFY(!win.chatMenuPanel);  // never built yet
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    QVERIFY(!win.chatSession->chatMenuPanel);  // never built yet
 
     auto* chat = win.findChild<QAction*>("actChat");
     chat->setChecked(true);
@@ -31,19 +31,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dockInput);
     dockInput->setPlainText("said before the menu existed");
     QTest::keyClick(dockInput, Qt::Key_Return);
-    QCOMPARE(win.chatHistory.size(), 2);
+    QCOMPARE(win.chatSession->chatHistory.size(), 2);
 
-    win.ensureChatMenuPanel();  // first time the menu is needed
-    QVERIFY(win.chatMenuPanel);
+    win.chatSession->ensureChatMenuPanel();  // first time the menu is needed
+    QVERIFY(win.chatSession->chatMenuPanel);
     QStringList bodies;
-    for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>())
+    for (QLabel* l : win.chatSession->chatMenuPanel->findChildren<QLabel*>())
       if (!l->property("chatRole").toString().isEmpty())
         bodies << l->property("chatBody").toString();
     QCOMPARE(bodies.size(), 2);
     QCOMPARE(bodies.at(0), QString("said before the menu existed"));
     QCOMPARE(bodies.at(1), QString("later reply"));
 
-    win.llmClient.reset();
+    win.parts.chatAppliers.llmClient.reset();
     beat();
   }
 
@@ -56,26 +56,26 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.settings.llmProvider = "ollama";
     win.settings.llmBaseUrl = "http://localhost:11434";
-    win.ensureChatMenuPanel();
-    QVERIFY(win.chatMenuPanel);
+    win.chatSession->ensureChatMenuPanel();
+    QVERIFY(win.chatSession->chatMenuPanel);
     // Mirrored while the panel is still HIDDEN — the state that collapsed them.
     const QString longText = QStringLiteral(
         "Loading the image into incognito, converting to black & white and cropping to "
         "portrait 3:4. Once it is done I will report back with the result.");
     for (int i = 0; i < 4; ++i) {
-      win.chatMirror(QStringLiteral("You"), longText, false);
-      win.chatMirror(QStringLiteral("Assistant"), longText, false);
+      win.chatSession->chatMirror(QStringLiteral("You"), longText, false);
+      win.chatSession->chatMirror(QStringLiteral("Assistant"), longText, false);
     }
-    win.chatMenuPanel->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel->show();
-    settleLayout(win.chatMenuPanel, 300);
+    win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 640);
+    win.chatSession->chatMenuPanel->show();
+    settleLayout(win.chatSession->chatMenuPanel, 300);
 
-    auto* scroll = win.chatMenuPanel->findChild<QScrollArea*>("chatMenuTranscript");
+    auto* scroll = win.chatSession->chatMenuPanel->findChild<QScrollArea*>("chatMenuTranscript");
     QVERIFY(scroll);
     const int avail = scroll->viewport()->width();
     QVERIFY2(avail > 100, "the panel transcript never got a real width");
     int checked = 0;
-    for (QFrame* card : win.chatMenuPanel->findChildren<QFrame*>()) {
+    for (QFrame* card : win.chatSession->chatMenuPanel->findChildren<QFrame*>()) {
       if (!card->property("chatMoreBtn").isValid()) continue;   // rows only
       ++checked;
       QVERIFY2(card->width() > avail / 2,
@@ -87,10 +87,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(checked >= 4, "no mirrored rows to measure");
 
     // …and the pending row animates: the shared dots widget, with its own timer.
-    win.chatMirrorPending(true);
-    QTRY_VERIFY2(win.chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
+    win.chatSession->chatMirrorPending(true);
+    QTRY_VERIFY2(win.chatSession->chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
                  "the panel's pending row has no typing dots");
-    QWidget* dots = win.chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots"));
+    QWidget* dots = win.chatSession->chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots"));
     QTRY_VERIFY2(dots->isVisible(), "the typing dots are not on screen");
     // It really MOVES: sample the painted frame twice.
     const QImage a = dots->grab().toImage();
@@ -98,8 +98,8 @@ class MainWindowGuiTest : public QObject {
     const QImage b = dots->grab().toImage();
     QVERIFY2(a != b, "the typing dots are static");
     // Stopping swaps them for the text, as in the dock.
-    win.chatMirrorStopped(QStringLiteral("retry me"));
-    QTRY_VERIFY2(!win.chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
+    win.chatSession->chatMirrorStopped(QStringLiteral("retry me"));
+    QTRY_VERIFY2(!win.chatSession->chatMenuPanel->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
                  "the dots outlived the turn");
     beat();
   }
@@ -131,7 +131,7 @@ class MainWindowGuiTest : public QObject {
         "Removed the working image and its lines; nothing was saved, so there was "
         "no project file to delete alongside it.");
     mock.response = wrap(longReply);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     auto* chat = win.findChild<QAction*>("actChat");
     chat->setChecked(true);
@@ -140,10 +140,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dockInput);
     dockInput->setPlainText(longUser);
     QTest::keyClick(dockInput, Qt::Key_Return);
-    QTRY_COMPARE(win.chatHistory.size(), 2);
+    QTRY_COMPARE(win.chatSession->chatHistory.size(), 2);
 
-    win.ensureChatMenuPanel();
-    QVERIFY(win.chatMenuPanel);
+    win.chatSession->ensureChatMenuPanel();
+    QVERIFY(win.chatSession->chatMenuPanel);
     // The pending "…" card and cards already handed to deleteLater are excluded
     // the way assistantBubbleTexts does it.
     const auto bodies = [](QWidget* surface) {
@@ -155,12 +155,12 @@ class MainWindowGuiTest : public QObject {
       }
       return out;
     };
-    QCOMPARE(bodies(win.chatMenuPanel), bodies(win.chatDock));
-    QVERIFY2(bodies(win.chatMenuPanel).contains(longReply), "the reply is missing from the panel");
+    QCOMPARE(bodies(win.chatSession->chatMenuPanel), bodies(win.chatDock));
+    QVERIFY2(bodies(win.chatSession->chatMenuPanel).contains(longReply), "the reply is missing from the panel");
 
     // Full text on screen, wrapped — not the old "Assistant: Op…" stub.
     bool sawFull = false;
-    for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>()) {
+    for (QLabel* l : win.chatSession->chatMenuPanel->findChildren<QLabel*>()) {
       if (l->property("chatBody").toString() != longReply) continue;
       sawFull = true;
       QCOMPARE(l->text(), longReply);            // never elided
@@ -172,22 +172,22 @@ class MainWindowGuiTest : public QObject {
 
     // A message sent from the PANEL lands in both surfaces too.
     mock.response = wrap(QStringLiteral("second reply"));
-    auto* menuInput = qobject_cast<QPlainTextEdit*>(win.chatMenuInput);
+    auto* menuInput = qobject_cast<QPlainTextEdit*>(win.chatSession->chatMenuInput);
     QVERIFY(menuInput);
     menuInput->setPlainText("sent from the menu");
     QTest::keyClick(menuInput, Qt::Key_Return);
-    QTRY_COMPARE(win.chatHistory.size(), 4);
+    QTRY_COMPARE(win.chatSession->chatHistory.size(), 4);
     QTRY_VERIFY(bodies(win.chatDock).contains(QStringLiteral("sent from the menu")));
-    QVERIFY(bodies(win.chatMenuPanel).contains(QStringLiteral("sent from the menu")));
-    QCOMPARE(bodies(win.chatMenuPanel), bodies(win.chatDock));
+    QVERIFY(bodies(win.chatSession->chatMenuPanel).contains(QStringLiteral("sent from the menu")));
+    QCOMPARE(bodies(win.chatSession->chatMenuPanel), bodies(win.chatDock));
 
     // Clearing the conversation empties BOTH views.
-    win.onChatClear();
+    win.chatSession->onChatClear();
     win.chatDock->clearConversation();
-    QTRY_VERIFY(bodies(win.chatMenuPanel).isEmpty());
+    QTRY_VERIFY(bodies(win.chatSession->chatMenuPanel).isEmpty());
     QTRY_VERIFY(bodies(win.chatDock).isEmpty());
 
-    win.llmClient.reset();
+    win.parts.chatAppliers.llmClient.reset();
     beat();
   }
 

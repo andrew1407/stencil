@@ -145,16 +145,16 @@ fn op(out: *std.Io.Writer, script: scriptCore.Script, i: u32, o: scriptCore.Op, 
             try quote(out, script.opStr(i, 0));
             try out.writeAll(");\n");
         },
-        .undo, .redo => try out.print(
-            "for (let i = 0; i < {d}; i += 1) stencil.{s}();\n",
-            .{ common.steps(script, i), if (o.kind == .redo) "redo" else "undo" },
-        ),
+        .undo => try out.print("for (let i = 0; i < {d}; i += 1) stencil.undo();\n", .{common.steps(script, i)}),
+        .redo => {}, // never emitted: the lowerer resolves every @redo (§7)
     }
 }
 
 /// The whole file: the banner, the helpers, then one statement per op in script order.
 pub fn write(out: *std.Io.Writer, script: scriptCore.Script, label: []const u8, bad: *common.Refusal) !void {
-    try out.print("// Generated from {s} by `stencil --script-emit`; edit the .stc, not this file.\n", .{label});
+    try out.writeAll("// Generated from ");
+    try common.writeCommentText(out, label);
+    try out.writeAll(" by `stencil --script-emit`; edit the .stc, not this file.\n");
     try out.writeAll("// Runs where the app does: its console, or VS Code's \"Run in Stencil Web Console\".\n\n");
     try out.writeAll(preamble);
 

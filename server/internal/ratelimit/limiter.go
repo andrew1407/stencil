@@ -10,9 +10,16 @@ import (
 	"time"
 )
 
-// IdleTTL is how long an untouched bucket is kept. Keys come and go, so buckets
+// idleTTL is how long an untouched bucket is kept. Keys come and go, so buckets
 // are swept on use rather than growing for the process's lifetime.
-const IdleTTL = 10 * time.Minute
+var idleTTL = 10 * time.Minute
+
+// SetIdleTTL applies d to every limiter; call it once at boot, before a spend. d <= 0 keeps the current TTL.
+func SetIdleTTL(d time.Duration) {
+	if d > 0 {
+		idleTTL = d
+	}
+}
 
 // Limiter is a per-key token bucket: capacity = the per-minute rate, refilled continuously, so a caller
 // may burst up to a minute's worth and then settles to the configured pace.
@@ -88,11 +95,11 @@ func (l *Limiter) Refund(key string) {
 	}
 }
 
-// sweep drops buckets nobody has touched within IdleTTL. Called under the lock, only when a new key
+// sweep drops buckets nobody has touched within idleTTL. Called under the lock, only when a new key
 // appears, so the cost lands on growth rather than on every spend.
 func (l *Limiter) sweep(now time.Time) {
 	for key, b := range l.buckets {
-		if now.Sub(b.last) > IdleTTL {
+		if now.Sub(b.last) > idleTTL {
 			delete(l.buckets, key)
 		}
 	}

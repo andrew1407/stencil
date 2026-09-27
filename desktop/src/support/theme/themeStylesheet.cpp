@@ -2,22 +2,11 @@
 #include "themeTokens.hpp"
 #include <QDir>
 #include <QFile>
-#include <QGuiApplication>
 #include <QHash>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QPainter>
-#include <QPainterPath>
-#include <QPixmap>
 #include <QRegularExpression>
 #include <QStandardPaths>
-#include <QStyleHints>
-#include <algorithm>
-#include <array>
-#include <cmath>
 #ifdef Q_OS_LINUX
-#include <QProcess>
 #endif
 
 // A pre-main caller (tipContent.cpp's static initializer) can run before the resource's
@@ -57,14 +46,31 @@ namespace stencil::gui {
 
     // tests/pins/stylesheets.txt hashes the finished sheet, whitespace included.
     const QString& stylesheetTemplate() {
-      static const QString tpl = [] {
-        ensureAppResources();
-        QFile f(QStringLiteral(":/qss/app.qss"));
-        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
-      }();
+      static const QString tpl = readStylesheet(QStringLiteral("app"));
       return tpl;
     }
   }  // namespace
+
+  // The order is the cascade: a later piece wins its twin at equal weight.
+  QStringList stylesheetPieces(const QString& sheet) {
+    static const QHash<QString, QStringList> order = {
+        {"app", {"shell", "selectedLine", "toolButtons", "menus", "buttons", "fields", "dock",
+                 "lists", "modals", "dialogs", "overlays"}},
+        {"webcore", {"chrome", "menus", "fields", "chat", "checks", "tables", "windows",
+                     "scrollbars", "notices"}}};
+    return order.value(sheet);
+  }
+
+  QString readStylesheet(const QString& sheet) {
+    ensureAppResources();
+    QByteArray joined;
+    for (const QString& piece : stylesheetPieces(sheet)) {
+      QFile f(":/qss/" + sheet + '/' + piece + ".qss");
+      if (!f.open(QIODevice::ReadOnly)) return QString();
+      joined += f.readAll();
+    }
+    return QString::fromUtf8(joined);
+  }
 
   QString fillStylesheetTokens(const QString& tpl, const QHash<QString, QString>& values) {
     static const QRegularExpression token(QStringLiteral("%[A-Z0-9_]+%"));
@@ -116,7 +122,7 @@ namespace stencil::gui {
     const QColor success = themeToken("--success", dark);
     const QColor successCta = themeToken("--success-cta", dark);
 
-    // Tracks browser/css. The sheet is resources/app.qss; only its %TOKEN% values are
+    // Tracks browser/css. The sheet is the pieces under resources/qss/app/; only its %TOKEN% values are
     // computed here and filled in ONE pass — previewAccent() rebuilds it per hovered accent row.
     return fillStylesheetTokens(stylesheetTemplate(), {
         {"%BTN_FLAT%", c(dark ? p.bgContainer.lighter(112) : p.bgContainer.darker(103))},

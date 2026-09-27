@@ -1,0 +1,76 @@
+#pragma once
+#include <QPointer>
+#include <QRect>
+#include <QSize>
+#include <functional>
+
+class QGraphicsOpacityEffect;
+class QVariantAnimation;
+class QWidget;
+
+namespace stencil::gui {
+
+  class MainWindow;
+  class DisintegrateOverlay;
+  class DockEdgeOverlay;
+
+  // The docks around the editor and how they move: the chat dock's placement, slide, float and
+  // compact popover, the points panel's slide and its grip, the selected-line bar's dust, and
+  // the resize edges and toast inset that follow them.
+  class DockChrome {
+   public:
+    explicit DockChrome(MainWindow& w) : w(w) {}
+
+    // Browser parity: each chevron lives where its menu is, NOT in the top toolbar.
+    void buildOverlayArrows();
+    void syncToastInset();
+    void updatePanelReopenButton();
+    void positionPanelReopenButton();
+    // centralLayout's right inset: the panel-open gap, the reopen chevron's band, or a slide between them.
+    void setCanvasRightInset(int right);
+    void positionPanelGrip();
+    void positionChatEdge();
+    // Browser mainContent.js surface flight; panelVeil hides the panel so the motes ARE it.
+    QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
+    void releasePanelVeil();
+    // Browser selectionPanel.js surfaceIn/Out.
+    void dustSelectedLineBarIn();
+    void dustSelectedLineBarOut();
+    QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
+    void setChatShown(bool show, bool animate);
+    void dockChatTo(Qt::DockWidgetArea area);
+    QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool gather, int ms,
+                                                         const std::function<void(int)>& pin, int full);
+    void toggleChatFloat();
+    void openChatCompactNow(QWidget* anchor);
+    QRect compactChatRect(QWidget* anchor) const;
+    void dropChatVeil();
+    void stopChatAnim();
+    void setChatCompactPopover(bool on);
+    // Browser FLOAT_DEFAULT, ported to this window's top-left; clamped to its own screen.
+    QRect defaultChatFloatRect() const;
+
+    // The canvas ↔ panel handle (browser .panel-resizer): it takes the pointer, so it wears the resize cursor.
+    DockEdgeOverlay* panelGrip = nullptr;
+    int panelGripStart = 0;   // the panel's width when the handle was grabbed
+    // The chat's resize handle, a strip inside the dock's own edge (browser .chat-resizer).
+    DockEdgeOverlay* chatEdge = nullptr;
+    int chatEdgeStart = 0;   // the dock's extent when the handle was grabbed
+    QVariantAnimation* chatAnim = nullptr;
+    int chatRestoreExtent = 0;
+    QSize chatNaturalMin;
+    QPointer<QGraphicsOpacityEffect> chatVeil;
+    QPointer<QGraphicsOpacityEffect> panelVeil;
+    // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
+    bool chatCompactPopover = false;
+    bool chatClosing = false;
+    Qt::DockWidgetArea chatCompactPrevArea = Qt::LeftDockWidgetArea;
+    QRect chatFloatRect;
+
+    std::function<void(int)> chatExtentPin(bool horiz);
+
+   private:
+    MainWindow& w;
+  };
+
+}  // namespace stencil::gui

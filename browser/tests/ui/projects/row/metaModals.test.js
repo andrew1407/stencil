@@ -1,4 +1,4 @@
-// The toolbar's "Description & attributes" section (js/ui/toolbar.js) and its two windows (descriptionModal.js,
+// The toolbar's "Description & attributes" section (js/ui/toolbar/toolbar.js) and its two windows (descriptionModal.js,
 // keywordsModal.js). Pinned: the section sits between Image and Projects and holds description → keywords →
 // links; both modals wear the app-modal shell (header + × Close, hint-left / Cancel + Save footer) around
 // their own field — a text area, and keywordChips.js's input plus chip well; and all three buttons gate
@@ -6,6 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from '../../../helpers/dom.js';
+import { makeControlApp } from '../../../helpers/controlStateRig.js';
 
 import { layout } from '../../../../js/ui/layout.js';
 import { HOTKEYS_WHILE_TYPING } from '../../../../js/ui/bindings/keys/hotkeyRules.js';
@@ -84,15 +85,7 @@ test('description and keywords modals share the app-modal shell', () => {
 });
 
 // ── controlState: the project gate ───────────────────────────────────────────
-const makeApp = (over = {}) => ({
-  image: null, lines: [], isDrawing: false, currentLine: null,
-  activeProjectId: null, storage: { incognito: false },
-  history: { canUndo: () => false, canRedo: () => false },
-  remoteLink: null, compareReadOnly: () => false, openInAvailable: () => false,
-  syncDrawToggleUI() {}, syncDrawModeUI() {}, updateStencilSyncUI() {},
-  updateIncognitoUI() {}, updateProjectTitle() {}, renderLinesList() {},
-  ...over,
-});
+const makeApp = makeControlApp;
 const META_BTNS = ['description-btn', 'keywords-btn', 'links-btn'];
 
 test('the meta buttons are enabled only for a saved, non-incognito project', async () => {

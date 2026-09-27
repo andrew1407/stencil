@@ -44,7 +44,7 @@ public sealed partial class CommandHandlers
         if (isUrl)
         {
             // Same guard as /url: reject loopback/private/metadata hosts before fetching.
-            await RemoteImageUrl.ValidateAsync(args[0], ct);
+            await RemoteImageUrl.ValidateAsync(args[0], ct, _options.ResolveTimeout);
             byte[]? fetched = await _layoutFetcher.FetchAsync(args[0], ct);
             if (fetched is null)
             {

@@ -14,12 +14,12 @@ export function hasPixels(ctx, w, h, stride = 41) {
   return false;
 }
 
-export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
+export function ghostIn(canvas, { ms = GHOST_MS, layers = [canvas] } = {}) {
   if (typeof document === 'undefined' || !canvas?.width || !canvas.height) return false;
   if (!dustEnabled()) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
-    const st = makeDustStage(canvas);
+    const st = makeDustStage(canvas, null, layers);
     if (!st) return false;
 // Taken before the load has painted, the snapshot is invisible motes over a hidden canvas.
     if (!hasPixels(st.snapCtx, st.snap.width, st.snap.height)) { st.finish(); return false; }
@@ -35,12 +35,12 @@ export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
 export const ASSEMBLING_CLASS = 'canvas-assembling';
 export const CLEARING_CLASS = 'canvas-clearing';
 
-export function playCanvasArrival(canvas, { from = null, viewport, container, ghost = ghostIn } = {}) {
+export function playCanvasArrival(canvas, { from = null, viewport, container, ghost = ghostIn, layers = [canvas] } = {}) {
   const doc = typeof document !== 'undefined' ? document : null;
 // By ID: the fullscreen layer clones the shell, so a class selector answers twice.
   const vp = viewport !== undefined ? viewport : doc?.getElementById('canvas-viewport') || null;
   const box = container !== undefined ? container : doc?.getElementById('canvas-container') || null;
-  if (ghost(canvas)) {
+  if (ghost(canvas, { layers })) {
     if (vp) flashLanding(vp, ASSEMBLING_CLASS, GHOST_MS);
     return 'dust';
   }

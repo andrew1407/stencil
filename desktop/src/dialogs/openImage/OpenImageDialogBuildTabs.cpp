@@ -3,11 +3,9 @@
 #include "openImageDialogParts.hpp"
 #include "../../support/control/UnderlineTabBar.hpp"
 #include "guiHelpers.hpp"
-#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
-#include <QTabWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
 

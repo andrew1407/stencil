@@ -21,12 +21,12 @@ class MainWindowGuiTest : public QObject {
       win.settings.themeMode = mode;
       win.applyTheme();
       settleLayout(&win, 150);
-      QVERIFY(win.actIncognito && !win.actIncognito->isChecked());
+      QVERIFY(win.acts.incognito && !win.acts.incognito->isChecked());
       // With the assistant OPEN, so the dock is a real on-screen neighbour of the
       // canvas rather than a hidden widget whose geometry means nothing.
-      win.actChat->setChecked(true);
+      win.acts.chat->setChecked(true);
       QTRY_VERIFY(win.chatDock->isVisible());
-      awaitAnim(win.chatAnim);
+      awaitAnim(win.parts.dockChrome.chatAnim);
 
       // Every widget the tag could possibly push around, in window coordinates.
       const auto snapshot = [&win] {
@@ -83,23 +83,23 @@ class MainWindowGuiTest : public QObject {
         const QString state = QStringLiteral("%1/%2").arg(mode, loaded ? "loaded" : "empty");
         // Baseline after ONE round: the info bar reserves the tallest box it has ever needed, so the first
         // tag it shows can still grow that reserve by a pixel. Every toggle after that must not move.
-        win.actIncognito->setChecked(true);
+        win.acts.incognito->setChecked(true);
         settleLayout(&win, 150);
-        win.actIncognito->setChecked(false);
+        win.acts.incognito->setChecked(false);
         const QMap<QString, QRect> before = steady();
-        const int hintBefore = win.imageSizeInfo->sizeHint().height();
+        const int hintBefore = win.tools.imageSizeInfo->sizeHint().height();
 
-        win.actIncognito->setChecked(true);
-        QTRY_VERIFY_WITH_TIMEOUT(win.incognitoTag->isVisible(), 150);
-        QVERIFY2(win.incognitoTag->text().contains(QStringLiteral("Incognito")),
+        win.acts.incognito->setChecked(true);
+        QTRY_VERIFY_WITH_TIMEOUT(win.tools.incognitoTag->isVisible(), 150);
+        QVERIFY2(win.tools.incognitoTag->text().contains(QStringLiteral("Incognito")),
                  qPrintable(state + ": the tag never appeared — the check would be vacuous"));
         same(before, steady(), state + " on");
-        QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
+        QCOMPARE(win.tools.imageSizeInfo->sizeHint().height(), hintBefore);
 
-        win.actIncognito->setChecked(false);
-        QTRY_VERIFY_WITH_TIMEOUT(!win.incognitoTag->isVisible(), 150);
+        win.acts.incognito->setChecked(false);
+        QTRY_VERIFY_WITH_TIMEOUT(!win.tools.incognitoTag->isVisible(), 150);
         same(before, steady(), state + " off again");
-        QCOMPARE(win.imageSizeInfo->sizeHint().height(), hintBefore);
+        QCOMPARE(win.tools.imageSizeInfo->sizeHint().height(), hintBefore);
       }
     }
     beat();
@@ -114,8 +114,8 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 200);
-    QLabel* info = win.imageSizeInfo;
-    QVERIFY(info && win.incognitoTag);
+    QLabel* info = win.tools.imageSizeInfo;
+    QVERIFY(info && win.tools.incognitoTag);
     // The label's own rows of ink at dpr 2, beside its place in the window and its text FORMAT:
     // a label that switches plain to rich re-places its baseline without moving a single rect.
     const auto row = [&] {
@@ -132,8 +132,8 @@ class MainWindowGuiTest : public QObject {
       }
       return QString("fmt=%1 y=%2 h=%3 bar=%4 dock=%5 ink=%6..%7")
           .arg(int(info->textFormat())).arg(info->mapTo(&win, QPoint(0, 0)).y())
-          .arg(info->height()).arg(win.imageInfoBar->height())
-          .arg(win.imageInfoDock->height()).arg(first).arg(last);
+          .arg(info->height()).arg(win.tools.imageInfoBar->height())
+          .arg(win.tools.imageInfoDock->height()).arg(first).arg(last);
     };
     const QString rest = row();
     QVERIFY2(!rest.endsWith(QStringLiteral("ink=-1..-1")),
@@ -147,12 +147,12 @@ class MainWindowGuiTest : public QObject {
         QTest::qWait(8);
       }
     };
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     hold(QStringLiteral("badge arriving"), stencil::gui::CONTROL_REVEAL_IN_MS + 400);
-    QVERIFY2(win.incognitoTag->isVisible(), "the badge never arrived — the check would be vacuous");
-    win.actIncognito->setChecked(false);
+    QVERIFY2(win.tools.incognitoTag->isVisible(), "the badge never arrived — the check would be vacuous");
+    win.acts.incognito->setChecked(false);
     hold(QStringLiteral("badge leaving"), stencil::gui::CONTROL_REVEAL_OUT_MS + 400);
-    QVERIFY(!win.incognitoTag->isVisible());
+    QVERIFY(!win.tools.incognitoTag->isVisible());
     beat();
   }
 

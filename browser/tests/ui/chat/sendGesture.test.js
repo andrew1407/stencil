@@ -3,8 +3,9 @@ import assert from 'node:assert';
 import { createSendGesture, syncComposerControls, SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED } from '../../../js/ui/chat/view.js';
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS } from '../../../js/ui/tip/popover.js';
 import { stubClock } from '../../helpers/speech.js';
-import { createStubElement } from '../../helpers/dom.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
+import { createStubElement, createStubDocument } from '../../helpers/dom.js';
+import { make as makeVoice } from '../../helpers/voiceModesRig.js';
+import { wireComposerVoice } from '../../../js/ui/chat/composer/chatComposerVoice.js';
 
 // The send button's gesture (view.js createSendGesture): a plain click acts one
 // double-click interval later, a double-click or a hold switches typing ↔ dictation.
@@ -100,15 +101,33 @@ test('mic face: paused vs listening titles and classes; Stop wins while a turn r
   assert.strictEqual(r.attachBtn.disabled, true);
 });
 
+// The composer's voice wiring over the real coordinator (fake engine): `syncs` counts repaints.
+const composerVoice = () => {
+  const m = makeVoice({ settings: { silenceMs: 1000 } });
+  const input = createStubElement('textarea');
+  let syncs = 0;
+  const sent = [];
+  const ctl = wireComposerVoice({
+    prefix: 'chat', input, sendBtn: createStubElement('button'), doc: createStubDocument(),
+    app: { voice: m.voice }, send: () => sent.push(input.value), sync: () => { syncs++; }, win: m.win,
+  });
+  return { ...m, ctl, input, sent, get syncs() { return syncs; } };
+};
+
 // A double-click, a hold or the "…" item only SWITCHES the composer to voice input: the mic face shows
 // paused, and a click on it starts listening (user report).
 test('switching to voice input lands on a paused mic face — nothing starts listening', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = chatViewSource();
-  const body = src.slice(src.indexOf('const toggleMode = () => {'), src.indexOf('const toggleListening'));
-  assert.ok(!body.includes('startListening()'), 'the switch never starts the engine');
-  assert.ok(body.includes('setFace(true);'), 'it only turns the face');
-  assert.ok(body.includes('if (on) { stopListening(); setFace(false);'), 'switching back still stops dictation');
+  const r = composerVoice();
+  r.ctl.toggleMode();
+  assert.strictEqual(r.ctl.isOn(), true, 'it only turns the face');
+  assert.strictEqual(r.ctl.isListening(), false);
+  assert.deepStrictEqual(r.engine.calls, [], 'the switch never starts the engine');
+  r.ctl.toggleListening();
+  assert.strictEqual(r.ctl.isListening(), true, 'a click on the mic face starts it');
+  r.ctl.toggleMode();
+  assert.strictEqual(r.ctl.isOn(), false);
+  assert.strictEqual(r.voice.mode, 'off', 'switching back still stops dictation');
+  assert.deepStrictEqual(r.engine.calls.at(-1), ['stop']);
   const { SEND_TITLE } = await import('../../../js/ui/chat/view.js');
   assert.match(SEND_TITLE, /Double-click or hold for voice input/);
 });
@@ -116,19 +135,37 @@ test('switching to voice input lands on a paused mic face — nothing starts lis
 // The composer's mic face survives the END of an utterance however it ended — another mode taking the mic,
 // its own pause, a silence timeout, a spoken "send"; only a FATAL error returns the send plane.
 test('the composer keeps its mic face whenever listening ends', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = chatViewSource();
-  assert.ok(src.includes("onStop: (reason) => { if (reason === 'error') setFace(false); else sync(); }"));
+  const r = composerVoice();
+  r.ctl.toggleMode();
+  const endings = [
+    ['its own pause', () => r.ctl.toggleListening()],
+    ['a silence timeout', () => { r.engine.hear('draw a line'); r.clock.advance(1000); }],
+    ['a spoken send', () => r.engine.hear('make it sepia send it')],
+    ['another mode taking the mic', () => { r.voice.voiceChat = true; r.voice.voiceChat = false; }],
+  ];
+  for (const [why, end] of endings) {
+    r.ctl.toggleListening();
+    assert.strictEqual(r.ctl.isListening(), true, `listening before ${why}`);
+    const before = r.syncs;
+    end();
+    assert.strictEqual(r.ctl.isListening(), false, `${why} ends listening`);
+    assert.strictEqual(r.ctl.isOn(), true, `${why} keeps the mic face`);
+    assert.ok(r.syncs > before, `${why} repaints the controls`);
+  }
+  assert.deepStrictEqual(r.sent, ['draw a line make it sepia'], 'the spoken send went through the surface');
+  r.ctl.toggleListening();
+  r.engine.fail('not-allowed');
+  assert.strictEqual(r.ctl.isOn(), false, 'a fatal error returns the send plane');
 });
 
 // …and the toolbar's hands-free voice chat leaves this composer's FACE alone: the mic face here is the
 // user's own choice (the "…" item, a double-click, a hold).
 test('the toolbar voice chat never turns the composer to the mic face by itself', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = chatViewSource();
-  assert.ok(src.includes('subscribe(VOICE_STATE_EVENT, () => sync(), { target: win });'),
-    'the voice-state listener only re-syncs the controls');
-  const listener = src.slice(src.indexOf('subscribe(VOICE_STATE_EVENT'),
-    src.indexOf('return {', src.indexOf('subscribe(VOICE_STATE_EVENT')));
-  assert.ok(!listener.includes('setFace('), 'and never sets the face behind the user');
+  const r = composerVoice();
+  const before = r.syncs;
+  r.voice.voiceChat = true;
+  assert.ok(r.syncs > before, 'the voice-state listener re-syncs the controls');
+  assert.strictEqual(r.ctl.isOn(), false, 'and never sets the face behind the user');
+  r.voice.voiceChat = false;
+  assert.strictEqual(r.ctl.isOn(), false);
 });

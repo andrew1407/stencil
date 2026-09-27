@@ -2,32 +2,15 @@
 #include "chatMenuPanelParts.hpp"
 
 #include "chatWidgets.hpp"   // placeChatBubbleTail / ChatBubbleTail
-#include "../../support/control/PillSplitter.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/icon/iconSet.hpp"
 #include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include "../../support/theme/theme.hpp"
 
-#include <QEasingCurve>
-#include <QFrame>
-#include <QGraphicsOpacityEffect>
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QAction>
 #include <QKeyEvent>
-#include <QLabel>
 #include <QPlainTextEdit>
-#include <QPointer>
-#include <QPushButton>
-#include <QScreen>
 #include <QScrollArea>
-#include <QScrollBar>
 #include <QShowEvent>
-#include <QStyle>
 #include <QTimer>
-#include <QToolButton>
-#include <QVBoxLayout>
-#include <QVariantAnimation>
 
 namespace stencil::gui {
 
@@ -41,7 +24,7 @@ namespace stencil::gui {
   }
 
   // Provider reachability badge + rich tooltip (the dock's shared gear
-  // treatment, driven by the same MainWindow::refreshLlmStatus probe).
+  // treatment, driven by the same ChatSessionController::refreshLlmStatus probe).
   void ChatMenuPanel::setProviderStatus(const QString& richTooltip,
                                         ChatDock::ProviderStatus status) {
     styleProviderStatusDot(statusDot, more, richTooltip, status, palette());
@@ -113,6 +96,13 @@ namespace stencil::gui {
   // Exactly the dock's rule, so the trio reads the same in both composers.
   void ChatMenuPanel::updateSendEnabled() {
     send->setEnabled(busy || !input->toPlainText().trimmed().isEmpty());
+  }
+
+  bool ChatMenuPanel::hasComposerText() const { return !input->toPlainText().trimmed().isEmpty(); }
+
+  void ChatMenuPanel::setComposerText(const QString& text) {
+    input->setPlainText(text);
+    input->moveCursor(QTextCursor::End);
   }
 
   void ChatMenuPanel::submit() {

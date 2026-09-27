@@ -1,4 +1,4 @@
-// Per-op acceptance / rejection tables for the §2 core ops (js/llm/plan.js):
+// Per-op acceptance / rejection tables for the §2 core ops (js/llm/plan/):
 // crop, rotate, filter, layout, formula, page, blank and frame.
 import { test } from 'node:test';
 import assert from 'node:assert';

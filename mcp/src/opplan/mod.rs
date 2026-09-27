@@ -1,20 +1,21 @@
-//! Op-plan parser/validator and its mapping onto the CLI pipeline.
+//! The op plan (`llm-contract.md` §1–§3, §11): a model's reply judged by core through the
+//! CLI's `--plan-check`, typed from its normalized result, and mapped onto CLI runs.
 //!
-//! Port of `llm-contract.md` §1–§3, behaviorally mirroring `browser/js/llm/plan/plan.js`;
-//! limits, key schemas, enums and token grammars are table-driven from the shared
-//! `browser/js/config/llm/opRegistry.json`. `to_edit_requests` maps a plan onto CLI runs.
+//! Validation and its wording are core's (`core/opplan`, twin of `browser/js/llm/plan/parser.js`);
+//! this module keeps the typed normalizers, the lowering and the §7 continuation rule.
 
 mod actions;
 mod ask;
+mod check;
 pub mod fold;
 mod lower;
-mod parse;
-pub mod schema;
+mod result;
 mod types;
 
 pub use ask::format_ask;
+pub use check::{parse_op_plan, parse_op_plan_with, registry_skew, PLAN_CHECK_ARGV};
 pub use lower::{sanitize_label, to_edit_requests, EditRequest};
-pub use parse::parse_op_plan;
+pub use result::from_result;
 pub use types::{
     Action, AskCard, AskOption, Axis, Dir, FilterMode, FormulaOp, OpPlan, OpPlanError, PageSize,
     Variant,

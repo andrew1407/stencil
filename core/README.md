@@ -15,7 +15,7 @@ design rules and the parity contract: [`ARCHITECTURE.md`](ARCHITECTURE.md); the 
 
 ```bash
 cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release
-cmake --build core/build -j
+cmake --build core/build -j 4
 ctest --test-dir core/build --output-on-failure   # or run core/build/stencil_tests directly
 ```
 
@@ -28,3 +28,5 @@ verification. Nothing to install or commit.
 Run a single case with `core/build/stencil_tests -tc="<case>"`. The benchmarks are skipped
 by default: `core/build/stencil_tests -ts=bench --no-skip`. The wasm target is produced
 only when configured through `emcmake` (see [`WASM.md`](WASM.md)).
+
+Under ASan + UBSan: `cmake -S core -B core/build-asan -DSTENCIL_SANITIZE=ON`, then build and `ctest` it.

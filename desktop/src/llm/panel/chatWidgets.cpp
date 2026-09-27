@@ -1,14 +1,10 @@
 #include "chatWidgets.hpp"
 
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/modal/modalReveal.hpp"
 
-#include <QFrame>
 #include <QPixmap>
 #include <QGraphicsOpacityEffect>
 #include <QScrollArea>
-#include <QScrollBar>
-#include <QToolButton>
 
 namespace stencil::gui {
 
@@ -20,7 +16,7 @@ namespace stencil::gui {
     return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
   }
 
-  // browser surface/motion.js clipDustToScroller
+  // browser control/chatFx.js clipDustToScroller
   void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
     if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
   }

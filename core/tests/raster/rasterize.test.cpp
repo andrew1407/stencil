@@ -2,201 +2,189 @@
 #include "rasterize.hpp"
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <sstream>
+#include <string>
+#include <utility>
 #include <vector>
 
 using namespace stencil::core;
 
 namespace {
-  std::vector<std::uint8_t> blank(int w, int h) {
-    return std::vector<std::uint8_t>(static_cast<std::size_t>(w) * h * 4, 0);
+  std::vector<std::uint8_t> blank(int w, int h, std::uint8_t v = 0) {
+    return std::vector<std::uint8_t>(static_cast<std::size_t>(w) * h * 4, v);
   }
   std::uint8_t at(const std::vector<std::uint8_t>& b, int w, int x, int y, int ch) {
     return b[(static_cast<std::size_t>(y) * w + x) * 4 + ch];
   }
+  Line mk(std::vector<Point> pts, const char* color, double thickness, double pointSize = 0,
+          const char* style = "solid") {
+    Line l;
+    l.points = std::move(pts);
+    l.color = color;
+    l.thickness = thickness;
+    l.pointSize = pointSize;
+    l.style = style;
+    return l;
+  }
+  Line area(std::vector<Point> pts) {  // a locked, stroke-less blue fill
+    Line l = mk(std::move(pts), "transparent", 2);
+    l.fillColor = "blue";
+    l.locked = true;
+    return l;
+  }
+  std::vector<std::uint8_t> drawn(int w, int h, const Line& l, std::uint8_t bg = 0) {
+    auto buf = blank(w, h, bg);
+    rasterizeLine(buf.data(), w, h, l);
+    return buf;
+  }
+  // The `[on, off]` of one STROKE_DASH row in browser/js/config/constants.json, the canon.
+  std::vector<double> canonicalDash(const std::string& style) {
+    namespace fs = std::filesystem;
+    fs::path p = fs::current_path();
+    while (!fs::exists(p / "CLAUDE.md") && p.has_parent_path() && p.parent_path() != p)
+      p = p.parent_path();
+    std::stringstream src;
+    src << std::ifstream(p / "browser/js/config/constants.json").rdbuf();
+    const std::string json = src.str();
+    const std::size_t table = json.find("\"STROKE_DASH\"");
+    const std::size_t row = json.find("\"" + style + "\"", table);
+    if (table == std::string::npos || row == std::string::npos) return {};
+    const char* cur = json.c_str() + json.find('[', row) + 1;
+    char* end = nullptr;
+    const double on = std::strtod(cur, &end);
+    const double off = std::strtod(end + std::strspn(end, " ,"), nullptr);
+    return {on, off};
+  }
 }  // namespace
 
 TEST_CASE("rasterizeLine strokes a polyline in its colour") {
-  const int w = 20, h = 20;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{2, 10}, {18, 10}};
-  line.color = "red";
-  line.thickness = 3;
-  line.style = "solid";
-  line.pointSize = 0;
-  rasterizeLine(buf.data(), w, h, line);
+  const auto buf = drawn(20, 20, mk({{2, 10}, {18, 10}}, "red", 3));
+  CHECK(at(buf, 20, 10, 10, 0) > 150);  // red on the line
+  CHECK(at(buf, 20, 10, 10, 1) < 100);  // little green
+  CHECK(at(buf, 20, 10, 0, 3) == 0);    // far from the line -> untouched
+}
 
-  CHECK(at(buf, w, 10, 10, 0) > 150);  // red on the line
-  CHECK(at(buf, w, 10, 10, 1) < 100);  // little green
-  CHECK(at(buf, w, 10, 0, 3) == 0);    // far from the line -> untouched
+// A 3 px line on y = 10 reaches y 8.5..11.5: the rows centred 1.5 px off it are half inked.
+// Stamping discs used to blend each rim pixel several times, nearly to opaque.
+TEST_CASE("an opaque stroke's anti-aliased rim is its geometric coverage") {
+  const auto buf = drawn(20, 20, mk({{2, 10}, {18, 10}}, "red", 3));
+  CHECK(at(buf, 20, 10, 9, 3) == 255);
+  CHECK(at(buf, 20, 10, 8, 3) == 128);
+  CHECK(at(buf, 20, 10, 11, 3) == 128);
+  CHECK(at(buf, 20, 10, 7, 3) == 0);
+}
+
+// Canvas strokes a path once, so a #rrggbbaa stroke over white is one blend everywhere: mid-
+// span, at a corner where two segments overlap, and where a closed path retraces itself.
+TEST_CASE("a translucent stroke blends once, never accumulating toward opaque") {
+  const std::uint8_t once = 127;  // white green under one 0x80 blend: 255 * (255 - 128) / 255
+  const auto bent = drawn(40, 40, mk({{4, 10}, {30, 10}, {30, 36}}, "#ff000080", 6), 255);
+  CHECK(at(bent, 40, 16, 10, 1) == once);
+  CHECK(at(bent, 40, 30, 10, 1) == once);
+  CHECK(at(bent, 40, 30, 22, 1) == once);
+  Line back = mk({{4, 20}, {36, 20}}, "#ff000080", 4);
+  back.locked = true;  // two points, closed: the segment runs out and back
+  CHECK(at(drawn(40, 40, back, 255), 40, 20, 20, 1) == once);
 }
 
 TEST_CASE("rasterizeLine fills a locked polygon") {
-  const int w = 20, h = 20;
-  auto buf = blank(w, h);
-  Line area;
-  area.points = {{4, 4}, {16, 4}, {16, 16}, {4, 16}};
-  area.color = "transparent";   // no stroke
-  area.fillColor = "blue";
-  area.locked = true;
-  area.pointSize = 0;
-  rasterizeLine(buf.data(), w, h, area);
-
-  CHECK(at(buf, w, 10, 10, 2) > 150);  // blue interior
-  CHECK(at(buf, w, 10, 10, 3) == 255);
-  CHECK(at(buf, w, 0, 0, 3) == 0);     // outside the polygon
+  const auto buf = drawn(20, 20, area({{4, 4}, {16, 4}, {16, 16}, {4, 16}}));
+  CHECK(at(buf, 20, 10, 10, 2) > 150);  // blue interior
+  CHECK(at(buf, 20, 10, 10, 3) == 255);
+  CHECK(at(buf, 20, 0, 0, 3) == 0);     // outside the polygon
 }
 
+// A fill wholly off one side must not stripe that border column (a symmetric clamp would).
 TEST_CASE("rasterizeLine: an off-canvas fill span leaves no spurious edge stripe") {
   const int w = 20, h = 20;
-  // A locked filled rect whose interior is entirely right of the canvas: nothing is drawn, and
-  // the right border column (x = w-1) must stay untouched (a symmetric clamp would stripe it).
-  {
-    auto buf = blank(w, h);
-    Line area;
-    area.points = {{200, 4}, {260, 4}, {260, 16}, {200, 16}};
-    area.color = "transparent";
-    area.fillColor = "blue";
-    area.locked = true;
-    area.pointSize = 0;
-    rasterizeLine(buf.data(), w, h, area);
-    for (int y = 0; y < h; ++y) CHECK(at(buf, w, w - 1, y, 3) == 0);  // no stripe at x=19
+  const auto right = drawn(w, h, area({{200, 4}, {260, 4}, {260, 16}, {200, 16}}));
+  const auto left = drawn(w, h, area({{-260, 4}, {-200, 4}, {-200, 16}, {-260, 16}}));
+  for (int y = 0; y < h; ++y) {
+    CHECK(at(right, w, w - 1, y, 3) == 0);
+    CHECK(at(left, w, 0, y, 3) == 0);
   }
-  // Same, entirely to the LEFT — the left border column (x = 0) must stay clean.
-  {
-    auto buf = blank(w, h);
-    Line area;
-    area.points = {{-260, 4}, {-200, 4}, {-200, 16}, {-260, 16}};
-    area.color = "transparent";
-    area.fillColor = "blue";
-    area.locked = true;
-    area.pointSize = 0;
-    rasterizeLine(buf.data(), w, h, area);
-    for (int y = 0; y < h; ++y) CHECK(at(buf, w, 0, y, 3) == 0);  // no stripe at x=0
-  }
-  // Sanity: a polygon straddling the right edge still fills its on-canvas part up to
-  // the clipped border (proves the fix clips, not just "never draws off-canvas").
-  {
-    auto buf = blank(w, h);
-    Line area;
-    area.points = {{10, 4}, {40, 4}, {40, 16}, {10, 16}};  // right half off-canvas
-    area.color = "transparent";
-    area.fillColor = "blue";
-    area.locked = true;
-    area.pointSize = 0;
-    rasterizeLine(buf.data(), w, h, area);
-    CHECK(at(buf, w, 15, 10, 2) > 150);      // interior on-canvas still filled
-    CHECK(at(buf, w, w - 1, 10, 3) == 255);  // fill reaches the clipped edge
-  }
+  // Straddling the right edge still fills up to the clipped border.
+  const auto straddle = drawn(w, h, area({{10, 4}, {40, 4}, {40, 16}, {10, 16}}));
+  CHECK(at(straddle, w, 15, 10, 2) > 150);
+  CHECK(at(straddle, w, w - 1, 10, 3) == 255);
 }
 
+// Dashes are px along the path whatever the thickness, round-capped, phase kept at corners.
 TEST_CASE("rasterizeLine: a dashed stroke leaves gaps along the path") {
-  const int w = 48, h = 20;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{2, 10}, {42, 10}};
-  line.color = "red";
-  line.thickness = 2;        // dash cycle: 6px on, 4px off
-  line.style = "dashed";
-  line.pointSize = 0;
-  rasterizeLine(buf.data(), w, h, line);
+  const auto buf = drawn(48, 20, mk({{2, 10}, {42, 10}}, "red", 2, 0, "dashed"));
+  CHECK(at(buf, 48, 4, 10, 3) > 0);    // pos 2.5: the first 10 px dash
+  CHECK(at(buf, 48, 15, 10, 3) == 0);  // pos 13.5: the 5 px gap, clear of both caps
+  CHECK(at(buf, 48, 20, 10, 3) > 0);   // pos 18.5: the second dash
+  const auto dots = drawn(48, 20, mk({{2, 10}, {42, 10}}, "red", 2, 0, "dotted"));
+  CHECK(at(dots, 48, 3, 10, 3) == 255);  // pos 1.5: a 2 px dot
+  CHECK(at(dots, 48, 6, 10, 3) == 0);    // pos 4.5: its gap
+}
 
-  CHECK(at(buf, w, 4, 10, 3) > 0);    // x≈4 (pos 2) lands on an "ink" dash
-  CHECK(at(buf, w, 10, 10, 3) == 0);  // x≈10 (pos 8) lands in a gap -> untouched
+TEST_CASE("drift: the dash table matches STROKE_DASH in browser/js/config/constants.json") {
+  const auto dashed = canonicalDash("dashed"), dotted = canonicalDash("dotted");
+  REQUIRE_MESSAGE(dashed.size() == 2, "constants.json lost STROKE_DASH.dashed (or moved)");
+  REQUIRE_MESSAGE(dotted.size() == 2, "constants.json lost STROKE_DASH.dotted");
+  CHECK(dashed[0] == DASHED.on);
+  CHECK(dashed[1] == DASHED.off);
+  CHECK(dotted[0] == DOTTED.on);
+  CHECK(dotted[1] == DOTTED.off);
+}
+
+TEST_CASE("a stroke wider than MAX_STROKE_THICKNESS burns at the cap") {
+  // Centred 17000 px above the image: only an uncapped half-width (> 17000) reaches it.
+  const Line capped = mk({{-100, -17000}, {100, -17000}}, "red", MAX_STROKE_THICKNESS);
+  const Line wide = mk({{-100, -17000}, {100, -17000}}, "red", 40000);
+  CHECK(drawn(16, 16, wide) == drawn(16, 16, capped));
+  CHECK(at(drawn(16, 16, wide), 16, 8, 0, 3) == 0);
 }
 
 TEST_CASE("rasterizeLine draws points") {
-  const int w = 20, h = 20;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{10, 10}};
-  line.color = "red";
-  line.thickness = 2;
-  line.pointSize = 4;
-  rasterizeLine(buf.data(), w, h, line);
-  CHECK(at(buf, w, 10, 10, 3) > 0);  // a point disc was stamped
-
+  CHECK(at(drawn(20, 20, mk({{10, 10}}, "red", 2, 4)), 20, 10, 10, 3) > 0);
   // An invisible stroke still marks points that carry their own colour, none without.
-  line.color = "transparent";
-  auto bare = blank(w, h);
-  rasterizeLine(bare.data(), w, h, line);
-  CHECK(at(bare, w, 10, 10, 3) == 0);
+  Line line = mk({{10, 10}}, "transparent", 2, 4);
+  CHECK(at(drawn(20, 20, line), 20, 10, 10, 3) == 0);
   line.pointColor = "blue";
-  auto marked = blank(w, h);
-  rasterizeLine(marked.data(), w, h, line);
-  CHECK(at(marked, w, 10, 10, 2) > 150);
+  CHECK(at(drawn(20, 20, line), 20, 10, 10, 2) > 150);
 }
 
-// Layout coords/sizes are untrusted: non-finite or absurd values must not cast out of int
-// range (UB) or spin a near-infinite scan/step loop (DoS) - the line is skipped, promptly.
+// Untrusted coords/sizes: non-finite or absurd values must not cast out of int range (UB) or
+// spin a near-infinite scan loop (DoS) - the line is skipped, promptly.
 TEST_CASE("rasterizeLine is inert on non-finite and astronomically large inputs") {
-  const int w = 16, h = 16;
   const double inf = std::numeric_limits<double>::infinity();
   const double nan = std::numeric_limits<double>::quiet_NaN();
-
-  auto expectUntouched = [&](const Line& line) {
-    auto buf = blank(w, h);
-    rasterizeLine(buf.data(), w, h, line);  // must return promptly, not hang/crash
-    for (std::uint8_t b : buf) CHECK(b == 0);
+  const auto untouched = [](const Line& line) {
+    for (std::uint8_t b : drawn(16, 16, line)) CHECK(b == 0);
   };
-
-  {  // a point at 1e18 (finite but out of int range) — used to be UB + a huge loop
-    Line line; line.points = {{0, 0}, {1e18, 1e18}}; line.color = "red";
-    line.thickness = 2; line.pointSize = 0;
-    expectUntouched(line);
-  }
-  {  // a NaN point
-    Line line; line.points = {{nan, nan}, {5, 5}}; line.color = "red";
-    line.thickness = 2; line.pointSize = 0;
-    expectUntouched(line);
-  }
-  {  // an infinite thickness
-    Line line; line.points = {{2, 2}, {14, 14}}; line.color = "red";
-    line.thickness = inf; line.pointSize = 0;
-    expectUntouched(line);
-  }
-  {  // an astronomically large pointSize
-    Line line; line.points = {{8, 8}}; line.color = "red";
-    line.thickness = 2; line.pointSize = 1e18;
-    expectUntouched(line);
-  }
+  untouched(mk({{0, 0}, {1e18, 1e18}}, "red", 2));  // finite but out of int range
+  untouched(mk({{nan, nan}, {5, 5}}, "red", 2));
+  untouched(mk({{2, 2}, {14, 14}}, "red", inf));
+  untouched(mk({{8, 8}}, "red", 2, 1e18));
 }
 
 // -- Independent point colour (Line::pointColor) ----------------------
-// Port of browser/tests/rasterizePointColor.test.js. An EMPTY pointColor keeps the old behaviour.
+// Twin of browser/tests/core/draw/pointColor.test.js. An EMPTY pointColor keeps the old behaviour.
 
 TEST_CASE("points default to the stroke colour when pointColor is unset") {
-  const int w = 20, h = 20;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{10, 10}};
-  line.color = "red";
-  line.thickness = 2;
-  line.pointSize = 3;
-  CHECK(line.pointColor.empty());          // the back-compatible default
-  rasterizeLine(buf.data(), w, h, line);
-  CHECK(at(buf, w, 10, 10, 0) > 150);      // point is red, like the stroke
-  CHECK(at(buf, w, 10, 10, 2) < 100);
+  const Line line = mk({{10, 10}}, "red", 2, 3);
+  CHECK(line.pointColor.empty());  // the back-compatible default
+  const auto buf = drawn(20, 20, line);
+  CHECK(at(buf, 20, 10, 10, 0) > 150);  // point is red, like the stroke
+  CHECK(at(buf, 20, 10, 10, 2) < 100);
 }
 
 TEST_CASE("pointColor colours the points independently of the stroke") {
-  const int w = 24, h = 24;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{4, 12}, {20, 12}};
-  line.color = "red";                      // stroke red…
-  line.pointColor = "blue";                // …points blue
-  line.thickness = 3;
-  line.pointSize = 3;
-  rasterizeLine(buf.data(), w, h, line);
-
-  // At an endpoint the point disc wins: blue, not red.
-  CHECK(at(buf, w, 4, 12, 2) > 150);
-  CHECK(at(buf, w, 4, 12, 0) < 100);
-  // Mid-span, away from either point, the stroke is still red.
-  CHECK(at(buf, w, 12, 12, 0) > 150);
-  CHECK(at(buf, w, 12, 12, 2) < 100);
+  Line line = mk({{4, 12}, {20, 12}}, "red", 3, 3);
+  line.pointColor = "blue";
+  const auto buf = drawn(24, 24, line);
+  CHECK(at(buf, 24, 4, 12, 2) > 150);  // at an endpoint the point disc wins: blue
+  CHECK(at(buf, 24, 4, 12, 0) < 100);
+  CHECK(at(buf, 24, 12, 12, 0) > 150);  // mid-span the stroke is still red
+  CHECK(at(buf, 24, 12, 12, 2) < 100);
 }
 
 TEST_CASE("pointColorOr resolves the fallback in one place") {
@@ -208,15 +196,9 @@ TEST_CASE("pointColorOr resolves the fallback in one place") {
 }
 
 TEST_CASE("an unparseable pointColor falls back to the stroke, never drops the point") {
-  const int w = 20, h = 20;
-  auto buf = blank(w, h);
-  Line line;
-  line.points = {{10, 10}};
-  line.color = "red";
+  Line line = mk({{10, 10}}, "red", 2, 3);
   line.pointColor = "not-a-colour";
-  line.thickness = 2;
-  line.pointSize = 3;
-  rasterizeLine(buf.data(), w, h, line);
-  CHECK(at(buf, w, 10, 10, 3) > 0);        // a point was still drawn
-  CHECK(at(buf, w, 10, 10, 0) > 150);      // in the stroke colour
+  const auto buf = drawn(20, 20, line);
+  CHECK(at(buf, 20, 10, 10, 3) > 0);    // a point was still drawn
+  CHECK(at(buf, 20, 10, 10, 0) > 150);  // in the stroke colour
 }

@@ -27,7 +27,7 @@ export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy',
   const primaryVariant = () => exportVariantState(app).primary;
 
 // Reuses the context menu's inner row shape (.ctx-icon / .ctx-label / .ctx-hotkey) so
-// components/ctxAssistant.css covers both; the row itself stays .accent-dd-opt.
+// components/ctx/assistant.css covers both; the row itself stays .accent-dd-opt.
   const build = () => {
     menu.innerHTML = '';
     const state = exportVariantState(app);

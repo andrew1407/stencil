@@ -15,8 +15,9 @@ using namespace stencil::llm;
 
 
   // Captures the request and replies synchronously with the canned response
-  // (the tests/LlmClient.headless.cpp mock, trimmed to what the walker needs).
+  // (the tests/llm/client/LlmClient.headless.cpp mock, trimmed to what the walker needs).
   struct MockTransport : LlmTransport {
+    bool posted = false;
     QUrl url;
     QList<QPair<QByteArray, QByteArray>> headers;
     QJsonObject body;
@@ -26,6 +27,7 @@ using namespace stencil::llm;
     void postJson(const QUrl& u, const QList<QPair<QByteArray, QByteArray>>& h,
                   const QByteArray& b,
                   std::function<void(int, QByteArray, QString)> cb) override {
+      posted = true;
       url = u;
       headers = h;
       body = QJsonDocument::fromJson(b).object();
@@ -34,9 +36,14 @@ using namespace stencil::llm;
     void getJson(const QUrl&, const QList<QPair<QByteArray, QByteArray>>&,
                  std::function<void(int, QByteArray, QString)>) override {}
 
+    bool has(const QByteArray& name) const {
+      for (const auto& h : headers)
+        if (h.first.toLower() == name.toLower()) return true;
+      return false;
+    }
     QByteArray header(const QByteArray& name) const {
       for (const auto& h : headers)
-        if (h.first == name) return h.second;
+        if (h.first.toLower() == name.toLower()) return h.second;
       return {};
     }
   };
@@ -48,6 +55,60 @@ using namespace stencil::llm;
     if (kind == "badReply" || kind == "badResponse") return LlmFailure::BAD_RESPONSE;
     if (kind == "expired") return LlmFailure::EXPIRED;
     return LlmFailure::HTTP;
+  }
+
+  // The fixture's provider → the desktop's §5 provider key.
+  QString providerOf(const QString& wire) {
+    if (wire == "openai") return QStringLiteral("openai-compat");
+    if (wire == "server") return QStringLiteral("stencil-server");
+    if (wire == "anthropic") return QStringLiteral("anthropic");
+    return QStringLiteral("ollama");
+  }
+
+  // Headers, the system turn and the body of a request the case expects to be sent.
+  void checkRequest(const QJsonObject& c, const LlmSettings& cfg, const MockTransport& t,
+                    const QString& fxSystem, const QJsonObject& ovv, const QString& name,
+                    const QString& label) {
+    check(t.url.toString() == c.value("expectUrl").toString(),
+          qPrintable(QStringLiteral("%1: request URL").arg(name)));
+    const QJsonValue auth = c.value("expectAuthorization");
+    check(auth.isString() ? t.header("Authorization") == auth.toString().toUtf8()
+                          : !t.has("Authorization"),
+          qPrintable(QStringLiteral("%1: Authorization header").arg(name)));
+    const QJsonObject expectHeaders = c.value("expectHeaders").toObject();
+    for (auto it = expectHeaders.begin(); it != expectHeaders.end(); ++it)
+      check(t.header(it.key().toUtf8()) == it.value().toString().toUtf8(),
+            qPrintable(QStringLiteral("%1: header %2").arg(name, it.key())));
+    // A desktop app is no web page: the browser-only direct-access header is never sent.
+    check(!t.has("anthropic-dangerous-direct-browser-access"),
+          qPrintable(QStringLiteral("%1: no direct-browser-access header").arg(name)));
+
+    // The captured system must be the canonical prompt + the fixture system
+    // (passed as the suffix); substitute the literal before the body compare.
+    QJsonObject body = t.body;
+    QString capturedSystem;
+    if (cfg.provider == "stencil-server" || cfg.provider == "anthropic") {
+      capturedSystem = body.value("system").toString();
+      body["system"] = fxSystem;
+    } else {
+      QJsonArray bm = body.value("messages").toArray();
+      QJsonObject sys = bm.at(0).toObject();
+      capturedSystem = sys.value("content").toString();
+      check(sys.value("role").toString() == "system",
+            qPrintable(QStringLiteral("%1: first wire message is the system turn").arg(name)));
+      sys["content"] = fxSystem;
+      bm.replace(0, sys);
+      body["messages"] = bm;
+    }
+    check(capturedSystem == LlmClient::systemPrompt(fxSystem),
+          qPrintable(QStringLiteral("%1: system = canonical prompt + fixture suffix").arg(name)));
+
+    // Body: deep equality; an override's bodyPatch pins a measured desktop
+    // extra/difference on top of the shared expectBody.
+    QJsonObject expectBody = c.value("expectBody").toObject();
+    const QJsonObject patch = ovv.value("bodyPatch").toObject();
+    for (auto it = patch.begin(); it != patch.end(); ++it) expectBody[it.key()] = it.value();
+    checkJsonEq(body, expectBody, QStringLiteral("%1: request body").arg(label));
   }
 
   void walkWireFile(const char* rel, int& walked, int& overridden) {
@@ -63,16 +124,11 @@ using namespace stencil::llm;
       const QJsonObject ovv = ov.verdict.toObject();
       if (ov.present) ++overridden;
       ++walked;
-      const QByteArray label =
-          (name + (ov.present ? QStringLiteral(" [override]") : QString())).toUtf8();
+      const QString label = name + (ov.present ? QStringLiteral(" [override]") : QString());
 
-      // Settings (fixture provider → the desktop §5 provider keys).
       const QJsonObject settings = c.value("settings").toObject();
-      const QString provider = c.value("provider").toString();
       LlmSettings cfg;
-      cfg.provider = provider == "openai" ? QStringLiteral("openai-compat")
-                     : provider == "server" ? QStringLiteral("stencil-server")
-                                            : QStringLiteral("ollama");
+      cfg.provider = providerOf(c.value("provider").toString());
       cfg.baseUrl = settings.value("baseUrl").toString();
       cfg.serverUrl = settings.value("serverUrl").toString();
       cfg.model = settings.value("model").toString();
@@ -114,41 +170,10 @@ using namespace stencil::llm;
       LlmReply got;
       client.chat(cfg, msgs, fxSystem, [&](LlmReply r) { got = r; });
 
-      // Request: URL + Authorization (absent in the fixture = must not be sent).
-      check(t.url.toString() == c.value("expectUrl").toString(),
-            qPrintable(QStringLiteral("%1: request URL").arg(name)));
-      const QJsonValue auth = c.value("expectAuthorization");
-      check(auth.isString() ? t.header("Authorization") == auth.toString().toUtf8()
-                            : t.header("Authorization").isEmpty(),
-            qPrintable(QStringLiteral("%1: Authorization header").arg(name)));
-
-      // The captured system must be the canonical prompt + the fixture system
-      // (passed as the suffix); substitute the literal before the body compare.
-      QJsonObject body = t.body;
-      QString capturedSystem;
-      if (cfg.provider == "stencil-server") {
-        capturedSystem = body.value("system").toString();
-        body["system"] = fxSystem;
-      } else {
-        QJsonArray bm = body.value("messages").toArray();
-        QJsonObject sys = bm.at(0).toObject();
-        capturedSystem = sys.value("content").toString();
-        check(sys.value("role").toString() == "system",
-              qPrintable(QStringLiteral("%1: first wire message is the system turn").arg(name)));
-        sys["content"] = fxSystem;
-        bm.replace(0, sys);
-        body["messages"] = bm;
-      }
-      check(capturedSystem == LlmClient::systemPrompt(fxSystem),
-            qPrintable(QStringLiteral("%1: system = canonical prompt + fixture suffix").arg(name)));
-
-      // Body: deep equality; an override's bodyPatch pins a measured desktop
-      // extra/difference on top of the shared expectBody.
-      QJsonObject expectBody = c.value("expectBody").toObject();
-      const QJsonObject patch = ovv.value("bodyPatch").toObject();
-      for (auto it = patch.begin(); it != patch.end(); ++it) expectBody[it.key()] = it.value();
-      checkJsonEq(body, expectBody,
-                  QStringLiteral("%1: request body").arg(QString::fromUtf8(label)));
+      if (c.value("expectNoRequest").toBool())
+        check(!t.posted, qPrintable(QStringLiteral("%1: nothing is sent").arg(name)));
+      else
+        checkRequest(c, cfg, t, fxSystem, ovv, name, label);
 
       // Outcome: extracted reply or typed error. expectError.message is post-BROWSER-sanitizer text, so
       // desktop keeps the kind and must CONTAIN the message, its own errors adding the endpoint tag.
@@ -173,11 +198,14 @@ using namespace stencil::llm;
         check(!got.ok && got.failure == failureFromKind(kind),
               qPrintable(QStringLiteral("%1: typed error kind \"%2\"%3")
                              .arg(name, kind, ovv.contains("kind") ? " (override)" : "")));
-        check(got.error.contains(fragment),
-              qPrintable(QStringLiteral("%1: error carries the message").arg(name)));
-        if (!got.error.contains(fragment))
-          std::printf("       got error: %s\n", qPrintable(got.error));
+        // anthropic: the tag is the only addition, so the reason ENDS the text, never a vetoed detail.
+        const bool carried = cfg.provider == "anthropic" ? got.error.endsWith(fragment)
+                                                         : got.error.contains(fragment);
+        check(carried, qPrintable(QStringLiteral("%1: error carries the message").arg(name)));
+        if (!carried) std::printf("       got error: %s\n", qPrintable(got.error));
+        for (int i = 0; i + 8 <= cfg.apiKey.size(); ++i)
+          if (got.error.contains(cfg.apiKey.mid(i, 8)))
+            check(false, qPrintable(QStringLiteral("%1: the error echoes the key").arg(name)));
       }
     }
   }
-

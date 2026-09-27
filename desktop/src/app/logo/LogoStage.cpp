@@ -1,8 +1,5 @@
 #include "LogoStage.hpp"
 
-#include "ModalBackdrop.hpp"   // the modal scrim + blur a showWord wears too
-#include "modalReveal.hpp"     // support::motionReduced()
-
 #include <QApplication>
 #include <QCursor>
 #include <QRandomGenerator>

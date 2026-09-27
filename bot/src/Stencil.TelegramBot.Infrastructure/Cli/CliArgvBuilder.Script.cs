@@ -6,8 +6,8 @@ public static partial class CliArgvBuilder
 {
     private const string _flagScriptPlan = "--script-plan";
 
-    // cli/CONTRACT.md §5. Plan mode fetches nothing, decodes nothing and writes nothing, so there
-    // is no output to confine — only the script leaf and the frame the lengths resolve against.
+    // cli/CONTRACT.md §4.3. Plan mode writes nothing, so there is no output to confine; each chunk
+    // comes back with core's verdict under the bot's surface.
     public static IReadOnlyList<string> BuildScriptPlanArgv(string script, string? input = null)
     {
         List<string> argv = new();
@@ -18,6 +18,8 @@ public static partial class CliArgvBuilder
         }
         argv.Add(_flagScriptPlan);
         argv.Add(guard(script, "script"));
+        argv.Add(_flagPlanSurface);
+        argv.Add(PLAN_SURFACE);
         return argv;
     }
 

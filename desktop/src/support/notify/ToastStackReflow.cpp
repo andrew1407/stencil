@@ -1,22 +1,14 @@
 #include "ToastStack.hpp"
 #include "notificationsParts.hpp"
-#include "DisintegrateOverlay.hpp"
-#include "iconSet.hpp"
-#include "modalReveal.hpp"  // stencil::support::motionReduced()
 #include <algorithm>
-#include <QBuffer>
-#include <QGuiApplication>
-#include <QByteArray>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QGraphicsOpacityEffect>
 #include <QLabel>
-#include <QPixmap>
 #include <QPointer>
 #include <QPropertyAnimation>
 #include <QTimer>
 #include <QWidget>
-
 
 namespace stencil::gui {
 

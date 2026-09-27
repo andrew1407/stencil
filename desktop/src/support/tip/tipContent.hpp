@@ -7,9 +7,10 @@
 #include <QVector>
 
 class QAction;
+class QWidget;
 
-// PORT of browser/js/ui/tip/content.js (and extension src/lib/content.js) — keep the
-// three rule-for-rule; tests/tipContent.headless.cpp runs the browser suite's cases.
+// PORT of browser/js/ui/tip/content.js (and extension src/lib/tip/content.js) — keep the
+// three rule-for-rule; tests/support/tip/tipContent.headless.cpp runs the browser suite's cases.
 namespace stencil::gui {
 
   struct TipBlock {
@@ -50,6 +51,12 @@ namespace stencil::gui {
 
   // Same boxes with every keycap FACE blanked — diffing the two is how appTooltip finds the caps.
   QString blankKeycaps(const QString& richText);
+
+  // What a rich tip draws, as text: tags gone, entities decoded, a table row one line, a keycap its key.
+  QString tipPlainText(const QString& richText);
+  // Qt reads the raw toolTip() as the accessible description (macOS Hover Text, VoiceOver): a rich
+  // tip gets its plain text there instead. A description set by anyone else is left alone.
+  void syncTipDescription(QWidget* w);
 
   // Call once at startup and again on a theme change. Idempotent.
   void setTooltipPalette(const Palette& pal);

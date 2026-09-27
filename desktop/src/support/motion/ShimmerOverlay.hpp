@@ -1,6 +1,6 @@
 #pragma once
 // Hover "glass shimmer" — the desktop port of the browser's ui-shimmer rule
-// (browser/css/layout.css). Header-only and Q_OBJECT-free, so no MOC.
+// (browser/css/layout/). Header-only and Q_OBJECT-free, so no MOC.
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QAbstractAnimation>

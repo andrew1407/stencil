@@ -1,4 +1,5 @@
-// MainWindow GUI e2e — Loading and clearing an image, the rotate round trip, and drawing then undoing.
+// MainWindow GUI e2e — Loading and clearing an image, the rotate round trip and its undo, and drawing
+// then undoing.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../MainWindow.gui.hpp"
 
@@ -75,6 +76,37 @@ class MainWindowGuiTest : public QObject {
     beat();
     QCOMPARE(canvas->imageWidth(), w0);                    // exact state restored
     QCOMPARE(canvas->imageHeight(), h0);
+  }
+
+  // A quarter turn is an undo step (the browser's editorMemento): Undo turns the view back, Redo
+  // turns it again, through the real actions.
+  void rotateThenUndoRedo() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    const int w0 = canvas->imageWidth(), h0 = canvas->imageHeight();
+    const int r0 = canvas->getRotationQuarters();
+
+    QAction* right = actionByText(&win, "Rotate Right");
+    QAction* undo = actionByText(&win, "Undo");
+    QAction* redo = actionByText(&win, "Redo");
+    QVERIFY(right && undo && redo);
+    right->trigger();
+    QCOMPARE(canvas->getRotationQuarters(), (r0 + 1) % 4);
+    QVERIFY(canvas->canUndo() && undo->isEnabled());
+    beat();
+
+    undo->trigger();
+    QCOMPARE(canvas->getRotationQuarters(), r0);
+    QCOMPARE(canvas->imageWidth(), w0);
+    QCOMPARE(canvas->imageHeight(), h0);
+    QVERIFY(redo->isEnabled());
+    beat();
+
+    redo->trigger();
+    QCOMPARE(canvas->getRotationQuarters(), (r0 + 1) % 4);
+    QCOMPARE(canvas->imageWidth(), h0);
+    beat();
   }
 
   void drawWithMouseThenUndo() {

@@ -1,14 +1,15 @@
-//! LLM assistant support for the console (`/prompt`, `/llm`) — the CLI's port of `llm-contract.md`.
-//! Facade only: the implementation lives in llm/ — registry + prompt assembly (§4/§13), provider
-//! config (§5), wire mappings + reply extraction (§6), transport, and the strict op-plan parser
-//! (§1–§3, table-driven from the embedded opRegistry.json), mirroring browser/js/llm/plan/plan.js and
-//! mcp/src/. Transport + parsing only; the handlers execute actions through existing operations.
+//! LLM assistant support for the console (`/prompt`, `/llm`) and `--plan-check` — the CLI's side
+//! of `llm-contract.md`. Facade only: the implementation lives in llm/ — registry + prompt assembly
+//! (§4/§13), provider config (§5), wire mappings + reply extraction (§6), transport, and core's
+//! op-plan verdict (§1–§3, core/opplan) mapped to typed actions. The handlers execute them.
 const registry = @import("llm/registry.zig");
 const opSchema = @import("llm/opSchema.zig");
 const config = @import("llm/config.zig");
+const providers = @import("llm/providers.zig");
 const wire = @import("llm/wire.zig");
 const transport = @import("llm/transport.zig");
 const opplan = @import("llm/opplan.zig");
+pub const check = @import("llm/check.zig");
 
 // The contract-§1 caps live in the embedded registry: `schema().limitNamed("MAX_ACTIONS")`.
 pub const Schema = opSchema.Schema;
@@ -35,6 +36,8 @@ pub const Env = config.Env;
 pub const Config = config.Config;
 pub const Cmd = config.Cmd;
 pub const parseCmd = config.parseCmd;
+pub const providerDefaults = providers.get;
+pub const keyTtlMs = providers.keyTtlMs;
 pub const max_chat_messages = wire.max_chat_messages;
 pub const ChatRole = wire.ChatRole;
 pub const Turn = wire.Turn;
@@ -51,6 +54,13 @@ pub const PostError = transport.PostError;
 pub const request_timeout_ms = transport.request_timeout_ms;
 pub const Waiter = transport.Waiter;
 pub const postJson = transport.postJson;
+pub const postJsonVia = transport.postJsonVia;
+pub const SendFn = transport.SendFn;
+pub const HeaderBuf = transport.HeaderBuf;
+pub const headersFor = transport.headersFor;
+pub const no_key_message = transport.no_key_message;
+pub const anthropicError = transport.anthropicError;
+pub const AnthropicMessageBuf = transport.AnthropicMessageBuf;
 pub const isLlmDisabled = transport.isLlmDisabled;
 pub const errorDetail = transport.errorDetail;
 pub const sanitizeDetail = transport.sanitizeDetail;
@@ -82,7 +92,9 @@ test {
     _ = registry;
     _ = opSchema;
     _ = config;
+    _ = providers;
     _ = wire;
     _ = transport;
     _ = opplan;
+    _ = check;
 }

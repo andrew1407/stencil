@@ -1,5 +1,7 @@
 // The `#stencil=` hand-off payload: a server reference for a linked session (the receiver
 // re-fetches — no bytes, no token), else the inline image plus the full layout.
+import { resolveSource, portableSource } from '../project/store/projectSources.js';
+import { currentLayoutPayload } from '../project/meta/projectMeta.js';
 
 const launchPayload = ({ remote, dataUrl, name, layout, source, resource, incognito }) => {
   if (remote) {
@@ -26,10 +28,18 @@ const storedLaunchPayload = (app, id, incognito) => {
     dataUrl: proj.payload?.image || null,
     name: `${layout.imageBaseName || meta.name || 'image'}.${meta.imageExt || layout.imageExt || 'png'}`,
     layout,
-    source: meta.source || layout.imageSource,
+    source: portableSource(resolveSource(meta.source, layout.imageSource) || layout.imageSource),
     resource: meta.resource || layout.imageResource,
     incognito,
   });
+};
+
+// The hand-off with its image as a data URL: a stored project's object URL is read back, unheld.
+export const openInLaunchPayloadResolved = async (app, opts = {}) => {
+  await app.storage.imageReady;
+  const p = openInLaunchPayload(app, opts);
+  if (p?.dataUrl) p.dataUrl = await app.storage.store.resolveImage(opts.id ?? app.activeProjectId, p.dataUrl, false);
+  return p;
 };
 
 // `id` hands off a SAVED project instead of the open one; null when nothing is stored.
@@ -40,8 +50,8 @@ export const openInLaunchPayload = (app, { incognito = false, id = null } = {}) 
       && { url: app.remoteLink.address, id: app.remoteLink.remoteId, version: app.remoteLink.version },
     dataUrl: app.imageDataUrl,
     name: `${app.imageBaseName || 'image'}.${app.imageExt || 'png'}`,
-    layout: app.currentLayoutPayload(),
-    source: app.imageSource,
+    layout: currentLayoutPayload(app),
+    source: portableSource(app.imageSource),
     resource: app.imageResource,
     incognito,
   });

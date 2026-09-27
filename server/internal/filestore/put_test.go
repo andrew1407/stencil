@@ -33,9 +33,9 @@ func leftoverTemps(t *testing.T, s *Store, id string) []string {
 func TestPutStreamRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	want := []byte("streamed \x00 bytes")
-	rel, err := s.PutStream(validID, protocol.KindOriginal, "png", bytes.NewReader(want))
+	rel, err := s.PutStreamAs(validID, protocol.KindOriginal, "png", bytes.NewReader(want), Charge{})
 	if err != nil {
-		t.Fatalf("PutStream: %v", err)
+		t.Fatalf("PutStreamAs: %v", err)
 	}
 	if rel != "projects/"+validID+"/original.png" {
 		t.Fatalf("unexpected rel path %q", rel)
@@ -52,7 +52,7 @@ func TestPutStreamRoundTrip(t *testing.T) {
 // A body with no bytes is rejected, and nothing is committed for it.
 func TestPutStreamRejectsEmpty(t *testing.T) {
 	s := newTestStore(t)
-	if _, err := s.PutStream(validID, protocol.KindResult, "png", bytes.NewReader(nil)); !errors.Is(err, ErrEmpty) {
+	if _, err := s.PutStreamAs(validID, protocol.KindResult, "png", bytes.NewReader(nil), Charge{}); !errors.Is(err, ErrEmpty) {
 		t.Fatalf("empty body: %v", err)
 	}
 	if _, err := s.Get(validID, protocol.KindResult, "png"); !errors.Is(err, ErrNotFound) {
@@ -82,7 +82,7 @@ func TestPutStreamFailureKeepsPreviousBytes(t *testing.T) {
 	if _, err := s.Put(validID, protocol.KindOriginal, "png", []byte("v1")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.PutStream(validID, protocol.KindOriginal, "png", &errReader{n: 3}); err == nil {
+	if _, err := s.PutStreamAs(validID, protocol.KindOriginal, "png", &errReader{n: 3}, Charge{}); err == nil {
 		t.Fatal("a broken stream must fail the write")
 	}
 	got, err := s.Get(validID, protocol.KindOriginal, "png")
@@ -97,14 +97,14 @@ func TestPutStreamFailureKeepsPreviousBytes(t *testing.T) {
 // The quota is still enforced on the streaming path, and a rejected write leaves
 // nothing behind — the cap covers the committed store.
 func TestPutStreamHonoursQuota(t *testing.T) {
-	s, err := NewWithQuota(t.TempDir(), 64)
+	s, err := NewWithQuotas(t.TempDir(), Quotas{Total: 64})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.PutStream(validID, protocol.KindOriginal, "png", io.LimitReader(zeroes{}, 40)); err != nil {
+	if _, err := s.PutStreamAs(validID, protocol.KindOriginal, "png", io.LimitReader(zeroes{}, 40), Charge{}); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
-	if _, err := s.PutStream(validID, protocol.KindResult, "png", io.LimitReader(zeroes{}, 40)); !errors.Is(err, ErrQuotaExceeded) {
+	if _, err := s.PutStreamAs(validID, protocol.KindResult, "png", io.LimitReader(zeroes{}, 40), Charge{}); !errors.Is(err, ErrQuotaExceeded) {
 		t.Fatalf("over-quota stream: %v", err)
 	}
 	if _, err := s.Get(validID, protocol.KindResult, "png"); !errors.Is(err, ErrNotFound) {

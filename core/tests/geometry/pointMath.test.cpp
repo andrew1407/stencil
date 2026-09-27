@@ -5,7 +5,7 @@
 
 using namespace stencil::core;
 
-// Mirrors browser/tests/geometry.test.js.
+// Mirrors browser/tests/ui/chat/geometry.test.js.
 
 TEST_CASE("zero-length segment returns distance to the point") {
   Point a{5, 5};
@@ -35,6 +35,15 @@ TEST_CASE("projection beyond endpoint b (t clamped to 1)") {
   Point a{0, 0};
   Point b{10, 0};
   CHECK(distToSegment(14, 0, a, b) == doctest::Approx(4.0));
+}
+
+TEST_CASE("distToSegmentSq is the squared distance, exact on integer cases") {
+  const Point a{0, 0}, b{10, 0};
+  CHECK(distToSegmentSq(5, 4, a, b) == 16.0);
+  CHECK(distToSegmentSq(-3, 4, a, b) == 25.0);
+  CHECK(distToSegmentSq(13, 4, a, b) == 25.0);
+  CHECK(distToSegmentSq(8, 9, Point{5, 5}, Point{5, 5}) == 25.0);
+  CHECK(distToSegmentSq(2, 7, Point{1, 1}, Point{9, 4}) == doctest::Approx(std::pow(distToSegment(2, 7, Point{1, 1}, Point{9, 4}), 2)));
 }
 
 // Rotation math + pivots — port of #rotateSelectedLine.

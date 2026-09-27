@@ -21,6 +21,7 @@ import { createSessionApi } from './api/sessionApi.js';
 import { createCropApi } from './api/cropApi.js';
 import { createScriptApi } from './api/scriptApi.js';
 import { createEasterEggsApi } from './api/easterEggsApi.js';
+import { promoteIncognitoToLocal } from '../core/launch/incognitoFlow.js';
 
 export { WINDOWS } from './api/windowsApi.js';
 
@@ -151,13 +152,13 @@ export const createStencil = (app) => {
         throw new Error('Incognito can only be enabled on a blank editor (before an image is loaded)');
       // Turning it OFF with work on screen keeps the work: leaving incognito IS the user
       // asking to save, so it promotes to a local project (promoteIncognitoToLocal).
-      if (!on && app.image) { app.promoteIncognitoToLocal(); return; }
+      if (!on && app.image) { promoteIncognitoToLocal(app); return; }
       app.storage.incognito = !!on;
       app.updateIncognitoUI();
     },
     // Leave incognito and keep the current picture + lines as a local project. Returns the
     // project id (null when the editor is blank). The server twin is publishIncognito().
-    promoteIncognito() { return app.promoteIncognitoToLocal(); },
+    promoteIncognito() { return promoteIncognitoToLocal(app); },
     // Tooltip sections as a live get/set object.
     get tooltip() {
       return guard({

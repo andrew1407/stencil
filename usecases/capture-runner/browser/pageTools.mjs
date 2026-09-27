@@ -2,7 +2,7 @@
 // the long middle of the run reuses, and the canvas / modal gestures. Everything goes
 // through window.stencil, the same facade the e2e specs use.
 import { e2e } from '../lib/playwright.mjs';
-import { applyAppTheme } from '../lib/pageTheme.mjs';
+import { applyAppTheme } from '../lib/theme/page.mjs';
 import { waitForAnimations } from '../lib/waits.mjs';
 
 export const { gotoApp, settleModalAnimations, expectModalOpen } = await e2e('helpers/boot.js');

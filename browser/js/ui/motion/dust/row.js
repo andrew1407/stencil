@@ -9,24 +9,6 @@ import { CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from '../surfac
 export const CHIP_DUST = Object.freeze({ ms: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT,
                                          px: CHIP_MOTE_PX, ...chipGrid(1) });
 
-// The cloud follows by DELTA, keeping the offset a cloud given its own `box` has — tiles.js
-// retargetDust pins absolutely instead and would lose it.
-export const followCloud = (el) => {
-  const host = el.__dustHost;
-  if (!host) return true;
-  const r0 = el.getBoundingClientRect();
-  const left0 = parseFloat(host.style.left) || 0, top0 = parseFloat(host.style.top) || 0;
-  const tick = () => {
-    if (el.__dustHost !== host) return;   // disintegrate clears it when the flight ends
-    const r = el.getBoundingClientRect();
-    host.style.left = `${left0 + r.left - r0.left}px`;
-    host.style.top = `${top0 + r.top - r0.top}px`;
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-  return true;
-};
-
 /**
  * One flight per row, so two rows fly together without fighting each other's state. `dustEl`
  * scopes the cloud SMALLER than the sliding row — a `<div>` is as wide as its container, so a
@@ -71,7 +53,8 @@ export const makeDustRow = (el, display = 'block', dustEl = () => el) => {
       hostClass: gather ? 'dust-forming' : 'dust-falling',
       paintTile: speckPainter(dustEl()),
       box: dustEl() === el ? null : dustEl().getBoundingClientRect(),
-    }) && (!gather || followCloud(el));   // a fall stays where the row stood
+      anchor: gather ? el : null,   // a fall stays where the row stood
+    });
     if (show) {
       el.style.display = display;
       el.style.opacity = '0';   // while they fly, the motes ARE the line
@@ -103,10 +86,10 @@ export const makeDustToggle = (el, display = 'inline-flex') => {
       return;
     }
     const cloud = (gather) => disintegrate(el, {
-      ...CHIP_DUST, gather, toBody: true,
+      ...CHIP_DUST, gather, toBody: true, anchor: el,
       hostClass: gather ? 'dust-forming' : 'dust-falling',
       paintTile: speckPainter(el),
-    }) && followCloud(el);
+    });
     if (show) {
       el.style.visibility = 'visible';
       el.style.opacity = '0';

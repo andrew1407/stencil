@@ -1,6 +1,6 @@
 // Pure, DOM-free project registry over a localStorage-like backend: a registry array of
-// metadata plus one payload key per project. Every JSON read is guarded with a safe
-// default; QuotaExceededError from a write propagates so the DOM adapter can evict + retry.
+// metadata plus one payload, one image and one thumbnail key per project. Every JSON read is guarded
+// with a safe default; QuotaExceededError from a write propagates so the DOM adapter can evict + retry.
 import type { CodecLine } from '../../line/linesCodec.js';
 
 /** A refresh preset; fixed durations so this and core/state/ProjectsStore.cpp agree. */
@@ -26,6 +26,7 @@ export interface ProjectMeta {
   lineLengthCm: number;
   blank: boolean;
   blankColor: string;
+  /** The image's own URL; a data URL is kept as its reference (projectSources.js). */
   source?: string | null;
   resource?: string | null;
   fromFile?: boolean;
@@ -59,6 +60,8 @@ export interface StorageBackend {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
   keys?(): Iterable<string>;
+  /** An image key's data URL (the IndexedDB backend); `keep` holds it while its project is open. */
+  materialize?(key: string, keep?: boolean): Promise<string | null>;
 }
 
 export declare const REGISTRY_KEY: string;
@@ -87,6 +90,8 @@ export declare class ProjectsStore {
   list(): ProjectMeta[];
   getMeta(id: string): ProjectMeta | null;
   get(id: string): StoredProject | null;
+  /** A read's object-URL image as its data URL; any other value as it is. */
+  resolveImage(id: string, image: string | null | undefined, keep?: boolean): Promise<string | null>;
   createId(): string;
   nameExists(name: unknown, exceptId?: string | null): boolean;
   validateName(name: unknown, exceptId?: string | null): { ok: boolean; reason: string };
@@ -95,12 +100,12 @@ export declare class ProjectsStore {
   setKeywords(id: string, keywords: unknown): ProjectMeta | null;
   setDescription(id: string, description: unknown): ProjectMeta | null;
   setBlankColor(id: string, color: string): ProjectMeta | null;
-  /** The idle-time thumbnail landing after the save that scheduled it. */
+  /** The idle-time thumbnail landing after the save that scheduled it; writes its key alone. */
   setThumbnail(id: string, dataUrl: string): ProjectMeta | null;
   findByImage(source: string | null | undefined, name: string | null | undefined): ProjectMeta[];
   copyName(baseName: string | null | undefined, source: string | null | undefined): string;
   defaultName(): string;
-  /** Writes the payload first, so a quota failure leaves the registry untouched. */
+  /** Writes the payload and thumbnail first, so a quota failure leaves the registry untouched; a data-URL source is stored as its reference. */
   upsert(meta: Partial<ProjectMeta> & { id: string }, payload: ProjectPayload): ProjectMeta;
   touch(id: string, now?: number): ProjectMeta | null;
   remove(id: string): void;

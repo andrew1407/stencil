@@ -1,4 +1,3 @@
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Llm;
 using Stencil.TelegramBot.Domain.Llm.Wire;
 

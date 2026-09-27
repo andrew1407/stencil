@@ -1,9 +1,11 @@
 #include "doctest.h"
 #include "HistoryStack.hpp"
 
+#include <utility>
+
 using namespace stencil::core;
 
-// Mirrors browser/tests/history.test.js.
+// Mirrors browser/tests/core/history.test.js.
 
 static Line lineWithX(double x) {
   Line l;
@@ -26,6 +28,19 @@ TEST_CASE("push copies the snapshot (mutating original does not change stored)")
   const auto restored = h.undo();  // back to step 0
   REQUIRE(restored.has_value());
   CHECK((*restored)[0].points[0].x == doctest::Approx(1.0));
+}
+
+TEST_CASE("push(Lines&&) takes the snapshot over and keeps the same history") {
+  HistoryStack h;
+  Lines big(3, lineWithX(7));
+  h.push(std::move(big));  // step 0
+  CHECK(big.empty());      // a moved-from vector is empty: the snapshot was not copied
+  h.push(Lines{lineWithX(8)});  // step 1
+  const auto back = h.undo();
+  REQUIRE(back.has_value());
+  CHECK(back->size() == 3);
+  CHECK((*back)[0].points[0].x == doctest::Approx(7.0));
+  CHECK(h.step() == 0);
 }
 
 TEST_CASE("undo returns prior snapshot; redo returns next; canRedo false at top") {

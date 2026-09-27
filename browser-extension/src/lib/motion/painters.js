@@ -1,4 +1,4 @@
-// ── What a mote is painted in (browser js/ui/motion/painters.js twin) ───────
+// ── What a mote is painted in (browser js/ui/motion/surface/painters.js twin) ───────
 import { SURFACE_SPECK_PX } from './surfaceMotion.js';
 import { tileNoise } from './tiles.js';
 

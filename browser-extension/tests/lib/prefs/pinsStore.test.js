@@ -1,4 +1,4 @@
-// The async half of src/lib/pins.js: clearPins and setPinned serialising against each other over
+// The async half of src/lib/prefs/pins.js: clearPins and setPinned serialising against each other over
 // chrome.storage, and the by-site grouping the options page renders from.
 
 import { test } from 'node:test';

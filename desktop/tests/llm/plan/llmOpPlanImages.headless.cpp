@@ -58,7 +58,7 @@ namespace llmopplan {
         "{\"reply\":\"v\",\"variants\":[{\"label\":\"a\",\"actions\":["
         "{\"op\":\"image\",\"index\":1}]}]}");
     check(v1.ok && v1.plan.variants.isEmpty() && v1.plan.warnings.size() == 1 &&
-              v1.plan.warnings[0].contains("Dropped variant \"a\"") &&
+              v1.plan.warnings[0].contains("Dropped variant 1 (\"a\")") &&
               v1.plan.warnings[0].contains("top-level") &&
               v1.plan.warnings[0].contains("2.1"),
           "image inside a variant drops the variant");
@@ -126,10 +126,10 @@ namespace llmopplan {
     check(r.plan.variants.size() == 1 && r.plan.variants[0].label == "sepia",
           "the well-formed variant survives");
     check(r.plan.warnings.size() == 1 &&
-              r.plan.warnings[0].contains("Dropped variant \"wiped\"") &&
-              r.plan.warnings[0].contains("\"clear\" is an editor-settings op") &&
-              r.plan.warnings[0].contains("top-level actions"),
-          "the warning names the dropped variant, the op, and where it belongs");
+              r.plan.warnings[0].contains("Dropped variant 1 (\"wiped\")") &&
+              r.plan.warnings[0].contains("editor-settings op \"clear\" is not allowed inside variants") &&
+              r.plan.warnings[0].contains("the rest of the plan ran"),
+          "the warning names the dropped variant, the op, and that the rest ran");
   }
   {
     // A plan made ONLY of such a variant: reply + warning, nothing to execute.
@@ -142,14 +142,14 @@ namespace llmopplan {
           "nothing executes, one warning explains why");
   }
   {
-    // A dropped variant takes its OWN warnings with it — a render that never
-    // happens has nothing to report.
+    // Core's walk (the browser reference) notes an unknown op as it passes it, so the note stays
+    // even when its variant is dropped later.
     const auto r = parseOpPlan(
         "{\"reply\":\"v\",\"variants\":[{\"label\":\"v\",\"actions\":["
         "{\"op\":\"wobble\"},{\"op\":\"save\"}]}]}");
-    check(r.ok && r.plan.warnings.size() == 1 &&
-              r.plan.warnings[0].contains("Dropped variant"),
-          "the dropped variant's unknown-op warning goes with it");
+    check(r.ok && r.plan.warnings.size() == 2 && r.plan.warnings[0] == "Skipped unknown operation \"wobble\"" &&
+              r.plan.warnings[1].contains("Dropped variant"),
+          "the dropped variant's unknown-op note comes before its drop");
   }
   check(sanitizeLabel("  Sepia / warm! <v1>  ") == "Sepia warm v1", "labels sanitized");
   check(sanitizeLabel("###") .isEmpty(), "all-symbol label sanitizes to empty");

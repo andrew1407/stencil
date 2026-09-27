@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     static const QRegularExpression token(QStringLiteral("%[A-Z0-9_]+%"));
     for (const bool dark : {false, true}) {
       const QString overlay = webcoreOverlay(dark);
-      check(overlay.size() > 5000 && !token.match(overlay).hasMatch(), "every %WC_*% in webcore.qss is one the skin fills");
+      check(overlay.size() > 5000 && !token.match(overlay).hasMatch(), "every %WC_*% in the webcore sheet is one the skin fills");
       if (token.match(overlay).hasMatch()) std::printf("       unfilled: %s\n", qPrintable(token.match(overlay).captured(0)));
       const QString base = stencil::gui::buildStylesheet(dark, "violet");
       check(buildWebcoreStylesheet(dark, "violet").startsWith(base) && buildWebcoreStylesheet(dark, "violet") != base,

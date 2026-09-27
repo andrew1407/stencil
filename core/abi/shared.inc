@@ -66,3 +66,33 @@ int STENCIL_ABI(parseDuration, parseDuration)(const char* spec, long long* outMs
   if (outMs) *outMs = ms;
   return 1;
 }
+
+// A crop window committed to integer pixels inside imageW x imageH: out[0..3] = x, y, w, h.
+void STENCIL_ABI(snapCropRect, snapCropRect)(double x, double y, double w, double h,
+                                             double imageW, double imageH, double* out) {
+  const CropRect r = snapCropRect(CropRect{x, y, w, h}, imageW, imageH);
+  if (out) { out[0] = r.x; out[1] = r.y; out[2] = r.width; out[3] = r.height; }
+}
+
+// What moving a crop window from old to new does to its lines: out[0] = orientationChanged
+// (0/1, the lines clear), out[1] = the width ratio they scale by (1 on a flip).
+void STENCIL_ABI(cropChange, cropChange)(double oldX, double oldY, double oldW, double oldH,
+                                         double newX, double newY, double newW, double newH,
+                                         double* out) {
+  const CropChange c =
+      cropChange(CropRect{oldX, oldY, oldW, oldH}, CropRect{newX, newY, newW, newH});
+  if (out) { out[0] = c.orientationChanged ? 1.0 : 0.0; out[1] = c.scale; }
+}
+
+// One quarter-turn of an edit's window over the unturned original: out[0..3] = the snapped
+// rect in the turned space, out[4] = the wrapped count. The lines turn host-side.
+void STENCIL_ABI(rotateEditQuarter, rotateEditQuarter)(double x, double y, double w, double h,
+                                                       int quarters, double originalW,
+                                                       double originalH, int clockwise,
+                                                       double* out) {
+  const EditTurn t =
+      rotateEditQuarter(CropRect{x, y, w, h}, quarters, originalW, originalH, clockwise != 0);
+  if (!out) return;
+  out[0] = t.crop.x; out[1] = t.crop.y; out[2] = t.crop.width; out[3] = t.crop.height;
+  out[4] = t.quarters;
+}

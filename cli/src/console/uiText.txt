@@ -75,7 +75,7 @@ Commands  (a leading '/' is optional)
 
 §Assistant
 /prompt <text>	ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)
-/llm [key <value>]	show or set the LLM provider config (provider | url | model | key | server; env STENCIL_LLM_*)
+/llm [key]	show or set the LLM provider config (provider | url | model | key [forget] | server; env STENCIL_LLM_*)
 /chat [on|off|clear]	opt-in: save the /prompt conversation with the project + replay it (bare /chat shows; default off)
 
 §System

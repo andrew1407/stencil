@@ -1,0 +1,124 @@
+/* The options page's own sheet: the cards and form rows, the pin and connection rows, their
+   action buttons and the themed Yes/No confirmation. */
+body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui,sans-serif; margin:0; padding:32px; }
+/* Half the inset at the top and on the left (user decision), so the logo and the
+   section captions sit closer to the card's corner. */
+.card { max-width:560px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 24px 24px 12px; }
+h1 { font-size:18px; margin:0; }
+p.sub { color:var(--muted); margin:0 0 20px; }
+/* Brand header: logo + title. The logo's panel outline is stroke="currentColor",
+   so `color` drives it → the outline tracks the chosen main theme accent. */
+.brand { display:flex; align-items:center; gap:12px; margin:0 0 4px; }
+.brand .logo { width:34px; height:34px; flex:0 0 auto; color:var(--accent); }
+/* transition + hover pulse/rays come from lib/animations/logoHover.css (.logo-wrap). */
+label.f { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; }
+/* Checkbox option groups share one row while they fit, wrapping (each option
+   as a unit) only when the card is too narrow. */
+.chk-row { display:flex; flex-wrap:wrap; gap:8px 24px; }
+.chk-row label { display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; cursor:pointer; }
+input, select { width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:7px; padding:9px 10px; font-size:14px; }
+.row { display:flex; gap:12px; align-items:center; margin-top:24px; }
+button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:10px 18px; font-size:14px; cursor:pointer; }
+.saved { color:#4ade80; font-size:13px; }
+.help { color:var(--muted); font-size:12px; margin-top:6px; }
+code { background:var(--panel-2); padding:1px 5px; border-radius:4px; }
+/* The custom main-theme dropdown (options.js) wears the SHARED rules — lib/theme/select.css
+   .accent-dd-*, the browser's components/accentPicker.css twins; a local copy would out-specify them. */
+/* Pinned-images viewer */
+.card + .card { margin-top:20px; }
+.pin-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.pin-head h1 { flex:1 1 auto; }
+.pin-filters { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pin-filters .chk { display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; }
+/* One height for every control in the row (search / selects / pill / Clear all), and
+   each sizes to the label it shows — the site/storage lists carry hostnames of every
+   length, so a fixed px floor was only ever dead space around the short ones. The
+   search-mode list is the exception: its three labels are fixed and swapping them
+   must not shove the row, so options.js pins it to its own widest label. */
+.pin-filters select { width:auto; padding:5px 10px; font-size:12px; }
+/* The custom list that replaces those selects (lib/control/customSelect.js) keeps their compact size. */
+.pin-filters .accent-dd { width:auto; }
+.pin-filters .accent-dd-trigger { padding:5px 10px; font-size:12px; }
+.pin-filters select:empty, .pin-filters select[hidden] { display:none; }
+/* width:auto beats the form-field `input { width:100% }` above — as a full-width field
+   the search box claimed a whole row to itself and pushed the rest of the filters onto
+   two more. It sizes to the typing room below instead. */
+.pin-filters input[type="search"] { width:auto; padding:5px 10px; font-size:12px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:180px; }
+/* Keyword chips + inline editor on a pin row. */
+.pin-keywords { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; align-items:center; }
+.pin-kw { font-size:11px; color:var(--muted); background:var(--panel-2,var(--panel)); border:1px solid var(--line); border-radius:10px; padding:1px 7px; }
+.pin-kw-edit { font-size:11px; color:var(--accent); background:none; border:none; cursor:pointer; padding:1px 4px; }
+.pin-kw-input { font-size:11px; padding:2px 6px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--text); min-width:160px; }
+.pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+/* opacity is in the transition for the materialize veil: motion.js drops
+   .materialize-veil in one tick, so the row CROSSFADES up under the landed dust
+   instead of cutting in (see .materialize-veil in lib/animations/reveal.css). */
+.pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; transition:border-color .12s ease, opacity .22s ease; }
+.pin-row:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
+.pin-info { flex:1 1 auto; min-width:0; }
+.pin-name { font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* A connection row carries no 48px thumb, so it sets its own vertical padding to
+   sit as a proper sibling of the image-pin rows above. */
+.pin-row.conn-row { padding:11px 10px; gap:10px; }
+/* The connection row lines up a status dot, an icon and the host label; flex
+   centres all three instead of leaving them on three different baselines. */
+.conn-name { display:flex; align-items:center; gap:6px; }
+.conn-name .ic { flex:none; }
+.conn-label { overflow:hidden; text-overflow:ellipsis; }
+.conn-status { flex:none; width:9px; height:9px; border-radius:50%; background:var(--muted); }
+.conn-status-connected { background:#28a745; }
+.conn-status-connecting { background:#e0a800; animation:statusPulse 1s ease-in-out infinite; }
+.conn-status-error { background:#dc3545; }
+@keyframes statusPulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+/* Golden cue for a connection held open by an ADMIN credential — the same gold a
+   server-backed pin wears below. */
+.pin-row.conn-admin { outline:2px solid #f5c518; outline-offset:-2px; }
+.pin-row.conn-admin .conn-name .ic { color:#f5c518; }
+/* The badge is a ROW child, not part of the name: it sits against the action buttons
+   at the right, so a long host ellipsises inside .conn-label without ever pushing
+   the badge around. flex:none keeps it off the shrink budget. */
+.conn-badge-admin { flex:none; font-size:11px; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+/* Kind filter: the shared .chk accent pills (radio-backed, one choice), sitting at
+   the right of the connect row rather than on a row of their own. Sized like the
+   popup's format pills so they read as a compact filter next to the buttons; the
+   row wraps as a unit (.conn-bar) so they never squeeze them at narrow widths. */
+.row.conn-bar { flex-wrap:wrap; row-gap:10px; }
+.conn-filters { display:flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
+.conn-filters[hidden] { display:none; }
+.conn-filters .chk { font-size:11px; padding:2px 7px; letter-spacing:.2px; }
+.conn-filters .chk > input[type="radio"] { position:absolute; opacity:0; width:0; height:0; margin:0; }
+/* Golden cue for a pin that is also stored on a connected server. */
+.pin-row.shared { outline:2px solid #f5c518; outline-offset:-2px; }
+.pin-row.shared .pin-thumb { border-color:#f5c518; }
+.pin-badge-server { display:inline-flex; align-items:center; gap:4px; color:#f5c518; font-weight:600; }
+.pin-badge-server .ic { vertical-align:-0.16em; }
+.pin-sub { display:flex; align-items:center; gap:8px; margin-top:3px; font-size:11px; color:var(--muted); }
+.pin-sub .site { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pin-kind { text-transform:uppercase; letter-spacing:.03em; border:1px solid var(--line); border-radius:4px; padding:0 5px; }
+.pin-actions { display:flex; gap:6px; flex:0 0 auto; }
+/* Row action buttons must read as ENABLED at rest: a tinted face + a tinted border,
+   with the accent fill kept as the hover step. The ink swaps to --accent-2 in dark,
+   where the deep accent went muddy on the panel — the same swap .chk makes. */
+:root { --btn-ink:var(--accent); --btn-danger:#ef4444; }
+:root[data-theme="dark"] { --btn-ink:var(--accent-2); --btn-danger:#f87171; }
+.pin-btn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--btn-ink) 12%, var(--panel)); color:var(--btn-ink); border:1px solid color-mix(in srgb, var(--btn-ink) 45%, var(--line)); border-radius:7px; cursor:pointer; transition:background .12s ease, color .12s ease, border-color .12s ease; }
+.pin-btn:hover:not(:disabled) { color:var(--on-accent); background:var(--accent); border-color:var(--accent); }
+.pin-btn.danger { color:var(--btn-danger); background:color-mix(in srgb, var(--btn-danger) 12%, var(--panel)); border-color:color-mix(in srgb, var(--btn-danger) 45%, var(--line)); }
+.pin-btn.danger:hover:not(:disabled) { color:#fff; background:#dc2626; border-color:#dc2626; }
+/* Only a genuinely disabled button still looks disabled. */
+.pin-btn:disabled { opacity:.45; cursor:default; color:var(--muted); background:var(--panel); border-color:var(--line); }
+.pin-clear { padding:5px 12px; font-size:12px; color:#ef4444; background:var(--panel); border:1px solid var(--line); border-radius:7px; cursor:pointer; white-space:nowrap; }
+.pin-clear:hover { color:#fff; background:#dc2626; border-color:#dc2626; }
+.pin-clear:disabled { opacity:.45; cursor:default; color:var(--muted); background:var(--panel); border-color:var(--line); }
+/* Themed Yes/No confirmation (the options page has no native modal of its own). */
+.confirm-overlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; background:#0009; }
+.confirm-overlay[hidden] { display:none; }
+.confirm-box { width:calc(100% - 40px); max-width:380px; padding:20px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 14px 44px #0007; }
+.confirm-msg { color:var(--text); font-size:14px; line-height:1.5; }
+.confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+.confirm-btn { padding:7px 16px; font-size:13px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2); color:var(--text); cursor:pointer; }
+.confirm-btn:hover { border-color:var(--accent); }
+.confirm-btn.danger { color:#fff; background:#dc2626; border-color:#dc2626; }
+.confirm-btn.danger:hover { background:#b91c1c; border-color:#b91c1c; }
+.pin-empty { color:var(--muted); font-size:13px; margin-top:14px; }

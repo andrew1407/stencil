@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-"""Decoder coverage for every PNG color type x row filter combination.
+"""Decoder coverage for every PNG color type x row filter combination, run once through
+``codecs.decode_png`` (stb when the native library has it) and once through the pure-Python
+fallback, whose vectorized Sub/Up and channel expansions this matrix was written for.
 
 ``test_codecs.py`` round-trips what our own encoder writes (color type 6, filter 0).
-Foreign PNGs use the other four filters and the narrower sample models, and the decoder
-takes a vectorized path for Sub/Up and the channel expansions — so this suite builds
+Foreign PNGs use the other four filters and the narrower sample models, so this suite builds
 PNGs itself, one per (color type, filter) pair, and checks the decoded RGBA against a
 straightforward per-pixel expectation.
 """
@@ -14,6 +15,7 @@ import unittest
 import zlib
 
 from pystencil import codecs
+from pystencil.codecs import pngdecode
 
 CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
 FILTERS = (0, 1, 2, 3, 4)
@@ -102,6 +104,8 @@ def sample_bytes(width, height, color_type, entries=0):
 class TestFilterAndColorTypeMatrix(unittest.TestCase):
   """Every (color type, filter) pair decodes to the same pixels as the naive expansion."""
 
+  decode = staticmethod(codecs.decode_png)
+
   WIDTH, HEIGHT = 9, 5
   PALETTE = bytes(((i * 17) & 0xFF) for i in range(6 * 3))
   TRNS = bytes([0, 40, 255])  # shorter than the palette: the rest default to opaque
@@ -119,7 +123,7 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
             self.WIDTH, self.HEIGHT, color_type, samples, ftype,
             self.PALETTE, self.TRNS,
           )
-          w, h, got = codecs.decode_png(png)
+          w, h, got = self.decode(png)
           self.assertEqual((w, h), (self.WIDTH, self.HEIGHT))
           self.assertEqual(bytes(got), want)
 
@@ -144,7 +148,7 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
     png = b"\x89PNG\r\n\x1a\n" + _chunk(
       b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
     ) + _chunk(b"IDAT", zlib.compress(bytes(raw), 6)) + _chunk(b"IEND", b"")
-    w, h, got = codecs.decode_png(png)
+    w, h, got = self.decode(png)
     self.assertEqual((w, h), (width, height))
     self.assertEqual(bytes(got), bytes(samples))
 
@@ -154,7 +158,7 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
       for ftype in FILTERS:
         with self.subTest(color_type=color_type, filter=ftype):
           png = build_png(1, 1, color_type, samples, ftype, self.PALETTE, self.TRNS)
-          _, _, got = codecs.decode_png(png)
+          _, _, got = self.decode(png)
           self.assertEqual(
             bytes(got),
             expected_rgba(1, 1, color_type, samples, self.PALETTE, self.TRNS),
@@ -170,17 +174,16 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
     rebuilt = _chunk(b"IDAT", zlib.compress(bytes(raw), 6))
     png = png[:idat - 8] + bytearray(rebuilt) + png[idat + length + 4:]
     with self.assertRaises(codecs.CodecError):
-      codecs.decode_png(bytes(png))
+      self.decode(bytes(png))
 
-  def test_palette_index_out_of_range_raises(self):
-    png = build_png(2, 1, 3, bytes([0, 5]), 0, palette=bytes(3 * 2))
-    with self.assertRaises(codecs.CodecError):
-      codecs.decode_png(png)
+  def test_a_palette_index_past_plte_is_opaque_black(self):
+    png = build_png(2, 1, 3, bytes([0, 5]), 0, palette=bytes([9, 8, 7, 6, 5, 4]))
+    self.assertEqual(bytes(self.decode(png)[2]), bytes([9, 8, 7, 255, 0, 0, 0, 255]))
 
   def test_palette_without_plte_raises(self):
     png = build_png(2, 1, 3, bytes([0, 0]), 0, palette=b"")
     with self.assertRaises(codecs.CodecError):
-      codecs.decode_png(png)
+      self.decode(png)
 
   def test_a_truncated_scanline_raises_instead_of_decoding_short(self):
     # A short inflate used to unfilter what was there and return a buffer smaller
@@ -195,7 +198,7 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
           + _chunk(b"IEND", b"")
         )
         with self.assertRaises(codecs.CodecError):
-          codecs.decode_png(png)
+          self.decode(png)
 
   def test_a_missing_scanline_raises(self):
     png = bytearray(build_png(4, 3, 6, sample_bytes(4, 3, 6), 0))
@@ -205,7 +208,13 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
     rebuilt = _chunk(b"IDAT", zlib.compress(bytes(raw[: len(raw) - 17]), 6))
     png = png[:idat - 8] + bytearray(rebuilt) + png[idat + length + 4:]
     with self.assertRaises(codecs.CodecError):
-      codecs.decode_png(bytes(png))
+      self.decode(bytes(png))
+
+
+class TestFallbackFilterAndColorTypeMatrix(TestFilterAndColorTypeMatrix):
+  """The same matrix through the decoder a build without stb falls back to."""
+
+  decode = staticmethod(pngdecode.decode_png)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@
 const std = @import("std");
 const image = @import("../media/image.zig");
 const layout_mod = @import("../media/layout.zig");
-const confine = @import("../safety/confine.zig");
 const net = @import("../net.zig");
 const server = @import("../server/client.zig");
 const args = @import("../args.zig");
@@ -12,12 +11,11 @@ const report = @import("../app/report.zig");
 const page_mod = @import("../media/page.zig");
 const sources = @import("sources.zig");
 const steps_mod = @import("steps.zig");
+const thumbnail = @import("../media/thumbnail.zig");
 
 const acquireInput = steps_mod.acquireInput;
 const acquireBlank = sources.acquireBlank;
-const applyCropSpec = steps_mod.applyCropSpec;
 const resolveCropSpec = steps_mod.resolveCropSpec;
-const cropToRect = steps_mod.cropToRect;
 const cropInPlace = steps_mod.cropInPlace;
 const applyRotateBy = steps_mod.applyRotateBy;
 const applyFilterMode = steps_mod.applyFilterMode;
@@ -25,7 +23,19 @@ const loadLayoutDoc = steps_mod.loadLayoutDoc;
 const drawLayoutDoc = steps_mod.drawLayoutDoc;
 const writeOutputLabeled = steps_mod.writeOutputLabeled;
 
+/// The credential `url` is dialled with: `--token`, an invite link's own, then the environment's.
+fn tokenFor(opts: args.Options, url: []const u8) ?[]const u8 {
+    return server.tokenFor(opts.token, opts.env_tokens.per_origin, opts.env_tokens.single, url);
+}
+
 pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
+    // The output format falls back to the input's, which its name already says (png otherwise).
+    if (opts.no_clobber and opts.output != null) {
+        const named = if (opts.server == null) opts.input else null;
+        const fmt = (if (named) |i| image.formatOfPath(i) else null) orelse .png;
+        try steps_mod.refuseClobber(gpa, io, opts.output.?, fmt, false);
+    }
+
     // 1) Acquire the source as an owned RGBA8 buffer, and note the format to fall back
     //    to when the output path lacks an extension.
     var img: image.Rgba8 = undefined;
@@ -43,7 +53,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
             report.err("--server needs -i <server project name>\n", .{});
             return error.NoSource;
         };
-        fetch_client = server.connect(gpa, io, url, opts.token) catch |e| {
+        fetch_client = server.connect(gpa, io, url, tokenFor(opts, url)) catch |e| {
             server.printConnectError(url, e);
             return e;
         };
@@ -119,10 +129,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         report.err("no output path given\n", .{});
         return error.NoOutput;
     };
-    if (opts.confine_output and confine.outsideCwd(out)) {
-        report.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
-        return error.UnsafeOutputPath;
-    }
+    if (opts.confine_output) try steps_mod.refuseEscape(gpa, io, out, default_fmt);
     // The page reported in the `wrote` line follows the effective page state: an applied
     // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
     const page_name = page_mod.effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);
@@ -135,6 +142,8 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         img.height,
     );
     defer gpa.free(page_label);
+    // --thumbnail is the last step before encode; the page label keeps the full-size orientation.
+    if (opts.thumbnail) |side| try thumbnail.shrink(gpa, &img, side);
     try writeOutputLabeled(gpa, io, img, out, default_fmt, page_label);
 
     // 7) Server result delivery.
@@ -170,7 +179,7 @@ fn deliverToServer(
 
     // Mode B: create a NEW project on --remote and upload original + result.
     if (opts.remote) |rurl| {
-        var c = server.connect(gpa, io, rurl, opts.token) catch |e| {
+        var c = server.connect(gpa, io, rurl, tokenFor(opts, rurl)) catch |e| {
             server.printConnectError(rurl, e);
             return e;
         };
@@ -193,6 +202,10 @@ fn baseName(path: []const u8) []const u8 {
     const base = if (slash) |s| path[s + 1 ..] else path;
     const dot = std.mem.lastIndexOfScalar(u8, base, '.');
     return if (dot) |d| base[0..d] else base;
+}
+
+test {
+    _ = thumbnail;
 }
 
 // steps (each usable standalone by console.zig)

@@ -18,7 +18,7 @@ const FALLBACK_TEXT = JSON.stringify({
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-api-key, anthropic-version',
+  'Access-Control-Allow-Headers': 'authorization, content-type, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access',
 };
 
 // `host` 0.0.0.0 makes the stub reachable from inside the docker-compose network (the Go
@@ -69,7 +69,7 @@ export async function startLlmStub({ port = 0, host = '127.0.0.1' } = {}) {
       json(200, { choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }] });
     } else if (path.endsWith('/api/chat')) {           // §6.1 ollama native chat
       json(200, { message: { role: 'assistant', content: text }, done: true });
-    } else if (path.endsWith('/v1/messages')) {        // §6.3 upstream Anthropic Messages shape
+    } else if (path.endsWith('/v1/messages')) {        // §6.3 upstream / §6.5 direct Anthropic Messages shape
       json(200, {
         id: 'msg_e2e', type: 'message', role: 'assistant',
         model: (body && body.model) || 'claude-e2e',

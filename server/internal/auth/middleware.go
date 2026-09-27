@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"stencil/server/internal/clock"
 	"stencil/server/internal/protocol"
@@ -14,13 +15,13 @@ type ctxKey int
 
 const sessionKey ctxKey = 0
 
-// Middleware gates a handler behind bearer-token auth: on success the resolved Session is attached to the
-// request context, on failure it writes a 401 JSON error and does not call next.
-func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
+// Middleware gates a handler behind bearer-token auth, attaching the Session or answering 401. Its store
+// lookup runs on every request, so under lookupTimeout (OP_TIMEOUT_SECONDS; 0 = the request's own).
+func Middleware(resolver SessionResolver, lookupTimeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			token := BearerToken(req)
-			sess, err := Verify(req.Context(), resolver, token, clock.NowMs())
+			sess, err := verifyBounded(req.Context(), resolver, token, lookupTimeout)
 			if err != nil {
 				writeUnauthorized(rw)
 				return
@@ -29,6 +30,15 @@ func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
+}
+
+func verifyBounded(ctx context.Context, resolver SessionResolver, token string, timeout time.Duration) (Session, error) {
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	return Verify(ctx, resolver, token, clock.NowMs())
 }
 
 // BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". Only WS upgrades

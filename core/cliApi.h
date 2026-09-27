@@ -20,8 +20,8 @@
  * returned is static storage the caller must not free. Out-pointers may be NULL (the
  * value is simply not written) unless a function says otherwise; on a 0/failure return
  * the out-pointers are left untouched.
- * The one exception is the stencil_cli_script* family: its strings point INTO their script
- * handle and stay valid until scriptDestroy(h) — never free one, never read one after that.
+ * The exceptions are the stencil_cli_script* and stencil_cli_opplan* families: their strings point
+ * INTO their handle and stay valid until it is destroyed — never free one, never read one after.
  * An unknown handle returns NULL / 0 / -1, never a crash. */
 
 #include <stdint.h>
@@ -61,11 +61,34 @@ int stencil_cli_normalizeQuarters(int quarters);
 
 void stencil_cli_rotatedDims(int w, int h, int quarters, int* outW, int* outH);
 
+/* A crop window committed to integer pixels inside imageW x imageH: out[0..3] = x, y, w, h. */
+void stencil_cli_snapCropRect(double x, double y, double w, double h, double imageW,
+                              double imageH, double* out);
+
+/* What moving a crop window from old to new does to its lines: out[0] = orientation changed
+ * (0/1), out[1] = the width ratio they scale by (1 on a flip). */
+void stencil_cli_cropChange(double oldX, double oldY, double oldW, double oldH, double newX,
+                            double newY, double newW, double newH, double* out);
+
+/* One quarter-turn of an edit's window over the unturned original: out[0..3] = the snapped
+ * rect in the turned space, out[4] = the wrapped 0..3 count. */
+void stencil_cli_rotateEditQuarter(double x, double y, double w, double h, int quarters,
+                                   double originalW, double originalH, int clockwise,
+                                   double* out);
+
 /* dst is sized by stencil_cli_rotatedDims: still w*h*4 bytes, dims swapped on odd turns. */
 void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
                                  uint8_t* dst);
 
 void stencil_cli_fillRGBA(uint8_t* dst, int pixelCount, int r, int g, int b, int a);
+
+/* The size whose longer side is at most maxSide, aspect kept; never upscales. */
+void stencil_cli_thumbnailDims(int w, int h, int maxSide, int* outW, int* outH);
+
+/* Area-average downscale, premultiplied; dst is dstW*dstH*4 bytes. 1 on success, 0 (dst
+ * untouched) unless 1 <= dstW <= srcW and 1 <= dstH <= srcH. */
+int stencil_cli_downscaleRGBA(const uint8_t* src, int srcW, int srcH, uint8_t* dst,
+                              int dstW, int dstH);
 
 /* Half-open [y0,y1) row slices of the whole-buffer ops for a caller-owned thread pool; the
  * same bytes as the whole-image call. Ranges clamp, EXCEPT applyFilterRows: it trusts y1. */
@@ -101,6 +124,16 @@ void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                const char* color, double thickness, double pointSize,
                                const char* style, int locked, const char* fillColor,
                                const char* pointColor);
+
+/* The layout caps, LIMITS.layoutLinesMax / layoutLinePointsMax / layoutPointsMax of
+ * browser/js/config/constants.json: lines kept, points per line, points over all lines. */
+void stencil_cli_layoutCaps(int* lines, int* linePoints, int* points);
+
+/* The co-edit merge over two abi/linesCodec.hpp snapshots: keep[i] = 1 when local line i joins
+ * the peer's (core::mergeKeep). Returns the local lines decoded; the first keepCap are written. */
+int stencil_cli_mergeLinesKeep(const double* sNums, int sNumsLen, const uint8_t* sText,
+                               int sTextLen, const double* lNums, int lNumsLen,
+                               const uint8_t* lText, int lTextLen, uint8_t* keep, int keepCap);
 
 /* `var` is the ASCII code of the single variable ('x' or 'y'); an empty `expr` is the
  * identity. applyFormula returns `value` unchanged when allowFormulas==0 or evaluation
@@ -138,6 +171,8 @@ int stencil_cli_scriptErrorCount(int h);
 int stencil_cli_scriptDiagCount(int h);
 const char* stencil_cli_scriptDiagAt(int h, int i, int* sev, int* line, int* col, int* len,
                                      const char** code);
+// The calling `@use stencil` of a template-body diagnostic: 1 written, 0 none, -1 unknown.
+int stencil_cli_scriptDiagRelated(int h, int i, int* line, int* col, int* len);
 
 int stencil_cli_scriptTokenCount(int h);
 int stencil_cli_scriptTokenAt(int h, int i, int* kind, int* line, int* col, int* len);
@@ -160,6 +195,19 @@ int stencil_cli_scriptOpResolve(int h, int i, double imageW, double imageH, doub
                                 double pxPerCmY, double* out, int cap);
 
 const char* stencil_cli_scriptDump(int h);
+
+/* LLM op plans (llm-contract.md §1): opRegistry.json resolved for a surface into a schema handle,
+ * then a model reply walked into one result JSON; abi/opplanShared.inc states each call. The
+ * strings are handle-owned, and both tables are mutex-guarded. */
+int stencil_cli_opplanSchemaCreate(const char* registryJson, int len, const char* surface,
+                                   const char* capabilities);
+const char* stencil_cli_opplanSchemaError(int s);
+const char* stencil_cli_opplanSchemaEntries(int s);
+void stencil_cli_opplanSchemaDestroy(int s);
+int stencil_cli_opplanParse(int s, const char* text, int len);
+int stencil_cli_opplanStatus(int p);
+const char* stencil_cli_opplanJson(int p);
+void stencil_cli_opplanDestroy(int p);
 
 #ifdef __cplusplus
 }  /* extern "C" */

@@ -46,11 +46,7 @@ func TestHelloRequiredFirst(t *testing.T) {
 // TestHelloTimeoutClosesSilentPeer: a connection that never sends its hello frame
 // is closed once helloTimeout elapses, so a peer can't hold a slot open forever.
 func TestHelloTimeoutClosesSilentPeer(t *testing.T) {
-	prev := helloTimeout
-	helloTimeout = 150 * time.Millisecond
-	t.Cleanup(func() { helloTimeout = prev })
-
-	h := newTestHub(t)
+	h := newTestHub(t, WithTuning(Tuning{HelloTimeout: 150 * time.Millisecond}))
 	addr := startTCP(t, h)
 	c, err := testutil.DialTCP(addr)
 	if err != nil {

@@ -15,11 +15,12 @@ export {
   BROWSER_CAPABILITIES, FORBIDDEN_OPS, ForbiddenOpError, assemblePrompts,
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT,
 } from '../promptAssembly.js';
-export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './parser.js';
+export { MisplacedOpError, validateAsk, parseOpPlan } from './browserPlan.js';
+export { askAnswerText } from './parser.js';
 
 // Execute a parsed plan against the frozen window.stencil facade — every op routes through the
 // facade, never new editor logic. savedServers is the ONLY pool `connect` may resolve against.
-export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink } = {}) => {
+export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink, editorHistory } = {}) => {
   const warnings = (plan.warnings || []).slice();
   const results = [];
 
@@ -50,7 +51,7 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
     if (!stencil.imageSize) {
       warnings.push(`Skipped ${plan.variants.length} variant${plan.variants.length === 1 ? '' : 's'} — variants render images and no image is loaded yet`);
     } else {
-      const state = captureEditorState(stencil);
+      const state = captureEditorState(stencil, editorHistory);
       const postActionsFrame = { ...ctx.frame };
       let base = null;
       for (const v of plan.variants) {
@@ -61,7 +62,7 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
           for (const a of v.actions) { await run(a); ran.push(a); }
           results.push({ label: sanitizeLabel(v.label), dataUrl: await exportImage() });
         } finally {
-          await restoreWorkingImage(stencil, base, state, ran);
+          await restoreWorkingImage(stencil, base, state, ran, editorHistory);
         }
       }
     }
@@ -74,7 +75,7 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
 
 // §11 preview rendering: the same save/restore dance as variants, so a preview SUGGESTS an
 // edit and never performs one. One option's render failing costs that option its picture.
-export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame } = {}) => {
+export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame, editorHistory } = {}) => {
   const previews = [];
   const warnings = [];
   const renderable = (ask?.options || []).map((o, i) => [o, i]).filter(([o]) => o.actions?.length);
@@ -85,7 +86,7 @@ export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame }
     warnings.push('Option previews need a working image — the choices are shown without pictures');
     return { previews, warnings };
   }
-  const state = captureEditorState(stencil);
+  const state = captureEditorState(stencil, editorHistory);
   let base = null;
   for (const [opt, index] of renderable) {
     const ran = [];   // whatever happened, the working image AND the editor state go back
@@ -96,7 +97,7 @@ export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame }
     } catch (err) {
       warnings.push(`Could not preview "${opt.label}" — ${err?.message || err}`);
     } finally {
-      await restoreWorkingImage(stencil, base, state, ran);
+      await restoreWorkingImage(stencil, base, state, ran, editorHistory);
     }
   }
   return { previews, warnings };

@@ -8,6 +8,7 @@
 #include "theme.hpp"
 #include "../../../src/support/tip/SnappyTooltipStyle.hpp"
 #include "../../../src/support/webcore/look.hpp"
+#include "../../../src/support/webcore/rules.hpp"
 #include "../../../src/support/webcore/stylesheet.hpp"
 
 #include <QComboBox>
@@ -29,10 +30,10 @@ class MainWindowGuiTest : public QObject {
   // The hold is seconds long in the table; a test shrinks its timer the way the logo suite does.
   static void holdLogo(MainWindow& win) {
     auto* hold = stageOf(win)->findChild<QTimer*>("logoHold");
-    const QPoint c = win.logoBtn->rect().center();
-    QMouseEvent press(QEvent::MouseButtonPress, QPointF(c), win.logoBtn->mapToGlobal(c),
+    const QPoint c = win.tools.logoBtn->rect().center();
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(c), win.tools.logoBtn->mapToGlobal(c),
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(win.logoBtn, &press);
+    QApplication::sendEvent(win.tools.logoBtn, &press);
     QVERIFY(hold->isActive());
     hold->setInterval(1);
     QTest::qWait(60);
@@ -52,9 +53,20 @@ class MainWindowGuiTest : public QObject {
     win.settings.accentColor = QStringLiteral("violet");
     win.applySettings(win.settings, /*persist=*/true);
   }
+  // The first case mints the skin's project, so a run starts without the one an earlier run saved:
+  // that one would reopen off-thread where the case expects the painted scene.
+  static void forgetWebcoreProjects() {
+    const QString name = support::webcoreConfig().projectName.trimmed().toLower();
+    std::vector<stencil::gui::Project> kept;
+    for (const stencil::gui::Project& p : stencil::gui::fileStore::loadProjects()) {
+      if (QString::fromStdString(p.meta.name).trimmed().toLower() != name) kept.push_back(p);
+      else QFile::remove(p.imagePath);
+    }
+    stencil::gui::fileStore::saveProjects(kept);
+  }
 
  private slots:
-  void initTestCase() { prepareGuiTestCase(); }
+  void initTestCase() { prepareGuiTestCase(); forgetWebcoreProjects(); }
   void cleanup() {
     if (support::isWebcore()) {
       support::setSkin(support::Skin::DEFAULT);
@@ -76,7 +88,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(true, QStringLiteral("violet")));
     QCOMPARE(support::motionMode(), support::MotionMode::NONE);   // a still interface…
     QVERIFY(!support::drawingAnimations());                         // …and still lines
-    QVERIFY2(win.paintedDark, "the theme already chosen stands");
+    QVERIFY2(win.painted.dark, "the theme already chosen stands");
     QCOMPARE(win.settings.themeMode, QString("dark"));
     QCOMPARE(support::installedStyleKey(), QString("Windows"));
     QCOMPARE(settingsBytes(), stored);
@@ -96,7 +108,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!support::isWebcore());
     QCOMPARE(qApp->styleSheet(), stencil::gui::buildStylesheet(true, QStringLiteral("violet")));
     QCOMPARE(support::motionMode(), support::MotionMode::WATER);
-    QVERIFY(win.paintedDark);
+    QVERIFY(win.painted.dark);
     QCOMPARE(support::installedStyleKey(), QString("Fusion"));
     QCOMPARE(settingsBytes(), stored);
     QCOMPARE(int(win.canvas->getLines().size()), 7);
@@ -105,15 +117,16 @@ class MainWindowGuiTest : public QObject {
   void anEmptyEditorReopensTheLocalWebcoreProjectInsteadOfMintingAnother() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(win));
-    win.toggleWebcore();
+    win.parts.theme.toggleWebcore();
+    // A webcore project an earlier case left behind is reopened, and its picture decodes off-thread.
+    QTRY_VERIFY_WITH_TIMEOUT(!win.activeProjectId.isEmpty(), 5000);
     const QString first = win.activeProjectId;
-    QVERIFY(!first.isEmpty());
-    win.toggleWebcore();
-    win.resetToBlankEditor();
+    win.parts.theme.toggleWebcore();
+    win.parts.projects.resetToBlankEditor();
     QVERIFY(!win.canvas->hasImage());
     const size_t count = win.projectList.size();
-    win.toggleWebcore();
-    QCOMPARE(win.activeProjectId, first);
+    win.parts.theme.toggleWebcore();
+    QTRY_COMPARE_WITH_TIMEOUT(win.activeProjectId, first, 5000);
     QCOMPARE(win.projectList.size(), count);
     QCOMPARE(int(win.canvas->getLines().size()), 7);
   }
@@ -124,9 +137,9 @@ class MainWindowGuiTest : public QObject {
     seed(win);
     const int lines = int(canvas->getLines().size());
     type(win, QStringLiteral("webcore"));
-    QVERIFY2(win.paintedDark, "the skin keeps the theme it was handed");
-    win.toggleTheme();
-    QVERIFY2(!win.paintedDark, "the toggle flips relative to what is painted");
+    QVERIFY2(win.painted.dark, "the skin keeps the theme it was handed");
+    win.parts.theme.toggleTheme();
+    QVERIFY2(!win.painted.dark, "the toggle flips relative to what is painted");
     QVERIFY(support::isWebcore());
     QCOMPARE(qApp->styleSheet(), support::buildWebcoreStylesheet(false, QStringLiteral("violet")));
     QCOMPARE(stencil::gui::fileStore::loadSettings().themeMode, QString("light"));
@@ -178,7 +191,7 @@ class MainWindowGuiTest : public QObject {
       holdLogo(win);
       QVERIFY2(support::isWebcore(), "interface still: the skin, and never a dead hold");
       QVERIFY(!stageOf(win)->isOpen());
-      win.toggleWebcore();
+      win.parts.theme.toggleWebcore();
       QTest::qWait(60);
     }
   }
@@ -186,11 +199,11 @@ class MainWindowGuiTest : public QObject {
   void fromIncognitoItLeavesIncognitoFirst() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     QVERIFY(shown(win));
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QVERIFY(win.incognito);
     type(win, QStringLiteral("webcore"));
     QVERIFY(!win.incognito);
-    QVERIFY(!win.activeProjectId.isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(!win.activeProjectId.isEmpty(), 5000);   // a reopened project lands later
     type(win, QStringLiteral("webcore"));
   }
 

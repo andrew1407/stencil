@@ -1,9 +1,11 @@
 // ── LLM assistant settings (llm-contract.md §5) ────────────────────────
 // Persisted provider configuration in the contract's shape: { provider, baseUrl, model,
-// apiKey, serverUrl }. Every localStorage access is guarded so the leaf is inert in Node.
+// apiKey, serverUrl }; for anthropic everything but the key, which is a session key
+// (sessionKey.js). Every localStorage access is guarded so the leaf is inert in Node.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
 import { validateHttpUrl } from '../core/parse/validation.js';
+import { sessionKey } from './sessionKey.js';
 
 const LLM_SETTINGS_KEY = 'drawingApp_llmSettings';
 
@@ -18,15 +20,17 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
-// Endpoint keys are http(s) ONLY. The gate itself is core/validation.js, so this module,
+// Endpoint keys are http(s) ONLY. The gate itself is core/parse/validation.js, so this module,
 // the stencil.llm facade and every other caller share one rule.
 export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => validateHttpUrl(v).ok;
 
-// THE provider-switch rule: pre-fill the provider's default base URL unless the user overrode
-// it. The settings modal and the stencil.llm facade both apply this one helper.
+const DEFAULT_BASE_URLS = new Set(Object.values(PROVIDER_BASE_URLS).filter(Boolean));
+
+// THE provider-switch rule: pre-fill the provider's default base URL unless the user typed one —
+// empty or any provider's default was never typed (desktop twin: LlmSettingsForm::syncRows).
 export const withProvider = (settings, provider) => {
-  const wasDefault = !settings.baseUrl || settings.baseUrl === PROVIDER_BASE_URLS[settings.provider];
+  const wasDefault = !settings.baseUrl || DEFAULT_BASE_URLS.has(settings.baseUrl);
   return {
     ...settings,
     provider,
@@ -63,8 +67,14 @@ export const loadLlmSettings = () => {
     /* storage blocked / corrupt — fall back to the defaults */
   }
   if (!PROVIDERS.includes(out.provider)) out.provider = 'none';
+  if (out.provider === 'anthropic') out.apiKey = '';
   return out;
 };
+
+// What a request is built from: for anthropic the stored settings plus this tab's session key,
+// never kept, saved or logged ('' when none is held, so the client sends nothing).
+export const withSessionKey = (settings) =>
+  (settings?.provider === 'anthropic' ? { ...settings, apiKey: sessionKey() } : settings);
 
 // stencil-server auth: the LIVE connection's bearer token, falling back to the saved one so
 // the assistant works before or without an open connection.
@@ -77,7 +87,8 @@ export const saveLlmSettings = (s) => {
       provider: s.provider || 'ollama',
       baseUrl: s.baseUrl || '',
       model: s.model || '',
-      apiKey: s.apiKey || '',
+      // The anthropic key is never stored, nor anything that is this tab's session key.
+      apiKey: s.provider === 'anthropic' || (s.apiKey && s.apiKey === sessionKey()) ? '' : (s.apiKey || ''),
       serverUrl: s.serverUrl || '',
       saveChats: s.saveChats === true,
     };

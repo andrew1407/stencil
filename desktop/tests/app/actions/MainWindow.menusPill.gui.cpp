@@ -16,6 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     // ── assistant ON ──
     win.settings.llmProvider = "ollama";
@@ -31,7 +32,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     bool splitterResized = false;
     QList<int> splitterSizes;
@@ -125,7 +126,7 @@ class MainWindowGuiTest : public QObject {
       }
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
     QVERIFY2(assistantOpened, "the Assistant submenu did not open");
     QVERIFY2(splitterResized, "the menu composer is not resizable");
@@ -152,10 +153,10 @@ class MainWindowGuiTest : public QObject {
 
     // The panel outlives the menu, so the composer size the user dragged to
     // persists for the session.
-    if (auto* sp = win.chatMenuPanel->findChild<QSplitter*>("chatMenuSplitter"))
+    if (auto* sp = win.chatSession->chatMenuPanel->findChild<QSplitter*>("chatMenuSplitter"))
       QCOMPARE(sp->sizes(), splitterSizes);
 
-    win.llmClient.reset();  // drop the mock before it goes out of scope
+    win.parts.chatAppliers.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

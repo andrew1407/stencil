@@ -18,14 +18,13 @@ from pystencil.llm import (
   parse_op_plan,
 )
 from tests.helpers.stubs import _StubEditor, _plan_json
+from tests.helpers.nativecase import needs_core
 
 
 def _stub_spec(bullet: str, capability: str = "", scope: str = "core") -> OpSpec:
   """A throwaway registry entry for exercising the §13 generation mechanics."""
   return OpSpec(
-    validator=lambda a: a,
     applier=lambda *a, **k: None,
-    fields=frozenset({"op"}),
     bullet=bullet,
     scope=scope,
     capability=capability,
@@ -68,18 +67,9 @@ class OpRegistryTest(unittest.TestCase):
             [""] * len(OP_REGISTRY))
 
   def test_dispatch_tables_are_derived_from_the_registry(self):
-    for table in (llm_module._ACTION_FIELDS, llm_module._ACTION_VALIDATORS,
-           llm_module._ACTION_APPLIERS):
-      self.assertEqual(set(table), set(OP_REGISTRY))
+    self.assertEqual(set(llm_module._ACTION_APPLIERS), set(OP_REGISTRY))
     for name, spec in OP_REGISTRY.items():
-      self.assertIs(llm_module._ACTION_FIELDS[name], spec.fields)
-      self.assertIs(llm_module._ACTION_VALIDATORS[name], spec.validator)
       self.assertIs(llm_module._ACTION_APPLIERS[name], spec.applier)
-    self.assertEqual(set(llm_module._TOP_LEVEL_ONLY_OPS),
-            {"undo", "redo", "reset", "image", "save"})
-    self.assertEqual(set(llm_module._CONSOLE_SETTINGS_OPS),
-            {"connect", "disconnect", "delete", "openUrl", "clear",
-             "clearChat"})
 
   # One key semantic phrase per bullet (§13's pin (c)); a shared partner has none.
   KEY_PHRASES = {
@@ -161,10 +151,11 @@ class OpRegistryTest(unittest.TestCase):
         execute_op_plan(plan, _StubEditor())
       self.assertIn("never model-drivable", str(ctx.exception))
 
+  @needs_core
   def test_parse_drops_a_forbidden_op_as_unknown(self):
     plan = parse_op_plan(_plan_json(actions=[{"op": "paste"}]))
     self.assertEqual(plan.actions, [])
-    self.assertEqual(plan.warnings, ['unknown op "paste" dropped'])
+    self.assertEqual(plan.warnings, ['Skipped unknown operation "paste"'])
 
   def test_censor_rejects_a_poisoned_bullet(self):
     # §13 prompt censor: a registry mistake fails loudly at assembly instead

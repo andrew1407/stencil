@@ -3,7 +3,11 @@ import type { ScriptDiagnostic, ScriptToken } from './types.js';
 export interface ArgCursor { args: ScriptToken[]; i: number }
 export const cursorOf: (args: ScriptToken[]) => ArgCursor;
 export const joinWords: (args: ScriptToken[]) => string;
+export const parseIntClamped: (text: string) => number;
 export const isPunct: (t: ScriptToken, text: string) => boolean;
+export const gluedWords: (args: ScriptToken[]) => ScriptToken[];
+export const isMalformedNumber: (t: ScriptToken) => boolean;
+export const malformedNumberMessage: (t: ScriptToken) => string;
 export const skipPunct: (c: ArgCursor, text: string) => void;
 export const isColorToken: (t: ScriptToken) => boolean;
 export const applyUnit: (number: string, unit: string, fallback: string) => string;

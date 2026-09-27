@@ -14,6 +14,8 @@ export interface RemoteProjectRecord {
   color?: string;
   version: number;
   hasImage?: boolean;
+  /** SHA-256 of the stored original, lowercase hex; absent when there is none or it predates the hash. */
+  originalHash?: string;
   expiresAt?: number;
   keywords?: string[];
   description?: string;
@@ -46,6 +48,9 @@ export interface ServerConnectionOptions {
   clientId?: string;
 }
 
+/** Pages a project listing follows before it gives up rather than loop on a server's cursors. */
+export declare const MAX_LIST_PAGES: number;
+
 export declare class ServerConnection {
   constructor(url: string, opts?: ServerConnectionOptions);
   readonly url: string;
@@ -59,13 +64,15 @@ export declare class ServerConnection {
   status: ConnectionStatus;
   /** Acquire/validate a token, then verify access by listing projects. Rejects with `expired` set on a refusal. */
   handshake(): Promise<this>;
+  /** Every project, page by page through `nextCursor`; a repeated cursor throws rather than loop. */
   listProjects(): Promise<TaggedRemoteProject[]>;
   getProject(id: string): Promise<RemoteProjectFull>;
   createProject(body: Partial<RemoteProjectRecord>): Promise<TaggedRemoteProject>;
   updateProject(id: string, body: { name?: string; layout?: ProjectLayout; version?: number } & Record<string, unknown>): Promise<TaggedRemoteProject>;
   deleteProject(id: string): Promise<null>;
-  /** The server is codec-free, so dimensions ride as query params. */
-  putFile(id: string, kind: FileKind, bytes: Uint8Array, opts?: { ext?: string; w?: number; h?: number }): Promise<unknown>;
+  /** The server is codec-free, so dimensions ride as query params. The raw Response's JSON body is
+   *  `{ path, w, h }`, plus an original's `originalHash`. */
+  putFile(id: string, kind: FileKind, bytes: Uint8Array, opts?: { ext?: string; w?: number; h?: number }): Promise<Response>;
   fileUrl(id: string, kind: FileKind): string;
   deleteFile(id: string, kind: FileKind): Promise<null>;
   fetchFile(id: string, kind: FileKind): Promise<Blob>;

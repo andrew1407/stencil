@@ -1,12 +1,13 @@
-// Rich control tooltips: the parse/render contract (js/ui/content.js). The app never authors tooltip
+// Rich control tooltips: the parse/render contract (js/ui/tip/content.js). The app never authors tooltip
 // HTML — it composes ONE `title` string per control (utils.js composeControlTitle) — and these cases pin
 // how that string becomes the desktop app's tooltip shape: heading + keycaps, term/description rows,
 // bullets, hints and the muted disabled-reason note. The extension's port runs the same cases.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../../../js/ui/tip/content.js';
+import { TIP_SHOW_DELAY_MS } from '../../../js/ui/motion.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
+import { installTooltipPage } from '../../helpers/tooltipRig.js';
 
 test('a trailing "(combo)" becomes keycaps, and only when it really is a combo', () => {
   const tip = parseTip('Fit to window (Alt+0)');
@@ -140,10 +141,16 @@ test('empty / whitespace titles render nothing at all', () => {
   for (const v of ['', '   ', '\n\n', null, undefined]) assert.equal(renderTip(v), '');
 });
 
-test('the tooltip controller renders the structure, and the CSS styles every part', () => {
-  const js = readFileSync(new URL('../../../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
-  assert.match(js, /renderTip/, 'the controller goes through the content model');
-  assert.ok(!/\.textContent\s*=\s*txt/.test(js), 'and no longer prints the title flat');
+test('the tooltip controller renders the structure, and the CSS styles every part', async () => {
+  const page = await installTooltipPage();
+  const txt = 'Compare (Alt+O)\nOriginal: the untouched image\n— Load an image to compare';
+  const el = page.control('');
+  el.dataset.tip = txt;
+  el.closest = (sel) => (sel.includes('[data-tip]') ? el : null);
+  page.over(el);
+  page.run(TIP_SHOW_DELAY_MS);
+  assert.equal(page.tip.innerHTML, renderTip(txt), 'the controller goes through the content model');
+  assert.notEqual(page.tip.textContent, txt, 'and never prints the title flat');
   const css = COMPONENTS_CSS;
   for (const cls of ['.tip-head', '.tip-title', '.tip-keys', '.tip-key', '.tip-plus',
     '.tip-rows', '.tip-term', '.tip-desc', '.tip-bullets', '.tip-hint', '.tip-note']) {

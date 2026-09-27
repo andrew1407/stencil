@@ -106,7 +106,6 @@ public sealed class MockStencilServerClient : IStencilServerClient
         {
             Project = record,
             Layout = layout,
-            OriginalContent = null,
         };
         return Task.FromResult(full);
     }

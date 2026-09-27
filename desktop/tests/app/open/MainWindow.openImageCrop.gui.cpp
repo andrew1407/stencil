@@ -52,7 +52,7 @@ class MainWindowGuiTest : public QObject {
       unveiled = stage && !stage->graphicsEffect();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(!veiledAtBirth, "a still's crop must not veil the picture it already shows");
     QVERIFY2(unveiled, "and must never be left with an effect on it");
   }
@@ -91,7 +91,7 @@ class MainWindowGuiTest : public QObject {
       pagePicker = combo && combo->isVisible();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(stageUp, "cropping must put a draggable stage over the picture");
     QVERIFY2(dimsUnderStage, "its size belongs UNDER the stage, not beside the checkbox");
     QVERIFY2(dimsText.contains(QLatin1String("px")) && dimsText.contains(QLatin1String("Album")),
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
       if (QScreen* s = dlg->screen()) screenCap = int(s->availableGeometry().height() * 0.92);
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(wantedAfter > 0, "the dialog must have a scrolling body to measure");
     QVERIFY2(heightAfter >= qMin(wantedAfter, screenCap),
              "the window must take the room the crop stage asks for");
@@ -186,7 +186,7 @@ class MainWindowGuiTest : public QObject {
       }
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(stageUp, "a video's crop must put the same draggable stage up");
     QVERIFY2(labelHidden, "…in the picture's PLACE — showing both would show the frame twice");
     QVERIFY2(dimsUp, "and the size read-out comes with it");

@@ -3,6 +3,8 @@
 #include "../../MainWindow.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
+#include <QThreadPool>
+
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
@@ -23,7 +25,7 @@ class MainWindowGuiTest : public QObject {
     // A project to click on.
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::magenta);
-    const QString id = win.addImageProjectEntry(img, "gesture-target");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "gesture-target");
     QVERIFY(!id.isEmpty());
 
     auto mainWindowCount = [] {
@@ -104,7 +106,7 @@ class MainWindowGuiTest : public QObject {
                QApplication::doubleClickInterval() + 250);
         bailOut();  // gesture did not open anything → don't hang the test
       });
-      win.openProjects();
+      win.parts.projects.openProjects();
     };
 
     const int baseWindows = mainWindowCount();
@@ -118,7 +120,7 @@ class MainWindowGuiTest : public QObject {
       delete t;
       QVERIFY2(w.seen, "single click did not ask for confirmation");
       QTRY_COMPARE(mainWindowCount(), baseWindows);  // same window
-      QVERIFY(win.canvas->hasImage());
+      QTRY_VERIFY(win.canvas->hasImage());   // the picture decodes off the GUI thread
     }
 
     // ── 2. single click, confirmation DECLINED → nothing opens ──
@@ -131,6 +133,8 @@ class MainWindowGuiTest : public QObject {
       t->stop();
       delete t;
       QVERIFY(w.seen);
+      QThreadPool::globalInstance()->waitForDone();   // any decode it started has had its turn
+      QCoreApplication::processEvents();
       QVERIFY2(!win.canvas->hasImage(), "declining the confirmation still opened it");
       QCOMPARE(mainWindowCount(), baseWindows);
     }

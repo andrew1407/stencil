@@ -1,4 +1,4 @@
-// The extension bridge's refusals and message hygiene (js/core/extensionBridge.js): an unknown
+// The extension bridge's refusals and message hygiene (js/core/launch/extensionBridge.js): an unknown
 // request type, foreign frames, id correlation, no window at all, and crop.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -10,9 +10,7 @@ const eggArt = @import("eggArt.zig");
 const Ansi = palette.Ansi;
 const print = logo.print;
 const c = logo.colorSeq;
-const accentSeq = logo.accentSeq;
 const accentReal = logo.accentReal;
-const resetSeq = logo.resetSeq;
 
 // A larger text rendering of browser/favicon.svg, laid out to read square in a terminal (cells are
 // ~2:1 tall). FRAME_W/H is the lighter inner frame; Mh/Mv the dark app-panel margin around it.
@@ -20,8 +18,6 @@ const FRAME_W = 14; // lighter inner frame width, in cells
 const FRAME_H = 6; // lighter inner frame height, in rows
 const Mh = 1; // horizontal dark app-panel margin (cells)
 const Mv = 0; // vertical dark app-panel margin (rows); curve rows supply the dark cap
-const PANEL_W = FRAME_W + Mh * 2; // inner width between the side borders
-const BODY_H = FRAME_H + Mv * 2; // inner height between the top/bottom borders
 
 pub const Pt = struct { col: usize, row: usize };
 // Favicon vertices mapped into the FRAME_W×FRAME_H cell grid. Cells are ~2:1 tall, so the S is

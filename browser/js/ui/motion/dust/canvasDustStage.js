@@ -12,8 +12,9 @@ export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
 };
 
 // `size` overrides the snapshot's pixel dimensions for a source whose .width/.height aren't
-// its pixel buffer (an <img>/<video>); omitted, it reads canvas.width/height.
-export const makeDustStage = (canvas, size = null) => {
+// its pixel buffer (an <img>/<video>); omitted, it reads canvas.width/height. `layers` are the
+// canvases stacked over that box, bottom first: the snapshot is what they show together.
+export const makeDustStage = (canvas, size = null, layers = [canvas]) => {
   const field = dustField(canvas);
   if (!field) return null;
   const { r, vis } = field;
@@ -23,7 +24,7 @@ export const makeDustStage = (canvas, size = null) => {
   snap.width = size?.width ?? canvas.width;
   snap.height = size?.height ?? canvas.height;
   const snapCtx = snap.getContext('2d');
-  snapCtx.drawImage(canvas, 0, 0, snap.width, snap.height);
+  for (const layer of layers) snapCtx.drawImage(layer, 0, 0, snap.width, snap.height);
   const dpr = window.devicePixelRatio || 1;
   const stage = document.createElement('canvas');
   stage.className = 'canvas-dust';

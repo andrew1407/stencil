@@ -1,4 +1,4 @@
-// The typed trigger (js/ui/bindings/typedWords.js): a show's own name, typed into the bare
+// The typed trigger (js/ui/bindings/keys/typedWords.js): a show's own name, typed into the bare
 // window, opens it — and a field with the caret in it keeps every key it is given.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

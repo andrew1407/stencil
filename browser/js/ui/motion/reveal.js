@@ -7,7 +7,7 @@ export const REVEAL_MASKED_CLASS = 'reveal-masked';
 export const REVEAL_SMOOTH_CLASS = 'reveal-smooth';
 export const REVEAL_NO_TRIGGER_CLASS = 'reveal-no-trigger';
 export const REVEAL_ENTER_MS = TUNE.REVEAL_ENTER_MS;
-// A share of the ROW, matching animations/reveal.css.
+// A share of the ROW, matching animations/reveal/reveal.css.
 export const REVEAL_FEATHER = TUNE.REVEAL_FEATHER;
 
 export const revealDissolve = (top, bottom, viewH) => {

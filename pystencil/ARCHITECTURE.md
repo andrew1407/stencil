@@ -5,6 +5,7 @@ The system-wide design — the parity contract, canonical data, the layer model,
 ```mermaid
 graph TD
     CORE["core/"]
+    STB["cli/src/media/stb_*_impl.c"]
     subgraph PY["pystencil/ (stdlib only)"]
       NATIVE["_native.py · core.py"]
       CODECS["codecs/"]
@@ -16,43 +17,43 @@ graph TD
     SRV["server/ (Go)"]
 
     CORE -->|"cliApi.h + ctypes"| NATIVE
-    ED --> NATIVE
-    ED --> IMG
-    ED --> CODECS
-    CLIM --> ED
-    CLIM --> SRVC
+    STB -->|"stb/shim.c + ctypes"| NATIVE
+    CODECS --> NATIVE
+    ED --> NATIVE & IMG & CODECS
+    CLIM --> ED & SRVC
     SRVC -.->|"REST"| SRV
 ```
 
 A real core consumer, not a thin adapter: every crop, rotate, fill, rasterise, colour parse,
-page metric and filter goes through the C++ core over `core/cliApi.h`. Python owns only what
-the core leaves out — codecs, HTTP, JSON, the edit/history model, the server protocol.
+page metric, filter and op-plan validation goes through the C++ core over `core/cliApi.h`.
+Python owns only what the core leaves out — codecs, HTTP, JSON, the edit/history model, the
+server protocol.
 
 ## Layers
 
-`_native.py` + `core.py` → `image.py`, `codecs/`, `layout.py`, `scriptpaths.py` →
-`editor/` → `llm/` (+ `plan/`), `script.py`, `server/`, `sitesource/` → `cli/`. `_net.py` is the single
-fetch guard every network path goes through. The other `_`-prefixed helpers sit with `_native` at the bottom. Enforced by
-`tests/test_layer_boundary.py`, an AST import-direction lint over the package; its two
-`editor → llm` crossings (`assistant.py`, `project.py`) are an explicit allowance in that test.
+`_native.py` + `core.py` → `image.py`, `codecs/`, `layout.py`, `scriptpaths.py` → `editor/` →
+`llm/` (+ `plan/`), `script.py`, `server/`, `sitesource/` → `cli/`. `_net.py`, the one fetch
+guard, and the other `_`-prefixed helpers sit with `_native` at the bottom.
+`tests/test_layer_boundary.py` lints the import direction over the AST and allows the two
+`editor → llm` crossings (`assistant.py`, `project.py`) by name.
 
 ## Where things go
 
 | Path | Holds | Rule |
 |---|---|---|
-| `build.py` | compiles `core/` + `cliApi.cpp` into the shared lib | its source list mirrors `STENCIL_CORE_SOURCES`; rebuilds when any source **or header** is newer than the artifact |
-| `pystencil/_native.py`, `core.py`, `_raster/` (`ops.py`, `parallel.py`), `_ffi/` (`bindings.py`, `marshal.py`, `coerce.py`, `types.py`, `formula.py`) | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards; the `FormulaContext` a coordinate formula reads its named values from | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
-| `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard (scheme, SSRF, redirects, size cap); the one bounded fan-out | fan-out results land in submission order so output matches a serial run |
-| `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle over `stencil_cli_script*`; the handle-free value types it reads out (twin of `core/script/types.hpp`); which file a script is read from, what a `@source` names and where a `@save` writes; the whole-file block loop | the core lowers, the adapter opens — directory listing, the one-segment glob, the `-stencil` rule, the two `..` refusals and the png/bmp `save_format` fallback live outside `core/`, each spelled once |
-| `pystencil/_severity.py`, `_ffi/types.py` | the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`); the 3.9 `NoneType` spelling | |
-| `pystencil/_data/`, `_opschema/` | the embedded copies of `browser/js/config/llm/`; the registry-driven op-plan schema engine | copies are byte-pinned by `tests/test_canonical_drift.py` |
-| `pystencil/image.py`, `layout.py`, `codecs/` | the RGBA8 buffer, the camelCase layout dataclasses (tolerant coercion), pure-Python PNG/BMP | JPEG decoding belongs to the CLI |
-| `pystencil/editor/` | the chainable `Editor` over history, derive, project, layout_io, edits, script, assistant and source collaborators | the view is derived on demand (`rotate → crop → filter → rasterise`), memoised on a `revision`; history capped at 64 (`LIMITS.historyMax`), never evicting the pristine state |
-| `pystencil/llm/` (+ `plan/`) | config · client · chat, and under `plan/` the parse, registry, validation and execution halves | plans validate against `_opschema` before execution; execution calls `Editor` methods, never pixels |
+| `build.py`, `build_compile.py`, `build_stb.py` | the shared-lib build of `core/`, the CLI's stb units and `stb/shim.c` | its source list mirrors `STENCIL_CORE_SOURCES`; a rebuild runs within `BUILD_TIMEOUT` |
+| `stb/` | the `stencil_py_*` shim, `pin.json`, the gitignored cache | `stb/cache/` holds only bytes that hash to `pin.json` |
+| `pystencil/_native.py`, `core.py`, `_raster/`, `_ffi/`, `_severity.py` | locate → build → load; `class Core`; the ctypes tables and buffer guards; the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`) | every ABI function gets an explicit `argtypes`/`restype` row; bytes cross as flat RGBA8 buffers and C strings |
+| `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard and the redirect-refusing opener REST and LLM calls share; the one bounded fan-out | fan-out results land in submission order, so output matches a serial run |
+| `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle and its value types (twin of `core/script/types.hpp`); what a `@source` names and where a `@save` writes | the core lowers, the adapter opens — listing, glob, the `-stencil` rule, the `..` refusals and the save-format fallback live outside `core/`, each spelled once |
+| `pystencil/_data/` | the embedded copies of `browser/js/config/llm/` and `net/blockedRanges.json` | byte-pinned by `tests/test_canonical_drift.py`; core validates plans against the `opRegistry.json` copy |
+| `pystencil/image.py`, `layout.py`, `codecs/` | the RGBA8 buffer, the camelCase layout dataclasses, PNG, JPEG and BMP decode through the native lib's stb (`stblib.py`), the pure-Python fallbacks `pngdecode.py` and `bmpdecode.py`, the PNG and BMP encoders | a decoder refuses a side past `MAX_SIDE` (the CLI's cap) and never inflates far past the plane its header claims; only `_ffi/stb.py` touches `ctypes` for stb |
+| `pystencil/editor/` | the chainable `Editor`, one class over per-feature mixins and collaborators | the view is derived on demand, memoised on `revision`; history caps at `LIMITS.historyMax`, never evicting the pristine state |
+| `pystencil/llm/` (+ `plan/`) | config · wire · client · chat; under `plan/` the core-result mapping, the registry and execution | core/opplan validates every plan, its messages shown unchanged; execution calls `Editor` methods, never pixels; a provider's shapes are one `wire.py` row, the upstream classifier sits beside the sanitizer in `errors.py` |
 | `pystencil/server/` | `ServerConnection` + `ConnectionManager` (urllib REST) | mirrors `server/internal/protocol`; REST only, changes are polled |
 | `pystencil/sitesource/` | scraping: format · scan · filter · download · net | prints the shared stderr grammar (`cli/CONTRACT.md` §3) |
-| `pystencil/cli/` | `python -m pystencil`: the one-shot pipeline, the three script modes (`script.py`, `scriptplan.py`), the console I/O surface, `commands/` | each command is the twin of a `cli/src/console/handlers/` file |
-| `tests/` | one suite per subject; `nativecase.py` (the `require_core` gate), `test_build.py`, `test_canonical_drift.py`, `goldens/`, `bench_*.py` | hermetic — no server, no network; `STENCIL_SKIP_NATIVE=1` skips native cases as a band |
+| `pystencil/cli/` | `python -m pystencil`: one-shot, script run and plan, the console, `commands/` | each command twins a `cli/src/console/handlers/` file |
+| `tests/` | one suite per subject, mirrored by folder; the opt-in `bench/` | hermetic — no server, no network; `STENCIL_SKIP_NATIVE=1` skips native cases as a band |
 
 ## Entities
 
@@ -60,22 +61,6 @@ fetch guard every network path goes through. The other `_`-prefixed helpers sit 
 classDiagram
     class Core {
       +CDLL _lib
-      +rasterize_line(buf, w, h, points)
-    }
-    class Image {
-      +int width
-      +int height
-      +bytearray data
-    }
-    class Layout {
-      +int image_width
-      +list~Line~ lines
-      +dict crop_rect
-    }
-    class Line {
-      +list~Point~ points
-      +str color
-      +float thickness
     }
     class Snapshot["_Snapshot"] {
       +int rotation
@@ -83,9 +68,6 @@ classDiagram
       +str filter_mode
     }
     class Editor {
-      +Image _original
-      +list~_Snapshot~ _history
-      +int _cursor
       +int revision
     }
     class OpPlan {
@@ -94,35 +76,12 @@ classDiagram
       +list~Variant~ variants
       +AskCard ask
     }
-    class Chat {
-      +LlmClient client
-      +list~dict~ history
+    class LlmConfig {
+      +str api_key
+      +session_key()
     }
-    class ServerConnection {
-      +str base
-      +str token
-      +str credential_kind
-    }
-    class ConnectionManager {
-      +dict _conns
-    }
-    class MediaItem {
-      +str url
-      +str kind
-      +str ext
-    }
-    class Script {
-      +Diagnostics diagnostics
-      +Blocks blocks
-      +Ops ops
-      +Tokens tokens
-      +str dump
-    }
-    class Repl["_Repl"] {
-      +Editor _editor
-      +ConnectionManager _manager
-      +Chat _chat
-    }
+    class MediaItem
+    class Repl["_Repl"]
     Editor "1" o-- "0..1" Image : original
     Editor "1" *-- "1..64" Snapshot : history
     Editor --> Core : every pixel op
@@ -136,155 +95,164 @@ classDiagram
     Repl "1" *-- "1" Editor
     Repl "1" *-- "1" ConnectionManager
     Repl "1" o-- "0..1" Chat
+    Repl "1" *-- "1" LlmConfig : /llm
+    Chat --> LlmConfig : through its client
 ```
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `Core` (`core.py` + `_raster/ops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI: scalar calls (colour, page, formula, duration) plus the RGBA8 kernels | One process singleton from `get_core()`, or injected into an `Editor`; holds the cached `CDLL` | Called by `Editor` and `Image.blank`; never holds pixels |
-| `Image` (`image.py`) | A flat RGBA8 `bytearray` with its dimensions, the buffer shape the core reads and writes | Value type; the `Editor` keeps one pristine original and derives views | Encoded/decoded by `codecs/`; uploaded by `ServerConnection` |
-| `Layout` / `Line` / `Point` (`layout.py`) | The structured drawing payload: dimensions, lines, optional filter, crop, rotation, page and formula fields | Value dataclasses built by `Editor.layout()` or parsed from JSON | Cross-surface twin; the browser's `buildLayoutPayload` (`browser/js/core/layout.js`) is canonical |
-| `_Snapshot` (`editor/_snapshot.py`) | One editing state: rotation, crop rect in rotated-original space, filter mode + colour, drawn lines | Immutable-by-copy entries on the `Editor` history stack | Mirror of the CLI's `EditState` (`cli/src/console/session`) |
-| `Editor` (`editor/editor.py`) | The chainable facade: original image, snapshot history, cursor, project metadata, page format, chat document | One per console session or library caller; `clear()` resets it in place | Port of `window.stencil` and the CLI `Session`; drives `Core`; target of `execute_op_plan` |
-| `OpPlan` / `Variant` / `AskCard` (`llm/types.py`) | A validated model reply: the chat text, whitelisted top-level actions, variant branches, an optional §11 question card, the paths its saves wrote | Produced by `parse_op_plan`, consumed once by `execute_op_plan` | Validated and applied through `OP_REGISTRY` (`OpSpec` per op); `browser/js/config/llm/opRegistry.json` is canonical |
-| `Chat` (`llm/chat.py`) | A client-side conversation whose bounded history (`MAX_HISTORY` 32) is replayed on every call | Created when `/chat on` is set; dropped when the working image is replaced; its `LlmClient` carries the `LlmConfig` from `STENCIL_LLM_*` | Serialises to the §12.1 chat document that rides the `.stencil` file and the server `chat` file |
-| `ServerConnection` (`server/connection.py`) | One connected server: base URL, session token, credential kind, status, the REST surface | Created by `ConnectionManager.connect`; `close()` flips status | Speaks `server/internal/protocol`; `ProjectRecord` arrives as a dict, the Go server's definition is canonical |
-| `ConnectionManager` (`server/manager.py`) | The session's set of connections keyed by normalised URL, with reconnect and parallel project polling | One per `_Repl` | Port of the browser `ConnectionManager`, REST only |
-| `MediaItem` (`sitesource/format.py`) | One scanned media candidate: URL, kind, measured size, format token, alt text | Produced by `scan_html`, filtered and downloaded by `scan_page` | Twin of the extension's `image/scan.js` record |
-| `Script` (`_script.py`, types in `_scripttypes.py`) | One parsed `.stc` program: its diagnostics, `@source` blocks and lowered ops, plus the colouring tokens, the canonical dump and the `resolve` of length tokens that read through the live handle | A core handle created by `parse_script`; a context manager, destroyed on `close()`. What a runner needs is read out eagerly and outlives the handle; the three handle-backed reads refuse once it is closed | Read by `Editor.apply_script_ops`, the `script.py` block loop and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
-| `_Repl` (`cli/repl.py`) | The interactive console state and its command table, composed from the `commands/` mixins and `_PlanHooks` | One per `--console` run, over stdin and stderr | Mediates `Editor`, `ConnectionManager`, `Chat`, `LlmConfig`, `Console` |
+| `Core` (`core.py` + `_raster/ops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI: scalar calls plus the RGBA8 kernels | A `get_core()` singleton or injected; holds the `CDLL` and, from the first plan on, one op-plan schema handle | Called by `Editor`, `Image.blank` and `parse_op_plan`; never holds pixels |
+| `Image` (`image.py`) | A flat RGBA8 `bytearray` with its dimensions | Value type; the `Editor` keeps one pristine original | Coded by `codecs/`; uploaded by `ServerConnection` |
+| `Layout` / `Line` / `Point` (`layout.py`) | The drawing payload: dimensions, lines, filter, crop, rotation, page, formulas | Values from `Editor.layout()` or JSON | Twin of the browser's canonical `buildLayoutPayload` (`browser/js/core/layout.js`) |
+| `_Snapshot` (`editor/_snapshot.py`) | One editing state: rotation, crop in rotated-original space, filter, drawn lines | Copied, never mutated, on the `Editor` history stack | Mirror of the CLI's `EditState` (`cli/src/console/session`) |
+| `Editor` (`editor/editor.py`) | The chainable facade: original image, history, cursor, project metadata, page format, chat | One per console session or library caller; `clear()` resets it in place | Port of `window.stencil` and the CLI `Session`; target of `execute_op_plan` |
+| `OpPlan` / `Variant` / `AskCard` (`llm/types.py`) | A validated model reply: text, actions, variants, an optional §11 question card, the paths its saves wrote | Made by `parse_op_plan` from core's result, consumed once by `execute_op_plan` | Typed and applied through `OP_REGISTRY`; `browser/js/config/llm/opRegistry.json` is canonical |
+| `Chat` (`llm/chat.py`) | A client-side conversation whose bounded history is replayed on every call | Created by `/chat on`; dropped when the working image is replaced | Serialises to the §12.1 chat document |
+| `ServerConnection` (`server/connection.py`) | One connected server: base URL, token, credential kind, status, the REST surface | Created by `ConnectionManager.connect`; `close()` flips status | Speaks `server/internal/protocol`, the Go side canonical |
+| `ConnectionManager` (`server/manager.py`) | The session's connections by normalised URL, with reconnect and parallel polling | One per `_Repl` | Port of the browser `ConnectionManager`, REST only |
+| `MediaItem` (`sitesource/format.py`) | One scanned media candidate: URL, kind, size, format, alt text | Made by `scan_html`, filtered and downloaded by `scan_page` | Twin of the extension's `image/scan.js` record |
+| `Script` (`_script.py`) | One parsed `.stc` program: diagnostics, `@source` blocks, lowered ops, and reads through the live handle | A core handle from `parse_script`, a context manager; what a runner needs is read out eagerly and outlives it | Replayed by `Editor` and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
+| `LlmConfig` (`llm/config.py`) | The §5 provider shape — provider, base URL, model, key, server URL — and the key's TTL clock | One per `_Repl`, seeded from `STENCIL_LLM_*`, changed by `/llm`; the key lives until `/llm key forget`, exit or its TTL | Read by `LlmClient` on every request; the only holder of the key |
+| `_Repl` (`cli/repl.py`) | The console state and command table, composed from the `commands/` mixins and `_PlanHooks` | One per `--console` run, over stdin and stderr | Mediates `Editor`, `ConnectionManager`, `Chat`, `LlmConfig`, `Console` |
 
 ## Patterns
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Facade over core | `Core` (`core.py`, `RasterOps`) and `Editor` (`editor/editor.py`) | `Core` is the narrow ABI surface; `Editor` is the port of `window.stencil`, so console commands, the library API and LLM plans all mutate through the same methods |
-| Mediator | `_Repl` (`cli/repl.py`) | Owns `_editor`, `_manager`, `_chat`, `_llm`, `_console`; the command mixins reach each other only through it, and `_image_replaced` is the one chokepoint for image-scoped state |
-| Command | `_HistoryApi._push` over the `_Snapshot` stack (`editor/history.py`) | Every mutator pushes a copied snapshot; `undo`/`redo`/`reset` move the cursor and the view re-derives, so apply and revert share one code path |
-| Strategy | `LlmClient._build_request` / `_extract_reply` (`llm/client.py`); `codecs.decode` (`codecs/__init__.py`) | Provider wire shape selected by `config.provider`; codec selected by `sniff` magic bytes |
-| Observer | `_poll_loop` + `diff_projects` (`server/diff.py`) | REST only, so observation is a poll: `watch_projects(on_change)` fires `created`/`updated`/`deleted` events from list diffs |
-| Repository | `_ProjectApi` + `_FileApi` (`server/projects.py`, `server/files.py`); `_ProjectApi.save_project`/`open_project` (`editor/project.py`) | Server projects and the `.stencil` file behind method calls; the version-guarded write and the 409 conflict never leak past `ServerError` |
-| Chain of Responsibility | `_net._fetch` (`_net.py`) | `_is_http` → `_assert_fetchable` → `_NoRedirect` opener → `MAX_FETCH_BYTES` cap; each link refuses on its own |
-| Adapter | `bind` + `_marshal` (`_ffi/bindings.py`, `_ffi/marshal.py`); `LlmClient` (`llm/client.py`) | ctypes signatures and buffer views turn Python values into the C ABI's pointers and C strings; the client turns internal messages into each provider's JSON |
-| Table-driven registry | `OP_REGISTRY` of `OpSpec` (`llm/plan/registry.py`); `_Repl._TABLE`/`_HELP` from `@command` (`cli/registry.py`); `HANDLERS` (`editor/script.py`) and `ACTIONS` (`cli/scriptplan.py`) keyed by `Op.kind` | Validation, execution and the prompt bullets dispatch on one table; the verb table and `/help` come from one declaration; a lowered script op reaches its editor call or its plan action by lookup, never a kind chain |
-| Mixin composition | `Editor`, `ServerConnection`, `_Repl` | Each facade is a bare class plus `_*Api` / `_*Commands` mixins that share its state and nothing else |
-| Fixture walker / Golden pin | `tests/test_fixture_*.py` over `fixturebase.py`; `tests/test_text_goldens.py` over `tests/goldens/` | The canonical `browser/js/config/llm/fixtures/` corpus is walked verbatim; console and argparse text is byte-pinned |
+| Facade over core | `Core`, `Editor` | `Core` is the narrow ABI surface; `Editor` ports `window.stencil`, so console, library and plans mutate alike |
+| Mediator | `_Repl` | The command mixins reach each other only through it; `_image_replaced` is the one chokepoint for image-scoped state |
+| Command | `_HistoryApi._push` (`editor/history.py`) | Every mutator pushes a copied snapshot; `undo`/`redo`/`reset` move the cursor, so apply and revert share one path |
+| Strategy | `WIRES` (`llm/wire.py`); `codecs.decode`; `pick_strategy` (`codecs/pngfilter.py`) | Wire shape by `providers.json`'s `wire`; codec by magic bytes; the fallback's PNG unfilter (per-byte or a 16-bit-lane wavefront) by a cost model, the encoder's filter by a deflate trial |
+| Observer | `diff_projects` (`server/diff.py`) | REST only, so `watch_projects` polls and fires events from list diffs |
+| Repository | `server/projects.py`, `server/files.py`; `editor/project.py` | Server projects and the `.stencil` file behind method calls; the version guard and the 409 never leak past `ServerError` |
+| Chain of Responsibility | `_net._fetch` | scheme → address → `_NoRedirect` → `MAX_FETCH_BYTES`; each link refuses on its own |
+| Adapter | `_ffi/bindings.py` + `_ffi/marshal.py`; `LlmClient` | ctypes signatures and buffer views map Python values to C pointers; the client maps messages to each provider's JSON |
+| Table-driven registry | `OP_REGISTRY`; `_TABLE`/`_HELP` from `@command`; `HANDLERS` and `ACTIONS` keyed by `Op.kind` | Typing, execution and prompt bullets dispatch on core's resolution of the registry; verbs and `/help` come from one declaration; a script op reaches its handler by lookup, never a kind chain |
+| Mixin composition | `Editor`, `ServerConnection`, `_Repl` | Each is a bare class plus `_*Api` / `_*Commands` mixins that share its state and nothing else |
+| Fixture walker / Golden pin | `tests/fixtures/` over `fixturebase.py`; `tests/goldens/` | Canonical corpora walked verbatim; console text and the typed op-plan result byte-pinned |
 
 ## Design
 
-- **Boot.** `Core.load()` → `_native.load_library()` → `find_or_build()`: `$STENCIL_CORE_LIB`
-  wins, otherwise `build.py` is imported by path (never via `sys.path`). `is_stale` compares
-  the artifact's mtime against every input in `build_inputs()` (the `STENCIL_CORE_SOURCES`
-  list plus `cliApi.cpp`, the headers and `.inc` bodies in `INCLUDE_DIRS`, and the script
-  itself); `build()` runs one `c++ -std=c++17 -O2 -fPIC -shared` over all units from `core/`.
-  The `CDLL` is cached in `_CDLL`, `bind(lib)` sets every `argtypes`/`restype` once, and
-  `get_core()` hands out the process singleton.
-- **An image op.** `Editor.result()` derives the view from the snapshot under the cursor in
-  the CLI's `rebuild()` order: `rotate_image_rgba` → `crop_image_rgba` → `apply_filter` /
-  `apply_contour` → `rasterize_line` per `Line`. Every buffer is Python-allocated: sources go
-  in through `_bytes_arg`, in-place targets through `_buf_view` (`from_buffer`), and
-  `_check_dims`/`_check_pixels` reject a short buffer before the call. The core never
-  allocates across the ABI. The result is memoised on `(revision, with_lines)`.
-- **An edit.** A mutator copies the current `_Snapshot`, changes one field and calls
-  `_push`: truncate the redo tail, append, advance the cursor, evict index 1 while the stack
-  exceeds 64 (index 0, the pristine state, survives), bump `revision`. Crops compose into
-  rotated-original space and ride along through a rotation, as `session.applyCrop` /
-  `applyRotate` do in the CLI.
-- **A console turn.** `_Repl.run` reads a line, `_parse_command` splits verb and argument,
-  `_TABLE` (built from the `@command` declarations) picks the mixin method, which returns
-  values and speaks only through `Console.say`/`err`/`note`/`report_wrote` on stderr.
-  `ValueError`, `RuntimeError`, `OSError` and `ServerError` become one `error:` line; `/exit`
-  returns `True` to end the loop.
-- **An LLM turn.** `/prompt` → `_prompt_round`: the current view (PNG, memoised on
-  `revision`), its edge map and the `/upload` set ride as attachments under the
-  `CONSOLE_SYSTEM_PROMPT` plus console context. With `/chat on` the turn goes through
-  `Chat.send` (bounded history replay), otherwise a one-shot `LlmClient.chat`. `parse_op_plan`
-  runs the `_opschema` checks and each `OpSpec` normalizer into an `OpPlan`, `blocked_open_url`
-  fails the plan when the model names a URL the user never wrote, and `execute_op_plan` applies
-  actions through the `OP_REGISTRY` appliers with `_FrameMap` re-mapping, branching variants
-  from the flattened pixels on a bounded pool. Console ops run through `_PlanHooks`;
-  `clearChat` is confirmed at the end of the turn; an `AskCard` waits for the next `/prompt`.
-- **A script run.** `parse_script(text)` hands the source to the core, which lexes, expands
-  templates, resolves `@undo`/`@redo` statically and lowers everything to one flat op stream;
-  its diagnostics, blocks and ops are read out eagerly while the tokens, the dump and
-  `resolve` read through the handle on demand. Any error means nothing executes.
-  `Editor.script` replays the whole stream against the working image — `HANDLERS[op.kind]`
-  picks one ordinary mutator (`crop_rect` / `apply_filter` / `draw` / `undo` / `redo` /
-  `save`), with length tokens resolved at each op against the size as it stands, because an
-  earlier crop already moved it; a `@source` block is reported and its ops still apply, the
-  console semantics. `run_script` is the batch door and `run_program` its already-parsed
-  half, so a caller that reported the diagnostics itself parses once: per block,
-  `scriptpaths.expand_source` turns the spec into concrete inputs (a file, an http(s) URL, a
-  sorted directory listing, a one-segment glob), each gets a fresh `Editor`, and
-  `resolve_target` over `save_format` gives every `@save` its `<stem>-stencil.<ext>`
-  destination beside the source — the written codec follows that target path, so the plan
-  names the file the run writes. `cli/scriptplan.py` lowers the same program to the op-plan
-  vocabulary instead of running it, resolving shapes against a header-only size probe.
-- **A server session.** `ConnectionManager.connect(spec)` builds a `ServerConnection` and
-  runs `connect()`: no token mints one via `POST /auth/token`, a token is probed with
-  `GET /projects`, and one that cannot list but can mint becomes `credential_kind = "admin"`;
-  `_request` re-mints once on 401/403. `/fetch name` lists projects, downloads
-  `get_file(id, "original")` into the `Editor` and records `_remote`. The edit channel is
-  `save_remote_project`: a version-guarded `PUT /projects/{id}` (409 → `ServerError("conflict")`)
-  then `put_file("result")`; single-field writes retry the read-then-PUT up to
-  `_FIELD_WRITE_RETRIES`. Peers' changes arrive by polling through `diff_projects`; no `/ws`.
-- **A fetch.** `_net._fetch(url, strict)`: refuse a non-http(s) scheme, then
-  `_assert_fetchable` classifies an IP literal or resolves the host and refuses when any
-  address is private, link-local, CGNAT, reserved or multicast (`_is_blocked_ip`); loopback
-  is refused only under `strict`. The request goes through `_OPENER`, whose `_NoRedirect`
-  raises on any 30x, and the body is read to `MAX_FETCH_BYTES + 1` and refused over the cap.
-  A URL the user named (`Editor.load(url)`, the `scan_page` page) runs `strict=False`;
-  every harvested sub-resource runs strict, and batches go through `_fetch_all` on
-  `MAX_FETCH_WORKERS`. REST and LLM calls reach only user-configured endpoints and share
-  `server/http.py`'s `_http_open`, with its own redirect refusal and the `_LLM_TIMEOUT`.
-
-The `.stencil` document `save_project` writes (the browser's `project/file.js` is canonical;
-optional keys are omitted when empty):
-
-```
-{ "format": "stencil-project", "version": 1, "name",
-  "color"?, "keywords"?, "source"?, "resource"?, "chat"?,
-  "image": { "dataUrl": "data:<mime>;base64,…", "ext", "w", "h" },
-  "layout": Layout.to_dict() }
-```
+- **Boot.** `Core.load()` → `find_or_build()`: `$STENCIL_CORE_LIB` wins, else `build.py`,
+  imported by path (never via `sys.path`), rebuilds when the artifact is older than any input,
+  headers, the stb pin and the build scripts included. `build()` locks, re-checks what a racing
+  process may have cured, compiles each C unit alone, links them with `core/` into a temp file
+  and `os.replace`s it in, so no loader maps a half-written library; without the stb headers
+  JPEG is missing and PNG and BMP decode through the fallbacks.
+- **An image op.** `Editor.result()` derives the view from the snapshot under the cursor in the
+  CLI's `rebuild()` order — rotate → crop → filter or contour → `rasterize_line` per `Line` —
+  memoised on `(revision, with_lines)`. Buffers are Python-allocated and aliased, no view
+  outlives its call, a short one is refused first; the core never allocates across the ABI.
+- **An edit.** A mutator copies the current `_Snapshot`, changes one field and `_push`es it:
+  truncate the redo tail, append, evict index 1 past 64 (index 0, the pristine state,
+  survives), bump `revision`. Crops compose into rotated-original space and ride through a
+  rotation as in the CLI; view-local lines follow the browser's turn and crop rules.
+  `Layout.from_dict` holds lines to core's layout caps (`Core.layout_caps`), cut as the
+  browser's `sanitizeLines` cuts them, so a parse with lines needs the native core.
+- **A console turn.** `_Repl.run` reads a line and `_TABLE` picks the mixin method, which
+  returns values and speaks only through `Console` on stderr; `ValueError`, `RuntimeError`,
+  `OSError` and `ServerError` become one `error:` line.
+- **An LLM turn.** `/prompt` sends the view, its edge map and the `/upload` set under
+  `CONSOLE_SYSTEM_PROMPT`, through `Chat.send` under `/chat on`, else one-shot. `parse_op_plan`
+  hands the reply's UTF-8 bytes by length (a lone surrogate as U+FFFD) to
+  `stencil_cli_opplanParse` against the schema handle from `_data/opRegistry.json`; core
+  extracts, caps, validates and normalizes, and each `OpSpec` types the actions into an `OpPlan`
+  with core's own error and warnings. `blocked_open_url` fails a plan naming a URL the user never
+  wrote. `execute_op_plan` applies actions through `OP_REGISTRY` with `_FrameMap` re-mapping,
+  variants branching from the flattened pixels on a bounded pool; `clearChat` is confirmed at
+  the turn's end, an `AskCard` waits for the next `/prompt`.
+- **A direct Claude turn.** With `provider = "anthropic"` the `WIRES` row builds the server's
+  own upstream body and reads `LlmConfig.session_key()`, which drops a key
+  `sessionKey.ttlMinutes` after its last assignment. No key, or plain http off loopback, raises
+  the typed `llmDisabled` error before any request. The key rides as `x-api-key`,
+  unredirected, never as `Authorization` nor with the browser-only header, and `/llm key` reads
+  it through `getpass` on a terminal. `max_tokens`/`refusal` fail as on the stencil-server wire;
+  a non-2xx is classified on `upstream.go`'s rules, and only an unrecognised one quotes
+  sanitized upstream text, dropped whole on any 8-character run of the key.
+- **A script run.** The core lexes, expands templates, resolves `@undo`/`@redo` statically and
+  lowers to one flat op stream, read out eagerly; any error means nothing executes.
+  `Editor.script` replays it by `HANDLERS[op.kind]`, resolving length tokens against the size
+  an earlier crop left; a `@source` block is reported and its ops still apply. `run_script`
+  expands each `@source` through `scriptpaths` — a file, an http(s) URL, a sorted directory
+  listing, a one-segment glob — into fresh `Editor`s, and each `@save` writes
+  `<stem>-stencil.<ext>` beside the source (the working directory for a URL).
+- **A script plan.** `cli/scriptplan.py` lowers the same program to op plans, sizing shapes by a
+  header-only probe. `plansequence.py` lays plans out by the CLI's rules — shapes land before
+  the next other edit, an `@undo` counts the executor's history entries and ends its plan, a
+  point after a crop carries its origin — and every `layout` keeps each shown line, moved by
+  each crop, since a plan's `layout` replaces the drawn lines. What a plan cannot carry is
+  refused with the CLI's codes, so the envelope equals the CLI's for the same script and input
+  — save a video URL, which pystencil cannot open.
+- **A server session.** `ConnectionManager.connect` builds a `ServerConnection`: no token mints
+  one (`POST /auth/token`); a token is probed with `GET /auth/session` (a 404 falls back to
+  `GET /projects?limit=1`), and one that holds no session but can mint is `"admin"`; `_request`
+  re-mints once on 401/403. `save_remote_project` is a version-guarded `PUT /projects/{id}`
+  (409 → `ServerError("conflict")`) then `put_file("result")`; single-field writes retry the
+  read-then-PUT up to `_FIELD_WRITE_RETRIES`.
+- **A fetch.** `_net._fetch(url, strict)` refuses a non-http(s) scheme, then any address — an IP
+  literal in any `inet_aton` spelling, else every resolved one — in the table's `fetch` policy
+  or not `is_global`, an IPv6 form judged by the IPv4 it carries; loopback only under `strict`.
+  Any 30x raises and a body past `MAX_FETCH_BYTES` is refused. A user-named URL (`Editor.load`,
+  the `scan_page` page) runs `strict=False`, every harvested sub-resource strict. REST and LLM
+  calls share `server/http.py`'s `_http_open`: the same redirect refusal and byte cap, the
+  connection's TLS context, the bearer unredirected.
+- **A codec.** PNG, JPEG and BMP decode through the CLI's own `cli/src/media/stb_read_impl.c`,
+  compiled unchanged so its narrowing is stated once; JPEG encodes at the CLI's quality 90,
+  ignoring EXIF orientation. Each refuses a header side past `MAX_SIDE` before stb allocates,
+  and `_ffi/stb.py` frees the plane in the call that copies it out. The shim's `calloc` hook
+  makes planes a scan cut short come out zero, not old heap, and its per-thread block cap
+  (`stblib.block_cap`, the CLI's `decodeGuard` rule) stops a PNG stream inflating past twice
+  its rows. A PNG whose IDAT could not inflate to its rows at deflate's 1032:1, or a BMP
+  shorter than its rows, is refused unread; a short PNG or BMP palette is padded to 256 black
+  entries, since stb reads an index past it from unset stack. Without the stb build,
+  `pngdecode` reads 8-bit, non-interlaced PNGs and `bmpdecode` 24/32-bit `BI_RGB` BMPs to the
+  same pixels, the PNG inflating at most `height × (stride + 1)` bytes and unfiltering in place
+  a band at a time.
+- **The stb headers.** `build_stb.ensure` takes each header from the first source hashing to
+  its pin — `stb/cache/`, the CLI's zig package copy while `cli/build.zig.zon` names the pinned
+  commit, then `raw.githubusercontent.com/nothings/stb/<commit>/` via `_net._fetch`; a
+  mismatching cached file is deleted, a mismatching fetch never written.
+- **A project file.** `save_project` writes the browser's `.stencil` document
+  (`project/file.js`), omitting an empty optional key.
 
 ## Rules
 
 1. **Stdlib only, ctypes only.** No PyPI package, no C extension module. `from __future__
    import annotations` in every module so `(X | NoneType)` hints work on 3.9 — below the
    module docstring, which stays the first statement or `__doc__` comes back empty.
-2. **Three source lists.** `build.py`'s list is the third copy of `core/CMakeLists.txt`'s
-   and `cli/build.zig`'s; `tests/test_build.py` pins it.
+2. **Three source lists.** `build.py`'s list is the third copy of `core/CMakeLists.txt`'s and
+   `cli/build.zig`'s; `tests/test_build.py` pins it.
 3. **Nothing pushed into `core/`.** No Qt, codec or DOM concern ever crosses the ABI.
-4. **The console is the CLI's twin.** Same command names, same grammar, same path semantics
-   (`/layout`, `/blank`, `/format`), same `error:` / `note:` prefixes; the deviations from it
-   are the ones named in the contract.
-5. **Contract deviations are named, not silent.** The `frame` op raises
-   `LlmExecutionError` (no video decoding); attachments are not downscaled (no resampling).
-   The same missing decoder makes a script's `@frame` a `ScriptError`, and a `@source`
-   directory or glob picks up only what `codecs` decodes, so a `.jpg` in the folder is
-   skipped where the CLI would take it.
-6. **Every content fetch** goes through `_net.py`; the REST and LLM clients, which reach
-   only user-configured endpoints, share `server/http.py`'s `_http_open`.
+4. **The console is the CLI's twin** — command names, grammar, path semantics (`/layout`,
+   `/blank`, `/format`), the `error:` / `note:` prefixes — save the deviations the contract names.
+5. **Contract deviations are named, not silent.** With no video decoding, the `frame` op and
+   `@frame` raise; with no resampling, attachments are not downscaled; a `@source` directory or
+   glob takes only what `codecs` decodes, skipping a `.tga` the CLI would take.
+6. **Every content fetch** goes through `_net.py`; the REST and LLM clients, which reach only
+   user-configured endpoints, share `server/http.py`'s `_http_open`.
+7. **stb is pinned, never committed.** A header compiles only after it hashes to
+   `stb/pin.json`, whose commit is `cli/build.zig.zon`'s; the decoder's narrowing lives in the
+   CLI's `stb_read_impl.c` alone.
+8. **A key lives in `LlmConfig` alone.** Nothing writes, logs or prints it — `repr` redacts it,
+   `/llm` masks it, an error drops upstream text showing a fragment of it; the compiler, the one
+   child process, runs under `build_compile.child_env()` without `STENCIL_LLM_*` or the server
+   tokens; a direct `anthropic` request is never built without a live session key.
 
 ## Tests
 
-`unittest` only, hermetic: no server, no network. Native-backed cases pass through the one
-`require_core` gate so they skip as a band. Benchmarks are opt-in and assert only ratios —
-the PNG Up filter's SWAR row adds, the `revision` memo, validation linear in lines × points
-— never microseconds.
+`unittest` only, hermetic: no server, no network — only the first native build fetches the stb
+headers. Native cases (a plan parse is one) skip as a band through `require_core`, stb cases
+through `require_stb`. Opt-in benchmarks assert only ratios, never microseconds.
 
-The suites are ports of their browser and CLI twins by subject (`test_editor*`,
-`test_llm_*`, `test_script*`, `test_server_*`, `test_sitesource_*`, `test_cli_*`).
-`test_fixture_script.py` replays `browser/js/config/script/fixtures/cases.txt` — dump,
-diagnostics and the load-bearing `err-*` naming — exactly as the C++ and browser walkers do.
-The other `test_fixture_*.py`
-walkers run the canonical `browser/js/config/llm/fixtures/` corpus through `fixturebase.py`,
-with `tests/helpers/fixture_overrides.json` naming this surface's deviations. `test_canonical_drift.py`
-byte-pins the `_data/` copies, `test_build.py` the source list and the script ABI's ctypes
-signature rows, `test_layer_boundary.py` the import direction and the module docstring's
-place, and `tests/goldens/` the console `/help` and argparse text. The network is
-stubbed at the `_open` seam (`_StubClient`, `_StubConn`, `_MockLlmClient`), the editor at
-`_StubEditor`, and `ServedSiteCase` serves a local site over `http.server` — the scraper's
-pages plus the 30x hop and the over-cap body that `_net`'s guard has to refuse.
-Concurrency suites check that parallel variants and fetches land in submission order, and
-that a racing first `get_core()` builds the library once.
+Suites port their browser and CLI twins by subject. The fixture walkers run the canonical
+corpora verbatim through `fixturebase.py`, with `tests/helpers/fixture_overrides.json` naming
+this surface's deviations; every provider-wire corpus file is claimed by a walker, and the
+`--script-plan` envelope is held equal to the built CLI's. Pinned: the `_data/` copies, the
+source list and ctypes rows, the registry against core's resolution, the import direction, the
+typed op-plan result and the console text. The network is
+stubbed at the `_open` and `_http_open` seams; loopback servers prove a 30x never carries a
+bearer or key on and an over-cap body is refused, and `tests/helpers/anthropicmock.py` serves a
+direct turn, a classified failure and an expired key that sends nothing. Codec suites run the
+PNG matrix and the BMP bounds through stb and the fallback alike, hold both against a bomb and
+an oversized header, and hold stb's PNG, JPEG and BMP against the CLI. Concurrency suites prove submission order, one build under a racing first
+`get_core()`, and a header-less build that still links the core.

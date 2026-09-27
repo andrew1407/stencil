@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import LlmPlanError, MAX_ACTIONS, MAX_VARIANTS, parse_op_plan
 from tests.helpers.stubs import _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class ParseOpPlanRejectionTest(unittest.TestCase):
+class ParseOpPlanRejectionTest(NativeCase):
   def _reject(self, actions=None, **kw) -> None:
     if actions is not None:
       kw["actions"] = actions

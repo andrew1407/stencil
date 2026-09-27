@@ -1,10 +1,10 @@
-// The §11 choice card (chatAskCard) built against a stub DOM, the app.chat facade's source pins
-// and the assistant settings modal's commit-on-Save. Split from chat-markup.test.js.
+// The §11 choice card (chatAskCard) built against a stub DOM, the app.chat facade driven on a
+// wired panel, and the assistant settings modal's commit-on-Save. Split from chat-markup.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 import { layout } from '../../../js/ui/layout.js';
+import { wireBothSurfaces, installChatDom } from '../../helpers/chatSurfacesRig.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -120,27 +120,64 @@ test('chatAskCard: answering locks the card — it can never fire twice', async 
   assert.match(card.className, /chat-ask-answered/);
 });
 
-// app.chat's wiring is DOM-bound, so the source is asserted: history rides the SETTLED-transcript path
-// (rowsToMessages), abort the Stop button's turnAbort. stencil.chat is driven for real elsewhere.
-test('app.chat exposes history (rowsToMessages over the log), abort, and isSending', () => {
-  const src = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('history: () => rowsToMessages(chatLog()).map((m) => ({ role: m.role, text: m.text }))'));
-  assert.match(src, /abort: \(\) => \{[\s\S]{0,120}turnAbort\?\.abort\(\);/);
-  assert.ok(src.includes('get isSending() { return sending; }'));
-  // clear rides the same shared path as the trash button, refused mid-turn.
-  assert.match(src, /clear: \(\) => \{[\s\S]{0,200}clearSharedConversation\(app\);/);
+test('app.chat exposes history (rowsToMessages over the log), abort, and isSending', async () => {
+  const s = await wireBothSurfaces();
+  s.session.appendChatRow({ role: 'user', text: 'hi' });
+  s.session.appendChatRow({ role: 'assistant', text: 'hello' });
+  s.session.appendChatRow({ role: 'assistant', text: 'down', error: true });
+  const history = s.app.chat.history();
+  assert.deepStrictEqual(history, [{ role: 'user', text: 'hi' }, { role: 'assistant', text: 'hello' }],
+    'settled text turns only');
+  history[0].text = 'mutated';
+  assert.strictEqual(s.app.chat.history()[0].text, 'hi', 'a fresh copy per read');
+  assert.strictEqual(s.app.chat.isSending, false);
+  const turn = s.app.chat.prompt('outline it').catch((e) => e);
+  assert.strictEqual(s.app.chat.isSending, true);
+  // clear rides the trash button's shared path, and is refused mid-turn.
+  assert.throws(() => s.app.chat.clear(), /stop the turn before clearing/);
+  assert.strictEqual(s.app.chat.abort(), true, 'abort reports a turn was running');
+  assert.strictEqual(s.ctrl.signals[0].aborted, true, 'the Stop button\'s controller is the one aborted');
+  s.ctrl.fail(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+  await turn;
+  assert.strictEqual(s.app.chat.isSending, false);
+  assert.strictEqual(s.app.chat.abort(), false, 'nothing left to abort');
+  s.app.chat.clear();
+  assert.deepStrictEqual([s.ctrl.cleared, s.session.chatLog().length], [1, 0]);
 });
 
 // ── Assistant modal commits on Save (desktop dialog parity) ──
-test('assistant settings modal has Cancel/Save and only Save writes storage', () => {
+test('assistant settings modal has Cancel/Save and only Save writes storage', async () => {
   for (const id of ['chat-settings-cancel', 'chat-settings-save']) once(id);
-  const src = readFileSync(new URL('../../../js/ui/llmSettings/modal.js', import.meta.url), 'utf8');
-  // Exactly one persist() call site — the Save handler; field edits only touch
-  // the working copy, so every other close path discards.
-  assert.strictEqual(src.split('persist();').length - 1, 1, 'a single persist() call site');
-  assert.match(src, /chat-settings-save'\)\.addEventListener\('click'[\s\S]{0,400}persist\(\);/);
-  assert.ok(src.includes("$('chat-settings-cancel').addEventListener('click', () => shell.close());"));
-  // Reopening reloads from storage — that is what makes a close a discard. Matched on the
-  // two statements rather than one line of source: onOpen also starts the height ease.
-  assert.match(src, /onOpen: \(\) => \{[\s\S]{0,200}settings = loadLlmSettings\(\);\s*render\(\);/);
+  const doc = installChatDom();
+  const saved = { raf: globalThis.requestAnimationFrame, fetch: globalThis.fetch };
+  globalThis.requestAnimationFrame = () => 0;
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  try {
+    const KEY = 'drawingApp_llmSettings';
+    localStorage.setItem(KEY, JSON.stringify({ provider: 'ollama', model: 'a' }));
+    const { StencilLlmSettingsModal } = await import('../../../js/ui/llmSettings/modal.js');
+    const $ = (id) => doc.getElementById(id);
+    StencilLlmSettingsModal.prototype.wire.call($('chat-settings-overlay'), {});
+    const shell = $('chat-settings-overlay').__stencilModal;
+    const stored = () => JSON.parse(localStorage.getItem(KEY)).model;
+    shell.open();
+    assert.strictEqual($('chat-model').value, 'a');
+    $('chat-model').value = 'b';
+    $('chat-model').fire('change');
+    $('chat-settings-cancel').fire('click');
+    assert.strictEqual(stored(), 'a', 'Cancel discards the edit');
+    shell.open();
+    assert.strictEqual($('chat-model').value, 'a', 'reopening reloads from storage');
+    $('chat-model').value = 'c';
+    $('chat-model').fire('change');
+    $('chat-settings-close').fire('click');
+    assert.strictEqual(stored(), 'a', 'the close button discards too');
+    shell.open();
+    $('chat-model').value = 'd';
+    $('chat-settings-save').fire('click');
+    assert.strictEqual(stored(), 'd', 'Save writes, even text never blurred');
+  } finally {
+    globalThis.requestAnimationFrame = saved.raf;
+    globalThis.fetch = saved.fetch;
+  }
 });

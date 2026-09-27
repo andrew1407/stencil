@@ -1,4 +1,4 @@
-// The hold on the header mark and the pink edit (js/ui/stageTrigger.js): the hold opens the
+// The hold on the header mark and the pink edit (js/ui/logo/stageTrigger.js): the hold opens the
 // accent's show without cycling the accent, and the pink show tints the page and draws its heart.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -98,16 +98,13 @@ test('the pink show tints the page and adds the heart as one step', async () => 
   const calls = [];
   const app = {
     image: { width: 400, height: 300 },
-    settings: {
-      setImageFilter: (v) => calls.push(['filter', v]),
-      setFilterColor: (v) => calls.push(['tint', v]),
-    },
+    settings: { setFilter: (next, opts) => calls.push(['filter', next, opts]) },
     export: { installLayout: (data, opts) => { calls.push(['layout', data, opts]); return true; } },
   };
   assert.equal(await pinkVibe(app), true);
-  assert.deepEqual(calls[0], ['filter', 'custom']);
-  assert.deepEqual(calls[1], ['tint', STAGE.pink.tint]);
-  const [, data, opts] = calls[2];
+  assert.deepEqual(calls[0], ['filter', { filter: 'custom', filterColor: STAGE.pink.tint }, { history: false }],
+    'the tint records no step of its own');
+  const [, data, opts] = calls[1];
   assert.deepEqual(opts, { mode: 'combine', history: true }, 'one undoable step, kept beside what is there');
   assert.equal(data.lines.length, 1);
   assert.equal(data.lines[0].locked, true);
@@ -115,16 +112,29 @@ test('the pink show tints the page and adds the heart as one step', async () => 
   assert.equal(data.imageWidth, 400);
 });
 
-test('the pink show makes itself a page when the editor is empty', async () => {
+test('the pink show makes itself a page when the editor is empty', async (t) => {
   const calls = [];
+  // The real createBlankImage and load path; the browser's scratch canvas, file reader and
+  // decode are the boundary: the fill is recorded as painted, the decode stands in for the settle.
+  const saved = { FileReader: globalThis.FileReader, Image: globalThis.Image };
+  t.after(() => Object.assign(globalThis, saved));
+  const ctx = { fillRect() { calls.push(['blank', ctx.fillStyle]); } };
+  doc.createElement = (tag) => createStubElement(tag, tag === 'canvas' ? { getContext: () => ctx, toBlob: (cb) => cb({}) } : {});
+  globalThis.FileReader = class {
+    readAsDataURL(file) { calls.push(['load', file.name]); this.onload({ target: { result: 'data:image/png;base64,' } }); }
+  };
+  globalThis.Image = class { set src(_) { app.image = { width: 200, height: 200 }; } };
   const app = {
-    image: null,
-    createBlankImage(opts) { calls.push(['blank', opts.color]); app.image = { width: 200, height: 200 }; },
-    settings: { setImageFilter: () => {}, setFilterColor: () => {} },
+    image: null, pageSize: 'A4', imageFilter: 'none', activeProjectId: null,
+    storage: { incognito: false, temporary: true, promoteTemporaryToProject() {} },
+    tabs: { reportActive() {} },
+    settings: { setImageFilter: () => {}, setFilter: () => {} },
     export: { installLayout: () => true },
   };
   assert.equal(await pinkVibe(app), true);
   assert.deepEqual(calls[0], ['blank', STAGE.pink.blank]);
+  assert.match(calls[1][1], /^blank-\d+x\d+\.png$/, 'the page goes through the ordinary load');
+  assert.equal(app.image.width, 200);
 });
 
 test('every activation is gated: nothing runs while a stage is already up', () => {

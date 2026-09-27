@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS projects (
 -- database, so every column added to projects AFTER its first release must also be ADDed here or
 -- an existing DB never gains it (and INSERT/scan then fails at runtime). ADD COLUMN IF NOT EXISTS
 -- is a no-op on a fresh DB (the CREATE above just made the column) and back-fills the DEFAULT on
--- an old one, so this stays safe to re-run every boot — matching the version-table-free model.
+-- an old one, so a database provisioned before schema_migrations existed re-applies it safely.
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS expires_at       bigint  NOT NULL DEFAULT 0;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS has_image        boolean NOT NULL DEFAULT false;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS image_w          integer NOT NULL DEFAULT 0;

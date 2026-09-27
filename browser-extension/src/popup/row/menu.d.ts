@@ -1,4 +1,4 @@
-// Shapes for popup/menu.js — the shared lib/actionMenu.js controller behind row,
+// Shapes for popup/row/menu.js — the shared lib/control/actionMenu.js controller behind row,
 // editor-list and the logo's drag menus, plus this panel's own open/close wiring.
 import type { PopupImage } from '../list/model.js';
 

@@ -44,7 +44,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkYellow);
-    QVERIFY(!win.addImageProjectEntry(img, "cloud-owner-row").isEmpty());
+    QVERIFY(!win.parts.chatAppliers.addImageProjectEntry(img, "cloud-owner-row").isEmpty());
 
     Clouds clouds;
     bool hiddenAtClose = false;
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
       hiddenAtClose = noneShowing(clouds);
       bailOut();
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(!clouds.isEmpty(), "Clear All raised no row cloud to close over");
     QVERIFY2(hiddenAtClose, "a row cloud was still showing as the dialog closed");
     QTest::qWait(20);

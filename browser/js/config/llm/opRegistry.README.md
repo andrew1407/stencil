@@ -1,11 +1,14 @@
 # opRegistry.json — the normative, table-driving op registry
 
-Machine-readable record of the LLM op-plan surface (`llm-contract.md` §1–§13) across all
-seven implementations, and the table every one of them **validates from**. A surface's
-validator reads this file (embedded: qrc alias on desktop, `@embedFile` on cli,
-`include_str!` on mcp, `EmbeddedResource` on bot, a drift-guarded copy on pystencil and the
-extension) and keeps only three things of its own: its normalizers (the typed action it
-builds), its executors, and the few **native rules** named below. Change a key's type,
+Machine-readable record of the LLM op-plan surface (`llm-contract.md` §1–§13) and the table
+every validator **validates from**: `core/opplan` and its JS twin in `browser/js/llm/plan/`.
+The cli (`@embedFile`), desktop (qrc alias) and pystencil (a drift-guarded copy) hand this file
+to `core/opplan`; mcp (`include_str!`) and bot (`EmbeddedResource`) validate through the cli's
+`--plan-check`, embedding it only for what they prompt and execute, and for the registry skew
+check; the extension alone keeps a JS copy of the validator, over a drift-guarded copy of this
+file.
+A surface keeps only its typed mapping (the action it builds), its executors, and the few
+**native rules** named below. Change a key's type,
 range, enum, cap or grammar here and every surface changes with it; the shared fixture
 corpus (`fixtures/opPlan/`) is the cross-language proof that they all agree — its mechanical
 half (`fixtures/opPlan/generated/cases.json`) is itself derived from this file by
@@ -20,8 +23,11 @@ structures and cross-checks the corpus) and by every surface's fixture walker.
   `editor`, cli/pystencil → `console`, `bot`, `mcp`, `extension`), sources, guard.
 - **`limits`** — the §1 caps (`MAX_ACTIONS`, `MAX_VARIANTS`, `MAX_LAYOUT_LINES`,
   `MAX_FRAME_INDICES`, `MAX_STRING_CHARS`, `MAX_SAVE_NAME`, `MAX_PATH_CHARS`,
-  `MAX_RENAME_NAME`, `MAX_UNDO_STEPS`), `ask.*` (§11) and `extension.*` (§8). A key spec
-  references one by its dotted name (`"maxItems": "MAX_ACTIONS"`, `"maxChars": "ask.label"`).
+  `MAX_RENAME_NAME`, `MAX_UNDO_STEPS`), `ask.*` (§11), `extension.*` (§8) and `json.*` — the
+  caps on the plan's JSON object once it parses (`MAX_BYTES` of UTF-8, `MAX_DEPTH` with the root
+  object at 1, `MAX_NODES` counting every value), checked in that order; exceeding one makes
+  the plan invalid (`E_JSON_LIMIT`). A key spec references a cap by its dotted name
+  (`"maxItems": "MAX_ACTIONS"`, `"maxChars": "ask.label"`).
 - **`regexes`** — the token grammars as **flag-free** regex sources (case-insensitivity is
   spelled out in the pattern, so cli/mcp hand-match them): `CROP_TOKEN`, `CROP_ASPECT`
   (encodes both sides > 0), `PAGE_FORMAT`, `HEX`, `CSS_NAME`, `FORMULA_X`/`FORMULA_Y`,
@@ -32,9 +38,16 @@ structures and cross-checks the corpus) and by every surface's fixture walker.
   a surface's entries are assembled in); `notes` explain within-profile membership drift,
   which is structured on the entries themselves (`surfaces`).
 - **`forbidden`** — the §13 core list plus each surface's own list (`perSurface`), which
-  each surface loads as its forbidden set. Enforcement policy stays per surface: cli and
-  mcp hard-fail a plan naming one, the others skip it at parse and refuse at the executor
+  each surface loads as its forbidden set. `hardFail` lists the surfaces that fail a plan
+  naming one (cli, mcp); the others skip it at parse and refuse at the executor
   (fixtures 207–217).
+- **`surfaceRules`** — per surface, the extra checks it runs on the NORMALIZED action after
+  the key checks: `{op, rule, key, …data, message}`, failing as `Invalid <op> action:
+  <message>` (`{value}` = the checked value). The rules are native, the data is here:
+  `anyOf` (one of `keys` inside the object at `key` — the cli's crop needs an edge),
+  `knownColor` (a colour name the core's CSS table knows — the desktop's `blank` /
+  `blankColor`), `pathExtension` (a local path whose extension is one of `extensions` — the
+  cli's `openFile`).
 - **`ask`** — the §11 card: `schema` (the same key-spec language as ops, plus `forms` on
   the image reference and `exclusive` on an option), `defaultCustomLabel`, `limitsRef`.
 - **`opsets`** — nested op sets: `extensionOpen` is what `open.actions` accepts (§8): a
@@ -101,9 +114,14 @@ finite number with no fractional part, `number` a finite number. Then, per type:
 
 Check order (what a validator implements): native `rules` → unknown keys → `forms` /
 `together` / `exclusive` / `minFields` → per key in declaration order: `required` /
-`requiredWith` when absent, else `onlyWith` then the type check with its properties.
-The reference implementation is `browser/js/llm/plan/schema.js` (byte-identical in the
-extension); the other surfaces port it rule-for-rule in their language.
+`requiredWith` when absent, else `onlyWith` then the type check with its properties →
+normalize → the surface's `surfaceRules`. Keys iterate in JS `Object.keys` order (array
+indices first, ascending), a duplicate key keeps its last value at its first position, and a
+key named like an `Object.prototype` member is an ordinary key.
+The reference engine is `browser/js/llm/plan/opSchema.js` (byte-identical in the extension)
+with the plan walk in `parser.js`; `core/opplan` is their C++ twin, byte-compared against
+`fixtures/opPlan/generated/normalized.json`. A string's length is UTF-16 code units, a trim
+is JS `String.prototype.trim`, and every grammar is matched with JS `RegExp` semantics.
 
 ## Rules
 

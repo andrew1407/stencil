@@ -1,4 +1,4 @@
-import type { CodecLine } from '../line/linesCodec';
+import type { Snapshot } from '../historyStack.js';
 
 /** The event objects the hold-draw machine returns — the exact shapes holdDraw.js emits. */
 export type HoldEvent =
@@ -24,12 +24,13 @@ export interface WasmHoldDrawController {
 export interface WasmHistoryStack {
   readonly historyStep: number;
   readonly size: number;
-  reset(lines: readonly Partial<CodecLine>[], baseStep?: number): void;
-  push(lines: readonly Partial<CodecLine>[]): void;
+  /** A Lines array steps the lines alone; a memento carries its crop and turn too. */
+  reset(snapshot: Readonly<Snapshot>, baseStep?: number): void;
+  push(snapshot: Readonly<Snapshot>): void;
   canUndo(): boolean;
   canRedo(): boolean;
-  undo(): CodecLine[] | null;
-  redo(): CodecLine[] | null;
+  undo(): Snapshot | null;
+  redo(): Snapshot | null;
   destroy(): void;
 }
 

@@ -1,11 +1,7 @@
 //! The §2 image-edit ops, in prompt order — their bullets are §4's "Available ops" list.
-const std = @import("std");
-const opplan = @import("../opplan.zig");
 const descriptor = @import("descriptor.zig");
 
-const Action = opplan.Action;
 const OpDescriptor = descriptor.OpDescriptor;
-const OpCapability = descriptor.OpCapability;
 
 /// One §13 descriptor per core op (crop … clearChat's siblings live in consoleOps.zig).
 pub const ops = [_]OpDescriptor{

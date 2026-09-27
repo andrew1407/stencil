@@ -109,6 +109,7 @@ pub fn renderVariant(session: *Session, io: std.Io, v: llm.Variant, stem: []cons
         },
         .layout => |l| {
             _ = variantImage(&img, stem) orelse return; // message printed
+            pending.clearRetainingCapacity(); // §2: a layout replaces every line before it
             pending.append(gpa, .{ .json = l.lines_json, .steps_start = 0 }) catch return;
         },
         .formula => logo.note("a formula op has no effect on a rendered variant file — skipped in \"{s}\"\n", .{stem}),

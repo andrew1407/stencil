@@ -3,6 +3,7 @@
 import {
   wipeDurationMs, materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
 } from '../../motion.js';
+import { releaseHeldHeight } from '../../motion/easeBoxHeight.js';
 import { showsRemoteSkeletons } from '../../../core/remote/listing.js';
 import { makeSkeletonRow, emptyLabelFor } from '../row/placeholderRows.js';
 
@@ -75,9 +76,11 @@ export function createRenderList(ctx) {
   // Call BEFORE a removal; await what it returns after. Only the held height and out-of-band
   // refreshes (canRefreshList) wait out wipeDurationMs (desktop twin: ProjectsDialog::retireRow).
   let removalsInFlight = 0;
+  let letGo = () => {};
   const beginRemoval = () => {
     removalsInFlight++;
     const held = list.getBoundingClientRect().height;
+    letGo();
     if (held) list.style.minHeight = `${held}px`;
     const before = [...shownKeys];
     return async () => {
@@ -96,7 +99,7 @@ export function createRenderList(ctx) {
       // The hold outlives the arrival, or a refresh re-renders the row out from under its motes.
       await new Promise((r) => setTimeout(r, Math.max(0, wipe - arrive)));
       removalsInFlight = Math.max(0, removalsInFlight - 1);
-      list.style.minHeight = '';
+      letGo = releaseHeldHeight(list, held);
     };
   };
 

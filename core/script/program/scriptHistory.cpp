@@ -19,6 +19,13 @@ namespace stencil::core::script {
       return out;
     }
 
+    bool isWholeCount(const Token& t) {
+      if (t.kind != TokenKind::NUMBER || t.text.empty()) return false;
+      for (char c : t.text)
+        if (c < '0' || c > '9') return false;
+      return true;
+    }
+
   }  // namespace
 
   bool applyHistoryStmt(const Stmt& st, bool isRedo, EditLedger& ledger,
@@ -26,10 +33,22 @@ namespace stencil::core::script {
     std::string reason;
 
     if (isRedo) {
+      const std::vector<Token> words = gluedWords(st.args);
       int times = 1;
-      if (!st.args.empty() && st.args[0].kind == TokenKind::NUMBER)
-        times = parseIntClamped(st.args[0].text);
-      if (times < 1) times = 1;
+      if (!words.empty()) {
+        times = isWholeCount(words[0]) ? parseIntClamped(words[0].text) : 0;
+        if (times < 1) {
+          diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", words[0],
+                                   "'" + words[0].text +
+                                       "' is not a redo count: write a whole number from 1"));
+          return false;
+        }
+      }
+      if (words.size() > 1) {
+        diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", words[1],
+                                 "'" + words[1].text + "' is extra: @redo takes one count"));
+        return false;
+      }
       if (!ledger.redo(times, reason)) {
         diags.push_back(makeDiag(Severity::WARNING, "W_NOTHING_TO_REDO", st, reason));
         return false;

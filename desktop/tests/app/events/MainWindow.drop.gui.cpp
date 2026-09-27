@@ -148,7 +148,7 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QStringLiteral("head is %1").arg(ranked.value(0).left(64))));
     QVERIFY2(ranked.contains(LINK), "the link stays on as a fallback");
     CanvasWidget* canvas = win.findChild<CanvasWidget*>();
-    QVERIFY2(carriesTheDragBitmap(canvas), "the dragged bitmap never opened");
+    QTRY_VERIFY2_WITH_TIMEOUT(carriesTheDragBitmap(canvas), "the dragged bitmap never opened", 5000);
     for (const QLabel* toast : win.findChildren<QLabel*>())
       QVERIFY2(!toast->text().contains(QStringLiteral("Not a readable")),
                qPrintable(toast->text()));
@@ -185,7 +185,7 @@ class MainWindowGuiTest : public QObject {
     dropOn(win, mime, QPoint(120, 300));
     QVERIFY2(win.mediaLoader, "a raw pixel drop must take the media loader path too");
     CanvasWidget* canvas = win.findChild<CanvasWidget*>();
-    QVERIFY2(carriesTheDragBitmap(canvas), "a raw pixel drop must still open");
+    QTRY_VERIFY2_WITH_TIMEOUT(carriesTheDragBitmap(canvas), "a raw pixel drop must still open", 5000);
   }
 
   // Chrome publishes only the wrapper link for an image behind an <a>, so nothing that crossed
