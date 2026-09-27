@@ -36,12 +36,15 @@ namespace stencil::net {
     qint64 expiresAt = 0;
     // Monotonic edit version (LWW guard); echoed back on PUT to detect a 409.
     qint64 version = 0;
+    // protocol.ProjectRecord.OriginalHash: hex SHA-256 of the stored original; empty on an older
+    // server or a project without one.
+    QString originalHash;
     // Stamped by ConnectionManager::sharedProjects() so open/save route back to the right connection.
     QString serverUrl;
   };
 
   // The REST surface is asynchronous throughout and completions run on the GUI thread; a caller
-  // that must await one (the op-plan appliers) spins a QEventLoop of its own around it.
+  // that must await one (an op plan's connect) resumes from the completion itself.
   class ServerClient {
    public:
     // Expired (401/403) is deliberately not Error: the server is fine and the saved row is kept for re-sign-in.
@@ -65,6 +68,9 @@ namespace stencil::net {
     static bool isLoopbackHost(const QString& host);
     // http to a non-loopback host sends the bearer token in cleartext — the UI warns.
     static bool isInsecureRemote(const QString& base);
+    // blockedRanges `serverTarget` with allowPrivate on a literal host: a user may name a LAN or local
+    // server, never a link-local, metadata, unspecified, multicast or reserved address.
+    static bool isRefusedTarget(const QString& base);
 
     const QString& getBase() const { return base; }
     const QString& getToken() const { return token; }
@@ -83,6 +89,8 @@ namespace stencil::net {
     void connectAsync(const QString& token, std::function<void(bool ok)> done,
                       CredentialKind hint = CredentialKind::NONE);
     void reconnectAsync(std::function<void(bool ok)> done);
+    // Pages are walked to the end; a server still handing out cursors after this many is cut off.
+    static constexpr int MAX_LIST_PAGES = 1000;
     void listProjectsAsync(std::function<void(bool ok, QVector<ServerProject> projects)> done);
     void createProjectAsync(const QString& name, const QString& source, const QString& resource,
                             bool hasImage, int w, int h,

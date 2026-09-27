@@ -141,4 +141,3 @@ test "plan layout with no earlier crop/rotate is clamped but not re-mapped (§1)
     try testing.expect(std.mem.indexOf(u8, after, "{\"x\":2,\"y\":1}") != null); // untouched
     try testing.expect(std.mem.indexOf(u8, after, "{\"x\":4,\"y\":0}") != null); // clamped into 4x4
 }
-

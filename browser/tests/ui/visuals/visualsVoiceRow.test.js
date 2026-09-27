@@ -1,4 +1,4 @@
-// The Visuals dialog's one voice knob (js/ui/voiceRow.js): Send-after-pause. The row
+// The Visuals dialog's one voice knob (js/ui/visuals/voiceRow.js): Send-after-pause. The row
 // is a wire between the number field and the shared store, so what is pinned is that it
 // CLAMPS what was typed before it saves, and that reset goes back to the documented default.
 import test from 'node:test';

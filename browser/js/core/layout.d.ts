@@ -40,10 +40,16 @@ export declare const serializeSession: (state: Record<string, unknown>) => Recor
 export declare const normalizeCropRect: (r: WireCropRect | null | undefined) => CropRect | null;
 /** The export subset in its own key order; cropRect leaves as {x,y,w,h}. */
 export declare const buildLayoutPayload: (src: Record<string, unknown>) => LayoutPayload;
+/** The merge key: fixed field order, a missing field as the core default, numbers as String(n). */
+export declare const lineDedupeKey: (line: unknown) => string;
+/** keep[i]: local line i joins the merge (the JS reference of core::mergeKeep). */
+export declare const mergeKeepJS: (serverLines: readonly unknown[], localLines: readonly unknown[]) => boolean[];
 /** Server lines first, then any local line not already present (order-independent key). */
 export declare const mergeLines: (serverLines: readonly CodecLine[] | null | undefined, localLines: readonly CodecLine[] | null | undefined) => CodecLine[];
-/** Rebuilds each line from a field whitelist onto a fresh object; caps lines and points. */
+/** Rebuilds each line from a field whitelist onto a fresh object; caps lines, points per line and total points. */
 export declare const sanitizeLines: (rawLines: unknown) => CodecLine[];
+/** Cut at the layout caps as sanitizeLines cuts; the same array when under them. */
+export declare const capLayoutPoints: <T extends { points?: readonly unknown[] }>(lines: readonly T[]) => T[];
 export declare const validateLayout: (
   data: unknown,
   ctx: { hasImage: boolean; imgW: number; imgH: number; hasExistingLines: boolean },

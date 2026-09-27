@@ -113,6 +113,10 @@ const trackDust = (el, ms, onDrop = () => {}) => {
 
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
 export const CHAT_SLIDE_MS = TUNE.CHAT_SLIDE_MS;
+// The chat panel's own dust flight out of and back into its toolbar icon (ms); a close keeps
+// the panel up for the whole flight out.
+export const CHAT_SURFACE_IN_MS = TUNE.CHAT_SURFACE_IN_MS;
+export const CHAT_SURFACE_OUT_MS = TUNE.CHAT_SURFACE_OUT_MS;
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
 // No particles: the cloud WAS the entrance, so the entry rises in instead (.chat-slide-in).

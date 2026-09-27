@@ -61,7 +61,7 @@ class MainWindowGuiTest : public QObject {
       stillChecked = crop->isChecked();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(stagedBefore, "Crop must have staged a rect to begin with");
     QVERIFY2(!stagedAfter, "editing the URL must clear the old rect at once, not after a decode");
     QVERIFY2(pictureVisible, "the plain picture stays up while the text is corrected");
@@ -105,7 +105,7 @@ class MainWindowGuiTest : public QObject {
       frameShownAfterImage = dlg->frameRow->isVisible();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(frameShownAfterVideo, "the cached video must have shown a Frame row to lose");
     QVERIFY2(!frameShownAfterImage,
              "the image tab must not keep the video tab's Frame row");

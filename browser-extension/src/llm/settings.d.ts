@@ -2,14 +2,15 @@
 // The endpoint is always explicit user configuration, never discovered from content.
 
 /** Contract §5 providers, plus the extension's own off-switch. */
-export type LlmProvider = 'none' | 'ollama' | 'openai-compat' | 'stencil-server';
+export type LlmProvider = 'none' | 'ollama' | 'openai-compat' | 'anthropic' | 'stencil-server';
 
 export interface LlmSettings {
   provider: LlmProvider;
-  /** ollama / openai-compat endpoint. */
+  /** ollama / openai-compat / anthropic endpoint. */
   baseUrl: string;
   model: string;
-  /** openai-compat bearer key; never sent to any other provider. */
+  /** openai-compat bearer key; never sent to any other provider. For anthropic always '' at rest:
+   *  its key is the session key, which only withSessionKey() puts here for one request. */
   apiKey: string;
   /** stencil-server endpoint, and the token used when no stored connection matches. */
   serverUrl: string;
@@ -27,3 +28,5 @@ export declare function isHttpUrl(value: unknown): boolean;
 export declare function defaultSettings(connections?: unknown[]): LlmSettings;
 export declare function loadLlmSettings(opts?: { connections?: unknown[] }): Promise<LlmSettings>;
 export declare function saveLlmSettings(settings?: Partial<LlmSettings>): Promise<LlmSettings>;
+/** For anthropic, a copy carrying the session key as apiKey ('' when none); others unchanged. */
+export declare function withSessionKey<T extends Partial<LlmSettings> | null | undefined>(settings: T): Promise<T>;

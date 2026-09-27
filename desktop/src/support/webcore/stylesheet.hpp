@@ -1,5 +1,5 @@
 #pragma once
-// The webcore skin's sheet and palette: the app sheet with resources/webcore.qss laid over it,
+// The webcore skin's sheet and palette: the app sheet with resources/qss/webcore/ laid over it,
 // and the Palette the hand-painted chrome takes while the skin is on. Twin of
 // browser/css/webcore/.
 #include "theme.hpp"

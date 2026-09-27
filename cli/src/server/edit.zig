@@ -2,11 +2,11 @@
 //! peer's save produces, and the buffered connection that reassembles partial frames.
 const std = @import("std");
 const builtin = @import("builtin");
+const net = @import("../net.zig");
 const Error = @import("errors.zig").Error;
 const urls = @import("urls.zig");
 const hostAndPort = urls.hostAndPort;
 const editPort = urls.editPort;
-const testing = std.testing;
 
 /// Build one NDJSON frame: compact JSON + '\n'. Compact JSON never contains a raw
 /// newline, so '\n' is an unambiguous delimiter for the TCP edit transport.
@@ -83,16 +83,8 @@ pub const EditConn = struct {
         // rather than dial the wrong port. REST and sync still work over TLS.
         if (std.ascii.startsWithIgnoreCase(base, "https://")) return Error.TlsNotSupported;
         const hp = hostAndPort(base);
-        const port = editPort(hp.port);
-        // IpAddress.resolve only parses IP LITERALS (it ParseFails on "localhost"), so names fall back to a DNS
-        // lookup via HostName. Without it the events feed never opened for the common localhost server.
-        var stream = if (std.Io.net.IpAddress.resolve(io, hp.host, port)) |lit| s: {
-            var addr = lit;
-            break :s try addr.connect(io, .{ .mode = .stream });
-        } else |_| s: {
-            const hn = try std.Io.net.HostName.init(hp.host);
-            break :s try hn.connect(io, port, .{ .mode = .stream });
-        };
+        // Judged under serverTarget as the REST exchanges are, and dialled at an address judged.
+        var stream = try net.dialServer(io, hp.host, editPort(hp.port));
         errdefer stream.close(io);
         // A read that reaches the socket is always one poll() said was ready, but a stalled peer
         // must not hold the prompt either: 100ms is the ceiling on any read that slips through.
@@ -147,13 +139,13 @@ pub const EditConn = struct {
     }
 
     /// Append freshly-read socket bytes to the frame buffer. Split out for testing.
-    fn feed(self: *EditConn, data: []const u8) !void {
+    pub fn feed(self: *EditConn, data: []const u8) !void {
         try self.rbuf.appendSlice(self.gpa, data);
     }
 
     /// Pop and parse complete NDJSON frames from the buffer, returning the next project-update event
     /// (skipping welcome/synced frames) or null. Pure buffer work — no socket — so it is unit-tested.
-    fn nextEvent(self: *EditConn) !?Event {
+    pub fn nextEvent(self: *EditConn) !?Event {
         while (std.mem.indexOfScalar(u8, self.rbuf.items, '\n')) |nl| {
             const line = try self.gpa.dupe(u8, self.rbuf.items[0..nl]);
             defer self.gpa.free(line);
@@ -165,70 +157,3 @@ pub const EditConn = struct {
         return null;
     }
 };
-
-test "helloFrame and frame are newline-delimited" {
-    const a = testing.allocator;
-    const h = try helloFrame(a, "tkn", "p_a_b", "c1");
-    defer a.free(h);
-    try testing.expect(h[h.len - 1] == '\n');
-    try testing.expect(std.mem.indexOf(u8, h, "\"projectId\":\"p_a_b\"") != null);
-    try testing.expect(std.mem.indexOf(u8, h, "\"token\":\"tkn\"") != null);
-
-    const f = try frame(a, "{\"type\":\"ping\"}");
-    defer a.free(f);
-    try testing.expectEqualStrings("{\"type\":\"ping\"}\n", f);
-}
-
-test "parseEvent returns updated project-events, ignores other frames" {
-    const a = testing.allocator;
-
-    // A project-event frame yields an owned id/name/version + the change timestamp.
-    const body = "{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p_x_y\",\"name\":\"Notes\",\"version\":7,\"updatedAt\":1700000000000}}";
-    var ev = (try parseEvent(a, body)).?;
-    defer ev.deinit(a);
-    try testing.expectEqualStrings("p_x_y", ev.id);
-    try testing.expectEqualStrings("Notes", ev.name);
-    try testing.expectEqual(@as(i64, 7), ev.version);
-    try testing.expectEqual(@as(i64, 1700000000000), ev.updated_at);
-    try testing.expect(!ev.deleted);
-
-    // A "deleted" event is flagged; updatedAt absent defaults to 0.
-    var del = (try parseEvent(a, "{\"type\":\"project-event\",\"event\":\"deleted\",\"project\":{\"id\":\"p_z\",\"name\":\"Gone\",\"version\":3}}")).?;
-    defer del.deinit(a);
-    try testing.expect(del.deleted);
-    try testing.expectEqual(@as(i64, 0), del.updated_at);
-
-    // Non-event frames (welcome, synced, hello echoes) are ignored.
-    try testing.expect((try parseEvent(a, "{\"type\":\"welcome\",\"version\":1}")) == null);
-    try testing.expect((try parseEvent(a, "{\"type\":\"project-event\"}")) == null); // no project
-    try testing.expect((try parseEvent(a, "not json")) == null);
-}
-
-test "EditConn frame buffer handles partial, multiple, and skipped frames" {
-    const a = testing.allocator;
-    // io/stream are unused by feed/nextEvent (pure buffer work), so leave them undefined.
-    var c = EditConn{ .gpa = a, .io = undefined, .stream = undefined };
-    defer c.rbuf.deinit(a);
-
-    // A frame split across two reads yields nothing until the newline arrives.
-    try c.feed("{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p1\",\"nam");
-    try testing.expect((try c.nextEvent()) == null);
-
-    // Completing it, plus a non-event frame and a second event, all in one chunk.
-    try c.feed("e\":\"A\",\"version\":2}}\n{\"type\":\"welcome\",\"version\":1}\n" ++
-        "{\"type\":\"project-event\",\"event\":\"updated\",\"project\":{\"id\":\"p2\",\"name\":\"B\",\"version\":5}}\n");
-
-    var e1 = (try c.nextEvent()).?;
-    defer e1.deinit(a);
-    try testing.expectEqualStrings("p1", e1.id);
-    try testing.expectEqual(@as(i64, 2), e1.version);
-
-    // The welcome frame is skipped; the next event is p2.
-    var e2 = (try c.nextEvent()).?;
-    defer e2.deinit(a);
-    try testing.expectEqualStrings("p2", e2.id);
-    try testing.expectEqual(@as(i64, 5), e2.version);
-
-    // Buffer drained.
-    try testing.expect((try c.nextEvent()) == null);
-}

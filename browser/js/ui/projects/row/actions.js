@@ -3,6 +3,8 @@ import { notify, shortName } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
 import { createOpenGesture } from '../../../core/project/openGesture.js';
 import { beginRowRename } from './rename.js';
+import { clearedToast } from '../../../core/project/transferController.js';
+import { publishIncognitoToServer } from '../../../core/launch/incognitoFlow.js';
 
 // Everything a SAVED project row can do: the ⋯ / right-click menu, its prompts, and the open
 // gestures. Returns the gesture so the rename editor can cancel an open it already armed.
@@ -33,7 +35,7 @@ export function attachRowActions(deps) {
       { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', closeAnchor: menuBtn }))) {
       return;
     }
-    try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
+    try { await app.projectTransfer.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
     catch (err) { notify(`Could not move to server — ${err.message}`, 'fail'); }
   };
   const copyToServer = async () => {
@@ -41,7 +43,7 @@ export function attachRowActions(deps) {
     if (!address) return;
     const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy`, closeAnchor: menuBtn });
     if (name == null) return;
-    try { await app.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
+    try { await app.projectTransfer.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
     catch (err) { notify(`Could not copy to server — ${err.message}`, 'fail'); }
   };
   const removeRow = async () => {
@@ -54,20 +56,21 @@ export function attachRowActions(deps) {
     const settle = beginRemoval();
     const revive = retireKey(localKey(meta.id));
     await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-    app.removeProject(meta.id);
+    app.projectTransfer.removeProject(meta.id);
     await settle();
     revive();
+    notify(clearedToast(1), 'ok');
   };
 
   const openWithIntent = async ({ confirm = true, target = 'here', closeAnchor = null } = {}) => {
     if (target === 'newtab') {
       if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;
-      app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses
+      app.projectTransfer.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses
       return;
     }
     if (isActive) { close(); return; }
     if (confirm && !(await confirmOpen(meta.name, false, closeAnchor))) return;
-    app.switchToProject(meta.id);
+    app.projectTransfer.switchToProject(meta.id);
     close();
   };
   const open = () => openWithIntent({ confirm: true, target: 'here', closeAnchor: menuBtn });
@@ -75,7 +78,7 @@ export function attachRowActions(deps) {
   // Per-row colour: the native picker paints the project name, and a "Clear colour"
   // item (only when one is set) resets it to the theme accent.
   const pickColor = () => openColorPicker(meta, menuBtn);
-  const clearColor = () => { app.setProjectColor(meta.id, ''); meta.color = ''; render(); };
+  const clearColor = () => { app.projectTransfer.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
   // Edit the project's search keywords via a prompt (comma/space separated). The store
   // normalizes; a server-linked project also pushes them to the server.
@@ -83,7 +86,7 @@ export function attachRowActions(deps) {
     const cur = (meta.keywords || []).join(' ');
     const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
     if (v == null) return;
-    const updated = app.setProjectKeywords(meta.id, v.split(/[\s,]+/));
+    const updated = app.projectTransfer.setProjectKeywords(meta.id, v.split(/[\s,]+/));
     if (updated) meta.keywords = updated.keywords;
     render();
   };
@@ -94,7 +97,7 @@ export function attachRowActions(deps) {
     const cur = meta.description || '';
     const v = await app.prompt('Description:', { title: 'Project description', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
     if (v == null) return;
-    const updated = app.setProjectDescription(meta.id, v);
+    const updated = app.projectTransfer.setProjectDescription(meta.id, v);
     if (updated) meta.description = updated.description;
     render();
   };
@@ -102,9 +105,9 @@ export function attachRowActions(deps) {
   // One menu definition, shared by the "⋯" button and a right-click on the row.
   const menuItems = () => [
     isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
-    { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.openProjectInNewTab(meta.id); } },
+    { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.projectTransfer.openProjectInNewTab(meta.id); } },
     // Hidden when no target is configured, exactly as the toolbar button hides
-    // (ui/state.js), so it never offers a dead action.
+    // (ui/control/state.js), so it never offers a dead action.
     app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
     { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
     { icon: 'palette', label: 'Set color', onClick: pickColor },
@@ -181,7 +184,7 @@ export function attachIncognitoActions({ row, app, render }) {
         { title: 'Save to server', confirmLabel: 'Save', confirmIcon: 'upload', options: urls.map(u => ({ value: u, label: u })) });
       if (!address) return;
     }
-    try { await app.publishIncognitoToServer(address); render(); }
+    try { await publishIncognitoToServer(app, address); render(); }
     catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
   };
   const actions = document.createElement('div');

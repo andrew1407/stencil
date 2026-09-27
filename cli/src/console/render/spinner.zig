@@ -40,7 +40,7 @@ pub const Spinner = struct {
         if (screen.current()) |scr| {
             logo.print("{s}\n", .{first});
             self.mode = .screen;
-            self.line = scr.lines.items.len -| 1;
+            self.line = scr.lines.len -| 1;
         } else if (logo.liveTty()) {
             std.debug.print("{s}", .{first}); // no newline: the row is redrawn in place
             self.mode = .tty;
@@ -173,26 +173,26 @@ test "in the full-screen console the line spins in place and goes with the first
     var want: [64]u8 = undefined;
     var spin = Spinner{};
     spin.start("thinking…");
-    try testing.expectEqual(@as(usize, 2), s.lines.items.len);
-    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.items[1]);
+    try testing.expectEqual(@as(usize, 2), s.lines.len);
+    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.at(1));
     // The first beat only starts the clock; the frame advances once frame_ms has passed.
     spin.beat(1000);
-    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.items[1]);
+    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.at(1));
     spin.beat(1000 + frame_ms - 1);
-    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.items[1]);
+    try testing.expectEqualStrings(expectLine(&want, "◐", "thinking…"), s.lines.at(1));
     spin.beat(1000 + frame_ms);
-    try testing.expectEqualStrings(expectLine(&want, "◓", "thinking…"), s.lines.items[1]);
+    try testing.expectEqualStrings(expectLine(&want, "◓", "thinking…"), s.lines.at(1));
     spin.beat(1000 + 2 * frame_ms);
-    try testing.expectEqualStrings(expectLine(&want, "◑", "thinking…"), s.lines.items[1]);
+    try testing.expectEqualStrings(expectLine(&want, "◑", "thinking…"), s.lines.at(1));
     // The reply lands: its print erases the line first, so the scrollback keeps no trace.
     logo.print("reply: done\n", .{});
-    try testing.expectEqual(@as(usize, 2), s.lines.items.len);
-    try testing.expectEqualStrings("wrote out.png", s.lines.items[0]);
-    try testing.expectEqualStrings("reply: done", s.lines.items[1]);
+    try testing.expectEqual(@as(usize, 2), s.lines.len);
+    try testing.expectEqualStrings("wrote out.png", s.lines.at(0));
+    try testing.expectEqualStrings("reply: done", s.lines.at(1));
     spin.beat(1000 + 3 * frame_ms); // inert now: nothing to advance
     spin.stop();
-    try testing.expectEqual(@as(usize, 2), s.lines.items.len);
-    try testing.expectEqualStrings("reply: done", s.lines.items[1]);
+    try testing.expectEqual(@as(usize, 2), s.lines.len);
+    try testing.expectEqualStrings("reply: done", s.lines.at(1));
 }
 
 test "in the full-screen console a wait with no output still ends with the line erased" {
@@ -210,10 +210,10 @@ test "in the full-screen console a wait with no output still ends with the line 
     spin.start("thinking…");
     spin.beat(0);
     spin.beat(frame_ms);
-    try testing.expectEqualStrings(expectLine(&want, "◓", "thinking…"), s.lines.items[0]);
+    try testing.expectEqualStrings(expectLine(&want, "◓", "thinking…"), s.lines.at(0));
     spin.stop();
-    try testing.expectEqual(@as(usize, 0), s.lines.items.len);
+    try testing.expectEqual(@as(usize, 0), s.lines.len);
     spin.stop(); // idempotent
     logo.print("later\n", .{}); // the hook is gone: nothing else is erased
-    try testing.expectEqual(@as(usize, 1), s.lines.items.len);
+    try testing.expectEqual(@as(usize, 1), s.lines.len);
 }

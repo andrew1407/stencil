@@ -3,6 +3,8 @@ import { extractDraggedImageUrls, mediaFilesFromData, fetchFirstDraggedMediaFile
 import { showDropOverlay, hideDropOverlay } from '../canvas/dropOverlay.js';
 import { loadScriptFile } from '../script/modal.js';
 import { openImageConfirmAnchors } from '../modal/imageAnchor.js';
+import { loadImageFromFile } from '../../core/image/loadFlow.js';
+import { openImageHere } from '../../core/launch/openFlow.js';
 export function wireDropPaste(app) {
   // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT
   // (upload incognito) zones. The cursor's half of the window decides which.
@@ -33,7 +35,7 @@ export function wireDropPaste(app) {
       if (where === 'alt') { app.openImageNewTab(file, incognito); return; }
     }
     // `landing` = play the canvas reveal — this image arrived by drop, not by dialog.
-    app.openImageHere(file, incognito, null, { landing: true, from });
+    openImageHere(app, file, incognito, null, { landing: true, from });
   };
 
   // Internal row-reorder drags (Servers / Projects modals) carry this flag; the image-drop
@@ -137,7 +139,7 @@ export function wireDropPaste(app) {
         return;
       }
       if (file) {
-        app.loadImageFromFile(file);
+        loadImageFromFile(app, file);
         notify('Image pasted from clipboard', 'ok');
       } else {
         notify('Could not read pasted image', 'fail');

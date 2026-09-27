@@ -39,7 +39,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawLine, "expected the drawn red line in the copied image");
   }
   // Cmd+C and the toolbar Copy button's plain click default to the CURRENT image (tint + lines/points),
-  // as in the browser. actCopyImageTint ("Filter Only", Ctrl+Alt+C) stays its own fixed variant.
+  // as in the browser. acts.copyImageTint ("Filter Only", Ctrl+Alt+C) stays its own fixed variant.
   void copyDefaultIsCurrentImage() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -59,14 +59,14 @@ class MainWindowGuiTest : public QObject {
     line.points.push_back({36.0, 20.0});
     win.canvas->setLines({line});
 
-    // The default gesture (actCopyImage, Ctrl+C) copies the CURRENT (full) image.
-    win.actCopyImage->trigger();
+    // The default gesture (acts.copyImage, Ctrl+C) copies the CURRENT (full) image.
+    win.acts.copyImage->trigger();
     const QImage current = QGuiApplication::clipboard()->image();
     QVERIFY(!current.isNull());
     QCOMPARE(current, win.canvas->renderToImage(QStringLiteral("current")));
 
-    // "Filter Only" (actCopyImageTint) copies the filtered image with no overlay instead.
-    win.actCopyImageTint->trigger();
+    // "Filter Only" (acts.copyImageTint) copies the filtered image with no overlay instead.
+    win.acts.copyImageTint->trigger();
     const QImage tinted = QGuiApplication::clipboard()->image();
     QVERIFY(!tinted.isNull());
     QCOMPARE(tinted, win.canvas->renderToImage(QStringLiteral("tint")));
@@ -83,16 +83,16 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
-    QVERIFY2(!win.actCopyImageTint->isVisible(), "Filter Only shows with no filter applied");
-    QVERIFY2(!win.actSaveImageTint->isVisible(), "Filter Only shows with no filter applied");
+    QVERIFY2(!win.acts.copyImageTint->isVisible(), "Filter Only shows with no filter applied");
+    QVERIFY2(!win.acts.saveImageTint->isVisible(), "Filter Only shows with no filter applied");
 
     win.applyImageFilter(QStringLiteral("sepia"));
-    QVERIFY2(win.actCopyImageTint->isVisible(), "Filter Only should show once a filter is active");
-    QVERIFY2(win.actSaveImageTint->isVisible(), "Filter Only should show once a filter is active");
+    QVERIFY2(win.acts.copyImageTint->isVisible(), "Filter Only should show once a filter is active");
+    QVERIFY2(win.acts.saveImageTint->isVisible(), "Filter Only should show once a filter is active");
 
     win.applyImageFilter(QStringLiteral("none"));
-    QVERIFY2(!win.actCopyImageTint->isVisible(), "Filter Only should hide again once the filter clears");
-    QVERIFY2(!win.actSaveImageTint->isVisible(), "Filter Only should hide again once the filter clears");
+    QVERIFY2(!win.acts.copyImageTint->isVisible(), "Filter Only should hide again once the filter clears");
+    QVERIFY2(!win.acts.saveImageTint->isVisible(), "Filter Only should hide again once the filter clears");
   }
   // "Current"'s OWN row is hidden until there is something to overlay, the same reasoning as Filter
   // Only — a SEPARATE action from the toolbar buttons', which stay visible as a QToolButton mirrors it.
@@ -105,11 +105,11 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
-    QVERIFY2(!win.actCopyImageCurrentRow->isVisible(), "Current's row shows with nothing drawn");
-    QVERIFY2(!win.actSaveImageCurrentRow->isVisible(), "Current's row shows with nothing drawn");
-    QVERIFY2(win.actCopyImage->isVisible(), "the toolbar's own Copy action must stay visible regardless");
-    QVERIFY2(win.actSaveImage->isVisible(), "the toolbar's own Download action must stay visible regardless");
-    QVERIFY(win.actCopyImage->isEnabled());
+    QVERIFY2(!win.acts.copyImageCurrentRow->isVisible(), "Current's row shows with nothing drawn");
+    QVERIFY2(!win.acts.saveImageCurrentRow->isVisible(), "Current's row shows with nothing drawn");
+    QVERIFY2(win.acts.copyImage->isVisible(), "the toolbar's own Copy action must stay visible regardless");
+    QVERIFY2(win.acts.saveImage->isVisible(), "the toolbar's own Download action must stay visible regardless");
+    QVERIFY(win.acts.copyImage->isEnabled());
 
     stencil::core::Line line;
     line.color = "#00ff00";
@@ -117,20 +117,20 @@ class MainWindowGuiTest : public QObject {
     line.points.push_back({36.0, 20.0});
     win.canvas->setLines({line});
     win.refreshActions();
-    QVERIFY2(win.actCopyImageCurrentRow->isVisible(), "Current's row should show once something is drawn");
-    QVERIFY2(win.actSaveImageCurrentRow->isVisible(), "Current's row should show once something is drawn");
+    QVERIFY2(win.acts.copyImageCurrentRow->isVisible(), "Current's row should show once something is drawn");
+    QVERIFY2(win.acts.saveImageCurrentRow->isVisible(), "Current's row should show once something is drawn");
 
     // Clicking the row performs the exact same thing as the toolbar button.
-    win.actCopyImageCurrentRow->trigger();
+    win.acts.copyImageCurrentRow->trigger();
     const QImage viaRow = QGuiApplication::clipboard()->image();
-    win.actCopyImage->trigger();
+    win.acts.copyImage->trigger();
     QCOMPARE(QGuiApplication::clipboard()->image(), viaRow);
 
     win.canvas->setLines({});
     win.refreshActions();
-    QVERIFY2(!win.actCopyImageCurrentRow->isVisible(), "Current's row should hide again once lines are cleared");
-    QVERIFY2(!win.actSaveImageCurrentRow->isVisible(), "Current's row should hide again once lines are cleared");
-    QVERIFY2(win.actCopyImage->isVisible(), "the toolbar's own Copy action is still untouched");
+    QVERIFY2(!win.acts.copyImageCurrentRow->isVisible(), "Current's row should hide again once lines are cleared");
+    QVERIFY2(!win.acts.saveImageCurrentRow->isVisible(), "Current's row should hide again once lines are cleared");
+    QVERIFY2(win.acts.copyImage->isVisible(), "the toolbar's own Copy action is still untouched");
   }
   // An action going invisible out from under an ALREADY-OPEN menu must take its chip with it, or it
   // floats at its last position over whatever row now sits there. Needs the live poll (installPlacer).
@@ -144,12 +144,12 @@ class MainWindowGuiTest : public QObject {
     win.loadImageWithLayout(img, QJsonObject());
     win.applyImageFilter(QStringLiteral("sepia"));   // Filter Only visible before the popup opens
 
-    QWidget* saveBtn = win.buttonForAction(win.actSaveImage);
+    QWidget* saveBtn = win.buttonForAction(win.acts.saveImage);
     QVERIFY(saveBtn);
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
                           saveBtn->mapToGlobal(saveBtn->rect().center()));
     QApplication::sendEvent(saveBtn, &ctx);
-    QMenu* menu = win.saveImageOptionsMenu;
+    QMenu* menu = win.acts.saveImageOptionsMenu;
     const bool opened = menu && menu->isVisible();
 
     auto chipOver = [&](QAction* act) -> stencil::gui::TipBody* {
@@ -163,13 +163,13 @@ class MainWindowGuiTest : public QObject {
     // leave the menu open, or it outlives `win` and crashes on teardown.
     bool chippedWhileActive = false, stillChippedAfter = true;
     if (opened) {
-      chippedWhileActive = chipOver(win.actSaveImageTint) != nullptr;
+      chippedWhileActive = chipOver(win.acts.saveImageTint) != nullptr;
       // Turn the filter off WHILE the popup stays open — no click, no reopen — and
       // give the live poll (MenuHotkeys.hpp) a moment to catch up.
       win.applyImageFilter(QStringLiteral("none"));
       for (int i = 0; i < 20 && stillChippedAfter; ++i) {
         QTest::qWait(20);
-        stillChippedAfter = chipOver(win.actSaveImageTint) != nullptr;
+        stillChippedAfter = chipOver(win.acts.saveImageTint) != nullptr;
       }
       menu->close();
     }

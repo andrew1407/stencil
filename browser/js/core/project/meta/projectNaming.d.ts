@@ -11,7 +11,7 @@ export declare const nameExists: (metas: readonly ProjectMeta[], name: unknown, 
 /** Gates the rename ✓ button; `exceptId` is the project being renamed. */
 export declare const validateName: (metas: readonly ProjectMeta[], name: unknown, exceptId?: string | null) =>
   { ok: boolean; reason: string };
-/** Identical non-empty `source`, else a base-name match. */
+/** Identical non-empty `source` (a data URL compared by its registry reference), else a base-name match. */
 export declare const findByImage: (metas: readonly ProjectMeta[], source: string | null | undefined, name: string | null | undefined) => ProjectMeta[];
 /** The bare base name when free, else the lowest unused "Name (N)". */
 export declare const copyName: (metas: readonly ProjectMeta[], baseName: string | null | undefined, source: string | null | undefined) => string;

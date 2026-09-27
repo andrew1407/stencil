@@ -6,14 +6,22 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// projectCols is the column list / order for full project row scans.
-const projectCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
-	source, resource, color, description, original_path, result_path, original_content, layout, owner_session, version, keywords_arr, blank_color`
+// projectMetaCols is every column but the layout payload. Lists, write RETURNINGs, existence checks and the
+// file routes read only these; the original's bytes are never a column, only the filestore's.
+const projectMetaCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
+	source, resource, color, description, original_path, result_path, owner_session, version, keywords_arr, blank_color,
+	original_hash`
 
-// scanProject's payload switch: only full rows carry original_content + layout.
+// projectCols is the whole row, the layout after the metadata so one scanner reads both column sets:
+// GET /projects/{id} and a live session's snapshot.
+const projectCols = projectMetaCols + `, layout`
+
+// rowPayload picks whether a scan expects the layout after the metadata.
+type rowPayload int
+
 const (
-	withPayload    = true
-	withoutPayload = false
+	metaOnly   rowPayload = iota // projectMetaCols
+	withLayout                   // projectCols
 )
 
 // normalizeKeywords is the keyword rule at the write boundary: trim, drop blanks, dedupe
@@ -36,30 +44,26 @@ func normalizeKeywords(kw []string) []string {
 	return out
 }
 
-// joinKeywords feeds the legacy `keywords` column: written but never read for one
-// release, so a rollback keeps its data. Migration 0003 drops both.
-func joinKeywords(kw []string) string { return strings.Join(normalizeKeywords(kw), "\n") }
-
 // rowScanner is satisfied by both pgx.Row and pgx.Rows.
 type rowScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanProject(row rowScanner, payload bool) (protocol.ProjectRecord, error) {
+func scanProject(row rowScanner, payload rowPayload) (protocol.ProjectRecord, error) {
 	var (
 		rec    protocol.ProjectRecord
 		layout []byte
 		owner  *string
+		hash   *string // NULL until an original is stored with its hash
 	)
 	dest := []any{
 		&rec.ID, &rec.Name, &rec.CreatedAt, &rec.UpdatedAt, &rec.ExpiresAt, &rec.HasImage,
 		&rec.ImageW, &rec.ImageH, &rec.Source, &rec.Resource, &rec.Color, &rec.Description,
-		&rec.OriginalPath, &rec.ResultPath,
+		&rec.OriginalPath, &rec.ResultPath, &owner, &rec.Version, &rec.Keywords, &rec.BlankColor, &hash,
 	}
-	if payload {
-		dest = append(dest, &rec.OriginalContent, &layout)
+	if payload == withLayout {
+		dest = append(dest, &layout)
 	}
-	dest = append(dest, &owner, &rec.Version, &rec.Keywords, &rec.BlankColor)
 	if err := row.Scan(dest...); err != nil {
 		return protocol.ProjectRecord{}, err
 	}
@@ -68,10 +72,8 @@ func scanProject(row rowScanner, payload bool) (protocol.ProjectRecord, error) {
 	if owner != nil {
 		rec.OwnerSession = *owner
 	}
+	if hash != nil {
+		rec.OriginalHash = *hash
+	}
 	return rec, nil
-}
-
-// scanProjectRow scans one full projectCols row.
-func scanProjectRow(row rowScanner) (protocol.ProjectRecord, error) {
-	return scanProject(row, withPayload)
 }

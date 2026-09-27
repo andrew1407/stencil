@@ -1,7 +1,6 @@
 //! The S icon's clock turn: a hand pivots on the icon's middle and sweeps the new accent
 //! round it while the seam takes the rest of the row. Pure geometry over the cell grid.
 const std = @import("std");
-const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
 const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
@@ -60,8 +59,6 @@ pub fn sweptSpansAt(row: u16, cols: u16, cy: f64, cx: f64, deg: f64, out: *[2]Sp
     }
     return n;
 }
-
-/// A batched terminal frame: rows are accumulated and written in one go, so a whole animation
 
 // How far round the clock hand has come: one full turn over the seam's whole distance,
 // taken `icon_speed` times as fast, clamped at a full turn (past that it stays home).

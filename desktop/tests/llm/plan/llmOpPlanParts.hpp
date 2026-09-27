@@ -2,7 +2,7 @@
 // The op-plan parser suite's sections, one TU each behind this header, called in this order
 // from main(). Pure parse checks, so none of them needs a display or a fixture.
 #include "opPlan.hpp"
-#include "OpSchema.hpp"
+#include "opRegistry.hpp"
 #include "../../support/check.hpp"
 
 #include <QString>
@@ -24,7 +24,7 @@ namespace llmopplan {
     const auto r = stencil::llm::parseOpPlan(QString::fromUtf8(json));
     return r.ok && !r.plan.ask.options.isEmpty() &&
            r.plan.ask.options[0].actions.isEmpty() && r.plan.warnings.size() == 1 &&
-           r.plan.warnings[0].contains("preview for option");
+           r.plan.warnings[0].contains("preview for ask option");
   }
 
   void checkExtraction();

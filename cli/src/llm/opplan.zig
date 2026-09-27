@@ -1,7 +1,7 @@
-//! The op-plan (llm-contract §1–§3): the JSON a model must answer with, validated strictly
-//! before anything executes. This file is the surface llm.zig re-exports; the pieces live
-//! under opplan/ — the types, the table-driven validator, the typed normalizer, the §10
-//! user-echo guards, the reply-to-JSON extractor and the executor's context helpers.
+//! The op-plan (llm-contract §1–§3): the JSON a model must answer with, validated strictly by
+//! core/opplan before anything executes. This file is the surface llm.zig re-exports; the pieces
+//! live under opplan/ — the types, core's result mapped to them, the §10 user-echo guards and the
+//! executor's context helpers.
 const model = @import("opplan/model.zig");
 const validate = @import("opplan/validate.zig");
 const guards = @import("opplan/guards.zig");
@@ -19,7 +19,7 @@ pub const AskOption = model.AskOption;
 pub const Ask = model.Ask;
 pub const Plan = model.Plan;
 pub const findOp = model.findOp;
-pub const resolveAskAnswer = model.resolveAskAnswer;
+pub const resolveAskAnswer = @import("opplan/ask.zig").resolveAskAnswer;
 
 pub const ParseOutcome = validate.ParseOutcome;
 pub const parsePlan = validate.parsePlan;
@@ -43,7 +43,5 @@ test {
     _ = guards;
     _ = context;
     _ = @import("opplan/normalize.zig");
-    _ = @import("opplan/extract.zig");
-    _ = @import("opplan/actions.zig");
     _ = @import("opplan/ask.zig");
 }

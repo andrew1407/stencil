@@ -32,9 +32,9 @@
        trap on that side is going too far: cubic-bezier(0.33, 0, 0.25, 1) starts at
        literally zero speed and then rushes (.12 → .64 between 20% and 40%), which reads as
        a creep followed by a jump. Held to the area profile, not to the control points, by
-       browser/tests/motion.test.js.
+       browser/tests/ui/motion.test.js.
        All three surfaces run this same wipe now — the desktop evaluates these very control
-       points as a Qt easing (support/ThemeSwapOverlay.hpp swapEase) over the same duration,
+       points as a Qt easing (support/dust/ThemeSwapOverlay.hpp swapEase) over the same duration,
        so the length and the shape are one decision, not three. */
     animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
 }

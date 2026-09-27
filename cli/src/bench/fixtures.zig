@@ -65,8 +65,7 @@ pub fn script(gpa: std.mem.Allocator, edits: usize) ![]u8 {
     try b.appendSlice(gpa, "@source https://e.test/a.png:\n  @use line red dashed, 3px\n");
     for (0..edits) |i| {
         var line: [64]u8 = undefined;
-        try b.appendSlice(gpa, try std.fmt.bufPrint(&line, "  @rect ({d}%, {d}%) (-{d}%, -{d}%)\n",
-            .{ i % 40, (i * 3) % 40, i % 30, (i * 2) % 30 }));
+        try b.appendSlice(gpa, try std.fmt.bufPrint(&line, "  @rect ({d}%, {d}%) (-{d}%, -{d}%)\n", .{ i % 40, (i * 3) % 40, i % 30, (i * 2) % 30 }));
     }
     try b.appendSlice(gpa, "  @save out/\n");
     return b.toOwnedSlice(gpa);

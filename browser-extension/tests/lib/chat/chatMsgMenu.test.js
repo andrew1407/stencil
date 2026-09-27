@@ -1,4 +1,4 @@
-// src/lib/msgMenu.js — the assistant transcript's per-message right-click menu: Copy message /
+// src/lib/chat/msgMenu.js — the assistant transcript's per-message right-click menu: Copy message /
 // Insert into prompt, plus Resend on the user's own turns. Driven with a stub document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

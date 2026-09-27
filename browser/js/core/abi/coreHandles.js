@@ -1,10 +1,12 @@
 // The core's state/ group: classes that own state live in wasm memory behind an opaque
 // int handle (core/wasmStateApi.cpp). Each wrapper mirrors its JS twin's API exactly, so
-// browser/tests/wasm-parity-state.test.js drives both through one script.
+// browser/tests/wasm/wasm-parity-state.test.js drives both through one script.
 
 import { encodeLines, decodeLines } from '../line/linesCodec.js';
 import { buildProjectRules, projectRuleExports } from '../project/meta/projectRules.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
+const { HOLD_DRAW } = constants;
 const F64 = 8;
 const I32 = 4;
 
@@ -33,7 +35,8 @@ const holdDrawClass = (mod) => {
     #handle;
     #out;
 
-    constructor({ holdDelay = 500, moveTolerance = 6, rearmDistance = 10 } = {}) {
+    constructor({ holdDelay = HOLD_DRAW.delayMs, moveTolerance = HOLD_DRAW.moveTolerancePx,
+      rearmDistance = HOLD_DRAW.rearmDistancePx } = {}) {
       this.#handle = c.create(holdDelay, moveTolerance, rearmDistance);
       this.#out = mod._malloc(2 * F64);
     }
@@ -77,35 +80,47 @@ const holdDrawClass = (mod) => {
   };
 };
 
-// Snapshots cross as the flat (nums, text) pair from linesCodec.js, in both directions.
+// Snapshots cross as the flat (nums, text) pair from linesCodec.js, in both directions; a
+// memento's view as [x, y, width, height, quarters] beside it (width 0 = no crop yet).
 const historyClass = (mod) => {
-  const NUM = ['number', 'number', 'number', 'number', 'number', 'number', 'number'];
+  const NUM = 'number', STR = 'string';
   const c = {
-    create: mod.cwrap('stencil_history_create', 'number', []),
-    destroy: mod.cwrap('stencil_history_destroy', null, ['number']),
-    reset: mod.cwrap('stencil_history_reset', null, NUM),
-    push: mod.cwrap('stencil_history_push', null, ['number', 'number', 'number', 'number', 'number']),
-    canUndo: mod.cwrap('stencil_history_canUndo', 'number', ['number']),
-    canRedo: mod.cwrap('stencil_history_canRedo', 'number', ['number']),
-    step: mod.cwrap('stencil_history_step', 'number', ['number']),
-    size: mod.cwrap('stencil_history_size', 'number', ['number']),
-    undo: mod.cwrap('stencil_history_undo', 'number', ['number', 'number']),
-    redo: mod.cwrap('stencil_history_redo', 'number', ['number', 'number']),
-    read: mod.cwrap('stencil_history_readResult', null, ['number', 'number', 'number']),
+    create: mod.cwrap('stencil_history_create', NUM, []),
+    destroy: mod.cwrap('stencil_history_destroy', null, [NUM]),
+    reset: mod.cwrap('stencil_history_resetMemento', null, [NUM, NUM, NUM, NUM, NUM, NUM, NUM, NUM, STR, STR]),
+    push: mod.cwrap('stencil_history_pushMemento', null, [NUM, NUM, NUM, NUM, NUM, NUM, STR, STR]),
+    canUndo: mod.cwrap('stencil_history_canUndo', NUM, [NUM]),
+    canRedo: mod.cwrap('stencil_history_canRedo', NUM, [NUM]),
+    step: mod.cwrap('stencil_history_step', NUM, [NUM]),
+    size: mod.cwrap('stencil_history_size', NUM, [NUM]),
+    undo: mod.cwrap('stencil_history_undo', NUM, [NUM, NUM]),
+    redo: mod.cwrap('stencil_history_redo', NUM, [NUM, NUM]),
+    read: mod.cwrap('stencil_history_readResult', null, [NUM, NUM, NUM]),
+    readView: mod.cwrap('stencil_history_readView', NUM, [NUM, NUM]),
+    readFilter: mod.cwrap('stencil_history_readFilter', STR, [NUM, NUM]),
   };
 
-// A zero-length buffer still gets a byte, so the pointer is never null.
-  const withSnapshot = (lines, use) => {
-    const { nums, text } = encodeLines(lines);
+// A zero-length buffer still gets a byte, so the pointer is never null; a Lines array has no view.
+  const withSnapshot = (snapshot, use) => {
+    const isMemento = !Array.isArray(snapshot);
+    const { nums, text } = encodeLines(isMemento ? snapshot.lines : snapshot);
     const numsPtr = mod._malloc(Math.max(1, nums.length * F64));
     const textPtr = mod._malloc(Math.max(1, text.length));
+    const viewPtr = isMemento ? mod._malloc(5 * F64) : 0;
     try {
       new Float64Array(mod.HEAPF64.buffer, numsPtr, nums.length).set(nums);
       mod.HEAPU8.set(text, textPtr);
-      return use(numsPtr, nums.length, textPtr, text.length);
+      if (isMemento) {
+        const r = snapshot.cropRect;
+        const view = r ? [r.x, r.y, r.width, r.height] : [0, 0, 0, 0];
+        new Float64Array(mod.HEAPF64.buffer, viewPtr, 5).set([...view, snapshot.rotationQuarters ?? 0]);
+      }
+      return use(numsPtr, nums.length, textPtr, text.length, viewPtr,
+        isMemento ? (snapshot.filter ?? '') : '', isMemento ? (snapshot.filterColor ?? '') : '');
     } finally {
       mod._free(numsPtr);
       mod._free(textPtr);
+      if (viewPtr) mod._free(viewPtr);
     }
   };
 
@@ -128,13 +143,13 @@ const historyClass = (mod) => {
     get historyStep() { return c.step(this.#live()); }
     get size() { return c.size(this.#live()); }
 
-    reset(lines, baseStep) {
+    reset(snapshot, baseStep) {
       const has = baseStep === undefined ? 0 : 1;
-      withSnapshot(lines, (n, nl, t, tl) => c.reset(this.#live(), has, has ? baseStep : 0, n, nl, t, tl));
+      withSnapshot(snapshot, (...buf) => c.reset(this.#live(), has, has ? baseStep : 0, ...buf));
     }
 
-    push(lines) {
-      withSnapshot(lines, (n, nl, t, tl) => c.push(this.#live(), n, nl, t, tl));
+    push(snapshot) {
+      withSnapshot(snapshot, (...buf) => c.push(this.#live(), ...buf));
     }
 
     canUndo() { return c.canUndo(this.#live()) === 1; }
@@ -147,20 +162,29 @@ const historyClass = (mod) => {
       return this.#handle;
     }
 
-// 0 from undo/redo is the JS null.
+// 0 from undo/redo is the JS null; a step with a view comes back a memento, else Lines.
     #result(ok) {
       if (!ok) return null;
       const numsLen = mod.getValue(this.#sizes, 'i32');
       const textLen = mod.getValue(this.#sizes + I32, 'i32');
       const numsPtr = mod._malloc(Math.max(1, numsLen * F64));
       const textPtr = mod._malloc(Math.max(1, textLen));
+      const viewPtr = mod._malloc(5 * F64);
       try {
         c.read(this.#handle, numsPtr, textPtr);
-        return decodeLines(new Float64Array(mod.HEAPF64.buffer, numsPtr, numsLen),
-                           mod.HEAPU8.subarray(textPtr, textPtr + textLen));
+        const lines = decodeLines(new Float64Array(mod.HEAPF64.buffer, numsPtr, numsLen),
+                                  mod.HEAPU8.subarray(textPtr, textPtr + textLen));
+        if (!c.readView(this.#handle, viewPtr)) return lines;
+        const [x, y, width, height, rotationQuarters] = new Float64Array(mod.HEAPF64.buffer, viewPtr, 5);
+        const m = { lines, cropRect: width > 0 ? { x, y, width, height } : null, rotationQuarters };
+        const filter = c.readFilter(this.#handle, 0), filterColor = c.readFilter(this.#handle, 1);
+        if (filter) m.filter = filter;
+        if (filterColor) m.filterColor = filterColor;
+        return m;
       } finally {
         mod._free(numsPtr);
         mod._free(textPtr);
+        mod._free(viewPtr);
       }
     }
   };
@@ -181,5 +205,7 @@ export const stateExports = [
   'stencil_history_create', 'stencil_history_destroy', 'stencil_history_reset',
   'stencil_history_push', 'stencil_history_canUndo', 'stencil_history_canRedo',
   'stencil_history_step', 'stencil_history_size', 'stencil_history_undo',
-  'stencil_history_redo', 'stencil_history_readResult', ...projectRuleExports,
+  'stencil_history_redo', 'stencil_history_readResult', 'stencil_history_resetMemento',
+  'stencil_history_pushMemento', 'stencil_history_readView', 'stencil_history_readFilter',
+  ...projectRuleExports,
 ];

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { quadrantAt, mountDropZones } from '../../../src/lib/drop/zones.js';
 import { installDom, stubDoc, stubEl, stubWin } from '../../helpers/domStub.js';
 
-// The 4-quadrant map the on-page drop overlay uses (see lib/zones.js / popup drag).
+// The 4-quadrant map the on-page drop overlay uses (see lib/drop/zones.js / popup drag).
 test('quadrantAt maps each corner to its action', () => {
   const W = 1000, H = 800;
   assert.equal(quadrantAt(10, 10, W, H), 'here');          // top-left

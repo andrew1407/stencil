@@ -112,6 +112,11 @@ class AbiBindingTests(unittest.TestCase):
     self.assertGreaterEqual(len(declared), 15)
     self.assertEqual(sorted(declared - self._bound()), [])
 
+  def test_the_whole_opplan_family_is_bound(self):
+    declared = {n for n in self._declared() if n.startswith("stencil_cli_opplan")}
+    self.assertEqual(len(declared), 8)
+    self.assertEqual(sorted(declared - self._bound()), [])
+
 
 class StalenessTests(unittest.TestCase):
   """``is_stale`` over a temp artifact — mtime comparison, not mere existence."""

@@ -1,10 +1,33 @@
 #include "ThemeSwapOverlay.hpp"
 
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+
 namespace stencil::gui {
 
+  namespace {
+    int motionMs(const char* key, int fallback) {
+      QFile f(QStringLiteral(":/config/motion.json"));
+      if (!f.open(QIODevice::ReadOnly)) return fallback;
+      const int v = QJsonDocument::fromJson(f.readAll()).object().value(QLatin1String("ui")).toObject()
+                        .value(QLatin1String(key)).toInt(0);
+      return v > 0 ? v : fallback;
+    }
+  }  // namespace
+
+  int ThemeSwapOverlay::swapMs() {
+    static const int ms = motionMs("THEME_SWAP_MS", 280);
+    return ms;
+  }
+
+  int ThemeSwapOverlay::dustLifeMs() {
+    static const int ms = motionMs("SWAP_DUST_LIFE_MS", 340);
+    return ms;
+  }
 
   // NOT a plain ease-out: the wipe is a CIRCLE, so area grows as r^2 and OutCubic read as a snap.
-  // Same shape as the browser's cubic-bezier(0.4, 0.25, 0.95, 1) (browser/css/animations.css).
+  // Same shape as the browser's cubic-bezier(0.4, 0.25, 0.95, 1) (browser/css/animations/).
   double ThemeSwapOverlay::bezierY(double t, double x1, double y1, double x2, double y2) {
     return support::bezierY(t, x1, y1, x2, y2);
   }
@@ -60,7 +83,7 @@ namespace stencil::gui {
                                     support::ParticleStyle s) {
     const double n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
     const double u = DUST_MIN_T + m * (DUST_MAX_T - DUST_MIN_T);
-    const double life = (ms - u * SWAP_MS) / DUST_LIFE_MS;
+    const double life = (ms - u * swapMs()) / dustLifeMs();
     if (life <= 0.0 || life >= 1.0) return false;
     const double angle = n * TAU;
     // Just behind even the deepest dip, so grains and clip read as one front.
@@ -92,7 +115,7 @@ namespace stencil::gui {
   }
 
 
-  // Call with the colours as they stood BEFORE the restyle (browser surface/motion.js swapDustPaint palette).
+  // Call with the colours as they stood BEFORE the restyle (browser dust/swapDust.js swapDustPaint palette).
   void ThemeSwapOverlay::seedDust(const QColor& accent, const QColor& shade, bool dark) {
     if (!accent.isValid()) return;
     dustAccent = accent;

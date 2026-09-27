@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"stencil/server/internal/filestore"
 	"stencil/server/internal/store"
 )
 
@@ -23,6 +24,7 @@ type fakeFiles struct {
 	removedKind []string
 	stored      map[string]string
 	putErr      error
+	peers       []string // what the last upload's peers lookup answered
 }
 
 func (f *fakeFiles) Remove(id string) error {
@@ -40,20 +42,40 @@ func (f *fakeFiles) RemoveKind(id, kind string) error {
 	return nil
 }
 
-func (f *fakeFiles) PutStream(id, kind, ext string, r io.Reader) (string, error) {
+func (f *fakeFiles) PutStreamAs(id, kind, ext string, r io.Reader, c filestore.Charge) (string, error) {
 	if f.putErr != nil {
 		return "", f.putErr
+	}
+	if c.Peers != nil {
+		ids, err := c.Peers()
+		if err != nil {
+			return "", err
+		}
+		f.mu.Lock()
+		f.peers = ids
+		f.mu.Unlock()
 	}
 	body, err := io.ReadAll(r)
 	if err != nil {
 		return "", err
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.stored == nil {
-		f.stored = map[string]string{}
+	commit := func() error {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.stored == nil {
+			f.stored = map[string]string{}
+		}
+		f.stored[id+"/"+kind] = string(body)
+		return nil
 	}
-	f.stored[id+"/"+kind] = string(body)
+	if c.Admit != nil {
+		err = c.Admit(int64(len(body)), commit)
+	} else {
+		err = commit()
+	}
+	if err != nil {
+		return "", err
+	}
 	return strings.Join([]string{"projects", id, kind + "." + ext}, "/"), nil
 }
 

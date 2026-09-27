@@ -4,8 +4,9 @@ import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 import { isTypingInFocus } from '../../utils.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
-const PREVIEW_HOVER_MS = 280;
+const PREVIEW_HOVER_MS = constants.DEBOUNCE.previewHoverMs;
 
 // The accent flood is a View Transition: it drops real :hover and fires synthetic
 // enter/leave, so `:hover` lies while one plays.

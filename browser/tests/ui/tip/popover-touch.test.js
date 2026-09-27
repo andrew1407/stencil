@@ -1,4 +1,4 @@
-// The modal popover's TOUCH gestures (js/ui/popover.js): a tap opens the full modal, a long
+// The modal popover's TOUCH gestures (js/ui/tip/popover.js): a tap opens the full modal, a long
 // press the popover, travel past the slop turns it into a scroll.
 import { test } from 'node:test';
 import assert from 'node:assert';

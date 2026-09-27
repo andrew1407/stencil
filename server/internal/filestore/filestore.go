@@ -38,14 +38,21 @@ func New(root string) (*Store, error) {
 	return &Store{root: filepath.Clean(abs), usage: unmetered{}}, nil
 }
 
-// NewWithQuota is New plus an aggregate storage cap in bytes (0 = unlimited).
-func NewWithQuota(root string, quota int64) (*Store, error) {
+// Quotas caps stored bytes, in bytes: Total over the whole store, PerOwner over the projects one owner
+// session holds (PutStreamAs's Charge names them). 0 = no cap.
+type Quotas struct {
+	Total    int64
+	PerOwner int64
+}
+
+// NewWithQuotas is New plus both caps; with neither set it meters nothing.
+func NewWithQuotas(root string, q Quotas) (*Store, error) {
 	s, err := New(root)
 	if err != nil {
 		return nil, err
 	}
-	if quota > 0 {
-		if s.usage, err = newCapped(s.root, quota); err != nil {
+	if q.Total > 0 || q.PerOwner > 0 {
+		if s.usage, err = newCapped(s.root, q); err != nil {
 			return nil, err
 		}
 	}
@@ -54,41 +61,8 @@ func NewWithQuota(root string, quota int64) (*Store, error) {
 
 func (s *Store) Root() string { return s.root }
 
-// Get returns the bytes for (id, kind, ext). Missing files yield ErrNotFound.
-func (s *Store) Get(id, kind, ext string) ([]byte, error) {
-	full, err := s.safeJoin(id, kind, ext)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.guardSymlinkEscape(full); err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(full)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, ErrNotFound
-	}
-	return data, err
-}
-
-// GetByRelPath returns the bytes at a previously recorded store-relative path
-// (e.g. ProjectRecord.OriginalPath). The path is re-confined before reading.
-func (s *Store) GetByRelPath(rel string) ([]byte, error) {
-	full, err := s.confine(filepath.FromSlash(rel))
-	if err != nil {
-		return nil, err
-	}
-	if err := s.guardSymlinkEscape(full); err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(full)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, ErrNotFound
-	}
-	return data, err
-}
-
 // FindByKind returns the store-relative path held for (id, kind), whatever its extension; it owns the
-// "<kind>.<ext>" naming invariant together with Put. Missing files yield ErrNotFound.
+// "<kind>.<ext>" naming invariant together with PutStreamAs. Missing files yield ErrNotFound.
 func (s *Store) FindByKind(id, kind string) (string, error) {
 	dir, err := s.projectDir(id)
 	if err != nil {
@@ -149,15 +123,7 @@ func (s *Store) RemoveKind(id, kind string) error {
 	if err := s.guardSymlinkEscape(full); err != nil {
 		return err
 	}
-	var size int64
-	if fi, err := os.Stat(full); err == nil {
-		size = fi.Size()
-	}
-	if err := os.Remove(full); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	s.usage.release(size)
-	return nil
+	return s.usage.free(func() int64 { return fileSize(full) }, func() error { return removeIfPresent(full) })
 }
 
 // Remove deletes the entire directory for a project. Removing a non-existent
@@ -167,39 +133,12 @@ func (s *Store) Remove(id string) error {
 	if err != nil {
 		return err
 	}
-	size := s.usage.dirBytes(dir)
-	if err := os.RemoveAll(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	s.usage.release(size)
-	return nil
-}
-
-// List returns the store-relative paths of every file held for a project.
-func (s *Store) List(id string) ([]string, error) {
-	dir, err := s.projectDir(id)
-	if err != nil {
-		return nil, err
-	}
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
+	return s.usage.free(func() int64 { n, _ := dirSize(dir); return n }, func() error {
+		if err := os.RemoveAll(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
 		}
-		rel, err := filepath.Rel(s.root, filepath.Join(dir, e.Name()))
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, filepath.ToSlash(rel))
-	}
-	return out, nil
+		return nil
+	})
 }
 
 // guardSymlinkEscape ensures that if any existing ancestor of full is a symlink, the resolved real path
@@ -214,6 +153,22 @@ func (s *Store) guardSymlinkEscape(full string) error {
 		return err
 	}
 	if _, err := s.confine(resolved); err != nil {
+		return err
+	}
+	return nil
+}
+
+// fileSize is a regular file's size, 0 when it is gone.
+func fileSize(path string) int64 {
+	if fi, err := os.Stat(path); err == nil {
+		return fi.Size()
+	}
+	return 0
+}
+
+// removeIfPresent deletes one file; one already gone is not an error.
+func removeIfPresent(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

@@ -1,28 +1,35 @@
-// The toolbar unread affordance and the server-session cards (js/llm/session.js): only
+// The toolbar unread affordance and the server-session cards (js/llm/chat/session.js): only
 // work in flight marks the button, and an expired session gets a Reconnect CTA.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { describeChatError } from '../../../js/llm/chat/session.js';
 import { LlmError } from '../../../js/llm/client.js';
 import { COMPONENTS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
+import { wireBothSurfaces, typeAndSend } from '../../helpers/chatSurfacesRig.js';
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // ── Unread affordance on the toolbar button ────────────────────────────────
-test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the button', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  // The toast fires only while no surface can show the answer…
-  const closed = panel.slice(panel.indexOf('const closedToast = (res) => {'), panel.indexOf('// ── Send loop'));
-  assert.ok(closed.includes('if (panelIsOpen() || !toast) return;'), 'never while the chat is visible');
-  assert.ok(closed.includes('onClick: () => setOpen(true)'), 'and the toast itself opens the chat');
-  // …and it leaves NOTHING behind on the icon: no unread badge on either surface
-  // (the desktop's twin went with it — MainWindowChat.cpp).
-  assert.ok(!panel.includes('chat-unread') && !panel.includes('markChatUnread'),
-    'no unread dot is marked anywhere');
-  // In-flight behind a closed chat still gets the quiet pulse, cleared in cleanup.
-  assert.ok(panel.includes('markChatBusy(!panelIsOpen());'));
-  assert.ok(panel.includes('markChatBusy(false);'));
+test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the button', async () => {
+  const s = await wireBothSurfaces();
+  const btn = s.doc.getElementById('chat-btn');
+  // In flight behind a closed chat: the quiet pulse, cleared once the turn lands.
+  typeAndSend(s.panel, 'outline it');
+  assert.ok(btn.classList.contains('chat-working'), 'work in flight pulses the button');
+  s.ctrl.settle({ reply: 'Done.', results: [] });
+  await tick();
+  assert.strictEqual(btn.classList.contains('chat-working'), false, 'cleared in cleanup');
+  // The toast fires only while no surface can show the answer, and itself opens the chat…
+  assert.strictEqual(s.notices.length, 1);
+  s.notices[0].opts.onClick();
+  assert.ok(s.panel.host.classList.contains('chat-open'), 'the toast itself opens the chat');
+  // …and it leaves NOTHING behind on the icon: no unread badge on either surface.
+  assert.ok(!/unread/.test(btn.className + s.panel.host.className), 'no unread dot is marked anywhere');
+  typeAndSend(s.panel, 'again');
+  assert.strictEqual(btn.classList.contains('chat-working'), false, 'an open chat shows its own progress');
+  s.ctrl.settle({ reply: 'Done.', results: [] });
+  await tick();
+  assert.strictEqual(s.notices.length, 1, 'never while the chat is visible');
   // A pure pseudo-element dot: the button's box never moves.
   const css = COMPONENTS_CSS;
   assert.ok(!css.includes('chat-unread'), 'and no unread rule is left in the stylesheet');
@@ -55,22 +62,27 @@ test('an expired stencil-server session is named as such in the chat card', asyn
 });
 
 test('the expired card carries a Reconnect CTA instead of Configure provider', async () => {
-  const view = chatViewSource();
-  // The row patch marks it, the renderer picks the CTA off that mark…
-  const session = readFileSync(new URL('../../../js/llm/chat/session.js', import.meta.url), 'utf8');
-  assert.match(session, /card: res\.kind === 'unreachable' \|\| res\.kind === 'expired'/);
-  assert.match(session, /reconnect: res\.kind === 'expired' \? \(res\.serverUrl \|\| ''\) : null/);
-  assert.ok(view.includes("const cta = row.reconnect ? '.chat-reconnect-cta' : '.chat-config-cta';"));
-  assert.ok(view.includes('chatReconnectButton(row.reconnect, onReconnect)'));
-  // …exactly one of the two lives on a row, whichever it is.
-  assert.ok(view.includes("if (!row.card || row.reconnect) el.querySelector('.chat-config-cta')?.remove();"));
-  assert.ok(view.includes("if (!row.card || !row.reconnect) el.querySelector('.chat-reconnect-cta')?.remove();"));
-  // Both surfaces route it to the Connections modal.
-  for (const [f, src] of [['panel.js', readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8')],
-    ['contextMenu.js', contextMenuSource()]]) {
-    assert.ok(/onReconnect: \(\) =>/.test(src), `${f} wires the hook`);
-    assert.ok(src.includes("document.getElementById('connect-btn')?.click()"), `${f} opens Connections`);
+  const s = await wireBothSurfaces();
+  localStorage.setItem('drawingApp_llmSettings', JSON.stringify({ provider: 'stencil-server', serverUrl: 'http://localhost:8090' }));
+  let connections = 0;
+  s.doc.getElementById('connect-btn').click = () => { connections += 1; };
+  // The row patch marks the expired turn, and the renderer picks the CTA off that mark…
+  typeAndSend(s.panel, 'hi');
+  s.ctrl.fail(Object.assign(new LlmError('unauthorized', 'http'), { status: 401, answered: true }));
+  await tick();
+  const row = s.session.chatLog().at(-1);
+  assert.deepStrictEqual([row.card, row.reconnect], [true, 'http://localhost:8090']);
+  const ctas = (t) => ['.chat-reconnect-cta', '.chat-config-cta'].map((c) => t.querySelectorAll(c).length);
+  // …exactly one of the two lives on a row, and both surfaces route it to Connections.
+  for (const [name, surf] of [['panel', s.panel], ['flyout', s.flyout]]) {
+    assert.deepStrictEqual(ctas(surf.transcript), [1, 0], `${name} shows Reconnect only`);
+    surf.transcript.querySelector('.chat-reconnect-cta').fire('click');
   }
+  assert.deepStrictEqual([connections, s.host.closed], [2, 1], 'both open Connections; the flyout closes its menu first');
+  s.session.updateChatRow(row.id, { reconnect: null });
+  assert.deepStrictEqual(ctas(s.panel.transcript), [0, 1], 'an unreachable card takes Configure instead');
+  s.session.updateChatRow(row.id, { card: false });
+  assert.deepStrictEqual(ctas(s.panel.transcript), [0, 0], 'and a settled row neither');
 });
 
 test('chatReconnectButton names the server it will sign in to', async () => {

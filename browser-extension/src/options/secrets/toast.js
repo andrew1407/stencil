@@ -5,7 +5,7 @@ import { surfaceIn, surfaceOut } from '../../lib/motion.js';
 import { attachToastGlow } from '../../lib/logo/toastGlow.js';
 import { STAGE } from '../../lib/logo/stageRules.js';
 
-// browser config/svgArt.json secretEgg, pinned by tests/options/secrets.test.js.
+// browser config/svgArt.json secretEgg, pinned by tests/options/secrets/secrets.test.js.
 export const SECRET_EGG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="4.7 1.6 14.6 18.8" width="%1" height="%2"><path fill="%3" fill-rule="evenodd" d="M4.8 13.2A7.2 11.6 0 0 1 19.2 13.2A7.2 7.2 0 0 1 4.8 13.2Z M6.8 9.8L8.533 8.5L10.267 9.8L12 8.5L13.733 9.8L15.467 8.5L17.2 9.8L17.2 11.2L15.467 9.9L13.733 11.2L12 9.9L10.267 11.2L8.533 9.9L6.8 11.2Z M6.8 16L8.533 14.7L10.267 16L12 14.7L13.733 16L15.467 14.7L17.2 16L17.2 17.4L15.467 16.1L13.733 17.4L12 16.1L10.267 17.4L8.533 16.1L6.8 17.4Z M8.35 13.3a.85.85 0 1 0 1.7 0a.85.85 0 1 0-1.7 0Z M11.15 13.3a.85.85 0 1 0 1.7 0a.85.85 0 1 0-1.7 0Z M13.95 13.3a.85.85 0 1 0 1.7 0a.85.85 0 1 0-1.7 0Z"/></svg>';
 const HIDE_MS = 2400;
 const LEAVE_ANIM_MS = 260;   // notifyLeave in secrets.css

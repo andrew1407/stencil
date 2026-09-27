@@ -53,6 +53,16 @@ export const applyStoredTools = (app, layout) => {
   app.syncDrawModeUI();
 };
 
+// The stored image becomes the editor's; an object URL is swapped for its data URL once read back,
+// unless the editor moved on. Exports and hand-offs await the promise (Storage.imageReady).
+export const applyStoredImage = (storage, id, image) => {
+  const app = storage.app;
+  app.imageDataUrl = image;
+  return storage.store.resolveImage(id, image).then((data) => {
+    if (data && storage.activeId === id && app.imageDataUrl === image) app.imageDataUrl = data;
+  });
+};
+
 const clearImage = (app) => {
   app.image = null;
   // The old picture's size would otherwise keep scrolling an empty viewport.

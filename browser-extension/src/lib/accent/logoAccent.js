@@ -4,7 +4,7 @@ import { createAccentPreview } from './preview.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { createModalOpenGesture } from '../tip/popover.js';
 import { growFrom } from '../control/dropdownMenu.js';
-import { pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
+import { onAltKeys, pointerIn, wirePeekBox, wireReleasePick } from '../tip/altPeek.js';
 
 export function wireLogoAccent(logo) {
   const A = typeof window !== 'undefined' && window.StencilAccent;
@@ -93,14 +93,13 @@ export function wireLogoAccent(logo) {
     pending = 'sticky'; g.contextmenu(); pending = null;
   });
   wrap.addEventListener('mouseenter', (e) => { if (e.altKey) altPeek(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Alt' && !e.repeat && wrap.matches?.(':hover')) { e.preventDefault?.(); altPeek(); }
+  onAltKeys({
+    press: (e) => { if (!e.repeat && wrap.matches?.(':hover')) { e.preventDefault?.(); altPeek(); } },
   });
-  // A peek released on a colour picks it and stays up, lingering like any peek released inside.
+  // A peek released on a colour picks it and stays up, lingering like any peek released inside;
+  // its release also answers a blur (Alt+Tab switches away without delivering the keyup).
   const release = wireReleasePick(menu, g, '.accent-dd-opt',
                                   { isPeek: () => kind === 'peek', isShowing: menuShowing });
-  // Blur too — Alt+Tab switches away without delivering the keyup.
-  if (typeof window !== 'undefined') window.addEventListener?.('blur', () => g.altRelease());
   // A flood's synthetic leave lands on a lingering menu with every preview and pick: the
   // flood-safe watcher waits the swap out, then the pointer's real place decides.
   wirePeekBox(menu, g);

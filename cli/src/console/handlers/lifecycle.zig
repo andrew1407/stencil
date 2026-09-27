@@ -1,7 +1,6 @@
 //! `/rename`, `/expire`, `/sync` and `/chat`: the active project's identity, retention and
 //! the two session-wide toggles that decide what is pushed to and restored from the server.
 const std = @import("std");
-const image = @import("../../media/image.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");

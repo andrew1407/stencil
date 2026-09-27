@@ -8,7 +8,7 @@ public static partial class CliOutcomeParser
 {
     private const string _notAScriptPlan = "the stencil CLI did not return a script plan";
 
-    // cli/CONTRACT.md §5: `--script-plan` prints one JSON object to STDOUT, one trailing newline, nothing
+    // cli/CONTRACT.md §4.3: `--script-plan` prints one JSON object to STDOUT, one trailing newline, nothing
     // else. The envelope's `script` label is dropped: it is this adapter's temp leaf, not a user's name.
     public static ScriptPlan ParseScriptPlan(string stdout)
     {
@@ -53,20 +53,21 @@ public static partial class CliOutcomeParser
         List<ScriptBlock> blocks = new();
         foreach (JsonElement b in array(root, "blocks"))
         {
-            List<string> plans = new();
+            List<string> checks = new();
             foreach (JsonElement plan in array(b, "plans"))
             {
-                if (plan.TryGetProperty("actions", out JsonElement actions)
-                    && actions.ValueKind == JsonValueKind.Array)
+                // A chunk without core's verdict would run unjudged, so the whole envelope is refused.
+                if (!plan.TryGetProperty("check", out JsonElement check) || check.ValueKind != JsonValueKind.Object)
                 {
-                    plans.Add(actions.GetRawText());
+                    throw new StencilCliException(_notAScriptPlan);
                 }
+                checks.Add(check.GetRawText());
             }
             blocks.Add(new ScriptBlock(
                 number(b, "index"),
                 text(b, "source", ""),
                 text(b, "sourceKind", ScriptBlock.KIND_PROJECT),
-                plans));
+                checks));
         }
         return blocks;
     }

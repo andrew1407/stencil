@@ -1,25 +1,10 @@
-#include "../../support/menu/SearchCombo.hpp"
-#include "../../support/icon/motionIcons.hpp"
 #include "SettingsDialog.hpp"
-#include "guiHelpers.hpp"
-#include "iconSet.hpp"
-#include "../../support/modal/modalChrome.hpp"   // the browser modal shell + .vs-row rows
-#include "../../support/modal/modalReveal.hpp"
-#include "theme.hpp"
 #include <QCheckBox>
-#include <QComboBox>
-#include <QListView>
-#include <QDoubleSpinBox>
-#include <QFontDatabase>
-#include <QHBoxLayout>
-#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPainter>
-#include <QPixmap>
-#include <QPushButton>
 #include <QSpinBox>
-#include <QVBoxLayout>
+#include <QComboBox>
+#include <QDoubleSpinBox>
 
 namespace stencil::gui {
 

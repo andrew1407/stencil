@@ -4,9 +4,6 @@ import { cmToUnit } from '../../utils.js';
 // core/parse/formulaContext.hpp. Page fields are always cm and image fields always pixels;
 // `unit` only picks the spelling PAGE_WIDTH / PAGE_HEIGHT report in.
 
-// A blank formula is the identity: valid, and apply() returns its input unchanged.
-export const isBlankFormula = (s) => !s || !s.trim();
-
 // Validation has no live coordinates: an unbound axis probes at 1, as it always has.
 export const withProbeAxes = (ctx) => ({
   ...ctx,

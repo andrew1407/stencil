@@ -23,8 +23,8 @@ namespace stencil::llm {
     QVector<ChatImage> images;
   };
 
-  // Truncated/Refusal are NEVER parsed as plans (§6.3). Off = provider "none" (browser kind
-  // "config"); Disabled = the server's 503 llmDisabled; Expired = a SERVER PROVIDER 401/403.
+  // Truncated/Refusal are NEVER parsed as plans (§6.3). Off = provider "none" (browser kind "config"); Expired = a
+  // SERVER 401/403; Disabled = the server's 503 llmDisabled, or anthropic keyless or on plain http off loopback.
   enum class LlmFailure { NONE, TRANSPORT, HTTP, BAD_RESPONSE, TRUNCATED, REFUSAL, DISABLED, OFF, EXPIRED };
 
   struct LlmReply {
@@ -61,7 +61,7 @@ namespace stencil::llm {
     // The pending `done` completes with a canceled transport error.
     void abort();
 
-    // ollama /api/version, openai-compat /models, stencil-server /llm/info (`enabled:false` = not ok).
+    // The §6.4 probe: ollama /api/version, openai /models, anthropic /v1/models, server /llm/info.
     void probe(const LlmSettings& cfg, std::function<void(LlmProbeResult)> done);
 
     // Any failure / missing auth ⇒ empty list, never an error (browser listModels).
@@ -76,6 +76,8 @@ namespace stencil::llm {
                     const QString& system, std::function<void(LlmReply)> done);
     void chatServer(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
                     const QString& system, std::function<void(LlmReply)> done);
+    void chatAnthropic(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
+                       const QString& system, std::function<void(LlmReply)> done);
 
     LlmTransport* transport;
     std::function<QString(const QString&)> tokenResolver;

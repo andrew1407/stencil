@@ -5,9 +5,6 @@ const std = @import("std");
 const core = @import("../core.zig");
 const image = @import("../media/image.zig");
 const layout_mod = @import("../media/layout.zig");
-const video = @import("../media/video.zig");
-const net = @import("../net.zig");
-const args = @import("../args.zig");
 const report = @import("../app/report.zig");
 const confine = @import("../safety/confine.zig");
 const page_mod = @import("../media/page.zig");
@@ -55,17 +52,10 @@ pub fn resolveCropSpec(w: usize, h: usize, spec: []const u8, album: bool) ?core.
     };
 }
 
-/// Crop in place to an explicit pixel rect (clamped to the image bounds). Used when rebuilding
-/// the console's derived view from its recorded crop.
+/// Crop in place to an explicit pixel rect, committed inside the image bounds by core's
+/// snapCropRect. Used when rebuilding the console's derived view from its recorded crop.
 pub fn cropToRect(gpa: std.mem.Allocator, img: *image.Rgba8, rect: core.Rect) !void {
-    const iw: i32 = @intCast(img.width);
-    const ih: i32 = @intCast(img.height);
-    var r = rect;
-    r.w = std.math.clamp(r.w, 1, iw);
-    r.h = std.math.clamp(r.h, 1, ih);
-    r.x = std.math.clamp(r.x, 0, iw - r.w);
-    r.y = std.math.clamp(r.y, 0, ih - r.h);
-    try cropInPlace(gpa, img, r);
+    try cropInPlace(gpa, img, core.snapCropRect(rect, @intCast(img.width), @intCast(img.height)));
 }
 
 /// Rotate in place by `rotate` quarter-turns.
@@ -137,6 +127,28 @@ pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, 
     report.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
 }
 
+/// `--confine-output` on the file `out` lands at (extension filled from `default_fmt`): outside the
+/// working directory by its spelling or through a symbolic link.
+pub fn refuseEscape(gpa: std.mem.Allocator, io: std.Io, out: []const u8, default_fmt: image.Format) !void {
+    const resolved = try resolveOutput(gpa, out, default_fmt);
+    defer gpa.free(resolved.path);
+    if (!confine.escapes(io, std.Io.Dir.cwd(), resolved.path)) return;
+    report.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
+    return error.UnsafeOutputPath;
+}
+
+/// `--no-clobber`: refuse when the file `out` would land at (extension filled from `default_fmt`,
+/// or `out` itself when `as_is`) already exists. Called before the work, so a refusal fetches and uploads nothing.
+pub fn refuseClobber(gpa: std.mem.Allocator, io: std.Io, out: []const u8, default_fmt: image.Format, as_is: bool) !void {
+    const path = if (as_is) try expandHome(gpa, out) else (try resolveOutput(gpa, out, default_fmt)).path;
+    defer gpa.free(path);
+    // A dangling link still names something the write would go through, so links are not followed.
+    // Any other stat failure is left for the write itself to report.
+    _ = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch return;
+    report.err("--no-clobber: '{s}' already exists\n", .{path});
+    return error.OutputExists;
+}
+
 // transforms (replace the owned buffer)
 
 pub fn cropInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rect: core.Rect) !void {
@@ -182,6 +194,21 @@ fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Fo
 }
 
 const testing = std.testing;
+
+test "refuseClobber checks the name the output lands under, extension filled" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+    try dir.writeFile(io, .{ .sub_path = "stencil_clobber_probe.jpg", .data = "x" });
+    defer dir.deleteFile(io, "stencil_clobber_probe.jpg") catch {};
+
+    try testing.expectError(error.OutputExists, refuseClobber(gpa, io, "stencil_clobber_probe", .jpeg, false));
+    try testing.expectError(error.OutputExists, refuseClobber(gpa, io, "stencil_clobber_probe.jpg", .png, false));
+    try refuseClobber(gpa, io, "stencil_clobber_probe", .png, false); // lands as .png: free
+    try refuseClobber(gpa, io, "stencil_clobber_probe", .jpeg, true); // a project name is taken as-is
+}
 
 test "resolveOutput rejects parent-directory traversal" {
     const gpa = testing.allocator;

@@ -1,4 +1,4 @@
-/* ── Theme / accent swap (lib/accent.js) ──────────────────────────────
+/* ── Theme / accent swap (lib/accent/accent.js) ──────────────────────────────
    The new palette floods out from where the user pressed. With the View
    Transitions API the NEW snapshot is clipped by a growing circle (scripted, so
    both default cross-fades are off here); without it, every colour consumer gets
@@ -26,9 +26,9 @@
        the traps on either side are recorded over the same declaration in
        browser/css/animations/themeSwap.css; keep the two identical.
        All three surfaces run this same wipe — the desktop evaluates these very control
-       points as a Qt easing (support/ThemeSwapOverlay.hpp swapEase) over the same duration.
-       browser/tests/motion.test.js holds this file and the browser's to each other, and
-       desktop/tests/themeSwapEase.headless.cpp holds the desktop's curve to the same
+       points as a Qt easing (support/dust/ThemeSwapOverlay.hpp swapEase) over the same duration.
+       browser/tests/ui/motion.test.js holds this file and the browser's to each other, and
+       desktop/tests/support/theme/themeSwapEase.headless.cpp holds the desktop's curve to the same
        area-sweep contract. */
     animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
 }
@@ -66,7 +66,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 
 /* Every hover preview plays the palette flood, a View Transition that drops :hover and
    re-applies it just after — restarting the row's hover motion a beat behind each one.
-   lib/logoAccent.js marks the menu while a preview shows; freeze the replays for that
+   lib/accent/logoAccent.js marks the menu while a preview shows; freeze the replays for that
    whole time (the swap classes are gone before the restart lands). The 2px slide is held
    the other way round, by the .dd-hover latch (lib/theme/select.css).
    Browser twin: browser/css/animations/themeSwap.css. */
@@ -78,7 +78,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 html.dd-preview-cursor { cursor: pointer; }
 html.dd-preview-cursor::view-transition { cursor: pointer; }
 
-/* ── Dust in the wipe's wake (lib/accent.js dustSpecs) ────────────────
+/* ── Dust in the wipe's wake (lib/accent/accent.js dustSpecs) ────────────────
    Specks kicked up where the circle's edge has just passed, in the OLD palette's
    colours. One canvas for the whole wake: accent.js paints the grains and owns their
    clock. A div per grain ran the same flight declaratively, but at this density it meant

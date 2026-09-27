@@ -3,128 +3,20 @@
 // Headed (extensions need it). Constants live in config/browserExtension.json.
 //   node usecases/capture-runner/browserExtension.mjs [--only <name>]
 import path from 'node:path';
-import { e2e } from './lib/playwright.mjs';
-import { loadCaptureConfig } from './lib/captureConfig.mjs';
-import { outDir, scratchDir } from './lib/paths.mjs';
-import { startAppServer, startSiteServer } from './lib/servers.mjs';
-import { startLlmStub, chatOnlyPlan } from './lib/llmStub.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
-import { pairNames } from './lib/themeSelector.mjs';
-import { applyAppTheme, applyShellTheme } from './lib/pageTheme.mjs';
-import { film } from './lib/shots.mjs';
+import { scratchDir } from './lib/paths.mjs';
+import { chatOnlyPlan } from './lib/llmStub.mjs';
+import { pairNames } from './lib/theme/selector.mjs';
+import { applyShellTheme } from './lib/theme/page.mjs';
+import { film } from './lib/shot/shots.mjs';
 import { framesToGif } from './lib/gifTools.mjs';
 import { waitForAnimations } from './lib/waits.mjs';
 import { makeDropZoneSteps } from './extension/dropZoneSteps.mjs';
-
-const config = loadCaptureConfig('browserExtension');
-const runner = makeShotRunner({ config, out: outDir('browser-extension') });
-const VIEWS = config.get('viewports');
-const TIMEOUTS = config.get('timeouts');
-const MIN_ROWS = config.get('minRows');
-
-const { launchExtension } = await e2e('helpers/extension.js');
-const { freezeMotion } = await e2e('helpers/uiPin.js');
-const { llmSettings } = await e2e('helpers/chat.js');
-
-const app = await startAppServer();
-const site = await startSiteServer(config.get('sitePort'));
-const stub = await startLlmStub();
-const { context, background, extId } = await launchExtension();
-const sw = await background();
-await sw.evaluate((editorUrl) => new Promise((done) => chrome.storage.sync.set({ editorUrl }, done)), app.url);
-
-const host = await context.newPage();
-await host.setViewportSize(VIEWS.site);
-await host.goto(site.url);
-await host.locator('figure img').first().waitFor();
-
-// A real popup box stops at 600px and scrolls its list; the picture is of what the popup HOLDS,
-// so the capture lets it stand at its full height rather than cutting a row in half.
-const POPUP_UNCAPPED = `html, body { max-height: none !important; overflow: visible !important; }
-  .list { overflow: visible !important; max-height: none !important; }`;
-
-// The shot is the popup and nothing else: the clip ends at its last pixel, so none of the
-// viewport left under it rides along.
-const popupClip = async (ui) => {
-  await waitForAnimations(ui);
-  const height = await ui.evaluate(() => {
-    const ends = [document.body.getBoundingClientRect().bottom];
-    for (const over of document.querySelectorAll('#action-menu, #action-menu .flyout')) {
-      const box = over.getBoundingClientRect();
-      if (box.height > 0) ends.push(box.bottom);
-    }
-    return Math.ceil(Math.max(...ends));
-  });
-  return { clip: { x: 0, y: 0, width: VIEWS.popup.width, height } };
-};
-
-const surface = async (rel, viewport, theme) => {
-  const page = await context.newPage();
-  await page.setViewportSize(viewport);
-  await page.goto(`chrome-extension://${extId}/${rel}`);
-  await freezeMotion(page);
-  await applyShellTheme(page, theme);
-  return page;
-};
-// The popup scans the ACTIVE tab: bring the site forward, rescan, then bring the popup back.
-const scanSite = async (ui) => {
-  await host.bringToFront();
-  await ui.evaluate(() => document.getElementById('rescan').click());
-  await ui.waitForFunction((min) => document.querySelectorAll('.row').length > min, MIN_ROWS, { timeout: TIMEOUTS.scanMs });
-  await ui.bringToFront();
-  // The scan's status line leaves on a 200ms timer while freezeMotion has already faded it to
-  // nothing, so an unwaited shot keeps its empty band above the first row.
-  await ui.waitForFunction(() => !document.getElementById('status').textContent, null, { timeout: TIMEOUTS.scanMs });
-  await waitForAnimations(ui);
-};
-const openPopup = async (theme) => {
-  const ui = await surface('src/popup/popup.html', VIEWS.popup, theme);
-  await ui.waitForSelector('.filters', { timeout: TIMEOUTS.scanMs });
-  await ui.addStyleTag({ content: POPUP_UNCAPPED });
-  await scanSite(ui);
-  return ui;
-};
-// A popup closes itself after an in-page action (crop, open here), as the real one does.
-const popup = async (ctx, theme) => {
-  ctx.ui ??= await openPopup(theme);
-  if (!ctx.ui.isClosed()) await applyShellTheme(ctx.ui, theme);
-  return ctx.ui;
-};
-const reopenPopup = async (ctx, theme) => {
-  ctx.ui = await openPopup(theme);
-  return ctx.ui;
-};
-const openRowMenu = async (ui, nth = 1) => {
-  await ui.locator('.row .more-btn').nth(nth).click();
-  await ui.locator('#action-menu').waitFor();
-  await waitForAnimations(ui, '#action-menu');
-};
-const openFlyout = async (ui, nth = 0) => {
-  await ui.locator('#action-menu > .submenu').nth(nth).hover();
-  await ui.locator('#action-menu .flyout').nth(nth).waitFor();
-  await waitForAnimations(ui, '#action-menu');
-};
-const clickMenuItem = (ui, text, inFlyout = false) => ui.evaluate(([label, flyout]) => {
-  const scope = flyout ? '#action-menu .flyout button' : '#action-menu button';
-  [...document.querySelectorAll(scope)].find((btn) => btn.textContent.trim() === label).click();
-}, [text, inFlyout]);
-
-// The hand-off routes: the row menu's Open ▸ "In editor" / "In editor (incognito)" open a
-// new editor tab carrying the image.
-const openInTab = async (ctx, theme, label, name) => {
-  const ui = await popup(ctx, theme);
-  await host.bringToFront();
-  await openRowMenu(ui);
-  await openFlyout(ui);
-  const [tab] = await Promise.all([context.waitForEvent('page'), clickMenuItem(ui, label, true)]);
-  await tab.setViewportSize(VIEWS.site);
-  await tab.waitForFunction(() => document.getElementById('canvas')?.width > 0, null, { timeout: TIMEOUTS.editorMs });
-  await freezeMotion(tab);
-  await applyAppTheme(tab, theme);
-  await runner.shot(tab, name);
-  await tab.close();
-  await reopenPopup(ctx, theme);
-};
+import {
+  MIN_ROWS, TIMEOUTS, VIEWS, app, config, context, host, llmSettings, runner, site, stub,
+} from './extension/session.mjs';
+import {
+  clickMenuItem, openFlyout, openInTab, openRowMenu, popup, popupClip, reopenPopup, surface,
+} from './extension/popup.mjs';
 
 // The options page's four cards, each named by a control only that card carries.
 const OPTION_CARDS = Object.freeze([

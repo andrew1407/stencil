@@ -120,6 +120,25 @@ TEST_SUITE("imageFilter") {
     CHECK(buf[3] == 200);
   }
 
+  TEST_CASE("applyFilterRGBA Custom's per-call luma table matches filterPixel bit for bit") {
+    std::vector<std::uint8_t> buf;
+    for (int r = 0; r < 256; r += 5)
+      for (int g = 0; g < 256; g += 3)
+        for (int b = 0; b < 256; b += 7)
+          buf.insert(buf.end(), {std::uint8_t(r), std::uint8_t(g), std::uint8_t(b), 9});
+    for (const Rgb8 tint : {Rgb8{124, 58, 237}, Rgb8{255, 0, 1}, Rgb8{3, 250, 128}}) {
+      auto out = buf;
+      applyFilterRGBA(FilterMode::CUSTOM, out.data(), out.size() / 4, tint.r, tint.g, tint.b);
+      int mismatches = 0;
+      for (std::size_t i = 0; i < buf.size(); i += 4) {
+        const Rgb8 o = filterPixel(FilterMode::CUSTOM, buf[i], buf[i + 1], buf[i + 2], tint.r,
+                                   tint.g, tint.b);
+        mismatches += o.r != out[i] || o.g != out[i + 1] || o.b != out[i + 2] || out[i + 3] != 9;
+      }
+      CHECK(mismatches == 0);
+    }
+  }
+
   TEST_CASE("applyFilterRGBA Invert flips both pixels and keeps alpha") {
     std::vector<std::uint8_t> buf = {12, 34, 56, 10, 255, 0, 128, 20};
     applyFilterRGBA(FilterMode::INVERT, buf.data(), 2, 9, 9, 9);

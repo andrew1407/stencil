@@ -1,11 +1,11 @@
-// ZoomPan.fitToWindow and clampPanelWidth (js/core/pan.js): the fit is measured off the
+// ZoomPan.fitToWindow and clampPanelWidth (js/core/zoom/pan.js): the fit is measured off the
 // viewport box, and the panel width is one token every fallback reads.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { ZoomPan } from '../../../js/core/zoom/pan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
 import { installDom, ROOMY, ROOMY_AVAIL } from '../../helpers/zoomPanViewportDom.js';
+import { installDom as installStubDom, createStubElement } from '../../helpers/dom.js';
 
 
 // fitToWindow() sizes the fit off the MEASURED availContentHeight(), not fixed window insets:
@@ -90,15 +90,30 @@ test('the untouched panel width is one token, and every fallback reads it', () =
   }
 });
 
-test('the panel width is re-clamped when the window changes, keeping the preference', () => {
-  const src = readFileSync(new URL('../../../js/utils/panelResizer.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('export const wirePanelResizer'));
-  assert.match(fn, /onWindowResize\(applyDragged\)/,
-    'a window narrowed after the drag re-clamps (via the shared resize coalescer)');
-  // The DRAGGED value is never rewritten by a clamp — only by a real drag — so the width
-  // comes back when the window is big enough for it again.
-  const writes = fn.match(/\bdragged = /g) || [];
-  assert.equal(writes.length, 1, 'only the drag sets the preference');
+test('the panel width is re-clamped when the window changes, keeping the preference', async () => {
+  const { wirePanelResizer, clampPanelWidth } = await import('../../../js/utils.js');
+  const win = { innerWidth: 1400, listeners: {}, addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); } };
+  const doc = installStubDom({}, { window: win });
+  try {
+    const width = { now: 405 };
+    const panel = createStubElement('aside', { getBoundingClientRect: () => ({ width: width.now }) });
+    const resizer = createStubElement('div');
+    wirePanelResizer(resizer, panel, { maxFactor: 0.7, track: true });
+    resizer.dispatch('mousedown', { clientX: 1000, preventDefault() {} });
+    doc.dispatch('mousemove', { clientX: 805 });
+    width.now = 600;
+    doc.dispatch('mouseup', {});
+    const shown = () => doc.documentElement.style.getPropertyValue('--coord-panel-width');
+    const resizeTo = (w) => { win.innerWidth = w; (win.listeners.resize || []).forEach((fn) => fn()); };
+    resizeTo(700);
+    assert.equal(shown(), `${clampPanelWidth(600, 700)}px`,
+      'a window narrowed after the drag re-clamps (via the shared resize coalescer)');
+    // The DRAGGED value is never rewritten by a clamp — only by a real drag — so the width
+    // comes back when the window is big enough for it again.
+    width.now = clampPanelWidth(600, 700);
+    resizeTo(1400);
+    assert.equal(shown(), '600px', 'only the drag sets the preference');
+  } finally { doc.restore(); }
   const css = LAYOUT_CSS;
   // Declarations only — the comment above this rule NAMES the trap it avoids, and matching
   // the prose would pass (or fail) for the wrong reason.

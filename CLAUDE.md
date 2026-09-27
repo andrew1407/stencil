@@ -9,7 +9,7 @@ four front-ends**, plus a family of adapters that wrap the CLI or the collaborat
 
 | Tree | What | Runs `core/`? |
 |---|---|---|
-| `core/` | C++17, STL-only, GUI-free logic: formulas, the `.stc` script engine, geometry, color, page metrics, crop, raster, history, projects | — |
+| `core/` | C++17, STL-only, GUI-free logic: formulas, the `.stc` script engine, the op-plan validator (over its own JSON reader), geometry, color, page metrics, crop, raster, history, projects | — |
 | `browser/` | vanilla ES-module JS app, no build step — `core/` as wasm, with a JS fallback | yes (wasm) |
 | `desktop/` | C++17 + Qt 6 app — links `core/` via `add_subdirectory(../core)` | yes (linked) |
 | `cli/` | Zig tool — **recompiles** `core/` and drives it over `extern "C"` | yes (recompiled) |
@@ -25,7 +25,7 @@ four front-ends**, plus a family of adapters that wrap the CLI or the collaborat
 black-box harnesses: the parity contract below does **not** reach them. `mcp/`, `bot/` and
 `vscode-extension/` depend on the CLI's argv contract and its `wrote {path} ({w}x{h})` /
 `error:` stderr output; `server/`'s contract is `server/internal/protocol`. The desktop's own
-GUI e2e is a QtTest target (`desktop/tests/MainWindow.<area>.gui.cpp`), not in `e2e/`.
+GUI e2e is QtTest targets (`MainWindow.<area>.gui.cpp` under `desktop/tests/`), not in `e2e/`.
 
 ## Commands
 
@@ -36,8 +36,8 @@ CMake + Doctest; each other surface uses its platform's default.
 | Subproject | Build | Test | Run / single test |
 |---|---|---|---|
 | **browser** | none to run; optional `npm run build` → single-file `stencil.html` | `cd browser && npm test` | `npm run serve` (http://localhost:8080); single: `node --test tests/<file>.test.js` |
-| **core** | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j` | `ctest --test-dir core/build --output-on-failure` | `core/build/stencil_tests -tc="<case>"` (only a few files use `TEST_SUITE`, so `-ts=` reaches only those) |
-| **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j` | `ctest --test-dir build --output-on-failure` (needs Qt; headless) | `./build/stencil`; single: `ctest -R <name>` |
+| **core** | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && cmake --build core/build -j 4` | `ctest --test-dir core/build --output-on-failure` | `core/build/stencil_tests -tc="<case>"` (only a few files use `TEST_SUITE`, so `-ts=` reaches only those) |
+| **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j 4` | `ctest --test-dir build --output-on-failure` (needs Qt; headless) | `./build/stencil`; single: `ctest -R <name>` |
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **pystencil** | `cd pystencil && python3 build.py` (needs a C++17 compiler) | `python3 -m unittest discover -s tests` | `python3 -m pystencil --help` |
 | **browser-extension** | none | `cd browser-extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
@@ -51,32 +51,38 @@ CMake + Doctest; each other surface uses its platform's default.
 - **wasm build** (needs Emscripten): `cd browser && npm run build-wasm` → the gitignored
   `browser/js/wasm/stencilCore.js`.
 - After editing `browser/js/config/llm/opRegistry.json`: `cd browser && npm run gen-fixtures`
-  (the browser walker fails while the generated bundle is stale).
+  (the browser walker fails while the generated bundle is stale), then `node .claude/tools/syncTwins.mjs`.
 - The browser app must be served over HTTP (ES modules refuse `file://`). Override with
   `ADDR=0.0.0.0 PORT=3000 npm run serve`.
 - Docker images compile `core/`, so **build from the repo root** with `-f`:
   `docker build -f browser/Dockerfile -t stencil-browser .`.
-- After editing `browser/js/core/script/`: re-copy it into `vscode-extension/src/parser/script/`
-  (`parserParity.test.js` pins them byte-for-byte, both directions).
+- A byte-equal port or drift-tested copy (`vscode-extension/src/parser/script/`, the
+  extension's `src/lib/` ports, the config copies in `pystencil/pystencil/_data/` …) is never
+  edited in place: edit the original, then `node .claude/tools/syncTwins.mjs` re-copies every twin
+  listed in `.claude/tools/twins.json` (`--check` only reports).
+- `zig build` where every SDK `xcrun` offers is newer than Zig supports (`INFINITY`
+  undeclared) needs a libc file naming an older one: `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX26.5.sdk#' > "$TMPDIR/zig-libc.txt"`, then
+  `ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build`.
+
+## Commits
+
+One short subject line (about 50–70 characters), no body, no `Co-Authored-By` trailer; a piece
+of work lands on `main` as a single commit.
 
 ## The parity contract (the most important thing to know)
 
-1. **Each `core/` module is a port of a specific `browser/js/` call site** — the mapping is at
-   the top of each core header — and must stay behaviorally identical down to edge cases.
-   `core/tests/` are ports of `browser/tests/`. Change one side, change the other, update both.
-2. **The browser runs `core/` via wasm with a JS fallback that must match it op-for-op.**
-   `browser/tests/wasm/wasm-parity.test.js` enforces it; CI builds wasm fresh to run it.
-3. **No `eval` anywhere.** `browser/js/core/parse/formulaEngine.js` and `core/parse/formulaParser`
-   are both real recursive-descent parsers (no `new Function`), aligned down to the shared
-   `MAX_DEPTH`.
-4. **Three source lists.** Adding/removing/renaming a `core/*.cpp` means editing
-   `STENCIL_CORE_SOURCES` (`core/CMakeLists.txt`), the array in `cli/build.zig`, **and** the
-   list in `pystencil/build.py`.
-5. **`core/` is STL-only, codec-free, GUI-free.** Codecs, HTTP, JSON, video, rendering,
-   persistence and the event loop belong to the adapters.
-6. **`browser/js/config/` is the canonical home** for every shared data table; other surfaces
-   embed it (qrc alias / `@embedFile` / `include_str!` / `<EmbeddedResource>`) or keep a
-   drift-tested copy.
+Stated in full in `ARCHITECTURE.md` §1–§2; `.claude/rules/core-changes.md` loads with any
+`core/` edit. The index:
+
+1. **Each `core/` module ports a named `browser/js/` call site** (mapped in its header) — change
+   one side, change the other, and both test suites.
+2. **The browser's JS fallback matches wasm op-for-op** — `browser/tests/wasm/` proves it.
+3. **No `eval` anywhere** — both formula parsers are recursive descent, capped at one `MAX_DEPTH`.
+4. **A new, renamed or removed `core/*.cpp` edits three source lists**; a new core folder three
+   include-dir lists; a new wasm export `EXPORTED_FUNCTIONS`.
+5. **`core/` is STL-only, codec-free, GUI-free, and never throws** — wasm has no exceptions.
+6. **`browser/js/config/` is the canonical home** of every shared table; other surfaces embed
+   it or keep a drift-tested copy.
 
 ## Where to read next
 
@@ -85,15 +91,19 @@ CMake + Doctest; each other surface uses its platform's default.
 - **`contracts/`** — the normative contracts, one directory each.
   - **`llm/`** — the LLM contract (`llm-contract.md` plus `llm-providers.md`,
     `llm-profiles.md`, `llm-chat.md`; §1–§13 are stable across the set). Machine-readable and
-    test-guarded in `browser/js/config/llm/`. The LLM lives **entirely in the adapters** —
-    `core/` has no LLM code.
+    test-guarded in `browser/js/config/llm/`. Model calls live **entirely in the adapters**;
+    `core/opplan/` only validates the plan a model returned (mcp and bot via `--plan-check`).
   - **`stc/`** — the `.stc` script language: lexis, directives, units, templates, undo, the
     error catalogue and the per-surface execution table. Parsed and lowered in `core/script/`,
     proved by the corpus in `browser/js/config/script/fixtures/cases.txt`.
-- **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md`,
-  `architecture.md`, `tests.md`, `checklists.md` (the file-by-file steps for adding an op /
-  console command / dialog / provider / script directive), and `core-changes.md` (path-scoped
-  to `core/`).
+- **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md` and
+  `architecture.md` always; the path-scoped `core-changes.md` (`core/`), `desktop-qt.md`
+  (`desktop/`), `tests.md` (every test tree) and `docs.md` (the surface docs) with their files.
+- **`.claude/skills/`** — on-demand procedures: `add-llm-op`, `add-llm-provider`,
+  `add-stc-directive`, `add-console-command`, `add-desktop-dialog` (the file-by-file steps),
+  `split-move` (splitting, moving and renaming, with the proofs), `verify` (the full matrix)
+  and `stencil` (driving the CLI). The read-only `twin-auditor` agent lists every twin, list,
+  copy, fixture and pin a diff must also touch.
 - **Each subproject's `ARCHITECTURE.md`** — **normative for that tree.** Before changing a
   surface, read its `ARCHITECTURE.md` and keep the change inside its layers, placement
   table and rules. Each is an independent document of that surface's design, in the same
@@ -105,4 +115,6 @@ CMake + Doctest; each other surface uses its platform's default.
   steps with screenshots/GIFs under `usecases/docs/<app>/img/`, generated by the scripts in
   `usecases/capture-runner/` (never hand-edited). User-facing like a README: no architecture, no
   inventories, no counts. Docs-only: touching `usecases/` runs no CI job.
-- **`tools/README.md`** — `moveCheck.mjs` and `commentOnlyDiff.mjs`.
+- **`.claude/tools/README.md`** — `moveCheck.mjs` and `commentOnlyDiff.mjs` (move proofs),
+  `docPaths.mjs` and `commentPaths.mjs` (every path a doc or a code comment names exists) and
+  `syncTwins.mjs` (re-copy the twins).

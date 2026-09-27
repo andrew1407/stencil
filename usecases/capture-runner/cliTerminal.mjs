@@ -5,9 +5,9 @@
 import path from 'node:path';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir, scratchDir } from './lib/paths.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
+import { makeShotRunner } from './lib/shot/runner.mjs';
 import { CLI_BIN, SHELL, VsCodeHost } from './lib/vscodeHost.mjs';
-import { film } from './lib/shots.mjs';
+import { film } from './lib/shot/shots.mjs';
 import { dropBand, framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { settle, waitForStable } from './lib/waits.mjs';
 

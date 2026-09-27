@@ -16,6 +16,7 @@ from ...llm import (
   variant_slugs,
 )
 from ..registry import command
+from .llm import KEY_HINT
 
 def _load_only_plan(plan) -> bool:
   acts = getattr(plan, "actions", None) or []
@@ -29,10 +30,6 @@ def _load_only_plan(plan) -> bool:
 # encoded PNG stays under ~8 MiB (bigger payloads are skipped with a printed note).
 _PROMPT_IMAGE_LIMIT = 8 * 1024 * 1024
 Attachments = list[tuple[str, bytes]]
-
-
-# Image extensions Python can actually encode (codecs is PNG/BMP only). A bare or
-# unknown output extension falls back to PNG, matching the codecs default.
 
 
 class _PromptCommands:
@@ -137,6 +134,9 @@ class _PromptCommands:
       # Covers plan/validation errors and the stencil-server stopReason
       # truncation/refusal LlmErrors, plus network failures (URLError).
       self._err("%s" % e)
+      disabled = getattr(e, "code", "") == "llmDisabled"
+      if disabled and self._llm.provider == "anthropic" and not self._llm.session_key():
+        self._note(KEY_HINT)
       return False
     self._say(plan.reply)
     variant_outputs = outputs

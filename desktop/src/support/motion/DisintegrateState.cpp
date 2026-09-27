@@ -1,5 +1,6 @@
 #include "DisintegrateOverlay.hpp"
 
+#include <QApplication>
 #include <QDockWidget>
 
 namespace stencil::gui {
@@ -12,7 +13,7 @@ namespace stencil::gui {
   }
 
 
-  // Browser twin: surface/motion.js followDust. A tile flight IS its geometry; a surface flight
+  // Browser twin: surface/tiles.js followDust. A tile flight IS its geometry; a surface flight
   // shifts picture and target.
   void DisintegrateOverlay::setFollow(QWidget* w) {
     follow = w;
@@ -35,6 +36,16 @@ namespace stencil::gui {
     surfaceGone = connect(surface, &QObject::destroyed, this, [this] { hide(); deleteLater(); });
   }
 
+  QWidget* DisintegrateOverlay::floatOver(const QWidget* host, const QRect& rect, const QWidget* surface) {
+    if (!host) return nullptr;
+    for (QWidget* w : QApplication::topLevelWidgets()) {
+      if (w == surface || w->windowType() != Qt::Tool || !w->isVisible()) continue;
+      const QWidget* owner = w->parentWidget();
+      if (owner && owner->window() == host && w->frameGeometry().intersects(rect)) return w;
+    }
+    return nullptr;
+  }
+
   // Hidden before the owner's own hide handlers run, so a close flight's photograph never holds it.
   bool DisintegrateOverlay::eventFilter(QObject* watched, QEvent* e) {
     if (watched == surface && (e->type() == QEvent::Hide || e->type() == QEvent::Close)) {
@@ -53,9 +64,11 @@ namespace stencil::gui {
     const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
     QRect need = surfaceLayerRect(picture.translated(hostBox.topLeft()),
                                   host->mapToGlobal(target));
-    // Offscreen's virtual screen is a fixed box unrelated to any real one: tests keep the child layer.
+    // Offscreen's virtual screen is a fixed box unrelated to any real one: tests keep the child layer
+    // there, unless a window floats above the host — that escape is about stacking, not room.
+    const bool offscreen = QGuiApplication::platformName() == QLatin1String("offscreen");
     if (!escapeHost || (hostBox.contains(need) && !alwaysEscape) || !hostBox.isValid()
-        || QGuiApplication::platformName() == QLatin1String("offscreen")) {
+        || (offscreen && !alwaysEscape)) {
       setGeometry(host->rect());
       return;
     }
@@ -117,7 +130,7 @@ namespace stencil::gui {
 
 
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
-    // Water and fire grid coarser (browser surface/motion.js makeDustStage).
+    // Water and fire grid coarser (browser dust/canvasDustStage.js makeDustStage).
     if (style != support::ParticleStyle::DUST) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
     dustGrid(size, cellPx, maxCells, &cols, &rows);
   }

@@ -23,9 +23,11 @@
     top: 0;
     left: 0;
     width: var(--vp-w, 100%);
+    /* --vp-w lands a frame after a resize: a shrinking viewport (the panel sliding open) must not overflow. */
+    max-width: 100%;
     height: var(--vp-h, 100%);
     margin-bottom: calc(-1 * var(--vp-h, 0px));
-    /* The viewport is a flex column (layout/canvasFrame.css), so the frame is a flex item: without
+    /* The viewport is a flex column (layout/canvas/frame.css), so the frame is a flex item: without
        this it would be shrunk by an overflowing canvas and stop tracing the viewport. */
     flex: none;
     z-index: 6;

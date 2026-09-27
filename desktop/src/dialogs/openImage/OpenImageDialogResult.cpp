@@ -2,10 +2,7 @@
 // choice. Read after exec() returns, so nothing here touches a widget's visibility.
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
-#include <QComboBox>
-#include <QLineEdit>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QSpinBox>
 
 namespace stencil::gui {

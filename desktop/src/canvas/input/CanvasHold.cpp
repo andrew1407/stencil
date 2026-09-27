@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "hitTest.hpp"
 
 // Hold-to-draw: the delay, the drop and the anchor it continues from.
@@ -9,31 +8,31 @@ namespace stencil::gui {
   // hold-to-draw (alternative flow; port of browser holdDraw.js)
 
   void CanvasWidget::setHoldDrawDelay(int ms) {
-    holdDelayMs = std::max(100, std::min(3000, ms));
-    hold.setHoldDelay(holdDelayMs);
+    hold.delayMs = std::max(100, std::min(3000, ms));
+    hold.ctl.setHoldDelay(hold.delayMs);
   }
 
   double CanvasWidget::holdNowMs() const {
-    return static_cast<double>(holdClock.elapsed());
+    return static_cast<double>(hold.clock.elapsed());
   }
 
   void CanvasWidget::beginHold(const QPoint& widgetPos) {
-    holdPressPos = widgetPos;
-    hold.pointerDown(widgetPos.x(), widgetPos.y(), holdNowMs());
-    holdTimer.start();
+    hold.pressPos = widgetPos;
+    hold.ctl.pointerDown(widgetPos.x(), widgetPos.y(), holdNowMs());
+    hold.timer.start();
   }
 
   void CanvasWidget::stopHold() {
-    holdTimer.stop();
-    hold.cancel();
-    if (holdHasPreview) {
-      holdHasPreview = false;
+    hold.timer.stop();
+    hold.ctl.cancel();
+    if (hold.hasPreview) {
+      hold.hasPreview = false;
       update();
     }
   }
 
   void CanvasWidget::handleHoldTick() {
-    const core::HoldEvent ev = hold.tick(holdNowMs());
+    const core::HoldEvent ev = hold.ctl.tick(holdNowMs());
     if (ev.action == core::HoldAction::START) holdStart(ev.x, ev.y);
     else if (ev.action == core::HoldAction::DROP) holdDrop(ev.x, ev.y);
   }
@@ -42,15 +41,16 @@ namespace stencil::gui {
   // a point there then continue; empty -> fresh line.
   void CanvasWidget::holdStart(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale, widgetY / scale};
-    const core::HoldTarget t = core::holdDrawTarget(lines, ip.x, ip.y);
-    holdPrepend = false;
+    const double grab = pointerTuning::table().grabRadiusPx;   // image px, as the browser's holdDrawTarget
+    const core::HoldTarget t = core::holdDrawTarget(lines, ip.x, ip.y, grab, grab);
+    hold.prepend = false;
     if (t.kind == core::HoldTargetKind::CONTINUE_POINT) {
       selectedLineIdx = t.lineIdx;
       selectedPoint = t.ptIdx;
       startDrawingMode();
       // Holding the FIRST point extends the line backward: prepend new points
       // before it (index 0) instead of inserting after it as the second point.
-      if (t.ptIdx == 0) { holdPrepend = true; continueInsertIdx = 0; }
+      if (t.ptIdx == 0) { hold.prepend = true; continueInsertIdx = 0; }
     } else if (t.kind == core::HoldTargetKind::INSERT_SEGMENT) {
       insertPointOnSegment(t.lineIdx, t.ptIdx2, ip.x, ip.y);
       startDrawingMode();
@@ -61,8 +61,8 @@ namespace stencil::gui {
       currentLine.points.push_back(ip);
       flyInPoint(-1, currentLine, 0);
     }
-    holdPreview = ip;
-    holdHasPreview = true;
+    hold.preview = ip;
+    hold.hasPreview = true;
     update();
     emit changed();
     emit selectionChanged();
@@ -92,13 +92,13 @@ namespace stencil::gui {
     }
     if (continueLineIdx >= 0 &&
         continueLineIdx < static_cast<int>(lines.size())) {
-      insertContinuationPoint(ip, /*advance=*/!holdPrepend);
+      insertContinuationPoint(ip, /*advance=*/!hold.prepend);
     } else {
       currentLine.points.push_back(ip);
       flyInPoint(-1, currentLine, static_cast<int>(currentLine.points.size()) - 1);
     }
-    holdPreview = ip;
-    holdHasPreview = true;
+    hold.preview = ip;
+    hold.hasPreview = true;
     update();
     emit changed();
     emit selectionChanged();
@@ -106,8 +106,8 @@ namespace stencil::gui {
 
   // Release after a hold stroke → commit the line and disable drawing again.
   void CanvasWidget::holdCommit() {
-    holdHasPreview = false;
-    holdPrepend = false;
+    hold.hasPreview = false;
+    hold.prepend = false;
     if (isDrawing) stopDrawingMode();  // commits + emits drawingModeChanged(false)
     update();
   }
@@ -122,7 +122,7 @@ namespace stencil::gui {
       if (pts.empty()) return nullptr;
       // Prepend: the next point connects to the current head (continueInsertIdx);
       // forward: it connects to the point just before the insertion tail.
-      const int idx = holdPrepend ? continueInsertIdx : continueInsertIdx - 1;
+      const int idx = hold.prepend ? continueInsertIdx : continueInsertIdx - 1;
       if (idx >= 0 && idx < static_cast<int>(pts.size())) return &pts[idx];
       return &pts.back();
     }

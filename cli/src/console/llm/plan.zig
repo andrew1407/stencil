@@ -6,6 +6,7 @@ const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const layout_mod = @import("../../media/layout.zig");
 const ui = @import("../ui.zig");
+const inert = @import("../render/inert.zig");
 const Session = @import("../session.zig").Session;
 const remoteEvents = @import("../remoteEvents.zig");
 const edits = @import("edits.zig");
@@ -13,49 +14,69 @@ const settings = @import("settings.zig");
 const variants = @import("variants.zig");
 const renderVariants = variants.renderVariants;
 
+/// True when the plan loaded a picture it could not yet trace, so the turn goes once more (§7).
 pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []const u8) !bool {
+    return try runPlanOutcome(session, io, raw, user_text) == .again;
+}
+
+/// How a reply's plan ended: ran (`done`), ran and wants the §7 continuation (`again`), or was
+/// refused or stopped with nothing more to do (`failed`, its message printed).
+pub const Outcome = enum { done, again, failed };
+
+pub fn runPlanOutcome(session: *Session, io: std.Io, raw: []const u8, user_text: []const u8) !Outcome {
     const gpa = session.gpa;
     switch (try llm.parsePlan(gpa, raw)) {
         .invalid => |msg| {
             defer gpa.free(msg);
-            logo.err("{s}\n", .{msg});
+            const said = inert.copy(gpa, msg); // core's words around what the model wrote
+            defer said.free(gpa);
+            logo.err("{s}\n", .{said.text});
         },
         .plan => |p| {
             var plan = p;
             defer plan.deinit();
-            logo.print("{s}\n", .{plan.reply});
+            const reply = inert.copy(gpa, plan.reply);
+            defer reply.free(gpa);
+            logo.print("{s}\n", .{reply.text});
             if (session.chat_on) {
                 session.appendChatTurn(.user, user_text) catch {};
                 session.appendChatTurn(.assistant, plan.reply) catch {};
             }
-            for (plan.warnings) |w| logo.note("{s}\n", .{w});
+            for (plan.warnings) |w| {
+                const said = inert.copy(gpa, w);
+                defer said.free(gpa);
+                logo.note("{s}\n", .{said.text});
+            }
             // §11: a plan may also ASK. Printed after the reply and remembered, so the next
             // /prompt can answer it by number. A chat-only turn can carry one too.
             if (plan.ask) |ask| try showAsk(session, ask);
-            if (plan.chat_only) return false;
+            if (plan.chat_only) return .done;
             // The console's working input is never a video, so a frame op anywhere is a
             // plan-level error: nothing executes (contract §2).
             if (plan.hasFrameOp()) {
                 logo.err("the frame op needs a video input — the console session works on a still image\n", .{});
-                return false;
+                return .failed;
             }
             // §10 openUrl guard: the model may only ECHO the user — a URL absent from the
             // user's own messages this conversation fails the whole plan, nothing executes.
             const user_turns: []const llm.Turn = if (session.chat_on) session.chat_history.items else &.{};
             for (plan.actions) |a| switch (a) {
                 .open_url => |o| if (!llm.urlEchoedByUser(user_turns, user_text, o.url)) {
-                    logo.err("openUrl blocked: \"{s}\" is not a URL you gave in this conversation\n", .{o.url});
-                    return false;
+                    var b: inert.Buf = undefined;
+                    logo.err("openUrl blocked: \"{s}\" is not a URL you gave in this conversation\n", .{inert.name(&b, o.url)});
+                    return .failed;
                 },
                 // The assistant may read and write only where the user themselves pointed it, so a plan can never
                 // go looking through the disk or drop results somewhere the user never named.
                 .open_file => |f| if (!llm.pathEchoedByUser(user_turns, user_text, f.path)) {
-                    logo.err("openFile blocked: \"{s}\" is not a path you gave in this conversation\n", .{f.path});
-                    return false;
+                    var b: inert.Buf = undefined;
+                    logo.err("openFile blocked: \"{s}\" is not a path you gave in this conversation\n", .{inert.name(&b, f.path)});
+                    return .failed;
                 },
                 .save => |s| if (s.path.len != 0 and !llm.pathEchoedByUser(user_turns, user_text, s.path)) {
-                    logo.err("save blocked: \"{s}\" is not a path you gave in this conversation\n", .{s.path});
-                    return false;
+                    var b: inert.Buf = undefined;
+                    logo.err("save blocked: \"{s}\" is not a path you gave in this conversation\n", .{inert.name(&b, s.path)});
+                    return .failed;
                 },
                 else => {},
             };
@@ -67,17 +88,22 @@ pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []cons
             // §2.1: which `/upload`ed attachment the last `image` op adopted (1-based) —
             // an unnamed `save` names its project after it.
             var active: ?usize = null;
+            var stopped = false;
             for (plan.actions) |a| {
-                if (!applyPlanAction(session, io, a, &edited, &frame_steps, &active)) break; // message printed; stop here
+                if (!applyPlanAction(session, io, a, &edited, &frame_steps, &active)) {
+                    stopped = true; // message printed; stop here
+                    break;
+                }
             }
             if (edited) remoteEvents.markDirty(session); // debounced, flushed at the prompt boundary
             // Variants branch from the post-actions state, so their snapshot-frame
             // coordinates continue through the top-level steps accumulated above.
             renderVariants(session, io, &plan, frame_steps.items);
-            return plan.loadsWithoutTracing() and session.hasImage();
+            if (plan.loadsWithoutTracing() and session.hasImage()) return .again;
+            return if (stopped) .failed else .done;
         },
     }
-    return false;
+    return .failed;
 }
 
 /// Print an `ask` card as a numbered list (§11.4: no previews in a console) and remember the labels
@@ -85,9 +111,12 @@ pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []cons
 fn showAsk(session: *Session, ask: llm.Ask) !void {
     const gpa = session.gpa;
     session.clearAsk();
-    logo.print("\n{s}\n", .{ask.question});
-    for (ask.options, 0..) |o, i| logo.print("  {d}. {s}\n", .{ i + 1, o.label });
-    if (ask.allow_custom) logo.print("  or type your own: {s}\n", .{ask.custom_label});
+    const question = inert.copy(gpa, ask.question);
+    defer question.free(gpa);
+    logo.print("\n{s}\n", .{question.text});
+    var b: inert.Buf = undefined;
+    for (ask.options, 0..) |o, i| logo.print("  {d}. {s}\n", .{ i + 1, inert.name(&b, o.label) });
+    if (ask.allow_custom) logo.print("  or type your own: {s}\n", .{inert.name(&b, ask.custom_label)});
     // Two calls, not a runtime-selected format: logo.print's format is comptime.
     if (ask.multi)
         logo.print("answer with /p <numbers> (e.g. '/p 1,3'), or just say what you want\n", .{})

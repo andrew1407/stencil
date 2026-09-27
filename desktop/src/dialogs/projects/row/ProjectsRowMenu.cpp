@@ -1,21 +1,16 @@
 #include "ProjectsDialog.hpp"
-#include <QListWidget>
 #include <QListWidgetItem>
 
 #include "ProjectRowDelegate.hpp"
-#include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "ExpirationDialog.hpp"
-#include "../../../support/guiHelpers.hpp"
 #include "../../../support/menu/menuReveal.hpp"
 #include "../../../support/theme/theme.hpp"
 #include "../../../support/menu/menuDangerRow.hpp"
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/modal/modalChrome.hpp"
 #include "../../../support/modal/modalReveal.hpp"
-#include "AppTooltip.hpp"
 
 #include <QAction>
 #include <QMenu>
@@ -201,7 +196,7 @@ namespace stencil::gui {
                        &ProjectsDialog::copyToServerSelected);
       }
       // Destructive: the browser's "Remove" row colours both halves in --danger
-      // (.project-menu-item.is-danger), so support/menuDangerRow.hpp inks the label to match.
+      // (.project-menu-item.is-danger), so support/menu/menuDangerRow.hpp inks the label to match.
       dangerColor = themePalette(palette().color(QPalette::Window).lightness() < 128).danger;
       removeAct = menu.addAction(themedIcon("trash", dangerColor, 16), "Remove", this,
                                  &ProjectsDialog::deleteSelected);

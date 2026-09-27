@@ -1,4 +1,4 @@
-/** One saved layout, as Storage restores it (the shape core/projectMeta.js builds). */
+/** One saved layout, as Storage restores it (the shape core/project/meta/projectMeta.js builds). */
 export type SavedLayout = Record<string, unknown>;
 
 /** Page size + the custom-size group it reveals. Runs BEFORE applyUnitToUI. */

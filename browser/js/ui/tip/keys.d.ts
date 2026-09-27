@@ -1,4 +1,4 @@
-// Shapes for ui/keys.js — the keys half of the rich tooltip: which strings in a composed
+// Shapes for ui/tip/keys.js — the keys half of the rich tooltip: which strings in a composed
 // `title` are keys, and the keycaps they draw. The module is byte-pinned with
 // browser-extension/src/lib/tip/keys.js (browser-extension/tests/portParity.test.js).
 

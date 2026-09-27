@@ -3,7 +3,7 @@
 export const modalShells = new Set();
 
 // One Escape listener for every shell: the topmost open window answers, and only it. A shell
-// may keep the key for itself; no window the app ships does (tests/modalShell.test.js).
+// may keep the key for itself; no window the app ships does (tests/ui/modalShell.test.js).
 let escapeWired = false;
 export const wireEscapeOnce = () => {
   if (escapeWired) return;

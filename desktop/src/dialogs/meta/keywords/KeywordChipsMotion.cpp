@@ -1,13 +1,14 @@
 #include "KeywordChips.hpp"
+#include "chipClocks.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/control/FlowLayout.hpp"
 #include "../../../support/motionPrefs.hpp"
+#include "../../../support/uiTimings.hpp"
 
 #include <QAbstractAnimation>
 #include <QEasingCurve>
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
-#include <QLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
@@ -19,11 +20,6 @@
 
 namespace stencil::gui {
 
-  // The chip clocks, 1.5x the base beat so the grains read. Browser twins: the kwChipLeave
-  // keyframes and motion/tune.js FLIP_MS x 1.5.
-  static constexpr int GLIDE_MS = 390;
-  static constexpr int ENTER_MS = 630;
-  static constexpr int LEAVE_MS = 630;
   // The slot is held only while the chip fades into its grains; they go on falling over
   // the slide. Browser twin: the kwChipLeave keyframes' 14% / 15%.
   static constexpr double LEAVE_HOLD = 0.15;
@@ -77,17 +73,18 @@ namespace stencil::gui {
   // their widths collapse. Removing the widget outright made survivors jump over the grains.
   void KeywordChips::playLeave(const QList<QPointer<QFrame>>& going) {
     if (going.isEmpty()) return;
+    const int leaveMs = keywordChipClocks().leaveMs;
     const bool quiet = !support::isDustAllowed();
     for (QFrame* chip : going) {
       chip->setProperty("kwLeaving", true);   // no longer one of the list's chips
       if (quiet) { chip->setParent(nullptr); chip->deleteLater(); continue; }
-      chipDust(chip, chipArea, DisintegrateOverlay::Sweep::FALL, LEAVE_MS, going.size());
+      chipDust(chip, chipArea, DisintegrateOverlay::Sweep::FALL, leaveMs, going.size());
       // …and the chip goes with its grains rather than sitting opaque until the width
       // wipes, which read as dust over a solid chip followed by a right-to-left wipe.
-      auto* fade = new QGraphicsOpacityEffect(chip);
-      chip->setGraphicsEffect(fade);
+      QGraphicsOpacityEffect* fade = veilBehindDust(chip);
+      fade->setOpacity(1.0);
       auto* out = new QPropertyAnimation(fade, "opacity", chip);
-      out->setDuration(int(LEAVE_MS * LEAVE_FADE));
+      out->setDuration(int(leaveMs * LEAVE_FADE));
       out->setStartValue(1.0);
       out->setEndValue(0.0);
       out->setEasingCurve(QEasingCurve::OutCubic);
@@ -101,7 +98,7 @@ namespace stencil::gui {
     // ONE animation for the whole batch: Clear all collapsed chip-by-chip otherwise, each
     // relayout shoving the rest sideways before their own turn came.
     auto* fold = new QVariantAnimation(this);
-    fold->setDuration(LEAVE_MS);
+    fold->setDuration(leaveMs);
     fold->setStartValue(0.0);
     fold->setEndValue(1.0);
     QPointer<KeywordChips> self(this);
@@ -127,26 +124,31 @@ namespace stencil::gui {
 
   void KeywordChips::playMotion(const QHash<QString, QRect>& was, const QList<QFrame*>& arrived) {
     if (!support::isDustAllowed()) return;   // "nothing may move" covers the glide too
+    const support::FlipMotion& flip = support::flipMotion();
     for (auto it = chipFor.cbegin(); it != chipFor.cend(); ++it) {
       const QRect from = was.value(it.key());
       QFrame* chip = it.value();
       if (from.isNull() || from == chip->geometry()) continue;
       auto* fly = new QPropertyAnimation(chip, "geometry", chip);
-      fly->setDuration(GLIDE_MS);
-      fly->setEasingCurve(QEasingCurve::OutCubic);
+      fly->setDuration(flip.ms);
+      fly->setEasingCurve(flip.easing);
       fly->setStartValue(from);
       fly->setEndValue(chip->geometry());
       fly->start(QAbstractAnimation::DeleteWhenStopped);
     }
-    // A new chip gathers out of its own dust and only THEN fades up (holdFadeKeys). GATHER, not
-    // SURFACE_IN: the surface sweeps fly from a target point, so a chip gathered in from the corner.
+    // A new chip gathers out of its own dust and only THEN fades up, held back while most of the
+    // cloud lands. GATHER, not SURFACE_IN: the surface sweeps fly from a target point.
+    const KeywordChipClocks& clocks = keywordChipClocks();
     for (QFrame* chip : arrived) {
-      chipDust(chip, chipArea, DisintegrateOverlay::Sweep::GATHER, ENTER_MS, arrived.size());
-      auto* fade = new QGraphicsOpacityEffect(chip);
-      fade->setOpacity(0.0);
-      chip->setGraphicsEffect(fade);
+      const bool dust = chipDust(chip, chipArea, DisintegrateOverlay::Sweep::GATHER, clocks.dustMs,
+                                 arrived.size()) != nullptr;
+      const int holdMs = dust ? clocks.enterDelayMs : 0;
+      QGraphicsOpacityEffect* fade = veilBehindDust(chip);
       auto* up = new QPropertyAnimation(fade, "opacity", chip);
-      holdFadeKeys(up, ENTER_MS);
+      up->setDuration(holdMs + clocks.enterMs);
+      up->setStartValue(0.0);
+      up->setEndValue(1.0);
+      up->setEasingCurve(chipEnterCurve(holdMs, clocks.enterMs));
       connect(up, &QAbstractAnimation::finished, chip, [chip] { chip->setGraphicsEffect(nullptr); });
       up->start(QAbstractAnimation::DeleteWhenStopped);
     }

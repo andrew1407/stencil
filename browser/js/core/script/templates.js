@@ -3,21 +3,8 @@ import { didYouMean, makeDiag, tokenOfStmt } from './diagnostics.js';
 import {
   MAX_OPS, MAX_TEMPLATE_DEPTH, MAX_TEMPLATE_EXPANSIONS, isStencilUse, unquoteWord,
 } from './types.js';
-
-// Name -> index, built once per script: resolveName walks a prefix at a time.
-export const templateIndex = (templates) => new Map(templates.map((d, i) => [d.name, i]));
-
-// The call's words, in order, with the literal 'stencil' already dropped.
-const callWords = (use) => {
-  const words = [];
-  let skippedKeyword = false;
-  for (const t of use.args) {
-    if (t.kind === 'punct') continue;
-    if (!skippedKeyword) { skippedKeyword = true; continue; }
-    words.push(unquoteWord(t.text));
-  }
-  return words;
-};
+import { classifyWord } from './lexer.js';
+import { gluedWords, parseIntClamped } from './values.js';
 
 const wordCount = (name) => {
   let n = 1;
@@ -25,42 +12,64 @@ const wordCount = (name) => {
   return n;
 };
 
-/* Longest defined name that is a prefix of the word run. Only prefixes up to the longest name
- * there is are built, because no longer one can match: building every prefix made one call
- * cost the SQUARE of its word count. */
-const resolveName = (words, byName) => {
-  let longest = 0;
-  for (const name of byName.keys()) longest = Math.max(longest, wordCount(name));
+/* Built once per script. A call tries at most `longestWords` prefixes, and looks one up only
+ * when some name has its length, so a long call costs no more than its own words. */
+export const templateIndex = (templates) => ({
+  byName: new Map(templates.map((d, i) => [d.name, i])),
+  nameLengths: new Set(templates.map((d) => d.name.length)),
+  longestWords: templates.reduce((top, d) => Math.max(top, wordCount(d.name)), 0),
+});
 
-  const limit = Math.min(words.length, longest);
-  const prefixes = [];
-  let built = '';
-  for (let i = 0; i < limit; i += 1) {
-    built = built ? `${built} ${words[i]}` : words[i];
-    prefixes.push(built);
-  }
-  for (let n = prefixes.length; n >= 1; n -= 1) {
-    const idx = byName.get(prefixes[n - 1]);
-    if (idx !== undefined) return { idx, wordsUsed: n };
+// The call's words, in order, with the literal 'stencil' already dropped; a length stays one word.
+const callWords = (use) => gluedWords(use.args).slice(1);
+
+// Longest defined name prefixing the word run; the candidate shrinks in place.
+const resolveName = (words, index) => {
+  let n = Math.min(words.length, index.longestWords);
+  let candidate = words.slice(0, n).map((w) => unquoteWord(w.text)).join(' ');
+  for (; n >= 1; n -= 1) {
+    if (index.nameLengths.has(candidate.length)) {
+      const idx = index.byName.get(candidate);
+      if (idx !== undefined) return { idx, wordsUsed: n };
+    }
+    const drop = unquoteWord(words[n - 1].text).length + (n > 1 ? 1 : 0);
+    candidate = candidate.slice(0, candidate.length - drop);
   }
   return { idx: -1, wordsUsed: 0 };
 };
 
-// @1..@n in the body become the call's arguments; every other token passes through.
-const substitute = (body, args) => {
-  const out = { ...body, args: [] };
+/* @n becomes the n-th argument, re-read by the lexer's word rules so '10%' is a NUMBER and a
+ * UNIT again; a quoted argument stays one plain word. */
+const fill = (param, arg, out) => {
+  const text = unquoteWord(arg.text);
+  const { kind, unitAt } = arg.kind === 'string'
+    ? { kind: 'ident', unitAt: -1 } : classifyWord(arg.text);
+  const filled = { ...param, text, kind: kind === 'number' || kind === 'color' ? kind : 'ident' };
+  if (unitAt < 0) {
+    out.push(filled);
+    return;
+  }
+  out.push({ ...filled, text: text.slice(0, unitAt), len: unitAt });
+  const unit = text.slice(unitAt);
+  out.push({ ...param, kind: 'unit', text: unit, col: param.col + unitAt, len: unit.length });
+};
+
+// Every other token passes through; the copy remembers the outermost call that made it.
+const substitute = (body, use, args) => {
+  const call = use.call ?? { line: use.line, col: use.col, len: use.len };
+  const out = { ...body, args: [], call };
   let bad = null;
   for (const t of body.args) {
     if (t.kind !== 'param') {
       out.args.push(t);
       continue;
     }
-    const n = parseInt(t.text.slice(1), 10);
-    if (!Number.isFinite(n) || n < 1 || n > args.length) {
+    const n = parseIntClamped(t.text.slice(1));
+    if (n < 1 || n > args.length) {
       bad = t;
       continue;
     }
-    out.args.push({ ...t, text: args[n - 1], kind: 'ident' });
+    fill(t, args[n - 1], out.args);
   }
   return { stmt: out, bad };
 };
@@ -68,7 +77,7 @@ const substitute = (body, args) => {
 /* Expands one `@use stencil <words> [args…]` into the referenced body. Nested uses expand
  * too, capped at MAX_TEMPLATE_DEPTH; a template that reaches itself hits that cap. `budget`
  * counts the whole script's tree: a body of nothing but nested uses trips no other cap. */
-export const expandStencilUse = (use, templates, byName, depth, budget, out, diags) => {
+export const expandStencilUse = (use, templates, index, depth, budget, out, diags) => {
   if (depth > MAX_TEMPLATE_DEPTH) {
     diags.push(makeDiag('error', 'E_TEMPLATE_RECURSION', tokenOfStmt(use),
       `templates nest more than ${MAX_TEMPLATE_DEPTH} deep — is one using itself?`));
@@ -86,9 +95,9 @@ export const expandStencilUse = (use, templates, byName, depth, budget, out, dia
     return false;
   }
 
-  const { idx, wordsUsed } = resolveName(words, byName);
+  const { idx, wordsUsed } = resolveName(words, index);
   if (idx < 0) {
-    const whole = words.join(' ');
+    const whole = words.map((w) => unquoteWord(w.text)).join(' ');
     const near = didYouMean(whole, templates.map((d) => d.name));
     diags.push(makeDiag('error', 'E_UNDEFINED_TEMPLATE', tokenOfStmt(use),
       `no template named '${whole}'${near ? ` — did you mean '${near}'?` : ''}`));
@@ -106,14 +115,14 @@ export const expandStencilUse = (use, templates, byName, depth, budget, out, dia
   templates[idx].used = true;
   // `substitute` copies each statement, so the body is only ever read here.
   for (const st of templates[idx].body) {
-    const { stmt, bad } = substitute(st, args);
+    const { stmt, bad } = substitute(st, use, args);
     if (bad) {
       diags.push(makeDiag('error', 'E_TEMPLATE_PARAM_INDEX', bad,
         `'${bad.text}' is outside this template's ${arity} argument(s)`));
       return false;
     }
     if (stmt.directive === 'use' && isStencilUse(stmt)) {
-      if (!expandStencilUse(stmt, templates, byName, depth + 1, budget, out, diags)) return false;
+      if (!expandStencilUse(stmt, templates, index, depth + 1, budget, out, diags)) return false;
       continue;
     }
     if (out.length >= MAX_OPS) {

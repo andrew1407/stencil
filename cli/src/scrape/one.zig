@@ -60,6 +60,7 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
         var cached: ?[]const u8 = null; // measurement bytes, reused for the pick (no double fetch)
         if (dim_active) {
             const bytes = net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
+                if (e == error.Cancelled) return e; // a Ctrl-C ends the scrape, not one candidate
                 report.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 continue;
             };
@@ -70,7 +71,7 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
 
         if (matches == o.index) {
             const bytes = cached orelse (net.fetch(arena, io, m.url, subStrict(m.url, page_host)) catch |e| {
-                report.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
+                if (e != error.Cancelled) report.err("could not fetch {s} ({s})\n", .{ m.url, @errorName(e) });
                 return e;
             });
             if (dims == null) dims = sniff(bytes);

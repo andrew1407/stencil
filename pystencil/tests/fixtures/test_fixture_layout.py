@@ -9,6 +9,7 @@ from __future__ import annotations
 import unittest
 
 from tests.helpers.fixturebase import _FIXTURES, _OVERRIDES, _filled_line_dict, _load, _norm
+from tests.helpers.nativecase import needs_core
 
 from pystencil.layout import (
   DEFAULT_COLOR,
@@ -29,7 +30,7 @@ _PAYLOAD = _load(_LAYOUT_DIR / "payload.json")
 
 class TestLayoutFixtures(unittest.TestCase):
   def test_defaults_align_with_corpus(self):
-    # The cross-surface per-line defaults pinned by sparse.json/_schema.md.
+    # The cross-surface per-line defaults pinned by fixtures/layout/sparse.json and its _schema.md.
     self.assertEqual(DEFAULT_COLOR, "#FFFF00")
     self.assertEqual(DEFAULT_THICKNESS, 2.0)
     self.assertEqual(DEFAULT_POINT_SIZE, 4.0)
@@ -50,6 +51,7 @@ class TestLayoutFixtures(unittest.TestCase):
         want = overrides.get(case["name"], {}).get("expectFilled", case["expectFilled"])
         self.assertEqual(_norm(got), _norm(want))
 
+  @needs_core
   def test_payload_export(self):
     # Layout.from_dict → to_dict is pystencil's export path; uses imageFilter
     # (aligned with the browser) and pins the top-level key order.

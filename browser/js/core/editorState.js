@@ -1,5 +1,8 @@
 // The editor's plain-data defaults: a fresh object per call, nothing shared between editors.
 import { defaultUnitFromLocale } from '../utils.js';
+import constants from '../config/constants.json' with { type: 'json' };
+
+const { DEFAULT_VISUALS: V, DEFAULT_PAGE, HOLD_DRAW } = constants;
 
 export const createEditorState = () => ({
   image: null,
@@ -23,20 +26,17 @@ export const createEditorState = () => ({
   isDrawing: false,
   scale: 1,
 
-// The pan cursor delta lives in PointerController; only the flag is shared editor state.
-  isPanning: false,
+// The pointer gesture in flight (core/pointer/gesture.js); the is* drag flags read it. The pan
+// cursor delta lives in PointerController.
+  gesture: 'none',
 
   draggingPoint: null,
-  isDraggingPoint: false,
   dragJustEnded: false,
 
-  isDraggingSegment: false,
   draggingSegment: null, // { lineIdx, ptIdx1, ptIdx2, startX, startY, origPt1, origPt2 }
 
-  isDraggingLine: false,
   draggingLine: null, // { lineIdx, startX, startY, origPoints }
 
-  isZoomRectDragging: false,
   zoomRectStart: null, // { imgX, imgY, cssX, cssY }
   zoomRectEnd: null, // { imgX, imgY, cssX, cssY }
 
@@ -44,12 +44,12 @@ export const createEditorState = () => ({
   hoveredPtIdx: -1,
   focusedPtIdx: -1,
 
-  color: '#FFFF00',
+  color: V.color,
 // '' = follow this.color, matching core's Line::pointColor / pointColorOr fallback.
   pointColor: '',
-  thickness: 2,
-  pointSize: 4,
-  style: 'solid',
+  thickness: V.thickness,
+  pointSize: V.pointSize,
+  style: V.style,
   showPoints: true,
   showLines: true,
   imageFilter: 'none', // 'none' | 'bw' | 'sepia' | 'custom'
@@ -58,9 +58,9 @@ export const createEditorState = () => ({
   compareMode: 'none', // 'none' | 'original' | 'vertical' | 'horizontal'
   compareSplit: 0.5,   // divider position (0..1) for the split compare modes
   compareHoldOriginal: false, // Alt+Shift+O momentary "show original" override
-  pageSize: 'A3',
-  customPageWidth: 21,
-  customPageHeight: 29.7,
+  pageSize: DEFAULT_PAGE.size,
+  customPageWidth: DEFAULT_PAGE.customWidth,
+  customPageHeight: DEFAULT_PAGE.customHeight,
   selectedLineIdx: -1,
 // Ctrl/⌘+Shift+click set; empty in single-select mode (selectedIndices() then falls back
 // to [selectedLineIdx]). With 2+ held, selectedLineIdx is -1 and move/rotate act on all.
@@ -79,11 +79,10 @@ export const createEditorState = () => ({
   unit: defaultUnitFromLocale(),
 
 // holdPreview is the ghost-line cursor target (image space) while a hold stroke is active.
-  holdDrawDelay: 500,
+  holdDrawDelay: HOLD_DRAW.delayMs,
   holdPreview: null,
 
   drawMode: 'line',
-  isRectDrawDragging: false,
   rectDrawStart: null, // { imgX, imgY, cssX, cssY }
   rectDrawEnd: null,
 // Start with a line selected → new points/rects extend it and inherit its style; -1 = fresh line.
@@ -97,12 +96,12 @@ export const createEditorState = () => ({
   lastMouseClientX: 0,
   lastMouseClientY: 0,
 
-  selGlowColor: '#ffc800',
-  hoverRingColor: '#7c3aed',
-  focusRingColor: '#7c3aed',
+  selGlowColor: V.selGlowColor,
+  hoverRingColor: V.hoverRingColor,
+  focusRingColor: V.focusRingColor,
 // White, not blue: a saturated fill reads as a choice already made. Shared with the
 // desktop via config/constants.json.
-  defaultFillColor: '#ffffff',
+  defaultFillColor: V.defaultFillColor,
 
 // Mirrors storage.activeId; null = temporary editor.
   activeProjectId: null,

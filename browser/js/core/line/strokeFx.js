@@ -6,7 +6,7 @@ import { drawMotionEnabled } from '../../ui/motion/motionPrefs.js';
 import { pointColorOf } from '../draw/renderer.js';
 
 // The vertices currently in flight (maths in ui/motion.js). A record holds the point
-// OBJECT, not its index — a later insert shifts every index. Desktop twin: canvas/strokeGrowth.hpp.
+// OBJECT, not its index — a later insert shifts every index. Desktop twin: canvas/draw/strokeGrowth.hpp.
 
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const TAU = Math.PI * 2;

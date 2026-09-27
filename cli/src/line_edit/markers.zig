@@ -1,6 +1,6 @@
 //! Pasted pictures ride the line as one `[image N]` marker each: finding a marker, deleting it
 //! whole, and stripping the markers off the text that is finally submitted.
-const PasteResult = @import("../line_edit.zig").PasteResult;
+const PasteResult = @import("line_edit.zig").PasteResult;
 const std = @import("std");
 
 /// The widest name a marker shows — the host elides longer ones into this.

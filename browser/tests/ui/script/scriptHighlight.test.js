@@ -104,3 +104,13 @@ test('a keystroke leaves the untouched lines\' own nodes in place', () => {
   assert.ok(kept > before.length * 0.9,
     `only the edited line is rebuilt, kept ${kept} of ${before.length}`);
 });
+
+// Both engines report columns in UTF-8 bytes; the <pre> counts UTF-16 units, so a non-ASCII
+// character before a token must not shift its paint.
+test('a non-ASCII line paints and underlines on the right characters', () => {
+  const painted = paint('@crop "é🙂" 10%').filter((n) => n.cls && n.text).map((n) => [n.cls, n.text]);
+  assert.deepEqual(painted, [['stk-directive', '@crop'], ['stk-string', '"é🙂"'], ['stk-number', '10'], ['stk-unit', '%']]);
+  const marked = paint('@nonsensé 5', true).find((n) => n.cls.includes('stk-error'));
+  assert.equal(marked.text, '@nonsensé', 'the squiggle covers the whole word, é included');
+  assert.equal(classOf('# héllo\n@crop 10%', '@crop'), 'stk-directive', 'a later line is untouched');
+});

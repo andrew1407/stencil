@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli.js';
+import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli/run.js';
 
 const FIXTURES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 const IMG_URL = 'http://127.0.0.1:8188/__e2e__/pixel.png';

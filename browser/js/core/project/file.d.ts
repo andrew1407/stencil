@@ -41,7 +41,7 @@ export interface ProjectFileState {
   theme?: Partial<ProjectFileTheme> | null;
 }
 
-/** The hardened shape DrawingApp.applyProjectFile consumes. */
+/** The hardened shape applyProjectFile (fileIO.js) consumes. */
 export interface ParsedProject {
   name: string;
   color: string;

@@ -15,19 +15,19 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QWidget* section = win.settingsSection;
+    QWidget* section = win.tools.settingsSection;
     QVERIFY2(section, "no SETTINGS section on the toolbar");
     QLabel* caption = section->findChild<QLabel*>("sectionLabel");
     QVERIFY2(caption, "the section has no caption");
     QCOMPARE(caption->text(), QStringLiteral("SETTINGS"));   // same styling as its siblings
 
     // The six controls, in the browser's order: the state TOGGLES first (incognito · fullscreen), then the
-    // theme switch, then gear · palette · info. actAccent is the logo's popover, with no toolbar icon.
+    // theme switch, then gear · palette · info. acts.accent is the logo's popover, with no toolbar icon.
     QList<QAction*> got;
     for (QToolButton* b : section->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
-    const QList<QAction*> want{win.actIncognito, win.actFullscreen, win.actTheme,
-                               win.actShortcuts, win.actSettings, win.actInfo};
+    const QList<QAction*> want{win.acts.incognito, win.acts.fullscreen, win.acts.theme,
+                               win.acts.shortcuts, win.acts.settings, win.acts.info};
     QCOMPARE(got.size(), want.size());
     for (int i = 0; i < want.size(); ++i)
       QVERIFY2(got.at(i) == want.at(i),
@@ -43,25 +43,25 @@ class MainWindowGuiTest : public QObject {
     // open something are wired (checked via the action's own connections below).
     QToolButton* incognitoBtn = nullptr;
     for (QToolButton* b : section->findChildren<QToolButton*>())
-      if (b->defaultAction() == win.actIncognito) incognitoBtn = b;
+      if (b->defaultAction() == win.acts.incognito) incognitoBtn = b;
     QVERIFY(incognitoBtn);
     QVERIFY2(incognitoBtn->isCheckable(), "the incognito button must show a lit state");
     QVERIFY(!win.incognito);
     incognitoBtn->click();                       // toolbar → state + menu bar
     QTRY_VERIFY2(win.incognito, "the toolbar button did not turn incognito on");
-    QVERIFY(win.actIncognito->isChecked() && incognitoBtn->isChecked());
-    win.actIncognito->setChecked(false);        // menu bar → toolbar button
+    QVERIFY(win.acts.incognito->isChecked() && incognitoBtn->isChecked());
+    win.acts.incognito->setChecked(false);        // menu bar → toolbar button
     QTRY_VERIFY(!win.incognito);
     QVERIFY2(!incognitoBtn->isChecked(), "the toolbar button kept its lit state");
 
     // Theme flips both ways from the toolbar too.
     const QString before = win.settings.themeMode;
     for (QToolButton* b : section->findChildren<QToolButton*>())
-      if (b->defaultAction() == win.actTheme) b->click();
+      if (b->defaultAction() == win.acts.theme) b->click();
     QTRY_VERIFY2(win.settings.themeMode != before, "the theme button did nothing");
 
     // The palette button opens the SAME accent popover the logo does.
-    QCOMPARE(win.actAccent->objectName(), QStringLiteral("actAccent"));
+    QCOMPARE(win.acts.accent->objectName(), QStringLiteral("actAccent"));
 
     // …and it must actually be ON SCREEN: visible, non-empty and fully inside the toolbar's own rect, at
     // laptop widths with the custom-page cm inputs showing, or QToolBar's "»" swallows the section.

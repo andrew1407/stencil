@@ -2,12 +2,8 @@
 
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "../../../support/menu/SearchCombo.hpp"
-#include "ProjectsDialog.hpp"
-#include "../../../support/control/FlowLayout.hpp"
 #include "../../../support/theme/filterFade.hpp"
 #include "../../../support/motion/ShimmerOverlay.hpp"
-#include "ShimmerOverlay.hpp"
 
 // The filter box: its options, its fade and the kebab hover it shares.
 
@@ -81,7 +77,7 @@ namespace stencil::gui {
   }
 
   // Point the delegate at the row whose "..." is under the cursor and sweep the app's own glass
-  // shimmer across the chip (support/ShimmerOverlay.hpp, 325ms InOutSine), once per entry.
+  // shimmer across the chip (support/motion/ShimmerOverlay.hpp, 325ms InOutSine), once per entry.
   void ProjectsDialog::setKebabHover(int row) {
     if (row == hover.kebabHoverRow) return;
     hover.kebabHoverRow = row;

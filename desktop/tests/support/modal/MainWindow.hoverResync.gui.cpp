@@ -41,12 +41,12 @@ class MainWindowGuiTest : public QObject {
   void theResyncEntersTheWidgetQtLeftUnhovered() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWindow(win);
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QCursor::setPos(logo->mapToGlobal(logo->rect().center()));
     QVERIFY2(!logo->underMouse(), "no platform Enter was sent, so nothing is hovered yet");
     stencil::support::resyncHover(&win);
     QVERIFY2(logo->underMouse(), "the logo under the pointer was never entered");
-    QVERIFY2(win.logoFx->property("fxActive").toBool(), "and its hover never started");
+    QVERIFY2(win.tools.logoFx->property("fxActive").toBool(), "and its hover never started");
   }
 
   // The shape a closed dialog left is replaced by the plain spot's, and handed over afresh even
@@ -54,7 +54,7 @@ class MainWindowGuiTest : public QObject {
   void aClosedModalHandsTheCursorBackAfresh() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     showWindow(win);
-    QWidget* plain = win.imageSizeInfo;   // the size line: text, nothing to press
+    QWidget* plain = win.tools.imageSizeInfo;   // the size line: text, nothing to press
     QVERIFY(plain && plain->isVisible());
     QCOMPARE(plain->cursor().shape(), Qt::ArrowCursor);
     QCursor::setPos(plain->mapToGlobal(plain->rect().center()));
@@ -72,9 +72,9 @@ class MainWindowGuiTest : public QObject {
     showWindow(win);
     QToolButton* icon = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
-      if (it.value() == win.actSettings) icon = static_cast<QToolButton*>(it.key());
+      if (it.value() == win.acts.settings) icon = static_cast<QToolButton*>(it.key());
     QVERIFY(icon);
-    QWidget* plain = win.imageSizeInfo;
+    QWidget* plain = win.tools.imageSizeInfo;
     CursorChanges changes;
     bool opened = false;
     QTimer::singleShot(40, &win, [&] {
@@ -84,7 +84,7 @@ class MainWindowGuiTest : public QObject {
       if (win.pop.active) QTest::keyClick(win.pop.active, Qt::Key_Escape);
     });
     win.pop.anchor = icon;
-    win.actSettings->trigger();
+    win.acts.settings->trigger();
     QVERIFY2(opened, "the icon's popover never opened");
     QTRY_VERIFY2(changes.seen >= 2, "the close never re-applied the cursor");
     QCOMPARE(win.windowHandle()->cursor().shape(), Qt::ArrowCursor);

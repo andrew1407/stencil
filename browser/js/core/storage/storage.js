@@ -1,6 +1,7 @@
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import { normalizePageSize } from '../settings/units.js';
 import { normalizeCropRect } from '../layout.js';
+import { editorMemento } from '../historyStack.js';
 import { createTrailingSave } from '../zoom/pan.js';
 import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../../ui/motion.js';
 import { showImageMissingBanner as paintImageMissingBanner } from '../../ui/shell/imageMissingBanner.js';
@@ -11,7 +12,8 @@ import { saveBlockedReason, writeActiveProject } from './save.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
          promoteTemporary, clearEditorState, collapseCanvas } from './session.js';
 import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
-         applyStoredTools, applyImagelessPayload } from './storedLayout.js';
+         applyStoredTools, applyStoredImage, applyImagelessPayload } from './storedLayout.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // Thin DOM adapter over the DOM-free ProjectsStore for the ACTIVE project. `save()` is a
 // no-op in temporary mode.
@@ -26,6 +28,7 @@ export class Storage {
     // saveHistory() rides this trailing window; flush() forces one now.
     this.saveSoon = createTrailingSave(() => this.save());
     this.thumbs = createThumbnailScheduler(this);
+    this.imageReady = Promise.resolve();
   }
 
   #tempStatusTimer = null;
@@ -79,7 +82,7 @@ export class Storage {
     }
     const layout = payload.layout || {};
     this.app.lines = layout.lines || [];
-    this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
+    this.app.history.reset(editorMemento(this.app), this.app.lines.length ? 0 : -1);
     if (layout.showPoints !== undefined) this.app.showPoints = layout.showPoints;
     if (layout.showLines !== undefined) this.app.showLines = layout.showLines;
     paintVisibilityChecks(this.app);
@@ -88,7 +91,7 @@ export class Storage {
     this.app.focusedPtIdx = -1;
     hideSelectionPanels();
     this.app.renderer.redraw();
-    this.app.updateButtons();
+    changed(this.app, CHANGE.history, CHANGE.lines, CHANGE.selection);
     this.app.coordTable.update(this.app.lines.length ? this.app.lines[this.app.lines.length - 1].points : null);
     this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
   }
@@ -101,6 +104,7 @@ export class Storage {
   loadProject(id) {
     const proj = this.store.get(id);
     if (!proj) return false;
+    this.app.remoteSync?.flushResult?.();
     this.saveSoon.flush();
     this.thumbs.flush();
     this.activeId = id;
@@ -140,7 +144,7 @@ export class Storage {
       this.app.pendingImageSize = null;
 
       if (imageDataUrl) {
-        this.app.imageDataUrl = imageDataUrl;
+        this.imageReady = applyStoredImage(this, targetId, imageDataUrl);
         this.app.originalImage = new Image();
         this.app.originalImage.onload = () => {
           // The user may have switched projects mid-load.
@@ -151,7 +155,7 @@ export class Storage {
           this.app.imageModel.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
           // Empty lines → step -1, so a brand-new project has no phantom undo.
-          this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
+          this.app.history.reset(editorMemento(this.app), this.app.lines.length ? 0 : -1);
 
           if (layout.zoom) {
             this.app.zoomPan.setZoom(layout.zoom);
@@ -164,7 +168,7 @@ export class Storage {
           this.app.updateInfo();
           this.app.renderer.redraw();
           // Same beat as the file loader: in THIS tick, or a frame of the finished image flashes first.
-          if (landing) playCanvasArrival(this.app.canvas);
+          if (landing) playCanvasArrival(this.app.canvas, { layers: this.app.renderer.layers() });
           this.app.updateButtons();
           this.app.updateCoordStatus();
           if (this.app.lines.length > 0)
@@ -184,6 +188,7 @@ export class Storage {
   // `keepChat` is for the assistant resetting the editor MID-TURN: swapping the chat scope
   // would wipe the exchange that asked for the reset.
   newTemporary({ keepChat = false } = {}) {
+    this.app.remoteSync?.flushResult?.();
     this.saveSoon.flush(); this.thumbs.flush();
     this.activeId = null;
     this.temporary = true;
@@ -198,7 +203,7 @@ export class Storage {
     clearEditorState(this.app);
 
     const ctx = this.app.ctx;
-    if (ctx && hadImage && ghostOut(this.app.canvas)) {
+    if (ctx && hadImage && ghostOut(this.app.canvas, { layers: this.app.renderer.layers() })) {
       const vp = document.getElementById('canvas-viewport');
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }

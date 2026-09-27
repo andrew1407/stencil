@@ -47,7 +47,7 @@ export const setSelectAllFace = (btn, all) => {
 };
 
 // One clockwise turn of a glyph on click (iconMotion.json `extras.swap-click-turn`;
-// css/animations/iconClick.css). Re-rendering mid-turn drops it, so callers spin AFTER repaint.
+// css/animations/icon/click.css). Re-rendering mid-turn drops it, so callers spin AFTER repaint.
 export const spinIconOnce = (btn) => {
   if (!btn || btn.classList.contains('icm-spun')) return;
   btn.classList.add('icm-spun');

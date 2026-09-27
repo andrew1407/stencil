@@ -3,6 +3,8 @@ import type { ScriptDiagnostic, ScriptToken } from './types.js';
 export interface ScriptStmt {
   directive: string; args: ScriptToken[]; opensBlock: boolean;
   line: number; col: number; len: number;
+  /** The outermost `@use stencil` that expanded it; absent on a statement as written. */
+  call?: { line: number; col: number; len: number };
 }
 export interface TemplateDef {
   name: string; body: ScriptStmt[]; arity: number;

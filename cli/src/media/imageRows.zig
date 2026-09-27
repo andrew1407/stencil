@@ -49,8 +49,7 @@ const Crop = struct {
     dst: []u8,
 
     fn band(s: Crop, y0: i32, y1: i32) void {
-        c.stencil_cli_cropImageRows(s.src.ptr, s.src_w, s.src_h, s.rect.x, s.rect.y,
-            s.rect.w, s.rect.h, s.dst.ptr, y0, y1);
+        c.stencil_cli_cropImageRows(s.src.ptr, s.src_w, s.src_h, s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.dst.ptr, y0, y1);
     }
 };
 

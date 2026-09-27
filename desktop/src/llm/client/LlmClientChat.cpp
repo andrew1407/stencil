@@ -1,14 +1,11 @@
 #include "LlmClient.hpp"
 #include "llmClientShared.hpp"
 
-#include "connectionStore.hpp"
-#include "opRegistry.hpp"
 #include "ServerClient.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QRegularExpression>
 
 namespace stencil::llm {
 
@@ -29,7 +26,7 @@ namespace stencil::llm {
     }
     const QJsonObject body{{"model", cfg.model}, {"stream", false}, {"messages", msgs}};
     transport->postJson(
-        QUrl(trimSlash(cfg.baseUrl) + QStringLiteral("/api/chat")), {},
+        QUrl(trimSlash(cfg.baseUrl) + chatPathOf(cfg.provider)), {},
         QJsonDocument(body).toJson(QJsonDocument::Compact),
         textReplyHandler(
             endpointTag(cfg.provider, trimSlash(cfg.baseUrl)), std::move(done),
@@ -66,7 +63,7 @@ namespace stencil::llm {
       headers.append({QByteArrayLiteral("Authorization"),
                       QByteArrayLiteral("Bearer ") + cfg.apiKey.toUtf8()});
     transport->postJson(
-        QUrl(trimSlash(cfg.baseUrl) + QStringLiteral("/chat/completions")), headers,
+        QUrl(trimSlash(cfg.baseUrl) + chatPathOf(cfg.provider)), headers,
         QJsonDocument(body).toJson(QJsonDocument::Compact),
         textReplyHandler(
             endpointTag(cfg.provider, trimSlash(cfg.baseUrl)), std::move(done),
@@ -108,7 +105,7 @@ namespace stencil::llm {
     }
     const QJsonObject body{{"system", system}, {"messages", msgs}, {"model", cfg.model}};
     transport->postJson(
-        QUrl(base + QStringLiteral("/llm/chat")),
+        QUrl(base + chatPathOf(cfg.provider)),
         {{QByteArrayLiteral("Authorization"), QByteArrayLiteral("Bearer ") + token.toUtf8()}},
         QJsonDocument(body).toJson(QJsonDocument::Compact),
         [endpoint = endpointTag(cfg.provider, base), host = QUrl(base).host().isEmpty()
@@ -121,21 +118,7 @@ namespace stencil::llm {
           r.text = o.value("text").toString();
           r.model = o.value("model").toString();
           r.stopReason = o.value("stopReason").toString();
-          // Truncation / refusal are typed errors — never parsed as plans.
-          if (r.stopReason == QLatin1String("max_tokens")) {
-            r.failure = LlmFailure::TRUNCATED;
-            r.error = QStringLiteral("Response truncated — the model hit its output "
-                                     "limit; try a shorter request");
-            done(r);
-            return;
-          }
-          if (r.stopReason == QLatin1String("refusal")) {
-            r.failure = LlmFailure::REFUSAL;
-            r.error = r.text.isEmpty() ? QStringLiteral("The model refused this request")
-                                       : r.text;
-            done(r);
-            return;
-          }
+          if (settledByStopReason(r, done)) return;
           if (r.text.isEmpty()) {
             done(failReply(LlmFailure::BAD_RESPONSE,
                            QStringLiteral("malformed server response (no text)")));

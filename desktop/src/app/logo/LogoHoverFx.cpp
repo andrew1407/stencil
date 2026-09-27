@@ -1,9 +1,7 @@
 #include "LogoHoverFx.hpp"
 
 #include <QEvent>
-#include <QPainter>
 #include <QCursor>
-#include <QRadialGradient>
 #include <QTimer>
 #include <QToolButton>
 #include <QVariantAnimation>

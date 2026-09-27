@@ -19,7 +19,7 @@ func benchSession(b *testing.B, n int) (*session, func()) {
 	s := &session{id: "p_b_a", members: map[string]*member{}}
 	stop := make(chan struct{})
 	for i := 0; i < n; i++ {
-		m := newMember(fmt.Sprintf("c%d", i), "peer", nil)
+		m := newMember(fmt.Sprintf("c%d", i), "peer", nil, defaultTuning)
 		s.members[m.clientID] = m
 		go func(m *member) {
 			for {

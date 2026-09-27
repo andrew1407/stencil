@@ -84,7 +84,7 @@ export const formatCombo = (combo, isMac) => {
   return out + (glyphs[key] || key);
 };
 
-// Callers write the composed tooltip to data-tip (ui/controlTooltip.js), never the native
+// Callers write the composed tooltip to data-tip (ui/tip/controlTooltip.js), never the native
 // `title` — the app has none. The hotkey arrives via the injected getCombo.
 export const composeControlTitle = (el, isMac, getCombo) => {
   const base = el.dataset.title || '';

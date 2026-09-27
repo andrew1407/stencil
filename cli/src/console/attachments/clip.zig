@@ -2,17 +2,11 @@
 //! /unpaste takes the newest attachment back. An EMPTY clipboard is not a failure.
 const std = @import("std");
 const image = @import("../../media/image.zig");
-const pipeline = @import("../../pipeline.zig");
 const logo = @import("../../app/logo.zig");
-const core = @import("../../core.zig");
 const clipboard = @import("../../clipboard.zig");
-const commands = @import("../commands.zig");
-const line_edit = @import("../../line_edit.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
-const Attachment = @import("../session.zig").Attachment;
 const handlers = @import("../handlers.zig");
-const llmPrompt = @import("../llmPrompt.zig");
 
 pub fn doCopy(session: *Session, io: std.Io) !void {
     if (!session.hasImage()) return ui.noImage();

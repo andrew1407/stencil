@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
@@ -13,7 +12,7 @@ using Stencil.TelegramBot.Bot.Telegram.Access;
 
 namespace Stencil.TelegramBot.Tests.Telegram.Sync;
 
-/// <summary>The live-sync poller: per registry entry it compares the server's project version with what the session last saw, pulls and re-renders only when a peer moved ahead, and drops stale entries. The first tick runs immediately, so no test waits out the 6-second cadence.</summary>
+/// <summary>The live-sync poller: per registry entry it compares the server's project version with what the session last saw, pulls and re-renders only when a peer moved ahead, and drops stale entries. The first tick runs immediately, so no test waits out the <see cref="BotOptions.SyncPollInterval"/> cadence.</summary>
 public sealed class SyncWatcherTests : IDisposable
 {
     private const long _userId = 71;
@@ -61,7 +60,7 @@ public sealed class SyncWatcherTests : IDisposable
     /// <summary>Run ticks until <paramref name="done"/>, then stop the service.</summary>
     private async Task watchUntil(Func<bool> done)
     {
-        SyncWatcher watcher = new(_registry, _servers, _store, _handlers, _bot, new UserGate(), _logger);
+        SyncWatcher watcher = new(_registry, _servers, _store, _handlers, _bot, new UserGate(), new BotOptions(), _logger);
         await watcher.StartAsync(CancellationToken.None);
         DateTime deadline = DateTime.UtcNow.AddSeconds(5);
         while (!done() && DateTime.UtcNow < deadline)

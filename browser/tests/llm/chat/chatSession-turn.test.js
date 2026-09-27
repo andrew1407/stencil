@@ -1,4 +1,4 @@
-// The logged-turn frame (js/llm/session.js): the error cards, Stop's AbortController, the
+// The logged-turn frame (js/llm/chat/session.js): the error cards, Stop's AbortController, the
 // hook order, the never-left-spinning guard and queueAttachments. From chatSession.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';

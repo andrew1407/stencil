@@ -1,5 +1,6 @@
 // Project names and keywords, over a plain array of registry metas: the duplicate-name
 // guard, the copy-suffix numbering, the "same image" match and the keyword normalizer.
+import { sourceRef } from '../store/projectSources.js';
 
 // Trim, drop blanks, dedupe case-insensitively (first-seen order). Matches the server's
 // joinKeywords so a keyword set round-trips identically.
@@ -38,13 +39,13 @@ export const validateName = (metas, name, exceptId = null) => {
   return { ok: true, reason: '' };
 };
 
-// Same image = identical non-empty `source` URL, else a base-name match. Drives the
-// extension-launch "resume" path + copy-numbering.
+// Same image = identical non-empty `source` URL (a data URL by its registry reference), else a
+// base-name match. Drives the extension-launch "resume" path + copy-numbering.
 export const findByImage = (metas, source, name) => {
-  const src = source || '';
+  const src = sourceRef(source || '');
   const base = baseProjectName(name || '');
   return metas.filter(m => {
-    if (src) return (m.source || '') === src;
+    if (src) return sourceRef(m.source || '') === src;
     return !!base && baseProjectName(m.name || '') === base;
   });
 };

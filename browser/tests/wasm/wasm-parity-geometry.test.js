@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../../js/core/abi/stencilCore.js';
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
-  swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
+  swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS,
+  snapCropRectJS, rotateEditQuarterJS
 } from '../../js/core/parse/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
@@ -86,4 +87,21 @@ wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshallin
   const r = { x: 10, y: 20, width: 80, height: 40 };
   rectClose(rotateCrop(r, 200, 100, true), rotateCropRectQuarterJS(r, 200, 100, true));
   rectClose(rotateCrop(r, 200, 100, false), rotateCropRectQuarterJS(r, 200, 100, false));
+});
+
+wtest('crop commit: snapCropRect and rotateEditQuarter agree bit for bit, Math.round halves included', () => {
+  const [snap, turn] = ['snapCropRect', 'rotateEditQuarter'].map((n) => core.op(n));
+  const rects = [
+    { x: -5, y: -5, width: 999, height: 999 }, { x: 190.4, y: 2.6, width: 20.5, height: 10.2 },
+    { x: -2.5, y: 2.5, width: 0.4, height: 1.5 }, { x: -0.4, y: 0.49999999999999994, width: 50, height: 60 },
+    { x: 150, y: 90, width: 80, height: 40 }, { x: NaN, y: 3, width: 10, height: 10 },
+  ];
+  for (const r of rects)
+    for (const [iw, ih] of [[200, 100], [100, 200], [0.5, 3]])
+      assert.deepStrictEqual(snap(r, iw, ih), snapCropRectJS(r, iw, ih), `${JSON.stringify(r)} in ${iw}x${ih}`);
+  const crops = [{ x: 10, y: 20, width: 80, height: 40 }, { x: 0.4, y: 7.6, width: 33.5, height: 90 }];
+  for (const c of crops)
+    for (const q of [-1, 0, 1, 2, 3, 5])
+      for (const cw of [true, false])
+        assert.deepStrictEqual(turn(c, q, 200, 100, cw), rotateEditQuarterJS(c, q, 200, 100, cw), `q ${q} cw ${cw}`);
 });

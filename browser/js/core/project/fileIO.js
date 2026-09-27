@@ -1,7 +1,12 @@
 // The session side of the .stencil file (file.js is the pure (de)serializer): gather
 // the state, apply a parsed file, prompt on a live-sync conflict, paint the live-sync button.
-import { validateLayout, mergeLines } from '../layout.js';
+import { validateLayout, mergeLines, capLayoutPoints } from '../layout.js';
 import { isAccent } from '../settings/accents.js';
+import { editorMemento } from '../historyStack.js';
+import { portableSource } from './store/projectSources.js';
+import { currentLayoutPayload } from './meta/projectMeta.js';
+import { loadImageFromFile } from '../image/loadFlow.js';
+import { newEditor } from '../launch/openFlow.js';
 
 // The shape projectFile.buildProjectFile wants; JSON/IO live in ExportService + file.js.
 export const projectFileState = (app, { includeTheme = true } = {}) => {
@@ -10,11 +15,11 @@ export const projectFileState = (app, { includeTheme = true } = {}) => {
     name: meta.name || app.imageBaseName || 'Untitled',
     color: meta.color || '',
     keywords: Array.isArray(meta.keywords) ? meta.keywords : [],
-    source: app.imageSource || '',
+    source: portableSource(app.imageSource) || '',
     resource: app.imageResource || '',
     blank: !!app.blankColor,
     blankColor: app.blankColor || '',
-    layout: app.currentLayoutPayload(),
+    layout: currentLayoutPayload(app),
   };
   if (app.imageDataUrl) {
     state.image = {
@@ -38,8 +43,8 @@ export const applyProjectFile = async (app, project) => {
   const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
   // Mirror openImageHere: flush current, reset, then load.
   if (!app.storage.incognito) app.storage.save();
-  app.newEditor();
-  app.loadImageFromFile(file, {
+  newEditor(app);
+  loadImageFromFile(app, file, {
     name,
     source: project.source || '',
     resource: project.resource || '',
@@ -53,8 +58,8 @@ export const applyProjectFile = async (app, project) => {
   // Theme is a global setting: only a file that carries one may change it.
   const t = project.theme;
   if (t) {
-    if (t.mode) app.setTheme(t.mode);
-    if (t.accent) { if (isAccent(t.accent)) app.setAccent(t.accent); else app.setCustomAccent(t.accent); }
+    if (t.mode) app.accents.setTheme(t.mode);
+    if (t.accent) { if (isAccent(t.accent)) app.accents.setAccent(t.accent); else app.accents.setCustomAccent(t.accent); }
   }
   return name;
 };
@@ -69,7 +74,7 @@ export const applyProjectFileInPlace = (app, project, opts = {}) => {
     hasExistingLines: !!(app.lines && app.lines.length),
   });
   if (!verdict.ok) return;
-  app.lines = opts.mergeLines ? mergeLines(verdict.lines, app.lines) : verdict.lines;
+  app.lines = opts.mergeLines ? capLayoutPoints(mergeLines(verdict.lines, app.lines)) : verdict.lines;
   if (Number.isInteger(layout.rotationQuarters)) app.rotationQuarters = layout.rotationQuarters;
   if (layout.cropRect) app.cropRect = app.imageModel.roundRect(layout.cropRect);
   app.imageModel.rebuildCroppedImage();
@@ -77,13 +82,13 @@ export const applyProjectFileInPlace = (app, project, opts = {}) => {
   app.remoteSync.adoptServerFormulas(layout);
   app.remoteSync.adoptServerPageFormat(layout);
   app.currentLine = null;
-  app.history.reset(app.lines);
+  app.history.reset(editorMemento(app));
   app.zoomPan.fitToWindow();
   app.updateInfo();
   app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
   app.renderer.redraw();
   app.updateButtons();
-  app.storage.save();
+  app.storage.saveSoon();
 };
 
 // 3-way live-sync conflict prompt, two confirms so it reuses the existing modal → 'theirs' | 'merge' | 'mine'.

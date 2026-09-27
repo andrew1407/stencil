@@ -1,6 +1,6 @@
-# Everything that turns the built `stencil` target into something shippable: the
-# macOS app icon and bundle shape, the install rules, the Qt deploy script and CPack.
-# Included from CMakeLists.txt after the app target exists.
+# The built `stencil` target's platform shape: the macOS app icon and bundle, the Windows
+# exe icon and the optional codesign. The install rules, Qt deploy and CPack are
+# StencilDeploy.cmake. Included from CMakeLists.txt after the app target exists.
 
 # App icon: browser/favicon.svg — the artwork every front-end shares — rasterised into the
 # container each platform names, by packaging/mkicon.cpp built here as a host tool. Nothing
@@ -153,66 +153,3 @@ if(APPLE AND STENCIL_CODESIGN_IDENTITY)
     COMMAND codesign --force --deep --sign "${STENCIL_CODESIGN_IDENTITY}" "$<TARGET_BUNDLE_DIR:stencil>"
     VERBATIM)
 endif()
-
-# ── Distributable packaging ───────────────────────────────────────────────
-# `cmake --install build` lays the app out under the install prefix; the Qt
-# deploy script then copies the Qt libraries + plugins next to it (macdeployqt /
-# windeployqt, best-effort on Linux) so the result runs on a machine with no Qt
-# installed. `cpack` finally wraps that tree into one platform package:
-# .dmg (macOS) / .zip (Windows) / .tar.gz (Linux). Build releases with
-# -DSTENCIL_DEV_STATE_DIR=OFF (see desktop/README.md → Release packaging).
-install(TARGETS stencil
-  BUNDLE  DESTINATION .
-  RUNTIME DESTINATION bin)
-
-if(UNIX AND NOT APPLE)
-  # Linux desktop integration: menu entry + scalable icon (shared with the
-  # browser favicon), picked up by system menus and AppImage tooling.
-  install(FILES packaging/stencil.desktop DESTINATION share/applications)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
-    DESTINATION share/icons/hicolor/scalable/apps RENAME stencil.svg)
-  # .stencil file-type association: the shared-mime-info definition (registers the
-  # application/x-stencil type + *.stencil glob) plus its themed file icon, so the file
-  # manager gives .stencil files the Stencil logo and double-click-to-open.
-  install(FILES packaging/stencil-mime.xml DESTINATION share/mime/packages)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
-    DESTINATION share/icons/hicolor/scalable/mimetypes RENAME application-x-stencil.svg)
-endif()
-
-# Qt's own deployment helper (Qt >= 6.3) runs the right *deployqt tool at install
-# time. The keyword that captures the generated script path was renamed in Qt 6.5
-# (FILENAME_VARIABLE → OUTPUT_SCRIPT), so pick it per version. Older Qt: skip it;
-# the install tree then has no bundled Qt and the manual *deployqt step is
-# documented in desktop/README.md.
-if(Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
-  qt6_generate_deploy_app_script(
-    TARGET stencil
-    OUTPUT_SCRIPT STENCIL_DEPLOY_SCRIPT
-    NO_UNSUPPORTED_PLATFORM_ERROR)
-  install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
-elseif(Qt6_VERSION VERSION_GREATER_EQUAL 6.3)
-  qt6_generate_deploy_app_script(
-    TARGET stencil
-    FILENAME_VARIABLE STENCIL_DEPLOY_SCRIPT
-    NO_UNSUPPORTED_PLATFORM_ERROR)
-  install(SCRIPT ${STENCIL_DEPLOY_SCRIPT})
-else()
-  message(STATUS "Qt ${Qt6_VERSION} < 6.3 — install will not bundle Qt; run *deployqt manually")
-endif()
-
-# CPack: one self-contained package per platform.
-set(CPACK_PACKAGE_NAME "Stencil")
-set(CPACK_PACKAGE_VENDOR "Stencil")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Image annotation / drawing tool")
-set(CPACK_PACKAGE_FILE_NAME
-  "stencil-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-set(CPACK_STRIP_FILES ON)
-if(APPLE)
-  set(CPACK_GENERATOR "DragNDrop")
-elseif(WIN32)
-  set(CPACK_GENERATOR "ZIP")
-else()
-  set(CPACK_GENERATOR "TGZ")
-endif()
-include(CPack)

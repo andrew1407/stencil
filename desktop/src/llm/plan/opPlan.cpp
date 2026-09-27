@@ -1,138 +1,64 @@
-// The model's reply to an executable plan (llm-contract §1): strip the code fences, find the first
-// JSON object in the prose, then hand it to the field fillers. Split across opPlan*.cpp.
+// The model's reply to an executable plan (llm-contract §1): core/opplan walks it — fences, the first
+// JSON object, the caps, the registry validation — and this maps its one result document onto the
+// typed plan the executor runs. Split across opPlan*.cpp.
 #include "opPlanParts.hpp"
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QRegularExpression>
+#include "OpPlanSchema.hpp"
 
-#include <cmath>
+#include <climits>
 
 namespace stencil::llm {
 
   using namespace opdetail;
 
   namespace {
-    // Remove Markdown code-fence points (``` with an optional language tag) so
-    // a fenced JSON block parses like bare JSON.
-    QString stripFences(QString text) {
-      static const QRegularExpression fence(QStringLiteral("```[A-Za-z]*"));
-      return text.remove(fence);
-    }
-
-    // First balanced { ... } substring that parses as a JSON OBJECT (brace counting skips string
-    // literals). Chat text holding incidental balanced braces is skipped over, not failed.
-    bool extractFirstObject(const QString& text, QJsonObject& out) {
-      const int n = text.size();
-      for (int start = text.indexOf(QLatin1Char('{')); start >= 0;
-           start = text.indexOf(QLatin1Char('{'), start + 1)) {
-        int depth = 0;
-        bool inStr = false, esc = false;
-        for (int i = start; i < n; ++i) {
-          const QChar c = text.at(i);
-          if (inStr) {
-            if (esc) esc = false;
-            else if (c == QLatin1Char('\\')) esc = true;
-            else if (c == QLatin1Char('"')) inStr = false;
-            continue;
-          }
-          if (c == QLatin1Char('"')) {
-            inStr = true;
-          } else if (c == QLatin1Char('{')) {
-            ++depth;
-          } else if (c == QLatin1Char('}')) {
-            if (--depth == 0) {
-              const QJsonDocument doc =
-                  QJsonDocument::fromJson(text.mid(start, i - start + 1).toUtf8());
-              if (doc.isObject()) {
-                out = doc.object();
-                return true;
-              }
-              break;  // balanced but not JSON — try the next '{'
-            }
-          }
-        }
+    // A card's own note lands after its option's warnings: before a later option's dropped preview, or
+    // the reply-tolerance note that always closes the list.
+    QStringList warningTexts(const QJsonArray& warnings, const QVector<QPair<int, QString>>& askNotes) {
+      QStringList out;
+      int next = 0;
+      const auto notesBefore = [&](int option) {
+        while (next < askNotes.size() && askNotes[next].first < option) out << askNotes[next++].second;
+      };
+      for (const QJsonValue& v : warnings) {
+        const QJsonObject w = v.toObject();
+        const QString code = w.value(QLatin1String("code")).toString();
+        if (code == QLatin1String("W_REPLY_OMITTED")) notesBefore(INT_MAX);
+        else if (code == QLatin1String("W_PREVIEW_DROPPED")) notesBefore(w.value(QLatin1String("index")).toInt());
+        out << w.value(QLatin1String("message")).toString();
       }
-      return false;
+      notesBefore(INT_MAX);
+      return out;
     }
   }  // namespace
 
   OpPlanResult parseOpPlan(const QString& text) {
     OpPlanResult r;
-    QJsonObject obj;
-    if (!extractFirstObject(stripFences(text), obj)) {
+    const QJsonObject doc = QJsonDocument::fromJson(planSchema().walk(text.toUtf8())).object();
+    const QString status = doc.value("status").toString();
+    if (status == QLatin1String("chatOnly")) {
       // Chat-only turn: the raw text is the reply (not an error).
       r.ok = true;
       r.plan.chatOnly = true;
-      r.plan.reply = text.trimmed();
+      r.plan.reply = doc.value("reply").toString();
       return r;
     }
-    const QJsonValue reply = obj.value("reply");
-    // §1 reply tolerance: models routinely omit the reply while planning valid
-    // actions — substitute rather than lose the plan to a missing pleasantry.
-    const bool replyOmitted = !reply.isString() || reply.toString().trimmed().isEmpty();
-    if (!replyOmitted) r.plan.reply = reply.toString();
+    if (status != QLatin1String("valid")) {
+      r.error = doc.isEmpty() ? planSchema().error() : doc.value("error").toObject().value("message").toString();
+      return r;
+    }
+    OpPlan plan;
+    plan.reply = doc.value("reply").toString();
+    QVector<QPair<int, QString>> askNotes;
     QString e;
-    if (!parseActions(obj.value("actions"), r.plan.actions, r.plan.warnings,
-                      /*inVariant=*/false, &e)) {
-      r.plan = {};
+    if (!fillActions(doc.value("actions").toArray(), plan.actions, &e) ||
+        !fillVariants(doc.value("variants").toArray(), plan.variants, &e) ||
+        !fillAsk(doc.value("ask"), plan.ask, askNotes, &e)) {
       r.error = e;
       return r;
     }
-    const QJsonValue vars = obj.value("variants");
-    if (!vars.isUndefined() && !vars.isNull()) {
-      // The envelope: ≤ 8 objects, each a string label + ≤ 16 action objects.
-      if (!OpSchema::desktop().checkEnvelope(vars, QStringLiteral("variants"), &e)) {
-        r.plan = {};
-        r.error = e;
-        return r;
-      }
-      int vIndex = 0;
-      for (const QJsonValue& vv : vars.toArray()) {
-        ++vIndex;
-        const QJsonObject vo = vv.toObject();
-        Variant var;
-        var.label = vo.value("label").toString();  // absent → empty
-        // §1: a top-level-only op in here drops THIS variant with a warning; the
-        // rest of the plan runs. Its own warnings go with it.
-        QStringList varWarnings;
-        QString scopeDrop;
-        if (!parseActions(vo.value("actions"), var.actions, varWarnings,
-                          /*inVariant=*/true, &e, &scopeDrop)) {
-          if (scopeDrop.isEmpty()) {
-            r.plan = {};
-            r.error = e;
-            return r;
-          }
-          const QString who = var.label.trimmed().isEmpty()
-                                  ? QStringLiteral("variant %1").arg(vIndex)
-                                  : QStringLiteral("variant \"%1\"").arg(var.label.trimmed());
-          r.plan.warnings << QStringLiteral(
-                                 "Dropped %1 — %2; put it in the plan's top-level actions.")
-                                 .arg(who, scopeDrop);
-          continue;
-        }
-        r.plan.warnings += varWarnings;
-        r.plan.variants.push_back(std::move(var));
-      }
-    }
-    if (!parseAsk(obj.value("ask"), r.plan.ask, r.plan.warnings, &e)) {
-      r.plan = {};
-      r.error = e;
-      return r;
-    }
-    // The substitute must not overstate what happened: "Done." only when the plan actually carries
-    // work - an empty plan says so, since a bare "Done." there reads as a success that never occurred.
-    if (replyOmitted) {
-      if (!r.plan.actions.isEmpty() || !r.plan.variants.isEmpty() ||
-          !r.plan.ask.options.isEmpty()) {
-        r.plan.reply = QStringLiteral("Done.");
-        r.plan.warnings << QStringLiteral("The model omitted its reply — the plan still ran");
-      } else {
-        r.plan.reply =
-            QStringLiteral("The model returned an empty plan — nothing was changed.");
-      }
-    }
+    plan.warnings = warningTexts(doc.value("warnings").toArray(), askNotes);
+    r.plan = std::move(plan);
     r.ok = true;
     return r;
   }
@@ -149,7 +75,7 @@ namespace stencil::llm {
       }
       answer = kept.join(QStringLiteral(", "));
     }
-    const int cap = OpSchema::desktop().limit(QStringLiteral("ask.answer"));
+    const int cap = planLimit(QStringLiteral("ask.answer"));
     return cap >= 0 && answer.size() > cap ? answer.left(cap) : answer;
   }
 

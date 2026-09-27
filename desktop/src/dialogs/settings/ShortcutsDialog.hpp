@@ -12,7 +12,7 @@ class QToolButton;
 class QWidget;
 
 // Shortcut rebinding dialog — the browser's "Keyboard Shortcuts" modal: an Action /
-// Shortcut / Default table drawn in the tooltips' keycaps (support/KeycapChip.hpp).
+// Shortcut / Default table drawn in the tooltips' keycaps (support/icon/KeycapChip.hpp).
 // Edits apply LIVE — overridesChanged() fires on each change and the owner persists and
 // re-applies overrides(); a combo already used elsewhere is refused (conflict()).
 // Mirrors the browser's STORAGE_KEYS.hotkeys layered over hotkeysConfig.json.

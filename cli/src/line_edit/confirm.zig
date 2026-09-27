@@ -3,12 +3,14 @@
 const std = @import("std");
 const logo = @import("../app/logo.zig");
 const restyle = @import("../console/render/ansi/restyle.zig");
+const frame = @import("../console/screen/frame.zig");
 
-const Editor = @import("../line_edit.zig").Editor;
+const Editor = @import("line_edit.zig").Editor;
 
 /// Ask a yes/no question on the raw-mode tty and read a single keypress. 'y' or Enter
 /// confirm (yes is the default); 'n', Esc or Ctrl-C decline. Used to guard `/upload`.
 pub fn confirm(self: *Editor, question: []const u8) bool {
+    if (self.screen) |s| frame.begin(s);
     if (self.screen != null) { // draw the question on the fixed prompt row
         self.gotoLineStart();
         self.writeAll("\x1b[2K");
@@ -16,6 +18,7 @@ pub fn confirm(self: *Editor, question: []const u8) bool {
     var qbuf: [1024]u8 = undefined;
     const q = std.fmt.bufPrint(&qbuf, "{s}{s} (Y/n) {s}", .{ logo.accentReal(), question, logo.resetSeq() }) catch question;
     self.writeAll(restyle.restyle(q));
+    if (self.screen) |s| frame.end(s);
     while (true) {
         const ch = self.readByte() orelse return false; // closed tty -> treat as decline
         switch (ch) {
@@ -47,7 +50,9 @@ pub fn confirm(self: *Editor, question: []const u8) bool {
 }
 
 pub fn finishConfirm(self: *Editor, question: []const u8, yes: bool) void {
-    if (self.screen != null) {
+    if (self.screen) |s| {
+        frame.begin(s);
+        defer frame.end(s);
         logo.print("{s} {s}\n", .{ question, if (yes) "yes" else "no" }); // record in scrollback
         self.gotoLineStart();
         self.writeAll("\x1b[2K");

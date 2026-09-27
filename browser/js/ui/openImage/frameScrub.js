@@ -1,5 +1,5 @@
 // The Open-Image dialog's video Frame row: the frame field, the scrub bar under the picture
-// and the settled seek they share. Split out of ui/openImageModal.js.
+// and the settled seek they share. Split out of ui/openImage/modal.js.
 import { FRAME_INDEX_FPS } from '../../core/export/videoFrame.js';
 
 // Desktop twin: OpenImageDialog's fetchTimer_ interval — one seek per settled drag.

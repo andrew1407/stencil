@@ -27,7 +27,7 @@ class MainWindowGuiTest : public QObject {
   static bool markIsCurrent(MainWindow& win, LogoStage* stage) {
     const QPixmap& art = stage->markArt();
     const int px = qRound(art.deviceIndependentSize().width());
-    return !art.isNull() && art.toImage() == win.makeLogoPixmap(px).toImage();
+    return !art.isNull() && art.toImage() == win.parts.theme.makeLogoPixmap(px).toImage();
   }
 
  private slots:
@@ -46,14 +46,14 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(stage->cloudy() && stage->cloudStyle() == style && stage->glowing());
       const QImage plain = stage->markArt().toImage();
 
-      QVERIFY(win.toggleWebcore());
+      QVERIFY(win.parts.theme.toggleWebcore());
       QTRY_VERIFY2(!stage->cloudy(), "the skin stills the interface, so the cloud goes");
       QCOMPARE(stage->stageCloud().live(), 0);
       QVERIFY2(!stage->glowing(), "…and with no cloud a roaming show has no light");
       QVERIFY2(markIsCurrent(win, stage) && stage->markArt().toImage() != plain, "the pixel mark, at once");
       QVERIFY(stage->isOpen() && stage->showName() == QLatin1String("randomWalk"));
 
-      QVERIFY(!win.toggleWebcore());
+      QVERIFY(!win.parts.theme.toggleWebcore());
       QTRY_VERIFY2(stage->cloudy(), "the stored motion is back, and the cloud with it");
       QCOMPARE(stage->cloudStyle(), style);
       QVERIFY(stage->glowing());
@@ -73,10 +73,10 @@ class MainWindowGuiTest : public QObject {
     setMode(win, QStringLiteral("particles"));
     LogoStage* stage = stageOf(win);
     QVERIFY(stage->activateByName("firework"));
-    QVERIFY(win.toggleWebcore());
+    QVERIFY(win.parts.theme.toggleWebcore());
     QTest::qWait(80);
     QVERIFY(stage->cloudy() && stage->cloudStyle() == support::ParticleStyle::FIRE);
-    QVERIFY(!win.toggleWebcore());
+    QVERIFY(!win.parts.theme.toggleWebcore());
     stage->dismiss();
   }
 

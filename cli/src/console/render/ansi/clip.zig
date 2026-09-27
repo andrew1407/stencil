@@ -2,7 +2,6 @@
 //! the padded row, and the outgoing accent escape a recolour writes with.
 const std = @import("std");
 const logo = @import("../../../app/logo.zig");
-const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
 
 const appendBytes = scan.appendBytes;
@@ -52,7 +51,7 @@ pub fn clipCounted(raw: []const u8, cols: u16, out: []u8, oi: *usize, vis: *u16)
         }
         const esc = csiLen(line, i);
         if (esc != 0) { // colour/CSI escape — copied verbatim, no width
-            appendBytes(out, oi, line[i .. i + esc]);
+            appendBytes(out, oi, scan.passable(line[i .. i + esc]));
             i += esc;
             continue;
         }

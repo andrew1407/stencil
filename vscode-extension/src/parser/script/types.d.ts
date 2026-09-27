@@ -8,8 +8,11 @@ export type SourceKind = 'project' | 'file' | 'url' | 'dir' | 'glob';
 export type Severity = 'error' | 'warning';
 
 export interface ScriptToken { line: number; col: number; len: number; kind: TokenKind; text: string }
+export interface ScriptSpan { line: number; col: number; len: number }
 export interface ScriptDiagnostic {
   severity: Severity; code: string; line: number; col: number; len: number; message: string;
+  /** The `@use stencil` call a template-body diagnostic came from; absent otherwise. */
+  related?: ScriptSpan;
 }
 export interface ScriptOp {
   kind: OpKind; block: number; line: number; col: number; len: number; editIndex: number;
@@ -39,6 +42,9 @@ export const DIRECTIVES: readonly string[];
 export const defaultLineStyle: () => LineStyle;
 export const isEditDirective: (d: string) => boolean;
 export const classifySource: (spec: string) => SourceKind;
+export const utf8Length: (s: string, from?: number, to?: number) => number;
+export const utf8Truncate: (s: string, max: number) => string;
+export const unitIndexOfColumn: (line: string, col: number) => number;
 export const unquoteWord: (s: string) => string;
 export const isUnitWord: (w: string) => boolean;
 export const isStencilUse: (st: { args: { text: string }[] }) => boolean;

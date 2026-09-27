@@ -11,10 +11,15 @@ installDom({}, {
   history: { replaceState: () => {} },
 });
 
-const { DrawingApp } = await import('../../js/core/drawingApp.js');
+const { promoteIncognitoToLocal } = await import('../../js/core/launch/incognitoFlow.js');
+const { Emitter } = await import('../../js/core/emitter.js');
+const { CHANGE } = await import('../../js/core/app/changes.js');
 
 const makeMock = (over = {}) => {
   const calls = [];
+  // The project channel: the incognito UI, the title and the project-gated buttons follow it.
+  const changes = new Emitter();
+  changes.on(CHANGE.project, () => calls.push(['changed:project']));
   return {
     calls,
     image: {},                     // something on screen to keep
@@ -25,13 +30,12 @@ const makeMock = (over = {}) => {
       save() { calls.push(['save']); },
     },
     tabs: { reportActive(id) { calls.push(['reportActive', id]); } },
-    // One sweep: incognito UI + title + the project-gated buttons (description/keywords/links).
-    updateButtons() { calls.push(['updateButtons']); },
+    changes,
     ...over,
   };
 };
 
-const promote = (mock) => DrawingApp.prototype.promoteIncognitoToLocal.call(mock);
+const promote = (mock) => promoteIncognitoToLocal(mock);
 
 test('promoteIncognitoToLocal: leaves incognito, then saves what is on screen', () => {
   const mock = makeMock({ onPromote() { mock.activeProjectId = 'p1'; } });
@@ -40,7 +44,7 @@ test('promoteIncognitoToLocal: leaves incognito, then saves what is on screen', 
 
   assert.equal(mock.storage.incognito, false, 'the session is no longer incognito');
   assert.deepEqual(mock.calls.map(([n]) => n),
-    ['promote', 'save', 'reportActive', 'updateButtons']);
+    ['promote', 'save', 'reportActive', 'changed:project']);
   assert.equal(id, 'p1', 'the new project id comes back for the caller to name/open');
 });
 

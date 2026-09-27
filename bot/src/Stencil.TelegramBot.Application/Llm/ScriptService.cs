@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Llm;
@@ -7,8 +6,8 @@ using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// `/script` and the `.stc` upload: the CLI lowers the script to op-plan JSON and every action runs
-// through the SAME validator, pre-flight and executor a model plan does.
+// `/script` and the `.stc` upload: the CLI lowers the script to op-plan JSON, core judges each chunk
+// as it judges a model plan, and it runs through the same mapper, pre-flight and executor.
 public sealed class ScriptService : IScriptService
 {
     // Far above any hand-written script and far under IBotPolicy.MaxDocumentBytes.
@@ -17,9 +16,6 @@ public sealed class ScriptService : IScriptService
     // The .stc upload's cap, on the bytes it arrives as: UTF-8 never spends fewer bytes than
     // characters, so a file inside it is inside MAX_SCRIPT_CHARS once decoded.
     public const int MAX_SCRIPT_BYTES = MAX_SCRIPT_CHARS;
-
-    // OpPlanParser substitutes a reply and warns on an empty string; this one is never shown.
-    private const string _blockReply = "Script block applied.";
 
     private const int _maxReported = 3;
     private const int _maxEchoedChars = 60;
@@ -113,9 +109,9 @@ public sealed class ScriptService : IScriptService
                 return new ScriptOutcome(localSourceReply(block), warnings, renders, mutated && !album);
             }
             bool blockMutated = false;
-            foreach (string actions in block.Plans)
+            foreach (string check in block.Checks)
             {
-                OpPlanParseResult parsed = OpPlanParser.Parse(planFor(actions));
+                OpPlanParseResult parsed = OpPlanParser.MapScriptChunk(check);
                 warnings.AddRange(parsed.Warnings);
                 if (parsed.Plan is not OpPlan plan)
                 {
@@ -143,11 +139,6 @@ public sealed class ScriptService : IScriptService
         return new ScriptOutcome(
             $"Script ran: {applied} op{(applied == 1 ? "" : "s")}.", warnings, renders, mutated && !album);
     }
-
-    // The executor never sees the envelope, only a plan object, so the actions array is wrapped in
-    // one.
-    private static string planFor(string actionsJson) =>
-        $"{{\"reply\":{JsonSerializer.Serialize(_blockReply)},\"actions\":{actionsJson}}}";
 
     private static string errorReply(ScriptPlan script)
     {

@@ -1,4 +1,4 @@
-// §7 edge map (js/llm/controller.js): a contour render rides second, wire-only, and the
+// §7 edge map (js/llm/chat/controller.js): a contour render rides second, wire-only, and the
 // text-only-model latch strips it along with the rest of the images.
 import { test } from 'node:test';
 import assert from 'node:assert';

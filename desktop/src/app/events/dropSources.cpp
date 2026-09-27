@@ -3,7 +3,6 @@
 #include <QImage>
 
 #include <QByteArray>
-#include <QDebug>
 #include <QMimeData>
 #include <QRegularExpression>
 #include <QStringDecoder>

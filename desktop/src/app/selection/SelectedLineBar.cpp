@@ -1,11 +1,10 @@
 #include "../../support/control/dblReset.hpp"
 #include "SelectedLineBar.hpp"
 
-#include "controlReveal.hpp"
 #include "cssColor.hpp"
 #include "../../support/control/FlowLayout.hpp"
+#include "../../support/control/lineLimits.hpp"
 #include "../../support/guiHelpers.hpp"
-#include "../../support/icon/iconSet.hpp"
 #include "../../support/modal/modalReveal.hpp"
 #include "../../support/control/numericInput.hpp"
 #include "../../support/menu/SearchCombo.hpp"
@@ -15,16 +14,12 @@
 #include <QFrame>
 #include <QPushButton>
 #include <QSize>
-#include <QTimer>
-#include <QResizeEvent>
-#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
-#include <cmath>
 
 namespace stencil::gui {
 
-  // One 46x24 colour well across every surface (browser css/layout.css input[type="color"]).
+  // One 46x24 colour well across every surface (browser css/layout/infoLine.css input[type="color"]).
 
   SelectedLineBar::SelectedLineBar(QWidget* parent) : QWidget(parent) {
     setObjectName("selectedLineBar");
@@ -102,17 +97,18 @@ namespace stencil::gui {
                           [this](const QString& v) { emit linePointColorChanged(v); });
     addField("Point Color:", withAlpha(pointColorSwatch, pointAlpha));
 
-    // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
+    // selThickness — drawingApp.js:1546 / :182 (LIMITS.thickMin / thickMax)
     addSeparator();   // …and one after the colour wells, before the geometry fields
+    const support::lineLimits::Table& limits = support::lineLimits::table();
     auto* thicknessSpin = new ExprSpinBox(card);
-    thicknessSpin->setRange(1, 20);
+    thicknessSpin->setRange(limits.thickMin, limits.thickMax);
     thicknessSpin->setFixedWidth(60);
     thickness = thicknessSpin;
     addField("Thickness:", thickness);
 
-    // selPointSize — drawingApp.js:1547 / :183 (min 1, max 30)
+    // selPointSize — drawingApp.js:1547 / :183 (LIMITS.pointMin / pointMax)
     auto* pointSizeSpin = new ExprSpinBox(card);
-    pointSizeSpin->setRange(1, 30);
+    pointSizeSpin->setRange(limits.pointMin, limits.pointMax);
     pointSizeSpin->setFixedWidth(60);
     pointSize = pointSizeSpin;
     addField("Point Size:", pointSize);

@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"testing"
+	"time"
 
 	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
@@ -60,5 +61,26 @@ func TestHubContextOutlivesTheSignalContext(t *testing.T) {
 	h.Close()
 	if h.ctx.Err() == nil {
 		t.Error("Close must end the hub's context")
+	}
+}
+
+// wedgedConn never finishes a write: it holds until the writer's own deadline gives up on it.
+type wedgedConn struct{ transport.Conn }
+
+func (wedgedConn) Write(ctx context.Context, _ []byte) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// A goodbye to a peer that stopped reading is abandoned after Tuning.NoticeTimeout, not the drain.
+func TestNoticeTimeoutBoundsAWedgedGoodbye(t *testing.T) {
+	if got := newTestHub(t).tune.NoticeTimeout; got != time.Second {
+		t.Fatalf("NoticeTimeout default %v, want 1s", got)
+	}
+	h := newTestHub(t, WithTuning(Tuning{NoticeTimeout: 20 * time.Millisecond}))
+	start := time.Now()
+	h.closeAll([]*connReg{{cancel: func() {}, conn: wedgedConn{}}})
+	if took := time.Since(start); took > 500*time.Millisecond {
+		t.Fatalf("a wedged peer held the shutdown for %v past a 20ms notice timeout", took)
 	}
 }

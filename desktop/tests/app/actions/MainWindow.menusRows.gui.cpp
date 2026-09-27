@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
     QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
     // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles — a different, always-enabled QAction
-    // than actCopyImage/actSaveImage, whose own text is the "Current" row nested inside.
+    // than acts.copyImage/acts.saveImage, whose own text is the "Current" row nested inside.
     QVERIFY2(has(layoutTitles, "Copy Image"), "Copy Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Download Image"), "Download Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Paste Layout JSON"), "Paste Layout hid with an image loaded");
@@ -96,7 +96,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(has(layoutTitles, "Import Layout JSON"), "Upload Layout needs no existing lines");
     beat();
   }
-  // Browser parity: css/layout.css's ui-shimmer covers .ctx-item too (support/MenuShimmer.hpp is the
+  // Browser parity: css/layout.css's ui-shimmer covers .ctx-item too (support/motion/MenuShimmer.hpp is the
   // port) — the same left→right sweep every shimmered control gets, played on a context-menu ROW.
   void contextMenuRowShimmersOnHover() {
     const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here

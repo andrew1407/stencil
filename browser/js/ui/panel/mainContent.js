@@ -5,7 +5,8 @@ import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
 import { formatCombo, isMacPlatform } from '../../utils/keys.js';
 import { wirePanelResizer } from '../../utils.js';
-import { foldDust, motionReduced, sweepDust } from '../motion.js';
+import { createCoordFold } from './coordFold.js';
+import { renderLinesList } from './linesList.js';
 
 // The paste combo as KEYCAPS in this platform's glyphs (⌘V on a Mac, Ctrl+V elsewhere);
 // `data-hk` lets hotkeys.updateCtxHints redraw them after a rebind.
@@ -34,6 +35,8 @@ export class StencilMainContent extends StencilElement {
                         <!-- tabindex makes the canvas focusable so a click can pull focus off the
                              chat textarea (controlsBinder pointerdown); -1 keeps it off Tab. -->
                         <canvas id="canvas" tabindex="-1"></canvas>
+                        <!-- The lines layer, stacked over the picture; the pointer passes through to #canvas. -->
+                        <canvas id="canvas-overlay" aria-hidden="true"></canvas>
                         <div id="zoom-rect-overlay" style="display:none;position:absolute;border:2px dashed #7c3aed;background:rgba(124,58,237,0.08);pointer-events:none;box-sizing:border-box;"></div>
                         ${StencilTooltip.template()}
                     </div>
@@ -97,6 +100,7 @@ export class StencilMainContent extends StencilElement {
   static template() { return hostTag('stencil-main-content', 'class="main-content" role="main"', StencilMainContent.inner()); }
 
   wire(app) {
+    if (app) app.renderer.useOverlay(this.$('canvas-overlay'));
     // The sticky incognito frame needs the viewport's visible size in px: a percentage
     // resolves against the scrollable content. Resize only; sticky handles scrolling.
     const vp = document.getElementById('canvas-viewport');
@@ -110,27 +114,13 @@ export class StencilMainContent extends StencilElement {
     }
     const btn = document.getElementById('toggle-coord-panel');
     const panel = document.getElementById('coord-panel');
-    const body = document.getElementById('coord-body');
+    // The chevron sits in the header the fold pins along with the table.
+    const fold = createCoordFold(panel, btn.parentElement, document.getElementById('coord-body'));
     let hidden = false;
-    let foldTimer = 0;
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
-      // foldDust has its own gather clock (460): .coord-folding takes the table out of the layout
-      // for half the slide, which restarts the surfaceForm fade.
-      clearTimeout(foldTimer);
-      panel.classList.remove('coord-folding');
-      if (hidden) sweepDust(panel);
-      foldDust(body, panel, 'coord-collapsed', hidden, 'right',
-        { inMs: 460, toggle: () => panel.classList.toggle('coord-collapsed', hidden) });
-      // Hold the table out of the layout for half the slide (.coord-folding,
-      // animations/collapse.css), by when the out-quart ease is ~94% done.
-      const reduced = motionReduced();
-      const token = hidden ? '--fold-out-ms' : '--fold-ms';
-      const foldMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(token))
-                     || (hidden ? 600 : 400);
-      panel.classList.add('coord-folding');
-      foldTimer = setTimeout(() => panel.classList.remove('coord-folding'), reduced ? 0 : foldMs / 2);
+      fold(hidden);
       // Not swapped: animations/collapse.css spins the one chevron 180° with the panel.
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
@@ -149,7 +139,7 @@ export class StencilMainContent extends StencilElement {
       tabPoints.setAttribute('aria-selected', onLines ? 'false' : 'true');
       table.style.display = onLines ? 'none' : '';
       linesList.style.display = onLines ? '' : 'none';
-      if (onLines && app) app.renderLinesList();
+      if (onLines && app) renderLinesList(app);
     };
     tabPoints.addEventListener('click', () => selectTab('points'));
     tabLines.addEventListener('click', () => selectTab('lines'));

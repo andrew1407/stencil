@@ -1,4 +1,4 @@
-/* ── Instant custom tooltip (js/ui/controlTooltip.js + tipContent.js) ──
+/* ── Instant custom tooltip (js/ui/tip/controlTooltip.js + tipContent.js) ──
    Replaces the slow, disabled-control-skipping native `title` popup, and renders the
    composed title as STRUCTURE rather than flat text — the desktop app's tooltip shape:
    a heading with keycaps for its shortcut, term/description rows, bullets, and the muted
@@ -17,7 +17,7 @@
     /* A tooltip often carries a URL or a file name, which has no space to break at: without
        this it runs past max-width and the mask clips it mid-token. */
     overflow-wrap: anywhere;
-    /* Outlined in the ACCENT, like the desktop's QToolTip (support/theme.cpp %ACCENT_RING%):
+    /* Outlined in the ACCENT, like the desktop's QToolTip (support/theme/theme.cpp %ACCENT_RING%):
        it is what tells a tooltip apart from the panel behind it, and it keeps the three
        surfaces looking like one app. */
     border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-main));
@@ -31,12 +31,12 @@
        times a second on a toolbar sweep, and it TRACKS THE CURSOR while it is up — a
        mote layer measured at one position would be stranded a frame later, and a burst
        per show would be both a cost and a mess. So it takes the same sand as a mask on
-       itself: the three coprime dot grids of the scroll dissolve (animations/reveal.css
+       itself: the three coprime dot grids of the scroll dissolve (animations/reveal/reveal.css
        .reveal-masked), which ride the box wherever it goes, cost one composited layer,
        and can neither stack, strand, nor leak a timer.
        Still a TRANSITION, not keyframes, for the original reason: re-pointing simply
        re-aims from wherever the grain is, with no animation to restart or half-play.
-       --dissolve: 1 = pure grain, 0 = solid. Registered in animations/reveal.css, which is why
+       --dissolve: 1 = pure grain, 0 = solid. Registered in animations/reveal/reveal.css, which is why
        it can be transitioned at all; at 120% the dots overlap outright, so a settled
        tooltip is solid to the pixel and nothing here costs legibility.
        transform-origin sits at the top-left so the grain gathers toward the cursor,
@@ -73,7 +73,7 @@
     -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
     mask-composite: add;
 }
-/* …and once the real motes have flown for it (js/ui/controlTooltip.js surfaceIn), the
+/* …and once the real motes have flown for it (js/ui/tip/controlTooltip.js surfaceIn), the
    mask, the transition and the entry offset all step aside for good: the sand is a
    cloud of actual particles now, streaming out of the control the tip describes and
    pouring back into it, exactly as a modal or the chat panel does. `.dust-driven` is
@@ -130,7 +130,7 @@
     vertical-align: middle;   /* centred on the sentence it sits in, not on its baseline */
 }
 .tip-plus { font-size: 13px; color: var(--text-shortcut); margin: 0 3px; vertical-align: middle; }
-/* ── Keycap shake (js/ui/controlTooltip.js) ──────────────────────────────────
+/* ── Keycap shake (js/ui/tip/controlTooltip.js) ──────────────────────────────────
    The caps nudge once as the tooltip appears, pointing at the shortcut. Movement only —
    the cap keeps its resting colours, so it reads as the same key throughout. */
 @keyframes keycapShake {

@@ -70,7 +70,7 @@ class Hotkeys {
     return combo ? `${label} (${formatCombo(combo, this.#isMac)})` : label;
   }
 
-// Memoized: menus poll updateCtxHints every 120ms (contextMenu.js LIVE_SYNC_INTERVAL_MS).
+// Memoized: the open context menu re-runs updateCtxHints on every updateButtons sweep.
   #hintHtml = new Map();
   #comboHtml(combo) {
     let html = this.#hintHtml.get(combo);
@@ -93,7 +93,7 @@ class Hotkeys {
     this.updateHotkeyTitles();
   }
 
-// composeControlTitle owns base/hotkey/reason composition, shared with DrawingApp.updateButtons.
+// composeControlTitle owns base/hotkey/reason composition, shared with ui/control/state.js.
   updateHotkeyTitles() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('[data-hk-title]').forEach(el => {

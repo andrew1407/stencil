@@ -3,7 +3,8 @@
 // buttons, drop/paste-to-attach, the two menus beside this file — and the provider
 // probe behind the … trigger's status dot and its rich tooltip.
 import { icon } from '../../lib/icons.js';
-import { loadLlmSettings, LLM_SETTINGS_KEY } from '../../llm/settings.js';
+import { loadLlmSettings, withSessionKey, LLM_SETTINGS_KEY } from '../../llm/settings.js';
+import { SESSION_KEY_ITEM } from '../../llm/sessionKey.js';
 import { probeProvider, PROVIDER_LABELS } from '../../llm/client.js';
 import { serverTokenFor } from '../../llm/surface.js';
 import { loadConnections } from '../../lib/connection/connections.js';
@@ -18,7 +19,7 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
   const { addPendingFile, addPendingUrl, syncClearBtn } = tray;
   const { addCard, clearConversation, msgMeta, showSuggestions } = view;
 
-  // ── The … trigger's rich status tooltip (lib/statusTip.js — a themed table,
+  // ── The … trigger's rich status tooltip (lib/chat/statusTip.js — a themed table,
   // saying only what the dropdown's items don't: reachability). ──
   const gearTip = createChatStatusTip({
     doc: document,
@@ -39,7 +40,7 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
     const gen = ++state.probeGen;
     dot.className = 'chat-status-dot';
     gearTip.setProbe(null);
-    const probe = await probeProvider(s, {
+    const probe = await probeProvider(await withSessionKey(s), {
       getToken: async (u) => serverTokenFor(u, { connections: await loadConnections(), settings: s }),
     });
     if (gen !== state.probeGen) return;
@@ -121,10 +122,11 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
     });
 
     // Settings edited in Options while this surface is open: refresh the provider
-    // line (LLM settings, storage.local) and drop the settings cache (storage.sync).
+    // line (LLM settings, storage.local; the anthropic key, storage.session) and drop the
+    // settings cache (storage.sync).
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'sync') state.settingsPromise = null;
-      if (area === 'local' && changes[LLM_SETTINGS_KEY]) refreshSettings();
+      if ((area === 'local' && changes[LLM_SETTINGS_KEY]) || (area === 'session' && changes[SESSION_KEY_ITEM])) refreshSettings();
     });
 
     refreshSettings().then(() => {

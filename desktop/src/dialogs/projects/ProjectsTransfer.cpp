@@ -1,18 +1,14 @@
 #include "ProjectsDialog.hpp"
 
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/displayName.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/modal/modalChrome.hpp"
-#include "AppTooltip.hpp"
-#include "ShimmerOverlay.hpp"
 
 #include <QPalette>
 #include <QTimer>
+#include <QListWidget>
+#include <QListWidgetItem>
 
 // Deleting rows and moving or copying them between local and a server.
 
@@ -44,7 +40,7 @@ namespace stencil::gui {
       }
       if (row) {
         // A painted row has no widget of its own, so its RECT is what comes apart
-        // (support/DisintegrateOverlay.hpp). Clipped to the viewport.
+        // (support/motion/DisintegrateOverlay.hpp). Clipped to the viewport.
         DisintegrateOverlay::overRect(
             list->viewport(),
             list->visualItemRect(row).intersected(list->viewport()->rect()),

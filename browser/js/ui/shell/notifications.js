@@ -14,7 +14,7 @@ import { ToastSink, SystemSink, pickSink } from './notifySinks.js';
 const FAIL_HIDE_MS = 3200;
 const OK_HIDE_MS = 2400;
 const CLICKABLE_HIDE_MS = 6000;
-// Matches notifyLeave in css/animations/overlays.css.
+// Matches notifyLeave in css/animations/overlay/overlays.css.
 const LEAVE_ANIM_MS = 260;
 // 2x the shared menu clock: a passing notice can afford to drift.
 const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680

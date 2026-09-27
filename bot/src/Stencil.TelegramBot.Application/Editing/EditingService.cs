@@ -1,5 +1,6 @@
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -15,9 +16,11 @@ public sealed partial class EditingService : IEditingService
     private readonly ISessionStore _store;
     private readonly VideoFrames _video;
     private readonly ProjectFileService _projectFiles;
+    private readonly IBotPolicy? _policy;
 
-    public EditingService(IStencilCli cli, IUserWorkspace workspace, ISessionStore store)
+    public EditingService(IStencilCli cli, IUserWorkspace workspace, ISessionStore store, IBotPolicy? policy = null)
     {
+        _policy = policy;
         _cli = cli;
         _workspace = workspace;
         _store = store;
@@ -41,7 +44,7 @@ public sealed partial class EditingService : IEditingService
     {
         // Open to any Telegram user: vet the link before the CLI fetches it (schemes, local paths,
         // private hosts).
-        await RemoteImageUrl.ValidateAsync(url, ct);
+        await RemoteImageUrl.ValidateAsync(url, ct, _policy?.ResolveTimeout);
         var session = await _store.GetAsync(userId, ct);
         var output = _workspace.NewFilePath(userId, ".png");
         var request = new EditRequest

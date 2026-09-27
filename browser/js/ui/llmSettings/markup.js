@@ -4,6 +4,9 @@
 // only the provider the voice transcript is sent to.
 import { icon } from '../icons.js';
 import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import { SESSION_KEY_TTL_MS } from '../../llm/sessionKey.js';
+
+const TTL_HOURS = SESSION_KEY_TTL_MS / 3_600_000;
 
 export const llmSettingsModalInner = () => `
         <div class="app-modal">
@@ -18,6 +21,7 @@ export const llmSettingsModalInner = () => `
                         <option value="none">None (turned off)</option>
                         <option value="ollama">Ollama</option>
                         <option value="openai-compat">OpenAI API (LM Studio, vLLM, …)</option>
+                        <option value="anthropic">Anthropic API (Claude)</option>
                         <option value="stencil-server">Stencil server</option>
                     </select></span>
                 </div>
@@ -30,6 +34,13 @@ export const llmSettingsModalInner = () => `
                 </div>
                 <div class="vs-row" id="chat-api-key-row"><label data-title="Only if your endpoint requires auth — sent as 'Authorization: Bearer <key>'. Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible services issue keys in their account dashboard.">API key</label>
                     <span class="vs-ctrl"><input type="password" id="chat-api-key" placeholder="(optional — most local servers need none)"></span>
+                </div>
+                <div class="vs-row" id="chat-session-key-row"><label data-title="Your own Anthropic API key — sent as 'x-api-key' straight to Anthropic from this page. Kept for this tab only, never saved.">API key</label>
+                    <span class="vs-ctrl"><input type="password" id="chat-session-key" autocomplete="off" spellcheck="false" placeholder="sk-ant-… (kept for this tab only)"></span>
+                </div>
+                <div class="vs-row" id="chat-session-key-status-row">
+                    <span class="chat-server-status" id="chat-session-key-status"></span>
+                    <button id="chat-session-key-forget" class="btn-icon-text">${icon('trash', { size: 14 })}<span>Forget key</span></button>
                 </div>
                 <div class="vs-row" id="chat-server-row"><label data-title="Which connected Stencil server proxies the LLM">Server</label>
                     <span class="vs-ctrl"><select id="chat-server-select"></select></span>
@@ -54,6 +65,11 @@ export const llmSettingsModalInner = () => `
                     <div id="chat-cors-note">
                         Local providers must allow this app's origin — Ollama via
                         <code>OLLAMA_ORIGINS</code>, LM Studio via its &quot;enable CORS&quot; switch.
+                    </div>
+                    <div id="chat-session-key-note">
+                        Your key goes straight from this page to Anthropic — no Stencil server sees it. It is
+                        kept for this tab only: a reload keeps it, closing the tab or ${TTL_HOURS} hours forget it,
+                        and it is never saved.
                     </div>
                 </div>
             </div>

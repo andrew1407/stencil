@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "hitTest.hpp"
 
 // Selecting points and lines, and the panel's index-keyed view of them.
@@ -38,10 +37,12 @@ namespace stencil::gui {
     const bool committed = (line != &currentLine);
     line->points.erase(line->points.begin() + index);
     if (committed) {
-      // Erase the line the panel actually shows (it need not be lines.back()).
-      if (line->points.empty())
+      // Erase the line the panel actually shows (it need not be lines.back()); a line that keeps
+      // points stays selected, its table still up (browser editOps.js removePoint).
+      if (line->points.empty()) {
         lines.erase(lines.begin() + (line - lines.data()));
-      selectedLineIdx = -1;  // index may now be stale/invalid
+        selectedLineIdx = -1;
+      }
       commitHistory();
     }
     resetStrokeFx();
@@ -85,11 +86,11 @@ namespace stencil::gui {
   // focuses that point (the rotation pivot); a segment hit selects with no focused point.
   int CanvasWidget::selectLineAt(double x, double y) {
     selectedLines.clear();   // a plain click leaves multi-select mode
-    if (auto pt = core::findNearestPoint(lines, x, y, hitRadius(12.0))) {
+    if (auto pt = core::findNearestPoint(lines, x, y, grabHitRadius())) {
       selectedLineIdx = pt->lineIdx;
       selectedPoint = pt->ptIdx;
     } else {
-      selectedLineIdx = core::findLineAt(lines, x, y, hitRadius(8.0));
+      selectedLineIdx = core::findLineAt(lines, x, y, lineHitRadius());
       selectedPoint = -1;
     }
     update();
@@ -109,9 +110,9 @@ namespace stencil::gui {
     return out;
   }
 
+  // Asked per line per frame; selectedLines stays ascending (toggleLineIndex), so it is a search.
   bool CanvasWidget::isLineSelected(int i) const {
-    if (!selectedLines.empty())
-      return std::find(selectedLines.begin(), selectedLines.end(), i) != selectedLines.end();
+    if (!selectedLines.empty()) return std::binary_search(selectedLines.begin(), selectedLines.end(), i);
     return i == selectedLineIdx;
   }
 
@@ -122,9 +123,9 @@ namespace stencil::gui {
     // Seed the set from the current single selection on the first Ctrl+Shift+click.
     if (selectedLines.empty() && selectedLineIdx >= 0 && selectedLineIdx != idx)
       selectedLines.push_back(selectedLineIdx);
-    auto it = std::find(selectedLines.begin(), selectedLines.end(), idx);
-    if (it != selectedLines.end()) selectedLines.erase(it);
-    else selectedLines.push_back(idx);
+    auto it = std::lower_bound(selectedLines.begin(), selectedLines.end(), idx);
+    if (it != selectedLines.end() && *it == idx) selectedLines.erase(it);
+    else selectedLines.insert(it, idx);
     if (selectedLines.size() == 1) {
       selectedLineIdx = selectedLines.front();  // back to single-select (its editor returns)
       selectedLines.clear();
@@ -138,8 +139,8 @@ namespace stencil::gui {
 
   void CanvasWidget::toggleLineSelection(const core::Point& ip) {
     int idx = -1;
-    if (auto pt = core::findNearestPoint(lines, ip.x, ip.y, hitRadius(12.0))) idx = pt->lineIdx;
-    else idx = core::findLineAt(lines, ip.x, ip.y, hitRadius(8.0));
+    if (auto pt = core::findNearestPoint(lines, ip.x, ip.y, grabHitRadius())) idx = pt->lineIdx;
+    else idx = core::findLineAt(lines, ip.x, ip.y, lineHitRadius());
     toggleLineIndex(idx);  // idx == -1 (empty space) is a no-op inside
   }
 

@@ -151,12 +151,12 @@ class MainWindowGuiTest : public QObject {
     stencil::llm::ChatMessage m;
     m.role = "user";
     m.text = "make it sepia";
-    win.pushChatHistory(m);
-    win.chatVideoPath = "/tmp/clip.mp4";
-    win.chatVideoFrames = 42;
-    win.chatImageDigest = QByteArray("digest");
-    win.chatImageEncoded.data = QByteArray("cached");
-    QVERIFY(!win.chatHistory.isEmpty());
+    win.chatSession->pushChatHistory(m);
+    win.chatSession->chatVideoPath = "/tmp/clip.mp4";
+    win.chatSession->chatVideoFrames = 42;
+    win.chatSession->chatImageDigest = QByteArray("digest");
+    win.chatSession->chatImageEncoded.data = QByteArray("cached");
+    QVERIFY(!win.chatSession->chatHistory.isEmpty());
     auto* suggest = dock->findChild<QWidget*>("chatSuggest");
     QVERIFY(suggest && !suggest->isVisible());  // hidden by the first card
 

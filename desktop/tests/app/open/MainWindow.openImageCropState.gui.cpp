@@ -64,7 +64,7 @@ class MainWindowGuiTest : public QObject {
       pictureShown = dlg->previewLabel->isVisible();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(pictureShown, "the previous URL's picture stays up while the text is corrected");
     QVERIFY2(rowShown, "…so its Crop row must stay too, not vanish with the pixels");
     QVERIFY2(stillTicked, "…still ticked");
@@ -104,7 +104,7 @@ class MainWindowGuiTest : public QObject {
                      QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(ticked, "the tab's own Crop choice comes back");
     QVERIFY2(staged, "…with the stage it stands for, not just the tick");
     QCOMPARE(clouds, 0);   // a tab switch is not a toggle: the read-out does not re-fly
@@ -141,7 +141,7 @@ class MainWindowGuiTest : public QObject {
       pix = dlg->previewLabel->pixmap().size();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(shown, "coming back to the tab must still show what it was showing");
     QVERIFY2(pix.width() > 0 && pix.height() > 0, "…the picture, not an empty label");
   }
@@ -177,7 +177,7 @@ class MainWindowGuiTest : public QObject {
                      QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QCOMPARE(clouds, 0);   // no closing flourish — a switch is not a toggle
   }
 
@@ -209,7 +209,7 @@ class MainWindowGuiTest : public QObject {
       toggled = box->isChecked() != was;
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(hadCaption, "the Incognito row must carry a caption beside its box");
     QVERIFY2(toggled, "clicking the caption must toggle the box it labels");
   }

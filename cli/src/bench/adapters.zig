@@ -4,7 +4,7 @@
 //! (timing.Ratios); the us/call printed alongside is a drift reference, never a gate.
 const std = @import("std");
 const llm = @import("../llm.zig");
-const le = @import("../line_edit.zig");
+const le = @import("../line_edit/line_edit.zig");
 const scrape = @import("../scrape.zig");
 const scriptCore = @import("../script/core.zig");
 const emit = @import("../script/emit.zig");

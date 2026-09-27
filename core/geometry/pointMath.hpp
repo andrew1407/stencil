@@ -3,11 +3,15 @@
 #include <vector>
 
 // Pure point/segment maths, no hit-test policy. Port of the geometry helpers in
-// browser/js/utils/geometry.js and the transforms in core/transforms.js.
+// browser/js/utils/geometry.js and the transforms in core/line/transforms.js.
 namespace stencil::core {
 
   // Port of browser/js/utils/geometry.js `distToSegment`.
   double distToSegment(double px, double py, const Point& a, const Point& b);
+
+  // Its square, with no root: the hit tests compare it against a squared radius.
+  // Port of browser/js/utils/geometry.js `distToSegmentSq`.
+  double distToSegmentSq(double px, double py, const Point& a, const Point& b);
 
   // In place about (cx, cy), `angle` in radians. Port of line/transforms.js rotatePointsAbout.
   void rotatePoints(std::vector<Point>& points, double cx, double cy,

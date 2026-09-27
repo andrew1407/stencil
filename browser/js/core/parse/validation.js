@@ -1,13 +1,9 @@
 // One `{ok, reason}` verdict shape over the existing primitives (the rules stay where they
 // are), so a check can both gate a control AND say why.
-import { isAccent, normalizeHex } from '../settings/accents.js';
-import { normalizePageSize, parseLengthToken } from '../settings/units.js';
-import { parseDuration } from './durationParser.js';
-import { parseProjectFile } from '../project/file.js';
-import { parseHotkey } from '../../utils/keys.js';
+import { normalizeHex } from '../settings/accents.js';
 
 // Frozen: callers pass it around and must not edit it.
-export const VALID = Object.freeze({ ok: true, reason: '' });
+const VALID = Object.freeze({ ok: true, reason: '' });
 export const invalid = (reason) => ({ ok: false, reason });
 const verdict = (pass, reason) => (pass ? VALID : invalid(reason));
 
@@ -22,38 +18,7 @@ export const validateHexColor = (value, { allowEmpty = false } = {}) => {
   return verdict(!!normalizeHex(v), `Invalid color "${value}" — use a hex like #ff5623`);
 };
 
-export const validateAccent = (value) => {
-  const v = String(value ?? '').trim();
-  if (isAccent(v) || normalizeHex(v)) return VALID;
-  return invalid(`Unknown accent "${value}" — use a hex like #ff5623, or a named accent`);
-};
-
-export const validatePageSize = (value) =>
-  verdict(!!normalizePageSize(value), `Unknown page size "${value}"`);
-
-export const validateLengthToken = (token) =>
-  verdict(!!parseLengthToken(token), `Invalid length "${token}" — try 40, "40px", "2cm" or "25%"`);
-
-export const validateDuration = (spec) =>
-  verdict(parseDuration(spec) != null, `Invalid duration "${spec}"`);
-
 // http(s) ONLY — the one scheme gate against javascript:/file:/extension URLs.
-export const HTTP_URL_RE = /^https?:\/\//i;
+const HTTP_URL_RE = /^https?:\/\//i;
 export const validateHttpUrl = (value) =>
   verdict(HTTP_URL_RE.test(String(value ?? '')), `"${value}" must be an http(s) URL`);
-
-export const validateHotkey = (combo) =>
-  verdict(!!parseHotkey(combo), `"${combo}" is not a shortcut — try something like Ctrl+Shift+K`);
-
-// The engine is wasm-bound and owned by the app, so it comes in. Blank is valid (identity).
-export const validateFormula = (engine, expr, axis = 'x', ctx = null) => {
-  const a = axis === 'y' ? 'y' : 'x';
-  const v = String(expr ?? '').trim();
-  const ok = () => (ctx ? !!engine?.validateCtx(v, ctx) : !!engine?.validate(v, a));
-  return verdict(!v || ok(), `Invalid ${a} formula: ${expr}`);
-};
-
-export const validateProjectFileText = (text) => {
-  const res = parseProjectFile(text);
-  return res.ok ? { ...VALID, project: res.project } : invalid(res.error);
-};

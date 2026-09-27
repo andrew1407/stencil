@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
-import { wireHoverDust, foldDust, revealControls } from '../motion.js';
+import { wireHoverDust, foldDust, revealControls, CONTROLS_DUST_IN_MS, CONTROLS_DUST_OUT_MS } from '../motion.js';
 import { onWindowResize } from '../../utils.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { syncWrappedSeparators } from './separators.js';
@@ -98,8 +98,10 @@ ${toolbarPageSectionsHtml()}
       hidden = !hidden;
       // The shared fold-with-dust ritual (motion.js foldDust): the tool rows come apart
       // into motes streaming up past the top edge and gather back out of it.
-      foldDust(body, body, 'hidden', hidden, 'top',
-        { toggle: () => body.classList.toggle('hidden', hidden) });
+      foldDust(body, body, 'hidden', hidden, 'top', {
+        inMs: CONTROLS_DUST_IN_MS, outMs: CONTROLS_DUST_OUT_MS,
+        toggle: () => body.classList.toggle('hidden', hidden),
+      });
       // The fold is a body-level state: the info line hides with the rows (CSS), and the
       // "?" badge appears in its place (refresh, via the class observer below).
       document.body.classList.toggle('controls-collapsed', hidden);

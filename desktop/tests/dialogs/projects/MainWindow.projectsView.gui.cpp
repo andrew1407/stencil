@@ -45,10 +45,11 @@ class MainWindowGuiTest : public QObject {
     // Knock the live canvas to a different zoom WITHOUT setZoom (which would reschedule and overwrite
     // the save just verified), simulating an editor sitting elsewhere as this project reopens.
     canvas->setScale(1.0);
-    QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false));
+    bool landed = false;
+    QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);   // the picture decodes off the GUI thread
     QCOMPARE(canvas->getScale(), 5.0);
-    // The scroll half restores a turn later (QTimer::singleShot(0, …)), so it is the one
-    // to wait on — the scale is already back by the time loadProjectIntoCanvas returns.
+    // The scroll half restores a turn after the picture lands (QTimer::singleShot(0, …)).
     QTRY_COMPARE(win.scroll->horizontalScrollBar()->value(), 30);
     QCOMPARE(win.scroll->verticalScrollBar()->value(), 20);
 
@@ -65,7 +66,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win;
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QAction* clear = win.actClearProject;
+    QAction* clear = win.acts.clearProject;
     QVERIFY(clear);
     // With an image loaded it is live…
     QImage img(24, 24, QImage::Format_RGB32);
@@ -116,7 +117,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(sess->activeProjectId, win.activeProjectId);
     // …and the restore path re-binds it (project still exists in the list).
     MainWindow win2(nullptr, true);
-    QCOMPARE(win2.activeProjectId, win.activeProjectId);
+    QTRY_COMPARE_WITH_TIMEOUT(win2.activeProjectId, win.activeProjectId, 5000);   // bound as it lands
   }
 
   // Deliberate NON-round-trip: the image filter/tint and the compare split view must NOT carry into a
@@ -134,11 +135,11 @@ class MainWindowGuiTest : public QObject {
     win.saveSessionNow();
 
     MainWindow win2(nullptr, true);
-    QVERIFY(win2.canvas && win2.canvas->hasImage());   // the rest of the session DID restore
+    QTRY_VERIFY_WITH_TIMEOUT(win2.canvas->hasImage(), 5000);   // the rest of the session DID restore
     QCOMPARE(win2.settings.imageFilter, QStringLiteral("none"));
     QCOMPARE(win2.canvas->getImageFilter(), QStringLiteral("none"));
-    if (win2.imageFilter) QCOMPARE(win2.imageFilter->currentData().toString(), QStringLiteral("none"));
-    if (win2.filterColorBtn) QVERIFY(!win2.filterColorBtn->isVisible());
+    if (win2.tools.imageFilter) QCOMPARE(win2.tools.imageFilter->currentData().toString(), QStringLiteral("none"));
+    if (win2.tools.filterColorBtn) QVERIFY(!win2.tools.filterColorBtn->isVisible());
   }
 
 };

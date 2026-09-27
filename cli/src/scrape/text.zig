@@ -85,7 +85,6 @@ pub fn decodeEntities(alloc: std.mem.Allocator, s: []const u8) ![]u8 {
     return out.toOwnedSlice(alloc);
 }
 
-
 /// Append every `url(...)` target from a CSS fragment (inline style or <style> block),
 /// skipping `data:image/svg...` placeholders (port of extension `extractCssUrls`).
 pub fn extractCssUrls(alloc: std.mem.Allocator, out: *std.ArrayList([]const u8), css: []const u8) !void {

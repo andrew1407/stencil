@@ -1,8 +1,9 @@
 // ── The projects-list thumbnail ─────────────────────────────────
 // It is ALSO the hover-zoom source (projectsModal magnifies it ~1.67x), so it is sized for
-// that, not for the 56px row — and it lives in the localStorage registry, so it stays a
-// JPEG and stays modest. The pixel work is worker/imageRaster.js (halving + encode).
+// that, not for the 56px row — and one is kept per project, so it stays a JPEG and stays
+// modest. The pixel work is worker/imageRaster.js (halving + encode).
 import { downscaleInline, downscaleToDataUrl } from '../../worker/imageTasks.js';
+import { PROJECT_ACTION } from '../../worker/messages.js';
 
 const THUMB_MAX_PX = 480;
 // 0.6 put visible JPEG blocking on faces at this size; 0.85 is where that stops.
@@ -13,7 +14,7 @@ const OPTS = { maxEdge: THUMB_MAX_PX, type: 'image/jpeg', quality: THUMB_QUALITY
 const IDLE_TIMEOUT_MS = 300;
 
 // The EDITED result (filter + lines), so the projects list previews what the user drew.
-const source = (app) => (app.image ? app.renderResultCanvas() : null);
+const source = (app) => (app.image ? app.export.renderExportCanvas() : null);
 
 // Synchronous, inline: what a save that cannot wait (flush, unload) renders.
 export const makeThumbnail = (app) => {
@@ -50,7 +51,7 @@ export const createThumbnailScheduler = (io, { idle = requestIdle, cancel = canc
   const land = (projectId, url) => {
     if (!url || io.activeId !== projectId) return;
     io.store.setThumbnail(projectId, url);
-    try { io.app.tabs?.projectsChanged(); } catch { /* cross-tab refresh is best-effort */ }
+    try { io.app.tabs?.projectsChanged({ id: projectId, action: PROJECT_ACTION.THUMBNAIL }); } catch { /* best-effort */ }
   };
 
   const run = async () => {

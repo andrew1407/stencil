@@ -1,5 +1,5 @@
-// The .stencil project-file paths of ExportService (js/core/service.js): save, open,
-// pick-and-open and delete, with the live-sync link. Split from exportService.test.js.
+// The .stencil project-file paths of ExportService (js/core/export/service.js, project/filePicker.js):
+// save, open, pick-and-open and delete, with the live-sync link. Split from exportService.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ExportService, makeApp, notifications, reset, lastNote } from '../../helpers/exportServiceRig.js';
@@ -9,6 +9,22 @@ const VALID_STENCIL = (name) => JSON.stringify({
   format: 'stencil-project', version: 1, name,
   image: { dataUrl: 'data:image/png;base64,AAAA', ext: 'png', w: 2, h: 2 }, layout: {},
 });
+
+// The session the real applyProjectFile (project/fileIO.js) opens a file into: it flushes, resets
+// and loads, and the load stops at the decode, where this FileReader keeps the file it was handed.
+const reads = [];
+globalThis.FileReader = class { readAsDataURL(file) { reads.push(file); } };
+const sessionApp = (over = {}) => {
+  reads.length = 0;
+  return makeApp({
+    storage: { incognito: false, temporary: true, saves: 0, save() { this.saves++; }, newTemporary() {},
+      promoteTemporaryToProject() {} },
+    zoomPan: { syncViewportHeight() {} },
+    tabs: { reportActive() {}, reportIncognito() {} },
+    stencilSync: { unlink() {} },
+    ...over,
+  });
+};
 
 test('saveProjectFile: no image → "Open an image first", no work', async () => {
   reset();
@@ -28,7 +44,6 @@ test('saveProjectFile: FS Access path writes the serialized project + links for 
   const app = makeApp({
     image: {}, imageDataUrl: 'data:image/png;base64,AAAA', activeProjectId: 'p1',
     imageBaseName: 'plan',
-    projectFileState: () => ({ name: 'plan', image: { dataUrl: 'data:image/png;base64,AAAA', ext: 'png', w: 2, h: 2 }, layout: {} }),
     storage: { store: { getMeta: () => ({ name: 'plan' }) } },
     stencilSync: { link: async (h, n) => { linked = [h, n]; } },
   });
@@ -48,7 +63,6 @@ test('saveProjectFile: user-cancelled Save picker (AbortError) is silent', async
   globalThis.window = { showSaveFilePicker: async () => { const e = new Error('x'); e.name = 'AbortError'; throw e; } };
   const app = makeApp({
     image: {}, imageDataUrl: 'data:image/png;base64,AAAA', activeProjectId: 'p1', imageBaseName: 'p',
-    projectFileState: () => ({ name: 'p', layout: {} }),
     storage: { store: { getMeta: () => ({ name: 'p' }) } },
     stencilSync: { link: async () => {} },
   });
@@ -60,20 +74,20 @@ test('saveProjectFile: user-cancelled Save picker (AbortError) is silent', async
 
 test('openProjectFile: invalid text → "Invalid .stencil file" notify, no apply', async () => {
   reset();
-  let applied = 0;
-  const app = makeApp({ applyProjectFile: async () => { applied++; return 'x'; } });
+  const app = sessionApp();
   await new ExportService(app).openProjectFile('not a project at all');
-  assert.equal(applied, 0);
+  assert.deepEqual([app.storage.saves, reads.length], [0, 0], 'nothing is flushed or loaded');
   assert.match(lastNote()[0], /^Invalid \.stencil file: /);
   assert.equal(lastNote()[1], 'fail');
 });
 
 test('openProjectFile: valid text routes to applyProjectFile + ok notify', async () => {
   reset();
-  let got = null;
-  const app = makeApp({ applyProjectFile: async (proj) => { got = proj; return proj.name; } });
+  const app = sessionApp();
   await new ExportService(app).openProjectFile(VALID_STENCIL('Plan'));
-  assert.equal(got.name, 'Plan');
+  assert.equal(app.storage.saves, 1, 'the project on screen is flushed first');
+  assert.deepEqual([reads.map((f) => f.name), app.imageBaseName], [['Plan.png'], 'Plan'],
+    'the parsed project is what loads, under its own name');
   assert.deepEqual(lastNote(), ['Opened project “Plan”', 'ok']);
 });
 
@@ -86,8 +100,10 @@ test('openProjectFile: unreadable File (text() throws) → read-error notify', a
 
 test('openProjectFile: applyProjectFile throwing → open-error notify', async () => {
   reset();
-  const app = makeApp({ applyProjectFile: async () => { throw new Error('boom'); } });
+  const app = sessionApp();
+  app.storage.save = () => { throw new Error('boom'); };   // the apply's own flush fails
   await new ExportService(app).openProjectFile(VALID_STENCIL('P'));
+  assert.equal(reads.length, 0, 'nothing loads after the failure');
   assert.deepEqual(lastNote(), ['Could not open project: boom', 'fail']);
 });
 
@@ -96,14 +112,11 @@ test('pickAndOpenProjectFile: FS Access opens the picked file + links for live-s
   const file = { name: 'picked.stencil', text: async () => VALID_STENCIL('Picked') };
   const handle = { getFile: async () => file };
   globalThis.window = { showOpenFilePicker: async () => [handle] };
-  let linked = null, applied = null;
-  const app = makeApp({
-    applyProjectFile: async (p) => { applied = p; return p.name; },
-    stencilSync: { link: async (h, n) => { linked = [h, n]; } },
-  });
+  let linked = null;
+  const app = sessionApp({ stencilSync: { unlink() {}, link: async (h, n) => { linked = [h, n]; } } });
   try {
     await new ExportService(app).pickAndOpenProjectFile();
-    assert.equal(applied.name, 'Picked');
+    assert.deepEqual([reads.map((f) => f.name), app.imageBaseName], [['Picked.png'], 'Picked']);
     assert.deepEqual(linked, [handle, 'picked.stencil']);
     assert.deepEqual(lastNote(), ['Opened project “Picked”', 'ok']);
   } finally { delete globalThis.window; }

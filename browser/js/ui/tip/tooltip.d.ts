@@ -8,6 +8,10 @@ export declare class StencilTooltip extends StencilElement {
   pendingKey: string | null;
   pendingReveal: (() => void) | null;
   shownKey: string | null;
+  /** The markup innerHTML last received; an identical rebuild is skipped. */
+  lastMarkup: string | null;
+  /** The coordinate table's value cells, keyed by the row labels they were built under. */
+  coordCells: { shape: string; cells: HTMLElement[] } | null;
   static readonly SHOW_DELAY_MS: number;
   static readonly IN_MS: number;
   static readonly OUT_MS: number;
@@ -21,6 +25,10 @@ export declare class StencilTooltip extends StencilElement {
   show(clientX: number, clientY: number, x: number, y: number): void;
   showLine(clientX: number, clientY: number, line: { points: { x: number; y: number }[] }, showAll: boolean): void;
   dust(clientX: number, clientY: number, enter: boolean): void;
+  /** Builds the coordinate table once per set of row labels, then rewrites only its numbers. */
+  showCoordRows(rows: [label: string, x: number | string, y: number | string][]): void;
+  /** innerHTML = html, unless it is what the tooltip already shows. */
+  setMarkup(html: string): void;
   reveal(clientX: number, clientY: number): void;
   position(clientX: number, clientY: number): void;
   hide(): void;

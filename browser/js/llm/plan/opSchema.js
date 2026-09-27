@@ -4,11 +4,12 @@
 // grammars and the cross-field presence rules. Surfaces keep only their normalizers, executors
 // and native `rules`. Pure. Byte-pinned to browser-extension/src/llm/op/schema.js.
 
-import { RULES, SchemaError, bad, child, isFiniteNum, isInt, isObj, item, label, quoteList, where }
-  from './opSchemaBase.js';
+import { RULES, SURFACE_RULES, SchemaError, bad, child, isFiniteNum, isInt, isObj, item, label, own, pickFields,
+  quoteList, where } from './opSchemaBase.js';
 
-export const createSchema = (registry, surface) => {
-  const profile = registry.$meta.surfaceProfiles[surface];
+// `capabilities` (absent = all) gates an entry's `requires`; `knownColor` backs that surface rule.
+export const createSchema = (registry, surface, { capabilities, knownColor } = {}) => {
+  const profile = own(registry.$meta.surfaceProfiles, surface);
   if (!profile) throw new Error(`opRegistry: unknown surface "${surface}"`);
   const limits = registry.limits;
   // A cap is a number or a dotted name into `limits` ("MAX_ACTIONS", "ask.label").
@@ -28,8 +29,10 @@ export const createSchema = (registry, surface) => {
   // to other surfaces, each resolved via surfaceKeys / bulletVariants / surfaceFlags.
   const order = registry.profiles[profile].ops;
   const forSurface = (map) => (map && (map[surface] ?? map[profile])) ?? undefined;
+  const wired = capabilities == null ? null : new Set(capabilities);
   const entries = registry.ops
-    .filter((e) => e.profiles.includes(profile) && (!e.surfaces || e.surfaces.includes(surface)))
+    .filter((e) => e.profiles.includes(profile) && (!e.surfaces || e.surfaces.includes(surface))
+      && (!wired || (e.requires || []).every((c) => wired.has(c))))
     .sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
     .map((e) => {
       const variant = forSurface(e.bulletVariants);
@@ -42,6 +45,13 @@ export const createSchema = (registry, surface) => {
     });
   const ops = new Map(entries.map((e) => [e.name, e]));
   const forbidden = new Set(registry.forbidden.perSurface[surface] || []);
+  const hardFail = (registry.forbidden.hardFail || []).includes(surface);
+  const surfaceRules = registry.surfaceRules?.[surface] || [];
+  const natives = { knownColor };
+  for (const r of surfaceRules) {
+    if (!Object.hasOwn(SURFACE_RULES, r.rule)) throw new Error(`opRegistry: unknown surface rule "${r.rule}"`);
+    if (r.rule === 'knownColor' && typeof knownColor !== 'function') throw new Error('opRegistry: knownColor needs a colour table');
+  }
 
   // ── value checks ──────────────────────────────────────────────────────────
   const checkString = (v, spec, path, parent) => {
@@ -55,8 +65,8 @@ export const createSchema = (registry, surface) => {
     if (spec.blankOk && !s.trim()) return;
     let names = [].concat(spec.regex || []);
     if (spec.regexBy) {
-      const by = parent ? parent[spec.regexBy.key] : undefined;
-      names = spec.regexBy.map[by] ? [spec.regexBy.map[by]] : [];
+      const by = own(parent, spec.regexBy.key);
+      names = typeof by === 'string' && own(spec.regexBy.map, by) ? [spec.regexBy.map[by]] : [];
     }
     if (names.length && !names.some((n) => regexes[n].test(s))) {
       bad(`${label(path)} must be ${names.map(describe).join(' or ')}`);
@@ -111,10 +121,10 @@ export const createSchema = (registry, surface) => {
   // that are neither declared nor unknown (the action's own "op").
   const checkFields = (obj, fields, holder, path, skip) => {
     const at = (key) => child(path, key);
-    const present = (k) => obj[k] != null;
+    const present = (k) => own(obj, k) != null;
     if (!holder.allowUnknown) {
       for (const k of Object.keys(obj)) {
-        if (!skip.includes(k) && !fields[k]) bad(`unknown field "${k}"${path ? ` in ${where(path)}` : ''}`);
+        if (!skip.includes(k) && !Object.hasOwn(fields, k)) bad(`unknown field "${k}"${path ? ` in ${where(path)}` : ''}`);
       }
     }
     if (holder.forms) {
@@ -139,57 +149,54 @@ export const createSchema = (registry, surface) => {
         if (spec.required) bad(`${label(at(k))} is required`);
         if (spec.requiredWith) {
           for (const [dep, vals] of Object.entries(spec.requiredWith)) {
-            if (vals.includes(obj[dep])) bad(`${label(at(k))} is required with "${dep}" ${quoteList([obj[dep]])}`);
+            if (vals.includes(own(obj, dep))) bad(`${label(at(k))} is required with "${dep}" ${quoteList([obj[dep]])}`);
           }
         }
         continue;
       }
       if (spec.onlyWith) {
         for (const [dep, vals] of Object.entries(spec.onlyWith)) {
-          if (!vals.includes(obj[dep])) bad(`${label(at(k))} only applies with "${dep}" ${vals.map((x) => `"${x}"`).join(' or ')}`);
+          if (!vals.includes(own(obj, dep))) bad(`${label(at(k))} only applies with "${dep}" ${vals.map((x) => `"${x}"`).join(' or ')}`);
         }
       }
       checkValue(obj[k], spec, at(k), obj);
     }
   };
 
-  // ── normalization: the declared keys only, defaults applied, trims honoured ──
-  const pick = (v, spec) => {
-    if (spec.type === 'object' && spec.fields && isObj(v)) return pickFields(v, spec.fields);
-    if (spec.type === 'array' && Array.isArray(v)) return spec.items ? v.map((x) => pick(x, spec.items)) : v.slice();
-    if (spec.type === 'string' && spec.trim && typeof v === 'string') return v.trim();
-    return v;
-  };
-  const pickFields = (obj, fields) => {
-    const out = {};
-    for (const [k, spec] of Object.entries(fields)) {
-      if (obj[k] != null) out[k] = pick(obj[k], spec);
-      else if (spec.default !== undefined) out[k] = spec.default;
-    }
-    return out;
-  };
-
+  // The model's fault carries its `detail` (the message sans prefix); a registry bug does not.
   const rethrow = (err, prefix) => {
-    if (err instanceof SchemaError) throw new Error(`${prefix}${err.message}`);
+    if (err instanceof SchemaError) throw Object.assign(new Error(`${prefix}${err.message}`), { detail: err.message });
     throw err;
   };
 
+  // Natives rules first; returns the action as validated (post-fold) — feed it to `normalize`.
+  const validateAction = (a, entry) => {
+    try {
+      let v = a;
+      for (const rule of entry.rules || []) v = RULES[rule](v);
+      checkFields(v, entry.keys, entry, null, ['op']);
+      return v;
+    } catch (err) { return rethrow(err, `Invalid ${entry.name} action: `); }
+  };
+  // { op, ...declared keys present (deep-picked), defaults }.
+  const normalize = (v, entry) => ({ op: entry.name, ...pickFields(v, entry.keys) });
+
   // ── public surface ────────────────────────────────────────────────────────
   return {
-    surface, profile, limits, entries, ops, forbidden, regexes,
-    limit,
-    // Validate one action against its entry (natives rules first). Returns the
-    // action as validated (post-fold) — feed it to `normalize`.
-    validateAction(a, entry) {
+    surface, profile, limits, entries, ops, forbidden, hardFail, surfaceRules, regexes,
+    jsonCaps: limits.json ? { depth: limits.json.MAX_DEPTH, bytes: limits.json.MAX_BYTES, nodes: limits.json.MAX_NODES } : null,
+    defaultCustomLabel: registry.ask.defaultCustomLabel,
+    limit, validateAction, normalize,
+    // validateAction → normalize → this surface's `surfaceRules` on the normalized action.
+    accept(a, entry) {
+      const out = normalize(validateAction(a, entry), entry);
       try {
-        let v = a;
-        for (const rule of entry.rules || []) v = RULES[rule](v);
-        checkFields(v, entry.keys, entry, null, ['op']);
-        return v;
+        for (const r of surfaceRules) {
+          if (r.op === entry.name && !SURFACE_RULES[r.rule](out, r, natives)) bad(r.message.replace('{value}', () => String(own(out, r.key))));
+        }
       } catch (err) { return rethrow(err, `Invalid ${entry.name} action: `); }
+      return out;
     },
-    // { op, ...declared keys present (deep-picked), defaults }.
-    normalize(v, entry) { return { op: entry.name, ...pickFields(v, entry.keys) }; },
     // The §11 card's structure (option `actions` only shallowly — the caller
     // validates them as preview actions). Throws "Invalid plan: …".
     validateAsk(ask) {
@@ -205,7 +212,7 @@ export const createSchema = (registry, surface) => {
     opsetEntry(name, op) {
       const os = registry.opsets[name];
       if (!os) throw new Error(`opRegistry: unknown opset "${name}"`);
-      if (os.overrides && os.overrides[op]) return { name: op, keys: os.overrides[op].keys, rules: os.overrides[op].rules || [] };
+      if (own(os.overrides, op)) return { name: op, keys: os.overrides[op].keys, rules: os.overrides[op].rules || [] };
       if (os.ops.includes(op)) return registry.ops.find((e) => e.id === op) || null;
       if (os.failOps && os.failOps.includes(op)) return 'fail';
       return null;

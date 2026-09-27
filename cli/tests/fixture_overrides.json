@@ -5,6 +5,10 @@
       "mediaTypeAlwaysPng": true,
       "note": "cli hardcodes data:image/png for every attachment part (its attachments are always PNG-encoded snapshots); the fixture's image/jpeg mediaType is not representable"
     },
+    "images follow the turn's text block as base64 sources; history turns are text blocks by role": {
+      "dropHistoryImages": true,
+      "note": "cli history turns are text-only (llm.Turn has no images, per §7/§12) — a replayed turn's image blocks are dropped from the anthropic body; only the current turn carries attachments"
+    },
     "image attachments pass through as {mediaType,data} objects; text-only turns omit \"images\"": {
       "dropHistoryImages": true,
       "note": "cli history turns are text-only (llm.Turn has no images, per §7/§12) — an image on a REPLAYED turn is dropped from the wire; only the current turn carries attachments"

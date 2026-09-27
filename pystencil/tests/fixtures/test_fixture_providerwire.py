@@ -16,7 +16,12 @@ from tests.helpers.fixturebase import _LLM_FIXTURES, _OVERRIDES, _load
 from pystencil.llm import LlmClient, LlmConfig, LlmError, _clean_detail
 
 _WIRE_DIR = _LLM_FIXTURES / "providerWire"
-_WIRE_PROVIDERS = {"ollama": "ollama", "openai": "openai-compat", "server": "stencil-server"}
+_WIRE_PROVIDERS = {
+  "ollama": "ollama", "openai": "openai-compat", "server": "stencil-server",
+  "anthropic": "anthropic",
+}
+# The corpus files this walker claims; anthropic.json is walked end to end beside it.
+_WALKED = ("ollama.json", "openai.json", "server.json", "httpErrors.json")
 
 
 def _wire_client(case) -> LlmClient:
@@ -53,7 +58,7 @@ def _http_error(case) -> urllib.error.HTTPError:
 # Parsed once per module, not once per test method.
 _CASES = [
   case
-  for fn in ("ollama.json", "openai.json", "server.json", "httpErrors.json")
+  for fn in _WALKED
   for case in _load(_WIRE_DIR / fn)
 ]
 
@@ -102,6 +107,7 @@ class TestProviderWireFixtures(unittest.TestCase):
             self.assertEqual(e.stop_reason, "max_tokens")
           elif kind == "refusal":
             self.assertEqual(e.stop_reason, "refusal")
+            self.assertEqual(e.message, err["message"])  # the model's own words
           elif kind == "badReply":
             # Same typed error; pystencil's own phrasing of the message.
             self.assertIsNone(e.stop_reason)

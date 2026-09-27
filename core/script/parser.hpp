@@ -58,6 +58,9 @@ namespace stencil::core::script {
     int line = 1;
     int col = 1;
     int len = 0;
+    int callLine = 0;           // the outermost `@use stencil` that expanded it; 0 = written
+    int callCol = 0;
+    int callLen = 0;
   };
 
   // A `@stencil name …:` definition. `arity` is the highest @n its body references.

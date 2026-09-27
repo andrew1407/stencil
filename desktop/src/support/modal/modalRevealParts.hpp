@@ -1,7 +1,7 @@
 #pragma once
 // The pieces a dialog's reveal is built from: the flight-ownership flag, the on-screen anchor test,
-// the ghost that flies between two rects and the surface dust it breaks into. Private to the
-// modalReveal TUs; the public surface stays modalReveal.hpp.
+// the ghost that flies between two rects, the surface dust it breaks into and the centre it lands
+// on. Private to the modalReveal TUs; the public surface stays modalReveal.hpp.
 #include "modalReveal.hpp"
 #include "imageAnchor.hpp"
 #include "ModalBackdrop.hpp"
@@ -24,8 +24,10 @@
 #include <QPropertyAnimation>
 #include <QRect>
 #include <QResizeEvent>
+#include <QScreen>
 #include <QTimer>
 #include <QWidget>
+#include <algorithm>
 #include <functional>
 #include <memory>
 
@@ -81,15 +83,17 @@ namespace stencil::support {
 
   // A CHILD of the main window, never a top-level: per-frame moves of a real window go
   // through the window server and stutter, and a snapshot has no layout to fight.
-  // A flight reaching past the host (a tall dialog over the window's top edge) is clipped by it,
-  // so the ghost becomes a window of its own there, as the dust layer does (placeForSurface).
-  QLabel* makeGhost(QWidget* host, const QPixmap& shot, const QRect& globalAt, const QRect& otherEnd) {
+  // A flight reaching past the host (a tall dialog over the window's top edge) is clipped by it, and
+  // one under a floating chat passes beneath it: there the ghost is a window, as the dust is.
+  QLabel* makeGhost(QWidget* host, const QPixmap& shot, const QRect& globalAt, const QRect& otherEnd,
+                    const QWidget* surface) {
     auto* ghost = new QLabel(host);
     ghost->setObjectName(QStringLiteral("stencilModalGhost"));  // findable by the GUI tests
     ghost->setAttribute(Qt::WA_TransparentForMouseEvents);
     const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
-    if (!hostBox.contains(globalAt.united(otherEnd))
-        && QGuiApplication::platformName() != QLatin1String("offscreen")) {
+    const QRect flight = globalAt.united(otherEnd);
+    if (gui::DisintegrateOverlay::floatOver(host, flight, surface)
+        || (!hostBox.contains(flight) && QGuiApplication::platformName() != QLatin1String("offscreen"))) {
       ghost->setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
                             | Qt::WindowTransparentForInput | Qt::WindowDoesNotAcceptFocus
                             | Qt::NoDropShadowWindowHint);
@@ -145,15 +149,17 @@ namespace stencil::support {
 
   // Browser twin: js/ui/motion.js surfaceIn / surfaceOut. The ghost stays as the
   // fallback for anything the dust declines, so a window never simply blinks.
+  // `surface` is the window the flight forms, never counted as a float over it.
   bool flySurfaceDust(QWidget* host, const QPixmap& shot, const QRect& windowGlobal,
-                      const QRect& iconGlobal, bool opening, const QColor& ink) {
+                      const QRect& iconGlobal, bool opening, const QColor& ink, const QWidget* surface) {
     if (!host || shot.isNull() || !windowGlobal.isValid()) return false;
     const QRect box(host->mapFromGlobal(windowGlobal.topLeft()), windowGlobal.size());
     const QPoint point = host->mapFromGlobal(iconGlobal.center());
+    const bool floats = gui::DisintegrateOverlay::floatOver(host, windowGlobal.united(iconGlobal), surface);
     auto* fx = gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening,
                                                      opening ? DIALOG_DUST_IN_MS : DIALOG_DUST_OUT_MS, ink,
                                                      DIALOG_DUST_MAX_CELLS,
-                                                     /*escapeHost=*/true);
+                                                     /*escapeHost=*/true, /*alwaysEscape=*/floats);
     // Painted NOW: the dialog unmaps this turn, and one deferred frame is the blink.
     if (fx && !opening) fx->repaint();
     return fx != nullptr;
@@ -172,4 +178,47 @@ namespace stencil::support {
     QWidget* host = parent->window();
     return (host && host->isVisible()) ? host : nullptr;
   }
+
+  // The dialog's FRAME on its host's client centre (the browser's viewport), on the host's screen.
+  void centreOnHost(QDialog& dlg) {
+    const QWidget* host = dialogHost(&dlg);
+    if (!host) return;
+    const QSize box = dlg.frameGeometry().size();
+    const QPoint mid = host->mapToGlobal(QPoint(host->width() / 2, host->height() / 2));
+    QPoint at(mid.x() - box.width() / 2, mid.y() - box.height() / 2);
+    if (const QScreen* s = host->screen()) {
+      const QRect avail = s->availableGeometry();
+      at.setX(std::max(std::min(at.x(), avail.right() + 1 - box.width()), avail.left()));
+      at.setY(std::max(std::min(at.y(), avail.bottom() + 1 - box.height()), avail.top()));
+    }
+    dlg.move(at);
+  }
+
+  // exec() centres on the host less a GUESSED window frame (10x40 on macOS, where no window has a
+  // side border). That placement is the first move after a Show; it is redone on the real frame.
+  class DialogCentreFilter : public QObject {
+   public:
+    explicit DialogCentreFilter(QObject* parent) : QObject(parent) {
+      setObjectName(QStringLiteral("stencilDialogCentreFilter"));
+    }
+
+   protected:
+    bool eventFilter(QObject* o, QEvent* e) override {
+      auto* dlg = qobject_cast<QDialog*>(o);
+      if (!dlg || !dlg->isWindow() || dlg->testAttribute(Qt::WA_DontShowOnScreen))
+        return QObject::eventFilter(o, e);
+      if (e->type() == QEvent::Show && !e->spontaneous() && !dlg->testAttribute(Qt::WA_Moved)) {
+        placing = dlg;
+        QPointer<QDialog> shown(dlg);   // no move at all: Qt found it already there
+        QTimer::singleShot(0, this, [this, shown] { if (placing == shown) placing.clear(); });
+      } else if (e->type() == QEvent::Move && placing == dlg) {
+        placing.clear();
+        centreOnHost(*dlg);
+      }
+      return QObject::eventFilter(o, e);
+    }
+
+   private:
+    QPointer<QDialog> placing;   // shown, its placement not yet made
+  };
 }  // namespace stencil::support

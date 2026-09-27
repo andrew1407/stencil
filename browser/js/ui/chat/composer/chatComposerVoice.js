@@ -1,4 +1,4 @@
-// One composer's voice input: the mic face on the Send button (js/llm/modes.js).
+// One composer's voice input: the mic face on the Send button (js/llm/voice/modes.js).
 import { UNSUPPORTED_TEXT, VOICE_STATE_EVENT } from '../../../llm/voice/modes.js';
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';

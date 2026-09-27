@@ -1,4 +1,4 @@
-// The keywords field's list rules (js/ui/keywordChips.js), DOM-free. Desktop twin:
+// The keywords field's list rules (js/ui/meta/keywordChips.js), DOM-free. Desktop twin:
 // KeywordChips::normalize / ::parse / ::addTo, pinned by the same cases in
 // keywordChips.headless.cpp.
 import { test } from 'node:test';

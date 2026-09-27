@@ -39,13 +39,13 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return chat->isVisible(); }, 1000);
       opened = chat->isVisible();
       QTest::qWait(80);
-      revealedOnly = QApplication::focusWidget() != win.chatMenuInput;
+      revealedOnly = QApplication::focusWidget() != win.chatSession->chatMenuInput;
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
-      entered = QApplication::focusWidget() == win.chatMenuInput;
+      entered = QApplication::focusWidget() == win.chatSession->chatMenuInput;
       root->close();
     });
-    win.showContextMenu(at);
+    win.parts.canvasMenu.showContextMenu(at);
     QVERIFY2(opened, "Right on the Assistant row did not open the chat flyout");
     QVERIFY2(revealedOnly, "the first Right already put the caret in the chat input");
     QVERIFY2(entered, "the second Right did not focus the chat input");
@@ -65,7 +65,7 @@ class MainWindowGuiTest : public QObject {
     QCursor::setPos(at);
     QTest::qWait(20);   // the pointer lands before the menu asks where it is
     const auto checkedFilter = [&win] {
-      for (QAbstractButton* b : win.filterButtons->buttons())
+      for (QAbstractButton* b : win.ctxMenu.filterButtons->buttons())
         if (b->isChecked()) return b->property("filterValue").toString();
       return QString();
     };
@@ -156,16 +156,16 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(40);
       keyTo(Qt::Key_Tab);     // off the last control → the first plain row (Solid)
       QTest::qWait(40);
-      for (int i = 0; i < 6 && style->activeAction() != win.actStyleDashed; ++i) {
+      for (int i = 0; i < 6 && style->activeAction() != win.ctxMenu.styleDashed; ++i) {
         keyTo(Qt::Key_Down);
         QTest::qWait(30);
       }
-      styleApplied = style->activeAction() == win.actStyleDashed && win.actStyleDashed->isChecked()
+      styleApplied = style->activeAction() == win.ctxMenu.styleDashed && win.ctxMenu.styleDashed->isChecked()
                      && win.settings.defaultStyle == "dashed";
       styleStayedOpen = style->isVisible() && root->isVisible();
       root->close();
     });
-    win.showContextMenu(at);
+    win.parts.canvasMenu.showContextMenu(at);
     QVERIFY2(filterOpened, "Right on the Image Filter row did not open its flyout");
     QVERIFY2(landedOnChecked, "the second Right did not land on the checked radio (None)");
     QVERIFY2(downPicked, qPrintable("Down did not pick the next filter — checked: " + afterDown));

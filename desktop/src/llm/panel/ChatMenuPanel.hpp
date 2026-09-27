@@ -24,11 +24,12 @@ namespace stencil::gui {
   struct Palette;
 
   // Most recent messages replayed (contract §7) — and the cap on the panel's
-  // mirrored transcript rows. Shared with MainWindow's chatHistory/mirror log.
+  // mirrored transcript rows. Shared with ChatSessionController's chatHistory/mirror log.
   inline constexpr int CHAT_HISTORY_BOUND = 32;
 
   // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist). NOT a second chat -
-  // MainWindow drives the same onChatSend/onChatReply pipeline the dock uses and mirrors each line.
+  // ChatSessionController drives the same onChatSend/onChatReply pipeline the dock uses and
+  // mirrors each line.
   class ChatMenuPanel : public QWidget {
     Q_OBJECT
    public:
@@ -39,6 +40,8 @@ namespace stencil::gui {
                   std::function<void(QRect)> onSettings, std::function<void(QString)> onRetry);
 
     QWidget* getInput() const;
+    bool hasComposerText() const;
+    void setComposerText(const QString& text);
 
     // `configure` adds a "Configure provider" action beside Retry (browser unreachable-card parity);
     // it re-uses the panel's own settings callback, the one the gear already opens through.
@@ -71,7 +74,7 @@ namespace stencil::gui {
     void addRetry(QFrame* card, const QString& retryText);
     void addConfigure(QFrame* card);
     ChatCardMenuHooks menuHooks();
-    // Send inline, everything else behind the "…" (browser js/ui/chatComposer.js).
+    // Send inline, everything else behind the "…" (browser js/ui/chat/composer/chatComposer.js).
     void buildComposerActions(QWidget* host, QHBoxLayout* btnRow);
     // A mirrored row's arrival: the shared gatherChatCardIn machinery (chatWidgets.hpp)
     // behind this panel's own veil/settle.
@@ -108,7 +111,7 @@ namespace stencil::gui {
     std::function<void(QString)> onRetry;   // resend a failed/stopped turn
   };
 
-  // MainWindow stores the panel as a plain QWidget* member — this types it back.
+  // ChatSessionController stores the panel as a plain QWidget* member — this types it back.
   inline ChatMenuPanel* asChatMenu(QWidget* w) { return static_cast<ChatMenuPanel*>(w); }
 
 }  // namespace stencil::gui

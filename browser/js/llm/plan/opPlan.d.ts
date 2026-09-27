@@ -1,8 +1,9 @@
-// Shapes for llm/plan.js — the validated op plan and its executor (llm-contract.md
+// Shapes for llm/plan/opPlan.js — the validated op plan and its executor (llm-contract.md
 // §1–§4, §8, §11). Model output is DATA: nothing here is trusted until parseOpPlan has
 // returned it, and executeOpPlan maps each op 1:1 onto a window.stencil facade call.
 import type { Stencil } from '../../console/stencilApi.js';
 import type { createSchema } from './opSchema.js';
+import type { EditorHistory } from './sandbox.js';
 
 export {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
@@ -13,7 +14,8 @@ export {
   BROWSER_CAPABILITIES, FORBIDDEN_OPS, ForbiddenOpError, assemblePrompts,
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT,
 } from '../promptAssembly.js';
-export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './parser.js';
+export { MisplacedOpError, validateAsk, parseOpPlan } from './browserPlan.js';
+export { askAnswerText } from './parser.js';
 
 /** The registry-filtered validator schema.js builds for the browser profile. */
 export type Schema = ReturnType<typeof createSchema>;
@@ -89,6 +91,8 @@ export interface ExecuteOptions {
   deferredSink?: PlanAction[];
   /** Collects the top-level actions that completed — what a preview sandbox undoes. */
   ranSink?: PlanAction[];
+  /** Marks the undo stack a variant or preview is rewound to, leaving no step behind. */
+  editorHistory?: EditorHistory;
 }
 
 /** Runs the plan against the frozen facade; variants branch from the post-actions state. */
@@ -98,5 +102,5 @@ export interface AskPreview { index: number; label: string; dataUrl: string; }
 
 /** One option's failed render costs that option its picture, never the card. */
 export declare const renderAskPreviews: (
-  ask: PlanAsk | null | undefined, stencil: Stencil, opts?: Pick<ExecuteOptions, 'exportImage' | 'loadFrame'>,
+  ask: PlanAsk | null | undefined, stencil: Stencil, opts?: Pick<ExecuteOptions, 'exportImage' | 'loadFrame' | 'editorHistory'>,
 ) => Promise<{ previews: AskPreview[]; warnings: string[] }>;

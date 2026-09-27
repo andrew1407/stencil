@@ -2,7 +2,6 @@
 // animations.css blocks for the icon triggers and the canvas waiting behind its own motes.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
   flashLanding, LANDING_CLASS, ghostIn, hasPixels, playCanvasArrival, ASSEMBLING_CLASS,
   CLEARING_CLASS, GHOST_MS,
@@ -56,23 +55,9 @@ test('playCanvasArrival survives having no DOM to reach for', () => {
   assert.doesNotThrow(() => playCanvasArrival(null));
 });
 
-test('both routes that put an image on the canvas play the arrival', () => {
-  const loader = readFileSync(new URL('../../js/core/image/settle.js', import.meta.url), 'utf8');
-  assert.match(loader, /playCanvasArrival\(app\.canvas, \{ from: opts\.from \}\)/,
-    'a freshly loaded file arrives');
-  const storage = readFileSync(new URL('../../js/core/storage/storage.js', import.meta.url), 'utf8');
-  // The open passes it; the cross-tab sync path (the other caller) deliberately does not.
-  assert.match(storage, /this\.loadPayloadIntoApp\(proj\.payload, \{ landing: true \}\)/,
-    'opening a saved project arrives too — this is the regression');
-  assert.match(storage, /if \(landing\) playCanvasArrival\(this\.app\.canvas\);/,
-    'and it is played once the restored image is in the backing store');
-  assert.match(storage, /syncActiveFromStorage\(\)[\s\S]*?this\.loadPayloadIntoApp\(payload\);/,
-    'a peer\'s edit syncing in from another tab stays still — no landing option');
-  // The clear-dissolve twin runs off the same pair of class names; keep them in step.
+test('the arrival and the clear share their pair of viewport classes', () => {
   assert.equal(CLEARING_CLASS, 'canvas-clearing');
   assert.equal(ASSEMBLING_CLASS, 'canvas-assembling');
-  assert.match(storage, /flashLanding\(vp, 'canvas-clearing', GHOST_MS\)/,
-    'and the clear still dissolves the outgoing image');
 });
 
 test('hasPixels tells a painted canvas from an empty one', () => {
@@ -137,11 +122,12 @@ test('animations.css: reduced motion cancels the icon hover but not the chevrons
 
 test('animations.css: the canvas waits behind its own dust, both directions', () => {
   const css = ANIMATIONS_CSS;
-  assert.match(css, /\.canvas-viewport\.canvas-clearing #canvas \{ opacity: 0; \}/,
+  // Both layers: the picture and the lines stacked over it hide and return together.
+  assert.match(css, /\.canvas-viewport\.canvas-clearing #canvas,\n\.canvas-viewport\.canvas-clearing #canvas-overlay \{ opacity: 0; \}/,
     'hidden while the dust falls');
-  assert.match(css, /\.canvas-viewport\.canvas-assembling #canvas \{ opacity: 0; transition: none; \}/,
+  assert.match(css, /\.canvas-viewport\.canvas-assembling #canvas,\n\.canvas-viewport\.canvas-assembling #canvas-overlay \{ opacity: 0; transition: none; \}/,
     'and while the dust gathers — or the finished picture sits behind its own motes');
   // The hide is instant — the shared transition below is for the fade back UP only.
-  assert.match(css, /\.canvas-viewport \.idle-create, \.canvas-viewport #canvas \{ transition: opacity/,
+  assert.match(css, /\.canvas-viewport \.idle-create, \.canvas-viewport #canvas,\n\.canvas-viewport #canvas-overlay \{ transition: opacity/,
     'the fade back up is still a transition');
 });

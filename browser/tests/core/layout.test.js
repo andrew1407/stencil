@@ -21,6 +21,24 @@ test('mergeLines: dedupes the same line regardless of property key order', () =>
   const server = { color: '#f00', style: 'solid', thickness: 2, pointSize: 4, locked: false, fillColor: 'transparent', points: [{ x: 1, y: 2 }] };
   assert.equal(mergeLines([server], [local]).length, 1);   // must NOT duplicate
 });
+test('mergeLines: a missing field keys as the core default it stands for (core::lineDedupeKey)', () => {
+  // The desktop and the codec fill a missing field with the core default, so a peer line that
+  // spells the defaults out is the same line as one that leaves them off.
+  const sparse = { points: [{ x: 1, y: 2 }] };
+  const full = { points: [{ x: 1, y: 2 }], color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent', pointColor: '' };
+  assert.equal(mergeLines([full], [sparse]).length, 1);
+  assert.equal(mergeLines([full], [{ ...sparse, color: '#f00' }]).length, 2);
+});
+test('mergeLines: points key at full precision, so lines a fraction of a pixel apart both stay', () => {
+  const at = (x) => ({ points: [{ x, y: 7 }], color: '#f00' });
+  assert.equal(mergeLines([at(123456.1)], [at(123456.2)]).length, 2);
+  assert.equal(mergeLines([at(0.1 + 0.2)], [at(0.30000000000000004)]).length, 1);
+});
+test('mergeLines: a local line repeated locally joins once; the peer\'s own repeats are kept', () => {
+  const l = { points: [{ x: 0, y: 0 }], color: '#f00' };
+  assert.deepEqual(mergeLines([], [l, { ...l }]), [l]);
+  assert.equal(mergeLines([l, { ...l }], []).length, 2);
+});
 test('mergeLines: handles empty / non-array inputs', () => {
   const l = { points: [], color: '#f00' };
   assert.deepEqual(mergeLines([], [l]), [l]);

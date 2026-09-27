@@ -2,15 +2,12 @@
 // the speaker, and the ⋯ button that rides the card's top-right corner inside the scroller.
 #include "chatWidgets.hpp"
 
-#include "../../support/modal/modalReveal.hpp"
-
 #include <QFrame>
 #include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScrollArea>
 #include <QToolButton>
-#include <QVBoxLayout>
 
 namespace stencil::gui {
 

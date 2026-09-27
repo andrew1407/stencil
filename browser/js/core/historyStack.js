@@ -1,35 +1,63 @@
 import constants from '../config/constants.json' with { type: 'json' };
 
-// Line-snapshot history: deep-copy on push/undo/redo, "step 0 → empty lines, step -1" on undo.
+// Snapshot history: a snapshot is a Lines array, or an editor memento {lines, cropRect,
+// rotationQuarters, filter, filterColor} — the view and the filter the lines sit on, so a crop, a
+// turn or a filter switch is one undo step too. Deep-copied on push/undo/redo; "step 0 → the
+// floor, step -1" on undo. Twin: core/state/HistoryStack.
 
 // Depth cap shared with core/state/HistoryStack.hpp's MAX_STEPS (drift-tested in
-// tests/history.test.js); cli's max_states and pystencil's _MAX_STATES carry the same 64.
+// tests/core/history.test.js); cli's max_states and pystencil's _MAX_STATES carry the same 64.
 export const MAX_STEPS = constants.LIMITS.historyMax;
+
+const linesOf = (s) => (Array.isArray(s) ? s : (s?.lines ?? []));
+// The step -1 stop: no lines, on the view of the step the stack starts from.
+const floorOf = (s) => (Array.isArray(s) || !s ? [] : { ...s, lines: [] });
+
+// One undo step of the editor, core's EditorMemento: the lines, the crop and turn under them, and
+// the filter over the picture.
+export const editorMemento = (app) => ({
+  lines: app.lines,
+  cropRect: app.cropRect,
+  rotationQuarters: app.rotationQuarters,
+  filter: app.imageFilter,
+  filterColor: app.filterColor,
+});
+
+// The step on screen: the one the cursor names, the floor at step -1.
+export const cursorStep = (h) => (h.historyStep >= 0 ? h.history[h.historyStep] : h.floor);
+
+// A step without a filter (a Lines snapshot) leaves the filter as it is, so it names none.
+export const sameFilter = (step, app) => !!step?.filter
+  && step.filter === app.imageFilter && step.filterColor === app.filterColor;
 
 export class HistoryStack {
   constructor() {
     this.history = [];
     this.historyStep = -1;
+    this.floor = [];
   }
 
 // baseStep: loadImage passes lines.length > 0 ? 0 : -1, restore passes 0.
-  reset(lines, baseStep) {
-    const step = baseStep !== undefined ? baseStep : (lines.length > 0 ? 0 : -1);
+  reset(snapshot, baseStep) {
+    const step = baseStep !== undefined ? baseStep : (linesOf(snapshot).length > 0 ? 0 : -1);
 // A negative step means "no current snapshot": keep the history empty so canRedo() stays
 // false (a phantom empty snapshot would surface a stray redo after a blank image).
-    this.history = step >= 0 ? [this.#clone(lines)] : [];
+    this.history = step >= 0 ? [this.#clone(snapshot)] : [];
     this.historyStep = step;
+    this.floor = this.#clone(floorOf(snapshot));
   }
 
-  push(lines) {
+  push(snapshot) {
     this.historyStep++;
 // Truncate in place: a no-op in the common no-redo case, no reallocation per push.
     if (this.history.length > this.historyStep) this.history.length = this.historyStep;
-    this.history.push(this.#clone(lines));
-// Evict the oldest and shift the cursor down by as many; undoing off the trimmed front
-// still ends at the "empty lines, step -1" stop.
+    this.history.push(this.#clone(snapshot));
+// Evict the oldest and shift the cursor down by as many; the floor takes the view of the
+// last one evicted, so undoing off the trimmed front still ends at the step -1 stop.
     if (this.history.length > MAX_STEPS) {
-      this.historyStep -= this.history.splice(0, this.history.length - MAX_STEPS).length;
+      const dropped = this.history.splice(0, this.history.length - MAX_STEPS);
+      this.historyStep -= dropped.length;
+      this.floor = floorOf(dropped[dropped.length - 1]);
     }
   }
 
@@ -41,19 +69,19 @@ export class HistoryStack {
     return this.historyStep < this.history.length - 1;
   }
 
-// The lines to apply, or null.
+// The snapshot to apply, or null.
   undo() {
     if (this.historyStep > 0) {
       this.historyStep--;
       return this.#clone(this.history[this.historyStep]);
     } else if (this.historyStep === 0) {
       this.historyStep = -1;
-      return [];
+      return this.#clone(this.floor);
     }
     return null;
   }
 
-// The lines to apply, or null.
+// The snapshot to apply, or null.
   redo() {
     if (this.historyStep < this.history.length - 1) {
       this.historyStep++;
@@ -63,7 +91,7 @@ export class HistoryStack {
   }
 
 // Stored history must be immune to later mutation of live lines (their points arrays).
-  #clone(lines) {
-    return structuredClone(lines);
+  #clone(snapshot) {
+    return structuredClone(snapshot);
   }
 }

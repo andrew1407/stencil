@@ -45,6 +45,25 @@ so a registry edit without `npm run gen-fixtures` fails it. Hand-written cases
 are reserved for what the registry cannot derive: extraction tolerance, the aspect fold,
 variant/preview drops, forbidden-op policy, and every recorded divergence.
 
+**Goldens beside the bundle** (the same generator, pinned by the same freshness check):
+
+- `generated/normalized.json` — per case (hand-written, generated and oracle), the exact result
+  JSON the JS reference walk (`js/llm/plan/parser.js` `walkPlan`) produces for every surface
+  that runs `core/opplan` (browser, desktop, cli, pystencil, bot, mcp), grouped by the surfaces
+  that share it: `{status, reply, actions, variants, ask, warnings, error}` with the warning and
+  error codes (`W_*`, `E_PLAN` / `E_ACTION` / `E_FORBIDDEN` / `E_JSON_LIMIT`) and their fields.
+  Core's `opplanJson` must equal it byte for byte; a lone surrogate is written as U+FFFD.
+- `generated/grammarProbes.json` — probe strings with the registry regexes each one matches
+  under JS `RegExp.test`, for the hand-matched grammars.
+- `generated/numbers.json` — doubles by bit pattern with their JS `String()` form, powers of
+  two and the double below each (the binade edges) included.
+- `oracle/inputs.json` (hand-written) — the adversarial inputs: prototype names, duplicate and
+  integer-like keys, `1e400` / `1e-400` / `2.0` / `-0`, surrogates at the caps, the Unicode trim
+  set, non-ASCII digits, BOMs, broken-then-good objects, the JSON caps and malformed UTF-8. A
+  case is `input` (verbatim text), `parts` (`[chunk, times]` pairs concatenated) or
+  `inputBase64` (raw bytes); its `expect` is the verdict the JS reference decides, checked by
+  `npm run gen-fixtures`. A text is fed as a model reply arrives: UTF-8 bytes, WHATWG-decoded.
+
 Adding a case: append it to `cases.json` under the next free `NNN` label.
 
 Walkers: run each fixture whose `profiles` include the surface's profile (or `all`) through

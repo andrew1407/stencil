@@ -9,6 +9,7 @@ import os
 import unittest
 
 from tests.helpers.clicase import _MockLlmClient, _CwdCase, _wire_repl
+from tests.helpers.nativecase import NativeCase
 
 
 class ContinuationPredicateTest(unittest.TestCase):
@@ -40,7 +41,7 @@ class ContinuationPredicateTest(unittest.TestCase):
     self.assertFalse(_load_only_plan(self._plan(["openUrl", "layout"])))
 
 
-class ReplPlanConsoleOpsOfflineTest(_CwdCase):
+class ReplPlanConsoleOpsOfflineTest(_CwdCase, NativeCase):
   """§10 console ops executed from a plan, no native core needed (no image)."""
 
   def test_plan_delete_runs_the_same_guards_as_the_command(self) -> None:

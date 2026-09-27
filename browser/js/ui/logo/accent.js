@@ -8,7 +8,7 @@ export function wireLogoColorPicker(logo, app) {
   logo.style.cursor = 'pointer';
   const wrap = logo.closest?.('.app-logo-wrap') || logo;
 
-// Hover latch: the pulse/ray loop (animations/iconHover.css) keys on .logo-hover, not :hover —
+// Hover latch: the pulse/ray loop (animations/icon/hover.css) keys on .logo-hover, not :hover —
 // the browser drops page hover for the whole accent/theme view transition.
   const setHover = (on) => wrap.classList?.toggle('logo-hover', on);
   wrap.addEventListener('pointerenter', () => setHover(true));
@@ -28,10 +28,10 @@ export function wireLogoColorPicker(logo, app) {
 // Single-click cycles the preset (a custom colour resets to the default), deferred so a
 // double-click cancels it; the logo is the swap origin (desktop: MainWindow.cpp too).
   const cycleAccent = () => {
-    if (app.customAccent) { app.setAccent(DEFAULT_ACCENT, logo); return; }
+    if (app.customAccent) { app.accents.setAccent(DEFAULT_ACCENT, logo); return; }
     const keys = ACCENTS.map((a) => a.key);
     const i = keys.indexOf(app.accent);
-    app.setAccent(keys[(i + 1) % keys.length], logo);
+    app.accents.setAccent(keys[(i + 1) % keys.length], logo);
   };
   let clickTimer = null;
   logo.addEventListener('click', (e) => {
@@ -56,7 +56,7 @@ export function wireLogoColorPicker(logo, app) {
   logo.insertAdjacentElement('afterend', picker);
 
 // Same origin as the cycle: the native picker is an OS window, so there is no press to read.
-  const apply = () => app.setCustomAccent(picker.value, logo);
+  const apply = () => app.accents.setCustomAccent(picker.value, logo);
   picker.addEventListener('input', apply);   // live while dragging
   picker.addEventListener('change', apply);  // final commit
 

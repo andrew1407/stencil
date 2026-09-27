@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>  // std::isdigit in untitledIndex
+#include <charconv>
 #include <utility>  // std::move
 
 namespace stencil::core {
@@ -23,7 +24,7 @@ namespace stencil::core {
     }
 
     // Parse "Untitled <n>" -> n, or -1 if the name does not match exactly.
-    int untitledIndex(const std::string& name) {
+    long long untitledIndex(const std::string& name) {
       const std::string prefix = "Untitled ";
       if (name.size() <= prefix.size()) return -1;
       if (name.compare(0, prefix.size(), prefix) != 0) return -1;
@@ -31,11 +32,9 @@ namespace stencil::core {
       for (char c : rest) {
         if (!std::isdigit(static_cast<unsigned char>(c))) return -1;
       }
-      try {
-        return std::stoi(rest);
-      } catch (...) {
-        return -1;
-      }
+      long long n = -1;  // past LLONG_MAX is result_out_of_range: no match
+      const auto parsed = std::from_chars(rest.data(), rest.data() + rest.size(), n);
+      return parsed.ec == std::errc{} ? n : -1;
     }
   }  // namespace
 
@@ -103,47 +102,6 @@ namespace stencil::core {
     return it == registry.end() ? nullptr : &*it;
   }
 
-  std::optional<ProjectMeta> ProjectsStore::getMeta(const std::string& id) const {
-    const ProjectMeta* m = find(id);
-    if (m == nullptr) return std::nullopt;
-    return *m;
-  }
-
-  ProjectMeta ProjectsStore::upsert(ProjectMeta meta, long long now) {
-    return upsertMoved(std::move(meta), now);
-  }
-
-  const ProjectMeta& ProjectsStore::upsertMoved(ProjectMeta&& meta, long long now) {
-    meta.updatedAt = now;
-    if (meta.createdAt == 0) meta.createdAt = now;
-    const auto it = findById(meta.id);
-    if (it != registry.end()) {
-      *it = std::move(meta);
-      return *it;
-    }
-    index.emplace(meta.id, registry.size());  // before the move empties meta.id
-    registry.push_back(std::move(meta));
-    return registry.back();
-  }
-
-  bool ProjectsStore::touch(const std::string& id, long long now) {
-    const auto it = findById(id);
-    if (it == registry.end()) return false;
-    it->updatedAt = now;
-    return true;
-  }
-
-  bool ProjectsStore::setExpiration(const std::string& id, long long expiresAt,
-                                    const std::string& refreshPeriod,
-                                    bool autoRefresh) {
-    const auto it = findById(id);
-    if (it == registry.end()) return false;
-    it->expiresAt = expiresAt;
-    it->refreshPeriod = refreshPeriod.empty() ? DEFAULT_PERIOD : refreshPeriod;
-    it->autoRefresh = autoRefresh;
-    return true;
-  }
-
   void ProjectsStore::remove(const std::string& id) {
     const auto it = findById(id);
     if (it == registry.end()) return;
@@ -190,7 +148,7 @@ namespace stencil::core {
   }
 
   std::string ProjectsStore::defaultName() const {
-    int max = 0;
+    long long max = 0;
     for (const auto& m : registry) {
       max = std::max(max, untitledIndex(m.name));
     }

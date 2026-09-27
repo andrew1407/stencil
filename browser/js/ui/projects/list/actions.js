@@ -2,6 +2,7 @@
 // only LOCAL projects — server ones are never touched — and plays every row out first.
 import { notify } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
+import { clearedToast } from '../../../core/project/transferController.js';
 
 export function wireListActions({ app, els, list, hasServers, selected, selectables, doomed,
   updateBatchBar, beginRemoval, close }) {
@@ -30,9 +31,11 @@ export function wireListActions({ app, els, list, hasServers, selected, selectab
     selected.clear();
     updateBatchBar();
     await leaving;
-    app.clearAllProjects();
+    const cleared = app.storage.store.list().length;
+    app.projectTransfer.clearAllProjects();
     await settle();
     for (const k of keys) doomed.delete(k);
     updateBatchBar();
+    if (cleared) notify(clearedToast(cleared), 'ok');
   });
 }

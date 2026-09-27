@@ -24,7 +24,7 @@ namespace stencil::gui {
     full = std::hypot(std::max(c.x(), width() - c.x()),
                        std::max(c.y(), height() - c.y()));
     // The overlay outlives the snapshot by the wake so the last motes get their whole life.
-    const int total = SWAP_MS + (dust ? DUST_LIFE_MS : 0);
+    const int total = swapMs() + (dust ? dustLifeMs() : 0);
     // A plain clock on a timer at the screen's refresh rate (dustKit.hpp frameIntervalMs,
     // not Qt's 60Hz animation timer); the wipe and the dust both read it.
     clock.start();
@@ -50,9 +50,9 @@ namespace stencil::gui {
     // The hole is a QRegion, not a QPainterPath: path clipping is rasterised per frame
     // over the whole window and stuttered; region clipping is spans. Antialiasing off.
     const QPoint c = origin.x() >= 0 ? origin : rect().center();
-    if (timeMs < SWAP_MS) {
+    if (timeMs < swapMs()) {
       // A torn polygon still clips as cheap spans.
-      const double e = swapEase(std::min(1.0, timeMs / SWAP_MS));
+      const double e = swapEase(std::min(1.0, timeMs / swapMs()));
       QPolygon front;
       front.reserve(EDGE_POINTS);
       for (int k = 0; k < EDGE_POINTS; k++) {

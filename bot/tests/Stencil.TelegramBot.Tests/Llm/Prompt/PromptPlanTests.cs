@@ -49,7 +49,8 @@ public sealed class PromptPlanTests : PromptServiceTestBase
         EditRequest request = _cli.LastRequest!;
         Assert.Equal(1, request.Rotate);
         Assert.Equal("#ff0000", request.Filter);
-        Assert.Equal("x1=10% x2=-10%", request.CropSpec);
+        // The crop cut the turned 480x640 view (x 48..432, y 0..543), stored over the unturned original.
+        Assert.Equal("x1=0px x2=543px y1=48px y2=432px", request.CropSpec);
         // …and the session was really mutated (undo works on AI edits).
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(1, session.Edits.Rotate);

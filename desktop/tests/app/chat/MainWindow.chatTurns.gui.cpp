@@ -38,27 +38,27 @@ class MainWindowGuiTest : public QObject {
     input->clear();
 
     // Click STOP → the abort flag is set; then the canceled reply lands.
-    const int histBefore = win.chatHistory.size();
+    const int histBefore = win.chatSession->chatHistory.size();
     QTest::mouseClick(send, Qt::LeftButton);
-    QVERIFY(win.chatStopRequested);
+    QVERIFY(win.chatSession->chatStopRequested);
     win.chatDock->setBusy(false);  // what the chat completion wrapper does
     stencil::llm::LlmReply canceled;
     canceled.ok = false;
     canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
     canceled.error = "Operation canceled";
-    win.onChatReply(canceled);
+    win.chatSession->onChatReply(canceled);
 
     // The pending card became "Stopped."; nothing was pushed or toasted.
     bool stoppedShown = false;
     for (QLabel* l : dock->findChildren<QLabel*>())
       if (l->text() == QString("Stopped.")) stoppedShown = true;
     QVERIFY(stoppedShown);
-    QCOMPARE(win.chatHistory.size(), histBefore);
+    QCOMPARE(win.chatSession->chatHistory.size(), histBefore);
     auto* toast = win.findChild<QWidget*>("chatToast");
     QVERIFY(!toast || !toast->isVisible());
 
     // Composer back to normal: send glyph/tooltip restored, guard cleared.
-    QVERIFY(!win.chatStopRequested);
+    QVERIFY(!win.chatSession->chatStopRequested);
     QCOMPARE(send->toolTip(), QString());
     QVERIFY(!send->isEnabled());  // idle + empty input gates send again
     input->setPlainText("hello");
@@ -68,8 +68,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A plan's appliers await async work in nested event loops, so the composer stays live while
-  // the executor holds the canvas: a Send landing there is ignored, and the turn clears the gate.
+  // A plan that waits on I/O spans event-loop turns, so the composer stays live while the
+  // executor holds the canvas: a Send landing there is refused, and the turn clears the gate.
   void chatSendIgnoredWhilePlanRuns() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -87,24 +87,24 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia it is.\",\"actions\":"
                       "[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     auto* dock = qobject_cast<stencil::gui::ChatDock*>(
         win.findChild<QDockWidget*>("llmChatDock"));
     QVERIFY(dock);
-    win.onChatSend("make it sepia");
+    win.chatSession->onChatSend("make it sepia");
     QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("Sepia it is.")));
-    QVERIFY2(!win.planRunning, "the settled turn left the plan gate open again");
+    QVERIFY2(!win.chatSession->planRunning, "the settled turn left the plan gate open again");
 
     // Mid-plan the dock is idle, so only the gate stands between a second Send and a
     // re-entered executePlan: the turn never starts and the history is untouched.
-    const int histBefore = win.chatHistory.size();
+    const int histBefore = win.chatSession->chatHistory.size();
     QVERIFY(!dock->isBusy());
-    win.planRunning = true;
-    win.onChatSend("now crop it");
-    QCOMPARE(win.chatHistory.size(), histBefore);
+    win.chatSession->planRunning = true;
+    win.chatSession->onChatSend("now crop it");
+    QCOMPARE(win.chatSession->chatHistory.size(), histBefore);
     QVERIFY(!dock->isBusy());
-    win.planRunning = false;
+    win.chatSession->planRunning = false;
     beat();
   }
 
@@ -130,13 +130,13 @@ class MainWindowGuiTest : public QObject {
     stencil::llm::ChatMessage a;
     a.role = "assistant";
     a.text = "Sepia applied.";
-    win.pushChatHistory(u);
-    win.pushChatHistory(a);
+    win.chatSession->pushChatHistory(u);
+    win.chatSession->pushChatHistory(a);
     // The doc is built from what was DISPLAYED (§12.1), so mirror the two rows
     // the send/reply paths would have posted.
-    win.chatMirror("You", u.text, false);
-    win.chatMirror("Assistant", a.text, false);
-    win.persistActiveChat();
+    win.chatSession->chatMirror("You", u.text, false);
+    win.chatSession->chatMirror("Assistant", a.text, false);
+    win.parts.chatAppliers.persistActiveChat();
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY(pr);
@@ -145,11 +145,13 @@ class MainWindowGuiTest : public QObject {
 
     // Reopening the project replays the saved conversation: replay history AND
     // dock transcript cards (restoreChatFromDoc via loadProjectIntoCanvas).
-    win.resetChatState();
-    QVERIFY(win.chatHistory.isEmpty());
-    QVERIFY(win.loadProjectIntoCanvas(projectId));
-    QCOMPARE(win.chatHistory.size(), 2);
-    QCOMPARE(win.chatHistory.last().text, QString("Sepia applied."));
+    win.chatSession->resetChatState();
+    QVERIFY(win.chatSession->chatHistory.isEmpty());
+    bool landed = false;   // the replay comes with the picture, which decodes off the GUI thread
+    QVERIFY(win.loadProjectIntoCanvas(projectId, true, [&landed](bool ok) { landed = ok; }));
+    QTRY_VERIFY_WITH_TIMEOUT(landed, 5000);
+    QCOMPARE(win.chatSession->chatHistory.size(), 2);
+    QCOMPARE(win.chatSession->chatHistory.last().text, QString("Sepia applied."));
     {
       auto* dock = qobject_cast<stencil::gui::ChatDock*>(
           win.findChild<QDockWidget*>("llmChatDock"));
@@ -162,8 +164,8 @@ class MainWindowGuiTest : public QObject {
     }
 
     // The trash clears the persisted copy too (§12.2).
-    win.onChatClear();
-    QVERIFY(win.chatHistory.isEmpty());
+    win.chatSession->onChatClear();
+    QVERIFY(win.chatSession->chatHistory.isEmpty());
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY(pr && pr->chat.isEmpty());
@@ -171,8 +173,8 @@ class MainWindowGuiTest : public QObject {
 
     // Opt-in OFF (the default): a turn leaves the record untouched.
     win.settings.saveChatsWithProject = false;
-    win.pushChatHistory(u);
-    win.persistActiveChat();
+    win.chatSession->pushChatHistory(u);
+    win.parts.chatAppliers.persistActiveChat();
     {
       Project* pr = win.findProject(projectId.toStdString());
       QVERIFY(pr && pr->chat.isEmpty());

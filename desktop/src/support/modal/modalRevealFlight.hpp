@@ -22,12 +22,12 @@ namespace stencil::support {
     const QRect from = opening ? icon : target;
     const QRect to = opening ? target : icon;
     if (opening) w.setWindowOpacity(0.0);
-    if (flySurfaceDust(host, shot, target, icon, opening, inkOf(w))) {
+    if (flySurfaceDust(host, shot, target, icon, opening, inkOf(w), &w)) {
       if (opening && guard) fadeUpBehindDust(guard);
       if (after) after();
       return;
     }
-    QLabel* ghost = makeGhost(host, shot, from, to);
+    QLabel* ghost = makeGhost(host, shot, from, to, &w);
     flyGhost(ghost, host, from, to, opening ? OPEN_MS : CLOSE_MS,
              opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(),
              [guard, opening, after] {
@@ -80,8 +80,8 @@ namespace stencil::support {
         if (home.isValid()) to = home;
       }
       if (to == target) return;
-      if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg))) return;
-      QLabel* ghost = makeGhost(host, shot, target, to);
+      if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg), dlg)) return;
+      QLabel* ghost = makeGhost(host, shot, target, to, dlg);
       // Painted NOW: one deferred frame is the gap the dialog's disappearance shows through.
       ghost->repaint();
       flyGhost(ghost, host, target, to, CLOSE_MS, 1.0, 0.0, closeEase(), nullptr);
@@ -139,8 +139,8 @@ namespace stencil::support {
         if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
         const QRect from = originRect(anchorGuard.data(), target, anchorRect, host);
         if (from == target) { restore(); return; }
-        if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
-        QLabel* ghost = makeGhost(host, shot, from, target);
+        if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard), guard)) { fadeUpBehindDust(guard); return; }
+        QLabel* ghost = makeGhost(host, shot, from, target, guard);
         flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, openEase(), restore);
       });
     }

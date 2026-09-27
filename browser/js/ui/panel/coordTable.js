@@ -1,8 +1,14 @@
 import { cmToUnit, isTypingTarget } from '../../utils.js';
 import { icon } from '../icons.js';
 import { leaveThenRemove } from '../motion.js';
+import { pixelToPageCoords } from '../../core/parse/pageMetrics.js';
+import { setPointCoord, removePoint } from '../../core/line/editOps.js';
 // The points table DOM + per-row interactions.
 export class CoordTable {
+  #points = null;
+  #lineIdx = -1;
+  #wiredBody = null;
+
   constructor(app) {
     this.app = app;
   }
@@ -10,6 +16,9 @@ export class CoordTable {
   update(points = null, lineIdx = this.app.coordLineIdx) {
     this.app.coordLineIdx = lineIdx;
     this.app.hoveredPtIdx = -1;
+    this.#points = points;
+    this.#lineIdx = lineIdx;
+    this.#wire(this.app.coordinatesBody);
     this.app.coordinatesBody.innerHTML = '';
 
     if (!points || points.length === 0) {
@@ -19,7 +28,7 @@ export class CoordTable {
     }
 
     points.forEach((point, index) => {
-      const pageCoords = this.app.pixelToPageCoords(point.x, point.y);
+      const pageCoords = pixelToPageCoords(this.app, point.x, point.y);
       const row = document.createElement('tr');
       row.dataset.ptIdx = index;
       // Focusable so a bare Delete/Backspace is scoped to this table, as the desktop's points
@@ -35,93 +44,121 @@ export class CoordTable {
         <td>${cmToUnit(pageCoords.y, this.app.unit).toFixed(2)}</td>
         <td style="text-align:center;padding:2px;"><button class="del-pt-btn btn-icon" data-title="Remove point">${icon('trash', { size: 14 })}</button></td>
       `;
-
-      row.addEventListener('mouseenter', () => {
-        this.app.hoveredPtIdx = index;
-        this.applyRowHighlight();
-        this.app.renderer.redraw();
-      });
-      row.addEventListener('mouseleave', () => {
-        this.app.hoveredPtIdx = -1;
-        this.applyRowHighlight();
-        this.app.renderer.redraw();
-      });
-
-      row.addEventListener('click', e => {
-        if (e.target.closest('.del-pt-btn') || e.target.closest('.coord-px-input')) return;
-        this.app.focusedPtIdx = (this.app.focusedPtIdx === index) ? -1 : index;
-        this.applyRowHighlight();
-        this.app.renderer.redraw();
-      });
-
-      // Delete/Backspace on a focused row removes that point (desktop parity); bare, because
-      // focus scopes it. Skipped while a px cell is being edited.
-      row.addEventListener('keydown', e => {
-        if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-        if (isTypingTarget(e.target)) return;
-        if (this.app.compareReadOnly()) return;
-        e.preventDefault();
-        e.stopPropagation();
-        this.app.removePoint(lineIdx, index);
-        this.focusRowAfterRemoval(index);
-      });
-
-      const makeEditable = (cell, axis) => {
-        cell.addEventListener('dblclick', () => {
-          if (this.app.compareReadOnly()) return;
-          if (cell.querySelector('.coord-px-input')) return;
-          const curVal = Math.round(axis === 'x' ? point.x : point.y);
-          cell.innerHTML = '';
-          const inp = document.createElement('input');
-          inp.type = 'number';
-          inp.className = 'coord-px-input';
-          inp.value = curVal;
-          cell.appendChild(inp);
-          inp.focus();
-          inp.select();
-
-          const commit = () => {
-            const newVal = parseInt(inp.value, 10);
-            if (!isNaN(newVal)) {
-              this.app.setPointCoord(lineIdx, index, axis, newVal);
-            } else {
-              this.update(
-                lineIdx === -1 ? (this.app.currentLine ? this.app.currentLine.points : null) : (this.app.lines[lineIdx] ? this.app.lines[lineIdx].points : null),
-                lineIdx,
-              );
-            }
-          };
-          inp.addEventListener('blur', commit);
-          inp.addEventListener('keydown', ev => {
-            if (ev.key === 'Enter') inp.blur();
-            if (ev.key === 'Escape')
-              cell.textContent = curVal;
-            if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
-              ev.preventDefault();
-              const step = ev.shiftKey ? 10 : 1;
-              inp.value = parseInt(inp.value, 10) + (ev.key === 'ArrowUp' ? step : -step);
-              const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
-              if (line && !isNaN(parseInt(inp.value, 10))) {
-                line.points[index][axis] = parseInt(inp.value, 10);
-                this.app.renderer.redraw();
-              }
-            }
-          });
-        });
-      };
-      makeEditable(row.querySelector('.cell-px-x'), 'x');
-      makeEditable(row.querySelector('.cell-px-y'), 'y');
-
-      row.querySelector('.del-pt-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        if (this.app.compareReadOnly()) return;
-        // Collapse the row away first; removePoint() rebuilds the table without it.
-        leaveThenRemove(row, () => this.app.removePoint(lineIdx, index));
-      });
-
       this.app.coordinatesBody.appendChild(row);
     });
     this.#capPanel();
+  }
+
+  // A drag moves the points the table already lists: rewrite the cells, keep the rows.
+  refreshRows(points, lineIdx) {
+    const rows = this.app.coordinatesBody.querySelectorAll('tr[data-pt-idx]');
+    if (lineIdx !== this.#lineIdx || points !== this.#points || rows.length !== points.length) {
+      this.update(points, lineIdx);
+      return;
+    }
+    for (let i = 0; i < points.length; i++) this.refreshCoordRow(i);
+  }
+
+  // One listener per event type on the body, not per row; mouseover/out stand in for the
+  // rows' enter/leave, ignoring moves between cells of the same row.
+  #wire(body) {
+    if (!body?.addEventListener || this.#wiredBody === body) return;
+    this.#wiredBody = body;
+    const rowOf = (e) => e.target?.closest?.('tr[data-pt-idx]') || null;
+    const indexOf = (row) => parseInt(row.dataset.ptIdx, 10);
+    const hover = (idx) => {
+      this.app.hoveredPtIdx = idx;
+      this.applyRowHighlight();
+      this.app.renderer.redraw();
+    };
+    body.addEventListener('mouseover', e => {
+      const row = rowOf(e);
+      if (row && !row.contains(e.relatedTarget)) hover(indexOf(row));
+    });
+    body.addEventListener('mouseout', e => {
+      const row = rowOf(e);
+      if (row && !row.contains(e.relatedTarget)) hover(-1);
+    });
+    body.addEventListener('click', e => {
+      const row = rowOf(e);
+      if (!row) return;
+      const index = indexOf(row);
+      if (e.target.closest('.del-pt-btn')) {
+        e.stopPropagation();
+        if (this.app.compareReadOnly()) return;
+        // Collapse the row away first; removePoint() rebuilds the table without it.
+        const lineIdx = this.#lineIdx;
+        leaveThenRemove(row, () => removePoint(this.app, lineIdx, index));
+        return;
+      }
+      if (e.target.closest('.coord-px-input')) return;
+      this.app.focusedPtIdx = (this.app.focusedPtIdx === index) ? -1 : index;
+      this.applyRowHighlight();
+      this.app.renderer.redraw();
+    });
+    // Delete/Backspace on a focused row removes that point (desktop parity); bare, because
+    // focus scopes it. Skipped while a px cell is being edited.
+    body.addEventListener('keydown', e => {
+      const row = rowOf(e);
+      if (!row || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+      if (isTypingTarget(e.target)) return;
+      if (this.app.compareReadOnly()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const index = indexOf(row);
+      removePoint(this.app, this.#lineIdx, index);
+      this.focusRowAfterRemoval(index);
+    });
+    body.addEventListener('dblclick', e => {
+      const cell = e.target?.closest?.('.cell-px-x, .cell-px-y');
+      const row = cell && rowOf(e);
+      if (row) this.#editCell(cell, cell.classList.contains('cell-px-x') ? 'x' : 'y', indexOf(row));
+    });
+  }
+
+  #editCell(cell, axis, index) {
+    if (this.app.compareReadOnly()) return;
+    if (cell.querySelector('.coord-px-input')) return;
+    const lineIdx = this.#lineIdx;
+    const point = this.#points?.[index];
+    if (!point) return;
+    const curVal = Math.round(axis === 'x' ? point.x : point.y);
+    cell.innerHTML = '';
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.className = 'coord-px-input';
+    inp.value = curVal;
+    cell.appendChild(inp);
+    inp.focus();
+    inp.select();
+
+    const commit = () => {
+      const newVal = parseInt(inp.value, 10);
+      if (!isNaN(newVal)) {
+        setPointCoord(this.app, lineIdx, index, axis, newVal);
+      } else {
+        this.update(
+          lineIdx === -1 ? (this.app.currentLine ? this.app.currentLine.points : null) : (this.app.lines[lineIdx] ? this.app.lines[lineIdx].points : null),
+          lineIdx,
+        );
+      }
+    };
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') inp.blur();
+      if (ev.key === 'Escape')
+        cell.textContent = curVal;
+      if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        const step = ev.shiftKey ? 10 : 1;
+        inp.value = parseInt(inp.value, 10) + (ev.key === 'ArrowUp' ? step : -step);
+        const line = lineIdx === -1 ? this.app.currentLine : this.app.lines[lineIdx];
+        if (line && !isNaN(parseInt(inp.value, 10))) {
+          line.points[index][axis] = parseInt(inp.value, 10);
+          this.app.renderer.redraw();
+        }
+      }
+    });
   }
 
   // Re-cap the panel whenever the row count changes; guarded for contexts without the
@@ -154,7 +191,7 @@ export class CoordTable {
     const point = line.points[ptIdx];
     const row = this.app.coordinatesBody.querySelector(`tr[data-pt-idx="${ptIdx}"]`);
     if (!row) return;
-    const pageCoords = this.app.pixelToPageCoords(point.x, point.y);
+    const pageCoords = pixelToPageCoords(this.app, point.x, point.y);
     const cellX = row.querySelector('.cell-px-x');
     const cellY = row.querySelector('.cell-px-y');
     if (cellX && !cellX.querySelector('.coord-px-input')) cellX.textContent = Math.round(point.x);

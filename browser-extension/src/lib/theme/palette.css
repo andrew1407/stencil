@@ -2,11 +2,11 @@
    Single source of truth for the extension's own pages (popup, crop, options);
    every document links the whole theme/ set, in the order below, BEFORE the
    page's own stylesheet. Light is default; the dark palette hangs off
-   <html data-theme="dark">, which lib/accent.js stamps pre-paint from the saved
+   <html data-theme="dark">, which lib/accent/accent.js stamps pre-paint from the saved
    Appearance mode ('system' follows prefers-color-scheme live) — the same
    data-theme contract as the browser app (js/prePaintTheme.js); the desktop app
    follows QStyleHints::colorScheme. color-scheme also lets native bits (form
-   controls, scrollbars) match. The injected in-page modal (lib/overlay.js) can't
+   controls, scrollbars) match. The injected in-page modal (lib/drop/overlay.js) can't
    link these — it must be self-contained — so it carries the media query inline. */
 :root, :root[data-theme="light"] {
   color-scheme: light;
@@ -18,16 +18,16 @@
   --text: #1d2230;
   --muted: #6b7180;
   /* Brand accent — violet by default, swappable via a data-accent preset (see
-     below + lib/accent.js). --accent-2 is the hover/active shade derived from
+     below + lib/accent/accent.js). --accent-2 is the hover/active shade derived from
      --accent (darker here, lighter in dark) so any chosen accent stays harmonised. */
   --accent: #7c3aed;
   --accent-2: color-mix(in srgb, var(--accent) 86%, black);
-  /* Two of a cloud's tints (lib/dustCloud.js TINT_CSS) are theme-aware: a white speck is
+  /* Two of a cloud's tints (lib/dust/cloud.js TINT_CSS) are theme-aware: a white speck is
      invisible on a pale surface, and a deep accent one on a dark surface. */
   --dust-ink:        #1f1f1f;
   --dust-accent-alt: color-mix(in srgb, var(--accent) 55%, #000000);
   /* The ink an accent-BACKED control paints its label and its line-art in. A light
-     accent swallows white, so <html data-accent-light> — set in lib/accent.js from the
+     accent swallows white, so <html data-accent-light> — set in lib/accent/accent.js from the
      WCAG contrast — swaps this for the near-black below. Browser twin: --on-accent. */
   --on-accent: #ffffff;
   /* The ✓ inside an accent-filled checkbox: a data URL can't read a CSS var, so the
@@ -70,10 +70,10 @@
   --sb-thumb-hover: var(--accent);
   --sb-thumb-active: var(--accent-2);
 }
-/* ── Scrollbars, every scrollable on every page (browser css/layout.css parity, desktop
-   support/PillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
+/* ── Scrollbars, every scrollable on every page (browser css/layout/ parity, desktop
+   support/control/PillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
    accent ONLY while the pointer is on the bar's own strip — `.sb-hover`, set by
-   lib/scrollbarHover.js (one document listener per page) — not whenever the panel is
+   lib/control/scrollbarHover.js (one document listener per page) — not whenever the panel is
    hovered: scrollbar-color has no thumb-hover of its own, and a panel-wide :hover would
    paint the accent on every scroll. */
 * {
@@ -83,13 +83,13 @@
 .sb-hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
 /* Selected text wears the accent, inked with the contrast colour a light accent needs —
    browser twin css/layout/shell.css, desktop app.qss selection-color. Extension pages
-   only: the injected in-page modal (lib/overlay.js) must not restyle the host's selection. */
+   only: the injected in-page modal (lib/drop/overlay.js) must not restyle the host's selection. */
 ::selection {
   background: var(--accent);
   color: var(--on-accent);
 }
 /* Accent presets — set only --accent; --accent-2 and the glows derive from it.
-   Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
+   Keys mirror lib/accent/accent.js and apply as <html data-accent="…"> (lib/accent/accent.js
    sets it pre-paint). Violet is the :root default, so no attribute = violet. */
 :root[data-accent="violet"]    { --accent: #7c3aed; }
 :root[data-accent="burgundy"]  { --accent: #660033; }

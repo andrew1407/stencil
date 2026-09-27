@@ -1,14 +1,8 @@
 #include "fileStore.hpp"
-#include "fileStoreIo.hpp"
-#include "deferredWrite.hpp"
-#include <QDir>
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QLocale>
 #include <QRegularExpression>
-#include <QStandardPaths>
 
 namespace stencil::gui {
 

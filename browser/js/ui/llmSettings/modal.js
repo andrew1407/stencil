@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { modalBoxEase } from '../motion/easeBoxHeight.js';
 import { llmSettingsModalInner } from './markup.js';
+import { wireSessionKeyRows } from './keyRows.js';
 import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } from '../../llm/settings.js';
 import { listModels, probeProvider } from '../../llm/client.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
@@ -25,6 +26,13 @@ export class StencilLlmSettingsModal extends StencilElement {
     const statusRow = $('chat-server-status-row'), statusEl = $('chat-server-status');
     const statusDot = $('chat-settings-status-dot'), corsNote = $('chat-cors-note');
     const saveChatsEl = $('chat-save-chats');
+    const keyRows = wireSessionKeyRows(overlay, {
+      onInput: () => typeProbe(),
+      onChange: () => { renderStatus(); refreshModels(); },
+      onForget: () => { renderStatus(); refreshModels(); publish(EVENTS.llmSettingsChanged); },
+    });
+    // A probe or a model list is sent with the anthropic key being typed, else the one held.
+    const requestSettings = () => (settings.provider === 'anthropic' ? { ...settings, apiKey: keyRows.requestKey() } : settings);
 
 // The working copy: edits live here and reach storage only on Save; every close discards,
 // since onOpen reloads from storage (the desktop dialog's commit/discard model).
@@ -59,7 +67,7 @@ export class StencilLlmSettingsModal extends StencilElement {
         return;
       }
       setStatus('connecting', 'Checking the configured LLM…');
-      const probe = await probeProvider(settings, { getToken: (u) => serverBearerToken(app, u) });
+      const probe = await probeProvider(requestSettings(), { getToken: (u) => serverBearerToken(app, u) });
       if (req !== statusReq) return;   // settings changed while probing
       if (probe.ok) {
         let text = probe.detail ? `Connected — ${probe.detail}` : 'Connected';
@@ -81,8 +89,9 @@ export class StencilLlmSettingsModal extends StencilElement {
       baseUrlRow.style.display = isServer || isOff ? 'none' : '';
       $('chat-model-row').style.display = isOff ? 'none' : '';
       apiKeyRow.style.display = settings.provider === 'openai-compat' ? '' : 'none';
+      keyRows.show(settings.provider === 'anthropic');
       serverRow.style.display = isServer ? '' : 'none';
-      corsNote.style.display = isServer || isOff ? 'none' : '';
+      corsNote.style.display = isServer || isOff || settings.provider === 'anthropic' ? 'none' : '';
       if (isServer) {
         serverEl.innerHTML = '';
         const urls = serverUrls();
@@ -110,7 +119,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     let modelReq = 0;
     const refreshModels = async () => {
       const req = ++modelReq;
-      const names = await listModels(settings, { getToken: (u) => serverBearerToken(app, u) });
+      const names = await listModels(requestSettings(), { getToken: (u) => serverBearerToken(app, u) });
       if (req !== modelReq) return;   // settings changed while fetching
       modelList.textContent = '';
       for (const n of names) {
@@ -161,8 +170,10 @@ export class StencilLlmSettingsModal extends StencilElement {
       settings.model = modelEl.value.trim();
       settings.apiKey = apiKeyEl.value.trim();
       settings.saveChats = saveChatsEl.checked;
+      // A key the browser refused to hold keeps the dialog open on the reason.
+      const held = settings.provider !== 'anthropic' || keyRows.commit();
       persist();
-      shell.close();
+      if (held) shell.close();
     });
     $('chat-settings-cancel').addEventListener('click', () => shell.close());
   }

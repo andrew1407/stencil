@@ -1,0 +1,59 @@
+      /* ── Docks, lists, tables, tabs ── */
+      QDockWidget { color: %WC_INK%; }
+      QDockWidget::title { background: %WC_FACE%; border-bottom: 1px solid %WC_SHADOW%; }
+      /* Browser .coord-tabs: the hairline runs under the tabs alone, and the picked one covers it. */
+      QWidget#selPanelTitle, QFrame#selPanelCard { background: %WC_FACE%; border-bottom: 0; border-radius: 0; }
+      QTabBar#selectionTabBar { border-bottom: 1px solid %WC_SHADOW%; }
+      QTabBar#selectionTabBar::tab:!selected { border-bottom: 1px solid %WC_SHADOW%; padding-bottom: 3px; }
+      QWidget#selPanelBody { background: %WC_FACE%; }
+      QListWidget, QTableWidget, QTreeWidget {
+        background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; alternate-background-color: %WC_WINDOW%;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QListWidget::item, QTreeWidget::item { border-radius: 0; }
+      QListWidget::item:hover, QTreeWidget::item:hover { background: %WC_LIGHT%; }
+      QListWidget::item:selected:!hover, QTableWidget::item:selected:!hover,
+      QTreeWidget::item:selected:!hover { background: %WC_SHADOW%; color: %WC_ON_SELECT%; }
+      QListWidget::item:selected:hover, QTableWidget::item:selected:hover,
+      QTreeWidget::item:selected:hover { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QListWidget#projectsList { background: %WC_FACE%; }   /* white rows on the face (browser .projects-list) */
+      QListWidget#projectsList::item, QListWidget#projectsList::item:selected { background: %WC_WINDOW%; color: %WC_INK%; border-radius: 0; }
+      QListWidget#projectsList::item:hover, QListWidget#projectsList::item:selected:hover,
+      QListWidget#projectsList::item:selected:hover, QListWidget#connList::item:selected:hover { background: %WC_LIGHT%; }
+      QHeaderView::section, QTableWidget#pointsTable QHeaderView::section,
+      QTableWidget#linesList QHeaderView::section {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; font-weight: normal;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;   /* browser th: raised */
+      }
+      QTableWidget, QTableWidget#pointsTable, QTableWidget#linesList { gridline-color: %WC_LIGHT%; selection-color: %WC_INK%; }
+      /* Browser webcore/tables.css: a picked row is the navy bar, not the outline; its th is bold. */
+      QTableWidget#pointsTable::item:selected, QTableWidget#linesList::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; }
+      QTableWidget#pointsTable, QTableWidget#linesList { font-size: 12px; }
+      /* A sub-control takes no font-weight in QSS; the header widget carries it for its sections. */
+      QTableWidget#pointsTable QHeaderView, QTableWidget#linesList QHeaderView { font-size: 12px; font-weight: bold; }
+      QTableWidget#pointsTable QHeaderView::section, QTableWidget#linesList QHeaderView::section { font-size: 12px; font-weight: bold; padding: 0 5px; }
+      /* Qt's own item margins already give these the browser's 27px rows; its 6px would double them. */
+      QTableWidget#pointsTable::item, QTableWidget#linesList::item { padding: 0 5px; }
+      /* The row's bin is the browser's 20x18 .del-pt-btn, or its button padding sets the row height. */
+      QPushButton#pointDelBtn { padding: 0; min-height: 14px; max-height: 14px; min-width: 16px; max-width: 16px; icon-size: 14px; }
+      /* browser webcore .del-pt-btn:hover — the accent ring over the danger tint at 14%. */
+      QPushButton#pointDelBtn:hover { background: %WC_DANGER_SOFT%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QTabWidget::pane { border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QTabBar::tab {
+        background: %WC_FACE%; color: %WC_INK%; border-radius: 0; padding: 3px 12px 4px; margin: 0 2px 0 0;
+        border-top: 2px solid %WC_HILIGHT%; border-left: 2px solid %WC_HILIGHT%;
+        border-bottom: 0; border-right: 2px solid %WC_DARK%; font-size: 12px; font-weight: bold;
+      }
+      QTabBar::tab:hover { color: %WC_INK%; }
+      QTabBar#selectionTabBar { font-weight: bold; }
+      QTabBar#selectionTabBar::tab { font-size: 12px; height: 16px; }
+      /* The Windows style already sinks the unpicked tabs, so the picked one stands taller. */
+      QTabBar::tab:selected { color: %WC_INK%; background: %WC_LIGHT%; border-bottom: 0; }
+      /* Browser chrome.css .coord-tab:hover: the bevel stays, the ring sits inside it; the
+         padding gives back what the wider border takes, so the tab keeps its size. */
+      QTabBar::tab:hover {
+        border-width: 4px 4px 2px 4px; border-image: url(%WC_TAB_RING%) 4 4 2 4 stretch; padding: 1px 10px 2px;
+      }
+      QGroupBox { border: 1px solid %WC_SHADOW%; border-radius: 0; }
+      QGroupBox::title { color: %WC_INK%; }
+

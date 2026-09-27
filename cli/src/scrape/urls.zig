@@ -2,7 +2,6 @@
 //! filename it is downloaded as. A reference that does not resolve to http(s) is dropped.
 const std = @import("std");
 const net = @import("../net.zig");
-const image = @import("../media/image.zig");
 const mediaTypes = @import("../media/types.zig");
 const testing = std.testing;
 const text = @import("text.zig");

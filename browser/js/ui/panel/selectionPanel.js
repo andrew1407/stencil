@@ -5,8 +5,11 @@ import { pointColorOf } from '../../core/draw/renderer.js';
 import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from '../motion.js';
 import { syncFsTriggers } from '../fullscreen/panels.js';
+import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
+import { applySelectionChange } from '../../core/line/selection.js';
+import { renderLinesList } from './linesList.js';
 // ── Component: selected-line editor panel ───────────────────────
-// Markup only; its inputs are wired by DrawingApp via global ids.
+// Markup only; ui/bindings/selectionPanel.js wires its inputs by id.
 export class StencilSelectionPanel extends StencilElement {
   static inner() {
     return `
@@ -28,11 +31,11 @@ export class StencilSelectionPanel extends StencilElement {
                 <span class="sel-sep" aria-hidden="true"></span>
                 <div class="control-group">
                     <label>Thickness:</label>
-                    <input type="number" id="sel-thickness" min="1" max="20" style="width:70px">
+                    <input type="number" id="sel-thickness" ${THICKNESS_RANGE} style="width:70px">
                 </div>
                 <div class="control-group">
                     <label>Point Size:</label>
-                    <input type="number" id="sel-point-size" min="1" max="30" style="width:70px">
+                    <input type="number" id="sel-point-size" ${POINT_SIZE_RANGE} style="width:70px">
                 </div>
                 <div class="control-group">
                     <label>Style:</label>
@@ -62,8 +65,6 @@ export class StencilSelectionPanel extends StencilElement {
   static template() { return hostTag('stencil-selection-panel', 'id="selection-panel" style="display:none;"', StencilSelectionPanel.inner()); }
 }
 define('stencil-selection-panel', StencilSelectionPanel);
-
-// ── Panel ↔ app sync (extracted from drawingApp.js; DrawingApp keeps thin delegators) ──
 
 // Anchors to #image-info rather than the bar's own (dis)appearing rect. `closing`:
 // #image-info's rect is still pre-close, so predict it (bar's top + #image-info's height).
@@ -118,8 +119,8 @@ export function showSelectionPanel(app, line) {
   const wasHidden = panel.style.display !== 'block';
   panel.style.display = 'block';
   if (wasHidden && !surfaceIn(panel, barDustPoint(panel), { belowChat: true })) settleSurface(panel);
-  app.syncFsSelectionPanel(line);
-  app.renderLinesList();
+  syncFsSelectionPanel(app, line);
+  renderLinesList(app);
 }
 
 // Hide the selection panel and its fullscreen mirror.
@@ -136,16 +137,15 @@ export function hideSelectionPanels() {
   syncFsTriggers();
 }
 
-// Apply the locked-area fill from the selection panel controls.
-export function applyFill(app) {
+// Apply the locked-area fill from the selection panel controls; `commit:false` only previews.
+export function applyFill(app, { commit = true } = {}) {
   if (app.compareReadOnly()) return; // read-only compare view
   if (app.selectedLineIdx === -1) return;
   const line = app.lines[app.selectedLineIdx];
   if (!line) return;
   line.fillColor = fillFromPair('sel-fill', 'sel-fill-alpha');
-  app.saveHistory();
+  if (commit) app.saveHistory();
   app.renderer.redraw();
-  app.storage.save();
 }
 
 // Rebuild + wire the fullscreen mirror of the panel for `line` (hidden outside fullscreen).
@@ -171,9 +171,9 @@ export function syncFsSelectionPanel(app, line) {
             <div class="control-group"><label>Point Color:</label>
                 <input type="color" id="fs-sel-point-color" value="${pointColorOf(line)}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;"></div>
             <div class="control-group"><label>Thickness:</label>
-                <input type="number" id="fs-sel-thickness" value="${line.thickness}" min="1" max="20" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
+                <input type="number" id="fs-sel-thickness" value="${line.thickness}" ${THICKNESS_RANGE} style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
             <div class="control-group"><label>Point Size:</label>
-                <input type="number" id="fs-sel-point-size" value="${line.pointSize ?? app.pointSize}" min="1" max="30" style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
+                <input type="number" id="fs-sel-point-size" value="${line.pointSize ?? app.pointSize}" ${POINT_SIZE_RANGE} style="width:70px;background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;"></div>
             <div class="control-group"><label>Style:</label>
                 <select id="fs-sel-style" style="background:var(--input-bg);color:var(--input-text);border:1px solid var(--border-main);border-radius:4px;padding:6px 8px;font-size:14px;">
                     <option value="solid"${line.style==='solid'?' selected':''}>Solid</option>
@@ -185,38 +185,39 @@ export function syncFsSelectionPanel(app, line) {
                 <button id="fs-sel-fill-clear" type="button" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
             <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
         </div>`;
-  fsPanel.querySelector('#fs-sel-color').addEventListener('input', e => {
-    app.applySelectionChange('color', e.target.value);
-    document.getElementById('sel-color').value = e.target.value;
-  });
-  fsPanel.querySelector('#fs-sel-point-color').addEventListener('input', e => {
-    app.applySelectionChange('pointColor', e.target.value);
-    document.getElementById('sel-point-color').value = e.target.value;
-  });
+  const wireFsColor = (id, mainId, prop) => ['input', 'change'].forEach((type) =>
+    fsPanel.querySelector(id).addEventListener(type, (e) => {
+      applySelectionChange(app, prop, e.target.value, { commit: type === 'change' });
+      document.getElementById(mainId).value = e.target.value;
+    }));
+  wireFsColor('#fs-sel-color', 'sel-color', 'color');
+  wireFsColor('#fs-sel-point-color', 'sel-point-color', 'pointColor');
   fsPanel.querySelector('#fs-sel-thickness').addEventListener('change', e => {
-    app.applySelectionChange('thickness', parseInt(e.target.value, 10));
+    applySelectionChange(app, 'thickness', parseInt(e.target.value, 10));
     document.getElementById('sel-thickness').value = e.target.value;
   });
   fsPanel.querySelector('#fs-sel-point-size').addEventListener('change', e => {
-    app.applySelectionChange('point-size', parseInt(e.target.value, 10));
+    applySelectionChange(app, 'pointSize', parseInt(e.target.value, 10));
     document.getElementById('sel-point-size').value = e.target.value;
   });
   fsPanel.querySelector('#fs-sel-style').addEventListener('change', e => {
-    app.applySelectionChange('style', e.target.value);
+    applySelectionChange(app, 'style', e.target.value);
     document.getElementById('sel-style').value = e.target.value;
   });
   const fsFill = fsPanel.querySelector('#fs-sel-fill');
   if (fsFill) {
-    const applyFsFill = (color) => {
+    const applyFsFill = (color, commit = true) => {
       if (app.selectedLineIdx === -1) return;
       const ln = app.lines[app.selectedLineIdx];
       if (!ln) return;
       ln.fillColor = color;
       const mainFill = document.getElementById('sel-fill');
       if (mainFill && color !== NO_FILL) mainFill.value = cssColorParts(color).hex;
-      app.saveHistory(); app.renderer.redraw(); app.storage.save();
+      if (commit) app.saveHistory();
+      app.renderer.redraw();
     };
-    fsFill.addEventListener('input', () => applyFsFill(fsFill.value));
+    fsFill.addEventListener('input', () => applyFsFill(fsFill.value, false));
+    fsFill.addEventListener('change', () => applyFsFill(fsFill.value));
     const fsFillClear = fsPanel.querySelector('#fs-sel-fill-clear');
     if (fsFillClear) fsFillClear.addEventListener('click', () => {
       applyFsFill(NO_FILL);

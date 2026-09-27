@@ -14,6 +14,13 @@ import (
 // or close it.
 var dropWindow = 30 * time.Second
 
+// SetDropWindow applies d to every DropLog; call it once at boot, before a subscriber. d <= 0 keeps the gap.
+func SetDropWindow(d time.Duration) {
+	if d > 0 {
+		dropWindow = d
+	}
+}
+
 // DropLog counts dropped deliveries and warns at most once per dropWindow, with
 // the number lost since the previous line. The zero value is ready to use.
 type DropLog struct {

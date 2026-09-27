@@ -1,20 +1,13 @@
 #include "StayOpenMenu.hpp"
-#include "stayOpenMenuStops.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
-#include <QActionGroup>
 #include <QApplication>
-#include <QKeyEvent>
 #include <QActionEvent>
 #include <QMouseEvent>
-#include <QScreen>
-#include <QButtonGroup>
-#include <QRadioButton>
 #include <QTimer>
 #include <QShowEvent>
 #include <QPointer>
-#include <QWidgetAction>
 
 namespace stencil::gui {
 

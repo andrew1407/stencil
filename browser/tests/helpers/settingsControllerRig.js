@@ -15,12 +15,12 @@ export const makeApp = (over = {}) => {
     allowFormulas: false, formulaX: '', formulaY: '', filterDirty: false,
     coordLineIdx: -1, currentLine: null, lines: [],
     renderer: { redraw() { rec.redraw++; } },
-    storage: { save() { rec.save++; } },
+    storage: { save() { rec.save++; }, saveSoon() { rec.save++; } },
     coordTable: { update() { rec.coordUpdate++; } },
     remoteSync: { scheduleRemoteSync() { rec.remoteSync++; } },
     applyUnitToUI() {}, updateCoordStatus() {},
     formula: { validate: (v) => v !== 'bad', validateCtx: (v) => v !== 'bad' },
-    tooltipMgr: { refresh() {} },
+    tooltip: { refresh() {} },
     ...over,
   };
 };

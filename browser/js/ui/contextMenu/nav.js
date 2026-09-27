@@ -4,7 +4,7 @@ import { submenuPlacement, samePoint } from './model.js';
 
 const SUBMENU_HIDE_DELAY_MS = 180;
 
-// The context menu's flyout navigation; the keyboard (ui/keyboard.js) walks the same
+// The context menu's flyout navigation; the keyboard (ui/ctx/keyboard.js) walks the same
 // state through the accessors returned here.
 export function createCtxNav({ menu }) {
   let subHideTimer = null;

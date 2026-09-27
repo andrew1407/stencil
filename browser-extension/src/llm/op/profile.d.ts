@@ -1,4 +1,4 @@
-// Shapes for llm/profile.js — the extension's profile of the shared op registry
+// Shapes for llm/op/profile.js — the extension's profile of the shared op registry
 // (llm-contract.md §1, §8, §13): the table-driven schema, its limits, and the
 // primitives every per-op validator (validate.js) shares. Pure — no DOM, no chrome.
 import type { Schema, SchemaEntry } from './schema.js';

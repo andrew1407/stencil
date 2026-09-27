@@ -1,17 +1,11 @@
 #include "ProjectsDialog.hpp"
 
-#include "ProjectRowDelegate.hpp"
-#include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
-#include "guiHelpers.hpp"
 #include "iconSet.hpp"
-#include "../../../support/guiHelpers.hpp"
 
 #include <QPainter>
 #include <QPalette>
 #include <QPen>
 #include <QPolygonF>
-#include <QStyle>
 
 // The temporary row's icon and the placeholder every thumbless row gets.
 

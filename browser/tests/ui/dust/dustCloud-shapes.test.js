@@ -1,4 +1,4 @@
-// js/ui/cloud.js grain shapes and the wipe front: discs, ovals, waves, triangles and
+// js/ui/dust/cloud.js grain shapes and the wipe front: discs, ovals, waves, triangles and
 // streaks, the chunked fill and the parked-grain guard. Split from dustCloud.test.js.
 import test from 'node:test';
 import assert from 'node:assert';

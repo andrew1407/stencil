@@ -1,125 +1,128 @@
 using System.Text.Json;
+using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Llm;
-using Stencil.TelegramBot.Application.Llm.Schema;
 
 namespace Stencil.TelegramBot.Application.Llm.Plan;
 
 // A reply with no JSON object at all is a valid chat-only plan; an Error means nothing executes.
 public sealed record OpPlanParseResult(OpPlan? Plan, IReadOnlyList<string> Warnings, string? Error);
 
-// §1–3 exactly: fences stripped, the first balanced {…} taken (none ⇒ chat-only); an unknown op drops
-// with a warning, a known op with invalid params fails the WHOLE plan — except §1's variant leniency.
+// The typed mapper over core's verdict (`stencil --plan-check`, cli/CONTRACT.md §7): core extracts,
+// validates and normalizes under llm-contract.md §1–§3; this maps its result onto PlanActions and
+// shows every failure and warning in core's canonical `message`.
 public static partial class OpPlanParser
 {
-    private static readonly OpSchema _schema = OpSchema.Bot;
+    public const string STATUS_INVALID = "invalid";
+
+    private const string _variantDroppedCode = "W_VARIANT_DROPPED";
+    private const string _previewDroppedCode = "W_PREVIEW_DROPPED";
+    private const string _replyOmittedCode = "W_REPLY_OMITTED";
 
     // §11 interactive replies — the registry's numbers, the same in every client.
-    public static readonly int MaxAskOptions = _schema.Limit("ask.maxOptions");
-    public static readonly int MaxAskAnswer = _schema.Limit("ask.answer");
-    public static readonly string DefaultCustomLabel = _schema.DefaultCustomLabel;
-
-    private const int _maxEchoedChars = 40;
-
-    // Banned inside variants AND ask previews (§13: registry-derived).
-    private static readonly string[] _topLevelOnlyOps = OpRegistry.TopLevelOnlyNames;
-
-    // §10 settings ops: not image edits, banned inside variants and ask previews.
-    private static readonly string[] _settingsOps = OpRegistry.SettingsNames;
+    public static readonly int MaxAskOptions = OpRegistryAsset.AskMaxOptions;
+    public static readonly int MaxAskAnswer = OpRegistryAsset.AskMaxAnswer;
+    public static readonly string DefaultCustomLabel = OpRegistryAsset.DefaultCustomLabel;
 
     // Tests cross-check this against OpRegistry.Names and the dispatch.
-    public static readonly IReadOnlyList<string> KnownOps =
-        _schema.Entries.Select(static e => e.Name).ToArray();
+    public static readonly IReadOnlyList<string> KnownOps = [.. OpRegistryAsset.Ops.Select(static o => o.Name)];
 
     private sealed class PlanException : Exception
     {
         public PlanException(string message) : base(message) { }
     }
 
-    // §1's one leniency: the variant (or option preview) is dropped with a warning, never the whole
-    // plan.
-    private sealed class MisplacedOpException : Exception
+    public static async Task<OpPlanParseResult> ParseAsync(IStencilCli cli, string? raw, CancellationToken ct = default) =>
+        Map((await cli.PlanCheckAsync(raw ?? "", ct).ConfigureAwait(false)).Result);
+
+    // A `--script-plan` chunk carries no reply by design, so core's reply-omitted note is not news.
+    public static OpPlanParseResult MapScriptChunk(string result) => Map(result, replyExpected: false);
+
+    // A result that breaks cli/CONTRACT.md §7 is the CLI's fault, reported like any failed run.
+    public static OpPlanParseResult Map(string result, bool replyExpected = true)
     {
-        public MisplacedOpException(string message) : base(message) { }
+        try
+        {
+            return mapResult(result, replyExpected);
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        {
+            throw new StencilCliException("the stencil CLI returned a plan check this bot cannot read");
+        }
     }
 
-    public static OpPlanParseResult Parse(string? raw)
+    private static OpPlanParseResult mapResult(string result, bool replyExpected)
     {
-        string text = (raw ?? "").Trim();
-        if (!tryExtractJsonObject(stripFences(text), out JsonDocument? doc))
+        using JsonDocument doc = JsonDocument.Parse(result);
+        JsonElement r = doc.RootElement;
+        if (str(r, "status") == STATUS_INVALID)
         {
-            // No JSON object at all: the turn is chat-only — the raw text is the reply.
-            return new OpPlanParseResult(new OpPlan(text, [], []), [], null);
+            return new OpPlanParseResult(null, [], message(r.GetProperty("error")));
         }
-        using (doc)
+        try
         {
             List<string> warnings = new();
-            try
+            List<PlanAction> actions = mapActions(r.GetProperty("actions"), warnings);
+            List<JsonElement> coreWarnings = [.. r.GetProperty("warnings").EnumerateArray()];
+            SortedDictionary<int, string> ownDrops = new();
+            List<OpVariant> variants = mapVariants(r.GetProperty("variants"), coreWarnings, ownDrops, warnings);
+            Dictionary<int, string> droppedPreviews = new();
+            string? replyOmitted = null;
+            foreach (JsonElement w in coreWarnings)
             {
-                OpPlan plan = parsePlan(doc!.RootElement, warnings);
-                return new OpPlanParseResult(plan, warnings, null);
+                switch (str(w, "code"))
+                {
+                    case _variantDroppedCode:
+                        flushDrops(ownDrops, integer(w, "index") ?? 0, warnings);
+                        warnings.Add(message(w));
+                        break;
+                    case _previewDroppedCode: droppedPreviews[integer(w, "index") ?? 0] = message(w); break;
+                    case _replyOmittedCode: replyOmitted = message(w); break;
+                    default: warnings.Add(message(w)); break;
+                }
             }
-            catch (Exception ex) when (ex is PlanException or OpSchemaException)
+            flushDrops(ownDrops, int.MaxValue, warnings);
+            AskCard? ask = mapAsk(r, droppedPreviews, warnings);
+            if (replyOmitted is not null && replyExpected)
             {
-                return new OpPlanParseResult(null, warnings, ex.Message);
+                warnings.Add(replyOmitted);
             }
+            return new OpPlanParseResult(new OpPlan(str(r, "reply") ?? "", actions, variants, ask), warnings, null);
+        }
+        catch (PlanException ex)
+        {
+            return new OpPlanParseResult(null, [], ex.Message);
         }
     }
 
-    private static OpPlan parsePlan(JsonElement root, List<string> warnings)
+    // Null when the CLI judges with the registry the bot was built with.
+    public static async Task<string?> RegistrySkewAsync(IStencilCli cli, CancellationToken ct = default)
     {
-        if (root.ValueKind != JsonValueKind.Object)
+        PlanCheck check = await cli.PlanCheckAsync("", ct).ConfigureAwait(false);
+        return OpRegistryAsset.Matches(check) ? null : OpRegistryAsset.Describe(check);
+    }
+
+    private static List<PlanAction> mapActions(JsonElement list, List<string> warnings)
+    {
+        List<PlanAction> actions = new();
+        foreach (JsonElement a in list.EnumerateArray())
         {
-            throw new PlanException("the plan is not a JSON object");
-        }
-        // A version other than 1 is accepted but ignored (§1). A missing reply is substituted rather than
-        // losing the plan over a missing pleasantry.
-        bool replyOmitted = !root.TryGetProperty("reply", out JsonElement replyElement)
-            || replyElement.ValueKind != JsonValueKind.String
-            || replyElement.GetString() is not string replyText
-            || replyText.Trim().Length == 0;
-        string reply = replyOmitted ? string.Empty : replyElement.GetString()!;
-        IReadOnlyList<PlanAction> actions = parseActionList(root, "actions", warnings);
-        List<OpVariant> variants = new();
-        if (root.TryGetProperty("variants", out JsonElement variantsElement)
-            && variantsElement.ValueKind != JsonValueKind.Null)
-        {
-            _schema.CheckEnvelope(variantsElement, "variants");
-            int number = 0;
-            foreach (JsonElement variantElement in variantsElement.EnumerateArray())
+            string op = str(a, "op") ?? "";
+            if (!_mappers.TryGetValue(op, out Func<JsonElement, PlanAction>? map))
             {
-                number++;
-                string label = optionalString(variantElement, _schema.VariantKeys, "label") ?? "";
-                // §1's one leniency: a misplaced op costs THIS variant its place, warnings
-                // included.
-                List<string> variantWarnings = new();
-                try
-                {
-                    IReadOnlyList<PlanAction> variantActions =
-                        parseActionList(variantElement, "actions", variantWarnings, inVariant: true);
-                    warnings.AddRange(variantWarnings);
-                    variants.Add(new OpVariant(label, variantActions));
-                }
-                catch (MisplacedOpException ex)
-                {
-                    warnings.Add($"Dropped variant {number}{named(label)} — {ex.Message} and can't ride inside a variant.");
-                }
+                // A CLI built from a newer registry: §1's forward-compatible skip, in core's words.
+                warnings.Add($"Skipped unknown operation \"{op}\"");
+                continue;
+            }
+            try
+            {
+                actions.Add(map(a));
+            }
+            catch (PlanException ex)
+            {
+                throw new PlanException($"Invalid {op} action: {ex.Message}");
             }
         }
-        AskCard? ask = parseAsk(root, warnings);
-        // "Done." only when the plan carries work — on an empty plan it reads as a success that
-        // never occurred.
-        if (replyOmitted)
-        {
-            if (actions.Count > 0 || variants.Count > 0 || ask is not null)
-            {
-                reply = "Done.";
-                warnings.Add("The model omitted its reply — the plan still ran");
-            }
-            else
-            {
-                reply = "The model returned an empty plan — nothing was changed.";
-            }
-        }
-        return new OpPlan(reply, actions, variants, ask);
+        return actions;
     }
 }

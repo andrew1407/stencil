@@ -15,7 +15,7 @@ fn a_save_writes_a_stencil_project_and_image_restarts_the_working_image() {
             {"op":"crop","spec":{"x1":"10%"}},
             {"op":"save","name":"Portrait 1"},
             {"op":"image","index":1},
-            {"op":"rotate","dir":"right"}
+            {"op":"rotate","dir":"right","times":1}
         ]}"##,
     );
     let mut notes = Vec::new();
@@ -46,7 +46,7 @@ fn a_save_writes_a_stencil_project_and_image_restarts_the_working_image() {
 
 #[test]
 fn an_unnamed_save_derives_its_name_from_the_input_file() {
-    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"},{"op":"save"}]}"##);
+    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right","times":1},{"op":"save"}]}"##);
     let requests = to_edit_requests(
         &plan,
         Some("/photos/Cat Portrait.JPG"),
@@ -59,7 +59,7 @@ fn an_unnamed_save_derives_its_name_from_the_input_file() {
     // Two saves under one derived name stay distinct rather than overwriting each other.
     let plan = plan_of(
         r##"{"reply":"x","actions":[
-            {"op":"save"},{"op":"rotate","dir":"right"},{"op":"save"}]}"##,
+            {"op":"save"},{"op":"rotate","dir":"right","times":1},{"op":"save"}]}"##,
     );
     let requests =
         to_edit_requests(
@@ -80,7 +80,7 @@ fn an_unnamed_save_derives_its_name_from_the_input_file() {
 fn a_save_path_is_honored_inside_output_dir_as_a_folder_or_a_stencil_file() {
     // A relative folder: the derived stem lands inside it.
     let plan = plan_of(
-        r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"},
+        r##"{"reply":"x","actions":[{"op":"rotate","dir":"right","times":1},
             {"op":"save","name":"Portrait","path":"keepers/best"}]}"##,
     );
     let mut notes = Vec::new();
@@ -96,7 +96,7 @@ fn a_save_path_is_honored_inside_output_dir_as_a_folder_or_a_stencil_file() {
 
     // A relative `.stencil` file name is the destination itself.
     let plan = plan_of(
-        r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"},
+        r##"{"reply":"x","actions":[{"op":"rotate","dir":"right","times":1},
             {"op":"save","path":"keepers/My Cat.stencil"}]}"##,
     );
     let requests = to_edit_requests(&plan, Some("a.png"), "out", &mut Vec::new()).unwrap();
@@ -113,7 +113,7 @@ fn a_save_path_is_honored_inside_output_dir_as_a_folder_or_a_stencil_file() {
 fn a_save_path_that_would_escape_output_dir_saves_to_the_usual_place_with_a_note() {
     for escape in ["/tmp/out", "../up", "a/../../up", "~/Downloads"] {
         let text = format!(
-            r##"{{"reply":"x","actions":[{{"op":"rotate","dir":"right"}},
+            r##"{{"reply":"x","actions":[{{"op":"rotate","dir":"right","times":1}},
                 {{"op":"save","name":"p","path":"{escape}"}}]}}"##
         );
         let plan = plan_of(&text);

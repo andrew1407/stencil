@@ -1,55 +1,51 @@
-// Popups over the chat panel (js/ui/view.js): a menu is announced on both edges and the
+// Popups over the chat panel (js/ui/chat/view.js): a menu is announced on both edges and the
 // jump pills stand down, the composer menu outranks them, and every popup declares its level.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { COMPONENTS_CSS } from '../../../helpers/css.js';
-import { chatViewSource } from '../../../helpers/chatViewSource.js';
-import { contextMenuSource } from '../../../helpers/contextMenuSource.js';
-import { stubDom } from '../../../helpers/chatRowMenuRig.js';
+import { wireBothSurfaces, rowEl, rightClick, openRowMenu, clickRowItem } from '../../../helpers/chatSurfacesRig.js';
+import { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } from '../../../../js/ui/chat/row/chatRowMenu.js';
+import { assistantItemHtml } from '../../../../js/ui/ctx/assistantItem.js';
+import { subscribe } from '../../../../js/eventBus/appBus.js';
+
+// Both surfaces wired, one settled row in the log, and the panel transcript scrolled mid-way.
+const scrolledSurfaces = async () => {
+  const s = await wireBothSurfaces();
+  const row = s.session.appendChatRow({ role: 'assistant', text: 'hello' });
+  Object.assign(s.panel.transcript, { scrollTop: 50, scrollHeight: 500, clientHeight: 200 });
+  s.panel.transcript.fire('scroll');
+  const jumps = s.doc.getElementById('chat-jumps');
+  const pills = () => ['can-up', 'can-down'].filter((c) => jumps.classList.contains(c));
+  const heard = [];
+  subscribe(CHAT_POPUP_EVENT, () => heard.push([chatPopupOpen(), chatRowMenuOpen()]));
+  return { ...s, row, pills, heard };
+};
 
 test('a chat popup is announced on BOTH edges, and the pills stand down while it is open', async () => {
-  stubDom();
-  const { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } = await import('../../../../js/ui/chat/row/chatRowMenu.js?menu-events');
   assert.strictEqual(CHAT_POPUP_EVENT, 'stencil:chat-popup');
+  const s = await scrolledSurfaces();
   assert.strictEqual(chatPopupOpen(), false, 'nothing open to begin with');
-  assert.strictEqual(chatRowMenuOpen(), false);
-  const view = chatViewSource();
-  // Announced when it opens…
-  const open = view.slice(view.indexOf('const openChatRowMenu ='));
-  assert.ok(/rowMenuEl = menu;\s*\n\s*rowMenuClose = close;\s*\n\s*announcePopup\(\);/.test(open),
-    'the open path announces after the menu is live');
-  // …and when it closes, AFTER rowMenuEl is cleared so a listener reads "closed".
-  const close = view.slice(view.indexOf('  const close = () => {', view.indexOf('const openChatRowMenu =')));
-  const clearAt = close.indexOf('rowMenuEl = null;');
-  const announceAt = close.indexOf('announcePopup();');
-  assert.ok(clearAt > -1 && announceAt > clearAt, 'closed state is visible before the event fires');
-  // The panel reacts to both edges: an open popup stands the PILLS down (they are
-  // never hidden by the row-overlap reason any more — that yields the TRIGGER instead).
-  const panel = readFileSync(new URL('../../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  assert.ok(panel.includes('const standDown = chatPopupOpen();'));
-  assert.ok(panel.includes('subscribe(CHAT_POPUP_EVENT, syncJumps);'));
-  // …and standDown gates BOTH classes, so neither arrow can survive an open menu.
-  assert.ok(/const up = [^\n]*!standDown;/.test(panel) && /const down = [^\n]*!standDown;/.test(panel));
-  // Nothing latches: the only inputs are the live menu/pill state and the hovered
-  // trigger, so a close restores whatever the scroll position deserves.
-  const sync = panel.slice(panel.indexOf('const syncRowMenuLift = () => {'), panel.indexOf('transcript.addEventListener(\'mouseover\''));
-  assert.ok(!/menuWasOpen|pillsHidden|wasStandDown/.test(sync),
-    'no remembered hidden state to get stuck in — it is recomputed every time');
+  assert.deepStrictEqual(s.pills(), ['can-up', 'can-down']);
+  rightClick(s.panel.transcript, rowEl(s.panel.transcript, s.row.id));
+  // Announced once the menu is live, and on close only after it reads closed.
+  assert.deepStrictEqual(s.heard, [[true, true]], 'the open path announces after the menu is live');
+  assert.deepStrictEqual(s.pills(), [], 'an open popup stands BOTH pills down');
+  clickRowItem(openRowMenu(), 'Insert into prompt');
+  assert.deepStrictEqual(s.heard, [[true, true], [false, false]], 'closed state is visible before the event fires');
+  assert.deepStrictEqual(s.pills(), ['can-up', 'can-down'], 'nothing latches: the scroll position decides again');
 });
 
-test('the flyout shares the one menu, so its menu moves the panel pills too', () => {
-  const menu = contextMenuSource();
-  const view = chatViewSource();
-  // One module-level menu for both surfaces (the flyout's keep-open predicate reads it),
-  // and the announcement is inside that shared open/close — not in a per-surface wrapper.
-  assert.ok(view.includes('let rowMenuEl = null;'), 'one menu app-wide');
-  assert.ok(menu.includes('chatRowMenuOpen()'), 'the flyout consults the same state');
-  // Two edges for the row menu, and the composer menu funnels both of its own through
-  // one setOpen — so every popup edge in the module announces.
-  assert.strictEqual((view.match(/announcePopup\(\)/g) || []).length, 3);
-  // The pills only exist in the panel, so the panel is the only listener needed.
-  assert.ok(!/chat-jumps/.test(menu), 'the flyout has no pills of its own');
+test('the flyout shares the one menu, so its menu moves the panel pills too', async () => {
+  const s = await scrolledSurfaces();
+  rightClick(s.flyout.transcript, rowEl(s.flyout.transcript, s.row.id));
+  assert.deepStrictEqual(s.pills(), [], 'a menu opened in the flyout stands the panel pills down');
+  assert.strictEqual(s.flyout.el._keepOpen(), true, 'the flyout consults the same state');
+  rightClick(s.panel.transcript, rowEl(s.panel.transcript, s.row.id));
+  const menus = s.doc.body.children.filter((c) => c.classList.contains('chat-row-menu'));
+  assert.strictEqual(menus.length, 1, 'one menu app-wide: the panel\'s replaces the flyout\'s');
+  clickRowItem(menus[0], 'Insert into prompt');
+  assert.strictEqual(chatRowMenuOpen(), false);
+  assert.ok(!assistantItemHtml().includes('chat-jumps'), 'the flyout has no pills of its own');
 });
 
 // The composer's "…" menu is IN-PANEL — absolute inside the composer, popping upward into the pills'
@@ -70,25 +66,26 @@ test('the composer overflow menu outranks the jump pills in the panel\'s own sta
 });
 
 test('the composer menu joins the popup accounting on both edges', async () => {
-  const view = chatViewSource();
-  // ONE toggle path, so "is it open" can never disagree with what is on screen.
-  const wire = view.slice(view.indexOf('export const wireChatMoreMenu'), view.indexOf('export const chatComposerActionsHtml') + 1 || undefined);
-  const body = view.slice(view.indexOf('export const wireChatMoreMenu'));
-  assert.ok(body.includes('const setOpen = (on) => {'), 'both edges funnel through setOpen');
-  assert.ok(body.includes('if (on) openComposerMenus.add(menu); else openComposerMenus.delete(menu);'));
-  assert.ok(body.includes('const close = () => setOpen(false);'));
-  assert.ok(body.includes('setOpen(menu.hidden);'), 'the toggle goes through it too');
-  // Every close path — item click, outside pointerdown, Escape — is that same close.
-  assert.ok(body.includes("for (const item of menu.querySelectorAll('.chat-more-item')) item.addEventListener('click', close);"));
-  assert.ok(/pointerdown[\s\S]{0,120}close\(\)/.test(body));
-  assert.ok(/Escape[\s\S]{0,60}close\(\)/.test(body));
-  // …and the pills read one predicate covering row menu AND composer menus.
-  assert.match(view, /export const chatPopupOpen = \(\) => !!rowMenuEl \|\| openComposerMenus\.size > 0;/);
-  // Both surfaces wire a composer menu, so both feed the same accounting.
-  const panel = readFileSync(new URL('../../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  const flyout = contextMenuSource();
-  assert.match(panel, /wireChatMoreMenu\('chat'/);
-  assert.match(flyout, /wireChatMoreMenu\('ctx-assist'/);
+  const s = await scrolledSurfaces();
+  for (const prefix of ['chat', 'ctx-assist']) {
+    const btn = s.doc.getElementById(`${prefix}-more-btn`);
+    const menu = s.doc.getElementById(`${prefix}-more-menu`);
+    const item = menu.querySelector('.chat-more-item');
+    // Every close path — item click, outside pointerdown, Escape — rides the same toggle.
+    for (const close of [() => item.fire('click'), () => s.doc.fire('pointerdown', { target: s.doc.body }),
+      () => s.doc.fire('keydown', { key: 'Escape' })]) {
+      s.heard.length = 0;
+      btn.fire('click');
+      assert.deepStrictEqual([menu.hidden, s.heard, s.pills()], [false, [[true, false]], []], `${prefix}: open is announced`);
+      close();
+      assert.deepStrictEqual([menu.hidden, s.heard.at(-1), s.pills()], [true, [false, false], ['can-up', 'can-down']],
+        `${prefix}: so is every close`);
+    }
+    btn.fire('click');
+    btn.fire('click');
+    assert.strictEqual(menu.hidden, true, `${prefix}: the button toggles through the same path`);
+    assert.strictEqual(chatPopupOpen(), false);
+  }
 });
 
 // The audit of every popup that can cover the chat panel: a new popup has to be added here with a

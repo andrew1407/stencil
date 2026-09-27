@@ -92,6 +92,21 @@ public sealed class MockStencilCli : IStencilCli
         return ScriptFailure is null ? CannedScriptPlan : throw ScriptFailure;
     }
 
+    /// <summary>How many times <see cref="PlanCheckAsync"/> ran (each is a whole CLI process).</summary>
+    public int PlanCheckCalls => _planCheckCalls;
+
+    private int _planCheckCalls;
+
+    /// <summary>When set, <see cref="PlanCheckAsync"/> throws it instead of judging the reply.</summary>
+    public Exception? PlanCheckFailure { get; set; }
+
+    /// <summary>Core's recorded verdict on the reply — see <see cref="PlanCheckRecordings"/>.</summary>
+    public Task<PlanCheck> PlanCheckAsync(string reply, CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _planCheckCalls);
+        return PlanCheckFailure is null ? PlanCheckRecordings.CheckAsync(reply, ct) : throw PlanCheckFailure;
+    }
+
     public async Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default)
     {
         LastScrapeRequest = request;

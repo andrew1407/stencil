@@ -2,13 +2,13 @@
   "$meta": {
     "description": "Normative machine-readable registry of the Stencil LLM op-plan surface (llm-contract.md §1-§13). Every surface's validator is TABLE-DRIVEN from this file: profile membership, key schemas (types, enums, ranges, caps, token grammars) and the cross-field rules (forms/together/minFields/onlyWith/requiredWith) are read from here; surfaces keep only their normalizers, executors and the few native rules named in \"rules\". Recorded divergences are surface-specific by design (surfaceKeys, surfaces, forbidden.perSurface) — see opRegistry.README.md for the schema.",
     "sources": {
-      "browser": "browser/js/llm/plan/plan.js (OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS)",
-      "desktop": "desktop/src/llm/plan/opRegistry.cpp (opRegistry, forbiddenOps)",
-      "cli": "cli/src/llm.zig (op_registry, forbidden_ops)",
-      "pystencil": "pystencil/pystencil/llm.py (OP_REGISTRY, FORBIDDEN_OPS)",
-      "bot": "bot/src/Stencil.TelegramBot.Application/Llm/OpRegistry.cs (Ops, ForbiddenOps)",
-      "mcp": "mcp/src/registry.rs (OP_REGISTRY, FORBIDDEN_OPS)",
-      "extension": "browser-extension/src/llm/op/plan.js (OP_REGISTRY, FORBIDDEN_OPS)",
+      "browser": "browser/js/llm/plan/opSchema.js (the JS twin of core/opplan)",
+      "desktop": "desktop/src/llm/plan/opRegistry.cpp (entries; validation in core/opplan)",
+      "cli": "cli/src/llm/registry.zig (entries; validation in core/opplan)",
+      "pystencil": "pystencil/pystencil/llm/plan/registry.py (entries; validation in core/opplan)",
+      "bot": "bot/src/Stencil.TelegramBot.Application/Llm/Plan/OpRegistryAsset.cs (entries; validation via the CLI --plan-check)",
+      "mcp": "mcp/src/registry/entries.rs (entries; validation via the CLI --plan-check)",
+      "extension": "browser-extension/src/llm/op/validate.js (EXT_VALIDATORS over the copied JS schema)",
       "corpus": "browser/js/config/llm/fixtures/opPlan/ (profiles + knownDivergence = the measured truth)"
     },
     "surfaceProfiles": {
@@ -47,6 +47,12 @@
       "filterFormats": 40,
       "filterSize": 100000,
       "note": "extension-profile extras from browser-extension/src/llm/op/plan.js LIMITS; the extension has no frameIndices limit (it registers no frame op at top level)"
+    },
+    "json": {
+      "MAX_DEPTH": 64,
+      "MAX_BYTES": 2097152,
+      "MAX_NODES": 262144,
+      "note": "§1 caps on the plan's JSON object, checked once it parses: its UTF-8 bytes, its nesting depth (the root object is 1) and its value count (every value, keys excluded), in that order. Exceeding one makes the plan INVALID (E_JSON_LIMIT); a text that is not JSON at all stays a chat-only turn."
     }
   },
   "regexes": {
@@ -245,7 +251,7 @@
       "chat",
       "shareTabs"
     ],
-    "note": "The canonical §13 categories as the browser names them; every surface implements the same categories with its own name list below. Enforcement differs: cli and mcp HARD-FAIL a plan naming a forbidden op, every other surface skips the unknown name at parse and rejects it at the executor (fixtures 207-217 knownDivergence). Notable membership drift: \"endpoint\" is list-forbidden only on cli (fixture 214); \"chat\"/\"shareTabs\" hard-fail only on mcp (215, 216); mcp also forbids clearChat/chatPersist (it registers no chat surface); bot forbids delete/removeProject/clearProjects/expire — names other profiles register as ops.",
+    "note": "The canonical §13 categories as the browser names them; every surface implements the same categories with its own name list below. Enforcement differs: the surfaces in \"hardFail\" (cli, mcp) fail a plan naming a forbidden op, every other surface skips the unknown name at parse and rejects it at the executor (fixtures 207-217 knownDivergence). Notable membership drift: \"endpoint\" is list-forbidden only on cli (fixture 214); \"chat\"/\"shareTabs\" hard-fail only on mcp (215, 216); mcp also forbids clearChat/chatPersist (it registers no chat surface); bot forbids delete/removeProject/clearProjects/expire — names other profiles register as ops.",
     "perSurface": {
       "browser": [
         "llm",
@@ -388,7 +394,66 @@
         "shareTabs",
         "download"
       ]
-    }
+    },
+    "hardFail": [
+      "cli",
+      "mcp"
+    ]
+  },
+  "surfaceRules": {
+    "note": "A surface's extra checks on the NORMALIZED action, after its key checks; a failure fails the plan as \"Invalid <op> action: <message>\" (\"{value}\" = the checked key's value). The rules are native and the data is here: anyOf (at least one of `keys` inside the object at `key`), knownColor (a colour NAME the core's CSS table knows; #rrggbb already passed the grammar), pathExtension (a local path whose extension, ASCII-case-folded, is one of `extensions`).",
+    "desktop": [
+      {
+        "op": "blank",
+        "rule": "knownColor",
+        "key": "color",
+        "message": "\"color\" must be #rrggbb or a CSS colour name"
+      },
+      {
+        "op": "blankColor",
+        "rule": "knownColor",
+        "key": "color",
+        "message": "\"color\" must be #rrggbb or a CSS colour name"
+      }
+    ],
+    "cli": [
+      {
+        "op": "crop",
+        "rule": "anyOf",
+        "key": "spec",
+        "keys": [
+          "x1",
+          "x2",
+          "y1",
+          "y2",
+          "aspect"
+        ],
+        "message": "spec needs at least one of x1/x2/y1/y2/aspect"
+      },
+      {
+        "op": "openFile",
+        "rule": "pathExtension",
+        "key": "path",
+        "extensions": [
+          "png",
+          "jpg",
+          "jpeg",
+          "bmp",
+          "tga",
+          "gif",
+          "webp",
+          "mp4",
+          "mov",
+          "m4v",
+          "avi",
+          "mkv",
+          "webm",
+          "json",
+          "stencil"
+        ],
+        "message": "\"{value}\" is not an image, video, .json layout or .stencil project"
+      }
+    ]
   },
   "ask": {
     "limitsRef": "limits.ask",
@@ -778,6 +843,10 @@
               },
               "fillColor": {
                 "type": "string"
+              },
+              "pointColor": {
+                "type": "string",
+                "note": "the point markers' colour; \"\" = follow the stroke colour (as lineStyle.pointColor)"
               }
             }
           },

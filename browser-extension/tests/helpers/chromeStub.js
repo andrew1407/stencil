@@ -1,8 +1,9 @@
 // A configurable `globalThis.chrome` stub for `node --test` — one place for the mock
 // six suites used to hand-roll. It covers exactly the surface those suites exercise:
-// storage.local get/set over an in-memory store, storage.sync's callback-or-promise
-// get, storage.onChanged, and runtime.sendMessage/onMessage. Nothing speculative —
-// tabs/action/contextMenus/scripting stay out until a suite actually drives them.
+// storage.local get/set over an in-memory store, storage.session get/set/remove and its
+// access level, storage.sync's callback-or-promise get, storage.onChanged, and
+// runtime.sendMessage/onMessage. Nothing speculative — tabs/action/contextMenus/scripting
+// stay out until a suite actually drives them.
 
 // Answer a chrome.storage get for a string key, an array of keys, or null (everything),
 // returning only the keys actually present — the shape the hand-rolled mocks pinned.
@@ -21,20 +22,24 @@ const pick = (store, key) => {
  * @param {Record<string,any>} [opts.local]  - Pre-seeded chrome.storage.local contents.
  * @param {Record<string,any>} [opts.sync]   - Pre-seeded chrome.storage.sync contents
  *   (sync.get merges these over the caller's defaults, as real chrome does).
- * @param {boolean} [opts.storageThrows]     - Every storage.local access throws, the way
- *   a torn-down extension context behaves.
+ * @param {boolean} [opts.storageThrows]     - Every storage.local and storage.session access
+ *   throws, the way a torn-down extension context behaves.
+ * @param {Record<string,any>} [opts.session] - Pre-seeded chrome.storage.session contents.
  * @param {(msg: any) => any} [opts.respond] - What runtime.sendMessage returns, verbatim
  *   (a Promise models an answering receiver; undefined models no receiver at all).
  *   Default: Promise<undefined>, the MV3 no-listener resolution.
  */
 export const installChromeStub = ({
   local = {},
+  session = {},
   sync = {},
   storageThrows = false,
   respond,
 } = {}) => {
   const prev = { had: 'chrome' in globalThis, value: globalThis.chrome };
   let localStore = { ...local };
+  let sessionStore = { ...session };
+  const sessionAccess = [];      // every storage.session.setAccessLevel argument
   let syncStore = { ...sync };
   const sets = [];               // every storage.local.set payload, in call order
   const sent = [];               // every runtime.sendMessage payload, in call order
@@ -56,6 +61,21 @@ export const installChromeStub = ({
           await Promise.resolve();
           Object.assign(localStore, obj);
         },
+      },
+      session: {
+        get: async (key) => {
+          if (storageThrows) throw new Error('no storage');
+          return pick(sessionStore, key);
+        },
+        set: async (obj) => {
+          if (storageThrows) throw new Error('no storage');
+          Object.assign(sessionStore, obj);
+        },
+        remove: async (key) => {
+          if (storageThrows) throw new Error('no storage');
+          for (const k of Array.isArray(key) ? key : [key]) delete sessionStore[k];
+        },
+        setAccessLevel: async (opts) => { sessionAccess.push(opts); },
       },
       sync: {
         // Real chrome answers get(defaults) as a promise AND get(defaults, cb) via the
@@ -85,11 +105,15 @@ export const installChromeStub = ({
     sets,
     runtimeListeners,
     changedListeners,
+    sessionAccess,
     /** Raw storage.local contents. */
     peek: () => localStore,
+    /** Raw storage.session contents. */
+    peekSession: () => sessionStore,
     /** Per-test reset: empty the store, drop the recordings, keep the stub installed. */
     reset: () => {
       localStore = {};
+      sessionStore = {};
       syncStore = { ...sync };
       sets.length = 0;
       sent.length = 0;

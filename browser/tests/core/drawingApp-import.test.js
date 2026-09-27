@@ -1,5 +1,6 @@
-// DrawingApp.importExternalImage and createBlankImage (js/core/drawingApp.js): a new project vs
-// an in-place replace, and the filter reset a blank's colour needs. Split from drawingApp-launch.
+// DrawingApp.importExternalImage (core/launch/controller.js) and createBlankImage
+// (core/image/blankImage.js): a new project vs an in-place replace, down to the real load and
+// settle, and the filter reset a blank's colour needs. Split from drawingApp-launch.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from '../helpers/dom.js';
@@ -12,46 +13,80 @@ installDom({}, {
 installFetchStub(() => Promise.resolve({ ok: true, blob: async () => ({ type: 'image/png' }) }));
 
 const { DrawingApp } = await import('../../js/core/drawingApp.js');
+const { createBlankImage } = await import('../../js/core/image/blankImage.js');
+
+// The decode boundary: the load reads its file and the picture decodes at once, so the real
+// loadImageFromFile and settleLoadedImage run against the mock; each read lands in its log.
+let log = [];
+globalThis.FileReader = class {
+  readAsDataURL(file) {
+    log.push('read');
+    queueMicrotask(() => this.onload?.({ target: { result: 'data:image/png;base64,AAAA' } }));
+  }
+};
+globalThis.Image = class {
+  width = 40; height = 30;
+  set src(v) { this.url = v; queueMicrotask(() => this.onload?.()); }
+  get src() { return this.url; }
+};
+const settled = () => new Promise((r) => setTimeout(r, 0));
+const reads = () => log.filter((e) => e === 'read').length;
 
 const resetGlobals = () => {
+  log = [];
   globalThis.location = { hash: '', pathname: '/app', search: '' };
   globalThis.history = { replaceState: () => {} };
 };
 
 // The stub's storage seam behaves like the real collaborators: save() flushes the active project
-// into the store, newTemporary() resets to a blank editor and clears incognito.
+// into the store (never in incognito), newTemporary() resets to a blank editor and clears
+// incognito, and promoting a temporary editor makes a NEW project. Every step lands in `log`.
 const makeEditorMock = (over = {}) => {
   const mock = {
     stored: new Map(),
-    loaded: [],
-    replaced: [],
     incognitoUiCalls: 0,
     activeProjectId: 'p1',
     lines: [{ points: [{ x: 1, y: 2 }] }],
+    canvas: { width: 40, height: 30 },
     storage: {
       incognito: false,
       temporary: false,
       store: {},
-      save: () => { if (mock.activeProjectId != null) mock.stored.set(mock.activeProjectId, mock.lines); },
+      save: () => {
+        log.push('save');
+        if (!mock.storage.incognito && mock.activeProjectId != null) mock.stored.set(mock.activeProjectId, mock.lines);
+      },
       newTemporary: () => {
+        log.push('reset');
         mock.activeProjectId = null;
         mock.lines = [];
         mock.storage.temporary = true;
         mock.storage.incognito = false;
       },
+      promoteTemporaryToProject: () => { log.push('promote'); mock.activeProjectId = 'p2'; mock.storage.temporary = false; },
     },
-    newEditor: () => mock.storage.newTemporary(),
+    imageModel: {
+      roundRect: (r) => ({ ...r }),
+      defaultCropRect: () => ({ x: 5, y: 0, width: 30, height: 30 }),
+      rebuildCroppedImage() {},
+    },
+    history: { reset() {} },
+    zoomPan: { fitToWindow() {}, syncViewportHeight() {} },
+    coordTable: { update() {} },
+    renderer: { redraw() {}, layers: () => [] },
+    tabs: { reportActive() {}, reportIncognito() {} },
     updateIncognitoUI: () => { mock.incognitoUiCalls++; },
-    loadImageFromFile: (...args) => mock.loaded.push(args),
-    replaceProjectImage: (...args) => mock.replaced.push(args),
+    updateInfo() {}, updateButtons() {}, updateCoordStatus() {}, updateProjectTitle() {},
     ...over,
   };
   return mock;
 };
 
 // The bridge hands importExternalImage a normalizeLaunchPayload result, not a raw payload.
-const importInto = (mock, launch, mode) =>
-  DrawingApp.prototype.importExternalImage.call(mock, launch, { mode });
+const importInto = async (mock, launch, mode) => {
+  await DrawingApp.prototype.importExternalImage.call(mock, launch, { mode });
+  await settled();
+};
 
 test('an import into an occupied editor starts a NEW project — the one on screen is flushed, not overwritten', async () => {
   resetGlobals();
@@ -63,10 +98,10 @@ test('an import into an occupied editor starts a NEW project — the one on scre
   assert.deepEqual(mock.stored.get('p1'), previousLines);
   // …and the image lands in a blank editor, so the loader promotes it into its OWN project
   // rather than swapping the raster of 'p1' (which would drop those lines).
-  assert.equal(mock.activeProjectId, null);
-  assert.equal(mock.storage.temporary, true);
-  assert.equal(mock.loaded.length, 1);
-  assert.equal(mock.replaced.length, 0);
+  assert.deepEqual(log.slice(0, 4), ['save', 'reset', 'promote', 'read'], 'flushed, reset, then a new project loads');
+  assert.equal(mock.activeProjectId, 'p2');
+  assert.equal(reads(), 1);
+  assert.deepEqual(mock.stored.get('p1'), previousLines, 'p1 keeps its lines after the load settles');
 });
 
 test('an incognito session survives the reset (newTemporary clears the flag) and is never saved', async () => {
@@ -78,24 +113,24 @@ test('an incognito session survives the reset (newTemporary clears the flag) and
   assert.equal(mock.storage.incognito, true, 'still incognito after the fresh editor');
   assert.equal(mock.incognitoUiCalls, 1);
   assert.equal(mock.stored.size, 0, 'an incognito session is never flushed to the store');
-  assert.equal(mock.loaded.length, 1);
+  assert.equal(log.includes('promote'), false, 'and never promoted to a project');
+  assert.equal(reads(), 1);
 });
 
 test('a replace swaps the ACTIVE project in place — no flush, no reset, crop forwarded', async () => {
   resetGlobals();
   const crop = { x: 4, y: 8, width: 60, height: 90 };
   const mock = makeEditorMock();
+  const kept = mock.lines;
   // A `page` in the hand-off would reach the private #setExternalPage, which throws on this stub
   // `this`, so the call completing at all is the pin that a replace leaves the format alone.
   await importInto(mock, { kind: 'dataUrl', dataUrl: 'data:image/png;base64,AAAA', name: 'r.png', page: { size: 'A4' }, crop }, 'replace-keep');
 
   assert.equal(mock.activeProjectId, 'p1');         // same project, same identity
-  assert.equal(mock.stored.size, 0);                // nothing flushed, nothing reset
-  assert.equal(mock.loaded.length, 0);
-  assert.equal(mock.replaced.length, 1);
-  const [, opts] = mock.replaced[0];
-  assert.equal(opts.keepAnnotations, true);
-  assert.deepEqual(opts.crop, crop);                // the rect describes the NEW raster
+  // Nothing flushed, nothing reset, nothing promoted: the only save is the settled replace's own.
+  assert.deepEqual(log, ['read', 'save']);
+  assert.equal(mock.lines, kept, 'replace-keep keeps the annotations');
+  assert.deepEqual(mock.cropRect, crop);            // the rect describes the NEW raster
 });
 
 test('a "replace" drops the annotations, still in place', async () => {
@@ -103,8 +138,8 @@ test('a "replace" drops the annotations, still in place', async () => {
   const mock = makeEditorMock();
   await importInto(mock, { kind: 'dataUrl', dataUrl: 'data:image/png;base64,AAAA', name: 'r.png' }, 'replace');
 
-  assert.equal(mock.replaced.length, 1);
-  assert.equal(mock.replaced[0][1].keepAnnotations, false);
+  assert.deepEqual(log, ['read', 'save'], 'loaded in place, no flush or reset');
+  assert.deepEqual(mock.lines, [], 'the annotations are dropped');
   assert.equal(mock.activeProjectId, 'p1');
 });
 
@@ -120,8 +155,7 @@ test('createBlankImage resets a riding image filter to none first', () => {
     pageSize: 'A4',
     customPageWidth: 21, customPageHeight: 29.7,
   };
-  assert.throws(() => DrawingApp.prototype.createBlankImage.call(
-    mock, { color: '#ff0000', width: 40, height: 30 }), TypeError);
+  assert.throws(() => createBlankImage(mock, { color: '#ff0000', width: 40, height: 30 }), TypeError);
   assert.deepEqual(filterSets, ['none'], 'filter reset to none before the fill');
 });
 
@@ -135,7 +169,6 @@ test('createBlankImage leaves an already-clean filter alone', () => {
     pageSize: 'A4',
     customPageWidth: 21, customPageHeight: 29.7,
   };
-  assert.throws(() => DrawingApp.prototype.createBlankImage.call(
-    mock, { color: '#00ff00', width: 40, height: 30 }), TypeError);
+  assert.throws(() => createBlankImage(mock, { color: '#00ff00', width: 40, height: 30 }), TypeError);
   assert.deepEqual(filterSets, [], 'no redundant setImageFilter call');
 });

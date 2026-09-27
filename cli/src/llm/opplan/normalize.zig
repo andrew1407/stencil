@@ -1,25 +1,15 @@
-//! The validated + normalized JSON map → a typed `Action`. The generic check already
-//! proved every field's type, so these only READ; strings are arena-owned slices of the reply.
+//! Core's normalized action → a typed `Action`. core/opplan already proved every field (and ran the
+//! console's surface rules), so these only READ; strings are arena-owned slices of core's result.
 const std = @import("std");
-const registry = @import("../registry.zig");
 const opSchema = @import("../opSchema.zig");
-const Diag = opSchema.Diag;
-const Entry = opSchema.Entry;
 const ObjectMap = opSchema.ObjectMap;
 const Value = opSchema.Value;
 const model = @import("model.zig");
-const validate = @import("validate.zig");
 const Action = model.Action;
 const CropEdges = model.CropEdges;
 const Dir = model.Dir;
 const FilterMode = model.FilterMode;
-const ValidateError = validate.ValidateError;
 const findOp = model.findOp;
-const guards = @import("guards.zig");
-const understoodPath = guards.understoodPath;
-
-// Typed normalization, the validated map → `Action`: the generic check already proved every field's
-// type, so these only READ. Strings are arena-owned slices of the parsed reply.
 
 pub fn strOpt(n: ObjectMap, key: []const u8) ?[]const u8 {
     const v = n.get(key) orelse return null;
@@ -50,17 +40,14 @@ pub fn indexOf(v: Value) u32 {
     return std.math.lossyCast(u32, numOf(v) orelse 0);
 }
 
-pub fn fill(a: std.mem.Allocator, entry: *const Entry, n: ObjectMap, diag: *Diag) ValidateError!Action {
-    const d = findOp(entry.name) orelse std.debug.panic("registry.zig has no descriptor for \"{s}\"", .{entry.name});
+pub fn fill(a: std.mem.Allocator, name: []const u8, n: ObjectMap) error{OutOfMemory}!Action {
+    const d = findOp(name) orelse std.debug.panic("registry.zig has no descriptor for \"{s}\"", .{name});
     switch (d.tag) {
         .crop => {
             const spec = n.get("spec").?.object;
             var edges = CropEdges{};
             inline for (.{ "x1", "x2", "y1", "y2", "aspect" }) |key| @field(edges, key) = strOpt(spec, key);
             edges.album = boolOpt(spec, "album") orelse false;
-            // cli extra: `album` is a modifier, not an edge — alone it crops nothing.
-            if (edges.x1 == null and edges.x2 == null and edges.y1 == null and edges.y2 == null and edges.aspect == null)
-                return diag.fail("spec needs at least one of x1/x2/y1/y2/aspect", .{});
             return .{ .crop = edges };
         },
         .rotate => return .{ .rotate = .{
@@ -123,17 +110,9 @@ pub fn fill(a: std.mem.Allocator, entry: *const Entry, n: ObjectMap, diag: *Diag
         // The executor applies the SAME guards the /delete command uses (.stencil only,
         // no URLs, no escaping the working directory).
         .delete => return .{ .delete = .{ .path = std.mem.trim(u8, strOpt(n, "path").?, " \t") } },
-        .open_file => {
-            // cli extras: a LOCAL path (never a URL — openUrl owns those), bounded, in a format this app opens,
-            // so the model cannot hand us an arbitrary file. Whether the USER wrote it is checked at execution.
-            const path = std.mem.trim(u8, strOpt(n, "path").?, " \t");
-            const max_path: usize = @intFromFloat(opSchema.get().limitNamed("MAX_PATH_CHARS"));
-            if (path.len == 0 or path.len > max_path or opSchema.matches(.URL_SCHEME, path))
-                return diag.fail("\"path\" must be a local value, not a URL", .{});
-            if (!understoodPath(path))
-                return diag.fail("\"{s}\" is not an image, video, .json layout or .stencil project", .{path});
-            return .{ .open_file = .{ .path = path } };
-        },
+        // A LOCAL path in a format this app opens (core's pathExtension rule); whether the USER
+        // wrote it is checked at execution.
+        .open_file => return .{ .open_file = .{ .path = std.mem.trim(u8, strOpt(n, "path").?, " \t") } },
         .open_url => return .{ .open_url = .{ .url = strOpt(n, "url").?, .incognito = boolOpt(n, "incognito") orelse false } },
         .copy => return .copy,
         .clear => return .clear,

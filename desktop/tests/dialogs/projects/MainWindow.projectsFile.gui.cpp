@@ -1,4 +1,5 @@
-// MainWindow GUI e2e — The .stencil file: opening it, autosaving edits into it, and deleting the linked one.
+// MainWindow GUI e2e — The .stencil file: opening it, autosaving edits into it, adopting a change made
+// outside the app, and deleting the linked one.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
@@ -51,7 +52,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Live sync: a project linked to a .stencil with live-sync ON auto-saves edits back to the file,
-  // debounced — openProjectFile linking → the toggle → an edit → scheduleStencilAutosave → flush.
+  // debounced — openProjectFile linking → the toggle → an edit → StencilFileSync's auto-save → flush.
   void liveSyncAutosavesEditsToFile() {
     QByteArray png;
     { QFile f(guiTestImage()); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
@@ -77,7 +78,7 @@ class MainWindowGuiTest : public QObject {
     QAction* live = actionByText(&win, "Live Sync with File");
     QVERIFY(live);
     QVERIFY(live->isEnabled());     // enabled because the project is file-linked
-    live->setChecked(true);         // toggled → toggleStencilLiveSync(true)
+    live->setChecked(true);         // toggled → StencilFileSync::setLiveSync(true)
 
     QAction* rotate = actionByText(&win, "Rotate Right");
     QVERIFY(rotate);
@@ -98,6 +99,43 @@ class MainWindowGuiTest : public QObject {
       return rot;
     };
     QTRY_COMPARE_WITH_TIMEOUT(fileRotation(), 1, 4000);   // the edit auto-saved into the linked file
+    beat();
+  }
+
+  // A change written outside the app while there are no local edits is taken as it is: the watcher
+  // sees it and the canvas reloads from the file.
+  void liveSyncAdoptsAnExternalChange() {
+    QByteArray png;
+    { QFile f(guiTestImage()); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = "Shared";
+    pf.imageExt = "png";
+    pf.imageBytes = png;
+    pf.imageWidth = 240;
+    pf.imageHeight = 160;
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 0, {});
+    const QString path = QDir::temp().filePath("stencil_external.stencil");
+    const QByteArray first = stencil::gui::fileStore::buildProjectFile(pf);
+    { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(first); }
+
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    win.openPathFromOS(path);
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QVERIFY(canvas);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QAction* live = actionByText(&win, "Live Sync with File");
+    QVERIFY(live && live->isEnabled());
+    live->setChecked(true);
+    // Turning it on saves the app's own bytes once; after that the file and the editor agree.
+    const auto fileBytes = [&] { QFile rf(path); return rf.open(QIODevice::ReadOnly) ? rf.readAll() : QByteArray(); };
+    QTRY_VERIFY_WITH_TIMEOUT(fileBytes() != first, 4000);
+    beat();
+
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(240, 160, {}, "none", "#7c3aed", {}, 2, {});   // rotation 2
+    { QFile wf(path); QVERIFY(wf.open(QIODevice::WriteOnly | QIODevice::Truncate)); wf.write(stencil::gui::fileStore::buildProjectFile(pf)); }
+    QTRY_COMPARE_WITH_TIMEOUT(canvas->getRotationQuarters(), 2, 5000);   // reloaded from the file
     beat();
   }
 

@@ -1,6 +1,6 @@
 // A subset of the canonical browser/js/config/icons.json plus extension-only glyphs;
 // tests/dataParity.test.js pins every shared entry byte-for-byte. Injected surfaces
-// (lib/overlay.js) inline their own SVG to stay import-free.
+// (lib/drop/overlay.js) inline their own SVG to stay import-free.
 export const ICONS = Object.freeze({
   'chevron-down':  '<polyline points="6 9 12 15 18 9"/>',
   'chevron-up':    '<polyline points="18 15 12 9 6 15"/>',

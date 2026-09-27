@@ -3,6 +3,8 @@ import { icon } from '../icons.js';
 import { setChecked, swapCheckGlyph } from '../control/swap.js';
 import { wireAltPreview } from '../export/preview.js';
 import { EXPORT_VARIANTS } from '../export/variants.js';
+import { loadImageFromFile } from '../../core/image/loadFlow.js';
+import { startDrawingMode, setDrawMode, stopDrawingMode } from '../../core/draw/mode.js';
 
 // The context menu's image, layout, clipboard and draw rows.
 export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
@@ -57,7 +59,7 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
           }
           const blob = await item.getType(imgType);
           const file = new File([blob], 'pasted-image.png', { type: imgType });
-          app.loadImageFromFile(file);
+          loadImageFromFile(app, file);
           notify('Image pasted from clipboard', 'ok');
           return;
         }
@@ -91,38 +93,38 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
 
   document.getElementById('ctx-draw-toggle').addEventListener('click', () => {
     closeMenu();
-    if (app.isDrawing) app.stopDrawingMode();
-    else if (app.image) app.startDrawingMode();
+    if (app.isDrawing) stopDrawingMode(app);
+    else if (app.image) startDrawingMode(app);
   });
 
   // Switch to that mode and start drawing; a selected line is continued (one-shot).
   document.getElementById('ctx-draw-line').addEventListener('click', () => {
     closeMenu();
     if (!app.image) { notify('Load an image first', 'fail'); return; }
-    app.setDrawMode('line');
-    app.startDrawingMode();
+    setDrawMode(app, 'line');
+    startDrawingMode(app);
     notify('Drag to draw a line', 'info');
   });
 
   document.getElementById('ctx-draw-rect').addEventListener('click', () => {
     closeMenu();
     if (!app.image) { notify('Load an image first', 'fail'); return; }
-    app.setDrawMode('rect');
-    app.startDrawingMode();
+    setDrawMode(app, 'rect');
+    startDrawingMode(app);
     notify('Drag to draw a rectangle', 'info');
   });
 
   document.getElementById('ctx-show-points').addEventListener('click', () => {
     app.showPoints = !app.showPoints;
     setChecked(document.getElementById('show-points'), app.showPoints);
-    app.renderer.redraw(); app.storage.save();
+    app.renderer.redraw(); app.storage.saveSoon();
     swapCheckGlyph(document.getElementById('ctx-chk-points'), app.showPoints ? icon('check', { size: 14 }) : '');
   });
 
   document.getElementById('ctx-show-lines').addEventListener('click', () => {
     app.showLines = !app.showLines;
     setChecked(document.getElementById('show-lines'), app.showLines);
-    app.renderer.redraw(); app.storage.save();
+    app.renderer.redraw(); app.storage.saveSoon();
     swapCheckGlyph(document.getElementById('ctx-chk-lines'), app.showLines ? icon('check', { size: 14 }) : '');
   });
 

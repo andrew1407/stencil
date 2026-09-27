@@ -1,13 +1,9 @@
 //! The console settings-op profile (the CLI's §10 analog): ops that drive the console's
 //! OWN controls, the way the GUI editors' §10 block drives theirs. Every one maps 1:1 onto
 //! an existing console command, and their bullets form the spliced settings block.
-const std = @import("std");
-const opplan = @import("../opplan.zig");
 const descriptor = @import("descriptor.zig");
 
-const Action = opplan.Action;
 const OpDescriptor = descriptor.OpDescriptor;
-const OpCapability = descriptor.OpCapability;
 
 pub const ops = [_]OpDescriptor{
     .{

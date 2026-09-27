@@ -111,6 +111,22 @@ namespace serverauth {
           "…with no re-auth needed");
   }
 
+  std::printf("server targets (blockedRanges serverTarget, private allowed):\n");
+  {
+    ConnectionManager mgr;
+    QString err;
+    check(!stencil::test::connectNow(mgr, QStringLiteral("http://169.254.169.254"), QString(), err) &&
+              err == QStringLiteral("refusing a link-local, metadata or reserved server address") && mgr.urls().isEmpty(),
+          "a cloud-metadata address is refused before any request");
+    check(ServerClient::isRefusedTarget(QStringLiteral("http://[fe80::1]:8090")) &&
+              ServerClient::isRefusedTarget(QStringLiteral("https://0.0.0.0")) &&
+              ServerClient::isRefusedTarget(QStringLiteral("http://[::ffff:169.254.169.254]")),
+          "…as are link-local, unspecified and a mapped metadata address");
+    check(!ServerClient::isRefusedTarget(mock.url()) && !ServerClient::isRefusedTarget(QStringLiteral("http://192.168.1.5:8090")) &&
+              !ServerClient::isRefusedTarget(QStringLiteral("https://stencil.example")),
+          "…while loopback, a LAN server and a name stay reachable");
+  }
+
   }
 
 }  // namespace serverauth

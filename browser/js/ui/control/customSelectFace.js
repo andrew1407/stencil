@@ -1,5 +1,5 @@
 // The chrome an enhanced <select> wears: the wrap, the trigger face, the popup <ul> and the
-// widest-option width floor. ui/customSelect.js drives them; the native element stays the truth.
+// widest-option width floor. ui/control/customSelect.js drives them; the native element stays the truth.
 import { icon } from '../icons.js';
 import { escapeHtml } from '../base.js';
 import { pinWidestFace } from '../motion.js';
@@ -44,13 +44,24 @@ export function buildSelectFace(selectEl) {
   const curIcon = trigger.querySelector('.cs-cur-icon');
 
   let fittedCount = -1;
+  let unlaid = null;
   const fitToWidestOption = () => {
     if (fittedCount === selectEl.options.length || !selectEl.options.length) return;
     const faces = [...selectEl.options].map((o) => escapeHtml(o.textContent));
     // Only a measurement that MEANT something counts as done: a select enhanced inside a
     // window that is still display:none measures zero, and must fit again once it is up.
-    if (pinWidestFace(cur, faces, { force: true, prop: 'minWidth', max: MAX_FIT_PX }) > 0)
+    if (pinWidestFace(cur, faces, { force: true, prop: 'minWidth', max: MAX_FIT_PX }) > 0) {
       fittedCount = selectEl.options.length;
+      unlaid?.disconnect();
+      unlaid = null;
+      return;
+    }
+    // …on its first layout, before that frame paints: waiting for a sync, the box opened at its
+    // value's width and jumped wide on the first open of its list (user report).
+    if (!unlaid && typeof ResizeObserver === 'function') {
+      unlaid = new ResizeObserver(fitToWidestOption);
+      unlaid.observe(wrap);
+    }
   };
 
   return { wrap, trigger, menu, cur, curIcon, syncDisabled, fitToWidestOption };

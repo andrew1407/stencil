@@ -1,4 +1,4 @@
-// js/core/projectsStore.js naming and colour: shouldPersist, the copy-suffix rules, rename,
+// js/core/project/store/projectsStore.js naming and colour: shouldPersist, the copy-suffix rules, rename,
 // the project/blank colours and findByImage. Split from projectsStore.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';

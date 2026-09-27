@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 
 // Entering and leaving drawing mode, plus clear/undo/redo.
 
@@ -118,40 +117,41 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::commitHistory() {
-    history.push(lines);
+    pushStep();
     emit changed();
+  }
+
+  void CanvasWidget::takeHistoryStep(const std::optional<core::EditorMemento>& step) {
+    if (!step) return;
+    const QString wasMode = imageFilter, wasTint = filterColor.name();
+    const bool refit = restoreMemento(*step);
+    clearHoverCache();   // the snapshot may not contain the hovered indices
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    if (refit) {
+      continueLineIdx = continueInsertIdx = -1;
+      setFixedSize(QSize(qRound(image.width() * scale), qRound(image.height() * scale)));
+    }
+    update();
+    // Copies: the window's applier rewrites the scene's filter while it runs.
+    const QString nowMode = imageFilter;
+    const QColor nowTint = filterColor;
+    if (nowMode != wasMode || nowTint.name() != wasTint) emit filterRestored(nowMode, nowTint);
+    emit changed();
+    emit selectionChanged();
+    if (refit) emit fitRequested();
   }
 
   void CanvasWidget::undo() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (auto snap = history.undo()) {
-      lines = *snap;
-      clearHoverCache();   // the snapshot may not contain the hovered indices
-      currentLine = core::Line{};
-      applyDefaultsToCurrent();
-      selectedPoint = -1;
-      selectedLineIdx = -1;
-      update();
-      emit changed();
-      emit selectionChanged();
-    }
+    takeHistoryStep(history.undo());
   }
 
   void CanvasWidget::redo() {
     if (compareReadOnly()) return;   // read-only compare view
     resetStrokeFx();
-    if (auto snap = history.redo()) {
-      lines = *snap;
-      clearHoverCache();   // see undo()
-      currentLine = core::Line{};
-      applyDefaultsToCurrent();
-      selectedPoint = -1;
-      selectedLineIdx = -1;
-      update();
-      emit changed();
-      emit selectionChanged();
-    }
+    takeHistoryStep(history.redo());
   }
 
 }  // namespace stencil::gui

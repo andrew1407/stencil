@@ -1,4 +1,4 @@
-// js/ui/cloud.js particle styles: dust, water and fire, and the accent/tint palette every
+// js/ui/dust/cloud.js particle styles: dust, water and fire, and the accent/tint palette every
 // styled cloud is drawn from. Split from dustCloud.test.js.
 import test from 'node:test';
 import assert from 'node:assert';

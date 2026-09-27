@@ -10,7 +10,6 @@ class QWidget;
 
 namespace stencil::support {
 
-  inline constexpr int LINGER_CLOSE_MS = 250;   // browser popover.js LINGER_CLOSE_MS
   // Set on a widget whose own Alt+Enter opens a peek (a popover icon), so a glide can reach it.
   inline constexpr const char* ALT_PEEK_TARGET_PROPERTY = "altPeekTarget";
 

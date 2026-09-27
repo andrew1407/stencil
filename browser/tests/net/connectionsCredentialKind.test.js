@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { ConnectionManager } from '../../js/net/connectionManager.js';
 import { makeMockServer, StubWS, deadSessionServer } from '../helpers/connectionsRig.js';
+import { saveServers, loadSavedServers } from '../../js/net/connectionStore.js';
+import { installDom } from '../helpers/dom.js';
 
 // A saved ADMIN token cannot list projects, so probing it as a session token is a guaranteed 401
 // before the mint rescues it: remembering what the credential IS removes the request.
@@ -87,4 +89,21 @@ test('a server being reconnected stays in the list for the whole handshake', asy
   // …and once it lands the real connection is what get() answers with, exactly once.
   assert.equal(mgr.knownUrls.length, 1);
   assert.equal(mgr.get('http://a:1').status, 'connected');
+});
+
+// The saved shape keeps the flag, or the next boot would forget and retry.
+test('the saved server set keeps the expired flag and an admin credential kind, and nothing else', (t) => {
+  const store = {};
+  const doc = installDom({}, { localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } } });
+  t.after(doc.restore);
+  saveServers([
+    { url: 'http://a:1', token: 'old', expired: true, status: 'expired' },
+    { url: 'http://b:2', token: 'mint', kind: 'admin' },
+    { url: 'http://c:3', token: 's', kind: 'session', expired: false },
+  ]);
+  assert.deepStrictEqual(loadSavedServers(), [
+    { url: 'http://a:1', token: 'old', expired: true },
+    { url: 'http://b:2', token: 'mint', kind: 'admin' },
+    { url: 'http://c:3', token: 's' },
+  ], 'the credential kind rides along too; a live row carries neither');
 });

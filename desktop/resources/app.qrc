@@ -11,6 +11,7 @@
     <file alias="icons.json">../../browser/js/config/icons.json</file>
     <file alias="iconMotion.json">../../browser/js/config/iconMotion.json</file>
     <file alias="logoStage.json">../../browser/js/config/logoStage.json</file>
+    <file alias="motion.json">../../browser/js/config/motion.json</file>
     <file alias="webcore.json">../../browser/js/config/webcore.json</file>
     <file alias="iconsWebcore.json">../../browser/js/config/iconsWebcore.json</file>
     <file alias="svgArt.json">../../browser/js/config/svgArt.json</file>
@@ -20,6 +21,7 @@
     <file alias="llm/opRegistry.json">../../browser/js/config/llm/opRegistry.json</file>
     <file alias="themeTokens.json">../../browser/js/config/themeTokens.json</file>
     <file alias="mediaTypes.json">../../browser/js/config/mediaTypes.json</file>
+    <file alias="net/blockedRanges.json">../../browser/js/config/net/blockedRanges.json</file>
     <!-- The "Open in…" config TEMPLATE. An operator's own copy of it is per-machine and
          gitignored, so it cannot ride here (rcc needs every listed file at build time);
          the committed example carries the shape and the shipped defaults the surfaces
@@ -27,13 +29,32 @@
     <file alias="openInConfig.example.json">../../browser/js/config/openInConfig.example.json</file>
   </qresource>
   <qresource prefix="/qss">
-    <!-- The app stylesheet, %TOKEN% placeholders and all (theme.cpp buildStylesheet
-         fills them in). Whitespace is load-bearing only in that the pinned hashes in
-         tests/pins/stylesheets.txt cover the whole string: the leading newline and the
-         trailing indent are the raw literal this was lifted out of, byte for byte. -->
-    <file alias="app.qss">app.qss</file>
-    <!-- The webcore skin's overlay, appended after app.qss while the word is on (support/webcore). -->
-    <file alias="webcore.qss">webcore.qss</file>
+    <!-- The app stylesheet, one piece per feature, %TOKEN% placeholders and all: themeStylesheet.cpp
+         joins the pieces in its cascade order and buildStylesheet fills them in. Whitespace is
+         load-bearing only in that the pinned hashes in tests/pins/stylesheets.txt cover the joined
+         string: the leading newline (shell) and the trailing indent (overlays) are the raw literal
+         this was lifted out of, byte for byte, and a piece's closing blank line is the gap before the next. -->
+    <file alias="app/shell.qss">qss/app/shell.qss</file>
+    <file alias="app/selectedLine.qss">qss/app/selectedLine.qss</file>
+    <file alias="app/toolButtons.qss">qss/app/toolButtons.qss</file>
+    <file alias="app/menus.qss">qss/app/menus.qss</file>
+    <file alias="app/buttons.qss">qss/app/buttons.qss</file>
+    <file alias="app/fields.qss">qss/app/fields.qss</file>
+    <file alias="app/dock.qss">qss/app/dock.qss</file>
+    <file alias="app/lists.qss">qss/app/lists.qss</file>
+    <file alias="app/modals.qss">qss/app/modals.qss</file>
+    <file alias="app/dialogs.qss">qss/app/dialogs.qss</file>
+    <file alias="app/overlays.qss">qss/app/overlays.qss</file>
+    <!-- The webcore skin's overlay, appended after the app sheet while the word is on (support/webcore). -->
+    <file alias="webcore/chrome.qss">qss/webcore/chrome.qss</file>
+    <file alias="webcore/menus.qss">qss/webcore/menus.qss</file>
+    <file alias="webcore/fields.qss">qss/webcore/fields.qss</file>
+    <file alias="webcore/chat.qss">qss/webcore/chat.qss</file>
+    <file alias="webcore/checks.qss">qss/webcore/checks.qss</file>
+    <file alias="webcore/tables.qss">qss/webcore/tables.qss</file>
+    <file alias="webcore/windows.qss">qss/webcore/windows.qss</file>
+    <file alias="webcore/scrollbars.qss">qss/webcore/scrollbars.qss</file>
+    <file alias="webcore/notices.qss">qss/webcore/notices.qss</file>
   </qresource>
   <qresource prefix="/icons">
     <!-- Same icon as the browser app's favicon, so both front-ends share one

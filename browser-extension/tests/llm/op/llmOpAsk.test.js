@@ -1,4 +1,4 @@
-// The §11 `ask` card in the extension profile (src/llm/plan.js): an option may NAME an
+// The §11 `ask` card in the extension profile (src/llm/op/plan.js): an option may NAME an
 // existing image, but a preview the extension would have to RENDER or FETCH is dropped.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

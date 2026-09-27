@@ -36,5 +36,6 @@ namespace llmexec {
   void checkHistoryOps(const QImage& img, const stencil::core::PageSize& a4);
   void checkAccentOps(const QImage& img, const stencil::core::PageSize& a4);
   void checkProjectRows(const QImage& img, const stencil::core::PageSize& a4);
+  void checkAwaitedOps(const QImage& img, const stencil::core::PageSize& a4);
 
 }  // namespace llmexec

@@ -46,7 +46,7 @@ body.fullscreen-mode .canvas-viewport {
     border-radius: 0 !important;
     background: #000;
     overflow: auto;
-    /* Centring is layout/canvasFrame.css's: a flex column, the canvas on `margin: auto` (a
+    /* Centring is layout/canvas/frame.css's: a flex column, the canvas on `margin: auto` (a
        `safe center` pair centred the incognito frame as a row item beside the picture). */
     display: flex;
     z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
@@ -110,7 +110,7 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     transform: translateY(0);
     opacity: 1;
 }
-/* Dusted (js/ui/fullscreenPanels.js): the motes are the slide, so the panel holds its revealed
+/* Dusted (js/ui/fullscreen/panels.js): the motes are the slide, so the panel holds its revealed
    place and only fades under them. */
 #fs-controls-panel.dust-driven, #fs-points-panel.dust-driven { transition: none; }
 

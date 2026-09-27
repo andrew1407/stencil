@@ -11,7 +11,7 @@ from pystencil.llm import LlmPlanError, MAX_ATTACHMENTS, execute_op_plan, parse_
 from tests.helpers.stubs import _StubClient, _plan_json
 
 
-class EditorPromptOfflineTest(unittest.TestCase):
+class EditorPromptOfflineTest(NativeCase):
   """Editor.prompt paths that need no native core (chat-only / execute=False)."""
 
   def test_chat_only_prompt_returns_no_outputs(self) -> None:

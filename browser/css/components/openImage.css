@@ -59,7 +59,7 @@
    Two equal fields splitting the room out to the Album/Portrait button's edge above. */
 .oi-crop-size-field { display: flex; align-items: stretch; gap: 4px; flex: 1 1 0; min-width: 0; }
 .oi-crop-size-field label { font-size: 11px; color: var(--text-muted); align-self: center; }
-/* Not [type="number"]: js/ui/numericInput.js flips every enhanced field to type="text"
+/* Not [type="number"]: js/ui/control/numericInput.js flips every enhanced field to type="text"
    at runtime (arithmetic input) — the attribute selector stopped matching the moment
    that ran, and the field fell back to a ~150px default, wrapping W/H onto their own
    row below the ratio selector instead of sitting beside it (user report). */
@@ -142,7 +142,7 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
 /* The frame scrub rides UNDER the picture at its exact width, the way a player's progress
    bar does — the video itself carries no native controls on either surface. The played side
    and the thumb wear the brand accent, outlined in --ui-outline so an accent close to the
-   surface behind it still reads. Desktop twin: QSlider#oiFrameScrub (app.qss). */
+   surface behind it still reads. Desktop twin: QSlider#oiFrameScrub (qss/app/fields.qss). */
 .oi-scrub {
     -webkit-appearance: none;
     appearance: none;

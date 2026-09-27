@@ -16,7 +16,7 @@ func seedProjects(st *testutil.MemStore, n int) {
 	for i := 0; i < n; i++ {
 		st.Seed(protocol.ProjectRecord{
 			ID: "p_seed" + strconv.Itoa(i) + "_a", Name: "P", UpdatedAt: int64(100 + i),
-			OriginalContent: "payload", Layout: json.RawMessage(`{"lines":[]}`)})
+			Layout: json.RawMessage(`{"lines":[]}`)})
 	}
 }
 
@@ -33,8 +33,7 @@ func listProjects(t *testing.T, api *API, tok, query string) protocol.ProjectLis
 	return resp
 }
 
-// Paging is opt-in: with no query the response is exactly what it always was —
-// every project, no cursor field.
+// With no page size (PROJECTS_PAGE_SIZE=0) a bare list is every project, with no cursor field.
 func TestListProjectsDefaultShapeUnchanged(t *testing.T) {
 	api, st := testAPI(t, "")
 	tok := issueToken(t, api, "")

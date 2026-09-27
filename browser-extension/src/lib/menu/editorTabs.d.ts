@@ -1,4 +1,4 @@
-// Shapes for lib/editorTabs.js — the questions editor mode asks of a plain chrome tab
+// Shapes for lib/menu/editorTabs.js — the questions editor mode asks of a plain chrome tab
 // list. Every field is normalised, so the UI never null-checks.
 import type { ImportMode } from '../messages.js';
 

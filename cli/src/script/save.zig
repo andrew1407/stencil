@@ -1,10 +1,14 @@
 //! Where a `@save` writes. Bare, the result lands beside its source with a `-stencil`
-//! suffix, which is what makes a whole-directory script safe to run in place.
+//! suffix, which is what makes a whole-directory script safe to run in place. `--no-clobber`
+//! checks every such destination before a run writes its first file.
 const std = @import("std");
 
 const confine = @import("../safety/confine.zig");
 const image = @import("../media/image.zig");
 const net = @import("../net.zig");
+const pipeline = @import("../pipeline.zig");
+const scriptCore = @import("core.zig");
+const sources = @import("sources.zig");
 
 pub const Error = error{ SaveOutsideCwd, SaveTraversal };
 
@@ -65,11 +69,66 @@ pub fn resolveTarget(
 }
 
 /// The same guard the one-shot pipeline applies: `..` is always refused, and under
-/// --confine-output so is anything outside the working directory.
-pub fn guard(path: []const u8, confine_output: bool) Error!void {
+/// --confine-output so is anything outside the working directory, a link's target included.
+pub fn guard(io: std.Io, path: []const u8, confine_output: bool) Error!void {
     if (confine.hasParentTraversal(path)) return Error.SaveTraversal;
-    if (confine_output and confine.outsideCwd(path)) return Error.SaveOutsideCwd;
+    if (confine_output and confine.escapes(io, std.Io.Dir.cwd(), path)) return Error.SaveOutsideCwd;
 }
+
+/// `--no-clobber` for `--script`: a destination that existed before the run is never written.
+/// `precheck` refuses on every one the script names before anything is written, and remembers
+/// them; `allow` checks, at its write, one only a mid-run listing found.
+pub const Clobber = struct {
+    on: bool,
+    checked: std.StringHashMapUnmanaged(void) = .empty,
+
+    pub fn deinit(self: *Clobber, gpa: std.mem.Allocator) void {
+        var keys = self.checked.keyIterator();
+        while (keys.next()) |k| gpa.free(k.*);
+        self.checked.deinit(gpa);
+    }
+
+    /// Every block over every input it names, `-i` for the sourceless one; a source that fails to
+    /// expand stops the run here, before any block has written.
+    pub fn precheck(self: *Clobber, gpa: std.mem.Allocator, io: std.Io, script: scriptCore.Script, input: ?[]const u8, confine_output: bool) !void {
+        if (!self.on) return;
+        var b: u32 = 0;
+        while (b < script.blockCount()) : (b += 1) {
+            const block = script.block(b) orelse continue;
+            if (block.kind == .project) {
+                if (input) |in| try self.precheckOn(gpa, io, script, block, in, confine_output);
+                continue;
+            }
+            const inputs = try sources.expand(gpa, io, block.source, block.kind);
+            defer sources.freeInputs(gpa, inputs);
+            for (inputs) |in| try self.precheckOn(gpa, io, script, block, in, confine_output);
+        }
+    }
+
+    fn precheckOn(self: *Clobber, gpa: std.mem.Allocator, io: std.Io, script: scriptCore.Script, block: scriptCore.Block, input: []const u8, confine_output: bool) !void {
+        const fmt = image.formatOfPath(input) orelse .png; // what the runner's decode falls back to
+        var frame = block.frame;
+        var i: u32 = block.op_start;
+        while (i < block.op_start + block.op_count) : (i += 1) {
+            const op = script.op(i) orelse continue;
+            if (op.kind == .frame) frame = @intFromFloat(@max(0, script.opNum(i, 0) orelse 0));
+            if (op.kind != .save) continue;
+            const path = try resolveTarget(gpa, script.opStr(i, 0), input, frameOf(frame), fmt);
+            defer gpa.free(path);
+            guard(io, path, confine_output) catch continue; // the run refuses it with its own reason
+            try self.allow(gpa, io, path, fmt);
+        }
+    }
+
+    /// Refuses `path` (a `resolveTarget` result) when it exists and was not checked already.
+    pub fn allow(self: *Clobber, gpa: std.mem.Allocator, io: std.Io, path: []const u8, fmt: image.Format) !void {
+        if (!self.on or self.checked.contains(path)) return;
+        try pipeline.refuseClobber(gpa, io, path, fmt, false);
+        const key = try gpa.dupe(u8, path);
+        errdefer gpa.free(key);
+        try self.checked.put(gpa, key, {});
+    }
+};
 
 test "a bare save lands beside its source with the suffix" {
     const gpa = std.testing.allocator;
@@ -123,8 +182,8 @@ test "frameOf treats 0 as no frame at all" {
 }
 
 test "traversal is refused always, and outside-cwd under confinement" {
-    try std.testing.expectError(Error.SaveTraversal, guard("../x.png", false));
-    try std.testing.expectError(Error.SaveOutsideCwd, guard("/tmp/x.png", true));
-    try guard("/tmp/x.png", false);
-    try guard("out/x.png", true);
+    try std.testing.expectError(Error.SaveTraversal, guard(std.testing.io, "../x.png", false));
+    try std.testing.expectError(Error.SaveOutsideCwd, guard(std.testing.io, "/tmp/x.png", true));
+    try guard(std.testing.io, "/tmp/x.png", false);
+    try guard(std.testing.io, "out/x.png", true);
 }

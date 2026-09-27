@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include <functional>
+
 namespace stencil::llm { class PlanTarget; }
 namespace stencil::model { class ScriptDoc; }
 
@@ -19,12 +21,18 @@ namespace stencil::gui {
 
   /* Runs an already-parsed program: a script with any error runs NOTHING and comes back with
    * the first one; a failure part-way leaves the edits already applied and names the line
-   * that stopped it. The editors pass the parse they colour from, so a Run lexes once. */
-  ScriptRunResult runScript(const model::ScriptDoc& program, llm::PlanTarget& target);
-
-  ScriptRunResult runScript(const QString& text, llm::PlanTarget& target);
+   * that stopped it. The editors pass the parse they colour from, so a Run lexes once.
+   * `done` answers at once, or from the answer of an @source / @frame load that waited. */
+  void runScriptThen(const model::ScriptDoc& program, llm::PlanTarget& target,
+                     std::function<void(const ScriptRunResult&)> done);
 
   // Reads a .stc from disk and runs it. A read failure is reported like a script error.
+  void runScriptFileThen(const QString& path, llm::PlanTarget& target,
+                         std::function<void(const ScriptRunResult&)> done);
+
+  // The same runs over a target whose loads answer at once.
+  ScriptRunResult runScript(const model::ScriptDoc& program, llm::PlanTarget& target);
+  ScriptRunResult runScript(const QString& text, llm::PlanTarget& target);
   ScriptRunResult runScriptFile(const QString& path, llm::PlanTarget& target);
 
 }  // namespace stencil::gui

@@ -18,16 +18,17 @@ import (
 
 const goodToken = "good-token"
 
-// newTestHub wires a hub onto the shared in-memory store, seeded with one
-// project and one session so goodToken resolves.
-func newTestHub(t *testing.T) *Hub {
+// newTestHub wires a hub onto the shared in-memory store, seeded with two
+// projects and one session so goodToken resolves.
+func newTestHub(t *testing.T, opts ...Option) *Hub {
 	t.Helper()
 	st := testutil.NewMemStore()
 	st.Seed(protocol.ProjectRecord{ID: "p_t_a", Name: "P", Version: 0})
+	st.Seed(protocol.ProjectRecord{ID: "p_t_b", Name: "Q", Version: 0})
 	if _, err := st.CreateSession(context.Background(), auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	h := New(context.Background(), st, eventbus.NewInProc(), st)
+	h := New(context.Background(), st, eventbus.NewInProc(), st, opts...)
 	t.Cleanup(h.Close) // the hub holds a context of its own now, so a test must end it
 	return h
 }

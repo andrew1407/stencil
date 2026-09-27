@@ -16,5 +16,7 @@ export interface BlankImageOptions {
 export declare const createBlankImage: (app: DrawingApp, opts?: BlankImageOptions) => Promise<{ width: number; height: number }>;
 /** True while the active session is a blank project (a recolourable solid background). */
 export declare const activeIsBlank: (app: DrawingApp) => boolean;
-/** Recolour the ACTIVE blank in place, keeping every line; a no-op for a non-blank. */
+/** Try `color` on the active blank's stage: no reload, undo step, save or push; its own colour or null ends the trial. */
+export declare const previewBlankColor: (app: DrawingApp, color: string | null) => void;
+/** Recolour the ACTIVE blank in place, keeping every line; a no-op for a non-blank. The trial fill yields to the result. */
 export declare const setBlankColor: (app: DrawingApp, color: string) => void;

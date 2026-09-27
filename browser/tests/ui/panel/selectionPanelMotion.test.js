@@ -3,11 +3,27 @@
 // surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (MainWindow.cpp).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { barDustPoint } from '../../../js/ui/panel/selectionPanel.js';
+import { installDustDom, rect as box, boxEl, cloudKind } from '../../helpers/dustCloudRig.js';
 import { LAYOUT_CSS } from '../../helpers/css.js';
 
-const src = readFileSync(new URL('../../../js/ui/panel/selectionPanel.js', import.meta.url), 'utf8');
+const dust = installDustDom({ docOpts: { autoCreateById: true } });
+const { barDustPoint, showSelectionPanel, hideSelectionPanels } = await import('../../../js/ui/panel/selectionPanel.js');
+const { setMotionPrefs } = await import('../../../js/ui/motion/motionPrefs.js');
+const { SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS } = await import('../../../js/ui/motion.js');
+
+// The real bar on the stub page: its box, #image-info, and the fill group + separator, each
+// laid out only while displayed.
+const shown = (w, h) => { const el = boxEl(() => (el.style.display === 'none' ? box(0, 0, 0, 0) : box(0, 0, w, h))); el.style.display = 'none'; return el; };
+const liveBar = () => {
+  dust.reset();
+  const { doc } = dust;
+  doc.register('image-info', boxEl(box(100, 300, 400, 20)));
+  const panel = doc.register('selection-panel', shown(600, 44));
+  const fillGroup = doc.register('sel-fill-group', shown(220, 30));
+  const fillSep = doc.register('sel-fill-sep', shown(1, 24));
+  const app = { pointSize: 4, defaultFillColor: '#00000000', syncFsSelectionPanel() {}, renderLinesList() {} };
+  return { panel, fillGroup, fillSep, show: (line = {}) => showSelectionPanel(app, { color: '#ff0000', thickness: 2, ...line }) };
+};
 
 // A rect stub good enough for barDustPoint: only left/width/top/height/bottom are read.
 const rect = ({ left = 0, width = 0, top = 0, height = 0 }) =>
@@ -20,23 +36,39 @@ const stubImageInfo = (t, r) => {
   t.after(() => { globalThis.document = prior; });
 };
 
-test('the bar imports the shared surface-dust primitives', () => {
-  // Pinned by NAME, not as a verbatim import line — the list grows (revealControls, for
-  // the fill group's own slide), and a line-shaped regex only says the file was edited.
-  const line = /import \{([^}]*)\} from '[^']*motion\.js';/.exec(src)[1];
-  for (const fn of ['surfaceIn', 'surfaceOut', 'settleSurface', 'dockAwayPoint'])
-    assert.ok(line.includes(fn), `the bar should still take ${fn} from the shared helpers`);
+test('the bar flies on the shared surface-dust primitives', () => {
+  setMotionPrefs({ mode: 'particles' });
+  const { panel, show } = liveBar();
+  show();
+  assert.ok(panel.classes.has(SURFACE_DRIVEN_CLASS) && panel.classes.has(SURFACE_FORMING_CLASS), 'surfaceIn');
+  assert.equal(cloudKind(panel), 'dust-forming dust-below-chat');
+  hideSelectionPanels();
+  assert.ok(panel.classes.has(SURFACE_LEAVING_CLASS), 'surfaceOut');
+  setMotionPrefs({ mode: 'none' });
+  show();
+  assert.ok(!panel.classes.has(SURFACE_FORMING_CLASS) && !panel.__dustHost, 'declined: settleSurface leaves it still');
+  setMotionPrefs({ mode: 'particles' });
 });
 
 // The fill group SLIDES open and closed and dusts as it goes (motion.js revealControls), its own separator
 // travelling with it, so unchaining a line never makes the bar jump.
 test('the fill group and its separator come and go through revealControls', () => {
-  const show = src.slice(src.indexOf('const fillSep ='), src.indexOf('const panel ='));
-  assert.match(show, /revealControls\(fillGroup, true, 'flex'\)/);
-  assert.match(show, /revealControls\(fillSep, true, 'block'\)/);
-  assert.match(show, /revealControls\(fillGroup, false\)/);
-  assert.match(show, /revealControls\(fillSep, false\)/);
-  assert.ok(!/fillGroup\.style\.display = /.test(show), 'no outright show/hide left');
+  const { fillGroup, fillSep, show } = liveBar();
+  show({ locked: true });
+  assert.equal(fillGroup.style.display, 'flex');
+  assert.equal(fillSep.style.display, 'block');
+  for (const [el, prop] of [[fillGroup, 'maxWidth'], [fillSep, 'maxHeight']]) {
+    assert.ok(el.classes.has('reveal-group-transition'), 'a slide, not an outright show');
+    assert.equal(el.style[prop], '0px');
+  }
+  assert.equal(cloudKind(fillGroup), 'dust-forming', 'and the group dusts in (a 1px rule is too thin to)');
+  dust.frame();
+  dust.frame();
+  assert.deepEqual([fillGroup.style.maxWidth, fillSep.style.maxHeight], ['220px', '24px'], 'both slots open');
+  show({ locked: false });
+  assert.deepEqual([fillGroup.style.display, fillSep.style.display], ['flex', 'block'], 'held until the slots close');
+  assert.equal(cloudKind(fillGroup), 'dust-falling');
+  assert.deepEqual([fillGroup.style.maxWidth, fillSep.style.maxWidth], ['0px', '0px'], 'and close together');
 });
 
 test('opening: the point is #image-info\'s own current rect — the reflow already ran', (t) => {
@@ -63,32 +95,29 @@ test('with no #image-info to anchor to, both directions fall back to the bar\'s 
 });
 
 test('showSelectionPanel only gathers on the hidden -> visible edge', () => {
-  const fn = src.slice(src.indexOf('export function showSelectionPanel'),
-                       src.indexOf('export function hideSelectionPanels'));
-  // wasHidden is read BEFORE display flips to 'block' — the whole point of the flag.
-  const wasHiddenIdx = fn.indexOf('wasHidden');
-  const displayBlockIdx = fn.indexOf("panel.style.display = 'block';");
-  assert.ok(wasHiddenIdx > -1 && displayBlockIdx > -1 && wasHiddenIdx < displayBlockIdx,
-    'wasHidden must be captured before the display flip it is judging');
-  assert.match(fn, /if \(wasHidden && !surfaceIn\(panel, barDustPoint\(panel\), \{ belowChat: true \}\)\) settleSurface\(panel\);/);
-  // Re-populating an already-open bar (switching which line is selected) must NOT
-  // re-trigger surfaceIn unconditionally — one call site, and it's the gated one above.
-  assert.equal((fn.match(/surfaceIn\(/g) || []).length, 1);
+  const { panel, show } = liveBar();
+  show();
+  assert.equal(cloudKind(panel), 'dust-forming dust-below-chat', 'judged before display flips to block');
+  assert.equal(panel.style.display, 'block');
+  const first = panel.__dustHost;
+  // Re-populating an already-open bar (switching which line is selected) must NOT replay it.
+  show({ color: '#00ff00' });
+  assert.equal(panel.__dustHost, first);
+  assert.equal(dust.clouds().filter((h) => h.className.includes('below-chat')).length, 1);
 });
 
 test('hideSelectionPanels only scatters a bar that was actually visible, and hides it either way', () => {
-  const fn = src.slice(src.indexOf('export function hideSelectionPanels'),
-                       src.indexOf('export function applyFill'));
-  assert.match(fn, /if \(selPanel\.style\.display === 'block'\) \{/);
-  // The `true` here is the whole point: hideSelectionPanels is the CLOSING call site.
-  assert.match(fn,
-    /if \(!surfaceOut\(selPanel, barDustPoint\(selPanel, \/\* closing \*\/ true\), \{ belowChat: true \}\)\) settleSurface\(selPanel\);/);
-  assert.match(fn, /\} else settleSurface\(selPanel\);/);
-  // The real hide happens unconditionally, outside the branch: surfaceOut's flying cloud is a snapshot of
-  // sand, not the element itself (js/ui/motion.js: "A surface NEVER dusts as clones of itself").
-  const hideIdx = fn.indexOf("selPanel.style.display = 'none';");
-  const elseIdx = fn.indexOf('} else settleSurface(selPanel);');
-  assert.ok(hideIdx > elseIdx, 'display:none comes after the dust decision, unconditionally');
+  const { panel, show } = liveBar();
+  show();
+  hideSelectionPanels();
+  // The CLOSING point: predicted from the bar's own top, not #image-info's stale bottom.
+  assert.equal(cloudKind(panel), 'dust-leaving dust-below-chat');
+  assert.equal(panel.style.display, 'none', 'the real hide happens regardless of the sand');
+  const leaving = panel.__dustHost;
+  hideSelectionPanels();
+  assert.equal(panel.__dustHost, null, 'a hidden bar is only settled: its flight is dropped');
+  assert.equal(leaving.parentNode, null);
+  assert.equal(panel.style.display, 'none');
 });
 
 test('the old plain fadeIn keyframe stays as the reduced-motion / dust-declined fallback', () => {

@@ -1,50 +1,16 @@
-// ── Parsing + validating a model's op plan (contract §1, §11) ───
-// Model output is DATA: everything here rejects or drops, never trusts. The registry
-// decides what an op IS; this decides where it may sit.
-import { SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL } from './schema.js';
-import { isObj, isStr } from './values.js';
-import { OPS } from './opExecutors.js';
+// ── Parsing + validating a model's op plan (llm-contract.md §1, §11, §13) ───
+// Model text → ONE result {status, reply, actions, variants, ask, warnings, error}; model output
+// is DATA, so nothing here throws on it. The JS twin of core/opplan/planWalk.cpp, pinned
+// byte-for-byte by fixtures/opPlan/generated/normalized.json; browserPlan.js maps it for the app.
+import { ASK_LIMITS } from './schema.js';
+import { isObj, own } from './opSchemaBase.js';
+import { isStr } from './values.js';
+import { jsonLimit } from './planCaps.js';
 
-// Derived from the registry: one appearing inside a variant fails the WHOLE plan.
-const EDITOR_SETTINGS_OPS = new Set(Object.keys(OPS).filter((op) => OPS[op].editorSetting));
-// §2.1 image/save ride the same top-level-only enforcement (the message differs).
-const TOP_LEVEL_ONLY_OPS = new Set(Object.keys(OPS).filter((op) => OPS[op].editorSetting || OPS[op].topLevelOnly));
+// §1 extraction tolerance: Markdown fences go, whatever language tag they carry.
+const stripFences = (text) => text.replace(/```[a-zA-Z]*/g, '');
 
-// §1: a misplaced op inside a variant / ask preview. Typed so callers can DROP that one
-// variant (or that option's preview) with a warning instead of failing the whole plan.
-export class MisplacedOpError extends Error {
-  constructor(reason) {
-    super(`Invalid plan: ${reason}`);
-    this.name = 'MisplacedOpError';
-    this.reason = reason;
-  }
-}
-
-// Unknown ops drop with a warning (forward compatibility); a known op with invalid params throws
-// and nothing executes (contract §1). `scope` non-null names the variant/preview it landed in.
-const validateActions = (list, warnings, where, scope = null) => {
-  if (list == null) return [];
-  if (!Array.isArray(list)) throw new Error(`Invalid plan: ${where} must be an array`);
-  if (list.length > LIMITS.actions) throw new Error(`Invalid plan: more than ${LIMITS.actions} actions in ${where}`);
-  const out = [];
-  for (const a of list) {
-    if (!isObj(a) || typeof a.op !== 'string') throw new Error(`Invalid plan: every action in ${where} must be an object with an "op"`);
-    if (scope && TOP_LEVEL_ONLY_OPS.has(a.op)) {
-      throw new MisplacedOpError(EDITOR_SETTINGS_OPS.has(a.op)
-        ? `editor-settings op "${a.op}" is not allowed inside ${scope}`
-          + (a.op === 'openUrl' ? " — open the URL as a top-level action; picking images off a web page is the extension assistant's job" : '')
-        : a.op === 'undo' || a.op === 'redo'
-          ? `"${a.op}" steps the live edit history — a top-level action only, not allowed inside variants or previews`
-          : `"${a.op}" is a top-level action only (§2.1) — not allowed inside ${scope}`);
-    }
-    const def = OPS[a.op];
-    if (!def) { warnings.push(`Skipped unknown operation "${a.op}"`); continue; }
-    out.push(def.validate(a));
-  }
-  return out;
-};
-
-// Take the first balanced { … } object (string-aware) from the text, or null.
+// The first balanced { … } object (string-aware) in the text, or null.
 const firstJsonObject = (text) => {
   const start = text.indexOf('{');
   if (start < 0) return null;
@@ -64,38 +30,6 @@ const firstJsonObject = (text) => {
   return null;
 };
 
-// §11 `ask`: validated as strictly as an action, since a card nobody can answer is a plan error.
-// Its STRUCTURE is the registry's ask schema; only the preview actions need this module.
-export const validateAsk = (ask, warnings) => {
-  if (ask == null) return null;
-  SCHEMA.validateAsk(ask);
-  const card = SCHEMA.normalizeAsk(ask);
-  return {
-    question: card.question,
-    mode: card.mode,
-    allowCustom: card.allowCustom === true,
-    customLabel: card.customLabel || DEFAULT_CUSTOM_LABEL,
-    options: ask.options.map((opt, i) => {
-      const where = `ask option ${i + 1}`;
-      const out = { label: card.options[i].label };
-      // Preview actions are RENDERED never executed, so editor-settings ops are rejected as if inside a
-      // variant. §1 leniency: a misplaced op costs this option its PICTURE, not the plan.
-      if (opt.actions != null) {
-        try {
-          out.actions = validateActions(opt.actions, warnings, where, 'variants or previews');
-        } catch (err) {
-          if (!(err instanceof MisplacedOpError)) throw err;
-          warnings.push(`Dropped the preview for ${where} ("${out.label}") — ${err.reason}; the option is still offered`);
-        }
-      }
-      // The client resolves the reference (or renders the option pictureless); nothing
-      // here fetches anything.
-      if (opt.image != null) out.image = card.options[i].image;
-      return out;
-    }),
-  };
-};
-
 // The text an answered card sends as the user's next turn: the picked labels joined, or the
 // typed custom text. Trimmed and capped so a pasted essay can't ride back as one "answer".
 export const askAnswerText = (ask, { picked = [], custom = '' } = {}) => {
@@ -106,50 +40,143 @@ export const askAnswerText = (ask, { picked = [], custom = '' } = {}) => {
   return labels.join(', ').slice(0, ASK_LIMITS.answer);
 };
 
-// §1 extraction tolerance: fences stripped, first balanced JSON object wins; no JSON object at
-// all is a chat-only turn (raw text = reply, not an error). Invalid plans THROW.
-export const parseOpPlan = (text) => {
-  const raw = String(text == null ? '' : text);
-  const chatOnly = () => ({ reply: raw.trim(), actions: [], variants: [], ask: null, warnings: [], chatOnly: true });
-  const candidate = firstJsonObject(raw.replace(/```[a-zA-Z]*/g, ''));
-  if (candidate == null) return chatOnly();
-  let obj;
-  try { obj = JSON.parse(candidate); } catch { return chatOnly(); }   // not actually JSON → chat-only
-
-  // `version` other than 1 (or absent) is accepted but ignored.
-  const warnings = [];
-  // §1 reply tolerance: models routinely omit the reply while planning valid
-  // actions — substitute rather than lose the plan to a missing pleasantry.
-  const replyOmitted = typeof obj.reply !== 'string' || !obj.reply.trim();
-  let reply = replyOmitted ? '' : obj.reply;
-  const actions = validateActions(obj.actions, warnings, '"actions"');
-  if (obj.variants != null && !Array.isArray(obj.variants)) throw new Error('Invalid plan: "variants" must be an array');
-  const rawVariants = obj.variants || [];
-  if (rawVariants.length > LIMITS.variants) throw new Error(`Invalid plan: more than ${LIMITS.variants} variants`);
-  // §1 leniency: a variant holding a top-level-only/settings op is DROPPED with a
-  // warning naming it — the top-level actions and the well-formed variants still run.
-  const variants = [];
-  rawVariants.forEach((v, i) => {
-    if (!isObj(v)) throw new Error('Invalid plan: every variant must be an object');
-    if (v.label != null && !isStr(v.label)) throw new Error('Invalid plan: variant "label" must be a string');
-    const label = v.label || `variant ${i + 1}`;
-    try {
-      variants.push({ label, actions: validateActions(v.actions, warnings, `variant ${i + 1}`, 'variants') });
-    } catch (err) {
-      if (!(err instanceof MisplacedOpError)) throw err;
-      warnings.push(`Dropped variant ${i + 1} ("${label}") — ${err.reason}; the rest of the plan ran`);
-    }
-  });
-  const ask = validateAsk(obj.ask, warnings);
-  // The substitute must not overstate what happened: "Done." only when the plan carries work, or
-  // it reads as a success that never occurred.
-  if (replyOmitted) {
-    if (actions.length || variants.length || ask) {
-      reply = 'Done.';
-      warnings.push('The model omitted its reply — the plan still ran');
-    } else {
-      reply = 'The model returned an empty plan — nothing was changed.';
-    }
+// A failed plan, carried out of the walk as data; the fields follow core's key order.
+class PlanFail {
+  constructor(code, fields, detail) {
+    this.error = { code, ...fields, detail, message: `Invalid plan: ${detail}` };
   }
-  return { reply, actions, variants, ask, warnings, chatOnly: false };
+}
+const planFail = (fields, detail) => { throw new PlanFail('E_PLAN', fields, detail); };
+const warn = (code, fields, message) => ({ code, ...fields, message });
+
+const isSettings = (e) => !!(e.flags.editorSetting || e.flags.consoleSetting);
+const isTopLevel = (e) => !!e.flags.topLevelOnly || isSettings(e);
+
+// §1: why a registered op may not sit inside a variant or a preview.
+const misplacedReason = (e, scope) => (isSettings(e)
+  ? `editor-settings op "${e.name}" is not allowed inside ${scope}`
+    + (e.name === 'openUrl' ? " — open the URL as a top-level action; picking images off a web page is the extension assistant's job" : '')
+  : e.name === 'undo' || e.name === 'redo'
+    ? `"${e.name}" steps the live edit history — a top-level action only, not allowed inside variants or previews`
+    : `"${e.name}" is a top-level action only (§2.1) — not allowed inside ${scope}`);
+
+// An action's own failure, re-thrown as the plan's error.
+const accept = (schema, a, entry) => {
+  try { return schema.accept(a, entry); } catch (err) {
+    if (err.detail === undefined) throw err;
+    const fail = new PlanFail('E_ACTION', { op: entry.name }, err.detail);
+    fail.error.message = err.message;
+    throw fail;
+  }
+};
+
+// One actions list. `nested` = { scope, index, reason } inside a variant or a preview, where a
+// top-level op returns { misplaced } for the caller to drop; unknown ops warn and skip.
+const walkActions = (schema, list, warnings, nested = null) => {
+  const scopeFields = nested ? { scope: nested.scope, index: nested.index } : { scope: 'actions' };
+  const where = nested ? `${nested.scope === 'variant' ? 'variant' : 'ask option'} ${nested.index}` : '"actions"';
+  if (list == null) return { actions: [] };
+  if (!Array.isArray(list)) planFail({ rule: 'notArray', ...scopeFields }, `${where} must be an array`);
+  const max = schema.limits.MAX_ACTIONS;
+  if (list.length > max) planFail({ rule: 'tooMany', ...scopeFields, max }, `more than ${max} actions in ${where}`);
+  const actions = [];
+  for (const [item, a] of list.entries()) {
+    if (!isObj(a) || typeof own(a, 'op') !== 'string') {
+      planFail({ rule: 'notAction', ...scopeFields, item, isObject: isObj(a) }, `every action in ${where} must be an object with an "op"`);
+    }
+    if (schema.hardFail && schema.forbidden.has(a.op)) {
+      const detail = `the "${a.op}" op is never model-drivable`;
+      throw new PlanFail('E_FORBIDDEN', { op: a.op }, detail);
+    }
+    const entry = schema.ops.get(a.op);
+    if (!entry) { warnings.push(warn('W_UNKNOWN_OP', { op: a.op }, `Skipped unknown operation "${a.op}"`)); continue; }
+    if (nested && isTopLevel(entry)) return { misplaced: entry, reason: misplacedReason(entry, nested.reason) };
+    actions.push(accept(schema, a, entry));
+  }
+  return { actions };
+};
+
+// §1 variants: each must be an object whose label (when given) is a string; one holding a
+// top-level op is DROPPED with a warning while the rest of the plan runs.
+const walkVariants = (schema, raw, warnings) => {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) planFail({ rule: 'variantsNotArray' }, '"variants" must be an array');
+  const max = schema.limits.MAX_VARIANTS;
+  if (raw.length > max) planFail({ rule: 'tooManyVariants', max }, `more than ${max} variants`);
+  const variants = [];
+  for (const [item, v] of raw.entries()) {
+    if (!isObj(v)) planFail({ rule: 'variantNotObject', item }, 'every variant must be an object');
+    const given = own(v, 'label');
+    if (given != null && !(typeof given === 'string' && given.length <= schema.limits.MAX_STRING_CHARS)) {
+      planFail({ rule: 'variantLabel', item, isString: typeof given === 'string' }, 'variant "label" must be a string');
+    }
+    const index = item + 1;
+    const walked = walkActions(schema, own(v, 'actions'), warnings, { scope: 'variant', index, reason: 'variants' });
+    if (walked.misplaced) {
+      const shown = given || `variant ${index}`;
+      warnings.push(warn('W_VARIANT_DROPPED', { op: walked.misplaced.name, index, label: given ?? null },
+        `Dropped variant ${index} ("${shown}") — ${walked.reason}; the rest of the plan ran`));
+    } else variants.push({ label: given ?? null, actions: walked.actions });
+  }
+  return variants;
+};
+
+// §11 `ask`: its STRUCTURE is the registry's ask schema; a misplaced preview op costs that
+// option its picture, never the plan. Throws PlanFail.
+export const walkAsk = (schema, ask, warnings) => {
+  if (ask == null) return null;
+  try { schema.validateAsk(ask); } catch (err) {
+    if (err.detail === undefined) throw err;
+    planFail({ rule: 'ask' }, err.detail);
+  }
+  const card = schema.normalizeAsk(ask);
+  const options = ask.options.map((opt, i) => {
+    const out = { label: card.options[i].label };
+    if (own(opt, 'actions') != null) {
+      const walked = walkActions(schema, opt.actions, warnings, { scope: 'option', index: i + 1, reason: 'variants or previews' });
+      if (walked.misplaced) {
+        warnings.push(warn('W_PREVIEW_DROPPED', { op: walked.misplaced.name, index: i + 1, label: out.label },
+          `Dropped the preview for ask option ${i + 1} ("${out.label}") — ${walked.reason}; the option is still offered`));
+      } else out.actions = walked.actions;
+    }
+    if (own(opt, 'image') != null) out.image = card.options[i].image;
+    return out;
+  });
+  return {
+    question: card.question, mode: card.mode, allowCustom: card.allowCustom === true,
+    customLabel: card.customLabel || schema.defaultCustomLabel, options,
+  };
+};
+
+const result = (status, reply, fields = {}) => ({
+  status, reply, actions: [], variants: [], ask: null, warnings: [], error: null, ...fields,
+});
+
+// §1 extraction tolerance, strict validation and reply tolerance, as one result document.
+export const walkPlan = (schema, text) => {
+  const raw = String(text ?? '');
+  const candidate = firstJsonObject(stripFences(raw));
+  if (candidate == null) return result('chatOnly', raw.trim());
+  let obj;
+  try { obj = JSON.parse(candidate); } catch { return result('chatOnly', raw.trim()); }
+  try {
+    const cap = jsonLimit(obj, candidate, schema.jsonCaps);
+    if (cap) throw new PlanFail('E_JSON_LIMIT', { limit: cap.limit, max: cap.max }, cap.detail);
+    const warnings = [];
+    const reply = own(obj, 'reply');
+    const replyOmitted = typeof reply !== 'string' || !reply.trim();
+    const { actions } = walkActions(schema, own(obj, 'actions'), warnings);
+    const variants = walkVariants(schema, own(obj, 'variants'), warnings);
+    const ask = walkAsk(schema, own(obj, 'ask'), warnings);
+    let said = replyOmitted ? 'The model returned an empty plan — nothing was changed.' : reply;
+    // "Done." only when the plan carries work, or it reads as a success that never occurred.
+    if (replyOmitted && (actions.length || variants.length || ask)) {
+      said = 'Done.';
+      warnings.push(warn('W_REPLY_OMITTED', {}, 'The model omitted its reply — the plan still ran'));
+    }
+    return result('valid', said, { actions, variants, ask, warnings });
+  } catch (err) {
+    if (err instanceof PlanFail) return result('invalid', '', { error: err.error });
+    throw err;
+  }
 };

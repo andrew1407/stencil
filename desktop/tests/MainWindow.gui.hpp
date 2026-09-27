@@ -25,6 +25,7 @@
 #include "ServerClient.hpp"
 #include "LlmSettingsForm.hpp"
 #include "../src/app/chat/planTarget/ChatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
+#include "../src/app/chat/session/ChatSessionController.hpp"
 #include "../src/llm/plan/opPlan.hpp"
 #include "../src/llm/plan/executor/planExecutor.hpp"
 #include "MediaLoader.hpp"
@@ -170,7 +171,10 @@ namespace stencil::guitest {
     stencil::gui::fileStore::saveSettings(stencil::gui::fileStore::loadSettings());
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);
-    guiTestImage() = QDir::temp().filePath(QStringLiteral("stencil_e2e_input.png"));
+    // Beside this test's own state: ctest runs the areas side by side, and a picture another area
+    // rewrites at boot would reach this one's decode half-written.
+    const QDir own(stencil::gui::fileStore::stateDir());
+    guiTestImage() = own.filePath(QStringLiteral("stencil_e2e_input.png"));
     QVERIFY(img.save(guiTestImage(), "PNG"));
   }
 
@@ -206,7 +210,8 @@ namespace stencil::guitest {
     }
   }
 
-  // Build a shown MainWindow with our test image loaded; returns its live canvas.
+  // Build a shown MainWindow with our test image loaded; returns its live canvas once the picture
+  // has landed — it decodes off the GUI thread — or with none if it never does (callers verify).
   inline CanvasWidget* openLoaded(MainWindow& win) {
     win.resize(1000, 760);
     win.show();
@@ -214,7 +219,9 @@ namespace stencil::guitest {
     win.activateWindow();
     beat();                       // (watch mode) empty editor
     win.openPathFromOS(guiTestImage());
-    return win.findChild<CanvasWidget*>();
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    settle([canvas] { return canvas->hasImage(); }, 5000);
+    return canvas;
   }
 }  // namespace stencil::guitest
 

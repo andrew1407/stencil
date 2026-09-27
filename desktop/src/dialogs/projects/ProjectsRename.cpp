@@ -2,23 +2,9 @@
 
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "../../support/menu/SearchCombo.hpp"
-#include "ProjectsDialog.hpp"
-#include "guiHelpers.hpp"
 #include "iconSet.hpp"
-#include "ExpirationDialog.hpp"
-#include "../../support/motion/scrollReveal.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
-#include "../../support/control/FlowLayout.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/guiHelpers.hpp"
-#include "../../support/menu/menuReveal.hpp"
-#include "../../support/motion/MenuShimmer.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
-#include "../../support/modal/modalChrome.hpp"
-#include "../../support/modal/modalReveal.hpp"
-#include "AppTooltip.hpp"
-#include "ShimmerOverlay.hpp"
 
 #include <QHBoxLayout>
 #include <QLineEdit>

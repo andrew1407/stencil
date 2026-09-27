@@ -1,10 +1,11 @@
-// Routing a pin at a server and pulling its bytes (src/lib/connections.js): pinTargetMode,
+// Routing a pin at a server and pulling its bytes (src/lib/connection/connections.js): pinTargetMode,
 // projectRequestFromImage, fetchProjectImage's variants, and the stale-token self-heal.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   listProjects, pinTargetMode, connectionByUrl, projectRequestFromImage, fetchProjectImage,
 } from '../../../src/lib/connection/connections.js';
+import { MAX_FETCH_BYTES } from '../../../src/lib/connection/urlGuard.js';
 
 // ── pin-target selection (pure) ──
 
@@ -39,10 +40,11 @@ test('fetchProjectImage defaults to the original file with Bearer auth', async (
   let seen = null;
   const f = async (url, init) => {
     seen = { url, headers: init.headers, method: init.method };
-    return { ok: true, status: 200, blob: async () => 'IMG_BYTES' };
+    return new Response('IMG_BYTES', { headers: { 'content-type': 'image/png' } });
   };
   const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'original', f);
-  assert.equal(blob, 'IMG_BYTES');
+  assert.equal(await blob.text(), 'IMG_BYTES');
+  assert.equal(blob.type, 'image/png', 'the served type rides along');
   assert.equal(seen.method, 'GET');
   assert.equal(seen.url, 'http://srv:1/projects/p_a/files/original');
   assert.equal(seen.headers.Authorization, 'Bearer tok');
@@ -52,7 +54,7 @@ test('fetchProjectImage with kind omitted still hits the original file', async (
   let seen = null;
   const f = async (url) => {
     seen = url;
-    return { ok: true, status: 200, blob: async () => 'BYTES' };
+    return new Response('BYTES');
   };
   await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', undefined, f);
   assert.equal(seen, 'http://srv:1/projects/p_a/files/original');
@@ -62,11 +64,25 @@ test('fetchProjectImage can request the edited result variant', async () => {
   let seen = null;
   const f = async (url) => {
     seen = url;
-    return { ok: true, status: 200, blob: async () => 'RESULT_BYTES' };
+    return new Response('RESULT_BYTES');
   };
   const blob = await fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'result', f);
-  assert.equal(blob, 'RESULT_BYTES');
+  assert.equal(await blob.text(), 'RESULT_BYTES');
   assert.equal(seen, 'http://srv:1/projects/p_a/files/result');
+});
+
+// A server's bytes are outside data too: past the one fetch cap they are refused, declared or streamed.
+test('fetchProjectImage reads the file under the fetch cap', async () => {
+  const over = String(MAX_FETCH_BYTES + 1);
+  const declared = async () => new Response('x', { headers: { 'content-length': over } });
+  await assert.rejects(fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'original', declared),
+    /exceeds the \d+-byte fetch cap/);
+  const chunk = new Uint8Array(1024 * 1024);
+  const streamed = async () => new Response(new ReadableStream({
+    pull(c) { c.enqueue(chunk); },
+  }));
+  await assert.rejects(fetchProjectImage({ url: 'http://srv:1', token: 'tok' }, 'p_a', 'original', streamed),
+    /exceeds the \d+-byte fetch cap/, 'an undeclared stream stops at the cap');
 });
 
 test('a stale session token self-heals: re-mint with the stored credential, retry once', async () => {

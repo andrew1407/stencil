@@ -354,7 +354,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "gap": "8px",
-        "width": "122.3px",
+        "width": "140.1px",
         "height": "34px",
         "align-items": "center"
       }
@@ -386,7 +386,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "76.1px",
+        "width": "94px",
         "height": "34px"
       }
     },
@@ -406,7 +406,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "76.1px",
+        "width": "94px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -423,7 +423,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "31.1px",
+        "width": "49px",
         "height": "16px",
         "text-align": "left"
       },

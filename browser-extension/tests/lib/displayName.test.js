@@ -1,5 +1,5 @@
 // Tests for shortName() (src/lib/displayName.js) — the extension's port of
-// browser/js/utils.js `shortName`. These mirror browser/tests/shortName.test.js case
+// browser/js/utils.js `shortName`. These mirror browser/tests/utils/shortName.test.js case
 // for case: the two must agree, or the same image reads with a different name in the
 // popup than in the editor it hands off to.
 

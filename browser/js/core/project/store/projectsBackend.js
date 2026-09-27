@@ -1,10 +1,13 @@
-// IndexedDB payload storage behind ProjectsStore's SYNC localStorage-shaped contract, the
-// parity twin of core/state/ProjectsStore.cpp. Only the per-project payload keys
-// (stencil_project_<id>) move to IndexedDB, via an in-memory mirror hydrated once at boot
-// (initProjectsBackend, awaited by index.js) and written through asynchronously. The registry,
-// migration flag and legacy keys stay in localStorage for cross-tab reads and the extension.
-
+// IndexedDB project storage behind ProjectsStore's SYNC localStorage-shaped contract, the
+// parity twin of core/state/ProjectsStore.cpp. The per-project keys — payload, image and thumbnail
+// (Blobs, read back as object URLs: imageBlobs.js, thumbBlobs.js) — move to IndexedDB through an
+// in-memory mirror hydrated once at boot (initProjectsBackend, awaited by index.js) and written
+// through asynchronously. The registry and flags stay in localStorage for cross-tab reads.
 import { PROJECT_PREFIX } from './projectsStore.js';
+import { IMAGE_PREFIX } from './projectImages.js';
+import { THUMB_PREFIX } from './projectThumbs.js';
+import { createThumbMirror, isDataUrl, isThumbRecord } from './thumbBlobs.js';
+import { createImageMirror } from './imageBlobs.js';
 
 const PROJECTS_DB_NAME = 'stencil_projects';
 const PROJECTS_DB_STORE = 'payloads';
@@ -47,7 +50,17 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
   if (!store) return ls;
 
   const isPayload = (k) => typeof k === 'string' && k.startsWith(PROJECT_PREFIX);
+  const isImage = (k) => typeof k === 'string' && k.startsWith(IMAGE_PREFIX);
+  const isThumb = (k) => typeof k === 'string' && k.startsWith(THUMB_PREFIX);
+  const isOwn = (k) => isPayload(k) || isImage(k) || isThumb(k);
   const mirror = new Map();
+  const images = createImageMirror();
+  const thumbs = createThumbMirror();
+  const adopt = (k, v) => {
+    if (isPayload(k)) mirror.set(k, v);
+    else if (isImage(k)) images.adopt(k, v);
+    else if (isThumb(k) && isThumbRecord(v)) thumbs.adopt(k, v);
+  };
 
   let stored;
   try {
@@ -55,7 +68,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
   } catch {
     return ls;
   }
-  for (const [k, v] of stored) if (isPayload(k)) mirror.set(k, v);
+  for (const [k, v] of stored) adopt(k, v);
 
   const lsKeys = () => {
     if (!ls) return [];
@@ -63,19 +76,22 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     try { return Object.keys(ls); } catch { return []; }
   };
 
-  // One-time migration out of localStorage. localStorage wins over a stale IndexedDB copy,
-  // and each key is copied — awaited — before its twin is deleted.
+  // One-time migration out of localStorage (an image's or thumbnail's data URL becomes its Blob).
+  // localStorage wins over a stale IndexedDB copy, and each key is copied — awaited — first.
   for (const k of lsKeys()) {
-    if (!isPayload(k)) continue;
+    if (!isOwn(k)) continue;
     const v = ls.getItem(k);
-    if (v == null) continue;
+    if (v == null || (!isPayload(k) && !isDataUrl(v))) continue;
+    let record = v;
+    if (isThumb(k)) { thumbs.drop(k); record = thumbs.put(k, v); }
+    else if (isImage(k)) { images.drop(k); record = await images.put(k, v).catch(() => null); }
+    else mirror.set(k, v);
     try {
-      await store.set(k, v);
+      if (record == null) continue;
+      await store.set(k, record);
     } catch {
-      mirror.set(k, v);
       continue;
     }
-    mirror.set(k, v);
     try { ls.removeItem(k); } catch { /* stays for the next boot's retry — harmless */ }
   }
 
@@ -89,59 +105,94 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     return p;
   };
 
+  const writeFailed = (e) => { try { backend.onWriteError?.(e); } catch { /* status line gone */ } };
+  // Best-effort: a failed refresh leaves the mirror stale rather than throwing.
+  const refreshing = new Map();
+  const forget = (k) => {
+    if (isThumb(k)) thumbs.drop(k);
+    else if (isImage(k)) images.drop(k);
+    else mirror.delete(k);
+  };
+  const refreshOne = async (id) => {
+    try {
+      for (const key of [PROJECT_PREFIX + id, IMAGE_PREFIX + id, THUMB_PREFIX + id]) {
+        const v = await store.get(key);
+        if (v !== undefined) adopt(key, v);
+        else forget(key);
+      }
+    } catch { /* stale mirror beats a throw */ }
+  };
+  const refreshAll = async () => {
+    try {
+      const all = await store.entries();
+      mirror.clear();
+      for (const k of [...thumbs.keys(), ...images.keys()]) forget(k);
+      for (const [k, v] of all) adopt(k, v);
+    } catch { /* stale mirror beats a throw */ }
+  };
+  // What IndexedDB is to hold for an image once its Blob is decoded; a superseded one writes nothing.
+  const persistImage = (k, pending) => {
+    if (pending) track(pending.then((record) => record != null && store.set(k, record))).catch(writeFailed);
+  };
   const backend = {
     // Storage points this at the save-status line.
     onWriteError: null,
 
     getItem(k) {
-      if (!isPayload(k)) return ls ? ls.getItem(k) : null;
-      const v = mirror.get(k);
-      // A payload a failed migration left behind is still in localStorage.
+      if (!isOwn(k)) return ls ? ls.getItem(k) : null;
+      const v = isThumb(k) ? thumbs.urlOf(k) : isImage(k) ? images.read(k) : mirror.get(k);
+      // A key a failed migration left behind is still in localStorage.
       return v !== undefined ? v : (ls ? ls.getItem(k) : null);
     },
     setItem(k, v) {
+      if (isThumb(k)) {
+        // Only a new picture is stored; the object URL a read handed out is already this key's.
+        const record = isDataUrl(v) ? thumbs.put(k, v) : null;
+        if (record) track(store.set(k, record)).catch(writeFailed);
+        return;
+      }
+      if (isImage(k)) return persistImage(k, images.put(k, String(v)));
       if (!isPayload(k)) {
         if (ls) ls.setItem(k, v);
         return;
       }
       const s = String(v);
       mirror.set(k, s);
-      track(store.set(k, s)).catch((e) => { try { backend.onWriteError?.(e); } catch { /* status line gone */ } });
+      track(store.set(k, s)).catch(writeFailed);
     },
     removeItem(k) {
-      if (!isPayload(k)) {
+      if (!isOwn(k)) {
         if (ls) ls.removeItem(k);
         return;
       }
-      mirror.delete(k);
+      forget(k);
       track(store.remove(k)).catch(() => { /* registry entry is the source of truth */ });
       try { ls?.removeItem(k); } catch { /* no leftover to clean */ }
     },
     keys() {
-      const out = new Set(mirror.keys());
+      const out = new Set([...mirror.keys(), ...images.keys(), ...thumbs.keys()]);
       for (const k of lsKeys()) out.add(k);
       return Array.from(out);
     },
 
-    // Re-read from IndexedDB after another tab wrote: one key when an id is given, the whole
-    // mirror otherwise. Best-effort — a failed refresh leaves the mirror stale.
-    async refresh(id) {
-      try {
-        if (id != null) {
-          const key = PROJECT_PREFIX + id;
-          const v = await store.get(key);
-          if (v === undefined) mirror.delete(key);
-          else mirror.set(key, v);
-          return;
-        }
-        const all = await store.entries();
-        mirror.clear();
-        for (const [k, v] of all) if (isPayload(k)) mirror.set(k, v);
-      } catch { /* stale mirror beats a throw */ }
+    // Re-read from IndexedDB after another tab wrote: one project's keys when an id is given (one
+    // read in flight per id, however many listeners ask), the whole mirror otherwise.
+    refresh(id) {
+      if (id == null) return refreshAll();
+      if (!refreshing.has(id)) refreshing.set(id, refreshOne(id).finally(() => refreshing.delete(id)));
+      return refreshing.get(id);
     },
+
+    // An image key's data URL, its object URL's bytes read back; `keep` holds it while it is open.
+    materialize: (k, keep = true) => (isImage(k) ? images.materialize(k, keep) : Promise.resolve(null))
+      .then((v) => v ?? backend.getItem(k)),
 
     flush: () => Promise.allSettled(Array.from(pending)).then(() => {}),
   };
+  // An older build's image strings become Blobs in the background; this boot reads them as they are.
+  for (const [k, v] of stored) {
+    if (isImage(k) && isDataUrl(v) && images.read(k) === v) { images.drop(k); persistImage(k, images.put(k, v)); }
+  }
   return backend;
 };
 

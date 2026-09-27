@@ -1,7 +1,7 @@
-// Modal popovers (js/ui/popover.js + base.js wireModalShell): every toolbar icon that opens a
+// Modal popovers (js/ui/tip/popover.js + base.js wireModalShell): every toolbar icon that opens a
 // covering modal also opens a COMPACT anchored version on dblclick / right-click, closed by
 // Escape or a click outside; single click keeps the full modal. The gesture matrix is unit-tested
-// DOM-free in browser/tests/popover.test.js — this pins the real-DOM classes, placement and both
+// DOM-free in browser/tests/ui/tip/popover.test.js — this pins the real-DOM classes, placement and both
 // close routes.
 import { test, expect } from '@playwright/test';
 import { gotoApp, settleModalAnimations } from '../../../helpers/boot.js';

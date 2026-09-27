@@ -7,7 +7,7 @@
 
 #include <string>
 
-// Mirrors browser/tests/script.test.js.
+// Mirrors browser/tests/ui/ctx/script.test.js.
 using namespace stencil::core::script;
 
 namespace {

@@ -1,6 +1,6 @@
 // One command: put the facade's types in the workspace, so the editor's own JavaScript
 // service types `stencil` rather than calling it `any`. Nothing else here decides anything —
-// where the file goes and what it contains is lib/typingsFile.js.
+// where the file goes and what it contains is lib/emit/typingsFile.js.
 import * as vscode from 'vscode';
 
 import { COMMANDS } from './lib/ids.js';

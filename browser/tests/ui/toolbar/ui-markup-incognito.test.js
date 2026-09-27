@@ -1,11 +1,11 @@
-// The "?" hints badge, the info line's incognito tag and the viewport-tracing incognito
-// frame. Split from ui-markup.test.js.
+// The "?" hints badge and the info line's incognito tag, as rendered and as wired.
+// Split from ui-markup.test.js; the viewport-tracing frame is incognitoFrame.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import { layout } from '../../../js/ui/layout.js';
-import { LAYOUT_CSS, COMPONENTS_CSS } from '../../helpers/css.js';
+import { LAYOUT_CSS } from '../../helpers/css.js';
 import { createStubElement, installDom } from '../../helpers/dom.js';
 
 const markup = layout();
@@ -31,6 +31,8 @@ const doc = installDom({ autoCreateById: true }, {
 });
 
 const { StencilToolbar } = await import('../../../js/ui/toolbar/toolbar.js');
+const { initTooltips } = await import('../../../js/ui/tip/controlTooltip.js');
+const { TIP_SHOW_DELAY_MS } = await import('../../../js/ui/motion.js');
 const { DrawingApp } = await import('../../../js/core/drawingApp.js');
 
 // A collapsed toolbar with an image open, so the "?" bubble is live and carries its line.
@@ -55,6 +57,18 @@ const bubbleRig = () => {
     };
 };
 
+// The wired bubble at one state of the size line, the fold and the mode: its size line, and
+// whether the badge shows at all.
+const bubbleAt = ({ size, text = size, collapsed = true, incognito = false }) => {
+    const info = doc.getElementById('image-info');
+    Object.assign(info, { textContent: text }).dataset.size = size;
+    doc.body.classList.toggle('controls-collapsed', collapsed);
+    doc.body.classList.toggle('incognito-mode', incognito);
+    for (const o of StubObserver.all) o.fn();
+    const [sizeText] = doc.getElementById('hints-popup').children;
+    return { line: sizeText.nodeValue, shown: doc.getElementById('hints-btn').style.display !== 'none' };
+};
+
 // The status line, repainted the way the toggle repaints it — updateIncognitoUI, not updateInfo.
 const infoRig = () => {
     const info = createStubElement('span', { id: 'image-info' });
@@ -71,16 +85,29 @@ const infoRig = () => {
 
 // The "?" badge has its own hover bubble (.hints-popup), so it carries neither a title nor a
 // data-title and opts out of the shared tooltip — both at once would show the text twice.
-test('the ? hints badge owns its bubble and opts out of the floating tooltip', () => {
+test('the ? hints badge owns its bubble and opts out of the floating tooltip', (t) => {
     const badge = markup.slice(markup.indexOf('id="hints-btn"'));
     const openTag = badge.slice(0, badge.indexOf('>'));
     assert.ok(/data-no-tooltip/.test(openTag), '#hints-btn opts out of the shared tooltip');
     assert.ok(!/\stitle=/.test(openTag) && !/data-title=/.test(openTag),
         'no second copy of the shortcut text on the badge itself');
-    const src = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
-    assert.ok(!/hintsBtn\.title\s*=/.test(src), 'and the toggle handler must not put one back');
-    const tt = readFileSync(new URL('../../../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
-    assert.ok(/data-no-tooltip/.test(tt), 'controlTooltip honours the opt-out');
+    bubbleRig();
+    const hintsBtn = doc.getElementById('hints-btn');
+    for (let i = 0; i < 2; i++) doc.getElementById('toggle-controls').dispatch('click');
+    assert.ok(!hintsBtn.title && !hintsBtn.hasAttribute('title') && !hintsBtn.dataset.title,
+        'and the toggle handler must not put one back');
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    initTooltips();
+    const tipAfterHover = (optOut) => {
+        const el = createStubElement('span', { isConnected: true });
+        el.dataset.title = 'Image Size: 800 × 600 px';
+        el.closest = (sel) => (sel === '[data-no-tooltip]' && !optOut ? null : el);
+        doc.dispatch('pointerover', { target: el, clientX: 4, clientY: 4 });
+        t.mock.timers.tick(TIP_SHOW_DELAY_MS);
+        return doc.body.children.some((c) => c.id === 'app-tooltip' && c.classList.contains('visible'));
+    };
+    assert.equal(tipAfterHover(true), false, 'controlTooltip honours the opt-out');
+    assert.equal(tipAfterHover(false), true, 'where a plain control raises its tip');
 });
 
 // The "?" holds two facts only — the image size and, in incognito, that the session is never
@@ -98,28 +125,28 @@ test('the ? badge sits inside the project-name field, right after the name', () 
 });
 
 test('the ? bubble carries the size and the incognito line — and nothing else', () => {
-    const src = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
     // The old shortcut wall is gone; those hints live in the ℹ info modal (infoConfig.json).
-    assert.ok(!/SHORTCUTS_HINT/.test(src), 'the shortcut wall is back in the bubble');
-    assert.ok(!/Ctrl\+Scroll|Alt\+Scroll|for full help/.test(src), 'shortcut text is back in the bubble');
+    assert.match(markup, /<span class="hints-popup" id="hints-popup"><\/span>/, 'the bubble ships empty');
     const info = readFileSync(new URL('../../../js/config/infoConfig.json', import.meta.url), 'utf8');
     for (const hint of ['Ctrl + wheel', 'Alt + wheel', 'Ctrl + Shift + wheel'])
         assert.ok(info.includes(hint), `${hint} must still be documented in the info modal`);
     // Two facts: the #image-info size line, plus an incognito line off body.incognito-mode.
-    assert.match(src, /sizeText\.nodeValue = live \? \(hasImage \? size : 'No image loaded'\) : '';/);
-    assert.match(src, /hints-incognito/);
-    assert.match(src, /incognito-mode/);
-    // Shown when the facts mean something — an image is open…
-    assert.match(src, /\/\^Image Size:\/\.test\(size\)/);
+    bubbleRig();
+    const popup = doc.getElementById('hints-popup');
+    assert.deepStrictEqual(popup.children.map((c) => c.nodeType === 3 ? '#text' : c.className),
+        ['#text', 'hints-incognito'], 'the size line and the incognito line, nothing else');
+    const SIZE = 'Image Size: 800 × 600 px';
+    // Shown when the facts mean something — an image is open (read off the line's own size,
+    // never its incognito tag as well)…
+    assert.deepStrictEqual(bubbleAt({ size: SIZE, text: `${SIZE}Incognito — not saved` }), { line: SIZE, shown: true });
     // …or while incognito is on, image or not, and only while the toolbar is collapsed: the info
     // line under the open toolbar carries the same two facts.
-    assert.match(src, /const live = \(hasImage \|\| incognito\) && collapsed;/);
-    assert.match(src, /classList\.contains\('controls-collapsed'\)/);
+    assert.deepStrictEqual(bubbleAt({ size: 'No image', incognito: true }), { line: 'No image loaded', shown: true });
+    assert.deepStrictEqual(bubbleAt({ size: 'No image' }), { line: '', shown: false });
+    assert.deepStrictEqual(bubbleAt({ size: SIZE, incognito: true, collapsed: false }), { line: '', shown: false });
     const css = LAYOUT_CSS;
     assert.match(css, /body\.controls-collapsed \.info \{ height: 0;[^}]*visibility: hidden; \}/,
       'the size line folds away with the rows it belongs to');
-    // The bubble reads the info line's own text, never its incognito tag as well.
-    assert.match(src, /el\.dataset\.size/);
 });
 
 // The mode has to read where the image facts are read, empty editor included: the info
@@ -160,45 +187,4 @@ test('both incognito badges render the glyph and the wording, and stand hidden w
     const hints = css.slice(css.indexOf('.hints-incognito {'), css.indexOf('}', css.indexOf('.hints-incognito {')));
     assert.match(hints, /display: flex/);
     assert.match(hints, /gap: 5px/);
-});
-
-// The frame belongs to the EDITOR: it traces the whole visible canvas region, picture and
-// empty ground, at any zoom — round the image alone it reads as a selection (user report).
-test('the incognito frame traces the canvas VIEWPORT, not the picture', () => {
-    const markup = readFileSync(new URL('../../../js/ui/panel/mainContent.js', import.meta.url), 'utf8');
-    // It lives in the VIEWPORT (the scrollport), not in the shrink-wrapping container.
-    const vpAt = markup.indexOf('id="canvas-viewport"');
-    const frameAt = markup.indexOf('class="incognito-frame"');
-    const containerAt = markup.indexOf('id="canvas-container"');
-    assert.ok(vpAt > -1 && frameAt > vpAt && frameAt < containerAt,
-        'the frame is a child of the viewport, ahead of the canvas container');
-    const css = COMPONENTS_CSS;
-    const frame = css.slice(css.indexOf('.incognito-frame {'), css.indexOf('}', css.indexOf('.incognito-frame {')));
-    // Sticky: an absolute box scrolls away with the content, which is what the frame must
-    // NOT do — the viewport edge is the same edge however far the picture is scrolled.
-    assert.match(frame, /position: sticky/);
-    assert.match(frame, /top: 0/);
-    assert.match(frame, /left: 0/);
-    // Sized in PIXELS from the viewport's own measurements: a percentage resolves against
-    // the scrollable content, i.e. the image's box at the current zoom.
-    assert.match(frame, /width: var\(--vp-w, 100%\)/);
-    assert.match(frame, /height: var\(--vp-h, 100%\)/);
-    // …and its height is given back, so nothing in the viewport shifts.
-    assert.match(frame, /margin-bottom: calc\(-1 \* var\(--vp-h, 0px\)\)/);
-    assert.match(frame, /pointer-events: none/);
-    // The publisher: the viewport's INNER box (less any scrollbar), on resize only —
-    // sticky already handles scrolling, so nothing runs per scroll frame.
-    assert.match(markup, /setProperty\('--vp-w', `\$\{vp\.clientWidth\}px`\)/);
-    assert.match(markup, /setProperty\('--vp-h', `\$\{vp\.clientHeight\}px`\)/);
-    assert.match(markup, /new ResizeObserver\(syncFrameBox\)\.observe\(vp\)/);
-    assert.ok(!/addEventListener\('scroll'[^)]*syncFrameBox/.test(markup), 'no per-scroll work');
-    // The old container-stretching workaround is gone with the container dependency.
-    assert.ok(!css.includes('body.incognito-mode.canvas-empty .canvas-container'),
-        'the empty-state stretch is obsolete now the frame owns the viewport');
-    const layout = LAYOUT_CSS;
-    const base = layout.slice(layout.indexOf('\n.canvas-container {'), layout.indexOf('}', layout.indexOf('\n.canvas-container {')));
-    // …and the container still shrink-wraps the canvas: as a flex item, `flex: none` with
-    // no width of its own is the inline-block's replacement (see canvasCentering.test.js).
-    assert.ok(/flex: none/.test(base) && !/width:/.test(base),
-        'and the container still shrink-wraps the canvas, untouched');
 });

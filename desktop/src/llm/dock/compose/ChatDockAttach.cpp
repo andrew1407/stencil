@@ -7,7 +7,7 @@
 #include <QPlainTextEdit>
 #include <QDragEnterEvent>
 #include <QDropEvent>
-#include <QFileInfo>
+#include <QImageReader>
 #include <QMimeData>
 #include <QUrl>
 #include <QAbstractAnimation>
@@ -68,16 +68,15 @@ namespace stencil::gui {
     if (!mime) return false;
     bool any = false;
     bool overCap = false;
+    QStringList files;   // decoded on the pool; the header check says now whether the drop is ours
     if (mime->hasUrls()) {
       for (const QUrl& u : mime->urls()) {
         if (!u.isLocalFile()) continue;
         const QString path = u.toLocalFile();
         if (isImageFileName(path)) {
-          if (cmp.images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
-          const QImage img = readImageFile(path);
-          if (!img.isNull()) {
-            cmp.images.append(img);
-            cmp.imageNames.append(QFileInfo(path).fileName());
+          if (cmp.images.size() + files.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7
+          if (QImageReader(path).canRead()) {
+            files << path;
             any = true;
           }
         } else if (isVideoFileName(path)) {
@@ -108,6 +107,16 @@ namespace stencil::gui {
     }
     if (any) refreshAttachmentTray();
     if (overCap) warnAttachmentCap();
+    if (!files.isEmpty())
+      readImageFilesThen(this, files, [this](const NamedImages& read) {
+        QStringList failed;
+        if (queueAttachments(cmp.images, cmp.imageNames, read, &failed)) warnAttachmentCap();
+        refreshAttachmentTray();
+        // Taken on its header, so the drop cannot be refused any more: say so (browser panel.js).
+        if (!failed.isEmpty())
+          emit toastRequested(QStringLiteral("Attachment failed — %1 could not be decoded")
+                                  .arg(failed.join(QStringLiteral(", "))), /*failure=*/true);
+      });
     return any;
   }
 }  // namespace stencil::gui

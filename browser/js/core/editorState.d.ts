@@ -2,6 +2,7 @@
 // collaborator or a DOM node. A fresh object per call — nothing is shared between editors.
 import type { Point, CropRect } from './geometry.js';
 import type { CodecLine } from './line/linesCodec.js';
+import type { Gesture } from './pointer/gesture.js';
 
 /** A drag anchor in both image and CSS pixels. */
 export interface DualPoint { imgX: number; imgY: number; cssX: number; cssY: number; }
@@ -29,17 +30,14 @@ export interface EditorState {
   currentLine: CurrentLine | null;
   isDrawing: boolean;
   scale: number;
-  isPanning: boolean;
+  /** The pointer gesture in flight; the is* drag flags on DrawingApp read it. */
+  gesture: Gesture;
   draggingPoint: { lineIdx: number; ptIdx: number; point?: Point } | null;
-  isDraggingPoint: boolean;
   dragJustEnded: boolean;
-  isDraggingSegment: boolean;
   draggingSegment: { lineIdx: number; ptIdx1: number; ptIdx2: number; startX: number; startY: number;
     origPt1: Point; origPt2: Point; origPoints: Point[] } | null;
-  isDraggingLine: boolean;
   draggingLine: { lineIdx: number; startX: number; startY: number; origPoints: Point[];
     multiOrig?: { li: number; pts: Point[] }[] | null } | null;
-  isZoomRectDragging: boolean;
   zoomRectStart: DualPoint | null;
   zoomRectEnd: DualPoint | null;
   coordLineIdx: number;
@@ -76,7 +74,6 @@ export interface EditorState {
   holdDrawDelay: number;
   holdPreview: Point | null;
   drawMode: 'line' | 'rect';
-  isRectDrawDragging: boolean;
   rectDrawStart: DualPoint | null;
   rectDrawEnd: DualPoint | null;
   continueLineIdx: number;

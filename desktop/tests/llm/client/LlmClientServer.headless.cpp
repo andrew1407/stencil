@@ -22,6 +22,8 @@ namespace llmclient {
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(t.url.toString() == "https://stencil.example.com:8090/llm/chat",
           "POST {serverUrl}/llm/chat");
+    check(t.url.path() == providerCanonEntry("stencil-server").value("chatPath").toString(),
+          "the path is providers.json stencil-server chatPath");
     check(t.header("Authorization") == "Bearer tok-123",
           "existing bearer token from the resolver");
     check(t.body.value("system").toString().startsWith("You are the AI assistant"),

@@ -13,8 +13,8 @@ class MainWindowGuiTest : public QObject {
   void assistantSettingsShortcutOpensAndClosesTheDialog() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY2(!win.actAssistantSettings->shortcut().isEmpty(), "the dialog has a chord");
-    QCOMPARE(win.hotkeyLabels.value(QStringLiteral("openAssistantSettings")),
+    QVERIFY2(!win.acts.assistantSettings->shortcut().isEmpty(), "the dialog has a chord");
+    QCOMPARE(win.keys.labels.value(QStringLiteral("openAssistantSettings")),
              QStringLiteral("AI Assistant Settings"));   // the Shortcuts window lists it
     QVERIFY(!win.chatDock->isVisible());
 
@@ -29,12 +29,12 @@ class MainWindowGuiTest : public QObject {
       if (!dlg) return;
       dialogName = dlg->objectName();
       for (QShortcut* sc : dlg->findChildren<QShortcut*>()) {
-        if (sc->key() == win.actAssistantSettings->shortcut()) { sawOwn = true; emit sc->activated(); }
+        if (sc->key() == win.acts.assistantSettings->shortcut()) { sawOwn = true; emit sc->activated(); }
       }
       closedByOwn = !dlg->isVisible();
       if (!closedByOwn) dlg->reject();
     });
-    win.actAssistantSettings->trigger();   // blocks in exec() until the timer closes it
+    win.acts.assistantSettings->trigger();   // blocks in exec() until the timer closes it
 
     QCOMPARE(dialogName, QString("assistantSettingsDialog"));
     QVERIFY2(sawOwn, "the dialog carried its own opener's chord");

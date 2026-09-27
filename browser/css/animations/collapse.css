@@ -15,14 +15,14 @@
    testing exactly as before — and out of the theme wipe's origin lookup, which asks
    checkVisibility (see js/ui/motion.js). */
 :root {
-    --fold-ms: 470ms;
+    --fold-ms: 362ms;
     /* Collapsing is the SLOWER half here, against the usual "going out is brisk" rule: a
        fold has no icon to shrink into, so the only thing that reads as the menu leaving is
        the fold itself — at the opening's pace it registered as a snap rather than a close.
        Applied from the collapsed-state rules alone, which is the after-change style a
        transition takes its timing from, so the way back in keeps --fold-ms. */
-    --fold-out-ms: 705ms;
-    --fold-fade-ms: 250ms;
+    --fold-out-ms: 542ms;
+    --fold-fade-ms: 192ms;
     /* A fold grows along ONE axis, so its area IS its height — it wants a plain ease-out
        and deliberately does not take the wipe's area-corrected curve. */
     --fold-ease: cubic-bezier(0.39, 0.575, 0.565, 1);   /* OutSine */
@@ -74,30 +74,29 @@ body.controls-collapsed:not(.fullscreen-mode) .canvas-viewport { transition: mar
 /* Both collapse toggles keep ONE chevron and turn it half a revolution (↑⇄↓, →⇄←) on the
    fold's own curve, instead of swapping to the opposite glyph in a single frame. Mirrored
    in the desktop app (MainWindow::positionOverlayArrows + SelectionPanel). */
-#toggle-controls .ic, #toggle-coord-panel .ic {
-    transition: transform var(--fold-ms) var(--fold-ease);
-}
+#toggle-controls .ic { transition: transform var(--fold-ms) var(--fold-ease); }
+#toggle-coord-panel .ic { transition: transform var(--panel-slide-ms) var(--fold-ease); }
 .controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
 .coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg); }
 
-/* The coordinates panel slides between its resizable width and the 36px rail, and its
-   contents fade rather than blinking out. The width transition is SUPPRESSED while the
-   splitter is being dragged — an easing curve between the pointer and the panel edge
-   feels like lag, not polish. */
+/* The coordinates panel slides between its resizable width and the 36px rail on --panel-*-ms
+   (config/motion.json PANEL_*, the desktop's slide too), its contents fading rather than blinking
+   out. The width transition is SUPPRESSED while the splitter is being dragged — an easing curve
+   between the pointer and the panel edge feels like lag, not polish. */
 .coordinates-panel {
-    transition: width var(--fold-ms) var(--fold-ease),
-                min-width var(--fold-ms) var(--fold-ease),
-                padding var(--fold-ms) var(--fold-ease);
+    transition: width var(--panel-slide-ms) var(--fold-ease),
+                min-width var(--panel-slide-ms) var(--fold-ease),
+                padding var(--panel-slide-ms) var(--fold-ease);
 }
 .main-content:has(.panel-resizer.dragging) .coordinates-panel,
 body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
 #coord-body, .coord-tabs {
     opacity: 1;
-    /* `display` is what actually removes them (layout/coordPanel.css); allow-discrete keeps the
+    /* `display` is what actually removes them (layout/coord/panel.css); allow-discrete keeps the
        fade visible on the way out and @starting-style plays it on the way back in.
        Where it is unsupported the panel still slides — only the fade is skipped. */
-    transition: opacity var(--fold-fade-ms) var(--fold-ease),
-                display var(--fold-fade-ms) allow-discrete;
+    transition: opacity var(--panel-fade-ms) var(--fold-ease),
+                display var(--panel-fade-ms) allow-discrete;
 }
 .coordinates-panel.coord-collapsed #coord-body,
 .coordinates-panel.coord-collapsed .coord-tabs { opacity: 0; }
@@ -112,6 +111,28 @@ body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
         opacity: 0;
         transition: none;
     }
+    /* Under particles the panel IS its dust (panel/coordFold.js; desktop: DockChrome's veiled
+       panelSurfaceFlight): the card paints nothing, and its header and table hold the boxes they
+       have open, out of the layout, as the picture the grains leave or form over. */
+    .coordinates-panel.coord-veiled {
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+    }
+    .coordinates-panel.coord-veiled > .coord-panel-header,
+    .coordinates-panel.coord-veiled > #coord-body {
+        position: fixed;
+        left: var(--pin-left);
+        top: var(--pin-top);
+        width: var(--pin-width);
+        height: var(--pin-height);
+        box-sizing: border-box;
+        margin: 0;
+        pointer-events: none;
+    }
+    .coordinates-panel.coord-veiled #coord-body { display: block; opacity: 1; transition: none; }
+    .coordinates-panel.coord-veiled .coord-tabs { display: inline-flex; opacity: 1; transition: none; }
+    .coordinates-panel.coord-veiled #toggle-coord-panel { border: 1px solid var(--border-main) !important; }
 }
 @starting-style {
     .coordinates-panel:not(.coord-collapsed) #coord-body,

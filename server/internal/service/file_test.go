@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"testing"
 
@@ -99,5 +100,28 @@ func TestStorePassesAWriteFailureThrough(t *testing.T) {
 	files.putErr = boom
 	if _, err := svc.Store(context.Background(), put(protocol.KindOriginal), strings.NewReader("b")); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want the store's own error", err)
+	}
+}
+
+// An upload is charged to the owner of the project it lands in: the store's owner query names its peers.
+func TestStoreChargesTheProjectsOwner(t *testing.T) {
+	svc, st, files := fileSvc(t)
+	st.Seed(protocol.ProjectRecord{ID: "p_1", OwnerSession: "s_a"})
+	st.Seed(protocol.ProjectRecord{ID: "p_2", OwnerSession: "s_a"})
+	st.Seed(protocol.ProjectRecord{ID: "p_3", OwnerSession: "s_b"})
+	st.Seed(protocol.ProjectRecord{ID: "p_4"})
+	if _, err := svc.Store(context.Background(), put(protocol.KindOriginal), strings.NewReader("b")); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(files.peers)
+	if strings.Join(files.peers, ",") != "p_1,p_2" {
+		t.Fatalf("peers = %v, want [p_1 p_2]", files.peers)
+	}
+	ownerless := FilePut{ID: "p_4", Kind: protocol.KindResult, Ext: "png"}
+	if _, err := svc.Store(context.Background(), ownerless, strings.NewReader("b")); err != nil {
+		t.Fatal(err)
+	}
+	if len(files.peers) != 0 {
+		t.Fatalf("an ownerless project named peers %v", files.peers)
 	}
 }

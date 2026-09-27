@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include "models.hpp"
+#include "defaultVisuals.hpp"
 #include <QColor>
 #include <QString>
 #include <QWidget>
@@ -64,10 +65,10 @@ namespace stencil::gui {
     QPushButton* fillClear = nullptr;
     QPushButton* deselectBtn = nullptr;
 
-    QColor currentColor{"#FFFF00"};
-    QColor currentPointColor{"#FFFF00"};
-    QColor currentFill{"#ffffff"};
-    QColor defaultFill{"#ffffff"};
+    QColor currentColor{defaultVisuals::table().color};
+    QColor currentPointColor{defaultVisuals::table().color};
+    QColor currentFill{defaultVisuals::table().fillColor};
+    QColor defaultFill{defaultVisuals::table().fillColor};
     bool updating = false;   // suppress signals while showLine repopulates
   };
 

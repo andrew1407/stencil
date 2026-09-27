@@ -39,7 +39,7 @@ class MainWindowGuiTest : public QObject {
       dy = dlg->geometry().center().y() - win.geometry().center().y();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(h >= stencil::gui::OI_MIN_H,
              qPrintable(QString("opened %1px tall; the browser's floor is %2")
                             .arg(h).arg(stencil::gui::OI_MIN_H)));
@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
       cropRestored = crop->isChecked();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(stageOnUrl, "ticking Crop must put the stage up on the tab that ticked it");
     QVERIFY2(!stageLeakedToFile, "the cropped picture must not stand on a tab with no source");
     QVERIFY2(!cropLeakedToFile, "nor must the Crop tick itself cross to the other tab");
@@ -121,7 +121,7 @@ class MainWindowGuiTest : public QObject {
                   && path->cursor().shape() == Qt::PointingHandCursor;   // clickActivates
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(found, "#oiFileBox / #oiChooseBtn / #oiPathField must all be there to be styled");
     QVERIFY2(sameBox, "Choose and the path readout belong inside the one outlined box");
     QVERIFY2(buttonLeads, "the accent CTA leads and the readout follows it, as .oi-file does");

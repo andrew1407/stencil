@@ -2,7 +2,7 @@
    (same wirePanelResizer feel as the coordinates panel splitter). touch-action off
    so the pointer drag owns the gesture on touch devices too. */
 .chat-resizer { position: absolute; background: transparent; touch-action: none; user-select: none; }
-/* Docked: the always-visible grip of .panel-resizer (layout/coordPanel.css), a pill centred
+/* Docked: the always-visible grip of .panel-resizer (layout/coord/panel.css), a pill centred
    along the edge — a bare strip that only tinted on hover read as an edge you cannot drag. */
 stencil-chat-panel:not(.chat-dock-float) .chat-resizer::before {
     content: '';

@@ -40,7 +40,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The checkbox particle toggle and the combo value exchange are installed ONCE, on the application
-  // (support/controlSwap.hpp): the real toolbar controls get them with no call site, and nothing moves.
+  // (support/control/swap/controlSwap.hpp): the real toolbar controls get them with no call site, and nothing moves.
   void controlSwapsAreInstalledAppWide() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 800);
@@ -50,7 +50,7 @@ class MainWindowGuiTest : public QObject {
                  QString::fromLatin1(stencil::gui::CONTROL_SWAP_FILTER_NAME),
                  Qt::FindDirectChildrenOnly),
              "MainWindow never installed the app-wide control-swap filter");
-    auto* box = win.showPointsCheck;
+    auto* box = win.tools.showPointsCheck;
     auto* combo = win.units.pageSize;
     QVERIFY(box && combo);
     QTRY_VERIFY(box->property(stencil::gui::CONTROL_SWAP_WIRED_PROPERTY).toBool());
@@ -121,12 +121,12 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* dock = win.findChild<QDockWidget*>("llmChatDock");
     QVERIFY(dock);
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
     settleLayout(&win, 300);
-    win.actChat->setChecked(false);
+    win.acts.chat->setChecked(false);
     QTRY_VERIFY(surfaceFlight(&win));
     auto* fx = surfaceFlight(&win);
     QVERIFY2(fx, "the floating chat's flight did not play");

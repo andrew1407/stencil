@@ -16,13 +16,13 @@ const (
 	WSPing      = "ping"
 
 	// server -> client
-	WSWelcome   = "welcome"   // { project, layout, version, peers[] }
+	WSWelcome   = "welcome"   // { project (metadata), layout, version, peers[] }
 	WSPeerJoin  = "peer-join" // { clientId, name }
 	WSPeerLeave = "peer-leave"
 	WSSynced    = "synced" // { version, resultPath? } ack/commit confirmation
 	WSError     = "error"  // { code, message }
 	WSPong      = "pong"
-	WSProjectEv = "project-event" // global /events feed: { event, project }
+	WSProjectEv = "project-event" // global /events feed: { event, project (metadata) }
 )
 
 // Project-event sub-types for the global /events feed.
@@ -34,9 +34,9 @@ const (
 
 // Error codes carried in WSMessage.Code and ErrorResponse.Code.
 const (
-	CodeUnauthorized = "unauthorized"
+	CodeUnauthorized = "unauthorized" // a bad hello token, or a live connection's token expiring
 	CodeBadVersion   = "badVersion"
-	CodeNotFound     = "notFound"
+	CodeNotFound     = "notFound" // REST, and a hello naming no existing project
 	CodeConflict     = "conflict"
 	CodeBadRequest   = "badRequest"
 	CodeInternal     = "internal"

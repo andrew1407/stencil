@@ -31,8 +31,6 @@ export const loadScriptFile = async (file) => {
   } catch { /* runScript already reported it */ }
 };
 
-export const isScriptModalOpen = () => !!$('script-overlay')?.classList?.contains('modal-open');
-
 export class StencilScriptModal extends StencilElement {
   static inner() {
     return scriptModalInner();

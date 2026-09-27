@@ -2,6 +2,7 @@
 // release in every motion mode, and a selector inside a peeked mini window or a modal dialog peeks
 // without closing it, the mini window lingering while the pointer is in that selector's list.
 #include "altPeekGui.hpp"
+#include "uiTimings.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -24,7 +25,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     bootForPeeks(win, MotionMode(mode));
     if (!cursorWarps(win)) QSKIP("the platform ignores QCursor::setPos");
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
     // A settled peek, a release while its open flight still runs, and one over the logo itself.
     const QList<QPair<int, bool>> rounds = {{450, true}, {60, true}, {450, false}};
@@ -71,7 +72,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     bootForPeeks(win, MotionMode(mode));
     if (!cursorWarps(win)) QSKIP("the platform ignores QCursor::setPos");
-    QToolButton* btn = buttonFor(win, win.actSettings);
+    QToolButton* btn = buttonFor(win, win.acts.settings);
     QVERIFY2(btn, "no visible Visuals button");
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
     QCursor::setPos(centreOf(btn));
@@ -94,14 +95,14 @@ class MainWindowGuiTest : public QObject {
       peeked = list && win.pop.active == box;
       if (!list) return;
       // Parked beside the mini window, so only its ownership of the list can keep it open.
-      const QRect r = win.popoverRectGlobal();
+      const QRect r = win.parts.popoverGestures.popoverRectGlobal();
       list->move(r.right() + 30, r.top());
       QCursor::setPos(list->geometry().center());
-      win.altHeldForTest = true;   // the icon glide poll runs, and must stand down over the list
+      win.tools.altHeldForTest = true;   // the icon glide poll runs, and must stand down over the list
       QTest::qWait(250);
-      win.altHeldForTest = false;
+      win.tools.altHeldForTest = false;
       altKey(QEvent::KeyRelease);
-      QTest::qWait(stencil::support::LINGER_CLOSE_MS + 400);
+      QTest::qWait(stencil::support::uiTimings().lingerCloseMs + 400);
       lingered = win.pop.active == box && box && box->isVisible() && comboPopup(combo);
       QCursor::setPos(centreOf(win.canvas));
     });
@@ -138,7 +139,7 @@ class MainWindowGuiTest : public QObject {
       dialogKept = dlg->isVisible();
       dlg->reject();
     });
-    win.actSettings->trigger();   // the full window, modal
+    win.acts.settings->trigger();   // the full window, modal
     QVERIFY2(opened, "a selector inside the Visuals dialog did not peek");
     QVERIFY2(closed, "releasing Alt outside its list did not close it");
     QVERIFY2(dialogKept, "the selector's peek closed its dialog");

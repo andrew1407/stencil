@@ -62,7 +62,8 @@ size — then **Keep original** (full image + crop applied, re-editable) or **Cu
 [collaboration servers](../server/README.md) (URL + optional token; an invite link
 `<url>#token=<tok>` pasted as the URL supplies its own token). Each server's stored projects
 appear as **shared pins** after the page's own images, with a golden outline and a server
-badge; the popup refreshes them on a light poll while open.
+badge; while open, the popup updates them the moment the server reports a change, or on a light
+poll where it cannot.
 
 ## AI assistant
 
@@ -74,12 +75,19 @@ paste images and videos onto the section to attach them; the send button becomes
 mid-turn, 🗑 clears the conversation. Nothing is persisted — a popup's chat ends when it
 closes.
 
-Providers (Ollama, any OpenAI-compatible server, or a collaboration server's Anthropic
-proxy) are set in **Options → AI assistant**; with the provider `none` the section and the
-✦ button are hidden. The extension reaches providers through its host permissions, so no
-CORS setup is needed. Setup guide: the [root README](../README.md#ai-assistant--setting-up-a-model);
-the op set is the extension profile in
-[`contracts/llm/llm-profiles.md`](../contracts/llm/llm-profiles.md).
+Providers (Ollama, any OpenAI-compatible server, Anthropic directly with your own key, or a
+collaboration server's Anthropic proxy) are set in **Options → AI assistant**; with the
+provider `none` the section and the ✦ button are hidden. The extension reaches providers
+through its host permissions, so no CORS setup is needed. Setup guide: the
+[root README](../README.md#ai-assistant--setting-up-a-model); the op set is the extension
+profile in [`contracts/llm/llm-profiles.md`](../contracts/llm/llm-profiles.md).
+
+**Your own Claude key.** Choose **Anthropic API (Claude)**, paste your API key from the
+Anthropic console and press **Save**: the assistant then calls Anthropic straight from the
+extension, with no Stencil server in between. The key is kept for this browser session only —
+closing the browser, reloading the extension or 12 hours forget it — and it is never saved or
+synced. Options shows until when it is kept, and **Forget key** drops it at once; a turn sent
+without one points you back to Options.
 
 ## Editor mode
 

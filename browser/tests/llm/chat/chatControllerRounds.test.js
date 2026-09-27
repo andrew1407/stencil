@@ -1,8 +1,7 @@
-// §3.0 one round per turn (js/llm/controller.js): nothing follows the reply, and the
+// §3.0 one round per turn (js/llm/chat/controller.js): nothing follows the reply, and the
 // withdrawn refinement/correction machinery is gone from the controller's surface.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { makeClient, makeController } from '../../helpers/chatControllerRig.js';
 
 // §3.0: the turn ends when its plan has executed, and no auxiliary round may hold the send open. No
@@ -35,11 +34,13 @@ test('a layout plan issues EXACTLY ONE model round — nothing follows the reply
 test('the withdrawn machinery is gone from the controller\'s surface', async () => {
   const mod = await import('../../../js/llm/chat/controller.js');
   for (const gone of ['auxDeadline', 'AUX_ROUND_TIMEOUT_MS', 'findSuspectLines',
-    'LAYOUT_CORRECTION_PROMPT', 'REFINE_MAX_PARALLEL', 'REFINE_MAX_RENDER_ZOOM']) {
+    'LAYOUT_CORRECTION_PROMPT', 'REFINE_MAX_PARALLEL', 'REFINE_MAX_RENDER_ZOOM',
+    'refineOutlines', 'correctDrawnLayout', 'refineDrawnOutlines', 'startAuxChain']) {
     assert.strictEqual(mod[gone], undefined, `${gone} must not exist`);
   }
   const { controller } = makeController(makeClient(['hi']));
-  for (const gone of ['cancelAux', 'auxRunning']) {
+  for (const gone of ['cancelAux', 'auxRunning', 'refineOutlines', 'correctDrawnLayout',
+    'refineDrawnOutlines', 'startAuxChain']) {
     assert.strictEqual(controller[gone], undefined, `controller.${gone} must not exist`);
   }
   // §7's own attachments STAY — the working-image snapshot and its edge map are what
@@ -47,7 +48,9 @@ test('the withdrawn machinery is gone from the controller\'s surface', async () 
   assert.strictEqual(typeof mod.EDGE_MAP_SENTENCE, 'string');
   assert.match(mod.EDGE_MAP_SENTENCE, /edge-map render of the working image/);
   assert.strictEqual(typeof mod.contourDataUrl, 'function');
-  const src = readFileSync(new URL('../../../js/llm/chat/controller.js', import.meta.url), 'utf8');
-  assert.ok(!/refineOutlines|correctDrawnLayout|refineDrawnOutlines|startAuxChain/.test(src));
-  assert.ok(!/could not be sharpened/.test(src), 'no sharpening note can be produced');
+  const turn = makeController(makeClient([JSON.stringify({ version: 1, reply: 'Done.',
+    actions: [{ op: 'layout', lines: [{ points: [{ x: 1, y: 1 }, { x: 9, y: 9 }] }] }] })]));
+  turn.stencil.setLines = () => {};
+  const entry = await turn.controller.send('outline it');
+  assert.ok(!/could not be sharpened/.test(JSON.stringify(entry)), 'no sharpening note can be produced');
 });

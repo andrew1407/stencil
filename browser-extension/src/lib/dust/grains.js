@@ -1,5 +1,5 @@
 // One grain of the swap's wake: a hand-copied twin of lib/cloud.js's grain maths (an
-// ES module this pre-paint classic script cannot import); tests/accent.test.js pins the two.
+// ES module this pre-paint classic script cannot import); tests/lib/accent/accent.test.js pins the two.
 (function () {
   const K = window.StencilKit;
   const STYLE_FIRE = K.STYLE_FIRE, STYLE_WATER = K.STYLE_WATER, bezierY = K.bezierY, fract = K.fract;
@@ -15,7 +15,7 @@
   const grainEase = function (t) {
     return grainCurve[Math.min(GRAIN_STEPS, Math.max(0, Math.round(t * GRAIN_STEPS)))];
   };
-  // lib/cloud.js styleFrame: a water or fire wake is the same grains nudged, swollen
+  // lib/dust/cloud.js styleFrame: a water or fire wake is the same grains nudged, swollen
   // and dimmed per frame.
   const PALETTE_STOPS = 6;
   const WATER = { sagShare: 0.45, sagMaxPx: 30, swayShare: 0.12, swayMaxPx: 5, swayWaves: [0.8, 1.4], swell: 0.3,
@@ -50,10 +50,10 @@
   const paletteIndex = function (mix, stops) {
     return Math.max(0, Math.min(stops - 1, Math.round(mix * (stops - 1))));
   };
-  // lib/cloud.js dustMix: plain grains spread to halfway by hash, glints wear the shade.
+  // lib/dust/cloud.js dustMix: plain grains spread to halfway by hash, glints wear the shade.
   const DUST_MIX_SPREAD = 0.5;
   const dustMix = function (w, glint) { return glint ? 1 : (w || 0) * DUST_MIX_SPREAD; };
-  // The rest wear a TINT off their own hash (lib/cloud.js tintOf / stopOfTint).
+  // The rest wear a TINT off their own hash (lib/dust/cloud.js tintOf / stopOfTint).
   const TINT_SHARE = 0.34;
   // Two follow the theme (lib/theme/palette.css): a white speck is invisible on a pale surface.
   const TINT_CSS = ['var(--dust-ink, #1f1f1f)', '#b4b4b4', '#6e6e6e',
@@ -68,7 +68,7 @@
   const stopOfTint = function (mix, tint) {
     return tint < 0 ? paletteIndex(mix, PALETTE_STOPS) : PALETTE_STOPS + tint;
   };
-  // lib/cloud.js grainShape / shapePolygon / addGrainPath: each shape lies along its heading.
+  // lib/dust/cloud.js grainShape / shapePolygon / addGrainPath: each shape lies along its heading.
   const SHAPE_DISC = 0, SHAPE_OVAL = 1, SHAPE_WAVE = 2, SHAPE_TRIANGLE = 3, SHAPE_STREAK = 4;
   const WATER_WAVE_SHARE = 0.3, FIRE_STREAK_SHARE = 0.4;
   const SHAPES = {
@@ -107,7 +107,7 @@
     }
     return out;
   };
-  // The engine's cost per grain climbs with the path's length (lib/cloud.js FILL_CHUNK).
+  // The engine's cost per grain climbs with the path's length (lib/dust/cloud.js FILL_CHUNK).
   const FILL_CHUNK = 32;
   const fillGrains = function (ctx, b, n, poly) {
     for (let i = 0; i < n; i += FILL_CHUNK) {
@@ -142,7 +142,7 @@
       return got || css;
     } catch (e) { return css; }
   };
-  // lib/cloud.js paletteCss: the accent → shade ramp, then the tints.
+  // lib/dust/cloud.js paletteCss: the accent → shade ramp, then the tints.
   const paletteCss = function () {
     const out = []; let i;
     for (i = 0; i < PALETTE_STOPS; i++)
@@ -164,7 +164,8 @@
   // Alpha steps a fading grain is drawn in; one colour AND one step is a single fill.
   const DUST_ALPHA_LEVELS = 8;
 
-  K.DUST_ALPHA_LEVELS = DUST_ALPHA_LEVELS; K.dustMix = dustMix; K.fillGrains = fillGrains;
+  K.DUST_ALPHA_LEVELS = DUST_ALPHA_LEVELS; K.GRAIN_FLARE = GRAIN_FLARE; K.GRAIN_STEPS = GRAIN_STEPS;
+  K.dustMix = dustMix; K.fillGrains = fillGrains;
   K.grainAt = grainAt; K.grainShape = grainShape; K.headingOf = headingOf;
   K.paletteCss = paletteCss; K.resolveColour = resolveColour; K.shapePolygon = shapePolygon;
   K.stopOfTint = stopOfTint; K.styleFrame = styleFrame; K.tintOf = tintOf;

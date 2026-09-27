@@ -10,12 +10,10 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDate>
-#include <QDateTime>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLocale>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QToolButton>

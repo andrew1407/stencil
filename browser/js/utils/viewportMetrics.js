@@ -1,4 +1,4 @@
-// The DOM half of ZoomPan (core/pan.js). Every value is MEASURED live — a fixed inset
+// The DOM half of ZoomPan (core/zoom/pan.js). Every value is MEASURED live — a fixed inset
 // guess leaves a page scrollbar.
 
 // Below these the frame / the panel header would be clipped.
@@ -41,7 +41,7 @@ const belowInColumn = (vp) => {
   return total;
 };
 
-// Auto margins centre a canvas SMALLER than the frame (layout/canvasFrame.css), so its
+// Auto margins centre a canvas SMALLER than the frame (layout/canvas/frame.css), so its
 // origin is not the scroll origin; 0 once the canvas overflows.
 export const canvasOrigin = () => {
   const c = typeof document !== 'undefined' && document.getElementById('canvas-container');

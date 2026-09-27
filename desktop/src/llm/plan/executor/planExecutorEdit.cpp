@@ -1,5 +1,5 @@
-// The ops that move through the editor's own history and sources: undo/redo, a video frame, a URL
-// or file to open, an image reference and a save.
+// The ops that move through the editor's own history and sources: undo/redo and an image reference.
+// The frame, URL, file and save ops wait on I/O, so they start from planExecutorAwait.cpp.
 #include "planExecutorParts.hpp"
 
 namespace stencil::llm::exec {
@@ -35,53 +35,6 @@ namespace stencil::llm::exec {
           if (done > 0) frame.reset();
           return true;
         }
-        case OpKind::FRAME: {
-          if (inVariant) {
-            *err = QStringLiteral("frame: not valid inside a variant");
-            return false;
-          }
-          if (!target.isVideoInput()) {
-            *err = QStringLiteral("frame: the current input is not a video");
-            return false;
-          }
-          if (!target.extractFrames(a.indices, err)) return false;
-          frame.reset();
-          return true;
-        }
-        case OpKind::OPEN_URL: {
-          if (inVariant) {
-            *err = QStringLiteral("openUrl: not allowed inside a variant");
-            return false;
-          }
-          // The model may only ECHO the user: the exact URL must appear in the user's own messages this
-          // conversation (the `connect` stance - a plan can never introduce a host).
-          if (!target.userTypedText().contains(a.url)) {
-            *err = QStringLiteral(
-                       "openUrl blocked: \"%1\" is not a URL you gave in this conversation")
-                       .arg(a.url);
-            return false;
-          }
-          if (!target.openUrl(a.url, a.incognito, err)) return false;
-          frame.reset();  // the loaded picture is a fresh frame
-          return true;
-        }
-        case OpKind::OPEN_FILE: {
-          if (inVariant) {
-            *err = QStringLiteral("openFile: not allowed inside a variant");
-            return false;
-          }
-          // The same echo rule as openUrl, for the filesystem: the assistant reads
-          // only where the user themselves pointed it.
-          if (!pathEchoedIn(target.userTypedText(), a.path)) {
-            *err = QStringLiteral(
-                       "openFile blocked: \"%1\" is not a path you gave in this conversation")
-                       .arg(a.path);
-            return false;
-          }
-          if (!target.openFile(a.path, err)) return false;
-          frame.reset();  // the loaded picture is a fresh frame
-          return true;
-        }
         // §2.1 multi-image ops (parse-banned in variants; the guards here
         // are defensive only)
         case OpKind::IMAGE: {
@@ -97,28 +50,6 @@ namespace stencil::llm::exec {
                           .arg(why);
           frame.reset();  // the attachment is a fresh image, so a fresh frame
           return true;
-        }
-        case OpKind::SAVE: {
-          if (inVariant) {
-            *err = QStringLiteral("save: not allowed inside a variant");
-            return false;
-          }
-          // Saving nothing is a skipped action, never a failed plan.
-          if (!target.hasImage()) {
-            if (notes) *notes << QStringLiteral("Skipped save — no working image to save");
-            return true;
-          }
-          // A destination is honoured only when the user wrote it (§10's echo rule);
-          // an unechoed one costs the destination, not the save.
-          QString dest = a.path;
-          if (!dest.isEmpty() && !pathEchoedIn(target.userTypedText(), dest)) {
-            if (notes)
-              *notes << QStringLiteral("Saved to the usual place — \"%1\" is not a path you "
-                                       "gave in this conversation")
-                            .arg(dest);
-            dest.clear();
-          }
-          return target.saveProject(a.name, dest, err);
         }
       default: break;
     }

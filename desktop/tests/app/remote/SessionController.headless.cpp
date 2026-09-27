@@ -1,4 +1,4 @@
-// Headless check of app/SessionController.hpp — the rules that decide whether the
+// Headless check of app/remote/SessionController.hpp — the rules that decide whether the
 // editor writes anything at all (incognito, a fetched server project with sync off,
 // no project, no image, a restore still in flight) and the two debounces that carry
 // the writes. These gates used to be spelled out at four call sites; this is the pin

@@ -1,17 +1,11 @@
-// The Projects dialog's list and footer phases; call order pinned by tests/ProjectsDialogRows.headless.cpp.
+// The Projects dialog's list and footer phases; call order pinned by tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp.
 #include "ProjectsDialog.hpp"
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
-#include "../../../support/guiHelpers.hpp"
 #include "../../../support/modal/modalChrome.hpp"
-#include "../../../support/motion/MenuShimmer.hpp"
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
-#include <QTimer>
-#include <QVBoxLayout>
 #include "iconSet.hpp"
 #include "ReorderableListWidget.hpp"
 #include "ProjectDragZones.hpp"

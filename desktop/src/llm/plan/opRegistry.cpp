@@ -1,9 +1,9 @@
 #include "opRegistry.hpp"
-#include "OpSchema.hpp"
+#include "OpPlanSchema.hpp"
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QRegularExpression>
 #include <QtGlobal>
 
 #include <algorithm>
@@ -15,9 +15,50 @@
 // the generated init function.
 static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 
-// The desktop op registry (llm-contract §13): the shared opRegistry.json supplies every bullet,
-// "also accepts" line, flag and forbidden name; this table adds the OpKind and the capability.
+// The desktop op registry (llm-contract §13): core's resolution of the shared opRegistry.json
+// supplies every bullet, flag, forbidden name and cap; this table adds the OpKind and the capability.
 namespace stencil::llm {
+
+  namespace {
+    const QByteArray& registryBytes() {
+      static const QByteArray bytes = [] {
+        ensureAppResources();
+        QFile f(QStringLiteral(":/config/llm/opRegistry.json"));
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+      }();
+      return bytes;
+    }
+
+    // A raw registry op, for the prompt-only fields core does not resolve (bulletSharedWith, also).
+    QJsonObject registryOp(const QString& name) {
+      static const QJsonArray ops = QJsonDocument::fromJson(registryBytes()).object().value("ops").toArray();
+      for (const QJsonValue& v : ops)
+        if (v.toObject().value("name").toString() == name) return v.toObject();
+      return QJsonObject();
+    }
+
+    QJsonObject surfaceEntry(const QString& name) {
+      for (const QJsonValue& v : planSurface().value("entries").toArray())
+        if (v.toObject().value("name").toString() == name) return v.toObject();
+      return QJsonObject();
+    }
+  }  // namespace
+
+  const model::OpPlanSchema& planSchema() {
+    static const model::OpPlanSchema schema(registryBytes(), "desktop");
+    return schema;
+  }
+
+  const QJsonObject& planSurface() {
+    static const QJsonObject surface = QJsonDocument::fromJson(planSchema().entriesJson()).object();
+    return surface;
+  }
+
+  int planLimit(const QString& name) {
+    QJsonValue v = planSurface().value("limits");
+    for (const QString& k : name.split(QLatin1Char('.'))) v = v.toObject().value(k);
+    return v.isDouble() ? v.toInt() : -1;
+  }
 
   // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head" carries its
   // trailing newline and "tail" its leading blank line, so assembly is head + bullets + tail.
@@ -75,19 +116,21 @@ namespace stencil::llm {
     };
   }  // namespace
 
-  // Bullets and flags are the registry entry's (undo/redo and connect/disconnect
-  // share one bullet each through bulletSharedWith — assembly emits it once).
+  // Bullets and flags are the resolved entry's (undo/redo and connect/disconnect share one bullet
+  // each through bulletSharedWith — assembly emits it once).
   const QVector<OpDescriptor>& opRegistry() {
     static const QVector<OpDescriptor> table = [] {
-      const OpSchema& schema = OpSchema::desktop();
       QVector<OpDescriptor> out;
       for (const OpRow& r : ROWS) {
         OpDescriptor d{r.kind, r.name, QString(), false, false, false, r.capability};
-        if (const OpEntry* e = schema.entry(QLatin1String(r.name))) {
-          const OpEntry* src = e->bulletSharedWith.isEmpty() ? e : schema.entry(e->bulletSharedWith);
-          if (src) d.bullet = src->bullet;
-          d.editorSettings = e->flag("editorSetting");
-          d.topLevelOnly = d.editorSettings || e->flag("topLevelOnly");
+        const QString name = QString::fromUtf8(r.name);
+        const QJsonObject e = surfaceEntry(name);
+        if (!e.isEmpty()) {
+          const QString shared = registryOp(name).value("bulletSharedWith").toString();
+          d.bullet = (shared.isEmpty() ? e : surfaceEntry(shared)).value("bullet").toString();
+          const QJsonObject flags = e.value("flags").toObject();
+          d.editorSettings = flags.value("editorSetting").toBool();
+          d.topLevelOnly = d.editorSettings || flags.value("topLevelOnly").toBool();
           d.history = r.kind == OpKind::UNDO || r.kind == OpKind::REDO;
         }
         out.append(d);
@@ -102,10 +145,13 @@ namespace stencil::llm {
   const QVector<OpAddendum>& opAddenda() {
     static const QVector<OpAddendum> addenda = [] {
       QVector<QPair<int, OpAddendum>> ordered;
-      for (const OpEntry& e : OpSchema::desktop().getEntries()) {
+      for (const QJsonValue& v : planSurface().value("entries").toArray()) {
+        const QString name = v.toObject().value("name").toString();
+        const QJsonObject raw = registryOp(name);
+        const QString also = raw.value("also").toString();
         OpKind kind;
-        if (e.also.isEmpty() || !opKindFor(e.name, &kind)) continue;
-        ordered.append({e.alsoOrder, OpAddendum{kind, e.also}});
+        if (also.isEmpty() || !opKindFor(name, &kind)) continue;
+        ordered.append({raw.value("alsoOrder").toInt(), OpAddendum{kind, also}});
       }
       std::stable_sort(ordered.begin(), ordered.end(),
                        [](const auto& a, const auto& b) { return a.first < b.first; });
@@ -134,7 +180,11 @@ namespace stencil::llm {
   QStringList forbiddenOps() {
     // The registry's forbidden.perSurface.desktop. Never registered; the
     // registry test and the executor reject are the two enforcement teeth.
-    static const QStringList names = OpSchema::desktop().getForbidden();
+    static const QStringList names = [] {
+      QStringList out;
+      for (const QJsonValue& v : planSurface().value("forbidden").toArray()) out << v.toString();
+      return out;
+    }();
     return names;
   }
 

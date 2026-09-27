@@ -14,7 +14,7 @@ export const chatLeave = (el, done, count = 1, index = 0) =>
 export const chatEnter = (el, host) => { chatIn(el, 1, 0, { host }); return el; };
 
 
-// lib/rasterize.js handles SVG (createImageBitmap rejects image/svg+xml); `width`/`height` are
+// lib/image/rasterize.js handles SVG (createImageBitmap rejects image/svg+xml); `width`/`height` are
 // the scan entry's dims, for sources declaring none.
 export const toLlmImage = async (source) => {
   const img = splitDataUrl(await rasterizeToPngDataUrl(source, { maxEdge: MAX_IMAGE_EDGE }));

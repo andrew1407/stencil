@@ -39,15 +39,13 @@ pub fn applyFormula(expr: [:0]const u8, var_name: u8, value: f64, allow: bool) f
 
 /// Validate `expr` with the named values in reach. An unbound axis probes at 1, as it always has.
 pub fn validateFormulaCtx(expr: [:0]const u8, ctx: FormulaCtx) bool {
-    return c.stencil_cli_validateFormulaCtx(expr.ptr, ctx.x, ctx.y, ctx.page_w_cm, ctx.page_h_cm,
-        ctx.image_w, ctx.image_h, ctx.unitPtr()) != 0;
+    return c.stencil_cli_validateFormulaCtx(expr.ptr, ctx.x, ctx.y, ctx.page_w_cm, ctx.page_h_cm, ctx.image_w, ctx.image_h, ctx.unitPtr()) != 0;
 }
 
 /// Apply `expr` to `value` with the named values in reach; `value` still binds `var_name` and is
 /// the identity fallback.
 pub fn applyFormulaCtx(expr: [:0]const u8, var_name: u8, value: f64, allow: bool, ctx: FormulaCtx) f64 {
-    return c.stencil_cli_applyFormulaCtx(expr.ptr, @as(c_int, var_name), value, @intFromBool(allow),
-        ctx.x, ctx.y, ctx.page_w_cm, ctx.page_h_cm, ctx.image_w, ctx.image_h, ctx.unitPtr());
+    return c.stencil_cli_applyFormulaCtx(expr.ptr, @as(c_int, var_name), value, @intFromBool(allow), ctx.x, ctx.y, ctx.page_w_cm, ctx.page_h_cm, ctx.image_w, ctx.image_h, ctx.unitPtr());
 }
 
 test "formula validate + apply through the ABI" {

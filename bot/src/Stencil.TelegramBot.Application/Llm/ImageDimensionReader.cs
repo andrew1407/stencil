@@ -68,7 +68,8 @@ public static class ImageDimensionReader
         {
             if (d[i] != 0xFF)
             {
-                return false; // lost sync — not a marker where one is expected
+                i++; // bytes that are no marker are skipped, as the decoder skips them
+                continue;
             }
             byte marker = d[i + 1];
             if (marker == 0xFF)

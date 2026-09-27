@@ -8,6 +8,7 @@ import { notifyChannel } from '../core/settings/notifyChannel.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/settings.js';
 import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';
+import { setDrawMode } from '../core/draw/mode.js';
 
 export const createSettingsFacade = ({ app, guard }) => {
   // ── Settings namespace (fresh object per access; setters close over app) ──
@@ -30,16 +31,16 @@ export const createSettingsFacade = ({ app, guard }) => {
     get pageSize() { return app.pageSize; }, set pageSize(v) { app.settings.setPageSize(v); },            // case-insensitive: any ISO name A0–C10 ('a3', 'b5', …) or 'custom'
     get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.settings.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.settings.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
-    get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
+    get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.accents.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
     // A preset key persists and syncs across tabs; a custom hex applies to THIS page only —
     // not saved, not synced. Anything else throws.
     get mainTheme() { return app.customAccent || app.accent; },
     set mainTheme(v) {
       const s = str(v).trim();
       const k = s.toLowerCase();
-      if (isAccent(k)) { app.setAccent(k); return; }
+      if (isAccent(k)) { app.accents.setAccent(k); return; }
       const hex = normalizeHex(s);
-      if (hex) { app.setCustomAccent(hex); return; }
+      if (hex) { app.accents.setCustomAccent(hex); return; }
       throw new Error(`Unknown theme "${v}". Use a hex like #ff5623, or one of: ${ACCENTS.map((a) => a.key).join(', ')}`);
     },
     get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
@@ -52,7 +53,7 @@ export const createSettingsFacade = ({ app, guard }) => {
       if (id == null) throw new Error('No active project to color');
       const s = str(v).trim();
       if (!validateHexColor(s, { allowEmpty: true }).ok) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
-      app.setProjectColor(id, s);
+      app.projectTransfer.setProjectColor(id, s);
     },
     get description() {
       const id = app.activeProjectId;
@@ -61,7 +62,7 @@ export const createSettingsFacade = ({ app, guard }) => {
     set description(v) {
       const id = app.activeProjectId;
       if (id == null) throw new Error('No active project to describe');
-      if (app.setProjectDescription(id, str(v)) == null) throw new Error(`Could not set description on project ${id}`);
+      if (app.projectTransfer.setProjectDescription(id, str(v)) == null) throw new Error(`Could not set description on project ${id}`);
     },
     get keywords() {
       const id = app.activeProjectId;
@@ -70,9 +71,9 @@ export const createSettingsFacade = ({ app, guard }) => {
     set keywords(v) {
       const id = app.activeProjectId;
       if (id == null) throw new Error('No active project to tag');
-      if (app.setProjectKeywords(id, splitKeywords(v)) == null) throw new Error(`Could not set keywords on project ${id}`);
+      if (app.projectTransfer.setProjectKeywords(id, splitKeywords(v)) == null) throw new Error(`Could not set keywords on project ${id}`);
     },
-    get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
+    get drawMode() { return app.drawMode; }, set drawMode(v) { setDrawMode(app, String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
     get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.input.setHoldDrawDelay(v); },
     get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.settings.setAllowFormulas(v); },

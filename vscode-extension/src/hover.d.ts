@@ -2,10 +2,10 @@
 import type { ScriptToken } from './parser/script/types.js';
 export declare const PARAM_DOC: string;
 export declare const tokenAt: (
-  tokens: ScriptToken[], position: { line: number; character: number },
+  tokens: ScriptToken[], position: { line: number; character: number }, lines?: string[],
 ) => ScriptToken | undefined;
 export declare const markdownAt: (
-  tokens: ScriptToken[], position: { line: number; character: number },
+  tokens: ScriptToken[], position: { line: number; character: number }, lines?: string[],
 ) => string;
 export declare const provider: {
   provideHover: (document: unknown, position: unknown) => Promise<unknown>;

@@ -1,20 +1,18 @@
 #include "../../support/modal/modalChrome.hpp"
-#include "../../support/menu/SearchCombo.hpp"
 #include "LlmSettingsForm.hpp"
-#include "connectionStore.hpp"
 #include "LlmClient.hpp"
 #include "llmSettings.hpp"
 #include "QtLlmTransport.hpp"
-#include <QCheckBox>
+#include "SessionKey.hpp"
 #include <QComboBox>
 #include <QFormLayout>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPointer>
-#include <QSignalBlocker>
+#include <QPushButton>
 #include <QTimer>
-#include <QUrl>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
@@ -70,6 +68,49 @@ namespace stencil::gui {
         it->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
   }
 
+  // The anthropic session key (llm-providers.md §5): held in memory when the host saves, so the
+  // field starts empty on every opening, and the settings JSON never sees it.
+  void LlmSettingsForm::buildAnthropicKeyRows() {
+    const int hours = stencil::llm::sessionKeyTtlMinutes() / 60;
+    anthropicKey = new QLineEdit(this);
+    anthropicKey->setObjectName("llmAnthropicKey");
+    anthropicKey->setEchoMode(QLineEdit::Password);
+    anthropicKey->setPlaceholderText(QString::fromUtf8("sk-ant-… (kept in memory only)"));
+    anthropicKey->setToolTip(
+        QStringLiteral("Your own Anthropic API key, sent as 'x-api-key' straight to Anthropic.\n"
+                       "Kept in memory until Stencil quits or %1 hours pass; never saved.").arg(hours));
+    form->addRow("API key", anthropicKey);
+    hugRight(anthropicKey);
+    anthropicKeyDiv = rowDivider();
+
+    keyStatusRow = new QWidget(this);
+    keyStatusRow->setObjectName("llmKeyStatusRow");
+    auto* lay = new QHBoxLayout(keyStatusRow);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(8);
+    keyStatus = new QLabel(keyStatusRow);
+    keyStatus->setObjectName("llmKeyStatus");
+    keyStatus->setWordWrap(true);
+    lay->addWidget(keyStatus, 1);
+    forgetKey = new QPushButton(tr("Forget key"), keyStatusRow);
+    forgetKey->setObjectName("llmForgetKey");
+    makeModalCta(forgetKey, "trash");
+    forgetKey->setAutoDefault(false);
+    forgetKey->setToolTip("Drop the key now; the next turn asks for it again");
+    lay->addWidget(forgetKey);
+    form->addRow(keyStatusRow);
+    keyStatusDiv = rowDivider();
+    connect(forgetKey, &QPushButton::clicked, this, [this] {
+      anthropicKey->clear();
+      stencil::llm::SessionKey::instance().forget();
+      refreshModels();
+      refreshStatus();
+    });
+    connect(&stencil::llm::SessionKey::instance(), &stencil::llm::SessionKey::changed, this,
+            &LlmSettingsForm::renderKeyStatus);
+    renderKeyStatus();
+  }
+
   // The transport seam model suggestions go through, the debounce that re-probes once
   // typing settles, and every field's change wiring.
   void LlmSettingsForm::wireProviderFields() {
@@ -99,6 +140,11 @@ namespace stencil::gui {
       refreshStatus();
     });
     connect(apiKey, &QLineEdit::editingFinished, this, [this] {
+      refreshModels();
+      refreshStatus();
+    });
+    connect(anthropicKey, &QLineEdit::textEdited, probeDebounce, qOverload<>(&QTimer::start));
+    connect(anthropicKey, &QLineEdit::editingFinished, this, [this] {
       refreshModels();
       refreshStatus();
     });
@@ -136,7 +182,7 @@ namespace stencil::gui {
     stencil::llm::LlmSettings cfg;
     cfg.provider = provider;
     cfg.baseUrl = baseUrl->text().trimmed();
-    cfg.apiKey = apiKey->text().trimmed();
+    cfg.apiKey = provider == QLatin1String("anthropic") ? requestKey() : apiKey->text().trimmed();
     cfg.serverUrl = serverUrl;
     setStatus(STATUS_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     const int gen = ++probeGen;

@@ -1,4 +1,4 @@
-// The f-* control set src/lib/filterUi.js reads, plus a pill box that parses its own innerHTML —
+// The f-* control set src/lib/highlight/filterUi.js reads, plus a pill box that parses its own innerHTML —
 // shared by the filterUi*.test.js suites.
 export const control = (value = '', checked = false) => ({ value, checked, textContent: '' });
 export const stubDom = () => {

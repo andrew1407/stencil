@@ -1,4 +1,4 @@
-// The canvas cursor is STATE-DRIVEN (js/core/drawingApp.js updateButtons + css/layout.css): the crosshair
+// The canvas cursor is STATE-DRIVEN (js/ui/control/state.js updateButtons + css/layout/): the crosshair
 // says "click here to place a point", so an EMPTY editor (body.canvas-empty) and a read-only COMPARE view
 // (compareReadOnly()) must not wear it. Element stubs plus the updateButtons rig from
 // fullscreenGate.test.js.
@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from '../helpers/dom.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from '../helpers/css.js';
+import { makeControlApp } from '../helpers/controlStateRig.js';
 
 const css = LAYOUT_CSS;
 const blockAt = (at) => css.slice(at, css.indexOf('}', at));
@@ -30,24 +31,7 @@ const makeDom = () => {
   return { el: doc.getElementById, bodyClasses: doc.body.classes };
 };
 
-const makeApp = (over = {}) => ({
-  image: null,
-  lines: [],
-  isDrawing: false,
-  currentLine: null,
-  canvas: { style: { cursor: '' } },
-  history: { canUndo: () => false, canRedo: () => false },
-  remoteLink: null,
-  compareReadOnly: () => false,
-  openInAvailable: () => false,
-  syncDrawToggleUI() {},
-  syncDrawModeUI() {},
-  updateStencilSyncUI() {},
-  updateIncognitoUI() {},
-  updateProjectTitle() {},
-  renderLinesList() {},
-  ...over,
-});
+const makeApp = makeControlApp;
 
 // Run updateButtons for a state and report what the canvas and its viewport would show.
 const cursorsFor = async (over) => {

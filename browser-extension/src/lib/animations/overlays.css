@@ -1,4 +1,4 @@
-/* ── Dropdown lists open and close like the app's (browser/css/animations/overlays.css
+/* ── Dropdown lists open and close like the app's (browser/css/animations/overlay/overlays.css
    menuFromAnchor / menuToAnchor) ──
    The list GROWS out of the corner nearest its trigger rather than fading in as a
    rectangle: full opacity by 22%, so what the eye follows is the box expanding. Closing

@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
-
 import { createTrailingSave, ZOOM_SAVE_DEBOUNCE_MS } from '../../../js/core/zoom/pan.js';
+import { installViewport } from '../../helpers/zoomViewportRig.js';
 
 // The zoom persistence debounce. Every wheel tick / hold-repeat used to call
 // storage.save() directly — a full layout + thumbnail write per notch, each raising
@@ -62,14 +61,20 @@ test('flush runs a pending save NOW, once — and is a no-op when idle', () => {
 });
 
 // Both halves: pan.js owns setZoom, animation.js the animated zoom's final snap.
-test('every zoom persist route rides the debounce (source pin)', () => {
-  const pan = readFileSync(new URL('../../../js/core/zoom/pan.js', import.meta.url), 'utf8');
-  const anim = readFileSync(new URL('../../../js/core/zoom/animation.js', import.meta.url), 'utf8');
-  const src = pan + anim;
-  assert.strictEqual((src.match(/storage\.save\(\)/g) || []).length, 1,
-    'exactly one direct storage save call — the one inside the trailing runner');
-  assert.match(pan, /if \(persist && this\.app\.image\) this\.persistZoom\(\);/,
-    'setZoom (wheel/hold steps) routes through the debounce');
-  assert.strictEqual((src.match(/persistZoom\(\);/g) || []).length, 2,
-    'both routes — setZoom and the animated zoom’s final snap');
+test('every zoom persist route rides the debounce', () => {
+  const { app, zp } = installViewport();
+  let saves = 0;
+  app.storage.save = () => { saves++; };
+  for (const s of [1.2, 1.4, 1.6]) zp.setZoom(s);
+  assert.strictEqual(saves, 0, 'setZoom (wheel/hold steps) never saves directly');
+  assert.strictEqual(zp.persistZoom.pending(), true, 'it arms the trailing save');
+  zp.persistZoom.flush();
+  assert.strictEqual(saves, 1, 'the burst writes once');
+  zp.zoomAroundCenter(2);
+  assert.strictEqual(saves, 1, 'the animated zoom never saves directly either');
+  assert.strictEqual(zp.persistZoom.pending(), true, 'its final snap arms the same trailing save');
+  zp.persistZoom.flush();
+  assert.strictEqual(saves, 2);
+  zp.setZoom(1, false);
+  assert.strictEqual(zp.persistZoom.pending(), false, 'a non-persisting zoom arms nothing');
 });

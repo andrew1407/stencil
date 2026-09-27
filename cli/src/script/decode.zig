@@ -27,9 +27,9 @@ pub const Edit = union(enum) {
     layout: Layout,
     save: []const u8,
     frame: u32,
-    /// `@undo` / `@redo`: how far to move, never less than one.
+    /// `@undo`: how far to move, never less than one.
     steps: usize,
-    /// `@open`, the block header — nothing to apply.
+    /// `@open`, the block header — nothing to apply; and REDO, which the lowerer never emits (§7).
     none,
 };
 
@@ -53,7 +53,7 @@ pub fn decode(
     buf: *scriptCore.ResolveBuf,
 ) ?Edit {
     switch (kind) {
-        .open => return .none,
+        .open, .redo => return .none,
         .crop => {
             const r = resolved(script, i, w, h, buf) orelse return null;
             return .{ .crop = .{ .x = px(r[0]), .y = px(r[1]), .w = px(r[2]), .h = px(r[3]) } };
@@ -82,7 +82,7 @@ pub fn decode(
         },
         .save => return .{ .save = script.opStr(i, 0) },
         .frame => return .{ .frame = @intFromFloat(@max(0, script.opNum(i, 0) orelse 0)) },
-        .undo, .redo => return .{ .steps = @intFromFloat(@max(1, script.opNum(i, 0) orelse 1)) },
+        .undo => return .{ .steps = @intFromFloat(@max(1, script.opNum(i, 0) orelse 1)) },
     }
 }
 

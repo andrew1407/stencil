@@ -46,7 +46,7 @@
   };
   const read = function () { return readPref(KEY, has, DEFAULT); };
 
-  // Interface motion (browser parity: js/ui/prefs.js), stamped on <html data-motion>
+  // Interface motion (browser parity: js/ui/motion/motionPrefs.js), stamped on <html data-motion>
   // before first paint for lib/animations/motionModes.css; prefers-reduced-motion still wins.
   const MKEY = 'stencil_motion';
   const MOTION_DEFAULT = 'particles';
@@ -101,7 +101,7 @@
     return needsDarkGlyph(hex) ? ON_ACCENT_DARK : ON_ACCENT_LIGHT;
   };
 
-  // Mirrors browser accents.js faviconSvg (pinned by browser/tests/svgArt.test.js).
+  // Mirrors browser accents.js faviconSvg (pinned by browser/tests/config/svgArt.test.js).
   const faviconSvg = function (hex) {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
       '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +

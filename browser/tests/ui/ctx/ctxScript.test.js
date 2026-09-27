@@ -1,62 +1,16 @@
 // The context menu's "Stencil Script ▸" entry: an ordinary submenu parent whose FLYOUT is a
-// compact twin of the script window. Modelled on ctx-assistant.test.js and metaModals.test.js:
-// the markup is pinned as text, the behaviour is driven through the DOM-lite stubs.
+// compact twin of the script window, driven through the DOM-lite stubs — building, painting,
+// running, gating, engagement and Tab. Its markup is pinned in ctxScript-markup.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
 
-import { layout } from '../../../js/ui/layout.js';
 import { scriptFlyoutHtml } from '../../../js/ui/ctx/scriptItem.js';
 import { wireCtxScript } from '../../../js/ui/ctx/script.js';
 import { setScriptText } from '../../../js/ui/script/buffer.js';
-import { ctxKeepsTab } from '../../../js/ui/ctx/keyboard.js';
+import { ctxKeepsTab, wireCtxKeyboard } from '../../../js/ui/ctx/keyboard.js';
 import { createStubElement, installDom } from '../../helpers/dom.js';
-import { COMPONENTS_CSS } from '../../helpers/css.js';
 
-const MARKUP = layout();
 const FLYOUT = scriptFlyoutHtml();
-// ui/ is split into feature folders, so a bare module name is looked up, not assumed flat.
-const UI_DIR = new URL('../../../js/ui/', import.meta.url);
-const uiPath = (n) => {
-  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? walk(new URL(`${e.name}/`, d)) : (e.name === n ? [new URL(e.name, d)] : []));
-  return n.includes('/') ? new URL(n, UI_DIR) : walk(UI_DIR)[0];
-};
-const src = (name) => readFileSync(uiPath(name), 'utf8');
-const IDS = ['ctx-script-sub', 'ctx-script-pane', 'ctx-script-wrap', 'ctx-script-highlight',
-  'ctx-script-editor', 'ctx-script-diag', 'ctx-script-copy', 'ctx-script-download',
-  'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-clear', 'ctx-script-run'];
-
-// ── The row and the flyout's shape ───────────────────────────────────────────
-test('the menu row is a submenu parent, still naming the window shortcut', () => {
-  const row = MARKUP.slice(MARKUP.indexOf('id="ctx-script"'), MARKUP.indexOf('id="ctx-draw-toggle"'));
-  assert.match(row, /data-hk="openScript"/, 'Alt+Shift+S still opens the window');
-  assert.match(row, /<span class="ctx-arrow"><svg class="ic ic-chevron-right"/, 'a caret, like Style');
-  // Hung off the row on the first open that can use it, never written into layout().
-  for (const id of IDS) assert.equal(MARKUP.split(`id="${id}"`).length - 1, 0, `${id} is not static`);
-});
-
-test('the flyout carries each of its ids once, and never one of the window\'s', () => {
-  for (const id of IDS) assert.equal(FLYOUT.split(`id="${id}"`).length - 1, 1, `${id} appears once`);
-  // The window and the flyout must be able to stand open together.
-  for (const id of ['script-editor', 'script-highlight', 'script-diag', 'script-run']) {
-    assert.ok(!FLYOUT.includes(`id="${id}"`), `${id} belongs to the window alone`);
-  }
-  // It reuses the window's editor classes, only re-sized for the menu (ctxScript.css).
-  assert.match(FLYOUT, /<pre class="script-highlight"/);
-  assert.match(FLYOUT, /class="script-input"/);
-  assert.match(FLYOUT, /id="ctx-script-upload" accept="\.stc"/);
-});
-
-test('the actions are the window\'s five, Run leading and Clear the danger tail', () => {
-  const order = [...FLYOUT.matchAll(/id="(ctx-script-(?:copy|download|upload|upload-btn|clear|run))"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['ctx-script-run', 'ctx-script-copy', 'ctx-script-download',
-    'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-clear']);
-  assert.match(FLYOUT, /id="ctx-script-run" class="btn-icon-text primary"/);
-  // Clear throws work away, so it wears the danger red and sits past Run, out of the way.
-  assert.match(FLYOUT, /id="ctx-script-clear" class="btn-icon-text danger"/);
-  assert.match(FLYOUT, /id="ctx-script-clear"[^>]*>.*ic-trash/);
-});
 
 // ── The rig: a menu row the wiring can hang its flyout off ───────────────────
 const asPre = (el) => {
@@ -192,34 +146,59 @@ test('Run, Copy, Download and Clear need something to act on; Upload always does
 });
 
 // ── The rules that make an editor in a menu possible ─────────────────────────
-test('the flyout counts as engaged while a caret is in it or a script runs', () => {
-  const code = src('ctx/scriptEditor.js');
-  assert.ok(code.includes('flyout._keepOpen = () => running || flyout.contains(document.activeElement);'),
-    'the hover-out timers must not yank the editor away mid-script');
-  assert.equal((code.match(/host\.closeMenu/g) || []).length, 1,
-    'the touch hand-over to the window is the ONLY thing that closes the menu');
+test('the flyout counts as engaged while a caret is in it or a script runs', async (t) => {
+  const engaged = [];
+  let flyout;
+  const { doc, item, host, restore } = rig({ stencil: { crop: () => { engaged.push(flyout._keepOpen()); } } });
+  t.after(restore);
+  flyout = doc.getElementById('ctx-script-sub');
+  const editor = flyout.appendChild(doc.getElementById('ctx-script-editor'));
+  assert.equal(flyout._keepOpen(), false, 'idle, with the caret elsewhere');
+  doc.activeElement = editor;
+  assert.equal(flyout._keepOpen(), true, 'the hover-out timers must not yank the editor away mid-script');
+  doc.activeElement = null;
+  typed(doc, '@crop 10%');
+  doc.getElementById('ctx-script-run').dispatch('click');
+  await settle();
+  assert.deepEqual(engaged, [true], 'engaged while the script runs');
+  assert.equal(flyout._keepOpen(), false, 'and released after');
+  // Everything the flyout offers leaves the menu open; only the touch hand-over closes it.
+  item.dispatch('click', { target: item });
+  flyout.dispatch('click');
+  doc.getElementById('ctx-script-download').dispatch('click');
+  doc.getElementById('ctx-script-clear').dispatch('click');
+  doc.getElementById('ctx-script-upload').dispatch('change', { target: { value: 'x', files: [{ name: 'a.stc', text: async () => '@save' }] } });
+  await settle();
+  assert.equal(doc.getElementById('ctx-script-editor').value, '@save');
+  assert.equal(host.closes, 0, 'the touch hand-over to the window is the ONLY thing that closes the menu');
 });
 
-test('the editor keeps Tab for itself — it indents, it does not leave', () => {
+test('the editor keeps Tab for itself — it indents, it does not leave', (t) => {
   assert.match(FLYOUT, /data-ctx-keep-tab="1"/);
   assert.ok(ctxKeepsTab({ dataset: { ctxKeepTab: '1' } }));
   assert.ok(!ctxKeepsTab({ dataset: {} }), 'every other control lets Tab walk the flyout');
-  assert.match(src('ctx/keyboard.js'), /if \(e\.key === 'Tab' && !ctxKeepsTab\(document\.activeElement\)\)/);
-  assert.match(src('script/editor.js'), /editor\.selectionStart = a \+ 2;/);
-});
-
-test('the flyout is a ui/ module: no llm, no facade of its own', () => {
-  for (const name of ['ctx/script.js', 'ctx/scriptItem.js', 'ctx/scriptEditor.js',
-    'script/editor.js', 'script/highlight.js']) {
-    assert.ok(!/from '\.\.\/llm\//.test(src(name)), `${name} may not reach the llm layer`);
-    assert.ok(!/window\.stencil/.test(src(name)), `${name} runs scripts through console/scriptRunner.js`);
-  }
-});
-
-test('components.css gives the flyout a real editor window, sized for the menu', () => {
-  assert.match(COMPONENTS_CSS, /\.ctx-script-plain > \.ctx-sub \{ display: none !important; \}/);
-  const pane = COMPONENTS_CSS.slice(COMPONENTS_CSS.indexOf('.ctx-script {'), COMPONENTS_CSS.indexOf('#ctx-script-wrap'));
-  assert.match(pane, /height: min\(\d+vh, \d+px\);/, 'a tall box, scaled to the viewport');
-  assert.match(pane, /user-select: text;/, 'the menu is user-select:none; code is not');
-  assert.match(COMPONENTS_CSS, /#ctx-script-wrap \{ flex: 1 1 0;/, 'the editor takes what is left over');
+  const { doc, restore } = rig();
+  t.after(restore);
+  const editor = doc.getElementById('ctx-script-editor');
+  editor.dataset.ctxKeepTab = '1';
+  const run = doc.getElementById('ctx-script-run');
+  for (const c of [editor, run]) c.getClientRects = () => [{}];
+  const sub = createStubElement('div', { querySelectorAll: () => [editor, run], contains: (n) => n === editor || n === run });
+  sub.classList.add('ctx-sub-visible');
+  wireCtxKeyboard({ menu: createStubElement('div'), menuIsOpen: () => true, chatRowMenuOpen: () => false,
+    closeSub() {}, positionSub() {}, activeSub: () => sub, setActiveSub() {} });
+  const tab = (target) => {
+    const ev = { key: 'Tab', target, prevented: false, preventDefault() { ev.prevented = true; }, stopPropagation() {} };
+    doc.activeElement = target;
+    doc.dispatch('keydown', ev);
+    return ev.prevented;
+  };
+  assert.equal(tab(run), true, 'a plain control hands Tab to the flyout walk');
+  assert.equal(editor.focused, true, 'which wraps round to the editor');
+  run.focused = editor.focused = false;
+  assert.equal(tab(editor), false, 'the editor keeps it');
+  assert.equal(run.focused, false, 'focus stays put');
+  Object.assign(editor, { value: 'ab', selectionStart: 1, selectionEnd: 1 });
+  editor.dispatch('keydown', { key: 'Tab', preventDefault() {} });
+  assert.deepEqual([editor.value, editor.selectionStart, editor.selectionEnd], ['a  b', 3, 3], 'it indents');
 });

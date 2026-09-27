@@ -20,10 +20,12 @@ import { wireDropPaste } from './dropPaste.js';
 import { wireCanvasPointer } from './canvasPointer.js';
 import { wireSmoothZoom } from './viewport/smoothZoom.js';
 import { wireTypedWords } from './keys/typedWords.js';
+import { wireControlState } from '../control/state.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
 // order depends on it.
 export function wireControls(app) {
+  wireControlState(app);
   wireStyleControls(app);
   wireSelectionPanelControls(app);
   wirePageAndDisplayControls(app);
@@ -35,7 +37,7 @@ export function wireControls(app) {
   wireKeyboard(app);
   wireArrowPan(app);
   wireDropPaste(app);
-  // The canvas gets its own overlay bars (js/ui/scrollbars.js); every other
+  // The canvas gets its own overlay bars (js/ui/canvas/scrollbars.js); every other
   // scrollable's native thumb takes the accent only under the pointer (utils.js).
   wireCanvasScrollbars(document.getElementById('canvas-viewport'));
   wireScrollbarHover();

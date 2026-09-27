@@ -3,7 +3,9 @@
 import { whereOf } from './args.js';
 import { makeDiag } from './diagnostics.js';
 import { isUnitWord } from './types.js';
-import { cursorOf, isColorToken, isPunct, readLengthRaw } from './values.js';
+import {
+  cursorOf, isColorToken, isMalformedNumber, isPunct, malformedNumberMessage, readLengthRaw,
+} from './values.js';
 
 const isStyleWord = (w) => w === 'solid' || w === 'dashed' || w === 'dotted';
 
@@ -62,7 +64,8 @@ const applyGroup = (group, state, seen, diags) => {
       c.i += 1;
       continue;
     }
-    diags.push(makeDiag('error', 'E_BAD_TOKEN', t, `'${t.text}' is not a line-style word`));
+    diags.push(makeDiag('error', 'E_BAD_TOKEN', t,
+      isMalformedNumber(t) ? malformedNumberMessage(t) : `'${t.text}' is not a line-style word`));
     return false;
   }
   return true;

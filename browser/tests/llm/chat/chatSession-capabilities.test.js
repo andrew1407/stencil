@@ -1,9 +1,11 @@
-// The REAL capability closures sharedChatController injects (js/llm/session.js), driven
+// The REAL capability closures sharedChatController injects (js/llm/chat/session.js), driven
 // against a recording stub app. Split from chatSession.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
 
 import { sharedChatController, forgetChatController } from '../../../js/llm/chat/session.js';
+import { installDom, createStubElement } from '../../helpers/dom.js';
+import { installImageDecode } from '../../helpers/projectTransferRig.js';
 
 // The REAL injected capabilities, captured off sharedChatController: `create` is the test seam, so the
 // closures under test are the production ones.
@@ -31,7 +33,7 @@ test('saveProject promotes to a FRESH project under a unique name and returns it
       promoteTemporaryToProject: () => calls.push('promote'),
       save: () => calls.push('save'),
     },
-    renameProject: (id, name) => { calls.push(`rename ${id} ${name}`); return true; },
+    projectTransfer: { renameProject: (id, name) => { calls.push(`rename ${id} ${name}`); return true; } },
     updateProjectTitle: () => calls.push('title'),
   };
   const caps = captureCapabilities(app);
@@ -48,6 +50,15 @@ test('saveProject promotes to a FRESH project under a unique name and returns it
   await assert.rejects(caps.saveProject('x'), /no image to save/);
 });
 
+test('editorHistory is injected: a mark copies the stack, so later pushes never reach it', () => {
+  const app = { history: { history: [['a']], historyStep: 0, floor: [] }, lines: [], cropRect: null, rotationQuarters: 0,
+    imageFilter: 'bw', filterColor: '#7c3aed' };
+  const mark = captureCapabilities(app).editorHistory.mark();
+  app.history.history.push(['b']);
+  assert.deepStrictEqual(mark, { steps: [['a']], step: 0, floor: [],
+    memento: { lines: [], cropRect: null, rotationQuarters: 0, filter: 'bw', filterColor: '#7c3aed' } });
+});
+
 test('removeProjectNamed: unknown → note, declined → note, accepted → removed', async () => {
   let allow = false;
   const removed = [];
@@ -55,7 +66,7 @@ test('removeProjectNamed: unknown → note, declined → note, accepted → remo
   const app = {
     storage: { store: { list: () => [{ id: 3, name: 'cat' }] } },
     confirm: async (msg, opts) => { confirms.push({ msg, opts }); return allow; },
-    removeProject: (id) => removed.push(id),
+    projectTransfer: { removeProject: (id) => removed.push(id) },
   };
   const caps = captureCapabilities(app);
   assert.strictEqual(await caps.removeProjectNamed('dog'), 'no saved project named "dog"');
@@ -73,11 +84,13 @@ test('clearWorkingImage words the confirm for what actually goes, and keeps the 
   let allow = true;
   const confirms = [];
   const editors = [];
+  // The real newEditor (core/launch/openFlow.js) resets through storage.newTemporary.
   const app = {
     image: null, lines: [],
-    storage: { incognito: false },
+    storage: { incognito: false, newTemporary: (opts) => editors.push(opts) },
+    zoomPan: { syncViewportHeight() {} },
+    tabs: { reportActive() {}, reportIncognito() {} },
     confirm: async (msg) => { confirms.push(msg); return allow; },
-    newEditor: (opts) => editors.push(opts),
   };
   const caps = captureCapabilities(app);
   // Empty editor: nothing to confirm, nothing to do.
@@ -103,7 +116,7 @@ test('openProjectNamed: already open / declined replace / failed switch are note
     activeProjectId: 1, image: {}, lines: [],
     storage: { temporary: true, store: { list: () => [{ id: 1, name: 'open' }, { id: 2, name: 'other' }] } },
     confirm: async (msg) => { confirms.push(msg); return allow; },
-    switchToProject: () => switchable,
+    projectTransfer: { switchToProject: () => switchable },
   };
   const caps = captureCapabilities(app);
   assert.strictEqual(await caps.openProjectNamed('open'), '"open" is already open');
@@ -124,7 +137,7 @@ test('renameActiveProject: no active project and duplicate names come back as no
   const app = {
     activeProjectId: null,
     storage: { store: { nameExists: (n) => n === 'taken' } },
-    renameProject: (id, name) => name === 'ok',
+    projectTransfer: { renameProject: (id, name) => name === 'ok' },
   };
   const caps = captureCapabilities(app);
   assert.strictEqual(await caps.renameActiveProject('x'), 'no active saved project to rename');
@@ -136,25 +149,37 @@ test('renameActiveProject: no active project and duplicate names come back as no
 
 test('setBlankColor routes saved projects through the store and gates on blankness', async () => {
   const set = [];
+  // The working blank recolours for real (core/image/blankImage.js): a fresh fill on a scratch
+  // canvas, loaded in place over the picture.
+  const fills = [];
+  const scratch = () => ({ width: 0, height: 0, toBlob: (cb, type) => cb(new Blob(['png'], { type })),
+    getContext() { const ctx = { fillRect: () => fills.push(ctx.fillStyle) }; return ctx; } });
+  const doc = installDom({ createElement: (tag) => (tag === 'canvas' ? scratch() : createStubElement(tag)) });
+  const decode = installImageDecode(() => {});
   const app = {
-    activeProjectId: 9,
-    setProjectBlankColor: (id, hex) => { set.push([id, hex]); return true; },
-    activeIsBlank: () => false, image: {},
-    setBlankColor: (hex) => set.push(['working', hex]),
+    activeProjectId: 9, blankColor: '', image: {}, lines: [], canvas: { width: 4, height: 3 },
+    storage: { incognito: false },
+    projectTransfer: { setProjectBlankColor: (id, hex) => { set.push([id, hex]); return true; } },
+    updateButtons() {},
   };
-  const caps = captureCapabilities(app);
-  // A saved project goes through the store setter (short #rgb normalizes to #rrggbb).
-  assert.strictEqual(await caps.setBlankColor('#F00'), null);
-  assert.deepStrictEqual(set, [[9, '#ff0000']]);
-  // The store refusing (a non-blank project) is the §10 note.
-  app.setProjectBlankColor = () => false;
-  assert.strictEqual(await caps.setBlankColor('#ff0000'), 'only a blank project has a recolourable background');
-  // Unsaved: only a blank working image recolours.
-  app.activeProjectId = null;
-  assert.strictEqual(await caps.setBlankColor('#ff0000'), 'only a blank project has a recolourable background');
-  app.activeIsBlank = () => true;
-  assert.strictEqual(await caps.setBlankColor('#00ff00'), null);
-  assert.deepStrictEqual(set.at(-1), ['working', '#00ff00']);
+  try {
+    const caps = captureCapabilities(app);
+    // A saved project goes through the store setter (short #rgb normalizes to #rrggbb).
+    assert.strictEqual(await caps.setBlankColor('#F00'), null);
+    assert.deepStrictEqual(set, [[9, '#ff0000']]);
+    // The store refusing (a non-blank project) is the §10 note.
+    app.projectTransfer.setProjectBlankColor = () => false;
+    assert.strictEqual(await caps.setBlankColor('#ff0000'), 'only a blank project has a recolourable background');
+    // Unsaved: only a blank working image recolours.
+    app.activeProjectId = null;
+    assert.strictEqual(await caps.setBlankColor('#ff0000'), 'only a blank project has a recolourable background');
+    assert.deepStrictEqual(fills, [], 'a picture that is no blank is never repainted');
+    app.blankColor = '#ffffff';
+    assert.strictEqual(await caps.setBlankColor('#00ff00'), null);
+    await new Promise((r) => setImmediate(r));
+    assert.deepStrictEqual(fills, ['#00ff00'], 'the working blank repainted in the new colour');
+    assert.deepStrictEqual(decode.reads(), ['blank-4x3.png'], 'and loaded in place');
+  } finally { decode.restore(); doc.restore(); }
 });
 
 test('clearLocalProjects counts what goes into the confirm, and empty is a note', async () => {
@@ -165,7 +190,7 @@ test('clearLocalProjects counts what goes into the confirm, and empty is a note'
   const app = {
     storage: { store: { list: () => list } },
     confirm: async (msg) => { confirms.push(msg); return allow; },
-    clearAllProjects: () => cleared++,
+    projectTransfer: { clearAllProjects: () => cleared++ },
   };
   const caps = captureCapabilities(app);
   assert.strictEqual(await caps.clearLocalProjects(), 'no saved projects to clear');

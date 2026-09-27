@@ -1,12 +1,10 @@
 #include "ProjectRowDelegate.hpp"
 
-#include "../../../support/control/reveal/controlReveal.hpp"
 #include "../../../support/motion/DissolveEffect.hpp"
 #include "../../../support/theme/filterFade.hpp"
 #include "../../../support/motionPrefs.hpp"
 #include "scrollReveal.hpp"
 
-#include <QAbstractItemModel>
 #include <QApplication>
 #include <QPainter>
 #include <QStyle>

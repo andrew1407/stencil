@@ -1,6 +1,6 @@
-// lib/scrollbarHover.js is a rule-for-rule PORT of browser/js/ui/control/scrollbarHover.js
+// lib/control/scrollbarHover.js is a rule-for-rule PORT of browser/js/ui/control/scrollbarHover.js
 // (portParity.test.js pins the bodies identical; the geometry cases live in
-// browser/tests/canvas-scrollbar.test.js). What remains here is the extension-specific
+// browser/tests/ui/canvas/canvas-scrollbar.test.js). What remains here is the extension-specific
 // wiring: every page calls it once, and the theme carries the tokens + the app-wide rule
 // the `.sb-hover` mark drives.
 

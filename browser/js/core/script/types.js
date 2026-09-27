@@ -1,5 +1,5 @@
 // Port of core/script/types.hpp. The caps are the SAME numbers the C++ uses, so wasm
-// and this fallback reject the same input; browser/tests/wasm-parity-script.test.js proves it.
+// and this fallback reject the same input; browser/tests/wasm/wasm-parity-script.test.js proves it.
 
 export const MAX_LINES = 20000;
 export const MAX_TOKENS = 200000;
@@ -51,6 +51,47 @@ export const classifySource = (spec) => {
   if (spec.includes('*') || spec.includes('?') || spec.includes('[')) return 'glob';
   if (spec.endsWith('/')) return 'dir';
   return 'file';
+};
+
+// UTF-8 bytes of s[from, to): a column, a length and MAX_SOURCE_CHARS all count bytes, as the core does.
+export const utf8Length = (s, from = 0, to = s.length) => {
+  let n = 0;
+  for (let k = from; k < to; k += 1) {
+    const c = s.charCodeAt(k);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c < 0xdc00 && k + 1 < to && (s.charCodeAt(k + 1) & 0xfc00) === 0xdc00) {
+      n += 4;
+      k += 1;
+    } else n += 3;
+  }
+  return n;
+};
+
+// The longest prefix of `s` within `max` UTF-8 bytes; a character is never split.
+export const utf8Truncate = (s, max) => {
+  let bytes = 0;
+  let k = 0;
+  while (k < s.length) {
+    const step = s.codePointAt(k) > 0xffff ? 2 : 1;
+    const size = utf8Length(s, k, k + step);
+    if (bytes + size > max) break;
+    bytes += size;
+    k += step;
+  }
+  return s.slice(0, k);
+};
+
+// A 1-based byte column on `line` as a 0-based UTF-16 index, for an editor that counts units.
+export const unitIndexOfColumn = (line, col) => {
+  let bytes = 0;
+  let k = 0;
+  while (k < line.length && bytes < col - 1) {
+    const step = line.codePointAt(k) > 0xffff ? 2 : 1;
+    bytes += utf8Length(line, k, k + step);
+    k += step;
+  }
+  return k;
 };
 
 export const unquoteWord = (s) =>

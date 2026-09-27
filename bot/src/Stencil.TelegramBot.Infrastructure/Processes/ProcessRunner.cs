@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace Stencil.TelegramBot.Infrastructure.Processes;
 
@@ -14,6 +15,9 @@ public sealed record ProcessTimedOut : ProcessOutcome;
 // the call sites.
 public static class ProcessRunner
 {
+    // Per stream, in chars: far above the largest --script-plan envelope, and the rest is drained unkept.
+    public const int MAX_OUTPUT_CHARS = 4 * 1024 * 1024;
+
     // Caller cancellation propagates as OperationCanceledException; a timeout is a ProcessTimedOut
     // outcome.
     public static async Task<ProcessOutcome> RunAsync(
@@ -22,7 +26,8 @@ public static class ProcessRunner
         TimeSpan timeout,
         CancellationToken ct,
         IReadOnlyDictionary<string, string>? environment = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        string? stdin = null)
     {
         ProcessStartInfo info = new()
         {
@@ -30,12 +35,18 @@ public static class ProcessRunner
             UseShellExecute = false,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
+            RedirectStandardInput = stdin is not null,
             WorkingDirectory = workingDirectory ?? "",
         };
+        if (stdin is not null)
+        {
+            info.StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        }
         foreach (string arg in argv)
         {
             info.ArgumentList.Add(arg);
         }
+        ChildEnvironment.Restrict(info.Environment);
         if (environment is not null)
         {
             foreach ((string key, string value) in environment)
@@ -60,8 +71,12 @@ public static class ProcessRunner
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         try
         {
-            Task<string> stderrTask = process.StandardError.ReadToEndAsync(linkedCts.Token);
-            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
+            Task<string> stderrTask = ReadCappedAsync(process.StandardError, MAX_OUTPUT_CHARS, linkedCts.Token);
+            Task<string> stdoutTask = ReadCappedAsync(process.StandardOutput, MAX_OUTPUT_CHARS, linkedCts.Token);
+            if (stdin is not null)
+            {
+                await feedAsync(process.StandardInput, stdin, linkedCts.Token).ConfigureAwait(false);
+            }
             await process.WaitForExitAsync(linkedCts.Token).ConfigureAwait(false);
             string stderr = await stderrTask.ConfigureAwait(false);
             string stdout = await stdoutTask.ConfigureAwait(false);
@@ -77,6 +92,36 @@ public static class ProcessRunner
                 return new ProcessTimedOut();
             }
             throw;
+        }
+    }
+
+    // Keeps the head and drains the rest, so a chatty child never blocks on a full pipe.
+    public static async Task<string> ReadCappedAsync(TextReader reader, int maxChars, CancellationToken ct)
+    {
+        StringBuilder text = new();
+        char[] buffer = new char[8192];
+        int read;
+        while ((read = await reader.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        {
+            text.Append(buffer, 0, Math.Min(read, maxChars - text.Length));
+        }
+        return text.ToString();
+    }
+
+    // A child that exits before reading everything closes the pipe; its exit code says why.
+    private static async Task feedAsync(StreamWriter writer, string text, CancellationToken ct)
+    {
+        try
+        {
+            await writer.WriteAsync(text.AsMemory(), ct).ConfigureAwait(false);
+            await writer.FlushAsync(ct).ConfigureAwait(false);
+        }
+        catch (IOException)
+        {
+        }
+        finally
+        {
+            try { writer.Close(); } catch (IOException) { }
         }
     }
 

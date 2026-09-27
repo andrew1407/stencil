@@ -22,10 +22,10 @@ namespace stencil::core {
   };
 
   // A blank formula is the identity: valid, and apply() returns its input unchanged.
+  // ASCII whitespace only, as formulaEngine.js spells it: std::isspace follows the host locale.
   inline bool isBlankFormula(const std::string& expr) {
-    for (char c : expr) {
-      if (!std::isspace(static_cast<unsigned char>(c))) return false;
-    }
+    for (char c : expr)
+      if (c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '\v') return false;
     return true;
   }
 

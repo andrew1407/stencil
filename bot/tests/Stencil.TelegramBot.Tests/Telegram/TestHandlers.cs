@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Servers;
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
@@ -38,6 +37,7 @@ internal static class TestHandlers
         editing ??= new EditingService(cli, workspace, store);
         PromptService prompts = new(
             llm ?? new MockLlmClient(),
+            cli,
             editing,
             store,
             llmOptions ?? new LlmOptions(),

@@ -1,37 +1,20 @@
 """The provider client (contract §6): one non-streaming chat call per provider, over
-the same shared urllib plumbing as :mod:`pystencil.server`.
+the same shared urllib plumbing as :mod:`pystencil.server`. The wire shapes it speaks
+are :mod:`.wire`'s table.
 """
 
 from __future__ import annotations
 
-import base64
 import json
 import urllib.error
-from typing import Any, Sequence
+from typing import Any
 
 from .._ffi.types import NoneType
-from ..server import _http_open, _json_request, _parse_http_error, _LLM_TIMEOUT
-from .config import LlmConfig
-from .errors import LlmError, _clean_detail
+from ..server import _http_open, _json_request, _LLM_TIMEOUT
+from .config import CHAT_PATHS, WIRE_OF, LlmConfig
+from .errors import LlmError
 from .prompt import LLM_SYSTEM_PROMPT
-
-Messages = Sequence[dict]
-
-
-# ── provider client (contract §6) ─────────────────────────────────────────────
-def _b64(data: Any) -> str:
-  """Base64-encode image bytes (an already-encoded str passes through)."""
-  if isinstance(data, str): return data
-  return base64.b64encode(bytes(data)).decode("ascii")
-
-
-def _msg_parts(m: dict) -> tuple[str, str, list]:
-  """Unpack an internal message dict into (role, text, images)."""
-  return (
-    m.get("role") or "user",
-    m.get("text") or "",
-    list(m.get("images") or []),
-  )
+from .wire import WIRES, Messages, _proxy_error
 
 
 class LlmClient:
@@ -44,6 +27,7 @@ class LlmClient:
   :class:`pystencil.server.ServerConnection`. For ``stencil-server``, pass either
   a ``server`` object (a :class:`~pystencil.server.ServerConnection`, whose
   ``.base`` URL and ``.token`` are read) or a config ``server_url`` + ``token``.
+  ``anthropic`` goes straight to the Messages API with the config's session key.
   """
 
   def __init__(
@@ -62,88 +46,23 @@ class LlmClient:
       self._server_url = (self.config.server_url or "").rstrip("/")
       self._token = token
 
+  @property
+  def _wire(self):
+    return WIRES[WIRE_OF[self.config.provider]]
+
   # ── request plumbing ──
   def _build_request(
     self, messages: Messages, system: str = LLM_SYSTEM_PROMPT
   ) -> urllib.request.Request:
-    """Pure builder: assemble the provider-specific POST (no network)."""
+    """Pure builder: the provider's wire body POSTed to ``{base}{chatPath}`` (no network).
+    A wire whose credential is missing raises here, so nothing is ever sent."""
     provider = self.config.provider
-    if provider == "ollama": return self.__ollama_request(messages, system)
-    if provider == "openai-compat": return self.__openai_request(messages, system)
-    return self.__server_request(messages, system)
-
-  def __base_post(
-    self, path: str, wire: list, bearer: (str | NoneType) = None
-  ) -> urllib.request.Request:
-    """The §6.1/§6.2 shared envelope: ``{model, stream:false, messages}`` POSTed
-    to ``{baseUrl}{path}``."""
-    body = {"model": self.config.model, "stream": False, "messages": wire}
-    return self.__post(self.config.base_url.rstrip("/") + path, body, bearer=bearer)
-
-  def __ollama_request(
-    self, messages: Messages, system: str
-  ) -> urllib.request.Request:
-    """``POST {baseUrl}/api/chat`` — native chat, images as bare base64 (§6.1)."""
-    wire: list = [{"role": "system", "content": system}]
-    for m in messages:
-      role, text, images = _msg_parts(m)
-      entry: dict = {"role": role, "content": text}
-      if images: entry["images"] = [_b64(data) for _mt, data in images]
-      wire.append(entry)
-    return self.__base_post("/api/chat", wire)
-
-  def __openai_request(
-    self, messages: Messages, system: str
-  ) -> urllib.request.Request:
-    """``POST {baseUrl}/chat/completions`` — images as data URLs; optional
-    ``Authorization: Bearer <apiKey>`` (§6.2)."""
-    wire: list = [{"role": "system", "content": system}]
-    for m in messages:
-      role, text, images = _msg_parts(m)
-      if images:
-        content: Any = [{"type": "text", "text": text}]
-        for mt, data in images:
-          content.append(
-            {
-              "type": "image_url",
-              "image_url": {"url": "data:%s;base64,%s" % (mt, _b64(data))},
-            }
-          )
-      else:
-        content = text
-      wire.append({"role": role, "content": content})
-    return self.__base_post(
-      "/chat/completions", wire, bearer=self.config.api_key or None
-    )
-
-  def __server_request(
-    self, messages: Messages, system: str
-  ) -> urllib.request.Request:
-    """``POST {serverUrl}/llm/chat`` — the collaboration server's Anthropic proxy,
-    authenticated with the existing Stencil session token (§6.3)."""
-    if not self._server_url:
-      raise LlmError(
-        "no stencil-server URL configured — set STENCIL_LLM_SERVER_URL or "
-        "pass a ServerConnection"
-      )
-    wire: list = list()
-    for m in messages:
-      role, text, images = _msg_parts(m)
-      entry: dict = {"role": role, "text": text}
-      if images:
-        entry["images"] = [
-          {"mediaType": mt, "data": _b64(data)} for mt, data in images
-        ]
-      wire.append(entry)
-    body: dict = {"system": system, "messages": wire}
-    if self.config.model: body["model"] = self.config.model
-    return self.__post(self._server_url + "/llm/chat", body, bearer=self._token or "")
-
-  @staticmethod
-  def __post(url: str, body: dict, bearer: (str | NoneType) = None) -> urllib.request.Request:
-    """A JSON POST Request; ``bearer`` adds ``Authorization`` (None omits it).
-    Delegates to the request builder shared with :mod:`pystencil.server`."""
-    return _json_request("POST", url, body, bearer=bearer)
+    base, bearer, headers = self._wire.endpoint(self.config, self._server_url, self._token)
+    body = self._wire.body(messages, system, self.config.model)
+    req = _json_request("POST", base + CHAT_PATHS[provider], body, bearer=bearer)
+    # Unredirected, as the bearer is: urllib never copies these onto a 30x's follow-up.
+    for name, value in headers.items(): req.add_unredirected_header(name, value)
+    return req
 
   def _open(self, req: urllib.request.Request) -> Any:
     """Execute a Request, translating non-2xx / bad payloads into :class:`LlmError`
@@ -154,57 +73,32 @@ class LlmClient:
     LLM timeout rather than the REST one.
     Redirects are refused: urllib would replay the key against the host the 30x named.
     """
-    _status, payload = _http_open(
-      req, self._error_from, follow_redirects=False, timeout=_LLM_TIMEOUT)
+    _status, payload = _http_open(req, self._wire_error, timeout=_LLM_TIMEOUT)
     if not payload: raise LlmError("empty response from the LLM provider")
     try:
       return json.loads(payload.decode("utf-8"))
     except (ValueError, UnicodeDecodeError):
       raise LlmError("non-JSON response from the LLM provider") from None
 
+  def _wire_error(self, e: urllib.error.HTTPError) -> LlmError:
+    """This provider's typed error for a non-2xx answer (§6.3, §6.5)."""
+    return self._wire.error(e, self.config)
+
   @staticmethod
   def _error_from(e: urllib.error.HTTPError) -> LlmError:
-    """Build an LlmError from an HTTPError, parsing a ``{code, message}`` body
-    when present (e.g. the server's 503 ``llmDisabled``).
-
-    The message alone is the text: it already says the reason once (§6.3), and the
-    machine ``code`` in front of it only restated it — it stays on the exception,
-    where a caller can branch on it.
-    """
-    code, message = _parse_http_error(e)
-    return LlmError(_clean_detail(message), code=code, status=e.code)
+    """The typed error a ``{code, message}`` body makes (e.g. the server's 503
+    ``llmDisabled``); the code stays on the exception, where a caller can branch on it."""
+    return _proxy_error(e, None)
 
   def _extract_reply(self, payload: Any) -> str:
     """Pull the reply text out of a provider response (contract §6).
 
-    For ``stencil-server``, a ``stopReason`` of ``max_tokens``/``refusal`` raises
-    a typed :class:`LlmError` — those replies are never parsed as plans.
+    For ``stencil-server`` and ``anthropic``, a stop reason of ``max_tokens``/``refusal``
+    raises a typed :class:`LlmError` — those replies are never parsed as plans.
     """
-    provider = self.config.provider
-    text: Any = None
-    if provider == "ollama":
-      msg = payload.get("message") if isinstance(payload, dict) else None
-      text = msg.get("content") if isinstance(msg, dict) else None
-    elif provider == "openai-compat":
-      choices = payload.get("choices") if isinstance(payload, dict) else None
-      first = choices[0] if isinstance(choices, list) and choices else None
-      msg = first.get("message") if isinstance(first, dict) else None
-      text = msg.get("content") if isinstance(msg, dict) else None
-    else:  # stencil-server
-      if not isinstance(payload, dict): payload = dict()
-      stop = payload.get("stopReason") or ""
-      text = payload.get("text")
-      if stop == "max_tokens":
-        raise LlmError(
-          "response truncated (max_tokens) — not parsed as a plan",
-          stop_reason="max_tokens",
-        )
-      if stop == "refusal":
-        raise LlmError(
-          "the model refused to answer", stop_reason="refusal"
-        )
+    text = self._wire.reply(payload)
     if not isinstance(text, str):
-      raise LlmError("malformed %s response: no reply text" % provider)
+      raise LlmError("malformed %s response: no reply text" % self.config.provider)
     return text
 
   # ── the one public call ──

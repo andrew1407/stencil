@@ -1,4 +1,4 @@
-// Phone-width layout of the app's two big dialogs — the Projects list (js/ui/projectsModal.js)
+// Phone-width layout of the app's two big dialogs — the Projects list (browser/js/ui/projects/window/projectsModal.js)
 // and the Settings / keyboard-shortcuts sheet — plus the 680px breakpoint that keeps the narrow
 // rules off the desktop ones. An .app-modal clips, so overflow never shows in the page's
 // scrollWidth: these measure the CONTROLS instead.

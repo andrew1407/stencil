@@ -1,0 +1,80 @@
+# /theme blue
+# echo
+\x01> \x1b[0m/theme blue\x1b[0m
+@0 2965B 5aeb68e49216391a
+~wait 61
+@61 3121B 7ca54e284e5cbbc0
+~wait 54
+@115 145B 67545ebc428c0f27
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 7
+@122 3618B 32cb7c2e00aff9af
+~wait 61
+@183 3661B 8cb35a44a6baa5f1
+~wait 47
+@230 145B d8dcfd3393cd6902
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 14
+@244 3661B a22078e37d524741
+~wait 61
+@305 3431B b97526f8cb4709c8
+~wait 40
+@345 145B e8f713b6ef395bd1
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 21
+@366 3471B 5095d048067693c4
+~wait 61
+@427 3483B af0677b9908d4479
+~wait 33
+@460 145B 27f737ebee51966e
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mC\x1b[0m\x1b[1m \x1b[0m\x1b[1mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 28
+@488 3099B 81a3771bc34413b6
+~wait 61
+@549 3099B 81f4c39d72bfa98e
+~wait 26
+@575 145B 164b3bfebcfdee48
+\x1b7
+\x1b[6;24H\x1b[1mS\x1b[0m\x1b[1m \x1b[0m\x1b[1mT\x1b[0m\x1b[1m \x1b[0m\x1b[1mE\x1b[0m\x1b[1m \x1b[0m\x1b[1mN\x1b[0m\x1b[1m \x1b[0m\x1b[1mC\x1b[0m\x1b[1m \x1b[0m\x1b[1m\x1b[38;2;37;99;235mI\x1b[0m\x1b[1m \x1b[0m\x1b[1mL\x1b[0m\x1b8
+~wait 115
+@690 3562B 283766afd5f3a6c9
+~wait 13
+@703 22B b4be0886e467b9e6
+\x1b7
+\x1b[17;1Hthem\x1b[0m\x1b[K\x1b8
+~wait 13
+@716 26B f72ab90984c0c179
+\x1b7
+\x1b[17;1Htheme se\x1b[0m\x1b[K\x1b8
+~wait 13
+@729 30B 5b01fc5a94e9910e
+\x1b7
+\x1b[17;1Htheme set to\x1b[0m\x1b[K\x1b8
+~wait 13
+@742 34B 9190c17132a4bf19
+\x1b7
+\x1b[17;1Htheme set to blu\x1b[0m\x1b[K\x1b8
+~wait 13
+@755 38B 0b8aede44e293ad0
+\x1b7
+\x1b[17;1Htheme set to blue (#\x1b[0m\x1b[K\x1b8
+~wait 13
+@768 958B 424178ee16eeb71d
+\x1b7
+\x1b[17;1Htheme set to blue (#2563\x1b[0m\x1b[K
+\x1b[12;1H\x1b[38;2;37;99;235m> \x1b[0m/theme\x1b[0m\x1b[K
+\x1b[13;1Hwrote out.png (640x480 px · A4 29.7×21cm)\x1b[0m\x1b[K
+\x1b[14;1H\x1b[1m\x1b[38;2;37;99;235mnote: \x1b[0mthe accent reaches this far\x1b[0m\x1b[K
+\x1b[15;1Himage: out.png (640x480 px · A4)\x1b[0m\x1b[K
+\x1b[16;1H\x1b[38;2;37;99;235m> \x1b[0m/theme blue\x1b[0m\x1b[0m\x1b[K
+\x1b[17;1Htheme set to blue (#2563eb)\x1b[0m\x1b[K
+\x1b[18;1H\x1b[2K
+\x1b[19;1H\x1b[2K
+\x1b[20;1H\x1b[2K
+\x1b[21;1H\x1b[2K\x1b8
+\x1b[22;1H\x1b[2K\x1b[38;2;37;99;235m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m
+\x1b[24;1H\x1b[2K\x1b[38;2;37;99;235m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\x1b[2m\x1b[0m

@@ -7,11 +7,8 @@ import (
 	"strings"
 
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/validate"
 )
-
-// projectIDPattern is the only id shape the file store will touch: the server-allocated "p_" + base36 +
-// "_" + base36 salt. No user-supplied filename ever reaches the filesystem.
-var projectIDPattern = regexp.MustCompile(`^p_[0-9a-z]+_[0-9a-z]+$`)
 
 // extPattern restricts file extensions to a short alphanumeric token.
 var extPattern = regexp.MustCompile(`^[0-9a-z]{1,8}$`)
@@ -37,7 +34,7 @@ func normalizeExt(ext string) (string, error) {
 
 // projectDir returns the absolute, root-confined directory for a project id.
 func (s *Store) projectDir(id string) (string, error) {
-	if !projectIDPattern.MatchString(id) {
+	if !validate.ProjectID(id) {
 		return "", ErrUnsafePath{Reason: "project id " + id}
 	}
 	return s.confine(filepath.Join("projects", id))

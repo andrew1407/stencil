@@ -1,17 +1,9 @@
-// The validated + normalized action (declared keys, registry defaults, trims) becoming the typed
-// Action: the per-op field filling, plus the layout envelope's own. Types, enums, ranges, grammars
-// and presence rules belong to the generic check; these are the desktop extras the registry lacks.
+// Core's normalized action (declared keys, registry defaults, trims) becoming the typed Action: the
+// per-op field filling, plus the layout envelope's own. Types, enums, ranges, grammars, presence
+// rules and the surface rules are core's; the openFile read scope is the desktop's own extra.
 #include "opPlanParts.hpp"
 
-#include "colorNames.hpp"   // core::parseColor — the only core seam left in this family
-
 namespace stencil::llm::opdetail {
-
-  // A colour NAME must be one the core recognizes (fixture 137 knownDivergence.desktop);
-  // "#rrggbb" already passed the grammar.
-  static bool isKnownColor(const QString& t) {
-    return t.startsWith(QLatin1Char('#')) || core::parseColor(t.toStdString()).has_value();
-  }
 
     bool fillLayout(const QJsonObject& n, Action& a, QString* e) {
       for (const QJsonValue& lv : n.value("lines").toArray()) {
@@ -29,6 +21,7 @@ namespace stencil::llm::opdetail {
         if (present(o, "style")) line.style = o.value("style").toString().toStdString();
         if (present(o, "locked")) line.locked = o.value("locked").toBool();
         if (present(o, "fillColor")) line.fillColor = o.value("fillColor").toString().toStdString();
+        if (present(o, "pointColor")) line.pointColor = o.value("pointColor").toString().toStdString();
         a.lines.push_back(std::move(line));
       }
       return true;
@@ -76,8 +69,6 @@ namespace stencil::llm::opdetail {
           break;
         case OpKind::BLANK:
           a.color = str("color");
-          if (!isKnownColor(a.color))
-            return err(e, QStringLiteral("Invalid blank action: \"color\" must be #rrggbb or a CSS colour name"));
           a.format = str("format");
           a.widthCm = num("width");
           a.heightCm = num("height");
@@ -161,8 +152,6 @@ namespace stencil::llm::opdetail {
           break;
         case OpKind::BLANK_COLOR:
           a.color = str("color");
-          if (!isKnownColor(a.color))
-            return err(e, QStringLiteral("Invalid blankColor action: \"color\" must be #rrggbb or a CSS colour name"));
           break;
         case OpKind::OPEN_PROJECT:
           a.name = str("name");

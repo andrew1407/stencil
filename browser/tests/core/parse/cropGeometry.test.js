@@ -6,7 +6,7 @@ import {
   scaleLinePoints, rotateCropRectQuarterJS, rotateLinePointsQuarter
 } from '../../../js/core/parse/cropGeometry.js';
 
-// A3 page in cm (aspect ≈ √2), matching desktop/tests/cropGeometry.test.cpp.
+// A3 page in cm (aspect ≈ √2), matching core/tests/geometry/cropGeometry.test.cpp.
 const A3W = 29.7;
 const A3H = 42.0;
 const approx = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≈ ${b}`);

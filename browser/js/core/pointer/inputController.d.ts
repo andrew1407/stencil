@@ -5,9 +5,6 @@ import type { DrawingApp } from '../drawingApp.js';
 import type { PinchSession } from '../touch/pinch.js';
 import type { TouchSession } from '../touch/drag.js';
 
-/** An image to draw on, drawing off, no gesture running, and not the rect tool. */
-export declare const holdDrawEligible: (app: DrawingApp | null | undefined) => boolean;
-
 export declare class InputController {
   app: DrawingApp;
   constructor(app: DrawingApp);

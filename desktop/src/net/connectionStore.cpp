@@ -3,7 +3,6 @@
 
 #include <QJsonObject>
 #include <QSettings>
-#include <QVariant>
 
 namespace stencil::net {
 

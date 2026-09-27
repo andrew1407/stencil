@@ -7,10 +7,6 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// outBudgetBytes bounds one member's queued backlog in bytes, not messages: a frame may be
-// transport.MaxMessageBytes (16 MiB). A message still always fits on an empty queue.
-const outBudgetBytes = 8 << 20
-
 // member is one connected client within a session. The run-loop pushes outbound frames onto out; a
 // per-member writeLoop drains it to the connection so a slow peer never blocks the run-loop.
 type member struct {
@@ -18,20 +14,22 @@ type member struct {
 	name     string
 	conn     transport.Conn
 	out      chan []byte
+	budget   int // queued bytes allowed, not messages: a frame may be transport.MaxMessageBytes
 
 	mu     sync.Mutex
 	queued int // bytes sitting in out, guarded by mu
 }
 
-func newMember(clientID, name string, conn transport.Conn) *member {
-	return &member{clientID: clientID, name: name, conn: conn, out: make(chan []byte, outBuffer)}
+func newMember(clientID, name string, conn transport.Conn, tune Tuning) *member {
+	return &member{clientID: clientID, name: name, conn: conn,
+		out: make(chan []byte, tune.OutBuffer), budget: int(tune.OutBudgetBytes)}
 }
 
 // enqueue hands data to the member's writer without blocking the run-loop. It drops when the member is
-// behind by more than the byte budget; clients reconcile by version on resubscribe.
+// behind by more than the byte budget (one frame always fits an empty queue); clients reconcile by version.
 func (m *member) enqueue(data []byte) bool {
 	m.mu.Lock()
-	if m.queued > 0 && m.queued+len(data) > outBudgetBytes {
+	if m.queued > 0 && m.queued+len(data) > m.budget {
 		m.mu.Unlock()
 		return false
 	}

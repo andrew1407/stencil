@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "hitTest.hpp"
 
 // Editing the selected line, and the hover cache the panels read.
@@ -82,12 +81,12 @@ namespace stencil::gui {
     int li = -1;
     int pi = -1;
     if (auto idx = core::nearestPointInLine(currentLine.points, imageX, imageY,
-                                            hitRadius(12.0))) {
+                                            grabHitRadius())) {
       li = -1;
       pi = *idx;
     }
     if (pi < 0) {
-      if (auto pt = core::findNearestPoint(lines, imageX, imageY, hitRadius(12.0))) {
+      if (auto pt = core::findNearestPoint(lines, imageX, imageY, grabHitRadius())) {
         li = pt->lineIdx;
         pi = pt->ptIdx;
       }
@@ -95,12 +94,12 @@ namespace stencil::gui {
     // The committed LINE under the cursor (a point hit names its line, else a stroke
     // hit) — tints the panel's Lines-list row, the reverse of setListHoverLine.
     const int over =
-        (li >= 0) ? li : core::findLineAt(lines, imageX, imageY, hitRadius(8.0));
-    if (li == hoverLineIdx && pi == hoverPointIdx && over == hoverOverLineIdx)
+        (li >= 0) ? li : core::findLineAt(lines, imageX, imageY, lineHitRadius());
+    if (li == hover.lineIdx && pi == hover.pointIdx && over == hover.overLineIdx)
       return false;
-    hoverLineIdx = li;
-    hoverPointIdx = pi;
-    hoverOverLineIdx = over;
+    hover.lineIdx = li;
+    hover.pointIdx = pi;
+    hover.overLineIdx = over;
     emit canvasHoverChanged(li, pi, over);
     return true;
   }
@@ -115,29 +114,29 @@ namespace stencil::gui {
     const core::Line* l = panelLine();
     const int n = l ? static_cast<int>(l->points.size()) : 0;
     const int i = (ptIdx >= 0 && ptIdx < n) ? ptIdx : -1;
-    if (i == listHoverPointIdx) return;
-    listHoverPointIdx = i;
+    if (i == hover.listPointIdx) return;
+    hover.listPointIdx = i;
     update();
   }
 
   void CanvasWidget::setListHoverLine(int lineIdx) {
     const int i =
         (lineIdx >= 0 && lineIdx < static_cast<int>(lines.size())) ? lineIdx : -1;
-    if (i == listHoverLineIdx) return;
-    listHoverLineIdx = i;
+    if (i == hover.listLineIdx) return;
+    hover.listLineIdx = i;
     update();
   }
 
   void CanvasWidget::clearHoverCache() {
-    if (hoverLineIdx == -1 && hoverPointIdx == -1 && hoverOverLineIdx == -1 &&
-        listHoverPointIdx == -1 && listHoverLineIdx == -1) {
+    if (hover.lineIdx == -1 && hover.pointIdx == -1 && hover.overLineIdx == -1 &&
+        hover.listPointIdx == -1 && hover.listLineIdx == -1) {
       return;
     }
-    hoverLineIdx = -1;
-    hoverPointIdx = -1;
-    hoverOverLineIdx = -1;
-    listHoverPointIdx = -1;
-    listHoverLineIdx = -1;
+    hover.lineIdx = -1;
+    hover.pointIdx = -1;
+    hover.overLineIdx = -1;
+    hover.listPointIdx = -1;
+    hover.listLineIdx = -1;
     emit canvasHoverChanged(-1, -1, -1);
   }
 

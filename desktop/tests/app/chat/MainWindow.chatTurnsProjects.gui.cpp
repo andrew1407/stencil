@@ -23,28 +23,62 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"The fourth one.\",\"actions\":["
         "{\"op\":\"image\",\"index\":4},{\"op\":\"filter\",\"mode\":\"bw\"}]}"));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkGreen);
     dock->addAttachmentImage(att, "cat.jpg");
-    win.onChatSend("do the fourth one");
+    win.chatSession->onChatSend("do the fourth one");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY2(chatTranscriptHas(dock, "attached image 4"),
              "an unsatisfiable index must warn, naming it");
     QCOMPARE(win.settings.imageFilter, QStringLiteral("bw"));   // the rest still ran
 
     // Nothing on the canvas: the save is skipped with a warning, no project.
-    win.resetToBlankEditor();   // the trash button's body, minus its confirmation
+    win.parts.projects.resetToBlankEditor();   // the trash button's body, minus its confirmation
     QTRY_VERIFY(!win.canvas->hasImage());
     const int before = int(win.projectList.size());
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Saving.\",\"actions\":[{\"op\":\"save\",\"name\":\"x\"}]}"));
-    win.onChatSend("save it");
+    win.chatSession->onChatSend("save it");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY2(chatTranscriptHas(dock, "no working image"), "an empty save must warn");
     QCOMPARE(int(win.projectList.size()), before);
+    beat();
+  }
+
+  // §10 a save to a folder the user named renders and writes on the pool; the plan resumes once the
+  // file lands, so the op after it still runs, and the file holds the canvas as it was at the save.
+  void chatSaveToNamedFolderResumesThePlan() {
+    MainWindow win(nullptr, false);
+    win.resize(1100, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    MockChatTransport mock;
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
+    QVERIFY(dock);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkRed);
+    win.loadImageWithLayout(img, QJsonObject());
+    QTRY_VERIFY(win.canvas->hasImage());
+    const QSize shown(win.canvas->imageWidth(), win.canvas->imageHeight());   // the page's crop of it
+    const QString plan = QStringLiteral(
+        "{\"version\":1,\"reply\":\"Saved.\",\"actions\":[{\"op\":\"save\",\"name\":\"named\","
+        "\"path\":\"%1\"},{\"op\":\"filter\",\"mode\":\"bw\"}]}").arg(dir.path());
+    mock.queue.append(QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
+                          .toJson(QJsonDocument::Compact));
+    win.chatSession->onChatSend(QStringLiteral("save it to %1").arg(dir.path()));
+    // The reply lands before the write does; the filter runs only once the save has answered.
+    QTRY_COMPARE(win.settings.imageFilter, QStringLiteral("bw"));
+    const QImage out(dir.filePath(QStringLiteral("named.png")));
+    QCOMPARE(out.size(), shown);
+    QCOMPARE(out.pixelColor(out.width() / 2, out.height() / 2), QColor(Qt::darkRed));
     beat();
   }
 
@@ -62,14 +96,14 @@ class MainWindowGuiTest : public QObject {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
           .toJson(QJsonDocument::Compact);
     };
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     // Seed two local projects to pick between.
     QImage img(24, 24, QImage::Format_RGB32);
     img.fill(Qt::darkBlue);
-    const QString goneId = win.addImageProjectEntry(img, "chat del target");
-    const QString keptId = win.addImageProjectEntry(img, "chat del keeper");
+    const QString goneId = win.parts.chatAppliers.addImageProjectEntry(img, "chat del target");
+    const QString keptId = win.parts.chatAppliers.addImageProjectEntry(img, "chat del keeper");
     QVERIFY(!goneId.isEmpty() && !keptId.isEmpty());
     const int before = int(win.projectList.size());
 
@@ -78,7 +112,7 @@ class MainWindowGuiTest : public QObject {
         "{\"version\":1,\"reply\":\"Removed.\",\"actions\":["
         "{\"op\":\"removeProject\",\"name\":\"chat del target\"}]}"));
     dismissModal("OK");
-    win.onChatSend("delete the chat del target project");
+    win.chatSession->onChatSend("delete the chat del target project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList.size()), before - 1);
     QVERIFY2(!win.findProject(goneId.toStdString()), "the named project must be gone");
@@ -88,7 +122,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearProjects\"}]}"));
     dismissModal("Cancel");
-    win.onChatSend("clear all my projects");
+    win.chatSession->onChatSend("clear all my projects");
     QTRY_VERIFY(!dock->isBusy());
     QCOMPARE(int(win.projectList.size()), before - 1);
     QVERIFY2(chatTranscriptHas(dock, "clear canceled"),
@@ -110,7 +144,7 @@ class MainWindowGuiTest : public QObject {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
           .toJson(QJsonDocument::Compact);
     };
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     const char* removeCurrent =
@@ -121,7 +155,7 @@ class MainWindowGuiTest : public QObject {
     // saved (incognito blocks the project promotion a normal load would do).
     CanvasWidget* canvas = win.canvas;
     QVERIFY(canvas);
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QImage shot(120, 90, QImage::Format_RGB32);
     shot.fill(Qt::darkCyan);
     canvas->loadFromImage(shot);
@@ -135,7 +169,7 @@ class MainWindowGuiTest : public QObject {
     // Declined: the confirm ran, nothing went.
     mock.queue.append(wrap(removeCurrent));
     dismissModal("Cancel");
-    win.onChatSend("remove this project");
+    win.chatSession->onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QVERIFY2(canvas->hasImage(), "a declined confirm must keep the image");
     QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);
@@ -147,22 +181,22 @@ class MainWindowGuiTest : public QObject {
     // Accepted: the §10 clear flow — image and lines go, the editor is empty.
     mock.queue.append(wrap(removeCurrent));
     dismissModal("OK");
-    win.onChatSend("remove this project");
+    win.chatSession->onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(!canvas->hasImage(), "the accepted fallback must clear the image");
     QCOMPARE(static_cast<int>(canvas->getLines().size()), 0);
 
     // With a SAVED project open the old path is unchanged: the project itself goes.
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(false);
     QImage img(24, 24, QImage::Format_RGB32);
     img.fill(Qt::darkBlue);
-    const QString id = win.addImageProjectEntry(img, "chat current target");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "chat current target");
     QVERIFY(!id.isEmpty());
     win.activeProjectId = id;
     const int before = int(win.projectList.size());
     mock.queue.append(wrap(removeCurrent));
     dismissModal("OK");
-    win.onChatSend("remove this project");
+    win.chatSession->onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList.size()), before - 1);
     QVERIFY2(!win.findProject(id.toStdString()), "the saved project must be the one removed");

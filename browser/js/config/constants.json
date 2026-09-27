@@ -51,13 +51,26 @@
     "focusRingColor": "#7c3aed"
   },
   "LIMITS": {
-    "zoomMin": 0.05,
-    "zoomMax": 5,
     "thickMin": 1,
     "thickMax": 20,
     "pointMin": 1,
     "pointMax": 30,
-    "historyMax": 64
+    "historyMax": 64,
+    "layoutLinesMax": 50000,
+    "layoutLinePointsMax": 100000,
+    "layoutPointsMax": 1000000
   },
-  "DEFAULT_PAGE": { "size": "A3", "width": 21, "height": 29.7 }
+  "DEFAULT_PAGE": { "size": "A3", "customWidth": 21, "customHeight": 29.7 },
+  "STROKE_DASH": { "dashed": [10, 5], "dotted": [2, 5] },
+  "NETWORK": { "fetchTimeoutMs": 30000 },
+  "HIT": { "lineRadiusPx": 8, "pointRadiusPx": 10, "grabRadiusPx": 12, "closeSlackPx": 8 },
+  "DEBOUNCE": { "editCommitMs": 280, "previewHoverMs": 280 },
+  "HOLD_DRAW": { "tickMs": 40, "delayMs": 500, "moveTolerancePx": 6, "rearmDistancePx": 10, "ghostDashPx": [6, 4], "ghostLineAlpha": 0.45, "ghostPointAlpha": 0.6 },
+  "POLL": { "remoteMs": 2000 },
+  "COEDIT": { "resultIdleMs": 2000, "resultMinGapMs": 10000 },
+  "POPOVER": { "doubleClickMs": 250, "doubleTapMs": 350, "longPressMs": 500, "pressSlopPx": 10, "lingerCloseMs": 250 },
+  "FOCUS_RING": { "gapPx": 6, "widthPx": 3, "blurPx": 12, "glowAlpha": 0.9 },
+  "HOVER_RING": { "gapPx": 4, "widthPx": 1.8, "alpha": 0.55 },
+  "SELECT_GLOW": { "pointGapPx": 4, "pointAlpha": 0.5, "linePadPx": 8, "lineAlpha": 0.6, "lineHoverPadPx": 6, "lineHoverAlpha": 0.35 },
+  "COMPARE_DIVIDER": { "lineWidthPx": 2, "knobRadiusPx": 7, "shadowBlurPx": 3, "grabSlackPx": 8 }
 }

@@ -6,16 +6,26 @@ pub mod dispatch;
 pub mod e2e;
 pub mod args;
 pub mod llm;
+pub mod plan;
+pub mod rest;
 pub mod walk;
 pub mod wire;
 
 use std::sync::LazyLock;
 
 use serde_json::Value;
-use stencil_mcp::opplan::{parse_op_plan, OpPlan};
+use stencil_mcp::opplan::{from_result, OpPlan, OpPlanError};
 
-pub fn plan_of(text: &str) -> OpPlan {
-    parse_op_plan(text).unwrap()
+/// A plan typed from a core result document — what `--plan-check` answers for a reply that
+/// already reads this way (normalized, defaults applied); `status` defaults to valid.
+pub fn try_plan(result: &str) -> Result<OpPlan, OpPlanError> {
+    let mut doc: Value = serde_json::from_str(result).expect("a result document");
+    doc.as_object_mut().expect("an object").entry("status").or_insert("valid".into());
+    from_result(&doc.to_string())
+}
+
+pub fn plan_of(result: &str) -> OpPlan {
+    try_plan(result).unwrap()
 }
 
 /// Parse a JSON file, naming it if it is missing or malformed.

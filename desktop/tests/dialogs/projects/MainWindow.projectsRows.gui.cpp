@@ -20,7 +20,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    const QString id = win.addImageProjectEntry(img, "doomed-row");
+    const QString id = win.parts.chatAppliers.addImageProjectEntry(img, "doomed-row");
     QVERIFY(!id.isEmpty());
 
     bool sawRow = false, blankedAtOnce = false, slotHeld = false, goneAfter = false;
@@ -76,7 +76,7 @@ class MainWindowGuiTest : public QObject {
       goneAfter = !rowPresent();
       bailOut();
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(blankedAtOnce, "the original row kept painting under the scatter");
     QVERIFY2(slotHeld, "the row's slot collapsed before the scatter finished");
@@ -96,8 +96,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
-    QVERIFY(!win.addImageProjectEntry(img, "one").isEmpty());
-    QVERIFY(!win.addImageProjectEntry(img, "two").isEmpty());
+    QVERIFY(!win.parts.chatAppliers.addImageProjectEntry(img, "one").isEmpty());
+    QVERIFY(!win.parts.chatAppliers.addImageProjectEntry(img, "two").isEmpty());
 
     bool sawPinned = false, barWasUp = false, dustedOnOpen = false;
     int biggestStep = 0, travelled = 0;
@@ -147,7 +147,7 @@ class MainWindowGuiTest : public QObject {
       travelled = from - last;
       bailOut();
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(sawPinned, "the pinned row was not listed with the saved projects");
     QVERIFY2(!dustedOnOpen, "no row may form out of particles just because the dialog opened");
     QVERIFY2(barWasUp, "the batch bar was not up over the selectable rows");

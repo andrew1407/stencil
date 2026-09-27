@@ -4,14 +4,15 @@
 import type { DrawingApp } from '../core/drawingApp.js';
 
 /** Contract §5 providers, plus 'none' — the local-only "assistant switched off" value. */
-export type LlmProvider = 'none' | 'ollama' | 'openai-compat' | 'stencil-server';
+export type LlmProvider = 'none' | 'ollama' | 'openai-compat' | 'anthropic' | 'stencil-server';
 
 export interface LlmSettings {
   provider: LlmProvider;
-  /** ollama / openai-compat endpoint. */
+  /** ollama / openai-compat / anthropic endpoint. */
   baseUrl: string;
   model: string;
-  /** openai-compat bearer key; never sent to any other provider. */
+  /** openai-compat bearer key; never sent to any other provider. For anthropic always '' at rest:
+   *  its key is the session key, which only withSessionKey() puts here for one request. */
   apiKey: string;
   /** stencil-server endpoint; its token comes from the saved connection, not from here. */
   serverUrl: string;
@@ -29,6 +30,8 @@ export declare const withProvider: (settings: LlmSettings, provider: LlmProvider
 export declare const defaultSettings: () => LlmSettings;
 /** Saved overrides merged over the defaults; bad or missing data degrades to defaults. */
 export declare const loadLlmSettings: () => LlmSettings;
+/** For anthropic, a copy carrying this tab's session key as apiKey ('' when none); others unchanged. */
+export declare const withSessionKey: <T extends Partial<LlmSettings> | null | undefined>(settings: T) => T;
 /** The LIVE connection's bearer token for `url`, else the saved one, else ''. */
 export declare const serverBearerToken: (app: DrawingApp | null | undefined, url: string) => string;
 export declare const saveLlmSettings: (s: Partial<LlmSettings>) => void;

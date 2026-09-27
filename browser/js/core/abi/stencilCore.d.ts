@@ -4,12 +4,13 @@
 import type { CropRect } from '../geometry.js';
 import type { FormulaContext } from '../parse/formulaContext.js';
 import type { HoldDrawOptions, WasmHoldDrawController, WasmHistoryStack } from './coreHandles.js';
+import type { LineOps } from './coreLineOps.js';
 
 export interface XY { x: number; y: number; }
 export type FilterMode = 'none' | 'bw' | 'sepia' | 'custom' | 'invert' | 'contour';
 
 /** The wasm op map, keyed like the JS reference implementations each one replaces. */
-export interface CoreOps {
+export interface CoreOps extends LineOps {
   parseHex(hex: string): { r: number; g: number; b: number } | null;
   distToSegment(px: number, py: number, a: XY, b: XY): number;
   formulaValidate(expr: string, varName: string): boolean;
@@ -20,6 +21,12 @@ export interface CoreOps {
   /** ms, 0 = keep forever; null when invalid. */
   parseDuration(spec: string | null | undefined): number | null;
   clampScale(scale: number): number;
+  /** The bounds clampScale clamps into, as scales. */
+  zoomMin(): number;
+  zoomMax(): number;
+  /** A swept rect's fit: the scale (capped at zoomMax) and the centring scroll. */
+  rectZoom(x1: number, y1: number, rectW: number, rectH: number, availW: number, availH: number):
+    { scale: number; scrollLeft: number; scrollTop: number };
   shouldCloseShape(points: readonly XY[], click: XY, pointSize: number): boolean;
   pageDimensions(name: string, cw: number, ch: number, customW: number, customH: number): { width: number; height: number };
   /** Space-separated canonical page-format names, no "custom". */
@@ -42,6 +49,8 @@ export interface CoreOps {
   cropResizeScale(oldWidth: number, newWidth: number): number;
   cropChange(oldRect: CropRect, newRect: CropRect): { orientationChanged: boolean; scale: number };
   rotateCropRectQuarter(r: CropRect, imageW: number, imageH: number, clockwise: boolean): CropRect;
+  snapCropRect(r: CropRect, imageW: number, imageH: number): CropRect;
+  rotateEditQuarter(crop: CropRect, quarters: number, originalW: number, originalH: number, clockwise: boolean): { crop: CropRect; quarters: number };
   HoldDrawController: new (opts?: HoldDrawOptions) => WasmHoldDrawController;
   HistoryStack: new () => WasmHistoryStack;
 }

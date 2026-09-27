@@ -7,11 +7,13 @@ import unittest
 
 from pystencil.llm import CHAT_DOC_VERSION, CONTINUATION_NOTE, Chat, MAX_HISTORY
 from tests.helpers.stubs import _StubClient, _plan_json
+from tests.helpers.nativecase import needs_core
 
 
 class ChatPersistenceTest(unittest.TestCase):
   """The §12.1 persisted-chat document: Chat.to_doc / from_doc / clear."""
 
+  @needs_core
   def test_to_doc_round_trips_text_only(self) -> None:
     chat = Chat(_StubClient(_plan_json(reply="hi there")))
     chat.send("hello", images=[("image/png", b"pix")])
@@ -33,6 +35,7 @@ class ChatPersistenceTest(unittest.TestCase):
       ],
     )
 
+  @needs_core
   def test_to_doc_keeps_chat_only_assistant_text(self) -> None:
     # A reply that never parsed as a plan was displayed as-is; persist it as-is.
     chat = Chat(_StubClient("Just words, no plan."))
@@ -96,6 +99,7 @@ class ChatPersistenceTest(unittest.TestCase):
     self.assertEqual(len(chat.history), MAX_HISTORY)
     self.assertEqual(chat.history[-1]["text"], "turn %d" % (MAX_HISTORY + 7))
 
+  @needs_core
   def test_to_doc_keeps_the_continuation_note_out(self) -> None:
     # §7's continuation round restates the request with the internal note appended;
     # the shared document carries the user's own words only (§12.1).
@@ -132,6 +136,7 @@ class ChatPersistenceTest(unittest.TestCase):
       ],
     )
 
+  @needs_core
   def test_clean_document_round_trips_identically(self) -> None:
     doc = {
       "version": 1,
@@ -144,6 +149,7 @@ class ChatPersistenceTest(unittest.TestCase):
     restored = Chat.from_doc(doc, _StubClient(_plan_json()))
     self.assertEqual(restored.to_doc(now_ms=7), doc)
 
+  @needs_core
   def test_clear_empties_the_history(self) -> None:
     client = _StubClient(_plan_json())
     chat = Chat(client)

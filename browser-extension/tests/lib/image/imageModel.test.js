@@ -1,4 +1,4 @@
-// Unit tests for src/lib/model.js — the pure provenance/pin/search predicates extracted
+// Unit tests for src/lib/image/model.js — the pure provenance/pin/search predicates extracted
 // out of popup/popup.js (which is DOM/chrome-bound and untestable under node --test).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

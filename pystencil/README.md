@@ -26,13 +26,24 @@ The native library is not committed — build it once from `core/`:
 
 ```bash
 # from this directory (pystencil/)
-python3 build.py            # compiles core/*.cpp + cliApi.cpp → the shared lib
+python3 build.py            # compiles core/*.cpp + cliApi.cpp + the stb codec units → the shared lib
 ```
 
 You don't have to run it by hand: the first time the package needs the core it builds it on
 demand and caches the result, rebuilding whenever any source or header is newer than the
-artifact. PNG and BMP are decoded natively; **JPEG input needs the Zig CLI** (`codecs.decode`
-raises a `CodecError` pointing you at it).
+artifact.
+
+PNG, BMP and **JPEG** are read and written. All three are read by the same stb decoder the
+Zig CLI uses — any PNG bit depth, interlaced or not; top-down, palette and `BI_BITFIELDS`
+BMPs such as macOS `sips` writes — and JPEG is written by its encoder (at the CLI's quality
+90), compiled into the native library by the same C/C++ compiler. The build fetches stb's two headers once from
+[github.com/nothings/stb](https://github.com/nothings/stb), at the commit the CLI pins, and
+checks each against the SHA-256 in `stb/pin.json` — or reuses the CLI's own downloaded copy
+when you have built the CLI. Offline, copy `stb_image.h` and `stb_image_write.h` from that
+commit into `stb/cache/`; they are checked the same way. Without them the library still
+builds, PNG and BMP read through slower pure-Python decoders that take only 8-bit,
+non-interlaced PNGs and 24/32-bit uncompressed BMPs, and a JPEG raises a `CodecError` until
+you run `python3 build.py` again with them available.
 
 ## Test
 
@@ -97,12 +108,12 @@ lines wholesale.
 ```python
 from pystencil import Image
 
-img = Image.open("pic.png")                 # decode via codecs (PNG/BMP)
+img = Image.open("pic.jpg")                 # decode via codecs (PNG/BMP/JPEG)
 img = Image.decode(raw_bytes)               # sniff + decode
 img = Image.blank(800, 600, (255, 0, 0, 255))
 img.width, img.height, img.pixel_count
 png_bytes = img.encode("png")
-img.save("out.bmp")                         # format from extension, default png
+img.save("out.bmp")                         # format from extension (.png/.bmp/.jpg), default png
 clone = img.copy()
 ```
 
@@ -245,7 +256,7 @@ with parse_script(open("edit.stc").read()) as program:   # parse only
 In the REPL, `/script <directives>` and `/script-run <file.stc>` apply to the loaded image;
 a `@source` block is noted and skipped, since the console holds one picture, not a folder.
 Two deviations from the CLI: `@frame` needs a video decoder pystencil does not have, and a
-`@source` folder picks up only the formats `codecs` decodes (PNG/BMP).
+`@source` folder picks up only the formats `codecs` decodes (PNG, BMP, JPEG).
 
 ## LLM prompts
 
@@ -284,14 +295,51 @@ Configuration is `LlmConfig(...)` args with env fallback (`LlmConfig.from_env()`
 
 | Env key | Meaning | Default |
 |---|---|---|
-| `STENCIL_LLM_PROVIDER` | `ollama` \| `openai-compat` \| `stencil-server` | `ollama` |
-| `STENCIL_LLM_BASE_URL` | provider endpoint (`ollama`/`openai-compat`) | `http://localhost:11434` / `http://localhost:1234/v1` |
+| `STENCIL_LLM_PROVIDER` | `ollama` \| `openai-compat` \| `anthropic` \| `stencil-server` | `ollama` |
+| `STENCIL_LLM_BASE_URL` | provider endpoint (`ollama`/`openai-compat`/`anthropic`) | `http://localhost:11434` / `http://localhost:1234/v1` / `https://api.anthropic.com` |
 | `STENCIL_LLM_MODEL` | model name (empty = provider/server default) | empty |
-| `STENCIL_LLM_API_KEY` | Bearer key, sent on `openai-compat` only | empty |
+| `STENCIL_LLM_API_KEY` | your key: optional Bearer on `openai-compat`, required on `anthropic` | empty |
 | `STENCIL_LLM_SERVER_URL` | collaboration server proxying Anthropic (`stencil-server`) | empty |
 
 For `stencil-server`, `LlmClient(LlmConfig(provider="stencil-server"), server=conn)` reuses a
-`ServerConnection`'s URL and bearer token. Two deviations from the richer clients: the `frame`
+`ServerConnection`'s URL and bearer token.
+
+### Claude with your own API key
+
+The `anthropic` provider talks to the Anthropic API directly — no Stencil server, no
+session — with your own key:
+
+```python
+import os
+from pystencil import Editor, LlmClient, LlmConfig
+
+cfg = LlmConfig(provider="anthropic", api_key=os.environ["MY_ANTHROPIC_KEY"])
+reply, outputs = Editor().load("photo.jpg").prompt("crop to the face", llm=LlmClient(cfg))
+```
+
+Or set `STENCIL_LLM_PROVIDER=anthropic` and `STENCIL_LLM_API_KEY`, and every client built
+without a config picks them up. The model defaults to the one the Stencil server uses; set
+`model=` to pick another.
+
+The key stays in memory only: pystencil never writes it to a file, a project, a URL or a
+log, `repr(cfg)` shows it as `<redacted>`, and the compiler pystencil may start to build
+its native library does not inherit any `STENCIL_LLM_*` variable. A key lasts 12 hours
+after it was set; after that the next request fails with `no API key for this session`
+(an `LlmError` with `code == "llmDisabled"`) and nothing is sent until you set one again.
+
+In the REPL:
+
+```
+/llm provider anthropic
+/llm key                 # asks for the key without echoing it
+/llm                     # shows the masked key and how long it has left
+/prompt crop to the face
+/llm key forget          # drops it now
+```
+
+With commands piped in rather than typed, `/llm key` takes the next input line as the key.
+Failures say what to fix — out of credits, key rejected, unknown model, rate-limited,
+unavailable — and never repeat the key. Two deviations from the richer clients: the `frame`
 op raises `LlmExecutionError` (no video decoding here — extract frames with the CLI/desktop
 and `load()` them), and attached images are not downscaled (no resampling) — pass
 reasonably-sized images. Getting a provider running:

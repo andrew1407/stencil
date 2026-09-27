@@ -3,7 +3,6 @@
 #include "openImageDialogParts.hpp"
 #include "../../../support/menu/SearchCombo.hpp"
 #include "../../../support/icon/iconSpin.hpp"
-#include "guiHelpers.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -23,7 +22,7 @@ namespace stencil::gui {
                                  tr("Trim to the page aspect before opening."));
       cropPage->setChecked(false);  // UNCHECKED by default → open the whole image
       cropAlbum = new QPushButton(this);
-      cropAlbum->setObjectName(QStringLiteral("cropAlbumBtn"));   // app.qss: left, not centred
+      cropAlbum->setObjectName(QStringLiteral("cropAlbumBtn"));   // qss/app/buttons.qss: left, not centred
       cropAlbum->setCheckable(true);
       makeModalCta(cropAlbum, "swap");
       cropAlbum->setToolTip("Swap album / portrait — flips the crop orientation");

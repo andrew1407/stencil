@@ -1,7 +1,7 @@
 // MAIN-world scripts cannot import, so content/pageApiMain.js carries an inline mirror of
 // these; the exported copies here are the tested source of truth — keep in sync.
 
-// Inline-SVG data URIs count: lib/rasterize.js turns them into PNG.
+// Inline-SVG data URIs count: lib/image/rasterize.js turns them into PNG.
 export const bgImageUrl = (cssValue) => {
   const m = /url\((['"]?)(.*?)\1\)/i.exec(String(cssValue || ''));
   const url = m ? m[2].trim() : '';

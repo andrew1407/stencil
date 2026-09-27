@@ -1,6 +1,6 @@
-// Unit tests for the extension's ported "Open in…" deep-link builders (src/lib/openIn.js).
+// Unit tests for the extension's ported "Open in…" deep-link builders (src/lib/menu/openIn.js).
 // These are a PORT of browser/js/core/launch/deepLink.js — the assertions below are the SAME
-// expectations (and the SAME Telegram golden vectors) as browser/tests/deepLink.test.js,
+// expectations (and the SAME Telegram golden vectors) as browser/tests/core/launch/deepLink.test.js,
 // so the extension's stencil:// and t.me links stay byte-compatible with the browser app's,
 // the desktop app (deepLink.cpp), and the Telegram bot (DeepLinkCodec.cs). Keep them in sync.
 
@@ -50,7 +50,7 @@ test('buildStencilSchemeUrl embeds a data: URL inline (the extension hand-off pa
   assert.equal(url, 'stencil://open?src=data%3Aimage%2Fpng%3Bbase64%2CAAA&incognito=1');
 });
 
-// GOLDEN VECTORS — identical to browser/tests/deepLink.test.js, desktop/tests/deepLink.headless.cpp
+// GOLDEN VECTORS — identical to browser/tests/core/launch/deepLink.test.js, desktop/tests/io/deepLink.headless.cpp
 // and the bot's DeepLinkCodecTests.cs. Keep the four in sync.
 
 const TELEGRAM_VECTORS = [

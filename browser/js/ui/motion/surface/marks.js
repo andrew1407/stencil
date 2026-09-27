@@ -25,7 +25,7 @@ const markDust = (el, { gather, ms, paint, px, drift, own = true, painter = null
   if (!(r.width >= 8 && r.height >= 8)) return false;
   const grid = reshapeGrid(MARK_COLS, MARK_ROWS, r.width, r.height, px);
   return disintegrate(el, {
-    ...grid, gather, ms, px, drift, toBody: true, own,
+    ...grid, gather, ms, px, drift, toBody: true, own, anchor: el,
 // Arrival is the surface gather, departure its own fall (cloud.js FLIGHTS.fall; the
 // desktop's Sweep::Fall) — visible from the first frame either way.
     hostClass: gather ? 'dust-forming' : 'dust-falling',

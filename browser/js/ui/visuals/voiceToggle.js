@@ -3,7 +3,7 @@ import { notify } from '../../utils.js';
 import { VOICE_STATE_EVENT } from '../../llm/voice/modes.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';
 import { subscribe } from '../../eventBus/appBus.js';
-// The hands-free voice chat toggle (js/llm/modes.js): `--voice-level` on <html>
+// The hands-free voice chat toggle (js/llm/voice/modes.js): `--voice-level` on <html>
 // carries the live loudness (css/animations/voice.css sizes the mics' shine from it), and
 // .active marks this button while voice chat is on — mirrored onto the fullscreen
 // toolbar clone like the chat button's own state. The LOGO is not a wearer: its shine
@@ -23,7 +23,7 @@ export function wireVoiceChatToggle(btn, app) {
     wasOn = on;
   };
   if (!voice()?.supported) btn.disabled = true;   // the disabled-reason tooltip says why
-  // Motes leave the tile with the voice while it listens (ui/voiceDust.js).
+  // Motes leave the tile with the voice while it listens (ui/dust/voiceDust.js).
   attachVoiceDust(btn, () => btn.classList.contains('active'));
   btn.addEventListener('click', () => {
     const v = voice();

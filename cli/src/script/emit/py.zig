@@ -58,16 +58,21 @@ fn quote(out: *std.Io.Writer, text: []const u8) !void {
     try common.writeQuoted(out, '"', text);
 }
 
+/// One `"x1=… aspect=…"` literal: every value goes through the escaper, like any other string.
 fn crop(out: *std.Io.Writer, script: scriptCore.Script, i: u32) !void {
     const spec = common.cropOf(script, i);
     try out.writeAll("editor.crop(\"");
     var wrote = false;
     for (common.Crop.keys, spec.toks) |key, tok| {
         if (tok.len == 0) continue;
-        try out.print("{s}{s}={s}", .{ if (wrote) " " else "", key, tok });
+        try out.print("{s}{s}=", .{ if (wrote) " " else "", key });
+        try common.writeEscaped(out, '"', tok);
         wrote = true;
     }
-    if (spec.aspect.len > 0) try out.print("{s}aspect={s}", .{ if (wrote) " " else "", spec.aspect });
+    if (spec.aspect.len > 0) {
+        try out.print("{s}aspect=", .{if (wrote) " " else ""});
+        try common.writeEscaped(out, '"', spec.aspect);
+    }
     try out.print("\"{s})\n", .{if (spec.album) ", album=True" else ""});
 }
 
@@ -101,7 +106,8 @@ fn shape(out: *std.Io.Writer, script: scriptCore.Script, i: u32, o: scriptCore.O
 
 fn op(out: *std.Io.Writer, script: scriptCore.Script, i: u32, o: scriptCore.Op, src: []const u8, bad: *common.Refusal) !void {
     switch (o.kind) {
-        .open => {}, // the block header already opened the editor
+        // The block header already opened the editor; a redo never reaches a target (§7).
+        .open, .redo => {},
         // The same named deviation the pystencil runner reports: no decoder in a stdlib-only package.
         .frame => return bad.set(o.line, o.col, "@frame needs a video decoder — use the CLI", .{}),
         .crop => try crop(out, script, i),
@@ -122,10 +128,7 @@ fn op(out: *std.Io.Writer, script: scriptCore.Script, i: u32, o: scriptCore.Op, 
             try quote(out, script.opStr(i, 0));
             try out.print(", {s})\n", .{src});
         },
-        .undo, .redo => try out.print(
-            "for _ in range({d}): editor.{s}()\n",
-            .{ common.steps(script, i), if (o.kind == .redo) "redo" else "undo" },
-        ),
+        .undo => try out.print("for _ in range({d}): editor.undo()\n", .{common.steps(script, i)}),
     }
 }
 
@@ -147,7 +150,9 @@ const footer =
 /// The whole file: the banner, the helpers, then `main()` — one loop per @source block over
 /// the inputs it names, exactly the inputs `--script` would open.
 pub fn write(out: *std.Io.Writer, script: scriptCore.Script, label: []const u8, bad: *common.Refusal) !void {
-    try out.print("#!/usr/bin/env python3\n# Generated from {s} by `stencil --script-emit`; edit the .stc, not this file.\n\n", .{label});
+    try out.writeAll("#!/usr/bin/env python3\n# Generated from ");
+    try common.writeCommentText(out, label);
+    try out.writeAll(" by `stencil --script-emit`; edit the .stc, not this file.\n\n");
     try out.writeAll(preamble);
 
     var b: u32 = 0;
@@ -172,4 +177,25 @@ pub fn write(out: *std.Io.Writer, script: scriptCore.Script, label: []const u8, 
     }
     if (!wrote_body) try out.writeAll("  return\n");
     try out.writeAll(footer);
+}
+
+const testing = std.testing;
+
+test "a label or a crop value cannot break out of the python it is written into" {
+    const gpa = testing.allocator;
+    var s = try scriptCore.Script.parse("@source a.png:\n  @crop x1=10% aspect=3:2\n  @save\n");
+    defer s.deinit();
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    var bad: common.Refusal = .{};
+    try write(&out.writer, s, "a.stc\nimport os\u{2028}", &bad);
+    const text = out.written();
+    try testing.expect(std.mem.indexOf(u8, text, "\nimport os") == null);
+    try testing.expect(std.mem.indexOf(u8, text, "# Generated from a.stc?import os? by") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "editor.crop(\"x1=10% aspect=3:2\")") != null);
+
+    // An aspect that would close the literal never lowers: the core refuses it first.
+    var evil = try scriptCore.Script.parse("@source a.png:\n  @crop aspect=\"1:1\\\") ; import os ; (\\\"\"\n");
+    defer evil.deinit();
+    try testing.expect(evil.hasErrors());
 }

@@ -1,4 +1,4 @@
-// renderChatLog over a live tree (js/llm/session.js): one text node per row however often
+// renderChatLog over a live tree (js/llm/chat/session.js): one text node per row however often
 // it repaints, a "…" trigger on every settled row, and no row left spinning.
 import { test } from 'node:test';
 import assert from 'node:assert';

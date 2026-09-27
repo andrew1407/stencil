@@ -1,4 +1,4 @@
-// The logo stage's kinematics (js/ui/stageMotion.js), stepped with fixed clocks.
+// The logo stage's kinematics (js/ui/logo/stageMotion.js), stepped with fixed clocks.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

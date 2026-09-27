@@ -1,13 +1,8 @@
 #include "planExecutor.hpp"
 
-#include "CanvasWidget.hpp"
-#include "opRegistry.hpp"
+#include "CanvasScene.hpp"
 
-#include <QColor>
 #include <QUrl>
-
-#include <algorithm>
-#include <cmath>
 
 namespace stencil::llm {
 
@@ -21,22 +16,25 @@ namespace stencil::llm {
     return false;
   }
 
-  /* §7 revert: a crop rect is absolute in rotated-original px, so re-applying the earlier one
-   * IS the revert; an empty rect means "was never cropped", i.e. the whole original. */
-  void PlanTarget::restoreEdit(const EditState& state) {
-    if (!state.valid) return;
-    EditState now;
-    const bool known = captureEdit(now);
+  /* §7 revert: a crop rect is absolute in rotated-original px, so re-applying the earlier one IS
+   * the revert once the turn it was taken on is back; an empty rect means "was never cropped",
+   * i.e. the whole original. An empty filter leaves the one on screen. */
+  void PlanTarget::restoreEdit(const core::EditorMemento& state) {
+    std::optional<core::EditorMemento> now = captureEdit();
+    const int turns = now ? ((state.quarters - now->quarters) % 4 + 4) % 4 : 0;
+    for (int i = 0; i < turns; ++i) rotateQuarter(/*clockwise=*/true);
+    if (turns > 0) now = captureEdit();
     core::CropRect crop = state.crop;
     if (crop.width <= 0 || crop.height <= 0) {
       const QSize full = effectiveOriginalSize();
       crop = {0, 0, static_cast<double>(full.width()), static_cast<double>(full.height())};
     }
-    if (!known || now.crop.x != crop.x || now.crop.y != crop.y ||
-        now.crop.width != crop.width || now.crop.height != crop.height)
+    if (!now || now->crop.x != crop.x || now->crop.y != crop.y ||
+        now->crop.width != crop.width || now->crop.height != crop.height)
       applyCropRect(crop);
-    if (!known || now.filterMode != state.filterMode || now.filterTint != state.filterTint)
-      setImageFilter(state.filterMode, state.filterTint);
+    if (!state.filter.empty() &&
+        (!now || now->filter != state.filter || now->filterColor != state.filterColor))
+      setImageFilter(QString::fromStdString(state.filter), QString::fromStdString(state.filterColor));
     commitLayoutLines(state.lines);
   }
 
@@ -207,9 +205,8 @@ namespace stencil::llm {
   }
 
   bool CanvasPlanTarget::setZoom(int percent, bool fit, QString*) {
-    zoomPercent = percent;
+    zoomPercent = percent;   // a sandbox has no view to zoom; the render is at 1:1
     zoomFit = fit;
-    if (!fit && percent > 0) canvas->setScale(percent / 100.0);
     return true;
   }
 }  // namespace stencil::llm

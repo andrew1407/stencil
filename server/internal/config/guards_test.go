@@ -75,7 +75,8 @@ func TestCORSOriginsConfig(t *testing.T) {
 func TestAbuseGuardDefaults(t *testing.T) {
 	chdirTemp(t)
 	clearEnv(t)
-	for _, k := range []string{"AUTH_RATE_PER_MINUTE", "WRITE_RATE_PER_MINUTE", "STORAGE_QUOTA_BYTES"} {
+	for _, k := range []string{"AUTH_RATE_PER_MINUTE", "WRITE_RATE_PER_MINUTE", "STORAGE_QUOTA_BYTES", "STORAGE_QUOTA_PER_OWNER_BYTES",
+		"STORAGE_QUOTA_PER_SESSION_BYTES"} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
 	}
@@ -87,8 +88,9 @@ func TestAbuseGuardDefaults(t *testing.T) {
 	if cfg.AuthRatePerMin != defaultAuthRatePerMin || cfg.WriteRatePerMin != defaultWriteRatePerMin {
 		t.Fatalf("rate guards should default on: auth=%d write=%d", cfg.AuthRatePerMin, cfg.WriteRatePerMin)
 	}
-	if cfg.StorageQuotaBytes != 0 {
-		t.Fatalf("StorageQuotaBytes default should be 0 (unlimited), got %d", cfg.StorageQuotaBytes)
+	if cfg.StorageQuotaBytes != 0 || cfg.OwnerQuotaBytes != 0 || cfg.SessionQuotaBytes != 0 {
+		t.Fatalf("storage quotas should default to 0 (unlimited), got %d, %d and %d",
+			cfg.StorageQuotaBytes, cfg.OwnerQuotaBytes, cfg.SessionQuotaBytes)
 	}
 }
 
@@ -98,21 +100,29 @@ func TestAbuseGuardOverridesAndValidation(t *testing.T) {
 	t.Setenv("AUTH_RATE_PER_MINUTE", "5")
 	t.Setenv("WRITE_RATE_PER_MINUTE", "0") // explicit opt-out
 	t.Setenv("STORAGE_QUOTA_BYTES", "1048576")
+	t.Setenv("STORAGE_QUOTA_PER_OWNER_BYTES", "4096")
+	t.Setenv("STORAGE_QUOTA_PER_SESSION_BYTES", "2048")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.AuthRatePerMin != 5 || cfg.WriteRatePerMin != 0 || cfg.StorageQuotaBytes != 1<<20 {
-		t.Fatalf("overrides not applied: %d %d %d", cfg.AuthRatePerMin, cfg.WriteRatePerMin, cfg.StorageQuotaBytes)
+	if cfg.AuthRatePerMin != 5 || cfg.WriteRatePerMin != 0 || cfg.StorageQuotaBytes != 1<<20 || cfg.OwnerQuotaBytes != 4096 ||
+		cfg.SessionQuotaBytes != 2048 {
+		t.Fatalf("overrides not applied: %d %d %d %d %d", cfg.AuthRatePerMin, cfg.WriteRatePerMin, cfg.StorageQuotaBytes,
+			cfg.OwnerQuotaBytes, cfg.SessionQuotaBytes)
 	}
 	for key, bad := range map[string]string{
-		"AUTH_RATE_PER_MINUTE":  "-1",
-		"WRITE_RATE_PER_MINUTE": "x",
-		"STORAGE_QUOTA_BYTES":   "-1",
+		"AUTH_RATE_PER_MINUTE":            "-1",
+		"WRITE_RATE_PER_MINUTE":           "x",
+		"STORAGE_QUOTA_BYTES":             "-1",
+		"STORAGE_QUOTA_PER_OWNER_BYTES":   "1MB",
+		"STORAGE_QUOTA_PER_SESSION_BYTES": "-5",
 	} {
 		t.Setenv("AUTH_RATE_PER_MINUTE", "5")
 		t.Setenv("WRITE_RATE_PER_MINUTE", "0")
 		t.Setenv("STORAGE_QUOTA_BYTES", "1048576")
+		t.Setenv("STORAGE_QUOTA_PER_OWNER_BYTES", "4096")
+		t.Setenv("STORAGE_QUOTA_PER_SESSION_BYTES", "2048")
 		t.Setenv(key, bad)
 		if _, err := Load(); err == nil {
 			t.Fatalf("%s=%s should be rejected", key, bad)

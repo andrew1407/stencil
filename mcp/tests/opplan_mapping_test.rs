@@ -46,7 +46,7 @@ fn formula_clear_and_disable_are_skipped_with_one_note_not_an_error() {
 
     // Riding beside real work (top-level or in a variant): the work still runs.
     let plan = plan_of(
-        r##"{"reply":"x","actions":[{"op":"formula","enabled":false},{"op":"rotate","dir":"right"}],
+        r##"{"reply":"x","actions":[{"op":"formula","enabled":false},{"op":"rotate","dir":"right","times":1}],
             "variants":[{"label":"v","actions":[{"op":"formula","axis":"x","expr":""},{"op":"filter","mode":"bw"}]}]}"##,
     );
     let mut notes = Vec::new();
@@ -73,7 +73,7 @@ fn frame_maps_to_the_frame_index() {
 fn variants_branch_from_the_base_actions() {
     let plan = plan_of(
         r##"{"reply":"x","actions":[{"op":"crop","spec":{"y2":"50%"}}],"variants":[
-            {"label":"Rotated","actions":[{"op":"rotate","dir":"right"}]},
+            {"label":"Rotated","actions":[{"op":"rotate","dir":"right","times":1}]},
             {"label":"B&W","actions":[{"op":"filter","mode":"bw"}]}
         ]}"##,
     );
@@ -204,7 +204,7 @@ fn unmappable_plans_are_rejected_with_clear_messages() {
     assert!(err.to_string().contains("frame"), "got: {err}");
 
     // an editing plan with no input at all.
-    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right"}]}"##);
+    let plan = plan_of(r##"{"reply":"x","actions":[{"op":"rotate","dir":"right","times":1}]}"##);
     let err = to_edit_requests(
         &plan,
         None,

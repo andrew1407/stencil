@@ -1,5 +1,5 @@
 // The one way into a logo show: the header mark's hold, a typed word and the console facade all
-// arrive here. Desktop twin: the LogoStage hooks in app/MainWindowToolbarHeader.cpp.
+// arrive here. Desktop twin: the LogoStage hooks in app/toolbar/ToolbarBuilderHeader.cpp.
 import { notify } from '../../utils.js';
 import { toggleWebcore, webcoreActive } from '../webcore/toggle.js';
 import { closeOpenModal } from '../modal/registry.js';
@@ -11,18 +11,18 @@ import { waitForImage } from '../../core/image/loadFlow.js';
 import { STAGE, HOLD_MS, TOAST_TEXT, effectOf, resolveShow, heartLine } from './stageRules.js';
 import { openLogoStage, logoStageAllowed, closeLogoStage, currentLogoStage, markOrigin } from './stage.js';
 import { trackPointer } from './pointer.js';
+import { createBlankImage } from '../../core/image/blankImage.js';
 
-// The pink show is an edit, not a stage: a pink page if there is none, the pink tint, and the
-// heart as one undoable step.
+// The pink show is an edit, not a stage: a pink page if there is none, then the pink tint and the
+// heart as one undoable step (the heart's step carries the tint).
 export const pinkVibe = async (app) => {
   if (!app.image) {
     const previous = app.image;
-    await app.createBlankImage({ color: STAGE.pink.blank });
+    await createBlankImage(app, { color: STAGE.pink.blank });
     await waitForImage(app, { previous });
   }
   if (!app.image) return false;
-  app.settings.setImageFilter('custom');
-  app.settings.setFilterColor(STAGE.pink.tint);
+  app.settings.setFilter({ filter: 'custom', filterColor: STAGE.pink.tint }, { history: false });
   const { width, height } = app.image;
   const drawn = app.export.installLayout(
     { imageWidth: width, imageHeight: height, lines: [heartLine(width, height)] },

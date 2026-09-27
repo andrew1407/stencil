@@ -1,0 +1,101 @@
+/* The webcore skin's fields: sunken white wells for inputs, selects and the script editor, one
+   height down the row, and checks and radios as wells with a black mark. */
+/* ── Fields: sunken white wells ── */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="webcore"] select,
+:root[data-skin="webcore"] textarea,
+:root[data-skin="webcore"] .script-editor-wrap,
+:root[data-skin="webcore"] #zoom-input,
+:root[data-skin="webcore"] .coord-px-input,
+:root[data-skin="webcore"] .modal-search,
+:root[data-skin="webcore"] .kw-add input,
+:root[data-skin="webcore"] #chat-input,
+:root[data-skin="webcore"] #ctx-assist-input,
+:root[data-skin="webcore"] .chat-input-wrap {
+    background: var(--wc-window);
+    color: var(--wc-ink);
+    border: 0;
+    box-shadow: var(--wc-sunken);
+    padding-left: 6px;
+}
+/* One height down the row: a field, a spinner and a selector all stand the same. */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+:root[data-skin="webcore"] select,
+:root[data-skin="webcore"] .accent-dd-trigger {
+    height: 24px;
+    min-height: 24px;
+    padding: 2px 6px;
+    line-height: 18px;
+}
+:root[data-skin="webcore"] .accent-dd-trigger { padding-right: 22px; }
+
+/* The tick fills its well, as the desktop's baked indicator does. */
+:root[data-skin="webcore"] input[type="checkbox"],
+:root[data-skin="webcore"] input[type="radio"] { width: 15px; height: 15px; }
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):focus,
+:root[data-skin="webcore"] select:focus,
+:root[data-skin="webcore"] textarea:focus,
+:root[data-skin="webcore"] select:hover:not(:disabled),
+:root[data-skin="webcore"] .script-editor-wrap:focus-within,
+:root[data-skin="webcore"] .script-editor-wrap:hover {
+    box-shadow: var(--wc-sunken);
+    outline: none;
+}
+/* A field under the pointer wears the 2px focus ring, as a selector does and as the desktop's
+   QLineEdit:hover does; !important because the default skin's accent ring is. */
+:root[data-skin="webcore"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):hover:not(:disabled):not(:focus) {
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+    border-color: transparent !important;
+    background-image: none;
+    animation: none;
+}
+:root[data-skin="webcore"] #zoom-input { font-weight: normal; }
+:root[data-skin="webcore"] select {
+    appearance: none;
+    padding-right: 22px;
+    background-image: linear-gradient(var(--wc-face), var(--wc-face));
+    background-size: 16px calc(100% - 4px);
+    background-position: right 2px top 2px;
+    background-repeat: no-repeat;
+}
+:root[data-skin="webcore"] #project-name-input,
+:root[data-skin="webcore"] #project-name-input:read-only,
+:root[data-skin="webcore"] #project-name-input:disabled {
+    background: transparent;
+    box-shadow: none;
+    color: var(--wc-ink);
+    font-weight: 700;
+}
+:root[data-skin="webcore"] #project-name-input:not(:read-only),
+:root[data-skin="webcore"] #project-name-input:not(:read-only):focus {
+    background: var(--wc-window);
+    box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] input[type="color"] { box-shadow: var(--wc-raised); background: var(--wc-face); border: 0; padding: 3px; }
+:root[data-skin="webcore"] input[type="color"]::-webkit-color-swatch { border: 1px solid var(--wc-dark); }
+
+/* ── Checks and radios: white wells with a black mark ── */
+:root[data-skin="webcore"] input[type="checkbox"],
+:root[data-skin="webcore"] input[type="radio"] {
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    margin: 0 4px 0 0;
+    background: var(--wc-window);
+    border: 0;
+    box-shadow: var(--wc-sunken);
+    accent-color: var(--wc-ink);
+    vertical-align: -2px;
+}
+:root[data-skin="webcore"] input[type="checkbox"]:checked {
+    background: var(--wc-window) var(--accent-tick) center / 13px no-repeat;
+    box-shadow: var(--wc-sunken);
+}
+:root[data-skin="webcore"] :is(input[type="checkbox"], input[type="radio"]):hover:not(:disabled) {
+    box-shadow: inset 0 0 0 2px var(--wc-focus) !important;
+}
+:root[data-skin="webcore"] input[type="radio"] { border-radius: 50% !important; }
+:root[data-skin="webcore"] input[type="radio"]:checked {
+    background: radial-gradient(circle, var(--wc-ink) 0 3px, var(--wc-window) 3.5px);
+}
+:root[data-skin="webcore"] input[type="range"] { accent-color: var(--wc-select); }

@@ -30,7 +30,7 @@ namespace stencil::support {
     // Non-native: the macOS shared panel misbehaves under our event filters.
     QColorDialog dlg(parent);
     dlg.setOption(QColorDialog::DontUseNativeDialog);
-    // Alpha only where the caller stores it: CSS `#rrggbbaa` (support/cssColor.hpp).
+    // Alpha only where the caller stores it: CSS `#rrggbbaa` (support/theme/cssColor.hpp).
     if (withAlpha) dlg.setOption(QColorDialog::ShowAlphaChannel);
     dlg.setWindowTitle(title);
     dlg.setCurrentColor(initial);
@@ -141,10 +141,14 @@ namespace stencil::support {
                  GESTURE_ANCHOR_PX, GESTURE_ANCHOR_PX);
   }
 
+  bool modalDismissLogOn() {
+    static const bool on = !qEnvironmentVariableIsEmpty("STENCIL_MODAL_LOG");
+    return on;
+  }
+
   void modalDismissLog(const QString& line) {
-    const QByteArray path = qgetenv("STENCIL_MODAL_LOG");
-    if (path.isEmpty()) return;
-    QFile f(QString::fromLocal8Bit(path));
+    if (!modalDismissLogOn()) return;
+    QFile f(QString::fromLocal8Bit(qgetenv("STENCIL_MODAL_LOG")));
     if (!f.open(QIODevice::Append | QIODevice::Text)) return;
     QTextStream(&f) << line << '\n';
   }
@@ -165,10 +169,11 @@ namespace stencil::support {
         if (e->type() != QEvent::MouseButtonPress) return QObject::eventFilter(o, e);
         auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
         auto* w = qobject_cast<QWidget*>(o);
-        modalDismissLog(QStringLiteral("[modal] Qt press on %1, modal=%2")
-                            .arg(QString::fromLatin1(w ? w->metaObject()->className()
-                                                       : o->metaObject()->className()),
-                                 QString::fromLatin1(dlg ? dlg->metaObject()->className() : "(none)")));
+        if (modalDismissLogOn())
+          modalDismissLog(QStringLiteral("[modal] Qt press on %1, modal=%2")
+                              .arg(QString::fromLatin1(w ? w->metaObject()->className()
+                                                         : o->metaObject()->className()),
+                                   QString::fromLatin1(dlg ? dlg->metaObject()->className() : "(none)")));
         if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)
             || dlg->property(NO_OUTSIDE_DISMISS_PROPERTY).toBool())
           return QObject::eventFilter(o, e);
@@ -198,6 +203,14 @@ namespace stencil::support {
 #else
   __attribute__((weak)) void installModalDismissNative() {}
 #endif
+
+  void installDialogCentring() {
+    QCoreApplication* app = QCoreApplication::instance();
+    if (!app || app->findChild<QObject*>(QStringLiteral("stencilDialogCentreFilter"),
+                                         Qt::FindDirectChildrenOnly))
+      return;
+    app->installEventFilter(new DialogCentreFilter(app));
+  }
 
   void installDialogReveal() {
     QCoreApplication* app = QCoreApplication::instance();

@@ -1,9 +1,8 @@
 #include "../../support/control/dblReset.hpp"
 #include "../../support/menu/SearchCombo.hpp"
-#include "../../support/icon/motionIcons.hpp"
 #include "SettingsDialog.hpp"
+#include "defaultVisuals.hpp"
 #include "guiHelpers.hpp"
-#include "iconSet.hpp"
 #include "../../support/modal/modalChrome.hpp"   // the browser modal shell + .vs-row rows
 #include "../../support/modal/modalReveal.hpp"
 #include "../../support/motionPrefs.hpp"
@@ -11,7 +10,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QListView>
-#include <QDoubleSpinBox>
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -21,7 +19,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QSpinBox>
-#include <QVBoxLayout>
+#include <QDoubleSpinBox>
 
 namespace stencil::gui {
 
@@ -29,18 +27,8 @@ namespace stencil::gui {
     // The browser's ONE control column (components.css --vs-ctrl-w / --vs-ctrl-h).
     constexpr int CTRL_W = 180;
     constexpr int CTRL_H = 30;
-    // The browser's VIS_DEFAULTS (modal.js) — what Reset All restores.
-    constexpr const char* DEF_COLOR = "#FFFF00";
-    constexpr double DEF_THICKNESS = 2;
-    constexpr double DEF_POINT_SIZE = 4;
-    constexpr const char* DEF_STYLE = "solid";
-    constexpr const char* DEF_FILL = "#ffffff";
-    constexpr const char* DEF_SEL_GLOW = "#ffc800";
-    constexpr const char* DEF_HOVER_RING = DEFAULT_ACCENT_HEX;
-    constexpr const char* DEF_FOCUS_RING = DEFAULT_ACCENT_HEX;
-    constexpr int DEF_HOLD_DELAY = 500;
     constexpr const char* DEF_ACCENT = DEFAULT_ACCENT_KEY;
-    // ui/prefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
+    // ui/motion/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
     constexpr bool DEF_DRAW_ANIM = true;
     constexpr const char* DEF_MOTION_MODE = "particles";
     constexpr const char* DEF_NOTIFY_CHANNEL = "toast";
@@ -89,7 +77,7 @@ namespace stencil::gui {
     for (const auto& [w, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{
              {theme, d.themeMode}, {accent, QString(DEF_ACCENT)}, {nativeMenuBar, d.nativeMenuBar},
              {autosave, d.autosave}, {showPoints, d.showPoints}, {showLines, d.showLines},
-             {style, QString(DEF_STYLE)}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
+             {style, d.defaultStyle}, {page, d.pageSize}, {drawAnim, DEF_DRAW_ANIM},
              {modalBackdrop, d.modalBackdrop}, {motionMode, QString(DEF_MOTION_MODE)},
              {notifyChannel, QString(DEF_NOTIFY_CHANNEL)}})
       support::setResetDefault(w, v);
@@ -195,19 +183,20 @@ namespace stencil::gui {
   }
 
   void SettingsDialog::resetVisuals() {
-    const struct { QPushButton* btn; QString* hex; const char* def; } wells[] = {
-        {color, &colorHex, DEF_COLOR},         {fillColor, &fillHex, DEF_FILL},
-        {selGlow, &selGlowHex, DEF_SEL_GLOW},   {hoverRing, &hoverRingHex, DEF_HOVER_RING},
-        {focusRing, &focusRingHex, DEF_FOCUS_RING},
+    const defaultVisuals::Table& def = defaultVisuals::table();   // the browser's VIS_DEFAULTS (modal.js)
+    const struct { QPushButton* btn; QString* hex; QString def; } wells[] = {
+        {color, &colorHex, def.color},         {fillColor, &fillHex, def.fillColor},
+        {selGlow, &selGlowHex, def.selGlow},   {hoverRing, &hoverRingHex, def.hoverRing},
+        {focusRing, &focusRingHex, def.focusRing},
     };
     for (const auto& w : wells) {
-      *w.hex = QString::fromLatin1(w.def);
+      *w.hex = w.def;
       setColorSwatch(w.btn, QColor(*w.hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
     }
-    thickness->setValue(DEF_THICKNESS);
-    pointSize->setValue(DEF_POINT_SIZE);
-    holdDelay->setValue(DEF_HOLD_DELAY);
-    style->setCurrentIndex(qMax(0, style->findData(DEF_STYLE)));
+    thickness->setValue(def.thickness);
+    pointSize->setValue(def.pointSize);
+    holdDelay->setValue(def.holdDrawDelay);
+    style->setCurrentIndex(qMax(0, style->findData(def.style)));
     accent->setCurrentIndex(qMax(0, accent->findData(DEF_ACCENT)));
     drawAnim->setChecked(DEF_DRAW_ANIM);
     motionMode->setCurrentIndex(qMax(0, motionMode->findData(QLatin1String(DEF_MOTION_MODE))));

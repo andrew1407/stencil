@@ -11,10 +11,8 @@ const shape = @import("shape.zig");
 const codec = @import("codec.zig");
 
 const Project = shape.Project;
-const Error = shape.Error;
 const parse = codec.parse;
 const build = codec.build;
-const isStencilPath = codec.isStencilPath;
 
 /// Load a `.stencil` at `path` (local file or http(s) URL) into `session`, retaining the encoded source
 /// bytes for lossless re-bundling, then adopt its layout. Caller owns the returned Project (deinit).

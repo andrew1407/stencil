@@ -4,14 +4,16 @@ import * as vscode from 'vscode';
 
 import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
 import { programFor } from './lib/programCache.js';
+import { unitSpan } from './lib/spans.js';
 import { explain } from './lib/vocab/vocabulary.js';
 
-// The token covering a 0-based (line, character), or undefined. Tokens carry 1-based spans.
-const tokenAt = (tokens, position) => (tokens ?? []).find((token) => (
-  token.line - 1 === position.line
-  && position.character >= token.col - 1
-  && position.character < token.col - 1 + token.len
-));
+// The token covering a 0-based UTF-16 (line, character), or undefined. Tokens carry 1-based
+// byte spans, converted against `lines`.
+const tokenAt = (tokens, position, lines = []) => (tokens ?? []).find((token) => {
+  if (token.line - 1 !== position.line) return false;
+  const { start, end } = unitSpan(lines, token);
+  return position.character >= start && position.character < end;
+});
 
 /* Hovering a unit asks about the unit, not the number it hangs off; everything else asks
  * about its own text. A kind with nothing to say (a path, a point) yields no hover. */
@@ -25,8 +27,8 @@ const PARAM_DOC = [
     '    @use stencil callout red 3px:', '```'].join('\n'),
 ].join('\n\n');
 
-const markdownAt = (tokens, position) => {
-  const token = tokenAt(tokens, position);
+const markdownAt = (tokens, position, lines = []) => {
+  const token = tokenAt(tokens, position, lines);
   if (!token || !HOVERABLE.has(token.kind)) return '';
   if (token.kind === 'param') return PARAM_DOC;
   return explain(token.text);
@@ -36,7 +38,7 @@ const provider = {
   async provideHover(document, position) {
     if (!vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.hover, true)) return undefined;
     const program = await programFor(document);
-    const markdown = markdownAt(program.tokens, position);
+    const markdown = markdownAt(program.tokens, position, program.lines);
     if (!markdown) return undefined;
     const contents = new vscode.MarkdownString(markdown);
     contents.supportHtml = false;

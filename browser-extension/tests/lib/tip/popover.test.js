@@ -1,6 +1,6 @@
-// src/lib/popover.js ports ONE function out of browser/js/ui/tip/popover.js — the placement
+// src/lib/tip/popover.js ports ONE function out of browser/js/ui/tip/popover.js — the placement
 // math — and portParity.test.js pins it to that original line-for-line. Its placement
-// cases are the browser suite's (browser/tests/popover.test.js). What remains here is the
+// cases are the browser suite's (browser/tests/ui/tip/popover.test.js). What remains here is the
 // extension's own geometry: the 400px popup window the port exists to serve.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

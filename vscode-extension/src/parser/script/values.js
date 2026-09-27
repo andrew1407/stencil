@@ -4,6 +4,15 @@ import { makeDiag } from './diagnostics.js';
 import { isHexColorWord } from './lexer.js';
 import { MAX_POINTS_PER_LINE, isUnitWord, unquoteWord } from './types.js';
 
+const INT_MAX = 2_147_483_647;
+const INT_MIN = -2_147_483_648;
+
+// strtol clamped to an int, as values.cpp spells it: a count or an index never exceeds INT_MAX.
+export const parseIntClamped = (text) => {
+  const n = parseInt(text, 10);
+  return Number.isNaN(n) ? 0 : Math.min(INT_MAX, Math.max(INT_MIN, n));
+};
+
 // A cursor over one statement's argument tokens.
 export const cursorOf = (args) => ({ args, i: 0 });
 
@@ -12,6 +21,29 @@ export const joinWords = (args) =>
   args.filter((t) => t.kind !== 'punct').map((t) => unquoteWord(t.text)).join(' ');
 
 export const isPunct = (t, text) => t.kind === 'punct' && t.text === text;
+
+// The words with every separator dropped and a NUMBER glued to the UNIT written against it,
+// so '10%' stays one word: a template's name, and a call's name and arguments.
+export const gluedWords = (args) => {
+  const out = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const t = args[i];
+    if (t.kind === 'punct') continue;
+    const next = args[i + 1];
+    if (t.kind === 'number' && next?.kind === 'unit' && next.line === t.line
+      && next.col === t.col + t.len) {
+      out.push({ ...t, text: t.text + next.text, len: t.len + next.len });
+      i += 1;
+    } else out.push(t);
+  }
+  return out;
+};
+
+// A word that starts like a number but broke the §1 grammar ('10foo', '+5', '1e3', '.5').
+export const isMalformedNumber = (t) => t.kind === 'ident' && /^[+-]?\.?[0-9]/.test(t.text);
+
+export const malformedNumberMessage = (t) =>
+  `'${t.text}' is not a number: write digits, an optional .digits, then px, cm, mm, in or %`;
 
 export const skipPunct = (c, text) => {
   while (c.i < c.args.length && isPunct(c.args[c.i], text)) c.i += 1;

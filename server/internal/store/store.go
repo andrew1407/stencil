@@ -6,6 +6,7 @@ package store
 
 import (
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,6 +16,10 @@ var (
 	ErrNotFound = errors.New("store: not found")
 	ErrConflict = errors.New("store: version conflict")
 )
+
+// DefaultOpTimeout is the deadline a caller puts around one Store call when it is configured with none:
+// long enough for a cold index scan, short enough that a stuck query releases its pool connection.
+const DefaultOpTimeout = 10 * time.Second
 
 // Store wraps a pgx connection pool.
 type Store struct {

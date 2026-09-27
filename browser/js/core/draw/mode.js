@@ -1,8 +1,9 @@
 import { notify } from '../../utils.js';
 import { resolveInsertIdx } from '../layout.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // Start / stop drawing: starting either continues the selected line (adopting its style) or
-// opens a fresh stroke; stopping commits. The button faces are ui/drawToggleUI.js.
+// opens a fresh stroke; stopping commits. The button faces are ui/panel/drawToggleUI.js.
 
 export const startDrawingMode = (app, opts = {}) => {
   if (app.compareReadOnly()) return;
@@ -25,7 +26,7 @@ export const startDrawingMode = (app, opts = {}) => {
     app.undonePoints = [];
     app.coordLineIdx = app.continueLineIdx;
     app.coordTable.update(line.points, app.continueLineIdx);
-    app.updateButtons();
+    changed(app, CHANGE.drawing);
     app.renderer.redraw();
     notify('Continuing selected line — new points connect to it', 'info');
     return;
@@ -47,7 +48,7 @@ export const startDrawingMode = (app, opts = {}) => {
     app.hideSelectionPanels();
   }
   app.undonePoints = [];
-  app.updateButtons();
+  changed(app, CHANGE.drawing, CHANGE.selection);
   app.renderer.redraw();
 };
 
@@ -67,7 +68,7 @@ export const stopDrawingMode = (app) => {
     if (app.lines[li]) app.coordTable.update(app.lines[li].points, li);
     app.saveHistory();
     app.renderer.redraw();
-    app.updateButtons();
+    changed(app, CHANGE.drawing, CHANGE.lines);
     return;
   }
   if (app.currentLine && app.currentLine.points.length > 0) {
@@ -85,5 +86,5 @@ export const stopDrawingMode = (app) => {
   app.currentLine = null;
   app.isDrawing = false;
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.drawing, CHANGE.lines);
 };

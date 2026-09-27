@@ -1,5 +1,5 @@
 #pragma once
-// The script flyout's metrics (browser css/components/ctxScript.css), private to the
+// The script flyout's metrics (browser css/components/ctx/script.css), private to the
 // ScriptMenuPanel*.cpp TUs.
 #include <QScreen>
 #include <QWidget>

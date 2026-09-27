@@ -1,7 +1,6 @@
 // Assembling the "Available ops" section of the §4 system prompt out of the registry: the
 // shared-bullet dedupe, the "also accepts" addenda, and the secret-leak tooth on every bullet.
 #include "opRegistry.hpp"
-#include "OpSchema.hpp"
 
 #include <QRegularExpression>
 #include <QStringList>

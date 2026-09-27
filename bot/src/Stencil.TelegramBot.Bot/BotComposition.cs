@@ -19,7 +19,7 @@ public static class BotComposition
     public static IServiceCollection AddStencilBot(
         this IServiceCollection services, BotOptions options, TelegramBotClient client)
     {
-        services.AddStencilInfrastructure(options);
+        services.AddStencilInfrastructure(options, RemoteImageUrl.ServerAddressGuard(options.AllowPrivateServers));
         services.AddStencilApplication();
         services.AddSingleton(client);
         services.AddSingleton<ITelegramBotClient>(client);

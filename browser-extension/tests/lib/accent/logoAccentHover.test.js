@@ -1,8 +1,8 @@
-// The logo accent menu's hover, held through the palette flood (src/lib/accent.js).
+// The logo accent menu's hover, held through the palette flood (src/lib/accent/accent.js).
 // Every preview plays the flood — a View Transition that DROPS real :hover and re-applies
 // it just after — so a resting row snapped back, slid in again and blinked its cursor
 // once per preview. The hover is latched as a class, the replays frozen while a preview
-// shows, and the cursor held on :root. Browser twin: browser/tests/accentPicker.test.js.
+// shows, and the cursor held on :root. Browser twin: browser/tests/ui/accent/accentPicker.test.js.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

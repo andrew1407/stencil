@@ -18,7 +18,7 @@ export const ctxKeepsTab = (el) => el?.dataset?.ctxKeepTab === '1';
 
 export const wireCtxKeyboard = ({ menu, menuIsOpen, chatRowMenuOpen, closeSub, positionSub,
                                  activeSub, setActiveSub }) => {
-    // The highlighted row wears .ctx-kb (components/contextMenu.css); a real pointer move hands
+    // The highlighted row wears .ctx-kb (components/contextMenu/contextMenu.css); a real pointer move hands
     // the highlight back to :hover.
     let kbItem = null;
     const setKbItem = (item) => {

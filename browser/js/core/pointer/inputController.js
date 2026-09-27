@@ -1,17 +1,15 @@
 import { HoldDrawController, holdDrawTarget } from '../draw/holdDraw.js';
 import { classifyEnd } from '../touch/gestures.js';
-import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor } from '../draw/holdDrawView.js';
+import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor, holdDrawEligible } from '../draw/holdDrawView.js';
 import { touchHandlers } from '../touch/input.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+import { canvasCoords } from './canvasCoords.js';
+import { startDrawingMode, stopDrawingMode } from '../draw/mode.js';
+import { tryCloseShapeAt, insertPointOnSegment } from '../line/shapeBuilder.js';
+import { CHANGE, changed } from '../app/changes.js';
 
 // Hold-to-draw: the machine's wiring plus the seam the touch flow (input.js) drives.
 // The mouse drag path stays in controller.js; both reuse the app's drag-state fields.
-// A hold needs an image, drawing mode off, no other gesture, and not the rect tool (a hold
-// there would seed a freehand line). Desktop twin: mousePressEvent's eligibleHold.
-export const holdDrawEligible = (app) =>
-  !!app?.image && !app.isDrawing && app.drawMode !== 'rect' &&
-  !(app.isPanning || app.isDraggingPoint || app.isDraggingSegment ||
-    app.isDraggingLine || app.isZoomRectDragging || app.isRectDrawDragging);
-
 export class InputController {
   #holdDraw = null;
 // A dwell CLOSED the shape while the button is still down; the release must still swallow its click.
@@ -67,7 +65,7 @@ export class InputController {
   }
 
   #stopHoldTicks() { if (this.#holdTickTimer) { clearInterval(this.#holdTickTimer); this.#holdTickTimer = null; } }
-  #startHoldTicks() { if (!this.#holdTickTimer) this.#holdTickTimer = setInterval(() => this.#holdTick(nowMs()), 40); }
+  #startHoldTicks() { this.#holdTickTimer ??= setInterval(() => this.#holdTick(nowMs()), constants.HOLD_DRAW.tickMs); }
 
 // Shared by mouse and touch; the caller has filtered out modified presses. True if armed.
   armHold(clientX, clientY) {
@@ -126,7 +124,7 @@ export class InputController {
 // continues, empty starts fresh.
   #holdStart(clientX, clientY) {
     const app = this.app;
-    const { x, y } = app.canvasCoords(clientX, clientY);
+    const { x, y } = canvasCoords(app, clientX, clientY);
     this.#holdAutoEnabled = true;
     const target = holdDrawTarget(app.lines, x, y);
     this.#holdPrepend = false;
@@ -134,33 +132,33 @@ export class InputController {
       app.selectedLineIdx = target.lineIdx;
       app.coordLineIdx = target.lineIdx;
       app.focusedPtIdx = target.ptIdx;
-      app.startDrawingMode({ connect: true });
+      startDrawingMode(app, { connect: true });
 // Holding the FIRST point extends the line backward.
       if (target.ptIdx === 0) { this.#holdPrepend = true; app.continueInsertIdx = 0; }
     } else if (target.kind === 'segment') {
-      app.insertPointOnSegment(target.lineIdx, target.ptIdx2, x, y);
-      app.startDrawingMode({ connect: true });
+      insertPointOnSegment(app, target.lineIdx, target.ptIdx2, x, y);
+      startDrawingMode(app, { connect: true });
     } else {
-      app.startDrawingMode({ connect: false });
+      startDrawingMode(app, { connect: false });
       if (app.currentLine) {
         app.currentLine.points.push({ x, y });
         app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
       }
     }
     this.#holdSetPreviewImg(x, y);
-    app.updateButtons();
+    changed(app, CHANGE.history, CHANGE.drawing, CHANGE.selection);
   }
 
   #holdDrop(clientX, clientY) {
     const app = this.app;
-    const { x, y } = app.canvasCoords(clientX, clientY);
+    const { x, y } = canvasCoords(app, clientX, clientY);
 // Resting on the first point closes the shape, as clicking does; end the gesture.
-    if (app.tryCloseShapeAt(x, y)) {
+    if (tryCloseShapeAt(app, x, y)) {
       this.#stopHoldTicks();
       this.#holdDraw.cancel();
       this.#holdClearPreview();
       this.#holdClosedShape = true;
-      app.updateButtons();
+      changed(app, CHANGE.drawing, CHANGE.lines);
       return;
     }
     if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
@@ -176,7 +174,7 @@ export class InputController {
       app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
     }
     this.#holdSetPreviewImg(x, y);
-    app.updateButtons();
+    changed(app, CHANGE.history, CHANGE.lines);
   }
 
 // Armed on the RELEASE: a guard armed when a dwell closed the shape has expired by the time
@@ -191,7 +189,7 @@ export class InputController {
   #holdCommit() {
     const app = this.app;
     this.#holdClearPreview();
-    if (app.isDrawing) app.stopDrawingMode();
+    if (app.isDrawing) stopDrawingMode(app);
     this.#holdAutoEnabled = false;
     this.#holdPrepend = false;
     this.#suppressTrailingClick();
@@ -208,7 +206,7 @@ export class InputController {
   }
 
   #holdSetPreview(clientX, clientY) {
-    const { x, y } = this.app.canvasCoords(clientX, clientY);
+    const { x, y } = canvasCoords(this.app, clientX, clientY);
     this.#holdSetPreviewImg(x, y);
   }
   #holdSetPreviewImg(x, y) { setHoldPreview(this.app, x, y); }
@@ -223,6 +221,6 @@ export class InputController {
     if (!Number.isFinite(n)) return;
     app.holdDrawDelay = Math.max(100, Math.min(3000, Math.round(n)));
     if (this.#holdDraw) this.#holdDraw.setHoldDelay(app.holdDrawDelay);
-    if (persist) app.storage.save();
+    if (persist) app.storage.saveSoon();
   }
 }

@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(stencil_core VERSION 1.0.0 LANGUAGES CXX)
 
-# The shared, GUI-free logic core. STL only — never Qt, never an image codec, never
-# a JSON parser. It compiles three ways from one source list: a native static library
-# (linked by the desktop GUI), a WebAssembly module (loaded by the browser app), and
-# directly into the Zig CLI (cli/). Hosts own all file/codec/video/JSON I/O; core only
-# transforms caller-owned RGBA8 buffers and parses geometry / length / colour tokens.
+# The shared, GUI-free logic core. STL only — never Qt, never an image codec, never a
+# third-party parser (JSON goes through core/json). It compiles three ways from one source
+# list: a native static library (linked by the desktop GUI), a WebAssembly module (loaded by
+# the browser app), and directly into the Zig CLI (cli/). Hosts own all file/codec/video
+# I/O and every model call; core transforms caller-owned buffers and text handed to it.
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,6 +26,14 @@ else()
   add_compile_options(-Wall -Wextra)
 endif()
 
+# ASan + UBSan over the library and the suite, for CI and a local check; never a shipped build.
+# Undefined behaviour aborts the run instead of printing and carrying on.
+option(STENCIL_SANITIZE "Build core and its tests with ASan + UBSan" OFF)
+if(STENCIL_SANITIZE AND NOT MSVC AND NOT EMSCRIPTEN)
+  add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+
 # Shared core sources (STL only, GUI-free), grouped by concern under core/. Listed once
 # so the static library, the WebAssembly target, and the Zig CLI compile exactly the same
 # files. Keep this list in sync with cli/build.zig, which recompiles these directly.
@@ -33,11 +41,16 @@ set(STENCIL_CORE_SOURCES
   geometry/pointMath.cpp
   geometry/hitTest.cpp
   geometry/cropGeometry.cpp
+  geometry/cropSnap.cpp
+  geometry/lineChain.cpp
   color/color.cpp
   color/colorNames.cpp
   raster/imageOps.cpp
   raster/rasterize.cpp
+  raster/strokeCoverage.cpp
+  raster/markers.cpp
   raster/imageFilter.cpp
+  raster/downscale.cpp
   parse/formulaContext.cpp
   parse/formulaParser.cpp
   parse/DurationParser.cpp
@@ -46,8 +59,8 @@ set(STENCIL_CORE_SOURCES
   page/pageMetrics.cpp
   page/localeUnit.cpp
   format/tooltipRows.cpp
-  format/hotkeyFormat.cpp
   state/HistoryStack.cpp
+  state/lineMerge.cpp
   state/ProjectsStore.cpp
   state/zoomPan.cpp
   state/holdDraw.cpp
@@ -64,6 +77,23 @@ set(STENCIL_CORE_SOURCES
   script/lower.cpp
   script/program/scriptProgram.cpp
   script/dump.cpp
+  json/jsText.cpp
+  json/jsNumber.cpp
+  json/jsonValue.cpp
+  json/jsonScan.cpp
+  json/jsonReader.cpp
+  json/jsonWriter.cpp
+  opplan/planGrammars.cpp
+  opplan/planPath.cpp
+  opplan/planSchema.cpp
+  opplan/planSchemaCheck.cpp
+  opplan/planChecks.cpp
+  opplan/planFields.cpp
+  opplan/planRules.cpp
+  opplan/planResult.cpp
+  opplan/planWalker.cpp
+  opplan/planWalkerAsk.cpp
+  opplan/planWalk.cpp
 )
 
 # Every group dir (plus the core root for models.hpp + the extern "C" API files) is on
@@ -81,7 +111,9 @@ set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/format
   ${CMAKE_CURRENT_SOURCE_DIR}/state
   ${CMAKE_CURRENT_SOURCE_DIR}/script
-  ${CMAKE_CURRENT_SOURCE_DIR}/script/program)
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/program
+  ${CMAKE_CURRENT_SOURCE_DIR}/json
+  ${CMAKE_CURRENT_SOURCE_DIR}/opplan)
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
 add_library(stencil_core STATIC ${STENCIL_CORE_SOURCES})
@@ -115,11 +147,15 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/geometry/pointMath.test.cpp
     tests/abi/abiShared.test.cpp
     tests/abi/abiSharedFormula.test.cpp
+    tests/abi/abiSharedEdit.test.cpp
+    tests/abi/linesCodec.test.cpp
     tests/geometry/hitTest.test.cpp
     tests/state/holdDraw.test.cpp
     tests/color/color.test.cpp
     tests/page/pageMetrics.test.cpp
     tests/geometry/cropGeometry.test.cpp
+    tests/geometry/cropSnap.test.cpp
+    tests/geometry/lineChain.test.cpp
     tests/parse/formula.test.cpp
     tests/parse/formulaContext.test.cpp
     tests/abi/scriptApi.test.cpp
@@ -129,19 +165,31 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/script/scriptLimits.test.cpp
     tests/parse/DurationParser.test.cpp
     tests/state/history.test.cpp
+    tests/state/lineMerge.test.cpp
+    tests/state/editorHistory.test.cpp
     tests/state/ProjectsStore.test.cpp
     tests/state/zoomPan.test.cpp
     tests/format/tooltipRows.test.cpp
+    tests/format/text.test.cpp
     tests/raster/imageFilter.test.cpp
-    tests/format/hotkeyFormat.test.cpp
     tests/page/localeUnit.test.cpp
     tests/parse/lengthTokens.test.cpp
     tests/parse/cropSpec.test.cpp
     tests/color/colorNames.test.cpp
     tests/raster/imageOps.test.cpp
     tests/raster/rasterize.test.cpp
+    tests/raster/strokeCoverage.test.cpp
+    tests/raster/markers.test.cpp
     tests/raster/rowRanges.test.cpp
+    tests/raster/downscale.test.cpp
     tests/twinDrift.test.cpp
+    tests/noThrowLint.test.cpp
+    tests/json/json.test.cpp
+    tests/json/jsText.test.cpp
+    tests/opplan/opplanFixtures.test.cpp
+    tests/opplan/opplanGrammars.test.cpp
+    tests/opplan/opplanSchema.test.cpp
+    tests/abi/abiSharedOpplan.test.cpp
     # Perf-regression benchmarks — decorated doctest::skip(), so `ctest` never runs them.
     # Run on demand: stencil_tests -ts=bench --no-skip  (see tests/bench.test.cpp).
     tests/bench.test.cpp
@@ -153,19 +201,25 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/abi/wasmApi.test.cpp
     tests/abi/wasmCropApi.test.cpp
     tests/abi/wasmStateApi.test.cpp
+    tests/abi/wasmEditApi.test.cpp
+    tests/abi/wasmHistoryApi.test.cpp
     tests/abi/wasmProjectsApi.test.cpp
     tests/abi/cliApi.test.cpp
     wasmApi.cpp
     wasmCropApi.cpp
     wasmScriptApi.cpp
     wasmStateApi.cpp
+    wasmHistoryApi.cpp
     wasmProjectsApi.cpp
+    wasmOpplanApi.cpp
+    wasmEditApi.cpp
     cliApi.cpp
   )
   target_include_directories(stencil_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_CURRENT_SOURCE_DIR})
-  target_link_libraries(stencil_tests PRIVATE stencil_core)
+  find_package(Threads REQUIRED)
+  target_link_libraries(stencil_tests PRIVATE stencil_core Threads::Threads)
   add_test(NAME stencil_tests COMMAND stencil_tests)
 endif()
 
@@ -174,13 +228,13 @@ endif()
 # native `cmake` build never enters this branch. The browser app loads the resulting
 # stencil_core.js (see WASM.md).
 if(EMSCRIPTEN)
-  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmScriptApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
+  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmScriptApi.cpp wasmStateApi.cpp wasmHistoryApi.cpp wasmProjectsApi.cpp wasmOpplanApi.cpp wasmEditApi.cpp)
   target_include_directories(stencil_wasm PRIVATE ${STENCIL_CORE_INCLUDE_DIRS})
   # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
   set_target_properties(stencil_wasm PROPERTIES
     OUTPUT_NAME "stencil_core"
     # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module loads under
     # file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_formulaValidateCtx','_stencil_formulaApplyCtx','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_swapCropOrientation','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_stencil_scriptParse','_stencil_scriptDestroy','_stencil_scriptErrorCount','_stencil_scriptDiagCount','_stencil_scriptDiagAt','_stencil_scriptTokenCount','_stencil_scriptTokenAt','_stencil_scriptBlockCount','_stencil_scriptBlockAt','_stencil_scriptOpCount','_stencil_scriptOpAt','_stencil_scriptOpStr','_stencil_scriptOpTokCount','_stencil_scriptOpTok','_stencil_scriptOpNum','_stencil_scriptOpResolve','_stencil_scriptDump','_malloc','_free']")
+    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_formulaValidateCtx','_stencil_formulaApplyCtx','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_zoomMin','_stencil_zoomMax','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_swapCropOrientation','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_snapCropRect','_stencil_rotateEditQuarter','_stencil_mergeLinesKeep','_stencil_chainUnchain','_stencil_chainPullOut','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_history_resetMemento','_stencil_history_pushMemento','_stencil_history_readView','_stencil_history_readFilter','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_stencil_scriptParse','_stencil_scriptDestroy','_stencil_scriptErrorCount','_stencil_scriptDiagCount','_stencil_scriptDiagAt','_stencil_scriptDiagRelated','_stencil_scriptTokenCount','_stencil_scriptTokenAt','_stencil_scriptBlockCount','_stencil_scriptBlockAt','_stencil_scriptOpCount','_stencil_scriptOpAt','_stencil_scriptOpStr','_stencil_scriptOpTokCount','_stencil_scriptOpTok','_stencil_scriptOpNum','_stencil_scriptOpResolve','_stencil_scriptDump','_malloc','_free']")
   message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
 endif()

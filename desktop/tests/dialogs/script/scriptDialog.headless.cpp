@@ -1,5 +1,5 @@
 // The script window (dialogs/ScriptDialog + ScriptEditorWidget + ScriptHighlighter). Browser
-// twin browser/tests/scriptModal.test.js: nothing is REPORTED until the script has been run,
+// twin browser/tests/ui/script/scriptModal.test.js: nothing is REPORTED until the script has been run,
 // the three acting buttons are dead while it is empty, and the colouring is the core's tokens.
 #include "ScriptDialog.hpp"
 #include "ScriptDoc.hpp"

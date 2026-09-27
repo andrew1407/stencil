@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .._ffi.formula import FormulaContext
 from .._ffi.types import NoneType
+from ._lines import recrop_lines, turn_lines
 
 
 class _EditApi:
@@ -15,16 +16,19 @@ class _EditApi:
 
   # ── edits (chainable; each snapshots history) ──────────────────────────────
   def rotate(self, quarters: int) -> "Editor":
-    """Rotate by ``quarters`` clockwise quarter-turns; the crop rect rides along."""
+    """Rotate by ``quarters`` clockwise quarter-turns; the crop and the drawn lines ride along,
+    the lines turning inside the pre-turn view as the browser's rotate turns them."""
     self._require_original()
     core = self._get_core()
     cur = self._current()
     nxt = cur.copy()
+    orig = self._original
     if cur.crop is not None:
-      # Map the crop into the post-rotation rotated-original space (session.applyRotate).
-      orig = self._original
-      dims_w, dims_h = core.rotated_dims(orig.width, orig.height, cur.rotation)
-      nxt.crop = self._rotate_rect_quarters(cur.crop, dims_w, dims_h, quarters)
+      crop, q = cur.crop, core.normalize_quarters(cur.rotation)
+      for _ in range(core.normalize_quarters(quarters)):
+        crop, q = core.rotate_edit_quarter(crop, q, orig.width, orig.height, True)
+      nxt.crop = crop
+    nxt.lines = turn_lines(cur.lines, quarters, *self._view_dims(cur))
     nxt.rotation = core.normalize_quarters(cur.rotation + quarters)
     self._push(nxt)
     return self
@@ -70,16 +74,18 @@ class _EditApi:
     """Crop to an already-resolved sub-rect of the CURRENT view (``session.applyCrop``).
 
     The view is rotate(original) cropped to the live crop, so a sub-rect maps back to
-    rotated-original space by origin and is clamped there — never against the spec.
+    rotated-original space by origin and is clamped there — never against the spec. The
+    lines recalc as the browser's crop recalcs them: cleared when the window flips between
+    album and portrait, else scaled by the width ratio.
     """
     self._require_original()
     cur = self._current()
-    base_x = cur.crop[0] if cur.crop is not None else 0
-    base_y = cur.crop[1] if cur.crop is not None else 0
     orig = self._original
     space_w, space_h = self._get_core().rotated_dims(orig.width, orig.height, cur.rotation)
+    base = cur.crop if cur.crop is not None else (0, 0, space_w, space_h)
     nxt = cur.copy()
-    nxt.crop = self._clamp_rect((base_x + x, base_y + y, w, h), space_w, space_h)
+    nxt.crop = self._clamp_rect((base[0] + x, base[1] + y, w, h), space_w, space_h)
+    nxt.lines = recrop_lines(cur.lines, self._clamp_rect(base, space_w, space_h), nxt.crop)
     self._push(nxt)
     return self
 

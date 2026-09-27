@@ -1,28 +1,17 @@
 #include "SelectionPanel.hpp"
 #include "selectionPanelParts.hpp"
-#include "guiHelpers.hpp"
-#include "iconSet.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/icon/iconMotion.hpp"
+#include "iconMotionTypes.hpp"
 #include <QGuiApplication>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QHeaderView>
-#include <QKeyEvent>
 #include <QLabel>
 #include <QTabWidget>
-#include <QPainter>
 #include <QPalette>
-#include <QStyledItemDelegate>
 #include <QTableWidget>
-#include <QPixmap>
-#include <QPushButton>
 #include <QToolButton>
-#include <QShowEvent>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <algorithm>
 
 namespace stencil::gui {
 

@@ -3,10 +3,13 @@
 #include "RemoteSession.hpp"
 #include "ServerClient.hpp"
 #include <QDateTime>
+#include <QFile>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
 #include <QTimer>
 #include <algorithm>
+#include <utility>
 
 namespace stencil::gui {
 
@@ -19,11 +22,13 @@ namespace stencil::gui {
     pushTimer = new QTimer(this);
     pushTimer->setSingleShot(true);
     connect(pushTimer, &QTimer::timeout, this, [this] {
+      // Our own result upload bumps the version; a push racing it would 409 and union-merge.
+      if (resultInFlight) { pushTimer->start(100); return; }
       pushBurstStart = 0;   // burst flushed — start a fresh max-wait window next edit
       if (!this->session->address().isEmpty()) h.saveToServer();
     });
     pollTimer = new QTimer(this);
-    pollTimer->setInterval(2000);   // backstop behind the live push feed
+    pollTimer->setInterval(tableMs("POLL", "remoteMs", POLL_MS));   // backstop behind the live push feed
     connect(pollTimer, &QTimer::timeout, this, [this] { pollRemoteForUpdate(); });
     // Coalesce a burst of live-feed events into one reload, off the socket read slot; re-checked
     // against the remote version at fire time.
@@ -40,16 +45,41 @@ namespace stencil::gui {
       }
       // A local edit is in flight: our push wins last-writer-wins, then we reload the merged
       // result.
-      if (*this->remotePushing || (pushTimer && pushTimer->isActive())) {
+      if (localWriteBusy() || resultInFlight) {
         reloadPending = true;
         reloadTimer->start(150);
         return;
       }
       if (!reloadPending) return;   // nothing queued → nothing to do
       reloadPending = false;
+      if (reloadVersion <= this->session->version()) return;   // already caught up
       // An event landing mid-reload re-arms this timer, so we converge afterward.
       h.openServerProject(this->session->address(), this->session->id(), /*silent=*/true);
     });
+    resultTimer = new QTimer(this);
+    resultTimer->setSingleShot(true);
+    connect(resultTimer, &QTimer::timeout, this, [this] {
+      if (!resultDirty || resultInFlight) return;
+      if (this->session->address().isEmpty()) { resultDirty = false; return; }
+      if (localWriteBusy() || *this->remoteReloading || *this->planRunning) {
+        resultTimer->start(200);
+        return;
+      }
+      startResultUpload();
+    });
+  }
+
+  int RemoteSyncController::tableMs(const char* section, const char* key, int fallback) {
+    static const QJsonObject table = [] {
+      QFile f(QStringLiteral(":/config/constants.json"));
+      return f.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(f.readAll()).object() : QJsonObject();
+    }();
+    const int v = table.value(QLatin1String(section)).toObject().value(QLatin1String(key)).toInt();
+    return v > 0 ? v : fallback;
+  }
+
+  bool RemoteSyncController::localWriteBusy() const {
+    return *remotePushing || (pushTimer && pushTimer->isActive());
   }
 
   void RemoteSyncController::scheduleRemotePush() {
@@ -59,6 +89,52 @@ namespace stencil::gui {
     if (pushBurstStart == 0) pushBurstStart = now;
     const int wait = std::clamp<int>(1500 - static_cast<int>(now - pushBurstStart), 0, 350);
     pushTimer->start(wait);
+  }
+
+  void RemoteSyncController::scheduleResultUpload() {
+    if (!resultDirty) resultDirtySince = QDateTime::currentMSecsSinceEpoch();
+    resultDirty = true;
+    if (!resultInFlight) armResultTimer();
+  }
+
+  // due = max(last + gap, min(now + idle, dirtySince + gap)): idle-debounced, capped, spaced.
+  void RemoteSyncController::armResultTimer() {
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    qint64 due = std::min(now + resultIdleMs, resultDirtySince + resultGapMs);
+    if (lastResultAt > 0) due = std::max(due, lastResultAt + resultGapMs);
+    if (resultSettled) due = now;   // a flush is waiting on it
+    resultTimer->start(static_cast<int>(std::clamp<qint64>(due - now, 0, resultGapMs)));
+  }
+
+  void RemoteSyncController::startResultUpload() {
+    resultDirty = false;
+    resultInFlight = true;
+    lastResultAt = QDateTime::currentMSecsSinceEpoch();
+    QPointer<RemoteSyncController> self(this);
+    auto done = [this, self] {
+      if (!self) return;
+      resultInFlight = false;
+      if (resultDirty) { armResultTimer(); return; }
+      if (resultSettled) std::exchange(resultSettled, {})();
+    };
+    if (h.uploadResult) h.uploadResult(done);
+    else done();
+  }
+
+  bool RemoteSyncController::flushResultUpload(std::function<void()> settled) {
+    if (!resultBusy() || session->address().isEmpty()) return false;
+    resultSettled = std::move(settled);
+    if (resultDirty && !resultInFlight) armResultTimer();
+    return true;
+  }
+
+  bool RemoteSyncController::holdCloseForResult(std::function<void()> reclose) {
+    if (closeHeld || !flushResultUpload(std::move(reclose))) return false;
+    closeHeld = true;
+    QTimer::singleShot(RESULT_CLOSE_CAP_MS, this, [this] {
+      if (resultSettled) std::exchange(resultSettled, {})();
+    });
+    return true;
   }
 
   void RemoteSyncController::startRemotePoll() {
@@ -71,6 +147,9 @@ namespace stencil::gui {
     if (pollTimer) pollTimer->stop();
     if (reloadTimer) reloadTimer->stop();
     if (liveFeed) liveFeed->unsubscribe();
+    // The canvas is leaving the project, so a result not yet rendered would bake the wrong one.
+    resultDirty = false;
+    if (resultTimer) resultTimer->stop();
   }
 
   // No-op unless server-linked and connected; subscribe() is idempotent for the same origin.
@@ -105,6 +184,7 @@ namespace stencil::gui {
     // reloadPending is set here, not only in the timer, so an event arriving mid-reload is
     // remembered.
     reloadPending = true;
+    reloadVersion = std::max(reloadVersion, version);
     if (reloadTimer) reloadTimer->start(40);
   }
 
@@ -115,7 +195,7 @@ namespace stencil::gui {
     const QString id = session->id();
     if (addr.isEmpty() || id.isEmpty()) return;
     if (!h.syncToServer()) return;  // sync off — don't pull peer changes over local edits
-    if (*remotePushing || *planRunning || (pushTimer && pushTimer->isActive())) return;
+    if (localWriteBusy() || resultInFlight || *planRunning) return;
     stencil::net::ConnectionManager* mgr = session->getConnections();
     stencil::net::ServerClient* c = mgr ? mgr->find(addr) : nullptr;
     if (!c) return;
@@ -126,7 +206,7 @@ namespace stencil::gui {
       // Re-check at completion: the session may have changed or a push started while the GET was
       // in flight.
       if (session->address() != addr || session->id() != id) return;
-      if (*remotePushing || *planRunning || (pushTimer && pushTimer->isActive())) return;
+      if (localWriteBusy() || resultInFlight || *planRunning) return;
       if (meta.version > session->version())
         h.openServerProject(addr, id, /*silent=*/true);
     });

@@ -1,4 +1,4 @@
-// The source-page picker half of src/lib/editorTabs.js: which tabs are scannable, how each is
+// The source-page picker half of src/lib/menu/editorTabs.js: which tabs are scannable, how each is
 // labelled and filtered, and the import mode an editor's own state earns.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

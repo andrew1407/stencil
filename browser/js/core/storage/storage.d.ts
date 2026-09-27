@@ -17,6 +17,8 @@ export declare class Storage {
   saveSoon: { (): void; flush(): void };
   /** The idle-time thumbnail render each save() schedules; flush() renders it now. */
   thumbs: ThumbnailScheduler;
+  /** Settles once the editor's image is a data URL again (a stored object URL read back). */
+  imageReady: Promise<void>;
   save(): void;
   /** The debounced cross-tab "this project changed" broadcast; a burst coalesces into one. */
   scheduleSyncBroadcast(): void;

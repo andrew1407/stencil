@@ -1,24 +1,8 @@
 #include "theme.hpp"
 #include "themeTokens.hpp"
+#include "defaultVisuals.hpp"
 #include "../skinPrefs.hpp"
-#include <QDir>
-#include <QFile>
-#include <QGuiApplication>
-#include <QHash>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QPainter>
-#include <QPainterPath>
-#include <QPixmap>
-#include <QRegularExpression>
-#include <QStandardPaths>
-#include <QStyleHints>
-#include <algorithm>
-#include <array>
-#include <cmath>
 #ifdef Q_OS_LINUX
-#include <QProcess>
 #endif
 
 namespace stencil::gui {
@@ -51,8 +35,8 @@ namespace stencil::gui {
     p.warning = themeToken("--warning", dark);
     p.disabledText = themeToken("--disabled-text", dark);
     // NOT theme.css tokens: constants.json DEFAULT_VISUALS, repainted via Settings.
-    p.selGlow = displayColor(QColor("#ffc800"));
-    p.hoverRing = displayColor(QColor(DEFAULT_ACCENT_HEX));
+    p.selGlow = displayColor(QColor(defaultVisuals::table().selGlow));
+    p.hoverRing = displayColor(QColor(defaultVisuals::table().hoverRing));
     // The canon carries only the violet default; the chosen accent is what the app wears.
     const QColor accent = accentPrimary(accentKey);
     p.accent = accent;

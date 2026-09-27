@@ -5,10 +5,14 @@ export interface CodecLine {
   style: string; locked: boolean; fillColor: string; pointColor: string;
 }
 
+/** What a missing field stands for: core/models.hpp's Line defaults. */
+export declare const LINE_DEFAULTS: Readonly<Omit<CodecLine, 'points'>>;
+
 /** The two buffers a snapshot crosses the core ABI in; see the layout in linesCodec.js. */
 export interface EncodedLines { nums: Float64Array; text: Uint8Array; }
 
 export function encodeLines(lines: readonly Partial<CodecLine>[]): EncodedLines;
 
-/** Lengths are honoured, never trusted: a truncated buffer stops at the last whole line. */
+/** Lengths are honoured, never trusted: a truncated buffer stops at the last whole line; NaN or
+ *  huge counts never drive a loop, and lines/points are capped as sanitizeLines caps them. */
 export function decodeLines(nums: Float64Array, text: Uint8Array): CodecLine[];

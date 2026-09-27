@@ -1,32 +1,13 @@
 // One connection card, as rebuildList() makes it; its row of controls is ConnectDialogRowActions.cpp.
 #include "ConnectDialog.hpp"
 #include "ReorderableListWidget.hpp"
-#include "ServerClient.hpp"
-#include "connectionStore.hpp"
 #include "iconSet.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
 #include "connectDialogParts.hpp"
 #include "../../support/theme/filterFade.hpp"
-#include "../../support/control/FlowLayout.hpp"
-#include "../../support/guiHelpers.hpp"
-#include "../../support/modal/modalChrome.hpp"
-#include "../../support/menu/SearchCombo.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
-#include "../../support/theme/theme.hpp"
-#include "../../support/tip/tipContent.hpp"
 #include <QCheckBox>
-#include <QComboBox>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QLabel>
-#include <QLineEdit>
-#include <QListWidget>
-#include <QPointer>
-#include <QPushButton>
-#include <QStyle>
-#include <QTimer>
-#include <QVBoxLayout>
 #include <algorithm>
 
 namespace stencil::gui {

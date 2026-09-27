@@ -10,28 +10,43 @@ use std::time::Duration;
 
 use stencil_mcp::pipeline::{CliOutput, CliRunner};
 
-/// One recorded invocation: the argv, and the working directory a confined run names.
+/// One recorded invocation: the argv, the working directory a confined run names, the
+/// variables added to the child's environment, and what was written to its stdin.
 pub struct Call {
     pub argv: Vec<String>,
     pub dir: Option<PathBuf>,
+    pub env: Vec<(String, String)>,
+    pub input: Option<String>,
 }
 
 /// Records what it was handed and answers with a canned capture. `writes` makes it act like
-/// a render: the bytes land at the argv's last token, the output path.
+/// a render: the bytes land at the argv's last token, the output path, inside a confined run's dir.
 pub struct FakeCli {
     success: bool,
     stderr: String,
+    stdout: String,
     writes: Option<Vec<u8>>,
     pub calls: Mutex<Vec<Call>>,
 }
 
 impl FakeCli {
     pub fn ok(stderr: &str) -> FakeCli {
-        FakeCli { success: true, stderr: stderr.into(), writes: None, calls: Mutex::new(Vec::new()) }
+        FakeCli {
+            success: true,
+            stderr: stderr.into(),
+            stdout: String::new(),
+            writes: None,
+            calls: Mutex::new(Vec::new()),
+        }
     }
 
     pub fn failing(stderr: &str) -> FakeCli {
-        FakeCli { success: false, stderr: stderr.into(), writes: None, calls: Mutex::new(Vec::new()) }
+        FakeCli { success: false, ..FakeCli::ok(stderr) }
+    }
+
+    /// A mode that answers on stdout (`--script-check`, `--script-plan`, `--plan-check`).
+    pub fn printing(success: bool, stdout: &str, stderr: &str) -> FakeCli {
+        FakeCli { success, stdout: stdout.into(), ..FakeCli::ok(stderr) }
     }
 
     pub fn rendering(stderr: &str, bytes: &[u8]) -> FakeCli {
@@ -103,7 +118,30 @@ impl CliRunner for SlowCli {
         self.in_flight.fetch_sub(1, Ordering::SeqCst);
         self.finished.fetch_add(1, Ordering::SeqCst);
         let output = argv.last().expect("an output path").to_string();
-        Ok(CliOutput { success: true, stderr: format!("wrote {output} (1x1)\n") })
+        let stderr = format!("wrote {output} (1x1)\n");
+        Ok(CliOutput { success: true, stderr, stdout: String::new() })
+    }
+}
+
+impl FakeCli {
+    fn answer(
+        &self,
+        argv: &[Cow<'static, str>],
+        dir: Option<&Path>,
+        env: &[(&str, String)],
+        input: Option<&str>,
+    ) -> CliOutput {
+        let argv: Vec<String> = argv.iter().map(|a| a.to_string()).collect();
+        if let Some(bytes) = &self.writes {
+            let out = argv.last().expect("an output path");
+            let out = dir.map_or_else(|| PathBuf::from(out), |dir| dir.join(out));
+            std::fs::write(out, bytes).expect("the fake render writes its output");
+        }
+        let env = env.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+        let (dir, input) = (dir.map(Path::to_path_buf), input.map(str::to_string));
+        self.calls.lock().unwrap().push(Call { argv, dir, env, input });
+        let (stderr, stdout) = (self.stderr.clone(), self.stdout.clone());
+        CliOutput { success: self.success, stderr, stdout }
     }
 }
 
@@ -113,12 +151,24 @@ impl CliRunner for FakeCli {
         argv: &[Cow<'static, str>],
         dir: Option<&Path>,
     ) -> Result<CliOutput, String> {
-        let argv: Vec<String> = argv.iter().map(|a| a.to_string()).collect();
-        if let Some(bytes) = &self.writes {
-            let out = argv.last().expect("an output path");
-            std::fs::write(out, bytes).expect("the fake render writes its output");
-        }
-        self.calls.lock().unwrap().push(Call { argv, dir: dir.map(Path::to_path_buf) });
-        Ok(CliOutput { success: self.success, stderr: self.stderr.clone() })
+        Ok(self.answer(argv, dir, &[], None))
+    }
+
+    async fn run_feeding(
+        &self,
+        argv: &[Cow<'static, str>],
+        input: &str,
+    ) -> Result<CliOutput, String> {
+        Ok(self.answer(argv, None, &[], Some(input)))
+    }
+
+    async fn run_with(
+        &self,
+        argv: &[Cow<'static, str>],
+        dir: Option<&Path>,
+        env: &[(&'static str, String)],
+        _capture: bool,
+    ) -> Result<CliOutput, String> {
+        Ok(self.answer(argv, dir, env, None))
     }
 }

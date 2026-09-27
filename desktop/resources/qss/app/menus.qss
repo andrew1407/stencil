@@ -1,0 +1,23 @@
+      /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */
+      QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }
+      QMenuBar::item { background: transparent; padding: 5px 11px; border-radius: 6px; }
+      QMenuBar::item:selected { background: %ACCENT_SOFT2%; color: %ACCENT2%; }
+      QMenuBar::item:pressed { background: %ACCENT%; color: %ON_ACCENT%; }
+      QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
+      QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
+      QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
+      QMenu::item:disabled { color: %DISABLED_TEXT%; }
+      QMenu::separator { height: 1px; background: %BORDER%; margin: 5px 10px; }
+      /* The project-colour menu (browser .project-menu-item: gap 8px, padding 6px 8px):
+         two short rows — the app-wide 24px/26px item padding read as a huge icon gap
+         and a slab of dead space right of the text there. */
+      QMenu#projectColorMenu::item { padding: 6px 12px 6px 6px; }
+      QMenu::icon { padding-left: 6px; }
+      QMenu::indicator { width: 16px; height: 16px; left: 6px; }
+
+      /* ── Status bar ── */
+      QStatusBar { background: %BG_CONTROLS%; color: %TEXT%; border-top: 1px solid %BORDER%; }
+      QStatusBar::item { border: 0; }
+      QStatusBar QLabel { color: %TEXT%; }
+      QLabel { color: %TEXT%; background: transparent; }
+

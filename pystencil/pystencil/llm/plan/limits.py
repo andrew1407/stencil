@@ -1,18 +1,23 @@
 """Contract limits (§1/§7/§11) — the same numbers in every client — read off the
-shared op-registry schema, plus the chat-transcript constants built on them.
+shared op registry, plus the chat-transcript constants built on them.
 """
 
 from __future__ import annotations
 
+import importlib.resources
+import json
 import re
 
 from ..._ffi.types import NoneType
-from ..._opschema import schema
 
 # ── contract limits (§1/§7/§11 — the same numbers in every client) ──
-# From the checked-in copy of browser/js/config/llm/opRegistry.json, byte-pinned by tests.
-SCHEMA = schema("pystencil")
-_LIMITS = SCHEMA.limits
+# The checked-in copy of browser/js/config/llm/opRegistry.json (byte-pinned by tests): core
+# validates against these bytes; Python reads only the limits, the profile and the entries.
+REGISTRY: dict = json.loads(
+  importlib.resources.files("pystencil").joinpath("_data/opRegistry.json").read_text(encoding="utf-8")
+)
+PROFILE: str = REGISTRY["$meta"]["surfaceProfiles"]["pystencil"]
+_LIMITS = REGISTRY["limits"]
 MAX_ACTIONS = _LIMITS["MAX_ACTIONS"]              # per plan: top-level and per variant
 MAX_VARIANTS = _LIMITS["MAX_VARIANTS"]
 MAX_LAYOUT_LINES = _LIMITS["MAX_LAYOUT_LINES"]
@@ -26,7 +31,7 @@ MAX_ASK_OPTIONS = _LIMITS["ask"]["maxOptions"]
 MAX_ASK_QUESTION = _LIMITS["ask"]["question"]
 MAX_ASK_LABEL = _LIMITS["ask"]["label"]
 MAX_ASK_ANSWER = _LIMITS["ask"]["answer"]
-DEFAULT_CUSTOM_LABEL = SCHEMA.registry["ask"]["defaultCustomLabel"]
+DEFAULT_CUSTOM_LABEL = REGISTRY["ask"]["defaultCustomLabel"]
 MAX_HISTORY = 32        # chat messages replayed per call
 # §12 chat persistence — the persisted-chat document version Chat.to_doc writes and
 # Chat.from_doc accepts (any other version is treated as "no saved chat").

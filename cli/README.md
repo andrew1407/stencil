@@ -21,7 +21,8 @@ additionally needs `ffmpeg` on `PATH` (optional — everything else works withou
 # from this directory (cli/)
 zig build                 # -> zig-out/bin/stencil
 zig build run -- --help   # build and run with arguments
-zig build test --summary all
+zig build test --summary all   # also fails on a file `zig fmt` would change
+zig build fmt             # just that check; `zig fmt .` fixes it
 zig build bench           # opt-in benchmarks
 ```
 
@@ -79,6 +80,7 @@ stencil [options] <output>
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
 | `--filter <bw\|sepia\|invert\|contour\|color>` | Apply an image filter (`invert` = negative, `contour` = edge detection). A colour name/`#hex` makes a duotone tint. Overrides the layout's filter if both are present. |
+| `--thumbnail <px>` | Shrink the result so its longer side is at most `<px>` pixels — area-averaged, aspect kept, never enlarged. The last step before the file is written; the `wrote` line reports the shrunk size. One-shot image runs only. |
 | `--source-site <url>` | **Scrape mode:** fetch a page, extract + filter its media, and download the matches into `<output>` (a **directory**). See [Scraping a page](#scraping-a-page). Mutually exclusive with `-i`, `--blank`, `--server`. |
 | `--source-count <n>` | Items per page/group in scrape mode (default `5`; `0` = all matches). |
 | `--group <g>` | 0-based page index over the filtered list (default 0). |
@@ -86,14 +88,22 @@ stencil [options] <output>
 | `--source-format <s>` | Format tokens, `\|`-joined, e.g. `png\|jpg\|webp\|mp4` (default `all`). |
 | `--source-name <regex>` | POSIX ERE matched against each media URL (max 200 characters). |
 | `--source-min-width` / `--source-max-width` / `--source-min-height` / `--source-max-height` `<px>` | Inclusive pixel bounds (`0` = unset); images are measured from a header sniff, unmeasured items pass. |
+| `--prompt "<text>"` | Ask the configured model to plan edits on the input, run the plan and write `<output>` (an output path is required). The model comes from the `STENCIL_LLM_*` environment — see [Using your own Claude key](#using-your-own-claude-key). Exits 1 when the model gives no usable answer. Not available on Windows, like the console. |
 | `--console` | Start [interactive console mode](#console-mode) instead of running a one-shot pipeline. |
 | `--console-full-screen` | Console in a full-screen TUI (pinned logo header, scrollback, mouse). Implies `--console`. |
 | `--server <url>` | Connect to a [collaboration server](../server/README.md); then `-i <name>` names a **server project** to fetch and edit. |
 | `--remote-update` | With `--server`, write the result back into the fetched server project. |
 | `--remote <url>` | Upload the result as a **new** project on a server (for a local/web input). |
 | `--remote-name <name>` | Name for the `--remote` project (default: the input image's base name). |
-| `--token <tok>` | Access token for `--server` / `--remote` — needed when the server gates token minting (`ADMIN_TOKEN`). Takes a session token or the admin token itself. |
-| `--confine-output` | Refuse an output path that leaves the working directory (absolute or `~`-prefixed; `..` traversal is always refused). Off by default; the mcp and bot adapters pass it when forwarding model-chosen paths. |
+| `--token <tok>` | Access token for `--server` / `--remote` — needed when the server gates token minting (`ADMIN_TOKEN`). Takes a session token or the admin token itself. Without it, see [Server tokens from the environment](#server-tokens-from-the-environment). |
+| `--list-projects` | With `--server`, print every project's metadata as JSON on stdout. |
+| `--project-info <id\|name>` | With `--server`, print one project's metadata as JSON on stdout. |
+| `--project-update <id>` | With `--server`, change a project's metadata and print it as JSON: give one or more of `--set-name`, `--set-description`, `--set-keywords <a,b>`, `--set-color`, `--set-blank-color` (`''` clears) and `--set-expires <epoch ms>` (`0` = never). `--if-version <n>` refuses the change once a peer has saved past version `n`. |
+| `--project-files <id>` | With `--server`, print a project's metadata and the files it stores (`original`, `result`, `video`, `chat`, `variant1`…`variant8`), each with its format. |
+| `--project-file <id> <kind>` | With `--server`, download that stored file to `<output>` exactly as served, and print what was written as JSON. |
+| `--probe` | Print the `-i` input's format, pixel size, alpha and byte size as JSON on stdout, read from its header; a video adds `durationMs` and `frames` (needs ffprobe). |
+| `--no-clobber` | Refuse to overwrite an existing output — checked on the name it would really get, extension filled in. |
+| `--confine-output` | Refuse an output path that leaves the working directory (absolute, `~`-prefixed, or out through a symbolic link; `..` traversal is always refused). Off by default; the mcp and bot adapters pass it when forwarding model-chosen paths. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 
@@ -122,7 +132,66 @@ stencil -i photo.png -r 1 --remote http://host:8090 --remote-name "Shared" out.p
 
 # Fetch a server project by name, apply a filter, and write the result back
 stencil --server http://host:8090 -i Shared --filter sepia --remote-update out.png
+
+# List a server's projects, or read one, as JSON
+stencil --server https://team.example --list-projects
+stencil --server https://team.example --project-info Shared
+
+# Rename a server project and tag it, then download its rendered result
+stencil --server https://team.example --project-update p_1_a --set-name "Plans v2" --set-keywords floor,draft
+stencil --server https://team.example --project-file p_1_a result plans.png
+
+# Size, format and alpha of an image (or a video's length) without decoding it
+stencil --probe -i photo.jpg
+
+# Never overwrite: fails if out.jpg already exists
+stencil -i photo.jpg --filter bw --no-clobber out
+
+# A 256 px preview of the edited result (longer side), whatever the source size
+stencil -i photo.jpg -r 1 --thumbnail 256 preview.png
+
+# Let the configured model plan the edit (see "Using your own Claude key")
+stencil -i photo.jpg --prompt "rotate it right and tone it sepia" out.png
 ```
+
+### Server tokens from the environment
+
+Instead of `--token`, a server's token can come from the environment, so it never shows in a
+process listing:
+
+```bash
+export STENCIL_SERVER_TOKENS="http://localhost:8090=local-token,https://team.example=team-token"
+stencil --server http://localhost:8090 -i Plans --remote https://team.example out.png
+```
+
+`STENCIL_SERVER_TOKENS` is a comma list of `origin=token` pairs; each server URL uses the
+token of its own origin (scheme, host and port), so `--server` and `--remote` can use
+different ones. `STENCIL_SERVER_TOKEN` is the one token for any server the list does not
+name. `--token`, or a `#token=` invite link, still wins over both. In `--console`,
+`/connect <url>` without a token reads them the same way.
+
+### Using your own Claude key
+
+The CLI can talk to Anthropic's Claude API directly with your own API key — no Stencil server
+in between. The key is held only in the memory of the command or console that took it, for at
+most 12 hours, and is never written to a file, the console history or the scrollback.
+
+```bash
+export STENCIL_LLM_PROVIDER=anthropic
+read -rs STENCIL_LLM_API_KEY && export STENCIL_LLM_API_KEY    # paste the key; nothing is shown
+stencil -i photo.jpg --prompt "crop 10% off the left and make it b&w" out.png
+```
+
+`STENCIL_LLM_MODEL` picks the model (empty = the default Claude model) and
+`STENCIL_LLM_BASE_URL` another endpoint (default `https://api.anthropic.com`). The key is only
+sent over `https`, or over plain `http` to `localhost`.
+
+In the console, `/llm provider anthropic` switches to Claude and `/llm key` asks for the key
+with the input hidden (paste it and press Enter). `/llm` shows until when it is held;
+`/llm key forget` drops it at once, and it is gone when the console exits. Once it has expired,
+the next `/prompt` asks for it again. A key typed as `/llm key <key>` also works, but it shows
+on screen while you type; the console and its history keep only `/llm key`. A key never
+follows a switch to or from `anthropic`.
 
 ### Project files (`.stencil`)
 
@@ -270,7 +339,7 @@ monochrome.
 | `/fetch <name> [url]` | Load a server project's image to keep editing. Bare lists what there is to fetch. Alias: `pull`. |
 | `/sync [on\|off]` | Live-editing mode for the active fetched project: your edits auto-upload (debounced) and a peer's saves auto-pull over the server's raw-TCP edit channel (skipped for `https://` servers). Local unsynced edits are never clobbered — you get a note to `/save` or `/fetch`. |
 | `/prompt <text>` | Ask the configured LLM assistant to plan edits ([`llm-contract.md`](../contracts/llm/llm-contract.md)): the working image is attached for vision (≤ 8 MiB), the reply is printed, and the validated op-plan runs through the same session operations as the commands above. Variants render as `variant-<label>.png`. Every `/upload` since the last prompt is an attachment of the turn. Alias: `p`. |
-| `/llm [provider\|url\|model\|key\|server <value>]` | Show (bare, secrets masked) or override the session's LLM config: `ollama` \| `openai-compat` \| `stencil-server`. Initial values come from the `STENCIL_LLM_*` env keys. |
+| `/llm [provider\|url\|model\|key\|server <value>]` | Show (bare, secrets masked) or override the session's LLM config: `ollama` \| `openai-compat` \| `anthropic` \| `stencil-server`. Initial values come from the `STENCIL_LLM_*` env keys. Bare `/llm key` asks for the key with the input hidden; `/llm key forget` drops it. See [Using your own Claude key](#using-your-own-claude-key). |
 | `/chat [on\|off\|clear]` | Chat persistence (default off): save the conversation with the project. |
 | `/copy` | Copy the current image to the clipboard. Also **Ctrl-Alt-C**. |
 | `/status` | Show the working image (path, size, edit position). Aliases: `info`, `image`. |

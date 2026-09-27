@@ -4,6 +4,9 @@ import { chatRowMenuItems, copyChatText, selectionCoversRow } from './chatRowMen
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';
 import { publish, EVENTS } from '../../../eventBus/appBus.js';
+import constants from '../../../config/constants.json' with { type: 'json' };
+
+const { POPOVER } = constants;
 
 // One open menu app-wide: opening from the other surface or another row replaces it.
 let rowMenuEl = null;
@@ -65,7 +68,7 @@ const openChatRowMenu = (row, x, y, hooks) => {
   const top = Math.max(8, y + mh > window.innerHeight - 8 ? y - mh : y);
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
-// The entry pop (animations/overlays.css menuPop) grows out of the open point; the plain
+// The entry pop (animations/overlay/overlays.css menuPop) grows out of the open point; the plain
 // pop is the fallback when motion.js cannot play dust.
   menu.style.transformOrigin = menuPopOrigin(x, y, { left, top, width: mw, height: mh });
   surfaceIn(menu, { x, y }, { ms: SURFACE_MENU_IN_MS });
@@ -85,7 +88,7 @@ const openChatRowMenu = (row, x, y, hooks) => {
 // Touch has no hover: a long-press or a double-tap on a bubble opens the menu. Pure
 // recognizer, timers injectable.
 export const touchMenuGesture = (onOpen, {
-  longPressMs = 500, moveTol = 10, doubleTapMs = 350,
+  longPressMs = POPOVER.longPressMs, moveTol = POPOVER.pressSlopPx, doubleTapMs = POPOVER.doubleTapMs,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (t) => clearTimeout(t),
 } = {}) => {
   let timer = null, sx = 0, sy = 0, key = null, moved = false, fired = false;

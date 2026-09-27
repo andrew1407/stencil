@@ -69,7 +69,7 @@ namespace stencil::gui {
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal = QRect());
 
-  // Card-arrival dust (browser surface/motion.js chatIn): a finer grid than a list row.
+  // Card-arrival dust (browser control/chatFx.js chatIn): a finer grid than a list row.
   inline constexpr int CHAT_SCATTER_COLS = 32;
   inline constexpr int CHAT_SCATTER_ROWS = 16;
   // One frame: the callers' scrollToBottom() is a singleShot(0), so a 0 ms hop measures too early.
@@ -86,7 +86,7 @@ namespace stencil::gui {
                         std::function<void()> onFlight = nullptr,
                         int tries = CHAT_GATHER_TRIES, QSize lastSize = QSize());
 
-  // Drops the snapshot when the card leaves the viewport or resizes (browser surface/motion.js trackDust).
+  // Drops the snapshot when the card leaves the viewport or resizes (browser control/chatFx.js trackDust).
   void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
                          std::function<void()> settle);
 

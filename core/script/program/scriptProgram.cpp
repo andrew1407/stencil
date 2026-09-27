@@ -134,8 +134,7 @@ namespace stencil::core::script {
       case OpKind::RECT:
         return resolveShape(op, imageW, imageH, pxPerCmX, pxPerCmY, out, cap);
       case OpKind::FRAME:
-      case OpKind::UNDO:
-      case OpKind::REDO: {
+      case OpKind::UNDO: {  // REDO keeps its ABI value, but the lowerer never emits one (§7)
         if (cap < 1) return -2;
         out[0] = op.nums.empty() ? 0.0 : op.nums[0];
         return 1;

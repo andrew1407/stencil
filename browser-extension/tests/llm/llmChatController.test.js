@@ -1,4 +1,4 @@
-// The turn loop of src/llm/controller.js: what the system prompt carries, how cards and
+// The turn loop of src/llm/chatController.js: what the system prompt carries, how cards and
 // warnings form, and the bounded attach auto-continuation — over the scripted-client harness.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

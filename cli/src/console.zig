@@ -5,20 +5,14 @@
 const std = @import("std");
 const logo = @import("app/logo.zig");
 const llm = @import("llm.zig");
-const line_edit = @import("line_edit.zig");
+const args = @import("args.zig");
+const line_edit = @import("line_edit/line_edit.zig");
 const session_mod = @import("console/session.zig");
-const commands = @import("console/commands.zig");
 const ui = @import("console/ui.zig");
-const handlers = @import("console/handlers.zig");
-const attachments = @import("console/attachments.zig");
-const remoteEvents = @import("console/remoteEvents.zig");
-const llmPrompt = @import("console/llmPrompt.zig");
 const screen = @import("console/screen.zig");
-const clipboard = @import("clipboard.zig");
 
 pub const Session = session_mod.Session;
 
-const LINE_BUF = 64 * 1024; // piped-input line cap: long crop specs / URLs fit on one line
 const hooks = @import("console/hooks.zig");
 const loop = @import("console/loop.zig");
 const dispatch_mod = @import("console/dispatch.zig");
@@ -27,11 +21,9 @@ pub const handle = dispatch_mod.handle;
 
 const runInteractive = loop.runInteractive;
 const runPiped = loop.runPiped;
-const idleTick = hooks.idleTick;
-const IdleCtx = hooks.IdleCtx;
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool, llm_env: llm.Env) !void {
-    var session = Session{ .gpa = gpa, .llm_env = llm_env };
+pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool, llm_env: llm.Env, server_tokens: args.EnvTokens) !void {
+    var session = Session{ .gpa = gpa, .llm_env = llm_env, .server_tokens = server_tokens };
     defer session.deinit();
 
     const stdin_file = std.Io.File.stdin();
@@ -76,6 +68,8 @@ test {
     _ = @import("console/render/ansi.zig");
     _ = @import("console/render/logoFx.zig");
     _ = @import("console/render/projectsTable.zig");
+    _ = @import("console/render/inert.zig");
+    _ = @import("console/netWait.zig");
     _ = @import("console/remoteEvents.zig");
     _ = @import("console/attachments.zig");
     _ = @import("console/render/spinner.zig");

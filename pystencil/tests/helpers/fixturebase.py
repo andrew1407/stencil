@@ -8,6 +8,7 @@ tests/helpers/fixture_overrides.json — the shared fixtures are never edited he
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 from pathlib import Path
@@ -25,6 +26,14 @@ with open(Path(__file__).resolve().parent / "fixture_overrides.json", encoding="
 def _load(path: Path):
   with open(path, encoding="utf-8") as fh:
     return json.load(fh)
+
+
+def _opplan_text(fx: dict) -> str:
+  """An op-plan case's reply as a model would send it: verbatim, object-serialised, chunks
+  repeated (``parts``) or raw bytes decoded as a reply arrives (``inputBase64``)."""
+  if "parts" in fx: return "".join(chunk * n for chunk, n in fx["parts"])
+  if "inputBase64" in fx: return base64.b64decode(fx["inputBase64"]).decode("utf-8", "replace")
+  return fx["input"] if isinstance(fx["input"], str) else json.dumps(fx["input"])
 
 
 def _norm(v):

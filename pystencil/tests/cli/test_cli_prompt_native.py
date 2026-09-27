@@ -60,8 +60,8 @@ class ReplPromptNativeTest(_NativeReplCase):
     repl.run(io.StringIO("/blank 32 48\n/prompt rotate it, wipe it, grey it\n"))
     text = out.getvalue()
     self.assertNotIn("error:", text)
-    self.assertIn('[warning] dropped variant 1 ("wiped") — the "clear" op adjusts '
-           "the console, not the image, and cannot appear in a variant", text)
+    self.assertIn('[warning] Dropped variant 1 ("wiped") — editor-settings op "clear" is not '
+           "allowed inside variants; the rest of the plan ran", text)
     self.assertIn("applied 1 action(s) -> 48x32", text)
     self.assertIn("wrote variant-grey.png (48x32)", text)
     self.assertTrue(repl._editor.has_image())  # the image survived
@@ -79,7 +79,7 @@ class ReplPromptNativeTest(_NativeReplCase):
     text = out.getvalue()
     self.assertNotIn("error:", text)
     self.assertIn("here you go", text)
-    self.assertIn('[warning] dropped variant 1 ("wiped")', text)
+    self.assertIn('[warning] Dropped variant 1 ("wiped")', text)
     self.assertTrue(repl._editor.has_image())
 
   def test_prompt_remaps_layout_through_plan_crop(self) -> None:

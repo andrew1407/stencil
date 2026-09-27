@@ -9,6 +9,7 @@ import { pageApiHandlers } from './handlers/pageApi.js';
 import { dropZoneHandlers } from './handlers/dropZones.js';
 import { ctxProbeHandlers } from './handlers/ctxProbe.js';
 import { editorModeHandlers } from './handlers/editorMode.js';
+import { lockSessionKeyArea } from '../llm/sessionKey.js';
 import './tabState.js';   // per-tab probe state + the pins snapshot, kept fresh from storage
 
 // Build immediately on worker startup (covers reloads where onInstalled/onStartup
@@ -39,6 +40,7 @@ chrome.runtime.onStartup.addListener(bootstrap);
 // Re-assert on every worker start too (onInstalled/onStartup miss some wakes); only the
 // bridge also injects into open tabs.
 setUpScripts({ inject: ['bridge'] });
+lockSessionKeyArea();      // the anthropic session key stays out of every content script's reach
 applyAccentActionIcon();   // tint the toolbar icon's outline to the saved accent
 watchAccentActionIcon();   // …and re-tint it whenever the accent changes
 

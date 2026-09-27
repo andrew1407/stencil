@@ -82,7 +82,7 @@ namespace llmopplan {
               r.plan.ask.options[0].actions.isEmpty(),
           "an editor-settings op inside a preview drops the preview, not the plan");
     check(r.plan.warnings.size() == 1 &&
-              r.plan.warnings[0].contains("preview for option 1 \"Dark\"") &&
+              r.plan.warnings[0].contains("preview for ask option 1 (\"Dark\")") &&
               r.plan.warnings[0].contains("still offered"),
           "…with a warning naming the option");
   }
@@ -92,7 +92,7 @@ namespace llmopplan {
     check(askAnswerText({}).isEmpty(), "no pick, no answer");
     check(askAnswerText({"Sepia"}, "  a warm green  ") == "a warm green", "typed text wins, trimmed");
     check(askAnswerText({"A", "   ", ""}) == "A", "blank labels never pad the answer");
-    const int answerCap = OpSchema::desktop().limit("ask.answer");
+    const int answerCap = planLimit("ask.answer");
     check(answerCap == 500 && askAnswerText({}, QString(answerCap + 20, 'x')).size() == answerCap,
           "answer capped at the registry's ask.answer limit");
   }

@@ -31,24 +31,24 @@ class MainWindowGuiTest : public QObject {
 
     // selectedLineBarDustPoint() is plain geometry, so it runs fine offscreen even
     // though the flight it feeds does not. Its frame is the editor shell, the dust's host.
-    QVERIFY2(win.imageInfoBar && win.imageInfoBar->isVisible(), "no image-info row to anchor to");
+    QVERIFY2(win.tools.imageInfoBar && win.tools.imageInfoBar->isVisible(), "no image-info row to anchor to");
     QWidget* shell = win.editor;
     const QRect barPicture(win.selectedLineBar->mapTo(shell, QPoint(0, 0)),
                            win.selectedLineBar->size());
-    const QRect infoRectNow(win.imageInfoBar->mapTo(shell, QPoint(0, 0)), win.imageInfoBar->size());
+    const QRect infoRectNow(win.tools.imageInfoBar->mapTo(shell, QPoint(0, 0)), win.tools.imageInfoBar->size());
     const int dockTop = win.selectedLineDock->mapTo(shell, QPoint(0, 0)).y();
 
     // The x is the BAR's own centre — both bars span the full shell width (each its own
     // Qt::TopDockWidgetArea dock), so this already IS the shell's centre.
     QVERIFY2(std::abs(barPicture.center().x() - shell->width() / 2) < 4,
              "the bar itself is not spanning the full window width — the premise of this test");
-    const QPoint openPt = win.selectedLineBarDustPoint(barPicture, /*closing=*/false);
+    const QPoint openPt = win.parts.dockChrome.selectedLineBarDustPoint(barPicture, /*closing=*/false);
     QCOMPARE(openPt.x(), barPicture.center().x());
     QCOMPARE(openPt.y(), infoRectNow.bottom());   // reflow already ran — read it as-is
 
     // Closing predicts the row's post-close position (the dock's current top + the row's
     // height) rather than using its live, still-stale bottom — which would overshoot.
-    const QPoint closePt = win.selectedLineBarDustPoint(barPicture, /*closing=*/true);
+    const QPoint closePt = win.parts.dockChrome.selectedLineBarDustPoint(barPicture, /*closing=*/true);
     QCOMPARE(closePt.x(), barPicture.center().x());
     QCOMPARE(closePt.y(), dockTop + infoRectNow.height());
     QVERIFY2(closePt.y() <= barPicture.top() + infoRectNow.height(),
@@ -116,9 +116,9 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());
 
-    QVERIFY(win.compareCombo);
-    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("none"));
-    win.compareCombo->showPopup();
+    QVERIFY(win.tools.compareCombo);
+    QCOMPARE(win.tools.compareCombo->currentData().toString(), QStringLiteral("none"));
+    win.tools.compareCombo->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
@@ -130,7 +130,7 @@ class MainWindowGuiTest : public QObject {
     const QModelIndex idx = list->model()->index(2, 0);
     QCOMPARE(idx.data(Qt::DisplayRole).toString(), QString::fromUtf8("Split ↔"));
     QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualRect(idx).center());
-    QTRY_COMPARE(win.compareCombo->currentData().toString(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.tools.compareCombo->currentData().toString(), QStringLiteral("vertical"));
     QCOMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
   }
 
@@ -155,8 +155,8 @@ class MainWindowGuiTest : public QObject {
                       "{\"x\":200,\"y\":300}],\"color\":\"#000000\"}]},"
                       "{\"op\":\"compare\",\"mode\":\"vertical\",\"split\":0.5}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("red page with a centred rectangle, compared side by side");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("red page with a centred rectangle, compared side by side");
     QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
     // The arrival effect hides the canvas briefly; grab only once it is gone.
     QTRY_VERIFY(win.canvas->graphicsEffect() == nullptr);

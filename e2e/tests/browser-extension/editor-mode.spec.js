@@ -56,7 +56,7 @@ test.describe('extension editor mode', () => {
         && getComputedStyle(sec).display !== 'none';
     }))).toEqual([true, true]);
 
-    // The row's tooltip is the app's own (lib/tip.js data-title, not the native title) and LEADS
+    // The row's tooltip is the app's own (lib/tip/tip.js data-title, not the native title) and LEADS
     // with the project name, so the tab URL is asserted as a line of it rather than as its prefix.
     await ui.waitForFunction(
       () => document.querySelectorAll('#ed-list .ed-row').length > 0, null, { timeout: 15_000 });

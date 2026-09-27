@@ -16,4 +16,7 @@ public interface IStencilCli
 
     // --script-plan: a .stc lowered to op-plan JSON; `input` is the frame % lengths resolve against.
     Task<ScriptPlan> ScriptPlanAsync(string scriptPath, string? input = null, CancellationToken ct = default);
+
+    // --plan-check: core's op-plan verdict on a model reply, judged under the bot's surface.
+    Task<PlanCheck> PlanCheckAsync(string reply, CancellationToken ct = default);
 }

@@ -1,18 +1,12 @@
 #include "ProjectsDialog.hpp"
 #include <QPushButton>
+#include <QLabel>
 
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
-#include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "../../../support/control/reveal/controlReveal.hpp"
-#include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/theme/filterFade.hpp"
-#include "../../../support/guiHelpers.hpp"
 #include "../../../support/modal/modalChrome.hpp"
-#include "AppTooltip.hpp"
-
 
 namespace stencil::gui {
 
@@ -66,8 +60,8 @@ namespace stencil::gui {
     if (batch.batchCopyServer) batch.batchCopyServer->setVisible(dir.toServer);
     if (batch.batchToLocal) batch.batchToLocal->setVisible(dir.toLocal);
     if (batch.batchCopyLocal) batch.batchCopyLocal->setVisible(dir.toLocal);
-    // Browser surface/motion.js revealControls. Laid out first: the flips above have only QUEUED the re-flow,
-    // and the swap photographs the group as it stands.
+    // Browser control/revealControls.js revealControls. Laid out first: the flips above have only
+    // QUEUED the re-flow, and the swap photographs the group as it stands.
     if (batch.batchSelectedGroup) {
       if (QLayout* gl = batch.batchSelectedGroup->layout()) gl->activate();
       revealControls(batch.batchSelectedGroup, n > 0);
@@ -98,7 +92,7 @@ namespace stencil::gui {
             (it->flags() & Qt::ItemIsUserCheckable);
     }
     revealControls(selectAllBtn, any);
-    // Browser motion/icons.js setSelectAllFace.
+    // Browser icons.js setSelectAllFace.
     const bool all = allFilteredChecked();
     selectAllBtn->setText(all ? tr("Deselect all") : tr("Select all"));
     selectAllBtn->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));

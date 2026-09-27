@@ -20,13 +20,17 @@ def _buf_view(buf: bytearray) -> ctypes.Array:
   """Cast a bytearray into a ctypes c_uint8 array that aliases the SAME memory.
 
   Using from_buffer (not from_buffer_copy) is what makes in-place core ops visible to
-  the caller's bytearray.
+  the caller's bytearray. Pass it straight to the call: a ``ctypes.cast`` of it forms a
+  reference cycle that keeps the bytearray exported (unresizable) until the next GC.
   """
   return (ctypes.c_uint8 * len(buf)).from_buffer(buf)
 
 
-def _bytes_arg(src: bytes) -> ctypes.Array:
-  """A read-only c_uint8 array for an immutable bytes source (a private copy is fine)."""
+def _bytes_arg(src):
+  """A read-only source for a ``c_void_p`` parameter, aliased rather than copied: bytes
+  pass as they are, a bytearray through :func:`_buf_view`; anything else is copied once."""
+  if isinstance(src, bytes): return src
+  if isinstance(src, bytearray): return _buf_view(src)
   return (ctypes.c_uint8 * len(src)).from_buffer_copy(src)
 
 

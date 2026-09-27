@@ -66,6 +66,32 @@ namespace llmexec {
       check(!res.ok && res.error.contains("history is not available"),
             "a history-less surface rejects undo outright");
     }
+    {
+      // A plan's filter is a step on the sandbox's own stack, as a pick is on the live editor.
+      CanvasPlanTarget target(img, a4);
+      const ExecResult res = executePlan(parseOpPlan(R"({"reply":"f","actions":[
+          {"op":"filter","mode":"sepia"},{"op":"undo"}]})").plan, target);
+      check(res.ok && res.notes.isEmpty() && target.captureEdit()->filter == "none",
+            "undo takes a plan's filter back");
+    }
+    {
+      // A .stc checkpoint (contracts/stc §7) puts back the turn its crop was taken on first.
+      CanvasPlanTarget target(img, a4);
+      target.applyCropRect({2, 1, 10, 8});
+      const stencil::core::EditorMemento mark = *target.captureEdit();
+      stencil::core::Line line;
+      line.points = {{1, 1}, {5, 5}};
+      target.rotateQuarter(/*clockwise=*/true);
+      target.setImageFilter(QStringLiteral("bw"), QString());
+      target.commitLayoutLines({line});
+      target.restoreEdit(mark);
+      const stencil::core::EditorMemento now = *target.captureEdit();
+      check(now.quarters == 0 && now.crop.x == 2 && now.crop.y == 1 && now.crop.width == 10 &&
+                now.crop.height == 8 && target.workingSize() == QSize(10, 8),
+            "a restored checkpoint is back on its turn and crop");
+      check(now.filter == mark.filter && now.filterColor == mark.filterColor && now.lines.empty(),
+            "…with its filter and lines");
+    }
   }
 
   // ── §10 compare / zoom (view-only) ──

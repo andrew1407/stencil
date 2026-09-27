@@ -54,7 +54,7 @@ test('every .ic- rule is byte-identical to the browser app\'s', () => {
     if (r.prelude.startsWith('@') || !r.prelude.includes('.ic-')) continue;
     for (const sel of r.prelude.split(',').map(squash)) {
       const app = APP_SEL.get(sel);
-      assert.ok(app, `"${sel}" exists here but not in browser/css/animations/iconHover.css`);
+      assert.ok(app, `"${sel}" exists here but not in browser/css/animations/icon/hover.css`);
       assert.ok(app.includes(r.body),
         `"${sel}" drifted from the app:\n  ext: ${r.body}\n  app: ${app.join(' | ')}`);
       compared++;

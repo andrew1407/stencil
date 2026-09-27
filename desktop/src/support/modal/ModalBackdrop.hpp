@@ -77,8 +77,8 @@ namespace stencil::support {
       }
     }
 
-    // EVERY app window behind the dialog, not just its parent's: the assistant settings
-    // parent to the chat dock while it floats, and only that dock would dim otherwise.
+    // EVERY app window behind the dialog, not just its parent's: a floating chat dock or a
+    // second project window would stay undimmed otherwise.
     static void behindAll(QDialog* dlg) {
       if (!dlg) return;
       for (QWidget* w : QApplication::topLevelWidgets()) {

@@ -1,12 +1,8 @@
 #include "LogoHoverFx.hpp"
-#include "../../support/motionPrefs.hpp"
 #include "../../support/skinPrefs.hpp"
 
-#include <QEvent>
 #include <QPainter>
-#include <QCursor>
 #include <QRadialGradient>
-#include <QTimer>
 #include <QToolButton>
 #include <QVariantAnimation>
 #include <cmath>

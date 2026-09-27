@@ -7,7 +7,7 @@ using static Stencil.TelegramBot.Tests.Servers.ServerWireRig;
 
 namespace Stencil.TelegramBot.Tests.Servers;
 
-/// <summary>The token handshake of <see cref="HttpStencilServerClient"/>: how a token is classified, when an admin credential mints a session token, and which probe rejections propagate.</summary>
+/// <summary>The token handshake of <see cref="HttpStencilServerClient"/>: the <c>GET /auth/session</c> probe (a one-row project page on a server too old to have it), how a token is classified, when an admin credential mints a session token, and which probe rejections propagate.</summary>
 public sealed class ServerConnectWireTests
 {
     [Fact]
@@ -41,7 +41,7 @@ public sealed class ServerConnectWireTests
 
         Assert.Equal("sess-tok", handshake.Token);
         Assert.Equal(CredentialKind.SESSION, handshake.CredentialKind);
-        Assert.Equal(["/projects"], paths.ToArray()); // validated directly, nothing minted
+        Assert.Equal(["/auth/session"], paths.ToArray()); // validated directly, nothing minted or listed
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ServerConnectWireTests
             {
                 return CannedHttpMessageHandler.Json("{\"token\":\"sess-1\"}");
             }
-            // /projects: the admin token can't list, the minted session token can.
+            // /auth/session: the admin token is no session, the minted session token is.
             return req.Headers.Authorization?.Parameter == "sess-1"
                 ? CannedHttpMessageHandler.Json("{\"projects\":[]}")
                 : CannedHttpMessageHandler.Json(
@@ -68,7 +68,7 @@ public sealed class ServerConnectWireTests
         Assert.Equal("sess-1", handshake.Token);
         // The mint-then-validate round PROVED the credential is the server's admin token.
         Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
-        Assert.Equal(["/projects", "/auth/token", "/projects"], calls.Select(c => c.Path).ToArray());
+        Assert.Equal(["/auth/session", "/auth/token", "/auth/session"], calls.Select(c => c.Path).ToArray());
         Assert.Equal("adm-secret", calls[1].Bearer); // the mint carried the admin token as bearer
     }
 
@@ -94,8 +94,55 @@ public sealed class ServerConnectWireTests
         Assert.Equal("sess-2", handshake.Token);
         Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
         // Mint first, then prove the session works — no 401 probe spent up front.
-        Assert.Equal(["/auth/token", "/projects"], calls.Select(c => c.Path).ToArray());
+        Assert.Equal(["/auth/token", "/auth/session"], calls.Select(c => c.Path).ToArray());
         Assert.Equal("adm-secret", calls[0].Bearer);
+    }
+
+    [Fact]
+    public async Task Should_Probe_A_One_Row_Page_When_The_Server_Predates_Auth_Session()
+    {
+        List<string> calls = new();
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            calls.Add(req.RequestUri!.PathAndQuery);
+            return req.RequestUri.AbsolutePath == "/auth/session"
+                ? CannedHttpMessageHandler.Json("{\"code\":\"notFound\",\"message\":\"404 page not found\"}", HttpStatusCode.NotFound)
+                : CannedHttpMessageHandler.Json("{\"projects\":[]}");
+        });
+        HttpStencilServerClient client = Client(handler, token: null);
+
+        ServerHandshake handshake = await client.ConnectAsync("sess-tok");
+
+        Assert.Equal(CredentialKind.SESSION, handshake.CredentialKind);
+        Assert.Equal(["/auth/session", "/projects?limit=1"], calls.ToArray());
+    }
+
+    [Fact]
+    public async Task Should_Prove_An_Admin_Token_Through_The_Fallback_Page_On_An_Older_Server()
+    {
+        List<string> calls = new();
+        CannedHttpMessageHandler handler = new((req, _) =>
+        {
+            calls.Add(req.RequestUri!.AbsolutePath);
+            if (req.RequestUri.AbsolutePath == "/auth/session")
+            {
+                return CannedHttpMessageHandler.Empty(HttpStatusCode.NotFound);
+            }
+            if (req.RequestUri.AbsolutePath == "/auth/token")
+            {
+                return CannedHttpMessageHandler.Json("{\"token\":\"sess-3\"}");
+            }
+            return req.Headers.Authorization?.Parameter == "sess-3"
+                ? CannedHttpMessageHandler.Json("{\"projects\":[]}")
+                : CannedHttpMessageHandler.Json("{\"code\":\"unauthorized\"}", HttpStatusCode.Unauthorized);
+        });
+        HttpStencilServerClient client = Client(handler, token: null);
+
+        ServerHandshake handshake = await client.ConnectAsync("adm-secret");
+
+        Assert.Equal("sess-3", handshake.Token);
+        Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
+        Assert.Equal(["/auth/session", "/projects", "/auth/token", "/projects"], calls.ToArray());
     }
 
     [Fact]

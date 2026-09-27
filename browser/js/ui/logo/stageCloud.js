@@ -1,6 +1,6 @@
 // The cloud around the stage's mark: motes born on its edge, posed by the shared styleFrame and
 // shaped by the shared grain kit (cloud.js), so fire, water and dust look the same here as
-// everywhere else. Desktop twin: app/LogoStageCloud.cpp.
+// everywhere else. Desktop twin: app/logo/LogoStagePaint.cpp.
 import { styleFrame, tintOf, stopOfTint, dustMix, fract, PARTICLE_STYLES, STYLE_WATER, STYLE_FIRE } from '../dust/flight.js';
 import { grainShape, paletteCss, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK } from '../dust/grain.js';
 import { fillGrains, resolveColour } from '../dust/cloud.js';

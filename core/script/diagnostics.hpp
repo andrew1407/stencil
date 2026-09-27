@@ -1,6 +1,7 @@
 #pragma once
 #include "types.hpp"
 
+#include <set>
 #include <string_view>
 
 // Diagnostic construction and the "did you mean" suggester.
@@ -30,5 +31,17 @@ namespace stencil::core::script {
   std::string formatDiagnostic(const std::string& file, const Diagnostic& d);
 
   bool hasErrors(const std::vector<Diagnostic>& diagnostics);
+
+  // The `@use stencil` statement an expansion came from: its directive's line, byte column, length.
+  struct CallSite {
+    int line;
+    int col;
+    int len;
+  };
+
+  // Diagnostics from `from` on came out of a template `call` expanded: each names that call and
+  // carries it as its related span, and one already in `seen` (same code, same span) is dropped.
+  void noteCallSite(std::vector<Diagnostic>& diags, std::size_t from, CallSite call,
+                    std::set<std::string>& seen);
 
 }  // namespace stencil::core::script

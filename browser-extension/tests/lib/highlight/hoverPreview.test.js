@@ -1,4 +1,4 @@
-// Tests for src/lib/hoverPreview.js — the rows' floating magnifier card extracted from
+// Tests for src/lib/highlight/hoverPreview.js — the rows' floating magnifier card extracted from
 // popup.js: pure placement, the worthwhile gate, and the debounce / stale-token /
 // tiny-memo machinery, driven with stub elements.
 import { test } from 'node:test';

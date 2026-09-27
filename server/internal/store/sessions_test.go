@@ -50,3 +50,26 @@ func TestExpiredSessionRejectedEndToEnd(t *testing.T) {
 		t.Fatalf("live session should verify, got %v", err)
 	}
 }
+
+// The sweep's session half: only rows past a non-zero expiry go, in bounded batches.
+func TestDeleteExpiredSessions(t *testing.T) {
+	s := requireStore(t)
+	ctx := context.Background()
+	for _, exp := range []int64{100, 200, 0, 9_000} {
+		_, hash, _ := auth.GenerateToken()
+		if _, err := s.CreateSession(ctx, hash, "t", 1, exp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := s.DeleteExpiredSessions(ctx, 1_000, 1)
+	if err != nil || n != 1 {
+		t.Fatalf("first batch: %d %v, want 1", n, err)
+	}
+	if n, _ = s.DeleteExpiredSessions(ctx, 1_000, 10); n != 1 {
+		t.Fatalf("second batch: %d, want the other expired row", n)
+	}
+	var left int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM sessions`).Scan(&left); err != nil || left != 2 {
+		t.Fatalf("left %d (%v), want the never-expiring and the future session", left, err)
+	}
+}

@@ -1,3 +1,4 @@
+import { CHANGE, changed } from '../app/changes.js';
 // The single/multi selection set and the two ways to change it (⌘/Ctrl+Shift+click on the
 // canvas, a click in the Lines tab).
 
@@ -7,8 +8,12 @@ export const selectedIndices = (app) => {
   return src.filter((i) => i >= 0 && i < app.lines.length);
 };
 
-export const isLineSelected = (app, i) => {
-  return app.selectedLines.length ? app.selectedLines.includes(i) : i === app.selectedLineIdx;
+// Whether line i is selected, for a whole frame: one Set over the multi-selection, not an
+// includes per line; single-select reads `selectedLineIdx`.
+export const selectionPredicate = (app) => {
+  if (!app.selectedLines?.length) { const one = app.selectedLineIdx; return (i) => i === one; }
+  const set = new Set(app.selectedLines);
+  return (i) => set.has(i);
 };
 
 // Ctrl/⌘+Shift+click toggles `idx`; exactly one left drops back to single-select (editor
@@ -32,7 +37,7 @@ export const toggleLineSelection = (app, idx) => {
     app.selectedLineIdx = -1;
     app.hideSelectionPanels();
   }
-  app.updateMultiSelectStatus();
+  updateMultiSelectStatus(app);
   app.renderer.redraw();
 };
 
@@ -44,7 +49,7 @@ export const updateMultiSelectStatus = (app) => {
   if (n >= 2) el.textContent = `${n} lines selected — ⌘/Ctrl+Shift+click to add/remove · Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all`;
   else if (el.dataset.multi) el.textContent = '';
   el.dataset.multi = n >= 2 ? '1' : '';
-  app.renderLinesList();
+  changed(app, CHANGE.selection);
 };
 
 // A click on the letterbox OUTSIDE the image drops the selection; canvasClick() is bound
@@ -59,14 +64,15 @@ export const deselectEmptyArea = (app, e) => {
   app.deselectLine();
 };
 
-export const applySelectionChange = (app, prop, value) => {
+// `commit:false` is a picker's live `input` preview; the trailing `change` commits one history step.
+export const applySelectionChange = (app, prop, value, { commit = true } = {}) => {
   if (app.compareReadOnly()) return;
   if (app.selectedLineIdx === -1) return;
   const line = app.lines[app.selectedLineIdx];
 // A line still on the inherit fallback ('' pointColor) pins its rendered colour first.
   if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
   line[prop] = value;
-  app.saveHistory();
+  if (commit) app.saveHistory();
   app.renderer.redraw();
 };
 
@@ -89,7 +95,7 @@ export const selectLineFromList = (app, idx, ctrlShift = false) => {
   app.coordLineIdx = idx;
   app.focusedPtIdx = -1;
   app.coordTable.update(app.lines[idx].points, idx);
-  app.updateMultiSelectStatus();
+  updateMultiSelectStatus(app);
   app.renderer.redraw();
   return this;
 };

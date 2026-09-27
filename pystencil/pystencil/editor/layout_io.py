@@ -8,7 +8,7 @@ import json
 import os
 
 from .._ffi.types import NoneType
-from ..layout import Layout, Line
+from ..layout import Layout, Line, cap_lines
 from ..scriptpaths import is_url
 from ._snapshot import _Snapshot, LayoutLike
 from .source import _SourceApi
@@ -20,7 +20,8 @@ class _LayoutApi:
     """Draw a layout's lines (mirror ``session.addLines``).
 
     ``combine`` (the default) APPENDS them after the lines already drawn — the same
-    choice the GUI editors offer when a layout lands on an existing one. Pass
+    choice the GUI editors offer when a layout lands on an existing one, and cut at the
+    same layout caps when the two together pass them. Pass
     ``combine=False`` to REPLACE the current lines instead, keeping the rest of the
     state (use :meth:`apply_layout` to adopt a layout's rotation/crop/filter too).
     ``layout`` may be a :class:`Layout`, dict, JSON string, path, URL or Line list.
@@ -29,7 +30,7 @@ class _LayoutApi:
     add = self.__coerce_lines(layout)
     cur = self._current()
     nxt = cur.copy()
-    nxt.lines = (list(cur.lines) + add) if combine else add
+    nxt.lines = cap_lines(list(cur.lines) + add) if combine else add
     self._push(nxt)
     return self
 

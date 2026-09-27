@@ -12,7 +12,7 @@ export const mountDropChoice = (accent = '#7c3aed', mode = 'system') => new Prom
   let prefersDark = false;
   try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { /* no matchMedia */ }
   const dark = mode === 'dark' || (mode !== 'light' && prefersDark);
-  // Card colours from lib/theme/palette.css, like lib/zones.js.
+  // Card colours from lib/theme/palette.css, like lib/drop/zones.js.
   const cardBg = dark ? 'rgba(33,36,45,.97)' : 'rgba(244,245,247,.98)';
   const cardFg = dark ? '#e8eaf0' : '#1d2230';
   const style = document.createElement('style');

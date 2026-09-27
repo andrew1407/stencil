@@ -64,7 +64,7 @@ export class StencilProjectsModal extends StencilElement {
     // Kept alive (not revoked on load) so the hover-magnify zoom can reuse them.
     const remoteObjectUrls = new Set();
 
-    // Multi-select + the batch bar (ui/projects/selection.js).
+    // Multi-select + the batch bar (ui/projects/list/selection.js).
     const {
       selected, doomed, selectables, batchBtns, sel, retireKey, localKey, remoteKey,
       isServerMeta, allSelected, updateBatchBar, clearSelection, toggleSelect,
@@ -104,7 +104,7 @@ export class StencilProjectsModal extends StencilElement {
 
     const openColorPicker = createColorPicker({ app, list, render });
 
-    // One local project row (ui/projects/localRow.js); `render` and `close` cross as thunks.
+    // One local project row (ui/projects/row/localRow.js); `render` and `close` cross as thunks.
     const makeRow = createLocalRow({
       app, close: () => close(), render,
       localKey, selected, selectables, isServerMeta, toggleSelect,
@@ -113,7 +113,7 @@ export class StencilProjectsModal extends StencilElement {
       rowById, showMenu,
     });
 
-    // One server-project row (ui/projects/remoteRow.js); `render`, `close`, `openRemote` and
+    // One server-project row (ui/projects/row/remoteRow.js); `render`, `close`, `openRemote` and
     // `invalidateRemotes` are declared below, so they cross as thunks.
     const makeRemoteRow = createRemoteRow({
       app, close: () => close(), render,
@@ -124,8 +124,8 @@ export class StencilProjectsModal extends StencilElement {
       invalidateRemotes: () => invalidateRemotes(),
     });
 
-    // Shared with the external-launch server hand-off (DrawingApp.openRemoteProject).
-    const openRemote = (meta) => app.openRemoteProject(meta);
+    // Shared with the external-launch server hand-off (projectTransfer.openRemoteProject).
+    const openRemote = (meta) => app.projectTransfer.openRemoteProject(meta);
 
     // A skipped render is picked up by the settle render / endDrag's render instead.
     const mayRefresh = () => canRefreshList({
@@ -147,7 +147,7 @@ export class StencilProjectsModal extends StencilElement {
       isPeerOpen, isServerMeta, makeRow, makeRemoteRow, incognitoPeers: () => incognitoPeers,
     });
 
-    // Manual reorder + the drag-out zones (ui/projects/dragReorder.js).
+    // Manual reorder + the drag-out zones (ui/projects/list/dragReorder.js).
     const { attachRowDrag, keyMeta, isDragging } = createDragReorder({
       list, overlay, app, close: () => close(), render,
       sortMode: () => prefs.sortMode(), setSortMode: (m) => setSortMode(m),
@@ -186,7 +186,7 @@ export class StencilProjectsModal extends StencilElement {
     sortEl.addEventListener('change', () => { setSortMode(sortEl.value); runFilter(); });
     searchModeEl.addEventListener('change', () => { setSearchMode(searchModeEl.value); runFilter(); });
 
-    // Batch actions over the checked rows (ui/projects/batchActions.js).
+    // Batch actions over the checked rows (ui/projects/list/batchActions.js).
     wireBatchActions({
       app, batchBtns, sel, selected, selectables, doomed, clearSelection, allSelected,
       updateBatchBar, render, pickServer, beginRemoval, rowById,

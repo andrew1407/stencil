@@ -1,5 +1,5 @@
-// The .stc entry point. Port of core/script/scriptProgram.cpp; the wasm build runs the C++
-// and this body is the fallback, which browser/tests/wasm-parity-script.test.js pins op-for-op.
+// The .stc entry point. Port of core/script/program/scriptProgram.cpp; the wasm build runs the C++
+// and this body is the fallback, which browser/tests/wasm/wasm-parity-script.test.js pins op-for-op.
 import { core } from './abi/stencilCore.js';
 import { resolveAxisPx } from './settings/units.js';
 import { hasErrors } from './script/diagnostics.js';

@@ -1,4 +1,4 @@
-// Tests for src/lib/logoDragMenu.js — the header logo's spring-loaded drag menu
+// Tests for src/lib/accent/logoDragMenu.js — the header logo's spring-loaded drag menu
 // extracted from popup.js: the spring dwell, drop-only items, the once-per-release
 // gate, the grace countdown, and the file-MIME menu hint.
 import { test } from 'node:test';
@@ -173,7 +173,7 @@ test('release and dismiss close the menu; armUpdate pulses the logo only for usa
 });
 
 // data-title, not an SVG <title> child and not a title attribute: either of those
-// raises Chrome's own popup on top of the custom tooltip (src/lib/tip.js).
+// raises Chrome's own popup on top of the custom tooltip (src/lib/tip/tip.js).
 test('the logo carries the drop hint as data-title, with no native <title>', () => {
   const { logoEl } = build();
   assert.equal(logoEl.dataset.title, LOGO_DROP_HINT);

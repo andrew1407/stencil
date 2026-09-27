@@ -9,8 +9,6 @@ import (
 	"context"
 	"errors"
 
-	"stencil/server/internal/eventbus"
-	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 )
 
@@ -23,11 +21,19 @@ var (
 	ErrProjectInUse = errors.New("service: project is in use by other clients")
 	// ErrRecordFile: the bytes landed but the project row did not take them.
 	ErrRecordFile = errors.New("service: could not record the stored file")
+	// ErrBadOriginal: a create's inline original is no base64 image data URL.
+	ErrBadOriginal = errors.New("service: originalContent is not a base64 image data URL")
+	// ErrStoreOriginal: a create's inline original was refused; it wraps the upload path's own error.
+	ErrStoreOriginal = errors.New("service: could not store the original")
 )
 
-// announce publishes a project-lifecycle event on the global feed.
-func announce(ctx context.Context, b eventbus.Bus, event string, rec protocol.ProjectRecord) {
-	eventbus.PublishProjectEvent(ctx, b, event, rec)
+// exists turns a missing row into store.ErrNotFound, the one failure a caller branches on.
+func exists(ctx context.Context, projects ProjectStore, id string) error {
+	ok, err := projects.ProjectExists(ctx, id)
+	if err == nil && !ok {
+		err = store.ErrNotFound
+	}
+	return err
 }
 
 // isMissing reports whether err says the project is gone.

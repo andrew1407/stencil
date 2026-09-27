@@ -5,6 +5,7 @@
 #include "text.hpp"
 
 #include <array>
+#include <initializer_list>
 #include <string_view>
 
 namespace stencil::core::script {
@@ -25,6 +26,21 @@ namespace stencil::core::script {
     std::string mirror(const std::string& tok) {
       if (!tok.empty() && tok[0] == '-') return tok.substr(1);
       return "-" + tok;
+    }
+
+    // The CROP_ASPECT form resolveCropRect applies: two whole numbers above zero, "W:H".
+    bool isAspectRatio(std::string_view s) {
+      const std::size_t colon = s.find(':');
+      if (colon == std::string_view::npos) return false;
+      for (std::string_view side : {s.substr(0, colon), s.substr(colon + 1)}) {
+        bool positive = false;
+        for (char ch : side) {
+          if (ch < '0' || ch > '9') return false;
+          positive = positive || ch != '0';
+        }
+        if (!positive) return false;
+      }
+      return true;
     }
 
   }  // namespace
@@ -50,12 +66,18 @@ namespace stencil::core::script {
             diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", t, "'aspect' needs a W:H ratio"));
             return false;
           }
-          aspect = unquoteWord(c.peek().text);
+          const Token& value = c.peek();
+          aspect = unquoteWord(value.text);
           ++c.i;
           // The lexer splits "3:2" on the ':'; re-join the far side.
           if (!c.atEnd() && isPunct(c.peek(), ":")) {
             ++c.i;
             if (!c.atEnd()) { aspect += ":" + c.peek().text; ++c.i; }
+          }
+          if (!isAspectRatio(aspect)) {
+            diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", value,
+                                     "'aspect' needs a W:H ratio of two whole numbers above 0"));
+            return false;
           }
           continue;
         }
@@ -80,6 +102,10 @@ namespace stencil::core::script {
         op.nums.assign(1, 1.0);
         ++c.i;
         continue;
+      }
+      if (isMalformedNumber(t)) {
+        diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", t, malformedNumberMessage(t)));
+        return false;
       }
       diags.push_back(makeDiag(Severity::ERROR, "E_CROP_UNKNOWN_KEY", t,
                                "'" + t.text + "' is not a crop key (x1, x2, y1, y2, aspect)"));

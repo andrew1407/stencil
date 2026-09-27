@@ -1,6 +1,8 @@
 // Putting a new image in front of the user: opening one in this editor (optionally creating
 // it on a server), resetting to a blank editor, and replacing the active project's image.
 import { requireConnection } from '../../net/remoteSync.js';
+import { loadImageFromFile } from '../image/loadFlow.js';
+import { reportIncognitoSession } from './incognitoFlow.js';
 
 // An explicit `crop` wins; else `noCrop` imports the whole frame; provenance rides along.
 // Returns the mutated target.
@@ -25,7 +27,7 @@ export const newEditor = (app, { keepChat = false } = {}) => {
 // Dropping the image can move the viewport's top (the toolbar reflows) — re-measure.
   app.zoomPan.syncViewportHeight();
   app.tabs.reportActive(null);
-  app.reportIncognitoSession();
+  reportIncognitoSession(app);
 };
 
 // `address` creates+links the project there, but incognito wins over a server target
@@ -35,16 +37,16 @@ export const openImageHere = (app, file, incognito = false, address = null, opts
   const toServer = !!address && !incognito;
   if (toServer) requireConnection(app.connections, address);
   if (!app.storage.incognito) app.storage.save();
-  app.newEditor();
+  newEditor(app);
   if (incognito) { app.storage.incognito = true; app.updateIncognitoUI(); }
-  app.loadImageFromFile(file, applyOpenOpts(toServer ? { address } : {}, opts));
+  loadImageFromFile(app, file, applyOpenOpts(toServer ? { address } : {}, opts));
 };
 
 // Same id / server link. `crop` is a rect in the NEW image's pixels; the stale pin drops
 // in loadImageFromFile.
 export const replaceProjectImage = (app, file, { rename = false, keepAnnotations = true, crop = null } = {}) => {
   if (!file) return;
-  app.loadImageFromFile(file, { replaceInPlace: true, rename, keepAnnotations, ...(crop ? { crop } : {}) });
+  loadImageFromFile(app, file, { replaceInPlace: true, rename, keepAnnotations, ...(crop ? { crop } : {}) });
 };
 
 // The server forbids image-less projects, so the upcoming blank()/open creates it WITH

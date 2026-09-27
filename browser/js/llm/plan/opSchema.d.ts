@@ -72,6 +72,17 @@ export interface SchemaLimits {
   [group: string]: number | Record<string, number | string>;
 }
 
+/** One `surfaceRules` row: a native check on a surface's normalized action, its data and wording. */
+export interface SurfaceRule {
+  op: string;
+  rule: 'anyOf' | 'knownColor' | 'pathExtension';
+  key: string;
+  keys?: string[];
+  extensions?: string[];
+  /** The detail after "Invalid <op> action: "; "{value}" is the checked key's value. */
+  message: string;
+}
+
 /** config/llm/opRegistry.json, as createSchema reads it. */
 export interface OpRegistry {
   $meta: { schemaVersion: number; surfaceProfiles: Record<string, string> };
@@ -80,7 +91,8 @@ export interface OpRegistry {
   regexes: Record<string, string> & { describe: Record<string, string> };
   profiles: Record<string, { ops: string[]; surfaces?: string[] }>;
   ops: RegistryOp[];
-  forbidden: { core: string[]; perSurface: Record<string, string[]> };
+  forbidden: { core: string[]; perSurface: Record<string, string[]>; hardFail?: string[] };
+  surfaceRules?: Record<string, SurfaceRule[] | string>;
   ask: { defaultCustomLabel: string; schema: KeyHolder };
   opsets: Record<string, {
     ops: string[];
@@ -99,13 +111,21 @@ export interface Schema {
   ops: Map<string, SchemaEntry>;
   /** Ops the surface must refuse outright (contract §13). */
   forbidden: Set<string>;
+  /** A forbidden op fails the whole plan here, instead of the unknown-op skip. */
+  hardFail: boolean;
+  surfaceRules: SurfaceRule[];
   regexes: Record<string, RegExp>;
+  /** The §1 JSON caps (limits.json), or null when the registry carries none. */
+  jsonCaps: { depth: number; bytes: number; nodes: number } | null;
+  defaultCustomLabel: string;
   /** A number as is, or a dotted limit name resolved; throws on an unknown name. */
   limit(v: number | string): number;
   /** Throws "Invalid <op> action: …"; returns the action as validated (post-fold). */
   validateAction(a: unknown, entry: SchemaEntry): Record<string, unknown>;
   /** { op, ...declared keys present (deep-picked), defaults }. */
   normalize(v: Record<string, unknown>, entry: SchemaEntry): Record<string, unknown>;
+  /** validateAction → normalize → the surface rules; throws "Invalid <op> action: …" with a `detail`. */
+  accept(a: unknown, entry: SchemaEntry): Record<string, unknown>;
   /** The §11 card's structure; throws "Invalid plan: …". */
   validateAsk(ask: unknown): void;
   normalizeAsk(ask: Record<string, unknown>): Record<string, unknown>;
@@ -116,4 +136,10 @@ export interface Schema {
   checkEnvelope(v: unknown, key: string): void;
 }
 
-export declare const createSchema: (registry: OpRegistry, surface: string) => Schema;
+/** `capabilities` absent = every one wired; `knownColor` backs the knownColor surface rule. */
+export interface SchemaOptions {
+  capabilities?: Iterable<string>;
+  knownColor?: (name: string) => boolean;
+}
+
+export declare const createSchema: (registry: OpRegistry, surface: string, options?: SchemaOptions) => Schema;

@@ -1,9 +1,11 @@
 // Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/opPlan/) against the REAL
-// desktop validator (src/llm/opPlan.cpp) — the port of browser/tests/opPlanFixtures.test.js. Verdict
-// semantics: "valid" = parseOpPlan succeeds (a chat-only fallback counts), "invalid" = it fails. Object
-// `input` is serialized compact, string `input` fed verbatim. The desktop profile is "editor", and a
-// knownDivergence.desktop — or a local tests/fixtureOverrides.json entry, which wins — replaces expect.
+// desktop parser — the port of browser/tests/llm/plan/opPlanFixtures.test.js. Verdict semantics: "valid" =
+// parseOpPlan succeeds (a chat-only fallback counts), "invalid" = it fails; the desktop profile is
+// "editor", a knownDivergence.desktop (or a tests/fixtureOverrides.json entry) replaces expect, and
+// core's result document for every case is byte-compared with generated/normalized.json's desktop row.
+#include "OpPlanSchema.hpp"
 #include "opPlan.hpp"
+#include "opRegistry.hpp"
 
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -12,34 +14,67 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <cstdio>
+#include <map>
 #include <utility>
 #include <vector>
 
 #include "../../support/check.hpp"
 #include "../../support/fixtureCorpus.hpp"
+#include "opPlanCorpus.hpp"
 
 using namespace stencil::llm;
+
+namespace {
+  QJsonObject toQt(const opPlanCorpus::Value& v) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(stencil::core::json::toJson(v))).object();
+  }
+
+  // Core's result for every case the JS reference recorded for this surface, byte for byte.
+  void checkGolden(const std::vector<opPlanCorpus::Case>& all) {
+    std::map<std::pair<std::string, QString>, const opPlanCorpus::Case*> byName;
+    for (const opPlanCorpus::Case& c : all)
+      byName[{c.source, QString::fromStdString(c.fx.get("name")->text)}] = &c;
+    const QJsonArray cases =
+        readJsonFile(corpusPath("llm/fixtures/opPlan/generated/normalized.json")).object().value("cases").toArray();
+    int compared = 0, missing = 0, differ = 0;
+    for (const QJsonValue& cv : cases) {
+      const QJsonObject c = cv.toObject();
+      for (const QJsonValue& g : c.value("results").toArray()) {
+        if (!g.toObject().value("surfaces").toArray().contains(QStringLiteral("desktop"))) continue;
+        const auto it = byName.find({c.value("source").toString().toStdString(), c.value("name").toString()});
+        if (it == byName.end()) { ++missing; continue; }
+        ++compared;
+        const QByteArray got = planSchema().walk(QByteArray::fromStdString(it->second->text));
+        if (got == g.toObject().value("json").toString().toUtf8()) continue;
+        ++differ;
+        std::printf("  [DIFF] %s\n       got: %s\n", qPrintable(it->second->label), got.left(400).constData());
+      }
+    }
+    check(missing == 0, "every golden case is in the corpus");
+    check(compared >= 560 && differ == 0,
+          qPrintable(QStringLiteral("core's result matches normalized.json on %1 of %2 desktop cases")
+                         .arg(compared - differ).arg(compared)));
+  }
+}  // namespace
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
-  const QString dir = corpusPath("llm/fixtures/opPlan");
-  // The hand-written bundle (each case carrying its stable "file" label) plus the registry-generated one
-  // (generated/cases.json, browser/tools/genOpPlanFixtures.mjs), whose cases walk as "<name>.json".
-  const QJsonArray hand = readJsonFile(dir + "/cases.json").object().value("cases").toArray();
-  const QJsonArray generated =
-      readJsonFile(dir + "/generated/cases.json").object().value("cases").toArray();
-  std::vector<std::pair<QString, QJsonObject>> corpus;
-  for (const QJsonValue& c : hand)
-    corpus.emplace_back(c.toObject().value("file").toString(), c.toObject());
-  for (const QJsonValue& c : generated)
-    corpus.emplace_back(c.toObject().value("name").toString() + ".json", c.toObject());
+  const std::vector<opPlanCorpus::Case> all = opPlanCorpus::load();
   // Floors per bundle, not on the total: the generated cases alone clear a combined floor,
   // so a vanished cases.json would otherwise walk green.
-  check(hand.size() >= 180,
-        qPrintable(QStringLiteral("hand-written cases.json holds %1 cases").arg(hand.size())));
-  check(generated.size() >= 400,
-        qPrintable(QStringLiteral("generated/cases.json holds %1 cases").arg(generated.size())));
+  std::vector<std::pair<QString, QJsonObject>> corpus;
+  std::map<QString, std::string> texts;
+  int hand = 0, generated = 0;
+  for (const opPlanCorpus::Case& c : all) {
+    if (c.source == "oracle") continue;
+    (c.source == "hand" ? hand : generated) += 1;
+    corpus.emplace_back(c.label, toQt(c.fx));
+    texts[c.label] = c.text;
+  }
+  check(hand >= 180, qPrintable(QStringLiteral("hand-written cases.json holds %1 cases").arg(hand)));
+  check(generated >= 400, qPrintable(QStringLiteral("generated/cases.json holds %1 cases").arg(generated)));
+  check(planSchema().error().isEmpty(), qPrintable("the qrc registry resolves for desktop: " + planSchema().error()));
 
   static const QSet<QString> PROFILES = {"editor", "console", "bot", "mcp", "extension", "all"};
   static const QSet<QString> SURFACES = {"browser", "desktop", "cli", "pystencil",
@@ -108,12 +143,8 @@ int main(int argc, char** argv) {
       ++overridden;
     }
 
-    const QJsonValue input = fx.value("input");
-    const QString text = input.isString()
-        ? input.toString()
-        : QString::fromUtf8(QJsonDocument(input.toObject()).toJson(QJsonDocument::Compact));
-
-    const OpPlanResult r = parseOpPlan(text);
+    const std::string& bytes = texts[file];
+    const OpPlanResult r = parseOpPlan(QString::fromUtf8(bytes.data(), static_cast<qsizetype>(bytes.size())));
     const QString tag = ov.present ? " [override]" : kd.isString() ? " [knownDivergence]" : "";
     check(r.ok == (want == "valid"),
           qPrintable(QStringLiteral("%1 -> %2%3").arg(file, want, tag)));
@@ -123,6 +154,9 @@ int main(int argc, char** argv) {
   }
   std::printf("  walked %d, skipped %d (profile), knownDivergence %d, local overrides %d\n",
               walked, skipped, diverged, overridden);
+
+  std::printf("golden (generated/normalized.json, desktop):\n");
+  checkGolden(all);
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

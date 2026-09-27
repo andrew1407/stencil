@@ -1,14 +1,22 @@
 // The theme's two shared control treatments, pinned against the CSS and against the extension's port of it
-// (lib/theme.css); desktop twins: theme.cpp's QLineEdit/QComboBox:hover rule and MainWindowTheme.cpp
+// (lib/theme/); desktop twins: theme.cpp's QLineEdit/QComboBox:hover rule and MainWindowTheme.cpp
 // toolButtonIconColor. A FIELD rings on hover at twice its resting border, the second pixel an inset shadow
 // and never a thicker border, which would grow a content-driven box; an idle ICON button wears the accent on
 // its glyph, but never while it is disabled (a dead control must not read as live) or active.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { LAYOUT_CSS, COMPONENTS_CSS, extensionThemeCss } from '../../helpers/css.js';
+import { layout as appLayout } from '../../../js/ui/layout.js';
+import { icon } from '../../../js/ui/icons.js';
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+// A toolbar button as rendered: its open tag, and what it holds.
+const MARKUP = appLayout();
+const button = (id) => {
+  const at = MARKUP.indexOf(`<button id="${id}"`);
+  assert.ok(at >= 0, `no #${id} button is rendered`);
+  const open = MARKUP.indexOf('>', at) + 1;
+  return { tag: MARKUP.slice(at, open), inner: MARKUP.slice(open, MARKUP.indexOf('</button>', open)) };
+};
 const layout = LAYOUT_CSS;
 const components = COMPONENTS_CSS;
 const extTheme = extensionThemeCss();
@@ -66,23 +74,23 @@ test('browser: what a Settings-row button looks like says what it DOES', () => {
 test('browser: the DATA section does not borrow the IMAGE section\'s glyphs', () => {
   // Copying or saving the LAYOUT is not copying or saving the image, so the icons differ (user report): the
   // layout is a document. Desktop twin: MainWindowTheme.cpp set(actDownloadJson_/actCopyLayout_).
-  const toolbar = read('../../../js/ui/toolbar/toolbar.js');
   // The layout FILE pair: a blank page with an arrow that says which way it travels, and
   // the arrow moves on hover (iconMotion.json file-down / file-up).
-  assert.match(toolbar, /id="download-json"[^>]*>\$\{icon\('file-down'\)\}/);
-  assert.match(toolbar, /id="upload-json-btn"[^>]*>\$\{icon\('file-up'\)\}/);
-  assert.match(toolbar, /id="copy-json-btn"[^>]*>\$\{icon\('clipboard'\)\}/);
+  assert.equal(button('download-json').inner, icon('file-down'));
+  assert.equal(button('upload-json-btn').inner, icon('file-up'));
+  assert.equal(button('copy-json-btn').inner, icon('clipboard'));
   // Copy leads the row, then the two file moves (down, then up).
-  const data = toolbar.match(/id="copy-json-btn"[\s\S]*?id="clear-storage"/)?.[0] || '';
-  assert.ok(data, 'the Data row runs from copy to the destructive one');
-  assert.ok(data.indexOf('id="download-json"') < data.indexOf('id="upload-json-btn"'),
+  const at = (id) => MARKUP.indexOf(`<button id="${id}"`);
+  assert.ok(at('copy-json-btn') < at('clear-storage'), 'the Data row runs from copy to the destructive one');
+  assert.ok(at('copy-json-btn') < at('download-json') && at('upload-json-btn') < at('clear-storage'));
+  assert.ok(at('download-json') < at('upload-json-btn'),
     'down before up — the pair reads as one gesture in two directions');
   // …and the destructive one names what it removes.
-  assert.match(toolbar, /id="clear-storage"[\s\S]{0,200}data-title="Remove current project"/);
+  assert.match(button('clear-storage').tag, /data-title="Remove current project"/);
   // The Settings row's order: the toggles first, then the theme switch, then the dialogs.
-  const row = toolbar.match(/id="incognito-toggle"[\s\S]*?id="info-btn"/)?.[0] || '';
-  assert.ok(row, 'incognito opens the row and help closes it');
-  assert.ok(row.indexOf('id="fullscreen-toggle"') < row.indexOf('id="theme-toggle"'),
+  assert.ok(at('incognito-toggle') < at('info-btn'), 'incognito opens the row and help closes it');
+  assert.ok(at('incognito-toggle') < at('fullscreen-toggle') && at('info-btn') > at('theme-toggle'));
+  assert.ok(at('fullscreen-toggle') < at('theme-toggle'),
     'fullscreen sits between incognito and the theme switch');
 });
 

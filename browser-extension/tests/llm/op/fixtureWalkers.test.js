@@ -1,7 +1,7 @@
 // Extension walkers over the SHARED fixture corpus in browser/js/config/ — the cross-surface
 // conformance net (each family's _schema.md documents its format). Node-only: the shipped
-// extension never reads browser/, its tests may. Walked here: opPlan (profile "extension"),
-// providerWire, sanitizer, deepLink/telegramStart. Skipped for want of an implementation:
+// extension never reads browser/, its tests may. Walked here: opPlan (profile "extension") and
+// its oracle inputs, providerWire, sanitizer, deepLink/telegramStart. Skipped for want of an implementation:
 // chatDoc, launchPayload, layout, stencilProject. Divergences: tests/fixtureOverrides.json.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +36,7 @@ const opPlanFixtures = [
   ...opPlanGenerated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
-// Ported from browser/tests/opPlanFixtures.test.js. Floors per bundle, not on the total: the
+// Ported from browser/tests/llm/plan/opPlanFixtures.test.js. Floors per bundle, not on the total: the
 // generated cases alone clear any combined floor, so a vanished cases.json would walk green.
 test('opPlan: the corpus exists and is well-formed', () => {
   assert.ok(opPlanHand.length >= 180, `hand-written cases.json collapsed to ${opPlanHand.length}`);
@@ -76,6 +76,33 @@ for (const { file, fx } of opPlanFixtures) {
   });
 }
 
+// ── opPlan oracle: the adversarial inputs, the JSON caps among them ──────────
+// Each case is fed as a model reply arrives: UTF-8 bytes, WHATWG-decoded (opPlan/_schema.md).
+// Its `expect` is the core profiles' verdict; the extension's own verdicts are the overrides.
+const oracleCases = opPlanBundle('oracle', 'inputs.json');
+const utf8 = new TextDecoder('utf-8', { ignoreBOM: true });
+const oracleText = (c) => {
+  if (c.inputBase64 != null) return utf8.decode(Buffer.from(c.inputBase64, 'base64'));
+  const text = c.parts ? c.parts.map(([chunk, times]) => chunk.repeat(times)).join('')
+    : typeof c.input === 'string' ? c.input : JSON.stringify(c.input);
+  return utf8.decode(new TextEncoder().encode(text));
+};
+
+test('opPlan oracle: the corpus exists, and every override names a real case', () => {
+  assert.ok(oracleCases.length >= 60, `oracle/inputs.json collapsed to ${oracleCases.length}`);
+  const names = new Set(oracleCases.map((c) => c.name));
+  for (const name of Object.keys(OVERRIDES.oracle)) assert.ok(names.has(name), `stale oracle override "${name}"`);
+});
+
+for (const c of oracleCases) {
+  const want = OVERRIDES.oracle[c.name] ?? c.expect;
+  test(`opPlan oracle: ${c.name} → ${want}`, () => {
+    const text = oracleText(c);
+    if (want === 'valid') assert.doesNotThrow(() => parseOpPlan(text, CONTEXT), `${c.name}: the extension must accept it`);
+    else assert.throws(() => parseOpPlan(text, CONTEXT), `${c.name}: the extension must reject it`);
+  });
+}
+
 // ── shared family loader (providerWire/sanitizer array-of-cases files) ───────
 const familyCache = new Map();
 const loadFamily = (dir) => {
@@ -103,17 +130,22 @@ const readFamily = (dir) => {
 
 // ── providerWire ─────────────────────────────────────────────────────────────
 // fixture "provider" → the §5 provider value the client is configured with.
-const PROVIDER_MAP = { ollama: 'ollama', openai: 'openai-compat', server: 'stencil-server' };
+const PROVIDER_MAP = { ollama: 'ollama', openai: 'openai-compat', server: 'stencil-server', anthropic: 'anthropic' };
+// An extension page must ask Anthropic for a browser origin (llm-providers.md §6.5).
+const DIRECT_BROWSER_ACCESS = 'anthropic-dangerous-direct-browser-access';
 
 test('providerWire: request bodies and reply extraction match the golden vectors', async (t) => {
   for (const fx of loadFamily(path.join(LLM_FIXTURES, 'providerWire'))) {
     await t.test(`${fx.file}: ${fx.name}`, async () => {
       assert.ok(PROVIDER_MAP[fx.provider], `unknown provider "${fx.provider}"`);
       const captured = {};
+      let requests = 0;
       const fetchImpl = async (url, init) => {
+        requests++;
         captured.url = url;
         captured.headers = init.headers || {};
         captured.method = init.method;
+        captured.redirect = init.redirect;
         captured.body = JSON.parse(init.body);
         if (fx.errorResponse) {
           const b = fx.errorResponse.body;
@@ -140,12 +172,19 @@ test('providerWire: request bodies and reply extraction match the golden vectors
         error = err;
       }
 
-      // The request the builder produced — exact URL, auth, and body.
-      assert.equal(captured.method, 'POST');
-      assert.equal(captured.headers['Content-Type'], 'application/json');
-      assert.equal(captured.url, fx.expectUrl);
-      assert.equal(captured.headers.Authorization, fx.expectAuthorization);
-      assert.deepEqual(captured.body, fx.expectBody);
+      // The request the builder produced — exact URL, auth, and body; or none at all.
+      if (fx.expectNoRequest) {
+        assert.equal(requests, 0, 'nothing may be sent');
+      } else {
+        assert.equal(captured.method, 'POST');
+        assert.equal(captured.headers['Content-Type'], 'application/json');
+        assert.equal(captured.url, fx.expectUrl);
+        assert.equal(captured.headers.Authorization, fx.expectAuthorization);
+        for (const [name, value] of Object.entries(fx.expectHeaders || {})) assert.equal(captured.headers[name], value, name);
+        assert.equal(captured.headers[DIRECT_BROWSER_ACCESS], fx.provider === 'anthropic' ? 'true' : undefined);
+        assert.equal(captured.redirect, 'error', 'no provider\'s 30x carries a key or token onward');
+        assert.deepEqual(captured.body, fx.expectBody);
+      }
 
       // The response handling — extracted reply or typed error.
       if (fx.expectError) {
@@ -171,7 +210,7 @@ test('sanitizer: provider-error text vectors match sanitizeProviderText', async 
   }
 });
 
-// The extension BUILDS t.me start payloads (src/lib/openIn.js); the shared vectors pin its codec
+// The extension BUILDS t.me start payloads (src/lib/menu/openIn.js); the shared vectors pin its codec
 // byte-compatible with browser/desktop/bot.
 test('deepLink: telegramStart vectors match encodeTelegramStartPayload', async (t) => {
   const cases = JSON.parse(readFileSync(path.join(CORE_FIXTURES, 'deepLink', 'telegramStart.json'), 'utf8'));

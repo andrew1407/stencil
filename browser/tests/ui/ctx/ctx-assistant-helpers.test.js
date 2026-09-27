@@ -1,4 +1,4 @@
-// Pure helpers both chat surfaces share (js/llm/session.js): replyWithWarnings,
+// Pure helpers both chat surfaces share (js/llm/chat/session.js): replyWithWarnings,
 // unreachableText, describeChatError and runChatTurn's rejected-turn result.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -7,7 +7,7 @@ import {
   runLoggedChatTurn,
 } from '../../../js/llm/chat/session.js';
 import { LlmError } from '../../../js/llm/client.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
+import { makeEl, stubDom, rowsOf } from '../../helpers/chatTranscriptRig.js';
 
 // ── Pure helpers shared by both chat surfaces ──
 test('replyWithWarnings appends unknown-op skips to the visible reply', () => {
@@ -35,10 +35,14 @@ test('a successful turn with warnings stays one NON-error assistant row', async 
   assert.strictEqual(assistantRow.role, 'assistant');
   assert.ok(assistantRow.text.includes('opened cat.jpg in the editor first'), 'the note rides the reply');
   assert.ok(!assistantRow.error, 'a warning is not an error — the row must stay neutral');
-  resetChatLog();
   // And the view applies the red style only off that flag — never off warnings.
-  const view = chatViewSource();
-  assert.ok(view.includes("(row.error ? ' chat-msg-error' : '')"), 'chat-msg-error is gated on row.error alone');
+  stubDom();
+  const { renderChatLog } = await import('../../../js/ui/chat/view.js?helpers-error');
+  const transcript = makeEl();
+  renderChatLog(transcript, [...rows, { id: 'x', role: 'assistant', text: 'boom', error: true }], {});
+  const errorStyled = rowsOf(transcript).map((r) => r.classList.contains('chat-msg-error'));
+  assert.deepStrictEqual(errorStyled, [false, false, true], 'chat-msg-error is gated on row.error alone');
+  resetChatLog();
 });
 
 test('unreachableText names the provider and its endpoint (host only)', () => {

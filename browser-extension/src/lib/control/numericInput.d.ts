@@ -5,4 +5,3 @@ export declare function evalNumericExpression(text: string, current?: number): n
 /** Upgrade one `<input type="number">` in place; idempotent. */
 export declare function enhanceNumericInput(el: HTMLInputElement): void;
 export declare function enhanceNumericInputs(root?: ParentNode): void;
-export declare function watchNumericInputs(root?: Node): MutationObserver;

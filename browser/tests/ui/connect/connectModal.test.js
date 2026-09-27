@@ -1,4 +1,4 @@
-// The connect modal's static markup and render gate (js/ui/modal.js): every id once,
+// The connect modal's static markup and render gate (js/ui/connect/modal.js): every id once,
 // a runtime-built list, and createListHold deferring a re-render until the wipe settles.
 import { test } from 'node:test';
 import assert from 'node:assert';

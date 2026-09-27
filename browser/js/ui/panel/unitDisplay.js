@@ -13,7 +13,7 @@ export const updateCoordStatus = (app, x, y) => {
   if (!el) return;
   if (!app.image || x === undefined) {
     // Empty either way: this bar reads out the cursor, and off-canvas / imageless there is
-    // nothing to read (desktop parity — support/MainWindow.cpp updateStatusIdle).
+    // nothing to read (desktop parity — app/view/MainWindowZoom.cpp updateStatusIdle).
     el.textContent = '';
     return;
   }

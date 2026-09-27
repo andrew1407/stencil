@@ -2,7 +2,6 @@
 #include "projectMetaDialog.hpp"
 
 #include <QKeyEvent>
-#include <QPlainTextEdit>
 
 namespace stencil::gui {
 

@@ -22,8 +22,8 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"working on it\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.actChat->setChecked(true);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     auto* dock = win.chatDock;
 
@@ -54,7 +54,7 @@ class MainWindowGuiTest : public QObject {
 
     // (a) a turn IN FLIGHT, with the transcript repainting under the menu.
     dock->addAttachmentImage(QImage(8, 8, QImage::Format_RGB32), "x.png");
-    win.onChatSend(QStringLiteral("crop it, make it b&w, and highlight the edges"));
+    win.chatSession->onChatSend(QStringLiteral("crop it, make it b&w, and highlight the edges"));
     QTRY_VERIFY(!dock->isBusy());
     QFrame* userCard = cardWithBody(QStringLiteral("crop it, make it b&w, and highlight the edges"));
     QVERIFY(userCard);
@@ -72,7 +72,7 @@ class MainWindowGuiTest : public QObject {
     // the menu must not pop into a surface that is about to be hidden.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
-    win.actChat->setChecked(false);
+    win.acts.chat->setChecked(false);
     QVERIFY2(dock->isVisible(), "the close should still be animating");
     {
       bool popped = false;
@@ -90,9 +90,9 @@ class MainWindowGuiTest : public QObject {
     }
     if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim);
     QTRY_VERIFY(!dock->isVisible());
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
-    awaitAnim(win.chatAnim);   // the open slide, on its own end
+    awaitAnim(win.parts.dockChrome.chatAnim);   // the open slide, on its own end
 
     // (c) the card is DELETED while its own menu is up — nothing may touch it
     // after exec() returns.
@@ -115,7 +115,7 @@ class MainWindowGuiTest : public QObject {
     // …and a right-click on the now-dangling label's siblings still does nothing bad.
     QFrame* survivor = cardWithBody(QStringLiteral("late note while the menu is open"));
     if (survivor) popMenu(survivor, nullptr);
-    win.llmClient.reset();
+    win.parts.chatAppliers.llmClient.reset();
     beat();
   }
 
@@ -133,11 +133,11 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"hi there\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     auto* dock = win.chatDock;
     QVERIFY(dock);
     dock->show();   // visibility checks below need visible ancestors
-    win.onChatSend("highlight the cat");
+    win.chatSession->onChatSend("highlight the cat");
     QTRY_VERIFY(!dock->isBusy());
     settleLayout(dock, 20);   // let the transcript layout activate (shows the cards)
 

@@ -1,4 +1,4 @@
-// js/core/projectsStore.js expiry: the period presets, the stored expiresAt, the
+// js/core/project/store/projectsStore.js expiry: the period presets, the stored expiresAt, the
 // expiring-soon window, renewal and the sweep. Split from projectsStore.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';

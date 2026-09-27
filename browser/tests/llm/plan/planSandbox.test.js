@@ -192,3 +192,23 @@ test('restoreWorkingImage with nothing run touches only the settings', async () 
   await restoreWorkingImage(st, null, state, []);
   assert.deepEqual(st.calls.map((c) => c[0]), ['apply']);
 });
+
+test('the snapshot is an editor memento beside the page and formula settings', () => {
+  const st = makeStencil(8, 6, { lines: JSON.parse(JSON.stringify(LINES)), filter: 'custom', filterColor: '#00ff00' });
+  st.crop({ x1: '1px', x2: '7px', y1: '1px', y2: '5px' });
+  const state = captureEditorState(st);
+  assert.deepEqual(Object.keys(state).sort(), ['allowFormulas', 'cropRect', 'filter', 'filterColor', 'formulaX',
+    'formulaY', 'lines', 'mark', 'pageSize', 'rotationQuarters', 'size']);
+  assert.deepEqual(state.cropRect, { x: 1, y: 1, width: 6, height: 4 });
+  assert.deepEqual([state.filter, state.filterColor], ['custom', '#00ff00']);
+  assert.equal(state.rotationQuarters, 0, 'the facade names no turn; without a history mark it is 0');
+  assert.equal(state.mark, null);
+});
+
+test('a reload puts the filter back before it, so the fresh history starts on it', async () => {
+  const st = makeStencil(8, 6, { filter: 'sepia' });
+  await runPlan(st, { variants: [{ label: 'v', actions: [{ op: 'blank', color: '#ffffff' }] }] });
+  const load = st.calls.findIndex((c) => c[0] === 'load');
+  assert.deepEqual(st.calls[load - 1], ['apply', { filter: 'sepia', filterColor: '#7c3aed' }]);
+  assert.equal(st.filter, 'sepia');
+});

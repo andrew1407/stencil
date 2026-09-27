@@ -4,7 +4,6 @@
 // · 'horizontal' → y >= imageH * split — judged on the POINT's own coordinates, never the cursor's.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { compareEditedShows } from '../../../js/utils.js';
 import { DrawingApp } from '../../../js/core/drawingApp.js';
 import { StencilTooltip } from '../../../js/ui/tip/tooltip.js';
@@ -201,15 +200,21 @@ test('the reveal waits out the toolbar tooltip\'s delay, but only for a genuinel
   assert.deepEqual(fresh.calls.show, [[50, 60]], 'immediate=true never waits');
 });
 
-test('the tooltip formatting is the app\'s own — no second implementation', () => {
-  const src = readFileSync(new URL('../../../js/ui/tip/tooltip.js', import.meta.url), 'utf8');
-  // One show()/showLine() pair, using the shared unit helpers; the gate only decides
-  // WHETHER to call them.
-  assert.equal((src.match(/\n  show\(/g) || []).length, 1);
-  assert.equal((src.match(/\n  showLine\(/g) || []).length, 1);
-  assert.match(src, /import \{ cmToUnit, unitLabel \} from '[^']*utils\.js';/);
-  assert.ok(!/compareEditedShows/.test(src), 'the geometry lives once, in the app');
-  // …and the app method is the single caller of the shared predicate.
-  const app = readFileSync(new URL('../../../js/core/drawingApp.js', import.meta.url), 'utf8');
-  assert.equal((app.match(/compareEditedShows\(/g) || []).length, 1);
+// The geometry lives once, in the app: the hover asks the app's gate and takes its answer.
+test('the tooltip has no geometry of its own — the app gate decides', (t) => {
+  arm(t);
+  const asked = [];
+  const open = hoverHarness({ point: { x: 10, y: 20 }, split: 0.9, gate: (x, y) => { asked.push([x, y]); return true; } });
+  open.tip.applyHover(1, 1, 12, 22, NO_MODS);
+  tick(t);
+  assert.deepEqual([asked, open.calls.show], [[[10, 20]], [[10, 20]]], 'no geometry of its own');
+  // …and the app method is the shared predicate, over the live mode, split and canvas.
+  for (const mode of ['none', 'original', 'vertical', 'horizontal']) {
+    for (const split of [0.1, 0.5, 0.9]) {
+      const app = appWithCompare(mode, split);
+      for (const [x, y] of [[0, 0], [150, 200], [399, 299], [W * split, H * split]]) {
+        assert.equal(app.compareShowsPoint(x, y), compareEditedShows(mode, split, x, y, W, H), `${mode} ${split} ${x},${y}`);
+      }
+    }
+  }
 });

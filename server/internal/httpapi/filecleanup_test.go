@@ -49,7 +49,7 @@ func TestUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 			if up.Code != http.StatusNotFound {
 				t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
 			}
-			if _, err := fs.Get(p.ID, tc.kind, tc.ext); err == nil {
+			if _, err := fs.FindByKind(p.ID, tc.kind); err == nil {
 				t.Fatal("orphaned bytes: the file should have been removed on the swept-write path")
 			}
 		})
@@ -85,13 +85,13 @@ func TestFileUploadCleanupLeavesSiblingKindsAlone(t *testing.T) {
 		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
 	}
 
-	if _, err := fs.Get(p.ID, "variant1", "png"); err == nil {
+	if _, err := fs.FindByKind(p.ID, "variant1"); err == nil {
 		t.Fatal("the variant that lost the race should have been removed")
 	}
-	if _, err := fs.Get(p.ID, "original", "png"); err != nil {
+	if _, err := fs.FindByKind(p.ID, "original"); err != nil {
 		t.Fatalf("the original must survive a failed variant upload: %v", err)
 	}
-	if _, err := fs.Get(p.ID, "chat", "json"); err != nil {
+	if _, err := fs.FindByKind(p.ID, "chat"); err != nil {
 		t.Fatalf("the chat transcript must survive a failed variant upload: %v", err)
 	}
 }

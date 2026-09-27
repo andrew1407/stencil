@@ -5,8 +5,8 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli.js';
-import { runConsole } from '../../helpers/consoleCli.js';
+import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli/run.js';
+import { runConsole } from '../../helpers/cli/console.js';
 import { stcCase, writeStcCase } from '../../helpers/stcCases.js';
 import { APP_URL } from '../../helpers/config.js';
 

@@ -7,7 +7,7 @@ const logo = @import("../app/logo.zig");
 const theme = @import("../app/theme.zig");
 const core = @import("../core.zig");
 const screen = @import("screen.zig");
-const commands = @import("commands.zig");
+const inert = @import("render/inert.zig");
 const Session = @import("session.zig").Session;
 
 var interactive: bool = false; // true when driving a TTY (enables screen clears + colour)
@@ -72,7 +72,8 @@ pub fn status(session: *Session) void {
     const rst = if (seq.len != 0) logo.resetSeq() else "";
     var pos: [24]u8 = undefined;
     const at = if (n > 1) std.fmt.bufPrint(&pos, "  [{d}/{d}]", .{ session.cursor + 1, n }) catch "" else "";
-    logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}{s}\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag, at });
+    var nb: inert.Buf = undefined; // a fetched project's name is the server's
+    logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}{s}\n", .{ seq, inert.name(&nb, session.label.?), rst, img.width, img.height, fmt_s, tag, at });
 }
 
 /// The SGR escape painting a FETCHED project's name in its custom colour (or neutral grey);
@@ -103,7 +104,7 @@ pub fn redraw(session: *Session) void {
         return;
     }
     if (interactive) {
-        logo.print("\x1b[2J\x1b[3J\x1b[H", .{});
+        logo.print("\x1b[2J\x1b[H", .{}); // never 3J: the user's own scrollback is theirs
         logo.banner();
     }
     status(session);
@@ -162,7 +163,7 @@ pub fn intro() void {
 }
 
 // The console's prose — intro, filter list, command list — lives in the embedded uiText.txt;
-// tests/repl_text_test.zig checks the command list against commands.zig.
+// tests/console/repl_text_test.zig checks the command list against commands.zig.
 const ui_text = @embedFile("uiText.txt");
 const help_spaces = " " ** 32;
 
@@ -201,36 +202,4 @@ fn emit(text: []const u8) void {
 
 pub fn help() void {
     emit(block("help"));
-}
-
-const testing = std.testing;
-
-test "completions: every console command is offered by Tab-complete" {
-    // Everything offered must really BE a command, so a typo can't complete to nothing.
-    for (completions) |w| {
-        if (commands.verbOf(w) != null) continue;
-        if (commands.actionOf(w, "") != null) continue;
-        std.debug.print("completion '{s}' is not a command\n", .{w});
-        return error.UnknownCompletion;
-    }
-    // …and every verb must be reachable from the list, so a new command can't ship without
-    // Tab-completion (this is how /reveal, /chat and /project-description were found missing).
-    var missing = false;
-    inline for (@typeInfo(commands.Verb).@"enum".fields) |f| {
-        const want: commands.Verb = @enumFromInt(f.value);
-        var found = false;
-        for (completions) |w| {
-            if (commands.verbOf(w)) |v| {
-                if (v == want) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        if (!found) {
-            std.debug.print("no completion offers the '{s}' command\n", .{f.name});
-            missing = true;
-        }
-    }
-    if (missing) return error.MissingCompletion;
 }

@@ -1,4 +1,4 @@
-/* ── Custom <select> dropdowns (lib/customSelect.js + lib/dropdownMenu.js) ──
+/* ── Custom <select> dropdowns (lib/control/customSelect.js + lib/control/dropdownMenu.js) ──
    The LIST a native <select> opens is drawn by the OS, not the page: on macOS it comes up
    centred on the control in system type, ignoring this panel's theme entirely — and in a
    400px popup it covers nearly everything. So every <select> here is replaced by the same
@@ -24,7 +24,7 @@
   /* macOS hides its overlay scrollbar until it moves, so a capped list looked simply cut off.
      The two `local` covers ride the content and uncover a `scroll` shadow only while rows remain. */
   background:
-    /* The thumb (lib/menuScrollbar.js): `scroll` holds it against the box while the two custom
+    /* The thumb (lib/control/menuScrollbar.js): `scroll` holds it against the box while the two custom
        properties carry its length and travel. Zero-length — absent — when it fits. */
     linear-gradient(var(--muted), var(--muted))
       right 3px top var(--dd-sb-pos, 0px) / 6px var(--dd-sb-len, 0px) no-repeat scroll,
@@ -37,7 +37,7 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, .35);
 }
 .accent-dd-menu[hidden] { display: none; }
-/* The logo's own accent menu (lib/logoAccent.js) hangs off the small logo badge, so it
+/* The logo's own accent menu (lib/accent/logoAccent.js) hangs off the small logo badge, so it
    sizes to its rows rather than stretching to the badge's width like the full-trigger
    dropdown above. */
 .logo-accent-menu { right: auto; min-width: 168px; z-index: 100002; }
@@ -70,7 +70,7 @@
   transition: opacity .15s ease;
 }
 .accent-dd-opt[aria-selected="true"] .accent-check { opacity: 1; }
-/* `.dd-hover` mirrors :hover but is JS-driven (lib/logoAccent.js), so the previewed row's
+/* `.dd-hover` mirrors :hover but is JS-driven (lib/accent/logoAccent.js), so the previewed row's
    highlight survives the accent flood's View Transition, which drops real :hover. */
 .accent-dd-opt:hover, .accent-dd-opt.dd-hover { background: var(--panel-2); transform: translateX(2px); }
 .accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); }

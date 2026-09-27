@@ -7,7 +7,7 @@ import {
 // Alt-doubling state every row shares.
 export const createThumbZoom = () => {
   const PREVIEW_ZOOM = 1.67;
-  // A glance, not a lightbox. Mirrored by the backstop in components/projects.css.
+  // A glance, not a lightbox. Mirrored by the backstop in components/projects/projects.css.
   const PREVIEW_MAX_VW = 0.25;
   const PREVIEW_MAX_VH = 0.20;
   let zoomEl = null;

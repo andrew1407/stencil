@@ -1,5 +1,5 @@
 // The panel's dialog shell: click-away and Escape both cancel; an `anchor` switches on
-// the popover shape (lib/popover.js placement). The Escape listener must be removed on
+// the popover shape (lib/tip/popover.js placement). The Escape listener must be removed on
 // EVERY close route, or it lingers for the panel's lifetime.
 import { popoverPosition } from '../../lib/tip/popover.js';
 import { menuTransformOrigin } from '../../lib/chat/msgMenu.js';

@@ -1,6 +1,6 @@
 // Finds the Python that runs a .pystc. The interpreter is EXPLICIT USER CONFIGURATION — the
 // setting, then STENCIL_PYTHON, then `python3`/`python` on PATH — and is never read out of
-// the document being edited. Twin of lib/cliLocator.js.
+// the document being edited. Twin of lib/spawn/cliLocator.js.
 import { CONFIG_SECTION, SETTINGS } from '../ids.js';
 import { onPath } from '../pathSearch.js';
 import { resolveConfigured } from './cliLocator.js';

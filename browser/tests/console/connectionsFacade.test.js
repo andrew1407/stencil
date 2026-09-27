@@ -4,7 +4,14 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { ConnectionManager } from '../../js/net/connectionManager.js';
 import { installMemoryStorage } from '../helpers/memoryStorage.js';
-import { makeMockServer, StubWS, facadeApp } from '../helpers/connectionsRig.js';
+import { installDom, createStubElement } from '../helpers/dom.js';
+import { makeMockServer, StubWS, facadeApp, withSettle } from '../helpers/connectionsRig.js';
+import { installImageDecode } from '../helpers/projectTransferRig.js';
+
+// The blank flow paints its fill on a scratch canvas; every other element is inert.
+const scratchCanvas = () => ({ width: 0, height: 0, getContext: () => ({ fillRect() {} }),
+  toBlob: (cb, type) => cb(new Blob(['png'], { type })) });
+const until = async (ok) => { for (let i = 0; i < 50 && !ok(); i++) await new Promise((r) => setImmediate(r)); };
 
 // ── Facade integration: connect/disconnect/reconnect/connections ──
 test('stencil facade exposes the connection surface and chains', async () => {
@@ -35,25 +42,38 @@ test('stencil facade exposes the connection surface and chains', async () => {
 
 test('facade blank({ address }) validates the target and threads it to createBlankImage', async () => {
   const { createStencil } = await import('../../js/console/stencilApi.js');
+  const doc = installDom({ createElement: (tag) => (tag === 'canvas' ? scratchCanvas() : createStubElement(tag)) });
   const server = makeMockServer();
-  const app = facadeApp(server, {
-    createBlankImage(opts) { app._blankOpts = opts; return Promise.resolve({ width: 2, height: 2 }); },
+  const app = withSettle(facadeApp(server));
+  // The real createBlankImage → loadImageFromFile → settle chain runs; the decode lands the blank's size.
+  const decode = installImageDecode((file, img) => {
+    const [, w, h] = /blank-(\d+)x(\d+)/.exec(file.name);
+    img.width = app.canvas.width = Number(w);
+    img.height = app.canvas.height = Number(h);
+    img.onload();
   });
-  const stencil = createStencil(app);
-  await stencil.connect('http://srv:8090');
+  const creates = () => server.state.calls.filter((c) => c === 'POST /projects').length;
+  try {
+    const stencil = createStencil(app);
+    await stencil.connect('http://srv:8090');
 
-  // Unknown address rejects BEFORE any local work runs.
-  await assert.rejects(() => stencil.blank('#fff', { address: 'http://nope:1' }), /Not connected/);
-  assert.equal(app._blankOpts, undefined);
+    // Unknown address rejects BEFORE any local work runs.
+    await assert.rejects(() => stencil.blank('#fff', { address: 'http://nope:1' }), /Not connected/);
+    assert.deepEqual(decode.reads(), []);
 
-  // Known address threads through to the shared create path.
-  await stencil.blank('#fff', { address: 'http://srv:8090' });
-  assert.equal(app._blankOpts.address, 'http://srv:8090');
+    // Known address threads through the shared create path: the blank is created on that server.
+    await stencil.blank('#fff', { address: 'http://srv:8090' });
+    await until(() => app.remoteLink);
+    assert.equal(creates(), 1);
+    assert.equal(app.remoteLink.address, 'http://srv:8090');
 
-  // Local (no address) keeps today's behaviour: no address key passed.
-  app._blankOpts = undefined;
-  await stencil.blank('#fff');
-  assert.equal('address' in app._blankOpts, false);
+    // Local (no address) keeps today's behaviour: nothing is created on a server.
+    await stencil.blank('#fff');
+    await until(() => false);
+    assert.equal(decode.reads().length, 2);
+    assert.equal(creates(), 1);
+    assert.equal(app.remoteLink, null);
+  } finally { decode.restore(); doc.restore(); }
 });
 
 test('facade newEditor({ address }) arms the server as the create target for the next image', async () => {
@@ -61,19 +81,19 @@ test('facade newEditor({ address }) arms the server as the create target for the
   const server = makeMockServer();
   // The server forbids image-less projects, so newEditor({ address }) does NOT create one:
   // it arms the address; the next image load creates it with real bytes.
-  const app = facadeApp(server, {
-    newEditor() { app._newed = true; app.pendingRemoteAddress = null; },
-    async createRemoteBlank(address) { app.pendingRemoteAddress = address; return { address }; },
-  });
+  const app = facadeApp(server);
   const stencil = createStencil(app);
   await stencil.connect('http://srv:8090');
+  const resets = () => app.calls.filter(([n]) => n === 'newTemporary').length;
 
   // newEditor validates synchronously (it returns the facade, not a promise, locally).
   assert.throws(() => stencil.newEditor({ address: 'http://nope:1' }), /Not connected/);
+  assert.equal(resets(), 0, 'validated before the editor reset');
   const ret = await stencil.newEditor({ address: 'http://srv:8090' });
   assert.equal(ret, stencil);
-  assert.ok(app._newed);
-  assert.equal(app.remoteLink, undefined, 'no project is created up front');
+  assert.equal(resets(), 1, 'newEditor reset the editor');
+  assert.equal(app.remoteLink, null, 'no project is created up front');
+  assert.equal(server.state.calls.filter((c) => c === 'POST /projects').length, 0);
   assert.equal(app.pendingRemoteAddress, 'http://srv:8090');
 });
 

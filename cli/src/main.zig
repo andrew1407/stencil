@@ -7,12 +7,24 @@ const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
 const scrape = @import("scrape.zig");
 const script = @import("script.zig");
+const inspect = @import("inspect.zig");
 const project = @import("project.zig");
 const project_cli = @import("project/cli.zig");
 const llm = @import("llm.zig");
 const logo = @import("app/logo.zig");
 const report = @import("app/report.zig");
 const child = @import("safety/child.zig");
+const terminal = @import("console/screen/terminal.zig");
+
+/// A panic hands the terminal back before it reports: raw mode, the alternate screen and
+/// mouse tracking would otherwise outlive the process.
+pub const panic = std.debug.FullPanic(panicRestoring);
+
+fn panicRestoring(msg: []const u8, first_trace_addr: ?usize) noreturn {
+    // The console, and so a held terminal, exists only on POSIX.
+    if (builtin.os.tag != .windows) terminal.restoreTerminal();
+    std.debug.defaultPanic(msg, first_trace_addr);
+}
 
 pub fn main(init: std.process.Init) !void {
     // Colour off when NO_COLOR is set; the severity prefixes also need stderr (the human
@@ -30,10 +42,14 @@ pub fn main(init: std.process.Init) !void {
     const argv = try init.minimal.args.toSlice(arena);
     const cli_args = argv[1..];
 
-    const opts = args.parse(cli_args) catch {
+    var opts = args.parse(cli_args) catch {
         logo.banner();
         logo.usage();
         std.process.exit(2);
+    };
+    opts.env_tokens = .{
+        .per_origin = init.environ_map.get("STENCIL_SERVER_TOKENS"),
+        .single = init.environ_map.get("STENCIL_SERVER_TOKEN"),
     };
 
     switch (args.modeOf(opts, cli_args.len, project.isStencilPath)) {
@@ -50,7 +66,7 @@ pub fn main(init: std.process.Init) !void {
                 report.err("the interactive console is not available on Windows\n", .{});
                 std.process.exit(1);
             }
-            return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map)) catch
+            return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map), opts.env_tokens) catch
                 std.process.exit(1);
         },
         // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads
@@ -66,13 +82,31 @@ pub fn main(init: std.process.Init) !void {
                 .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
                 .check => return script.check.run(gpa, io, out, sc.path) catch std.process.exit(1),
                 .plan => return script.plan.run(gpa, io, out, opts, sc.path) catch std.process.exit(1),
-                .emit => return script.emit.run(gpa, io, sc.path, opts.script_emit.?, opts.confine_output) catch
-                    std.process.exit(1),
+                .emit => return script.emit.runGuarded(gpa, io, sc.path, opts.script_emit.?, .{
+                    .confine_output = opts.confine_output,
+                    .no_clobber = opts.no_clobber,
+                }) catch std.process.exit(1),
             }
         },
-        // A `.stencil` project on either side reuses the console Session so its layout renders
-        // like the editors; server mode stays on the raster pipeline.
-        .project => return project_cli.runOneShot(gpa, io, opts) catch std.process.exit(1),
+        // The reporting modes print one JSON document on stdout, handed in from here as for a plan.
+        .inspect => |kind| {
+            var buf: [4096]u8 = undefined;
+            var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
+            return inspect.run(gpa, io, &stdout.interface, opts, kind) catch std.process.exit(1);
+        },
+        // --plan-check prints core's verdict on a model reply: exit 1 for an invalid plan, 2 when
+        // the reply or the schema could not be had at all.
+        .plan_check => |path| {
+            var buf: [4096]u8 = undefined;
+            var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
+            const status = llm.check.run(gpa, io, &stdout.interface, path, opts.plan_surface orelse "cli", opts.plan_capabilities) catch
+                std.process.exit(2);
+            if (status == .invalid) std.process.exit(1);
+            return;
+        },
+        // A `.stencil` project on either side, or a `--prompt` turn, reuses the console Session so
+        // its layout renders like the editors; server mode stays on the raster pipeline.
+        .project => return project_cli.runWith(gpa, io, opts, llm.Env.fromMap(init.environ_map)) catch std.process.exit(1),
         .pipeline => {},
     }
 
@@ -88,7 +122,9 @@ test {
     _ = @import("args.zig");
     _ = @import("core.zig");
     _ = @import("script/core.zig");
+    _ = @import("core/opplan.zig");
     _ = @import("script.zig");
+    _ = @import("inspect.zig");
     _ = @import("media/image.zig");
     _ = @import("media/layout.zig");
     _ = @import("media/video.zig");
@@ -101,7 +137,7 @@ test {
     _ = @import("project/cli.zig");
     _ = @import("console.zig");
     _ = @import("app/theme.zig");
-    _ = @import("line_edit.zig");
+    _ = @import("line_edit/line_edit.zig");
     _ = @import("clipboard.zig");
     _ = @import("safety/child.zig");
     _ = @import("safety/confine.zig");
@@ -113,6 +149,7 @@ test {
     _ = @import("media/types.zig");
     _ = @import("net/fetchPool.zig");
     _ = @import("net/send.zig");
+    _ = @import("net/jobCall.zig");
     _ = @import("media/imageRows.zig");
     _ = @import("app/report.zig");
 }

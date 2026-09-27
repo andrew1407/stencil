@@ -15,6 +15,25 @@ public interface IBotPolicy
 
     TimeSpan WorkspaceTtl { get; }
 
+    // The shortest gap between two workspace sweeps, however short the TTL.
+    TimeSpan WorkspaceSweepFloor { get; }
+
+    // One DNS lookup of a user-supplied link or server host.
+    TimeSpan ResolveTimeout { get; }
+
+    // ResolveTimeout's default, in seconds, wherever no configured policy is at hand.
+    const int DEFAULT_RESOLVE_TIMEOUT_SECONDS = 5;
+
+    TimeSpan ProgressTick { get; }
+
+    TimeSpan SyncPollInterval { get; }
+
+    // The quiet window after an album's last member before the group is handled.
+    TimeSpan AlbumSettle { get; }
+
+    // Whether /connect may reach loopback and private-LAN servers.
+    bool AllowPrivateServers { get; }
+
     // Empty = the bot is OFF for everyone.
     IReadOnlySet<long> AllowedUsers { get; }
 

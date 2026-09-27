@@ -1,6 +1,7 @@
 //! Pure target-spec parsing for the `/keywords*` verbs: `<project | ["a","b"]> <keyword...>`
 //! splitting, name collection, and the keyword listing lines.
 const std = @import("std");
+const inert = @import("../render/inert.zig");
 const logo = @import("../../app/logo.zig");
 const msg = @import("../../app/messages.zig");
 
@@ -19,10 +20,13 @@ pub fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
 
 /// Print a project's keyword set (or "(none)").
 pub fn printKeywordCsv(keywords: []const []const u8) void {
-    for (keywords, 0..) |k, i| logo.print("{s} {s}", .{ if (i == 0) "" else ",", k });
+    var b: inert.Buf = undefined; // a server's keywords
+    for (keywords, 0..) |k, i| logo.print("{s} {s}", .{ if (i == 0) "" else ",", inert.name(&b, k) });
 }
 
-pub fn printKeywords(name: []const u8, keywords: []const []const u8) void {
+pub fn printKeywords(raw_name: []const u8, keywords: []const []const u8) void {
+    var b: inert.Buf = undefined;
+    const name = inert.name(&b, raw_name);
     if (keywords.len == 0) {
         logo.print(msg.keywords_none, .{name});
         return;

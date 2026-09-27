@@ -1,77 +1,26 @@
-#include "../../support/menu/SearchCombo.hpp"
 #include "ProjectsDialog.hpp"
 
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
 #include "guiHelpers.hpp"
 #include "fetchGuard.hpp"
 #include "iconSet.hpp"
-#include "ExpirationDialog.hpp"
-#include "ProjectDragZones.hpp"
-#include "ProjectsStore.hpp"
-#include "ReorderableListWidget.hpp"
 #include "../../support/motion/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
 #include "../../app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX / NAME_CHIP_GLYPH — the shared chip
 #include "../../support/control/reveal/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
-#include "../../support/control/FlowLayout.hpp"           // the filter row + batch bar wrap, never clip
-#include "../../support/motion/DisintegrateOverlay.hpp"  // deleted rows come apart
 #include "../../support/displayName.hpp"          // shortName for the remove confirm
-#include "../../support/motion/DissolveEffect.hpp"      // scroll-edge grain dissolve
 #include "../../support/theme/filterFade.hpp"          // filtered-out rows fade + collapse
-#include "../../support/guiHelpers.hpp"
 #include "../../support/menu/menuReveal.hpp"
 #include "../../support/theme/theme.hpp"          // themePalette().danger for the Remove row
 #include "../../support/menu/menuDangerRow.hpp"    // the red "Remove" row (label + glyph)
-#include "../../support/motion/MenuShimmer.hpp"         // ctx rows' glass hover sweep
-#include "../../support/motion/ShimmerOverlay.hpp"      // hovered row's glass sweep (browser ui-shimmer)
 #include "../../support/modal/modalChrome.hpp"         // the browser modal shell
 #include "../../support/modal/modalReveal.hpp"         // animated colour picker
-#include "ServerClient.hpp"
-#include <QAbstractItemView>
-#include <QAction>
-#include <QBrush>
-#include <QDate>
-#include <QLocale>
-#include <QComboBox>
-#include <QMenu>
 #include <QColor>
-#include <QCursor>
-#include <QFont>
-#include <QEvent>
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QIcon>
-#include <QImage>
-#include <QLabel>
-#include <QLineEdit>
-#include <QListWidget>
-#include <QMouseEvent>
-#include <QRegularExpression>
-#include <QApplication>
-#include <QFontMetrics>
-#include <QPainter>
-#include "AppTooltip.hpp"
-#include "ShimmerOverlay.hpp"
-#include <QPainterPath>
-#include <QPalette>
-#include <QPen>
 #include <QPixmap>
-#include <QPointer>
-#include <QPolygonF>
 #include <QPushButton>
-#include <QScreen>
-#include <QSize>
-#include <QStyle>
-#include <QStyledItemDelegate>
-#include <QTimer>
-#include <QToolButton>
-#include <QUrl>
 #include <QVBoxLayout>
 #include <functional>
 #include <limits>
 #include <memory>
-#include <QVariant>
-#include <QVariantAnimation>
 #include <algorithm>
 #include <optional>
 

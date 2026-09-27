@@ -3,7 +3,6 @@
 const Session = @import("../session.zig").Session;
 const session_mod = @import("../session.zig");
 const jsonStr = session_mod.jsonStr;
-const jsonInt = session_mod.jsonInt;
 const jsonNum = session_mod.jsonNum;
 const std = @import("std");
 const server = @import("../../server/client.zig");
@@ -12,38 +11,49 @@ const pipeline = @import("../../pipeline.zig");
 const page_mod = @import("../../media/page.zig");
 const EditState = @import("../session.zig").EditState;
 const clampRect = @import("../session.zig").clampRect;
-const rotateRectQuarters = @import("../session.zig").rotateRectQuarters;
+const rotateCropQuarters = @import("../session.zig").rotateCropQuarters;
 const extractLinesJson = @import("../session.zig").extractLinesJson;
-const mergeLinesJson = @import("../session.zig").mergeLinesJson;
+const layoutJson = @import("layoutJson.zig");
+const combineLinesJson = @import("../session.zig").combineLinesJson;
 const parseLayoutInto = @import("../session.zig").parseLayoutInto;
 
 // editing ops (each pushes a snapshot + rebuilds)
 
-/// Rotate by `n` quarter-turns (clockwise). The crop rect rides along into the new space.
+/// Rotate by `n` quarter-turns (clockwise). The crop and the lines ride along into the new space,
+/// the lines turning inside the pre-turn view as the browser's rotate turns them.
 pub fn applyRotate(self: *Session, n: i32) !void {
     const cur = self.state();
     var next = try cur.dupe(self.gpa);
     errdefer next.deinit(self.gpa);
-    if (next.crop) |cr| {
-        const orig = self.original.?;
-        const dims = core.rotatedDims(@intCast(orig.width), @intCast(orig.height), cur.rotation);
-        next.crop = rotateRectQuarters(cr, dims.w, dims.h, n);
+    const orig = self.original.?;
+    const view = if (cur.crop) |cr| core.Size{ .w = cr.w, .h = cr.h } else core.rotatedDims(@intCast(orig.width), @intCast(orig.height), cur.rotation);
+    if (next.crop) |cr| next.crop = rotateCropQuarters(cr, cur.rotation, @intCast(orig.width), @intCast(orig.height), n).crop;
+    if (next.lines_json.len != 0) {
+        const turned = try layoutJson.turnLinesJson(self.gpa, next.lines_json, n, view.w, view.h);
+        self.gpa.free(next.lines_json);
+        next.lines_json = turned;
     }
     next.rotation = core.normalizeQuarters(cur.rotation + n);
     try self.pushState(next);
 }
 
-/// Crop to `rect` (given in CURRENT-view pixels); composes into rotated-original space.
+/// Crop to `rect` (given in CURRENT-view pixels); composes into rotated-original space. The lines
+/// recalc as the browser's crop recalcs them: cleared on an album/portrait flip, else rescaled.
 pub fn applyCrop(self: *Session, rect: core.Rect) !void {
     const cur = self.state();
     var next = try cur.dupe(self.gpa);
     errdefer next.deinit(self.gpa);
-    // The view is rotate(original) cropped to `cur.crop`; a sub-rect maps back by its origin.
-    const base_x: i32 = if (cur.crop) |c| c.x else 0;
-    const base_y: i32 = if (cur.crop) |c| c.y else 0;
     const orig = self.original.?;
     const dims = core.rotatedDims(@intCast(orig.width), @intCast(orig.height), cur.rotation);
-    next.crop = clampRect(.{ .x = base_x + rect.x, .y = base_y + rect.y, .w = rect.w, .h = rect.h }, dims.w, dims.h);
+    // The view is rotate(original) cropped to `cur.crop`; a sub-rect maps back by its origin.
+    const base = cur.crop orelse core.Rect{ .x = 0, .y = 0, .w = dims.w, .h = dims.h };
+    const crop = clampRect(.{ .x = base.x + rect.x, .y = base.y + rect.y, .w = rect.w, .h = rect.h }, dims.w, dims.h);
+    next.crop = crop;
+    if (next.lines_json.len != 0) {
+        const kept = try layoutJson.recropLinesJson(self.gpa, next.lines_json, clampRect(base, dims.w, dims.h), crop);
+        self.gpa.free(next.lines_json);
+        next.lines_json = kept;
+    }
     try self.pushState(next);
 }
 
@@ -56,7 +66,9 @@ pub fn setFilter(self: *Session, mode: []const u8, color: []const u8) !void {
     if (next.filter_color.len != 0) self.gpa.free(next.filter_color);
     next.filter_mode = try self.gpa.dupe(u8, mode);
     next.filter_color = try self.gpa.dupe(u8, color);
+    const changed = !std.mem.eql(u8, cur.filter_mode, mode) or !std.mem.eql(u8, cur.filter_color, color);
     try self.pushState(next);
+    self.filter_dirty = self.filter_dirty or changed;
 }
 
 /// Append the lines from a layout JSON document to the drawing.
@@ -66,7 +78,7 @@ pub fn addLines(self: *Session, layout_bytes: []const u8) !void {
     const cur = self.state();
     var next = try cur.dupe(self.gpa);
     errdefer next.deinit(self.gpa);
-    const merged = try mergeLinesJson(self.gpa, cur.lines(), add);
+    const merged = try combineLinesJson(self.gpa, cur.lines(), add);
     if (next.lines_json.len != 0) self.gpa.free(next.lines_json);
     next.lines_json = merged;
     try self.pushState(next);

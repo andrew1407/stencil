@@ -4,10 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../../../js/ui/motion/icons.js';
-import { MOTION_MODES } from '../../../js/ui/motion/motionPrefs.js';
 import { ANIMATIONS_CSS, extensionAnimationsCss } from '../../helpers/css.js';
+import { installVisualsDom, mountVisuals, selectOf, faceOf, frames } from '../../helpers/visualsModalRig.js';
 
+const doc = installVisualsDom();
+const { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } = await import('../../../js/ui/motion/icons.js');
+const { MOTION_MODES } = await import('../../../js/ui/motion/motionPrefs.js');
+const { enhanceSelect } = await import('../../../js/ui/control/customSelect.js');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('every motion mode has a glyph, and only the modes do', () => {
@@ -51,21 +54,39 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
   for (const k of ['mmLineDraw', 'mmShaft', 'mmHead', 'mmDrop', 'mmFlame', 'mmDust']) assert.ok(ext.includes(`@keyframes ${k}`), `extension ${k}`);
 });
 
-test('the Visuals dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', () => {
-  assert.match(read('../../../js/ui/visuals/modal.js'), /enhanceSelect\(motionMode, \{ icons: motionModeIcon \}\)/);
-  const cs = read('../../../js/ui/control/customSelect.js');
-  assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null, preview = null \} = \{\}\)/);
-  assert.match(cs, /slot\.className = 'cs-opt-icon';/);
-  assert.match(cs, /const glyph = icons \? icons\(selectEl\.value\) : '';/);
-  assert.match(cs, /if \(svg && changed\) \{\s*svg\.classList\.add\('mm-play'\);/, 'a changed value plays its glyph in');
+test('the Visuals dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', async () => {
+  await mountVisuals(doc, MOTION_MODES);
+  const motion = doc.getElementById('vs-motion-mode');
+  const [trigger, menu] = faceOf(motion);
+  const curIcon = trigger.querySelector('.cs-cur-icon');
+  assert.equal(curIcon.innerHTML, motionModeIcon('particles'), 'the trigger wears the current mode');
+  for (const id of ['vs-appearance', 'vs-style'])
+    assert.equal(faceOf(doc.getElementById(id))[0].querySelector('.cs-cur-icon').innerHTML, '', `${id} wears none`);
+  trigger.dispatch('click', { preventDefault() {} });
+  for (const [i, li] of menu.children.filter((c) => c.className === 'accent-dd-opt').entries()) {
+    const [slot, label] = li.children;
+    assert.deepEqual([slot.className, slot.innerHTML], ['cs-opt-icon', motionModeIcon(MOTION_MODES[i])], 'the glyph first');
+    assert.deepEqual([label.className, label.textContent], ['cs-opt-label', MOTION_MODES[i]], 'then the label');
+  }
+  // A changed value plays its glyph in (the svg the trigger now holds wears .mm-play).
+  Object.defineProperty(curIcon, 'innerHTML', { set(html) { this._html = html; this.children.length = 0; if (html) this.appendChild(doc.createElement('svg')); }, get() { return this._html; } });
+  frames.splice(0).forEach((fn) => fn());
+  motion.value = 'water';
+  assert.equal(curIcon.innerHTML, motionModeIcon('water'));
+  assert.ok(curIcon.firstElementChild.classes.has('mm-play'));
+  // The extension's options page wears the same glyphs on its own copy of the list.
   assert.match(read('../../../../browser-extension/src/options/options.js'), /icons: el\.id === 'motion' \? motionModeIcon : null/);
 });
 
 test('a pick is applied before the list leaves and the value swaps, so both play in the new mode', () => {
-  const cs = read('../../../js/ui/control/customSelect.js');
-  const body = cs.slice(cs.indexOf('const choose = (v) => {'), cs.indexOf('trigger.addEventListener'));
-  const at = (needle) => body.indexOf(needle);
-  assert.ok(at('proto.set.call(selectEl, v);') >= 0, 'the raw setter — no early sync');
-  assert.ok(at("dispatchEvent(new Event('change'") < at('close();'), 'change handlers run before the exit');
-  assert.ok(at('close();') < at('sync();'), '…and before the trigger swaps its value');
+  const select = selectOf(['a', 'b']);
+  enhanceSelect(select);
+  const [trigger, menu] = faceOf(select);
+  let seen = null;
+  select.addEventListener('change', () => { seen = { value: select.value, open: !menu.hidden, label: trigger.querySelector('.cs-cur').textContent }; });
+  trigger.dispatch('click', { preventDefault() {} });
+  menu.children.find((li) => li.dataset.value === 'b').dispatch('click');
+  assert.deepEqual(seen, { value: 'b', open: true, label: 'a' }, 'change handlers run with the list still up and the old word shown');
+  assert.equal(menu.hidden, true, '…then the exit');
+  assert.equal(trigger.querySelector('.cs-cur').textContent, 'b', '…then the trigger swaps its value');
 });

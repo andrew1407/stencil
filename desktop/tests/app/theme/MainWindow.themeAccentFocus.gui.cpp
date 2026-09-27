@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo && win.canvas);
     // With a picture loaded, so a canvas press is an ordinary editing press and not the
     // empty canvas's "create a blank image" invitation (another modal dialog).
@@ -29,7 +29,7 @@ class MainWindowGuiTest : public QObject {
     // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
-      if (it.value() == win.actInfo && static_cast<QWidget*>(it.key())->isVisible())
+      if (it.value() == win.acts.info && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 

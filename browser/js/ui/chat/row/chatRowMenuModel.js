@@ -1,7 +1,7 @@
 // Right-click menu on transcript rows: the pure model (chatRowMenu.js paints it).
 import { icon } from '../../icons.js';
 
-// Styled as the projects modal's row menu (components/projects.css aliases .chat-row-menu).
+// Styled as the projects modal's row menu (components/projects/projects.css aliases .chat-row-menu).
 // renderChatLog stamps each row element with its log row (el._chatRow); user rows add Resend.
 export const chatRowMenuItems = (row) => {
   if (!row || row.pending) return [];

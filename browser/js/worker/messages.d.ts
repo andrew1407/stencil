@@ -20,4 +20,6 @@ export declare const PROJECT_ACTION: Readonly<{
   REMOVED: 'removed';
   CLEARED: 'cleared';
   CLOSE: 'close';
+  /** A project's thumbnail landed: re-read its row, never its editor. */
+  THUMBNAIL: 'thumbnail';
 }>;

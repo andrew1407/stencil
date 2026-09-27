@@ -10,11 +10,11 @@ proof lives in the fixture corpus at `browser/js/config/script/fixtures/`.
 
 | Artifact | Role | Pinned by |
 |---|---|---|
-| `core/script/` | the one parser, expander and lowerer | `core/tests/script*.test.cpp` |
+| `core/script/` | the one parser, expander and lowerer | `core/tests/script/*.test.cpp` |
 | `browser/js/core/script/` | the JS fallback, op-for-op identical | `browser/tests/wasm/wasm-parity.test.js` |
 | `browser/js/config/script/fixtures/` | the shared corpus every surface replays | each surface's walker |
 | `core/cliApi.h` `stencil_cli_script*` | the C ABI the CLI and pystencil drive | `core/tests/abi/scriptApi.test.cpp` |
-| `cli/CONTRACT.md` §5 | `--script`, `--script-plan`, `--script-check` | `cli/tests/script/script_test.zig` |
+| `cli/CONTRACT.md` §5 | `--script`, `--script-plan`, `--script-check` | `cli/tests/script/script_test.zig`, `script_plan_test.zig` |
 
 `core/` parses, validates and lowers. It never opens a file, fetches a URL, decodes an image
 or writes one — the adapters do that, driving the op stream this document defines.
@@ -23,7 +23,8 @@ or writes one — the adapters do that, driving the op stream this document defi
 
 ## §1 Lexical structure
 
-- UTF-8. A statement ends at a newline **or** a `;`, which are interchangeable.
+- UTF-8. A statement ends at a newline **or** a `;`, which are interchangeable. Whitespace is
+  ASCII only (space, tab, CR, LF, VT, FF); any other character belongs to a word.
 - **`#` starts a comment** that runs to the end of the line — unless the token it opens is a
   valid hex colour (`#ccc`, `#ccce`, `#cccccc`, `#ccccccee`). So `@filter #ccc # tint` is a
   colour followed by a comment.
@@ -32,8 +33,11 @@ or writes one — the adapters do that, driving the op stream this document defi
   case-sensitive.**
 - **Strings** are double-quoted, with `\"` and `\\` as the only escapes.
 - **Numbers** are `-?\d+(\.\d+)?` with an optional directly attached unit `px`, `cm`, `mm`,
-  `in` or `%`. A bare number takes the current `@use` unit.
+  `in` or `%`. A bare number takes the current `@use` unit. Any other run that starts with a
+  digit (`10foo`, `+5`, `.5`, `5.`, `1.2.3`, `0x10`, `1e3`) is a plain word: where a number is
+  expected it is `E_BAD_TOKEN`, and as a path (`@save 1.5x.png`) it is simply a word.
 - **`://` never breaks a word and never opens a block**, so a URL survives lexing intact.
+  Nor does a drive letter's `:` before `\` or `/`, so `@source C:\shots\a.png:` names one path.
 - **Points** are `(x, y)`. A unit may attach to a component (`(14px, 50%)`) or to the pair
   after its `)` (`(56, 90)cm`); a pair unit fills in only for components without their own.
   Commas between points are optional.
@@ -59,7 +63,7 @@ a **file**. Resolving them — fetching, listing, globbing — is the adapter's 
 
 | Directive | Meaning |
 |---|---|
-| `@crop x1=… x2=… y1=… y2=… [aspect=W:H]` | crop by named edges |
+| `@crop x1=… x2=… y1=… y2=… [aspect=W:H]` | crop by named edges; `W` and `H` are whole numbers above 0 |
 | `@crop <a>` / `<a> <b>` / `<x1> <y1> <x2> <y2>` | crop by insets (below) |
 | `@filter bw\|sepia\|invert\|contour\|none\|<colour>` | a filter mode, or a colour for a duotone |
 | `@use <unit>` | the default unit for bare numbers |
@@ -70,7 +74,7 @@ a **file**. Resolving them — fetching, listing, globbing — is the adapter's 
 | `@layout <path\|url> [combine\|replace]` | draw a layout JSON, combining by default |
 | `@frame <n>` | pick a video frame, and start a fresh set of edits |
 | `@save [target]` | write the result (below) |
-| `@undo [selectors…]` / `@redo [n]` | see §6 |
+| `@undo [selectors…]` / `@redo [n]` | see §7 |
 
 **Crop insets.** One value insets all four sides; two inset x then y; four are read
 `x1 y1 x2 y2`. A leading `-` on a united value measures from the far edge, so an inset of
@@ -94,6 +98,12 @@ negative length: on a 200px-wide image, `-10%` is x = 180.
 
 Lengths are resolved **lazily, against the live image**, because a crop changes the size
 mid-script. The host passes the dimensions it holds when it reaches the op.
+
+Placed lines (`@line`, `@rect`, a `@layout`'s lines) are never burned into the picture, on any
+surface: a `@crop` scales their points (not stroke widths or point sizes) by the new width over
+the old, or clears them when it turns an album window portrait or back (`core::cropChange`),
+and a `@save` writes them over the picture while they stay lines, so a later `@filter` never
+recolours them.
 
 ## §5 Colours and line style
 
@@ -123,6 +133,14 @@ highest one referenced **is** the template's arity.
 remains is the argument list. So with `style` and `style bold` both defined,
 `@use stencil style bold` calls the second one with no arguments.
 
+An argument is read again by the §1 word rules where it lands, so a number keeps its unit
+(`@use stencil pad 10%` fills `@crop @1` with `10%`) and a hex colour stays a colour; a quoted
+argument is always one plain word. A diagnostic raised inside an expanded body is reported at
+the body's own statement, names the call — `… (from the @use stencil at 7:5)` — and is said
+once however many calls reach it. It also carries that call as its **related span**: the line,
+column and length of the outermost `@use stencil` directive that expanded it (§8), which an
+editor shows as a second location. Every other diagnostic has none.
+
 Passing the wrong number of arguments is an error, as is naming a template that does not
 exist. A template no `@use stencil` reaches is a warning. Nesting is allowed and capped at
 `MAX_TEMPLATE_DEPTH`; a template that reaches itself hits that cap and is reported.
@@ -141,6 +159,9 @@ templates included, and are never renumbered. `@frame` starts a fresh set.
 | `@undo @line (1,1) (2,2)` | the last edit whose text matches |
 | `@redo [n]` | brings back the most recently undone edit, n times |
 
+`@redo` takes at most one count, a whole number from 1 (§1 digits, no unit); any other word
+there, or a second one, is `E_BAD_TOKEN`.
+
 **Undo is resolved when the script is lowered, not when it runs.** At every `@save` — and at
 the end of each block — the lowerer emits one `undo` of however many steps it takes to reach
 the last point where the applied and surviving edits agree, then replays the survivors. An
@@ -155,7 +176,7 @@ Every diagnostic carries a stable code, which is what the fixtures and the edito
 
 | Code | Severity | Raised when |
 |---|---|---|
-| `E_UNKNOWN_DIRECTIVE` | error | no such directive; names the nearest within two edits |
+| `E_UNKNOWN_DIRECTIVE` | error | no such directive; names the nearest within two edits (none past 64 bytes) |
 | `E_BAD_TOKEN` | error | a token is not what the directive expects there |
 | `E_UNTERMINATED_STRING` | error | a quote runs to the end of the line |
 | `E_MISSING_COLON` | error | `@source` or `@stencil` without its `:` |
@@ -182,8 +203,10 @@ Every diagnostic carries a stable code, which is what the fixtures and the edito
 | `W_AMBIGUOUS_UNDO` | warning | `@undo <text>` matched several edits |
 | `W_TRAILING_TOKENS` | warning | tokens after a block's `:` |
 
-A diagnostic carries a 1-based line and column and a length, so an editor can underline
-exactly the offending span. Diagnostics are reported in source order.
+A diagnostic carries a 1-based line, a 1-based column and a length, the last two in UTF-8
+bytes, so an editor can underline exactly the offending span, and optionally a related span in
+the same units (§6), read through `scriptDiagRelated`. Diagnostics are reported in source
+order.
 
 The check line format, which the editors parse, is:
 
@@ -205,13 +228,13 @@ Identical in C++ and in the JS port, so both reject the same input, with the sam
 | `MAX_TEMPLATE_DEPTH` | 16 | `E_TEMPLATE_RECURSION` |
 | `MAX_TEMPLATE_EXPANSIONS` | `MAX_OPS` × `MAX_TEMPLATE_DEPTH` | `E_LIMIT_OPS` |
 | `MAX_POINTS_PER_LINE` | 200 | `E_LIMIT_POINTS` |
-| `MAX_SOURCE_CHARS` | 1024 | `E_LIMIT_SOURCE` |
+| `MAX_SOURCE_CHARS` | 1024 bytes, cut back to a whole character | `E_LIMIT_SOURCE` |
 
 A cap is never silent: reaching `MAX_TOKENS` stops the lexer and says so, rather than dropping
 the rest of the file. `MAX_OPS` bounds four places, each reporting `E_LIMIT_OPS` once — the
-edits a script writes, the statements a nested `@use` fans out before any op exists, the
-expansions themselves, and the replay §7 emits; a refused replay also stops the lowering
-there, so its block yields nothing. Counting only the statements an expansion *produces*
+ops a script writes (every edit, `@save` and `@frame`), the statements a nested `@use` fans out
+before any op exists, the expansions themselves, and the replay §7 emits; a refused op or
+replay also stops the lowering there, so its block yields nothing. Counting only the statements an expansion *produces*
 leaves a body of nothing but nested uses unbounded, so `MAX_TEMPLATE_EXPANSIONS` counts the
 whole script's expansion tree, blocks included. Every op sits under at most
 `MAX_TEMPLATE_DEPTH` expansions, so no script within `MAX_OPS` can reach it.
@@ -220,12 +243,12 @@ whole script's expansion tree, blocks included. Every op sits under at most
 
 | Surface | Entry | `@source` may name | `@save` writes | Undo |
 |---|---|---|---|---|
-| cli, one-shot | `--script <file>` | file, url, dir, glob, video | a file, `-stencil` suffixed | a rewind and replay — there is no session to step, so the runner re-opens the input and re-applies the surviving edits |
+| cli, one-shot | `--script <file>` | file, url, dir, glob, video | a file, `-stencil` suffixed | a rewind and replay — there is no session to step, so the runner restores the input it decoded once and re-applies the surviving edits |
 | cli console | `/script`, `/script-run` | nothing: the console owns a session, not files, so a `@source` block is reported and skipped and the ops apply to the loaded image | nothing: a `@save` does not write here, only `/save` does | the console session's history |
-| pystencil, batch | `run_script` | file, url, dir, glob — **no video**: the package is stdlib-only and carries no decoder, so `@frame` is reported | as the cli one-shot | the editor history |
+| pystencil, batch | `run_script` | file, url, dir, glob — **no video**: the package is stdlib-only and carries no video decoder, so `@frame` is reported | as the cli one-shot | the editor history |
 | pystencil, editor | `Editor.script` | nothing: the editor already holds the image the block header names, so `@open` no-ops | as the cli one-shot | the editor history |
 | browser | the script window, the context menu's editor, a dropped `.stc`, `stencil.execScript(text)` | **url only** | the project | the project history |
-| desktop | the script dialog, a dropped `.stc` | url or local path | the project | the script's own checkpoints, one per §7-numbered edit — the project's line history does not cover a crop or a filter |
+| desktop | the script dialog, a dropped `.stc` | url or local path | the project | the script's own checkpoints, one per §7-numbered edit — the project's history steps the lines, a crop, a turn and the filter, as the browser's does |
 | bot | `/script`, a `.stc` upload | url only | the active **server project**, through the op-plan `save` action; the rendered reply follows any mutation | the session history |
 | mcp | `stencil_script` | file or url — a read is not fenced | inside the sandbox root: `--confine-output` refuses a `@save` that climbs out | not applicable |
 
@@ -253,7 +276,8 @@ Two rules hold whoever emits:
 
 1. **Emission is literal.** Length tokens, `@source` specs and `@save` targets are written
    out as the script wrote them and resolved by the generated file at run time, so it is as
-   general as the `.stc` and needs no image to emit. Templates (§6) and `@undo`/`@redo` (§7)
+   general as the `.stc` and needs no image to emit. Every value lands inside an escaped string
+   literal, and the source's name in the header comment never carries a line break. Templates (§6) and `@undo`/`@redo` (§7)
    arrive resolved, because lowering resolves both.
 2. **The target's §10 row governs.** A directive that row cannot honour is refused with the
    span that named it, and nothing is written — an emitted script that cannot run is never
@@ -274,7 +298,8 @@ host holds at that moment) and `nums` (plain numbers). `RECT` is a `LINE` with `
 | `LINE` (4) / `RECT` (5) | color, style, fillColor, pointColor | x0, y0, x1, y1, … | thickness, pointSize, locked |
 | `LAYOUT` (6) | source, mode | — | sourceKind |
 | `SAVE` (7) | target | — | — |
-| `UNDO` (8) / `REDO` (9) | — | — | steps |
+| `UNDO` (8) | — | — | steps |
+| `REDO` (9) | reserved: §7 resolves every `@redo`, so the lowerer never emits one | | |
 
 `scriptOpResolve` writes, per kind:
 
@@ -282,7 +307,7 @@ host holds at that moment) and `nums` (plain numbers). `RECT` is a `LINE` with `
 |---|---|
 | `CROP` | `[x, y, w, h]` |
 | `LINE` / `RECT` | `[x0, y0, …, thickness, pointSize]`; a two-point rect expands to four corners |
-| `FRAME` / `UNDO` / `REDO` | `[n]` |
+| `FRAME` / `UNDO` | `[n]` |
 | anything else | none (0) |
 
 An adapter executes this stream and never the grammar, which is what makes a script and a

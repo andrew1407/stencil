@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 660);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QScrollArea* scroll = openTranscript(win);
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
 
@@ -139,9 +139,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
-    awaitAnim(win.chatAnim);   // the open slide, on its own end
+    awaitAnim(win.parts.dockChrome.chatAnim);   // the open slide, on its own end
     QWidget* chips = win.chatDock->findChild<QWidget*>(QStringLiteral("chatSuggest"));
     QVERIFY(chips);
     const auto btns = chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip"));

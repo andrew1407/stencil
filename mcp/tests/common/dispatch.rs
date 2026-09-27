@@ -6,6 +6,8 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, RequestId};
 use rmcp::service::{serve_directly, RequestContext, RunningService};
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 use serde_json::{json, Value};
+use stencil_mcp::config::Config;
+use stencil_mcp::confine::Roots;
 use stencil_mcp::server::StencilServer;
 
 pub struct Harness {
@@ -15,7 +17,20 @@ pub struct Harness {
 
 impl Harness {
     pub fn new() -> Harness {
-        let server = StencilServer::default();
+        Harness::serving(StencilServer::default())
+    }
+
+    /// A server whose operator roots are `dir` — the client here offers none of its own.
+    pub fn rooted(dir: &std::path::Path) -> Harness {
+        let roots = Roots::new([dir.to_path_buf()]).expect("a root");
+        Harness::serving(StencilServer::new(Config { roots, ..Config::default() }))
+    }
+
+    pub fn with_config(config: Config) -> Harness {
+        Harness::serving(StencilServer::new(config))
+    }
+
+    fn serving(server: StencilServer) -> Harness {
         let running = serve_directly(server.clone(), (tokio::io::empty(), tokio::io::sink()), None);
         Harness { server, running }
     }

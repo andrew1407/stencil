@@ -1,5 +1,5 @@
 // Two app-wide motion switches (Visuals modal / stencil.drawingAnimations, stencil.motionMode):
-// `drawing` is the canvas stroke motion (core/strokeFx.js); `mode` is how the interface moves —
+// `drawing` is the canvas stroke motion (core/line/strokeFx.js); `mode` is how the interface moves —
 // 'particles' | 'water' | 'fire' (cloud.js styleFrame), 'slide' (each surface's own CSS
 // entrance), 'none'. prefers-reduced-motion: reduce reads as 'none' whatever is stored.
 // App-wide under its own localStorage key; mirrored onto <html data-motion> (animations/motionModes.css).
@@ -26,8 +26,8 @@ const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water',
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
 
-// One list for the desktop combo (dialogs/SettingsDialog.cpp) and the extension's options
-// page (src/lib/accent.js StencilMotion) to mirror.
+// One list for the desktop combo (dialogs/settings/SettingsDialog.cpp) and the extension's options
+// page (src/lib/accent/accent.js StencilMotion) to mirror.
 export const MOTION_MODE_LABELS = Object.freeze([
   [MOTION_PARTICLES, 'Dust'],
   [MOTION_WATER, 'Water'],

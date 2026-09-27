@@ -42,17 +42,22 @@ const readFamily = (family) => {
 
 // ── providerWire ─────────────────────────────────────────────────────────────
 // fixture "provider" → the §5 provider value the client is configured with.
-const PROVIDER_MAP = { ollama: 'ollama', openai: 'openai-compat', server: 'stencil-server' };
+const PROVIDER_MAP = { ollama: 'ollama', openai: 'openai-compat', server: 'stencil-server', anthropic: 'anthropic' };
+// A web or extension page must ask Anthropic for a browser origin (llm-providers.md §6.5).
+const DIRECT_BROWSER_ACCESS = 'anthropic-dangerous-direct-browser-access';
 
 test('providerWire: request bodies and reply extraction match the golden vectors', async (t) => {
   for (const fx of loadFamily('providerWire')) {
     await t.test(`${fx.file}: ${fx.name}`, async () => {
       assert.ok(PROVIDER_MAP[fx.provider], `unknown provider "${fx.provider}"`);
       const captured = {};
+      let requests = 0;
       const fetchImpl = async (url, init) => {
+        requests++;
         captured.url = url;
         captured.headers = init.headers || {};
         captured.method = init.method;
+        captured.redirect = init.redirect;
         captured.body = JSON.parse(init.body);
         if (fx.errorResponse) {
           const b = fx.errorResponse.body;
@@ -79,12 +84,19 @@ test('providerWire: request bodies and reply extraction match the golden vectors
         error = err;
       }
 
-      // The request the builder produced — exact URL, auth, and body.
-      assert.equal(captured.method, 'POST');
-      assert.equal(captured.headers['Content-Type'], 'application/json');
-      assert.equal(captured.url, fx.expectUrl);
-      assert.equal(captured.headers.Authorization, fx.expectAuthorization);
-      assert.deepEqual(captured.body, fx.expectBody);
+      // The request the builder produced — exact URL, auth, and body; or none at all.
+      if (fx.expectNoRequest) {
+        assert.equal(requests, 0, 'nothing may be sent');
+      } else {
+        assert.equal(captured.method, 'POST');
+        assert.equal(captured.headers['Content-Type'], 'application/json');
+        assert.equal(captured.url, fx.expectUrl);
+        assert.equal(captured.headers.Authorization, fx.expectAuthorization);
+        for (const [name, value] of Object.entries(fx.expectHeaders || {})) assert.equal(captured.headers[name], value, name);
+        assert.equal(captured.headers[DIRECT_BROWSER_ACCESS], fx.provider === 'anthropic' ? 'true' : undefined);
+        assert.equal(captured.redirect, 'error', 'no provider\'s 30x carries a key or token onward');
+        assert.deepEqual(captured.body, fx.expectBody);
+      }
 
       // The response handling — extracted reply or typed error.
       if (fx.expectError) {

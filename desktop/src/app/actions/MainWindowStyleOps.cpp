@@ -1,27 +1,12 @@
 #include "MainWindow.hpp"
-#include <QActionGroup>
 #include <QButtonGroup>
 #include <QComboBox>
-#include "MainWindow.hpp"
-#include "StayOpenMenu.hpp"
-#include "ChatPlanTarget.hpp"
-#include "LogoHoverFx.hpp"
-#include "ChatMenuPanel.hpp"
-#include "planExecutor.hpp"
-#include "OpenImageDialog.hpp"
 #include "CanvasWidget.hpp"
-#include "guiHelpers.hpp"
-#include "menuReveal.hpp"
-#include "ProjectsDialog.hpp"
 #include "RemoteSyncController.hpp"
-#include "ServerClient.hpp"
-#include "SelectionPanel.hpp"
-#include "ShortcutsDialog.hpp"
 #include "theme.hpp"
 #include "../../support/skinPrefs.hpp"
 
 #include <QAbstractButton>
-#include <QAction>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
@@ -29,93 +14,52 @@
 #include <QToolButton>
 
 // Line style, filter/tint and colour-swatch appliers — the shared apply paths behind the
-// toolbar controls and their context-menu twins.
+// toolbar controls and their context-menu twins. A filter pick is one undo step; `asUndoStep`
+// false adopts one (a load, a peer, an undo) under the step already there.
 
 namespace stencil::gui {
 
-  // Mirrors the browser change handlers (drawingApp.js:155-178). Defaults only — never the
-  // selection.
-  QColor MainWindow::effectiveDefaultPointColor() const {
-    const QColor c(settings.defaultPointColor);
-    return (!settings.defaultPointColor.isEmpty() && c.isValid()) ? c : lineColorValue;
-  }
 
-  void MainWindow::onLineStyleControlChanged() {
-    canvas->setDefaults(settings.defaultColor, settings.defaultThickness,
-                         settings.defaultPointSize, settings.defaultStyle,
-                         settings.defaultPointColor);
-    persistSettings();
-  }
 
-  // One apply path for toolbar + context-menu twins. Setting an exclusive QAction's checked state
-  // emits toggled(), not triggered(), so no re-entry. Transient view state, not persisted.
-  void MainWindow::setCompareModeUi(const QString& mode) {
-    canvas->setCompareMode(mode);
-    if (compareCombo) {
-      const int idx = compareCombo->findData(mode);
-      if (idx >= 0 && idx != compareCombo->currentIndex()) {
-        QSignalBlocker b(compareCombo);
-        compareCombo->setCurrentIndex(idx);
-      }
-    }
-    if (compareGroup) {
-      for (QAction* a : compareGroup->actions())
-        if (a->data().toString() == mode) { a->setChecked(true); break; }
-    }
-    refreshActions();   // read-only view gates the editing actions + their shortcuts
-  }
 
-  void MainWindow::applyImageFilter(const QString& mode) {
+  void MainWindow::applyImageFilter(const QString& mode, bool asUndoStep) {
     settings.imageFilter = mode;
-    if (imageFilter) {  // sync toolbar combo by canonical data value
-      const int idx = imageFilter->findData(mode);
+    if (tools.imageFilter) {  // sync toolbar combo by canonical data value
+      const int idx = tools.imageFilter->findData(mode);
       if (idx >= 0) {
-        QSignalBlocker b(imageFilter);
-        imageFilter->setCurrentIndex(idx);
+        QSignalBlocker b(tools.imageFilter);
+        tools.imageFilter->setCurrentIndex(idx);
       }
     }
-    if (filterButtons) {  // sync context-menu radio group (blocked so it doesn't re-apply)
-      for (QAbstractButton* b : filterButtons->buttons())
+    if (ctxMenu.filterButtons) {  // sync context-menu radio group (blocked so it doesn't re-apply)
+      for (QAbstractButton* b : ctxMenu.filterButtons->buttons())
         if (b->property("filterValue").toString() == mode) {
           QSignalBlocker bl(b);
           b->setChecked(true);
           break;
         }
     }
-    if (filterColorBtn) filterColorBtn->setVisible(mode == "custom");
+    if (tools.filterColorBtn) tools.filterColorBtn->setVisible(mode == "custom");
     // Re-gate the export rows live so "Filter Only" shows/hides at once.
-    syncExportActions();
-    canvas->setImageFilter(mode, filterColorValue);
+    parts.exportMenus.syncExportActions();
+    if (asUndoStep) canvas->commitFilter(mode, tools.filterColorValue);
+    else canvas->setImageFilter(mode, tools.filterColorValue);
     persistSettings();
-    if (!remoteReloading) filterDirty = true;   // user changed the filter
-    remoteSync->scheduleRemotePush();   // live co-edit: a filter change isn't a canvas changed()
+    if (!remote.reloading) filterDirty = true;   // user changed the filter
+    remoteSync->scheduleRemotePush();   // live co-edit: an adopted filter emits no changed()
   }
 
-  void MainWindow::applyTintColor(const QColor& color) {
-    filterColorValue = color;
+  void MainWindow::applyTintColor(const QColor& color, bool asUndoStep) {
+    tools.filterColorValue = color;
     settings.filterColor = color.name(QColor::HexRgb);
-    if (filterColorBtn) updateColorSwatch(filterColorBtn, color);
-    canvas->setImageFilter(settings.imageFilter, filterColorValue);
+    if (tools.filterColorBtn) updateColorSwatch(tools.filterColorBtn, color);
+    if (asUndoStep) canvas->commitFilter(settings.imageFilter, tools.filterColorValue);
+    else canvas->setImageFilter(settings.imageFilter, tools.filterColorValue);
     persistSettings();
-    if (!remoteReloading) filterDirty = true;   // user changed the tint
+    if (!remote.reloading) filterDirty = true;   // user changed the tint
     remoteSync->scheduleRemotePush();   // live co-edit: push tint changes to peers
   }
 
-  void MainWindow::applyLineStyle(const QString& style) {
-    settings.defaultStyle = style;
-    if (lineStyle) {  // sync toolbar combo by canonical data value
-      const int idx = lineStyle->findData(style);
-      if (idx >= 0) {
-        QSignalBlocker b(lineStyle);
-        lineStyle->setCurrentIndex(idx);
-      }
-    }
-    if (lineStyleGroup) {  // sync context-menu radio group
-      for (QAction* a : lineStyleGroup->actions())
-        if (a->data().toString() == style) { a->setChecked(true); break; }
-    }
-    onLineStyleControlChanged();
-  }
 
   // The browser uses <input type=color>.
   void MainWindow::updateColorSwatch(QToolButton* btn, const QColor& color) {

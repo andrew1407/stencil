@@ -9,6 +9,8 @@ import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATI
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
 import { wireNotifyRow } from './notifyRow.js';
+import { clampThickness, clampPointSize } from '../../core/settings/limits.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() { return visualsModalInner(); }
@@ -46,11 +48,7 @@ export class StencilVisualsModal extends StencilElement {
     };
     attachSearchFilter(search, applyFilter);
 
-    const VIS_DEFAULTS = {
-      color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid',
-      defaultFillColor: '#ffffff', selGlowColor: '#ffc800',
-      hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
-    };
+    const VIS_DEFAULTS = { ...constants.DEFAULT_VISUALS, holdDrawDelay: constants.HOLD_DRAW.delayMs };
     const voiceRow = wireVoiceSilenceRow();
     const notifyRow = wireNotifyRow(app);
 
@@ -62,13 +60,13 @@ export class StencilVisualsModal extends StencilElement {
       // the swap origin, so the palette floods out of the control under the cursor.
       onSelect: (key) => {
         const from = accentMount.querySelector('.accent-dd-trigger') || accentMount;
-        return /^#/.test(key) ? app.setCustomAccent(key, from) : app.setAccent(key, from);
+        return /^#/.test(key) ? app.accents.setCustomAccent(key, from) : app.accents.setAccent(key, from);
       },
       // Resting on a preset row previews it on the page; leaving or closing without a pick floods
       // back to the committed accent (accentController).
       preview: {
-        on: (key) => app.previewAccent?.(key, accentMount.querySelector('.accent-dd-trigger') || accentMount),
-        off: () => app.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
+        on: (key) => app.accents.previewAccent?.(key, accentMount.querySelector('.accent-dd-trigger') || accentMount),
+        off: () => app.accents.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
       },
     });
     // The accent moved elsewhere (another tab) — keep this picker in sync; custom hex first.
@@ -79,7 +77,7 @@ export class StencilVisualsModal extends StencilElement {
     // select is the swap origin, so the palette floods out of the touched control.
     const appearance = document.getElementById('vs-appearance');
     // Our own list, not the OS's — a native <select> popup is drawn by the platform and
-    // ignores the app's theme entirely (ui/customSelect.js).
+    // ignores the app's theme entirely (ui/control/customSelect.js).
     enhanceSelect(appearance);
     const syncAppearance = () => { appearance.value = app.accents.themeMode; };
     syncAppearance();
@@ -91,7 +89,7 @@ export class StencilVisualsModal extends StencilElement {
     subscribe(EVENTS.themeChanged, syncAppearance);
 
     // ── Motion: the stroke animation, the window backdrop, and the interface, all
-    // app-wide (ui/prefs.js), routed through the shared setter the console uses. ──
+    // app-wide (ui/motion/motionPrefs.js), routed through the shared setter the console uses. ──
     const motionMode = document.getElementById('vs-motion-mode');
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
@@ -152,39 +150,39 @@ export class StencilVisualsModal extends StencilElement {
     els.lineColor.addEventListener('input', e => {
       app.color = e.target.value;
       setVal('line-color', e.target.value);
-      app.storage.save();
     });
+    els.lineColor.addEventListener('change', () => app.storage.saveSoon());
     els.thickness.addEventListener('change', e => {
-      app.thickness = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || app.thickness));
+      app.thickness = clampThickness(parseInt(e.target.value, 10) || app.thickness);
       e.target.value = app.thickness;
       setVal('line-thickness', app.thickness);
-      app.storage.save();
+      app.storage.saveSoon();
     });
     els.point.addEventListener('change', e => {
-      app.pointSize = Math.max(1, Math.min(30, parseInt(e.target.value, 10) || app.pointSize));
+      app.pointSize = clampPointSize(parseInt(e.target.value, 10) || app.pointSize);
       e.target.value = app.pointSize;
       setVal('point-size', app.pointSize);
-      app.renderer.redraw(); app.storage.save();
+      app.renderer.redraw(); app.storage.saveSoon();
     });
     els.style.addEventListener('change', e => {
       app.style = e.target.value;
       setVal('line-style', e.target.value);
       setRadioGroup('ctxLineStyle', e.target.value);
-      app.storage.save();
+      app.storage.saveSoon();
     });
     els.holdDelay.addEventListener('change', e => {
       app.input.setHoldDrawDelay(e.target.value);
       e.target.value = app.holdDrawDelay; // reflect the clamped value
     });
     // Shared core setter (also used by the console: stencil.settings.fillColor, etc.)
-    els.fill.addEventListener('input', e => app.settings.setVisualColor('fill', e.target.value));
-    els.selGlow.addEventListener('input', e => app.settings.setVisualColor('selGlow', e.target.value));
-    els.hoverRing.addEventListener('input', e => app.settings.setVisualColor('hoverRing', e.target.value));
-    els.focusRing.addEventListener('input', e => app.settings.setVisualColor('focusRing', e.target.value));
+    for (const [key, el] of [['fill', els.fill], ['selGlow', els.selGlow], ['hoverRing', els.hoverRing], ['focusRing', els.focusRing]]) {
+      el.addEventListener('input', e => app.settings.setVisualColor(key, e.target.value, { persist: false }));
+      el.addEventListener('change', e => app.settings.setVisualColor(key, e.target.value));
+    }
 
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
-      app.setAccent(DEFAULT_ACCENT);
+      app.accents.setAccent(DEFAULT_ACCENT);
       const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP], ['mode', DEFAULT_MOTION_MODE]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       voiceRow.reset();
@@ -194,7 +192,7 @@ export class StencilVisualsModal extends StencilElement {
       setVal('point-size', app.pointSize);
       setVal('line-style', app.style);
       populate();
-      app.renderer.redraw(); app.storage.save();
+      app.renderer.redraw(); app.storage.saveSoon();
       notify('Visual defaults reset', 'ok');
     });
 

@@ -13,7 +13,7 @@ class MainWindowGuiTest : public QObject {
   void openingTheChatFocusesItsInput() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     QTRY_VERIFY_WITH_TIMEOUT(win.chatDock->input->hasFocus(), 3000);
     beat();
@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
     canvas->selectLineByIndex(0);
     const int lines = static_cast<int>(canvas->getLines().size());
 
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     QPlainTextEdit* input = win.chatDock->input;
     input->setFocus();
@@ -57,7 +57,7 @@ class MainWindowGuiTest : public QObject {
     // like every other test here that touches real persisted settings.
     const bool wasSwapped = win.settings.chatSwapSides;
     if (wasSwapped) win.chatDock->setChatSwapSides(false);   // start from a known state
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     win.chatDock->appendUser(QStringLiteral("hi"), {});
     win.chatDock->appendAssistant(QStringLiteral("hello"));
@@ -138,11 +138,11 @@ class MainWindowGuiTest : public QObject {
 
     // …and a NEWLY opened context-menu mirror panel picks up the SAME preference,
     // not the pre-flip default.
-    win.ensureChatMenuPanel();
-    win.chatMirror(QStringLiteral("Assistant"), QStringLiteral("mirrored"), false);
-    QTRY_VERIFY(win.chatMenuPanel->findChild<QFrame*>("chatCardAssistant"));
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatMirror(QStringLiteral("Assistant"), QStringLiteral("mirrored"), false);
+    QTRY_VERIFY(win.chatSession->chatMenuPanel->findChild<QFrame*>("chatCardAssistant"));
     QFrame* mirroredAsst = nullptr;
-    for (QFrame* f : win.chatMenuPanel->findChildren<QFrame*>("chatCardAssistant"))
+    for (QFrame* f : win.chatSession->chatMenuPanel->findChildren<QFrame*>("chatCardAssistant"))
       mirroredAsst = f;
     QVERIFY2(mirroredAsst, "the mirror panel never rendered the appended row");
     auto* mirrorLayout = qobject_cast<QVBoxLayout*>(mirroredAsst->parentWidget()->layout());

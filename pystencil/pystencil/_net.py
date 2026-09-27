@@ -13,13 +13,16 @@ batch of independent fetches at once, since they are pure I/O waits.
 
 from __future__ import annotations
 
+import importlib.resources
 import ipaddress
+import json
 import socket
 import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
 
+from ._ffi.types import NoneType
 from ._raster.parallel import map_parallel
 
 
@@ -45,7 +48,8 @@ MAX_FETCH_BYTES = 64 * 1024 * 1024  # 64 MiB
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
   """Refuse HTTP redirects. A public first hop must not 30x-bounce to an internal host,
   which would slip past the pre-fetch host check (parity with net.zig's redirect_behavior =
-  .not_allowed). Also stops a redirect to a non-http(s) scheme (ftp://, file://)."""
+  .not_allowed), and urllib would replay every header — ``Authorization`` included — to
+  whatever host the 30x names. Also stops a redirect to a non-http(s) scheme."""
 
   def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
     raise urllib.error.HTTPError(
@@ -57,37 +61,88 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
+def _no_redirect_opener(
+  context: (ssl.SSLContext | NoneType) = None
+) -> urllib.request.OpenerDirector:
+  """The redirect-refusing opener, carrying ``context`` (a custom or dev-only TLS
+  context) on its HTTPS handler; ``None`` is the shared default-verified opener."""
+  if context is None: return _OPENER
+  return urllib.request.build_opener(
+    _NoRedirect, urllib.request.HTTPSHandler(context=context))
+
+
+# The SSRF address table: a checked-in copy of browser/js/config/net/blockedRanges.json
+# (tests/test_canonical_drift.py byte-pins it); fixtures/net/hosts.json is its corpus.
+_RANGES = json.loads(
+  importlib.resources.files("pystencil").joinpath("_data/blockedRanges.json").read_text(encoding="utf-8")
+)
+_CLASSES = {
+  name: tuple(ipaddress.ip_network(c) for c in cidrs) for name, cidrs in _RANGES["classes"].items()
+}
+_EMBEDS = tuple(
+  (ipaddress.ip_network(r["prefix"]), r["offset"], tuple(ipaddress.ip_network(e) for e in r.get("except", ())))
+  for r in _RANGES["embedsV4"]
+)
+
+
+def _carried(ip):
+  """The IPv4 address an IPv6 form carries (mapped, compatible, NAT64, 6to4), else ``ip``."""
+  for prefix, offset, exceptions in _EMBEDS:
+    if ip in prefix and not any(ip in e for e in exceptions):
+      return ipaddress.IPv4Address(ip.packed[offset : offset + 4])
+  return ip
+
+
+def _address_blocked(ip, policy: str, **options: bool) -> bool:
+  """True when the table's ``policy`` refuses ``ip``; ``options`` are its ``blocksUnless`` switches."""
+  rules = _RANGES["policies"][policy]
+  names = list(rules["blocks"])
+  for option, more in rules.get("blocksUnless", {}).items():
+    if not options.get(option): names += more
+  ip = _carried(ip)
+  return any(ip in net for name in names for net in _CLASSES[name])
+
+
+def _literal(host: str):
+  """The address ``host`` spells — IPv6, or IPv4 in any ``inet_aton`` form (hex, octal, one
+  to four parts), as the resolver reads it — else None: ``host`` is a name."""
+  if ":" in host:
+    try:
+      return ipaddress.ip_address(host)
+    except ValueError:
+      return None
+  if not host[:1].isdigit(): return None
+  try:
+    return ipaddress.IPv4Address(socket.inet_aton(host))
+  except OSError:
+    return None
+
+
 def _is_blocked_ip(ip, strict: bool) -> bool:
   """True when ``ip`` is an internal/reserved target a fetch must refuse (SSRF guard).
 
-  Mirrors net.zig's ``isBlockedV4``/``isBlockedV6``: private (RFC1918/ULA), link-local
-  (incl. ``169.254.169.254`` cloud metadata), CGNAT, reserved, multicast and unspecified are
-  always blocked. Loopback is blocked only when ``strict`` — allowed for a user-named URL,
-  refused for a sub-resource harvested from untrusted content on a different host.
+  The table's ``fetch`` policy decides, judging an IPv6 form by the IPv4 address it carries;
+  loopback is refused only when ``strict``. Anything stdlib ``is_global`` calls non-global is
+  refused as well.
   """
-  if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-    ip = ip.ipv4_mapped  # classify ::ffff:a.b.c.d as its embedded IPv4
+  ip = _carried(ip)
   if ip.is_loopback: return strict
-  # is_global is False for every private/link-local/reserved/CGNAT/TEST-NET/etc. range.
-  return not ip.is_global
+  return _address_blocked(ip, "fetch", allowLoopback=not strict) or not ip.is_global
 
 
 def _assert_fetchable(url: str, strict: bool) -> None:
   """Raise ValueError if ``url``'s host is an internal/blocked SSRF target.
 
-  Classifies an IP literal directly; for a DNS name, resolves it and refuses when ANY
-  resolved address is internal (closes the hostname-with-internal-record vector, and also
-  catches alternate numeric IPv4 encodings — ``getaddrinfo`` canonicalizes ``2130706433`` /
-  ``0x7f000001`` to the real address). A residual DNS-rebinding TOCTOU remains, same as the
-  Zig CLI. Resolution failure is left for the real fetch to surface as a connection error.
+  Classifies an IP literal directly (``2130706433`` and ``0x7f000001`` included, read as
+  :func:`_literal` reads them); for a DNS name, resolves it and refuses when ANY resolved
+  address is internal (closes the hostname-with-internal-record vector). A residual
+  DNS-rebinding TOCTOU remains, same as the Zig CLI. Resolution failure is left for the real
+  fetch to surface as a connection error.
   """
   host = urllib.parse.urlsplit(url).hostname  # lowercased, IPv6 brackets stripped, no userinfo
   if not host:
     raise ValueError("could not parse a host from URL: %r" % url)
-  try:
-    ip = ipaddress.ip_address(host)
-  except ValueError:
-    ip = None
+  ip = _literal(host)
   if ip is not None:
     if _is_blocked_ip(ip, strict):
       raise ValueError("refusing to fetch internal/blocked host: %s" % host)

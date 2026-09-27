@@ -1,8 +1,9 @@
 // The guard every outbound request inherits, driven against a real loopback server through
-// serverClient.rawRequest — the server-connect path, which skips only the host check
-// (net.RequestOptions.allow_named_host) and must still cap the body and refuse a redirect.
+// serverClient.rawRequest — the server-connect path, which judges its host as a server target
+// (net.RequestOptions.server_target) and must still cap the body and refuse a redirect.
 const std = @import("std");
 const net = @import("../../src/net.zig");
+const job = @import("../../src/net/job.zig");
 const server = @import("../../src/server/client.zig");
 const testing = std.testing;
 
@@ -42,14 +43,50 @@ test "a host that never answers is dropped at the deadline, not waited on" {
     const url = try fake.url(testing.allocator);
     defer testing.allocator.free(url);
 
-    // A named server (the host check is skipped) that accepts and then says nothing.
-    const opts = net.RequestOptions{ .allow_named_host = true, .timeout_ms = 300 };
+    // A named server (loopback is a server target) that accepts and then says nothing.
+    const opts = net.RequestOptions{ .server_target = true, .timeout_ms = 300 };
     const started = std.Io.Clock.now(.awake, fake.io).toMilliseconds();
     try testing.expectError(error.TimedOut, net.request(testing.allocator, fake.io, url, opts));
     const waited = std.Io.Clock.now(.awake, fake.io).toMilliseconds() - started;
     try testing.expect(waited >= 300); // it really waited its budget …
     try testing.expect(waited < 10_000); // … and gave up on it rather than on the server
     try testing.expectEqual(@as(u32, 1), fake.hits.load(.acquire));
+}
+
+const Presses = struct {
+    left: usize,
+    fn poll(ctx: *anyopaque, _: i32) bool {
+        const self: *Presses = @ptrCast(@alignCast(ctx));
+        if (self.left == 0) return true;
+        self.left -= 1;
+        return false;
+    }
+};
+
+fn expectCancelledSoon(fake: *Fake, waiter: ?net.Waiter) !void {
+    const url = try fake.url(testing.allocator);
+    defer testing.allocator.free(url);
+    const headers = [_]std.http.Header{.{ .name = "authorization", .value = "Bearer t" }};
+    const opts = net.RequestOptions{ .server_target = true, .payload = "{}", .extra_headers = &headers, .timeout_ms = 20_000 };
+    const t0 = std.Io.Clock.now(.awake, fake.io).toMilliseconds();
+    try testing.expectError(error.Cancelled, net.requestWatched(testing.allocator, fake.io, url, opts, waiter));
+    try testing.expect(std.Io.Clock.now(.awake, fake.io).toMilliseconds() - t0 < 5_000); // not the 20 s deadline
+}
+
+test "a request under a watch gives up at a Ctrl-C, not at its deadline" {
+    var fake = try Fake.start("", .stall);
+    defer fake.stop();
+    var presses = Presses{ .left = 2 };
+    try expectCancelledSoon(fake, .{ .ctx = &presses, .poll = Presses.poll });
+}
+
+test "a request that brings no watch runs under the one installed for its thread" {
+    var fake = try Fake.start("", .stall);
+    defer fake.stop();
+    var presses = Presses{ .left = 2 };
+    const prev = job.watchThread(.{ .ctx = &presses, .poll = Presses.poll });
+    defer _ = job.watchThread(prev);
+    try expectCancelledSoon(fake, null);
 }
 
 /// A one-request HTTP server on loopback. `.plain` answers with `head`; `.flood` then pours

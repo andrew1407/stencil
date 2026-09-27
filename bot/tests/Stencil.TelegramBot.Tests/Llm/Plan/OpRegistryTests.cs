@@ -1,7 +1,6 @@
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Application.Llm.Plan;
-using Stencil.TelegramBot.Application.Llm.Schema;
 
 namespace Stencil.TelegramBot.Tests.Llm.Plan;
 
@@ -77,33 +76,17 @@ public sealed class OpRegistryTests
     }
 
     [Fact]
-    public void Should_Match_The_Canonical_File_Bytes_For_The_Embedded_Registry()
-    {
-        // The embed copies the shared registry at build time; catch drift against the repo's copy.
-        using Stream? stream = typeof(OpSchema).Assembly.GetManifestResourceStream(
-            "Stencil.TelegramBot.Application.Assets.opRegistry.json");
-        Assert.NotNull(stream);
-        using var embedded = new MemoryStream();
-        stream.CopyTo(embedded);
-        byte[] canonical = File.ReadAllBytes(
-            SharedFixtures.PathOf("browser", "js", "config", "llm", "opRegistry.json"));
-        Assert.Equal(canonical, embedded.ToArray());
-    }
-
-    [Fact]
     public void Should_Mirror_The_Shared_Registrys_Bot_Profile_In_The_Descriptors()
     {
         // Same names in the same (prompt) order; bullets are the registry's, byte for byte.
-        OpSchema schema = OpSchema.Bot;
-        Assert.Equal("bot", schema.Profile);
-        Assert.Equal(schema.Entries.Select(e => e.Name), OpRegistry.Names);
-        Assert.Equal(schema.Forbidden.Order(), OpRegistry.ForbiddenOps.Order());
+        Assert.Equal(OpRegistryAsset.Ops.Select(e => e.Name), OpRegistry.Names);
+        Assert.Equal(OpRegistryAsset.Forbidden.Order(), OpRegistry.ForbiddenOps.Order());
         foreach (OpDescriptor op in OpRegistry.Ops)
         {
-            Assert.Equal(schema.Ops[op.Names[0]].Bullet, op.Bullet);
+            Assert.Equal(OpRegistryAsset.Ops.Single(e => e.Name == op.Names[0]).Bullet, op.Bullet);
         }
         Assert.Equal(
-            string.Join("\n", schema.Entries.Where(e => e.Bullet is not null).Select(e => e.Bullet)),
+            string.Join("\n", OpRegistryAsset.Ops.Where(e => e.Bullet is not null).Select(e => e.Bullet)),
             OpRegistry.CoreOpsSection + "\n" + OpRegistry.ProfileOpsSection);
     }
 
@@ -115,12 +98,12 @@ public sealed class OpRegistryTests
         // action or a validation failure, never the §1 unknown-op skip.
         foreach (string op in OpPlanParser.KnownOps)
         {
-            OpPlanParseResult result = OpPlanParser.Parse(
+            OpPlanParseResult result = RecordedPlans.Parse(
                 $$"""{"version":1,"reply":"x","actions":[{"op":"{{op}}"}]}""");
             Assert.DoesNotContain(result.Warnings, w => w.Contains("unknown operation"));
         }
         // Sanity: a genuinely unknown op still takes the §1 skip.
-        OpPlanParseResult unknown = OpPlanParser.Parse(
+        OpPlanParseResult unknown = RecordedPlans.Parse(
             """{"version":1,"reply":"x","actions":[{"op":"sparkle"}]}""");
         Assert.Contains(unknown.Warnings, w => w.Contains("unknown operation \"sparkle\""));
     }
@@ -176,7 +159,7 @@ public sealed class OpRegistryTests
     {
         // The visible half of OpRegistry's static ctor: membership, prompt bullet and dispatch
         // are one structure, so a registry edit cannot add an op nothing executes.
-        string[] unbound = [.. OpSchema.Bot.Ops.Keys
+        string[] unbound = [.. OpRegistryAsset.Ops.Select(e => e.Name)
             .Where(name => OpRegistry.HandlerFor(name) is null)
             .Order(StringComparer.Ordinal)];
         Assert.Empty(unbound);

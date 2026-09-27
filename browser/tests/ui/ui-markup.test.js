@@ -33,7 +33,7 @@ const IDS = [
     'formula-error', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
     'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
     'sel-color', 'sel-thickness', 'sel-point-size', 'sel-style', 'sel-fill-group', 'sel-fill',
-    'sel-fill-clear', 'sel-deselect', 'image-info', 'canvas-viewport', 'canvas-container', 'canvas', 'zoom-rect-overlay',
+    'sel-fill-clear', 'sel-deselect', 'image-info', 'canvas-viewport', 'canvas-container', 'canvas', 'canvas-overlay', 'zoom-rect-overlay',
     'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
     'coordinates-body', 'lines-list', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
     'reset-all-hotkeys', 'visuals-modal-overlay', 'visuals-close', 'vs-line-color', 'vs-thickness', 'vs-point',
@@ -70,13 +70,15 @@ const IDS = [
     'chat-settings-overlay', 'chat-settings-close', 'chat-provider', 'chat-base-url-row',
     'chat-base-url', 'chat-model', 'chat-api-key-row', 'chat-api-key', 'chat-server-row',
     'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note',
+    'chat-session-key-row', 'chat-session-key', 'chat-session-key-status-row', 'chat-session-key-status',
+    'chat-session-key-forget', 'chat-session-key-note',
     // Project description / keywords modals (stencil-description-modal, stencil-keywords-modal).
     'description-overlay', 'description-close', 'description-text', 'description-cancel', 'description-save',
     'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 257 IDs', () => {
-    assert.strictEqual(IDS.length, 257);
+test('fixture has exactly 264 IDs', () => {
+    assert.strictEqual(IDS.length, 264);
 });
 
 test('every static body ID is present exactly once', () => {

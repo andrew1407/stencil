@@ -4,8 +4,8 @@
 // what this asserts. Half-open is simulated by PAUSING B's TCP socket: it then answers no pings
 // and emits no FIN/RST, where destroying it would exercise ordinary close detection instead.
 import { test, expect } from '@playwright/test';
-import { issueToken, createProject, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, join, T } from '../../helpers/wire.js';
+import { issueToken, createProject, stackEnabled } from '../../helpers/server/api.js';
+import { dialWS, join, T } from '../../helpers/server/wire.js';
 
 test.describe('WS keepalive peer reaping', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

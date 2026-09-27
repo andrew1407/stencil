@@ -1,10 +1,15 @@
 #include "doctest.h"
+#include "decimal.hpp"
 #include "formulaParser.hpp"
+#include "lengthTokens.hpp"
+
+#include <clocale>
+#include <string>
 
 using namespace stencil::core;
 
 
-// Mirrors browser/tests/formula.test.js.
+// Mirrors browser/tests/core/parse/formula.test.js.
 
 TEST_CASE("validate empty / whitespace = true (identity)") {
   CHECK(FormulaParser::validate("", 'x'));
@@ -109,10 +114,41 @@ TEST_CASE("a long flat expression stays linear and valid") {
 }
 
 TEST_CASE("numeric overflow yields invalid (identity), matching the finite contract") {
-  CHECK_FALSE(FormulaParser::evaluate("9e999", 'x', 0).has_value());        // std::stod out_of_range
+  CHECK_FALSE(FormulaParser::evaluate("9e999", 'x', 0).has_value());        // a literal of inf
   CHECK_FALSE(FormulaParser::evaluate("1e308*1e308", 'x', 0).has_value());  // -> +inf
   CHECK_FALSE(FormulaParser::evaluate("2**2**2**2**2", 'x', 0).has_value()); // 2^65536 -> inf
   CHECK(FormulaParser::apply("1e308*1e308", 'x', 7.0, true) == doctest::Approx(7.0));
+}
+
+// The wasm build has no exceptions: each of these once threw out of std::stod and aborted it.
+TEST_CASE("formula: the inputs the browser reads differently parse as its parseFloat does") {
+  CHECK_FALSE(FormulaParser::validate(".", 'x'));
+  CHECK_FALSE(FormulaParser::validate("x*1e999", 'x'));
+  CHECK(FormulaParser::evaluate("1e-400", 'x', 0).value_or(-1.0) == 0.0);  // underflow is 0
+  CHECK(FormulaParser::evaluate("1.2.3", 'x', 0).value_or(0.0) == 1.2);   // the longest prefix
+  CHECK_FALSE(FormulaParser::validate("1**(1/0)", 'x'));                  // Math.pow(1, inf) is NaN
+  CHECK(FormulaParser::evaluate("0.5**(1/0)", 'x', 0).value_or(-1.0) == 0.0);
+  CHECK(FormulaParser::evaluate("(0/0)**0", 'x', 0).value_or(-1.0) == 1.0);
+  CHECK_FALSE(FormulaParser::validate("\xC2\xA0x", 'x'));  // U+00A0 is not whitespace here
+  CHECK_FALSE(FormulaParser::validate("\xC2\xA0", 'x'));
+  CHECK(FormulaParser::validate(" \t\v\f\r\n", 'x'));
+}
+
+TEST_CASE("formula: a host locale with a ',' point still reads '.'") {
+  const std::string saved = std::setlocale(LC_NUMERIC, nullptr);
+  if (std::setlocale(LC_NUMERIC, "de_DE.UTF-8") || std::setlocale(LC_NUMERIC, "de_DE")) {
+    CHECK(FormulaParser::evaluate("x*1.5", 'x', 2.0).value_or(0.0) == doctest::Approx(3.0));
+    CHECK(parseDecimal("2.25").value_or(0.0) == 2.25);
+    CHECK(parseLengthToken("1.5cm")->value == doctest::Approx(1.5));
+  }
+  std::setlocale(LC_NUMERIC, saved.c_str());
+  CHECK_FALSE(parseDecimal("1,5").has_value());
+  CHECK_FALSE(parseDecimal("0x10").has_value());
+  CHECK_FALSE(parseDecimal("inf").has_value());
+  CHECK_FALSE(parseDecimal(".").has_value());
+  std::size_t used = 0;
+  CHECK(parseDecimalPrefix("12.5.7", &used).value_or(0.0) == 12.5);
+  CHECK(used == 4);
 }
 
 // S11 parity: the browser examples used in the page-coord composition

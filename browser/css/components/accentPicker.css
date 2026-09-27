@@ -1,4 +1,4 @@
-/* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accentPicker.js) ──
+/* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accent/picker.js) ──
    A native <select> can't paint a colour rect per option on every OS, so this is
    a small listbox: trigger (current swatch + name) plus a popup of rect+name rows. */
 .accent-swatch {
@@ -67,7 +67,7 @@
     /* macOS hides its overlay scrollbar until it moves, so a capped list looked simply cut off.
        The two `local` covers ride the content and uncover a `scroll` shadow only while rows remain. */
     background:
-        /* The thumb (js/ui/menuScrollbar.js): `scroll` holds it against the box while the two
+        /* The thumb (js/ui/control/menuScrollbar.js): `scroll` holds it against the box while the two
            custom properties carry its length and travel. Zero-length — absent — when it fits. */
         linear-gradient(var(--sb-thumb), var(--sb-thumb))
             right 3px top var(--dd-sb-pos, 0px) / 6px var(--dd-sb-len, 0px) no-repeat scroll,
@@ -82,7 +82,7 @@
 }
 .accent-dd-menu[hidden] { display: none; }
 /* While open, a menu is moved to <body> and placed in viewport coordinates
-   (js/ui/dropdownMenu.js) — `.controls` clips its overflow, which used to slice a long
+   (js/ui/control/dropdownMenu.js) — `.controls` clips its overflow, which used to slice a long
    list off at the panel edge, and nothing kept a low trigger's list inside the window.
    Above every modal/panel, just under #app-tooltip (100003). */
 .accent-dd-menu.dd-portal {
@@ -108,7 +108,7 @@
    highlight survives the accent flood's View Transition, which drops real :hover. */
 .accent-dd-opt:hover, .accent-dd-opt.dd-hover { background: var(--bg-coord-hover); }
 .accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-/* The logo's right-click / Alt / Alt+click copy of the menu (ui/toolbar.js): anchored
+/* The logo's right-click / Alt / Alt+click copy of the menu (ui/toolbar/toolbar.js): anchored
    under the top-left logo inside .app-logo-wrap, so it hangs LEFT-aligned (the shared
    rule's right:0 would fling it off-screen) and sizes to its rows rather than a trigger.
    max-height:none lifts the shared 280px cap (sized for the Visuals dialog, it made this

@@ -57,6 +57,14 @@ namespace llmopplan {
     check(line.color == "#FFFF00" && line.thickness == 2.0 && line.pointSize == 4.0 &&
               line.style == "solid" && !line.locked && line.fillColor == "transparent",
           "per-line defaults applied (contract §3)");
+    check(line.pointColor.empty(), "an absent pointColor follows the stroke");
+  }
+  {
+    const auto r = parseOpPlan(
+        "{\"reply\":\"l\",\"actions\":[{\"op\":\"layout\",\"lines\":[{\"points\":"
+        "[{\"x\":1,\"y\":2}],\"pointColor\":\"#ff0000\"}]}]}");
+    check(r.ok && r.plan.actions[0].lines[0].pointColor == "#ff0000",
+          "a line's pointColor rides onto the drawn line");
   }
   check(!parseOpPlan("{\"reply\":\"l\",\"actions\":[{\"op\":\"layout\",\"lines\":[{"
                      "\"points\":[{\"x\":1,\"y\":2}],\"style\":\"wavy\"}]}]}")

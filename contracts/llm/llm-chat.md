@@ -3,7 +3,7 @@
 Part of the [Stencil LLM contract](llm-contract.md); section numbers continue the
 root document's (code comments cite `§11`/`§12.x` everywhere). The `ask` limits (2..5
 options, question 300, label 80, answer 500) are recorded normatively in
-[`opRegistry.json`](../browser/js/config/llm/opRegistry.json) → `limits` and `ask`;
+[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json) → `limits` and `ask`;
 the ask fixtures are `fixtures/opPlan/088–106`; the persisted-chat document's tolerance
 rules are pinned by `fixtures/chatDoc/` (see its `_schema.md`).
 
@@ -127,7 +127,7 @@ The card is the same contract everywhere; only its widgets differ — the GUIs r
 radio/checkbox list with inline thumbnails, the consoles a numbered list answered by number
 (or comma-separated numbers for `multi`), the bot an inline keyboard with a media group when
 previews exist. The normative record of the rendering split is
-[`opRegistry.json`](../browser/js/config/llm/opRegistry.json) → `ask.divergence`; validation is
+[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json) → `ask.divergence`; validation is
 identical everywhere.
 
 A surface that cannot render an image preview (the consoles) drops the preview and keeps the
@@ -212,7 +212,7 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   |---|---|
   | browser | `tests/ui/chat-markup.test.js` — the `chat-save-chats-note` div, rendered next to the checkbox |
   | desktop | `tests/app/chat/MainWindow.chatPanel.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
-  | cli | `tests/console/console_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
+  | cli | `tests/console/chat_llm_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
   | pystencil | `tests/cli/test_cli_chat.py` `test_chat_on_says_who_can_read_a_saved_chat` |
   | bot | `ChatPersistenceTests` — the `/chat save on` confirmation, the status read BEFORE opting in, and the 💾 button |
 

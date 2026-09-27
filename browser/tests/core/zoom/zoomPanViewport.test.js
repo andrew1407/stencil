@@ -1,4 +1,4 @@
-// ZoomPan.availContentHeight() (js/core/pan.js): `below` is summed from the viewport's own
+// ZoomPan.availContentHeight() (js/core/zoom/pan.js): `below` is summed from the viewport's own
 // column, never `.container`, whose box also encloses the coordinates panel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

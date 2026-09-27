@@ -33,12 +33,15 @@ const view = (doc, prefix) => {
     clear: `${prefix}clear`, uploadBtn: `${prefix}upload-btn`, upload: `${prefix}upload`,
   };
   for (const id of Object.values(ids)) doc.register(id, createStubElement('button'));
+  const downloads = [];
   const { dispose } = wireScriptEditor({
-    editor, pre, strip, ids, app: { export: { downloadBlob: () => {} } },
+    editor, pre, strip, ids, app: { export: { downloadBlob: (...a) => downloads.push(a) } },
     onRun: async () => {}, onUpload: () => {},
   });
   const type = (text) => { editor.value = text; editor.dispatch('input'); };
-  return { editor, strip, ids, type, dispose, painted: () => pre.childNodes.filter((n) => n.className).map((n) => n.className) };
+  return { editor, strip, ids, type, dispose, downloads,
+    painted: () => pre.childNodes.filter((n) => n.className).map((n) => n.className),
+    paintedText: () => pre.childNodes.map((n) => n.textContent).join('') };
 };
 
 const rig = (t) => {
@@ -101,27 +104,60 @@ test('Clear empties the buffer for every view at once, and re-gates them all', a
   assert.equal(doc.getElementById('script-upload-btn').disabled, false, 'Upload always works');
 });
 
-test('Copy and Download act on the buffer, so they cannot disagree with the screen', () => {
-  const wiring = src('script/editor.js');
-  assert.match(wiring, /navigator\.clipboard\.writeText\(scriptText\(\)\)/);
-  assert.match(wiring, /new Blob\(\[scriptText\(\)\]/);
-  assert.match(wiring, /paintInto\(pre, scriptText\(\), checked\)/, 'the paint reads it too');
+test('Copy and Download act on the buffer, so they cannot disagree with the screen', async (t) => {
+  const { doc, win, fly } = rig(t);
+  const copied = [];
+  const nav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true, value: { clipboard: { writeText: async (text) => { copied.push(text); } } },
+  });
+  t.after(() => { if (nav) Object.defineProperty(globalThis, 'navigator', nav); else delete globalThis.navigator; });
+  fly.type('@crop 5%');
+  win.editor.value = 'stale';   // the textarea drifted; the buffer did not
+  doc.getElementById('script-copy').dispatch('click');
+  assert.deepEqual(copied, ['@crop 5%']);
+  doc.getElementById('script-download').dispatch('click');
+  const [blob, name] = win.downloads[0];
+  assert.deepEqual([await blob.text(), blob.type, name], ['@crop 5%', 'text/plain', 'stencil.stc']);
+  doc.getElementById('script-run').dispatch('click');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(win.paintedText(), '@crop 5%', 'the paint reads it too');
 });
 
-test('the script survives closing the window — nothing clears it on the way in or out', () => {
-  const modal = src('script/modal.js');
-  const shell = modal.slice(modal.indexOf('shell = wireModalShell'));
-  assert.ok(!/editor\.value = ''/.test(shell), 'onOpen/onClose no longer empty the editor');
-  assert.match(modal, /Clear is the way out/, 'and the file says so, instead of the opposite');
-});
-
-test('the buffer is session memory: no storage, nothing that survives a reload', () => {
+test('the buffer is session memory: no storage, nothing that survives a reload', async () => {
   const code = src('script/buffer.js');
   assert.doesNotMatch(code, /localStorage|sessionStorage|indexedDB|cookie|fetch\(/,
     'a script is untrusted text — persisting it silently is not wanted');
-  assert.match(code, /^let text = '';$/m, 'a fresh module starts empty');
+  const reloaded = await import('../../../js/ui/script/buffer.js?reload');
+  assert.equal(reloaded.scriptText(), '', 'a fresh module starts empty');
   // Neither host may quietly keep its own copy, or the two could drift.
   for (const name of ['script/modal.js', 'ctx/scriptEditor.js']) {
     assert.doesNotMatch(src(name), /localStorage|sessionStorage/, name);
   }
+});
+
+// Last: the wired window stays subscribed to the buffer for the rest of the file.
+test('the script survives closing the window — nothing clears it on the way in or out', async (t) => {
+  setScriptText('');
+  const doc = installDom({}, { window: { innerHeight: 800, innerWidth: 1000, addEventListener() {}, removeEventListener() {} } });
+  t.after(() => doc.restore());
+  doc.createTextNode = (text) => ({ nodeType: 3, textContent: text });
+  for (const id of ['script-editor', 'script-highlight', 'script-diag', 'script-overlay', 'script-close',
+    'script-run', 'script-copy', 'script-download', 'script-clear', 'script-upload-btn', 'script-upload']) {
+    doc.register(id, createStubElement(id === 'script-editor' ? 'textarea' : 'div'));
+  }
+  const { StencilScriptModal } = await import('../../../js/ui/script/modal.js');
+  StencilScriptModal.prototype.wire.call({}, { export: { downloadBlob() {} } });
+  const editor = doc.getElementById('script-editor');
+  const shell = doc.getElementById('script-overlay').__stencilModal;
+  shell.open();
+  editor.value = '@crop 10%';
+  editor.dispatch('input');
+  shell.close();
+  assert.equal(scriptText(), '@crop 10%', 'onClose keeps the text');
+  shell.open();
+  assert.deepEqual([editor.value, scriptText()], ['@crop 10%', '@crop 10%'], 'onOpen keeps it too');
+  doc.getElementById('script-clear').dispatch('click');
+  assert.deepEqual([editor.value, scriptText()], ['', ''], 'Clear is the way out');
+  shell.close();
 });

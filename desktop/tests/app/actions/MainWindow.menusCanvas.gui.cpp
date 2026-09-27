@@ -31,8 +31,8 @@ class MainWindowGuiTest : public QObject {
         *opened = true;
         // The "Current" copy-image variant action, a fixed pointer rather than text-matched: its own text no
         // longer starts with "Copy Image" now that it nests under an always-enabled submenu opener.
-        *copyFound = win.actCopyImage != nullptr;
-        *copyEnabled = win.actCopyImage && win.actCopyImage->isEnabled();
+        *copyFound = win.acts.copyImage != nullptr;
+        *copyEnabled = win.acts.copyImage && win.acts.copyImage->isEnabled();
         menu->close();
       });
       const QPoint corner(6, 6);
@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(50);
     QVERIFY2(!QApplication::activePopupWidget(), "the context menu opened with no image");
     // …and the keyboard route (Shift+F10) goes through the same gate.
-    win.showContextMenuFromKeyboard();
+    win.parts.canvasMenu.showContextMenuFromKeyboard();
     QTest::qWait(30);
     QVERIFY2(!QApplication::activePopupWidget(), "Shift+F10 opened a menu with no image");
 

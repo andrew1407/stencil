@@ -1,17 +1,11 @@
 #include "ProjectsDialog.hpp"
 
 #include "accentDefaults.hpp"
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "guiHelpers.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../../../support/theme/filterFade.hpp"
-#include "../../../support/guiHelpers.hpp"
-#include "../../../support/motion/ShimmerOverlay.hpp"
-#include "../../../support/modal/modalChrome.hpp"
 #include "../../../support/modal/modalReveal.hpp"
-#include "ShimmerOverlay.hpp"
 
 #include <QPalette>
 #include <QTimer>

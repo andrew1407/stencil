@@ -1,0 +1,66 @@
+      /* "Selected Line:" bar above the canvas — browser #selection-panel parity: a
+         rounded, amber-bordered BOX inset from the window edges (not a flush toolbar
+         strip), consistently-sized controls. Docked (selectedLineDock_ —
+         Qt::TopDockWidgetArea), not a toolbar: a QDockWidget stretches its one content
+         widget (selectedLineBar) to fill the whole dock, so `this` stays a plain, unstyled
+         strip and its "selectedLineCard" child (see SelectedLineBar.cpp) — inset by
+         selectedLineBar's own outer-layout margins — is what actually carries the
+         border/radius/background, giving the border room to render on all four sides. */
+      QDockWidget#selectedLineDock { border: 0; }
+      QWidget#selectedLineBar { background: transparent; border: 0; }
+      QWidget#selectedLineCard {
+        background: %SEL_BG%; border: 2px solid %SEL_BORDER%; border-radius: 6px;
+      }
+      QLabel#selectedLineLabel { color: %SEL_LABEL%; font-weight: 700; background: transparent; }
+      QLabel#selectedLineFieldLabel { color: %SEL_LABEL%; font-weight: 600; background: transparent; }
+      /* Paddings ARE the browser's: its number/select fields are 8px 12px (34px tall),
+         and the three buttons each carry their own — a cramped 3px 8px on everything made
+         the row read as a different, tighter component than the browser's. */
+      /* The bar's own hairline separators, in its amber (browser .sel-sep). */
+      QFrame#selectedLineSep { background: %SEL_BORDER%; border: none; max-width: 1px; min-width: 1px; }
+      QWidget#selectedLineCard QComboBox { min-height: 18px; padding: 7px 11px; border-radius: 4px; }
+      /* Its own padding outranks the generic hover/focus rule's, so the pixel the thicker
+         ring takes is given back here — otherwise the value slides as you point at it. */
+      QWidget#selectedLineCard QComboBox:hover,
+      QWidget#selectedLineCard QComboBox:focus { padding: 6px 10px; }
+      /* A spin box carries its own step arrows, so the same padding stands it 5px taller
+         than the combo — it gets its own to land on the browser's 34px too. */
+      QWidget#selectedLineCard QSpinBox,
+      QWidget#selectedLineCard QLineEdit {
+        min-height: 18px; padding: 4px 11px; border-radius: 4px;
+      }
+      QWidget#selectedLineCard QSpinBox:hover:enabled,
+      QWidget#selectedLineCard QSpinBox:focus,
+      QWidget#selectedLineCard QLineEdit:hover:enabled,
+      QWidget#selectedLineCard QLineEdit:focus { padding: 3px 10px; }
+      QWidget#selectedLineCard QPushButton { padding: 5px 10px; border-radius: 4px; }
+      QWidget#selectedLineCard QPushButton {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER%; color: %TEXT%;
+      }
+      QWidget#selectedLineCard QPushButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT%; }
+      /* The Deselect CTA needs to outrank the generic button rule above despite sharing
+         its specificity class (both are one ID + N type selectors) — CSS/QSS breaks that
+         tie by SOURCE ORDER, not by which selector "looks" more specific, so this rule
+         must (a) come after the generic one and (b) carry the same ancestor qualifier
+         (QWidget#selectedLineCard) or the generic rule's extra type selector actually wins
+         instead and the button renders in the plain control style with no accent hover. */
+      QWidget#selectedLineCard QPushButton#selectedLineDeselect {
+        background: %DESELECT_BG%; color: %SEL_BTN_TEXT%; border: none; font-weight: 600;
+        padding: 4px 12px;
+      }
+      QWidget#selectedLineCard QPushButton#selectedLineDeselect:hover { background: %DESELECT_HOVER%; }
+      /* Clear-fill and Unchain wear the BAR's amber, not the app accent (browser
+         #sel-fill-clear / #sel-unchain). After the generic rule for the same
+         source-order reason Deselect is. */
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear,
+      QWidget#selectedLineCard QPushButton#selectedLineUnchain {
+        background: %SEL_BTN%; color: %SEL_BTN_TEXT%; border: none;
+      }
+      /* Clear-fill takes the generic button box (no override): it is a full-height control
+         beside Unchain and Deselect now, not the small cross that sat low in the row. */
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear:hover,
+      QWidget#selectedLineCard QPushButton#selectedLineUnchain:hover { background: %SEL_BTN_HOV%; }
+      /* The accent, not the panel's own selection yellow: a focus ring means the same
+         thing everywhere in the app, so it wears the one brand colour. */
+      QWidget#selectedLineCard QComboBox:focus,
+      QWidget#selectedLineCard QSpinBox:focus { border-color: %ACCENT%; }

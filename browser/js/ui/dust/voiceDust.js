@@ -2,7 +2,7 @@
 // breathe with the level — spawn rate scales as level SQUARED, so room hum stays quiet.
 // One canvas per wearer, punched out under the tile's own rounded rect so both pass behind the
 // icon; the rAF loop runs only while the tile listens or motes are in flight. Level is the
-// `--voice-level` <html> variable (ui/toolbar.js, ~60Hz); the pure parts are node-testable.
+// `--voice-level` <html> variable (ui/toolbar/toolbar.js, ~60Hz); the pure parts are node-testable.
 import { dustEnabled } from '../motion.js';
 
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
@@ -122,6 +122,8 @@ export const layerAbove = (el, get = (typeof getComputedStyle === 'function' ? g
   return z + 1;
 };
 
+// Read with the palette once a second: getComputedStyle per frame forces a style pass.
+const cornerRadius = (el) => parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
 const currentLevel = () => {
   const v = parseFloat(document.documentElement.style.getPropertyValue('--voice-level'));
   return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
@@ -132,7 +134,7 @@ const currentLevel = () => {
 export const attachVoiceDust = (el, isOn) => {
   if (!el || typeof document === 'undefined' || typeof requestAnimationFrame === 'undefined') return null;
   let canvas = null, ctx = null, frame = null, last = 0;
-  let palette = null, paletteAt = 0;
+  let palette = null, paletteAt = 0, rad = 0;
   const motes = [];
   const ensure = () => {
     if (canvas) return canvas;
@@ -165,7 +167,7 @@ export const attachVoiceDust = (el, isOn) => {
       for (let i = 0; i < n; i++) motes.push(newMote(r.width, r.height, level));
     }
     for (let i = motes.length - 1; i >= 0; i--) if (!stepMote(motes[i], dt)) motes.splice(i, 1);
-    if (!palette || now - paletteAt > 1000) { palette = themePalette(); paletteAt = now; }
+    if (!palette || now - paletteAt > 1000) [palette, paletteAt, rad] = [themePalette(), now, cornerRadius(el)];
     const c = ensure();
     const dpr = window.devicePixelRatio || 1;
     const w = r.width + 2 * DUST_MARGIN, h = r.height + 2 * DUST_MARGIN;
@@ -198,8 +200,9 @@ export const attachVoiceDust = (el, isOn) => {
       ctx.globalAlpha = 1;
     }
     if (motes.length) {
-      for (const m of motes) {
-        ctx.fillStyle = palette[m.tint % palette.length];
+      for (let i = 0, fill = null; i < motes.length; i++) {
+        const m = motes[i], tint = palette[m.tint % palette.length];
+        if (tint !== fill) ctx.fillStyle = fill = tint;
         ctx.globalAlpha = 0.9 * moteAlpha(m);
         ctx.beginPath();
         ctx.arc(cx + m.x, cy + m.y, m.size / 2, 0, Math.PI * 2);
@@ -209,7 +212,6 @@ export const attachVoiceDust = (el, isOn) => {
     }
     // The tile's rounded rectangle is cleared out of the frame so ring and motes pass under the
     // icon, while neighbouring controls stay under the cloud.
-    const rad = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(DUST_MARGIN, DUST_MARGIN, r.width, r.height, rad);

@@ -1,6 +1,6 @@
 // Editor mode: the panel while it stands on the Stencil editor. Wires list.js and
 // sourceTabsList.js to the panel's clock and the browser's tab events; decisions stay
-// pure in lib/editorTabs.js.
+// pure in lib/menu/editorTabs.js.
 import { MSG } from '../../lib/messages.js';
 import { pollClock } from '../../lib/pollClock.js';
 import { createEditorList } from './list.js';

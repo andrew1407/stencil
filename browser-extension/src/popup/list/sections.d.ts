@@ -1,4 +1,4 @@
-// Shapes for popup/sections.js — the accordion controller plus the Alt-hover section peek.
+// Shapes for popup/list/sections.js — the accordion controller plus the Alt-hover section peek.
 export interface CollapsibleSections {
   isCollapsed(id: string): boolean;
   setCollapsed(id: string, want: boolean): void;

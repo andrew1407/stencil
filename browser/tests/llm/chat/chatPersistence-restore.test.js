@@ -1,4 +1,4 @@
-// Restoring a persisted chat (js/llm/persistence.js): removal cleanup, a silent server-push
+// Restoring a persisted chat (js/llm/chat/persistence.js): removal cleanup, a silent server-push
 // failure, the scripting surface, and what this build writes. From chatPersistence.test.js.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert';

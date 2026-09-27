@@ -16,7 +16,7 @@ const setup = async () => {
     canvas,
     canvasClick() {}, canvasDblClick() {}, canvasMouseMove() {},
     deselectEmptyArea() {},
-    tooltipMgr: { hide() {} },
+    tooltip: { hide() {} },
     updateCoordStatus() {},
     renderer: { redraw() {} },
   };

@@ -16,6 +16,10 @@ import { InputController } from '../pointer/inputController.js';
 import { PointerController } from '../pointer/controller.js';
 import { StencilSync } from './stencilSync.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
+import { Emitter } from '../emitter.js';
+import { loadImageFromFile } from '../image/loadFlow.js';
+import { newEditor } from '../launch/openFlow.js';
+import { setBlankColor } from '../image/blankImage.js';
 
 // `host` is the narrow slice of app state/callbacks the transfer controller needs;
 // `getConnections` is a getter because stencilApi creates the manager lazily.
@@ -29,12 +33,14 @@ const transferHost = (app) => ({
   get chatPersistence() { return app.chatPersistence; },
   updateProjectTitle: (force) => app.updateProjectTitle(force),
   updateIncognitoUI: () => app.updateIncognitoUI(),
-  newEditor: (opts) => app.newEditor(opts),
-  loadImageFromFile: (file, opts) => app.loadImageFromFile(file, opts),
-  setBlankColor: (color) => app.setBlankColor(color),
+  newEditor: (opts) => newEditor(app, opts),
+  loadImageFromFile: (file, opts) => loadImageFromFile(app, file, opts),
+  setBlankColor: (color) => setBlankColor(app, color),
 });
 
 export const wireCollaborators = (app, { CoordTable, AccentController, onProjectsChanged }) => {
+// What an edit changed, for the control areas (app/changes.js); first, so every collaborator can signal.
+  app.changes = new Emitter();
   app.history = new HistoryStack();
   app.formula = new FormulaEngine();
   app.renderer = new Renderer(app);
@@ -66,8 +72,7 @@ export const wireCollaborators = (app, { CoordTable, AccentController, onProject
   app.stencilSync = new StencilSync(app);
   app.input = new InputController(app);
   app.pointer = new PointerController(app);
-// <stencil-tooltip> owns its render logic; aliased as tooltipMgr for existing callers.
+// <stencil-tooltip> owns its render logic.
   app.tooltip.app = app;
-  app.tooltipMgr = app.tooltip;
   app.zoomPan = new ZoomPan(app);
 };

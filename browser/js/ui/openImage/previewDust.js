@@ -1,12 +1,12 @@
 // The Open-Image preview's arrival/departure cloud: the media is veiled while an overlay canvas
-// assembles it in its own colours. Split out of ui/openImageModal.js; decoration only.
+// assembles it in its own colours. Split out of ui/openImage/modal.js; decoration only.
 import { makeDustStage } from '../motion/dust/canvasDustStage.js';
 import { runDust } from '../motion/dust/canvasDustDraw.js';
 import { GHOST_MS } from '../motion/dust/canvasDustGrid.js';
 import { dustEnabled } from '../motion/motionPrefs.js';
 
 export function createPreviewDust({ img, video, isVideo, sourceKey }) {
-  // ghostIn IDENTICAL (motion/canvasFx.js). Plays ONCE per source ever seen this session.
+  // ghostIn IDENTICAL (motion/control/canvasFx.js). Plays ONCE per source ever seen this session.
   const animatedSources = new Set();
   // A departure ALWAYS has an arrival: the old picture blowing away and the new one
   // simply appearing is the asymmetry this flag closes (desktop twin: arrivalDue_).

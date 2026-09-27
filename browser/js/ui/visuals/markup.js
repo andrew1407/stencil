@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { MOTION_MODE_LABELS } from '../motion/motionPrefs.js';
 import { NOTIFY_CHANNEL_LABELS } from '../../core/settings/notifyChannel.js';
 import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../../llm/voice/settings.js';
+import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
 
 export const visualsModalInner = () => `
         <div class="app-modal">
@@ -46,8 +47,8 @@ export const visualsModalInner = () => `
                 </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>
                 <div class="vs-row"><label>Line color</label><label class="vs-ctrl vs-color"><input type="color" id="vs-line-color"><span class="vs-hex"></span></label></div>
-                <div class="vs-row"><label>Line thickness</label><span class="vs-ctrl"><input type="number" id="vs-thickness" min="1" max="20"></span></div>
-                <div class="vs-row"><label>Point size</label><span class="vs-ctrl"><input type="number" id="vs-point" min="1" max="30"></span></div>
+                <div class="vs-row"><label>Line thickness</label><span class="vs-ctrl"><input type="number" id="vs-thickness" ${THICKNESS_RANGE}></span></div>
+                <div class="vs-row"><label>Point size</label><span class="vs-ctrl"><input type="number" id="vs-point" ${POINT_SIZE_RANGE}></span></div>
                 <div class="vs-row"><label>Line style</label>
                     <span class="vs-ctrl"><select id="vs-style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></span>
                 </div>

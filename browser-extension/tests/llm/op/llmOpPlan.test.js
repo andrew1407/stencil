@@ -1,4 +1,4 @@
-// The shared §1 extraction/validation mechanics under the extension profile (src/llm/plan.js):
+// The shared §1 extraction/validation mechanics under the extension profile (src/llm/op/plan.js):
 // chat-only degradation, dropped variants, focus/open/attach, and the action caps.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,6 +11,13 @@ test('no JSON object at all → chat-only turn (raw text = reply, no actions)', 
   assert.equal(p.chatOnly, true);
   assert.equal(p.reply, 'Just words, no JSON here.');
   assert.deepEqual(p.actions, []);
+});
+
+// The §1 JSON caps, as the browser's parser words them: depth past MAX_DEPTH (the root is 1).
+test('a plan past a JSON cap is refused, never walked (E_JSON_LIMIT)', () => {
+  const deep = `{"reply":"x","z":${'['.repeat(64)}${']'.repeat(64)}}`;
+  assert.throws(() => parse(deep), { message: "Invalid plan: the plan's JSON nests deeper than 64 levels" });
+  assert.doesNotThrow(() => parse(`{"reply":"x","z":${'['.repeat(63)}${']'.repeat(63)}}`), 'at the cap');
 });
 
 test('markdown fences are stripped; the first balanced object wins', () => {

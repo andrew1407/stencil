@@ -8,5 +8,3 @@ export declare const COMMIT_DEBOUNCE_MS: number;
 export declare const enhanceNumericInput: (el: HTMLInputElement) => void;
 /** Enhance every numeric input under `root`. */
 export declare const enhanceNumericInputs: (root?: ParentNode) => void;
-/** Install a one-time observer so inputs rendered later are upgraded as they appear. */
-export declare const watchNumericInputs: (root?: Element) => MutationObserver;

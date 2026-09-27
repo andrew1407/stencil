@@ -1,4 +1,4 @@
-// Shapes for llm/validate.js — the per-op validators and the op registry this
+// Shapes for llm/op/validate.js — the per-op validators and the op registry this
 // surface exposes (contract §8 + §13): one ordered entry per op, table-driven checks
 // from profile.js plus the listing-bound rules and normalizers only this surface has.
 

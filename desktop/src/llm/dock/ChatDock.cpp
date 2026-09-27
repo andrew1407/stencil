@@ -1,67 +1,18 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
-#include "../../support/guiHelpers.hpp"
-#include "chatWidgets.hpp"
 #include "PillSplitter.hpp"
-#include <QLineEdit>
-#include <QRadioButton>
-#include <QCheckBox>
-#include <QButtonGroup>
 
-#include "iconSet.hpp"
-#include "MediaLoader.hpp"
-#include "theme.hpp"
 #include "scrollReveal.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/FlowLayout.hpp"
 #include "../../support/modal/modalReveal.hpp"
-#include "../../support/menu/menuReveal.hpp"
-#include "../../support/icon/iconMotion.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 
-#include <QApplication>
-#include <QClipboard>
-#include <QCursor>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QEvent>
-#include <QFileDialog>
-#include <QFileInfo>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
-#include <QCloseEvent>
 #include <QGraphicsOpacityEffect>
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QImageReader>
-#include <QKeyEvent>
-#include <QLabel>
-#include "../../support/motion/MenuShimmer.hpp"
-#include <QMenu>
-#include <QMimeData>
-#include <QMouseEvent>
-#include <QPixmap>
-#include <QMainWindow>
-#include <QPlainTextEdit>
-#include <QProgressBar>
-#include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QSplitter>
-#include <QTextCursor>
-#include <QPainter>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QPointer>
-#include <QScreen>
-#include <QStyle>
 #include <QTimer>
-#include <cmath>
 #include <QToolButton>
-#include <QUrl>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
-#include <functional>
 
 namespace stencil::gui {
 
@@ -102,7 +53,7 @@ namespace stencil::gui {
     buildSuggestions();
     log.transcriptLayout->addStretch(1);
     scroll->setWidget(log.transcript);
-    // browser .reveal-item (css/animations.css); parented to scroll.
+    // browser .reveal-item (css/animations/reveal/reveal.css); parented to scroll.
     reveal = new ScrollReveal(scroll);
     scroll->viewport()->installEventFilter(this);
     // Jump pills (browser .chat-jumps): both mid-log, neither while the log fits.

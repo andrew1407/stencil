@@ -49,7 +49,7 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
 // Both edges go through setOpen so the popup accounting matches the screen.
   const setOpen = (on) => {
 // The flight plays while the menu is still up; the cloud is a copy on <body> (same
-// contract as ui/dropdownMenu.js).
+// contract as ui/control/dropdownMenu.js).
     const changed = on === menu.hidden;
     if (on) { menu.hidden = false; lastMoreBtn = btn; }
     if (changed) {

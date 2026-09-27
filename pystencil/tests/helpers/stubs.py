@@ -52,8 +52,8 @@ class _StubEditor:
   def set_filter_color(self, color):
     return self._record("set_filter_color", color)
 
-  def draw(self, lines):
-    return self._record("draw", lines)
+  def draw(self, lines, combine=True):
+    return self._record("draw", lines) if combine else self._record("draw", lines, "replace")
 
   def set_formula(self, axis, expr):
     return self._record("set_formula", axis, expr)

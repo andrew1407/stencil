@@ -11,7 +11,7 @@ class MainWindowGuiTest : public QObject {
   static QList<QToolBar*> toolRows(MainWindow& win) {
     QList<QToolBar*> rows;
     for (QToolBar* b : win.findChildren<QToolBar*>())
-      if (b != win.headerToolbar) rows.append(b);
+      if (b != win.tools.headerToolbar) rows.append(b);
     return rows;
   }
   static bool veiled(const QToolBar* b) {
@@ -34,12 +34,12 @@ class MainWindowGuiTest : public QObject {
     const QList<QToolBar*> rows = toolRows(win);
     QVERIFY(!rows.isEmpty());
     for (bool show : {false, true}) {
-      win.setToolbarsShown(show, /*animate=*/true);
+      win.parts.view.setToolbarsShown(show, /*animate=*/true);
       QVERIFY2(stencil::guitest::surfaceFlight(win.editor), "no dust flew for the fold");
       for (QToolBar* b : rows)
         QVERIFY2(veiled(b), "a row showed through its own dust");
       QTRY_VERIFY_WITH_TIMEOUT(!stencil::guitest::surfaceFlight(win.editor), 3000);
-      QTRY_VERIFY(!win.barsAnim);
+      QTRY_VERIFY(!win.parts.view.barsAnim);
       for (QToolBar* b : rows) {
         QVERIFY2(!b->graphicsEffect(), "a row kept its veil after the flight");
         QCOMPARE(b->isVisible(), show);
@@ -56,11 +56,11 @@ class MainWindowGuiTest : public QObject {
     const auto motion = withMotion();
     if (stencil::support::isDustMotionOk()) QSKIP("dust flies here; the case above covers it");
     const QList<QToolBar*> rows = toolRows(win);
-    win.setToolbarsShown(false, /*animate=*/true);
+    win.parts.view.setToolbarsShown(false, /*animate=*/true);
     for (QToolBar* b : rows) QVERIFY(!veiled(b));
-    win.setToolbarsShown(true, /*animate=*/true);
+    win.parts.view.setToolbarsShown(true, /*animate=*/true);
     for (QToolBar* b : rows) QVERIFY(!veiled(b));
-    QTRY_VERIFY(!win.barsAnim);
+    QTRY_VERIFY(!win.parts.view.barsAnim);
     for (QToolBar* b : rows) QVERIFY(b->isVisible() && !b->graphicsEffect());
   }
 };

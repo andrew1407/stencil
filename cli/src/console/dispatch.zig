@@ -2,8 +2,6 @@
 //! integration tests go through.
 const std = @import("std");
 const logo = @import("../app/logo.zig");
-const line_edit = @import("../line_edit.zig");
-const clipboard = @import("../clipboard.zig");
 const session_mod = @import("session.zig");
 const commands = @import("commands.zig");
 const ui = @import("ui.zig");
@@ -11,12 +9,11 @@ const handlers = @import("handlers.zig");
 const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
 const llmPrompt = @import("llmPrompt.zig");
-const screen = @import("screen.zig");
 const skin = @import("../app/skin.zig");
 const appearance = @import("handlers/appearance.zig");
 
 const Session = session_mod.Session;
-const PipedConfirm = @import("loop.zig").PipedConfirm;
+const PipedConfirm = @import("hooks.zig").PipedConfirm;
 
 // Run one line; returns true when the session should end. Shared by both input loops.
 pub fn dispatch(session: *Session, io: std.Io, line: []const u8) bool {
@@ -27,18 +24,21 @@ pub fn dispatch(session: *Session, io: std.Io, line: []const u8) bool {
 }
 
 /// Execute one command line against the session. Returns true when the session should end
-/// (the `exit`/`quit` verbs). Exposed for the integration tests in tests/console_test.zig.
+/// (the `exit`/`quit` verbs). Exposed for the integration tests in tests/console/.
 pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
     const cmd = commands.parseCommand(line);
     if (cmd.word.len == 0) return false;
-    // The secret words: no Verb, so neither `help` nor Tab-completion can list them.
-    if (std.ascii.eqlIgnoreCase(cmd.word, skin.list_word)) {
-        appearance.doEasterEggs();
-        return false;
-    }
-    if (skin.skinOf(cmd.word)) |which| {
-        appearance.doEgg(which);
-        return false;
+    // The secret words answer only with their slash (a bare `meow` is an unknown command), and
+    // have no Verb, so neither `help` nor Tab-completion can list them.
+    if (commands.slashed(line)) {
+        if (std.ascii.eqlIgnoreCase(cmd.word, skin.list_word)) {
+            appearance.doEasterEggs();
+            return false;
+        }
+        if (skin.skinOf(cmd.word)) |which| {
+            appearance.doEgg(which);
+            return false;
+        }
     }
     if (commands.verbOf(cmd.word)) |verb| switch (verb) {
         .quit => return true,
@@ -99,7 +99,7 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         // LLM assistant: /prompt executes the returned op-plan through the same handlers
         // above (and queues its own sync marks); /llm shows/sets the provider config.
         .prompt => try llmPrompt.doPrompt(session, io, cmd.arg),
-        .llm => try llmPrompt.doLlm(session, cmd.arg),
+        .llm => try llmPrompt.doLlm(session, io, cmd.arg),
         .chat => handlers.doChat(session, cmd.arg),
     } else if (commands.actionOf(cmd.word, cmd.arg)) |action| {
         // Dirty only on a recorded edit (usage/error paths change nothing); debounced,

@@ -5,12 +5,8 @@ const registry = @import("../registry.zig");
 const opSchema = @import("../opSchema.zig");
 const OpDescriptor = registry.OpDescriptor;
 const op_registry = registry.op_registry;
-const Entry = opSchema.Entry;
 const testing = std.testing;
-const validate = @import("validate.zig");
-const parsePlan = validate.parsePlan;
-const ParseOutcome = validate.ParseOutcome;
-const mustPlan = validate.mustPlan;
+const mustPlan = @import("validate.zig").mustPlan;
 
 // The cli's own limits (the contract §1 caps live in the registry: opSchema.get().limits)
 
@@ -93,12 +89,6 @@ pub fn findOp(op: []const u8) ?*const OpDescriptor {
     return null;
 }
 
-/// §1's one leniency: a top-level-only (§2/§2.1) or settings (§10) op inside a variant
-/// or preview costs THAT variant/preview, never the plan. Flags come from the registry.
-pub fn isMisplacedInVariant(e: *const Entry) bool {
-    return e.top_level_only or e.settings;
-}
-
 pub const Variant = struct {
     label: []const u8, // may be empty — file naming then falls back to the position
     actions: []Action,
@@ -158,81 +148,11 @@ pub const Plan = struct {
     }
 };
 
-/// Resolve what the user typed at an `ask` card (§11.3/§11.4: a console answers by NUMBER — "2", or
-/// "1,3" when multi-select) into the joined labels. Null = not a selection, which is no error.
-pub fn resolveAskAnswer(
-    gpa: std.mem.Allocator,
-    options: [][]u8,
-    multi: bool,
-    typed: []const u8,
-) error{OutOfMemory}!?[]u8 {
-    const t = std.mem.trim(u8, typed, " \t\r\n");
-    if (t.len == 0 or options.len == 0) return null;
-
-    var picked: std.ArrayList(usize) = .empty;
-    defer picked.deinit(gpa);
-    var it = std.mem.tokenizeAny(u8, t, ", \t");
-    while (it.next()) |tok| {
-        const n = std.fmt.parseInt(usize, tok, 10) catch return null; // not a selection → plain text
-        if (n < 1 or n > options.len) return null; // a number nobody offered → plain text
-        // A repeat is the user re-stating a pick, not a second one.
-        if (std.mem.indexOfScalar(usize, picked.items, n - 1) == null) try picked.append(gpa, n - 1);
-    }
-    if (picked.items.len == 0) return null;
-    if (picked.items.len > 1 and !multi) return null; // several numbers at a pick-one card
-
-    var out: std.ArrayList(u8) = .empty;
-    errdefer out.deinit(gpa);
-    for (picked.items, 0..) |idx, i| {
-        if (i != 0) try out.appendSlice(gpa, ", ");
-        try out.appendSlice(gpa, options[idx]);
-    }
-    const max_answer: usize = @intFromFloat(opSchema.get().limitNamed("ask.answer"));
-    if (out.items.len > max_answer) out.shrinkRetainingCapacity(max_answer);
-    return try out.toOwnedSlice(gpa);
-}
-
 // registry.zig's table is NOT a copy of opRegistry.json: it adds the `Action` tag, the verbatim §4
 // bullets and the capability. Only the op NAMES overlap, and the schema is parsed at runtime.
 test "every op name has both a schema entry and an executor descriptor" {
     for (opSchema.get().entries) |e| try testing.expect(findOp(e.name) != null);
     for (op_registry) |d| try testing.expect(opSchema.get().find(d.name) != null);
-}
-
-test "resolveAskAnswer: a number picks a label; anything else stays plain text" {
-    const a = testing.allocator;
-    var opts = [_][]u8{
-        try a.dupe(u8, "Sepia"), try a.dupe(u8, "B&W"), try a.dupe(u8, "Blue"),
-    };
-    defer for (opts) |o| a.free(o);
-
-    const one = (try resolveAskAnswer(a, &opts, false, " 2 ")).?;
-    defer a.free(one);
-    try testing.expectEqualStrings("B&W", one);
-
-    // Several numbers at a pick-ONE card is not a selection — it goes as typed.
-    try testing.expect((try resolveAskAnswer(a, &opts, false, "1,3")) == null);
-
-    const many = (try resolveAskAnswer(a, &opts, true, "1, 3")).?;
-    defer a.free(many);
-    try testing.expectEqualStrings("Sepia, Blue", many);
-
-    const spaced = (try resolveAskAnswer(a, &opts, true, "3 1")).?;
-    defer a.free(spaced);
-    try testing.expectEqualStrings("Blue, Sepia", spaced); // the user's order is kept
-
-    const dedup = (try resolveAskAnswer(a, &opts, true, "2,2")).?;
-    defer a.free(dedup);
-    try testing.expectEqualStrings("B&W", dedup); // a repeat is one pick
-
-    // Out of range, non-numeric, empty, and no card at all → plain text (never an error).
-    try testing.expect((try resolveAskAnswer(a, &opts, false, "0")) == null);
-    try testing.expect((try resolveAskAnswer(a, &opts, false, "4")) == null);
-    try testing.expect((try resolveAskAnswer(a, &opts, true, "1,9")) == null);
-    try testing.expect((try resolveAskAnswer(a, &opts, false, "make it warmer")) == null);
-    try testing.expect((try resolveAskAnswer(a, &opts, false, "   ")) == null);
-    var none = [_][]u8{};
-    try testing.expect((try resolveAskAnswer(a, &none, false, "1")) == null);
 }
 
 test "loadsWithoutTracing: a load op continues the turn unless the plan drew a layout (§7)" {

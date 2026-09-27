@@ -52,8 +52,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
-    awaitAnim(win.chatAnim);
+    win.acts.chat->setChecked(true);
+    awaitAnim(win.parts.dockChrome.chatAnim);
     auto* dock = win.findChild<stencil::gui::ChatDock*>();
     QVERIFY2(dock, "no chat dock");
     QLabel* title = dock->findChild<QLabel*>("chatHeaderTitle");
@@ -147,7 +147,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(chat->isChecked());
     // The open and the side switch both FLY (chatSurfaceFlight) — the area is what it
     // settles at, not what it holds mid-flight.
-    QTRY_VERIFY(!win.chatAnim);
+    QTRY_VERIFY(!win.parts.dockChrome.chatAnim);
     QVERIFY(!dock->isFloating());
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
 
@@ -156,7 +156,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::BottomDockWidgetArea);
     // The side switch flies (chatSurfaceFlight) and its finish SHOWS the dock again —
     // let it land before asking for a close, exactly as a user's second sentence would.
-    QTRY_VERIFY(!win.chatAnim);
+    QTRY_VERIFY(!win.parts.dockChrome.chatAnim);
 
     // "open": false closes it and leaves the placement alone.
     run(R"({"reply":"ok","actions":[{"op":"chatPanel","open":false}]})");

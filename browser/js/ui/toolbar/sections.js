@@ -1,7 +1,18 @@
 // The toolbar's control sections as markup: image/meta/projects/connections/edit, then the
-// line, point, draw, view and zoom rows. ui/toolbar.js composes them; every input is wired by id.
+// line, point, draw, view and zoom rows. ui/toolbar/toolbar.js composes them; every input is wired by id.
 import { icon, DRAW_MODE_ICON } from '../icons.js';
 import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
+import { zoomPercentBounds } from '../../core/zoom/pan.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+
+const { DEFAULT_VISUALS: V } = constants;
+
+// The zoom input's min/max: the core's zoom range in percent.
+const zoomRange = () => {
+  const { min, max } = zoomPercentBounds();
+  return `min="${min}" max="${max}"`;
+};
 
 export const toolbarImageSectionsHtml = () => `            <!-- ── Section: Image ── -->
             <div class="ctrl-section">
@@ -93,9 +104,9 @@ export const toolbarStyleSectionsHtml = () => `            <!-- ── Section: 
                 <div class="ctrl-section-label">Line</div>
                 <div class="ctrl-section-row">
                     <label for="line-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
-                    <input type="color" id="line-color" value="#FFFF00" data-title="Line color">
+                    <input type="color" id="line-color" value="${V.color}" data-title="Line color">
                     <label for="line-thickness" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Thickness</label>
-                    <input type="number" id="line-thickness" value="2" min="1" max="20" data-title="Line thickness" style="width:54px">
+                    <input type="number" id="line-thickness" value="${V.thickness}" ${THICKNESS_RANGE} data-title="Line thickness" style="width:54px">
                     <select id="line-style" data-title="Line style">
                         <option value="solid">Solid</option>
                         <option value="dashed">Dashed</option>
@@ -109,9 +120,9 @@ export const toolbarStyleSectionsHtml = () => `            <!-- ── Section: 
                 <div class="ctrl-section-label">Point</div>
                 <div class="ctrl-section-row">
                     <label for="point-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
-                    <input type="color" id="point-color" value="#FFFF00" data-title="Point color">
+                    <input type="color" id="point-color" value="${V.color}" data-title="Point color">
                     <label for="point-size" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Size</label>
-                    <input type="number" id="point-size" value="4" min="1" max="30" data-title="Point size" style="width:54px">
+                    <input type="number" id="point-size" value="${V.pointSize}" ${POINT_SIZE_RANGE} data-title="Point size" style="width:54px">
                 </div>
             </div>
 
@@ -159,7 +170,7 @@ export const toolbarStyleSectionsHtml = () => `            <!-- ── Section: 
                              opens on focus/click (custom menu; native datalist on number inputs is
                              unreliable). Presets are populated by wireZoomControls. -->
                         <span class="zoom-input-wrap">
-                            <input type="number" id="zoom-input" value="100" min="5" max="3200" autocomplete="off" data-title="Zoom %" data-disabled-reason="Load an image to zoom">
+                            <input type="number" id="zoom-input" value="100" ${zoomRange()} autocomplete="off" data-title="Zoom %" data-disabled-reason="Load an image to zoom">
                             <div class="zoom-menu" id="zoom-menu" role="listbox" hidden></div>
                         </span>
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>

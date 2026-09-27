@@ -1,0 +1,90 @@
+
+      /* The editor is the browser's .container; the window around it (the page the chat docks
+         against) keeps --bg-page. */
+      QMainWindow { background: %BG_CONTAINER%; }
+      QMainWindow#stencilWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
+      /* Dock-area resize separators. `width` sizes the VERTICAL bars (left/right dock
+         resize — the points panel and a side-docked chat keep their drag handle) and
+         `height` the HORIZONTAL ones: 1px, effectively removing the draggable strip
+         that sat between the Image Size bar and the canvas (user report) — the docks
+         above the canvas are fixed chrome, not something to resize. Backdrop-
+         coloured, so the strip never reads as a solid band; the browser-parity
+         grip over the canvas ↔ panel separator (a slim bar that tints accent and
+         grows under the cursor, ANIMATED — QSS cannot animate) is painted by
+         support/dockGrip.hpp, positioned from MainWindow. */
+      QMainWindow::separator { background: %BG_CONTAINER%; width: %SEP_W%px; height: 1px; }
+      /* The window's own separator is the chat's: the browser's 10px of page between the chat
+         panel and the editor (chat/touch.css body padding); the resizer is INSIDE the chat's edge. */
+      QMainWindow#stencilWindow::separator { background: %BG_PAGE%; width: %CHAT_GAP%px; height: %CHAT_GAP%px; }
+
+      /* ── Toolbars: gradient surface, hairline divider, rounded icon buttons ── */
+      QToolBar {
+        background: %BG_CONTROLS%;
+        border: 0; border-bottom: 1px solid %BORDER%;
+        /* The browser's control rows sit on an 8px gap; 6 lands the icon buttons at the same
+           visual rhythm once Qt's own button padding is counted. */
+        spacing: 3px; padding: 4px 6px;
+      }
+      QToolBar::separator {
+        width: 1px; background: %BORDER%; margin: 5px 6px; border-radius: 1px;
+      }
+      /* The wrapping rows carry their own hairlines: a QToolBar separator is an item of the
+         toolbar's layout, and these rows have only one (support/control/WrapRow.hpp). */
+      QWidget#toolWrapRow { background: transparent; }
+      QFrame#toolWrapSep { background: %BORDER%; border: none; border-radius: 1px; }
+      QToolBar QLabel { color: %MUTED%; background: transparent; padding: 0 2px; }
+      /* Section captions (IMAGE / LINE / POINT …). Darker than %MUTED% in the light theme —
+         the plain grey read as too faint on white (user report). */
+      QLabel#sectionLabel { color: %SECTIONTITLE%; background: transparent; }
+      /* The header row carries only the logo, the Controls pill and the project name, so it
+         gets a tighter band than the tool rows below it. */
+      QToolBar#headerToolbar { padding: 1px 6px 1px 11px; }   /* +5px left inset for the logo */
+      /* In fullscreen the row hangs over the canvas, so it takes 5px more to stand on. */
+      QToolBar[fsBar="true"] { padding-bottom: 9px; }
+
+      /* Image Size bar, right above the canvas — a central-layout row now (see
+         MainWindow's centralLayout_), styled like the toolbar rows above it. */
+      QWidget#imageInfoBar {
+        background: %BG_CONTROLS%;
+        border: 0; border-bottom: 1px solid %BORDER%;
+      }
+
+      /* Canvas viewport border (browser parity: layout.css .canvas-viewport border: 2px
+         solid --border-canvas) — marks off the bg-page gutter around a zoomed-out/blank
+         page; the fill itself comes from MainWindow::applyTheme's viewport palette.
+         updateProjectTitle() flips [remoteEditing] for a server-backed project. */
+      QScrollArea#canvasViewport { border: 2px solid %BORDER_CANVAS%; }
+      QScrollArea#canvasViewport[remoteEditing="true"] { border: 2px solid #d4a017; }
+      /* In fullscreen the frame is the only chrome left on screen, so it takes the browser's
+         fullscreen-panel hairline instead (fullscreen.css #fs-points-panel: 1px --border-main,
+         8px corners). MainWindow::markFullscreenBars flips [fsView]. */
+      QScrollArea#canvasViewport[fsView="true"] {
+        border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QScrollArea#canvasViewport[fsView="true"][remoteEditing="true"] {
+        border: 1px solid #d4a017; border-radius: 8px;
+      }
+
+      /* The View toggles' words (MainWindowToolbarView captioned): body text, not a muted caption. */
+      QLabel#toggleCaption { color: %TEXT%; padding: 0; }
+      QWidget[toolRow="true"] QCheckBox { spacing: 0; }   /* a bare box: its caption is the label beside it */
+      /* Live cursor-coord readout, between the canvas and the drop-hint (browser parity:
+         layout.css .coord-status — its own --bg-tooltip/--border-tooltip box, not the
+         toolbar's bg-controls). */
+      QLabel#coordStatus {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER_TOOLTIP%; border-radius: 4px;
+        color: %TEXT%; padding: 6px 10px;
+        /* Outer gap off the window edge, not inner padding — centralLayout_'s own left
+           margin is 0 here (drop-hint shares the row and wants none), so this box needs
+           its own small nudge instead. */
+        margin-left: 3px;
+      }
+
+      /* Drag & drop hint below the canvas (browser .drop-hint parity, mainContent.js):
+         a dashed, accent-tinted strip — never the plain window backdrop, or it read as
+         just another line of chrome rather than an actual drop target. */
+      QWidget#dropHintBar {
+        background: %BG_DROP_HINT%; border: 1px dashed %BORDER_HINT%; border-radius: 4px;
+      }
+      QLabel#dropHintLabel { color: %MUTED%; background: transparent; }
+

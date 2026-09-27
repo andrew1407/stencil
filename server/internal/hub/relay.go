@@ -37,15 +37,6 @@ func (s *session) publish(msg protocol.WSMessage) {
 	}
 }
 
-// publishGlobal posts to the global events channel.
-func (s *session) publishGlobal(msg protocol.WSMessage) {
-	if data, err := json.Marshal(msg); err == nil {
-		if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ChannelEvents, eventbus.EnvelopeOf(msg, data)); err != nil {
-			log.Printf("hub: publish to global events failed: %v", err)
-		}
-	}
-}
-
 func (s *session) sendMsg(m *member, msg protocol.WSMessage) {
 	if data, err := json.Marshal(msg); err == nil {
 		m.enqueue(data)

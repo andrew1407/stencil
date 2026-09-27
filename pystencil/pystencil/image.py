@@ -3,8 +3,8 @@
 This mirrors the raw RGBA8 buffers the C++ ``core/`` operates on — interleaved
 R,G,B,A bytes, top-to-bottom rows — so it can be handed straight to the core
 ABI (crop/rotate/filter/rasterize) without conversion. Decoding/encoding goes
-through :mod:`pystencil.codecs` (pure-Python PNG/BMP); the core stays codec-free
-by design, exactly like the browser/wasm and Zig CLI front-ends.
+through :mod:`pystencil.codecs` (pure-Python PNG/BMP, JPEG through the CLI's stb units);
+the core stays codec-free by design, exactly like the browser/wasm and Zig CLI front-ends.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ class Image:
 
   @classmethod
   def decode(cls, raw: bytes) -> "Image":
-    """Build an Image from encoded bytes (PNG/BMP) via :mod:`codecs`."""
+    """Build an Image from encoded bytes (PNG/BMP/JPEG) via :mod:`codecs`."""
     width, height, data = codecs.decode(raw)
     return cls(width, height, data)
 
@@ -78,10 +78,11 @@ class Image:
     return cls.decode(raw)
 
   def encode(self, fmt: str = "png") -> bytes:
-    """Encode this image to bytes in ``fmt`` ("png" or "bmp")."""
+    """Encode this image to bytes in ``fmt`` ("png", "bmp", or "jpeg"/"jpg")."""
     fmt = fmt.lower()
     if fmt == "png": return codecs.encode_png(self.width, self.height, self.data)
     if fmt == "bmp": return codecs.encode_bmp(self.width, self.height, self.data)
+    if fmt in ("jpeg", "jpg"): return codecs.encode_jpeg(self.width, self.height, self.data)
     raise codecs.CodecError("unsupported encode format: %s" % fmt)
 
   def save(self, path: str, fmt: (str | NoneType) = None) -> None:

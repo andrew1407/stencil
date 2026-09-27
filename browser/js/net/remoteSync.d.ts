@@ -23,6 +23,7 @@ export declare const requireConnection: (connMgr: ConnectionManager | null | und
 
 export interface RemoteImageBytes { bytes?: Uint8Array | null; ext?: string; w?: number; h?: number; }
 
+/** A data-URL source reaches the server as '' — its bytes are the uploaded original. */
 export declare const createRemoteProject: (
   conn: ServerConnection,
   opts?: { name?: string; source?: string; resource?: string; color?: string } & RemoteImageBytes,
@@ -32,4 +33,11 @@ export declare const saveRemoteProject: (
   conn: ServerConnection,
   link: RemoteLink,
   opts?: { name?: string; layout?: ProjectLayout } & RemoteImageBytes,
+) => Promise<RemoteLink>;
+
+/** Uploads the rendered result alone and returns the link with the re-read version. */
+export declare const putRemoteResult: (
+  conn: ServerConnection,
+  link: RemoteLink,
+  opts?: RemoteImageBytes,
 ) => Promise<RemoteLink>;

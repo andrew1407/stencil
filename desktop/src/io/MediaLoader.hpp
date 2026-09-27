@@ -1,4 +1,5 @@
 #pragma once
+#include <QByteArrayView>
 #include <QImage>
 #include <QObject>
 #include <QString>
@@ -20,13 +21,23 @@ namespace stencil::gui {
   bool isVideoFileName(const QString& path);
   bool isImageFileName(const QString& path);
 
+  // A still image's leading bytes, read without decoding. `format` is the signature alone (png,
+  // gif, bmp, jpeg, webp; "" for anything else); the size is 0x0 where the header holds none.
+  struct ImageHeader {
+    QString format;
+    quint32 width = 0;
+    quint32 height = 0;
+  };
+  ImageHeader sniffImageHeader(QByteArrayView head);
+
   class MediaLoader : public QObject {
     Q_OBJECT
    public:
     explicit MediaLoader(QObject* parent = nullptr);
     ~MediaLoader() override;
 
-    // `frame` is the 0-based video frame. Emits loaded() or failed() exactly once; a new load() cancels.
+    // `frame` is the 0-based video frame. Emits loaded() or failed() exactly once — loaded() always
+    // from the event loop, as every decode runs on the pool; a new load() cancels.
     void load(const QString& src, int frame);
 
     // Ranked candidates for ONE picture (a dragged link and the <img> it wrapped). Keeps the
@@ -74,6 +85,8 @@ namespace stencil::gui {
     void captureThumbnail();  // read embedded preview/cover art from the player's metadata
     void fail(const QString& message);
     void cleanupVideo();
+    // `work` decodes on the pool; `then` runs here, and only if no newer load() began meanwhile.
+    void decodeThen(std::function<QImage()> work, std::function<void(const QImage&)> then);
 
     QString src;
     QStringList candidates;  // loadFirstOf's ranked list; empty for a plain load()
@@ -83,6 +96,7 @@ namespace stencil::gui {
     QString localPath;  // non-empty only for an existing local file
     int frame = 0;
     bool done = false;     // guards single-shot loaded()/failed()
+    quint64 loadSerial = 0;  // bumped per load, so a decode finishing late cannot answer a newer one
     bool isVideo = false;  // set once the source is resolved as a video
     QImage thumbnail;      // embedded preview/cover image, if the video carries one
     double fps = 0;        // video frame rate (assumed fallback when unknown)

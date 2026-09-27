@@ -9,6 +9,9 @@ public sealed partial class EditingService
     public Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { CropSpec = spec, Album = album }, ct);
 
+    public Task<UserSession> ComposeCropAsync(long userId, string spec, CancellationToken ct = default) =>
+        applyEditAsync(userId, session => session.Edits.WithViewCrop(spec, session.OriginalWidth, session.OriginalHeight), ct);
+
     public Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
 

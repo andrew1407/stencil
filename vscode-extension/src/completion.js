@@ -1,4 +1,4 @@
-// The suggestion list. lib/completionContext.js decides WHICH groups belong at the caret;
+// The suggestion list. lib/vocab/completionContext.js decides WHICH groups belong at the caret;
 // this turns a group into items, each carrying the same Markdown the hover shows.
 import * as vscode from 'vscode';
 

@@ -19,3 +19,9 @@ export declare const contourCanvas: (
   makeCanvas: CanvasFactory, imageData: ImageData,
   contour: (data: Uint8ClampedArray, width: number, height: number) => void,
 ) => AnyCanvas;
+
+/** The co-edit result at job.width×job.height: `base`, then the resting lines (core/draw/restingPaint.js). */
+export declare const paintResult: (
+  makeCanvas: CanvasFactory, base: CanvasImageSource,
+  job: Omit<import('../core/draw/restingPaint.js').RestingJob, 'base'>,
+) => AnyCanvas;

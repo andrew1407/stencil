@@ -15,13 +15,28 @@ from .diff import _FIELD_WRITE_RETRIES, _poll_loop, diff_projects
 from .http import ServerError
 
 
+# The CLI's max_pages: a server that keeps handing out cursors is cut off, not followed forever.
+_MAX_LIST_PAGES = 1000
+
+
 class _ProjectApi:
   """Project listing, creation, metadata writes and change tracking."""
 
   def list_projects(self) -> list:
-    """GET /projects → the project records list (ProjectListResponse)."""
-    r = self._request("GET", "/projects")
-    return (r or {}).get("projects", []) or []
+    """GET /projects, following each page's nextCursor → every project record, in page order."""
+    out: list = list()
+    seen: set = set()
+    page: dict = dict()
+    for _ in range(_MAX_LIST_PAGES):
+      r = self._request("GET", "/projects", **page)
+      out.extend((r or {}).get("projects", []) or [])
+      cursor = (r or {}).get("nextCursor")
+      if not isinstance(cursor, str) or not cursor: return out
+      if cursor in seen:
+        raise ServerError("badResponse", "the server handed back the same page cursor twice")
+      seen.add(cursor)
+      page = {"query": {"after": cursor}}
+    raise ServerError("badResponse", "the server kept paging past %d pages" % _MAX_LIST_PAGES)
 
   # ── project-change tracking (poll-based) ──
   # REST-only (no /ws feed), so "listening" is polling, exactly like the desktop's QTimer.
@@ -45,7 +60,7 @@ class _ProjectApi:
     _poll_loop(self.list_projects, on_change, interval, stop)
 
   def get_project(self, pid: str) -> dict:
-    """GET /projects/{id} → {project, layout?, originalContent?}."""
+    """GET /projects/{id} → {project, layout?}."""
     return self._request("GET", "/projects/" + urllib.parse.quote(str(pid)))
 
   def _project_record(self, pid: str) -> (dict | NoneType):

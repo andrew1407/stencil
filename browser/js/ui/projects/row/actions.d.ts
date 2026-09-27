@@ -1,4 +1,4 @@
-/** The row's open gesture (js/core/openGesture.js), as the rename editor sees it. */
+/** The row's open gesture (js/core/project/openGesture.js), as the rename editor sees it. */
 export interface ProjectRowGesture {
   cancel(): void;
   dragStart(): void;

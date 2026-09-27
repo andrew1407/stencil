@@ -1,42 +1,40 @@
 #include "ChatPlanTarget.hpp"
 
 #include "MainWindow.hpp"
+#include "ChatSessionController.hpp"
 #include "../../../support/modal/modalChrome.hpp"  // confirmModal — the browser-styled question
-#include "mainWindowHelpers.hpp"
-#include "DataExportController.hpp"
 #include "RemoteSession.hpp"
 #include "../../../canvas/CanvasWidget.hpp"
-#include "../../../net/connectionStore.hpp"
-#include "../../../net/ServerClient.hpp"
 #include "../../../support/displayName.hpp"
 #include "../../../support/notify/Notifications.hpp"
-#include "../../../support/theme/theme.hpp"
+#include "SiblingWindows.hpp"
+#include "PlanAwait.hpp"
 
 #include <QAction>
 #include <QApplication>
 #include <QJsonObject>
+#include <QPointer>
 #include <QTimer>
 
 namespace stencil::gui {
-  // §10 openProject: the projects dialog's open path, unsaved-replace confirm included.
-  bool ChatPlanTarget::openProjectNamed(const QString& name, bool last, QString* note) {
+  // §10 openProject: the projects dialog's open path, unsaved-replace confirm included; answered
+  // once the picture is in, so the plan's next action edits the opened project.
+  void ChatPlanTarget::openProjectNamedThen(const QString& name, bool last, llm::OpDone done) {
     // "the last project I worked on" resolves HERE off updatedAt — the model never sees the list (session.js parity).
     const Project* pick = nullptr;
+    QString note;
     if (last) {
       for (const auto& p : w.projectList)
         if (!pick || p.meta.updatedAt > pick->meta.updatedAt) pick = &p;
-      if (!pick) {
-        *note = QStringLiteral("there are no saved projects yet");
-        return true;
-      }
+      if (!pick) return done(true, QStringLiteral("there are no saved projects yet"));
     } else {
-      pick = resolveLocalProject(name, note);
+      pick = resolveLocalProject(name, &note);
     }
-    if (!pick) return true;  // *note says why
+    if (!pick) return done(true, note);  // the note says why
     const QString id = QString::fromStdString(pick->meta.id);
     const QString nm = support::shortName(QString::fromStdString(pick->meta.name));
     const bool unsaved = w.canvas->hasImage() && w.activeProjectId.isEmpty() &&
-                         w.remoteSession->getLink().id.isEmpty();
+                         w.remote.session->getLink().id.isEmpty();
     ConfirmSpec openSpec;
     openSpec.title = "Open project";
     openSpec.message = QString("Open \"%1\"? Any unsaved changes in the current window will be "
@@ -44,15 +42,17 @@ namespace stencil::gui {
                            .arg(nm);
     openSpec.confirmLabel = "Open";
     openSpec.confirmIcon = QStringLiteral("folder");
-    if (unsaved && !confirmModal(&w, openSpec)) {
-      *note = QStringLiteral("open canceled");
-      return true;
-    }
-    if (!w.loadProjectIntoCanvas(id)) {
-      *note = QStringLiteral("could not open \"%1\"").arg(nm);
-      return true;
-    }
-    return true;
+    if (unsaved && !confirmModal(&w, openSpec)) return done(true, QStringLiteral("open canceled"));
+    const QString failed = QStringLiteral("could not open \"%1\"").arg(nm);
+    PlanAwait::start(
+        w, w.pop, [done, failed](bool ok, const QString&) { done(true, ok ? QString() : failed); },
+        [&](PlanAwait* await) {
+          const QPointer<PlanAwait> guard(await);
+          const auto landed = [guard](bool ok) {
+            if (guard) guard->settle(ok, QString());
+          };
+          if (!w.loadProjectIntoCanvas(id, true, landed)) landed(false);
+        });
   }
   // §10 incognito: only togglable on a blank editor, like the action's own gate.
   bool ChatPlanTarget::setIncognito(bool on, QString* note) {
@@ -67,31 +67,31 @@ namespace stencil::gui {
       *note = QStringLiteral("incognito can only be turned ON from a blank editor");
       return true;
     }
-    if (w.actIncognito && w.actIncognito->isChecked() != on)
-      w.actIncognito->setChecked(on);  // its toggled handler applies + notifies
+    if (w.acts.incognito && w.acts.incognito->isChecked() != on)
+      w.acts.incognito->setChecked(on);  // its toggled handler applies + notifies
     return true;
   }
   // §10 chatPanel: the panel's OWN placement calls (browser session.js setChatPlacement parity).
   bool ChatPlanTarget::setChatPlacement(int open, const QString& dock, QString* note) {
-    if (!w.chatDock || !w.actChat) {
+    if (!w.chatDock || !w.acts.chat) {
       *note = QStringLiteral("there is no assistant panel here");
       return true;
     }
     // Show FIRST, then place: the placement paths animate a shown panel, and a hidden dock asked to float would stay docked.
     const bool show = open < 0 ? !dock.isEmpty() : open == 1;
-    if (show && !w.actChat->isChecked()) w.actChat->setChecked(true);
+    if (show && !w.acts.chat->isChecked()) w.acts.chat->setChecked(true);
     if (!dock.isEmpty()) {
       if (dock == QLatin1String("float")) {
-        if (!w.chatDock->isFloating()) w.toggleChatFloat();
+        if (!w.chatDock->isFloating()) w.parts.dockChrome.toggleChatFloat();
       } else {
         const Qt::DockWidgetArea area = dock == QLatin1String("left")    ? Qt::LeftDockWidgetArea
                                         : dock == QLatin1String("right")  ? Qt::RightDockWidgetArea
                                         : dock == QLatin1String("top")    ? Qt::TopDockWidgetArea
                                                                           : Qt::BottomDockWidgetArea;
-        w.dockChatTo(area);
+        w.parts.dockChrome.dockChatTo(area);
       }
     }
-    if (!show && w.actChat->isChecked()) w.actChat->setChecked(false);
+    if (!show && w.acts.chat->isChecked()) w.acts.chat->setChecked(false);
     return true;
   }
 
@@ -106,11 +106,11 @@ namespace stencil::gui {
       QTimer::singleShot(0, open, [open] { open->close(); });
       return true;
     }
-    QAction* act = name == QLatin1String("projects")    ? w.actProjects
-                   : name == QLatin1String("servers")   ? w.actConnect
-                   : name == QLatin1String("shortcuts") ? w.actShortcuts
-                   : name == QLatin1String("visuals")   ? w.actSettings
-                                                        : w.actInfo;
+    QAction* act = name == QLatin1String("projects")    ? w.acts.projects
+                   : name == QLatin1String("servers")   ? w.acts.connect
+                   : name == QLatin1String("shortcuts") ? w.acts.shortcuts
+                   : name == QLatin1String("visuals")   ? w.acts.settings
+                                                        : w.acts.info;
     if (!act || !act->isEnabled()) {
       *note = QStringLiteral("the %1 window is not available right now").arg(name);
       return true;
@@ -163,29 +163,29 @@ namespace stencil::gui {
       w.projectList = std::move(kept);
     } else {
       w.projectList.clear();
-      if (hadActive) w.resetToBlankEditor();   // the open one went with them
+      if (hadActive) w.parts.projects.resetToBlankEditor();   // the open one went with them
     }
     fileStore::saveProjects(w.projectList);
     w.refreshActions();
-    w.refreshDockMenu();
-    w.notify->success(QString("Cleared %1 local project(s)").arg(n));
+    SiblingWindows::refreshDockMenu(w.projectList);
+    w.notify->success(clearedToast(n));
     return true;
   }
   // §10 clearChat: only FLAG it — the confirm runs once the turn settles; a modal here would stall the plan.
   bool ChatPlanTarget::clearChat(QString*) {
-    w.chatClearPending = true;
+    w.chatSession->chatClearPending = true;
     return true;
   }
   // `image`: the turn's Nth attachment becomes the working image; an unsatisfiable index is reported back.
   bool ChatPlanTarget::loadAttachment(int index, QString* err) {
-    if (index < 1 || index > w.chatTurnAttachments.size()) {
+    if (index < 1 || index > w.chatSession->chatTurnAttachments.size()) {
       if (err)
         *err = QStringLiteral("this message attached %1 image(s)")
-                   .arg(w.chatTurnAttachments.size());
+                   .arg(w.chatSession->chatTurnAttachments.size());
       return false;
     }
-    w.loadImageWithLayout(w.chatTurnAttachments.at(index - 1), QJsonObject());
-    w.chatActiveAttachment = index;   // it names an unnamed `save`
+    w.loadImageWithLayout(w.chatSession->chatTurnAttachments.at(index - 1), QJsonObject());
+    w.chatSession->chatActiveAttachment = index;   // it names an unnamed `save`
     w.refreshActions();
     w.onSelectionChanged();
     w.updateImageSizeInfo();
@@ -194,12 +194,16 @@ namespace stencil::gui {
   // `save`: a LOCAL project, never a server publish; `dest` (echo-checked) redirects it.
   bool ChatPlanTarget::saveProject(const QString& name, const QString& dest,
                                    QString* err) {
-    return w.chatSaveProject(name, dest, err);
+    return w.parts.chatAppliers.chatSaveProject(name, dest, err);
+  }
+
+  void ChatPlanTarget::saveProjectThen(const QString& name, const QString& dest, llm::OpDone done) {
+    w.parts.chatAppliers.chatSaveProjectThen(name, dest, std::move(done));
   }
 
   QString ChatPlanTarget::userTypedText() const {
     QStringList parts;
-    for (const auto& m : w.chatHistory)
+    for (const auto& m : w.chatSession->chatHistory)
       if (m.role == QLatin1String("user")) parts << m.text;
     return parts.join(QLatin1Char('\n'));
   }

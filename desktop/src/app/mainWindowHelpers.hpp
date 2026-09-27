@@ -3,20 +3,24 @@
 // Inline helpers shared by the MainWindow translation units.
 
 #include "pageMetrics.hpp"
+#include "../support/dust/dustKit.hpp"   // support::frameIntervalMs
 
 #include <QApplication>
 #include <QBuffer>
 #include <QDateTime>
 #include <QEasingCurve>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QLineEdit>
 #include <QToolButton>
 #include <QMenu>
 #include <QPlainTextEdit>
+#include <QPropertyAnimation>
 #include <QRandomGenerator>
 #include <QString>
 #include <QTextEdit>
+#include <QTimer>
 #include <QVariantAnimation>
 #include <functional>
 #include <string>
@@ -84,6 +88,13 @@ namespace stencil::gui {
     return seq;
   }
 
+  // hotkeysConfig.json spells arrows the browser way ("Alt+ArrowUp"); QKeySequence reads "Alt+Up".
+  inline QString qtKeySeq(QString seq) {
+    for (const char* dir : {"Up", "Down", "Left", "Right"})
+      seq.replace(QStringLiteral("Arrow") + QLatin1String(dir), QLatin1String(dir));
+    return seq;
+  }
+
   inline std::string makeSalt() {
     return QString::number(QRandomGenerator::global()->bounded(1 << 24), 36)
         .toStdString();
@@ -99,10 +110,12 @@ namespace stencil::gui {
   }
 
   // QMainWindow overrides a child's min/max during its own layout passes, so `apply` pins every frame and `done` releases.
+  // One frame per screen refresh (support::frameIntervalMs), as the browser's slide gets, not Qt's fixed 16ms:
+  // held paused and stepped by its own timer; stop() still cancels it without `done`.
   inline QVariantAnimation* startExtentSlide(QObject* owner, int from, int to, int ms,
                                              std::function<void(int)> apply,
                                              std::function<void()> done,
-                                             QEasingCurve::Type easing = QEasingCurve::OutCubic) {
+                                             const QEasingCurve& easing = QEasingCurve::OutCubic) {
     auto* anim = new QVariantAnimation(owner);
     anim->setDuration(ms);
     anim->setEasingCurve(easing);
@@ -112,6 +125,18 @@ namespace stencil::gui {
                      [apply = std::move(apply)](const QVariant& v) { apply(v.toInt()); });
     QObject::connect(anim, &QVariantAnimation::finished, owner, std::move(done));
     anim->start(QAbstractAnimation::DeleteWhenStopped);
+    if (anim->state() != QAbstractAnimation::Running) return anim;   // zero-length: already done
+    anim->pause();
+    auto* tick = new QTimer(anim);
+    tick->setTimerType(Qt::PreciseTimer);
+    tick->setInterval(support::frameIntervalMs(qobject_cast<QWidget*>(owner)));
+    QElapsedTimer clock;
+    clock.start();
+    QObject::connect(tick, &QTimer::timeout, anim, [anim, clock] {
+      if (anim->state() == QAbstractAnimation::Paused)
+        anim->setCurrentTime(int(std::min<qint64>(clock.elapsed(), anim->duration())));
+    });
+    tick->start();
     return anim;
   }
 
@@ -136,6 +161,17 @@ namespace stencil::gui {
     if (auto* pe = qobject_cast<QPlainTextEdit*>(f)) return !pe->toPlainText().trimmed().isEmpty();
     if (auto* te = qobject_cast<QTextEdit*>(f)) return !te->toPlainText().trimmed().isEmpty();
     return false;
+  }
+
+  // Browser appReveal counterpart: window opacity, no per-child effect, so the canvas paint path
+  // is untouched.
+  inline void fadeInWindow(QWidget* win) {
+    auto* fade = new QPropertyAnimation(win, "windowOpacity", win);
+    fade->setDuration(240);
+    fade->setStartValue(0.0);
+    fade->setEndValue(1.0);
+    fade->setEasingCurve(QEasingCurve::OutCubic);
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   // NOT orientation-swapped — only the proportions matter. Browser: cropModal.pageDims.

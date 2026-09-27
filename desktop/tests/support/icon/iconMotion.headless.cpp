@@ -1,4 +1,4 @@
-// Headless check of the per-icon hover motion (src/support/iconMotion.hpp) — the desktop port of
+// Headless check of the per-icon hover motion (src/support/icon/iconMotion.hpp) — the desktop port of
 // browser/js/config/iconMotion.json, where every glyph mimes its OWN action, split across
 // iconMotion*.headless.cpp. This TU owns the table the sections read and the `--dump <dir>` PNGs.
 #include "iconMotionParts.hpp"

@@ -47,6 +47,6 @@ export const run = async (fn) => {
   }
 };
 
-// Stamped on <html> by lib/accent.js before first paint.
+// Stamped on <html> by lib/accent/accent.js before first paint.
 export const themePref = window.StencilTheme;
 export const themeBtn = document.getElementById('theme-toggle');

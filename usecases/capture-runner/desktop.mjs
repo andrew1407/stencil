@@ -7,8 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir, repoPath, scratchDir, scratchPath } from './lib/paths.mjs';
-import { makeShotRunner } from './lib/shotRunner.mjs';
-import { pairNames } from './lib/themeSelector.mjs';
+import { makeShotRunner } from './lib/shot/runner.mjs';
+import { pairNames } from './lib/theme/selector.mjs';
 import { framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { sampleVideo } from './lib/sampleMedia.mjs';
 import { startMediaServer } from './lib/servers.mjs';
@@ -26,7 +26,7 @@ const run = (cmd, args, env = {}) => execFileSync(cmd, args, { stdio: 'inherit',
 
 console.log('desktop build');
 run('cmake', ['-S', repoPath('desktop'), '-B', BUILD, '-DSTENCIL_DOCS_CAPTURE=ON']);
-run('cmake', ['--build', BUILD, '--config', 'Release', '--target', 'stencil_docs_capture', '-j']);
+run('cmake', ['--build', BUILD, '--config', 'Release', '--target', 'stencil_docs_capture', '-j', '4']);
 
 // The offscreen platform's screen is 800x800 and the tall dialogs size off availableGeometry, so
 // the plugin gets a 1440x1100-logical screen in DEVICE pixels, which QT_SCALE_FACTOR divides.

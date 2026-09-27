@@ -1,6 +1,6 @@
 // Server connections; the popup reads the same chrome.storage.local list.
 import { PINS_KEY } from '../lib/prefs/pins.js';
-import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connection/connections.js';
+import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, checkSession, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connection/connections.js';
 import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
 import { setTip } from '../lib/tip/tip.js';
@@ -59,7 +59,7 @@ const renderConnections = async () => {
     name.append(label);
     setTip(name, c.url);
     info.appendChild(name);
-    listProjects(c)
+    checkSession(c)
       .then(() => { dot.className = 'conn-status conn-status-connected'; setTip(dot, 'Connected', { label: true }); })
       .catch(() => { dot.className = 'conn-status conn-status-error'; setTip(dot, 'Not reachable', { label: true }); });
     // Out of .conn-name, so the badge can't eat the host label's ellipsis budget.

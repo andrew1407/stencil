@@ -6,9 +6,9 @@
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QScreen>
 #include <QShowEvent>
 #include <QTextCursor>
+#include <QFrame>
 
 namespace stencil::gui {
 
@@ -131,7 +131,7 @@ namespace stencil::gui {
   void ScriptDialog::showRunDiagnostics() { editor->showRunDiagnostics(); }
 
   // Copy, Save and Clear need text; Open always has something to do. Run needs something to
-  // RUN (browser js/ui/editor.js gateActions).
+  // RUN (browser js/ui/script/editor.js gateActions).
   void ScriptDialog::gateActions() {
     const bool blank = editor->isEmpty();
     copyBtn->setEnabled(!blank);

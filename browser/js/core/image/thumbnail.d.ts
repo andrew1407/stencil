@@ -1,5 +1,5 @@
 // The projects-list thumbnail: the EDITED result (filter + lines) as a modest JPEG data URL,
-// sized for its largest consumer (the hover zoom), since it lives in the localStorage registry.
+// sized for its largest consumer (the hover zoom) and kept one per project.
 import type { DrawingApp } from '../drawingApp.js';
 import type { Storage } from '../storage/storage.js';
 

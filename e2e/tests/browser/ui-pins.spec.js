@@ -1,7 +1,7 @@
 // UI regression pins for the browser app — the guard for a refactor that moves modules and
 // splits stylesheets. Each state is driven through the same seams the other specs use, then its
 // subtree is recorded as computed styles + DOM shape and deep-equalled against
-// e2e/pins/<name>.json (helpers/uiPin.js). Order inside a group is load-bearing: the empty
+// e2e/pins/<platform>/<name>.json (helpers/uiPin.js). Order inside a group is load-bearing: the empty
 // editor before the image, the toolbar before anything enables its image actions.
 import { test, expect } from '@playwright/test';
 import { gotoApp, settleModalAnimations, expectModalOpen } from '../../helpers/boot.js';

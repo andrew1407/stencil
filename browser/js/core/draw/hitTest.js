@@ -1,4 +1,4 @@
-import { distToSegment } from '../../utils.js';
+import { distToSegmentSq } from '../../utils.js';
 
 // Pure hit-testing over the line model; DrawingApp supplies lines/currentLine and the
 // zoom-aware thresholds (screen-px radius / zoom, so hits stay constant on screen).
@@ -17,27 +17,36 @@ const farFromBox = (pts, x, y, margin) => {
 // Topmost line within `threshold` — by point (padded +4) or by segment — or -1.
 export function findLineAt(lines, x, y, threshold) {
   const margin = threshold + 4;
+  // Squared radii; a negative radius (or NaN) reaches nothing, as a distance never falls below it.
+  const pointSq = margin >= 0 ? margin * margin : -1;
+  const segSq = threshold >= 0 ? threshold * threshold : -1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const pts = lines[i].points;
     if (!pts.length || farFromBox(pts, x, y, margin)) continue;
 
-    for (const p of pts)
-      if (Math.hypot(p.x - x, p.y - y) <= margin) return i;
+    for (const p of pts) {
+      const dx = p.x - x, dy = p.y - y;
+      if (dx * dx + dy * dy <= pointSq) return i;
+    }
 
     for (let j = 0; j < pts.length - 1; j++)
-      if (distToSegment(x, y, pts[j], pts[j + 1]) <= threshold) return i;
+      if (distToSegmentSq(x, y, pts[j], pts[j + 1]) <= segSq) return i;
   }
   return -1;
 }
+
+// Squared distance strictly under `threshold` (none for threshold <= 0), as core findNearestPoint.
+const within = (p, x, y, threshold) => {
+  const dx = p.x - x, dy = p.y - y;
+  return threshold > 0 && dx * dx + dy * dy < threshold * threshold;
+};
 
 // Committed lines first, then the in-progress line; or null.
 export function findNearestPoint(lines, currentLine, x, y, threshold) {
   const near = (pts) => {
     if (!pts.length || farFromBox(pts, x, y, threshold)) return null;
-    for (const point of pts) {
-      const dist = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
-      if (dist < threshold) return point;
-    }
+    for (const point of pts)
+      if (within(point, x, y, threshold)) return point;
     return null;
   };
   for (const line of lines) {
@@ -51,10 +60,8 @@ export function findNearestPoint(lines, currentLine, x, y, threshold) {
 export function findNearestPointWithIdx(lines, currentLine, x, y, threshold) {
   const near = (pts, lineIdx) => {
     if (!pts.length || farFromBox(pts, x, y, threshold)) return null;
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i];
-      if (Math.hypot(p.x - x, p.y - y) < threshold) return { lineIdx, ptIdx: i, point: p };
-    }
+    for (let i = 0; i < pts.length; i++)
+      if (within(pts[i], x, y, threshold)) return { lineIdx, ptIdx: i, point: pts[i] };
     return null;
   };
   if (currentLine) {
@@ -70,15 +77,16 @@ export function findNearestPointWithIdx(lines, currentLine, x, y, threshold) {
 
 // { lineIdx, ptIdx1, ptIdx2 } among completed lines, or null.
 export function findNearestSegmentWithIdx(lines, x, y, threshold) {
-  let bestDist = Infinity;
+  if (!(threshold > 0)) return null;   // no distance is below it
+  let bestSq = threshold * threshold;
   let best = null;
   for (let li = lines.length - 1; li >= 0; li--) {
     const pts = lines[li].points;
     if (!pts.length || farFromBox(pts, x, y, threshold)) continue;
     for (let pi = 0; pi < pts.length - 1; pi++) {
-      const d = distToSegment(x, y, pts[pi], pts[pi + 1]);
-      if (d < threshold && d < bestDist) {
-        bestDist = d;
+      const d = distToSegmentSq(x, y, pts[pi], pts[pi + 1]);
+      if (d < bestSq) {
+        bestSq = d;
         best = { lineIdx: li, ptIdx1: pi, ptIdx2: pi + 1 };
       }
     }

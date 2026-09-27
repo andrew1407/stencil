@@ -91,6 +91,13 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
         if p.remote_name.is_some() && p.remote.is_none() {
             return Err(EditError::RemoteNameWithoutRemote);
         }
+        if let Some(turns) = p.rotate.filter(|r| r.abs() > 3) {
+            return Err(EditError::RotateOutOfRange(turns));
+        }
+        let frame = p.layout_frame.as_deref();
+        if let Some(frame) = frame.filter(|f| !matches!(*f, "current" | "source")) {
+            return Err(EditError::UnknownLayoutFrame(frame.to_string()));
+        }
 
         // Normalize. The guards above guarantee `input` is Some whenever `server` is.
         Ok(if let Some(server) = p.server.as_deref() {
@@ -202,4 +209,11 @@ pub fn build_argv(
 
     b.arg(params.output.clone());
     Ok(b.into_argv())
+}
+
+/// `argv` with `--no-clobber` before its positional output, which stays last: the CLI refuses
+/// an existing file under the name it will really write, extension filled in.
+pub fn with_no_clobber(mut argv: Argv) -> Argv {
+    argv.insert(argv.len().saturating_sub(1), Cow::Borrowed(FLAG_NO_CLOBBER));
+    argv
 }

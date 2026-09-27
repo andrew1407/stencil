@@ -124,7 +124,7 @@ class LlmTimeoutTest(unittest.TestCase):
       def getcode(self):
         return 200
 
-      def read(self):
+      def read(self, _n=-1):
         return json.dumps({"model": "m", "text": "ok", "stopReason": "end_turn"}).encode()
 
       def __enter__(self):
@@ -134,8 +134,9 @@ class LlmTimeoutTest(unittest.TestCase):
         return False
 
     opener = server_mod._no_redirect_opener
-    server_mod._no_redirect_opener = type(
+    stub = type(
       "O", (), {"open": staticmethod(lambda req, timeout: seen.append(timeout) or _Resp())})
+    server_mod._no_redirect_opener = lambda _context=None: stub
     try:
       client = LlmClient(
         LlmConfig(provider="stencil-server", server_url="https://srv:8090"), token="t")

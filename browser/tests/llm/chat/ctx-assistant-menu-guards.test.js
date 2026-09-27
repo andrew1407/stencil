@@ -1,39 +1,45 @@
-// Menu-open guards (js/ui/contextMenu.js): what keeps the menu open while chatting, the
+// Menu-open guards (js/ui/contextMenu/contextMenu.js): what keeps the menu open while chatting, the
 // answered-endpoint wording, the Retry a stop leaves, and the shared closed-turn toast.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
   unreachableText, describeChatError, chatLog, resetChatLog, runLoggedChatTurn,
 } from '../../../js/llm/chat/session.js';
 import { LlmError } from '../../../js/llm/client.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
+import { wireContextMenu, typeAndSend } from '../../helpers/ctxMenuChatRig.js';
+import { wireBothSurfaces } from '../../helpers/chatSurfacesRig.js';
 
 // ── Menu-open guards (the behaviour that makes chatting in a menu possible) ──
-test('contextMenu.js keeps the menu open while chatting', () => {
-  const src = contextMenuSource();
-  // Scroll-close ignores scrolls that originate INSIDE the menu (the transcript).
-  assert.match(src, /if \(e\.target && e\.target\.nodeType && menu\.contains\(e\.target\)\) return;/);
-  // Inside clicks never reach the document mousedown close handler.
-  assert.ok(src.includes("menu.addEventListener('mousedown', e => e.stopPropagation())"));
-  // A plan re-laying out the canvas scrolls the viewport — that scroll is the
-  // assistant's, not the user's, so it must not dismiss the menu either.
-  assert.ok(src.includes('if (assistantBusy()) return;'), 'assistant-caused scrolls are exempt');
-  assert.match(src, /const assistantBusy = \(\) => assistSending \|\| Date\.now\(\) < assistBusyUntil;/);
-  // The entry is (re)built and re-moded on open and when the provider changes.
-  assert.ok(src.includes('subscribe(EVENTS.llmSettingsChanged, syncAssistant)'));
-  assert.ok(src.includes('syncAssistant();\n      syncScript();\n      menu.style.left'), 'both flyout entries settled before the menu is measured');
-  // Typing in the flyout (or a running turn) suppresses the hover-out close, but
-  // hovering a SIBLING parent still closes it like any other flyout.
-  assert.ok(src.includes("flyout._keepOpen = () => host.sending() || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);"),
-    'typing, resizing the composer, an open row menu, or a running turn all count as engaged');
-  assert.match(src, /const keepSubOpen = \(sub\) => !!sub\._keepOpen\?\.\(\);/);
-  assert.ok(src.includes('if (keepSubOpen(sub)) return;'), 'hideSub honours the engaged flyout');
-  // The only closeMenu() calls in assistantChat.js are the four that open something else on
-  // top (gear, Configure provider, Reconnect, the phone hand-over); chatting never closes it.
-  const assist = readFileSync(new URL('../../../js/ui/ctx/assistantChat.js', import.meta.url), 'utf8');
-  assert.strictEqual((assist.match(/host\.closeMenu/g) || []).length, 4,
-    'gear + settings CTA + reconnect CTA + phone hand-over only');
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test('contextMenu.js keeps the menu open while chatting', async () => {
+  const m = await wireContextMenu();
+  m.openAt();
+  assert.ok(m.isOpen());
+  // Scrolling the transcript (inside the menu) is not a page scroll.
+  m.doc.fire('scroll', { target: m.flyout.transcript });
+  assert.ok(m.isOpen(), 'a scroll inside the menu leaves it open');
+  // A press inside never reaches the document closer; the menu swallows its own mousedown.
+  m.doc.fire('mousedown', { target: m.flyout.input });
+  assert.ok(m.isOpen(), 'a press inside the menu leaves it open');
+  assert.ok(m.menu.fire('mousedown').stopped, 'the menu stops its own mousedown');
+  // A plan re-laying out the canvas scrolls the viewport: exempt while the turn runs…
+  typeAndSend(m.flyout, 'crop to the cat');
+  assert.deepStrictEqual(m.ctrl.sent, ['crop to the cat']);
+  m.doc.fire('scroll', { target: m.doc });
+  assert.ok(m.isOpen(), 'the running turn\'s scroll is the assistant\'s');
+  m.ctrl.settle({ reply: 'Cropped.', results: [] });
+  await tick();
+  // …and for a grace window after it, while its last relayout settles.
+  m.doc.fire('scroll', { target: m.doc });
+  assert.ok(m.isOpen(), 'the grace window still covers a late relayout');
+  const now = Date.now;
+  Date.now = () => now() + 5000;
+  try { m.doc.fire('scroll', { target: m.doc }); } finally { Date.now = now; }
+  assert.strictEqual(m.isOpen(), false, 'a user\'s page scroll past the grace closes it');
+  m.openAt();
+  m.doc.fire('mousedown', { target: m.doc.getElementById('canvas') });
+  assert.strictEqual(m.isOpen(), false, 'a press outside closes it');
 });
 
 test('unreachableText quotes an endpoint that ANSWERED instead of guessing it is down', () => {
@@ -71,11 +77,17 @@ test('stopping a turn leaves a Retry with the original text', async () => {
   assert.strictEqual(reply.pending, false, 'the pending mark is cleared, so the dots stop');
 });
 
-test('every bare identifier contextMenu.js uses from other llm modules is imported', () => {
-  const src = contextMenuSource();
-  // Regression: attachFull referenced MAX_ATTACHMENTS without importing it (runtime-only crash).
-  assert.match(src, /import \{ MAX_ATTACHMENTS \} from '[^']*chat\/controller\.js';/,
-    'MAX_ATTACHMENTS is imported where the attach-cap check uses it');
+test('the flyout\'s attach-cap check resolves MAX_ATTACHMENTS: a full queue disables attach', async () => {
+  const { MAX_ATTACHMENTS } = await import('../../../js/llm/chat/controller.js');
+  const m = await wireContextMenu();
+  const attach = m.doc.getElementById('ctx-assist-attach-btn');
+  assert.strictEqual(attach.disabled, false, 'wiring evaluated the cap check without throwing');
+  m.ctrl.attachments.push(...Array.from({ length: MAX_ATTACHMENTS }, (_, i) => ({ name: `a${i}.png` })));
+  m.flyout.input.fire('input');
+  assert.strictEqual(attach.disabled, true, 'a full queue disables attach');
+  m.ctrl.attachments.pop();
+  m.flyout.input.fire('input');
+  assert.strictEqual(attach.disabled, false);
 });
 
 // The closed-chat balloon is built once for every surface: the flyout's toast frames the
@@ -102,16 +114,36 @@ test('closedTurnToast: one framing for both surfaces, and silence for an abort',
   assert.ok(long.text.endsWith('…'));
 });
 
-test('both surfaces toast through the shared builder, each with a way back to the chat', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  const menu = contextMenuSource();
-  for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
-    assert.ok(src.includes('closedTurnToast('), `${name} builds its toast from the shared helper`);
-    assert.ok(!/truncateForToast\(/.test(src), `${name} no longer frames its own`);
-    assert.ok(/notify\(toast\.text, toast\.type, \{ onClick:/.test(src), `${name}'s toast reopens the chat`);
-  }
-  // The flyout cannot restore itself (it needs the menu at its old point), so it opens
-  // the docked panel — the same conversation.
-  assert.ok(menu.includes('onClick: () => app.chat?.open()'));
-  assert.ok(panel.includes('onClick: () => setOpen(true)'));
+test('both surfaces toast through the shared builder, each with a way back to the chat', async () => {
+  const { closedTurnToast } = await import('../../../js/llm/chat/session.js');
+  const s = await wireBothSurfaces();
+  const entry = { reply: 'x'.repeat(300), results: [1] };
+  const expected = closedTurnToast({ ok: true, entry });
+  // The panel, closed: the landed turn toasts, and the click reopens the panel itself.
+  typeAndSend(s.panel, 'outline it');
+  s.ctrl.settle(entry);
+  await tick();
+  assert.deepStrictEqual(s.notices.map((n) => [n.text, n.type]), [[expected.text, expected.type]],
+    'the panel frames its toast with the shared builder, truncation included');
+  s.notices[0].opts.onClick();
+  assert.ok(s.panel.host.classList.contains('chat-open'), 'the panel toast reopens the panel');
+  typeAndSend(s.panel, 'again');
+  s.ctrl.settle(entry);
+  await tick();
+  assert.strictEqual(s.notices.length, 1, 'an open panel says nothing');
+  // The flyout, its menu closed: the same balloon, and the click opens the docked panel.
+  const opened = [];
+  s.app.chat.open = () => opened.push('panel');
+  s.host.open = false;
+  typeAndSend(s.flyout, 'outline it');
+  s.ctrl.settle(entry);
+  await tick();
+  assert.deepStrictEqual([s.notices[1].text, s.notices[1].type], [expected.text, expected.type]);
+  s.notices[1].opts.onClick();
+  assert.deepStrictEqual(opened, ['panel'], 'the flyout cannot restore itself, so it opens the panel');
+  s.host.open = true;
+  typeAndSend(s.flyout, 'again');
+  s.ctrl.settle(entry);
+  await tick();
+  assert.strictEqual(s.notices.length, 2, 'an open menu says nothing');
 });

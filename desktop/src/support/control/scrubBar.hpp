@@ -1,7 +1,7 @@
 #pragma once
 // A video scrub bar: the player's own progress line, shared by any surface that picks a
 // frame. Browser twin: .oi-scrub (css/components/openImage.css) over the same tokens; the
-// paint itself is the QSS rule for #oiFrameScrub in resources/app.qss.
+// paint itself is the QSS rule for #oiFrameScrub in resources/qss/app/fields.qss.
 #include <QEvent>
 #include <QMouseEvent>
 #include <QObject>

@@ -3,11 +3,7 @@
 const screen_mod = @import("../screen.zig");
 const Screen = screen_mod.Screen;
 const SelRange = screen_mod.Screen.SelRange;
-const readByteTimeout = screen_mod.Screen.readByteTimeout;
-const ttyWrite = screen_mod.ttyWrite;
 const std = @import("std");
-const logo = @import("../../app/logo.zig");
-const skin = @import("../../app/skin.zig");
 const ansi = @import("../render/ansi.zig");
 
 pub fn selActive(self: *Screen) bool {
@@ -32,15 +28,24 @@ pub fn selStart(self: *Screen, col: u16, row: u16) void {
     if (had) self.repaintSelection(); // clear a stale highlight
 }
 
-/// Extend the in-progress selection to (col,row) and repaint the live highlight.
-pub fn selDrag(self: *Screen, col: u16, row: u16) void {
+/// Extend the in-progress selection to (col,row) without painting, so a burst of queued drag
+/// reports moves the head once and `settleDrag` paints the highlight where it ended.
+pub fn selDragQuiet(self: *Screen, col: u16, row: u16) void {
     if (!self.sel_active) return;
     // The drag may run from the output down into the input block, so it clamps to the
     // bottom of the screen rather than to the last output row.
     self.sel_hr = std.math.clamp(row, self.bodyTop(), self.rows -| 1); // not the rule under the input
     self.sel_hc = @max(@as(u16, 1), @min(col, self.cols));
     self.has_sel = true;
-    self.repaintSelection();
+    self.drag_owed = true;
+}
+
+/// Paint the live highlight the quiet drags owe. A no-op when none is owed, or when the drag
+/// has since ended or been dropped (whatever did that painted it).
+pub fn settleDrag(self: *Screen) void {
+    if (!self.drag_owed) return;
+    self.drag_owed = false;
+    if (self.sel_active) self.repaintSelection();
 }
 
 /// Finish the drag: extract the highlighted text into `sel_buf` and KEEP the highlight on
@@ -129,51 +134,40 @@ pub fn hasHighlight(self: *Screen) bool {
     return self.has_sel;
 }
 
-/// Ask the TERMINAL to paint its own selection in the live accent (OSC 17 sets the highlight
-/// background, OSC 117 puts it back). Terminals without OSC 17 ignore it, so it is safe anywhere.
-pub fn setSelectionTint(self: *Screen, on: bool) void {
-    if (!logo.colorEnabled()) return;
-    if (!on) {
-        // Put back the exact colour the terminal had, when it told us; else ask for its
-        // default with the reset opcode.
-        if (self.saved_hl_len != 0) {
-            var b: [80]u8 = undefined;
-            const seq = std.fmt.bufPrint(&b, "\x1b]17;{s}\x1b\\", .{self.saved_hl[0..self.saved_hl_len]}) catch return;
-            return ttyWrite(self.fd, seq);
-        }
-        return ttyWrite(self.fd, "\x1b]117\x1b\\");
-    }
-    const rgb = skin.washRgb(skin.get(), 0, logo.accentRgb());
-    var buf: [40]u8 = undefined;
-    const seq = std.fmt.bufPrint(&buf, "\x1b]17;#{x:0>2}{x:0>2}{x:0>2}\x1b\\", .{ rgb[0], rgb[1], rgb[2] }) catch return;
-    ttyWrite(self.fd, seq);
-}
+const testing = std.testing;
 
-/// Ask the terminal for its current highlight colour (`OSC 17;?` → `rgb:rrrr/gggg/bbbb`).
-/// Best-effort with a short deadline; runs once at startup, before anything can be typed.
-pub fn queryHighlight(self: *Screen) void {
-    self.saved_hl_len = 0;
-    if (!logo.colorEnabled()) return;
-    const in = self.in_fd orelse return;
-    ttyWrite(self.fd, "\x1b]17;?\x1b\\");
-    // ESC ] 1 7 ; <payload> (ESC \ | BEL). Anything unexpected ends the read at once, so a
-    // terminal that stays silent — or a keystroke that beat the reply — costs one poll.
-    const prefix = "\x1b]17;";
-    var i: usize = 0;
-    while (i < prefix.len) : (i += 1) {
-        const b = readByteTimeout(in, 120) orelse return;
-        if (b != prefix[i]) return;
-    }
-    var n: usize = 0;
-    while (n < self.saved_hl.len) {
-        const b = readByteTimeout(in, 120) orelse return;
-        if (b == 7) break; // BEL terminator
-        if (b == 0x1b) { // ST: ESC \
-            _ = readByteTimeout(in, 120);
-            break;
-        }
-        self.saved_hl[n] = b;
-        n += 1;
-    }
-    self.saved_hl_len = n;
+test "selection covers the INPUT rows too, not just the output above them" {
+    const a = testing.allocator;
+    // A screen with no tty behind it: nothing here paints, only the selection model runs.
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
+    defer s.freeAll();
+    try s.lines.pushBack(a, try a.dupe(u8, "wrote out.png"));
+    try s.header.append(a, try a.dupe(u8, "  logo"));
+    s.setPromptText(&.{"> /theme hello world"});
+
+    // The input block is the bottom row; the header is not selectable, the body and the
+    // input are.
+    try testing.expect(!s.selectableRow(1)); // logo header
+    try testing.expect(s.selectableRow(s.bodyTop()));
+    try testing.expect(s.selectableRow(s.promptRow()));
+
+    // Drag across "hello" on the input row and take it: the typed line is what comes out.
+    const row = s.promptRow();
+    s.sel_ar = row;
+    s.sel_ac = 10; // 1-based columns: "> /theme |hello world"
+    s.sel_hr = row;
+    s.sel_hc = 14;
+    s.has_sel = true;
+    s.extractSelection();
+    try testing.expectEqualStrings("hello", s.sel_buf.items);
+
+    // A drag that starts in the output and ends on the input carries both lines.
+    s.sel_ar = s.bodyTop();
+    s.sel_ac = 1;
+    s.sel_hr = row;
+    s.sel_hc = 8;
+    s.extractSelection();
+    try testing.expectEqualStrings("wrote out.png\n> /theme", s.sel_buf.items);
 }

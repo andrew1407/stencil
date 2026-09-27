@@ -23,7 +23,8 @@ class SaveFormatTests(unittest.TestCase):
   def test_a_writable_extension_survives_and_anything_else_becomes_png(self):
     self.assertEqual(scriptpaths.save_format("bmp"), "bmp")
     self.assertEqual(scriptpaths.save_format("PNG"), "png")
-    self.assertEqual(scriptpaths.save_format("jpg"), "png")
+    self.assertEqual(scriptpaths.save_format("jpeg"), "jpg")
+    self.assertEqual(scriptpaths.save_format("tga"), "png")
     self.assertEqual(scriptpaths.save_format(None), "png")
 
 

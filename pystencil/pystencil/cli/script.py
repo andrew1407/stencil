@@ -54,8 +54,9 @@ def run_plan(path: str, source: (str | NoneType) = None,
   """``--script-plan``: the script lowered to op-plan JSON on stdout; exit 1 on any error."""
   out = out if out is not None else sys.stdout
   with parse_script(script_source(path)) as program:
-    out.write(lower_to_plan(program, label_for(path), source, get_core()) + "\n")
-    return 1 if program.has_errors else 0
+    text, planned = lower_to_plan(program, label_for(path), source, get_core())
+    out.write(text + "\n")
+    return 0 if planned else 1
 
 
 def run_edit(path: str, source: (str | NoneType), confine_output: bool,

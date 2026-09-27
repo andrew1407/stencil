@@ -1,14 +1,6 @@
 //! Live server-project sync for the console: the events feed poll (peer pulls,
 //! metadata refresh, dirty-warn), the /sync debounce, and the layout/result/chat
 //! push + adopt helpers shared by /save, /fetch and the flush.
-const std = @import("std");
-const image = @import("../media/image.zig");
-const server = @import("../server/client.zig");
-const logo = @import("../app/logo.zig");
-const llm = @import("../llm.zig");
-const project = @import("../project.zig");
-const ui = @import("ui.zig");
-const Session = @import("session.zig").Session;
 const poll = @import("remoteEvents/poll.zig");
 const push = @import("remoteEvents/push.zig");
 

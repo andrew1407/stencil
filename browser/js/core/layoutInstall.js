@@ -2,7 +2,8 @@
 // no prompt, no toast).
 import { notify } from '../utils.js';
 import { arriveFrom } from '../ui/motion.js';
-import { validateLayout } from './layout.js';
+import { validateLayout, capLayoutPoints } from './layout.js';
+import { CHANGE, changed } from './app/changes.js';
 
 export const uploadJSON = (app, e) => {
   const file = e.target.files[0];
@@ -65,7 +66,7 @@ const applyValidatedLayout = async (app, data, { source, cancelMsg, successMsg, 
     notify(cancelMsg, 'info');
     return;
   }
-  installLines(app, mode === 'combine' ? [...(app.lines || []), ...verdict.lines] : verdict.lines);
+  installLines(app, mode === 'combine' ? capLayoutPoints([...(app.lines || []), ...verdict.lines]) : verdict.lines);
   if (from) arriveFrom(document.getElementById('canvas-container'), from);
   notify(mode === 'combine' ? `${successMsg} (combined)` : successMsg, 'ok');
 };
@@ -75,7 +76,7 @@ const installLines = (app, lines, { history = true } = {}) => {
     app.lines = lines;
   if (history) app.saveHistory();
   app.renderer.redraw();
-  app.updateButtons();
+  changed(app, CHANGE.lines);
   if (app.lines.length > 0) app.coordTable.update(app.lines[app.lines.length - 1].points);
 };
 
@@ -88,7 +89,7 @@ export const installLayout = (app, data, opts = {}) => {
     hasExistingLines: !!(app.lines && app.lines.length > 0),
   });
   if (!verdict.ok) return false;
-  const lines = opts.mode === 'combine' ? [...(app.lines || []), ...verdict.lines] : verdict.lines;
+  const lines = opts.mode === 'combine' ? capLayoutPoints([...(app.lines || []), ...verdict.lines]) : verdict.lines;
   installLines(app, lines, opts);
   return true;
 };

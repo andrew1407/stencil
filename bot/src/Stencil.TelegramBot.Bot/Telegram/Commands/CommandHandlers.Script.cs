@@ -37,7 +37,7 @@ public sealed partial class CommandHandlers
             return;
         }
         ProgressNotice working = await ProgressNotice.StartAsync(
-            _bot, chatId, Replies.ScriptWorking(), ChatAction.Typing, ct);
+            _bot, chatId, Replies.ScriptWorking(), ChatAction.Typing, _options.ProgressTick, ct);
         ScriptOutcome outcome;
         try
         {

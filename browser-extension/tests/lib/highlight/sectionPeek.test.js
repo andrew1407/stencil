@@ -1,4 +1,4 @@
-// Tests for src/lib/sectionPeek.js — the Alt+hover peek that shows a collapsed
+// Tests for src/lib/highlight/sectionPeek.js — the Alt+hover peek that shows a collapsed
 // section's body in a floating mini window without unfolding the accordion.
 // Placement and the open/close machine are pure/injected (the dragSections
 // pattern), so the whole matrix runs under plain `node --test`.

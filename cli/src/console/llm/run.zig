@@ -2,7 +2,7 @@
 //! transport with the spinner, then hand the reply to plan.zig. The turn owns its upload
 //! set and its deferred §10 chat clear.
 const std = @import("std");
-const image = @import("../../media/image.zig");
+const inert = @import("../render/inert.zig");
 const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
@@ -11,18 +11,24 @@ const spinner = @import("../render/spinner.zig");
 const config = @import("config.zig");
 const attach = @import("attach.zig");
 const plan = @import("plan.zig");
+const key = @import("key.zig");
 const resolveServerAuth = config.resolveServerAuth;
 const consoleContext = config.consoleContext;
 const promptImageB64 = attach.promptImageB64;
 const attachmentB64 = attach.attachmentB64;
 const edgeMapB64 = attach.edgeMapB64;
-const runPlan = plan.runPlan;
+const runPlanOutcome = plan.runPlanOutcome;
 
 pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
+    _ = try promptTurn(session, io, arg);
+}
+
+/// One `/prompt` turn; true when the model answered and its plan ran (the one-shot's exit status).
+pub fn promptTurn(session: *Session, io: std.Io, arg: []const u8) !bool {
     const typed = std.mem.trim(u8, arg, " \t");
     if (typed.len == 0) {
         logo.err("prompt needs text — e.g. '/prompt rotate this left and make it b&w'\n", .{});
-        return;
+        return false;
     }
     const gpa = session.gpa;
     // The turn owns this upload set: whatever happens, the next /upload starts a new one.
@@ -40,19 +46,21 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         session.clearAsk();
         if (resolved) |r| {
             answer_buf = r;
-            logo.print("→ {s}\n", .{r});
+            var b: inert.Buf = undefined;
+            logo.print("→ {s}\n", .{inert.name(&b, r)});
             break :blk r;
         }
         break :blk typed;
     };
-    const cfg = try session.llmConfig();
+    const cfg = try session.llmConfig(io);
+    key.dropExpired(session, io, cfg); // §5: an expired key never rides a request
 
     // stencil-server: resolve the endpoint + bearer, preferring a live /connect token.
     var server_url: []u8 = &.{};
     defer if (server_url.len != 0) gpa.free(server_url);
     var server_token: []const u8 = "";
     if (cfg.provider == .stencil_server) {
-        const auth = (try resolveServerAuth(session, cfg)) orelse return; // message printed
+        const auth = (try resolveServerAuth(session, cfg)) orelse return false; // message printed
         server_url = auth.url;
         server_token = auth.token;
     }
@@ -128,9 +136,13 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         const history: []const llm.Turn = if (session.chat_on) session.chat_history.items else &.{};
         var req = try llm.buildRequestWithSystem(gpa, cfg, llm.consoleSystemPrompt(), turn_text, imgs.items, server_url, server_token, history, suffix);
         defer req.deinit(gpa);
-        const posted = llm.postJson(gpa, io, req.url, req.auth, req.body, promptWaiter(session, &spin));
+        const posted = llm.postJson(gpa, io, &req, promptWaiter(session, &spin));
         spin.stop();
-        const body = posted catch return; // message printed
+        const body = posted catch |e| {
+            // §5: a missing anthropic key fails the turn, and the person is asked for it.
+            if (e == error.LlmDisabled and cfg.provider == .anthropic and req.api_key == null) try key.askAgain(session, io, cfg);
+            return false; // message printed
+        };
         defer gpa.free(body);
 
         const extracted = try llm.extractReply(gpa, cfg.provider, body);
@@ -140,22 +152,28 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
             // NEVER parsed as plans.
             .truncated => logo.err("the LLM response was truncated (stopReason \"max_tokens\") and was not parsed as a plan\n", .{}),
             .refusal => |t| if (t.len != 0) {
-                logo.err("the LLM refused to answer: {s}\n", .{t});
+                var b: inert.Buf = undefined;
+                logo.err("the LLM refused to answer: {s}\n", .{inert.name(&b, t)});
             } else {
                 logo.err("the LLM refused to answer (stopReason \"refusal\")\n", .{});
             },
-            .bad_reply => |d| logo.err("unexpected LLM response: {s}\n", .{d}),
+            .bad_reply => |d| {
+                var b: inert.Buf = undefined;
+                logo.err("unexpected LLM response: {s}\n", .{inert.name(&b, d)});
+            },
             .text => |raw| {
-                if (!try runPlan(session, io, raw, turn_text) or round != 0) return;
+                const outcome = try runPlanOutcome(session, io, raw, turn_text);
+                if (outcome != .again or round != 0) return outcome != .failed;
                 // The note is llm.continuation_note so the §12.1 gate that refuses it in the
                 // persisted document and this writer can never drift apart.
-                cont_text = std.fmt.allocPrint(gpa, "{s}\n\n" ++ llm.continuation_note, .{text}) catch return;
+                cont_text = std.fmt.allocPrint(gpa, "{s}\n\n" ++ llm.continuation_note, .{text}) catch return true;
                 turn_text = cont_text.?;
                 continue;
             },
         }
-        return; // every non-text outcome above is terminal
+        return false; // every non-text outcome above is terminal
     }
+    return true;
 }
 
 /// The §10 clearChat deferral, run once the WHOLE turn (continuation included) settled: confirm,
@@ -174,9 +192,10 @@ pub fn finishChatClear(session: *Session) void {
     handlers.doChat(session, "clear");
 }
 
-fn promptWaiter(session: *Session, spin: *spinner.Spinner) llm.Waiter {
-    if (session.cancel_poll == null or session.cancel_ctx == null) return .{};
-    return .{ .ctx = session.cancel_ctx, .poll = session.cancel_poll, .beat_ctx = spin, .beat = spinBeat };
+fn promptWaiter(session: *Session, spin: *spinner.Spinner) ?llm.Waiter {
+    const poll = session.cancel_poll orelse return null;
+    const ctx = session.cancel_ctx orelse return null;
+    return .{ .ctx = ctx, .poll = poll, .beat_ctx = spin, .beat = spinBeat, .timeout_ms = llm.request_timeout_ms };
 }
 
 fn spinBeat(ctx: *anyopaque, now_ms: i64) void {

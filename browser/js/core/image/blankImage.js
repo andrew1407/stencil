@@ -7,6 +7,7 @@ import { cropAspect, centeredCrop, isAlbumOrientation } from '../parse/cropGeome
 import { requireConnection } from '../../net/remoteSync.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import constants from '../../config/constants.json' with { type: 'json' };
+import { loadImageFromFile } from './loadFlow.js';
 const { PAGE_SIZES } = constants;
 
 const blankFillBlob = (w, h, color) => {
@@ -41,7 +42,7 @@ export const createBlankImage = (app, { color = '#ffffff', width, height, addres
   if (app.imageFilter !== 'none') app.settings.setImageFilter('none');
 // blankColor marks a recolourable blank; persisted into project meta.
   return blankFillBlob(w, h, fill).then(blob => {
-    app.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
+    loadImageFromFile(app, new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
       { address: address || undefined, blankColor: fill });
     return { width: w, height: h };
   });
@@ -49,14 +50,22 @@ export const createBlankImage = (app, { color = '#ffffff', width, height, addres
 
 export const activeIsBlank = (app) => !!app.blankColor;
 
-// Recolour the active blank in place, keeping every drawn line; no-op unless a blank.
+// The picker's colour on trial: the stage paints it over the blank, with no reload, undo step,
+// save or push; the blank's own colour (a cancelled pick reverts to it) or null ends the trial.
+export const previewBlankColor = (app, color) => {
+  const next = activeIsBlank(app) && app.image ? normalizeHex(color) : null;
+  app.renderer.previewFill(next && next !== normalizeHex(app.blankColor) ? next : null);
+};
+
+// Recolour the active blank in place, keeping every drawn line; no-op unless a blank. The trial
+// fill stays on screen until the recoloured image replaces it.
 export const setBlankColor = (app, color) => {
   if (!activeIsBlank(app) || !app.image) return;
   const next = normalizeHex(color);
-  if (!next || next === app.blankColor) return;
+  if (!next || next === app.blankColor) { app.renderer.previewFill(null); return; }
   const w = app.canvas.width, h = app.canvas.height;
   blankFillBlob(w, h, next).then(blob => {
-    app.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
+    loadImageFromFile(app, new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
       { replaceInPlace: true, keepAnnotations: true, blankColor: next, keepZoom: true });
     if (app.activeProjectId != null) {
       app.storage.store.setBlankColor(app.activeProjectId, next);
@@ -64,6 +73,10 @@ export const setBlankColor = (app, color) => {
       app.projectTransfer.pushProjectFieldToServer(app.activeProjectId, { blankColor: next }, 'Could not set blank color on the server');
     }
     app.updateButtons();
-  }).catch(() => notify('Could not recolor the blank image', 'fail'));
+  }).catch(() => {
+    app.renderer.previewFill(null);
+    app.updateInfo();
+    notify('Could not recolor the blank image', 'fail');
+  });
 };
 

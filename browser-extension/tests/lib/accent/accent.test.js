@@ -1,4 +1,4 @@
-// src/lib/accent.js — the extension's accent list, its store and the favicon it paints.
+// src/lib/accent/accent.js — the extension's accent list, its store and the favicon it paints.
 // A pre-paint classic <script>, so tests/helpers/accentSandbox.js runs it in a fabricated page.
 
 import { test } from 'node:test';
@@ -27,7 +27,7 @@ test('the storage keys are the ones every other surface reads', () => {
   const { accent, theme } = loadAccent();
   assert.equal(accent.storageKey, 'stencil_accent');
   assert.equal(theme.storageKey, 'stencil_theme');
-  // The mirrors in lib/color.js and lib/shellTheme.js must name the same keys.
+  // The mirrors in lib/highlight/color.js and lib/prefs/shellTheme.js must name the same keys.
   assert.equal(accent.storageKey, ACCENT_STORAGE_KEY);
   assert.equal(theme.storageKey, THEME_STORAGE_KEY);
 });

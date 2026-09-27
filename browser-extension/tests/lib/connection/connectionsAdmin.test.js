@@ -1,4 +1,4 @@
-// credentialKind in src/lib/connections.js: how an admin credential is proved, recorded and
+// credentialKind in src/lib/connection/connections.js: how an admin credential is proved, recorded and
 // re-read, and the three-way split the options list filters by.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

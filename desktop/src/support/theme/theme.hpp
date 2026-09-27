@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QPalette>
 #include <QString>
+#include <QStringList>
 #include <utility>
 #include <vector>
 
@@ -86,6 +87,11 @@ namespace stencil::gui {
 
   // One walk over a %TOKEN% template; an unknown token is left alone. A skin's overlay fills its own.
   QString fillStylesheetTokens(const QString& tpl, const QHash<QString, QString>& values);
+
+  // A sheet's resources/qss/<sheet>/ pieces in load order ("app", or the "webcore" overlay), and
+  // their joined text — empty when a piece is missing.
+  QStringList stylesheetPieces(const QString& sheet);
+  QString readStylesheet(const QString& sheet);
 
   // Browser --sb-thumb; read by the painted bars, since QSS on macOS will not round a QScrollBar handle.
   QColor canvasScrollThumb(bool dark);

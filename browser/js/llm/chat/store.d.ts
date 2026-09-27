@@ -27,7 +27,7 @@ export interface ChatStore {
   clear(): Promise<void>;
 }
 
-/** A visible transcript row as the store reads it (ui/view.js renders the rest). */
+/** A visible transcript row as the store reads it (ui/chat/view.js renders the rest). */
 export interface ChatRowLike {
   role?: string;
   text?: string;

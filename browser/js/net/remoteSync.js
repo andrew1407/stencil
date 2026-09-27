@@ -1,6 +1,7 @@
 import { normalizeUrl } from './connectionManager.js';
 import { loadSavedServers } from './connectionStore.js';
 import { ServerConnection } from './serverConnection.js';
+import { wireSource } from '../core/project/store/projectSources.js';
 // Create-on-server after a local create + version-guarded save-back; each takes a
 // resolved ServerConnection.
 
@@ -66,7 +67,7 @@ const currentVersion = async (conn, id, fallback) => {
 export const createRemoteProject = async (conn, { name, source, resource, color, bytes, ext, w, h } = {}) => {
   const rec = await conn.createProject({
     name: name || 'Untitled',
-    source: source || '',
+    source: wireSource(source),
     resource: resource || '',
     color: color || '',
     hasImage: !!bytes,
@@ -77,6 +78,12 @@ export const createRemoteProject = async (conn, { name, source, resource, color,
     version = await currentVersion(conn, rec.id, version);
   }
   return { address: conn.url, remoteId: rec.id, version };
+};
+
+// The rendered result alone; the file write bumps the version, so the link comes back re-read.
+export const putRemoteResult = async (conn, link, { bytes, ext, w, h } = {}) => {
+  await conn.putFile(link.remoteId, 'result', bytes, { ext: ext || 'png', w: w || 0, h: h || 0 });
+  return { ...link, version: await currentVersion(conn, link.remoteId, link.version) };
 };
 
 // A 409 (lost LWW race) is rethrown with err.conflict === true.

@@ -2,15 +2,12 @@
 #include "openImageDialogParts.hpp"
 #include "MediaLoader.hpp"
 #include <algorithm>
-#include <QCheckBox>
-#include <QLabel>
 #include <QLayout>
 #include "../../../support/motionPrefs.hpp"
 #include <QEasingCurve>
 #include <QScreen>
 #include <QVariantAnimation>
 #include <QScrollArea>
-#include <QTabWidget>
 #include <QWidget>
 
 namespace stencil::gui {

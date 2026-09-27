@@ -34,7 +34,7 @@ public sealed class PromptLlmGateTests : IDisposable
     }
 
     private PromptService makeService(int maxConcurrent) => new(
-        _llm, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
+        _llm, _cli, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
         gate: new LlmGate(maxConcurrent));
 
     /// <summary>A held model call: signalled in flight via Entered, finished by Hold.</summary>

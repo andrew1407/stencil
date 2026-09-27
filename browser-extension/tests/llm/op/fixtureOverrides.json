@@ -1,6 +1,26 @@
 {
-  "_comment": "Measured extension-vs-corpus divergences, consumed by fixtureWalkers.test.js. opPlan maps fixture name -> verdict override (empty: every applicable fixture in the extension walk runs clean with knownDivergence.extension honoured). providerWire is empty: the client matches the browser reference vector-for-vector (err.status/answered included).",
+  "_comment": "Measured extension-vs-corpus divergences, consumed by fixtureWalkers.test.js. opPlan maps fixture name -> verdict override (empty: every applicable fixture in the extension walk runs clean with knownDivergence.extension honoured). providerWire is empty: the client matches the browser reference vector-for-vector (err.status/answered included). oracle maps an oracle/inputs.json case -> the extension's verdict where its profile decides otherwise: a §2 core op at the top level drops with a warning (§8) and an editor-only op is an unknown one, so a case whose failure lives inside such an op is valid here; the JSON caps (E_JSON_LIMIT) hold on every surface.",
   "opPlan": {},
+  "oracle": {
+    "oracle-proto-key-constructor": "valid",
+    "oracle-proto-key-dunder": "valid",
+    "oracle-proto-regexby-axis": "valid",
+    "oracle-dup-key-first-position": "valid",
+    "oracle-int-keys-ascending": "valid",
+    "oracle-int-keys-index-edge": "valid",
+    "oracle-int-keys-not-canonical": "valid",
+    "oracle-num-1e400": "valid",
+    "oracle-num-1e-400": "valid",
+    "oracle-num-minus-zero": "valid",
+    "oracle-num-near-integer": "valid",
+    "oracle-astral-over-cap": "valid",
+    "oracle-lone-surrogates-over-cap": "valid",
+    "oracle-trim-line-sep-blank": "valid",
+    "oracle-digits-arabic-crop": "valid",
+    "oracle-digits-fullwidth-page": "valid",
+    "oracle-digits-fullwidth-formula": "valid",
+    "oracle-digits-arabic-aspect": "valid"
+  },
   "providerWire": {},
   "sanitizer": {}
 }

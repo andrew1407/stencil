@@ -3,7 +3,6 @@
 //! every pixel/geometry transform; Zig owns I/O and codecs. The filter runs BEFORE the layout — it
 //! belongs to the picture, the lines are an overlay — the layering the console, pystencil and the GUIs
 //! share. The steps are `pub` building blocks (steps.zig); `run` (oneshot.zig) composes the one-shot.
-const std = @import("std");
 const confine = @import("safety/confine.zig");
 const page_mod = @import("media/page.zig");
 
@@ -24,6 +23,7 @@ pub const loadLayoutDoc = steps.loadLayoutDoc;
 pub const drawLayoutDoc = steps.drawLayoutDoc;
 pub const applyFilterMode = steps.applyFilterMode;
 pub const writeOutputLabeled = steps.writeOutputLabeled;
+pub const refuseClobber = steps.refuseClobber;
 pub const loadLayoutBytes = sources.loadLayoutBytes;
 pub const expandHome = sources.expandHome;
 

@@ -1,5 +1,6 @@
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -16,12 +17,15 @@ public sealed partial class ServerService : IServerService
     private readonly IStencilServerClientFactory _factory;
     private readonly ISessionStore _store;
     private readonly IEditingService _editing;
+    private readonly IBotPolicy? _policy;
 
-    public ServerService(IStencilServerClientFactory factory, ISessionStore store, IEditingService editing)
+    public ServerService(IStencilServerClientFactory factory, ISessionStore store, IEditingService editing,
+        IBotPolicy? policy = null)
     {
         _factory = factory;
         _store = store;
         _editing = editing;
+        _policy = policy;
     }
 
     private IReadOnlyList<ServerConnectionInfo> targetConnections(UserSession session, string? url)

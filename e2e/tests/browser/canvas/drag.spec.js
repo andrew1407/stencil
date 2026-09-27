@@ -1,6 +1,6 @@
 // The projects modal's drag surfaces, driven with real drag input: reorder plus the drag-out
 // zones (projectsModal.js attachRowDrag / performZoneAction), and the translucent copy of the row
-// that follows the pointer (ui/dragGhost.js). The ghost is an element the app positions itself,
+// that follows the pointer (ui/canvas/dragGhost.js). The ghost is an element the app positions itself,
 // not the browser's `setDragImage` snapshot — which rasterized at the device scale on HiDPI and
 // was unreachable from the DOM. Right size, right place, gone afterwards, on mouse and finger.
 import { test, expect } from '@playwright/test';

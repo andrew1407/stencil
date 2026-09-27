@@ -11,6 +11,7 @@ from pystencil import cli
 from pystencil.llm import LlmConfig, LlmError
 
 from tests.helpers.clicase import _MockLlmClient, _ReplCase
+from tests.helpers.nativecase import needs_core
 
 
 class ReplLlmConfigTest(unittest.TestCase):
@@ -62,7 +63,7 @@ class ReplLlmConfigTest(unittest.TestCase):
     repl.run(
       io.StringIO(
         "/llm model llava\n/llm key sk-1\n/llm server https://srv:8090\n"
-        "/llm model\n/llm key\n"
+        "/llm model\n/llm key forget\n"
       )
     )
     self.assertEqual(repl._llm.server_url, "https://srv:8090")
@@ -71,7 +72,7 @@ class ReplLlmConfigTest(unittest.TestCase):
     text = out.getvalue()
     self.assertIn("llm model llava", text)
     self.assertIn("llm key set", text)
-    self.assertIn("llm key cleared", text)
+    self.assertIn("llm key forgotten", text)
     self.assertNotIn("sk-1", text)  # the key value is never echoed
 
   def test_unknown_subcommand_hints(self) -> None:
@@ -149,6 +150,7 @@ class ReplPromptOfflineTest(_ReplCase):
     repl.run(io.StringIO("/prompt\n"))
     self.assertIn("error: /prompt needs text to send", out.getvalue())
 
+  @needs_core
   def test_chat_only_prompt_prints_reply(self) -> None:
     client = _MockLlmClient("Just words, no plan.")
     repl, out = self._repl(client)
@@ -169,10 +171,11 @@ class ReplPromptOfflineTest(_ReplCase):
     self.assertIn("error: response truncated (max_tokens)", text)
     self.assertIn("no image loaded", text)  # the REPL kept running
 
+  @needs_core
   def test_invalid_plan_prints_as_console_error(self) -> None:
     client = _MockLlmClient(
       '{"version":1,"reply":"bad","actions":[{"op":"rotate","dir":"up"}]}'
     )
     repl, out = self._repl(client)
     repl.run(io.StringIO("/p spin it\n"))  # the /p alias routes here too
-    self.assertIn('error: invalid "rotate" action', out.getvalue())
+    self.assertIn("error: Invalid rotate action", out.getvalue())

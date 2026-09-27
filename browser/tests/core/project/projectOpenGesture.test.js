@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 // Opening a project row: the gesture → intent mapping and the deferred-single-click machine
-// behind it (js/core/openGesture.js) — pure/injected, so the whole mouse+touch matrix
+// behind it (js/core/project/openGesture.js) — pure/injected, so the whole mouse+touch matrix
 // runs without a DOM.
 import {
   rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX,

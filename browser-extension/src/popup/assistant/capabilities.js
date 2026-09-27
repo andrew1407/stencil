@@ -10,6 +10,7 @@ import { sourceOf, editableSrc } from '../../lib/image/model.js';
 import { formatOfItem } from '../../lib/highlight/filters.js';
 import { decodeSize } from '../../lib/image/rasterize.js';
 import { createLlmClient } from '../../llm/client.js';
+import { withSessionKey } from '../../llm/settings.js';
 import { createChatController, translateOpenActions } from '../../llm/chatController.js';
 import { openPanelDialog } from '../editor/dialogShell.js';
 import { MSG } from '../../lib/messages.js';
@@ -179,7 +180,7 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
   };
 
   state.controller = createChatController({
-    getClient: () => createLlmClient({ settings: state.llmSettings }),
+    getClient: async () => createLlmClient({ settings: await withSessionKey(state.llmSettings) }),
     // The working set: the scanTab'd tab's images while a swap is live, else the
     // popup's live scan items (contract §8).
     getListing: () => (state.workingScan ? state.workingScan.items : (getItems() || [])),

@@ -1,6 +1,6 @@
 // A scrollbar thumb's length and offset along its track. Pure arithmetic, shared by the canvas
-// viewport's overlay bars (ui/scrollbars.js) and a capped menu's drawn one
-// (ui/menuScrollbar.js). Byte-pinned to browser-extension/src/lib.
+// viewport's overlay bars (ui/canvas/scrollbars.js) and a capped menu's drawn one
+// (ui/control/menuScrollbar.js). Byte-pinned to browser-extension/src/lib.
 export const SB_MIN_THUMB_PX = 28;
 
 // `track` px long, for a `client` window onto `scroll` px of content at `offset`.

@@ -1,8 +1,11 @@
-// One committed (or in-flight) line and one point; `r` is the Renderer. Desktop twin: CanvasWidget.cpp.
-import { hexToRgba } from '../../utils.js';
+// One committed (or in-flight) line and one point, painted into `r.ctx`; `r` is the Renderer (or
+// the resting stand-in the result paint hands it). Desktop twin: CanvasWidget.cpp.
+import { hexToRgba } from '../../utils/color.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
-const DASH_PATTERN = [10, 5];
-const DOT_PATTERN = [2, 5];
+// px, the one dash table the desktop pen and the core rasteriser read too.
+const { dashed: DASH_PATTERN, dotted: DOT_PATTERN } = constants.STROKE_DASH;
+const { FOCUS_RING, HOVER_RING, SELECT_GLOW } = constants;
 
 // Glow/ring colours are asked for once per selected line and highlighted point EVERY
 // frame; the (colour, alpha) pairs are few, so memoize. The cap bounds a runaway accent sweep.
@@ -28,6 +31,7 @@ const tracePath = (ctx, line, pts) => {
 export function drawLine(r, line, isSelected = false, lineIdx = -99) {
 // Points in flight are drawn where they are RIGHT NOW: fill, glows, stroke and points all
 // read this array, so segments hanging off a moving vertex follow it.
+  const ctx = r.ctx;
   const fx = r.app.strokeFx;
   const pts = fx.pointsOf(line);
   if (line.points.length < 2) {
@@ -35,55 +39,56 @@ export function drawLine(r, line, isSelected = false, lineIdx = -99) {
       const hs = r.pointHighlightState(lineIdx, 0);
       const ps = (line.pointSize ?? r.app.pointSize) * fx.scaleAt(line.points[0]);
       drawPoint(r, pts[0], pointColorOf(line), ps, isSelected, hs);
-      fx.paintOver(r.app.ctx, line, pts);
+      fx.paintOver(ctx, line, pts);
     }
     return;
   }
 
 // Locked-area fill, beneath stroke & glow.
   if (line.locked && line.points.length >= 3 && line.fillColor && line.fillColor !== 'transparent') {
-    r.app.ctx.save();
-    r.app.ctx.fillStyle = line.fillColor;
-    tracePath(r.app.ctx, line, pts);
-    r.app.ctx.fill();
-    r.app.ctx.restore();
+    ctx.save();
+    ctx.fillStyle = line.fillColor;
+    tracePath(ctx, line, pts);
+    ctx.fill();
+    ctx.restore();
   }
 
 // One glow pass beneath the stroke: the selection's, or the thinner Lines-list hover one.
-  const glow = isSelected ? { color: r.app.selGlowColor, alpha: 0.6, pad: 8 }
+  const glow = isSelected ? { color: r.app.selGlowColor, alpha: SELECT_GLOW.lineAlpha, pad: SELECT_GLOW.linePadPx }
     : (!r.suppressHighlight && lineIdx >= 0 && lineIdx === (r.app.listHoverLineIdx ?? -1)
-      && line.points.length >= 2 ? { color: r.app.hoverRingColor, alpha: 0.35, pad: 6 } : null);
+      && line.points.length >= 2
+      ? { color: r.app.hoverRingColor, alpha: SELECT_GLOW.lineHoverAlpha, pad: SELECT_GLOW.lineHoverPadPx } : null);
   if (glow) {
-    r.app.ctx.save();
-    r.app.ctx.strokeStyle = rgba(glow.color, glow.alpha);
-    r.app.ctx.lineWidth = line.thickness + glow.pad;
-    r.app.ctx.lineCap = 'round';
-    r.app.ctx.lineJoin = 'round';
-    r.app.ctx.setLineDash([]);
-    tracePath(r.app.ctx, line, pts);
-    r.app.ctx.stroke();
-    r.app.ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = rgba(glow.color, glow.alpha);
+    ctx.lineWidth = line.thickness + glow.pad;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    tracePath(ctx, line, pts);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  fx.paintUnder(r.app.ctx, line, pts);
+  fx.paintUnder(ctx, line, pts);
 
-  r.app.ctx.strokeStyle = line.color;
-  r.app.ctx.lineWidth = line.thickness;
-  r.app.ctx.lineCap = 'round';
-  r.app.ctx.lineJoin = 'round';
+  ctx.strokeStyle = line.color;
+  ctx.lineWidth = line.thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 
   if (line.style === 'dashed') {
-    r.app.ctx.setLineDash(DASH_PATTERN);
+    ctx.setLineDash(DASH_PATTERN);
   } else if (line.style === 'dotted') {
-    r.app.ctx.setLineDash(DOT_PATTERN);
+    ctx.setLineDash(DOT_PATTERN);
   } else {
-    r.app.ctx.setLineDash([]);
+    ctx.setLineDash([]);
   }
 
-  tracePath(r.app.ctx, line, pts);
+  tracePath(ctx, line, pts);
 
-  r.app.ctx.stroke();
-  r.app.ctx.setLineDash([]);
+  ctx.stroke();
+  ctx.setLineDash([]);
 
   if (r.app.showPoints) {
     pts.forEach((point, pi) => {
@@ -92,44 +97,43 @@ export function drawLine(r, line, isSelected = false, lineIdx = -99) {
       drawPoint(r, point, pointColorOf(line), ps, isSelected, hs);
     });
   }
-  fx.paintOver(r.app.ctx, line, pts);
+  fx.paintOver(ctx, line, pts);
 }
 
 // highlightState: 0 = none, 1 = hover (subtle ring), 2 = focused (bold ring + shadow)
 export function drawPoint(r, point, color, pointSize = 4, isSelected = false, highlightState = 0) {
+  const ctx = r.ctx;
   const rad = pointSize;
   if (isSelected) {
-    r.app.ctx.fillStyle = rgba(r.app.selGlowColor, 0.5);
-    r.app.ctx.beginPath();
-    r.app.ctx.arc(point.x, point.y, rad + 4, 0, Math.PI * 2);
-    r.app.ctx.fill();
+    ctx.fillStyle = rgba(r.app.selGlowColor, SELECT_GLOW.pointAlpha);
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, rad + SELECT_GLOW.pointGapPx, 0, Math.PI * 2);
+    ctx.fill();
   }
   if (highlightState === 1) {
-    // Hover — thin translucent ring
-    r.app.ctx.save();
-    r.app.ctx.strokeStyle = rgba(r.app.hoverRingColor, 0.55);
-    r.app.ctx.lineWidth = 1.8;
-    r.app.ctx.beginPath();
-    r.app.ctx.arc(point.x, point.y, rad + 4, 0, Math.PI * 2);
-    r.app.ctx.stroke();
-    r.app.ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = rgba(r.app.hoverRingColor, HOVER_RING.alpha);
+    ctx.lineWidth = HOVER_RING.widthPx;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, rad + HOVER_RING.gapPx, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   } else if (highlightState === 2) {
-    // Focused/click — bold ring with glow shadow
-    r.app.ctx.save();
-    r.app.ctx.shadowColor = rgba(r.app.focusRingColor, 0.9);
-    r.app.ctx.shadowBlur = 12;
-    r.app.ctx.strokeStyle = r.app.focusRingColor;
-    r.app.ctx.lineWidth = 3;
-    r.app.ctx.beginPath();
-    r.app.ctx.arc(point.x, point.y, rad + 6, 0, Math.PI * 2);
-    r.app.ctx.stroke();
-    r.app.ctx.restore();
+    ctx.save();
+    ctx.shadowColor = rgba(r.app.focusRingColor, FOCUS_RING.glowAlpha);
+    ctx.shadowBlur = FOCUS_RING.blurPx;
+    ctx.strokeStyle = r.app.focusRingColor;
+    ctx.lineWidth = FOCUS_RING.widthPx;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, rad + FOCUS_RING.gapPx, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
-  r.app.ctx.fillStyle = color;
-  r.app.ctx.beginPath();
-  r.app.ctx.arc(point.x, point.y, rad, 0, Math.PI * 2);
-  r.app.ctx.fill();
-  r.app.ctx.strokeStyle = '#000';
-  r.app.ctx.lineWidth = 1;
-  r.app.ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, rad, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }

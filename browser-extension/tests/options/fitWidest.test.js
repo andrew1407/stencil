@@ -1,5 +1,5 @@
 // The filter rows' width contract, in two halves:
-//   1. lib/fitWidest.js — a dropdown is pinned to the WIDEST of its own options so a label swap
+//   1. lib/highlight/fitWidest.js — a dropdown is pinned to the WIDEST of its own options so a label swap
 //      cannot resize and shove the row; Node has no layout engine, so the stub below carries
 //      exactly the surface the module touches, with a fake type metric for the font.
 //   2. The pages must not guess that width as a px floor, and a HIDDEN control takes no width.
@@ -105,20 +105,20 @@ test('an un-enhanced select is a no-op, not a crash', () => {
 // ── The pages keep their side of it ─────────────────────────────────────────
 
 test('the options page pins the search-mode list and floors nothing by hand', () => {
-  const html = readFileSync(new URL('../../src/options/options.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../../src/options/options.css', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../../src/options/options.js', import.meta.url), 'utf8');
   assert.match(js, /pinToWidestOption\(pinSearchModeEl\)/,
     'the fixed three-label list is pinned to its widest label');
   // The filter row's controls size to the label they show. A px floor here is a guess —
   // it was 170px, ~60px of dead space around "All sites (n)" and "Any storage".
-  const row = /\.pin-filters select \{([^}]*)\}/.exec(html);
-  const dd = /\.pin-filters \.accent-dd \{([^}]*)\}/.exec(html);
+  const row = /\.pin-filters select \{([^}]*)\}/.exec(css);
+  const dd = /\.pin-filters \.accent-dd \{([^}]*)\}/.exec(css);
   assert.ok(row && dd, 'the pin-filters sizing rules are still there');
   for (const [what, rule] of [['select', row[1]], ['.accent-dd', dd[1]]])
     assert.doesNotMatch(rule, /min-width/, `.pin-filters ${what} must not re-floor its width`);
   // …and the search box sizes to its typing room instead of claiming the whole row: the
   // page's form fields are `width:100%`, which it inherits unless it says otherwise.
-  const search = /\.pin-filters input\[type="search"\] \{([^}]*)\}/.exec(html);
+  const search = /\.pin-filters input\[type="search"\] \{([^}]*)\}/.exec(css);
   assert.ok(search, 'the pin-filters search rule is still there');
   assert.match(search[1], /width:auto/, 'the search box must not take the form-field full width');
 });

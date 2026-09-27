@@ -1,6 +1,6 @@
 // Which Python buffers are Stencil's: a `.pystc` always, a plain `.py` when a comment line
 // of its own says `# @use stencil`. The document is passed in, so `vscode` is never imported.
-// Twin of lib/jsSource.js, whose marker is the `//` one.
+// Twin of lib/emit/jsSource.js, whose marker is the `//` one.
 import { PY_LANGUAGE_ID, PY_USE_MARKER } from '../ids.js';
 import { versionCache } from '../spawn/versionCache.js';
 

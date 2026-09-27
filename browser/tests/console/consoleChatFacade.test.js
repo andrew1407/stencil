@@ -1,4 +1,4 @@
-// window.stencil.chat — the console facade's assistant half (js/console/assistantApi.js).
+// window.stencil.chat — the console facade's assistant half (js/console/api/assistantApi.js).
 // Every member is a thin delegation to the panel's own scripting surface (app.chat), so
 // drive it with a recording stub and assert what reaches the panel: no source-text pins.
 import { test } from 'node:test';

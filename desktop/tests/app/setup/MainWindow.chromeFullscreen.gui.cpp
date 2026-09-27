@@ -55,7 +55,9 @@ class MainWindowGuiTest : public QObject {
     // --- Top toolbars: cursor to the top band → animated slide-in ---
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() / 2, 40)));
     const QList<int> up = sample(maxBarHeight);
-    const int full = up.isEmpty() ? 0 : up.last();
+    // The reveal (the fold clock, PANEL_FOLD_IN_MS) outlasts the sampler: a cursor leaving mid-flight reads its tail as the hide.
+    QTRY_VERIFY_WITH_TIMEOUT(!win.parts.view.barsAnim, 2000);
+    const int full = maxBarHeight();
     QVERIFY2(full > 10, "toolbars should have revealed to a real height");
     QVERIFY2(hasIntermediate(up, full), "toolbar reveal popped instantly (no intermediate heights)");
     QVERIFY2(nonDecreasing(up), "toolbar reveal height oscillated (flicker)");
@@ -129,14 +131,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
     settle([&] { return win.canvas->hasImage(); }, 500);
-    QVERIFY(win.logoBtn);
-    QWidget* fx = win.logoFx;
+    QVERIFY(win.tools.logoBtn);
+    QWidget* fx = win.tools.logoFx;
     QVERIFY(fx);
     // The mark is up (the overlay paints the logo, blanked on the button itself).
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
 
     // Something is in the air when the switch happens — a control's own cloud.
-    stencil::gui::DisintegrateOverlay::over(win.logoBtn, &win,
+    stencil::gui::DisintegrateOverlay::over(win.tools.logoBtn, &win,
                                            stencil::gui::DisintegrateOverlay::Sweep::FALL);
     const auto cloudsUp = [&win] {
       int n = 0;
@@ -148,13 +150,13 @@ class MainWindowGuiTest : public QObject {
     };
     QVERIFY2(cloudsUp() > 0, "the test's own cloud never started");
 
-    win.toggleFullscreen();
+    win.parts.view.toggleFullscreen();
     QTRY_VERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
-    QVERIFY2(!win.logoBtn->isVisible(), "fullscreen kept the header row");
+    QVERIFY2(!win.tools.logoBtn->isVisible(), "fullscreen kept the header row");
     QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
 
-    win.toggleFullscreen();   // …and back, with the header row and its mark restored
-    QTRY_VERIFY_WITH_TIMEOUT(win.logoBtn->isVisible(), 2000);
+    win.parts.view.toggleFullscreen();   // …and back, with the header row and its mark restored
+    QTRY_VERIFY_WITH_TIMEOUT(win.tools.logoBtn->isVisible(), 2000);
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
     beat();
   }
@@ -170,19 +172,18 @@ class MainWindowGuiTest : public QObject {
     settle([&] { return win.selPanel->width() > 300; }, 1000);   // the deferred resizeDocks to the default width
     const int settledWidth = win.selPanel->width();
     QVERIFY(settledWidth > 300);
-    win.toggleFullscreen();
+    win.parts.view.toggleFullscreen();
     settle([&] { return !win.fs.zoomAnim; }, 1500);
-    if (win.fs.hoverTimer) win.fs.hoverTimer->stop();   // the case drives the reveal, not the cursor
     win.setPanelShown(true, true);
     settle([&] { return win.selPanel->width() > 60; }, 1000);
-    QVERIFY2(win.panelAnim, "the reveal should still be sliding");
+    QVERIFY2(win.panelSlide.anim, "the reveal should still be sliding");
     win.setPanelShown(false, true);
-    settle([&] { return !win.panelAnim; }, 2000);
-    QCOMPARE(win.panelRestoreWidth, settledWidth);
+    settle([&] { return !win.panelSlide.anim; }, 2000);
+    QCOMPARE(win.panelSlide.restoreWidth, settledWidth);
     win.setPanelShown(true, true);
-    settle([&] { return !win.panelAnim; }, 2000);
+    settle([&] { return !win.panelSlide.anim; }, 2000);
     QCOMPARE(win.selPanel->width(), settledWidth);
-    win.toggleFullscreen();
+    win.parts.view.toggleFullscreen();
     settle([&] { return win.selPanel->width() == settledWidth; }, 1500);
     QCOMPARE(win.selPanel->width(), settledWidth);
   }
@@ -195,20 +196,19 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.panelGrip);
-    win.toggleFullscreen();
+    QVERIFY(win.parts.dockChrome.panelGrip);
+    win.parts.view.toggleFullscreen();
     settle([&] { return !win.fs.zoomAnim; }, 1500);
-    if (win.fs.hoverTimer) win.fs.hoverTimer->stop();
-    QVERIFY(!win.panelGrip->isVisible());
+    QVERIFY(!win.parts.dockChrome.panelGrip->isVisible());
     win.setPanelShown(true, true);
     settle([&] { return win.selPanel->width() > 60; }, 1000);
-    QVERIFY2(!win.panelGrip->isVisible(), "the grip ran ahead of the sliding panel");
-    settle([&] { return !win.panelAnim; }, 2000);
-    QVERIFY2(win.panelGrip->isVisible(), "no grip on the revealed fullscreen panel");
+    QVERIFY2(!win.parts.dockChrome.panelGrip->isVisible(), "the grip ran ahead of the sliding panel");
+    settle([&] { return !win.panelSlide.anim; }, 2000);
+    QVERIFY2(win.parts.dockChrome.panelGrip->isVisible(), "no grip on the revealed fullscreen panel");
     QVERIFY(win.selPanel->maximumWidth() > win.selPanel->minimumWidth());   // …and it can still be dragged
-    win.toggleFullscreen();
-    settle([&] { return !win.fs.active && !win.panelAnim; }, 1500);
-    QVERIFY(win.panelGrip->isVisible());
+    win.parts.view.toggleFullscreen();
+    settle([&] { return !win.fs.active && !win.panelSlide.anim; }, 1500);
+    QVERIFY(win.parts.dockChrome.panelGrip->isVisible());
   }
 
 };

@@ -1,51 +1,18 @@
 #include "MainWindow.hpp"
-#include "mainWindowShared.hpp"
-#include "MainWindow.hpp"
-#include "StayOpenMenu.hpp"
-#include "mainWindowHelpers.hpp"
-#include "ChatPlanTarget.hpp"
-#include "LogoHoverFx.hpp"
-#include "ChatMenuPanel.hpp"
-#include "planExecutor.hpp"
-#include "OpenImageDialog.hpp"
 #include "CanvasWidget.hpp"
-#include "OverlayScrollArea.hpp"
-#include "DropZonesOverlay.hpp"
-#include "IncognitoOverlay.hpp"
 #include "zoomPan.hpp"
-#include "MenuHotkeys.hpp"
-#include "MenuShimmer.hpp"
-#include "SearchCombo.hpp"
-#include "ControlsPill.hpp"
-#include "LinksDialog.hpp"
-#include "DescriptionDialog.hpp"
-#include "KeywordsDialog.hpp"
-#include "Notifications.hpp"
-#include "ProjectsDialog.hpp"
-#include "ConnectDialog.hpp"
-#include "SelectionPanel.hpp"
-#include "ShortcutsDialog.hpp"
-#include "../../support/tip/AppTooltip.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/swap/controlSwap.hpp"
-#include "../../support/control/WrapRow.hpp"
-#include "../../support/modal/modalChrome.hpp"
-#include "../../support/icon/iconMotion.hpp"
-#include "../../support/motion/HoverSlide.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 
-#include <QLayout>
 #include <QScrollBar>
 #include <QSignalBlocker>
-#include <QToolBar>
+#include <QComboBox>
+#include <QLabel>
+#include <QScrollArea>
 #include <algorithm>
 
-// Zoom, fit, precise scroll and the toolbar extent slide.
+// Zoom, fit and the cursor-anchored zoom; the page size and units the pointer readout converts
+// with, and the readout's idle line.
 
 namespace stencil::gui {
-
-  void MainWindow::zoomIn() { setZoom(canvas->getScale() * 1.25); }
-  void MainWindow::zoomOut() { setZoom(canvas->getScale() * 0.8); }
 
   void MainWindow::setZoom(double scale, bool syncCombo) {
     scale = core::clampScale(scale);  // shared [ZOOM_MIN, ZOOM_MAX] bound (core/state/zoomPan)
@@ -58,38 +25,8 @@ namespace stencil::gui {
       zoom->setEditText(pct);
     }
     // The single debounced persistence path for every zoom route (browser zoom/pan.js persistZoom).
-    scheduleViewSave();
-    revealCanvasScrollbars();   // a zoom can grow/shrink the scrollable range — show it
-  }
-
-  // Invisible until an actual pan/zoom, never from hovering.
-  void MainWindow::revealCanvasScrollbars() {
-    // A zoom resizes canvas without resizing scroll, so relayout() directly; static_cast because
-    // the subclass has no Q_OBJECT (OverlayScrollArea.hpp).
-    if (scroll) static_cast<OverlayScrollArea*>(scroll)->relayout();
-    // A pan tick fires this twice per frame (both scrollbars); skip until the timer has burnt some
-    // fuse.
-    const bool shown = vScrollOpacity && vScrollOpacity->opacity() >= 1.0
-                       && hScrollOpacity && hScrollOpacity->opacity() >= 1.0;
-    if (shown && scrollbarHideTimer && scrollbarHideTimer->isActive()
-        && scrollbarHideTimer->remainingTime() > 800)
-      return;
-    if (vScrollOpacity) vScrollOpacity->setOpacity(1.0);
-    if (hScrollOpacity) hScrollOpacity->setOpacity(1.0);
-    canvasScrollBar(Qt::Vertical)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-    canvasScrollBar(Qt::Horizontal)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-    scheduleScrollbarHide();
-  }
-
-  QScrollBar* MainWindow::canvasScrollBar(Qt::Orientation o) const {
-    return static_cast<OverlayScrollArea*>(scroll)->overlayBar(o);
-  }
-
-  // Unless the pointer sits on a bar; eventFilter's Leave branch calls this once it lifts.
-  void MainWindow::scheduleScrollbarHide() {
-    if (!scrollbarHideTimer) return;
-    if (scrollbarHovered) { scrollbarHideTimer->stop(); return; }
-    scrollbarHideTimer->start(900);
+    parts.persistence.scheduleViewSave();
+    parts.view.revealCanvasScrollbars();   // a zoom can grow/shrink the scrollable range — show it
   }
 
   void MainWindow::fitToWindow() {
@@ -98,87 +35,6 @@ namespace stencil::gui {
     const double sx = double(vp.width()) / canvas->imageWidth();
     const double sy = double(vp.height()) / canvas->imageHeight();
     setZoom(std::min(sx, sy) * 0.95);
-  }
-
-  void MainWindow::setToolbarsVisible(bool on) {
-    releaseBarsVeil(findChildren<QToolBar*>());
-    for (QToolBar* tb : findChildren<QToolBar*>()) { tb->setMaximumHeight(QWIDGETSIZE_MAX); tb->setVisible(on); }
-    positionOverlayArrows();
-  }
-
-  void MainWindow::setToolbarsShown(bool show, bool animate) {
-    toolbarsShown = show;
-    refreshStatusHintVisibility();
-    // The header row always stays, as the browser's header keeps the pill/title.
-    QList<QToolBar*> bars;
-    for (QToolBar* b : findChildren<QToolBar*>())
-      if (b != headerToolbar) bars.append(b);
-    if (bars.isEmpty()) return;
-    spinControlsPill(animate);   // the pill's chevron turns with the rows
-    if (!animate) {
-      if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
-      releaseBarsVeil(bars);   // a flight still in the air must not leave the rows invisible
-      for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); b->setVisible(show); }
-      positionOverlayArrows();
-      return;
-    }
-    animateBarsHeight(bars, show);
-  }
-
-  // setFixedHeight pins min==max each frame so QMainWindow's layout cannot override it; the only
-  // opacity is the flight's constant veil, never a per-frame fade, so nothing flickers.
-  void MainWindow::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
-    if (bars.isEmpty()) return;
-    if (barsAnim) { barsAnim->stop(); barsAnim->deleteLater(); barsAnim = nullptr; }
-    auto release = [bars] {
-      for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
-    };
-    // A hidden bar's sizeHint carries the height pinned at the old width, so the show path lets
-    // the layout run before measuring.
-    if (show) {
-      release();
-      for (QToolBar* b : bars) b->show();
-      if (QLayout* l = editor->layout()) l->activate();
-      for (QToolBar* b : bars)
-        if (WrapRow* row = wrapRowIn(b)) row->remeasure();
-      if (QLayout* l = editor->layout()) l->activate();
-    }
-    int full = 0;
-    for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
-    if (full <= 0) full = 40;
-    const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
-    const int to = show ? full : 0;
-    // A show has to photograph the rows at full height before flattening them, so the pin below
-    // runs after the flight.
-    QPointer<gui::DisintegrateOverlay> dustFx;
-    if (show) {
-      for (QToolBar* b : bars) { b->setFixedHeight(full); b->show(); }
-      if (QLayout* l = editor->layout()) l->activate();
-      dustFx = barsSurfaceFlight(bars, /*gather=*/true, FOLD_DUST_IN_MS);
-      for (QToolBar* b : bars) b->setFixedHeight(0);
-    }
-    else dustFx = barsSurfaceFlight(bars, /*gather=*/false, FOLD_DUST_OUT_MS);
-    barsAnim = startExtentSlide(
-        this, from, to, show ? FOLD_MS : FOLD_OUT_MS,
-        pinAndRaiseDust(
-            [bars, this](int v) {
-              for (QToolBar* b : bars) b->setFixedHeight(v);  // pin min==max on every row
-              positionOverlayArrows();
-            },
-            dustFx),
-        [this, bars, show, release] {
-          release();
-          if (!show) for (QToolBar* b : bars) b->hide();
-          barsAnim = nullptr;
-          positionOverlayArrows();
-        });
-  }
-
-  void MainWindow::scrollTo(int x, int y) {
-    auto* hb = scroll->horizontalScrollBar();
-    auto* vb = scroll->verticalScrollBar();
-    hb->setValue(std::clamp(x, hb->minimum(), hb->maximum()));
-    vb->setValue(std::clamp(y, vb->minimum(), vb->maximum()));
   }
 
   // Keeps the image pixel under the cursor fixed; mirrors zoom/pan.js zoomToward via
@@ -195,7 +51,48 @@ namespace stencil::gui {
     const auto z = core::anchoredZoom(sl, st, cursorInViewport.x(),
                                       cursorInViewport.y(), oldScale, newScale);
     setZoom(z.scale);
-    scrollTo(qRound(z.scrollLeft), qRound(z.scrollTop));
+    parts.view.scrollTo(qRound(z.scrollLeft), qRound(z.scrollTop));
+  }
+
+  // The item data, never the label text (which carries the physical size and, while searching,
+  // whatever was typed).
+  QString MainWindow::pageSizeValue() const {
+    return units.pageSize->currentData().toString();
+  }
+
+  core::PageSize MainWindow::currentPageDimensions() const {
+    return core::pageDimensions(pageSizeValue().toStdString(),
+                                canvas->imageWidth(), canvas->imageHeight(),
+                                settings.customPageWidth,
+                                settings.customPageHeight);
+  }
+
+  // Raw pixel -> page (cm), then the formula transform, as the browser's pixelToPageCoords
+  // (pageMetrics.js). Both raw axes ride the context, so f(x) may read y and f(y) may read x.
+  core::Point MainWindow::pageCoords(double imageX, double imageY) const {
+    core::FormulaContext ctx = parts.view.formulaContext();
+    const core::PageSize dims{ctx.pageWidthCm, ctx.pageHeightCm};
+    const auto raw = core::pixelToPageRaw(imageX, imageY, dims,
+                                          canvas->imageWidth(),
+                                          canvas->imageHeight());
+    ctx.x = raw.x;
+    ctx.y = raw.y;
+    core::Point p;
+    p.x = core::FormulaParser::apply(settings.formulaX.toStdString(), 'x', raw.x,
+                                     settings.allowFormulas, ctx);
+    p.y = core::FormulaParser::apply(settings.formulaY.toStdString(), 'y', raw.y,
+                                     settings.allowFormulas, ctx);
+    return p;
+  }
+
+  // Inches scale cm by 1/2.54. Shared with the hover tooltip via core::buildTooltipRows.
+  core::UnitFormat MainWindow::unitFormat() const {
+    return {UnitsController::factor(settings.units), UnitsController::label(settings.units)};
+  }
+
+  void MainWindow::updateStatusIdle() {
+    // Empty with the pointer off the canvas or no image (browser parity).
+    status->setText(QString());
   }
 
 }  // namespace stencil::gui

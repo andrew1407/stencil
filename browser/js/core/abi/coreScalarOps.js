@@ -1,5 +1,6 @@
 // The core's scalar ops over the wasm ABI: colour parsing, point-to-segment distance, the
-// formula parser, duration parsing, the zoom clamp and the close-shape hit test.
+// formula parser, duration parsing, the zoom clamp, its bounds and the zoom-to-rect fit, and the
+// close-shape hit test.
 export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => {
   const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
   const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
@@ -12,8 +13,12 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
   // An absent field crosses as NaN, which the core reads as "not supplied".
   const num = (v) => (Number.isFinite(v) ? v : NaN);
   const ctxArgs = (ctx) => [num(ctx?.x), num(ctx?.y), num(ctx?.pageWidthCm), num(ctx?.pageHeightCm), num(ctx?.imageWidth), num(ctx?.imageHeight), ctx?.unit ?? 'cm'];
-  const cParseDuration  = (spec, out) => core.ccall('stencil_parseDuration', 'number', ['string', 'number'], [spec, out]);
+  // The spec is caller text of any length, so it crosses on the heap like the formula expr.
+  const cParseDuration  = core.cwrap('stencil_parseDuration', 'number', ['number', 'number']);
   const cClampScale     = core.cwrap('stencil_clampScale', 'number', ['number']);
+  const cZoomMin        = core.cwrap('stencil_zoomMin', 'number', []);
+  const cZoomMax        = core.cwrap('stencil_zoomMax', 'number', []);
+  const cRectZoom       = core.cwrap('stencil_rectZoom', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
   const cShouldClose    = core.cwrap('stencil_shouldCloseShape', 'number', ['number', 'number', 'number', 'number', 'number']);
 
   return {
@@ -51,7 +56,7 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
     parseDuration(spec) {
       const out = core._malloc(I64);
       try {
-        if (cParseDuration(spec ?? '', out) !== 1) return null;
+        if (withCString(spec ?? '', (p) => cParseDuration(p, out)) !== 1) return null;
         return core.getValue(out + 4, 'i32') * 4294967296 + (core.getValue(out, 'i32') >>> 0);
       } finally {
         core._free(out);
@@ -60,6 +65,25 @@ export const buildScalarOps = (core, { I32, I64, withCString, allocPoints }) => 
 
     clampScale(scale) {
       return cClampScale(scale);
+    },
+
+    zoomMin() {
+      return cZoomMin();
+    },
+
+    zoomMax() {
+      return cZoomMax();
+    },
+
+    rectZoom(x1, y1, rectW, rectH, availW, availH) {
+      const out = core._malloc(3 * 8);
+      try {
+        cRectZoom(x1, y1, rectW, rectH, availW, availH, out);
+        return { scale: core.getValue(out, 'double'), scrollLeft: core.getValue(out + 8, 'double'),
+          scrollTop: core.getValue(out + 16, 'double') };
+      } finally {
+        core._free(out);
+      }
     },
 
     shouldCloseShape(points, click, pointSize) {

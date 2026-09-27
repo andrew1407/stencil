@@ -1,5 +1,5 @@
-// Shapes for popup/dialogs.js — the two confirm dialogs editor mode raises through
-// popup/dialogShell.js.
+// Shapes for popup/editor/dialogs.js — the two confirm dialogs editor mode raises through
+// popup/editor/dialogShell.js.
 export declare const confirmDialog: (
   titleText: string, subject: string, warning: string, confirmLabel: string, anchor?: Element | null,
 ) => Promise<boolean>;

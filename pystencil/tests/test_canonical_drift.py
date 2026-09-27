@@ -5,8 +5,8 @@ core over ctypes, and no accent, color-name or icon tables exist here. What IS
 hand-mirrored are a few scalar constants — asserted equal to
 ``browser/js/config/constants.json`` so any upstream change fails loudly while the
 package stays relocatable. The checked-in ``_data/`` copies are the LLM
-system-prompt and providers assets, byte-pinned below against their
-``browser/js/config/llm/`` originals.
+system-prompt, providers and op-registry assets and the SSRF address table,
+byte-pinned below against their ``browser/js/config/`` originals.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ class SystemPromptAssetDriftTests(unittest.TestCase):
     self.assertTrue(LLM_SYSTEM_PROMPT.endswith(shared))
 
 
-# Canonical LLM providers asset + the checked-in copy llm.py/server.py load at import.
+# Canonical LLM providers asset + the checked-in copy the llm and server packages load at import.
 _CANON_PROVIDERS = _CONSTANTS.parent / "llm" / "providers.json"
 _DATA_PROVIDERS = _PKG_ROOT / "pystencil" / "_data" / "providers.json"
 
@@ -114,7 +114,7 @@ class ProvidersAssetDriftTests(unittest.TestCase):
     self.assertEqual(_LLM_TIMEOUT, float(asset["timeouts"]["chatSeconds"]))
 
 
-# Canonical LLM op registry + the checked-in copy _opschema.py loads on first use.
+# Canonical LLM op registry + the checked-in copy core validates against and llm/ reads.
 _CANON_REGISTRY = _CONSTANTS.parent / "llm" / "opRegistry.json"
 _DATA_REGISTRY = _PKG_ROOT / "pystencil" / "_data" / "opRegistry.json"
 
@@ -126,23 +126,21 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
 
   def test_validator_tables_derive_from_the_asset(self):
     """Limits, membership, flags and the forbidden list come from the asset."""
-    from pystencil.llm import FORBIDDEN_OPS, MAX_ACTIONS, MAX_ASK_OPTIONS, OP_REGISTRY, SCHEMA
+    from pystencil.llm import FORBIDDEN_OPS, MAX_ACTIONS, MAX_ASK_OPTIONS, OP_REGISTRY
+    from pystencil.llm.plan.limits import PROFILE
 
     asset = json.loads(_DATA_REGISTRY.read_text(encoding="utf-8"))
     self.assertEqual(asset["$meta"]["schemaVersion"], 2)
-    self.assertEqual(asset["$meta"]["surfaceProfiles"]["pystencil"], SCHEMA.profile)
+    self.assertEqual(asset["$meta"]["surfaceProfiles"]["pystencil"], PROFILE)
     self.assertEqual(MAX_ACTIONS, asset["limits"]["MAX_ACTIONS"])
     self.assertEqual(MAX_ASK_OPTIONS, asset["limits"]["ask"]["maxOptions"])
     self.assertEqual(FORBIDDEN_OPS, tuple(asset["forbidden"]["perSurface"]["pystencil"]))
     mine = [
       e for e in asset["ops"]
-      if SCHEMA.profile in e["profiles"]
+      if PROFILE in e["profiles"]
       and (not e.get("surfaces") or "pystencil" in e["surfaces"])
     ]
     self.assertEqual(set(OP_REGISTRY), {e["name"] for e in mine})
-    for e in mine:
-      keys = (e.get("surfaceKeys") or {}).get("pystencil") or e["keys"]
-      self.assertEqual(OP_REGISTRY[e["name"]].fields, frozenset({"op", *keys}), e["name"])
 
   def test_prompt_bullets_come_from_the_asset(self):
     """Every registered op's bullet IS the asset's — no hand-copied prose here.
@@ -150,18 +148,19 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
     A bullet shared by two ops (undo/redo, connect/disconnect) sits on the first
     entry; the partner's asset bullet is null and registers as empty.
     """
-    from pystencil.llm import OP_REGISTRY, SCHEMA
+    from pystencil.llm import OP_REGISTRY
+    from pystencil.llm.plan.limits import PROFILE
 
     asset = json.loads(_DATA_REGISTRY.read_text(encoding="utf-8"))
     seen = 0
     for e in asset["ops"]:
       name = e["name"]
-      if SCHEMA.profile not in e["profiles"] or name not in OP_REGISTRY:
+      if PROFILE not in e["profiles"] or name not in OP_REGISTRY:
         continue  # a name can repeat across profiles (extension's own "filter")
       variants = e.get("bulletVariants") or {}
       variant = variants.get("pystencil")
       if variant is None:
-        variant = variants.get(SCHEMA.profile)
+        variant = variants.get(PROFILE)
       expected = variant if isinstance(variant, str) else e.get("bullet")
       self.assertEqual(OP_REGISTRY[name].bullet, expected or "", name)
       seen += 1
@@ -195,6 +194,17 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
     self.assertEqual(len(CONSOLE_SETTINGS_PROMPT.encode()), 1532)
     self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10347)
     self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
+
+
+# Canonical SSRF address table + the checked-in copy _net.py loads at import.
+_CANON_RANGES = _CONSTANTS.parent / "net" / "blockedRanges.json"
+_DATA_RANGES = _PKG_ROOT / "pystencil" / "_data" / "blockedRanges.json"
+
+
+class BlockedRangesAssetDriftTests(unittest.TestCase):
+  def test_data_copy_is_byte_identical_to_canonical(self):
+    """pystencil/_data/blockedRanges.json == browser's canonical table, byte-for-byte."""
+    self.assertEqual(_DATA_RANGES.read_bytes(), _CANON_RANGES.read_bytes())
 
 
 if __name__ == "__main__":

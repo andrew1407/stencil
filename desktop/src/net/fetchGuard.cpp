@@ -11,47 +11,16 @@ namespace stencil::net::fetchGuard {
 
   namespace {
 
-    bool isBlockedV4(const quint8* b, bool strict) {
-      if (b[0] == 0) return true;                                 // 0.0.0.0/8 this-network
-      if (b[0] == 10) return true;                                // 10.0.0.0/8 private
-      if (b[0] == 100 && b[1] >= 64 && b[1] <= 127) return true;  // 100.64.0.0/10 CGNAT
-      // 127.0.0.0/8 loopback: allowed for a user-named URL, blocked for scanned content.
-      if (strict && b[0] == 127) return true;
-      if (b[0] == 169 && b[1] == 254) return true;                // link-local (metadata)
-      if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;   // 172.16.0.0/12 private
-      if (b[0] == 192 && b[1] == 168) return true;                // 192.168.0.0/16 private
-      if (b[0] == 192 && b[1] == 0 && (b[2] == 0 || b[2] == 2)) return true;  // /24, TEST-NET-1
-      if (b[0] == 198 && (b[1] == 18 || b[1] == 19)) return true;  // 198.18.0.0/15 benchmarking
-      if (b[0] == 198 && b[1] == 51 && b[2] == 100) return true;   // TEST-NET-2
-      if (b[0] == 203 && b[1] == 0 && b[2] == 113) return true;    // TEST-NET-3
-      if (b[0] >= 224) return true;                                // 224/4 multicast + 240/4 + broadcast
-      return false;
-    }
-
-    bool isBlockedV6(const quint8* b, bool strict) {
-      // IPv4-mapped ::ffff:0:0/96 — classify the embedded IPv4.
-      bool mapped = b[10] == 0xff && b[11] == 0xff;
-      for (int i = 0; i < 10 && mapped; ++i) mapped = b[i] == 0;
-      if (mapped) return isBlockedV4(b + 12, strict);
-      bool allZero = true;
-      for (int i = 0; i < 15; ++i) allZero = allZero && b[i] == 0;
-      if (allZero && b[15] == 1) return strict;  // ::1 loopback, as isBlockedV4's 127/8
-      if (allZero && b[15] == 0) return true;    // :: unspecified
-      if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80) return true;  // fe80::/10 link-local
-      if (b[0] == 0xfe && (b[1] & 0xc0) == 0xc0) return true;  // fec0::/10 site-local
-      if ((b[0] & 0xfe) == 0xfc) return true;                  // fc00::/7 unique-local
-      return false;
-    }
-
     bool classify(const QHostAddress& addr, bool strict) {
-      if (addr.protocol() == QAbstractSocket::IPv4Protocol) {
-        const quint32 v = addr.toIPv4Address();
-        const quint8 b[4] = {quint8(v >> 24), quint8(v >> 16), quint8(v >> 8), quint8(v)};
-        return isBlockedV4(b, strict);
-      }
-      if (addr.protocol() == QAbstractSocket::IPv6Protocol)
-        return isBlockedV6(addr.toIPv6Address().c, strict);
-      return true;  // unparseable / any-address → refuse
+      return blockedRanges::blocked(addr, blockedRanges::Policy::FETCH, {!strict, false});
+    }
+
+    // A literal as its resolver reads it: brackets and an IPv6 zone ID dropped.
+    QString literalOf(const QString& host) {
+      QString bare = host.startsWith(QLatin1Char('[')) && host.endsWith(QLatin1Char(']')) ? host.mid(1, host.size() - 2) : host;
+      const int zone = bare.indexOf(QLatin1Char('%'));
+      if (zone >= 0 && bare.contains(QLatin1Char(':'))) bare.truncate(zone);
+      return bare;
     }
 
     int hexVal(QChar c) {
@@ -84,8 +53,8 @@ namespace stencil::net::fetchGuard {
       return ok;
     }
 
-    // inet_aton for 1–4 numeric parts: the encodings a resolver accepts but QHostAddress rejects.
-    bool parseInetAtonV4(const QString& host, quint8* out) {
+    // inet_aton for 1–4 numeric parts, the encodings a resolver accepts; kept beside QHostAddress's own.
+    bool parseInetAtonV4(const QString& host, quint32* out) {
       if (host.isEmpty() || hexVal(host[0]) < 0 || hexVal(host[0]) > 9) return false;
       const QStringList parts = host.split(QLatin1Char('.'));
       if (parts.size() > 4) return false;
@@ -100,10 +69,7 @@ namespace stencil::net::fetchGuard {
       }
       if (p[n - 1] >= (1ULL << (8 * (5 - n)))) return false;
       value |= p[n - 1];
-      out[0] = quint8((value >> 24) & 0xff);
-      out[1] = quint8((value >> 16) & 0xff);
-      out[2] = quint8((value >> 8) & 0xff);
-      out[3] = quint8(value & 0xff);
+      *out = quint32(value);
       return true;
     }
 
@@ -144,24 +110,32 @@ namespace stencil::net::fetchGuard {
 
   }  // namespace
 
-  bool isBlockedHost(const QString& host, bool strict) {
-    if (host.isEmpty()) return true;
-    // QHostAddress and inet_aton agree today; a host is refused if EITHER reads internal.
-    quint8 v4[4];
-    if (parseInetAtonV4(host, v4) && isBlockedV4(v4, strict)) return true;
+  QHostAddress hostAddress(const QString& host) {
+    const QString bare = literalOf(host);
     QHostAddress addr;
-    if (addr.setAddress(host)) return classify(addr, strict);
-    // The literal `localhost` name (strict only — a name, so setAddress missed it).
-    if (strict && host.compare(QLatin1String("localhost"), Qt::CaseInsensitive) == 0) return true;
-    return false;  // a real hostname: resolvesToBlocked() covers name→internal
+    if (addr.setAddress(bare)) return addr;
+    quint32 v4 = 0;
+    return parseInetAtonV4(bare, &v4) ? QHostAddress(v4) : QHostAddress();
   }
 
-  bool isNumericHost(const QString& host) {
+  bool refusesLiteral(const QString& host, blockedRanges::Policy policy, blockedRanges::Options options) {
+    // QHostAddress and inet_aton agree today; a host is refused if EITHER reads it refused.
+    const QString bare = literalOf(host);
+    quint32 v4 = 0;
+    if (parseInetAtonV4(bare, &v4) && blockedRanges::blocked(QHostAddress(v4), policy, options)) return true;
     QHostAddress addr;
-    if (addr.setAddress(host)) return true;
-    quint8 v4[4];
-    return parseInetAtonV4(host, v4);
+    return addr.setAddress(bare) && blockedRanges::blocked(addr, policy, options);
   }
+
+  bool isBlockedHost(const QString& host, bool strict) {
+    if (host.isEmpty()) return true;
+    if (refusesLiteral(host, blockedRanges::Policy::FETCH, {!strict, false})) return true;
+    if (isNumericHost(host)) return false;
+    // The literal `localhost` name (strict only — a name, so no parser read it).
+    return strict && host.compare(QLatin1String("localhost"), Qt::CaseInsensitive) == 0;
+  }
+
+  bool isNumericHost(const QString& host) { return !hostAddress(host).isNull(); }
 
   bool resolvesToBlocked(const QString& host, bool strict) {
     const QHostInfo info = QHostInfo::fromName(host);
@@ -204,7 +178,7 @@ namespace stencil::net::fetchGuard {
 
   QNetworkRequest request(const QUrl& url) {
     QNetworkRequest req(url);
-    req.setTransferTimeout(FETCH_TIMEOUT_MS);
+    req.setTransferTimeout(fetchTimeoutMs());
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::ManualRedirectPolicy);
     return req;

@@ -7,7 +7,7 @@
 
 #include <string>
 
-// Templates, history and resolution. Mirrors browser/tests/scriptLower.test.js.
+// Templates, history and resolution. Mirrors browser/tests/core/script/scriptLower.test.js.
 using namespace stencil::core::script;
 
 namespace {
@@ -53,6 +53,22 @@ TEST_CASE("a template that reaches itself stops at the depth cap") {
   CHECK(hasCode(p, "E_TEMPLATE_RECURSION"));
 }
 
+TEST_CASE("a template-body diagnostic carries its outermost call as a related span, once") {
+  const ScriptProgram p = parse("@stencil inner:\n  @line (0,0)\n\n@stencil outer:\n"
+                                "  @use stencil inner\n\n@source a.png:\n  @crp\n"
+                                "  @use stencil outer\n  @use stencil outer\n");
+  REQUIRE(p.getDiagnostics().size() == 2);
+  const Diagnostic& own = p.getDiagnostics()[1];
+  CHECK(own.code == "E_UNKNOWN_DIRECTIVE");
+  CHECK(own.relatedLine == 0);
+  const Diagnostic& body = p.getDiagnostics()[0];
+  CHECK(body.line == 2);
+  CHECK(body.message.find("(from the @use stencil at 9:3)") != std::string::npos);
+  CHECK(body.relatedLine == 9);
+  CHECK(body.relatedCol == 3);
+  CHECK(body.relatedLen == 4);
+}
+
 TEST_CASE("undo rewinds and replays so each save sees the right state") {
   const ScriptProgram p = parse("@source a.png:\n  @filter bw\n  @rect (1,1) (2,2)\n"
                                 "  @save one.png\n  @undo\n  @save two.png\n  @redo\n"
@@ -85,6 +101,8 @@ TEST_CASE("undo selectors: by index, from the end, and by text") {
           .hasErrors());
   CHECK(hasCode(parse("@source a.png:\n  @filter bw\n  @undo 99\n"), "E_UNDO_OUT_OF_RANGE"));
   CHECK(hasCode(parse("@source a.png:\n  @filter bw\n  @redo\n"), "W_NOTHING_TO_REDO"));
+  CHECK(hasCode(parse("@source a.png:\n  @filter bw\n  @undo\n  @redo 10foo\n"), "E_BAD_TOKEN"));
+  CHECK(hasCode(parse("@source a.png:\n  @filter bw\n  @undo\n  @redo 1 2\n"), "E_BAD_TOKEN"));
 }
 
 TEST_CASE("@frame starts a fresh set of edits and rejects a repeat") {

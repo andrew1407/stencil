@@ -15,7 +15,7 @@ public sealed class SanitizerFixtureWalkerTests
     public static TheoryData<string> Vectors() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Corpus));
 
     [Fact]
-    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(19, SharedFixtures.Cases(Corpus).Count);
+    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(20, SharedFixtures.Cases(Corpus).Count);
 
     [Theory]
     [MemberData(nameof(Vectors))]

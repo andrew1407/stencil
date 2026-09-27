@@ -23,6 +23,6 @@ export declare const IS_SIDE_PANEL: boolean;
 export declare const IS_DEVTOOLS: boolean;
 export declare const dismiss: () => void;
 export declare const run: (fn: () => Promise<void> | void) => Promise<void>;
-/** Stamped on <html> by lib/shellPrefs.js before first paint; undefined outside a page context. */
+/** Stamped on <html> by lib/prefs/shellPrefs.js before first paint; undefined outside a page context. */
 export declare const themePref: ThemePref | undefined;
 export declare const themeBtn: HTMLElement | null;

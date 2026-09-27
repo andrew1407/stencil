@@ -76,14 +76,4 @@ extern "C" {
     writeRect(r, out);
   }
 
-  // out[0] = orientationChanged (0/1), out[1] = scale.
-  void stencil_cropChange(double oldX, double oldY, double oldW, double oldH,
-                          double newX, double newY, double newW, double newH,
-                          double* out) {
-    const CropChange c = cropChange(CropRect{oldX, oldY, oldW, oldH},
-                                    CropRect{newX, newY, newW, newH});
-    out[0] = c.orientationChanged ? 1.0 : 0.0;
-    out[1] = c.scale;
-  }
-
 }  // extern "C"

@@ -19,7 +19,7 @@ class QVBoxLayout;
 class QWidget;
 
 // The browser's shared modal shell (.settings-header/.settings-body/.vs-section/
-// .settings-footer in browser/css/components.css); the QSS half lives in theme.cpp.
+// .settings-footer in browser/css/components/); the QSS half lives in theme.cpp.
 namespace stencil::gui {
 
   // Browser .app-modal: 560px.
@@ -88,7 +88,7 @@ namespace stencil::gui {
   // The GO face: Run in the script editors, green rather than the accent every other CTA wears.
   void makeModalGo(QPushButton* btn, const QString& iconName = QString());
 
-  // GLOBAL, optional flight endpoints (support/modalReveal.hpp). Browser twin: confirmModal.js `closeAnchor`.
+  // GLOBAL, optional flight endpoints (support/modal/modalReveal.hpp). Browser twin: confirmModal.js `closeAnchor`.
   struct FlightAnchors {
     QRect openRect;    // invalid = the press that raised the dialog
     QRect closeRect;   // invalid = back the way it came
@@ -96,7 +96,7 @@ namespace stencil::gui {
     std::function<QRect(bool accepted)> closeRectFor;   // invalid = fall back to closeRect
   };
 
-  // Browser ui/confirmModal.js: true on Confirm, false on Cancel / Close / Escape.
+  // Browser ui/modal/confirmModal.js: true on Confirm, false on Cancel / Close / Escape.
   struct ConfirmSpec {
     QString title;                                  // header title
     // Browser opts.titleIcon.

@@ -4,7 +4,6 @@ const std = @import("std");
 const image = @import("../../media/image.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
-const project = @import("../../project.zig");
 const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;

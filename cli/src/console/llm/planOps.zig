@@ -4,12 +4,10 @@
 const std = @import("std");
 const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const commands = @import("../commands.zig");
 const llm = @import("../../llm.zig");
-const project = @import("../../project.zig");
 const Session = @import("../session.zig").Session;
 const handlers = @import("../handlers.zig");
 

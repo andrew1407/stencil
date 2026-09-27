@@ -6,6 +6,7 @@ const testing = std.testing;
 const wire = @import("../wire.zig");
 const Turn = wire.Turn;
 const validate = @import("validate.zig");
+const registry_json = @import("../opSchema.zig").registry_json;
 const mustPlan = validate.mustPlan;
 const mustReject = validate.mustReject;
 
@@ -17,18 +18,41 @@ pub fn understoodPath(path: []const u8) bool {
         if (dot < slash) return false; // the dot is in a directory name
     }
     const ext = path[dot + 1 ..];
-    for (understood_exts) |known| {
+    for (understoodExts()) |known| {
         if (std.ascii.eqlIgnoreCase(ext, known)) return true;
     }
     return false;
 }
 
-/// Image, video, layout and project extensions — the CLI's own input set.
-pub const understood_exts = [_][]const u8{
-    "png",     "jpg", "jpeg", "bmp", "tga", "gif",  "webp",
-    "mp4",     "mov", "m4v",  "avi", "mkv", "webm", "json",
-    "stencil",
-};
+// Parsed once on first use and published through `exts_state`, as app/theme.zig does; the
+// strings slice into the embedded registry.
+var exts_state: std.atomic.Value(u8) = .init(0);
+var exts: []const []const u8 = &.{};
+var exts_scratch: [8192]u8 = undefined;
+
+/// Image, video, layout and project extensions — the CLI's own input set: the registry's
+/// `surfaceRules.cli` openFile `pathExtension` list, the one core judges an openFile by.
+pub fn understoodExts() []const []const u8 {
+    if (exts_state.load(.acquire) == 2) return exts;
+    if (exts_state.cmpxchgStrong(0, 1, .acquire, .acquire) == null) {
+        exts = parseExts();
+        exts_state.store(2, .release);
+    }
+    while (exts_state.load(.acquire) != 2) std.atomic.spinLoopHint();
+    return exts;
+}
+
+fn parseExts() []const []const u8 {
+    const Row = struct { op: []const u8 = "", rule: []const u8 = "", extensions: []const []const u8 = &.{} };
+    const Doc = struct { surfaceRules: struct { cli: []const Row } };
+    var fba = std.heap.FixedBufferAllocator.init(&exts_scratch);
+    const doc = std.json.parseFromSliceLeaky(Doc, fba.allocator(), registry_json, .{ .ignore_unknown_fields = true }) catch
+        @panic("embedded opRegistry.json is malformed");
+    for (doc.surfaceRules.cli) |row| {
+        if (std.mem.eql(u8, row.op, "openFile") and std.mem.eql(u8, row.rule, "pathExtension")) return row.extensions;
+    }
+    @panic("embedded opRegistry.json has no cli openFile pathExtension rule");
+}
 
 /// §10 openUrl guard: the model may only ECHO the user — true when `url` appears verbatim in the
 /// current turn's text or a replayed USER turn (assistant text and fetched content never count).
@@ -111,20 +135,36 @@ test "openFile: a local path in a format we open, never a URL or an unknown type
     // …and nothing else: no URL (openUrl owns those), no directory, no arbitrary file type.
     try mustReject(
         "{\"reply\":\"ok\",\"actions\":[{\"op\":\"openFile\",\"path\":\"https://x.example/a.png\"}]}",
-        "invalid openFile action: \"path\" must be a local value, not a URL",
+        "Invalid openFile action: \"path\" must be a local value, not a URL",
     );
     try mustReject(
         "{\"reply\":\"ok\",\"actions\":[{\"op\":\"openFile\",\"path\":\"~/Documents\"}]}",
-        "invalid openFile action: \"~/Documents\" is not an image, video, .json layout or .stencil project",
+        "Invalid openFile action: \"~/Documents\" is not an image, video, .json layout or .stencil project",
     );
     try mustReject(
         "{\"reply\":\"ok\",\"actions\":[{\"op\":\"openFile\",\"path\":\"~/.ssh/id_rsa\"}]}",
-        "invalid openFile action: \"~/.ssh/id_rsa\" is not an image, video, .json layout or .stencil project",
+        "Invalid openFile action: \"~/.ssh/id_rsa\" is not an image, video, .json layout or .stencil project",
     );
     try mustReject(
         "{\"reply\":\"ok\",\"actions\":[{\"op\":\"openFile\",\"path\":\"\"}]}",
-        "invalid openFile action: \"path\" must be a non-empty string",
+        "Invalid openFile action: \"path\" must be a non-empty string",
     );
+}
+
+test "understoodPath: exactly the formats core's openFile rule admits" {
+    try testing.expect(understoodExts().len != 0);
+    var buf: [32]u8 = undefined;
+    for (understoodExts()) |ext| {
+        const upper = std.ascii.upperString(buf[0..ext.len], ext);
+        const path = try std.fmt.bufPrint(buf[ext.len..], "dir/a.{s}", .{upper});
+        try testing.expect(understoodPath(path));
+        var body: [128]u8 = undefined;
+        const reply = try std.fmt.bufPrint(&body, "{{\"reply\":\"ok\",\"actions\":[{{\"op\":\"openFile\",\"path\":\"a.{s}\"}}]}}", .{ext});
+        var plan = try mustPlan(reply);
+        plan.deinit();
+    }
+    try testing.expect(understoodPath("x.stencil") and understoodPath("clip.MP4"));
+    try testing.expect(!understoodPath("notes.txt") and !understoodPath("a.png/readme") and !understoodPath("png"));
 }
 
 test "pathEchoedByUser: only a path the user wrote counts, wherever it was written" {

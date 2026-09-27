@@ -2,8 +2,10 @@
 // release's click is swallowed, so the element's own click never follows the hold.
 // Browser twin: the hold inside js/ui/logo/stageTrigger.js wireLogoHold.
 
-// px a held press may drift before it stops counting (browser ui/tip/popover.js PRESS_SLOP_PX).
-export const PRESS_SLOP_PX = 10;
+// px a held press may drift before it stops counting: the popover's slop (constants.json POPOVER).
+import { PRESS_SLOP_PX } from '../tip/popover.js';
+
+export { PRESS_SLOP_PX };
 const RELEASES = Object.freeze(['pointerup', 'pointerleave', 'pointercancel']);
 
 const isPlainPress = (e) => !(e.button || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey);

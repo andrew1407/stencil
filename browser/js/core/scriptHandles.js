@@ -12,7 +12,7 @@ export const scriptExports = [
   'stencil_scriptTokenAt', 'stencil_scriptBlockCount', 'stencil_scriptBlockAt',
   'stencil_scriptOpCount', 'stencil_scriptOpAt', 'stencil_scriptOpStr',
   'stencil_scriptOpNum', 'stencil_scriptOpResolve', 'stencil_scriptDump',
-  'stencil_scriptOpTokCount', 'stencil_scriptOpTok',
+  'stencil_scriptOpTokCount', 'stencil_scriptOpTok', 'stencil_scriptDiagRelated',
 ];
 
 export const buildScriptOps = (core, { withCString }) => {
@@ -22,6 +22,7 @@ export const buildScriptOps = (core, { withCString }) => {
     errorCount: core.cwrap('stencil_scriptErrorCount', 'number', ['number']),
     diagCount: core.cwrap('stencil_scriptDiagCount', 'number', ['number']),
     diagAt: core.cwrap('stencil_scriptDiagAt', 'string', nums(7)),
+    diagRelated: core.cwrap('stencil_scriptDiagRelated', 'number', nums(5)),
     tokenCount: core.cwrap('stencil_scriptTokenCount', 'number', ['number']),
     tokenAt: core.cwrap('stencil_scriptTokenAt', 'number', nums(6)),
     blockCount: core.cwrap('stencil_scriptBlockCount', 'number', ['number']),
@@ -56,7 +57,7 @@ export const buildScriptOps = (core, { withCString }) => {
     const list = [];
     for (let i = 0; i < n; i += 1) {
       const msg = c.diagAt(h, i, slot(0), slot(1), slot(2), slot(3), slot(4));
-      list.push({
+      const d = {
         severity: readInt(0) === 0 ? 'error' : 'warning',
         line: readInt(1),
         col: readInt(2),
@@ -64,7 +65,11 @@ export const buildScriptOps = (core, { withCString }) => {
         // The 5th slot holds a char** to the code string, itself handle-owned.
         code: cstr(readInt(4)),
         message: msg ?? '',
-      });
+      };
+      if (c.diagRelated(h, i, slot(0), slot(1), slot(2)) === 1) {
+        d.related = { line: readInt(0), col: readInt(1), len: readInt(2) };
+      }
+      list.push(d);
     }
     return list;
   };

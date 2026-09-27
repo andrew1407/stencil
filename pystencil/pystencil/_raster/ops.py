@@ -1,7 +1,7 @@
 """The pixel-buffer half of the core ABI, mixed into :class:`pystencil.core.Core`.
 
-Crop resolution and every RGBA8 kernel (crop / rotate / fill / filter / contour /
-rasterize). Each method marshals through :mod:`pystencil._ffi.marshal` and calls one
+Crop resolution, a crop window's snap and quarter-turn, and every RGBA8 kernel (crop /
+rotate / fill / filter / contour / rasterize). Each method marshals through :mod:`pystencil._ffi.marshal` and calls one
 stencil_cli_* entry point on ``self._lib``.
 """
 
@@ -10,8 +10,15 @@ from __future__ import annotations
 import ctypes
 
 from .._ffi.types import NoneType
-from .._ffi.bindings import _dblp, _u8p
+from .._ffi.bindings import _dblp
 from .._ffi.marshal import _buf_view, _bytes_arg, _check_dims, _check_pixels, _encode
+
+Rect = tuple[int, int, int, int]
+
+
+def _rect(out) -> Rect:
+  """The snapped window the core wrote into ``out[0..3]``; integral by construction."""
+  return (int(out[0]), int(out[1]), int(out[2]), int(out[3]))
 
 
 class RasterOps:
@@ -51,9 +58,28 @@ class RasterOps:
     if not ok: return None
     return (out_x.value, out_y.value, out_w.value, out_h.value)
 
+  def snap_crop_rect(self, rect: Rect, image_w: int, image_h: int) -> Rect:
+    """A crop window committed to integer pixels inside ``image_w`` x ``image_h``: each side
+    kept in [1, the image's side], then the origin moved inside (core::snapCropRect)."""
+    out = (ctypes.c_double * 4)()
+    self._lib.stencil_cli_snapCropRect(*map(float, rect), float(image_w), float(image_h), out)
+    return _rect(out)
+
+  def rotate_edit_quarter(
+    self, rect: Rect, quarters: int, orig_w: int, orig_h: int, clockwise: bool
+  ) -> tuple[Rect, int]:
+    """One quarter-turn of an edit shown at ``quarters`` over the unturned original: the crop
+    follows into the turned space, snapped, and the count wraps to 0..3 (core::rotateEditQuarter)."""
+    out = (ctypes.c_double * 5)()
+    self._lib.stencil_cli_rotateEditQuarter(
+      *map(float, rect), int(quarters), float(orig_w), float(orig_h), 1 if clockwise else 0, out,
+    )
+    return _rect(out), int(out[4])
+
   # ── RGBA8 transforms ──────────────────────────────────────────────────────
   def crop_image_rgba(
-    self, src: bytes, src_w: int, src_h: int, rx: int, ry: int, rw: int, rh: int
+    self, src: (bytes | bytearray), src_w: int, src_h: int, rx: int, ry: int, rw: int,
+    rh: int,
   ) -> bytearray:
     """Copy the (rx,ry,rw,rh) sub-rectangle of src into a fresh rw*rh*4 bytearray."""
     if rw < 0 or rh < 0:
@@ -61,14 +87,14 @@ class RasterOps:
     _check_dims(src, src_w, src_h, "crop_image_rgba source")
     dst = bytearray(rw * rh * 4)
     self._lib.stencil_cli_cropImageRGBA(
-      ctypes.cast(_bytes_arg(src), _u8p),
+      _bytes_arg(src),
       ctypes.c_int(src_w),
       ctypes.c_int(src_h),
       ctypes.c_int(rx),
       ctypes.c_int(ry),
       ctypes.c_int(rw),
       ctypes.c_int(rh),
-      ctypes.cast(_buf_view(dst), _u8p),
+      _buf_view(dst),
     )
     return dst
 
@@ -89,17 +115,19 @@ class RasterOps:
     )
     return (out_w.value, out_h.value)
 
-  def rotate_image_rgba(self, src: bytes, w: int, h: int, q: int) -> bytearray:
+  def rotate_image_rgba(
+    self, src: (bytes | bytearray), w: int, h: int, q: int
+  ) -> bytearray:
     """Rotate src (w x h) by `q` quarter-turns clockwise into a fresh bytearray."""
     _check_dims(src, w, h, "rotate_image_rgba source")
     ow, oh = self.rotated_dims(w, h, q)
     dst = bytearray(ow * oh * 4)
     self._lib.stencil_cli_rotateImageRGBA(
-      ctypes.cast(_bytes_arg(src), _u8p),
+      _bytes_arg(src),
       ctypes.c_int(w),
       ctypes.c_int(h),
       ctypes.c_int(q),
-      ctypes.cast(_buf_view(dst), _u8p),
+      _buf_view(dst),
     )
     return dst
 
@@ -109,7 +137,7 @@ class RasterOps:
     """Fill `pixel_count` RGBA8 pixels of dst with one colour, in place."""
     _check_pixels(dst, pixel_count, "fill_rgba")
     self._lib.stencil_cli_fillRGBA(
-      ctypes.cast(_buf_view(dst), _u8p),
+      _buf_view(dst),
       ctypes.c_int(pixel_count),
       ctypes.c_int(r),
       ctypes.c_int(g),
@@ -130,7 +158,7 @@ class RasterOps:
     _check_pixels(data, pixel_count, "apply_filter")
     self._lib.stencil_cli_applyFilter(
       _encode(mode),
-      ctypes.cast(_buf_view(data), _u8p),
+      _buf_view(data),
       ctypes.c_int(pixel_count),
       ctypes.c_int(tint[0]),
       ctypes.c_int(tint[1]),
@@ -142,7 +170,7 @@ class RasterOps:
     dark edges on a white page, alpha preserved. Degenerate dims are a no-op."""
     _check_dims(data, width, height, "apply_contour")
     self._lib.stencil_cli_applyContour(
-      ctypes.cast(_buf_view(data), _u8p),
+      _buf_view(data),
       ctypes.c_int(width),
       ctypes.c_int(height),
     )
@@ -175,7 +203,7 @@ class RasterOps:
       flat[2 * i] = float(px)
       flat[2 * i + 1] = float(py)
     self._lib.stencil_cli_rasterizeLine(
-      ctypes.cast(_buf_view(buf), _u8p),
+      _buf_view(buf),
       ctypes.c_int(w),
       ctypes.c_int(h),
       ctypes.cast(flat, _dblp),

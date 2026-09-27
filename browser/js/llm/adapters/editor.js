@@ -4,6 +4,7 @@
 import { CHAT_ATTACHMENTS_EVENT } from '../chat/controller.js';
 import { publish } from '../../eventBus/appBus.js';
 import { uniqueProjectName } from '../projectNames.js';
+import { editorMemento } from '../../core/historyStack.js';
 export const editorAdapters = (app) => ({
   // Send drained the queued attachments — repaint every composer's chips.
   onAttachmentsChanged: () => {
@@ -18,8 +19,24 @@ export const editorAdapters = (app) => ({
     app.storage.promoteTemporaryToProject();
     app.imageBaseName = unique;
     app.storage.save();
-    app.renameProject(app.activeProjectId, unique);
+    app.projectTransfer.renameProject(app.activeProjectId, unique);
     app.updateProjectTitle?.();
     return unique;
+  },
+  // A sandboxed preview's way back: the undo stack, its cursor and floor, and the view on screen.
+  editorHistory: {
+    mark: () => {
+      const h = app.history;
+      return { steps: h.history.slice(), step: h.historyStep, floor: h.floor, memento: structuredClone(editorMemento(app)) };
+    },
+    rewind: (mark) => {
+      Object.assign(app.history, { history: mark.steps.slice(), historyStep: mark.step, floor: mark.floor });
+      app.restoreHistoryStep(structuredClone(mark.memento));
+      app.renderer.redraw();
+      app.updateButtons();
+      app.coordTable.update();
+      app.storage.saveSoon();
+      app.remoteSync.scheduleRemoteSync();
+    },
   },
 });

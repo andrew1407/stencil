@@ -5,7 +5,6 @@
 const std = @import("std");
 const opplan = @import("opplan.zig");
 const opSchema = @import("opSchema.zig");
-const transport = @import("transport.zig");
 
 const descriptor = @import("registry/descriptor.zig");
 const table = @import("registry/table.zig");

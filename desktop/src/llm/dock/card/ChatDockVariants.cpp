@@ -3,7 +3,6 @@
 #include "chatDockShared.hpp"
 #include "../../../support/motion/DisintegrateOverlay.hpp"
 #include "../../../support/motionPrefs.hpp"   // support::isDustAllowed()
-#include "theme.hpp"
 #include "chatWidgets.hpp"
 #include "../../../support/control/FlowLayout.hpp"
 #include "iconSet.hpp"
@@ -12,7 +11,6 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPixmap>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>

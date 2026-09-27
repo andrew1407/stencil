@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Making it black and white.\",\"actions\":"
                       "[{\"op\":\"filter\",\"mode\":\"bw\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     // An editing plan arriving with an EMPTY canvas + an attachment adopts the
     // attachment as the working image and says so (the adoption note).
@@ -39,7 +39,7 @@ class MainWindowGuiTest : public QObject {
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkCyan);
     dock->addAttachmentImage(att, QStringLiteral("cat.png"));
-    win.onChatSend("make it b&w");
+    win.chatSession->onChatSend("make it b&w");
     QTRY_VERIFY(win.canvas->hasImage());
 
     auto* scrollArea = dock->findChild<QScrollArea*>();
@@ -128,14 +128,14 @@ class MainWindowGuiTest : public QObject {
                           "{\"op\":\"renameProject\",\"name\":\"%1\"}]}")
                           .arg(renamed)}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     const QSize sizeBefore = win.canvas->getImage().size();
-    win.onChatSend("compare it side by side, zoom in, and rename the project");
+    win.chatSession->onChatSend("compare it side by side, zoom in, and rename the project");
 
     // The compare view: canvas mode + divider, and the toolbar combo followed.
     QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
     QCOMPARE(win.canvas->getCompareSplit(), 0.3);
-    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("vertical"));
+    QCOMPARE(win.tools.compareCombo->currentData().toString(), QStringLiteral("vertical"));
     // The zoom landed on the canvas scale (view-only — the image is untouched).
     QVERIFY(std::abs(win.canvas->getScale() - 1.5) < 1e-9);
     QCOMPARE(win.canvas->getImage().size(), sizeBefore);
@@ -152,8 +152,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("View set")));
     // Leave the shared registry tidy for the other cases.
     const QString id = win.activeProjectId;
-    win.setCompareModeUi(QStringLiteral("none"));
-    win.eraseLocalProject(id);
+    win.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
+    win.parts.projects.eraseLocalProject(id);
     stencil::gui::fileStore::saveProjects(win.projectList);
     beat();
   }
@@ -185,18 +185,18 @@ class MainWindowGuiTest : public QObject {
         "{\"x\":400,\"y\":100},{\"x\":400,\"y\":300},{\"x\":100,\"y\":300},"
         "{\"x\":100,\"y\":100}],\"color\":\"#000000\"}]},"
         "{\"op\":\"compare\",\"mode\":\"vertical\",\"split\":0.4}]}"));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("red album page with a rectangle, compared side by side");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("red album page with a rectangle, compared side by side");
     QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
     mock.queue.clear();
     // The follow-up carries the mode alone: an echoed "split" beside "none" is a
     // parse failure since the registry's onlyWith rule (fixture 160).
     mock.response = plan("{\"version\":1,\"reply\":\"cleared\",\"actions\":["
                          "{\"op\":\"compare\",\"mode\":\"none\"}]}");
-    win.onChatSend("turn the comparison off");
+    win.chatSession->onChatSend("turn the comparison off");
     QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("none"));
     QVERIFY2(!win.canvas->compareReadOnly(), "compare 'none' left the canvas read-only");
-    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("none"));
+    QCOMPARE(win.tools.compareCombo->currentData().toString(), QStringLiteral("none"));
     beat();
   }
 

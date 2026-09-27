@@ -147,8 +147,19 @@ test('every setting the code reads is declared, with its default and an explanat
     assert.ok(properties[id].markdownDescription ?? properties[id].description,
       `${id} would sit in the settings UI with nothing said about it`);
   }
-  assert.equal(properties['stencil.cliPath'].scope, 'machine-overridable',
-    'a binary path belongs to the machine, and a workspace may still override it');
+});
+
+// A repo's .vscode/settings.json must never pick the executable the save check or ▶ spawns, nor
+// the page a script is handed to.
+test('the executable paths and the web instance are machine settings a workspace can neither set nor override', () => {
+  const properties = contributes.configuration.properties;
+  const executables = ['stencil.cliPath', 'stencil.pythonPath', 'stencil.webUrl'];
+  for (const id of executables) assert.equal(properties[id].scope, 'machine', `${id} is workspace-settable`);
+  const trust = manifest.capabilities?.untrustedWorkspaces;
+  assert.ok(trust, 'no Restricted Mode declaration');
+  assert.equal(trust.supported, false, 'Restricted Mode must not spawn anything');
+  assert.deepEqual([...trust.restrictedConfigurations].sort(), executables);
+  assert.ok(trust.description, 'Restricted Mode would show no reason');
 });
 
 test('stencil.colors names exactly the families, and takes only a hex colour', () => {

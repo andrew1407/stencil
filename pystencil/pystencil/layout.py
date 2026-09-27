@@ -11,11 +11,13 @@ fall back to the per-line defaults below.
 
 from __future__ import annotations
 
+import itertools
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ._ffi.types import NoneType
+from .core import get_core
 from ._ffi.coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
 
 
@@ -86,12 +88,15 @@ class Line:
     return out
 
   @classmethod
-  def from_dict(cls, d: Any) -> "Line":
-    """Parse a line mapping, applying per-line defaults for missing keys."""
+  def from_dict(cls, d: Any, max_points: (int | NoneType) = None) -> "Line":
+    """Parse a line mapping, applying per-line defaults for missing keys; a non-mapping point
+    is skipped, as the browser skips it, and at most ``max_points`` of the rest are kept."""
     if not isinstance(d, dict): return cls()
     raw_points = d.get("points")
     points: list[Point] = list()
-    if isinstance(raw_points, list): points = [Point.from_dict(p) for p in raw_points]
+    if isinstance(raw_points, list):
+      mappings = (p for p in raw_points if isinstance(p, dict))
+      points = [Point.from_dict(p) for p in itertools.islice(mappings, max_points)]
     return cls(
       points=points,
       color=_as_str(d.get("color"), DEFAULT_COLOR),
@@ -102,6 +107,38 @@ class Line:
       fill_color=_as_str(d.get("fillColor"), DEFAULT_FILL_COLOR),
       point_color=_as_str(d.get("pointColor"), ""),
     )
+
+
+def _caps() -> tuple[int, int, int]:
+  """(lines, points per line, points in all): core's caps, constants.json LIMITS."""
+  return get_core().layout_caps()
+
+
+def _read_lines(raw: Any) -> list[Line]:
+  """``lines`` cut as ``sanitizeLines`` (browser/js/core/layout.js) cuts them: a non-mapping line
+  is skipped before it counts, each line keeps at most the per-line cap, and the line spending the
+  last of the total is cut there, every one after it dropped."""
+  if not isinstance(raw, list) or not raw: return list()
+  max_lines, line_points, budget = _caps()
+  lines: list[Line] = list()
+  for d in raw:
+    if len(lines) >= max_lines or budget <= 0: break
+    if not isinstance(d, dict): continue
+    line = Line.from_dict(d, min(line_points, budget))
+    budget -= len(line.points)
+    lines.append(line)
+  return lines
+
+
+def cap_lines(lines: list[Line]) -> list[Line]:
+  """Two capped lists joined (a combine) cut as one layout, as ``capLayoutPoints``
+  (browser/js/core/layout.js) cuts them; the same list when under the caps."""
+  max_lines, _, budget = _caps()
+  for i, line in enumerate(lines):
+    if i >= max_lines: return lines[:i]
+    if len(line.points) >= budget: return lines[:i] + [replace(line, points=line.points[:budget])]
+    budget -= len(line.points)
+  return lines
 
 
 @dataclass
@@ -158,15 +195,13 @@ class Layout:
 
   @classmethod
   def from_dict(cls, d: Any) -> "Layout":
-    """Parse a layout mapping; missing fields fall back to defaults/empty."""
+    """Parse a layout mapping; missing fields fall back to defaults/empty, and the lines are
+    held to the layout caps."""
     if not isinstance(d, dict): d = dict()
-    raw_lines = d.get("lines")
-    lines: list[Line] = list()
-    if isinstance(raw_lines, list): lines = [Line.from_dict(ln) for ln in raw_lines]
     return cls(
       image_width=_as_int(d.get("imageWidth"), 0),
       image_height=_as_int(d.get("imageHeight"), 0),
-      lines=lines,
+      lines=_read_lines(d.get("lines")),
       # Canonical "imageFilter" wins; legacy "filter" (pre-Phase-6) still reads.
       image_filter=_opt_str(d.get("imageFilter", d.get("filter"))),
       filter_color=_opt_str(d.get("filterColor")),

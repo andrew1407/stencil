@@ -1,6 +1,6 @@
 // config/iconMotion.json is the CANONICAL per-icon hover design table and config/icons.json carries
-// the hooks it addresses; the browser implements it in css/animations.css, while the desktop (qrc →
-// support/iconSet.cpp) and the extension render the same glyphs. Pinned across the three sides:
+// the hooks it addresses; the browser implements it in css/animations/, while the desktop (qrc →
+// support/icon/iconSet.cpp) and the extension render the same glyphs. Pinned across the three sides:
 // every icon has a design and every design a real icon and hook, the hooks stay INERT (attributes
 // and plain <g> wrappers only), and the CSS implements every design without moving a box.
 import { test } from 'node:test';

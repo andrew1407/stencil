@@ -1,151 +1,104 @@
 #include "MainWindow.hpp"
-#include "Notifications.hpp"
-#include "MainWindow.hpp"
-#include "mainWindowHelpers.hpp"
-#include "ChatPlanTarget.hpp"
-#include "OpenImageDialog.hpp"
 #include "CanvasWidget.hpp"
-#include "LinksDialog.hpp"
-#include "DescriptionDialog.hpp"
-#include "KeywordsDialog.hpp"
-#include "MediaLoader.hpp"
-#include "ServerClient.hpp"
-#include "theme.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
+#include "Notifications.hpp"
+#include "../../support/rowWork.hpp"
+#include "launchOptions.hpp"
 
 #include <QFileInfo>
 #include <QImage>
+#include <QTimer>
+#include <QUrl>
 
-// Loading a source by path or URL, and the .stencil project file.
+// What the OS hands the window — the launch options, a stencil:// link, a path routed by suffix —
+// and the pool decode every picture load goes through.
 
 namespace stencil::gui {
-
-  void MainWindow::ensureMediaLoader() {
-    if (mediaLoader) return;
-    mediaLoader = new MediaLoader(this);
-    connect(mediaLoader, &MediaLoader::loaded, this,
-            &MainWindow::onLaunchImageLoaded);
-    connect(mediaLoader, &MediaLoader::failed, this, [this](const QString& msg) {
-      pendingLaunchLayout.clear();
-      pendingLaunchLayoutJson.clear();
-      pendingProvSource.clear();
-      pendingProvResource.clear();
-      pendingServerTarget.clear();
-      notify->error(msg);
-    });
-  }
-
-  // A data: source (a browser hand-off, a dragged bitmap) is just another candidate here.
-  void MainWindow::openImageSource(const QString& src, int frame,
-                                   const QStringList& fallbacks) {
-    ensureMediaLoader();
-    if (fallbacks.isEmpty()) mediaLoader->load(src, frame);
-    else mediaLoader->loadFirstOf(QStringList{src} + fallbacks, frame);
-  }
 
   // From the OS shell: a *.json is a layout, anything else goes via the --src path.
   void MainWindow::openPathFromOS(const QString& path, int frame) {
     if (path.isEmpty()) return;
     const QString suffix = QFileInfo(path).suffix();
     if (suffix.compare("json", Qt::CaseInsensitive) == 0) {
-      applyLayoutFromSource(path);
+      parts.sourceOpener.applyLayoutFromSource(path);
       return;
     }
     if (suffix.compare("stencil", Qt::CaseInsensitive) == 0) {
-      openProjectFile(path);
+      parts.sourceOpener.openProjectFile(path);
       return;
     }
     if (suffix.compare("stc", Qt::CaseInsensitive) == 0) {
-      runScriptFromFile(path);
+      parts.scriptHost.runScriptFromFile(path);
       return;
     }
-    openImageSource(path, frame);
+    parts.sourceOpener.openImageSource(path, frame);
   }
 
-  // Open a portable .stencil project; mirrors browser DrawingApp.applyProjectFile.
-  void MainWindow::openProjectFile(const QString& path) {
-    QByteArray bytes;
-    if (!readFileBytes(path, bytes)) {
-      notify->error("Could not read the project file");
+  void MainWindow::decodeForCanvas(std::function<QImage()> decode,
+                                   std::function<void(const QImage&)> adopt,
+                                   std::function<void()> dropped) {
+    const quint64 load = canvas->beginPictureLoad();
+    auto landed = [this, load, adopt = std::move(adopt), dropped = std::move(dropped)](QImage img) {
+      if (canvas->pictureGeneration() != load) {
+        if (dropped) dropped();
+        return;
+      }
+      adopt(img);
+    };
+    support::runOnPool<QImage>(this, std::move(decode), std::move(landed));
+  }
+
+  // The desktop twin of the browser's URL launch (applyExternalLaunch + applyProjectDeepLink). Runs after show(): resolution is async.
+  void MainWindow::applyLaunchOptions(const LaunchOptions& opts) {
+    if (opts.empty()) return;
+
+    // Incognito set FIRST so it gates the theme persist and every later write.
+    if (opts.incognito && opts.project.isEmpty() && acts.incognito->isEnabled())
+      acts.incognito->setChecked(true);  // drives incognito via its toggled slot
+
+    if (opts.hasTheme) {
+      settings.themeMode = (opts.theme == "dark") ? "dark" : "light";
+      applySettings(settings, /*persist=*/true);
+    }
+
+    // Priority: --project > stencil:// server reference > --src > positional file.
+    if (!opts.project.isEmpty()) {
+      if (!parts.projects.openProjectByName(opts.project))
+        notify->error(QString("No project named \"%1\"").arg(opts.project));
+    } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
+      // Queued so the connect + download run after show().
+      const QString url = opts.serverUrl, id = opts.serverProjectId;
+      const bool incog = opts.incognito;
+      QTimer::singleShot(0, this, [this, url, id, incog] {
+        parts.projects.openServerLaunch(url, id, incog);
+      });
+    } else if (!opts.src.isEmpty()) {
+      docSource.pendingLaunchLayout = opts.layout;  // applied after the image loads
+      docSource.pendingLaunchLayoutJson = opts.layoutJson;
+      // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
+      if (opts.hasCropOverride)
+        docSource.pendingCrop =
+            opts.cropToPage
+                ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
+                                {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
+                : QuickCropOpts::none();
+      parts.sourceOpener.openImageSource(opts.src, opts.frame, opts.srcFallbacks);
+    } else if (!opts.file.isEmpty()) {
+      docSource.pendingLaunchLayout = opts.layout;
+      openPathFromOS(opts.file, opts.frame);
+    }
+
+    // Queued so it runs after a primary load has been kicked off.
+    if (opts.projects) QTimer::singleShot(0, this, [this] { parts.projects.openProjects(); });
+  }
+
+  // A stencil:// deep link on a RUNNING app (macOS QFileOpenEvent url).
+  void MainWindow::openStencilUrl(const QUrl& url) {
+    const LaunchOptions opts = parseStencilUrl(url);
+    if (opts.empty()) {
+      notify->error("Could not read the stencil:// link");
       return;
     }
-    fileStore::ProjectFileData pf;
-    QString err;
-    if (!fileStore::parseProjectFile(bytes, pf, &err)) {
-      notify->error("Invalid .stencil file: " + err);
-      return;
-    }
-    QImage img;
-    if (!img.loadFromData(pf.imageBytes)) {
-      notify->error("Could not decode the project image");
-      return;
-    }
-    activeProjectId.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
-    loadImageWithLayout(img, pf.layout, pf.imageBytes, pf.imageExt);
-    currentSource = pf.source;
-    currentResource = pf.resource;
-    // Only a file that carried a theme changes the user's; a custom-hex accent is ignored (desktop
-    // uses presets).
-    if (pf.hasTheme) {
-      bool changed = false;
-      if (pf.themeMode == "light" || pf.themeMode == "dark") {
-        settings.themeMode = pf.themeMode;
-        changed = true;
-      }
-      if (!pf.themeAccent.isEmpty()) {
-        for (const auto& preset : accentPresets()) {
-          if (pf.themeAccent == preset.key) {
-            settings.accentColor = pf.themeAccent;
-            changed = true;
-            break;
-          }
-        }
-      }
-      if (changed) {
-        applyTheme();
-        fileStore::saveSettings(settings);
-      }
-    }
-    createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
-    linkStencilFile(path, bytes);
-    // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is on.
-    if (settings.saveChatsWithProject) {
-      restoreChatFromDoc(pf.chat);
-      if (!pf.chat.isEmpty()) {
-        if (Project* pr = findProject(activeProjectId.toStdString())) {
-          pr->chat = buildActiveChatDoc();
-          fileStore::saveProjects(projectList);
-        }
-      }
-    }
-    fitToWindow();
-    playImageArrival();   // a .stencil open is a fresh image landing (browser: ghostIn)
-  }
-
-  // .stencil bytes (original image + layout + metadata + theme); mirrors browser
-  // ExportService.saveProjectFile.
-  void MainWindow::setSourceBytes(const QByteArray& bytes, const QString& ext) {
-    sourceBytes = bytes;
-    sourceExt = ext.trimmed().toLower();
-  }
-
-  // Retained raw bytes so a .stencil bundle embeds the untouched original; cleared on a read
-  // failure.
-  void MainWindow::retainSourceFromFile(const QString& path) {
-    const QString ext = QFileInfo(path).suffix().toLower();
-    QByteArray bytes;
-    if (!ext.isEmpty()) readFileBytes(path, bytes);
-    setSourceBytes(bytes, ext);   // empty bytes ⇒ buildStencilBytes re-encodes from pixels
-  }
-
-  bool MainWindow::openProjectByName(const QString& name) {
-    const QString want = name.trimmed();
-    for (const auto& p : projectList) {
-      if (QString::fromStdString(p.meta.name).compare(want, Qt::CaseInsensitive) ==
-          0)
-        return loadProjectIntoCanvas(QString::fromStdString(p.meta.id));
-    }
-    return false;
+    applyLaunchOptions(opts);
   }
 
 }  // namespace stencil::gui

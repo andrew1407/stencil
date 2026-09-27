@@ -1,8 +1,7 @@
 //! Reading the server's JSON answers: one project's id/version/metadata, the project
-//! list, and the error body behind a rejected request. Every returned string is owned.
+//! list and its pages, and the error body behind a rejected request. Every returned string is owned.
 const std = @import("std");
 const Error = @import("errors.zig").Error;
-const testing = std.testing;
 
 /// Parse a { "token": "..." } response, returning an owned copy of the token.
 pub fn parseToken(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
@@ -123,6 +122,79 @@ pub fn freeProjectList(gpa: std.mem.Allocator, items: []ProjectInfo) void {
     gpa.free(items);
 }
 
+/// Whether a `/projects` page names a next one (a non-empty string `nextCursor`).
+pub fn hasNextCursor(gpa: std.mem.Allocator, body: []const u8) bool {
+    var p = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return false;
+    defer p.deinit();
+    return nextCursor(p.value) != null;
+}
+
+fn nextCursor(page: std.json.Value) ?[]const u8 {
+    const next = (if (page == .object) page.object.get("nextCursor") else null) orelse return null;
+    return if (next == .string and next.string.len > 0) next.string else null;
+}
+
+/// `GET /projects` walked page by page into one `{"projects":[…]}` body. A cursor handed back twice,
+/// or a walk past max_pages, is an error rather than a loop.
+pub const ProjectPages = struct {
+    pub const max_pages = 1000;
+    gpa: std.mem.Allocator,
+    out: std.Io.Writer.Allocating,
+    seen: std.StringHashMapUnmanaged(void) = .empty, // owned cursors already followed
+    pages: usize = 0,
+    items: usize = 0,
+
+    pub fn deinit(self: *ProjectPages) void {
+        self.out.deinit();
+        var it = self.seen.keyIterator();
+        while (it.next()) |k| self.gpa.free(k.*);
+        self.seen.deinit(self.gpa);
+    }
+
+    /// Append one page's projects; the next page's path (owned), or null when this page is the last.
+    pub fn add(self: *ProjectPages, body: []const u8) !?[]u8 {
+        var p = std.json.parseFromSlice(std.json.Value, self.gpa, body, .{}) catch return Error.BadResponse;
+        defer p.deinit();
+        if (p.value != .object) return Error.BadResponse;
+        const list = p.value.object.get("projects") orelse return Error.BadResponse;
+        if (list != .array) return Error.BadResponse;
+        const w = &self.out.writer;
+        if (self.pages == 0) try w.writeAll("{\"projects\":[");
+        for (list.array.items) |item| {
+            if (self.items > 0) try w.writeByte(',');
+            try std.json.Stringify.value(item, .{}, w);
+            self.items += 1;
+        }
+        self.pages += 1;
+        const cursor = nextCursor(p.value) orelse return null;
+        if (self.pages == max_pages) return error.TooManyPages;
+        if (self.seen.contains(cursor)) return error.CursorLoop;
+        try self.seen.ensureUnusedCapacity(self.gpa, 1);
+        const owned = try self.gpa.dupe(u8, cursor);
+        self.seen.putAssumeCapacityNoClobber(owned, {});
+        return try pagePath(self.gpa, owned);
+    }
+
+    /// The merged body; owned by the caller.
+    pub fn finish(self: *ProjectPages) ![]u8 {
+        try self.out.writer.writeAll("]}");
+        return self.out.toOwnedSlice();
+    }
+};
+
+/// `/projects?after=` plus the cursor percent-encoded byte by byte, unreserved kept.
+fn pagePath(gpa: std.mem.Allocator, cursor: []const u8) ![]u8 {
+    var path: std.Io.Writer.Allocating = .init(gpa);
+    errdefer path.deinit();
+    try path.writer.writeAll("/projects?after=");
+    for (cursor) |b| {
+        if (std.ascii.isAlphanumeric(b) or std.mem.indexOfScalar(u8, "-_.~", b) != null) {
+            try path.writer.writeByte(b);
+        } else try path.writer.print("%{X:0>2}", .{b});
+    }
+    return path.toOwnedSlice();
+}
+
 /// Parse a single-project body ({ "project": { ..., "keywords": [...] } }) into an owned
 /// [][]u8 (free with freeStrList). "" / absent → empty. Pure — unit-tested without a socket.
 pub fn parseProjectKeywords(gpa: std.mem.Allocator, body: []const u8) ![][]u8 {
@@ -151,96 +223,4 @@ pub fn parseErrorMessage(gpa: std.mem.Allocator, body: []const u8) ?[]u8 {
     var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return null;
     defer p.deinit();
     return gpa.dupe(u8, p.value.message) catch null;
-}
-
-test "parseToken / parseProjectId" {
-    const a = testing.allocator;
-    const tok = try parseToken(a, "{\"token\":\"abc123\",\"expiresAt\":0}");
-    defer a.free(tok);
-    try testing.expectEqualStrings("abc123", tok);
-
-    const id = try parseProjectId(a, "{\"id\":\"p_x_y\",\"name\":\"N\",\"version\":0}");
-    defer a.free(id);
-    try testing.expectEqualStrings("p_x_y", id);
-}
-
-test "parseErrorMessage reads the server's error body, null for other shapes" {
-    const a = testing.allocator;
-    const msg = parseErrorMessage(a, "{\"code\":\"unauthorized\",\"message\":\"admin token required to issue tokens\"}").?;
-    defer a.free(msg);
-    try testing.expectEqualStrings("admin token required to issue tokens", msg);
-
-    try testing.expect(parseErrorMessage(a, "not json") == null);
-    try testing.expect(parseErrorMessage(a, "{\"code\":\"x\"}") == null); // no message field
-}
-
-test "findProjectByName captures id + version; parseProjectVersion reads a single project" {
-    const a = testing.allocator;
-    const list =
-        "{\"projects\":[{\"id\":\"p_1_a\",\"name\":\"Alpha\",\"version\":4},{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}]}";
-    const ref = (try findProjectByName(a, list, "beta")).?;
-    defer a.free(ref.id);
-    try testing.expectEqualStrings("p_2_b", ref.id);
-    try testing.expectEqual(@as(i64, 9), ref.version);
-    try testing.expect((try findProjectByName(a, list, "missing")) == null);
-
-    const v = try parseProjectVersion(a, "{\"project\":{\"id\":\"p_2_b\",\"name\":\"Beta\",\"version\":9}}");
-    try testing.expectEqual(@as(i64, 9), v);
-}
-
-test "parseProjectList yields owned name/size/updatedAt/color records" {
-    const a = testing.allocator;
-    const body =
-        "{\"projects\":[{\"id\":\"p1\",\"name\":\"Alpha\",\"imageW\":800,\"imageH\":600,\"updatedAt\":1700000000000,\"expiresAt\":1700009999000,\"color\":\"#ff5623\",\"description\":\"lead shot\"}," ++
-        "{\"id\":\"p2\",\"name\":\"Beta\",\"imageW\":1024,\"imageH\":768,\"updatedAt\":0}]}";
-    const items = try parseProjectList(a, body);
-    defer freeProjectList(a, items);
-    try testing.expectEqual(@as(usize, 2), items.len);
-    try testing.expectEqualStrings("Alpha", items[0].name);
-    try testing.expectEqual(@as(i64, 800), items[0].w);
-    try testing.expectEqual(@as(i64, 600), items[0].h);
-    try testing.expectEqual(@as(i64, 1700000000000), items[0].updated_at);
-    try testing.expectEqual(@as(i64, 1700009999000), items[0].expires_at);
-    try testing.expectEqualStrings("#ff5623", items[0].color);
-    try testing.expectEqualStrings("lead shot", items[0].description);
-    try testing.expectEqualStrings("Beta", items[1].name);
-    try testing.expectEqual(@as(i64, 0), items[1].expires_at); // no expiry → 0 (never)
-    try testing.expectEqualStrings("", items[1].color); // no custom colour → empty
-    try testing.expectEqualStrings("", items[1].description); // no description → empty
-
-    // An empty list parses to an empty (non-null) slice.
-    const none = try parseProjectList(a, "{\"projects\":[]}");
-    defer freeProjectList(a, none);
-    try testing.expectEqual(@as(usize, 0), none.len);
-}
-
-test "parseProjectStringField reads one project field, empty when absent" {
-    const a = testing.allocator;
-    const body = "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"color\":\"#7c3aed\",\"blankColor\":\"#fff\",\"description\":\"a caption\"}}";
-    for ([_][2][]const u8{
-        .{ "color", "#7c3aed" },
-        .{ "blankColor", "#fff" },
-        .{ "description", "a caption" },
-    }) |c| {
-        const got = try parseProjectStringField(a, body, c[0]);
-        defer a.free(got);
-        try testing.expectEqualStrings(c[1], got);
-    }
-
-    const none = try parseProjectStringField(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}", "color");
-    defer a.free(none);
-    try testing.expectEqualStrings("", none);
-
-    try testing.expectError(Error.BadResponse, parseProjectStringField(a, "{\"nope\":1}", "color"));
-}
-
-test "findIdByName matches case-insensitively, else null" {
-    const a = testing.allocator;
-    const body =
-        "{\"projects\":[{\"id\":\"p_1_a\",\"name\":\"Alpha\"},{\"id\":\"p_2_b\",\"name\":\"Beta\"}]}";
-    const id = (try findIdByName(a, body, "beta")).?;
-    defer a.free(id);
-    try testing.expectEqualStrings("p_2_b", id);
-
-    try testing.expect((try findIdByName(a, body, "missing")) == null);
 }

@@ -1,0 +1,20 @@
+      /* ── Checks and radios ── */
+      QCheckBox, QRadioButton { color: %WC_INK%; }
+      QCheckBox::indicator, QRadioButton::indicator, QListWidget#projectsList::indicator {
+        width: 13px; height: 13px; background: %WC_WINDOW%; border-radius: 0;
+        border: 2px solid transparent; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch;
+      }
+      QRadioButton::indicator { border-radius: 8px; border: 1px solid %WC_SHADOW%; }
+      QCheckBox::indicator:checked, QListWidget#projectsList::indicator:checked { background: %WC_WINDOW%; image: url(%WC_TICK%); }
+      QRadioButton::indicator:checked { background: %WC_WINDOW%; image: url(%WC_RADIO%); }
+      QCheckBox::indicator:hover, QRadioButton::indicator:hover, QListWidget#projectsList::indicator:hover { border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QCheckBox:hover, QRadioButton:hover { color: %WC_INK%; }
+      QCheckBox:focus, QRadioButton:focus { background: transparent; border-radius: 0; }
+      /* Browser .pill-toggle: a raised button whose hover is the ring and whose "on" sinks. */
+      QCheckBox#formulaPill {
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch; border-radius: 0;
+        color: %WC_INK%; background: %WC_FACE%; font-size: 13px; padding: 3px 8px;
+      }
+      QCheckBox#formulaPill:hover { background: %WC_FACE%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
+      QCheckBox#formulaPill:checked { background: %WC_LIGHT%; color: %WC_INK%; border-image: url(%WC_SUNKEN%) 2 2 2 2 stretch; }
+

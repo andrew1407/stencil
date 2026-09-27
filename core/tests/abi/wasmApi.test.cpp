@@ -1,4 +1,4 @@
-// Native coverage for the WebAssembly ABI surface (desktop/core/wasmApi.cpp) - the extern "C"
+// Native coverage for the WebAssembly ABI surface (core/wasmApi.cpp) - the extern "C"
 // wrappers the browser calls through ccall/cwrap. emcc is absent here, so the same translation
 // unit is compiled natively (see CMakeLists). Guards the marshalling (flat arrays, output
 // pointers, enum codes, char-code var names) rather than the already-tested core math.
@@ -26,6 +26,8 @@ extern "C" {
   void stencil_flipPoints(double*, int, int, double, double);
   void stencil_boundingBoxCenter(const double*, int, double*);
   double stencil_clampScale(double);
+  double stencil_zoomMin(void);
+  double stencil_zoomMax(void);
   void stencil_anchoredZoom(double, double, double, double, double, double,
                             double*);
   void stencil_rectZoom(double, double, double, double, double, double, double*);
@@ -168,6 +170,13 @@ TEST_SUITE("wasmApi") {
     CHECK(stencil_clampScale(10.0) == doctest::Approx(10.0));   // below the ceiling: passes through
     CHECK(stencil_clampScale(0.01) == doctest::Approx(0.05));
     CHECK(stencil_clampScale(1.0) == doctest::Approx(1.0));
+  }
+
+  TEST_CASE("stencil_zoomMin / stencil_zoomMax are the bounds stencil_clampScale clamps to") {
+    CHECK(stencil_zoomMin() == 0.05);
+    CHECK(stencil_zoomMax() == 32.0);
+    CHECK(stencil_clampScale(-1.0) == stencil_zoomMin());
+    CHECK(stencil_clampScale(1e9) == stencil_zoomMax());
   }
 
   TEST_CASE("stencil_anchoredZoom fills out[scale, scrollLeft, scrollTop]") {

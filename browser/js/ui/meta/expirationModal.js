@@ -186,7 +186,7 @@ export class StencilExpirationModal extends StencilElement {
     });
     els.save.addEventListener('click', () => {
       if (targetId == null) return;
-      app.setProjectExpiration(targetId, {
+      app.projectTransfer.setProjectExpiration(targetId, {
         expiresAt: keep ? 0 : expiresAt,
         refreshPeriod: period,
         autoRefresh: auto,

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;

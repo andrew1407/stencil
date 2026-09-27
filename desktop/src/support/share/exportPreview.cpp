@@ -5,7 +5,6 @@
 #include <QImage>
 #include <QLabel>
 #include <QMenu>
-#include <QPalette>
 #include <QPixmap>
 #include <QPointer>
 #include <QScreen>
@@ -15,14 +14,13 @@
 #include <algorithm>
 
 #include "DisintegrateOverlay.hpp"
-#include "modalReveal.hpp"
 #include "tipContent.hpp"
 
 namespace stencil::support {
 
   namespace {
     constexpr int PREVIEW_MAX = 220;  // px, longest edge of the rendered thumbnail
-    // The preview is sand too (browser js/ui/preview.js), on the shared tip clock.
+    // The preview is sand too (browser js/ui/export/preview.js), on the shared tip clock.
 
     QWidget* tipWindow() {
       static QWidget* w = nullptr;

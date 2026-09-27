@@ -4,7 +4,6 @@
 //! Windows (PowerShell); anything else returns `Unsupported`. A read takes what is there: a PNG,
 //! else a TIFF re-encoded, else an image FILE copied in a file manager.
 const std = @import("std");
-const builtin = @import("builtin");
 
 const shell = @import("clipboard/shell.zig");
 const read = @import("clipboard/read.zig");

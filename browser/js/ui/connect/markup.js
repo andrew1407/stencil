@@ -1,5 +1,5 @@
 // The Servers modal's markup: the connect form, the auto-connect/sync checks, the credential
-// filter and the batch bar. Split out of ui/modal.js, which wires the list.
+// filter and the batch bar. Split out of ui/connect/modal.js, which wires the list.
 import { icon } from '../icons.js';
 
 export const connectModalInner = () => `

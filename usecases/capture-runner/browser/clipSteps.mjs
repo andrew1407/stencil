@@ -1,7 +1,7 @@
 // The recorded clips under usecases/docs/browser/img. A clip is a real interaction filmed at
 // speed, so its pauses are deliberate: they come from config/browser.json, not from
 // guessing how long the app needs.
-import { recordGif } from '../lib/shots.mjs';
+import { recordGif } from '../lib/shot/shots.mjs';
 import { settle } from '../lib/waits.mjs';
 
 export function makeClipSteps({ config, runner, browser, pages }) {

@@ -2,6 +2,7 @@
 //! server projects, addressed by NAME across every connection. Parsing lives in
 //! keywordTargets.zig.
 const std = @import("std");
+const inert = @import("../render/inert.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const msg = @import("../../app/messages.zig");
@@ -13,7 +14,6 @@ const printKeywordCsv = kwt.printKeywordCsv;
 const printKeywords = kwt.printKeywords;
 const splitTargetSpec = kwt.splitTargetSpec;
 const collectTargetNames = kwt.collectTargetNames;
-
 
 /// Version-guarded PUT of the keyword set with a 409 retry (a peer saved first → re-read the
 /// version + retry), mirroring putProjectField.
@@ -165,7 +165,8 @@ pub fn doKeywordsSearch(session: *Session, arg: []const u8) !void {
             }
             if (hit) {
                 found += 1;
-                logo.print("  {s}  ({s}):", .{ p.name, c.base });
+                var b: inert.Buf = undefined;
+                logo.print("  {s}  ({s}):", .{ inert.name(&b, p.name), c.base });
                 printKeywordCsv(p.keywords);
                 logo.print("\n", .{});
             }

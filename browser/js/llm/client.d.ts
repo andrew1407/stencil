@@ -1,4 +1,4 @@
-// Shapes for llm/client.js — the §6 wire mappings: one chat() over the three providers,
+// Shapes for llm/client.js — the §6 wire mappings: one chat() over the four wires,
 // messages in the stencil-server DTO shape. The module is byte-pinned with
 // browser-extension/src/llm/client.js (browser-extension/tests/portParity.test.js); this file is not.
 import type { LlmProvider, LlmSettings } from './settings.js';
@@ -36,9 +36,12 @@ export interface ClientOptions {
 
 /** 'none' is the off state, then providers.json displayNames. */
 export declare const PROVIDER_LABELS: Record<string, string>;
+/** The disabled error's text when no anthropic session key is held. */
+export declare const NO_KEY_TEXT: string;
 export declare const createLlmClient: (opts?: { settings?: Partial<LlmSettings> } & Omit<ClientOptions, 'timeoutMs'>) => LlmClient;
 /** GET {serverUrl}/llm/info; errors propagate. */
 export declare const fetchLlmInfo: (serverUrl: string, opts?: { token?: string; fetchImpl?: typeof fetch }) => Promise<{ enabled: boolean; model: string }>;
 /** Best-effort model suggestions; never throws, failures resolve []. */
 export declare const listModels: (settings: Partial<LlmSettings> | null | undefined, opts?: ClientOptions) => Promise<string[]>;
+export declare const providerUrl: (settings: Partial<LlmSettings> | null | undefined) => string;
 export declare const probeProvider: (settings: Partial<LlmSettings> | null | undefined, opts?: ClientOptions) => Promise<ProbeResult>;

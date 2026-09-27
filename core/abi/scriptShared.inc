@@ -55,6 +55,20 @@ const char* STENCIL_ABI(scriptDiagAt, scriptDiagAt)(int h, int i, int* sev, int*
   return d.message.c_str();
 }
 
+// The span a diagnostic also points at: the `@use stencil` call that expanded the template it
+// came from. 1 with line, col and len written, 0 when it has none, -1 on an unknown handle/index.
+int STENCIL_ABI(scriptDiagRelated, scriptDiagRelated)(int h, int i, int* line, int* col,
+                                                      int* len) {
+  const auto* p = scriptTable().get(h);
+  if (!p || i < 0 || i >= static_cast<int>(p->getDiagnostics().size())) return -1;
+  const stencil::core::script::Diagnostic& d = p->getDiagnostics()[static_cast<std::size_t>(i)];
+  if (d.relatedLine <= 0) return 0;
+  if (line) *line = d.relatedLine;
+  if (col) *col = d.relatedCol;
+  if (len) *len = d.relatedLen;
+  return 1;
+}
+
 int STENCIL_ABI(scriptTokenCount, scriptTokenCount)(int h) {
   const auto* p = scriptTable().get(h);
   return p ? static_cast<int>(p->getTokens().size()) : -1;

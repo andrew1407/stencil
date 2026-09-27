@@ -1,8 +1,10 @@
 #include "doctest.h"
 #include "cliApi.h"
+#include "linesCodec.hpp"
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 TEST_CASE("stencil_cli_parseColor maps names/hex and rejects junk") {
@@ -162,4 +164,35 @@ TEST_CASE("cliApi contract: NULL out-pointers are tolerated, failures write noth
   const std::vector<std::uint8_t> before = buf;
   stencil_cli_rasterizeLine(buf.data(), 4, 4, nullptr, 0, "red", 1, 1, "solid", 0, "", "");
   CHECK(buf == before);
+}
+
+TEST_CASE("stencil_cli_layoutCaps and mergeLinesKeep hand out the core's caps and merge") {
+  using namespace stencil::core;
+  int lines = 0, linePoints = 0, points = 0;
+  stencil_cli_layoutCaps(&lines, &linePoints, &points);
+  CHECK(lines == abi::MAX_LAYOUT_LINES);
+  CHECK(linePoints == abi::MAX_LINE_POINTS);
+  CHECK(points == abi::MAX_LAYOUT_POINTS);
+  stencil_cli_layoutCaps(nullptr, nullptr, nullptr);
+
+  const auto encode = [](const Lines& ls) {
+    const abi::LinesSize sz = abi::linesSize(ls);
+    std::pair<std::vector<double>, std::vector<std::uint8_t>> e{
+        std::vector<double>(static_cast<std::size_t>(sz.nums)),
+        std::vector<std::uint8_t>(static_cast<std::size_t>(sz.text) + 1)};
+    abi::encodeLines(ls, e.first.data(), e.second.data());
+    return e;
+  };
+  Line peer;
+  peer.points = {{1, 2}};
+  Line mine = peer;
+  mine.color = "red";
+  const auto s = encode({peer});
+  const auto l = encode({mine, peer, mine});
+  std::vector<std::uint8_t> keep(3, 9);
+  CHECK(stencil_cli_mergeLinesKeep(s.first.data(), static_cast<int>(s.first.size()), s.second.data(),
+                                   static_cast<int>(s.second.size()) - 1, l.first.data(),
+                                   static_cast<int>(l.first.size()), l.second.data(),
+                                   static_cast<int>(l.second.size()) - 1, keep.data(), 3) == 3);
+  CHECK(keep == std::vector<std::uint8_t>{1, 0, 0});
 }

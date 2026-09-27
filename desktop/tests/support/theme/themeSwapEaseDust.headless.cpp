@@ -48,7 +48,7 @@ void dustGrainCurve(double w, double h) {
       };
       const auto at = [&](int i, double life, ThemeSwapOverlay::DustMote* out) {
         return ThemeSwapOverlay::dustMoteAt(
-            i, ignition(i) * ThemeSwapOverlay::SWAP_MS + life * ThemeSwapOverlay::DUST_LIFE_MS,
+            i, ignition(i) * ThemeSwapOverlay::swapMs() + life * ThemeSwapOverlay::dustLifeMs(),
             org, full3, QSizeF(w, h), out);
       };
       int i = -1;
@@ -82,7 +82,7 @@ void dustGrainCurve(double w, double h) {
     const QPointF o2(90, 60);
     const double full2 = fullRadius(o2.x(), o2.y(), w, h);
     bool anyInvisible = false;
-    for (double ms = 1; ms <= ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS; ms += 1)
+    for (double ms = 1; ms <= ThemeSwapOverlay::swapMs() + ThemeSwapOverlay::dustLifeMs(); ms += 1)
       for (int i = 0; i < 400; i++)
         if (ThemeSwapOverlay::dustMoteAt(i, ms, o2, full2, QSizeF(w, h), &faint))
           anyInvisible = anyInvisible || faint.alpha < 1.0 / 255;

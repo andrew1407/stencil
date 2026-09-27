@@ -1,11 +1,11 @@
 // ── Image tasks: the imageWorker client and its inline fallback ──
-// Downscale, thumbnail and contour renders go to worker/imageWorker.js with transferable
+// Downscale, thumbnail, contour, filter and co-edit result renders go to worker/imageWorker.js with transferable
 // bitmaps/buffers; without Workers or OffscreenCanvas — or in the single-file build, where
 // the worker URL throws — the same imageRaster.js sequence runs inline on a document canvas.
 import { core } from '../core/abi/stencilCore.js';
 import { applyContourRGBA } from '../core/image/contourFilter.js';
 import { IMAGE_TASK } from './imageMessages.js';
-import { fitSize, paintScaled, contourCanvas } from './imageRaster.js';
+import { fitSize, paintScaled, contourCanvas, paintResult } from './imageRaster.js';
 
 const pending = new Map();   // id → { resolve, reject }
 let worker = null;
@@ -27,7 +27,7 @@ const spawn = () => {
     const p = pending.get(data.id);
     if (!p) return;
     pending.delete(data.id);
-    if (data.ok) p.resolve(data.blob); else p.reject(new Error(data.error));
+    if (data.ok) p.resolve(data); else p.reject(new Error(data.error));
   };
   worker.onerror = (e) => {
     dead = true;
@@ -62,7 +62,7 @@ const makeCanvas = (w, h) => {
 const run = async (job, inline) => {
   if (imageWorkerUsable()) {
     try {
-      return await blobToDataUrl(await job());
+      return await blobToDataUrl((await job()).blob);
     } catch (err) {
       if (!worker) dead = true;
     }
@@ -94,3 +94,35 @@ export const contourToDataUrl = (readPixels, type = 'image/png') => run(
     return post({ task: IMAGE_TASK.CONTOUR, data: data.buffer, width, height, type }, [data.buffer]);
   },
   () => contourCanvas(makeCanvas, readPixels(), core.op('applyContourRGBA') || applyContourRGBA).toDataURL(type));
+
+// A filter build's RGBA pass (filterPixels.js) off-thread, painted into an ImageBitmap; rejects
+// when the worker is unusable or fails, and the caller then builds on its own thread.
+export const filterInWorker = async ({ recipe, pixels, rgb }) => {
+  if (!imageWorkerUsable()) throw new Error('image worker unavailable');
+  const { data, width, height } = pixels;
+  try {
+    return (await post({ task: IMAGE_TASK.FILTER, recipe, data: data.buffer, width, height, rgb }, [data.buffer])).bitmap;
+  } catch (err) {
+    if (!worker) dead = true;
+    throw err;
+  }
+};
+
+const blobBytes = async (blob) => (blob ? new Uint8Array(await blob.arrayBuffer()) : null);
+
+// A snapshotted resting paint (core/draw/restingPaint.js restingJob) as PNG bytes, the co-edit
+// result: painted and encoded in the worker over a bitmap copy of the base, else here by the same
+// paintResult sequence; null when the encoder gives nothing back.
+export const resultPngBytes = async (job) => {
+  const { base, ...fields } = job;
+  if (imageWorkerUsable()) {
+    try {
+      const bitmap = await createImageBitmap(base);
+      return await blobBytes((await post({ task: IMAGE_TASK.RESULT, ...fields, bitmap, type: 'image/png' }, [bitmap])).blob);
+    } catch {
+      if (!worker) dead = true;
+    }
+  }
+  const canvas = paintResult(makeCanvas, base, fields);
+  return blobBytes(await new Promise((resolve) => canvas.toBlob(resolve, 'image/png')));
+};

@@ -1,4 +1,6 @@
 import { isTypingTarget } from '../../../utils.js';
+import { selectedIndices } from '../../../core/line/selection.js';
+import { rotateSelectedLine, nudgeSelected } from '../../../core/draw/transformOps.js';
 export function wireArrowPan(app) {
   // Alt/Ctrl/Meta are reserved for other chords (Alt+ArrowUp = zoom); opposing arrows cancel.
   const arrowsHeld = new Set();
@@ -29,9 +31,9 @@ export function wireArrowPan(app) {
     // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Takes precedence
     // over pan/zoom so the chord always rotates when a line is selected.
     if (e.altKey && rHeld && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')
-        && app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
+        && selectedIndices(app).length >= 1 && !app.compareReadOnly()) {
       e.preventDefault();
-      app.rotateSelectedLine((e.key === 'ArrowLeft' ? -1 : 1) * (Math.PI / 60));
+      rotateSelectedLine(app, (e.key === 'ArrowLeft' ? -1 : 1) * (Math.PI / 60));
       return;
     }
     // Don't steal other Alt/Ctrl/Meta+Arrow combos used by other shortcuts (e.g. zoom).
@@ -39,7 +41,7 @@ export function wireArrowPan(app) {
 
     // With a line selected, plain arrows NUDGE the selection (1px, Shift = 10px, in image space);
     // with nothing selected they pan. In a compare (read-only) view nudging is off.
-    if (app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
+    if (selectedIndices(app).length >= 1 && !app.compareReadOnly()) {
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       let dx = 0, dy = 0;
@@ -47,7 +49,7 @@ export function wireArrowPan(app) {
       else if (e.key === 'ArrowRight') dx = step;
       else if (e.key === 'ArrowUp') dy = -step;
       else if (e.key === 'ArrowDown') dy = step;
-      app.nudgeSelected(dx, dy);
+      nudgeSelected(app, dx, dy);
       return;
     }
 

@@ -4,8 +4,8 @@
 // the spec asserts it EXECUTED — the saved PNG's real dimensions swapped.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { cliAvailable, pngSize, makeBlankInput } from '../../helpers/cli.js';
-import { runConsole } from '../../helpers/consoleCli.js';
+import { cliAvailable, pngSize, makeBlankInput } from '../../helpers/cli/run.js';
+import { runConsole } from '../../helpers/cli/console.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
 
 test.describe('cli /prompt (LLM assistant)', () => {
@@ -19,7 +19,7 @@ test.describe('cli /prompt (LLM assistant)', () => {
   test.afterAll(async () => { await stub?.close(); });
   test.beforeEach(() => stub.reset());
 
-  // The console reads /command lines from piped stdin (helpers/consoleCli.js); the
+  // The console reads /command lines from piped stdin (helpers/cli/console.js); the
   // STENCIL_LLM_* env points it at the stub living in this process.
   const runScripted = (lines, cwd) => runConsole(lines, {
     cwd,

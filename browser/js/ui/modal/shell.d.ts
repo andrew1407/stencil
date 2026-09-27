@@ -1,6 +1,6 @@
 import type { ModalShellApi } from './registry.js';
 
-/** What createModalFlight (ui/flight.js) hands a shell. */
+/** What createModalFlight (ui/modal/flight.js) hands a shell. */
 export interface ModalFlight {
   reducedMotion(): boolean;
   setOrigin(anchor: unknown): boolean;

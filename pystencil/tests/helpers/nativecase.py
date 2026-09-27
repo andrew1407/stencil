@@ -7,6 +7,7 @@ leg off in one place — the suite then runs on a machine with no C++ compiler.
 
 from __future__ import annotations
 
+import functools
 import os
 import unittest
 
@@ -34,3 +35,27 @@ class NativeCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls) -> None:
     cls.core = require_core()
+
+
+def needs_core(test):
+  """One test of an otherwise core-free case that needs core: an op-plan walk, or a layout
+  parse held to core's caps."""
+
+  @functools.wraps(test)
+  def run(self, *args, **kwargs):
+    require_core()
+    return test(self, *args, **kwargs)
+
+  return run
+
+
+def require_stb():
+  """:func:`require_core` plus the stb codec: a build that could not obtain the pinned stb
+  headers leaves JPEG and PNG's native decode out, and their cases skip with that reason."""
+  require_core()
+  from pystencil import codecs
+
+  try:
+    codecs.stblib.library("stb")
+  except codecs.CodecError as exc:
+    raise unittest.SkipTest("stb unavailable: %s" % exc)

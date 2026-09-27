@@ -86,10 +86,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!standingToasts(win).contains(QStringLiteral("Saved")), "no toast on the system channel");
 
     // The chat's own toast follows the channel too, its click still opening the chat.
-    win.showChatToast(QStringLiteral("Assistant finished"), true);
+    win.chatSession->showChatToast(QStringLiteral("Assistant finished"), true);
     QCOMPARE(fake->shown.last(), QString("Assistant finished"));
     QVERIFY(fake->lastClick);
-    QVERIFY(!win.chatToast || !win.chatToast->isVisible());
+    QVERIFY(!win.chatSession->chatToast || !win.chatSession->chatToast->isVisible());
 
     s.notifyChannel = QStringLiteral("toast");
     win.applySettings(s, /*persist=*/false);
@@ -97,8 +97,8 @@ class MainWindowGuiTest : public QObject {
     win.notify->success(QStringLiteral("Connected"));
     QTRY_VERIFY(standingToasts(win).contains(QStringLiteral("Connected")));
     QCOMPARE(fake->shown.size(), 2);
-    win.showChatToast(QStringLiteral("Assistant finished"), true);
-    QVERIFY(win.chatToast && win.chatToast->isVisible());
+    win.chatSession->showChatToast(QStringLiteral("Assistant finished"), true);
+    QVERIFY(win.chatSession->chatToast && win.chatSession->chatToast->isVisible());
     QCOMPARE(fake->shown.size(), 2);
   }
 };

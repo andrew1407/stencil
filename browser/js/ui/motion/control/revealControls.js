@@ -80,23 +80,6 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
   raf(() => raf(go));
 };
 
-// Keep a group's cloud anchored to the group for its flight (desktop:
-// DisintegrateOverlay::setFollow). Left/top only; stops with the host or on display:none.
-const followDust = (el, ms) => {
-  if (typeof requestAnimationFrame !== 'function' || !el.getBoundingClientRect) return;
-  const started = Date.now();
-  const step = () => {
-    const host = el.__dustHost;
-    if (!host || Date.now() - started >= ms) return;
-    const r = el.getBoundingClientRect();
-    if (!r || (!r.width && !r.height)) return;
-    host.style.left = `${r.left}px`;
-    host.style.top = `${r.top}px`;
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-};
-
 // `dust: false` slides the slot without a cloud (desktop twin: revealControls' `dust`); `ms`
 // overrides the slot's clock so a group can land together with something else. In `slide` the
 // cloud declines and the slot alone is the flight — only motionReduced() skips it entirely.
@@ -118,7 +101,6 @@ export function revealControls(el, show, display = 'inline-flex',
     const played = (dust && markIn(el, { ms: inMs, painter: groupPainter(el) })) || !motionReduced();
     if (size && played)
       slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });
-    if (dust && played) followDust(el, inMs);
     return played;
   }
 // Measured while still laid out, so the dust and the collapse start from the true box.
@@ -132,7 +114,6 @@ export function revealControls(el, show, display = 'inline-flex',
   } else {
     el.style.display = 'none';   // declined (reduced motion, too small): instant, as before
   }
-  if (dust && played) followDust(el, outMs);
   return played;
 }
 

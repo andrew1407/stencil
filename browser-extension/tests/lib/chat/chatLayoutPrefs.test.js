@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { assistantSrc } from '../../helpers/sources.js';
 import { readFileSync } from 'node:fs';
 
-// ── "Swap message sides" (lib/layoutPrefs.js) — browser js/ui/chat/layoutPrefs.js
+// ── "Swap message sides" (lib/chat/layoutPrefs.js) — browser js/ui/chat/layoutPrefs.js
 // parity. Deliberately in-memory, NOT persisted (user report: must not survive a reload
 // or a reopened popup/side panel/DevTools panel) — each test imports the module fresh
 // (a distinct query string) so it starts from a clean module-level variable, the same

@@ -19,3 +19,10 @@ pub fn cli_present() -> bool {
 pub fn edit_params(value: serde_json::Value) -> EditParams {
     serde_json::from_value(value).expect("params should deserialize")
 }
+
+/// Edit params confined to `root`, as the tool layer confines every run.
+pub fn confined_params(value: serde_json::Value, root: &std::path::Path) -> EditParams {
+    let mut params = edit_params(value);
+    params.confine_root = Some(root.to_string_lossy().into_owned());
+    params
+}

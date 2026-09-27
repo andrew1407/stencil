@@ -17,7 +17,8 @@ namespace stencil::gui {
                                   DisintegrateOverlay::SURFACE_MAX_CELLS, &cols, &rows);
     return DisintegrateOverlay::overPixmaps(shot, QPixmap(),
                                             QRect(w->mapTo(host, QPoint()), w->size()), host,
-                                            sweep, cols, rows, CHIP_DUST_MS, CHIP_DUST_DRIFT);
+                                            sweep, cols, rows, keywordChipClocks().dustMs,
+                                            keywordChipClocks().dustDrift);
   }
 
   void slideRowHeight(QObject* owner, QWidget* row, QVariantAnimation*& anim, bool show) {

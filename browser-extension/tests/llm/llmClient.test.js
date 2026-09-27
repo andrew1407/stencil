@@ -1,8 +1,8 @@
-// The extension's half of the shared LLM client.
-// src/llm/client.js is a byte-pinned PORT of browser/js/llm/client.js (portParity.test.js),
-// its §6 wire cases are the browser suite's, and the shared providerWire + sanitizer corpus is
-// walked against this client by fixtureWalkers.test.js — so none of that is duplicated here.
-// What remains is src/llm/surface.js: stencil-server token resolution and the failure wording.
+// The extension's half of the shared LLM client. src/llm/client.js is a byte-pinned PORT of
+// browser/js/llm/client.js (portParity.test.js), its §6 wire cases are the browser suite's, and the
+// shared providerWire + sanitizer corpus is walked by fixtureWalkers.test.js. What remains is
+// src/llm/surface.js: stencil-server token resolution, the loopback classifier the keyed wire
+// judges plain http by, and the failure wording.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createLlmClient, LlmError } from '../../src/llm/client.js';
@@ -58,6 +58,18 @@ test('…and falls back to settings.serverToken with no chrome at all (Node)', a
   });
   await client.chat({ system: 'S', messages: [] });
   assert.strictEqual(calls[0].init.headers.Authorization, 'Bearer explicit-tok');
+});
+
+// ── the keyed wire rides this surface's loopback classifier ──
+
+test('anthropic over plain http: [::1] carries the key with redirects off, a LAN host gets nothing', async () => {
+  const { calls, fetchImpl } = mockFetch({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] });
+  const settings = (baseUrl) => ({ provider: 'anthropic', baseUrl, apiKey: 'sk-ant-test-0123456789abcdef' });
+  assert.strictEqual(await createLlmClient({ settings: settings('http://[::1]:8787'), fetchImpl }).chat({ system: 'S', messages: [] }), 'ok');
+  assert.deepStrictEqual([calls[0].url, calls[0].init.redirect], ['http://[::1]:8787/v1/messages', 'error']);
+  await assert.rejects(createLlmClient({ settings: settings('http://192.168.1.5'), fetchImpl }).chat({ system: 'S', messages: [] }),
+    { kind: 'disabled', message: "refusing to send the API key to '192.168.1.5' over plain http — use https" });
+  assert.strictEqual(calls.length, 1, 'the refused turn sent nothing');
 });
 
 // ── turnFailureText: the same voice as every other surface ──

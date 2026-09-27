@@ -5,7 +5,6 @@ const std = @import("std");
 const net = @import("../net.zig");
 const report = @import("../app/report.zig");
 
-
 /// Injectable I/O seam so `runImpl`'s orchestration (fetch → filter → window → write → the §3 stderr
 /// lines) is testable with no network and no disk. `run` wires the real net.fetch/report.print/cwd.
 pub const Deps = struct {

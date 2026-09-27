@@ -3,11 +3,7 @@ export function wireScrollPersist(app) {
   {
     const scrollVp = document.getElementById('canvas-viewport');
     if (scrollVp) {
-      let scrollSaveTimer = null;
-      scrollVp.addEventListener('scroll', () => {
-        clearTimeout(scrollSaveTimer);
-        scrollSaveTimer = setTimeout(() => app.storage.save(), 400);
-      });
+      scrollVp.addEventListener('scroll', () => app.storage.saveSoon());
     }
   }
 }

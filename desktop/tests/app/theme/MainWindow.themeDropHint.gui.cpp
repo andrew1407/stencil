@@ -15,9 +15,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 720);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.dropHintText);
+    QVERIFY(win.tools.dropHintText);
 
-    const QString dark = win.dropHintText->text();
+    const QString dark = win.tools.dropHintText->text();
     QVERIFY2(dark.contains(QLatin1String(stencil::gui::KEYCAP_CLASS)),
              "the paste combo must be drawn as keycaps, not spelled out");
 #ifdef Q_OS_MACOS
@@ -26,14 +26,14 @@ class MainWindowGuiTest : public QObject {
 #endif
 
     Settings flipped = win.settings;
-    flipped.themeMode = win.paintedDark ? "light" : "dark";
+    flipped.themeMode = win.painted.dark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
-    QVERIFY2(win.dropHintText->text() != dark,
+    QVERIFY2(win.tools.dropHintText->text() != dark,
              "the caps carry their colours in the picture — a theme change must repaint them");
 
     // …and the SENTENCE sits centred beside them: a keycap is taller than the type and an inline image
     // inflates the line box downwards, so the line is one middle-aligned table row.
-    QLabel* hint = win.dropHintText;
+    QLabel* hint = win.tools.dropHintText;
     QImage ink(hint->size() * 2, QImage::Format_ARGB32_Premultiplied);
     ink.setDevicePixelRatio(2);
     ink.fill(Qt::transparent);

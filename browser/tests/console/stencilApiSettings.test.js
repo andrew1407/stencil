@@ -74,8 +74,12 @@ test('every documented flattened setting routes to its app setter with the expec
   }
 
   // Special routing: drawMode normalizes, formulas pick an axis, visual colors pick a channel.
-  stencil.drawMode = 'rect';
-  assert.deepEqual(lastCall(app, 'setDrawMode'), ['setDrawMode', 'rect']);
+  // setDrawMode (core/draw/mode.js) takes the mode and repaints the Line/Rect face.
+  stencil.drawMode = 'RECT';
+  assert.equal(app.drawMode, 'rect');
+  assert.equal(called(app, 'syncDrawModeUI').length, 1);
+  stencil.drawMode = 'anything else';
+  assert.equal(app.drawMode, 'line');
   stencil.holdDrawDelay = 750;
   assert.deepEqual(lastCall(app, 'setHoldDrawDelay'), ['setHoldDrawDelay', 750]);
   stencil.formulaX = 'x*2';

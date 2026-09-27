@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo && win.canvas);
     // With a picture loaded, so a canvas press is an ordinary editing press and not the
     // empty canvas's "create a blank image" invitation (another modal dialog).
@@ -29,7 +29,7 @@ class MainWindowGuiTest : public QObject {
     // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
-      if (it.value() == win.actInfo && static_cast<QWidget*>(it.key())->isVisible())
+      if (it.value() == win.acts.info && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 
@@ -78,7 +78,7 @@ class MainWindowGuiTest : public QObject {
       // The closing click is spent: no icon may re-open what it just dismissed.
       QVERIFY2(!win.pop.clickTimer->isActive(),
                qPrintable(QString("%1: the dismissing click armed a re-open").arg(what)));
-      QVERIFY2(!win.logoClickTimer->isActive(),
+      QVERIFY2(!win.tools.logoClickTimer->isActive(),
                qPrintable(QString("%1: the dismissing click armed the accent cycle").arg(what)));
       QTest::qWait(320);   // past both deferred-click delays…
       QVERIFY2(!win.pop.active, qPrintable(QString("%1: it came back").arg(what)));

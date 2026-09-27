@@ -1,5 +1,5 @@
 // One <img>/<video> pair per source tab of the Open-Image dialog, plus the events each pair
-// answers. Part of ui/openImageTabs.js, which decides which pair is on screen.
+// answers. Part of ui/openImage/tabs.js, which decides which pair is on screen.
 import { retryWithoutCors } from '../canvas/mediaCors.js';
 
 // What each pair holds: the source key being loaded, its kind, the object URL behind

@@ -3,6 +3,7 @@
 // UI's own applyCrop, so a scripted crop and the modal's crop are one code path.
 import { resolveAxisPx } from '../../core/settings/units.js';
 import { cropAspect, scaleCropCentered } from '../../core/parse/cropGeometry.js';
+import { getPageDimensions, pixelToPageCoords } from '../../core/parse/pageMetrics.js';
 
 export const createCropApi = ({ app }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
@@ -22,7 +23,7 @@ export const createCropApi = ({ app }) => {
         app.imageModel.applyCrop({ x: next.x, y: next.y, width: next.width, height: next.height }, { recalc: true });
         return stencil;
       }
-      const ps = app.getPageDimensions();
+      const ps = getPageDimensions(app);
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
       const edge = (tok, cur, lengthPx, pxPerCm) =>
         tok == null ? cur : resolveAxisPx(tok, { lengthPx, pxPerCm, currentPx: cur });
@@ -63,10 +64,10 @@ export const createCropApi = ({ app }) => {
     },
 
     // px → page coords (cm, with active formulas applied).
-    px2Page({ x = 0, y = 0 } = {}) { return app.pixelToPageCoords(Number(x), Number(y)); },
+    px2Page({ x = 0, y = 0 } = {}) { return pixelToPageCoords(app, Number(x), Number(y)); },
     // page (cm) → px. Inverts the linear page mapping; does NOT invert formulas.
     page2Px({ x = 0, y = 0 } = {}) {
-      const ps = app.getPageDimensions();
+      const ps = getPageDimensions(app);
       return { x: (Number(x) / ps.width) * app.canvas.width, y: (Number(y) / ps.height) * app.canvas.height };
     },
   };

@@ -6,8 +6,6 @@
 #include "openImageDialogParts.hpp"
 #include <algorithm>
 #include <QDateTime>
-#include <QPainter>
-#include <cmath>
 #include <QGraphicsOpacityEffect>
 #include <QLabel>
 #include <QLayout>
@@ -25,9 +23,7 @@ namespace stencil::gui {
   void OpenImageDialog::gatherPreviewDust(const QPixmap& shot) {
     QWidget* host = previewLabel->parentWidget();
     if (!host || shot.isNull() || support::motionReduced()) return;
-    auto* veil = new QGraphicsOpacityEffect(previewLabel);
-    veil->setOpacity(0.0);
-    previewLabel->setGraphicsEffect(veil);
+    QGraphicsOpacityEffect* veil = veilBehindDust(previewLabel);
     QPointer<QLabel> label(previewLabel);
     const int gen = motion.gen;
     // After the height ease has LANDED — a cloud pinned mid-resize flies to where the label
@@ -64,7 +60,7 @@ namespace stencil::gui {
       return;
     }
     // The mesh comes from the BOX, as the keyword chip's and the browser's do (dustGrid is
-    // motion/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line flew as horizontal slices.
+    // surface/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line flew as horizontal slices.
     if (!arriving) {
       const QPixmap shot = cropDims->grab();   // before it goes: see below
       if (!shot.isNull()) chipCloud(host, cropDims, shot, DisintegrateOverlay::Sweep::FALL);
@@ -74,9 +70,7 @@ namespace stencil::gui {
     slideRowHeight(this, cropDims, motion.dimsAnim, true);
     if (QLayout* l = host->layout()) l->activate();
     const QPixmap shot = cropDims->grab();
-    auto* veil = new QGraphicsOpacityEffect(cropDims);
-    veil->setOpacity(0.0);
-    cropDims->setGraphicsEffect(veil);
+    QGraphicsOpacityEffect* veil = veilBehindDust(cropDims);
     QPointer<QLabel> label(cropDims);
     const int gen = motion.gen;
     // ONE turn later, not synchronously: the resize syncCropStage just asked for lands when this turn
@@ -101,7 +95,7 @@ namespace stencil::gui {
       };
       if (motion.dimsAnim) connect(motion.dimsAnim, &QVariantAnimation::valueChanged, fx, follow);
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
-      QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), label, lift);
+      QTimer::singleShot(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP), label, lift);
     });
   }
 

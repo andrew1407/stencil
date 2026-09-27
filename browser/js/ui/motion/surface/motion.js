@@ -31,8 +31,9 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point,
   const h = (box?.height || 0) / Math.max(1, rows);
   const homeX = (box?.left || 0) + (cx + 0.5) * w;
   const homeY = (box?.top || 0) + (cy + 0.5) * h;
-  const toX = (point?.x || 0) - homeX;
-  const toY = (point?.y || 0) - homeY;
+  // A `lane` point is an edge: each cell crosses straight to it along that axis, keeping its row.
+  const toX = point?.lane === 'y' ? 0 : (point?.x || 0) - homeX;
+  const toY = point?.lane === 'x' ? 0 : (point?.y || 0) - homeY;
 // Normalised against the longest trip any cell makes, so the sweep fills the whole flight.
   const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
   const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
@@ -57,6 +58,19 @@ export const dockAwayPoint = (rect, dock, reach = 1.7) => {
   if (dock === 'right') return { x: cx + rect.width * reach, y: cy };
   if (dock === 'top') return { x: cx, y: cy - rect.height * reach };
   if (dock === 'bottom') return { x: cx, y: cy + rect.height * reach };
+  return null;
+};
+
+// The window edge a docked surface leaves through, as a per-row lane (surfaceMotion), `bleed` past it
+// where the cloud's canvas ends (dust/cloud.js); a far point flew off unseen in two frames (user report).
+export const dockEdgeLane = (rect, dock, bleed = 64) => {
+  const vw = globalThis.innerWidth, vh = globalThis.innerHeight;
+  if (!rect || !(vw > 0 && vh > 0)) return dockAwayPoint(rect, dock);
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  if (dock === 'right') return { x: Math.max(vw, rect.left + rect.width) + bleed, y: cy, lane: 'x' };
+  if (dock === 'left') return { x: Math.min(0, rect.left) - bleed, y: cy, lane: 'x' };
+  if (dock === 'top') return { x: cx, y: Math.min(0, rect.top) - bleed, lane: 'y' };
+  if (dock === 'bottom') return { x: cx, y: Math.max(vh, rect.top + rect.height) + bleed, lane: 'y' };
   return null;
 };
 

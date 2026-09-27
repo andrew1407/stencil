@@ -10,7 +10,7 @@
     pointer-events: none;
     overflow: visible;
 }
-/* The cloud is ONE canvas inside the layer (js/ui/dustCloud.js): every grain is drawn
+/* The cloud is ONE canvas inside the layer (js/ui/dust/cloud.js): every grain is drawn
    there per frame in a few batched fills, so a window-sized cloud is one layer, not a
    compositor layer per mote. The flights that used to be keyframes here (tileScatter,
    tileGather, tileGatherSurface, tileScatterSurface, tileFall) are dustCloud's FLIGHTS
@@ -85,6 +85,12 @@
    the short --gather-ms each but set off across the reversed sweep, and a host fading on
    the leg alone cut every late mote off at half time. */
 .disintegrate-host.dust-forming { animation: dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both; }
+/* A cloud over a surface still under it (surfaces.js picture): a grain is hidden until it leaves (cloud.js
+   `cut`), so the cloud is whole from the start — ramped, it was a dim still field that blinked out (user
+   report). On the way in it holds until the surface fades up, then clears by four fifths. */
+@keyframes dustHostSettle { 0%, 55% { opacity: 1; } 80%, 100% { opacity: 0; } }
+.disintegrate-host.dust-leaving.dust-over-picture { animation: none; }
+.disintegrate-host.dust-forming.dust-over-picture { animation-name: dustHostSettle; }
 /* A popup whose visibility is a pure `:hover` rule (the toolbar's hints bubble) still
    leaves as sand. By the time pointerleave runs `:hover` is
    already gone and the box is display:none, so there is nothing left to copy — this
@@ -126,7 +132,8 @@ input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checke
    underneath the particles and read as the clear happening twice. It fades in as the
    last motes land. */
 .canvas-viewport.canvas-clearing .idle-create,
-.canvas-viewport.canvas-clearing #canvas { opacity: 0; }
+.canvas-viewport.canvas-clearing #canvas,
+.canvas-viewport.canvas-clearing #canvas-overlay { opacity: 0; }
 /* The same trick for the arrival (ghostIn): the canvas is painted before the motes
    have gathered, so it waits behind them and fades up as the last one lands —
    otherwise the finished picture sits there while its own dust flies at it. */
@@ -134,8 +141,10 @@ input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checke
    (when the class comes off, the last motes landing), but it applied to the hide too — so
    a pasted image sat there at full strength for 280ms, fading, while its own dust flew at
    it. That fade-out IS the blink in "the image appears, vanishes, then animates in". */
-.canvas-viewport.canvas-assembling #canvas { opacity: 0; transition: none; }
-.canvas-viewport .idle-create, .canvas-viewport #canvas { transition: opacity 0.28s ease; }
+.canvas-viewport.canvas-assembling #canvas,
+.canvas-viewport.canvas-assembling #canvas-overlay { opacity: 0; transition: none; }
+.canvas-viewport .idle-create, .canvas-viewport #canvas,
+.canvas-viewport #canvas-overlay { transition: opacity 0.28s ease; }
 
 /* ── Canvas dust (js/ui/motion.js ghostOut) ──────────────────────────────────
    Clearing the canvas is instant and leaves nothing to animate, so the pixels are

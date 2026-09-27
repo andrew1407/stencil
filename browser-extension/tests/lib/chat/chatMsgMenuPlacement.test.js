@@ -1,4 +1,4 @@
-// Where src/lib/msgMenu.js puts the menu: the clamp against the viewport edges, the pop's
+// Where src/lib/chat/msgMenu.js puts the menu: the clamp against the viewport edges, the pop's
 // transform-origin under the cursor, and the Escape listener armed per open.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

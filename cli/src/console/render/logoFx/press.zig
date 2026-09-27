@@ -14,9 +14,7 @@ const timing = @import("timing.zig");
 const iconDegrees = clock.iconDegrees;
 const iconSpans = clock.iconSpans;
 const waitFrame = timing.waitFrame;
-const spin = timing.spin;
-const inputPending = timing.inputPending;
-const Frame = timing.Frame;
+const frame = @import("../../screen/frame.zig");
 const icon_cols = clock.icon_cols;
 
 const flourish_step_ms = 115; // per-letter pace of the theme-change wordmark wave
@@ -34,6 +32,10 @@ const rule_wipe_pct = 178;
 /// Flash the logo one cell smaller and back — the pressed state of a button, for a click on the
 /// pinned logo. Plays before the accent changes; silent when the header was never captured.
 pub fn pressLogo(self: *Screen) void {
+    frame.begin(self);
+    defer frame.end(self);
+    const kept = frame.keepCursor(self);
+    defer frame.returnCursor(self, kept);
     const logo_rows = self.headerRows() -| screen_mod.header_pad;
     if (logo_rows == 0) return;
     var small: std.ArrayList([]u8) = .empty;
@@ -63,7 +65,7 @@ pub fn pressLogo(self: *Screen) void {
         screen_mod.gotoRow(self.fd, row);
         screen_mod.ttyWrite(self.fd, ansi.clipPadded(line, w, &rb));
     }
-    spin(self.io, press_ms); // held, not abortable: the click's own release is already queued
+    timing.hold(self, press_ms); // not abortable: the click's own release is already queued
     self.paintHeader(); // release: back to the full-size logo
 }
 
@@ -74,7 +76,7 @@ fn accentReach(self: *Screen) u16 {
     if (self.bodyRows() != 0) {
         const w = self.window();
         var i: usize = w.first;
-        while (i < w.end) : (i += 1) reach = @max(reach, ansi.accentReachOf(self.lines.items[i]));
+        while (i < w.end) : (i += 1) reach = @max(reach, ansi.accentReachOf(self.lines.at(i)));
     }
     return @min(reach, self.cols);
 }
@@ -135,16 +137,14 @@ pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
 fn paintRecolored(self: *Screen, old_header: []const []u8, x: u16, old_accent: []const u8, new_accent: []const u8, accent_rows_only: bool) void {
     var rb: [8192]u8 = undefined;
     var spans: [3]Span = undefined;
-    // One write per frame: a moving seam touches a dozen rows, and dribbling them out row by
-    // row lets the terminal fall behind the clock the sweep is paced against.
-    var frame = Frame{ .fd = self.fd };
+    self.scroll_owed = false; // the rows below are redrawn from the window as it stands
     const deg = iconDegrees(self, x);
     for (self.header.items, 0..) |line, i| {
         const was = if (i < old_header.len) old_header[i] else line;
         const row: u16 = @intCast(i + 1);
         const n = iconSpans(self, row, deg, x, &spans);
-        frame.at(row);
-        frame.put(ansi.spliceSpans(line, was, self.cols, spans[0..n], new_accent, old_accent, &rb));
+        screen_mod.gotoRow(self.fd, row);
+        screen_mod.ttyWrite(self.fd, ansi.spliceSpans(line, was, self.cols, spans[0..n], new_accent, old_accent, &rb));
     }
     if (self.bodyRows() != 0) {
         self.clampScroll();
@@ -152,15 +152,14 @@ fn paintRecolored(self: *Screen, old_header: []const []u8, x: u16, old_accent: [
         var r: u16 = self.headerRows() + 1;
         var i: usize = w.first;
         while (i < w.end) : (i += 1) {
-            const line = self.lines.items[i];
+            const line = self.lines.at(i);
             if (!accent_rows_only or ansi.carriesAccent(line)) {
-                frame.at(r);
-                frame.put(ansi.spliceAccent(line, line, self.cols, x, new_accent, old_accent, &rb));
+                screen_mod.gotoRow(self.fd, r);
+                screen_mod.ttyWrite(self.fd, ansi.spliceAccent(line, line, self.cols, x, new_accent, old_accent, &rb));
             }
             r += 1;
         }
     }
-    frame.flush();
     // The rule runs AHEAD of the seam — at the seam's own rate a full-width line reads as
     // slow, so it covers the width in the first `100/rule_wipe_pct` of the seam's travel.
     const span = @max(@as(u32, 1), @as(u32, self.wipe_reach));

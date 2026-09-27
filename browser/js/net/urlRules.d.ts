@@ -21,6 +21,7 @@ export declare function wsUrl(origin: string): string;
 
 /** 401/403 — the credential was refused, as opposed to the server being absent. */
 export declare function isAuthStatus(status: number): boolean;
+export declare function isRedirect(resp: { type?: string; status: number }): boolean;
 
 /** The same question asked of a thrown REST error. */
 export declare function isExpiredSession(err: unknown): boolean;

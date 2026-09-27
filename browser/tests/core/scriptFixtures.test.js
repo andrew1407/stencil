@@ -1,5 +1,5 @@
 // Walks the shared corpus in js/config/script/fixtures/cases.txt — the same file
-// core/tests/scriptFixtures.test.cpp replays. Mirrors core/tests/scriptFixtures.test.cpp.
+// core/tests/script/scriptFixtures.test.cpp replays. Mirrors core/tests/script/scriptFixtures.test.cpp.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 

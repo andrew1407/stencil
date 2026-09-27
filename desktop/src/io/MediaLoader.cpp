@@ -1,14 +1,13 @@
 #include "MediaLoader.hpp"
 #include "mediaLoaderParts.hpp"
 #include "fetchGuard.hpp"
-#include <QAudioOutput>
+#include <QFile>
 #include <QFileInfo>
-#include <QMediaMetaData>
-#include <QMediaPlayer>
-#include <QTimer>
-#include <QVideoFrame>
-#include <QVideoSink>
+#include <QFutureWatcher>
+#include <QPromise>
+#include <QThreadPool>
 #include <algorithm>
+#include <memory>
 
 namespace stencil::gui {
 
@@ -58,6 +57,7 @@ namespace stencil::gui {
     this->src = src;
     this->frame = std::max(0, frame);
     done = false;
+    ++loadSerial;
     isVideo = false;
     thumbnail = QImage();
     fps = 0;
@@ -67,14 +67,15 @@ namespace stencil::gui {
     if (src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
       localPath.clear();
       url.clear();
-      QImage img;
-      // A malformed payload fails like any other candidate, so the walk carries on past it.
-      if (!decodeDataUri(src, img)) {
-        fail(QStringLiteral("Could not decode the inline image"));
-        return;
-      }
-      done = true;
-      emit loaded(img, QString());
+      decodeThen([src] {
+        QImage img;
+        return decodeDataUri(src, img) ? img : QImage();
+      }, [this](const QImage& img) {
+        // A malformed payload fails like any other candidate, so the walk carries on past it.
+        if (img.isNull()) return fail(QStringLiteral("Could not decode the inline image"));
+        done = true;
+        emit loaded(img, QString());
+      });
       return;
     }
 
@@ -142,15 +143,18 @@ namespace stencil::gui {
         startVideo(url);
         return;
       }
-      QImage img(localPath.isEmpty() ? url.toLocalFile() : localPath);
-      if (!img.isNull()) {
-        const QString path = localPath;
+      const QString file = localPath.isEmpty() ? url.toLocalFile() : localPath;
+      auto still = std::make_shared<bool>(false);   // written on the pool, read once it has answered
+      decodeThen([file, still] {
+        QFile f(file);
+        *still = f.open(QIODevice::ReadOnly) && isStillImage(f.read(SIGNATURE_BYTES));
+        return QImage(file);
+      }, [this, still](const QImage& img) {
+        if (img.isNull() && *still) return fail(unreadableMessage(src));
+        if (img.isNull()) return startVideo(url);   // extensionless or misdetected: try the media decoder
         done = true;
-        emit loaded(img, path);
-        return;
-      }
-      // Extensionless or misdetected — give the media decoder a chance.
-      startVideo(url);
+        emit loaded(img, localPath);
+      });
       return;
     }
 
@@ -164,26 +168,47 @@ namespace stencil::gui {
       startVideo(url);  // QMediaPlayer streams a direct media URL itself
       return;
     }
-    // Unknown remote: download and try to decode as an image; if that fails,
-    // fall back to treating the URL as streamable video.
+    // Unknown remote: download and decode it as an image; bytes that fail with no still-image
+    // signature may yet be a video, so the URL is streamed.
     const QUrl u = url;
     guard::get(this, u, /*strict=*/false, [this, u](const QByteArray& bytes, const QString& err) {
       if (done) return;
-      QImage img;
-      if (err.isEmpty() && img.loadFromData(bytes)) {
+      auto notImage = [this, u, err] {
+        // A candidate still waiting makes the video probe a stall: the answer has already
+        // settled this one (the browser refuses an unaccepted content type and moves on).
+        if (hasMoreCandidates()) {
+          fail(QStringLiteral("Could not fetch --src: %1")
+                   .arg(err.isEmpty() ? QStringLiteral("that URL is not an image") : err));
+          return;
+        }
+        startVideo(u);  // not an image (or no bytes): a media stream may still work
+        if (!player && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
+      };
+      if (!err.isEmpty() || bytes.isEmpty()) return notImage();
+      const bool still = isStillImage(bytes.left(SIGNATURE_BYTES));
+      decodeThen([bytes] { return QImage::fromData(bytes); }, [this, notImage, still](const QImage& img) {
+        if (img.isNull() && still && !hasMoreCandidates()) return fail(unreadableMessage(src));
+        if (img.isNull()) return notImage();
         done = true;
         emit loaded(img, QString());
-        return;
-      }
-      // A candidate still waiting makes the 20 s video probe a stall: the answer has already
-      // settled this one (the browser refuses an unaccepted content type and moves on).
-      if (hasMoreCandidates()) {
-        fail(QStringLiteral("Could not fetch --src: %1")
-                 .arg(err.isEmpty() ? QStringLiteral("that URL is not an image") : err));
-        return;
-      }
-      startVideo(u);  // not an image (or no bytes): a media stream may still work
-      if (!player && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
+      });
+    });
+  }
+
+  void MediaLoader::decodeThen(std::function<QImage()> work,
+                               std::function<void(const QImage&)> then) {
+    const quint64 serial = loadSerial;
+    auto* watcher = new QFutureWatcher<QImage>(this);
+    auto promise = std::make_shared<QPromise<QImage>>();
+    connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher, serial, then] {
+      watcher->deleteLater();
+      if (serial == loadSerial && !done) then(watcher->future().resultCount() ? watcher->result() : QImage());
+    });
+    watcher->setFuture(promise->future());
+    promise->start();
+    QThreadPool::globalInstance()->start([promise, work] {
+      promise->addResult(work());
+      promise->finish();
     });
   }
 }

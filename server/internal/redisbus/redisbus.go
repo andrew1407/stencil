@@ -14,22 +14,25 @@ import (
 	"stencil/server/internal/eventbus"
 )
 
-// subBuffer mirrors the in-proc bus: a slow consumer drops rather than stalls.
-const subBuffer = 64
+// DefaultSubscribeTimeout is the wait for Redis to acknowledge a SUBSCRIBE when none is given
+// (REDIS_SUBSCRIBE_TIMEOUT_SECONDS).
+const DefaultSubscribeTimeout = 5 * time.Second
 
-const subscribeTimeout = 5 * time.Second // the wait for Redis to acknowledge a SUBSCRIBE
-
-// Options size the client; a zero field keeps go-redis's default.
+// Options size the client; a zero field keeps go-redis's default (SubBuffer: the in-proc bus's).
 type Options struct {
-	PoolSize    int
-	DialTimeout time.Duration
-	IOTimeout   time.Duration
+	PoolSize         int
+	DialTimeout      time.Duration
+	IOTimeout        time.Duration
+	SubBuffer        int           // deliveries queued per subscriber before one drops
+	SubscribeTimeout time.Duration // the wait for Redis to acknowledge a SUBSCRIBE; 0 = DefaultSubscribeTimeout
 }
 
 // redisBus is the Redis-backed implementation of eventbus.Bus.
 type redisBus struct {
-	client *redis.Client
-	drops  eventbus.DropLog
+	client           *redis.Client
+	drops            eventbus.DropLog
+	buffer           int
+	subscribeTimeout time.Duration
 }
 
 var _ eventbus.Bus = (*redisBus)(nil)
@@ -60,7 +63,14 @@ func NewWithOptions(ctx context.Context, redisURL string, opts Options) (eventbu
 		_ = client.Close()
 		return nil, err
 	}
-	return &redisBus{client: client}, nil
+	b := &redisBus{client: client, buffer: opts.SubBuffer, subscribeTimeout: opts.SubscribeTimeout}
+	if b.buffer <= 0 {
+		b.buffer = eventbus.DefaultSubBuffer
+	}
+	if b.subscribeTimeout <= 0 {
+		b.subscribeTimeout = DefaultSubscribeTimeout
+	}
+	return b, nil
 }
 
 // Publish posts one envelope to a Redis channel — the only place it is
@@ -80,12 +90,12 @@ func (b *redisBus) Subscribe(channel string) (<-chan eventbus.Envelope, func()) 
 	// the initial SUBSCRIBE uses a background context.
 	pubsub := b.client.Subscribe(context.Background(), channel)
 	// A publish that beats the subscription is lost even to local members, who receive through the bus.
-	ctx, cancel := context.WithTimeout(context.Background(), subscribeTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.subscribeTimeout)
 	defer cancel()
 	if _, err := pubsub.Receive(ctx); err != nil {
 		log.Printf("redisbus: subscription to %s unconfirmed: %v", channel, err)
 	}
-	out := make(chan eventbus.Envelope, subBuffer)
+	out := make(chan eventbus.Envelope, b.buffer)
 	go func() {
 		defer close(out)
 		for msg := range pubsub.Channel() {

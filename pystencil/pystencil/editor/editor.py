@@ -12,10 +12,10 @@ so any edit can be serialized back to a browser-compatible layout JSON (see :met
 not just flattened into pixels. ``/undo``, ``/redo`` and ``/reset`` move the cursor and the
 view re-derives. Every mutator is chainable (returns ``self``).
 
-Geometry composition (crop into rotated-original space, the crop riding along through a
-rotation) is ported one-to-one from ``session.applyCrop`` / ``session.applyRotate`` /
-``rotateRectQuarters``; crop-spec page metrics come from ``cli/src/pipeline.zig``
-(``resolveCropSpec`` + ``pageForImage``).
+Geometry composition (crop into rotated-original space, the crop and the lines riding along
+through a rotation, the lines recalculated by a crop) is ported one-to-one from
+``session.applyCrop`` / ``session.applyRotate``; crop-spec page metrics come from
+``cli/src/pipeline.zig`` (``resolveCropSpec`` + ``pageForImage``).
 
 Split across _snapshot / source / edits / derive / layout_io / project / assistant;
 what stays here is the history itself — the original image, the snapshot stack and the

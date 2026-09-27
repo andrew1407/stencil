@@ -1,175 +1,126 @@
-//! Transport for the console LLM assistant: the background POST job + waiter,
-//! the guarded net.request path, and the sanitized provider error details.
+//! Transport for the console LLM assistant: the guarded net.request path, the headers each
+//! wire sends, the watched call (net/jobCall.zig, every console network call's worker), and what
+//! a failed call may say (transport/detail.zig, and the §6.5 classifier in transport/anthropic.zig).
 const std = @import("std");
 const net = @import("../net.zig");
+const jobCall = @import("../net/jobCall.zig");
 const report = @import("../app/report.zig");
 const wire = @import("wire.zig");
-const sanitize = @import("../safety/sanitize.zig");
+const providers = @import("providers.zig");
+const anthropic = @import("transport/anthropic.zig");
+const detail = @import("transport/detail.zig");
 
 // Symbols living in the sibling llm/ modules (facade: ../llm.zig).
-const member = wire.member;
 const memberStr = wire.memberStr;
+const Request = wire.Request;
 
-/// `LlmDisabled` = the server's 503 llmDisabled (no LLM key configured) — typed so a caller can tell
-/// "configure the server" from a broken transport. Every other non-2xx is `HttpFailed`.
+/// `LlmDisabled` = no model behind the call: the server's 503 llmDisabled, or an anthropic turn with
+/// no session key or bound for plain http off loopback (§6.5) — "configure it", not "the network broke".
 pub const PostError = error{ BlockedHost, HttpFailed, LlmDisabled, OutOfMemory, Cancelled, TimedOut };
 
 /// How long one LLM call may run before it is abandoned: a vision plan over a big image is slow, but
 /// a silent provider must not wedge the console. 600s is providers.json timeouts.perSurface.cli.
 pub const request_timeout_ms: i64 = 10 * 60 * 1000;
 
-/// How a caller waiting on a slow call watches for a Ctrl-C: `poll` waits up to its `timeout_ms` and
-/// returns true to cancel. Null = nothing to watch, and the call runs to completion on this thread.
-pub const Waiter = struct {
-    ctx: ?*anyopaque = null,
-    poll: ?*const fn (ctx: *anyopaque, timeout_ms: i32) bool = null,
-    timeout_ms: i64 = request_timeout_ms,
-    // Fired once per wait beat with the clock in ms — the console's spinner advances on it.
-    beat_ctx: ?*anyopaque = null,
-    beat: ?*const fn (ctx: *anyopaque, now_ms: i64) void = null,
+/// What an anthropic turn with no key fails with (§6.5) — nothing has been sent.
+pub const no_key_message = "no API key for this session";
 
-    fn watching(self: Waiter) bool {
-        return self.poll != null and self.ctx != null;
+/// The console's watch on a turn: its Ctrl-C poll, the spinner's beat and `request_timeout_ms`.
+pub const Waiter = net.Waiter;
+
+/// One exchange: the URL, headers and body out, the status and a capped body back.
+pub const SendFn = *const fn (gpa: std.mem.Allocator, io: std.Io, url: []const u8, headers: []const std.http.Header, body: []const u8) PostError!net.Response;
+
+pub const HeaderBuf = [4]std.http.Header;
+
+/// The headers a request carries (§6): JSON, then the bearer — or anthropic's `x-api-key` with its
+/// `anthropic-version`, and never the browser-only direct-access header.
+pub fn headersFor(auth: ?[]const u8, api_key: ?[]const u8, buf: *HeaderBuf) []const std.http.Header {
+    buf[0] = .{ .name = "content-type", .value = "application/json" };
+    var n: usize = 1;
+    if (auth) |a| {
+        buf[n] = .{ .name = "authorization", .value = a };
+        n += 1;
     }
-};
-
-/// One in-flight POST handed to a worker thread. The state word is the ownership handoff: whoever
-/// moves it out of `.running` owns the response and frees it.
-pub const Job = struct {
-    const State = enum(u8) { running, finished, cancelled };
-
-    gpa: std.mem.Allocator,
-    io: std.Io,
-    // Owned copies: the caller's buffers may be gone by the time an abandoned worker lands.
-    url: []u8,
-    auth: ?[]u8,
-    body: []u8,
-    state: std.atomic.Value(u8) = .init(@intFromEnum(State.running)),
-    res: ?net.Response = null,
-    err: ?PostError = null,
-
-    fn init(gpa: std.mem.Allocator, io: std.Io, url: []const u8, auth: ?[]const u8, body: []const u8) !*Job {
-        const job = try gpa.create(Job);
-        errdefer gpa.destroy(job);
-        job.* = .{
-            .gpa = gpa,
-            .io = io,
-            .url = try gpa.dupe(u8, url),
-            .auth = if (auth) |a| try gpa.dupe(u8, a) else null,
-            .body = try gpa.dupe(u8, body),
-        };
-        return job;
+    if (api_key) |k| {
+        buf[n] = .{ .name = "x-api-key", .value = k };
+        buf[n + 1] = .{ .name = "anthropic-version", .value = providers.get().anthropic_version };
+        n += 2;
     }
-
-    /// Free the job itself (never the response — that follows the state handoff).
-    fn destroy(self: *Job) void {
-        const gpa = self.gpa;
-        gpa.free(self.url);
-        if (self.auth) |a| gpa.free(a);
-        gpa.free(self.body);
-        gpa.destroy(self);
-    }
-
-    /// Move the state out of `.running`, reporting whether this caller won the handoff.
-    fn claim(self: *Job, to: State) bool {
-        return self.state.cmpxchgStrong(@intFromEnum(State.running), @intFromEnum(to), .acq_rel, .acquire) == null;
-    }
-
-    fn run(self: *Job) void {
-        if (rawRequest(self.gpa, self.io, self.url, self.auth, self.body)) |res| self.res = res else |e| self.err = e;
-        if (self.claim(.finished)) return; // the caller is still waiting — it collects
-        self.discard(); // abandoned: this thread owns everything now
-    }
-
-    /// Throw away an abandoned job: whoever LOST the handoff calls this (the worker after a
-    /// cancel; the caller's own cleanup when no worker ever ran).
-    fn discard(self: *Job) void {
-        if (self.res) |res| self.gpa.free(res.body);
-        self.destroy();
-    }
-};
-
-/// Wait for `job` while watching for a Ctrl-C and the deadline. `Cancelled`/`TimedOut` mean this side
-/// won the handoff — the worker then owns and frees the job, so it must not be touched again.
-pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response {
-    const started = std.Io.Clock.now(.awake, io).toMilliseconds();
-    while (job.state.load(.acquire) == @intFromEnum(Job.State.running)) {
-        if (waiter.poll.?(waiter.ctx.?, wait_beat_ms)) {
-            if (job.claim(.cancelled)) {
-                // The user asked for the stop, so it is a note, not an `error:` — the command
-                // did exactly what was asked. The deadline below still is an error.
-                report.note("cancelled — the assistant turn was stopped\n", .{});
-                return PostError.Cancelled;
-            }
-            break; // it landed in the same instant: use the answer we already paid for
-        }
-        const now = std.Io.Clock.now(.awake, io).toMilliseconds();
-        if (waiter.beat) |b| if (waiter.beat_ctx) |c| b(c, now);
-        if (waiter.timeout_ms > 0 and now - started > waiter.timeout_ms) {
-            if (job.claim(.cancelled)) {
-                report.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
-                return PostError.TimedOut;
-            }
-            break;
-        }
-    }
-    if (job.err) |e| return e;
-    return job.res.?;
+    return buf[0..n];
 }
 
-/// POST a JSON body over net.request's guarded path (SSRF checks, redirect refusal, size cap) in
+/// POST a request over net.request's guarded path (SSRF checks, redirect refusal, size cap) in
 /// NON-strict mode: LLM endpoints are user-named, so loopback is allowed, private ranges are not.
-pub fn postJson(
-    gpa: std.mem.Allocator,
-    io: std.Io,
-    url: []const u8,
-    auth: ?[]const u8,
-    body: []const u8,
-    waiter: Waiter,
-) PostError![]u8 {
-    if (!waiter.watching()) return finish(gpa, try rawRequest(gpa, io, url, auth, body));
+/// A null `waiter` runs the call to completion on this thread.
+pub fn postJson(gpa: std.mem.Allocator, io: std.Io, req: *const Request, waiter: ?Waiter) PostError![]u8 {
+    return postJsonVia(gpa, io, req, waiter, netSend);
+}
+
+/// `postJson` over the given exchange.
+pub fn postJsonVia(gpa: std.mem.Allocator, io: std.Io, req: *const Request, waiter: ?Waiter, send: SendFn) PostError![]u8 {
+    try refuseUnsafe(req);
+    var hbuf: HeaderBuf = undefined;
+    const headers = headersFor(req.auth, req.api_key, &hbuf);
+    const w = waiter orelse return finish(gpa, req, try send(gpa, io, req.url, headers, req.body));
     // Watched: the request runs on a worker while this thread keeps reading the tty, so a
     // Ctrl-C (or the deadline) ends the wait instead of the console sitting deaf for minutes.
-    const job = Job.init(gpa, io, url, auth, body) catch return PostError.OutOfMemory;
-    var fut = io.concurrent(Job.run, .{job}) catch {
-        job.destroy(); // no unit of concurrency to spare: the plain blocking call, rather than a failure
-        return finish(gpa, try rawRequest(gpa, io, url, auth, body));
+    return switch (jobCall.watched(io, w, sendVia, .{ send, gpa, io, req.url, headers, req.body })) {
+        .done => |r| finish(gpa, req, try r),
+        .cancelled => |r| {
+            if (r) |res| gpa.free(res.body) else |_| {}
+            // The user asked for the stop, so it is a note, not an `error:` — the deadline still is one.
+            report.note("cancelled — the assistant turn was stopped\n", .{});
+            return PostError.Cancelled;
+        },
+        .timed_out => |r| {
+            if (r) |res| gpa.free(res.body) else |_| {}
+            report.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(w.timeout_ms, 1000)});
+            return PostError.TimedOut;
+        },
     };
-    const res = waitForJob(job, io, waiter) catch |e| {
-        // A worker that already landed leaves the job to us; one still in flight is stopped
-        // here, socket and all, or it would outlive the turn — and it frees the job itself.
-        if (job.state.load(.acquire) == @intFromEnum(Job.State.finished)) {
-            fut.await(io);
-            job.destroy();
-        } else fut.cancel(io);
-        return e;
-    };
-    // The worker landed first and left the result to us; the job itself is ours to free.
-    defer job.destroy();
-    fut.await(io);
-    return finish(gpa, res);
 }
 
-/// How long one wait beat blocks on the tty — short enough that Ctrl-C feels immediate.
-const wait_beat_ms: i32 = 60;
+// A runtime exchange behind the comptime-known function the watched call takes.
+fn sendVia(send: SendFn, gpa: std.mem.Allocator, io: std.Io, url: []const u8, headers: []const std.http.Header, body: []const u8) PostError!net.Response {
+    return send(gpa, io, url, headers, body);
+}
 
-/// Turn a raw response into the reply body, reporting a non-2xx the §6.3 way.
-fn finish(gpa: std.mem.Allocator, res: net.Response) PostError![]u8 {
-    if (res.status < 200 or res.status >= 300) {
-        defer gpa.free(res.body);
-        // The reason ONCE (contract §6.3): the provider's own message when it has one —
-        // the console already printed which endpoint it is asking — else the bare status.
-        var buf: DetailBuf = undefined;
-        const why = errorDetail(gpa, res.body, &buf);
-        if (why.len != 0) {
-            report.err("{s}\n", .{why});
-        } else {
-            report.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
-        }
-        // Same printed message, typed: the server's llmDisabled is its own error.
-        return if (isLlmDisabled(gpa, res.body)) PostError.LlmDisabled else PostError.HttpFailed;
+/// §6.5's refusals before anything leaves: an anthropic turn with no session key, and a key
+/// bound for plain http anywhere but loopback (a local mock or proxy the user named).
+fn refuseUnsafe(req: *const Request) PostError!void {
+    if (req.provider != .anthropic) return;
+    if (req.api_key == null) {
+        report.err(no_key_message ++ "\n", .{});
+        return PostError.LlmDisabled;
     }
-    return res.body;
+    if (!std.ascii.startsWithIgnoreCase(req.url, "http://")) return;
+    const host = net.hostOf(req.url) orelse "";
+    if (net.isLoopbackHost(host)) return;
+    report.err("refusing to send the API key to '{s}' over plain http — use https\n", .{host});
+    return PostError.LlmDisabled;
+}
+
+/// Turn a raw response into the reply body, reporting a non-2xx the §6.3 / §6.5 way.
+fn finish(gpa: std.mem.Allocator, req: *const Request, res: net.Response) PostError![]u8 {
+    if (res.status >= 200 and res.status < 300) return res.body;
+    defer gpa.free(res.body);
+    if (req.provider == .anthropic) {
+        var mbuf: anthropic.MessageBuf = undefined;
+        report.err("{s}\n", .{anthropic.message(gpa, res.status, res.body, req.api_key orelse "", &mbuf)});
+        return PostError.HttpFailed;
+    }
+    // The reason ONCE (contract §6.3): the provider's own message when it has one —
+    // the console already printed which endpoint it is asking — else the bare status.
+    var buf: DetailBuf = undefined;
+    const why = errorDetail(gpa, res.body, &buf);
+    if (why.len != 0) {
+        report.err("{s}\n", .{why});
+    } else {
+        report.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
+    }
+    // Same printed message, typed: the server's llmDisabled is its own error.
+    return if (isLlmDisabled(gpa, res.body)) PostError.LlmDisabled else PostError.HttpFailed;
 }
 
 /// True when a non-2xx body is the server's `{"code":"llmDisabled"}` (LLM not
@@ -181,26 +132,15 @@ pub fn isLlmDisabled(gpa: std.mem.Allocator, body: []const u8) bool {
     return std.mem.eql(u8, code, "llmDisabled");
 }
 
-/// The POST itself, with no waiting or reporting — runs on whichever thread calls it.
-fn rawRequest(gpa: std.mem.Allocator, io: std.Io, url: []const u8, auth: ?[]const u8, body: []const u8) PostError!net.Response {
-    var headers: [2]std.http.Header = undefined;
-    var n: usize = 0;
-    headers[n] = .{ .name = "content-type", .value = "application/json" };
-    n += 1;
-    if (auth) |a| {
-        headers[n] = .{ .name = "authorization", .value = a };
-        n += 1;
-    }
-
+/// The production exchange, on whichever thread calls it.
+fn netSend(gpa: std.mem.Allocator, io: std.Io, url: []const u8, headers: []const std.http.Header, body: []const u8) PostError!net.Response {
     return net.request(gpa, io, url, .{
         .method = .POST,
         .payload = body,
-        .extra_headers = headers[0..n],
+        .extra_headers = headers,
         .timeout_ms = @intCast(request_timeout_ms), // the socket's deadline is the one the waiter watches
     });
 }
-
-const detail = @import("transport/detail.zig");
 
 pub const detail_limit = detail.detail_limit;
 pub const DetailBuf = detail.DetailBuf;
@@ -209,65 +149,10 @@ pub const errorDetail = detail.errorDetail;
 pub const clip_limit = detail.clip_limit;
 pub const ClipBuf = detail.ClipBuf;
 pub const clip = detail.clip;
-
-const testing = std.testing;
-
-test "waitForJob: a Ctrl-C mid-call cancels and hands the job to the worker" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    // A job no worker ever runs: it stays .running, so the wait loop is driven purely by the
-    // poll below — the same sequence a real slow provider produces.
-    const job = try Job.init(a, io, "http://example.invalid", null, "{}");
-    var presses: u8 = 0;
-    var beats: u8 = 0;
-    const waiter = Waiter{ .ctx = &presses, .poll = pressOnSecondBeat, .beat_ctx = &beats, .beat = countBeat };
-
-    try testing.expectError(PostError.Cancelled, waitForJob(job, io, waiter));
-    try testing.expectEqual(@intFromEnum(Job.State.cancelled), job.state.load(.acquire));
-    try testing.expect(presses == 2); // it really waited a beat before the press landed
-    try testing.expect(beats == 1); // and the spinner got that one beat, not the cancelling one
-    job.discard(); // no worker exists here, so this side performs the abandoned-job cleanup
-}
-
-test "waitForJob: a reply that lands first is collected, cancel or not" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    const job = try Job.init(a, io, "http://example.invalid", null, "{}");
-    defer job.destroy();
-    job.res = .{ .status = 200, .body = try a.dupe(u8, "{\"ok\":true}") };
-    _ = job.claim(.finished); // the worker got there first
-    var presses: u8 = 0;
-
-    // Even with the user pressing cancel, an answer already paid for is not thrown away.
-    const res = try waitForJob(job, io, .{ .ctx = &presses, .poll = pressAlways });
-    defer a.free(res.body);
-    try testing.expectEqual(@as(u16, 200), res.status);
-}
-
-/// A poll that reports a Ctrl-C on its SECOND beat — one loop turn of real waiting first.
-fn pressOnSecondBeat(ctx: *anyopaque, _: i32) bool {
-    const n: *u8 = @ptrCast(ctx);
-    n.* += 1;
-    return n.* >= 2;
-}
-
-fn countBeat(ctx: *anyopaque, _: i64) void {
-    const n: *u8 = @ptrCast(ctx);
-    n.* += 1;
-}
-
-fn pressAlways(ctx: *anyopaque, _: i32) bool {
-    const n: *u8 = @ptrCast(ctx);
-    n.* += 1;
-    return true;
-}
+pub const anthropicError = anthropic.message;
+pub const AnthropicMessageBuf = anthropic.MessageBuf;
 
 test {
     _ = detail;
+    _ = anthropic;
 }

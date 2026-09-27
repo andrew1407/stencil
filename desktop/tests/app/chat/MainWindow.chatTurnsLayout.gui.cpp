@@ -79,11 +79,11 @@ class MainWindowGuiTest : public QObject {
                                                      "\"actions\":[{\"op\":\"layout\",\"lines\":[%1]}]}")
                                           .arg(lines.join(QLatin1Char(',')))}}}})
             .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     QElapsedTimer clock;
     clock.start();
-    win.onChatSend("outline every box");
+    win.chatSession->onChatSend("outline every box");
     QTRY_VERIFY(!win.chatDock->isBusy());
     const qint64 settledMs = clock.elapsed();
 
@@ -97,7 +97,7 @@ class MainWindowGuiTest : public QObject {
     // No self-check / sharpening vocabulary may reach the user, in the transcript
     // or in the toast.
     const QString shown = dockText(win.chatDock) +
-                          (win.chatToast ? dockText(win.chatToast) : QString());
+                          (win.chatSession->chatToast ? dockText(win.chatSession->chatToast) : QString());
     for (const char* word : {"sharpen", "self-check", "re-checked", "correction", "refine"})
       QVERIFY2(!shown.contains(QLatin1String(word), Qt::CaseInsensitive),
                qPrintable(QString("the reply still mentions \"%1\": %2")
@@ -126,8 +126,8 @@ class MainWindowGuiTest : public QObject {
                           "\"lines\":[{\"points\":[{\"x\":20,\"y\":20},{\"x\":50,\"y\":20},"
                           "{\"x\":50,\"y\":50},{\"x\":20,\"y\":20}]}]}]}"}}}})
             .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&deferred);
-    win.onChatSend("outline the box");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&deferred);
+    win.chatSession->onChatSend("outline the box");
     QCOMPARE(deferred.parked.size(), 1);   // the turn's own request, waiting
     QVERIFY(win.chatDock->isBusy());
 

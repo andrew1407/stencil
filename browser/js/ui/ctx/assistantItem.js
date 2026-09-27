@@ -1,5 +1,5 @@
 // The context menu's Assistant entry: gating + markup. A compact chat on the same
-// conversation as the panel (js/llm/session.js).
+// conversation as the panel (js/llm/chat/session.js).
 import { icon } from '../icons.js';
 import { ctxArrow } from './arrow.js';
 import { chatSuggestionsHtml, chatComposerActionsHtml } from '../chat/view.js';

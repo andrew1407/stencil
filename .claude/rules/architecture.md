@@ -1,39 +1,12 @@
 ---
-description: Layer boundaries, the 230-line rule, comment policy, canonical data, UI pins
+description: Layer boundaries, the 230-line rule, folders, C++ member names, comment policy, canonical data, UI pins
 ---
 
 # Architecture rules
 
-The reasoning is in `ARCHITECTURE.md`. These are the parts that fail a build or a review.
-
-## Per-surface `ARCHITECTURE.md` is normative
-
-Every subproject has one (`browser/ARCHITECTURE.md`, `cli/ARCHITECTURE.md`, …). Read it
-before editing that tree and keep the change inside its layers, "Where things go" table and
-rules. It is an independent document of that surface's design and stays current with the
-tree; the `README.md` beside it is user-facing only (build, run, use) and never carries
-architecture. `usecases/docs/<app>/USECASES.md` is the illustrated companion: scenarios and
-steps only, its images generated under `usecases/docs/<app>/img/` by `usecases/capture-runner/`
-(a visual change is followed by a re-run, never by editing a picture), no architecture,
-no feature inventory, no counts.
-
-Every one of them carries the same seven `##` sections in this order, each in one fixed
-form — a table where every item has the same fields, a list where they are parallel but
-uneven, prose where it is one argument:
-
-| Section | Form | Holds |
-|---|---|---|
-| Layers | prose | the import order left to right, and what lints it |
-| Where things go | table | path · holds · rule |
-| Entities | `classDiagram` + table | entity · what it is · owned by / lifetime · relates to |
-| Patterns | table | pattern · where · notes |
-| Design | bold-led bullets | the flows, and any schema this surface owns |
-| Rules | numbered list | the invariants |
-| Tests | prose | what the suite proves, what it stubs, what it pins |
-
-A new entity, pattern or flow goes into its section, never a new heading. Name what a thing
-*is*, never how many there are: counts of suites, files, pinned states or cases go stale on
-the next commit and are not design.
+The reasoning is in `ARCHITECTURE.md`; each surface's own `ARCHITECTURE.md` is normative for its
+tree (how those docs are written is `docs.md`, which loads with them). These are the parts that
+fail a build or a review.
 
 ## Layers — imports point one way
 
@@ -61,45 +34,32 @@ A layer may use everything to its left, nothing to its right.
 ## 230 lines
 
 A file stays under **230 lines** on every surface. A new file is written under it; a file
-that has grown past it is split by feature when it is next touched, not padded further. The
-few that are over today (`MainWindow.hpp`, `CanvasWidget.hpp`, `drawingApp.js`, `chat/panel.js`)
-are the debt, not the precedent. Nothing enforces this — the review does.
+that has grown past it is split by feature when it is next touched, not padded further. No
+source, test or stylesheet file is over it today. Nothing enforces this — the review does.
 
 ## Folders
 
 A folder holds at most **12 direct source files**; a header and its `.cpp`, or a module and its
 `.d.ts`, count once. At thirteen the folder splits.
 
-A split is by **feature, never by kind** — `ui/openImage/`, `app/mainWindow/chat/`, not
+A split is by **feature, never by kind** — `ui/openImage/`, `app/chat/`, not
 `helpers/`, `parts/` or `misc/`. Its name is the prefix the files already share, and that prefix
 then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageTabs.js`. One
 class split across translation units keeps the class name on each
-(`app/chat/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
+(`app/chat/MainWindowChatDock.cpp`), because every unit defines `MainWindow::`.
 
-A file a byte-pinned port imports keeps its name too: `portParity.test.js` reduces a specifier
-to its basename so either tree's layout is allowed, which only works while both spell it the
-same. `ui/motion/motionPrefs.js` stays as it is for that reason — `lib/rectTween.js` imports it
-on both sides.
-
-Nesting stops three levels below the surface's source root. Tests mirror the split one for one:
-a test sits in the folder named for the source it covers, and a case that spans modules or guards
-the whole tree stays at `tests/` root. A mirrored test folder may sit **above** the cap, because a
-module commonly carries several test files; that is the one place the cap does not apply — a
-case that spans modules has no one home, and Cargo can only see an integration test directly
-in `tests/`. Never split a test folder by kind to get under it.
+A file a byte-pinned port imports keeps its name. Nesting stops three levels below the
+surface's source root. Tests mirror the split one for one, and a case that spans modules stays
+at `tests/` root; a mirrored test folder is the one place the cap does not apply, and is never
+split by kind to get under it. The procedure and its traps are the `split-move` skill.
 
 ## C++ member names
 
-A member is spelled bare — `canvas`, `settings` — with no trailing underscore and no `m_`
-prefix. Where a parameter or a local binds the same name, the member use is written
-`this->canvas`; a plain `canvas = canvas` there assigns the parameter to itself, and neither
-`-Wall` nor `-Wextra` says a word. Where an accessor would collide with its own member, the
-accessor takes the `get` prefix (`getCropRect()` over `cropRect`), because the member keeps
-the plain name. A member of a QWidget subclass may not take the name of a Qt method it would
-hide — `size`, `show`, `window`, `rect` — so it carries what it actually holds (`markPx`,
-`showWord`, `hostWindow`, `cropBox`).
-
-`auto_` is the one survivor: its bare form is a keyword.
+A member is spelled bare — `canvas`, no trailing underscore, no `m_`. Where a parameter or a
+local binds the same name, the member use is `this->canvas`: a plain `canvas = canvas` assigns
+the parameter to itself, silently. An accessor that would collide with its member takes `get`
+(`getCropRect()`), and a QWidget member never takes the name of a Qt method it would hide
+(`size`, `show`, `window`, `rect`). `auto_` is the one survivor: its bare form is a keyword.
 
 ## Comments
 
@@ -119,8 +79,10 @@ axis, the formula. Delete the rest rather than rewording it, and never write a c
 refers to itself ("where the comment says so").
 
 A directory's comment share stays under **a fifth of its lines**; the doc banners alone reach
-that in a folder of small files, so a body comment there has to earn its place. Never write: a sprint or phase tag, `(user report)`, "used to", "TODO(name)", or a
-sentence that restates the next line.
+that in a folder of small files, so a body comment there has to earn its place. Never write: a
+sprint or phase tag, "used to", "TODO(name)", or a sentence that restates the next line. A
+`(user report)` tag is the exception, kept on purpose: it records that a constant or rule answers
+something a user saw, which the code cannot say — leave the ones in the tree alone.
 
 ## Canonical data
 
@@ -129,11 +91,10 @@ sentence that restates the next line.
 **with a byte-equality drift test**. A copy without a drift test is a bug. If a value can be
 read back out of the core over the C ABI, do that instead of mirroring it.
 
-The same rule covers copied **code**: the `browser/js/ui` + `llm/llmClient` modules in
-`browser-extension/src/lib/`, and the modules of `browser/js/core/script/` in
-`vscode-extension/src/parser/`, are byte-equal copies pinned in both directions
-(`portParity.test.js`, `parserParity.test.js`). Edit the original and re-copy; never fix a
-copy in place.
+The same rule covers copied **code** — the ports in `browser-extension/src/lib/` and the parser
+copy in `vscode-extension/src/parser/`, pinned both ways by `portParity.test.js` and
+`parserParity.test.js`. A copy is never fixed in place, and a new one gets its row in
+`.claude/tools/twins.json` and in the parity test that pins it, together.
 
 ## Typed boundaries
 
@@ -143,11 +104,7 @@ you create a module or rework its exports.
 ## UI
 
 - **Pins before motion.** Record the pins before moving UI code; they must be identical after.
-- **UI freeze in refactor commits.** A commit that moves code changes no pixel and no string.
-  An intended visual change is its own commit, carrying its re-pin and nothing else.
-- Prove a move with `node tools/moveCheck.mjs <gitRef> <path…>` and a comment sweep with
-  `node tools/commentOnlyDiff.mjs <gitRef> <path…>` (every file `OK`). `LOST 0  NEW 0` holds for
-  whole-function and data moves; an extract-class reports one LOST/NEW pair per converted method,
-  so the signal is **`LOST 0`, only the wrapper NEW**. For C++, use `commentOnlyDiff.mjs` too: a
-  hand-rolled `gcc -fpreprocessed` diff emits EMPTY files where `gcc` is the clang shim, and two
-  empty sides compare equal — a false pass. Check the stripped text is non-empty.
+- **UI freeze in refactors.** Moving code changes no pixel and no string. An intended visual
+  change is re-pinned on purpose and named as such, never absorbed into a move's proof.
+- **Prove it.** A split, a move or a rename is proved with the `split-move` skill's proofs
+  (`moveCheck.mjs`: `LOST 0`, only the wrapper NEW; `commentOnlyDiff.mjs`: every file `OK`).

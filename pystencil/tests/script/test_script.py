@@ -33,6 +33,13 @@ class ScriptHandleTests(NativeCase):
       self.assertEqual(diag.format("a.stc"),
                        "a.stc:2:3: error: %s [E_UNKNOWN_DIRECTIVE]" % diag.message)
 
+  def test_a_template_body_diagnostic_carries_its_call_site(self):
+    src = "@stencil bad:\n  @line (0,0)\n\n@source a.png:\n  @crp\n  @use stencil bad\n"
+    with parse_script(src) as program:
+      self.assertEqual([d.line for d in program.diagnostics], [2, 5])
+      self.assertEqual(program.related, ((6, 3, 4), None))
+      self.assertTrue(program.diagnostics[0].message.endswith("(from the @use stencil at 6:3)"))
+
   def test_tokens_carry_the_editor_colouring_classes(self):
     with parse_script("# hi\n@source a.png:\n    @crop 10%\n") as program:
       kinds = {t.kind for t in program.tokens}

@@ -6,6 +6,9 @@
 #include "fetchGuard.hpp"
 
 #include <QCoreApplication>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkRequest>
 #include <QUrl>
 #include <cstdio>
@@ -14,6 +17,8 @@
 #include "../support/check.hpp"
 
 namespace guard = stencil::net::fetchGuard;
+
+void checkHostsCorpus();   // hostsFixtures.headless.cpp
 
 namespace {
 
@@ -153,7 +158,15 @@ int main(int argc, char** argv) {
 
   std::printf("request shape:\n");
   const QNetworkRequest req = guard::request(QUrl("https://example.com/a.png"));
-  check(req.transferTimeout() == guard::FETCH_TIMEOUT_MS, "the house transfer timeout is set");
+  QFile table(QStringLiteral(":/config/constants.json"));
+  const int canon = table.open(QIODevice::ReadOnly)
+      ? QJsonDocument::fromJson(table.readAll()).object().value("NETWORK").toObject()
+            .value("fetchTimeoutMs").toInt()
+      : -1;
+  check(canon > 0 && guard::fetchTimeoutMs() == canon,
+        "the timeout is constants.json NETWORK.fetchTimeoutMs, the browser's");
+  check(guard::FETCH_TIMEOUT_FALLBACK_MS == canon, "…and the qrc-less fallback is the same value");
+  check(req.transferTimeout() == guard::fetchTimeoutMs(), "the house transfer timeout is set");
   check(req.attribute(QNetworkRequest::RedirectPolicyAttribute).toInt() ==
             int(QNetworkRequest::ManualRedirectPolicy),
         "…and redirects are refused: a public first hop cannot 30x-bounce inward");
@@ -167,6 +180,8 @@ int main(int argc, char** argv) {
         "…and allowed when not");
   check(!guard::resolvesToBlocked("stencil.invalid", true),
         "a lookup failure is not a block — the fetch surfaces its own error");
+
+  checkHostsCorpus();
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

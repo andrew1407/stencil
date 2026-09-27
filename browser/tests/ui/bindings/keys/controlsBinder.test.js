@@ -73,10 +73,28 @@ test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or th
   assert.deepEqual(contextMenuPoint({ mouseOverCanvas: false, lastMouseClientX: 320, lastMouseClientY: 240 }, vp),
     { x: 400, y: 250 });
   // The handler dispatches a contextmenu MouseEvent on the viewport and never opens a second menu.
-  const src = readFileSync(new URL('../../../../js/ui/bindings/keys/hotkeyActions.js', import.meta.url), 'utf8');
-  const body = src.slice(src.indexOf('contextMenu: () => {'), src.indexOf('};', src.indexOf('contextMenu: () => {')));
-  assert.ok(body.includes("new MouseEvent('contextmenu'"), 'goes through the right-click path');
-  assert.ok(body.includes("classList.contains('ctx-open')"), 'an open menu is left alone');
+  const { installDom, createStubElement } = await import('../../../helpers/dom.js');
+  const { hotkeyActions } = await import('../../../../js/ui/bindings/keys/hotkeyActions.js');
+  class MouseEvent extends Event {
+    constructor(type, init = {}) { super(type, init); this.clientX = init.clientX; this.clientY = init.clientY; }
+  }
+  const doc = installDom({}, { MouseEvent });
+  try {
+    const fired = [];
+    doc.register('canvas-viewport', createStubElement('div', {
+      getBoundingClientRect: () => vp, dispatchEvent: (ev) => { fired.push(ev); return true; },
+    }));
+    const menu = doc.register('ctx-menu', createStubElement('div'));
+    const { HK_HANDLERS } = hotkeyActions({ mouseOverCanvas: true, lastMouseClientX: 320, lastMouseClientY: 240 });
+    HK_HANDLERS.contextMenu();
+    assert.equal(fired.length, 1);
+    assert.ok(fired[0] instanceof MouseEvent, 'goes through the right-click path');
+    assert.deepEqual([fired[0].type, fired[0].clientX, fired[0].clientY, fired[0].bubbles, fired[0].cancelable],
+      ['contextmenu', 320, 240, true, true]);
+    menu.classList.add('ctx-open');
+    HK_HANDLERS.contextMenu();
+    assert.equal(fired.length, 1, 'an open menu is left alone');
+  } finally { doc.restore(); }
 });
 
 // The AI settings window (the chat's … menu ▸ Settings, both apps) has a rebindable chord

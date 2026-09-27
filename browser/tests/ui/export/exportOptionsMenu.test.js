@@ -1,4 +1,4 @@
-// Unit tests for the copy/download toolbar options list (js/ui/optionsMenu.js):
+// Unit tests for the copy/download toolbar options list (js/ui/export/optionsMenu.js):
 // row content per variant, and that the hotkey hint shown on each row comes from the
 // LIVE hotkeys registry (platform-formatted, bordered keycaps) rather than a hardcoded
 // guess — a hardcoded "Ctrl+C" next to the Download button's Original/Tint rows would be

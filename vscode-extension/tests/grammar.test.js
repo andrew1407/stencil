@@ -108,6 +108,11 @@ test('the number rule splits a united length and leaves x1= alone', () => {
   assert.deepEqual([...'-10cm'.match(number)].slice(1), ['-10', 'cm']);
   assert.deepEqual([...'7'.match(number)].slice(1), ['7', undefined]);
   assert.equal(number.exec('x1=')?.index, undefined, 'the 1 in x1 is part of a key');
+  // The lexer's number grammar: a digit run glued to letters or a second point is one word.
+  for (const word of ['10foo', '0x10', '1e999', '1.2.3', '10pxs'])
+    assert.equal(number.exec(word), null, `${word} is a word, not a number`);
+  assert.deepEqual([...'16:9'.match(number)].slice(1), ['16', undefined], 'an aspect still colours');
+  assert.deepEqual([...'50%,'.match(number)].slice(1), ['50', '%']);
 });
 
 test('the template rules name what follows @stencil and @use stencil', () => {

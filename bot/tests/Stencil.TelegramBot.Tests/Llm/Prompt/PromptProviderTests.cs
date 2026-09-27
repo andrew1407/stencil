@@ -1,6 +1,5 @@
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
@@ -63,7 +62,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         InMemorySessionStore store = new();
         BotOptions options = new() { DataDir = _dataDir };
         EditingService editing = new(_cli, new UserWorkspace(options), store);
-        PromptService service = new(_llm, editing, store,
+        PromptService service = new(_llm, _cli, editing, store,
             new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER },
             new MockServerClientFactory());
         UserSession session = await store.GetAsync(UserId);
@@ -83,7 +82,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     [Fact]
     public async Task Should_Ask_To_Connect_For_The_Stencil_Server_Provider_Without_Any_Connection()
     {
-        PromptService service = new(_llm, _editing, _store,
+        PromptService service = new(_llm, _cli, _editing, _store,
             new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER },
             new MockServerClientFactory());
 
@@ -104,7 +103,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
                 new ServerConnectionInfo { Url = "http://mine:8090", Token = "mine-tok" },
             ],
         });
-        PromptService service = new(_llm, _editing, _store, new LlmOptions
+        PromptService service = new(_llm, _cli, _editing, _store, new LlmOptions
         {
             Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://mine:8090/",
@@ -121,7 +120,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     [Fact]
     public async Task Should_Authenticate_A_User_Who_Never_Connected_With_The_Configured_Server_Token()
     {
-        PromptService service = new(_llm, _editing, _store, new LlmOptions
+        PromptService service = new(_llm, _cli, _editing, _store, new LlmOptions
         {
             Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",
@@ -144,7 +143,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         {
             Connections = [new ServerConnectionInfo { Url = "http://proxy:8090", Token = "mine-tok" }],
         });
-        PromptService service = new(_llm, _editing, _store, new LlmOptions
+        PromptService service = new(_llm, _cli, _editing, _store, new LlmOptions
         {
             Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",
@@ -160,7 +159,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     [Fact]
     public async Task Should_Tell_The_User_To_Connect_Instead_Of_Returning_A_401_With_No_Token_At_All()
     {
-        PromptService service = new(_llm, _editing, _store, new LlmOptions
+        PromptService service = new(_llm, _cli, _editing, _store, new LlmOptions
         {
             Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",

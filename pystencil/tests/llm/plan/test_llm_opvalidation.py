@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import LlmPlanError, parse_op_plan
 from tests.helpers.stubs import _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class HistoryOpValidationTest(unittest.TestCase):
+class HistoryOpValidationTest(NativeCase):
   """§2 undo/redo/reset: shapes, bounds, and the top-level-only rule."""
 
   def test_undo_redo_shapes(self):
@@ -40,12 +41,12 @@ class HistoryOpValidationTest(unittest.TestCase):
       self.assertEqual(plan.variants, [])
       self.assertEqual(
         plan.warnings,
-        ['dropped variant 1 ("v") — the "%s" op is top-level only and cannot '
-        "appear in a variant" % op],
+        ['Dropped variant 1 ("v") — "%s" steps the live edit history — a top-level action '
+        "only, not allowed inside variants or previews; the rest of the plan ran" % op],
       )
 
 
-class NewActionFormsValidationTest(unittest.TestCase):
+class NewActionFormsValidationTest(NativeCase):
   """The §2 forms this change adds: formula enabled/empty, page custom dims,
   blank width/height, and crop's console-only album spec key."""
 

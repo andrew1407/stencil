@@ -2,12 +2,12 @@
 // carrying a token in the fragment, and the handshake that issues or validates one.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
   normalizeUrl, wsUrl, ServerConnection, ConnectionManager, isLoopbackHost, isInsecureRemote,
   parseInviteUrl, buildInviteUrl,
 } from '../../../js/net/connectionManager.js';
 import { makeMockServer, StubWS } from '../../helpers/connectionsRig.js';
+import { conn, openModal, rows, find, sleep } from '../../helpers/connectModalRig.js';
 
 test('normalizeUrl is secure by default: bare remote → https, loopback → http', () => {
   // Bare REMOTE host defaults to https (don't leak a token over cleartext).
@@ -85,12 +85,21 @@ test('the invite round-trips: minting on one side, connecting with the link on t
   assert.equal(peer.get('http://a:1').status, 'connected');
 });
 
-test('the connect modal offers Invite on credentialed connected rows', () => {
-  const src = readFileSync(new URL('../../../js/ui/connect/modal.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('conn && conn.connected && conn.credential'), 'gated to credentialed live rows');
-  assert.ok(src.includes('conn.mintInvite()'));
-  assert.ok(src.includes('navigator.clipboard.writeText(link)'));
-  assert.match(src, /Invite link copied/);
+test('the connect modal offers Invite on credentialed connected rows', async (t) => {
+  const copied = [];
+  // Node's own navigator is an accessor; mock.property on it leaves the runner hanging.
+  const prior = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true,
+    value: { clipboard: { writeText: async (s) => { copied.push(s); } } } });
+  t.after(() => Object.defineProperty(globalThis, 'navigator', prior));
+  const { list, notes } = openModal([conn('http://adm:1', 'admin'), conn('http://sess:2', ''),
+    { ...conn('http://down:3', 'admin'), connected: false, status: 'error' }]);
+  const invites = rows(list).map((r) => !!find(r, 'connect-invite'));
+  assert.deepEqual(invites, [true, false, false], 'gated to credentialed live rows');
+  find(rows(list)[0], 'connect-invite').dispatch('click');
+  await sleep(10);
+  assert.deepEqual(copied, ['http://adm:1#token=t'], 'the minted link lands on the clipboard');
+  assert.deepEqual(notes.at(-1), ['Invite link copied', 'ok']);
 });
 
 test('isLoopbackHost / isInsecureRemote classify the connection', () => {

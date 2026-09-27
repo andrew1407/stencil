@@ -1,17 +1,17 @@
 :root {
     /* Brand accent — violet, matching the Stencil logo + extension palette
-       (browser-extension/src/lib/theme.css). --accent is primary; --accent-2 is the
+       (browser-extension/src/lib/theme/). --accent is primary; --accent-2 is the
        hover/active shade derived from it (darker in light, lighter in dark) so
        any chosen accent stays harmonised. Swappable via a data-accent preset
-       (see below + js/core/accents.js); default violet. */
+       (see below + js/core/settings/accents.js); default violet. */
     --accent:         #7c3aed;
     --accent-2:       color-mix(in srgb, var(--accent) 86%, black);
-    /* Two of a cloud's tints (js/ui/dustCloud.js TINT_CSS) are theme-aware: a white speck
+    /* Two of a cloud's tints (js/ui/dust/cloud.js TINT_CSS) are theme-aware: a white speck
        is invisible on a pale surface, and a deep accent one on a dark surface. */
     --dust-ink:        #1f1f1f;
     --dust-accent-alt: color-mix(in srgb, var(--accent) 55%, #000000);
     /* The ink an accent-BACKED control paints its label and its line-art in. A light
-       accent swallows white, so <html data-accent-light> — set by js/core/accents.js +
+       accent swallows white, so <html data-accent-light> — set by js/core/settings/accents.js +
        prePaintTheme.js from the WCAG contrast — swaps this for the near-black below. */
     --on-accent:      #ffffff;
     /* The ✓ inside an accent-filled checkbox: a data URL can't read a CSS var, so the
@@ -99,7 +99,7 @@
 }
 
 /* Accent presets — set only --accent; --accent-2, --text-key and every glow derive
-   from it, so a preset is one line. Keys mirror js/core/accents.js, applied as
+   from it, so a preset is one line. Keys mirror js/core/settings/accents.js, applied as
    <html data-accent="…"> (pre-paint in index.html). No attribute = :root violet. */
 :root[data-accent="violet"]    { --accent: #7c3aed; }
 :root[data-accent="burgundy"]  { --accent: #660033; }

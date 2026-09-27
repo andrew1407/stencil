@@ -90,7 +90,7 @@ export const zoomToImagePoint = (zp, newScale, imgX, imgY) => {
   const o0 = canvasOrigin();
   const offX = imgX * scaleStart + o0.x - vp.scrollLeft;
   const offY = imgY * scaleStart + o0.y - vp.scrollTop;
-  // The canvas CSS size TRANSITIONS (layout/canvasCursor.css): mid-flight the browser would
+  // The canvas CSS size TRANSITIONS (layout/canvas/cursor.css): mid-flight the browser would
   // clamp the scroll write to the old range and the focal point slides. Suppressed for this step.
   app.canvas.classList.add('zoom-no-transition');
   zp.setZoom(newScale);

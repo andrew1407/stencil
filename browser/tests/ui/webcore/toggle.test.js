@@ -33,11 +33,22 @@ const { AccentController, THEME_STORAGE_KEY } = await import('../../../js/ui/acc
 const { activateShow } = await import('../../../js/ui/logo/stageTrigger.js');
 const { WEBCORE } = await import('../../../js/ui/webcore/rules.js');
 
+// The scene loads through the real core/image/loadFlow.js; the browser's decode is the boundary:
+// the reader records the file it was handed, and the decoded original stands in for the settle.
+const stubDecode = (t, app) => {
+  const saved = { FileReader: globalThis.FileReader, Image: globalThis.Image };
+  t.after(() => Object.assign(globalThis, saved));
+  globalThis.FileReader = class {
+    readAsDataURL(file) { app.calls.push(['load', file.name]); this.onload({ target: { result: 'data:image/png;base64,' } }); }
+  };
+  globalThis.Image = class { set src(_) { app.image = { width: 1024, height: 768 }; } };
+};
+
 const makeApp = (over = {}) => {
   const app = {
     image: { width: 1024, height: 768 }, accent: 'violet', customAccent: null,
-    storage: { incognito: false }, calls: [],
-    loadImageFromFile(file) { app.calls.push(['load', file.name]); app.image = { width: 1024, height: 768 }; app.imageBaseName = 'webcore'; },
+    storage: { incognito: false }, calls: [], promoted: [],
+    tabs: { reportActive: (id) => app.promoted.push(['reportActive', id]) },
     updateIncognitoUI() { app.calls.push(['incognitoUI']); },
     export: { installLayout: (data, opts) => { app.calls.push(['layout', data, opts]); return true; } },
     settings: { setImageFilter: (v) => app.calls.push(['filter', v]) },
@@ -84,14 +95,19 @@ test('a motion choice made while it is on persists, and the skin stays', async (
   assert.equal(motionPrefs().mode, 'water', 'off keeps what the user chose');
 });
 
-test('an empty editor leaves incognito, gets the picture under its name and the word as one step', async () => {
+test('an empty editor leaves incognito, gets the picture under its name and the word as one step', async (t) => {
   reloadMotionPrefs();
-  const app = makeApp({ image: null, storage: { incognito: true }, imageFilter: 'sepia' });
+  const storage = { incognito: true, temporary: true };
+  const app = makeApp({ image: null, storage, imageFilter: 'sepia', activeProjectId: null });
+  storage.promoteTemporaryToProject = () => { app.promoted.push(['promote']); app.activeProjectId = 'p1'; };
+  stubDecode(t, app);
   await toggleWebcore(app);
   assert.equal(app.storage.incognito, false);
   assert.deepEqual(app.calls[0], ['incognitoUI']);
   assert.deepEqual(app.calls[1], ['filter', 'none']);
   assert.deepEqual(app.calls[2], ['load', WEBCORE.strings.imageName]);
+  assert.deepEqual(app.promoted, [['promote'], ['reportActive', 'p1']], 'out of incognito, the picture becomes a project');
+  assert.equal(`${app.imageBaseName}.${app.imageExt}`, WEBCORE.strings.imageName.toLowerCase(), 'named by its file');
   const [, data, opts] = app.calls[3];
   assert.deepEqual(opts, { mode: 'combine', history: true });
   assert.equal(data.lines.length, 7);
@@ -108,7 +124,7 @@ test('an empty editor reopens the local project named webcore instead of minting
   ];
   const opened = [];
   const app = makeApp({ image: null, storage: { incognito: false, store: { list } },
-                        switchToProject: (id) => { opened.push(id); return true; } });
+                        projectTransfer: { switchToProject: (id) => { opened.push(id); return true; } } });
   await toggleWebcore(app);
   assert.deepEqual(opened, ['loc'], 'the local one, never the server-linked copy');
   assert.equal(app.calls.some(([k]) => k === 'load'), false, 'no new picture, no new project');

@@ -4,6 +4,7 @@
 // re-cut freely but must leave every expectation below byte-identical. A deliberate UI
 // change re-records them, in its own commit, the way tests/pins re-records a render.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/app/project/ProjectTitleController.hpp"
 
 namespace {
   // One widget, named so a failure reads: class plus objectName.
@@ -139,9 +140,9 @@ class MainWindowGuiTest : public QObject {
 
     // The controllers and overlays the ctor owns all exist, and the window is wired to
     // its own filters (Escape leaves fullscreen from any focus; the viewport zooms).
-    QVERIFY(win.notify && win.remoteSession && win.dataExport && win.remoteSync &&
-            win.projectTransfer && win.tooltip && win.arrowPanTimer &&
-            win.scrollbarHideTimer && win.chatNaturalMin.width() > 0);
+    QVERIFY(win.notify && win.remote.session && win.dataExport && win.remoteSync &&
+            win.projectTransfer && win.overlays.tooltip && win.arrowPan && win.projectTitle &&
+            win.parts.view.scrollbarHideTimer && win.parts.dockChrome.chatNaturalMin.width() > 0);
     QVERIFY(win.testAttribute(Qt::WA_Hover));
     QVERIFY(win.acceptDrops());
     QCOMPARE(win.windowTitle(), QStringLiteral("Stencil"));
@@ -154,17 +155,17 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    auto* bar = win.canvasScrollBar(Qt::Vertical);
+    auto* bar = win.parts.view.canvasScrollBar(Qt::Vertical);
     QVERIFY(bar);
 
     // An Enter on a canvas scrollbar is observed (it pins the bar visible) and passed on —
     // the blocked-cursor handler after it sees the very same event.
     QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
     QCOMPARE(win.eventFilter(bar, &enter), false);
-    QVERIFY(win.scrollbarHovered);
+    QVERIFY(win.parts.view.scrollbarHovered);
     QEvent leave(QEvent::Leave);
     QCOMPARE(win.eventFilter(bar, &leave), false);
-    QVERIFY(!win.scrollbarHovered);
+    QVERIFY(!win.parts.view.scrollbarHovered);
 
     // A text box owns the standard editing chords: ShortcutOverride is CLAIMED there, so the
     // canvas action sharing the chord never fires. The same key elsewhere is left alone.
@@ -200,7 +201,7 @@ class MainWindowGuiTest : public QObject {
                     Qt::LeftButton, Qt::NoModifier);
     const bool wasEditing = win.nameBar.editing;
     QCOMPARE(win.eventFilter(win.nameBar.field, &dbl), !wasEditing);
-    if (!wasEditing) win.cancelProjectName();
+    if (!wasEditing) win.projectTitle->cancelProjectName();
   }
 };
 

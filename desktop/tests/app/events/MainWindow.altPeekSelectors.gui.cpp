@@ -2,6 +2,7 @@
 // through the real filter, no Alt override: both entry orders with a text field focused, the
 // release outside / inside with the linger close, the glide, and a click-open list left alone.
 #include "altPeekGui.hpp"
+#include "uiTimings.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -17,7 +18,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     bootForPeeks(win, MotionMode(mode));
     if (!cursorWarps(win)) QSKIP("the platform ignores QCursor::setPos");
-    QComboBox* style = win.lineStyle;
+    QComboBox* style = win.tools.lineStyle;
     QVERIFY(style && style->isVisible());
     QWidget* field = focusAField(&win);
     QVERIFY2(field, "no text field on the toolbar to hold the focus");
@@ -50,7 +51,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(list->windowOpacity(), 1.0, 2000);
     QCursor::setPos(list->geometry().center());
     altKey(QEvent::KeyRelease);   // to the list, which holds the focus now
-    QTest::qWait(stencil::support::LINGER_CLOSE_MS + 250);
+    QTest::qWait(stencil::support::uiTimings().lingerCloseMs + 250);
     QVERIFY2(comboPopup(style), "released over the list, it must linger");
     QCursor::setPos(away);
     QTRY_VERIFY2(!list->isVisible(), "the lingering list did not close once the pointer left");
@@ -106,7 +107,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     bootForPeeks(win, MotionMode::NONE);
     if (!cursorWarps(win)) QSKIP("the platform ignores QCursor::setPos");
-    auto* style = static_cast<stencil::gui::SearchComboBox*>(win.lineStyle);
+    auto* style = static_cast<stencil::gui::SearchComboBox*>(win.tools.lineStyle);
     const int before = style->currentIndex();
     QCursor::setPos(centreOf(style));
     altKey(QEvent::KeyPress);

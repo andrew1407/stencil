@@ -4,18 +4,19 @@
 //! every `logo.print` is routed here via the output sink, and everything degrades to the
 //! plain line editor when the terminal is too small or size detection fails.
 const std = @import("std");
-const logo = @import("../app/logo.zig");
-const ansi = @import("render/ansi.zig");
 const logoFx = @import("render/logoFx.zig");
 const tty = @import("screen/tty.zig");
 const prefs = @import("screen/prefs.zig");
 const mouse = @import("screen/mouse.zig");
-const skin = @import("../app/skin.zig");
+const frame_mod = @import("screen/frame.zig");
 
 pub const ttyWrite = tty.ttyWrite;
 pub const gotoRow = tty.gotoRow;
 pub const gotoClear = tty.gotoClear;
 pub const pushChunk = tty.pushChunk;
+pub const Lines = tty.Lines;
+pub const beginFrame = frame_mod.begin;
+pub const endFrame = frame_mod.end;
 
 pub const parseRevealSpeed = prefs.parseRevealSpeed;
 pub const speed_min = prefs.speed_min;
@@ -63,7 +64,7 @@ pub const Screen = struct {
     // How far right the accent reaches on screen, measured when a recolour starts: the seam travels
     // this far, the rule scales its faster progress against it, and the icon's hand turns over it.
     wipe_reach: u16 = 0,
-    lines: std.ArrayList([]u8) = .empty, // scrollback (owned)
+    lines: Lines = .empty, // scrollback (owned)
     pending: std.ArrayList(u8) = .empty, // partial line being accumulated
     hdr_pending: std.ArrayList(u8) = .empty, // partial header line (during capture)
     capturing_header: bool = false,
@@ -81,59 +82,34 @@ pub const Screen = struct {
     // In-app text selection (drag to highlight) — works while mouse tracking is on, which would
     // otherwise deny native selection. Extracted on release, copied only on Ctrl-S. 1-based cells.
     sel_active: bool = false, // a drag is in progress
+    drag_owed: bool = false, // the drag has moved past the highlight on screen (see settleDrag)
     has_sel: bool = false, // a highlight is currently drawn
     sel_ar: u16 = 0, // anchor (drag start) row/col
     sel_ac: u16 = 0,
     sel_hr: u16 = 0, // head (current) row/col
     sel_hc: u16 = 0,
     sel_buf: std.ArrayList(u8) = .empty, // extracted selection text (kept until copied or cleared)
+    frame: frame_mod.Frame = .{}, // what the paint in progress has written, sent as one write
+    dropped: usize = 0, // lines trimmed off the front of `lines` so far
+    // Quiet scrolls not yet painted: the body still shows the window that began at `owed_first`
+    // (absolute), and whether a highlight was on it then. Any body paint settles it.
+    scroll_owed: bool = false,
+    owed_first: usize = 0,
+    owed_sel: bool = false,
 
     pub const Error = error{ TerminalTooSmall, SizeUnavailable };
 
-    /// Enter full-screen mode; on any failure tears down cleanly and errors so the caller falls back to
-    /// the plain editor. `self` must have a stable address (its pointer reaches the sink and `g_screen`).
-    pub fn start(self: *Screen) Error!void {
-        try self.querySize();
-        self.queryHighlight();
-        // Capture the banner into header lines by routing logo.print at ourselves first.
-        logo.setSink(sinkTrampoline, self);
-        errdefer logo.clearSink();
-        self.captureHeader();
-        if (self.rows < self.headerRows() + 5 or self.cols < 8) {
-            self.freeAll();
-            return Error.TerminalTooSmall;
-        }
-        // Alt screen + no autowrap (a full-width write must never wrap and scroll the pinned
-        // header off — this is what would otherwise "eat" the logo).
-        ttyWrite(self.fd, "\x1b[?1049h\x1b[?7l");
-        // Mouse tracking is ON by default; terminals keep a native-selection escape hatch
-        // (Shift/Option+drag), and `/mouse off` or STENCIL_CONSOLE_MOUSE hands the mouse back.
-        self.setMouse(mousePreference() orelse true);
-        self.reveal_speed = revealSpeedPreference() orelse speed_default; // STENCIL_CONSOLE_REVEAL_SPEED sets your own
-        logo.setAccentSentinel(true); // stored accent spans re-tint to the live accent on repaint
-        self.painted_accent = logo.accentRgb();
-        g_screen = self;
-        self.fullPaint();
-    }
-
-    pub fn deinit(self: *Screen) void {
-        logo.clearSink();
-        logo.setAccentSentinel(false);
-        self.setMouse(false);
-        self.setSelectionTint(false); // the terminal keeps its own selection colour after us
-        // Restore: re-enable autowrap, leave the alternate screen.
-        ttyWrite(self.fd, skin.leaveSeq());
-        g_screen = null;
-        self.freeAll();
-    }
+    pub const start = @import("screen/input.zig").start;
+    pub const enter = @import("screen/input.zig").enter;
+    pub const deinit = @import("screen/input.zig").deinit;
     pub const mouseOn = @import("screen/input.zig").mouseOn;
-    pub const queryHighlight = @import("screen/select.zig").queryHighlight;
+    pub const queryHighlight = @import("screen/highlight.zig").queryHighlight;
     pub const mousePreference = @import("screen/input.zig").mousePreference;
     pub const revealSpeedPreference = @import("screen/input.zig").revealSpeedPreference;
     pub const revealSpeed = @import("screen/input.zig").revealSpeed;
     pub const setRevealSpeed = @import("screen/input.zig").setRevealSpeed;
     pub const skipRevealOnce = @import("screen/input.zig").skipRevealOnce;
-    pub const setSelectionTint = @import("screen/select.zig").setSelectionTint;
+    pub const setSelectionTint = @import("screen/highlight.zig").setSelectionTint;
     pub const setMouse = @import("screen/input.zig").setMouse;
     pub const freeAll = @import("screen/scrollback.zig").freeAll;
     pub const readByteTimeout = @import("screen/input.zig").readByteTimeout;
@@ -161,7 +137,8 @@ pub const Screen = struct {
     pub const bodyBottom = @import("screen/model.zig").bodyBottom;
     pub const selActive = @import("screen/select.zig").selActive;
     pub const selStart = @import("screen/select.zig").selStart;
-    pub const selDrag = @import("screen/select.zig").selDrag;
+    pub const selDragQuiet = @import("screen/select.zig").selDragQuiet;
+    pub const settleDrag = @import("screen/select.zig").settleDrag;
     pub const selEnd = @import("screen/select.zig").selEnd;
     pub const hasSelection = @import("screen/select.zig").hasSelection;
     pub const takeSelection = @import("screen/select.zig").takeSelection;
@@ -187,6 +164,9 @@ pub const Screen = struct {
     pub const maxScroll = @import("screen/model.zig").maxScroll;
     pub const clampScroll = @import("screen/model.zig").clampScroll;
     pub const scroll = @import("screen/model.zig").scroll;
+    pub const scrollQuiet = @import("screen/model.zig").scrollQuiet;
+    pub const settleScroll = @import("screen/model.zig").settleScroll;
+    pub const scrollToBottom = @import("screen/model.zig").scrollToBottom;
     pub const fullPaint = @import("screen/paint.zig").fullPaint;
     pub const repaint = @import("screen/paint.zig").repaint;
     pub const paintHeader = @import("screen/paint.zig").paintHeader;
@@ -203,109 +183,16 @@ pub const Screen = struct {
     pub const drawStatusBarWipe = @import("screen/paint.zig").drawStatusBarWipe;
 };
 
-// free helpers (pure, unit-tested)
-
-const testing = std.testing;
-
-test "a speed change forgets the burst, so its own confirmation runs at the NEW speed" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
-    defer s.freeAll();
-    // Mid-burst: output has been flowing, so the next line would take the abbreviated form.
-    s.reveal_last_ns = 1234;
-    s.reveal_burst_ns = 1000;
-    s.setRevealSpeed(0.05);
-    // The confirmation line arrives right behind the echo of the command that set the speed —
-    // if it inherited that burst it would be the one line NOT running at the speed it names.
-    try testing.expectEqual(@as(i96, 0), s.reveal_last_ns);
-    try testing.expectEqual(@as(i96, 0), s.reveal_burst_ns);
-}
-
-test "skipRevealOnce: the echo of a typed line lands at once, and only that line" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
-    defer s.freeAll();
-    try testing.expect(!s.skip_reveal_once);
-    s.skipRevealOnce(); // console.zig arms this around the command echo
-    try testing.expect(s.skip_reveal_once);
-    s.append("> /reveal-speed 0.05\n");
-    // One-shot: consumed by that append, so the command's real output still sweeps in.
-    try testing.expect(!s.skip_reveal_once);
-    try testing.expectEqual(@as(usize, 1), s.lines.items.len);
-    // Armed but nothing arrives (an empty line): still consumed, never left standing.
-    s.skipRevealOnce();
-    s.append("");
-    try testing.expect(!s.skip_reveal_once);
-}
-
-test "selection covers the INPUT rows too, not just the output above them" {
-    const a = testing.allocator;
-    // A screen with no tty behind it: nothing here paints, only the selection model runs.
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
-    defer s.freeAll();
-    try s.lines.append(a, try a.dupe(u8, "wrote out.png"));
-    try s.header.append(a, try a.dupe(u8, "  logo"));
-    s.setPromptText(&.{"> /theme hello world"});
-
-    // The input block is the bottom row; the header is not selectable, the body and the
-    // input are.
-    try testing.expect(!s.selectableRow(1)); // logo header
-    try testing.expect(s.selectableRow(s.bodyTop()));
-    try testing.expect(s.selectableRow(s.promptRow()));
-
-    // Drag across "hello" on the input row and take it: the typed line is what comes out.
-    const row = s.promptRow();
-    s.sel_ar = row;
-    s.sel_ac = 10; // 1-based columns: "> /theme |hello world"
-    s.sel_hr = row;
-    s.sel_hc = 14;
-    s.has_sel = true;
-    s.extractSelection();
-    try testing.expectEqualStrings("hello", s.sel_buf.items);
-
-    // A drag that starts in the output and ends on the input carries both lines.
-    s.sel_ar = s.bodyTop();
-    s.sel_ac = 1;
-    s.sel_hr = row;
-    s.sel_hc = 8;
-    s.extractSelection();
-    try testing.expectEqualStrings("wrote out.png\n> /theme", s.sel_buf.items);
-}
-
-test "replaceLine / removeLine: only the line that still reads as expected is touched" {
-    const a = testing.allocator;
-    var threaded = std.Io.Threaded.init(a, .{});
-    defer threaded.deinit();
-    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
-    defer s.freeAll();
-    s.setRevealSpeed(1.0);
-    s.append("one\n◐ wait\nthree\n");
-    try testing.expect(s.replaceLine(1, "◐ wait", "◓ wait"));
-    try testing.expectEqualStrings("◓ wait", s.lines.items[1]);
-    // Stale expectation (the frame already moved on) or a bad index: untouched.
-    try testing.expect(!s.replaceLine(1, "◐ wait", "◑ wait"));
-    try testing.expect(!s.replaceLine(7, "◓ wait", "◑ wait"));
-    try testing.expectEqualStrings("◓ wait", s.lines.items[1]);
-    try testing.expect(!s.removeLine(1, "◐ wait"));
-    try testing.expectEqual(@as(usize, 3), s.lines.items.len);
-    try testing.expect(s.removeLine(1, "◓ wait"));
-    try testing.expectEqual(@as(usize, 2), s.lines.items.len);
-    try testing.expectEqualStrings("one", s.lines.items[0]);
-    try testing.expectEqualStrings("three", s.lines.items[1]);
-}
-
 test {
     _ = @import("screen/model.zig");
     _ = @import("screen/scrollback.zig");
     _ = @import("screen/select.zig");
     _ = @import("screen/paint.zig");
     _ = @import("screen/input.zig");
+    _ = @import("screen/diff.zig");
+    _ = @import("screen/highlight.zig");
+    _ = frame_mod;
+    _ = @import("screen/terminal.zig");
     _ = tty;
     _ = prefs;
     _ = mouse;

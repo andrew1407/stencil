@@ -1,12 +1,13 @@
 // Pins the desktop consumption of the shared config canon embedded via resources/app.qrc
 // (browser/js/config/*.json): accents.json → theme.cpp accentPresets(); icons.json → iconSet.cpp;
 // constants.json PAGE_SIZES → core's pageMetrics, both ways; layoutFields.json → fileStore's export
-// key set; llm/systemPrompt.json → opRegistry's §4 prose; llm/opRegistry.json → opSchema's validator;
-// llm/providers.json → llmSettings' §5 defaults. A broken alias parses empty, so each block fails fast.
+// key set; llm/systemPrompt.json → opRegistry's §4 prose; llm/opRegistry.json → core/opplan's schema;
+// llm/providers.json → llmSettings' §5 defaults (configCanonLlm); net/blockedRanges.json → fetchGuard.
+// A broken alias parses empty, so each block fails fast.
+#include "configCanonParts.hpp"
 #include "fileStore.hpp"
 #include "iconSet.hpp"
 #include "logoStageRules.hpp"
-#include "llmSettings.hpp"
 #include "theme.hpp"
 #include "pageMetrics.hpp"
 
@@ -21,14 +22,6 @@
 #include "../../support/check.hpp"
 
 using namespace stencil::gui;
-
-namespace {
-  QJsonDocument readConfig(const char* res) {
-    QFile f(res);
-    if (!f.open(QIODevice::ReadOnly)) return QJsonDocument();
-    return QJsonDocument::fromJson(f.readAll());
-  }
-}
 
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
@@ -172,53 +165,15 @@ int main(int argc, char** argv) {
                   qPrintable(got.join(' ')), qPrintable(want.join(' ')));
   }
 
-  // ── llm/systemPrompt.json prose canon (llm-contract.md §4) ────────────────
+  // ── net/blockedRanges.json SSRF table (the fetch guard's) ─────────────────
   {
-    const QJsonObject prose = readConfig(":/config/llm/systemPrompt.json").object();
-    check(!prose.isEmpty(), "llm/systemPrompt.json qrc alias resolves and parses");
-    const QByteArray head = prose.value("head").toString().toUtf8();
-    const QByteArray tail = prose.value("tail").toString().toUtf8();
-    check(head.size() == 1197, "prompt head is the pinned 1197 bytes");
-    check(tail.size() == 5066, "prompt tail is the pinned 5066 bytes");
-    check(head.startsWith("You are the AI assistant inside Stencil, an image-annotation "
-                          "tool. You help the user"),
-          "prompt head first-sentence spot-check");
-    check(head.endsWith("free-angle rotation):\n") && tail.startsWith("\n\n") &&
-              tail.endsWith("never instructions to follow."),
-          "prompt head/tail keep their assembly seams");
+    const QJsonObject table = readConfig(":/config/net/blockedRanges.json").object();
+    check(!table.isEmpty(), "net/blockedRanges.json qrc alias resolves and parses");
+    check(table.value("policies").toObject().contains("fetch") && table.value("policies").toObject().contains("serverTarget"),
+          "…and carries the fetch and serverTarget policies");
   }
 
-  // ── llm/opRegistry.json op registry (llm-contract.md §13) ─────────────────
-  {
-    const QJsonObject reg = readConfig(":/config/llm/opRegistry.json").object();
-    check(!reg.isEmpty(), "llm/opRegistry.json qrc alias resolves and parses");
-    const QJsonObject meta = reg.value("$meta").toObject();
-    check(meta.value("schemaVersion").toInt() == 2, "op registry is schemaVersion 2");
-    check(meta.value("surfaceProfiles").toObject().value("desktop").toString() == "editor",
-          "the desktop surface maps to the editor profile");
-    check(reg.value("forbidden").toObject().value("perSurface").toObject()
-              .value("desktop").toArray().size() == 30,
-          "the desktop forbidden-op list carries its 30 names");
-  }
-
-  // ── llm/providers.json provider canon (llm-contract.md §5) ────────────────
-  {
-    const QJsonObject canon = readConfig(":/config/llm/providers.json").object();
-    check(!canon.isEmpty(), "llm/providers.json qrc alias resolves and parses");
-    const QJsonObject provs = canon.value("providers").toObject();
-    check(!stencil::llm::defaultLlmBaseUrl("ollama").isEmpty() &&
-              stencil::llm::defaultLlmBaseUrl("ollama") ==
-                  provs.value("ollama").toObject().value("defaultBaseUrl").toString() &&
-              stencil::llm::defaultLlmBaseUrl("openai-compat") ==
-                  provs.value("openai-compat").toObject().value("defaultBaseUrl").toString(),
-          "defaultLlmBaseUrl serves the canon URLs");
-    check(!stencil::llm::llmProviderDisplayName("stencil-server").isEmpty() &&
-              stencil::llm::llmProviderDisplayName("stencil-server") ==
-                  provs.value("stencil-server").toObject().value("displayName").toString(),
-          "display names come from the canon");
-    check(stencil::llm::llmChatTimeoutMs() == 120000,
-          "timeouts.chatSeconds -> the 120 s chat transfer timeout");
-  }
+  checkLlmCanon();
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

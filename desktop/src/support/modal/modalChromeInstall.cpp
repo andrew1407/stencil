@@ -1,29 +1,17 @@
 #include "modalChrome.hpp"
 #include "modalChromeShared.hpp"
 #include "iconSet.hpp"
-#include "modalReveal.hpp"
 #include "ShimmerOverlay.hpp"
 #include "../skinPrefs.hpp"
 
 #include <QColor>
-#include <QComboBox>
-#include <QGuiApplication>
 #include <QDialog>
 #include <QEvent>
-#include <QFormLayout>
-#include <QFrame>
 #include <QHBoxLayout>
-#include <QKeySequence>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMouseEvent>
-#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
-#include <QScreen>
-#include <QScrollArea>
-#include <QShortcut>
-#include <QTimer>
 #include <QVBoxLayout>
 
 namespace stencil::gui {

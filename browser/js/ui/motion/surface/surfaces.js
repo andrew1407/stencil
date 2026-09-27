@@ -10,16 +10,20 @@ import { cancelDust, reshapeGrid } from './tiles.js';
 // `belowChat`: a page surface's cloud (the tool rows' fold, the points bar) is layered UNDER a
 // docked chat panel (animations/dust.css), so its motes leave beneath the panel, never across it.
 export const BELOW_CHAT_CLASS = 'dust-below-chat';
+// `picture`: the surface stays on screen under its cloud (animations/dust.css times the grains to it).
+export const PICTURE_CLASS = 'dust-over-picture';
 export const surfaceDust = (el, point, { ms, gather, px = SURFACE_MOTE_PX, paint = null, box = null,
-                                 delayScale = null, belowChat = false }) => {
+                                 delayScale = null, belowChat = false, picture = false, anchor = null,
+                                 anchorBox = null }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
   const r = box || el.getBoundingClientRect();
   if (!(r.width >= 8 && r.height >= 8)) return false;
   const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, px);
   return disintegrate(el, {
-    ...grid, gather, toward: point, ms, px, toBody: true, box, delayScale, scoped: false,
-    hostClass: (gather ? 'dust-forming' : 'dust-leaving') + (belowChat ? ` ${BELOW_CHAT_CLASS}` : ''),
+    ...grid, gather, toward: point, ms, px, toBody: true, box, delayScale, scoped: false, picture, anchor, anchorBox,
+    hostClass: (gather ? 'dust-forming' : 'dust-leaving') + (belowChat ? ` ${BELOW_CHAT_CLASS}` : '')
+      + (picture ? ` ${PICTURE_CLASS}` : ''),
     paintTile: speckPainter(el, paint),
   });
 };
@@ -34,7 +38,8 @@ export function settleSurface(el) {
   cancelDust(el);
 }
 
-const playSurface = (el, point, { ms, gather, box = null, delayScale = null, belowChat = false }) => {
+const playSurface = (el, point, { ms, gather, box = null, delayScale = null, belowChat = false, picture = false,
+                                   anchor = null, anchorBox = null }) => {
   if (!el?.classList) return false;
   settleSurface(el);
   if (motionReduced()) return false;
@@ -43,7 +48,7 @@ const playSurface = (el, point, { ms, gather, box = null, delayScale = null, bel
 // The marker goes on BEFORE the measure: the element's own CSS entrance fills an
 // icon-sized from-state (the `modal-measuring` trap in ui/base.js). Off again if the dust declines.
   el.classList.add(SURFACE_DRIVEN_CLASS);
-  if (!surfaceDust(el, point, { ms, gather, box, delayScale, belowChat })) {
+  if (!surfaceDust(el, point, { ms, gather, box, delayScale, belowChat, picture, anchor, anchorBox })) {
     el.classList.remove(SURFACE_DRIVEN_CLASS);
     return false;
   }
@@ -57,9 +62,11 @@ const playSurface = (el, point, { ms, gather, box = null, delayScale = null, bel
   return true;
 };
 
-export const surfaceIn = (el, point, { ms = SURFACE_IN_MS, box = null, delayScale = null, belowChat = false } = {}) =>
-  playSurface(el, point, { ms, gather: true, box, delayScale, belowChat });
+export const surfaceIn = (el, point, { ms = SURFACE_IN_MS, box = null, delayScale = null, belowChat = false,
+                                        picture = false, anchor = null, anchorBox = null } = {}) =>
+  playSurface(el, point, { ms, gather: true, box, delayScale, belowChat, picture, anchor, anchorBox });
 // The caller still owns the hide/remove: the end state never depends on the animation.
-// `delayScale` compresses the stagger for a small surface.
-export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null, delayScale = null, belowChat = false } = {}) =>
-  playSurface(el, point, { ms, gather: false, box, delayScale, belowChat });
+// `delayScale` compresses the stagger for a small surface; `picture` shows each grain only once it leaves.
+export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null, delayScale = null, belowChat = false,
+                                         picture = false, anchor = null, anchorBox = null } = {}) =>
+  playSurface(el, point, { ms, gather: false, box, delayScale, belowChat, picture, anchor, anchorBox });

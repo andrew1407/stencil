@@ -3,10 +3,13 @@
 // (wireModalShell adds `.modal-popover`). Timers are injected for DOM-free tests.
 
 import { isTypingInFocus } from '../../utils.js';
+import { onAltKeys } from './altPeek.js';
+import constants from '../../config/constants.json' with { type: 'json' };
 
-export const DOUBLE_CLICK_MS = 250;
-export const LONG_PRESS_MS = 500;
-export const PRESS_SLOP_PX = 10;
+const { POPOVER } = constants;
+export const DOUBLE_CLICK_MS = POPOVER.doubleClickMs;
+export const LONG_PRESS_MS = POPOVER.longPressMs;
+export const PRESS_SLOP_PX = POPOVER.pressSlopPx;
 
 // Below the anchor unless above has more room: a short box near the bottom of a modal can "fit"
 // below by the viewport's measure while overlapping the modal's own rows (user report). Pure.
@@ -23,7 +26,7 @@ export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) 
 // interval; dblclick / right-click / long press → sticky popover; Alt+hover → a peek.
 const glideRegistry = new Set();
 
-export const LINGER_CLOSE_MS = 250;
+export const LINGER_CLOSE_MS = POPOVER.lingerCloseMs;
 
 export const createModalOpenGesture = ({
   openFull,
@@ -147,7 +150,7 @@ export const createModalOpenGesture = ({
 export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover, isPopoverOpen,
                                              isPeekEngaged, holdLinger, holds, eagerClick }) => {
   // Explicit list: an option added to createModalOpenGesture must be added here too or it
-  // is silently dropped (tests/popover.test.js pins it).
+  // is silently dropped (tests/ui/tip/popover.test.js pins it).
   const g = createModalOpenGesture({ openFull, openPopover, closePopover, isPopoverOpen,
                                      isPeekEngaged, holdLinger, holds, eagerClick });
   // A disabled icon opens nothing. Checked live: disabled controls keep pointer events on
@@ -164,14 +167,13 @@ export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover
   // Both orders: gliding on with Alt held, and pressing Alt while resting on the icon.
   // preventDefault keeps bare Alt off the browser menu bar; only the key route defers to a field.
   btn.addEventListener('mouseenter', (e) => { if (e.altKey && enabled()) g.altHover(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Alt' || !btn.matches(':hover') || !enabled()) return;
-    if (isTypingInFocus()) return;
-    e.preventDefault();
-    g.altHover();
+  onAltKeys({
+    press: (e) => {
+      if (!btn.matches(':hover') || !enabled() || isTypingInFocus()) return;
+      e.preventDefault();
+      g.altHover();
+    },
+    release: () => g.altRelease(),
   });
-  // Blur too — Alt+Tab switches away without delivering the keyup.
-  document.addEventListener('keyup', (e) => { if (e.key === 'Alt') g.altRelease(); });
-  window.addEventListener('blur', () => g.altRelease());
   return g;
 };

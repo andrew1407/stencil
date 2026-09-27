@@ -1,34 +1,60 @@
-// A turn's images belong to the user's row (js/llm/session.js): the previews, what
+// A turn's images belong to the user's row (js/llm/chat/session.js): the previews, what
 // §12.1 persists, and the composer drop target the rows leave before the empty state returns.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { chatDropCueHtml } from '../../../js/ui/chat/view.js';
+import { wipeDurationMs, LEAVE_MS, DISINTEGRATE_MS } from '../../../js/ui/motion.js';
+import { setMotionOverride } from '../../../js/ui/motion/motionPrefs.js';
 import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../../../js/llm/chat/session.js';
 import { buildChatDoc, rowsToMessages } from '../../../js/llm/chat/store.js';
-import { motionSource } from '../../helpers/motionSource.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
+import { makeEl, stubDom } from '../../helpers/chatTranscriptRig.js';
+
+// renderChatLog over the transcript rig, every setTimeout it arms held back for the test to fire.
+const paintRig = async (t, tag) => {
+  stubDom();
+  const timers = [];
+  const realSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (fn, ms) => timers.push({ fn, ms });
+  t.after(() => { globalThis.setTimeout = realSetTimeout; });
+  const { renderChatLog } = await import(`../../../js/ui/chat/view.js?attach-${tag}`);
+  const transcript = makeEl();
+  return { transcript, timers, paint: (log) => renderChatLog(transcript, log, {}) };
+};
 
 // ── Clearing: the rows leave FIRST, the empty state comes back after ──
-test('the empty state waits out the wipe instead of appearing under the falling rows', () => {
-  const view = chatViewSource();
+test('the empty state waits out the wipe instead of appearing under the falling rows', async (t) => {
+  const { transcript, timers, paint } = await paintRig(t, 'empty');
+  const chips = () => transcript.querySelector('.chat-empty');
+  const waiters = () => timers.filter((x) => x.ms === wipeDurationMs());
+  paint([{ id: 1, role: 'user', text: 'hi' }]);
+  paint([]);
   // The placeholder is never painted in the same tick as the removal…
-  assert.match(view, /const restoreEmptyState = \(transcript, log, wiped\) => \{/);
-  assert.ok(view.includes('setTimeout(paint, wipeDurationMs());'), 'it waits for the wipe to finish');
-  // …and when it finally runs it re-checks the world: a turn started during the wipe
-  // must not be papered over with chips.
-  assert.ok(view.includes("if (log.length || transcript.querySelector('[data-row]')) return;"));
+  assert.strictEqual(chips(), null, 'no chips under the falling rows');
+  assert.strictEqual(waiters().length, 1, 'it waits for the wipe to finish');
   // One waiter at a time — renderChatLog runs on every log change.
-  assert.ok(view.includes('if (transcript._emptyWaiting) return;'));
-  // The wipe's true length is the SCATTER, not the row collapse: leaveThenRemove
-  // resolves on LEAVE_MS while the particles keep falling for DISINTEGRATE_MS — and a caller on
-  // its OWN dust clock (a chat entry, a project row — ITEM_DUST_MS) waits out THAT instead, or
-  // the placeholder lands under motes still falling.
-  const motion = motionSource();
-  assert.match(motion, /export const wipeDurationMs = \(dustMs = 0\) => \{[\s\S]*Math\.max\(LEAVE_MS, dustMs \|\| DISINTEGRATE_MS\)/);
-  // A mode that flies NOTHING waits for nothing: the row's own collapse is the whole wipe and
-  // the caller has already awaited it, so a removed row never sits on screen after it.
-  assert.match(motion, /if \(!dustEnabled\(\)\) return 0;/, 'no particles, no wait');
+  paint([]);
+  assert.strictEqual(waiters().length, 1, 'a repaint mid-wipe arms no second waiter');
+  waiters()[0].fn();
+  assert.ok(chips(), 'the chips come back once the wipe is over');
+  // …and when it runs it re-checks the world: a turn started during the wipe is never papered over.
+  const again = await paintRig(t, 'restart');
+  again.paint([{ id: 1, role: 'user', text: 'hi' }]);
+  again.paint([]);
+  again.paint([{ id: 2, role: 'user', text: 'again' }]);
+  again.timers.filter((x) => x.ms === wipeDurationMs()).forEach((x) => x.fn());
+  assert.strictEqual(again.transcript.querySelector('.chat-empty'), null, 'the new turn keeps the transcript');
+});
+
+test('the wipe lasts as long as the scatter, and nothing when nothing flies', () => {
+  // The SCATTER, not the row collapse: leaveThenRemove resolves on LEAVE_MS while the particles keep
+  // falling for DISINTEGRATE_MS — a caller on its OWN dust clock (ITEM_DUST_MS) waits out that.
+  assert.strictEqual(wipeDurationMs(), Math.max(LEAVE_MS, DISINTEGRATE_MS));
+  assert.strictEqual(wipeDurationMs(DISINTEGRATE_MS * 2), DISINTEGRATE_MS * 2, 'its own dust clock');
+  assert.strictEqual(wipeDurationMs(1), LEAVE_MS, 'never shorter than the collapse');
+  // A mode that flies NOTHING waits for nothing: the row's own collapse is the whole wipe.
+  setMotionOverride({ mode: 'slide' });
+  try { assert.strictEqual(wipeDurationMs(), 0, 'no particles, no wait'); } finally { setMotionOverride(null); }
 });
 
 // ── The images a turn carries belong to the USER's row ──
@@ -68,14 +94,20 @@ test('the logged turn hangs the attachments on the user row, and §12.1 still pe
   resetChatLog();
 });
 
-test('renderChatLog paints the attachments as the user\'s own strip, above their message', () => {
-  const view = chatViewSource();
-  // Keyed like the result cards, so a repaint updates rows in place instead of
-  // reloading every thumbnail…
-  assert.ok(view.includes('const attachId = `${row.id}-attachments`;'));
-  assert.ok(view.includes('if (!transcript.querySelector(`[data-row="${attachId}"]`)) {'));
-  // …and inserted BEFORE the message row (the images come with what was said).
-  assert.ok(view.includes('el.before(strip);'), 'the strip precedes the message it belongs to');
+test('renderChatLog paints the attachments as the user\'s own strip, above their message', async (t) => {
+  const { transcript, paint } = await paintRig(t, 'strip');
+  const log = [{ id: 7, role: 'user', text: 'look', attachments: [{ name: 'cat.jpg', kind: 'image', dataUrl: 'data:,' }] },
+    { id: 8, role: 'assistant', text: 'A cat.' }];
+  paint(log);
+  // Inserted BEFORE the message row (the images come with what was said)…
+  const [strip, message] = transcript.children;
+  assert.ok(strip.classList.contains('chat-attached'), 'the strip precedes the message it belongs to');
+  assert.deepStrictEqual([strip.dataset.row, message.dataset.row], ['7-attachments', '7']);
+  // …keyed like the result cards, so a repaint updates in place instead of reloading every thumbnail.
+  log[0].text = 'look here';
+  paint(log);
+  assert.strictEqual(transcript.children[0], strip, 'the same strip survives the repaint');
+  assert.strictEqual(transcript.querySelectorAll('.chat-attached').length, 1);
   // The strip sits on the user's side — assistant-side would read as the model's.
   const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-attached \{[^}]*align-self: flex-end/);

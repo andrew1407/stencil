@@ -3,8 +3,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createStencil, validateLayout, makeApp, called, lastCall, viewport,
+  createStencil, validateLayout, makeApp, called, lastCall, viewport, blankCanvases,
 } from '../helpers/stencilApiRig.js';
+import { installImageDecode } from '../helpers/projectTransferRig.js';
+
+// What the decode of a `blank-<w>x<h>.png` settles into.
+const blankDims = (file) => {
+  const [, w, h] = /blank-(\d+)x(\d+)/.exec(file.name);
+  return { width: Number(w), height: Number(h) };
+};
 
 // ── Read-only guard ────────────────────────────────────────────────────────────
 test('guard: reassigning a method, defining, or deleting a member throws; real setters write through', () => {
@@ -23,7 +30,7 @@ test('guard: reassigning a method, defining, or deleting a member throws; real s
 
 // ── Chainable editor actions ────────────────────────────────────────────────────
 test('editor actions route to app.* and return the facade for chaining', () => {
-  const app = makeApp();
+  const app = makeApp({ image: { width: 10, height: 10 } });
   const stencil = createStencil(app);
 
   assert.equal(stencil.rotateLeft(), stencil);
@@ -34,9 +41,17 @@ test('editor actions route to app.* and return the facade for chaining', () => {
   // A whole chain hits each underlying method once, in order.
   stencil.undo().redo().clearLines().startDrawing().stopDrawing()
     .downloadImage().copyImage().copyLayout().downloadLayout().newEditor().zoomFit();
-  for (const m of ['undo', 'redo', 'clearAllLines', 'startDrawingMode', 'stopDrawingMode',
-    'saveImage', 'copyImageToClipboard', 'copyLayoutToClipboard', 'downloadJSON', 'newEditor', 'fitToWindow'])
+  for (const m of ['undo', 'redo', 'clearAllLines',
+    'saveImage', 'copyImageToClipboard', 'copyLayoutToClipboard', 'downloadJSON', 'fitToWindow'])
     assert.equal(called(app, m).length, 1, `${m} called once`);
+  // The draw-mode and new-editor core functions ran once each, seen by what they do: the start
+  // opens a stroke and drops the selection bar, the stop closes it and clears the coord table,
+  // and the new editor resets through storage.
+  assert.equal(called(app, 'hideSelectionPanels').length, 1, 'startDrawingMode ran once');
+  assert.equal(called(app, 'coordTableUpdate').length, 1, 'stopDrawingMode ran once');
+  assert.equal(app.isDrawing, false);
+  assert.equal(app.currentLine, null);
+  assert.deepEqual(called(app, 'newTemporary'), [['newTemporary', { keepChat: false }]], 'newEditor ran once');
 });
 
 test('drawing get/set mirrors the start/stop buttons and honours the loaded-image guard', () => {
@@ -45,15 +60,18 @@ test('drawing get/set mirrors the start/stop buttons and honours the loaded-imag
 
   // No image → enabling drawing is a no-op (matches the toolbar guard).
   stencil.drawing = true;
-  assert.equal(called(app, 'startDrawingMode').length, 0);
+  assert.equal(app.isDrawing, false);
+  assert.equal(app.currentLine, null, 'startDrawingMode never ran');
 
   app.image = { width: 10, height: 10 };
   stencil.drawing = true;
-  assert.equal(called(app, 'startDrawingMode').length, 1);
+  assert.equal(app.isDrawing, true, 'startDrawingMode opened a stroke');
+  assert.deepEqual(app.currentLine.points, []);
+  assert.equal(stencil.drawing, true);
 
-  app.isDrawing = true;
   stencil.drawing = false;
-  assert.equal(called(app, 'stopDrawingMode').length, 1);
+  assert.equal(app.isDrawing, false, 'stopDrawingMode closed it');
+  assert.equal(app.currentLine, null);
 });
 
 // ── Settings flattening ─────────────────────────────────────────────────────────
@@ -114,7 +132,8 @@ test('setLines installs lines silently — no paste prompt, no toast, optional u
 });
 
 test('px2Page / page2Px convert via the app mapping', () => {
-  const app = makeApp();
+  // A 20 × 30 cm page over the rig's 200 × 300 px canvas: 10 px per cm on both axes.
+  const app = makeApp({ pageSize: 'custom', customPageWidth: 20, customPageHeight: 30 });
   const stencil = createStencil(app);
 
   assert.deepEqual(stencil.px2Page({ x: 100, y: 200 }), { x: 10, y: 20 });
@@ -139,25 +158,29 @@ test('move pans the viewport; fullscreen get/set toggles via the app', () => {
 });
 
 test('blank() creates a solid image via the app and resolves to the facade', async () => {
-  const app = makeApp();
+  // An 800 × 600 page, so the blank's page-aspect crop keeps the requested size whole.
+  const app = makeApp({ pageSize: 'custom', customPageWidth: 800, customPageHeight: 600 });
+  const decode = installImageDecode((file) => { app.image = blankDims(file); });
   const stencil = createStencil(app);
-
-  const ret = await stencil.blank('red', { size: { width: 800, height: 600 } });
-  assert.equal(ret, stencil);
-  assert.deepEqual(lastCall(app, 'createBlankImage'), ['createBlankImage', { color: 'red', width: 800, height: 600 }]);
-  assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+  try {
+    const ret = await stencil.blank('#f00', { size: { width: 800, height: 600 } });
+    assert.equal(ret, stencil);
+    // createBlankImage painted the colour at the size, and loaded that raster as the blank.
+    const cnv = blankCanvases.at(-1);
+    assert.deepEqual([cnv.width, cnv.height, cnv.fills], [800, 600, [['#ff0000', 0, 0, 800, 600]]]);
+    assert.deepEqual(decode.reads(), ['blank-800x600.png']);
+    assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+  } finally { decode.restore(); }
 });
 
 // createBlankImage decodes asynchronously, so the picture lands frames after the promise settles:
 // imageLoadFlow.waitForImage takes `previous` so a chained crop never gets the outgoing image.
 test('blank() over an existing image waits for the swap, not for "an image exists"', async () => {
-  const app = makeApp({ image: { width: 111, height: 222 } });
-  app.createBlankImage = (opts) => {
-    setTimeout(() => { app.image = { width: opts.width, height: opts.height }; }, 30);
-    return Promise.resolve();
-  };
+  const app = makeApp({ image: { width: 111, height: 222 }, pageSize: 'custom', customPageWidth: 800, customPageHeight: 600 });
+  const decode = installImageDecode((file) => { setTimeout(() => { app.image = blankDims(file); }, 30); });
   const stencil = createStencil(app);
-
-  await stencil.blank('red', { size: { width: 800, height: 600 } });
-  assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+  try {
+    await stencil.blank('red', { size: { width: 800, height: 600 } });
+    assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+  } finally { decode.restore(); }
 });

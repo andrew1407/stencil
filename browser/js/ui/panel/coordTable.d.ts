@@ -5,6 +5,8 @@ import type { Point } from '../../core/geometry.js';
 export declare class CoordTable {
   constructor(app: DrawingApp);
   update(points?: readonly Point[] | null, lineIdx?: number): void;
+  /** Rewrites the cells in place when the table already lists `points`; rebuilds otherwise. */
+  refreshRows(points: readonly Point[], lineIdx: number): void;
   focusRowAfterRemoval(index: number): void;
   applyRowHighlight(): void;
   refreshCoordRow(ptIdx: number): void;

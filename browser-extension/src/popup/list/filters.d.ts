@@ -1,4 +1,4 @@
-// Shapes for popup/filters.js — reads lib/filterUi.js's controls, ranks and re-renders
+// Shapes for popup/list/filters.js — reads lib/filterUi.js's controls, ranks and re-renders
 // the list. `filters` is the last read() result, kept live for row.js's own re-filter.
 export interface PopupFilters {
   search: string;

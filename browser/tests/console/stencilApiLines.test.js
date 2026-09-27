@@ -28,17 +28,21 @@ test('line.rotate rotates points around the bbox centre by default', () => {
 });
 
 test('flipH/flipV/rotate90/rotateMinus90 route to the selected-line transforms (chainable)', () => {
-  const app = makeApp();
+  // The selected line's bbox centre (5, 2) is the pivot of every step.
+  const app = makeApp({ lines: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 4 }] }], selectedLineIdx: 0 });
   const stencil = createStencil(app);
+  const round = (v) => Math.round(v * 1e9) / 1e9 + 0;   // + 0 folds -0
+  const at = () => app.lines[0].points.map(({ x, y }) => [round(x), round(y)]);
 
   assert.equal(stencil.flipH(), stencil);
-  assert.deepEqual(lastCall(app, 'flipSelectedLine'), ['flipSelectedLine', true]);
+  assert.deepEqual(at(), [[10, 0], [0, 4]], 'mirrored left↔right');
   assert.equal(stencil.flipV(), stencil);
-  assert.deepEqual(lastCall(app, 'flipSelectedLine'), ['flipSelectedLine', false]);
+  assert.deepEqual(at(), [[10, 4], [0, 0]], 'mirrored top↔bottom');
   assert.equal(stencil.rotate90(), stencil);
-  assert.deepEqual(lastCall(app, 'rotateSelectedLineQuarter'), ['rotateSelectedLineQuarter', 1]);
+  assert.deepEqual(at(), [[3, 7], [7, -3]], 'a quarter turn clockwise');
   assert.equal(stencil.rotateMinus90(), stencil);
-  assert.deepEqual(lastCall(app, 'rotateSelectedLineQuarter'), ['rotateSelectedLineQuarter', -1]);
+  assert.deepEqual(at(), [[10, 4], [0, 0]], 'and back');
+  clearTimeout(app.rotateSaveTimer);   // the burst's one debounced commit
 });
 
 test('line.apply batch-updates style props and normalizes color/fillColor', () => {
@@ -61,9 +65,12 @@ test('line.add inserts a point at a neighbour slot; line.remove(index) drops one
   stencil.lines[0].add({ x: 5, y: 5 }, { neighbour: 0 });   // after index 0
   assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 }]);
 
+  const commits = called(app, 'saveHistory').length;
   stencil.lines[0].remove(1);
-  assert.deepEqual(lastCall(app, 'removePoint'), ['removePoint', 0, 1]);
   assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 10, y: 10 }]);
+  // removePoint on line 0 committed once and re-targeted the coord table at that line.
+  assert.equal(called(app, 'saveHistory').length, commits + 1);
+  assert.deepEqual(lastCall(app, 'coordTableUpdate'), ['coordTableUpdate', app.lines[0].points, 0]);
 });
 
 test('line.join appends the other line\'s points and drops the other line', () => {
@@ -73,11 +80,15 @@ test('line.join appends the other line\'s points and drops the other line', () =
   ] });
   const stencil = createStencil(app);
 
+  const other = app.lines[1];
   const lines = stencil.lines;
   lines[0].join(lines[1]);
   assert.equal(app.lines.length, 1);
   assert.deepEqual(app.lines[0].points, [{ x: 0, y: 0 }, { x: 9, y: 9 }, { x: 8, y: 8 }]);
-  assert.deepEqual(lastCall(app, 'removeLine'), ['removeLine', 1]);
+  // removeLine dropped line 1 itself, as one history step with a redraw.
+  assert.ok(!app.lines.includes(other));
+  assert.equal(called(app, 'saveHistory').length, 1);
+  assert.equal(called(app, 'redraw').length, 1);
 });
 
 // ── Points ──────────────────────────────────────────────────────────────────────
@@ -119,7 +130,9 @@ test('point x/y setters write absolute coords; pt.remove drops the point (and em
   const pt = stencil.lines[0].points[0];
   pt.x = 50; pt.y = 60;
   assert.deepEqual(app.lines[0].points[0], { x: 50, y: 60 });
-  assert.deepEqual(lastCall(app, 'setPointCoord'), ['setPointCoord', 0, 0, 'y', 60]);
+  // setPointCoord committed each axis on line 0 and re-targeted the coord table at it.
+  assert.equal(called(app, 'saveHistory').length, 2);
+  assert.deepEqual(lastCall(app, 'coordTableUpdate'), ['coordTableUpdate', app.lines[0].points, 0]);
 
   // Removing the only point empties the line → the line is dropped, and remove() returns the facade.
   assert.equal(pt.remove(), stencil);

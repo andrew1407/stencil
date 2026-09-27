@@ -23,12 +23,12 @@ class MainWindowGuiTest : public QObject {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", json}}}})
           .toJson(QJsonDocument::Compact);
     };
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.actChat->setChecked(true);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
-    win.ensureChatMenuPanel();
-    win.chatMenuPanel->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel->show();
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 640);
+    win.chatSession->chatMenuPanel->show();
 
     // Every card's body + in-card notes, per surface — the displayed transcript.
     const auto cardsOf = [](QWidget* surface) {
@@ -62,12 +62,12 @@ class MainWindowGuiTest : public QObject {
                               .arg(interim)));
     mock.queue.append(wrap(
         QStringLiteral("{\"version\":1,\"reply\":\"%1\",\"actions\":[]}").arg(settled)));
-    win.onChatSend(ask);
+    win.chatSession->onChatSend(ask);
     QTRY_VERIFY(!win.chatDock->isBusy());
     QTest::qWait(200);
 
     // ── 1. the document is exactly the two displayed rows ──
-    const QJsonObject doc = win.buildActiveChatDoc();
+    const QJsonObject doc = win.chatSession->buildActiveChatDoc();
     const QByteArray json = QJsonDocument(doc).toJson();
     QVERIFY2(!json.contains("The working image is now"),
              qPrintable("the §7 continuation note was persisted: " + QString::fromUtf8(json)));
@@ -83,7 +83,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(doc.value("savedAt").toDouble() > 0);
     // The MODEL's view is untouched: the live conversation still replays both.
     bool noteInHistory = false, interimInHistory = false;
-    for (const auto& m : win.chatHistory) {
+    for (const auto& m : win.chatSession->chatHistory) {
       if (m.text.contains(QStringLiteral("The working image is now"))) noteInHistory = true;
       if (m.text == interim) interimInHistory = true;
     }
@@ -92,12 +92,12 @@ class MainWindowGuiTest : public QObject {
 
     // ── 2. it round-trips to the same transcript on BOTH surfaces ──
     const QStringList before = cardsOf(win.chatDock);
-    win.restoreChatFromDoc(doc);
+    win.chatSession->restoreChatFromDoc(doc);
     QTRY_COMPARE(cardsOf(win.chatDock).size(), 2);
     QCOMPARE(cardsOf(win.chatDock), before);
-    QCOMPARE(cardsOf(win.chatMenuPanel), cardsOf(win.chatDock));
+    QCOMPARE(cardsOf(win.chatSession->chatMenuPanel), cardsOf(win.chatDock));
     // …and re-saving the restored conversation is a fixed point.
-    QCOMPARE(parseChatDoc(win.buildActiveChatDoc()), saved);
+    QCOMPARE(parseChatDoc(win.chatSession->buildActiveChatDoc()), saved);
 
     // 3. defence in depth: an OLD-style doc is laundered on read — the §7 note never resurfaces on
     // screen or in the replay history, the interim reply survives (browser sanitizeChatMessages).
@@ -115,42 +115,42 @@ class MainWindowGuiTest : public QObject {
                              {"savedAt", 42},
                              {"messages", old}};
     QCOMPARE(stencil::gui::fileStore::buildChatDoc(old, 42).value("messages").toArray().size(), 3);
-    win.restoreChatFromDoc(oldDoc);
+    win.chatSession->restoreChatFromDoc(oldDoc);
     QTRY_COMPARE(cardsOf(win.chatDock).size(), 3);
-    QCOMPARE(cardsOf(win.chatMenuPanel), cardsOf(win.chatDock));
+    QCOMPARE(cardsOf(win.chatSession->chatMenuPanel), cardsOf(win.chatDock));
     for (const QString& r : cardsOf(win.chatDock))
       QVERIFY2(!r.contains(QStringLiteral("The working image is now")),
                qPrintable("an old doc put the continuation note on screen: " + r));
-    QCOMPARE(win.chatHistory.size(), 3);   // the model replays the same laundered view
+    QCOMPARE(win.chatSession->chatHistory.size(), 3);   // the model replays the same laundered view
     bool oldNoteInHistory = false;
-    for (const auto& m : win.chatHistory)
+    for (const auto& m : win.chatSession->chatHistory)
       if (m.text.contains(QStringLiteral("The working image is now"))) oldNoteInHistory = true;
     QVERIFY2(!oldNoteInHistory, "the §7 note must not be replayed from storage");
 
     // ── 4. the §12.1 bound: writers trim to the most recent 32 ──
-    win.onChatClear();
+    win.chatSession->onChatClear();
     win.chatDock->clearConversation();
     for (int i = 0; i < 40; ++i)
-      win.chatMirror(i % 2 ? QStringLiteral("Assistant") : QStringLiteral("You"),
+      win.chatSession->chatMirror(i % 2 ? QStringLiteral("Assistant") : QStringLiteral("You"),
                      QStringLiteral("row %1").arg(i), false);
-    const QJsonArray trimmed = parseChatDoc(win.buildActiveChatDoc());
+    const QJsonArray trimmed = parseChatDoc(win.chatSession->buildActiveChatDoc());
     QCOMPARE(trimmed.size(), 32);
     QCOMPARE(trimmed.at(0).toObject().value("text").toString(), QString("row 8"));
 
     // ── 5. muted plumbing is never conversation ──
-    win.onChatClear();
+    win.chatSession->onChatClear();
     win.chatDock->clearConversation();
-    win.chatMirror(QStringLiteral("You"), ask, false);
-    win.chatError(QStringLiteral("Could not read the assistant's plan: bad op"), QString());
-    win.chatMirror(QStringLiteral("Attached"), QStringLiteral("1 image(s)"), true);
-    const QJsonArray onlyUser = parseChatDoc(win.buildActiveChatDoc());
+    win.chatSession->chatMirror(QStringLiteral("You"), ask, false);
+    win.chatSession->chatError(QStringLiteral("Could not read the assistant's plan: bad op"), QString());
+    win.chatSession->chatMirror(QStringLiteral("Attached"), QStringLiteral("1 image(s)"), true);
+    const QJsonArray onlyUser = parseChatDoc(win.chatSession->buildActiveChatDoc());
     QCOMPARE(onlyUser.size(), 1);
     QCOMPARE(onlyUser.at(0).toObject().value("text").toString(), ask);
 
-    win.onChatClear();
+    win.chatSession->onChatClear();
     win.chatDock->clearConversation();
-    QVERIFY(win.buildActiveChatDoc().isEmpty());   // nothing displayed ⇒ nothing filed
-    win.llmClient.reset();
+    QVERIFY(win.chatSession->buildActiveChatDoc().isEmpty());   // nothing displayed ⇒ nothing filed
+    win.parts.chatAppliers.llmClient.reset();
     beat();
   }
 
@@ -164,7 +164,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(QTest::qWaitForWindowExposed(&win));
       win.settings.themeMode = mode;
       win.applyTheme();
-      win.actChat->setChecked(true);
+      win.acts.chat->setChecked(true);
       QTRY_VERIFY(win.chatDock->isVisible());
       win.chatDock->appendError(
           QStringLiteral("Could not read the assistant's plan: \"clear\" is an "

@@ -79,11 +79,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 720);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    if (chat && win.actChat) { win.actChat->setChecked(true); QTest::qWait(300); }
+    if (chat && win.acts.chat) { win.acts.chat->setChecked(true); QTest::qWait(300); }
     LogoStage* stage = stageOf(win);
     if (held) {
       win.settings.accentColor = QStringLiteral("#123456");   // any other custom hex holds randomWalk open
-      const QPoint logoAt = win.logoBtn->mapTo(&win, win.logoBtn->rect().center());
+      const QPoint logoAt = win.tools.logoBtn->mapTo(&win, win.tools.logoBtn->rect().center());
       QTest::mousePress(win.windowHandle(), Qt::LeftButton, Qt::NoModifier, logoAt);
       QTest::qWait(stencil::support::logoStageConfig().holdMs + 200);
       QTest::mouseRelease(win.windowHandle(), Qt::LeftButton, Qt::NoModifier, logoAt);
@@ -116,7 +116,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 720);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QWidget* bar = win.logoBtn->parentWidget();
+    QWidget* bar = win.tools.logoBtn->parentWidget();
     bar->winId();
     QVERIFY(bar->windowHandle());
     LogoStage* stage = stageOf(win);

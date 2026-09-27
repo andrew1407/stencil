@@ -1,5 +1,5 @@
-// The core's crop ops over the wasm ABI: the page aspect, the centred default rect, and
-// every rect edit (corner resize, move, scale, orientation swap, quarter rotation).
+// The core's crop ops over the wasm ABI: the page aspect, the centred default rect, every
+// rect edit (corner resize, move, scale, orientation swap, quarter rotation) and the commit snap.
 export const buildCropOps = (core, { F64, withRectOut }) => {
   const cIsAlbum         = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
   const cCropAspect      = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
@@ -18,6 +18,10 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
     core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
   const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
     core.ccall('stencil_rotateCropRectQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, cw, out]);
+  const cSnapCrop = (x, y, w, h, iw, ih, out) =>
+    core.ccall('stencil_snapCropRect', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, out]);
+  const cTurnEdit = (x, y, w, h, q, ow, oh, cw, out) =>
+    core.ccall('stencil_rotateEditQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, q, ow, oh, cw, out]);
 
   return {
     isAlbumOrientation(w, h) {
@@ -64,6 +68,22 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
 
     rotateCropRectQuarter(r, imageW, imageH, clockwise) {
       return withRectOut(out => cRotateCrop(r.x, r.y, r.width, r.height, imageW, imageH, clockwise ? 1 : 0, out));
+    },
+
+    snapCropRect(r, imageW, imageH) {
+      return withRectOut(out => cSnapCrop(r.x, r.y, r.width, r.height, imageW, imageH, out));
+    },
+
+    // out[0..3] = the snapped window, out[4] = the wrapped quarter count.
+    rotateEditQuarter(crop, quarters, originalW, originalH, clockwise) {
+      const out = core._malloc(5 * F64);
+      try {
+        cTurnEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, clockwise ? 1 : 0, out);
+        const at = (i) => core.getValue(out + i * F64, 'double');
+        return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
+      } finally {
+        core._free(out);
+      }
     },
   };
 };

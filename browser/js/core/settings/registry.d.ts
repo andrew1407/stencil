@@ -8,6 +8,8 @@ export interface SettingDescriptor {
   save?: boolean;
   remoteSync?: boolean;
   filterDirty?: boolean;
+  /** A persisted set is a filter commit: one undo step when it moves the filter. */
+  history?: boolean;
 }
 
 /** Compare-view modes in cycle order (Alt+O steps through them). */

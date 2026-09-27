@@ -1,12 +1,7 @@
 #include "ServerClient.hpp"
 
-#include <QHostAddress>
-#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -28,12 +23,14 @@ namespace stencil::net {
                    meta.name = p.value("name").toString();
                    meta.color = p.value("color").toString();
                    meta.description = p.value("description").toString();
+                   meta.blankColor = p.value("blankColor").toString();
                    meta.hasImage = p.value("hasImage").toBool();
                    meta.imageW = p.value("imageW").toInt();
                    meta.imageH = p.value("imageH").toInt();
                    meta.source = p.value("source").toString();
                    meta.resource = p.value("resource").toString();
                    meta.version = static_cast<qint64>(p.value("version").toDouble());
+                   meta.originalHash = p.value("originalHash").toString();
                    meta.serverUrl = base;
                    layoutOut = root.value("layout").toObject();
                    done(true, meta, layoutOut);

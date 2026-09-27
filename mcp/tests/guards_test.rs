@@ -46,7 +46,8 @@ async fn a_hung_cli_is_killed_at_the_deadline_and_reported_in_the_clis_error_sha
     assert_eq!(cli_timeout(), Duration::from_secs(1));
 
     let started = std::time::Instant::now();
-    let err = stencil_mcp::pipeline::run_probe("ignored.png")
+    let argv = stencil_mcp::args::build_probe_argv("ignored.png").unwrap();
+    let err = stencil_mcp::pipeline::run_probe(&argv)
         .await
         .expect_err("a CLI that never exits must not resolve");
     let elapsed = started.elapsed();

@@ -1,5 +1,5 @@
 import { motionReduced } from '../motionPrefs.js';
-import { SURFACE_IN_MS, dockAwayPoint } from '../surface/motion.js';
+import { SURFACE_IN_MS, dockAwayPoint, dockEdgeLane } from '../surface/motion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../surface/surfaces.js';
 import { TUNE } from '../tune.js';
 // Every cursor-adjacent popup dusts in and out of the control it describes, fast enough
@@ -34,12 +34,22 @@ export const FOLD_INSTANT_CLASS = 'fold-instant';
 // 1.5x SURFACE_OUT_MS, as --fold-out-ms is of --fold-ms in animations/collapse.css: with no
 // icon to shrink into, the fold itself is the only thing that reads as leaving.
 export const FOLD_DUST_OUT_MS = TUNE.FOLD_DUST_OUT_MS;
+// The top toolbar's own fold, 1.3x brisker than those (user request); CSS twin --fold-ms / --fold-out-ms.
+export const CONTROLS_DUST_IN_MS = TUNE.CONTROLS_DUST_IN_MS;
+export const CONTROLS_DUST_OUT_MS = TUNE.CONTROLS_DUST_OUT_MS;
 
-export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, toggle = null } = {}) {
-  const box = motionReduced() ? null : foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS);
+// The box the cloud flew over, or null when none did; `box` is one the caller already read open.
+// `picture`: the caller keeps the surface on screen at that box as the picture its grains leave.
+// `edge`: the grains stream through the window edge the surface docks on (dockEdgeLane).
+export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, outMs = FOLD_DUST_OUT_MS,
+                                                         toggle = null, picture = false, box: open = null,
+                                                         edge = false } = {}) {
+  const box = motionReduced() ? null : open || foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS);
   toggle?.();
-  const away = box && dockAwayPoint(box, dock);
-  (hiding ? surfaceOut : surfaceIn)(el, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs, belowChat: true });
+  const away = box && (edge ? dockEdgeLane : dockAwayPoint)(box, dock);
+  const flew = (hiding ? surfaceOut : surfaceIn)(el, away || null,
+    { box, ms: hiding ? outMs : inMs, belowChat: true, picture });
+  return flew ? box : null;
 }
 
 // Popups shown by a `:hover` rule alone: by the time pointerleave runs the popup is already

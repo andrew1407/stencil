@@ -1,4 +1,3 @@
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Tests.Doubles;

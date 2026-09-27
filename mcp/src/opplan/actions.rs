@@ -1,82 +1,18 @@
-//! Per-op action handling (contract §2–§3): the registry-gated dispatch, the table-driven
-//! check (`schema.rs`), and the typed normalizers that fill an [`Action`] from the
-//! already-validated, defaults-applied values.
+//! The typed normalizers (contract §2–§3): one checked, normalized action object from core's
+//! `--plan-check` result → an [`Action`], every key already validated and defaulted there.
 
 use serde_json::Value;
 
 use crate::layout::Line;
-use crate::registry;
 
-use super::schema::{schema, JsonObject};
+use super::result::JsonObject;
 use super::{Action, Axis, Dir, FilterMode, FormulaOp, OpPlanError, PageSize};
 
-/// The first top-level-only op named in a raw actions list (§2.1), if any — callers drop
-/// the offending variant / ask preview per §1.
-pub(super) fn misplaced_top_level_op(value: Option<&Value>) -> Option<String> {
-    let Some(Value::Array(list)) = value else {
-        return None;
-    };
-    list.iter()
-        .filter_map(|raw| raw.get("op").and_then(Value::as_str))
-        .find(|op| schema().entry(op).is_some_and(|e| e.flag("topLevelOnly")))
-        .map(str::to_string)
-}
-
-/// Validate one actions list: an unknown op drops with a warning, a known op with invalid
-/// params fails the plan. `where_` names the list in messages.
-pub(super) fn validate_actions(
-    value: Option<&Value>,
-    warnings: &mut Vec<String>,
-    where_: &str,
-) -> Result<Vec<Action>, OpPlanError> {
-    let list = match value {
-        None | Some(Value::Null) => return Ok(Vec::new()),
-        Some(value) => {
-            schema()
-                .check_envelope(value, "actions", where_)
-                .map_err(OpPlanError::Plan)?;
-            value.as_array().expect("checked as an array")
-        }
-    };
-    let mut out = Vec::new();
-    for raw in list {
-        let (Value::Object(action), Some(op)) = (raw, raw.get("op").and_then(Value::as_str)) else {
-            return Err(OpPlanError::Plan(format!(
-                "every action in {where_} must be an object with an \"op\""
-            )));
-        };
-        // §13: forbidden ops are boundaries, not unknown ops — a plan naming one fails
-        // hard instead of falling to the forward-compatibility skip.
-        if registry::is_forbidden(op) {
-            return Err(OpPlanError::Plan(format!(
-                "the \"{op}\" op is never model-drivable (llm-contract.md §13) — refused"
-            )));
-        }
-        // The registry is the single known-ness gate (§13): an op with no active entry is
-        // unknown here AND absent from the generated prompt, by construction.
-        let Some(descriptor) = registry::descriptor(op) else {
-            warnings.push(format!("Skipped unknown operation \"{op}\""));
-            continue;
-        };
-        let entry = schema()
-            .entry(descriptor.name)
-            .expect("registered ops have a schema entry");
-        let checked = schema()
-            .validate_action(action, entry)
-            .map_err(|detail| fail(op, detail))?;
-        out.push(lower(&schema().normalize(&checked, entry))?);
-    }
-    Ok(out)
-}
-
+/// Written in core's §1 form, as `--plan-check` words an `E_ACTION`.
 fn fail(op: &str, detail: impl Into<String>) -> OpPlanError {
-    OpPlanError::Action {
-        op: op.to_string(),
-        detail: detail.into(),
-    }
+    let message = format!("Invalid {op} action: {}", detail.into());
+    OpPlanError::Action { op: op.to_string(), message }
 }
-
-// ── typed normalizers: a validated, normalized action value → `Action` ──
 
 fn str_of<'a>(v: &'a JsonObject, key: &str) -> Option<&'a str> {
     v.get(key).and_then(Value::as_str)
@@ -97,7 +33,7 @@ fn u32_of(v: &Value) -> Option<u32> {
         .map(|f| f as u32)
 }
 
-/// A key the schema guarantees; its absence is a registry/normalizer mismatch.
+/// A key core's check guarantees; its absence is a registry/normalizer mismatch.
 fn need<T>(op: &str, key: &str, value: Option<T>) -> Result<T, OpPlanError> {
     value.ok_or_else(|| fail(op, format!("\"{key}\" is required")))
 }
@@ -108,7 +44,7 @@ fn need_u32(op: &str, key: &str, value: Option<&Value>) -> Result<u32, OpPlanErr
         .ok_or_else(|| fail(op, format!("\"{key}\" is out of range")))
 }
 
-fn lower(v: &JsonObject) -> Result<Action, OpPlanError> {
+pub(super) fn lower(v: &JsonObject) -> Result<Action, OpPlanError> {
     let op = str_of(v, "op").unwrap_or_default();
     Ok(match op {
         "crop" => {
@@ -143,8 +79,7 @@ fn lower(v: &JsonObject) -> Result<Action, OpPlanError> {
             },
             tint: owned(v, "tint"),
         },
-        // The normalized lines carry only the registry's line fields, so the strict
-        // serde `Line` fills without `pointColor` (an editor control, not contract §3).
+        // The normalized lines carry only the registry's line fields, `pointColor` among them.
         "layout" => Action::Layout {
             lines: serde_json::from_value::<Vec<Line>>(
                 v.get("lines").cloned().unwrap_or(Value::Null),
@@ -201,11 +136,12 @@ fn lower(v: &JsonObject) -> Result<Action, OpPlanError> {
             name: owned(v, "name"),
             path: owned(v, "path").filter(|p| !p.is_empty()),
         },
-        // A registry entry without a normalizer arm is a wiring mistake — fail loudly
+        // A checked op without a normalizer arm is a wiring mistake — fail loudly
         // (the registry cross-check test catches this before it ships).
         other => {
             return Err(OpPlanError::Plan(format!(
-                "registered op \"{other}\" has no normalizer — registry/normalizer mismatch"
+                "Invalid plan: registered op \"{other}\" has no normalizer — registry/normalizer \
+                 mismatch"
             )));
         }
     })

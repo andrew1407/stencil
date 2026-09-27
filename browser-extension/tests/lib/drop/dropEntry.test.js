@@ -1,4 +1,4 @@
-// Tests for src/lib/entry.js — normalising media DROPPED on the panel (a page
+// Tests for src/lib/drop/entry.js — normalising media DROPPED on the panel (a page
 // <img>/<video> dragged out of the page, a local file, a data:/blob: source) into the
 // same scan-row shape the ⋯ action menu already consumes, so the header logo's drop
 // target reuses the row machinery instead of growing its own. Pure: the object-URL

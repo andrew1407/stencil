@@ -6,10 +6,8 @@
 const std = @import("std");
 const image = @import("../media/image.zig");
 const server = @import("../server/client.zig");
-const core = @import("../core.zig");
-const pipeline = @import("../pipeline.zig");
-const layout_mod = @import("../media/layout.zig");
 const llm = @import("../llm.zig");
+const args = @import("../args.zig");
 const derivedView = @import("render/derivedView.zig");
 const geom = @import("session/geom.zig");
 const layoutJson = @import("session/layoutJson.zig");
@@ -21,11 +19,11 @@ pub const Attachment = state_mod.Attachment;
 
 pub const freeImg = geom.freeImg;
 pub const clampRect = geom.clampRect;
-pub const rotateRectQuarters = geom.rotateRectQuarters;
+pub const rotateCropQuarters = geom.rotateCropQuarters;
 
 pub const rasterizeLinesJson = layoutJson.rasterizeLinesJson;
 pub const extractLinesJson = layoutJson.extractLinesJson;
-pub const mergeLinesJson = layoutJson.mergeLinesJson;
+pub const combineLinesJson = layoutJson.combineLinesJson;
 pub const innerArray = layoutJson.innerArray;
 pub const parseLayoutInto = layoutJson.parseLayoutInto;
 pub const jsonStr = layoutJson.jsonStr;
@@ -41,6 +39,8 @@ pub const Session = struct {
     source_bytes: ?[]u8 = null, // raw encoded bytes of `original` (owned); embedded verbatim in a .stencil (null ⇒ re-encode)
     history: std.ArrayList(EditState) = .empty, // [0] = pristine; the current state is history[cursor]
     cursor: usize = 0,
+    // While a /script run lasts, the state it began on: every edit it makes replaces the one state above.
+    run_floor: ?usize = null,
     working: ?image.Rgba8 = null, // the derived current view (owned), rebuilt on every change
     base: derivedView.Base = .{}, // the cached rotate→crop→filter view the lines are drawn onto
 
@@ -51,12 +51,14 @@ pub const Session = struct {
     known_servers: std.ArrayList([]const u8) = .empty,
     sync: bool = false, // when on, edits auto-upload the layout + result to the active remote
     dirty: bool = false, // a pending sync upload coalesced from a burst of edits (see remoteEvents.flushSync)
+    filter_dirty: bool = false, // our filter changed since the last layout push: a conflict keeps it
     remote_url: ?[]u8 = null, // owned base URL of the active fetched project's server
     remote_id: ?[]u8 = null, // owned id of the active fetched project
     remote_version: i64 = 0, // last server version we hold for the active project (LWW guard for auto-pull)
     remote_color: ?[]u8 = null, // owned active project's custom name colour ("#rrggbb"); null/"" = default
     events: ?server.EditConn = null, // live read-only project-events feed (opened while syncing)
     events_url: ?[]u8 = null, // owned base URL the events feed is connected to
+    server_tokens: args.EnvTokens = .{}, // STENCIL_SERVER_TOKEN(S): what /connect dials with, no token given
 
     // LLM assistant (/prompt, /llm)
     llm_env: llm.Env = .{}, // the raw STENCIL_LLM_* values captured at startup
@@ -85,6 +87,11 @@ pub const Session = struct {
     // editor's keypress confirm (or a piped-stdin line read); null declines, like an EOF.
     confirm_fn: ?*const fn (ctx: ?*anyopaque, question: []const u8) bool = null,
     confirm_ctx: ?*anyopaque = null,
+    // How `/llm key` reads a key with nothing echoed — the TTY editor, or the next piped line —
+    // into `out`, returning its length (null = cancelled). `secret_tty`: a person is there to ask.
+    secret_fn: ?*const fn (ctx: ?*anyopaque, question: []const u8, out: []u8) ?usize = null,
+    secret_ctx: ?*anyopaque = null,
+    secret_tty: bool = false,
     // Ctrl-C during a long call: the console installs its tty watch here so a waiting call can be
     // cancelled. Null in the one-shot CLI and in tests, where calls simply run to completion.
     cancel_ctx: ?*anyopaque = null,
@@ -171,6 +178,7 @@ pub const Session = struct {
     pub const addLines = @import("session/edits.zig").addLines;
     pub const setLines = @import("session/edits.zig").setLines;
     pub const adoptServerLayout = @import("session/edits.zig").adoptServerLayout;
+    pub const mergePeer = @import("session/peerMerge.zig").mergePeer;
     pub const adoptLayoutMeta = @import("session/edits.zig").adoptLayoutMeta;
     pub const pageMeta = @import("session/edits.zig").pageMeta;
     pub const currentLayoutJson = @import("session/edits.zig").currentLayoutJson;
@@ -192,6 +200,8 @@ test {
     _ = @import("session/servers.zig");
     _ = @import("session/history.zig");
     _ = @import("session/edits.zig");
+    _ = @import("session/scriptLog.zig");
+    _ = @import("session/peerMerge.zig");
     _ = geom;
     _ = layoutJson;
     _ = state_mod;

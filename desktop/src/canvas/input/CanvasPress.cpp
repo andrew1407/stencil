@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 
 #include <QMouseEvent>
 
@@ -22,8 +21,8 @@ namespace stencil::gui {
     }
     if (image.isNull()) {
       // Only the CARD opens the creator; nothing is clickable while the hint is held back or unpainted.
-      if (event->button() == Qt::LeftButton && !idleHintHidden &&
-          idleCardRect.contains(event->position()))
+      if (event->button() == Qt::LeftButton && !idle.hidden &&
+          idle.cardRect().contains(event->position()))
         emit blankImageRequested();
       return;
     }
@@ -33,8 +32,8 @@ namespace stencil::gui {
     // Divider press is checked first so it wins over hits underneath; split modes only (not held).
     if (event->button() == Qt::LeftButton && mods == Qt::NoModifier && !compareHoldOriginal &&
         nearCompareDivider(event->pos())) {
-      draggingCompareSplit = true;
-      setCursor(compareMode == "vertical" ? Qt::SplitHCursor : Qt::SplitVCursor);
+      gesture.kind = Gesture::COMPARE_SPLIT;
+      setCursor(compareMode == CompareMode::VERTICAL ? Qt::SplitHCursor : Qt::SplitVCursor);
       return;
     }
 
@@ -42,18 +41,18 @@ namespace stencil::gui {
     if (compareReadOnly()) {
       if (event->button() == Qt::MiddleButton ||
           (event->button() == Qt::LeftButton && (mods & Qt::AltModifier))) {
-        panning = true;
-        lastPanPos = event->globalPosition().toPoint();
+        gesture.kind = Gesture::PAN;
+        gesture.lastPanPos = event->globalPosition().toPoint();
         setCursor(Qt::ClosedHandCursor);
       }
       return;
     }
 
     if (event->button() == Qt::MiddleButton) {
-      panning = true;
+      gesture.kind = Gesture::PAN;
       // Pan anchor in GLOBAL coords: panBy() slides this widget under the cursor, so widget-space
       // positions would feed back into the next delta.
-      lastPanPos = event->globalPosition().toPoint();
+      gesture.lastPanPos = event->globalPosition().toPoint();
       setCursor(Qt::ClosedHandCursor);
       return;
     }

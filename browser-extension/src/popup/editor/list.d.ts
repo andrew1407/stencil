@@ -1,4 +1,4 @@
-// Shapes for popup/list.js — "Open editors": one row per open Stencil editor tab.
+// Shapes for popup/editor/list.js — "Open editors": one row per open Stencil editor tab.
 import type { EditorRow } from '../../lib/menu/editorTabs.js';
 
 export interface EditorListController {

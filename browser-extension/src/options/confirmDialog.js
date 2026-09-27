@@ -1,9 +1,31 @@
 import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
+const BOX = `
+  <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg">
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button id="confirm-no" class="confirm-btn" type="button">No</button>
+      <button id="confirm-yes" class="confirm-btn danger" type="button">Yes</button>
+    </div>
+  </div>`;
+
+// Built on the first confirm, then kept hidden at the end of <body> like any other overlay.
+const overlayEl = () => {
+  const found = document.getElementById('confirm-overlay');
+  if (found) return found;
+  const overlay = document.createElement('div');
+  overlay.id = 'confirm-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.hidden = true;
+  overlay.innerHTML = BOX;
+  document.body.append(overlay);
+  return overlay;
+};
+
 // Stands in for window.confirm() (the options page has no native modal). Resolves true on
 // Yes/Enter, false on No/Esc/backdrop. `anchor` is the button the particles fly out of and back into.
 export const confirmDialog = (message, anchor) => new Promise((resolve) => {
-  const overlay = document.getElementById('confirm-overlay');
+  const overlay = overlayEl();
   const box = overlay.querySelector('.confirm-box');
   const origin = centerOf(anchor);
   document.getElementById('confirm-msg').textContent = message;

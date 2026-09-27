@@ -3,9 +3,6 @@
 //! the layout payload, response parsing, the live edit channel and the `/projects` time
 //! spans. Only a URL the USER named is ever dialled (see .claude/rules/security.md).
 const std = @import("std");
-const report = @import("../app/report.zig");
-const net = @import("../net.zig");
-const sanitize = @import("../safety/sanitize.zig");
 const errors = @import("errors.zig");
 const urls = @import("urls.zig");
 const layout_payload = @import("payload.zig");
@@ -16,6 +13,7 @@ const http = @import("http.zig");
 const rest = @import("rest.zig");
 const meta = @import("meta.zig");
 const connection = @import("connect.zig");
+const tokens = @import("tokens.zig");
 
 pub const Error = errors.Error;
 pub const TransportError = errors.TransportError;
@@ -33,6 +31,7 @@ pub const ProjectRef = parse.ProjectRef;
 pub const ProjectInfo = parse.ProjectInfo;
 pub const freeStrList = parse.freeStrList;
 pub const freeProjectList = parse.freeProjectList;
+pub const parseProjectVersion = parse.parseProjectVersion;
 pub const Event = editchan.Event;
 pub const parseEvent = editchan.parseEvent;
 pub const EditConn = editchan.EditConn;
@@ -42,30 +41,19 @@ pub const formatAgo = timespan.formatAgo;
 pub const formatUntil = timespan.formatUntil;
 
 // Names the Client bodies below use unqualified, so the methods read as they always did.
-const parseToken = parse.parseToken;
-const parseProjectId = parse.parseProjectId;
-const findIdByName = parse.findIdByName;
-const findProjectByName = parse.findProjectByName;
-const parseProjectVersion = parse.parseProjectVersion;
-const parseProjectList = parse.parseProjectList;
-const parseProjectKeywords = parse.parseProjectKeywords;
-const parseProjectStringField = parse.parseProjectStringField;
-const parseErrorMessage = parse.parseErrorMessage;
-const dupeStrList = parse.dupeStrList;
 const jsonBody = layout_payload.body;
 pub const Transport = http.Transport;
 pub const rawRequest = http.rawRequest;
+pub const watchedRequest = http.watchedRequest;
 pub const Reject = http.Reject;
 pub const lastReject = http.lastReject;
 pub const CredentialKind = rest.CredentialKind;
 pub const Client = rest.Client;
 pub const connect = connection.connect;
 pub const printConnectError = connection.printConnectError;
+pub const tokenFor = tokens.pick;
 
 const resolveToken = connection.resolveToken;
-const recordReject = http.recordReject;
-const saveReject = http.saveReject;
-const restoreReject = http.restoreReject;
 const testing = std.testing;
 
 const FakeRemint = struct {
@@ -236,4 +224,5 @@ test {
     _ = rest;
     _ = meta;
     _ = connection;
+    _ = tokens;
 }

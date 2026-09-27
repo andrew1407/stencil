@@ -1,20 +1,30 @@
-//! The MCP surface: a server exposing `stencil_edit`, `stencil_probe`, `stencil_prompt`,
-//! `stencil_script` and `source_site` over stdio. Each `#[tool]` method here only names its
-//! parameters and its prose; the work is a free function in [`tools`].
+//! The MCP surface: `StencilServer` and its `#[tool]` methods. Each method only names its
+//! parameters, prose, annotations and output schema; the work is a free function in
+//! [`tools`], and every call runs inside the wrapper in [`call`].
 
+mod call;
+mod catalog;
+mod handler;
+mod roots;
 mod tools;
 
 pub use tools::prompt::{execute_plan, run_prompt, PromptResult};
 
 use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::tool::Extension;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{
-    CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
-};
-use rmcp::{tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
+use rmcp::model::CallToolResult;
+use rmcp::{tool, tool_router, ErrorData as McpError};
 
-use crate::args::{EditParams, ProbeParams, PromptParams, ScrapeParams, ScriptParams};
+use crate::args::{
+    EditParams, ProbeParams, ProjectFileParams, ProjectUpdateParams, ProjectsParams, PromptParams,
+    ScrapeParams, ScriptCheckParams, ScriptEmitParams, ScriptParams, ScriptPlanParams,
+};
 use crate::config::Config;
+use crate::confine::Roots;
+use tools::{
+    edit, probe, project_file, project_update, projects, prompt, schema, script, source_site,
+};
 
 /// This surface's user-facing prose, embedded from the committed canonical asset. rmcp's
 /// `#[tool]` takes a literal, so descriptions ride in via `#[doc = include_str!]` shards.
@@ -28,8 +38,6 @@ static PROSE: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(
 #[derive(Clone)]
 pub struct StencilServer {
     config: Config,
-    // Read by the `#[tool_handler]`-generated dispatch; the dead-code lint misses that use.
-    #[allow(dead_code)]
     tool_router: ToolRouter<StencilServer>,
 }
 
@@ -42,77 +50,148 @@ impl Default for StencilServer {
 #[tool_router]
 impl StencilServer {
     pub fn new(config: Config) -> Self {
-        Self {
-            config,
-            tool_router: Self::tool_router(),
-        }
+        Self { config, tool_router: Self::tool_router() }
     }
 
     #[doc = include_str!("../../toolDescriptions/stencil_edit.txt")]
-    #[tool]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = true),
+        output_schema = schema::<edit::EditPayload<'static>>()
+    )]
     async fn stencil_edit(
         &self,
+        Extension(roots): Extension<Roots>,
         Parameters(params): Parameters<EditParams>,
     ) -> Result<CallToolResult, McpError> {
-        tools::edit::run(&self.config, params).await
+        edit::run(&self.config, &roots, params).await
     }
 
     #[doc = include_str!("../../toolDescriptions/stencil_probe.txt")]
-    #[tool]
+    #[tool(
+        annotations(read_only_hint = true, open_world_hint = true),
+        output_schema = schema::<probe::ProbePayload>()
+    )]
     async fn stencil_probe(
         &self,
+        Extension(roots): Extension<Roots>,
         Parameters(params): Parameters<ProbeParams>,
     ) -> Result<CallToolResult, McpError> {
-        tools::probe::run(params).await
+        probe::run(&roots, params).await
     }
 
     #[doc = include_str!("../../toolDescriptions/stencil_prompt.txt")]
-    #[tool]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = true),
+        output_schema = schema::<prompt::PromptPayload<'static>>()
+    )]
     async fn stencil_prompt(
         &self,
+        Extension(roots): Extension<Roots>,
         Parameters(params): Parameters<PromptParams>,
     ) -> Result<CallToolResult, McpError> {
-        tools::prompt::run(&self.config, params).await
+        prompt::run(&self.config, &roots, params).await
     }
 
     #[doc = include_str!("../../toolDescriptions/stencil_script.txt")]
-    #[tool]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = true),
+        output_schema = schema::<script::ScriptPayload<'static>>()
+    )]
     async fn stencil_script(
         &self,
+        Extension(roots): Extension<Roots>,
         Parameters(params): Parameters<ScriptParams>,
     ) -> Result<CallToolResult, McpError> {
-        tools::script::run(params).await
+        script::run(&roots, params).await
+    }
+
+    #[doc = include_str!("../../toolDescriptions/stencil_script_check.txt")]
+    #[tool(
+        annotations(read_only_hint = true, open_world_hint = false),
+        output_schema = schema::<script::check::CheckPayload<'static>>()
+    )]
+    async fn stencil_script_check(
+        &self,
+        Extension(roots): Extension<Roots>,
+        Parameters(params): Parameters<ScriptCheckParams>,
+    ) -> Result<CallToolResult, McpError> {
+        script::check::run(&roots, params).await
+    }
+
+    #[doc = include_str!("../../toolDescriptions/stencil_script_plan.txt")]
+    #[tool(
+        annotations(read_only_hint = true, open_world_hint = true),
+        output_schema = schema::<script::plan::PlanPayload>()
+    )]
+    async fn stencil_script_plan(
+        &self,
+        Extension(roots): Extension<Roots>,
+        Parameters(params): Parameters<ScriptPlanParams>,
+    ) -> Result<CallToolResult, McpError> {
+        script::plan::run(&roots, params).await
+    }
+
+    #[doc = include_str!("../../toolDescriptions/stencil_script_emit.txt")]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = false),
+        output_schema = schema::<script::emit::EmitPayload>()
+    )]
+    async fn stencil_script_emit(
+        &self,
+        Extension(roots): Extension<Roots>,
+        Parameters(params): Parameters<ScriptEmitParams>,
+    ) -> Result<CallToolResult, McpError> {
+        script::emit::run(&roots, params).await
     }
 
     #[doc = include_str!("../../toolDescriptions/source_site.txt")]
-    #[tool]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = false, open_world_hint = true),
+        output_schema = schema::<source_site::ScrapePayload<'static>>()
+    )]
     async fn source_site(
         &self,
+        Extension(roots): Extension<Roots>,
         Parameters(params): Parameters<ScrapeParams>,
     ) -> Result<CallToolResult, McpError> {
-        tools::source_site::run(params).await
+        source_site::run(&roots, params).await
     }
-}
 
-#[tool_handler]
-impl ServerHandler for StencilServer {
-    fn get_info(&self) -> ServerInfo {
-        // ServerInfo is #[non_exhaustive]; start from the default and set our fields.
-        let mut info = ServerInfo::default();
-        info.protocol_version = ProtocolVersion::LATEST;
-        info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        // Identify as this crate (from_build_env() would report rmcp's own name/version).
-        let mut implementation = Implementation::default();
-        implementation.name = env!("CARGO_PKG_NAME").to_string();
-        implementation.version = env!("CARGO_PKG_VERSION").to_string();
-        info.server_info = implementation;
-        info.instructions = Some(
-            PROSE["instructions"]
-                .as_str()
-                .expect("toolDescriptions.json: \"instructions\" must be a string")
-                .to_string(),
-        );
-        info
+    #[doc = include_str!("../../toolDescriptions/stencil_projects.txt")]
+    #[tool(
+        annotations(read_only_hint = true, open_world_hint = true),
+        output_schema = schema::<projects::ProjectsPayload>()
+    )]
+    async fn stencil_projects(
+        &self,
+        Parameters(params): Parameters<ProjectsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        projects::run(&self.config.servers, params).await
+    }
+
+    #[doc = include_str!("../../toolDescriptions/stencil_project_update.txt")]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = true),
+        output_schema = schema::<project_update::UpdatePayload>()
+    )]
+    async fn stencil_project_update(
+        &self,
+        Parameters(params): Parameters<ProjectUpdateParams>,
+    ) -> Result<CallToolResult, McpError> {
+        project_update::run(&self.config.servers, params).await
+    }
+
+    #[doc = include_str!("../../toolDescriptions/stencil_project_file.txt")]
+    #[tool(
+        annotations(read_only_hint = false, destructive_hint = true, open_world_hint = true),
+        output_schema = schema::<project_file::FilePayload>()
+    )]
+    async fn stencil_project_file(
+        &self,
+        Extension(roots): Extension<Roots>,
+        Parameters(params): Parameters<ProjectFileParams>,
+    ) -> Result<CallToolResult, McpError> {
+        project_file::run(&self.config.servers, &roots, params).await
     }
 }
 

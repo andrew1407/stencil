@@ -1,36 +1,25 @@
 #include "ChatPlanTarget.hpp"
 
 #include "MainWindow.hpp"
-#include "../../../support/modal/modalChrome.hpp"  // confirmModal — the browser-styled question
+#include "ChatSessionController.hpp"
 #include "mainWindowHelpers.hpp"
-#include "DataExportController.hpp"
-#include "RemoteSession.hpp"
 #include "../../../canvas/CanvasWidget.hpp"
-#include "../../../net/connectionStore.hpp"
-#include "../../../net/ServerClient.hpp"
-#include "../../../support/displayName.hpp"
-#include "../../../support/notify/Notifications.hpp"
+#include "../../../model/imageTurn.hpp"
 #include "../../../support/theme/theme.hpp"
 #include "colorNames.hpp"
 
-#include <QAction>
-#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QEventLoop>
-#include <QJsonObject>
 #include <QLineEdit>
 #include <QSpinBox>
-#include <QTimer>
-#include <QToolButton>
+#include <QDoubleSpinBox>
 
 namespace stencil::gui {
 
   bool ChatPlanTarget::hasImage() const { return w.canvas->hasImage(); }
-  bool ChatPlanTarget::isVideoInput() const { return !w.chatVideoPath.isEmpty(); }
+  bool ChatPlanTarget::isVideoInput() const { return !w.chatSession->chatVideoPath.isEmpty(); }
   QSize ChatPlanTarget::effectiveOriginalSize() const {
-    return w.canvas->effectiveOriginalImage().size();
+    return model::turnedSize(w.canvas->getOriginalImage().size(), w.canvas->getRotationQuarters());
   }
   QSize ChatPlanTarget::workingSize() const { return w.canvas->getImage().size(); }
   core::PageSize ChatPlanTarget::pageCm() const {
@@ -44,8 +33,9 @@ namespace stencil::gui {
     return true;
   }
   void ChatPlanTarget::rotateQuarter(bool clockwise) { w.canvas->rotateImage(clockwise); }
+  // Mode and tint land as ONE undo step, measured against the step on screen.
   void ChatPlanTarget::setImageFilter(const QString& mode, const QString& tintHex) {
-    if (!tintHex.isEmpty()) w.applyTintColor(QColor(tintHex));
+    if (!tintHex.isEmpty()) w.applyTintColor(QColor(tintHex), /*asUndoStep=*/false);
     w.applyImageFilter(mode);  // syncs toolbar combo + context radios + persists
   }
   void ChatPlanTarget::setLayoutLines(const core::Lines& lines) {
@@ -54,28 +44,21 @@ namespace stencil::gui {
   void ChatPlanTarget::commitLayoutLines(const core::Lines& lines) {
     w.canvas->commitLines(lines);
   }
-  bool ChatPlanTarget::captureEdit(llm::EditState& out) const {
-    out.valid = true;
-    out.crop = w.canvas->getCropRect();
-    out.filterMode = w.canvas->getImageFilter();
-    out.filterTint = w.canvas->getFilterColor().name();
-    out.lines = w.canvas->getLines();
-    return true;
-  }
-  core::FormulaContext ChatPlanTarget::formulaContext() const { return w.formulaContext(); }
+  std::optional<core::EditorMemento> ChatPlanTarget::captureEdit() const { return w.canvas->memento(); }
+  core::FormulaContext ChatPlanTarget::formulaContext() const { return w.parts.view.formulaContext(); }
   void ChatPlanTarget::setFormula(QChar axis, const QString& expr) {
-    if (!expr.isEmpty() && w.allowFormulas && !w.allowFormulas->isChecked())
-      w.allowFormulas->setChecked(true);  // shows the inputs + persists
-    QLineEdit* edit = axis == QLatin1Char('x') ? w.formulaX : w.formulaY;
+    if (!expr.isEmpty() && w.tools.allowFormulas && !w.tools.allowFormulas->isChecked())
+      w.tools.allowFormulas->setChecked(true);  // shows the inputs + persists
+    QLineEdit* edit = axis == QLatin1Char('x') ? w.tools.formulaX : w.tools.formulaY;
     if (!edit) return;
     edit->setText(expr);
     // An op-plan applies NOW: the typing-pause debounce is for a human at the keyboard.
-    w.validateAndApplyFormulas();
+    w.parts.view.validateAndApplyFormulas();
   }
-  // §2 formula enabled — the toolbar checkbox is the source of truth; actAllowFormulas follows it.
+  // §2 formula enabled — the toolbar checkbox is the source of truth; acts.allowFormulas follows it.
   void ChatPlanTarget::setFormulasEnabled(bool on) {
-    if (w.allowFormulas && w.allowFormulas->isChecked() != on)
-      w.allowFormulas->setChecked(on);  // applies + persists via its handler
+    if (w.tools.allowFormulas && w.tools.allowFormulas->isChecked() != on)
+      w.tools.allowFormulas->setChecked(on);  // applies + persists via its handler
   }
   void ChatPlanTarget::setPageFormat(const QString& isoName) {
     const int idx = w.units.pageSize->findData(isoName);
@@ -91,7 +74,7 @@ namespace stencil::gui {
     w.settings.customPageHeight = heightCm;
     const int idx = w.units.pageSize->findData(QStringLiteral("custom"));
     if (idx >= 0) w.units.pageSize->setCurrentIndex(idx);
-    w.onPageSizeChanged();  // idempotent when the combo change already fired
+    w.parts.view.onPageSizeChanged();  // idempotent when the combo change already fired
   }
   bool ChatPlanTarget::newBlank(const QString& color, const QString& isoName,
                                 double widthCm, double heightCm, QString* err) {
@@ -103,7 +86,7 @@ namespace stencil::gui {
       return false;
     }
     const core::SizePx px = core::defaultBlankSizePx(pageCm(), 96.0);
-    w.createBlankImage(QColor(rgba->r, rgba->g, rgba->b), px.width, px.height);
+    w.parts.sourceOpener.createBlankImage(QColor(rgba->r, rgba->g, rgba->b), px.width, px.height);
     return true;
   }
   // §2 undo/redo
@@ -117,21 +100,6 @@ namespace stencil::gui {
     if (done > 0) w.refreshActions();
     return done;
   }
-  bool ChatPlanTarget::extractFrames(const QVector<int>& indices, QString* err) {
-    return w.chatExtractFrames(indices, err);
-  }
-  // §10 @frame: the block's own source reloaded AT that frame, so it becomes the working image.
-  bool ChatPlanTarget::openSourceFrame(const QString& spec, int frame, QString* err) {
-    if (spec.isEmpty()) {
-      if (err) *err = QStringLiteral("frame: this block names no source");
-      return false;
-    }
-    QString why;
-    if (w.chatLoadSource(spec, w.incognito, &why, frame)) return true;
-    if (err) *err = QStringLiteral("frame: %1").arg(why);
-    return false;
-  }
-
   void ChatPlanTarget::setTheme(const QString& mode) {
     Settings s = w.settings;
     s.themeMode = mode;
@@ -162,18 +130,18 @@ namespace stencil::gui {
         if (const auto rgba = core::parseColor(a.color.toStdString()))
           c = QColor(rgba->r, rgba->g, rgba->b);
       if (c.isValid()) {
-        w.lineColorValue = c;
-        w.updateColorSwatch(w.lineColorBtn, c);
+        w.tools.lineColorValue = c;
+        w.updateColorSwatch(w.tools.lineColorBtn, c);
         w.settings.defaultColor = c.name(QColor::HexRgb);
-        w.onLineStyleControlChanged();
+        w.parts.styleControls.onLineStyleControlChanged();
       }
     }
     // §10 widening: pointColor ("" = follow the stroke).
     if (a.pointColorSet) {
       w.settings.defaultPointColor = a.pointColor;
-      if (w.pointColorBtn)
-        w.updateColorSwatch(w.pointColorBtn, w.effectiveDefaultPointColor());
-      w.onLineStyleControlChanged();
+      if (w.tools.pointColorBtn)
+        w.updateColorSwatch(w.tools.pointColorBtn, w.parts.styleControls.effectiveDefaultPointColor());
+      w.parts.styleControls.onLineStyleControlChanged();
     }
     if (!a.drawMode.isEmpty()) {
       w.canvas->setDrawMode(a.drawMode == QLatin1String("rect")
@@ -181,23 +149,23 @@ namespace stencil::gui {
                                   : CanvasWidget::DrawMode::LINE);
       w.persistSettings();
     }
-    if (a.thickness > 0 && w.lineThickness) w.lineThickness->setValue(a.thickness);
-    if (a.pointSize > 0 && w.pointSize) w.pointSize->setValue(a.pointSize);
-    if (!a.style.isEmpty() && w.lineStyle) {
-      const int idx = w.lineStyle->findData(a.style);
-      if (idx >= 0) w.lineStyle->setCurrentIndex(idx);
+    if (a.thickness > 0 && w.tools.lineThickness) w.tools.lineThickness->setValue(a.thickness);
+    if (a.pointSize > 0 && w.tools.pointSize) w.tools.pointSize->setValue(a.pointSize);
+    if (!a.style.isEmpty() && w.tools.lineStyle) {
+      const int idx = w.tools.lineStyle->findData(a.style);
+      if (idx >= 0) w.tools.lineStyle->setCurrentIndex(idx);
     }
   }
-  void ChatPlanTarget::setUnits(const QString& value) { w.applyUnits(value); }
+  void ChatPlanTarget::setUnits(const QString& value) { w.parts.view.applyUnits(value); }
   void ChatPlanTarget::setViewVisibility(int points, int lines) {
-    if (points >= 0 && w.actShowPoints) w.actShowPoints->setChecked(points == 1);
-    if (lines >= 0 && w.actShowLines) w.actShowLines->setChecked(lines == 1);
+    if (points >= 0 && w.acts.showPoints) w.acts.showPoints->setChecked(points == 1);
+    if (lines >= 0 && w.acts.showLines) w.acts.showLines->setChecked(lines == 1);
   }
   // §10 clear: no confirmation — a modal would stall the turn.
-  void ChatPlanTarget::clearImage() { w.resetToBlankEditor(); }
+  void ChatPlanTarget::clearImage() { w.parts.projects.resetToBlankEditor(); }
   // §10 compare: the shared setter the toolbar combo and the View submenu drive.
   bool ChatPlanTarget::setCompare(const QString& mode, double split, QString*) {
-    w.setCompareModeUi(mode);
+    w.parts.styleControls.setCompareModeUi(mode);
     if (split > 0) w.canvas->setCompareSplit(split);
     return true;
   }
@@ -208,7 +176,7 @@ namespace stencil::gui {
   }
   // §10 blankColor: blanks only (note+skip otherwise), keeps every drawn line.
   bool ChatPlanTarget::setBlankColor(const QString& color, QString* note) {
-    if (w.blankColor.isEmpty() || !w.canvas->hasImage()) {
+    if (w.docSource.blankColor.isEmpty() || !w.canvas->hasImage()) {
       *note = QStringLiteral("only a blank project's background can be recoloured");
       return true;
     }
@@ -220,7 +188,7 @@ namespace stencil::gui {
       *note = QStringLiteral("unknown colour \"%1\"").arg(color);
       return true;
     }
-    w.applyBlankColor(c);
+    w.parts.projects.applyBlankColor(c);
     return true;
   }
 }  // namespace stencil::gui

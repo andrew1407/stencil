@@ -1,6 +1,6 @@
 // Applies the saved theme, accent and motion mode to <html> BEFORE first paint. A CLASSIC
 // <script> in index.html's <head> (modules defer → flash), so it cannot import
-// core/accents.js: the storage keys and light presets are inlined and kept in sync there.
+// core/settings/accents.js: the storage keys and light presets are inlined and kept in sync there.
 (() => {
   const root = document.documentElement;
 
@@ -29,7 +29,7 @@
     /* storage blocked — keep the default accent */
   }
 
-// The CSS half of ui/prefs.js: animations/motionModes.css keys off data-motion, which
+// The CSS half of ui/motion/motionPrefs.js: animations/motionModes.css keys off data-motion, which
 // must be on <html> before the entrance plays. Keep in step with MOTION_STORAGE_KEY/MOTION_MODES.
   try {
     const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');

@@ -14,8 +14,6 @@ export interface FormulaContext {
   unit?: string;
 }
 
-/** A blank formula is the identity: valid, and apply() returns its input unchanged. */
-export declare const isBlankFormula: (s: unknown) => boolean;
 /** The context with each unbound axis at 1, for validating without live coordinates. */
 export declare const withProbeAxes: (ctx: FormulaContext | null | undefined) => FormulaContext;
 /** One name resolved (case-sensitive), or null when unknown or unsupplied. */

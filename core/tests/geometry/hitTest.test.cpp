@@ -1,11 +1,28 @@
 #include "doctest.h"
 #include "hitTest.hpp"
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 using namespace stencil::core;
 
-// Mirrors the hit-test cases in browser/tests/geometry.test.js.
+// Mirrors the hit-test cases in browser/tests/ui/chat/geometry.test.js.
+
+TEST_CASE("drift: CLOSE_SLACK_PX is HIT.closeSlackPx in browser/js/config/constants.json") {
+  namespace fs = std::filesystem;
+  fs::path p = fs::current_path();
+  while (!fs::exists(p / "CLAUDE.md") && p.has_parent_path() && p.parent_path() != p) p = p.parent_path();
+  std::stringstream src;
+  src << std::ifstream(p / "browser/js/config/constants.json").rdbuf();
+  const std::string json = src.str();
+  const std::size_t at = json.find("\"closeSlackPx\"", json.find("\"HIT\""));
+  REQUIRE(at != std::string::npos);
+  CHECK(std::strtod(json.c_str() + json.find(':', at) + 1, nullptr) == CLOSE_SLACK_PX);
+}
 
 // S2: the close-shape predicate ported from drawingApp.js #closeCurrentShape.
 TEST_CASE("shouldCloseShape needs >=3 points and a click near point[0]") {
@@ -135,3 +152,64 @@ TEST_CASE("nearestPointInLine returns the first point within threshold") {
   CHECK_FALSE(nearestPointInLine(one, 0, 12, 5.0).has_value());   // 12 not < 5
 }
 
+
+// The bbox reject and the squared compare change no answer: pinned against a brute scan over a
+// scatter. browser/tests/core/draw/hitTest.test.js holds the JS twin to the same cases.
+TEST_CASE("findNearestPoint / findNearestSegment agree with a brute scan") {
+  Lines lines;
+  for (int i = 0; i < 40; ++i) {
+    Line l;
+    for (int k = 0; k < 5; ++k)
+      l.points.push_back({double((i * 37 + k * 11) % 300), double((i * 53 + k * 7) % 300)});
+    lines.push_back(l);
+  }
+  int pointHits = 0, segmentHits = 0;
+  for (int y = 0; y < 300; y += 7) {
+    for (int x = 0; x < 300; x += 7) {
+      std::optional<PointHit> point;
+      std::optional<SegmentHit> seg;
+      double best = 12.0;
+      for (int li = int(lines.size()) - 1; li >= 0; --li) {
+        const auto& pts = lines[li].points;
+        for (int pi = 0; pi < int(pts.size()) && !point; ++pi)
+          if (std::hypot(pts[pi].x - x, pts[pi].y - y) < 12.0) point = PointHit{li, pi};
+        for (int j = 0; j + 1 < int(pts.size()); ++j) {
+          const double d = distToSegment(x, y, pts[j], pts[j + 1]);
+          if (d < best) best = d, seg = SegmentHit{li, j, j + 1};
+        }
+      }
+      const auto p = findNearestPoint(lines, x, y);
+      const auto s = findNearestSegment(lines, x, y);
+      REQUIRE(p.has_value() == point.has_value());
+      if (p) CHECK((p->lineIdx == point->lineIdx && p->ptIdx == point->ptIdx));
+      REQUIRE(s.has_value() == seg.has_value());
+      if (s) CHECK((s->lineIdx == seg->lineIdx && s->ptIdx1 == seg->ptIdx1));
+      pointHits += p.has_value();
+      segmentHits += s.has_value();
+    }
+  }
+  CHECK(pointHits > 20);  // the scatter exercises hits as well as rejects
+  CHECK(segmentHits > 100);
+}
+
+TEST_CASE("findNearestPoint: strict at the threshold, nothing for a non-positive one") {
+  const Lines one{Line{{{0, 0}}}};
+  CHECK_FALSE(findNearestPoint(one, 3, 4, 5.0).has_value());  // distance exactly 5
+  CHECK(findNearestPoint(one, 3, 4, 5.001).has_value());
+  CHECK_FALSE(findNearestPoint(one, 0, 0, 0.0).has_value());
+  CHECK_FALSE(findNearestPoint(one, 0, 0, -5.0).has_value());
+}
+
+// The squared compares keep each scan's own boundary: findLineAt inclusive, the others strict.
+TEST_CASE("the segment scans hold their boundary at the threshold, nothing for a non-positive one") {
+  const Lines seg{Line{{{0, 0}, {10, 0}}}};
+  CHECK_FALSE(findNearestSegment(seg, 5, 5, 5.0).has_value());  // distance exactly 5
+  CHECK(findNearestSegment(seg, 5, 5, 5.001).has_value());
+  CHECK_FALSE(findNearestSegment(seg, 5, 0, 0.0).has_value());
+  CHECK_FALSE(findNearestSegment(seg, 5, 0, -5.0).has_value());
+  CHECK(findLineAt(seg, 5, 5, 5.0) == 0);                        // inclusive at the threshold
+  CHECK(findLineAt(seg, 13, 4, 1.0) == 0);                       // point radius 5, distance 5
+  CHECK(findLineAt(seg, 5, 0, -3.0) == -1);                      // no radius below zero
+  CHECK_FALSE(nearestPointInLine(seg[0].points, 3, 4, 5.0).has_value());
+  CHECK_FALSE(nearestPointInLine(seg[0].points, 0, 0, -1.0).has_value());
+}

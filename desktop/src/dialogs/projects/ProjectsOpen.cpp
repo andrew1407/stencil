@@ -1,19 +1,14 @@
 #include "ProjectsDialog.hpp"
 
-#include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/displayName.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/modal/modalChrome.hpp"
-#include "AppTooltip.hpp"
-#include "ShimmerOverlay.hpp"
 
 #include <QApplication>
 #include <QPointer>
 #include <QTimer>
+#include <QListWidget>
+#include <QListWidgetItem>
 
 // Opening a row: the click schedule, the selection paths and the hand-off.
 

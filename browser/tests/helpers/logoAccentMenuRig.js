@@ -29,10 +29,13 @@ export const rig = ({ accent = 'violet', customAccent = null } = {}) => {
   globalThis.window = win;
 
   const calls = [];
+  // The accent writes live on the app's AccentController; no preview hooks, as before.
   const app = {
     accent, customAccent,
-    setAccent: (k, origin) => calls.push(['setAccent', k, origin]),
-    setCustomAccent: (h, origin) => calls.push(['setCustomAccent', h, origin]),
+    accents: {
+      setAccent: (k, origin) => calls.push(['setAccent', k, origin]),
+      setCustomAccent: (h, origin) => calls.push(['setCustomAccent', h, origin]),
+    },
   };
   wireLogoColorPicker(logo, app);
   // Live :hover is what gates the Alt routes (like every icon); helpers flip it and

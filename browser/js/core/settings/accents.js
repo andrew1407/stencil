@@ -2,7 +2,7 @@ import ACCENTS_DATA from '../../config/accents.json' with { type: 'json' };
 import SVG_ART from '../../config/svgArt.json' with { type: 'json' };
 
 // Accent presets: one primary hex each; --accent-2 and the glows derive via color-mix() in
-// css/theme.css. config/accents.json is canonical — the extension (lib/accent.js) and
+// css/theme.css. config/accents.json is canonical — the extension (lib/accent/accent.js) and
 // desktop (theme.cpp accentPresets) mirror it.
 export const ACCENTS = ACCENTS_DATA;
 
@@ -12,7 +12,7 @@ export const isAccent = (key) => ACCENTS.some((a) => a.key === key);
 export const accentHex = (key) =>
   (ACCENTS.find((a) => a.key === key) || ACCENTS[0]).hex;
 
-// The favicon art lives in config/svgArt.json, pinned against favicon.svg by tests/svgArt.test.js.
+// The favicon art lives in config/svgArt.json, pinned against favicon.svg by tests/config/svgArt.test.js.
 // A skin's own art (hex → SVG) is re-inked by every accent change; null = the app's own.
 let faviconArt = null;
 export const setFaviconArt = (fn) => { faviconArt = typeof fn === 'function' ? fn : null; };
@@ -27,7 +27,7 @@ export const normalizeHex = (value) => {
 };
 
 // Ink on --accent is whichever of white / near-black contrasts more (WCAG). Pure, so the
-// extension (lib/accent.js) and desktop (theme.cpp) share the rule.
+// extension (lib/accent/accent.js) and desktop (theme.cpp) share the rule.
 const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 
 // WCAG relative luminance of a hex colour, or null when it isn't one.

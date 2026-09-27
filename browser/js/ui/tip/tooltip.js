@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { surfaceIn, surfaceOut, settleSurface, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { cmToUnit, unitLabel } from '../../utils.js';
 import { decideHover, refreshHover, scheduleReveal } from './tooltipHover.js';
+import { getPageDimensions, pixelToPageCoords } from '../../core/parse/pageMetrics.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Owns its dynamically-filled DOM and the show/hide/position logic.
 export class StencilTooltip extends StencilElement {
@@ -13,6 +14,8 @@ export class StencilTooltip extends StencilElement {
   pendingKey = null;      // the target it's armed for
   pendingReveal = null;   // …and how to actually show it, once the delay elapses
   shownKey = null;        // the target CURRENTLY on screen (or about to be, mid-timer)
+  lastMarkup = null;      // what innerHTML last received: a move over the same target rebuilds nothing
+  coordCells = null;      // the coordinate table's value cells, while its row labels are on screen
 
   static inner() { return ''; } // content is rendered on demand by show()/showLine()
   static template() { return hostTag('stencil-tooltip', 'id="tooltip" class="tooltip"', StencilTooltip.inner()); }
@@ -38,8 +41,8 @@ export class StencilTooltip extends StencilElement {
       this.hide();
       return;
     }
-    const pageCoords = this.app.pixelToPageCoords(x, y);
-    const ps = this.app.getPageDimensions();
+    const pageCoords = pixelToPageCoords(this.app, x, y);
+    const ps = getPageDimensions(this.app);
     const u = this.app.unit;
     const lbl = unitLabel(u);
     const pageX = cmToUnit(pageCoords.x, u);
@@ -48,43 +51,16 @@ export class StencilTooltip extends StencilElement {
     const tailY = cmToUnit(ps.height - pageCoords.y, u);
 
     const rows = [];
-    if (this.app.tooltipShowScreen) rows.push(`
-      <tr>
-        <td><strong>Pixel</strong></td>
-        <td>${Math.round(x)}</td>
-        <td>${Math.round(y)}</td>
-      </tr>`);
-    if (this.app.tooltipShowPage) rows.push(`
-      <tr>
-        <td><strong>Page (${lbl})</strong></td>
-        <td>${pageX.toFixed(2)}</td>
-        <td>${pageY.toFixed(2)}</td>
-      </tr>`);
-    if (this.app.tooltipShowCoords) rows.push(`
-      <tr>
-        <td><strong>To edge (${lbl})</strong></td>
-        <td>${tailX.toFixed(2)}</td>
-        <td>${tailY.toFixed(2)}</td>
-      </tr>`);
+    if (this.app.tooltipShowScreen) rows.push(['Pixel', Math.round(x), Math.round(y)]);
+    if (this.app.tooltipShowPage) rows.push([`Page (${lbl})`, pageX.toFixed(2), pageY.toFixed(2)]);
+    if (this.app.tooltipShowCoords) rows.push([`To edge (${lbl})`, tailX.toFixed(2), tailY.toFixed(2)]);
 
     if (rows.length === 0) {
       this.hide();
       return;
     }
 
-    this.innerHTML = `
-      <table class="tooltip-table">
-        <thead>
-          <tr>
-            <th>Coordinate</th>
-            <th>X</th>
-            <th>Y</th>
-          </tr>
-        </thead>
-        <tbody>${rows.join('')}
-        </tbody>
-      </table>
-    `;
+    this.showCoordRows(rows);
     this.reveal(clientX, clientY);
   }
 
@@ -101,7 +77,7 @@ export class StencilTooltip extends StencilElement {
     const u = this.app.unit;
     const lbl = unitLabel(u);
     const fmtRow = (label, p) => {
-      const pc = this.app.pixelToPageCoords(p.x, p.y);
+      const pc = pixelToPageCoords(this.app, p.x, p.y);
       return `<tr>
         <td><strong>${label}</strong></td>
         <td>${Math.round(p.x)}, ${Math.round(p.y)} px</td>
@@ -120,11 +96,51 @@ export class StencilTooltip extends StencilElement {
     const hint = (!showAll && pts.length > 2)
       ? `<div style="padding:4px 10px 6px;font-size:11px;color:var(--text-muted);">Hold <strong>Shift</strong> for all ${pts.length} points</div>`
       : '';
-    this.innerHTML = `<table class="tooltip-table">
+    this.setMarkup(`<table class="tooltip-table">
       <thead>${header}</thead>
       <tbody>${bodyRows}</tbody>
-    </table>${hint}`;
+    </table>${hint}`);
     this.reveal(clientX, clientY);
+  }
+
+  // The table is built once per set of row labels; a move under the same labels rewrites only
+  // the numbers in place, so the Ctrl cursor readout never re-parses markup while it tracks.
+  showCoordRows(rows) {
+    const shape = rows.map(([label]) => label).join('\n');
+    if (this.coordCells?.shape === shape) {
+      rows.forEach(([, vx, vy], i) => {
+        this.coordCells.cells[2 * i].textContent = String(vx);
+        this.coordCells.cells[2 * i + 1].textContent = String(vy);
+      });
+      this.lastMarkup = null;
+      return;
+    }
+    this.setMarkup(`
+      <table class="tooltip-table">
+        <thead>
+          <tr>
+            <th>Coordinate</th>
+            <th>X</th>
+            <th>Y</th>
+          </tr>
+        </thead>
+        <tbody>${rows.map(([label, vx, vy]) => `
+      <tr>
+        <td><strong>${label}</strong></td>
+        <td>${vx}</td>
+        <td>${vy}</td>
+      </tr>`).join('')}
+        </tbody>
+      </table>
+    `);
+    this.coordCells = { shape, cells: [...this.querySelectorAll('tbody td:not(:first-child)')] };
+  }
+
+  setMarkup(html) {
+    if (html === this.lastMarkup) return;
+    this.lastMarkup = html;
+    this.coordCells = null;
+    this.innerHTML = html;
   }
 
   // Only on the none↔block edge: this tooltip is re-rendered on every mousemove while it is up,

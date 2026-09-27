@@ -1,4 +1,4 @@
-// Clipboard / drop extraction shared with the global paste wiring (js/core/dragImageUrl.js):
+// Clipboard / drop extraction shared with the global paste wiring (js/core/pointer/dragImageUrl.js):
 // media files off the event, and how they flow into the controller's attachments.
 import { test } from 'node:test';
 import assert from 'node:assert';

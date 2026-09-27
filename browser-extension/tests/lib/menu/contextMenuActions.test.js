@@ -1,4 +1,4 @@
-// resolveContextAction in src/lib/contextMenu.js: the {action, src, …} each menu id resolves to,
+// resolveContextAction in src/lib/menu/contextMenu.js: the {action, src, …} each menu id resolves to,
 // and the Pin/Unpin label the probe's record decides.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

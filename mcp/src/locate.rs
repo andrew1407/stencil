@@ -1,8 +1,8 @@
 //! Discover the Stencil CLI binary the server shells out to.
 //!
-//! Resolution order: `STENCIL_CLI`, then the nearest ancestor of the CWD or the running
-//! executable holding `cli/build.zig`, then `stencil` on `PATH`. A resolved path is cached
-//! process-wide; the override is re-read every call. The server never builds the CLI.
+//! Resolution order: `STENCIL_CLI`, then the nearest ancestor of the running executable
+//! holding `cli/build.zig`, then `stencil` on `PATH`. Never the CWD: a workspace must not be
+//! able to plant the binary this server runs. A hit is cached; the override is re-read.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -45,47 +45,21 @@ pub fn find_cli() -> Result<PathBuf, String> {
     Ok(RESOLVED.get_or_init(|| found).clone())
 }
 
-/// Find the repo root (nearest ancestor with `cli/build.zig`) above the CWD or the running
-/// executable. Other modules use this to derive sibling paths (e.g. the desktop binary).
+/// Find the repo root (nearest ancestor with `cli/build.zig`) above the running executable.
+/// Other modules use this to derive sibling paths (e.g. the desktop binary).
 pub fn repo_root() -> Option<PathBuf> {
-    for start in start_dirs() {
-        if let Some(root) = repo_root_from(&start) {
-            return Some(root);
-        }
-    }
-    None
+    let exe = std::env::current_exe().ok()?;
+    repo_root_from(exe.parent()?)
 }
 
-/// Candidate directories to start an upward search from.
-fn start_dirs() -> Vec<PathBuf> {
-    let mut starts: Vec<PathBuf> = Vec::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        starts.push(cwd);
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            starts.push(dir.to_path_buf());
-        }
-    }
-    starts
-}
-
-/// Look for `cli/zig-out/bin/stencil` under the nearest repo root above the CWD or the
-/// running executable.
+/// Look for `cli/zig-out/bin/stencil` under the repo root above the running executable.
 fn find_in_repo() -> Option<PathBuf> {
-    for start in start_dirs() {
-        if let Some(root) = repo_root_from(&start) {
-            let candidate = root.join(REPO_BINARY);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-    None
+    let candidate = repo_root()?.join(REPO_BINARY);
+    candidate.is_file().then_some(candidate)
 }
 
 /// Walk up from `start` looking for an ancestor that contains `cli/build.zig`.
-fn repo_root_from(start: &Path) -> Option<PathBuf> {
+pub fn repo_root_from(start: &Path) -> Option<PathBuf> {
     let mut dir = Some(start);
     while let Some(d) = dir {
         if d.join(REPO_SENTINEL).is_file() {
@@ -98,12 +72,14 @@ fn repo_root_from(start: &Path) -> Option<PathBuf> {
 
 /// Scan `PATH` for an executable named `stencil`.
 fn find_on_path() -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(BINARY_NAME);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
+    search_path(&std::env::var_os("PATH")?)
+}
+
+/// The first `stencil` in the `PATH`-shaped list `path`. A relative entry (`.`, or an empty
+/// one) would resolve against the CWD, so it is skipped.
+pub fn search_path(path: &std::ffi::OsStr) -> Option<PathBuf> {
+    std::env::split_paths(path)
+        .filter(|dir| dir.is_absolute())
+        .map(|dir| dir.join(BINARY_NAME))
+        .find(|candidate| candidate.is_file())
 }

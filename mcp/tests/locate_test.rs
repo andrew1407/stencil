@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use stencil_mcp::locate::{find_cli, missing_message, repo_root};
+use stencil_mcp::locate::{find_cli, missing_message, repo_root, repo_root_from, search_path};
 
 fn env_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -112,18 +112,28 @@ fn without_an_override_it_finds_the_repo_build_or_explains_itself() {
     }
 }
 
-/// The tests run from `mcp/`, inside the checkout, so the repo root is the nearest ancestor
-/// holding `cli/build.zig`. Other modules derive sibling paths from it.
+/// The repo root is the nearest ancestor holding `cli/build.zig`, walked up from a start
+/// directory — this crate's own directory finds the checkout it sits in.
 #[test]
-fn repo_root_finds_the_checkout_containing_the_cli_build() {
-    let root = repo_root().expect("the tests run inside the repo checkout");
-    assert!(
-        root.join("cli/build.zig").is_file(),
-        "repo_root returned {} which has no cli/build.zig",
-        root.display()
-    );
-    // It really is an ancestor of this crate, not some unrelated match.
+fn repo_root_from_finds_the_checkout_containing_the_cli_build() {
+    let crate_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = repo_root_from(crate_dir).expect("the crate sits inside the repo checkout");
+    assert!(root.join("cli/build.zig").is_file(), "no cli/build.zig under {}", root.display());
     assert!(root.join("mcp/Cargo.toml").is_file());
+}
+
+/// The server's own root search starts at the running executable, never the CWD: a
+/// workspace must not be able to plant the binary this server runs.
+#[test]
+fn repo_root_starts_at_the_executable_not_the_working_directory() {
+    let exe = std::env::current_exe().expect("the test binary");
+    assert_eq!(repo_root(), repo_root_from(exe.parent().expect("its directory")));
+
+    let elsewhere = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(elsewhere.path().join("cli")).unwrap();
+    std::fs::write(elsewhere.path().join("cli/build.zig"), "").unwrap();
+    assert_eq!(repo_root_from(elsewhere.path()).as_deref(), Some(elsewhere.path()));
+    assert_ne!(repo_root().as_deref(), Some(elsewhere.path()));
 }
 
 /// The message is what an operator sees when nothing resolved, so it has to name all three
@@ -137,4 +147,22 @@ fn missing_message_names_every_way_out() {
             "the missing-CLI message should mention {needle:?}, got: {msg}"
         );
     }
+}
+
+/// A relative `PATH` entry resolves against the CWD, which a workspace controls, so the
+/// search skips it — `.` and the empty entry included — and still finds an absolute one.
+#[test]
+fn a_relative_path_entry_never_resolves_the_cli() {
+    let planted = tempfile::tempdir_in(".").expect("a dir under the CWD");
+    std::fs::write(planted.path().join("stencil"), "").unwrap();
+    let relative = planted.path().file_name().unwrap().to_os_string();
+    let installed = tempfile::tempdir().expect("temp dir");
+    std::fs::write(installed.path().join("stencil"), "").unwrap();
+
+    for entries in [vec![relative.clone()], vec![".".into(), "".into(), relative.clone()]] {
+        let path = std::env::join_paths(entries).unwrap();
+        assert_eq!(search_path(&path), None, "resolved from {path:?}");
+    }
+    let path = std::env::join_paths([relative, installed.path().into()]).unwrap();
+    assert_eq!(search_path(&path), Some(installed.path().join("stencil")));
 }

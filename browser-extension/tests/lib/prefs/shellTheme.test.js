@@ -1,5 +1,5 @@
-// Tests for src/lib/shellTheme.js — the palette handed to the INJECTED in-page modal
-// shell (lib/overlay.js). The shell lives in someone else's page, so it can't read the
+// Tests for src/lib/prefs/shellTheme.js — the palette handed to the INJECTED in-page modal
+// shell (lib/drop/overlay.js). The shell lives in someone else's page, so it can't read the
 // extension's CSS variables; it gets them as data. Regression: the shell used to be
 // hardcoded light-with-a-prefers-color-scheme-override, so a user whose Appearance is
 // Dark on a light OS got a WHITE frame around a dark crop page.

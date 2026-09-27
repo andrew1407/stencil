@@ -17,9 +17,6 @@ func TestNormalizeKeywords(t *testing.T) {
 	if got := normalizeKeywords(nil); got == nil || len(got) != 0 {
 		t.Fatalf("empty input must yield an empty, non-nil slice: %#v", got)
 	}
-	if joinKeywords([]string{"a", " a ", "b"}) != "a\nb" {
-		t.Fatal("the legacy column must carry the normalized list")
-	}
 }
 
 // DB-gated (TEST_DATABASE_URL): keywords round-trip through the text[] column and
@@ -48,24 +45,27 @@ func TestKeywordsArrayRoundTripAndSearch(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("keyword search found %d rows, want 1", n)
 	}
-	// The legacy column is still written for the rollback window.
-	var legacy string
-	if err := s.pool.QueryRow(ctx, `SELECT keywords FROM projects WHERE id = $1`, p.ID).Scan(&legacy); err != nil {
+	// 0003 dropped the legacy newline blob once nothing read it.
+	var legacy int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns
+		WHERE table_name = 'projects' AND column_name = 'keywords'`).Scan(&legacy); err != nil {
 		t.Fatal(err)
 	}
-	if legacy != "maps\nOcean" {
-		t.Fatalf("legacy keywords column: %q", legacy)
+	if legacy != 0 {
+		t.Fatal("the legacy keywords column survived migration 0003")
 	}
 }
 
-// DB-gated: 0002's back-fill lifts a pre-migration row's newline blob into the
-// array, and re-running the migration leaves a cleared row cleared.
+// DB-gated: upgrading a pre-0002 database, the back-fill lifts a row's newline blob into the array
+// before 0003 drops the blob, and a later migrate leaves a cleared row cleared.
 func TestKeywordsBackfillFromLegacyColumn(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()
-	if _, err := s.pool.Exec(ctx,
-		`INSERT INTO projects (id, name, created_at, updated_at, keywords, keywords_arr)
-		 VALUES ('p_legacy_a', 'Old', 1, 1, 'alpha'||chr(10)||'Beta', '{}')`); err != nil {
+	if _, err := s.pool.Exec(ctx, `
+		ALTER TABLE projects ADD COLUMN IF NOT EXISTS keywords text NOT NULL DEFAULT '';
+		DELETE FROM schema_migrations WHERE version >= '0002';
+		INSERT INTO projects (id, name, created_at, updated_at, keywords, keywords_arr)
+		VALUES ('p_legacy_a', 'Old', 1, 1, 'alpha'||chr(10)||'Beta', '{}')`); err != nil {
 		t.Fatal(err)
 	}
 	if err := Migrate(ctx, s.MigratePool()); err != nil {

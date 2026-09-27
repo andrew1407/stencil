@@ -23,7 +23,7 @@ class MainWindowGuiTest : public QObject {
   // Alt-peeks the accent popover by `enterFirst` (Alt down, then the pointer arrives) or by Alt
   // pressed while resting, and runs `inside` in the peek's own loop; returns once it closed.
   static void peekLogo(MainWindow& win, bool enterFirst, const std::function<void()>& inside) {
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     bool ran = false;
     QTimer::singleShot(450, &win, [&win, &ran, inside] {
       if (win.pop.active) inside();
@@ -53,8 +53,8 @@ class MainWindowGuiTest : public QObject {
   // The pointer leaves the logo for `row` with Alt still down.
   static void onto(MainWindow& win, QWidget* row) {
     QEvent leave(QEvent::Leave);
-    QApplication::sendEvent(win.logoBtn, &leave);
-    win.logoBtn->setAttribute(Qt::WA_UnderMouse, false);
+    QApplication::sendEvent(win.tools.logoBtn, &leave);
+    win.tools.logoBtn->setAttribute(Qt::WA_UnderMouse, false);
     QCursor::setPos(centreOf(row));
     enterWidget(row);
   }
@@ -92,7 +92,7 @@ class MainWindowGuiTest : public QObject {
     peekLogo(win, enterFirst, [&] {
       QTest::qWait(300);   // the logo's own hover and the open flight settle under the pointer
       showsOnLogo = blinks.shows;
-      logoHovered = win.logoBtn->underMouse();
+      logoHovered = win.tools.logoBtn->underMouse();
       QPushButton* row = otherRow(win);
       if (!row) return;
       previewed = row->property("accentKey").toString();

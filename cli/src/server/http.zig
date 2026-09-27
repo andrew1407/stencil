@@ -59,7 +59,8 @@ pub fn recordReject(gpa: std.mem.Allocator, status: u32, body: []const u8) void 
 }
 
 /// One-shot HTTP request with explicit headers; returns owned response body bytes. Runs over
-/// net.request: response capped, redirect refused, host block skipped (the user's own server).
+/// net.request: response capped, redirect refused, the host judged as a server target (private
+/// admitted, metadata never — by every address a name resolves to) and dialled at that address.
 pub fn rawRequest(
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -68,9 +69,27 @@ pub fn rawRequest(
     payload: ?[]const u8,
     headers: []const std.http.Header,
 ) TransportError![]u8 {
+    return watchedRequest(gpa, io, url, method, payload, headers, null);
+}
+
+/// `rawRequest` with the exchange on a worker while `waiter` watches the console's terminal:
+/// a Ctrl-C ends the wait with `Cancelled` instead of leaving it deaf for the whole deadline.
+pub fn watchedRequest(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    url: []const u8,
+    method: std.http.Method,
+    payload: ?[]const u8,
+    headers: []const std.http.Header,
+    waiter: ?net.Waiter,
+) TransportError![]u8 {
     reject_status = 0; // a transport failure below leaves no stale rejection behind
-    const opts: net.RequestOptions = .{ .method = method, .payload = payload, .extra_headers = headers, .allow_named_host = true };
-    const res = net.request(gpa, io, url, opts) catch |e| return if (e == error.OutOfMemory) error.OutOfMemory else Error.HttpFailed;
+    const opts: net.RequestOptions = .{ .method = method, .payload = payload, .extra_headers = headers, .server_target = true };
+    const res = net.requestWatched(gpa, io, url, opts, waiter) catch |e| return switch (e) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.Cancelled => Error.Cancelled,
+        else => Error.HttpFailed,
+    };
 
     const code = res.status;
     if (code < 200 or code >= 300) {

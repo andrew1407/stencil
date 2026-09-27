@@ -49,6 +49,43 @@ class MainWindowGuiTest : public QObject {
     none->setChecked(true);   // leave the persisted filter clean for other tests/runs
   }
 
+  // A filter pick is one step on the user's own undo stack; undo and redo put the mode and the
+  // tint back through the pick's path (toolbar, settings, render) and push nothing themselves.
+  void filterPickIsOneUndoStep() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    const QString tint0 = win.tools.filterColorValue.name();
+    auto shown = [&win] { return win.tools.imageFilter->currentData().toString(); };
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("none"));   // a launch never carries one
+    QVERIFY(!canvas->canUndo());
+
+    win.tools.imageFilter->setCurrentIndex(win.tools.imageFilter->findData(QStringLiteral("sepia")));
+    QCOMPARE(canvas->getImageFilter(), QStringLiteral("sepia"));
+    QVERIFY(canvas->canUndo() && win.acts.undo->isEnabled());
+    win.applyImageFilter(QStringLiteral("sepia"));   // the same pick again
+    win.acts.undo->trigger();
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("none"));
+    QCOMPARE(shown(), QStringLiteral("none"));
+    QCOMPARE(canvas->getImageFilter(), QStringLiteral("none"));
+    QVERIFY2(!canvas->canUndo() && canvas->canRedo(), "one pick, one step; the no-op pushed none");
+    win.acts.redo->trigger();
+    QCOMPARE(shown(), QStringLiteral("sepia"));
+    QVERIFY(!canvas->canRedo());
+
+    win.applyImageFilter(QStringLiteral("custom"));
+    win.applyTintColor(QColor("#cc2200"));   // the picker's accepted colour
+    win.acts.undo->trigger();
+    QCOMPARE(win.tools.filterColorValue.name(), tint0);
+    QCOMPARE(win.settings.filterColor, tint0);
+    QCOMPARE(canvas->getFilterColor().name(), tint0);
+    QCOMPARE(shown(), QStringLiteral("custom"));
+    win.acts.undo->trigger();
+    QCOMPARE(shown(), QStringLiteral("sepia"));
+    QVERIFY(win.tools.filterColorBtn->isHidden());
+    win.applyImageFilter(QStringLiteral("none"));
+  }
+
   void clearAllActionEmptiesCanvas() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -88,7 +125,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.applyImageFilter("bw");
-    win.createBlankImage(QColor("#ff0000"), 400, 300);
+    win.parts.sourceOpener.createBlankImage(QColor("#ff0000"), 400, 300);
     QCOMPARE(win.settings.imageFilter, QStringLiteral("none"));
     QTRY_VERIFY(win.canvas->graphicsEffect() == nullptr);
     const QImage shot = win.canvas->grab().toImage();
@@ -105,10 +142,10 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.createBlankImage(QColor("#ffffff"), 400, 300);
+    win.parts.sourceOpener.createBlankImage(QColor("#ffffff"), 400, 300);
     win.canvas->setScale(2.5);
     QCOMPARE(win.canvas->getScale(), 2.5);
-    win.applyBlankColor(QColor("#0000ff"));
+    win.parts.projects.applyBlankColor(QColor("#0000ff"));
     QCOMPARE(win.canvas->getScale(), 2.5);
     beat();
   }

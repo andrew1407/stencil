@@ -6,6 +6,16 @@ import type { DrawingApp } from '../drawingApp.js';
 /** The centring-margin term every viewport→image conversion needs (utils/viewportMetrics.js). */
 export declare const canvasOrigin: () => { x: number; y: number };
 
+/** The smallest zoom scale (0.05); core-bound (wasm) with the JS fallback as the reference. */
+export declare const zoomMin: () => number;
+/** The largest zoom scale (32); core-bound (wasm) with the JS fallback as the reference. */
+export declare const zoomMax: () => number;
+/** The scale and scroll that fit a swept image-space rect to the viewport, centred, capped at zoomMax(). */
+export declare const rectZoom: (x1: number, y1: number, rectW: number, rectH: number, availW: number, availH: number) =>
+  { scale: number; scrollLeft: number; scrollTop: number };
+/** The zoom range in whole percents, as the zoom input takes it (5–3200). */
+export declare const zoomPercentBounds: () => { min: number; max: number };
+
 /** Quiet time after the LAST zoom step before the session is persisted. */
 export declare const ZOOM_SAVE_DEBOUNCE_MS: number;
 
@@ -26,7 +36,7 @@ export declare class ZoomPan {
   app: DrawingApp;
   /** The one debounced persistence path for every zoom route. */
   persistZoom: TrailingSave;
-  /** Into [0.05, 32]; core-bound (wasm) with the JS fallback as the reference. */
+  /** Into [zoomMin(), zoomMax()]; core-bound (wasm) with the JS fallback as the reference. */
   clampScale: (s: number) => number;
   updateZoomRectOverlay(): void;
   hideZoomRectOverlay(): void;

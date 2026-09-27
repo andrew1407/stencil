@@ -1,5 +1,5 @@
 #pragma once
-// The golden shining a logo show's notice wears (browser js/ui/toastGlow.js + .notify-shine): the
+// The golden shining a logo show's notice wears (browser js/ui/dust/toastGlow.js + .notify-shine): the
 // same for every show — the colour of the secret, not of the theme — following the pill's own
 // rounded rectangle. A mouse-through child of the HOST, so the halo reaches past the pill's edges.
 #include <QColor>

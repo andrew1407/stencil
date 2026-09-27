@@ -4,29 +4,42 @@
 //! inline layout, spawn the CLI with `NO_COLOR=1`, map exit status + stderr to a result.
 //! The spawn sits behind [`CliRunner`] in [`runner`], the orchestration in [`run`].
 
+pub mod capture;
+mod env;
+pub mod inspect;
+pub mod preview;
+pub mod progress;
 pub mod run;
 mod runner;
+pub mod script;
 
-pub use runner::{CliOutput, CliRunner, ProcessRunner};
+pub use env::{child_env, gui_env};
+pub use runner::{CliOutput, CliRunner, ProcessRunner, SERVER_TOKENS};
+pub use script::{Emitted, ScriptCheck, ScriptResult};
+
+use std::borrow::Cow;
 
 use crate::args::{EditError, EditParams, ScrapeParams, ScriptParams};
 use crate::outcome::{self, ScrapedFile};
 
-/// A successful edit: the resolved output path, the final image dimensions, and any
-/// collaboration-server deliveries the CLI performed (project updated / created).
+/// A successful edit: the resolved output path, the final image dimensions (none for a
+/// `.stencil` project), and any collaboration-server deliveries the CLI performed.
 #[derive(Debug, Clone)]
 pub struct EditResult {
     pub path: String,
-    pub width: u32,
-    pub height: u32,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
     pub remotes: Vec<outcome::Remote>,
 }
 
 impl EditResult {
-    /// The human-readable head of the tool summary: the local write line followed by one
-    /// line per collaboration-server delivery. The handler appends the surface notes.
+    /// The human-readable head of the tool summary: the CLI's own `wrote` line followed by
+    /// one line per collaboration-server delivery. The handler appends the surface notes.
     pub fn summary(&self) -> String {
-        let mut summary = format!("wrote {} ({}x{})", self.path, self.width, self.height);
+        let mut summary = match (self.width, self.height) {
+            (Some(w), Some(h)) => format!("wrote {} ({w}x{h})", self.path),
+            _ => format!("wrote {} (project)", self.path),
+        };
         for remote in &self.remotes {
             summary.push('\n');
             summary.push_str(&remote.summary_line());
@@ -44,14 +57,6 @@ pub struct ScrapeResult {
     pub files: Vec<ScrapedFile>,
 }
 
-/// A successful script run: every file its `@save` ops wrote, plus the `note:` lines the CLI
-/// printed along the way (an unmatched `@source`, a script that saved nothing).
-#[derive(Debug, Clone)]
-pub struct ScriptResult {
-    pub files: Vec<outcome::Wrote>,
-    pub notes: Vec<String>,
-}
-
 /// Run one `stencil_edit`: validate, draw an inline layout if given, spawn, and parse.
 pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
     run::edit(&ProcessRunner, params).await
@@ -63,10 +68,10 @@ pub async fn run_project(params: &EditParams) -> Result<String, EditError> {
     run::project(&ProcessRunner, params).await
 }
 
-/// Run one `source_site` scrape: build the argv, spawn the CLI (which fetches the page,
-/// filters, and downloads the matches), and map its stderr into a structured result.
-pub async fn run_scrape(params: &ScrapeParams) -> Result<ScrapeResult, EditError> {
-    run::scrape(&ProcessRunner, params).await
+/// Run one `source_site` scrape inside `root`: the CLI fetches the page, filters, and
+/// downloads the matches; its stderr becomes a structured result.
+pub async fn run_scrape(params: &ScrapeParams, root: &str) -> Result<ScrapeResult, EditError> {
+    run::scrape(&ProcessRunner, params, root).await
 }
 
 /// Run one `stencil_script`: `stencil --script <file>`, always inside the sandbox root, and
@@ -78,10 +83,35 @@ pub async fn run_script(
     run::script(&ProcessRunner, params, script_file).await
 }
 
-/// Run one `stencil_probe`. A local PNG/GIF/BMP/JPEG/WebP answers out of its own header;
-/// anything else is rendered to a throwaway PNG — the CLI has no metadata mode.
-pub async fn run_probe(input: &str) -> Result<(u32, u32), String> {
-    run::probe(&ProcessRunner, input).await
+/// Run one `stencil_probe` argv (`--probe -i <input>`) and hand back the CLI's JSON document.
+pub async fn run_probe(argv: &[Cow<'static, str>]) -> Result<serde_json::Value, String> {
+    inspect::probe(&ProcessRunner, argv).await
+}
+
+/// Run one `--server` argv (`--list-projects`, `--project-info`, `--project-update`,
+/// `--project-files`) with the operator's `origin=token` pair for that server, and hand back
+/// the CLI's JSON document.
+pub async fn run_projects(
+    argv: &[Cow<'static, str>],
+    tokens: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    inspect::projects(&ProcessRunner, argv, tokens).await
+}
+
+/// Run one `stencil_project_file` argv (`--project-file <id> <kind> <output>`) confined to
+/// `root`, with the operator's `origin=token` pair, and hand back the CLI's document.
+pub async fn run_project_file(
+    argv: &[Cow<'static, str>],
+    root: &str,
+    tokens: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    inspect::project_file(&ProcessRunner, argv, root, tokens).await
+}
+
+/// Render a written image (inside `root`) as a PNG no longer than 512 px a side — the
+/// opt-in `preview` of `stencil_edit` and `stencil_script`.
+pub async fn render_preview(image: &str, root: &str) -> Result<preview::Preview, String> {
+    preview::render(&ProcessRunner, image, root).await
 }
 
 /// Render `input` through the CLI's contour filter and return the PNG bytes — the §7 edge

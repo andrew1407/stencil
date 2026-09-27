@@ -14,8 +14,9 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     ['../../../src/lib/control/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
     ['../../../src/lib/control/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
-    ['../../../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
-                                   'surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
+    // The way back aims at the trigger's box the list was placed against: a pick may re-lay it first.
+    ['../../../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS, anchor: trigger',
+                                   'surfaceOut(menu, menu.hidden ? null : caretPoint(at), { ms: MENU_OUT_MS, anchor: menu.__ddTrigger'],
     ['../../../src/lib/chat/msgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../../../src/popup/editor/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../../../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],

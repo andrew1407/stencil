@@ -1,12 +1,9 @@
 // The Projects dialog's construction phases; call order in ProjectsDialog.cpp's ctor, pinned by
-// tests/ProjectsDialogRows.headless.cpp — re-cut these, reorder nothing.
+// tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp — re-cut these, reorder nothing.
 #include "../../support/control/dblReset.hpp"
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/FlowLayout.hpp"
-#include "../../support/guiHelpers.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include <QComboBox>

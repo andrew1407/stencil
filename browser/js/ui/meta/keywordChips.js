@@ -1,16 +1,15 @@
 import { FILTER_ENTERING_CLASS, disintegrate, flipFrom, leaveThenRemove,
          motionReduced, speckPainter,
-         CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from '../motion.js';
+         CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, CHIP_ENTER_MS, CHIP_ENTER_DELAY_MS,
+         chipGrid } from '../motion.js';
 import { icon } from '../icons.js';
 
 // One keyword list, edited as chips. The list is the value; the input above it only
 // proposes words. Desktop twin: dialogs/KeywordChips.{hpp,cpp}.
 
-// Twinned in KeywordChipsMotion.cpp and the projectMeta.css keyframes. The mote size, clock,
+// Twinned in KeywordChipsMotion.cpp and the projects/meta.css keyframes. The mote size, clock,
 // throw and grid are the shared chip recipe (motion/tiles.js).
-const CHIP_LEAVE_MS = CHIP_DUST_MS;
-const ENTER_DELAY_MS = 285;
-const CHIP_ENTER_MS = 510;
+const KEYWORD_LEAVE_MS = CHIP_DUST_MS;
 // Element-wise: a keyword may hold a comma, which would make ['a,b'] and ['a','b'] equal.
 const sameOrder = (a, b) => a.length === b.length && a.every((w, i) => w === b[i]);
 
@@ -102,7 +101,7 @@ export const keywordChipsField = ({ placeholder }) => ({
         nodeFor.delete(w);
         if (quiet) { el.remove(); return; }
         leaveThenRemove(el, () => el.remove(), {
-          ms: CHIP_LEAVE_MS, dustMs: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT,
+          ms: KEYWORD_LEAVE_MS, dustMs: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT,
           px: CHIP_MOTE_PX, ...chipGrid(going.length),
         });
       });
@@ -130,9 +129,9 @@ export const keywordChipsField = ({ placeholder }) => ({
           gather: true, ms: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT, px: CHIP_MOTE_PX,
           toBody: true, hostClass: 'dust-forming', paintTile: speckPainter(el),
         });
-        el.style.animationDelay = dust ? `${ENTER_DELAY_MS}ms` : '0ms';
+        el.style.animationDelay = dust ? `${CHIP_ENTER_DELAY_MS}ms` : '0ms';
         el.classList.add(FILTER_ENTERING_CLASS);
-        el.__settle = setTimeout(() => settle(el), ENTER_DELAY_MS + CHIP_ENTER_MS + 60);
+        el.__settle = setTimeout(() => settle(el), CHIP_ENTER_DELAY_MS + CHIP_ENTER_MS + 60);
       });
     };
 

@@ -7,6 +7,12 @@
 
 // The extern "C" script surface, driven through its own prototypes. The wasm twin is
 // emitted from the same abi/scriptShared.inc, so this also guards that body.
+extern "C" {
+  int stencil_scriptParse(const char*, int);
+  void stencil_scriptDestroy(int);
+  int stencil_scriptDiagRelated(int, int, int*, int*, int*);
+}
+
 namespace {
 
   const char* kScript =
@@ -110,6 +116,30 @@ TEST_CASE("a diagnostic crosses with its severity, span and stable code") {
   CHECK(std::strcmp(code, "E_UNKNOWN_DIRECTIVE") == 0);
   CHECK(std::string(msg).find("@crop") != std::string::npos);
   CHECK(stencil_cli_scriptDiagAt(s.h, 9, nullptr, nullptr, nullptr, nullptr, nullptr) == nullptr);
+}
+
+TEST_CASE("a template-body diagnostic crosses with its call site, under both spellings") {
+  const std::string src = "@stencil bad:\n  @line (0,0)\n\n@source a.png:\n  @crp\n"
+                          "  @use stencil bad\n";
+  Handle s{src};
+  REQUIRE(stencil_cli_scriptDiagCount(s.h) == 2);
+  int line = -1, col = -1, len = -1;
+  CHECK(stencil_cli_scriptDiagRelated(s.h, 0, &line, &col, &len) == 1);
+  CHECK(line == 6);
+  CHECK(col == 3);
+  CHECK(len == 4);
+  line = col = len = -1;
+  CHECK(stencil_cli_scriptDiagRelated(s.h, 1, &line, &col, &len) == 0);  // @crp: written here
+  CHECK(line == -1);
+  CHECK(stencil_cli_scriptDiagRelated(s.h, 2, nullptr, nullptr, nullptr) == -1);
+  CHECK(stencil_cli_scriptDiagRelated(4242, 0, nullptr, nullptr, nullptr) == -1);
+
+  const int w = stencil_scriptParse(src.data(), static_cast<int>(src.size()));
+  int wl = -1, wc = -1, wn = -1;
+  CHECK(stencil_scriptDiagRelated(w, 0, &wl, &wc, &wn) == 1);
+  CHECK((wl == 6 && wc == 3 && wn == 4));
+  CHECK(stencil_scriptDiagRelated(w, 1, nullptr, nullptr, nullptr) == 0);
+  stencil_scriptDestroy(w);
 }
 
 TEST_CASE("handle-owned strings stay valid for the life of the handle") {

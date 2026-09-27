@@ -77,5 +77,6 @@ inline QVector<ChatMessage> sampleMessages() {
   void checkOpRegistry();
   void checkPromptAssembly();
   void checkPromptShape();
+  void checkAnthropic();
 
 }  // namespace llmclient

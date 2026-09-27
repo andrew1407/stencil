@@ -1,9 +1,8 @@
-// What a connection change says (js/ui/modal.js): a reconnect toast names the server,
+// What a connection change says (js/ui/connect/modal.js): a reconnect toast names the server,
 // a disconnect posts none, and a refused or unreachable one plays its own arrival.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { MATERIALIZE_CLASS, LEAVE_MS } from '../../../js/ui/motion.js';
+import { MATERIALIZE_CLASS, LEAVE_MS, BAR_HELD_CLASS, REVEAL_GROUP_OUT_MS } from '../../../js/ui/motion.js';
 import { batchNote } from '../../../js/ui/connect/modal.js';
 import { conn, openModal, rows, hasClass, find, sleep } from '../../helpers/connectModalRig.js';
 
@@ -51,14 +50,38 @@ test('disconnecting posts no toast — the row leaving the list is the notice', 
 });
 
 // The selection bar is a REVEAL, not a display flip, which would cut Select all's own
-// out-flight (user report); under this suite's reduced motion the two look alike.
-test('the batch bar opens and closes on the shared control flight', () => {
-  const src = readFileSync(new URL('../../../js/ui/connect/modal.js', import.meta.url), 'utf8');
-  assert.match(src, /revealBar\(batchBar, \(\) => selected\.size > 0 \|\| anyLiveShown\(\)\)/);
+// out-flight (user report); only with motion on do the two differ.
+test('the batch bar opens and closes on the shared control flight', async () => {
+  const known = ['http://a:1', 'http://b:2'];
+  const modal = (urls) => {
+    const m = openModal(urls.map((u) => conn(u, '')), { reduced: false,
+      mgrExtra: { knownUrls: known, urls: known, disconnect: (u) => known.splice(known.indexOf(u), 1) },
+      appExtra: { confirm: async () => true } });
+    const bar = Object.assign(m.doc.getElementById('connect-batch-bar'), { getBoundingClientRect: () => ({ width: 300, height: 36 }) });
+    return { ...m, bar, closing: () => hasClass(bar, BAR_HELD_CLASS) };
+  };
+  const { list, filter, closing } = modal(known);
+  const pick = find(rows(list)[0], 'connect-select');
+  pick.checked = true;
+  pick.dispatch('change');
+  filter.value = 'admin';
+  filter.dispatch('change');
+  assert.equal(rows(list).length, 0, 'every row is filtered out of view…');
+  assert.ok(!closing(), '…and the pending selection still holds the bar');
+  filter.value = 'all';
+  filter.dispatch('change');
+  find(rows(list)[0], 'connect-disconnect').dispatch('click');
+  await sleep(0);
+  assert.ok(!closing(), 'a row left standing keeps the bar');
   // The pool is the shown set MINUS the rows playing their removal dust, so the bar leaves
   // beside them instead of a flight later (desktop parity: connectDialog's `doomed_`).
-  assert.match(src, /const anyLiveShown = \(\) => \{[\s\S]*?!doomed\.has\(u\)\) return true;/);
-  assert.ok(!/batchBar\.style\.display\s*=/.test(src), 'nothing flips the bar outright any more');
+  const last = modal(['http://b:2']);
+  find(rows(last.list)[0], 'connect-disconnect').dispatch('click');
+  await sleep(0);
+  assert.ok(last.closing(), 'the bar sets off with the last row');
+  assert.notEqual(last.bar.style.display, 'none', 'nothing flips the bar outright');
+  await sleep(2 * REVEAL_GROUP_OUT_MS + 20);
+  assert.equal(last.bar.style.display, 'none', 'it closes once its controls have flown');
 });
 
 // A refused credential keeps the server in `_expired`, so its row arrives out of the

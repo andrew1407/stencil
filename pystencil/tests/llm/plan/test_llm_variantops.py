@@ -6,9 +6,10 @@ import unittest
 
 from pystencil.llm import LlmPlanError, execute_op_plan, parse_op_plan
 from tests.helpers.stubs import _StubEditor, _plan_json
+from tests.helpers.nativecase import NativeCase
 
 
-class MisplacedVariantOpTest(unittest.TestCase):
+class MisplacedVariantOpTest(NativeCase):
   """§1's one exception: a variant holding a top-level-only or console-settings op
   is DROPPED with a warning — the rest of the plan (top-level actions and the
   well-formed variants) still runs. Losing a whole turn to one misplaced op taught
@@ -38,10 +39,10 @@ class MisplacedVariantOpTest(unittest.TestCase):
     self.assertEqual(len(outputs), 2)  # working image + the surviving variant
     self.assertEqual(
       plan.warnings,
-      ['dropped variant 1 ("wiped") — the "clear" op adjusts the console, not '
-      "the image, and cannot appear in a variant"],
+      ['Dropped variant 1 ("wiped") — editor-settings op "clear" is not allowed inside '
+      "variants; the rest of the plan ran"],
     )
-    self.assertIn("[warning] dropped variant 1 (\"wiped\")", plan.reply)
+    self.assertIn("[warning] Dropped variant 1 (\"wiped\")", plan.reply)
 
   def test_only_a_bad_variant_is_a_reply_plus_warning(self):
     plan, outputs = self._run(
@@ -65,8 +66,8 @@ class MisplacedVariantOpTest(unittest.TestCase):
     self.assertEqual([v.label for v in plan.variants], ["variant 1"])
     self.assertEqual(
       plan.warnings,
-      ['dropped variant 2 — the "save" op is top-level only and cannot appear '
-      "in a variant"],
+      ['Dropped variant 2 ("variant 2") — "save" is a top-level action only (§2.1) — not '
+      "allowed inside variants; the rest of the plan ran"],
     )
 
   def test_other_strictness_is_untouched(self):
@@ -78,7 +79,7 @@ class MisplacedVariantOpTest(unittest.TestCase):
       )
     )
     self.assertEqual(len(plan.variants), 1)
-    self.assertEqual(plan.warnings, ['unknown op "accent" dropped'])
+    self.assertEqual(plan.warnings, ['Skipped unknown operation "accent"'])
     # A KNOWN op with bad params still fails the whole plan, in a variant…
     with self.assertRaises(LlmPlanError):
       parse_op_plan(
@@ -90,7 +91,7 @@ class MisplacedVariantOpTest(unittest.TestCase):
 
   def test_ask_option_preview_never_fails_the_plan(self):
     # A console has nowhere to show previews: an option's actions are validated (§11) but never
-    # rendered, so a misplaced op costs only the preview — ONE card-level note.
+    # rendered, so a misplaced op costs only the preview — core's warning, then ONE card-level note.
     plan = parse_op_plan(
       _plan_json(
         ask={
@@ -103,5 +104,6 @@ class MisplacedVariantOpTest(unittest.TestCase):
       )
     )
     self.assertEqual([o.label for o in plan.ask.options], ["wipe", "keep"])
-    self.assertEqual(len(plan.warnings), 1)
-    self.assertIn("option previews", plan.warnings[0])
+    self.assertEqual(len(plan.warnings), 2)
+    self.assertIn('Dropped the preview for ask option 1 ("wipe")', plan.warnings[0])
+    self.assertIn("option previews", plan.warnings[1])

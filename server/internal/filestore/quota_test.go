@@ -4,6 +4,7 @@ package filestore
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"stencil/server/internal/protocol"
@@ -11,9 +12,9 @@ import (
 
 func newQuotaStore(t *testing.T, quota int64) *Store {
 	t.Helper()
-	s, err := NewWithQuota(t.TempDir(), quota)
+	s, err := NewWithQuotas(t.TempDir(), Quotas{Total: quota})
 	if err != nil {
-		t.Fatalf("NewWithQuota: %v", err)
+		t.Fatalf("NewWithQuotas: %v", err)
 	}
 	return s
 }
@@ -73,7 +74,7 @@ func TestQuotaCountsPreexistingBytes(t *testing.T) {
 	if _, err := s0.Put(validID, protocol.KindOriginal, "png", make([]byte, 80)); err != nil {
 		t.Fatal(err)
 	}
-	s, err := NewWithQuota(dir, 100)
+	s, err := NewWithQuotas(dir, Quotas{Total: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,5 +91,32 @@ func TestQuotaZeroIsUnlimited(t *testing.T) {
 	s := newQuotaStore(t, 0)
 	if _, err := s.Put(validID, protocol.KindOriginal, "png", make([]byte, 1<<16)); err != nil {
 		t.Fatalf("Put with quota 0: %v", err)
+	}
+}
+
+// Concurrent replacements of one kind must not both credit the bytes they replace: the meter measures
+// and swaps under one lock, so its count always equals what is on disk.
+func TestQuotaStaysExactUnderConcurrentReplacements(t *testing.T) {
+	s := newQuotaStore(t, 1<<30)
+	var wg sync.WaitGroup
+	for w := 0; w < 8; w++ {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				ext := []string{"png", "jpg"}[i%2]
+				if _, err := s.Put(validID, protocol.KindOriginal, ext, make([]byte, 10+w*7+i)); err != nil {
+					t.Error(err)
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	onDisk, err := dirSize(s.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.usage.(*capped).usage; got != onDisk {
+		t.Fatalf("meter says %d bytes, disk holds %d", got, onDisk)
 	}
 }

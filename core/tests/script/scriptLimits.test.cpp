@@ -1,12 +1,13 @@
 #include "doctest.h"
 
+#include "diagnostics.hpp"
 #include "scriptProgram.hpp"
 #include "types.hpp"
 
 #include <string>
 
 // The caps in types.hpp, each proved by the smallest input that trips it.
-// Mirrors browser/tests/scriptLimits.test.js: both engines must refuse the same way.
+// Mirrors browser/tests/core/script/scriptLimits.test.js: both engines must refuse the same way.
 using namespace stencil::core::script;
 
 namespace {
@@ -50,6 +51,26 @@ TEST_CASE("a script past MAX_OPS is refused while it lowers") {
   const ScriptProgram p = parse(repeat("@filter bw\n", MAX_OPS + 1));
   CHECK(p.hasErrors());
   CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
+}
+
+TEST_CASE("every @save and @frame counts against MAX_OPS, and the cap stops the lowering") {
+  const ScriptProgram saves =
+      parse("@source a.png:\n  @filter bw\n" + repeat("  @save\n", MAX_OPS));
+  CHECK(onlyErrorCode(saves) == "E_LIMIT_OPS");
+  CHECK(saves.getBlocks().empty());
+  const ScriptProgram frames = parse("@source a.mp4:\n" + numbered("  @frame ", "\n", MAX_OPS));
+  CHECK(onlyErrorCode(frames) == "E_LIMIT_OPS");
+  CHECK(frames.getBlocks().empty());
+}
+
+TEST_CASE("did-you-mean fills only its band, and a name past 64 bytes gets no suggestion") {
+  CHECK(editDistance("crop", "crp") == 1);
+  CHECK(editDistance("abcdef", "badcfe") == 3);
+  CHECK(editDistance(std::string(65, 'a'), std::string(65, 'a')) == 3);
+  const std::string name(200000, 'x');  // a full table here was 4e10 cells
+  const ScriptProgram p =
+      parse("@stencil " + name + ":\n  @filter bw\n@use stencil " + name + "y\n");
+  CHECK(onlyErrorCode(p) == "E_UNDEFINED_TEMPLATE");
 }
 
 TEST_CASE("more than MAX_BLOCKS @source blocks is an error") {

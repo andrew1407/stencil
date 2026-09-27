@@ -1,14 +1,11 @@
 #include "OpenImageDialog.hpp"
 #include "openImageDialogParts.hpp"
 #include <algorithm>
-#include <QLabel>
 #include <QLayout>
 #include <QPixmap>
 #include <QPointer>
 #include <QResizeEvent>
 #include <QScreen>
-#include <QScrollArea>
-#include <QSlider>
 #include <QTimer>
 
 // The preview's box: how big the picture (or the crop stage) may be, and how it gives up

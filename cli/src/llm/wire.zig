@@ -1,6 +1,6 @@
 //! Wire layer for the console LLM assistant: chat history + the §12.1 persisted
-//! chat document, the three provider request mappings (§6), and reply extraction
-//! (incl. the stencil-server stopReason contract).
+//! chat document, the four provider request mappings (§6), and reply extraction
+//! (incl. the stencil-server stopReason and the anthropic stop_reason contracts).
 const std = @import("std");
 const config = @import("config.zig");
 const registry = @import("registry.zig");
@@ -41,7 +41,7 @@ const testing = std.testing;
 
 test "buildRequest: the canonical system prompt, its §7 suffix, and empty-history equivalence" {
     // The §6 mappings (url, auth, body shape, history and image order) are walked from the shared corpus
-    // by tests/provider_wire_fixtures_test.zig; only what no corpus case can reach is asserted here.
+    // by tests/llm/provider_wire_fixtures_test.zig; only what no corpus case can reach is asserted here.
     const a = testing.allocator;
     var cfg = try Config.init(a, .{ .model = "llava" });
     defer cfg.deinit(a);
@@ -90,4 +90,5 @@ test {
     _ = request;
     _ = body;
     _ = reply;
+    _ = @import("wire/anthropic.zig");
 }

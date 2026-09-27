@@ -2,45 +2,17 @@
 #include "../../support/menu/SearchCombo.hpp"
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
-#include "../../support/icon/iconSpin.hpp"
-#include <QScrollArea>
-#include "guiHelpers.hpp"
-#include "iconSet.hpp"
 #include "../../support/modal/modalChrome.hpp"
-#include "../../support/modal/modalReveal.hpp"
-#include "../../support/control/UnderlineTabBar.hpp"
 #include "MediaLoader.hpp"
-#include <algorithm>
-#include <QAudioOutput>
-#include <QGraphicsOpacityEffect>
-#include <QPointer>
-#include <QPropertyAnimation>
-#include <QButtonGroup>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QFormLayout>
-#include <QFrame>
 #include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QLabel>
 #include <QLineEdit>
-#include <QMediaPlayer>
-#include <QPixmap>
 #include <QPushButton>
-#include <QRadioButton>
-#include <QSignalBlocker>
 #include <QSlider>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTimer>
-#include <QToolButton>
-#include <QUrl>
 #include <QVBoxLayout>
-#include <QVideoFrame>
-#include <QVideoSink>
 
 namespace stencil::gui {
 

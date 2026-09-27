@@ -3,9 +3,9 @@
 Part of the [Stencil LLM contract](llm-contract.md); section numbers continue the
 root document's (code comments cite `§8`/`§10` everywhere). **Normative op membership,
 key schemas, flags and prompt bullets live in
-[`opRegistry.json`](../browser/js/config/llm/opRegistry.json)** (`profiles.editor` /
+[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json)** (`profiles.editor` /
 `console` / `bot` / `mcp` / `extension`, plus per-op `divergence` notes; see
-[its README](../browser/js/config/llm/opRegistry.README.md)) — the hand-maintained op
+[its README](../../browser/js/config/llm/opRegistry.README.md)) — the hand-maintained op
 tables these sections once carried are gone. This file keeps the per-profile
 BEHAVIOUR: what each surface's profile is for, its execution model, and its security
 boundaries.

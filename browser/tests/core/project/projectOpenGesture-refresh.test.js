@@ -56,7 +56,7 @@ test('a batch removal retires the rows and re-asks the bar in the same turn', ()
   assert.match(body, /for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*selected\.clear\(\);\s*\n\s*updateBatchBar\(\);\s*\n\s*await leaving;/);
   // …and the keys stop counting as doomed only after runBatch's SETTLE render: the rows
   // outlive their own box collapse, so an earlier release flashes Select all back on.
-  assert.match(body, /'Removed', 'Could not remove', settle, rows\);\s*\n[^\n]*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
+  assert.match(body, /'Removed', 'Could not remove', settle, rows, clearedToast\);\s*\n[^\n]*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
 });
 
 // Clear All is the same rule over the whole list: every selectable row is going, so the

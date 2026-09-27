@@ -2,9 +2,6 @@
 
 #include "hexNibble.hpp"
 
-#include <cmath>
-#include <sstream>
-
 namespace stencil::core {
 
   namespace {
@@ -13,13 +10,6 @@ namespace stencil::core {
       const int l = hexNibble(lo);
       if (h < 0 || l < 0) return -1;
       return h * 16 + l;
-    }
-
-    // JS interpolation of an alpha: no decimal point on integers, no trailing zeros.
-    std::string trimNumber(double v) {
-      std::ostringstream os;
-      os << v;
-      return os.str();
     }
   }
 
@@ -30,15 +20,6 @@ namespace stencil::core {
     const int b = hexByte(hex[5], hex[6]);
     if (r < 0 || g < 0 || b < 0) return std::nullopt;
     return Rgb{r, g, b};
-  }
-
-  std::string hexToRgba(const std::string& hex, double alpha) {
-    const auto rgb = parseHex(hex);
-    if (!rgb) return hex;  // pass through values already rgba/named
-    std::ostringstream os;
-    os << "rgba(" << rgb->r << ',' << rgb->g << ',' << rgb->b << ','
-       << trimNumber(alpha) << ')';
-    return os.str();
   }
 
 }

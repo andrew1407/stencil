@@ -1,4 +1,4 @@
-// Shapes for llm/prompt.js — §13 system-prompt assembly. The prose core is data
+// Shapes for llm/op/prompt.js — §13 system-prompt assembly. The prose core is data
 // (src/config/systemPrompt.json); the "Available ops" section is generated from the
 // registry, so the prompt can never promise an op this surface does not register.
 

@@ -4,11 +4,15 @@ import { requireConnection } from '../../net/remoteSync.js';
 import * as meta from './meta/projectMetaOps.js';
 import * as xfer from './serverTransfer.js';
 
+// What a removal of `n` projects from the projects window says (desktop: clearedToast).
+export const clearedToast = (n) => (n === 1 ? 'Project cleared' : 'Projects cleared');
+
 // Project lifecycle + local ↔ server transfer; the meta writes live in projectMetaOps.js,
 // the move/copy flows in serverTransfer.js.
 // Desktop twin: ProjectTransferController.cpp, whose Hooks pattern the `host` facade mirrors.
 // Deps are explicit so it unit-tests without a DrawingApp: storage, tabs, remoteSync,
 // getConnections (a getter — stencilApi creates it lazily) and host.
+
 export class ProjectTransferController {
   constructor({ storage, tabs, remoteSync, getConnections, host }) {
     this.storage = storage;
@@ -82,6 +86,7 @@ export class ProjectTransferController {
       version: full.project?.version || 0,
       layout: full.layout,
     });
+    this.remoteSync.noteServerImage(full.project);
   }
 
   // Reset the expiry window to start from now; peers re-render.

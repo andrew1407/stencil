@@ -52,5 +52,7 @@ export const wsUrl = (origin) => origin.replace(/^http/i, 'ws') + '/ws';
 
 // "Your credential was refused", not "the server is not there".
 export const isAuthStatus = (status) => status === 401 || status === 403;
+// A 30x under `redirect: 'manual'`: opaque (status 0) in a browser, the bare status under Node.
+export const isRedirect = (resp) => resp.type === 'opaqueredirect' || (resp.status >= 300 && resp.status < 400 && resp.status !== 304);
 // The same question of a thrown REST error (the chat provider hits it on /llm/chat too).
 export const isExpiredSession = (err) => !!err && (err.expired === true || isAuthStatus(err.status));

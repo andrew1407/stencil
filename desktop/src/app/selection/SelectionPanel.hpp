@@ -4,6 +4,7 @@
 #include <QColor>
 #include <QDockWidget>
 #include <QString>
+#include <functional>
 #include <vector>
 
 class QTableWidget;
@@ -48,6 +49,8 @@ namespace stencil::gui {
     void spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms);
     // Off in fullscreen, where the panel hides on its own (browser: the clone drops its chevron).
     void setCollapseChevronVisible(bool on);
+    // True while the view is read-only (compare): the lists then leave Delete/Backspace to the window.
+    std::function<bool()> readOnly;
 
    signals:
     void pointActivated(int index);        // user clicked / double-clicked a row

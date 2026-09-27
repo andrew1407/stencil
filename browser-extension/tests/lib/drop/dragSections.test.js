@@ -1,4 +1,4 @@
-// Tests for src/lib/dragSections.js — the SPRING-LOADED rules that unfold a collapsed
+// Tests for src/lib/drop/dragSections.js — the SPRING-LOADED rules that unfold a collapsed
 // drop target while a drag is live (a `display:none` section body can never accept a
 // drop) and fold it back if the drag ends somewhere else. Nothing opens up front: the
 // section the POINTER dwells on opens, and only that one. Pure decision + bookkeeping;

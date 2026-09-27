@@ -2,12 +2,13 @@
 // Schema/precedence live in deepLink.js (normalizeLaunchPayload).
 import { notify, shortName } from '../../utils.js';
 import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
-import { waitForImage } from '../image/loadFlow.js';
+import { waitForImage, loadImageFromFile } from '../image/loadFlow.js';
 import { normalizePageSize } from '../settings/units.js';
 import { normalizeUrl } from '../../net/connectionManager.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { timeoutSignal } from '../../net/abortable.js';
 import { revealControls } from '../../ui/motion.js';
+import { newEditor, replaceProjectImage } from './openFlow.js';
 
 export const stripExt = (name) => {
   const s = String(name || '');
@@ -37,8 +38,8 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
     .then(blob => {
       const file = new File([blob], name, { type: blob.type || 'image/png' });
-      if (mode === 'new') app.loadImageFromFile(file, opts);
-      else app.replaceProjectImage(file, { keepAnnotations: mode === 'replace-keep', crop: opts.crop });
+      if (mode === 'new') loadImageFromFile(app, file, opts);
+      else replaceProjectImage(app, file, { keepAnnotations: mode === 'replace-keep', crop: opts.crop });
     });
 };
 
@@ -116,7 +117,7 @@ export const importExternalImage = (app, launch, { mode = 'new' } = {}) => {
   if (mode === 'new') {
     const incognito = app.storage.incognito;
     if (!incognito) app.storage.save();
-    app.newEditor();
+    newEditor(app);
     if (incognito) { app.storage.incognito = true; app.updateIncognitoUI(); }
     if (launch.page) setExternalPage(app, launch.page);
   }
@@ -128,7 +129,7 @@ export const importExternalImage = (app, launch, { mode = 'new' } = {}) => {
 export const resumeBySource = (app, source, name) => {
   const baseName = stripExt(name || '');
   const matches = app.storage.store.findByImage(source, baseName);
-  if (matches.length && app.switchToProject(matches[0].id)) {
+  if (matches.length && app.projectTransfer.switchToProject(matches[0].id)) {
     if (matches.length > 1) {
       notify(`Resumed "${shortName(matches[0].name)}" — ${matches.length} projects share this image`, 'ok');
 // Fires from the boot path, before the toolbar has a laid-out box: a click now would send
@@ -165,9 +166,9 @@ export const applyServerLaunch = async (app, launch) => {
     }
   }
   if (launch.incognito) {
-    await app.copyServerProjectToIncognito({ serverUrl: url, id: launch.server.id }, {});
+    await app.projectTransfer.copyServerProjectToIncognito({ serverUrl: url, id: launch.server.id }, {});
   } else {
-    await app.openRemoteProject({ serverUrl: url, id: launch.server.id });
+    await app.projectTransfer.openRemoteProject({ serverUrl: url, id: launch.server.id });
   }
 };
 

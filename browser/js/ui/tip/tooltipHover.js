@@ -1,5 +1,7 @@
 // Which target the cursor is pointing at, and the wake-up delay before it appears.
-// Split out of ui/tooltip.js, which owns the box these decisions reveal.
+// Split out of ui/tip/tooltip.js, which owns the box these decisions reveal.
+import { canvasGestureActive } from '../../core/pointer/gesture.js';
+import { canvasCoords } from '../../core/pointer/canvasCoords.js';
 
 // Shared by mousemove and the Shift/Ctrl key-refresh. `immediate` skips the reveal delay: a
 // modifier changing what is shown for the SAME hover is a live update, not a fresh hover.
@@ -40,10 +42,8 @@ export function decideHover(tip, clientX, clientY, x, y, mods, immediate = false
 // Lets Shift (full points) / Ctrl (cursor coords) tooltips appear immediately on keypress.
 export function refreshHover(tip, mods) {
   if (!tip.app.mouseOverCanvas || !tip.app.image) return;
-  if (tip.app.isPanning || tip.app.isDraggingPoint || tip.app.isDraggingSegment ||
-      tip.app.isDraggingLine || tip.app.isZoomRectDragging || tip.app.isRectDrawDragging ||
-      tip.app.input.holdEngaged) return;
-  const { x, y } = tip.app.canvasCoords(tip.app.lastMouseClientX, tip.app.lastMouseClientY);
+  if (canvasGestureActive(tip.app) || tip.app.input.holdEngaged) return;
+  const { x, y } = canvasCoords(tip.app, tip.app.lastMouseClientX, tip.app.lastMouseClientY);
   tip.applyHover(tip.app.lastMouseClientX, tip.app.lastMouseClientY, x, y, mods, /* immediate */ true);
 }
 

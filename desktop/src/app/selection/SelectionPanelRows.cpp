@@ -1,26 +1,11 @@
 #include "SelectionPanel.hpp"
 #include "selectionPanelParts.hpp"
-#include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/icon/iconMotion.hpp"
 #include "../../support/skinPrefs.hpp"
-#include <QGuiApplication>
-#include <QHBoxLayout>
-#include <QIcon>
-#include <QHeaderView>
-#include <QKeyEvent>
 #include <QLabel>
-#include <QTabWidget>
-#include <QPainter>
 #include <QPalette>
-#include <QStyledItemDelegate>
-#include <QTableWidget>
-#include <QPixmap>
 #include <QPushButton>
-#include <QToolButton>
-#include <QShowEvent>
-#include <QVBoxLayout>
 #include <QWidget>
 #include <algorithm>
 
@@ -126,7 +111,7 @@ namespace stencil::gui {
   }
 
   // Browser .row-highlighted: a soft accent wash; under the skin a picked row is the navy bar
-  // and a hovered one the light face (webcore/windows.css).
+  // and a hovered one the light face (webcore/menus.css).
   QBrush SelectionPanel::rowWash(bool picked) const {
     if (support::isWebcore()) return picked ? palette().color(QPalette::Highlight) : support::skinBevel().light;
     QColor tint = palette().color(QPalette::Highlight);

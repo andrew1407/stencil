@@ -15,6 +15,19 @@ namespace stencil::core {
     return std::hypot(px - (a.x + t * dx), py - (a.y + t * dy));
   }
 
+  double distToSegmentSq(double px, double py, const Point& a, const Point& b) {
+    const double dx = b.x - a.x;
+    const double dy = b.y - a.y;
+    const double lenSq = dx * dx + dy * dy;
+    double ex = px - a.x, ey = py - a.y;
+    if (lenSq != 0.0) {
+      const double t = std::max(0.0, std::min(1.0, (ex * dx + ey * dy) / lenSq));
+      ex = px - (a.x + t * dx);
+      ey = py - (a.y + t * dy);
+    }
+    return ex * ex + ey * ey;
+  }
+
   void rotatePoints(std::vector<Point>& points, double cx, double cy,
                     double angle) {
     const double cos = std::cos(angle);

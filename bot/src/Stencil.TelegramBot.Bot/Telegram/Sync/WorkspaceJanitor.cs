@@ -27,10 +27,10 @@ public sealed class WorkspaceJanitor : BackgroundService
         _logger = logger;
     }
 
-    // Half the TTL, floored at 5 minutes.
+    // Half the TTL, floored at WorkspaceSweepFloor.
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        TimeSpan interval = max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
+        TimeSpan interval = max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), _options.WorkspaceSweepFloor);
         while (!ct.IsCancellationRequested)
         {
             try

@@ -2,7 +2,6 @@
 // grid over the visible slice, and the ghost in/out guards.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
   flipTransform, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
   dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, tileNoise,
@@ -133,16 +132,6 @@ test('a scroll under a flying stage re-anchors it to the frame', () => {
   assert.equal(stage.style.top, '50536px');
   unpin();
   assert.ok(!listeners.scroll, 'removed with the stage — no listener left on the viewport');
-});
-
-test('the restore sets the saved scroll BEFORE raising the arrival, in the same tick', () => {
-  const src = readFileSync(new URL('../../js/core/storage/storage.js', import.meta.url), 'utf8');
-  const scrollAt = src.indexOf('scrollViewportTo(layout.scrollLeft, layout.scrollTop)');
-  const arrivalAt = src.indexOf('playCanvasArrival(this.app.canvas)');
-  assert.ok(scrollAt > -1 && arrivalAt > -1 && scrollAt < arrivalAt,
-    'saved scroll applied before the dust snapshots the view');
-  assert.ok(!/requestAnimationFrame[\s\S]{0,200}scrollViewportTo/.test(src),
-    'and not deferred a frame — that jumped the viewport out from under the cloud');
 });
 
 test('dustGrid aims at DUST_CELL_PX and respects the particle ceiling', () => {

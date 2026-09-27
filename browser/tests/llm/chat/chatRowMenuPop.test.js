@@ -1,12 +1,10 @@
-// The entry pop and Resend's requeue (js/ui/view.js): the menu grows out of the click
+// The entry pop and Resend's requeue (js/ui/chat/view.js): the menu grows out of the click
 // point, refills an empty queue only, and both surfaces wire the one shared menu.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
-import { contextMenuSource } from '../../helpers/contextMenuSource.js';
 import { menuOn, wiredRow } from '../../helpers/chatRowMenuRig.js';
+import { wireBothSurfaces, rowEl, rightClick, openRowMenu, clickRowItem } from '../../helpers/chatSurfacesRig.js';
 
 // ── The entry pop: the menu grows out of the open point ──
 test('menuPopOrigin: the click point relative to the placed box, clamped inside it', async () => {
@@ -63,22 +61,60 @@ test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-imag
 });
 
 // ── Both surfaces wire it, and the chrome matches the app's other row menus ──
-test('the panel and the flyout wire the SHARED row menu with insert + resend hooks', () => {
-  const panel = readFileSync(new URL('../../../js/ui/chat/panel.js', import.meta.url), 'utf8');
-  const menu = contextMenuSource();
-  for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
-    assert.ok(src.includes('wireChatRowMenu(transcript, {'), `${name} wires the shared menu`);
-    assert.ok(src.includes('onInsert: (text) => {'), `${name} passes its composer hook`);
-    assert.ok(src.includes('requeueRowAttachments('), `${name}'s Resend re-queues the row attachments`);
-    assert.ok(src.includes('runTurn(text).catch('), `${name}'s Resend rides the composer's own send path`);
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test('the panel and the flyout wire the SHARED row menu with insert + resend hooks', async () => {
+  const s = await wireBothSurfaces();
+  const row = s.session.appendChatRow({ role: 'user', text: 'crop it',
+    attachments: [{ name: 'cat.png', kind: 'image', dataUrl: 'data:image/png;base64,AA' }] });
+  for (const [name, surf] of [['panel', s.panel], ['flyout', s.flyout]]) {
+    rightClick(surf.transcript, rowEl(surf.transcript, row.id));
+    const menu = openRowMenu();
+    assert.ok(menu, `${name} opens the shared row menu`);
+    assert.deepStrictEqual(menu.children.map((b) => b.children[0].textContent),
+      ['Copy message', 'Insert into prompt', 'Resend'], `${name}: a user row offers Resend`);
+    surf.input.value = 'draft';
+    clickRowItem(menu, 'Insert into prompt');
+    assert.strictEqual(surf.input.value, 'draft\ncrop it', `${name} appends into its own composer`);
+    assert.strictEqual(openRowMenu(), null, 'the menu closes on the pick');
   }
-  // The renderer stamps rows with their log record — that is what the menu reads.
-  const view = chatViewSource();
-  assert.ok(view.includes('el._chatRow = row;'));
-  // A repaint compares the row's OWN text node, not the whole bubble, and replaces only on a change —
-  // or when the row settles out of its typing dots, which read as '' and match an empty reply.
-  assert.ok(view.includes('} else if (typing || textEl.textContent !== row.text) {'),
-    'text nodes are replaced only when the text changed, dots aside');
-  // A row menu open over the flyout counts as "engaged" — hover-out must not close it.
-  assert.ok(menu.includes('chatRowMenuOpen()'), 'the flyout keep-open predicate consults it');
+  for (const [name, surf] of [['panel', s.panel], ['flyout', s.flyout]]) {
+    s.ctrl.attachments.length = 0;
+    rightClick(surf.transcript, rowEl(surf.transcript, row.id));
+    clickRowItem(openRowMenu(), 'Resend');
+    assert.strictEqual(s.ctrl.sent.at(-1), 'crop it', `${name}'s Resend rides the composer's own send path`);
+    assert.deepStrictEqual(s.ctrl.carried.at(-1), ['cat.png'], `${name} re-queued the row's attachments`);
+    assert.strictEqual(s.session.chatTurnInFlight(), true, 'a logged turn is running');
+    s.ctrl.settle({ reply: 'done', results: [] });
+    await tick();
+    assert.strictEqual(s.session.chatTurnInFlight(), false);
+  }
+});
+
+test('the renderer stamps each row with its log record, and rewrites text only on a change', async () => {
+  const s = await wireBothSurfaces();
+  const row = s.session.appendChatRow({ role: 'assistant', text: '…', pending: true });
+  const el = rowEl(s.panel.transcript, row.id);
+  assert.strictEqual(el._chatRow, row, 'the menu reads the row the element was stamped with');
+  const textEl = el.querySelector('.chat-msg-text');
+  const own = Object.getOwnPropertyDescriptor(textEl, 'textContent');
+  let writes = 0;
+  Object.defineProperty(textEl, 'textContent', { get: own.get, set(v) { writes += 1; own.set.call(this, v); } });
+  s.session.updateChatRow(row.id, { pending: false, text: '' });
+  assert.strictEqual(writes, 1, 'settling out of the dots rewrites even an empty reply');
+  assert.strictEqual(textEl.querySelector('.chat-typing'), null);
+  s.session.updateChatRow(row.id, { text: 'Cropped.' });
+  s.session.updateChatRow(row.id, {});
+  s.session.updateChatRow(row.id, {});
+  assert.strictEqual(writes, 2, 'an unchanged repaint leaves the text node alone');
+  assert.strictEqual(textEl.textContent, 'Cropped.');
+});
+
+test('a row menu open over the flyout keeps the flyout engaged', async () => {
+  const s = await wireBothSurfaces();
+  const row = s.session.appendChatRow({ role: 'assistant', text: 'hi' });
+  assert.strictEqual(s.flyout.el._keepOpen(), false, 'idle, unfocused: hover-out may close it');
+  rightClick(s.flyout.transcript, rowEl(s.flyout.transcript, row.id));
+  assert.ok(openRowMenu());
+  assert.strictEqual(s.flyout.el._keepOpen(), true, 'the keep-open predicate consults the row menu');
 });

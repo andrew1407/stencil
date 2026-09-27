@@ -1,11 +1,10 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests.Llm.Plan;
 
-/// <summary>The shared op-plan corpus against the real <see cref="OpPlanParser"/> — the bot's port of <c>browser/tests/opPlanFixtures.test.js</c>. Profiles <c>bot</c>/<c>all</c> run; verdict = override ?? knownDivergence.bot ?? expect.</summary>
+/// <summary>The shared op-plan corpus through the bot's typed mapper, fed core's own results from <c>generated/normalized.json</c> — the bot's port of <c>browser/tests/opPlanFixtures.test.js</c>. Profiles <c>bot</c>/<c>all</c> run; verdict = override ?? knownDivergence.bot ?? expect.</summary>
 public sealed class OpPlanFixtureWalkerTests
 {
     private static readonly string[] _profiles = ["editor", "console", "bot", "mcp", "extension", "all"];
@@ -81,10 +80,25 @@ public sealed class OpPlanFixtureWalkerTests
             ? ov.GetProperty("verdict").GetString()!
             : fx.KnownDivergence.FirstOrDefault(d => d.Surface == "bot").Verdict ?? fx.Expect!;
 
-        OpPlanParseResult result = OpPlanParser.Parse(fx.InputText);
-        bool valid = result.Error is null && result.Plan is not null;
+        assertVerdict(fx.Name, want);
+    }
+
+    /// <summary>The adversarial inputs: core's verdict, through the typed mapper, is the reference's.</summary>
+    [Theory]
+    [MemberData(nameof(OracleCases))]
+    public void Should_Give_Each_Oracle_Case_Its_Verdict(string name) =>
+        assertVerdict(name, OpPlanCorpus.Oracle.Single(c => c.Name == name).Expect);
+
+    public static TheoryData<string> OracleCases() => SharedFixtures.TheoryNames(OpPlanCorpus.Oracle.Select(c => c.Name));
+
+    // Offline: core's recorded result for the bot's surface, never a CLI spawn.
+    private static void assertVerdict(string name, string want)
+    {
+        Assert.True(OpPlanCorpus.Golden.TryGetValue(name, out string? result), $"{name}: no bot result in normalized.json");
+        OpPlanParseResult mapped = OpPlanParser.Map(result);
+        bool valid = mapped.Error is null && mapped.Plan is not null;
 
         Assert.True(valid == (want == "valid"),
-            $"{file}: expected {want}, got " + (valid ? "a plan" : $"error \"{result.Error}\""));
+            $"{name}: expected {want}, got " + (valid ? "a plan" : $"error \"{mapped.Error}\""));
     }
 }

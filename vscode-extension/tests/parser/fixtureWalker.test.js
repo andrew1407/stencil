@@ -1,5 +1,5 @@
 // The shared .stc corpus, replayed through the parser copies in src/parser/. The same file
-// core/tests/scriptFixtures.test.cpp and browser/tests/scriptFixtures.test.js read: if this
+// core/tests/script/scriptFixtures.test.cpp and browser/tests/core/scriptFixtures.test.js read: if this
 // tree's copies ever drift in behaviour, a case here says so before a user sees it.
 import test from 'node:test';
 import assert from 'node:assert/strict';

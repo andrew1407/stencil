@@ -1,0 +1,159 @@
+      /* ── Expiration dialog (dialogs/meta/ExpirationDialog.cpp) — the browser's own
+         calendar, not Qt's: .exp-calendar is a bordered card on the controls fill,
+         its head a ‹ month year › row, and each day a small transparent cell that
+         tints on hover. Today and the expiry day carry the two outlines the legend
+         swatches repeat; both colours are set per widget in code (the palette has no
+         success token), so only the neutral shapes live here. ── */
+      QFrame#expCalendar {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QLabel#expCalTitle { font-weight: bold; font-size: 13px; background: transparent; }
+      QLabel#expCalWeekday { color: %MUTED%; font-size: 10px; background: transparent; }
+      QToolButton#expCalNav {
+        background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px;
+      }
+      QToolButton#expCalNav:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton#expCalNav:disabled { background: transparent; border-color: transparent; }
+      QToolButton#expCalDay {
+        background: transparent; border: 2px solid transparent; border-radius: 5px;
+        color: %TEXT%; font-size: 11px; padding: 0px;
+      }
+      QToolButton#expCalDay:hover { background: %BG_COORD_HOVER%; }
+      QToolButton#expCalDay:disabled { color: %DISABLED_TEXT%; background: transparent; }
+      /* .is-today / .is-expiry. A cell that is both wears "expiry", exactly as the
+         browser's later rule wins over the earlier one. */
+      QToolButton#expCalDay[expDay="today"] { border-color: %SUCCESS_RING%; color: %TEXT%; }
+      QToolButton#expCalDay[expDay="expiry"] {
+        border-color: %ACCENT_RING%; background: %ACCENT_SOFT%; color: %TEXT%; font-weight: bold;
+      }
+      /* The legend's two 12px chips repeat those outlines (.exp-swatch). */
+      QFrame#expSwatchToday {
+        border: 2px solid %SUCCESS_RING%; border-radius: 3px; background: transparent;
+      }
+      QFrame#expSwatchExpiry {
+        border: 2px solid %ACCENT_RING%; border-radius: 3px; background: %ACCENT_SOFT%;
+      }
+      QLabel#expProjectName { font-weight: bold; background: transparent; }
+      QLabel#expLegend { color: %MUTED%; font-size: 11px; background: transparent; }
+      /* Assistant modal extras (LlmSettingsForm.cpp): the tinted help note
+         (browser .chat-cors-note — accent-tinted fill, solid hint border, muted
+         12px type) and the label-less status row's muted text
+         (.chat-server-status). */
+      QFrame#llmNoteBox {
+        background: %BG_DROP_HINT%; border: 1px solid %BORDER_HINT%; border-radius: 6px;
+      }
+      QFrame#llmNoteBox QLabel { color: %MUTED%; font-size: 12px; background: transparent; }
+      QLabel#llmStatus, QLabel#llmKeyStatus { color: %MUTED%; font-size: 12px; background: transparent; }
+      /* Inline project-rename editor (browser .project-name-edit + .name-edit-btn):
+         a bold input on the info fill, accent-rimmed while focused, with the ✓/✗ as
+         small outlined chips — their glyphs carry the green/red. */
+      QWidget#projectsRenameBox { background: transparent; }
+      QLineEdit#projectsRenameEdit {
+        background: %BG_INFO%; color: %TEXT%; border: 1px solid %BORDER%;
+        border-radius: 4px; padding: 1px 6px; font-weight: 600;
+      }
+      QLineEdit#projectsRenameEdit:focus { border-color: %ACCENT%; }
+      /* The row's rename ✓/✗: the accent-filled chip the toolbar's pair wears, with the
+         white glyph set in the .cpp (user decision) — not a ghost box. */
+      QToolButton#projectsRenameBtn {
+        background: %ACCENT%; border: 1px solid %ACCENT%; border-radius: 5px;
+        /* The width is left free for the reveal slide, so the PADDING is what makes the chip
+           ask for a square: 4px carries the row's 12px mark past its 22px cap. */
+        padding: 4px;
+      }
+      QToolButton#projectsRenameBtn:hover:enabled { background: %ACCENT2%; border-color: %ACCENT2%; }
+      /* A dead ✓ (nothing changed, or the name is rejected) recedes and stops answering
+         hover — the browser's .name-edit-btn:disabled { opacity: .4 }. Qt greys the glyph
+         itself; the chip's own face is what has to fade with it. */
+      QToolButton#projectsRenameBtn:disabled { background: %DISABLED_BG%; border-color: %BORDER%; }
+      /* Browser .vs-row form rows (open-image dialog): a hairline under each row and a
+         plain-weight 13px label column (components.css .vs-row / its label). */
+      QWidget[vsRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      /* The two Open Image rows with nothing else beneath them (Crop, Incognito, no page
+         picker or replace options in this build) carry no hairline of their own. */
+      QWidget#oiNoDivider[vsRow="true"] { border-bottom: none; }
+      QLabel[vsLabel="true"] { background: transparent; font-size: 13px; }
+      /* ── The list-shaped modals (info, shortcuts, settings — modalChrome.hpp):
+         the browser's .modal-search box, .settings-body scroller and .info-empty line. ── */
+      QLineEdit#modalSearch { padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+      QLineEdit#modalSearch:hover:enabled, QLineEdit#modalSearch:focus { padding: 7px 9px; }
+      QLineEdit#modalSearch:focus { border: 2px solid %ACCENT%; }
+      QScrollArea#modalScroll { background: transparent; border: none; }
+      QScrollArea#modalScroll > QWidget > QWidget { background: transparent; }
+      QLabel#modalEmpty { color: %MUTED%; font-size: 13px; padding: 16px 4px; }
+      /* .info-item rows: the key column beside the description in --text-info. Fonts
+         are set in code (a mono family QSS cannot fall back on). */
+      QWidget[infoRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      QLabel#infoKey { background: transparent; }
+      QLabel#infoDesc { color: %TEXT_INFO%; background: transparent; font-size: 13px; }
+      /* .hotkey-table: a pinned bold head on --bg-coord-even, hairline rows that tint
+         on hover, and a quiet reset glyph. */
+      QWidget#hotkeyHead { background: %BG_COORD_EVEN%; border-bottom: 1px solid %BORDER%; }
+      QLabel#hotkeyTh { font-weight: bold; font-size: 13px; background: transparent; }
+      QWidget[hotkeyRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      /* Half the row-hover tint — at full strength the keycaps' border vanished into it. */
+      QWidget[hotkeyRow="true"]:hover { background: %BG_ROW_HOVER_SOFT%; }
+      QWidget[infoRow="true"]:hover { background: %BG_ROW_HOVER_SOFT%; }
+      QLabel#hotkeyAction { font-size: 13px; background: transparent; }
+      QLabel#hotkeyDefault { color: %MUTED%; background: transparent; padding: 3px 0px; }
+      /* The combo (KeycapChip.hpp ComboCell): a quiet click target with no frame of its
+         own — the row's tint and the caps' shake say "hover" — accented while capturing. */
+      QLabel#hotkeyCell {
+        background: transparent; border: 1px solid transparent; border-radius: 6px;
+        padding: 3px 8px;
+      }
+      QLabel#hotkeyCell[capturing="true"] {
+        background: %ACCENT_SOFT2%; border: 1px solid %ACCENT%;
+      }
+      QToolButton#hotkeyReset {
+        background: transparent; border: none; border-radius: 4px; padding: 2px 6px;
+      }
+      QToolButton#hotkeyReset:hover { background: %BG_COORD_HOVER%; }
+      /* Browser .bi-preset blank-fill swatch buttons: real white/black chips. */
+      QPushButton#biPresetWhite, QPushButton#biPresetBlack {
+        min-width: 54px; max-width: 54px; min-height: 28px; max-height: 28px;
+        padding: 0px; font-size: 11px; border: 1px solid %BORDER%; border-radius: 4px;
+      }
+      QPushButton#biPresetWhite { background: #ffffff; color: #333333; }
+      QPushButton#biPresetBlack { background: #000000; color: #eeeeee; }
+      /* Compact icon-only row chips (the links ↗/✕): the global button padding
+         (6px 14px) leaves a 34px chip almost no content box, clipping the glyph —
+         these centre their icon in the whole chip instead. */
+      QPushButton[miniChip="true"] { padding: 2px; min-height: 0px; }
+      /* The browser's danger row chips (.links-clear.danger): a solid danger fill
+         with the white glyph — never a washed-out "inactive" tint. */
+      QPushButton[modalDangerGhost="true"] {
+        background: %DANGER%; border: none; border-radius: 6px;
+      }
+      QPushButton[modalDangerGhost="true"]:hover { background: %DANGER2%; }
+      QPushButton[modalDangerGhost="true"]:pressed { background: %DANGER2%; }
+      /* Keyword chips (browser .kw-chips/.kw-chip): the words held, each an oval with a
+         ✕, inside one framed well that scrolls when it fills. The well never takes focus,
+         so it wears metaFieldRing permanently lit. */
+      QScrollArea#keywordsChips {
+        border: 1px solid %ACCENT%; border-radius: 8px; background: %BG_KEYWORDS%;
+      }
+      QWidget#keywordsChipArea { background: transparent; }
+      QFrame[kwChip="true"] {
+        border: 1px solid %BORDER%; border-radius: 13px; background: %INPUT_BG%;
+        min-height: 26px; max-height: 26px;
+      }
+      QPushButton[kwChipX="true"] {
+        background: transparent; border: none; border-radius: 9px; padding: 0px;
+        min-width: 18px; min-height: 18px;
+      }
+      QPushButton[kwChipX="true"]:hover { background: %DANGER%; }
+      QGroupBox {
+        border: 1px solid %BORDER%; border-radius: 8px; margin-top: 8px; padding-top: 6px;
+      }
+      QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: %MUTED%; }
+      QTabWidget::pane { border: 1px solid %BORDER%; border-radius: 8px; top: -1px; }
+      /* Left-aligned tab strip (browser parity) — the macOS style centres it otherwise. */
+      QTabWidget::tab-bar { alignment: left; left: 0; }
+      QTabBar::tab {
+        background: transparent; color: %MUTED%; padding: 6px 14px;
+        border: 0; border-bottom: 2px solid transparent;
+      }
+      QTabBar::tab:hover { color: %TEXT%; }
+      QTabBar::tab:selected { color: %ACCENT2%; border-bottom: 2px solid %ACCENT%; }
+

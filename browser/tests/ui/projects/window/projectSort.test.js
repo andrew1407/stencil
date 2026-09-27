@@ -1,4 +1,4 @@
-// Unit tests for the pure projects-modal sort/order helpers (js/ui/projectSort.js).
+// Unit tests for the pure projects-modal sort/order helpers (js/ui/projects/window/projectSort.js).
 // The modal's DOM wiring isn't node-testable, but these comparators + the manual-order
 // reconciliation are pure, so they carry the behavioral contract for the five sort modes
 // and drag-reorder.

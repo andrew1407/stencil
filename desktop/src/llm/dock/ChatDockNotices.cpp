@@ -2,7 +2,6 @@
 // Split out of ChatDock.cpp; see chatDockShared.hpp for the shared constants.
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
-#include "theme.hpp"
 #include "chatWidgets.hpp"
 
 #include <QFrame>

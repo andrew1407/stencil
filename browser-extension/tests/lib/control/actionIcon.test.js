@@ -1,4 +1,4 @@
-// lib/actionIcon.js — the toolbar icon, redrawn in the service worker so its border
+// lib/control/actionIcon.js — the toolbar icon, redrawn in the service worker so its border
 // follows the chosen accent. No DOM there: the badge is painted with OffscreenCanvas 2D
 // paths, so the canvas is stubbed and the DRAWING is asserted as the call sequence it is.
 import { test } from 'node:test';

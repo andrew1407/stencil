@@ -11,12 +11,14 @@ import { initTooltips } from './ui/tip/controlTooltip.js';
 import { watchControlLabels } from './ui/ariaLabels.js';
 import { wireChatPersistence } from './llm/chat/persistence.js';
 import { initProjectsBackend } from './core/project/store/projectsBackend.js';
-import { watchNumericInputs } from './ui/control/numericInput.js';
+import { enhanceNumericInput, enhanceNumericInputs } from './ui/control/numericInput.js';
+import { onElementAdded } from './ui/domWatch.js';
 import { installControlSwap } from './ui/control/swap.js';
 import { installVoiceModes } from './llm/voice/modes.js';
 import { applyMotionAttr } from './ui/motion/motionPrefs.js';
 import EVENTS from './config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
+import { applyExternalLaunch } from './core/launch/controller.js';
 // Application entrypoint. Loaded LAST — importing layout registers every custom element.
 // On load: init the shared C++ core (wasm), mount component hosts, construct the app, then
 // dispatch `stencil:ready`, preserving DOM → app → wire order. Failed wasm leaves no-ops
@@ -45,18 +47,19 @@ window.onload = async () => {
   // attribute right on a host that loads the module graph without that classic script.
   applyMotionAttr();
   // Independent boots, so they run together — but BOTH must finish before the app constructs:
-  // Storage reads the projects backend synchronously (core/projectsBackend.js).
+  // Storage reads the projects backend synchronously (core/project/store/projectsBackend.js).
   await Promise.all([core.init(), initProjectsBackend()]);
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
-  // Voice input (js/llm/modes.js) — installed before the components wire, since the
+  // Voice input (js/llm/voice/modes.js) — installed before the components wire, since the
   // composers and the toolbar read app.voice as they build their controls.
   installVoiceModes(app);
   // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and
-  // the observer catches the inputs that modals/panels render later.
-  watchNumericInputs();
+  // the shared page observer (ui/domWatch.js) catches the inputs modals/panels render later.
+  enhanceNumericInputs(document);
+  onElementAdded((node) => (node.matches?.('input[type="number"]') ? enhanceNumericInput(node) : enhanceNumericInputs(node)));
   installControlSwap();
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
@@ -65,6 +68,7 @@ window.onload = async () => {
   // in-app confirm() modal.
   window.addEventListener('beforeunload', (e) => {
     app.storage.saveSoon.flush();   // a point committed in the last debounce window still lands
+    app.remoteSync.flushResult();   // best effort: the co-edit result rides out with the page
     app.storage.thumbs.flush();     // …with its thumbnail rendered now, not in idle time
     if (!app.hasEditingSession()) return;
     e.preventDefault();
@@ -86,7 +90,7 @@ window.onload = async () => {
   // …and the same text as the accessible name of every icon-only control, here and in
   // whatever a modal renders later (ui/ariaLabels.js).
   watchControlLabels();
-  app.applyExternalLaunch().then(() => runLaunchScript(app));
+  applyExternalLaunch(app).then(() => runLaunchScript(app));
   // If launched via the projects modal's "open in new tab" action (?open=<id>),
   // load that project now. No-op for normal sessions.
   app.applyProjectDeepLink();

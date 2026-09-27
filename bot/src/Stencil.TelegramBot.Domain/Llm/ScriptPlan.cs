@@ -1,6 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// `stencil --script-plan` (cli/CONTRACT.md §5): one .stc lowered to op-plan JSON. The envelope's
+// `stencil --script-plan` (cli/CONTRACT.md §4.3): one .stc lowered to op-plan JSON. The envelope's
 // own label is dropped on the way in, so no workspace path can reach a reply.
 public sealed record ScriptPlan(
     IReadOnlyList<ScriptDiagnostic> Diagnostics,
@@ -24,13 +24,13 @@ public sealed record ScriptDiagnostic(string Severity, string Code, int Line, in
     public override string ToString() => $"Line {Line}:{Col} — {Message} [{Code}]";
 }
 
-// One `@source` block, or the sourceless one that edits the working image. Each Plans entry is one
-// chunk's `actions` array as raw JSON, already capped at the envelope's MAX_ACTIONS.
+// One `@source` block, or the sourceless one that edits the working image. Each Checks entry is one
+// chunk's `check` — core's verdict under the bot's surface (§7's `result`) — as raw JSON.
 public sealed record ScriptBlock(
     int Index,
     string Source,
     string SourceKind,
-    IReadOnlyList<string> Plans)
+    IReadOnlyList<string> Checks)
 {
     public const string KIND_PROJECT = "project";
     public const string KIND_URL = "url";

@@ -2,7 +2,6 @@ using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Application.Editing;
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
@@ -47,7 +46,7 @@ public sealed class ScriptCommandTests : IDisposable
 
     private void canned(params string[] actionArrays) =>
         _cli.CannedScriptPlan = new ScriptPlan(
-            [], [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, actionArrays)]);
+            [], [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, [.. actionArrays.Select(PlanCheckRecordings.ScriptChunk)])]);
 
     [Fact]
     public async Task Should_Answer_A_Bare_Script_With_The_Usage_Line()
@@ -72,11 +71,11 @@ public sealed class ScriptCommandTests : IDisposable
     public async Task Should_Run_A_Sourced_Script_Without_A_Working_Image()
     {
         _cli.CannedScriptPlan = new ScriptPlan([], [
-            new ScriptBlock(0, "http://203.0.113.9/a.png", ScriptBlock.KIND_URL,
-                ["""[{"op":"openUrl","url":"http://203.0.113.9/a.png"}]"""]),
+            new ScriptBlock(0, "http://93.184.216.34/a.png", ScriptBlock.KIND_URL,
+                [PlanCheckRecordings.ScriptChunk("""[{"op":"openUrl","url":"http://93.184.216.34/a.png"}]""")]),
         ]);
 
-        await dispatch("/script @source http://203.0.113.9/a.png:\n  @save");
+        await dispatch("/script @source http://93.184.216.34/a.png:\n  @save");
 
         Assert.NotNull(_cli.LastScriptCall);
         Assert.True((await _store.GetAsync(_userId)).HasImage);

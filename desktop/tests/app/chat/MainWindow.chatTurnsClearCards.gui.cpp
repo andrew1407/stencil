@@ -58,7 +58,7 @@ class MainWindowGuiTest : public QObject {
 
     // Click: transcript emptied, chips back, attachments + model state dropped;
     // the provider config survives.
-    const QString providerBefore = win.currentLlmSettings().provider;
+    const QString providerBefore = win.parts.chatAppliers.currentLlmSettings().provider;
     QTest::mouseClick(clearBtn, Qt::LeftButton);
     QTRY_COMPARE(cardCount(), 0);   // cards go through deleteLater
     // The empty state is held back only while particles are actually falling in front of it
@@ -66,12 +66,12 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(suggest->isVisible());
     QCOMPARE(dock->attachedImages().size(), 0);
     QVERIFY(dock->attachedVideoPath().isEmpty());
-    QVERIFY(win.chatHistory.isEmpty());
-    QVERIFY(win.chatVideoPath.isEmpty());
-    QCOMPARE(win.chatVideoFrames, 0);
-    QVERIFY(win.chatImageDigest.isEmpty());
-    QVERIFY(win.chatImageEncoded.data.isEmpty());
-    QCOMPARE(win.currentLlmSettings().provider, providerBefore);
+    QVERIFY(win.chatSession->chatHistory.isEmpty());
+    QVERIFY(win.chatSession->chatVideoPath.isEmpty());
+    QCOMPARE(win.chatSession->chatVideoFrames, 0);
+    QVERIFY(win.chatSession->chatImageDigest.isEmpty());
+    QVERIFY(win.chatSession->chatImageEncoded.data.isEmpty());
+    QCOMPARE(win.parts.chatAppliers.currentLlmSettings().provider, providerBefore);
 
     // Appear: a fresh card is claimed by its own opacity effect and ends fully visible, overlapping
     // appends each owning their animation. This suite runs REDUCED, where the card is simply there.

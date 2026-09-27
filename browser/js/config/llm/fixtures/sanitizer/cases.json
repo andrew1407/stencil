@@ -25,7 +25,7 @@
     "divergences": {
       "cli": "separates on BYTES <= 0x20 only — U+200B/U+200C are multi-byte and pass through untouched (browser strips \\p{Cf})",
       "mcp": "only is_whitespace/is_control split words — format (Cf) characters like U+200B/U+200C are neither, so they survive verbatim inside a word",
-      "pystencil": "_CONTROLISH covers only [\\x00-\\x1f\\x7f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
+      "pystencil": "_CONTROLISH covers only [\\x00-\\x1f\\x7f-\\x9f], so zero-width/format characters survive (and Python str.split does not treat them as whitespace)"
     },
     "input": "invisible​space‌here",
     "expect": "invisible space here"
@@ -113,5 +113,10 @@
     "name": "URL query carrying a token: URL redaction wins first",
     "input": "GET http://host/v1?key=sk-abcdef123456 refused",
     "expect": "GET [redacted] refused"
+  },
+  {
+    "name": "C1 control characters (CSI, NEL) become spaces too",
+    "input": "status\u009b31mred alert\u0085next\u0080word \u009fend",
+    "expect": "status 31mred alert next word end"
   }
 ]

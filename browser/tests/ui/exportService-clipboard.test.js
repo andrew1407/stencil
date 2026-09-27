@@ -1,5 +1,5 @@
 // Clipboard copy variants and the pasted-layout prompt/install paths of ExportService
-// (js/core/service.js). Split from exportService.test.js.
+// (js/core/export/service.js). Split from exportService.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ExportService, makeApp, notifications, reset, lastNote } from '../helpers/exportServiceRig.js';
@@ -87,7 +87,7 @@ test('applyPastedLayout: valid payload installs lines + routes through app metho
   assert.equal(app.lines.length, 1);
   assert.equal(app.record.saveHistory, 1);
   assert.equal(app.record.redraw, 1);
-  assert.equal(app.record.updateButtons, 1);
+  assert.deepEqual(app.record.changed, [['lines']], 'the controls hear one line-set change');
   assert.equal(app.record.coordUpdate.length, 1);
   assert.deepEqual(lastNote(), ['Layout pasted from clipboard', 'ok']);
 });

@@ -13,6 +13,8 @@
     <EmbeddedResource Include="../../../browser/js/config/llm/systemPrompt.json" Link="Assets/systemPrompt.json" />
     <!-- The shared op registry the plan validator is table-driven from (llm-contract.md §1–§13). -->
     <EmbeddedResource Include="../../../browser/js/config/llm/opRegistry.json" Link="Assets/opRegistry.json" />
+    <!-- The SSRF address table every fetch guard judges an address by. -->
+    <EmbeddedResource Include="../../../browser/js/config/net/blockedRanges.json" Link="Assets/blockedRanges.json" />
   </ItemGroup>
 
   <PropertyGroup>

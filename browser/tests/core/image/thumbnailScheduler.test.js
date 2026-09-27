@@ -20,7 +20,7 @@ afterEach(() => { globalThis.document = savedDocument; });
 
 const makeApp = (tag = 'v1') => {
   const app = { image: {}, tabs: { projectsChanged() { app.broadcasts++; } }, broadcasts: 0 };
-  app.renderResultCanvas = () => ({ width: 1000, height: 500, tag: app.tag });
+  app.export = { renderExportCanvas: () => ({ width: 1000, height: 500, tag: app.tag }) };
   app.tag = tag;
   return app;
 };
@@ -95,10 +95,10 @@ test('a render for a project that is no longer active is dropped — even one al
   // In flight: the render started for p1, then a flush for a newer state landed first.
   io.activeId = 'p1';
   thumbs.schedule('p1');
-  const slow = io.app.renderResultCanvas;
-  io.app.renderResultCanvas = () => ({ width: 1000, height: 500, tag: 'stale' });
+  const slow = io.app.export.renderExportCanvas;
+  io.app.export.renderExportCanvas = () => ({ width: 1000, height: 500, tag: 'stale' });
   const running = q.runIdle();              // awaits renderThumbnail (a microtask hop)
-  io.app.renderResultCanvas = slow;
+  io.app.export.renderExportCanvas = slow;
   thumbs.schedule('p1');
   thumbs.flush();                           // lands 'old' now
   await running;

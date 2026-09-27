@@ -1,7 +1,7 @@
 // The assistant's provider status: a cheap probe on open / after a settings change, shown as the
 // dot on the "…" trigger plus its themed tooltip. Never blocks sending. Split out of panel.js.
 import { probeProvider } from '../../llm/client.js';
-import { loadLlmSettings, serverBearerToken } from '../../llm/settings.js';
+import { loadLlmSettings, serverBearerToken, withSessionKey } from '../../llm/settings.js';
 import { cacheProbe, probeStatusClass } from '../../llm/chat/session.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
@@ -85,7 +85,7 @@ export function createChatStatusTip({ app, statusDot, statusHost }) {
     probing = true;
     setDotState('connecting', null);
     try {
-      const probe = await probeProvider(loadLlmSettings(), { getToken: tokenFor });
+      const probe = await probeProvider(withSessionKey(loadLlmSettings()), { getToken: tokenFor });
       setDotState(probeStatusClass(probe), probe);
     } finally {
       probing = false;

@@ -10,6 +10,7 @@ import json
 import unittest
 
 from tests.helpers.fixturebase import _LLM_FIXTURES, _load
+from tests.helpers.nativecase import needs_core
 
 from pystencil.llm import Chat
 
@@ -23,6 +24,7 @@ def _history_messages(chat: Chat) -> list:
 
 
 class TestChatDocFixtures(unittest.TestCase):
+  @needs_core
   def test_roundtrip(self):
     for case in _ROUNDTRIP:
       with self.subTest(case=case["name"]):

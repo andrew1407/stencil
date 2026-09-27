@@ -2,10 +2,9 @@
 // land, the cloud is re-anchored and clipped to the scroller, and the bubble hugs its widest line.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { dustFitsScroller } from '../../../js/ui/motion.js';
 import { shrinkWrapWidth } from '../../../js/ui/chat/view.js';
-import { motionSource } from '../../helpers/motionSource.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
+import { installDustPage, rect } from '../../helpers/dustPageRig.js';
 
 test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
   const css = ANIMATIONS_CSS;
@@ -55,53 +54,93 @@ test('chatIn: veils at once, lifts only when the motes have landed', async () =>
   delete globalThis.matchMedia;
 });
 
-test('a flying cloud is re-anchored to its entry, and dropped if the entry leaves', () => {
+// A launched arrival: an entry at `box()` inside a 400px scroller, flown two frames on.
+const launch = async (t, box, extra) => {
+  const page = installDustPage(t, extra);
+  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS } = await import('../../../js/ui/motion.js');
+  const el = page.entry(box, SCROLLER);
+  const landed = chatIn(el);
+  await Promise.resolve();
+  page.frame();
+  page.frame();
+  return { page, el, landed, host: page.clouds()[0], CHAT_ENTER_MS, veiled: () => el.classList.contains(CHAT_ENTERING_CLASS) };
+};
+const SCROLLER = rect(0, 100, 400, 400);
+
+test('a flying cloud is re-anchored to its entry, and dropped if the entry leaves', async (t) => {
   // The layer is position:fixed at the box measured when it launched, but the transcript
   // scrolls and later turns append rows, so a stale cloud paints over what moved in.
-  const src = motionSource();
-  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
-  assert.match(src, /retargetDust\(el, r\);/, 'the cloud follows its entry per frame');
-  assert.ok(/dustFitsScroller\(el\)/.test(src),
-    'and is dropped outright once the entry is no longer wholly in the scroller');
-  // A subject that RESIZES mid-flight cannot be re-photographed, so the stale cloud is dropped
-  // rather than shown at the wrong size.
-  assert.match(src, /const resized = !r \|\| !shot/);
-  assert.match(src, /if \(!dustFitsScroller\(el, el\.parentElement, r, s\) \|\| resized\) \{\s*\n\s*cancelDust\(el\); live = false; onDrop\(\); return;/);
-  // Fonts first: a webfont landing after the photograph re-wraps the entry and widens it.
-  assert.match(src, /globalThis\.document\?\.fonts\?\.ready/);
+  let box = rect(20, 300, 200, 40);
+  const { page, el, host, veiled } = await launch(t, () => box);
+  assert.ok(host && el.__dustHost === host, 'the entry flies');
+  box = rect(20, 260, 200, 40);
+  page.frame();
+  assert.deepStrictEqual([host.style.left, host.style.top], ['20px', '260px'], 'the cloud follows its entry per frame');
+  // Dropped outright once the entry is no longer wholly in the scroller.
+  box = rect(20, 480, 200, 40);
+  page.frame();
+  assert.deepStrictEqual([page.clouds().length, el.__dustHost, veiled()], [0, null, false]);
+  assert.strictEqual(page.pendingFrames(), 0, 'and nothing keeps ticking after the cut');
+  // A subject that RESIZES mid-flight cannot be re-photographed, so the stale cloud is dropped.
+  let grown = rect(20, 300, 200, 40);
+  const again = await launch(t, () => grown);
+  grown = rect(20, 300, 200, 64);
+  again.page.frame();
+  assert.deepStrictEqual([again.page.clouds().length, again.veiled()], [0, false], 'resized ⇒ dropped');
+});
+
+test('fonts first, and the tracking stops with the flight', async (t) => {
+  // A webfont landing after the photograph re-wraps the entry and widens it.
+  const page = installDustPage(t);
+  let fontsLoaded;
+  page.doc.fonts = { ready: new Promise((r) => { fontsLoaded = r; }) };
+  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS } = await import('../../../js/ui/motion.js');
+  const el = page.entry(() => rect(20, 300, 200, 40), SCROLLER);
+  chatIn(el);
+  page.frame(); page.frame();
+  assert.strictEqual(el.__dustHost, undefined, 'no photograph before the fonts are in');
+  fontsLoaded();
+  await page.doc.fonts.ready;
+  page.frame(); page.frame();
+  assert.ok(el.__dustHost, 'then it flies');
   // …armed for the flight and stopped with it, so nothing keeps ticking after the cut.
-  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
-  assert.match(src, /stop\(\);\s*\n\s*handOver\(\);/);
-  // An element torn out mid-flight (the transcript cleared, a row replaced) measures as
-  // a zero box, so the same check reaps its orphaned cloud within a frame.
-  assert.match(src, /export function retargetDust\(el, r = null\) \{/);
+  assert.strictEqual(page.pendingFrames(), 1, 'tracked per frame while in the air');
+  page.fire(CHAT_ENTER_MS);
+  assert.strictEqual(page.pendingFrames(), 0, 'no frame is left queued once the flight ends');
+  assert.ok(!el.classList.contains(CHAT_ENTERING_CLASS));
 });
 
-test('a flying cloud is clipped to its scroller, so no mote lands on the composer', () => {
-  // The tiles translate freely out of an `overflow: visible` host, so the clip is against the
+test('a flying cloud is clipped to its scroller, so no mote lands on the composer', async (t) => {
+  // The motes translate freely out of an `overflow: visible` host, so the clip is against the
   // host's OWN border box and the insets are signed: negative EXPANDS it.
-  const src = motionSource();
-  assert.match(src, /const clipDustToScroller = \(el, scroller = el\?\.parentElement, r = null, s = null\) => \{/);
-  assert.match(src, /host\.style\.clipPath =/);
-  assert.match(src, /inset\(\$\{px\(s\.top - r\.top\)\} \$\{px\(r\.right - s\.right\)\} \$\{px\(r\.bottom - s\.bottom\)\} \$\{px\(s\.left - r\.left\)\}\)/);
-  // Applied before the first painted frame, then kept in step per frame (both boxes move).
-  assert.match(src, /clipDustToScroller\(el\);   \/\/ before the first frame paints, not after it/);
-  assert.match(src, /retargetDust\(el, r\);\s*\n\s*clipDustToScroller\(el, el\.parentElement, r, s\);/);
+  let box = rect(20, 300, 200, 40);
+  const { page, host } = await launch(t, () => box);
+  assert.strictEqual(host.style.clipPath, 'inset(-200px -180px -160px -20px)', 'before the first frame paints');
+  box = rect(20, 250, 200, 40);
+  page.frame();
+  assert.strictEqual(host.style.clipPath, 'inset(-150px -180px -210px -20px)', 'kept in step per frame');
 });
 
-test('dropping the cloud hands the entry over in the SAME frame', () => {
+test('dropping the cloud hands the entry over in the SAME frame', async (t) => {
   // The veil is lifted by a timer at the end of the FULL flight, so a cancel must lift it too:
   // killing only the motes leaves the message invisible until that timer fires.
-  const src = motionSource();
-  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
-  assert.match(src, /cancelDust\(el\); live = false; onDrop\(\); return;/);
-  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
-  // …and exactly once, whichever path gets there first (a drop, or the flight ending).
-  assert.match(src, /if \(handedOver\) return;/);
+  let box = rect(20, 300, 200, 40);
+  const { page, el, landed, veiled, CHAT_ENTER_MS } = await launch(t, () => box);
+  box = rect(20, 20, 200, 40);
+  page.frame();
+  assert.strictEqual(veiled(), false, 'unveiled by the drop, not by the timer');
+  await landed;
+  // …and exactly once, whichever path gets there first: the old flight's timer must not
+  // strip the veil of the entry's next arrival.
+  box = rect(20, 300, 200, 40);
+  const { chatIn } = await import('../../../js/ui/motion.js');
+  chatIn(el);
+  page.fire(CHAT_ENTER_MS);
+  assert.strictEqual(veiled(), true, 'the spent flight hands over nothing twice');
 });
 
 // A wrapped bubble hugs its own longest line, not the 88% max-width cap
-// (js/ui/view.js applyShrinkWrap).
+// (js/ui/chat/view.js applyShrinkWrap).
 test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
   assert.strictEqual(shrinkWrapWidth([193.4]), null);
   assert.strictEqual(shrinkWrapWidth([]), null);

@@ -3,17 +3,16 @@
 import { notify } from '../../utils.js';
 import { getProjectsBackend } from '../project/store/projectsBackend.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
+import { canvasGestureActive } from '../pointer/gesture.js';
+import { newEditor } from '../launch/openFlow.js';
 
 // Safe to swap content under the user.
-const isIdle = (app) =>
-  !app.isDrawing && !app.isPanning && !app.isDraggingPoint &&
-  !app.isDraggingSegment && !app.isDraggingLine &&
-  !app.isZoomRectDragging && !app.isRectDrawDragging;
+const isIdle = (app) => !app.isDrawing && !canvasGestureActive(app);
 
 // Full teardown, not storage.newTemporary(): a bare reset leaves remoteLink pointing at a
 // project that no longer exists.
 const tearDown = (app, message) => {
-  app.newEditor();
+  newEditor(app);
   app.updateButtons();
   notify(message, 'info');
 };

@@ -1,7 +1,7 @@
 """Shared urllib plumbing — the seam every network test stubs.
 
-Request assembly, the redirect-refusing opener, the single ``urlopen`` call site and
-the structured-error parser, plus :class:`ServerError`. Reused verbatim by
+Request assembly, the single call site that opens a request (redirects refused, body
+capped) and the structured-error parser, plus :class:`ServerError`. Reused verbatim by
 ``pystencil.llm``'s LlmClient, which passes the longer ``_LLM_TIMEOUT``.
 """
 
@@ -14,6 +14,7 @@ import urllib.request
 from typing import Any
 
 from .._ffi.types import NoneType
+from .._net import MAX_FETCH_BYTES, _no_redirect_opener
 
 
 # Bound every REST call so a hostile/slow/hung server can't block the caller
@@ -41,26 +42,25 @@ def _json_request(
   to omit it entirely).
   """
   headers: dict[str, str] = dict()
-  if bearer is not None: headers["Authorization"] = "Bearer " + bearer
   data: (bytes | NoneType) = None
   if body is not None:
     headers["Content-Type"] = "application/json"
     data = json.dumps(body).encode("utf-8")
-  return urllib.request.Request(url, data=data, headers=headers, method=method)
+  req = urllib.request.Request(url, data=data, headers=headers, method=method)
+  if bearer is not None: _set_bearer(req, bearer)
+  return req
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-  """A redirect handler that refuses instead of following.
-
-  urllib re-sends the original headers — ``Authorization`` included — to the redirect
-  target, which would hand the key to a second host. The 30x surfaces as an ``HTTPError``.
-  """
-
-  def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
-    return None
+def _set_bearer(req: urllib.request.Request, bearer: str) -> None:
+  """``Authorization: Bearer <bearer>`` as an unredirected header, which urllib never
+  copies onto a redirect's follow-up request."""
+  req.add_unredirected_header("Authorization", "Bearer " + bearer)
 
 
-_no_redirect_opener = urllib.request.build_opener(_NoRedirect)
+# Parity with the CLI, whose REST client reads through net.zig's MAX_FETCH_BYTES. An error
+# body is a small {code, message}; past its cap it is read as a non-JSON body.
+_MAX_RESPONSE_BYTES = MAX_FETCH_BYTES
+_MAX_ERROR_BYTES = 64 * 1024
 
 
 def _http_open(
@@ -68,7 +68,6 @@ def _http_open(
   error_from,
   *,
   context=None,
-  follow_redirects: bool = True,
   timeout: float = _REQUEST_TIMEOUT,
 ) -> tuple:
   """Execute a Request under ``timeout``; returns ``(status, payload bytes)``.
@@ -78,19 +77,20 @@ def _http_open(
   real network happens for both ServerConnection and LlmClient — the latter passes
   the longer ``_LLM_TIMEOUT``.
 
-  ``follow_redirects=False`` refuses 30x responses rather than replaying the
-  request — and its credential headers — against whatever host was named.
+  A 30x is refused, never followed, so the bearer never reaches the host it names; the
+  TLS ``context`` rides that same opener. A body past ``_MAX_RESPONSE_BYTES`` is an
+  ``OSError``.
   """
   try:
-    if follow_redirects:
-      resp = urllib.request.urlopen(req, context=context, timeout=timeout)
-    else:
-      resp = _no_redirect_opener.open(req, timeout=timeout)
+    resp = _no_redirect_opener(context).open(req, timeout=timeout)
   except urllib.error.HTTPError as e:
     raise error_from(e) from None
   with resp:
-    payload = resp.read()
+    payload = resp.read(_MAX_RESPONSE_BYTES + 1)
     status = getattr(resp, "status", resp.getcode())
+  if len(payload) > _MAX_RESPONSE_BYTES:
+    raise OSError("response from %s exceeds the %d-byte cap"
+                  % (req.full_url, _MAX_RESPONSE_BYTES))
   return status, payload
 
 
@@ -104,8 +104,9 @@ def _parse_http_error(e: urllib.error.HTTPError) -> tuple[str, str]:
   """
   code = ""
   message = f"HTTP {e.code}"
+  if 300 <= e.code < 400 and e.msg: message = "%s (HTTP %d)" % (e.msg, e.code)
   try:
-    body = e.read()
+    body = e.read(_MAX_ERROR_BYTES)
     if body:
       parsed = json.loads(body.decode("utf-8"))
       if isinstance(parsed, dict):

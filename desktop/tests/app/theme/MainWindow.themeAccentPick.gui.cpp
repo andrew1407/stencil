@@ -16,7 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);   // let the toolbar's own deferred layout pass settle first
-    QToolButton* logo = win.logoBtn;
+    QToolButton* logo = win.tools.logoBtn;
     QVERIFY(logo);
     const QString original = win.settings.accentColor;   // persisted — restored below
     const auto& presets = stencil::gui::accentPresets();
@@ -73,13 +73,13 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(picksOk, "a colour pick must apply the accent");
     QVERIFY2(escapeClosedAfterPicks, "a colour pick must close the popover");
     QCOMPARE(win.settings.accentColor, lastPick);
-    QVERIFY2(!win.logoClickTimer->isActive(), "the popover routes must not arm the click-cycle");
+    QVERIFY2(!win.tools.logoClickTimer->isActive(), "the popover routes must not arm the click-cycle");
     QVERIFY(!win.pop.active);
 
     // ── Alt+click stays inert (no popover, no accent cycle armed) ──
     QTest::mouseClick(logo, Qt::LeftButton, Qt::AltModifier, c);
     QVERIFY2(!win.pop.active, "Alt+click must not open a popover");
-    QVERIFY2(!win.logoClickTimer->isActive(), "Alt+click must not arm the click-cycle timer");
+    QVERIFY2(!win.tools.logoClickTimer->isActive(), "Alt+click must not arm the click-cycle timer");
 
     // PEEK: plain Alt hold over the logo opens promptly and Alt release closes. Hover is simulated via
     // WA_UnderMouse, the state a real Enter leaves behind.
@@ -100,9 +100,9 @@ class MainWindowGuiTest : public QObject {
     // ── GLIDE logo → Connections: one popover at a time, swapped by the system ──
     QToolButton* connBtn = nullptr;
     for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it)
-      if (it.value() == win.actConnect) connBtn = static_cast<QToolButton*>(it.key());
+      if (it.value() == win.acts.connect) connBtn = static_cast<QToolButton*>(it.key());
     QVERIFY2(connBtn, "no popover button registered for the Connections action");
-    win.altHeldForTest = true;   // the glide poll's stand-in for a physically held Alt
+    win.tools.altHeldForTest = true;   // the glide poll's stand-in for a physically held Alt
     bool accentFirst = false;
     QTimer::singleShot(120, &win, [&] {
       accentFirst = win.pop.active &&
@@ -120,7 +120,7 @@ class MainWindowGuiTest : public QObject {
       swapped = pop && qobject_cast<stencil::gui::ConnectDialog*>(pop) && pop->isVisible() &&
                 win.findChildren<QDialog*>("accentPopover").isEmpty();   // single instance
       connBtn->setAttribute(Qt::WA_UnderMouse, false);
-      win.altHeldForTest = false;
+      win.tools.altHeldForTest = false;
       QTest::keyRelease(&win, Qt::Key_Alt);   // closes the glided-to popover too
       glideClosed = !win.pop.active || win.pop.active->isHidden();
       if (win.pop.active && !win.pop.active->isHidden()) win.pop.active->reject();
@@ -138,7 +138,7 @@ class MainWindowGuiTest : public QObject {
         QTest::mousePress(logo, Qt::LeftButton, Qt::NoModifier, c);
         QTest::mouseRelease(logo, Qt::LeftButton, Qt::NoModifier, c);
         noopKept = win.pop.active && !win.pop.active->isHidden();
-        cycleNotArmed = !win.logoClickTimer->isActive();
+        cycleNotArmed = !win.tools.logoClickTimer->isActive();
         QTest::mousePress(logo, Qt::RightButton, Qt::NoModifier, c);   // promote to sticky
         QTest::mouseRelease(logo, Qt::RightButton, Qt::NoModifier, c);
         QTest::keyRelease(&win, Qt::Key_Alt);   // promoted → the release must NOT close it
@@ -178,8 +178,8 @@ class MainWindowGuiTest : public QObject {
 
     // ── A PLAIN click still cycles: it arms the deferred timer ──
     QTest::mouseClick(logo, Qt::LeftButton, Qt::NoModifier, c);
-    QVERIFY2(win.logoClickTimer->isActive(), "plain click no longer arms the accent cycle");
-    win.logoClickTimer->stop();
+    QVERIFY2(win.tools.logoClickTimer->isActive(), "plain click no longer arms the accent cycle");
+    win.tools.logoClickTimer->stop();
 
     // Leave the persisted accent as we found it — the settings are shared across tests.
     auto restore = win.settings;

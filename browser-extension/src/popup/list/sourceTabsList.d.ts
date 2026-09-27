@@ -1,4 +1,4 @@
-// Shapes for popup/sourceTabsList.js — "Images from another page": a multi-select of
+// Shapes for popup/list/sourceTabsList.js — "Images from another page": a multi-select of
 // open tabs, ticked pages included in editor mode's merged scan.
 import type { SourceTabChoice } from '../../lib/menu/editorTabs.js';
 

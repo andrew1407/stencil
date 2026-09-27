@@ -1,28 +1,31 @@
-//! The validated plan — the types `parse_op_plan` produces — and the one error enum
+//! The checked plan — the types `parse_op_plan` produces — and the one error enum
 //! every stage of this module fails with.
 
 use crate::layout::Line;
 
 // ── Errors ──
 
-/// Everything plan parsing/mapping can fail with. Hand-written; `Display` is the exact
-/// user-facing message (matching the browser's error strings where they exist).
+/// Everything plan checking/mapping can fail with. Hand-written; `Display` is the exact
+/// user-facing message — for a plan core refused, core's canonical §1 message.
 #[derive(Debug)]
 pub enum OpPlanError {
-    /// A structural problem with the plan (`actions`/`variants` shape, limits).
+    /// A structural problem with the plan (`actions`/`variants` shape, limits, a §13 op).
     Plan(String),
     /// A known op with invalid params — fails the whole plan (contract §1).
-    Action { op: String, detail: String },
+    Action { op: String, message: String },
     /// The plan is valid but cannot be expressed as CLI runs (mapping stage).
     Unsupported(String),
+    /// The CLI could not judge the reply: missing, failed, or built from another registry.
+    Checker(String),
 }
 
 impl std::fmt::Display for OpPlanError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OpPlanError::Plan(detail) => write!(f, "invalid plan: {detail}"),
-            OpPlanError::Action { op, detail } => write!(f, "invalid {op} action: {detail}"),
+            OpPlanError::Plan(message) => f.write_str(message),
+            OpPlanError::Action { message, .. } => f.write_str(message),
             OpPlanError::Unsupported(detail) => write!(f, "cannot execute the plan: {detail}"),
+            OpPlanError::Checker(detail) => write!(f, "cannot check the plan: {detail}"),
         }
     }
 }
@@ -45,7 +48,7 @@ pub struct OpPlan {
 }
 
 /// One choice on an [`AskCard`] (contract §11). This server cannot show a picture, so an
-/// option's preview is dropped at parse time and only the label survives (§11.4).
+/// option's preview is dropped when the card is typed and only the label survives (§11.4).
 #[derive(Debug, Clone, PartialEq)]
 pub struct AskOption {
     pub label: String,

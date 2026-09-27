@@ -6,18 +6,27 @@
 #include "colorNames.hpp"
 #include "scriptProgram.hpp"
 #include "cropSpec.hpp"
+#include "cropSnap.hpp"
 #include "DurationParser.hpp"
+#include "downscale.hpp"
 #include "formulaParser.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
+#include "lineMerge.hpp"
+#include "linesCodec.hpp"
 #include "pageMetrics.hpp"
+#include "planSchema.hpp"
+#include "planWalk.hpp"
 #include "rasterize.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <string>
+#include <string_view>
+#include <vector>
 
 using namespace stencil::core;
 
@@ -113,6 +122,18 @@ extern "C" {
     fillRGBA(dst, static_cast<std::size_t>(pixelCount), r, g, b, a);
   }
 
+  void stencil_cli_thumbnailDims(int w, int h, int maxSide, int* outW, int* outH) {
+    int ow = w, oh = h;
+    thumbnailDims(w, h, maxSide, ow, oh);
+    if (outW) *outW = ow;
+    if (outH) *outH = oh;
+  }
+
+  int stencil_cli_downscaleRGBA(const uint8_t* src, int srcW, int srcH, uint8_t* dst,
+                                int dstW, int dstH) {
+    return downscaleRGBA(src, srcW, srcH, dst, dstW, dstH) ? 1 : 0;
+  }
+
   void stencil_cli_applyFilter(const char* mode, uint8_t* data, int pixelCount,
                                int tintR, int tintG, int tintB) {
     if (pixelCount <= 0) return;
@@ -164,6 +185,22 @@ extern "C" {
     rasterizeLine(buf, w, h, line);
   }
 
+  void stencil_cli_layoutCaps(int* lines, int* linePoints, int* points) {
+    if (lines) *lines = abi::MAX_LAYOUT_LINES;
+    if (linePoints) *linePoints = abi::MAX_LINE_POINTS;
+    if (points) *points = abi::MAX_LAYOUT_POINTS;
+  }
+
+  int stencil_cli_mergeLinesKeep(const double* sNums, int sNumsLen, const uint8_t* sText,
+                                 int sTextLen, const double* lNums, int lNumsLen,
+                                 const uint8_t* lText, int lTextLen, uint8_t* keep, int keepCap) {
+    const std::vector<bool> k = mergeKeep(abi::decodeLines(sNums, sNumsLen, sText, sTextLen),
+                                          abi::decodeLines(lNums, lNumsLen, lText, lTextLen));
+    for (std::size_t i = 0; keep != nullptr && i < k.size() && static_cast<int>(i) < keepCap; ++i)
+      keep[i] = k[i] ? 1 : 0;
+    return static_cast<int>(k.size());
+  }
+
   int stencil_cli_colorNameCount(void) { return static_cast<int>(colorNameCount()); }
 
   const char* stencil_cli_colorNameAt(int index, unsigned int* rgb) {
@@ -178,10 +215,11 @@ extern "C" {
 
   const char* stencil_cli_durationOffAliases(void) { return DurationParser::offAliases(); }
 
-  // The rest come from abi/shared.inc and abi/scriptShared.inc, verbatim with the wasm ABI.
+  // The rest come from abi/shared.inc, scriptShared.inc and opplanShared.inc, verbatim with the wasm ABI.
 #define STENCIL_ABI(wasmName, cliName) stencil_cli_##cliName
 #include "shared.inc"
 #include "scriptShared.inc"
+#include "opplanShared.inc"
 #undef STENCIL_ABI
 
 }  // extern "C"

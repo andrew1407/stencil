@@ -1,6 +1,7 @@
 import { notify, shortName } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
 import { deleteRemoteProject as removeRemoteProject } from '../../../net/remoteSync.js';
+import { clearedToast } from '../../../core/project/transferController.js';
 
 // The batch-select toolbar's actions, each through runBatch, which names partial failures —
 // a failed row comes back on the settle render and would otherwise look silently dropped.
@@ -13,7 +14,9 @@ export function wireBatchActions(deps) {
 
   // `rows` overrides the checked set for a caller that has already let it go: the removal clears
   // the selection as the rows start leaving, so what to act on is captured before that.
-  const runBatch = async (fn, okMsg, failMsg, settle = null, rows = null) => {
+  // `okText` words a clean run of `done` (a removal says it as the rest of the window does).
+  const runBatch = async (fn, okMsg, failMsg, settle = null, rows = null,
+    okText = (done) => `${okMsg} (${done})`) => {
     let done = 0;
     const failures = [];
     for (const s of (rows || sel())) {
@@ -24,7 +27,7 @@ export function wireBatchActions(deps) {
     // `settle` is the hold the CALLER opened before the rows started leaving (it knows
     // when that was); batches with no removal just re-render.
     if (settle) await settle(); else render();
-    if (!failures.length) { if (done) notify(`${okMsg} (${done})`, 'ok'); return; }
+    if (!failures.length) { if (done) notify(okText(done), 'ok'); return; }
     const names = failures.slice(0, 3).map((f) => `"${f.name}"`).join(', ')
       + (failures.length > 3 ? ` +${failures.length - 3} more` : '');
     notify(done
@@ -60,8 +63,8 @@ export function wireBatchActions(deps) {
       if (s.kind === 'remote') {
         await deleteRemoteProject(s.serverUrl, s.id);
         invalidateRemotes();
-      } else { app.removeProject(s.id); }
-    }, 'Removed', 'Could not remove', settle, rows);
+      } else { app.projectTransfer.removeProject(s.id); }
+    }, 'Removed', 'Could not remove', settle, rows, clearedToast);
     // …released only now: runBatch's settle render has rebuilt the pool without them.
     for (const k of keys) doomed.delete(k);
     updateBatchBar();
@@ -69,19 +72,19 @@ export function wireBatchActions(deps) {
   batchBtns.moveServer.addEventListener('click', async () => {
     const address = await pickServer('Move the selected projects to which server?');
     if (!address) return;
-    await runBatch(s => app.moveProjectToServer(s.id, address), 'Moved to server', 'Could not move');
+    await runBatch(s => app.projectTransfer.moveProjectToServer(s.id, address), 'Moved to server', 'Could not move');
   });
   batchBtns.copyServer.addEventListener('click', async () => {
     const address = await pickServer('Copy the selected projects to which server?');
     if (!address) return;
-    await runBatch(s => app.copyProjectToServer(s.id, address), 'Copied to server', 'Could not copy');
+    await runBatch(s => app.projectTransfer.copyProjectToServer(s.id, address), 'Copied to server', 'Could not copy');
   });
   batchBtns.moveLocal.addEventListener('click', async () => {
     if (!selected.size) return;
     if (!(await app.confirm(`Move ${selected.size} server project(s) to local? They will be removed from the server.`, { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
-    await runBatch(s => app.moveProjectToLocal(s.meta), 'Moved to local', 'Could not move');
+    await runBatch(s => app.projectTransfer.moveProjectToLocal(s.meta), 'Moved to local', 'Could not move');
   });
   batchBtns.copyLocal.addEventListener('click', async () => {
-    await runBatch(s => app.copyServerProjectToLocal(s.meta), 'Copied to local', 'Could not copy');
+    await runBatch(s => app.projectTransfer.copyServerProjectToLocal(s.meta), 'Copied to local', 'Could not copy');
   });
 }

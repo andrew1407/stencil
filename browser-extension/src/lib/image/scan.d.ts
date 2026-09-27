@@ -1,4 +1,4 @@
-// Shapes for lib/scan.js — the ScanEntry that flows through popup / editorMode /
+// Shapes for lib/image/scan.js — the ScanEntry that flows through popup / editorMode /
 // assistant / the page API, and is described in three READMEs. One entry per image or
 // video the injected scanner found, deduped by `src` (or by `videoUrl` for a frameless
 // video) across frames.

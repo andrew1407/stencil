@@ -10,7 +10,8 @@ import json
 import re
 import unittest
 
-from tests.helpers.fixturebase import _LLM_FIXTURES, _OVERRIDES, _load
+from tests.helpers.fixturebase import _LLM_FIXTURES, _OVERRIDES, _load, _opplan_text
+from tests.helpers.nativecase import NativeCase
 
 from pystencil.llm import LlmError, parse_op_plan
 
@@ -28,6 +29,8 @@ _GENERATED = _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
 _FIXTURE_FILES = [(fx["file"], fx) for fx in _HAND] + [
   (fx["name"] + ".json", fx) for fx in _GENERATED
 ]
+_ORACLE = _load(_OPPLAN_DIR / "oracle" / "inputs.json")["cases"]
+_NORMALIZED = _load(_OPPLAN_DIR / "generated" / "normalized.json")
 
 
 class TestOpPlanFixtures(unittest.TestCase):
@@ -51,6 +54,8 @@ class TestOpPlanFixtures(unittest.TestCase):
           self.assertIn(surface, _SURFACES)
           self.assertIn(verdict, ("valid", "invalid"))
 
+
+class TestOpPlanWalk(NativeCase):
   def test_walk(self):
     overrides = _OVERRIDES["opPlan"]
     walked = 0
@@ -60,7 +65,7 @@ class TestOpPlanFixtures(unittest.TestCase):
       walked += 1
       local = overrides.get(fx["name"], {}).get("verdict")
       want = local or (fx.get("knownDivergence") or {}).get("pystencil") or fx["expect"]
-      text = fx["input"] if isinstance(fx["input"], str) else json.dumps(fx["input"])
+      text = _opplan_text(fx)
       with self.subTest(fixture=fname, want=want):
         if want == "valid":
           plan = parse_op_plan(text)  # must not raise (chat-only counts)
@@ -70,6 +75,17 @@ class TestOpPlanFixtures(unittest.TestCase):
           with self.assertRaises(LlmError):
             parse_op_plan(text)
     self.assertGreaterEqual(walked, 150, "console/all coverage collapsed")
+
+  def test_core_results_match_the_normalized_golden(self):
+    # Each case the golden records for pystencil, oracle inputs included, as the JS reference wrote it.
+    golden = {c["name"]: r["json"] for c in _NORMALIZED["cases"] for r in c["results"]
+              if "pystencil" in r["surfaces"]}
+    walked = [fx for fx in _HAND + _GENERATED + _ORACLE if fx["name"] in golden]
+    self.assertGreaterEqual(len(walked), 400, "the pystencil golden collapsed")
+    for fx in walked:
+      with self.subTest(case=fx["name"]):
+        _, got = self.core.opplan_parse(_opplan_text(fx))
+        self.assertEqual(json.dumps(got), json.dumps(json.loads(golden[fx["name"]])))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { makeClient, chatOnlyReply, makeController } from '../../helpers/chatControllerRig.js';
 
 import {
   buildChatDoc, parseChatDoc, rowsToMessages, createChatStore, createIdbBackend,
@@ -123,10 +123,13 @@ test('the §7 continuation note is never written and never restored', async () =
     '[The working image is now the frame you extracted — carry on.]'), true);
   assert.strictEqual(isInternalChatText('assistant', CONTINUATION_NOTE), true);
   // …and the model round pushes THAT constant, so the two can never drift.
-  const ctrl = readFileSync(new URL('../../../js/llm/chat/respond.js', import.meta.url), 'utf8');
-  assert.ok(ctrl.includes("import { CONTINUATION_NOTE } from './store.js'"));
-  assert.ok(ctrl.includes('const note = { role: \'user\', text: CONTINUATION_NOTE };'));
-  assert.ok(!/text: '\[The working image is now/.test(ctrl), 'no second copy of the wording');
+  const client = makeClient([JSON.stringify({ version: 1, reply: 'Loaded.',
+    actions: [{ op: 'openUrl', url: 'http://pics.example/cat.png' }] }), chatOnlyReply]);
+  await makeController(client).controller.send('load http://pics.example/cat.png and outline it');
+  assert.strictEqual(client.calls.length, 2, 'the load plan continued once');
+  const wireNote = client.calls[1].messages.at(-1);
+  assert.strictEqual(wireNote.role, 'user');
+  assert.strictEqual(wireNote.text, CONTINUATION_NOTE, 'no second copy of the wording');
   // Refused on the way IN…
   const doc = buildChatDoc([
     { role: 'user', text: 'outline the cat' },

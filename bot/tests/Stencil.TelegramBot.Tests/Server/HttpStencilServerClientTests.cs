@@ -25,6 +25,51 @@ public sealed class HttpStencilServerClientTests
         Assert.Equal("/projects", handler.LastRequest.RequestUri!.AbsolutePath);
     }
 
+    [Theory]
+    [InlineData(null, "?limit=200")] // the default page
+    [InlineData(7, "?limit=7")]
+    public async Task Should_Ask_For_A_Bounded_First_Page_On_List_Projects(int? limit, string query)
+    {
+        CannedHttpMessageHandler handler = new((_, _) => CannedHttpMessageHandler.Json("{\"projects\":[]}"));
+        HttpStencilServerClient client = limit is int n
+            ? new(new HttpClient(handler), "http://h:8090", "t") { ProjectListLimit = n }
+            : Client(handler, token: "t");
+
+        await client.ListProjectsAsync();
+
+        Assert.Equal(query, handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
+    public async Task Should_Refuse_A_Reply_Past_The_Response_Cap()
+    {
+        CannedHttpMessageHandler handler = new((req, _) => req.RequestUri!.AbsolutePath.EndsWith("/original")
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[64]) }
+            : CannedHttpMessageHandler.Json("{\"projects\":[{\"id\":\"p1\",\"name\":\"a long enough name\"}]}"));
+        HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", "t") { MaxResponseBytes = 16 };
+
+        ServerException listed = await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+        ServerException file = await Assert.ThrowsAsync<ServerException>(
+            () => client.GetFileAsync("p1", ProjectFileKind.ORIGINAL));
+
+        Assert.Equal("tooLarge", listed.Code);
+        Assert.Equal("tooLarge", file.Code);
+    }
+
+    [Fact]
+    public async Task Should_Fall_Back_To_The_Status_When_An_Error_Body_Is_Oversized()
+    {
+        string huge = "{\"code\":\"x\",\"message\":\"" + new string('m', 128 * 1024) + "\"}";
+        CannedHttpMessageHandler handler = new((_, _) =>
+            CannedHttpMessageHandler.Json(huge, HttpStatusCode.InternalServerError));
+        HttpStencilServerClient client = Client(handler, token: "t");
+
+        ServerException ex = await Assert.ThrowsAsync<ServerException>(() => client.ListProjectsAsync());
+
+        Assert.Equal(500, ex.Status);
+        Assert.Equal("HTTP 500", ex.Message);
+    }
+
     [Fact]
     public async Task Should_Parse_The_Array_On_List_Projects()
     {

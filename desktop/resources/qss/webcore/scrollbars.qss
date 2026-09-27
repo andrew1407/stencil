@@ -1,0 +1,11 @@
+      /* ── Scrollbars: the grey track, raised thumb and arrow buttons ── */
+      QScrollBar:vertical { background: %WC_LIGHT%; width: 16px; margin: 16px 0; }
+      QScrollBar:horizontal { background: %WC_LIGHT%; height: 16px; margin: 0 16px; }
+      QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+        background: %WC_FACE%; border-radius: 0; min-height: 20px; min-width: 20px;
+        border: 2px solid transparent; border-image: url(%WC_RAISED%) 2 2 2 2 stretch;
+      }
+      QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 16px; width: 16px; background: %WC_FACE%; border: 1px solid %WC_SHADOW%; subcontrol-origin: margin; }
+      QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 16px; height: 16px; background: %WC_FACE%; border: 1px solid %WC_SHADOW%; subcontrol-origin: margin; }
+      QScrollBar::add-page, QScrollBar::sub-page { background: %WC_LIGHT%; }
+

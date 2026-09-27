@@ -4,6 +4,10 @@ import { hotkeys } from '../../../core/settings/hotkeys.js';
 import { hotkeyActions } from './hotkeyActions.js';
 import { typingHotkeyId } from './hotkeyRules.js';
 import { noteKeyGesture } from '../../canvas/gesturePoint.js';
+import { selectedIndices } from '../../../core/line/selection.js';
+import { dragMove } from '../../../core/touch/dragGestures.js';
+import { removeSelectedLines } from '../../../core/line/editOps.js';
+import { CHANGE, changed } from '../../../core/app/changes.js';
 export function wireKeyboard(app) {
   const { HK_HANDLERS, EDIT_HOTKEYS, LINE_TRANSFORM_HOTKEYS } = hotkeyActions(app);
   document.addEventListener('keydown', e => {
@@ -20,9 +24,9 @@ export function wireKeyboard(app) {
     // deletes the project file.
     if ((e.key === 'Delete' || e.key === 'Backspace') &&
         !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
-        !app.isDrawing && !app.compareReadOnly() && app.selectedIndices().length) {
+        !app.isDrawing && !app.compareReadOnly() && selectedIndices(app).length) {
       e.preventDefault();
-      app.removeSelectedLines();
+      removeSelectedLines(app);
       return;
     }
     for (const def of HOTKEY_DEFS) {
@@ -31,8 +35,8 @@ export function wireKeyboard(app) {
       if (!matchHotkey(e, combo)) continue;
       // Route the shared chord by selection: yield big-zoom to the flip binding (later in the
       // registry) when a line is selected, fall through when none is.
-      if ((def.id === 'zoomInBig' || def.id === 'zoomOutBig') && app.selectedIndices().length >= 1 && !app.compareReadOnly()) continue;
-      if (LINE_TRANSFORM_HOTKEYS.has(def.id) && app.selectedIndices().length === 0) continue;
+      if ((def.id === 'zoomInBig' || def.id === 'zoomOutBig') && selectedIndices(app).length >= 1 && !app.compareReadOnly()) continue;
+      if (LINE_TRANSFORM_HOTKEYS.has(def.id) && selectedIndices(app).length === 0) continue;
       // Skip 'paste' here — let the browser fire its native paste event
       if (def.id === 'paste') return;
       // Compare view is read-only — swallow editing shortcuts (but keep view/nav ones).
@@ -66,12 +70,12 @@ export function wireKeyboard(app) {
   const onModifierChange = e => {
     if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') return;
     const mods = { ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey };
-    app.tooltipMgr.refresh(mods);
+    app.tooltip.refresh(mods);
     // Live-switch an active segment/line drag the instant Shift is pressed or
     // released, even if the mouse is held still.
     if ((app.isDraggingSegment && app.draggingSegment) ||
         (app.isDraggingLine && app.draggingLine)) {
-      app.dragMove(app.lastMouseClientX, app.lastMouseClientY, mods.shiftKey);
+      dragMove(app, app.lastMouseClientX, app.lastMouseClientY, mods.shiftKey);
     }
     if (app.mouseOverCanvas && !app.isZoomRectDragging && !app.isPanning &&
       !app.isDraggingPoint && !app.isDraggingSegment && !app.isDraggingLine) {
@@ -90,7 +94,7 @@ export function wireKeyboard(app) {
     if (app.compareHoldOriginal === on) return;
     app.compareHoldOriginal = on;
     app.renderer.redraw();
-    app.updateButtons();   // read-only peek greys the editing controls too
+    changed(app, CHANGE.compare);   // read-only peek greys the editing controls too
   };
   document.addEventListener('keydown', e => {
     if (e.repeat || isTypingTarget(e.target)) return;

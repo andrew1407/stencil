@@ -22,7 +22,7 @@ func TestHardeningDefaults(t *testing.T) {
 	if cfg.HelloRatePerMin != defaultHelloRatePerMin {
 		t.Fatalf("HelloRatePerMin default: %d", cfg.HelloRatePerMin)
 	}
-	if cfg.OpTimeout != defaultOpTimeout {
+	if cfg.OpTimeout != 10*time.Second {
 		t.Fatalf("OpTimeout default: %v", cfg.OpTimeout)
 	}
 	// Empty by default: nobody is trusted, so a forwarded header changes nothing.
@@ -79,7 +79,8 @@ func TestHardeningRejectsBadValues(t *testing.T) {
 }
 
 // The backing-service sizing keys (Postgres pool, Redis client): unset means the
-// driver decides — pgx via store.NewWithPool's floor, go-redis via its defaults.
+// driver decides — pgx via store.NewWithPool's floor, go-redis via its defaults;
+// the subscribe wait is the bus's own, 5 s.
 func TestBackingServiceSizingKeys(t *testing.T) {
 	chdirTemp(t)
 	clearEnv(t)
@@ -87,11 +88,12 @@ func TestBackingServiceSizingKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 || cfg.Redis != (RedisOptions{}) {
+	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 ||
+		cfg.Redis != (RedisOptions{SubscribeTimeout: 5 * time.Second}) {
 		t.Fatalf("sizing defaults: %+v", cfg)
 	}
 	for k, v := range map[string]string{"DB_MAX_CONNS": "40", "DB_MIN_CONNS": "4", "DB_STATEMENT_TIMEOUT": "15",
-		"REDIS_POOL_SIZE": "32", "REDIS_DIAL_TIMEOUT": "2", "REDIS_IO_TIMEOUT": "4"} {
+		"REDIS_POOL_SIZE": "32", "REDIS_DIAL_TIMEOUT": "2", "REDIS_IO_TIMEOUT": "4", "REDIS_SUBSCRIBE_TIMEOUT_SECONDS": "7"} {
 		t.Setenv(k, v)
 	}
 	if cfg, err = Load(); err != nil {
@@ -100,11 +102,12 @@ func TestBackingServiceSizingKeys(t *testing.T) {
 	if cfg.DBMaxConns != 40 || cfg.DBMinConns != 4 || cfg.DBStatementTimeout != 15*time.Second {
 		t.Fatalf("pool overrides: %d/%d/%v", cfg.DBMaxConns, cfg.DBMinConns, cfg.DBStatementTimeout)
 	}
-	if want := (RedisOptions{PoolSize: 32, DialTimeout: 2 * time.Second, IOTimeout: 4 * time.Second}); cfg.Redis != want {
+	want := RedisOptions{PoolSize: 32, DialTimeout: 2 * time.Second, IOTimeout: 4 * time.Second, SubscribeTimeout: 7 * time.Second}
+	if cfg.Redis != want {
 		t.Fatalf("redis overrides: %+v, want %+v", cfg.Redis, want)
 	}
 	for _, tc := range [][2]string{{"DB_MAX_CONNS", "-1"}, {"DB_MIN_CONNS", "x"}, {"DB_STATEMENT_TIMEOUT", "-5"},
-		{"REDIS_POOL_SIZE", "-1"}, {"REDIS_IO_TIMEOUT", "x"}} {
+		{"REDIS_POOL_SIZE", "-1"}, {"REDIS_IO_TIMEOUT", "x"}, {"REDIS_SUBSCRIBE_TIMEOUT_SECONDS", "x"}} {
 		chdirTemp(t)
 		clearEnv(t)
 		t.Setenv(tc[0], tc[1])

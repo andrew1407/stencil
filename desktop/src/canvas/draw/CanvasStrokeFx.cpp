@@ -1,10 +1,8 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "../../support/motionPrefs.hpp"
 
-#include <QPen>
-
-// The stroke's wake and spark, and the fly-in of a just-placed point.
+// The fly-in of a just-placed point, the widget rects a frame repaints, and the live marks the
+// scene's paint path draws the flights and highlights from.
 
 namespace stencil::gui {
 
@@ -35,9 +33,9 @@ namespace stencil::gui {
   }
 
   QRect CanvasWidget::dragRect() const {
-    if (dragKind == DragKind::NONE) return {};
-    QRect r = lineRect(dragLineIdx);
-    for (const auto& entry : dragMultiOrig) r = r.united(lineRect(entry.first));
+    if (!gesture.dragging()) return {};
+    QRect r = lineRect(gesture.lineIdx);
+    for (const auto& entry : gesture.multiOrig) r = r.united(lineRect(entry.first));
     return r;
   }
 
@@ -49,81 +47,8 @@ namespace stencil::gui {
     return r;
   }
 
-  void CanvasWidget::flownPolygon(const core::Line& line, int lineIdx, double scale,
-                                  bool live, QPolygonF& poly) const {
-    poly.clear();
-    poly.reserve(static_cast<int>(line.points.size()));
-    const bool moving = live && strokeFx.touches(lineIdx);
-    const double now = moving ? fxNow() : 0.0;
-    for (const auto& pt : line.points) {
-      QPointF at(pt.x, pt.y);
-      if (moving) {
-        if (const stroke::Flight* f = strokeFx.at(lineIdx, pt)) {
-          const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
-          if (ph.fly < 1.0) at = stroke::flyPoint(f->from, f->to, ph.fly, f->bow);
-        }
-      }
-      poly << QPointF(at.x() * scale, at.y() * scale);
-    }
-  }
-
-  // The heat a flying vertex drags behind it: a fat, faint stroke in the line's own
-  // colour over the segments it is pulling, under the real one.
-  void CanvasWidget::drawStrokeWake(QPainter& p, const core::Line& line,
-                                    const QPolygonF& poly, int lineIdx,
-                                    const QColor& stroke) const {
-    if (!showLines || !strokeFx.touches(lineIdx)) return;
-    const double now = fxNow();
-    for (int i = 0; i < static_cast<int>(line.points.size()); ++i) {
-      const stroke::Flight* f = strokeFx.at(lineIdx, line.points[i]);
-      if (!f) continue;
-      const double a = stroke::wake(stroke::phase(now - f->start, f->fly).span);
-      if (a < 0.01) continue;
-      QColor heat = stroke;
-      heat.setAlphaF(a);
-      QPen pen(heat);
-      pen.setWidthF(line.thickness + 7.0);
-      pen.setCapStyle(Qt::RoundCap);
-      pen.setJoinStyle(Qt::RoundJoin);
-      p.setPen(pen);
-      p.setBrush(Qt::NoBrush);
-      for (int j : {i - 1, i + 1}) {
-        if (j < 0 || j >= poly.size()) continue;
-        p.drawLine(poly[j], poly[i]);
-      }
-    }
-  }
-
-  // The glow riding the vertex, and the ring its landing pushes out — on top of
-  // everything the line drew, in the colour its points are drawn in.
-  void CanvasWidget::drawStrokeSpark(QPainter& p, const core::Line& line,
-                                     const QPolygonF& poly, int lineIdx,
-                                     const QColor& pointFill) const {
-    if (!strokeFx.touches(lineIdx)) return;
-    const double now = fxNow();
-    const double r = line.pointSize;
-    for (int i = 0; i < poly.size() && i < static_cast<int>(line.points.size()); ++i) {
-      const stroke::Flight* f = strokeFx.at(lineIdx, line.points[i]);
-      if (!f) continue;
-      const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
-      if (ph.fly < 1.0) {
-        const stroke::Ring sp = stroke::spark(ph.fly);
-        QColor glow = pointFill;
-        glow.setAlphaF(sp.alpha);
-        p.setPen(Qt::NoPen);
-        p.setBrush(glow);
-        p.drawEllipse(poly[i], r * sp.scale, r * sp.scale);
-      } else if (ph.ripple < 1.0) {
-        const stroke::Ring rp = stroke::ripple(ph.ripple);
-        QColor ring = pointFill;
-        ring.setAlphaF(rp.alpha);
-        QPen pen(ring);
-        pen.setWidthF(std::max(1.0, r * 0.45 * (1.0 - ph.ripple)));
-        p.setPen(pen);
-        p.setBrush(Qt::NoBrush);
-        p.drawEllipse(poly[i], r * rp.scale, r * rp.scale);
-      }
-    }
+  LiveMarks CanvasWidget::liveMarks() const {
+    return {selectedIndices(), panelLine(), selectedPoint, hover, &strokeFx, &fxClock};
   }
 
   void CanvasWidget::resetStrokeFx() {
@@ -145,6 +70,11 @@ namespace stencil::gui {
     if (!support::isDrawingMotionOk()) return;
     strokeFx.flyInRange(lineIdx, line, startIdx, count, fxNow());
     if (strokeFx.active() && !fxTimer.isActive()) fxTimer.start();
+  }
+
+  // ms on the shared clock. Every pass takes it here so they all agree on one instant.
+  double CanvasWidget::fxNow() const {
+    return static_cast<double>(fxClock.elapsed());
   }
 
 }  // namespace stencil::gui

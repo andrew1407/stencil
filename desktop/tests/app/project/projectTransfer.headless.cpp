@@ -1,8 +1,8 @@
-// Server-connected headless check for ProjectTransferController (src/app/projectTransferController): it
-// builds a local project, exercises copyLocalProjectToServer + moveLocalProjectToServer against a
-// running Stencil server, and asserts over the REST list that the project landed — COPY leaving the
-// local one in place, MOVE removing it. SELF-SKIPS (exit 0) with no server; point it at one with
-// STENCIL_TEST_SERVER (default http://localhost:8090). Built only when Qt is present.
+// Headless check for ProjectTransferController (src/app/projectTransferController): it builds local
+// projects, exercises copyLocalProjectToServer + moveLocalProjectToServer, and asserts over REST that
+// each landed with its layout and colour — COPY leaving the local one in place, MOVE removing it.
+// Runs against STENCIL_TEST_SERVER (default http://localhost:8090) when one answers, else against
+// the in-process stand-in (tests/support/mockRest.hpp). Built only when Qt is present.
 #include "ProjectTransferController.hpp"
 #include "ServerClient.hpp"
 #include "CanvasWidget.hpp"
@@ -17,6 +17,8 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QString>
 #include <QVector>
 #include <QWidget>
@@ -26,6 +28,7 @@
 #include <string>
 #include <vector>
 #include "../../support/connectNow.hpp"
+#include "../../support/mockRest.hpp"
 
 using namespace stencil::gui;
 
@@ -37,16 +40,20 @@ int main(int argc, char** argv) {
     if (!cond) ++failures;
   };
 
-  const QString serverUrl = qEnvironmentVariableIsSet("STENCIL_TEST_SERVER")
-                                ? qEnvironmentVariable("STENCIL_TEST_SERVER")
-                                : QStringLiteral("http://localhost:8090");
+  QString serverUrl = qEnvironmentVariableIsSet("STENCIL_TEST_SERVER")
+                          ? qEnvironmentVariable("STENCIL_TEST_SERVER")
+                          : QStringLiteral("http://localhost:8090");
 
   stencil::net::ConnectionManager mgr;
   QString err;
-  if (!stencil::test::connectNow(mgr, serverUrl, QString(), err)) {
-    std::printf("SKIP: no reachable stencil server at %s (%s)\n",
+  stencil::test::MockRest mock;
+  const bool live = stencil::test::connectNow(mgr, serverUrl, QString(), err);
+  if (!live) {
+    std::printf("no stencil server at %s (%s): using the in-process stand-in\n",
                 serverUrl.toUtf8().constData(), err.toUtf8().constData());
-    return 0;  // self-skip, mirroring the gated go store/bus integration tests
+    check(mock.listen(), "the stand-in listens");
+    serverUrl = mock.url();
+    check(stencil::test::connectNow(mgr, serverUrl, QString(), err), "connected to the stand-in");
   }
   stencil::net::ServerClient* c = mgr.find(serverUrl);
   check(c != nullptr, "connected client present");
@@ -92,7 +99,7 @@ int main(int argc, char** argv) {
       [] { return QString(); },  // remoteAddress
       [] { return QString(); },  // remoteId
       [](const QString&, const QString&, const QString&, const QString&, qint64) {},  // relink
-      [](const QString&, bool) {},                                                    // load into canvas
+      [](const QString&, bool, std::function<void()> then) { then(); },              // load into canvas
       [] {},                                                                          // afterChange
   };
   ProjectTransferController xfer(&notify, &canvas, &settings, &store, &list, hooks);
@@ -141,9 +148,15 @@ int main(int argc, char** argv) {
   if (!serverCopyId.isEmpty()) createdServerIds.push_back(serverCopyId);
   check(list.size() == 1, "copy: the local project stays (copy, not move)");
 
-  // ── MOVE: removes the local project, creates it on the server ──
+  // ── MOVE: removes the local project, creates it on the server with its layout and colour ──
   const QString moveName = QString("e2e-move-%1").arg(ts);
   const QString moveId = addLocal(moveName);  // move keeps the project's own name
+  {
+    stencil::core::Line line;
+    line.points = {{1, 1}, {9, 4}};
+    list.back().lines = {line};
+    list.back().meta.color = "#ff0000";
+  }
   check(list.size() == 2, "move: a second local project was added");
   xfer.moveLocalProjectToServer(serverUrl, moveId);
   QString serverMoveId;
@@ -157,6 +170,35 @@ int main(int argc, char** argv) {
     return true;
   });
   check(localGone, "move: the local project was removed after the move");
+  {
+    // The original upload bumps the version; the layout and colour PUTs must carry the new one.
+    auto ready = std::make_shared<bool>(false);
+    auto meta = std::make_shared<stencil::net::ServerProject>();
+    auto layout = std::make_shared<QJsonObject>();
+    c->getProjectAsync(serverMoveId, [ready, meta, layout](bool, stencil::net::ServerProject m, QJsonObject l) {
+      *meta = m;
+      *layout = l;
+      *ready = true;
+    });
+    waitFor([&] { return *ready; });
+    check(layout->value("lines").toArray().size() == 1, "move: the layout landed on the server");
+    check(meta->color == QStringLiteral("#ff0000"), "move: the colour landed on the server");
+  }
+  if (!live) {
+    // A layout PUT the server refuses is said out loud, and the local project is kept.
+    const QString keptId = addLocal(QString("e2e-kept-%1").arg(ts));
+    mock.putStatus = 500;
+    xfer.moveLocalProjectToServer(serverUrl, keptId);
+    const int attempts = mock.putAttempts;
+    waitFor([&] { return mock.putAttempts > attempts; });
+    QElapsedTimer settle;
+    settle.start();
+    while (settle.elapsed() < 300) app.processEvents(QEventLoop::AllEvents, 20);
+    bool kept = false;
+    for (const auto& p : list) kept = kept || QString::fromStdString(p.meta.id) == keptId;
+    check(kept, "move: a refused layout PUT keeps the local project");
+    mock.putStatus = 0;
+  }
 
   // ── cleanup: delete the server projects we created + the temp file ──
   for (const auto& id : createdServerIds) {

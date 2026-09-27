@@ -52,7 +52,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 /* The .chk pill-toggle style is shared — defined once in lib/theme/controls.css (used by both the
    popup chips and the options page's compact toggles). */
 .frow select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
-/* …and the same sizing for the custom list that replaces it (lib/customSelect.js): the
+/* …and the same sizing for the custom list that replaces it (lib/control/customSelect.js): the
    filter row is compact, so the trigger must not take the options page's full-width form
    metrics. The native <select> keeps the rule above as the value source, hidden. */
 .frow .accent-dd { width: auto; }
@@ -85,7 +85,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 /* Collapsing the Search section folds the whole search+results unit (popup.js
    toggles body.search-collapsed alongside #sec-search's collapse). */
 body.search-collapsed #list, body.search-collapsed #status { display: none; }
-/* Alt+hover peek (popup.js + lib/sectionPeek.js): a collapsed section's body,
+/* Alt+hover peek (popup.js + lib/highlight/sectionPeek.js): a collapsed section's body,
    borrowed into this floating mini window, anchored to the folded header. The
    body keeps its own .section-body layout; the panel is just the chrome. */
 #section-peek {
@@ -128,7 +128,7 @@ body.search-collapsed #list, body.search-collapsed #status { display: none; }
    leaves a gutter, so the scrollbar never touches the button. Chrome ignores these
    ::-webkit-scrollbar rules under lib/theme/palette.css's app-wide scrollbar-width/color, so the
    list opts back out of those — same colours: thumb grey, the accent on the bar strip
-   (.sb-hover, lib/scrollbarHover.js) and under the thumb itself. */
+   (.sb-hover, lib/control/scrollbarHover.js) and under the thumb itself. */
 .list { scrollbar-width: auto; scrollbar-color: auto; }
 .list::-webkit-scrollbar { width: 11px; }
 .list::-webkit-scrollbar-track { background: transparent; }

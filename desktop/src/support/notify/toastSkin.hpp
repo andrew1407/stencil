@@ -1,6 +1,6 @@
 #pragma once
 // The dress a toast wears (browser css/components/notifications.css and, under the skin,
-// css/webcore/windows.css .notify-toast): its face and ink, the sheet that boxes it, and the
+// css/webcore/notices.css .notify-toast): its face and ink, the sheet that boxes it, and the
 // title strip the skin lays over its top edge.
 #include "logoStageRules.hpp"
 #include "skinPrefs.hpp"

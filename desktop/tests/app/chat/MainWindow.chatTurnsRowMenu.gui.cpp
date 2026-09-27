@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
     for (int i = 0; i < 10; ++i)
       win.chatDock->appendAssistant(
@@ -99,21 +99,21 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.settings.llmProvider = "ollama";
     win.settings.llmBaseUrl = "http://localhost:11434";
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(win.chatDock->isVisible());
-    win.chatHistory.append({QStringLiteral("user"), QStringLiteral("remove this project"), {}});
+    win.chatSession->chatHistory.append({QStringLiteral("user"), QStringLiteral("remove this project"), {}});
     // The panel exists BEFORE the failure, as it does in use — errors are
     // mirrored live (they never enter the replayed history).
-    win.ensureChatMenuPanel();
-    win.chatError(QStringLiteral("Could not read the assistant's plan: \"clear\" is an "
+    win.chatSession->ensureChatMenuPanel();
+    win.chatSession->chatError(QStringLiteral("Could not read the assistant's plan: \"clear\" is an "
                                  "editor-settings op"),
                   QString());
     // …and a stopped turn, which is built through the PENDING card on both
     // surfaces, not through the ordinary append path.
     win.chatDock->showPending();
-    win.chatMirrorPending(true);
+    win.chatSession->chatMirrorPending(true);
     win.chatDock->markPendingStopped(QStringLiteral("remove this project"));
-    win.chatMirrorStopped(QStringLiteral("remove this project"));
+    win.chatSession->chatMirrorStopped(QStringLiteral("remove this project"));
     settleLayout(win.chatDock, 200);
 
     const auto menuItems = [](QWidget* w) {
@@ -160,10 +160,10 @@ class MainWindowGuiTest : public QObject {
 
     // The mirrored panel gets the same treatment. Its cards are only on screen while its menu is open
     // — show it, or the row menu rightly refuses to pop into an invisible surface.
-    win.chatMenuPanel->setGeometry(20, 20, 340, 620);
-    win.chatMenuPanel->show();
-    settleLayout(win.chatMenuPanel, 150);
-    QList<QFrame*> panelErrors = win.chatMenuPanel->findChildren<QFrame*>("chatCardError");
+    win.chatSession->chatMenuPanel->setGeometry(20, 20, 340, 620);
+    win.chatSession->chatMenuPanel->show();
+    settleLayout(win.chatSession->chatMenuPanel, 150);
+    QList<QFrame*> panelErrors = win.chatSession->chatMenuPanel->findChildren<QFrame*>("chatCardError");
     QVERIFY2(!panelErrors.isEmpty(), "the panel mirrored no error card");
     bool sawRetry = false;
     for (QFrame* card : panelErrors) {

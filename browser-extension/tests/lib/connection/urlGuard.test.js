@@ -1,4 +1,4 @@
-// Tests for src/lib/urlGuard.js — the lexical SSRF guard on page-harvested fetch
+// Tests for src/lib/connection/urlGuard.js — the lexical SSRF guard on page-harvested fetch
 // URLs. Fetches carry the extension's <all_urls> host permissions, so every
 // private/internal literal class a page could name must be refused.
 import { test } from 'node:test';
@@ -145,4 +145,34 @@ test('allowLoopback permits loopback ONLY (explicit-user URLs)', () => {
   assert.equal(isAllowedImageUrl('http://10.0.0.5/x.png', allow), false);
   assert.equal(isAllowedImageUrl('http://169.254.169.254/x.png', allow), false);
   assert.equal(isAllowedImageUrl('http://[fe80::1]/x.png', allow), false);
+});
+
+// Each of these routes to the IPv4 it carries, so the IPv4 decides: a public one passes.
+test('IPv6 forms that embed an IPv4 are checked as that IPv4 (compatible, NAT64, 6to4)', () => {
+  for (const host of ['[::127.0.0.1]', '[::7f00:1]', '[::10.0.0.1]', '[::a9fe:a9fe]',
+    '[64:ff9b::10.0.0.1]', '[64:ff9b::7f00:1]', '[64:ff9b::a9fe:a9fe]', '[64:ff9b::c0a8:101]',
+    '[2002:7f00:1::]', '[2002:a00:1::1]', '[2002:a9fe:a9fe::]', '[2002:c0a8:101:5::9]', '[2002::]']) {
+    assert.equal(isAllowedImageUrl(`http://${host}/x.png`), false, host);
+  }
+  for (const host of ['[64:ff9b::808:808]', '[64:ff9b::8.8.8.8]', '[2002:808:808::1]']) {
+    assert.equal(isAllowedImageUrl(`http://${host}/x.png`), true, host);
+  }
+});
+
+test('the local-use NAT64 prefix 64:ff9b:1::/48 is refused whatever it carries', () => {
+  assert.equal(isAllowedImageUrl('http://[64:ff9b:1::808:808]/x.png'), false);
+  assert.equal(isAllowedImageUrl('http://[64:ff9b:1:abcd::1]/x.png'), false);
+});
+
+test('allowLoopback admits an embedded loopback, never an embedded private or metadata IPv4', () => {
+  const allow = { allowLoopback: true };
+  assert.equal(isAllowedImageUrl('http://[::127.0.0.1]/x.png', allow), true);
+  assert.equal(isAllowedImageUrl('http://[64:ff9b::10.0.0.1]/x.png', allow), false);
+  assert.equal(isAllowedImageUrl('http://[2002:a9fe:a9fe::]/x.png', allow), false);
+});
+
+test('allowSameHostAs never unlocks the metadata IP through an IPv4-embedding IPv6', () => {
+  for (const host of ['[::a9fe:a9fe]', '[64:ff9b::a9fe:a9fe]', '[2002:a9fe:a9fe::1]']) {
+    assert.equal(isAllowedImageUrl(`http://${host}/x`, { allowSameHostAs: `http://${host}/` }), false, host);
+  }
 });

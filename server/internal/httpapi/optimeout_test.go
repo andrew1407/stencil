@@ -35,6 +35,14 @@ func (s *stalledStore) GetProject(ctx context.Context, _ string) (protocol.Proje
 	return protocol.ProjectRecord{}, s.block(ctx)
 }
 
+func (s *stalledStore) GetProjectMeta(ctx context.Context, _ string) (protocol.ProjectRecord, error) {
+	return protocol.ProjectRecord{}, s.block(ctx)
+}
+
+func (s *stalledStore) ProjectExists(ctx context.Context, _ string) (bool, error) {
+	return false, s.block(ctx)
+}
+
 func stalledAPI(t *testing.T, timeout time.Duration) (*API, string) {
 	t.Helper()
 	fs, err := filestore.New(t.TempDir())
@@ -69,8 +77,8 @@ func TestSlowStoreCallsHitTheOperationTimeout(t *testing.T) {
 // field is still bounded — and it is not so tight that a normal query trips it.
 func TestOpTimeoutDefaultsAndIsAppliedToRequests(t *testing.T) {
 	api, _ := testAPI(t, "")
-	if api.deps.OpTimeout != defaultOpTimeout {
-		t.Fatalf("OpTimeout default = %v, want %v", api.deps.OpTimeout, defaultOpTimeout)
+	if api.deps.OpTimeout != store.DefaultOpTimeout {
+		t.Fatalf("OpTimeout default = %v, want %v", api.deps.OpTimeout, store.DefaultOpTimeout)
 	}
 	// And an ordinary request is untouched by it.
 	tok := issueToken(t, api, "")

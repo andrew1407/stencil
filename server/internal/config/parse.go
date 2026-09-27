@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // getter reads one env var, falling back to a default.
@@ -28,6 +29,19 @@ func positiveInt(get func(key, def string) string, key string, def, min int) (in
 		return 0, fmt.Errorf("config: invalid %s %q", key, v)
 	}
 	return n, nil
+}
+
+// byteCount reads a non-negative int64 env var through get; unset is 0.
+func byteCount(get getter, key string) (int64, error) {
+	v := get(key, "")
+	if v == "" {
+		return 0, nil
+	}
+	b, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || b < 0 {
+		return 0, fmt.Errorf("config: invalid %s %q", key, v)
+	}
+	return b, nil
 }
 
 // parseOrigins splits a comma-separated origin list, trimming blanks. Empty means "loopback origins
@@ -105,4 +119,10 @@ func parseCIDRs(raw string) ([]netip.Prefix, error) {
 		out = append(out, netip.PrefixFrom(addr.Unmap(), addr.Unmap().BitLen()))
 	}
 	return out, nil
+}
+
+// duration reads an integer count of unit through get, returning def when unset; min is the lowest count.
+func duration(get getter, key string, def, unit time.Duration, min int) (time.Duration, error) {
+	n, err := positiveInt(get, key, int(def/unit), min)
+	return time.Duration(n) * unit, err
 }

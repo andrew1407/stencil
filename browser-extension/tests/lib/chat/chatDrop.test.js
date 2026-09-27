@@ -1,5 +1,5 @@
-// Tests for the assistant section's drag-and-drop layer (src/lib/drop.js):
-// payload classification (which must REUSE lib/dragUrl.js extractDraggedUrl for
+// Tests for the assistant section's drag-and-drop layer (src/lib/chat/drop.js):
+// payload classification (which must REUSE lib/drop/dragUrl.js extractDraggedUrl for
 // cross-page image drags) and the drop-highlight wiring — driven with stub
 // DataTransfer objects and stub elements, no real DnD.
 import { test } from 'node:test';

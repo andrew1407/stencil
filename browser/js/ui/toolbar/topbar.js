@@ -1,9 +1,9 @@
 // The toolbar's top bar: the logo (with its accent menu), the collapse toggle and the
-// project-name field with its ? hints badge. ui/toolbar.js composes it into inner().
+// project-name field with its ? hints badge. ui/toolbar/toolbar.js composes it into inner().
 import { icon } from '../icons.js';
 
 export const toolbarTopbarHtml = () => `            <div class="controls-topbar">
-                <!-- The wrap exists for the hover ray layer (animations/iconHover.css): SVG
+                <!-- The wrap exists for the hover ray layer (animations/icon/hover.css): SVG
                      can't host ::before/::after, so the rays live on this span. Clicks and
                      the colour picker stay wired to the .app-logo svg itself. -->
                 <span class="app-logo-wrap">

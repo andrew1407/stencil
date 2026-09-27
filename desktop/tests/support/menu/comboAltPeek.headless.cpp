@@ -4,6 +4,7 @@
 #include "comboAltPeek.hpp"
 #include "SearchCombo.hpp"
 #include "altPeek.hpp"
+#include "uiTimings.hpp"
 
 #include <QApplication>
 #include <QCursor>
@@ -94,7 +95,7 @@ int main(int argc, char** argv) {
   QTest::qWait(POLL_SETTLE_MS);
   check(comboPopup(b) != nullptr, "released with the cursor inside the list, it lingers open");
   QCursor::setPos(away(&host));
-  QTest::qWait(POLL_SETTLE_MS + stencil::support::LINGER_CLOSE_MS);
+  QTest::qWait(POLL_SETTLE_MS + stencil::support::uiTimings().lingerCloseMs);
   check(comboPopup(b) == nullptr, "…and closes once the cursor leaves the list");
 
   hold(&host);

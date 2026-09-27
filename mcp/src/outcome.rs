@@ -6,17 +6,22 @@
 
 use serde::Serialize;
 
+mod diagnostics;
+mod scrape;
+
+pub use diagnostics::{parse_diagnostics, Diagnostic};
+pub use scrape::{parse_scraped, Scraped, ScrapedFile};
+
 // ── CLI output line prefixes ──
 const PREFIX_WROTE: &str = "wrote ";
 const PREFIX_UPDATED: &str = "updated server result for project ";
 const PREFIX_CREATED: &str = "created server project ";
-const PREFIX_SCRAPED: &str = "scraped ";
 const PREFIX_ERROR: &str = "error:";
 const PREFIX_NOTE: &str = "note:";
 
 /// A parsed success line: the resolved output path (extension auto-filled) and final size.
 /// `Serialize` produces the per-file object a script run's payload carries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub struct Wrote {
     pub path: String,
     pub width: u32,
@@ -43,7 +48,7 @@ fn wrote_lines(stderr: &str) -> impl Iterator<Item = Wrote> + '_ {
 }
 
 /// A `wrote …` line's path and the text after its LAST " (" — so a path containing " (" survives.
-fn split_wrote(line: &str) -> Option<(String, &str)> {
+pub(crate) fn split_wrote(line: &str) -> Option<(String, &str)> {
     let rest = line.trim().strip_prefix(PREFIX_WROTE)?;
     match rest.rfind(" (") {
         Some(open) => Some((rest[..open].to_string(), &rest[open + 2..])),
@@ -61,19 +66,24 @@ pub fn parse_notes(stderr: &str) -> Vec<String> {
 /// Find the `wrote {path} (project)` line a `.stencil` write prints (§2.1 `save`). A project
 /// is a document, so the CLI reports no dimensions — which is why `parse_wrote` skips it.
 pub fn parse_wrote_project(stderr: &str) -> Option<String> {
-    for line in stderr.lines() {
-        if let Some(rest) = line.trim().strip_prefix(PREFIX_WROTE) {
-            if let Some(path) = rest.strip_suffix(" (project)") {
-                return Some(path.to_string());
-            }
-        }
-    }
-    None
+    parse_documents(stderr).into_iter().find(|(_, kind)| kind == "project").map(|(p, _)| p)
+}
+
+/// Every `wrote {path} ({kind})` line whose tail is a word, not a size: `project`, and the
+/// `python` / `javascript` a `--script-emit` prints.
+pub fn parse_documents(stderr: &str) -> Vec<(String, String)> {
+    let lines = stderr.lines().filter_map(|line| {
+        let (path, tail) = split_wrote(line)?;
+        let kind = tail.strip_suffix(')')?;
+        let word = !kind.is_empty() && kind.bytes().all(|b| b.is_ascii_lowercase());
+        word.then(|| (path, kind.to_string()))
+    });
+    lines.collect()
 }
 
 /// A server-side delivery the CLI performed after the local write: the result written back
 /// into a fetched project, or pushed as a new one. `Serialize` is the wire object.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 #[serde(tag = "action", rename_all = "lowercase")]
 pub enum Remote {
     /// From `--remote-update`: `updated server result for project {id} ({w}x{h})`.
@@ -136,60 +146,13 @@ pub fn parse_remotes(stderr: &str) -> Vec<Remote> {
     out
 }
 
-/// One downloaded media file from a scrape run: its path and, for measured images, the
-/// pixel dimensions. Video and unmeasured items carry `None`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ScrapedFile {
-    pub path: String,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-}
-
-/// A parsed successful scrape: the files written plus the summary's host/directory. Pure —
-/// the caller pairs it with the exit status and `extract_errors`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Scraped {
-    pub dir: Option<String>,
-    pub host: Option<String>,
-    pub files: Vec<ScrapedFile>,
-}
-
-/// Parse the scrape mode's stderr: every `wrote …` line is one file (dims `None` where the
-/// tail is not `WxH`), and `scraped {n} file(s) from {host} into {dir}` the summary.
-pub fn parse_scraped(stderr: &str) -> Scraped {
-    let mut files = Vec::new();
-    let mut host = None;
-    let mut dir = None;
-    for line in stderr.lines() {
-        let line = line.trim();
-        if let Some((path, tail)) = split_wrote(line) {
-            let tail = tail.strip_suffix(')').unwrap_or(tail);
-            let (width, height) = match parse_dims(first_token(tail)) {
-                Some((w, h)) => (Some(w), Some(h)),
-                None => (None, None),
-            };
-            files.push(ScrapedFile { path, width, height });
-        } else if let Some(rest) = line.strip_prefix(PREFIX_SCRAPED) {
-            // "{n} file(s) from {host} into {dir}"
-            if let Some((h, d)) = rest
-                .split_once(" from ")
-                .and_then(|(_, after)| after.split_once(" into "))
-            {
-                host = Some(h.to_string());
-                dir = Some(d.to_string());
-            }
-        }
-    }
-    Scraped { dir, host, files }
-}
-
 /// The leading token of a parenthetical tail; newer builds append " px · {page}" after it.
-fn first_token(tail: &str) -> &str {
+pub(crate) fn first_token(tail: &str) -> &str {
     tail.split_whitespace().next().unwrap_or("")
 }
 
 /// Parse a leading `WxH` token (`^\d+x\d+`) into dimensions, else `None`.
-fn parse_dims(token: &str) -> Option<(u32, u32)> {
+pub(crate) fn parse_dims(token: &str) -> Option<(u32, u32)> {
     let (w, h) = token.split_once('x')?;
     Some((w.parse().ok()?, h.parse().ok()?))
 }

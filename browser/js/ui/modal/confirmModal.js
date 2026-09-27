@@ -221,7 +221,8 @@ export class StencilConfirmModal extends StencilElement {
         inp.addEventListener('input', revalidatePrompt);
         revalidatePrompt();
       }
-      setTimeout(() => { inp.focus(); inp.select(); }, 30);
+      const initial = inp.value;
+      setTimeout(() => { if (document.activeElement !== inp && inp.value === initial) { inp.focus(); inp.select(); } }, 30);
     });
   }
 }

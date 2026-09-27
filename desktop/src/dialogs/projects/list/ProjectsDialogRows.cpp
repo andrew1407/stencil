@@ -1,13 +1,12 @@
 // What refresh() writes onto one row. Every Qt::UserRole offset here is read back by the delegate
-// and pinned by tests/ProjectsDialogRows.headless.cpp.
+// and pinned by tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp.
 #include "ProjectsDialog.hpp"
 #include "projectsRowChrome.hpp"
-#include "ServerClient.hpp"
 #include <QColor>
 #include <QIcon>
-#include <QListWidget>
 #include <QPixmap>
 #include <QStringList>
+#include <QListWidgetItem>
 namespace stencil::gui {
 
   QString ProjectsDialog::projectRowTooltip(int w, int h, const QString& description,

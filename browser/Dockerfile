@@ -17,7 +17,7 @@ COPY core/ ./core/
 # (no Qt, no Doctest). Output: core/build-wasm/stencil_core.js (SINGLE_FILE).
 RUN cd core \
  && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release \
- && emmake cmake --build build-wasm -j --target stencil_wasm
+ && emmake cmake --build build-wasm -j 4 --target stencil_wasm
 
 # ---- Stage 2: serve the static app -----------------------------------------
 FROM nginx:alpine

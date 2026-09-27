@@ -2,7 +2,7 @@
 // that surface as themselves, bounded and key-free. Split from llmClient.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLlmClient, probeProvider, LlmError, sanitizeProviderText } from '../../js/llm/client.js';
+import { createLlmClient, probeProvider, providerUrl, listModels, fetchLlmInfo, LlmError, sanitizeProviderText } from '../../js/llm/client.js';
 
 // ── A mock fetch that records every request and replies from a queue ──
 // (the mock-fetch idiom from connections.test.js).
@@ -105,4 +105,22 @@ test('an unparseable / oversized error body never reaches the chat as itself', a
     assert.ok(err.message.length <= 200, err.message);
     return true;
   });
+});
+
+test('providerUrl names the endpoint the settings talk to', () => {
+  const s = { baseUrl: 'http://127.0.0.1:11434', serverUrl: 'https://stencil.example' };
+  assert.equal(providerUrl({ ...s, provider: 'ollama' }), 'http://127.0.0.1:11434');
+  assert.equal(providerUrl({ ...s, provider: 'stencil-server' }), 'https://stencil.example');
+  assert.equal(providerUrl({ ...s, provider: 'mystery' }), 'http://127.0.0.1:11434', 'an unknown provider keeps its base');
+  assert.equal(providerUrl({ provider: 'stencil-server' }), '');
+  assert.equal(providerUrl(null), '');
+});
+
+// A 30x must not carry a key or bearer token to a second host, on any provider's GET either.
+test('the probe, the model list and /llm/info never follow a redirect', async () => {
+  const { calls, fetchImpl } = makeMockFetch({ body: { data: [{ id: 'm' }], version: '1', enabled: true } });
+  await probeProvider({ provider: 'openai-compat', baseUrl: 'https://llm.example/v1', apiKey: 'sk-x' }, { fetchImpl });
+  await listModels({ provider: 'ollama', baseUrl: 'http://localhost:11434' }, { fetchImpl });
+  await fetchLlmInfo('http://srv:8090', { token: 't', fetchImpl });
+  assert.deepStrictEqual(calls.map((c) => c.init.redirect), ['error', 'error', 'error']);
 });

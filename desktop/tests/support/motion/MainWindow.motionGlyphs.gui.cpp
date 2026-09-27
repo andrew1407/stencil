@@ -89,7 +89,7 @@ class MainWindowGuiTest : public QObject {
           win.openPathFromOS(guiTestImage());
           break;
         case CREATED_BLANK:
-          win.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
+          win.parts.sourceOpener.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
           break;
         case REOPENED_PROJECT:
           QVERIFY2(!win.activeProjectId.isEmpty(), "the loaded image was adopted as a project");
@@ -126,7 +126,10 @@ class MainWindowGuiTest : public QObject {
         // The open's own arrival has to land first, or the rebind inherits its dust.
         QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
                                   stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
-        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId, /*animate=*/false), name);
+        bool landed = false;
+        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId, /*animate=*/false,
+                                           [&landed](bool ok) { landed = ok; }), name);
+        QTRY_VERIFY2_WITH_TIMEOUT(landed, name, 5000);   // the rebind decodes off the GUI thread
         settle([&] { return win.findChild<QWidget*>(DUST) != nullptr; }, 150);
         QVERIFY2(!win.findChild<QWidget*>(DUST), "a rebind is not an image appearing");
       }

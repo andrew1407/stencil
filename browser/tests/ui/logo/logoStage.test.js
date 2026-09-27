@@ -1,4 +1,4 @@
-// The logo stage itself (js/ui/stage.js): when it may open, the lock it puts on the
+// The logo stage itself (js/ui/logo/stage.js): when it may open, the lock it puts on the
 // keyboard while it is up, and what a click on the mark does versus a click beside it.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -121,11 +121,11 @@ test('closing unhooks the document, so the editor gets its keyboard back', () =>
 
 test("the stage's canvas takes the stage's hand, not the editor's crosshair", () => {
   const css = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), 'utf8');
-  const aim = css('css/layout/canvasCursor.css').match(/^(body:not\([^)]*\):not\([^)]*\)) canvas \{ cursor: crosshair; \}/m);
+  const aim = css('css/layout/canvas/cursor.css').match(/^(body:not\([^)]*\):not\([^)]*\)) canvas \{ cursor: crosshair; \}/m);
   assert.ok(aim, 'the crosshair rule moved');
   assert.ok(css('css/components/logoStage.css').includes(`${aim[1]} .logo-stage canvas { cursor: inherit; }`));
   const page = css('index.html');
-  assert.ok(page.indexOf('components/logoStage.css') > page.indexOf('layout/canvasCursor.css'), 'the stage sheet loads last');
+  assert.ok(page.indexOf('components/logoStage.css') > page.indexOf('layout/canvas/cursor.css'), 'the stage sheet loads last');
 });
 
 test('a chase opened with the pointer standing still heads for that pointer, not the centre', async () => {

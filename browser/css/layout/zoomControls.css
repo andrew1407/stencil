@@ -27,7 +27,7 @@
     padding: 4px 0;
 }
 .zoom-menu[hidden] { display: none; }
-/* While open, the menu is moved to <body> (js/ui/dropdownMenu.js) — same portal contract
+/* While open, the menu is moved to <body> (js/ui/control/dropdownMenu.js) — same portal contract
    as .accent-dd-menu (components/accentPicker.css), which used to slice this list under the row below. */
 .zoom-menu.dd-portal {
     position: fixed;

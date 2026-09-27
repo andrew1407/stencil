@@ -1,4 +1,4 @@
-//! Opt-in benchmarks for the three hot paths: `cargo test -- --ignored`, out of CI because
+//! Opt-in benchmarks for the two hot paths: `cargo test -- --ignored`, out of CI because
 //! no clock survives a loaded runner. Every assertion is RELATIVE — a ratio between two
 //! sizes of the same call — so they catch an algorithmic regression, not tuning noise. The
 //! signal is the ns/call each case prints; the README records today's numbers.
@@ -8,14 +8,13 @@ use std::time::{Duration, Instant};
 use serde_json::json;
 use stencil_mcp::args::{build_argv, EditParams};
 use stencil_mcp::llmtransport::sanitize_detail;
-use stencil_mcp::opplan::schema::{schema, JsonObject};
 
 /// Batches per measurement; the best (min) one drops noise, as the core's `best_ms` does.
 const REPS: u32 = 5;
 
 /// Best per-call cost over `REPS` batches of `rounds`, printed and handed back.
 fn per_call(name: &str, rounds: u32, mut body: impl FnMut()) -> Duration {
-    body(); // one warm round: every path here parses the embedded registry lazily
+    body(); // one warm round: the first call pays for any lazy table
     let mut best = Duration::MAX;
     for _ in 0..REPS {
         let started = Instant::now();
@@ -30,48 +29,6 @@ fn per_call(name: &str, rounds: u32, mut body: impl FnMut()) -> Duration {
 
 fn ratio(bigger: Duration, smaller: Duration) -> f64 {
     bigger.as_secs_f64() / smaller.as_secs_f64()
-}
-
-fn object(value: serde_json::Value) -> JsonObject {
-    value.as_object().expect("an object").clone()
-}
-
-/// A `layout` action carrying one line of `points` points.
-fn layout_action(points: usize) -> JsonObject {
-    let pts: Vec<_> = (0..points).map(|i| json!({ "x": i, "y": i * 2 })).collect();
-    object(json!({
-        "op": "layout",
-        "lines": [{ "points": pts, "color": "#FF0000", "style": "dashed", "thickness": 2 }]
-    }))
-}
-
-/// `validate_action` is the hottest path here — the whole fixture corpus walks through it.
-/// Its cost must stay LINEAR: an 8x longer point list may not cost more than 8x, with room.
-#[test]
-#[ignore = "bench: run with --ignored"]
-fn validate_action_scales_linearly_in_plan_size() {
-    let s = schema();
-    let layout = s.entry("layout").expect("layout is registered").clone();
-    let crop_entry = s.entry("crop").expect("crop is registered").clone();
-    let crop = object(json!({
-        "op": "crop",
-        "spec": { "x1": "10%", "x2": "-10%", "y1": "0", "y2": "1.5cm", "aspect": "16:9" }
-    }));
-    let (small, big) = (layout_action(64), layout_action(512));
-
-    per_call("validate_action(crop)", 5_000, || {
-        s.validate_action(&crop, &crop_entry).expect("the crop action is valid");
-    });
-    let small_cost = per_call("validate_action(layout, 64 points)", 500, || {
-        s.validate_action(&small, &layout).expect("the small layout is valid");
-    });
-    let big_cost = per_call("validate_action(layout, 512 points)", 100, || {
-        s.validate_action(&big, &layout).expect("the big layout is valid");
-    });
-
-    let grew = ratio(big_cost, small_cost);
-    println!("validate_action: 8x the points cost {grew:.2}x");
-    assert!(grew < 16.0, "8x the points cost {grew:.2}x — validation is no longer linear");
 }
 
 /// The sanitizer only ever scans the first 800 characters, so a 20x longer message must

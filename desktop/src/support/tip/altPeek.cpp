@@ -1,4 +1,5 @@
 #include "altPeek.hpp"
+#include "uiTimings.hpp"
 
 #include <QList>
 #include <QPointer>
@@ -34,7 +35,7 @@ namespace stencil::support {
   AltPeekGesture::AltPeekGesture(Deps deps, QObject* parent)
       : QObject(parent), deps(std::move(deps)) {
     linger.setSingleShot(true);
-    linger.setInterval(LINGER_CLOSE_MS);
+    linger.setInterval(uiTimings().lingerCloseMs);
     connect(&linger, &QTimer::timeout, this, [this] {
       if (state == Mode::LINGER) closeOwn();
     });

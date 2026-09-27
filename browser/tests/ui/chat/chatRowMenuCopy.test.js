@@ -1,4 +1,4 @@
-// Copying and opening (js/ui/view.js): the exact text to the clipboard with an
+// Copying and opening (js/ui/chat/view.js): the exact text to the clipboard with an
 // execCommand fallback, the native menu kept where it belongs, and the surface hooks.
 import { test } from 'node:test';
 import assert from 'node:assert';

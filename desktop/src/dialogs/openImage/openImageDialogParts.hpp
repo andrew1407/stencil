@@ -41,7 +41,7 @@ namespace stencil::gui {
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(OI_CHECK_GAP);   // .oi-crop-opt / .oi-incognito gap
     box = new QCheckBox(parent);
-    box->setObjectName(QStringLiteral("captionCheck"));   // app.qss: no spacing, no gap chip
+    box->setObjectName(QStringLiteral("captionCheck"));   // qss/app/fields.qss: no spacing, no gap chip
     auto* hint = new QLabel(text, parent);
     hint->setWordWrap(true);
     // Centred against the row's own height, what the browser's align-items: center gives - and, for a
@@ -66,7 +66,7 @@ namespace stencil::gui {
   }
 
   // QTabWidget::setTabBar is protected — this shim installs the browser-parity
-  // underline tab strip (support/UnderlineTabBar.hpp) before any tab is added.
+  // underline tab strip (support/control/UnderlineTabBar.hpp) before any tab is added.
   struct OiTabWidget : QTabWidget {
     explicit OiTabWidget(QWidget* parent) : QTabWidget(parent) {
       setTabBar(new UnderlineTabBar(this));

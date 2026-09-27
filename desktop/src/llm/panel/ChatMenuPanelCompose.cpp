@@ -1,9 +1,8 @@
-// The flyout composer's action row. Browser twin js/ui/chatComposer.js: Send stays
+// The flyout composer's action row. Browser twin js/ui/chat/composer/chatComposer.js: Send stays
 // inline and everything else lives behind the "…", which also carries the status dot.
 #include "ChatMenuPanel.hpp"
 #include "chatMenuPanelParts.hpp"
 
-#include "chatWidgets.hpp"              // makeChatAccentButton
 #include "../../support/motion/MenuShimmer.hpp"   // the shared per-row hover sweep
 #include "../../support/guiHelpers.hpp"    // compactIconMenu / fitMenuWidth
 #include "../../support/menu/menuReveal.hpp"    // the menu grows out of its trigger

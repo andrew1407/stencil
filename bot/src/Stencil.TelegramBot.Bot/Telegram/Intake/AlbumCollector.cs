@@ -8,16 +8,18 @@ public sealed record AlbumPhoto(int MessageId, string FileId, string? Caption);
 // settle window.
 public sealed class AlbumCollector
 {
-    // Album members usually land within ~a second.
-    private static readonly TimeSpan _defaultSettle = TimeSpan.FromSeconds(1);
-
     private readonly Func<CancellationToken, Task> _settle;
     private readonly ConcurrentDictionary<(long UserId, string GroupId), Group> _groups = new();
     private readonly ConcurrentDictionary<Task, byte> _inFlight = new();
 
-    public AlbumCollector(Func<CancellationToken, Task>? settle = null)
+    public AlbumCollector(TimeSpan settle)
+        : this(ct => Task.Delay(settle, ct))
     {
-        _settle = settle ?? (ct => Task.Delay(_defaultSettle, ct));
+    }
+
+    public AlbumCollector(Func<CancellationToken, Task> settle)
+    {
+        _settle = settle;
     }
 
     // Runs in the background — the caller must NOT hold per-user locks the flush itself acquires.

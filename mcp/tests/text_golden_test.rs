@@ -1,6 +1,5 @@
 //! Byte-exact goldens for the MCP server's user-facing prose: every `#[tool]` description
-//! and the `ServerHandler::get_info()` instructions. That text is slated to
-//! move into JSON assets, so these pin the current bytes to prove the move is verbatim.
+//! and the `ServerHandler::get_info()` instructions, as a client receives them.
 //! Rewrite with `MCP_UPDATE_GOLDENS=1 cargo test`.
 
 use rmcp::ServerHandler;
@@ -80,6 +79,30 @@ fn the_tool_descriptions_match_their_goldens() {
     check(
         "source_site.txt",
         &description(StencilServer::source_site_tool_attr()),
+    );
+    check(
+        "stencil_script_check.txt",
+        &description(StencilServer::stencil_script_check_tool_attr()),
+    );
+    check(
+        "stencil_script_plan.txt",
+        &description(StencilServer::stencil_script_plan_tool_attr()),
+    );
+    check(
+        "stencil_script_emit.txt",
+        &description(StencilServer::stencil_script_emit_tool_attr()),
+    );
+    check(
+        "stencil_projects.txt",
+        &description(StencilServer::stencil_projects_tool_attr()),
+    );
+    check(
+        "stencil_project_update.txt",
+        &description(StencilServer::stencil_project_update_tool_attr()),
+    );
+    check(
+        "stencil_project_file.txt",
+        &description(StencilServer::stencil_project_file_tool_attr()),
     );
 }
 

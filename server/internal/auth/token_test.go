@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // stubResolver maps a token hash to a session for tests.
@@ -91,7 +92,7 @@ func TestBearerTokenExtraction(t *testing.T) {
 func TestMiddlewareQueryTokenOnlyOnWebSocketUpgrade(t *testing.T) {
 	token, hash, _ := GenerateToken()
 	res := stubResolver{hash: hash, sess: Session{ID: "s1"}} // ExpiresAt 0 = no expiry
-	protected := Middleware(res)(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+	protected := Middleware(res, time.Second)(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	}))
 
@@ -117,7 +118,7 @@ func TestMiddlewareGate(t *testing.T) {
 	r := stubResolver{hash: hash, sess: Session{ID: "s1", ExpiresAt: 0}} // 0 = no expiry
 
 	var sawSession string
-	protected := Middleware(r)(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	protected := Middleware(r, 0)(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		s, ok := SessionFromContext(req.Context())
 		if !ok {
 			t.Error("no session in context")

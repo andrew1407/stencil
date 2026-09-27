@@ -2,19 +2,18 @@
 // arithmetic, the dock-away point, the speck grain and the reduced-motion/settle contract.
 import test from 'node:test';
 import assert from 'node:assert';
-import { motionSource } from '../helpers/motionSource.js';
 
 import {
   surfaceMotion, dockAwayPoint, reshapeGrid, settleSurface,
-  surfaceIn, surfaceOut, cancelDust,
-  SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPECK_PX,
+  surfaceIn, surfaceOut, surfaceDust, cancelDust,
+  SURFACE_IN_MS, SURFACE_OUT_MS, SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPECK_PX,
   SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../helpers/css.js';
+import { installDustPage, rect } from '../helpers/dustPageRig.js';
 
 const animCss = ANIMATIONS_CSS;
-const motionJs = motionSource();
 
 const BOX = { left: 400, top: 200, width: 600, height: 400 };
 const ICON = { x: 60, y: 40 };
@@ -96,18 +95,24 @@ test('dockAwayPoint keeps the panel’s own slide direction', () => {
 
 // ── 3. Specks, and never clones ─────────────────────────────────────────────
 
-test('a surface never dusts as copies of ITSELF — a cloud carries no identity', () => {
+test('a surface never dusts as copies of ITSELF — a cloud carries no identity', (t) => {
   // A surface's cloud lands on <body>, so it is specks and not clones: a few hundred copies of a
   // menu would answer to `.ctx-sub`, `#chat-…` and every query the app and its tests make.
-  const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
-  // (`paint` is the caller's colour override — a mark whose ink has already left the
-  // element by the time it flies; it changes the COLOUR, never the specks.)
-  assert.match(dust, /paintTile: speckPainter\(el, paint\),/, 'a surface always paints specks');
-  assert.ok(!/makeCopy/.test(dust.slice(0, dust.indexOf('settleSurface'))),
-    'and never hands disintegrate an element to copy');
-  assert.ok(!/cloneForTile|cloneNode/.test(motionJs.slice(motionJs.indexOf('// ── Surfaces'),
-                                                          motionJs.indexOf('// ── Hover popups'))),
-    'nothing in the surface section clones a node');
+  const page = installDustPage(t);
+  let copies = 0;
+  const el = page.entry(() => rect(400, 200, 600, 400), rect(0, 0, 2000, 2000), { cloneNode: () => { copies++; } });
+  el.classList.add('ctx-sub');
+  el.id = 'chat-panel';
+  assert.ok(surfaceIn(el, ICON));
+  const plain = page.clouds()[0];
+  // (`paint` is the caller's colour override — a mark whose ink has already left the element by
+  // the time it flies; it changes the COLOUR, never the specks.)
+  assert.ok(surfaceDust(el, ICON, { ms: SURFACE_OUT_MS, gather: false, paint: { fill: '#f00', edge: '#00f' } }));
+  assert.strictEqual(copies, 0, 'nothing hands disintegrate an element to copy');
+  for (const host of [plain, page.clouds()[0]]) {
+    assert.ok(!host.classList.contains('ctx-sub') && host.id !== 'chat-panel', 'the layer carries no identity');
+    assert.ok(host.__cloud.motes.every((m) => m.r * 2 <= SURFACE_SPECK_PX * 1.12), 'every mote is a grain, never a cell');
+  }
 });
 
 test('a surface is grained at least as fine as a row, under its own mote ceiling', () => {
@@ -186,24 +191,36 @@ test('settling drops both the classes and the cloud, and is safe on anything', (
   cancelDust(null);
 });
 
-test('one cloud per element: a superseding open/close drops the one in the air', () => {
+test('one cloud per element: a superseding open/close drops the one in the air', (t) => {
   // disintegrate() cancels before it builds, which is what stops a double-clicked menu
-  // stranding a layer over the page.
-  const body = motionJs.slice(motionJs.indexOf('export function disintegrate'));
-  assert.match(body, /\/\/ One cloud per element[\s\S]{0,320}?if \(own\) cancelDust\(el\);/);
-  // Every surface flight settles the element first. Options are pinned by NAME, not as a verbatim
-  // parameter list: the list grows, and a signature-shaped regex only says the file was edited.
-  assert.match(motionJs, /const playSurface = \(el, point, \{[^}]*\bbox = null\b[^}]*\}\) => \{\s*\n\s*if \(!el\?\.classList\) return false;\s*\n\s*settleSurface\(el\);/);
+  // stranding a layer over the page — and every surface flight settles the element first.
+  const page = installDustPage(t);
+  const el = page.entry(() => rect(400, 200, 600, 400), rect(0, 0, 2000, 2000));
+  surfaceIn(el, ICON);
+  const first = el.__dustHost;
+  surfaceOut(el, ICON);
+  assert.deepStrictEqual(page.clouds(), [el.__dustHost], 'one layer in the air');
+  assert.notStrictEqual(el.__dustHost, first);
+  assert.ok(el.classList.contains(SURFACE_LEAVING_CLASS) && !el.classList.contains(SURFACE_FORMING_CLASS));
+  assert.ok(!page.delays().some((ms) => ms === SURFACE_IN_MS + 60 || ms === SURFACE_IN_MS + 150),
+    'the superseded flight\'s timers are cleared with it');
   // The layer removes itself even if nobody ever settles it.
-  assert.match(body, /const life = setTimeout\(\(\) => \{[\s\S]*?host\.remove\(\);/);
-  assert.match(body, /if \(own\) \{ el\.__dustHost = host; el\.__dustTimer = life; \}/);
+  page.fire(SURFACE_OUT_MS + 150);
+  assert.deepStrictEqual([page.clouds().length, el.__dustHost, el.__dustTimer], [0, null, null]);
+  // The bare builder cancels too, with no settle in front of it.
+  surfaceDust(el, ICON, { ms: SURFACE_IN_MS, gather: true });
+  surfaceDust(el, ICON, { ms: SURFACE_IN_MS, gather: true });
+  assert.strictEqual(page.clouds().length, 1, 'disintegrate drops the cloud it supersedes');
 });
 
-test('the box is measured with its own entrance suppressed, or every mote is icon-sized', () => {
+test('the box is measured with its own entrance suppressed, or every mote is icon-sized', (t) => {
   // modalFromIcon / chatSlide* / menuPop all FILL an icon-sized from-state, so a rect
   // read under them is the icon's box. The marker goes on first and kills it.
-  const play = motionJs.slice(motionJs.indexOf('const playSurface ='), motionJs.indexOf('export const surfaceIn'));
-  assert.ok(play.indexOf('classList.add(SURFACE_DRIVEN_CLASS)') < play.indexOf('surfaceDust('),
-    'the marker precedes the measure');
+  const page = installDustPage(t);
+  const driven = [];
+  const el = page.entry(() => { driven.push(el.classList.contains(SURFACE_DRIVEN_CLASS)); return rect(400, 200, 600, 400); },
+    rect(0, 0, 2000, 2000));
+  assert.ok(surfaceIn(el, ICON));
+  assert.ok(driven.length && driven.every(Boolean), 'the marker precedes every measure');
   assert.match(animCss, /\.dust-driven \{ animation: none !important; \}/);
 });

@@ -2,7 +2,7 @@
    Rows in a long scroller fade + lift into place as they enter and dissolve
    again as they leave. motion.js only adds .reveal-item once it has an
    IntersectionObserver to drive it, so a row is never stranded at the dimmed
-   rest state. Mirrors browser/css/animations/reveal.css. */
+   rest state. Mirrors browser/css/animations/reveal/reveal.css. */
 @property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
 
 .reveal-item {
@@ -59,7 +59,7 @@
        row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
        the layer stopping at the box edge the mask erased it (and its hit-testing with it:
        the row stayed hoverable, the control did not). Only the vertical mapping matters to
-       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations/reveal.css. */
+       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations/reveal/reveal.css. */
     -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
@@ -139,7 +139,7 @@
     pointer-events: none;
     overflow: visible;
 }
-/* The cloud is ONE canvas inside the layer (lib/dustCloud.js): every grain is drawn
+/* The cloud is ONE canvas inside the layer (lib/dust/cloud.js): every grain is drawn
    there per frame in a few batched fills, so a dialog-sized cloud is one layer, not a
    compositor layer per mote. The flights that used to be keyframes here (stTileScatter,
    stTileGather, stTileGatherSurface, stTileScatterSurface) are dustCloud's FLIGHTS

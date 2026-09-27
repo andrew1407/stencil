@@ -117,6 +117,24 @@ inline void film(const QString& name, QWidget* w, int ms, int everyMs) {
   std::printf("  %s/ (frames)\n", qPrintable(name));
 }
 
+// The URLs, prompts and canned plan come from config/shared.json through desktop.mjs; the
+// literal is the same value, for a run started by hand.
+inline QString envOr(const char* key, const char* fallback) {
+  const QString value = qEnvironmentVariable(key);
+  return value.isEmpty() ? QString::fromUtf8(fallback) : value;
+}
+
+inline QString suffixed(const QString& name, const QString& theme) { return name + "-" + theme; }
+
+inline stencil::core::Line line(std::vector<stencil::core::Point> pts, const char* color, double thick, const char* style) {
+  stencil::core::Line l;
+  l.points = std::move(pts);
+  l.color = color;
+  l.thickness = thick;
+  l.style = style;
+  return l;
+}
+
 // Menu text carries mnemonics: "&&" is a literal ampersand, a lone "&" marks the key.
 inline QAction* actionNamed(QWidget& root, const QString& text) {
   for (QAction* a : root.findChildren<QAction*>()) {
@@ -151,6 +169,12 @@ class MainWindowGuiTest {
  public:
   static void windowStates(const QString& theme, const ShotSet& shots);
   static void themeClip();
+  // windowStates' later shots by feature, each in its turn over the one window.
+  static void assistantShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
+  static void dialogShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
+  static void videoShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // Fit the image to the window, then clear the toasts the load left.
+  static void fit(stencil::gui::MainWindow& win);
   // `load` puts a clip on a tab the way that tab's own control does; `crop` also ticks the
   // quick-crop box, so the rect lands over the player.
   static void grabVideoDialog(stencil::gui::MainWindow& win, const QString& name,

@@ -2,7 +2,7 @@
 // sending and executing a plan leave the menu open. `host` is the menu's own state.
 import { notify } from '../../utils.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';
-import { loadLlmSettings, serverBearerToken } from '../../llm/settings.js';
+import { loadLlmSettings, serverBearerToken, withSessionKey } from '../../llm/settings.js';
 import { probeProvider } from '../../llm/client.js';
 import { MAX_ATTACHMENTS } from '../../llm/chat/controller.js';
 import {
@@ -51,7 +51,7 @@ export const wireCtxAssistantChat = (app, host, openChatPanel) => {
     const known = cachedProbe(settings);
     if (known) { setDot(known); return; }
     setDot(null);
-    probeProvider(settings, { getToken: (url) => serverBearerToken(app, url) })
+    probeProvider(withSessionKey(settings), { getToken: (url) => serverBearerToken(app, url) })
       .then((probe) => { cacheProbe(settings, probe); setDot(probe); })
       .catch(() => setDot({ ok: false }));
   };

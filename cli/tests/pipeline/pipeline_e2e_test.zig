@@ -200,3 +200,22 @@ test "pipeline: --confine-output refuses an output path outside the cwd; the def
     try pipeline.run(a, io, opts);
     try dir.access(io, rel, .{});
 }
+
+test "pipeline: --confine-output refuses a relative path a symbolic link carries out of the cwd" {
+    if (@import("builtin").os.tag == .windows) return error.SkipZigTest; // links need privileges there
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+    const link = "stencil_confine_link"; // → /tmp: testing.tmpDir would sit inside the cwd
+    const landed = "/tmp/stencil_confine_link_out.png";
+    dir.deleteFile(io, link) catch {};
+    try dir.symLink(io, "/tmp", link, .{ .is_directory = true });
+    defer dir.deleteFile(io, link) catch {};
+    defer dir.deleteFile(io, landed) catch {};
+
+    const opts = args.Options{ .blank = .{ .width = 16, .height = 12, .color = "white" }, .output = link ++ "/stencil_confine_link_out", .confine_output = true };
+    try testing.expectError(error.UnsafeOutputPath, pipeline.run(a, io, opts));
+    try testing.expectError(error.FileNotFound, dir.access(io, landed, .{}));
+}

@@ -131,7 +131,10 @@ namespace stencil::core::script {
           continue;
         }
         TemplateDef def;
-        def.name = joinWords(st.args);  // every word before the ':' — "lines and rect" is one name
+        // Every word before the ':' — "lines and rect" is one name — glued as a call reads it.
+        const std::vector<Token> words = gluedWords(st.args);
+        for (std::size_t w = 0; w < words.size(); ++w)
+          def.name += (w > 0 ? " " : "") + unquoteWord(words[w].text);
         def.line = st.line;
         def.col = st.col;
         def.len = st.len;

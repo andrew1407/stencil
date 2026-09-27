@@ -2,24 +2,14 @@
 
 #include "controlReveal.hpp"
 #include "cssColor.hpp"
-#include "../../support/control/FlowLayout.hpp"
 #include "../../support/guiHelpers.hpp"
 #include "../../support/icon/iconSet.hpp"
-#include "../../support/modal/modalReveal.hpp"
-#include "../../support/control/numericInput.hpp"
-#include "../../support/menu/SearchCombo.hpp"
 #include <QComboBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QFrame>
 #include <QPushButton>
-#include <QSize>
 #include <QTimer>
 #include <QResizeEvent>
-#include <QSignalBlocker>
-#include <QSpinBox>
-#include <QVBoxLayout>
 #include <cmath>
+#include <QSpinBox>
 
 namespace stencil::gui {
 

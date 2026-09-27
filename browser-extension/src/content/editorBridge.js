@@ -80,7 +80,7 @@
     }
   });
 
-  // Request/response: an id-tagged EXT_REQ to js/core/extensionBridge.js, answered EXT_RES.
+  // Request/response: an id-tagged EXT_REQ to js/core/launch/extensionBridge.js, answered EXT_RES.
   // Capped — an editor build without that module never replies at all.
   const PAGE_TIMEOUT_MS = 1500;
   const PAGE_SILENT = 'the editor page did not answer';

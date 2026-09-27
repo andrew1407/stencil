@@ -1,6 +1,6 @@
-// Headless check of the modal-popover placement (src/support/popover.hpp) — the desktop
+// Headless check of the modal-popover placement (src/support/tip/popover.hpp) — the desktop
 // port of browser/js/ui/tip/popover.js popoverPosition, kept rule-for-rule with the browser's
-// tests/popover.test.js placement cases: below the anchor left-aligned, flipped above on
+// browser/tests/ui/tip/popover.test.js placement cases: below the anchor left-aligned, flipped above on
 // bottom overflow, clamped inside the screen on both axes. Pure QtCore; no display needed.
 #include "popover.hpp"
 

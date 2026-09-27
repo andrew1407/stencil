@@ -13,9 +13,11 @@ from pystencil.llm import (
   OpPlan,
 )
 from tests.helpers.stubs import _StubClient, _plan_json
+from tests.helpers.nativecase import needs_core
 
 
 class ChatTest(unittest.TestCase):
+  @needs_core
   def test_send_returns_reply_and_plan(self) -> None:
     client = _StubClient(_plan_json(reply="hi there"))
     chat = Chat(client)
@@ -29,6 +31,7 @@ class ChatTest(unittest.TestCase):
     self.assertEqual(chat.history[1]["role"], "assistant")
     self.assertEqual(chat.history[1]["text"], _plan_json(reply="hi there"))
 
+  @needs_core
   def test_history_is_bounded_to_32_messages(self) -> None:
     chat = Chat(_StubClient(_plan_json()))
     for i in range(40):
@@ -37,6 +40,7 @@ class ChatTest(unittest.TestCase):
     # The retained window is the most recent one (oldest turns evicted).
     self.assertEqual(chat.history[-2]["text"], "turn 39")
 
+  @needs_core
   def test_image_replay_rule(self) -> None:
     client = _StubClient(_plan_json())
     chat = Chat(client)
@@ -66,6 +70,7 @@ class ChatTest(unittest.TestCase):
       chat.send("bad", images=[b"just bytes"])
     self.assertEqual(chat.history, [])  # a rejected turn never joins history
 
+  @needs_core
   def test_chat_only_reply_round_trips(self) -> None:
     chat = Chat(_StubClient("No JSON, just words."))
     reply, plan = chat.send("chat?")
@@ -106,6 +111,7 @@ class ChatSystemAndTransientTest(unittest.TestCase):
       "edges.",
     )
 
+  @needs_core
   def test_system_override_is_per_call_only(self):
     client = _StubClient(_plan_json())
     chat = Chat(client)
@@ -114,6 +120,7 @@ class ChatSystemAndTransientTest(unittest.TestCase):
     self.assertTrue(client.systems[0].endswith(EDGE_MAP_SUFFIX))
     self.assertEqual(client.systems[1], LLM_SYSTEM_PROMPT)  # not remembered
 
+  @needs_core
   def test_transient_images_ride_current_turn_and_never_replay(self):
     client = _StubClient(_plan_json())
     chat = Chat(client)

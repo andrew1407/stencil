@@ -17,9 +17,9 @@ namespace stencil::core {
       std::vector<std::string> toks;
       std::size_t i = 0;
       while (i < s.size()) {
-        while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i]))) ++i;
+        while (i < s.size() && isAsciiSpace(s[i])) ++i;
         const std::size_t start = i;
-        while (i < s.size() && !std::isspace(static_cast<unsigned char>(s[i]))) ++i;
+        while (i < s.size() && !isAsciiSpace(s[i])) ++i;
         if (i > start) toks.push_back(s.substr(start, i - start));
       }
       return toks;

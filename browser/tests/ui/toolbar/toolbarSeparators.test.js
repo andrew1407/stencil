@@ -5,7 +5,7 @@ import { installDom, createStubElement } from '../../helpers/dom.js';
 
 // The toolbar's hairlines are painted by .ctrl-section::before inside the column gap, so
 // they take no width: a section that begins a wrapped row drops the one in front of it
-// (js/ui/separators.js) and nothing about that choice can move the wrap.
+// (js/ui/toolbar/separators.js) and nothing about that choice can move the wrap.
 const GAP = 21;
 
 // A wrapping row of sections only — the real toolbar's flow. Each section is `secW` wide
@@ -85,13 +85,13 @@ test('one pass is a fixed point: a second call at the same geometry changes noth
   } finally { dom.restore(); }
 });
 
-test('the hairline is painted out of flow, so marking it cannot move the wrap', () => {
+test('the hairline is painted out of flow, so marking it cannot move the wrap', async () => {
+  const { StencilToolbar } = await import('../../../js/ui/toolbar/toolbar.js');
   const css = readFileSync(new URL('../../../css/layout/controlRows.css', import.meta.url), 'utf8');
-  const toolbar = readFileSync(new URL('../../../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
   assert.match(css, /\.ctrl-section \+ \.ctrl-section::before \{[^}]*position: absolute;/);
   assert.match(css, /\.ctrl-section\.ctrl-sep-wrapped::before \{ content: none; \}/);
   // No separator ELEMENT anywhere: one between two sections would put its own width back
   // into the wrap it is deciding, and the answer would oscillate again.
-  assert.ok(!toolbar.includes('ctrl-sep'), 'the toolbar emits no separator element');
+  assert.ok(!StencilToolbar.inner().includes('ctrl-sep'), 'the toolbar renders no separator element');
   assert.ok(!/^\.ctrl-sep \{/m.test(css), 'no separator element is styled');
 });

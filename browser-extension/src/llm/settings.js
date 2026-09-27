@@ -1,10 +1,11 @@
 // ── LLM assistant settings (llm-contract.md §5 + §8) ───────────────────
 // Persisted provider configuration in the contract's shape { provider, baseUrl, model,
 // apiKey, serverUrl } plus the extension's own `serverToken`. Stored under the chrome.storage
-// key `llmSettings`, in storage.local so the apiKey never syncs across machines. All chrome.*
-// access is guarded, so importing this module under `node --test` stays inert.
+// key `llmSettings`, in storage.local so the apiKey never syncs across machines; the anthropic
+// key never lands here (sessionKey.js). All chrome.* access is guarded for `node --test`.
 import PROVIDERS_ASSET from '../config/providers.json' with { type: 'json' };
 import { loadConnections } from '../lib/connection/connections.js';
+import { sessionKey } from './sessionKey.js';
 
 export const LLM_SETTINGS_KEY = 'llmSettings';
 
@@ -69,17 +70,26 @@ export const loadLlmSettings = async ({ connections } = {}) => {
     /* storage unavailable (Node) / corrupt — fall back to the defaults */
   }
   if (!PROVIDERS.includes(out.provider)) out.provider = 'ollama';
+  if (out.provider === 'anthropic') out.apiKey = '';
   // An empty saved serverUrl keeps following the first configured connection.
   if (!out.serverUrl) out.serverUrl = defaults.serverUrl;
   return out;
 };
 
+// What a request is built from: for anthropic the stored settings plus the session key, never
+// kept or saved ('' when none is held, so the client sends nothing).
+export const withSessionKey = async (settings) =>
+  (settings?.provider === 'anthropic' ? { ...settings, apiKey: await sessionKey() } : settings);
+
 export const saveLlmSettings = async (s = {}) => {
+  const provider = PROVIDERS.includes(s.provider) ? s.provider : 'ollama';
+  // The anthropic key is never stored, nor anything that is the held session key.
+  const secret = provider === 'anthropic' || (s.apiKey && s.apiKey === await sessionKey());
   const slim = {
-    provider: PROVIDERS.includes(s.provider) ? s.provider : 'ollama',
+    provider,
     baseUrl: s.baseUrl || '',
     model: s.model || '',
-    apiKey: s.apiKey || '',
+    apiKey: secret ? '' : (s.apiKey || ''),
     serverUrl: s.serverUrl || '',
     serverToken: s.serverToken || '',
     // Explicit === true: anything short of a real opt-in stays off.

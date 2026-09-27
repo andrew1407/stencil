@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Llm;
 using Stencil.TelegramBot.Tests.Doubles;
 using static Stencil.TelegramBot.Tests.Llm.Wire.LlmWireRig;

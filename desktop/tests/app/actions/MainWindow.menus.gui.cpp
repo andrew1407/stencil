@@ -16,6 +16,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     // ── assistant OFF: no Assistant entry at all, nothing even built ──
     bool sawAssistantWhenOff = true, sawNormalAction = false, doubleSeparator = false;
@@ -40,10 +41,10 @@ class MainWindowGuiTest : public QObject {
       filterOpenedOff = openSubByKey(menu, "Image Filter") != nullptr;
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(!sawAssistantWhenOff, "the Assistant entry showed with the assistant off");
     QVERIFY2(sawNormalAction, "the rest of the context menu went missing");
-    QVERIFY2(!win.chatMenuAction, "the chat panel was built despite provider=none");
+    QVERIFY2(!win.chatSession->chatMenuAction, "the chat panel was built despite provider=none");
     QVERIFY2(styleOpenedOff && filterOpenedOff, "submenus did not open (assistant off)");
     QVERIFY2(!doubleSeparator, "the hidden Assistant entry left a dangling separator");
 
@@ -61,7 +62,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     bool styleOpened = false, filterOpened = false, assistantOpened = false;
     bool tooltipByKey = false, assistantBeforeDrawing = false;
@@ -110,7 +111,7 @@ class MainWindowGuiTest : public QObject {
                     sub->property(stencil::support::DUST_MS_PROP).toInt()};  // the slower clock
       menu->close();
     });
-    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
     QVERIFY2(styleOpened, "the Image / Layout submenu stopped hover-opening");
     QVERIFY2(filterOpened, "the Image Filter submenu stopped opening");
@@ -124,7 +125,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(separatorsOn, separatorsOff);
     QCOMPARE(dustClocks, QList<int>(2, stencil::support::CONTEXT_MENU_DUST_MS));
 
-    win.llmClient.reset();  // drop the mock before it goes out of scope
+    win.parts.chatAppliers.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

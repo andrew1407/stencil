@@ -52,10 +52,11 @@ class MainWindowGuiTest : public QObject {
     // The continuation round answers chat-only.
     mock.queue.append(QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content", "All done."}}}}).toJson(QJsonDocument::Compact));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
-    win.onChatSend(QStringLiteral("open %1, then make it b&w").arg(url));
-    QTRY_VERIFY(!win.chatDock->isBusy());
+    win.chatSession->onChatSend(QStringLiteral("open %1, then make it b&w").arg(url));
+    // The dock idles while the plan waits for the download: the turn is over when neither runs.
+    QTRY_VERIFY(!win.chatDock->isBusy() && !win.chatSession->planRunning);
     // openUrl waited for the download: the fetched picture IS the working image…
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(win.canvas->effectiveOriginalImage().size(), QSize(20, 14));
@@ -76,12 +77,12 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(bubbles.size(), 1);
     QVERIFY2(bubbles.first().contains(QStringLiteral("All done.")),
              "the single bubble must carry the FINAL round's reply");
-    QVERIFY2(bubbles.first().contains(QStringLiteral("Skipped unknown op \"sparkle\".")),
+    QVERIFY2(bubbles.first().contains(QStringLiteral("Skipped unknown operation \"sparkle\"")),
              "round 1's warnings must ride in the final bubble");
     QVERIFY2(!chatTranscriptHas(win.chatDock, QStringLiteral("Loading and filtering.")),
              "round 1's reply must not render as its own bubble");
     // …while the model-side history still keeps round 1's own answer per round.
-    QCOMPARE(win.chatHistory.at(1).text, QStringLiteral("Loading and filtering."));
+    QCOMPARE(win.chatSession->chatHistory.at(1).text, QStringLiteral("Loading and filtering."));
     beat();
   }
 
@@ -94,8 +95,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.settings.llmProvider = "ollama";
     win.settings.llmBaseUrl = "http://localhost:11434";
-    const stencil::llm::LlmSettings cfg = win.currentLlmSettings();
-    win.chatTextOnlyKey =
+    const stencil::llm::LlmSettings cfg = win.parts.chatAppliers.currentLlmSettings();
+    win.chatSession->chatTextOnlyKey =
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}.join(QLatin1Char('|'));
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
@@ -104,8 +105,8 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Here is your page.\",\"actions\":"
                       "[{\"op\":\"blank\",\"color\":\"#ffffff\",\"format\":\"a6\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("blank a6 page");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("blank a6 page");
     QTRY_VERIFY(!win.chatDock->isBusy());
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 1);   // no continuation round launched
@@ -137,8 +138,8 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content", "All done drawing."}}}})
                           .toJson(QJsonDocument::Compact));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("blank 20x20 page with a smiley");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("blank 20x20 page with a smiley");
     QTRY_VERIFY(!win.chatDock->isBusy());
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 2);   // the turn + exactly one continuation
@@ -173,8 +174,8 @@ class MainWindowGuiTest : public QObject {
                       "{\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},"
                       "{\"x\":99999,\"y\":0},{\"x\":99999,\"y\":99999},{\"x\":0,\"y\":0}]}]}]}"}}}})
                           .toJson(QJsonDocument::Compact));
-    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
-    win.onChatSend("blank page with a box drawn on it");
+    win.parts.chatAppliers.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.chatSession->onChatSend("blank page with a box drawn on it");
     QTRY_VERIFY(!win.chatDock->isBusy());
     QVERIFY(win.canvas->hasImage());
     QCOMPARE(int(win.canvas->allLines().size()), 1);   // the line really drew

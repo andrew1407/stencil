@@ -14,7 +14,7 @@ const el = (id = '') => createStubElement('div', {
 });
 
 installDom({}, {
-  // addEventListener: the popover gesture machine (ui/popover.js) wires window listeners
+  // addEventListener: the popover gesture machine (ui/tip/popover.js) wires window listeners
   // whenever a shell has an opener button, which the popover test below needs.
   window: {
     matchMedia: () => ({ matches: true }), innerWidth: 1000, innerHeight: 800,
@@ -143,4 +143,35 @@ test('a press in a layer raised over a popover leaves it open; the page below st
 
   press(el('page-thing'));
   assert.equal(shell.isOpen(), false, '…but a press in the page below still dismisses it');
+});
+
+// Under load the deferred open focus once fired after the user had clicked into another field,
+// so what they typed next landed in the base URL instead of the model name (flyout.spec.js).
+test('the deferred open focus never takes the caret from a field chosen inside the window', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const overlay = el('caret-overlay');
+  const box = el('caret-box');
+  const first = el('caret-first');
+  const chosen = el('caret-chosen');
+  box.append(first, chosen);
+  overlay.appendChild(box);
+  const opener = el('caret-opener');
+  const shell = wireModalShell(overlay, null, null, { focusOnOpen: first });
+
+  document.activeElement = opener;
+  shell.open();
+  document.activeElement = chosen;
+  t.mock.timers.tick(1000);
+  assert.equal(first.focusCalls.length, 0, 'the field the user is typing in keeps the caret');
+  shell.close();
+
+  // Nothing chosen (focus still where the open came from, or already inside from before): it focuses.
+  for (const held of [opener, chosen]) {
+    document.activeElement = held;
+    shell.open();
+    t.mock.timers.tick(1000);
+    shell.close();
+  }
+  assert.equal(first.focusCalls.length, 2, 'a window with no field chosen still opens ready to type');
+  document.activeElement = null;
 });

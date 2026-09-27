@@ -38,31 +38,31 @@ class MainWindowGuiTest : public QObject {
 
     readoutMoves("plain");
 
-    win.actIncognito->setChecked(true);   // the state the report came from
+    win.acts.incognito->setChecked(true);   // the state the report came from
     settleLayout(&win, 80);
     readoutMoves("incognito");
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(false);
 
-    win.actChat->setChecked(true);        // …with the chat open over the layout
+    win.acts.chat->setChecked(true);        // …with the chat open over the layout
     QTRY_VERIFY(win.chatDock->isVisible());
-    awaitAnim(win.chatAnim);              // …on the slide's own end
+    awaitAnim(win.parts.dockChrome.chatAnim);              // …on the slide's own end
     readoutMoves("chat open");
-    win.actChat->setChecked(false);
-    awaitAnim(win.chatAnim);
+    win.acts.chat->setChecked(false);
+    awaitAnim(win.parts.dockChrome.chatAnim);
 
     // COMPARE: the canvas is read-only there, but the readout is information, not editing —
     // it must keep following the cursor.
     for (const char* mode : {"vertical", "horizontal"}) {
-      win.setCompareModeUi(QString::fromLatin1(mode));
+      win.parts.styleControls.setCompareModeUi(QString::fromLatin1(mode));
       QTRY_VERIFY2(win.canvas->compareReadOnly(), "compare did not engage");
       readoutMoves(mode);
     }
-    win.setCompareModeUi(QStringLiteral("none"));
+    win.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
     beat();
   }
 
   // "Unchain" sits in the bar's area-only group, so it is offered exactly when a line is an
-  // area, and clicking it puts the line back to an open polyline (canvas/chainEdit.hpp).
+  // area, and clicking it puts the line back to an open polyline (core/geometry/lineChain.hpp).
   void unchainButtonIsOfferedOnlyForAreas() {
     MainWindow win(nullptr, false);
     win.resize(1200, 850);

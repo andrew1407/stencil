@@ -8,7 +8,7 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// A port of mcp/src/pipeline.rs: spawns the Zig CLI with NO_COLOR=1. A process-wide semaphore
+// A port of mcp/src/pipeline/: spawns the Zig CLI with NO_COLOR=1. A process-wide semaphore
 // (BotOptions.MaxConcurrentCli) caps concurrent spawns; this adapter is a DI singleton.
 public sealed class ProcessStencilCli : IStencilCli
 {
@@ -112,6 +112,17 @@ public sealed class ProcessStencilCli : IStencilCli
         return CliOutcomeParser.ParseScriptPlan(output.Stdout);
     }
 
+    // The reply rides stdin and nothing is written; an invalid plan exits 1 but still prints its verdict.
+    public async Task<PlanCheck> PlanCheckAsync(string reply, CancellationToken ct = default)
+    {
+        CliOutput output = await spawnAsync(CliArgvBuilder.BuildPlanCheckArgv(), ct, "", reply).ConfigureAwait(false);
+        if (output.Stdout.Trim().Length == 0)
+        {
+            throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
+        }
+        return CliOutcomeParser.ParsePlanCheck(output.Stdout);
+    }
+
     // An input already sitting beside the script is passed as its leaf, so no workspace path can
     // ride into the envelope's save targets.
     private static string? beside(string dir, string? input) =>
@@ -128,14 +139,15 @@ public sealed class ProcessStencilCli : IStencilCli
 
     // Bounded by the spawn gate and by BotOptions.CliTimeout, so a hung run can't pin a scarce slot
     // forever.
-    private async Task<CliOutput> spawnAsync(IReadOnlyList<string> argv, CancellationToken ct, string workingDirectory)
+    private async Task<CliOutput> spawnAsync(
+        IReadOnlyList<string> argv, CancellationToken ct, string workingDirectory, string? stdin = null)
     {
         await _spawnGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             string bin = StencilCliLocator.FindCli(_options.CliPath);
             ProcessOutcome outcome = await ProcessRunner
-                .RunAsync(bin, argv, _options.CliTimeout, ct, _noColor, workingDirectory)
+                .RunAsync(bin, argv, _options.CliTimeout, ct, _noColor, workingDirectory, stdin)
                 .ConfigureAwait(false);
             return outcome switch
             {

@@ -2,11 +2,13 @@
 // clipping, the wipe reads those feathers, and a repaint keeps the classes motion.js owns.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { revealFeather, REVEAL_FEATHER } from '../../../js/ui/motion.js';
-import { motionSource } from '../../helpers/motionSource.js';
+import {
+  revealFeather, observeReveal, REVEAL_FEATHER, REVEAL_SMOOTH_FEATHER, REVEAL_ITEM_CLASS, REVEAL_IN_CLASS,
+  REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS, REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS,
+} from '../../../js/ui/motion.js';
 import { ANIMATIONS_CSS } from '../../helpers/css.js';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
 import { makeEl, stubDom, rowsOf } from '../../helpers/chatTranscriptRig.js';
+import { revealScroller } from '../../helpers/revealRig.js';
 
 // ── The scroll-reveal mask must only sand the edge that is actually cut ─────
 test('revealFeather softens only the edge the scroller is really clipping', () => {
@@ -25,7 +27,7 @@ test('revealFeather softens only the edge the scroller is really clipping', () =
   assert.deepStrictEqual(revealFeather(-0.4, H + 0.4, H), { in: '0%', out: '0%' });
 });
 
-test('the mask wipe reads those feathers, and the observer publishes them', () => {
+test('the mask wipe reads those feathers, and the observer publishes them', (t) => {
   const css = ANIMATIONS_CSS;
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
     css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
@@ -36,26 +38,34 @@ test('the mask wipe reads those feathers, and the observer publishes them', () =
   assert.ok(!/\+ 10%\)/.test(rest) && !/- 10%\)/.test(rest), 'no unconditional feather is left');
   const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
   assert.ok(/--fade-in: 10%/.test(base) && /--fade-out: 10%/.test(base), 'the entering state softens both ways');
-  const motion = motionSource();
-  assert.ok(motion.includes("row.el.style.setProperty('--fade-in', fade.in);"));
-  assert.ok(motion.includes("row.el.style.setProperty('--fade-out', fade.out);"));
+  // Clipped at the top only: the grain row publishes the feather there and a hard bottom.
+  const { root, els: [top, bottom], frame, restore } = revealScroller([[-120, 146], [400, 200]]);
+  t.after(restore);
+  observeReveal(root, '[data-row]');
+  frame();
+  assert.deepStrictEqual([top.prop('--fade-in'), top.prop('--fade-out')], [REVEAL_FEATHER, '0%']);
+  assert.deepStrictEqual([bottom.prop('--fade-in'), bottom.prop('--fade-out')], ['0%', REVEAL_FEATHER]);
+  const text = revealScroller([[-120, 146]]);
+  observeReveal(text.root, '[data-row]', { smooth: true });
+  text.frame();
+  assert.strictEqual(text.els[0].prop('--fade-in'), REVEAL_SMOOTH_FEATHER, 'a text row feathers a fixed band');
 });
 
 test('a repaint keeps the motion classes motion.js owns, mask state included', async () => {
   stubDom();
   const { renderChatLog } = await import('../../../js/ui/chat/view.js?render-motion');
-  const view = chatViewSource();
-  // Taken from motion.js's constants — a retyped list is what dropped .reveal-masked,
+  // Named by motion.js's own constants — a retyped list is what dropped .reveal-masked,
   // and the observer's "changed?" cache then never put it back.
-  assert.ok(view.includes('const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,\n  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];'));
+  const owned = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
+    REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];
   const transcript = makeEl();
   const log = [{ id: 1, role: 'user', text: 'hi' }];
   renderChatLog(transcript, log, {});
   const row = rowsOf(transcript)[0];
-  for (const c of ['reveal-item', 'reveal-masked', 'reveal-entering', 'reveal-smooth', 'reveal-no-trigger',
-                   'chat-entering']) row.classList.add(c);
+  for (const c of owned) row.classList.add(c);
   log[0].text = 'hi there';
   renderChatLog(transcript, log, {});
+  for (const c of owned) assert.ok(row.classList.contains(c), `motion.js's ${c} survives the repaint`);
   // The observer writes the smooth-fade and no-trigger flags only when they CHANGE, so a
   // repaint that dropped one left the row grainy until the next threshold crossing.
   for (const c of ['reveal-item', 'reveal-masked', 'reveal-entering', 'reveal-smooth', 'reveal-no-trigger']) {

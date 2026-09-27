@@ -4,6 +4,7 @@
 #include "textFocus.hpp"
 #include "typedLetter.hpp"
 #include "../../support/webcore/rules.hpp"
+#include "../../support/uiTimings.hpp"
 
 #include <QApplication>
 #include <QKeyEvent>
@@ -15,7 +16,6 @@
 namespace stencil::gui {
 
   namespace {
-    constexpr int PRESS_SLOP_PX = 10;   // browser ui/popover.js
     constexpr int WAY_MS = 30, WAY_TRIES = 40;   // a closing modal or fullscreen gets 1.2s to clear
 
     // The window's own keys: its body, or the modal dialog it has open.
@@ -182,7 +182,7 @@ namespace stencil::gui {
         }
       } else if (t == QEvent::MouseMove) {
         const QPoint at = static_cast<QMouseEvent*>(e)->globalPosition().toPoint();
-        if (hold->isActive() && (at - pressAt).manhattanLength() > PRESS_SLOP_PX) hold->stop();
+        if (hold->isActive() && (at - pressAt).manhattanLength() > support::uiTimings().pressSlopPx) hold->stop();
       } else if (t == QEvent::MouseButtonRelease || t == QEvent::Leave) {
         hold->stop();
         // The release after a hold must not reach clicked(), which would cycle the accent.

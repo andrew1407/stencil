@@ -1,10 +1,10 @@
 //! The `/projects` listing table: gathering per-server project rows and rendering
 //! them as an aligned, colour-aware columnar table.
 const std = @import("std");
+const inert = @import("inert.zig");
 const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const theme = @import("../../app/theme.zig");
-const project = @import("../../project.zig");
 
 /// One rendered project row, all fields owned so rows outlive the per-server lists they came from.
 /// `color` "" = none (paint in the theme accent); `description` "" = none (else a dimmed note).
@@ -32,7 +32,8 @@ pub fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), clie
     };
     defer server.freeProjectList(gpa, items);
     for (items) |p| {
-        const name = try gpa.dupe(u8, p.name);
+        var b: inert.Buf = undefined;
+        const name = try gpa.dupe(u8, inert.name(&b, p.name));
         errdefer gpa.free(name);
         // Some projects have no stored dimensions (e.g. never rendered) — show "-", not "0x0".
         const size = if (p.w == 0 and p.h == 0) try gpa.dupe(u8, "-") else try std.fmt.allocPrint(gpa, "{d}x{d}", .{ p.w, p.h });
@@ -49,7 +50,7 @@ pub fn gatherRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow), clie
         errdefer gpa.free(expires);
         const color = try gpa.dupe(u8, p.color);
         errdefer gpa.free(color);
-        const description = try gpa.dupe(u8, p.description);
+        const description = try gpa.dupe(u8, inert.name(&b, p.description));
         errdefer gpa.free(description);
         try rows.append(gpa, .{ .name = name, .size = size, .created = created, .expires = expires, .changed = changed, .color = color, .description = description, .server = if (multi) client.base else "" });
     }

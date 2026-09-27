@@ -2,7 +2,7 @@
 // overlay ones — scrollbars.js): `.sb-hover` on the element whose bar is under the
 // pointer, so the thumb takes the accent only then (css/layout/scrollbars.css). A pure hit-test plus
 // one document listener. The extension carries a rule-for-rule port
-// (src/lib/scrollbarHover.js; its tests/portParity.test.js pins the two bodies identical).
+// (src/lib/control/scrollbarHover.js; its tests/portParity.test.js pins the two bodies identical).
 
 // Edges inclusive; takes anything with left/right/top/bottom (a DOMRect in practice).
 const inRect = (x, y, rect) =>

@@ -20,6 +20,8 @@ export declare const TWINKLE_HZ: [number, number];
 export interface Mote {
   x: number; y: number; dx: number; dy: number; mx: number; my: number; r: number; s: number;
   a: number; w: number; t: number; g: boolean; delay?: number; dur?: number;
+  /** Cut out of a surface still shown under the cloud: drawn only once it sets off. */
+  cut?: number;
 }
 export declare const turbulenceAt: (m: Mote, p: number) => number;
 export declare const twinkleAt: (m: Mote, tMs: number) => number;

@@ -3,6 +3,7 @@
 //! the USER named is ever dialled (see .claude/rules/security.md).
 const std = @import("std");
 const report = @import("../app/report.zig");
+const net = @import("../net.zig");
 const errors = @import("errors.zig");
 const urls = @import("urls.zig");
 const parse = @import("parse.zig");
@@ -29,6 +30,11 @@ pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?
     const invite = splitInviteToken(url, token_opt);
     const base = try normalizeBase(gpa, invite.url);
     errdefer gpa.free(base);
+    // blockedRanges.json `serverTarget` with allowPrivate: a LAN server is fine, metadata never is.
+    if (net.isBlockedServerHost(urls.hostAndPort(base).host)) {
+        report.err("refusing to connect to {s} — a link-local, metadata, multicast or reserved address is no server\n", .{base});
+        return Error.HttpFailed;
+    }
     if (isInsecureRemote(base))
         report.note("connecting to {s} over plaintext http — your access token and images are sent unencrypted; use https on untrusted networks\n", .{base});
 
@@ -53,7 +59,7 @@ pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?
 /// credential proved to be. Caller owns `token`.
 pub const Resolved = struct { token: []u8, kind: CredentialKind };
 
-/// The session token a connection runs on: a supplied token is validated with a GET /projects probe
+/// The session token a connection runs on: a supplied token is validated with GET /auth/session
 /// (rejected → retried as an admin credential), no token issues a fresh one. `transport` is the seam.
 pub fn resolveToken(
     gpa: std.mem.Allocator,
@@ -65,11 +71,8 @@ pub fn resolveToken(
     if (token_opt) |t| {
         const auth = try std.fmt.allocPrint(gpa, "Bearer {s}", .{t});
         defer gpa.free(auth);
-        const probe_url = try std.fmt.allocPrint(gpa, "{s}/projects", .{base});
-        defer gpa.free(probe_url);
-        if (transport(gpa, io, probe_url, .GET, null, &.{.{ .name = "authorization", .value = auth }})) |body| {
-            gpa.free(body);
-            // It lists projects: an ordinary session token, not an admin credential.
+        if (probeSession(gpa, io, base, auth, transport)) |_| {
+            // The server knows it as a live session: an ordinary session token, not an admin credential.
             return .{ .token = try gpa.dupe(u8, t), .kind = .session };
         } else |e| {
             if (e != Error.Unauthorized) return e;
@@ -88,6 +91,23 @@ pub fn resolveToken(
     const body = try issueToken(gpa, io, base, null, transport);
     defer gpa.free(body);
     return .{ .token = try parseToken(gpa, body), .kind = .none };
+}
+
+/// Whether `auth` is a live session: GET /auth/session (401 for anything else, an admin token
+/// included); a server older than that route answers 404, and one project listed stands in.
+fn probeSession(gpa: std.mem.Allocator, io: std.Io, base: []const u8, auth: []const u8, transport: Transport) !void {
+    const headers = [_]std.http.Header{.{ .name = "authorization", .value = auth }};
+    for ([_][]const u8{ "/auth/session", "/projects?limit=1" }) |path| {
+        const url = try std.fmt.allocPrint(gpa, "{s}{s}", .{ base, path });
+        defer gpa.free(url);
+        const body = transport(gpa, io, url, .GET, null, &headers) catch |e| {
+            if (e == Error.NotFound) continue;
+            return e;
+        };
+        gpa.free(body);
+        return;
+    }
+    return Error.NotFound;
 }
 
 /// POST /auth/token, optionally with an admin bearer, returning the response body.
@@ -113,4 +133,72 @@ pub fn printConnectError(url: []const u8, e: anyerror) void {
     } else {
         report.err("could not connect to {s} ({s})\n", .{ url, @errorName(e) });
     }
+}
+
+const testing = std.testing;
+
+// A server that knows GET /auth/session, or (`old`) one that predates it; either way every
+// URL it was asked for is kept, so a probe that lists every project shows up.
+const FakeServer = struct {
+    var old = false;
+    var asked: [8][64]u8 = undefined;
+    var asked_n: usize = 0;
+
+    fn run(gpa: std.mem.Allocator, _: std.Io, target: []const u8, _: std.http.Method, _: ?[]const u8, headers: []const std.http.Header) errors.TransportError![]u8 {
+        const url = target;
+        if (asked_n < asked.len) {
+            const n = @min(url.len, 63);
+            @memcpy(asked[asked_n][0..n], url[0..n]);
+            asked[asked_n][n] = 0;
+            asked_n += 1;
+        }
+        var auth: []const u8 = "";
+        for (headers) |h| if (std.ascii.eqlIgnoreCase(h.name, "authorization")) {
+            auth = h.value;
+        };
+        const session = std.mem.eql(u8, auth, "Bearer SESSION");
+        if (std.mem.endsWith(u8, url, "/auth/token")) {
+            if (!std.mem.eql(u8, auth, "Bearer ADMIN")) return Error.Unauthorized;
+            return gpa.dupe(u8, "{\"token\":\"minted\"}");
+        }
+        if (std.mem.endsWith(u8, url, "/auth/session")) {
+            if (old) return Error.NotFound;
+            return if (session) gpa.dupe(u8, "{\"sessionId\":\"s1\",\"expiresAt\":1}") else Error.Unauthorized;
+        }
+        if (std.mem.endsWith(u8, url, "/projects?limit=1")) return if (session) gpa.dupe(u8, "{\"projects\":[]}") else Error.Unauthorized;
+        return Error.HttpFailed; // a full listing is never how a token is checked
+    }
+
+    fn askedFor(i: usize) []const u8 {
+        return std.mem.sliceTo(&asked[i], 0);
+    }
+};
+
+test "resolveToken checks a token with GET /auth/session, and one project on a server without it" {
+    const a = testing.allocator;
+    for ([_]bool{ false, true }) |old| {
+        FakeServer.old = old;
+        FakeServer.asked_n = 0;
+        var r = try resolveToken(a, undefined, "http://s", "SESSION", FakeServer.run);
+        try testing.expectEqual(CredentialKind.session, r.kind);
+        a.free(r.token);
+        try testing.expectEqualStrings("http://s/auth/session", FakeServer.askedFor(0));
+        try testing.expectEqual(@as(usize, if (old) 2 else 1), FakeServer.asked_n);
+        if (old) try testing.expectEqualStrings("http://s/projects?limit=1", FakeServer.askedFor(1));
+
+        // An admin token is no session (401), so it is proven by the mint, as before.
+        r = try resolveToken(a, undefined, "http://s", "ADMIN", FakeServer.run);
+        try testing.expectEqual(CredentialKind.admin, r.kind);
+        try testing.expectEqualStrings("minted", r.token);
+        a.free(r.token);
+
+        try testing.expectError(Error.Unauthorized, resolveToken(a, undefined, "http://s", "NOPE", FakeServer.run));
+    }
+}
+
+test "connect refuses a link-local or metadata server before dialling it" {
+    var threaded = std.Io.Threaded.init(std.testing.allocator, .{});
+    defer threaded.deinit();
+    for ([_][]const u8{ "http://169.254.169.254", "http://[fe80::1]:8090", "http://[::ffff:169.254.169.254]", "http://224.0.0.1" }) |url|
+        try std.testing.expectError(Error.HttpFailed, connect(std.testing.allocator, threaded.io(), url, null));
 }

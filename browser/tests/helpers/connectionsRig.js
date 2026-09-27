@@ -100,16 +100,24 @@ export class StubWS {
   fire(t, data) { (this._l[t] || []).forEach((cb) => cb(data)); }
 }
 
-// The app surface createStencil touches.
+// The app surface createStencil touches. The core session flows the facade calls (newEditor, the
+// load and blank flows) run for real against it: storage and tabs record into `calls`.
 export const facadeApp = (server, extra = {}) => {
+  const calls = [];
+  const rec = (name) => (...args) => { calls.push([name, ...args]); };
   const app = {
+    calls,
     connections: new ConnectionManager({ fetchImpl: server.fetchImpl, WebSocketImpl: StubWS }),
     lines: [],
-    storage: { store: { list: () => [] }, incognito: false, save() {} },
-    tabs: { onPeers() {} },
+    storage: { store: { list: () => [] }, incognito: false, temporary: true, save() {},
+      newTemporary: rec('newTemporary'), promoteTemporaryToProject: rec('promoteTemporaryToProject') },
+    tabs: { onPeers() {}, reportActive: rec('reportActive'), reportIncognito() {} },
+    zoomPan: { syncViewportHeight() {}, fitToWindow() {} },
     activeProjectId: null,
     remoteLink: null,
     image: { width: 2, height: 2 },
+    pageSize: 'A4', customPageWidth: 21, customPageHeight: 29.7, imageFilter: 'none',
+    canvas: { width: 2, height: 2 },
     ...extra,
   };
   // The facade writes back via app.remoteSync.saveToServer(); mirror the real DrawingApp by
@@ -119,9 +127,25 @@ export const facadeApp = (server, extra = {}) => {
     scheduleRemoteSync: (...a) => app.scheduleRemoteSync?.(...a),
     reloadRemoteActive: (...a) => app.reloadRemoteActive?.(...a),
     onServerProjectEvent: (...a) => app.onServerProjectEvent?.(...a),
+    noteServerImage: (...a) => app.noteServerImage?.(...a),
   };
   return app;
 };
+
+// What the real settle (core/image/settle.js) reaches once a decode lands: the crop rebuild puts
+// the picture on screen at the canvas size, and the view and history are inert.
+export const withSettle = (app) => Object.assign(app, {
+  pendingLines: null, rotationQuarters: 0,
+  imageModel: {
+    roundRect: (r) => ({ ...r }),
+    defaultCropRect: () => ({ x: 0, y: 0, width: app.canvas.width, height: app.canvas.height }),
+    rebuildCroppedImage: () => { app.image = { width: app.canvas.width, height: app.canvas.height }; },
+  },
+  history: { reset() {} },
+  renderer: { redraw() {}, layers: () => [] },
+  coordTable: { update() {} },
+  updateInfo() {}, updateButtons() {}, updateCoordStatus() {},
+});
 
 // A saved token the server no longer knows must leave a row and a message, not one red 401 in the
 // console; requireToken is what the mock MINTS, so an admin-token round genuinely revives it.

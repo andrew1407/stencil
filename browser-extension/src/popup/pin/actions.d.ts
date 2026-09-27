@@ -1,4 +1,4 @@
-// Shapes for popup/actions.js — the pin toggle, its storage write, and the panel's
+// Shapes for popup/pin/actions.js — the pin toggle, its storage write, and the panel's
 // drag-a-URL-in-to-pin surface.
 import type { PopupImage } from '../list/model.js';
 

@@ -37,7 +37,7 @@ namespace stencil::gui {
   }
 
   // NOT revealDissolve: a card TALLER than the viewport is clipped by definition and
-  // would sit permanently speckled. Browser surface/motion.js revealGrain. Pure.
+  // would sit permanently speckled. Browser reveal.js revealGrain. Pure.
   inline double revealGrain(int top, int bottom, int viewH) {
     const int h = bottom - top;
     if (viewH <= 0 || h <= 0) return 0.0;

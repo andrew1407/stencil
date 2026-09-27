@@ -1,9 +1,8 @@
 """The op registry (contract §13): ONE entry per op, the single source of an op's
-existence on this surface — its key schema, validator, applier and prompt bullet.
+existence on this surface — its applier, typed normalizer and prompt bullet.
 
-The per-op normalizers live here too: each runs on the registry-normalized action,
-after the table-driven check passed, and is the typed detail the generic deep-pick
-cannot express.
+The per-op normalizers live here too: each runs on the action core already validated
+and normalized, and is the typed detail this executor wants beyond the generic deep-pick.
 """
 
 from __future__ import annotations
@@ -12,10 +11,8 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..._ffi.types import NoneType
-from ..._opschema import SchemaError
 from ..console import _apply_console_op
-from ..errors import LlmPlanError
-from .limits import SCHEMA
+from .limits import PROFILE, REGISTRY
 from .ops import (
   _apply_blank,
   _apply_crop,
@@ -33,7 +30,7 @@ from .ops import (
 
 
 # ── per-op normalizers: the typed struct the generic deep-pick can't express ──
-# Each runs on the registry-normalized action AFTER the check passed; nothing here validates.
+# Each runs on core's normalized action; nothing here validates.
 def __normalize_crop(out: dict) -> dict:
   """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
   if out["spec"].get("album") is False:
@@ -82,38 +79,42 @@ def __normalize_open_url(out: dict) -> dict:
 class OpSpec:
   """One §13 registry entry — the single source of an op's existence on this surface.
 
-  Membership, the key schema and the flags come from the shared opRegistry.json entry
-  (SCHEMA), the prompt bullet included; this surface adds the validator (the
-  table-driven check + normalize), the applier and the block that carries the bullet,
-  so the "Available ops" prompt sections are GENERATED from the same table that
-  validation and execution dispatch on: the prompt can never promise an op this
-  surface cannot run.
+  Membership, the flags and the prompt bullet come from the shared opRegistry.json
+  entry; this surface adds the applier, its typed normalizer and the block that carries
+  the bullet, so the "Available ops" prompt sections are GENERATED from the same table
+  that execution dispatches on: the prompt can never promise an op this surface cannot run.
   """
 
-  validator: Normalizer
   applier: Callable[..., None]
-  fields: frozenset[str]          # allowed action keys (including "op" itself)
   bullet: str                     # the asset's prompt bullet, verbatim (§4/§10)
+  normalizer: (Normalizer | NoneType) = None  # on core's normalized action, if any
   scope: str = "core"             # which block carries the bullet: "core"|"console"
   top_level_only: bool = False    # §2/§2.1: inside "variants" it drops that variant
   console_settings: bool = False  # §10 console profile: variant ban + console hooks
   capability: str = ""            # runtime capability the op needs ("" = always wired)
 
 
-def __make_validator(
-  entry: dict, normalizer: (Normalizer | NoneType)
-) -> Normalizer:
-  """The registry's check (native rules, unknown fields, types, grammars, presence
-  rules) + generic normalize, then this surface's own normalizer, if any."""
+def __per_surface(table: (dict | NoneType)) -> (dict | NoneType):
+  if not table: return None
+  mine = table.get("pystencil")
+  return mine if mine is not None else table.get(PROFILE)
 
-  def validate(a: dict) -> dict:
-    try:
-      out = SCHEMA.normalize(SCHEMA.validate_action(a, entry), entry)
-    except SchemaError as e:
-      raise LlmPlanError(str(e)) from None
-    return normalizer(out) if normalizer is not None else out
 
-  return validate
+def __entries() -> dict[str, dict]:
+  """This surface's registry entries by name, in prompt order, bullet and flags resolved;
+  core resolves the same way (``opplanSchemaEntries``), and a native test holds them equal."""
+  order = REGISTRY["profiles"][PROFILE]["ops"]
+  mine = [e for e in REGISTRY["ops"] if PROFILE in e["profiles"]
+          and (not e.get("surfaces") or "pystencil" in e["surfaces"])]
+  out: dict[str, dict] = dict()
+  for e in sorted(mine, key=lambda e: order.index(e["name"])):
+    variant = __per_surface(e.get("bulletVariants"))
+    flags = dict(e.get("flags") or {}, **(__per_surface(e.get("surfaceFlags")) or {}))
+    out[e["name"]] = {"bullet": variant if isinstance(variant, str) else e.get("bullet"), "flags": flags}
+  return out
+
+
+ENTRIES = __entries()
 
 
 # What this surface adds to each registry entry: (applier, normalizer, bullet scope). Table
@@ -145,21 +146,20 @@ _SURFACE_OPS: dict[str, tuple] = {
 
 OP_REGISTRY: dict[str, OpSpec] = dict()
 for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
-  _entry = SCHEMA.ops.get(_name)
+  _entry = ENTRIES.get(_name)
   if _entry is None:  # pragma: no cover - guards registry edits
     raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
   _flags = _entry["flags"]
   OP_REGISTRY[_name] = OpSpec(
-    __make_validator(_entry, _normalizer), _applier,
     # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
     # first entry; the partner's asset bullet is null and emits nothing.
-    frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,
+    _applier, _entry["bullet"] or "", _normalizer, scope=_scope,
     # §2/§2.1 top-level-only ops drop the variant they appear in; the §10 settings ops do the
     # same (with their own message) and run through the console hooks.
     top_level_only=bool(_flags.get("topLevelOnly")),
     console_settings=bool(_flags.get("editorSetting") or _flags.get("consoleSetting")),
   )
-_unbound = sorted(set(SCHEMA.ops) - set(OP_REGISTRY))
+_unbound = sorted(set(ENTRIES) - set(OP_REGISTRY))
 if _unbound:  # pragma: no cover - guards registry edits
   raise AssertionError(
     "opRegistry.json registers %s for pystencil, but nothing here executes them"
@@ -169,7 +169,7 @@ if _unbound:  # pragma: no cover - guards registry edits
 
 # §13 forbidden ops — the §10 "never model-drivable" boundary, as names. Two teeth: the
 # import-time registry check below, and _apply_action's reject.
-FORBIDDEN_OPS = tuple(SCHEMA.registry["forbidden"]["perSurface"]["pystencil"])
+FORBIDDEN_OPS = tuple(REGISTRY["forbidden"]["perSurface"]["pystencil"])
 
 _forbidden_registered = sorted(set(OP_REGISTRY) & set(FORBIDDEN_OPS))
 if _forbidden_registered:  # pragma: no cover - guards future registry edits
@@ -179,8 +179,4 @@ if _forbidden_registered:  # pragma: no cover - guards future registry edits
 
 
 # Derived dispatch tables (single source: OP_REGISTRY).
-_ACTION_FIELDS = {name: spec.fields for name, spec in OP_REGISTRY.items()}
-_ACTION_VALIDATORS = {name: spec.validator for name, spec in OP_REGISTRY.items()}
 _ACTION_APPLIERS = {name: spec.applier for name, spec in OP_REGISTRY.items()}
-_TOP_LEVEL_ONLY_OPS = tuple(n for n, s in OP_REGISTRY.items() if s.top_level_only)
-_CONSOLE_SETTINGS_OPS = tuple(n for n, s in OP_REGISTRY.items() if s.console_settings)

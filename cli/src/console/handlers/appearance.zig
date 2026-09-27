@@ -132,6 +132,8 @@ var own_accent: [3]u8 = .{ 0, 0, 0 };
 
 // Switch skins and repaint whole: the terminal's own colours follow when either skin paints cells.
 fn wear(s: *screen.Screen, next: skin.Skin) void {
+    screen.beginFrame(s);
+    defer screen.endFrame(s);
     const was = skin.get();
     // The fairy lights borrow the accent; leaving them hands the user's own colour back.
     if (next == .fairylight and was != .fairylight) own_accent = logo.accentRgb();

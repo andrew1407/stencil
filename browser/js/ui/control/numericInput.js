@@ -123,21 +123,3 @@ export const enhanceNumericInputs = (root = document) => {
   if (!root || typeof root.querySelectorAll !== 'function') return;
   for (const el of root.querySelectorAll('input[type="number"]')) enhanceNumericInput(el);
 };
-
-/**
- * Install a one-time observer so inputs rendered later (modals, panels, the
- * context menu) are upgraded as they appear. Returns the MutationObserver.
- */
-export const watchNumericInputs = (root = document.body) => {
-  enhanceNumericInputs(document);
-  const obs = new MutationObserver((records) => {
-    for (const rec of records)
-      for (const node of rec.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        if (node.matches?.('input[type="number"]')) enhanceNumericInput(node);
-        else enhanceNumericInputs(node);
-      }
-  });
-  obs.observe(root, { childList: true, subtree: true });
-  return obs;
-};

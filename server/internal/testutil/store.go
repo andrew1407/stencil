@@ -5,7 +5,6 @@ package testutil
 
 import (
 	"context"
-	"sort"
 	"strconv"
 	"sync"
 
@@ -14,8 +13,8 @@ import (
 	"stencil/server/internal/store"
 )
 
-// MemStore is an in-memory project + session store. It satisfies
-// httpapi.ProjectStore, httpapi.SessionStore, and hub.Store.
+// MemStore is an in-memory project + session store (sessions.go). It satisfies httpapi.ProjectStore,
+// httpapi.SessionStore, service.ProjectStore and hub.Store.
 type MemStore struct {
 	mu       sync.Mutex
 	projects map[string]protocol.ProjectRecord
@@ -27,9 +26,12 @@ type MemStore struct {
 	// sweptOnWrite[id]=true makes SetFile report the row gone while GetProject still sees it — the sweep
 	// deleting the project between the upload handler's existence check and its SetFile write.
 	sweptOnWrite map[string]bool
-	// getsUntilGone[id]=N lets GetProject succeed N more times, then report the row gone — the sweep firing
-	// between the pre-check and the post-write re-check for filestore-only kinds.
+	// getsUntilGone[id]=N lets a project read succeed N more times, then report the row gone — the sweep
+	// firing between the pre-check and the post-write re-check for filestore-only kinds.
 	getsUntilGone map[string]int
+	reads         int // project reads of any kind, so a test can bound them
+	charges       map[chargeKey]memCharge
+	ledgerCalls   int // Admit and Credit calls, so a test can prove the ledger untouched
 }
 
 // NewMemStore returns an empty in-memory store.
@@ -39,6 +41,7 @@ func NewMemStore() *MemStore {
 		sessions:      map[string]auth.Session{},
 		sweptOnWrite:  map[string]bool{},
 		getsUntilGone: map[string]int{},
+		charges:       map[chargeKey]memCharge{},
 	}
 }
 
@@ -57,7 +60,7 @@ func (f *MemStore) SweepOnWrite(id string) {
 	f.sweptOnWrite[id] = true
 }
 
-// GoneAfterGets lets GetProject(id) succeed n more times, then 404.
+// GoneAfterGets lets project reads of id succeed n more times, then 404.
 func (f *MemStore) GoneAfterGets(id string, n int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -79,67 +82,6 @@ func (f *MemStore) Project(id string) (protocol.ProjectRecord, bool) {
 	return p, ok
 }
 
-func (f *MemStore) ResolveToken(_ context.Context, hash []byte) (auth.Session, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if s, ok := f.sessions[string(hash)]; ok {
-		return s, nil
-	}
-	return auth.Session{}, auth.ErrInvalidToken
-}
-
-func (f *MemStore) CreateSession(_ context.Context, hash []byte, label string, createdAt, expiresAt int64) (auth.Session, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.seq++
-	s := auth.Session{ID: "s_" + strconv.Itoa(f.seq), Label: label, CreatedAt: createdAt, ExpiresAt: expiresAt}
-	f.sessions[string(hash)] = s
-	return s, nil
-}
-
-// ListProjects mirrors the real store: (updatedAt DESC, id DESC) order, keyset
-// paging off page.After, no layout/original content on a list row.
-func (f *MemStore) ListProjects(_ context.Context, page store.ProjectPage) ([]protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]protocol.ProjectRecord, 0)
-	for _, p := range f.projects {
-		p.Layout, p.OriginalContent = nil, ""
-		out = append(out, p)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].UpdatedAt != out[j].UpdatedAt {
-			return out[i].UpdatedAt > out[j].UpdatedAt
-		}
-		return out[i].ID > out[j].ID
-	})
-	if after := page.After; after.ID != "" {
-		for len(out) > 0 && !(out[0].UpdatedAt < after.UpdatedAt ||
-			(out[0].UpdatedAt == after.UpdatedAt && out[0].ID < after.ID)) {
-			out = out[1:]
-		}
-	}
-	if page.Limit > 0 && len(out) > page.Limit {
-		out = out[:page.Limit]
-	}
-	return out, nil
-}
-
-func (f *MemStore) GetProject(_ context.Context, id string) (protocol.ProjectRecord, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if n, ok := f.getsUntilGone[id]; ok {
-		if n <= 0 {
-			return protocol.ProjectRecord{}, store.ErrNotFound
-		}
-		f.getsUntilGone[id] = n - 1
-	}
-	if p, ok := f.projects[id]; ok {
-		return p, nil
-	}
-	return protocol.ProjectRecord{}, store.ErrNotFound
-}
-
 func (f *MemStore) CreateProject(_ context.Context, owner string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -148,14 +90,15 @@ func (f *MemStore) CreateProject(_ context.Context, owner string, req protocol.C
 	rec := protocol.ProjectRecord{
 		ID: id, Name: req.Name, CreatedAt: 100, UpdatedAt: 100 + int64(f.seq),
 		ExpiresAt: req.ExpiresAt,
-		Source:    req.Source, Resource: req.Resource, Color: req.Color, OriginalContent: req.OriginalContent,
+		Source:    req.Source, Resource: req.Resource, Color: req.Color,
+		ImageW: req.ImageW, ImageH: req.ImageH, HasImage: req.HasImage,
 		Layout: req.Layout, OwnerSession: owner,
 	}
 	if rec.Name == "" {
 		rec.Name = "Untitled"
 	}
 	f.projects[id] = rec
-	return rec, nil
+	return meta(rec), nil
 }
 
 func (f *MemStore) UpdateProject(_ context.Context, id string, patch store.ProjectPatch, expected int64) (protocol.ProjectRecord, error) {
@@ -182,10 +125,10 @@ func (f *MemStore) UpdateProject(_ context.Context, id string, patch store.Proje
 	}
 	p.Version++
 	f.projects[id] = p
-	return p, nil
+	return meta(p), nil
 }
 
-func (f *MemStore) SetFile(_ context.Context, id, kind, rel string, w, h int) (protocol.ProjectRecord, error) {
+func (f *MemStore) SetFile(_ context.Context, id string, file store.StoredFile) (protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.setFileCalls++
@@ -193,21 +136,42 @@ func (f *MemStore) SetFile(_ context.Context, id, kind, rel string, w, h int) (p
 	if !ok || f.sweptOnWrite[id] {
 		return protocol.ProjectRecord{}, store.ErrNotFound
 	}
-	if kind == protocol.KindOriginal {
-		p.OriginalPath = rel
+	if file.Kind == protocol.KindOriginal {
+		p.OriginalPath = file.Path
 		p.HasImage = true
-		p.ImageW, p.ImageH = w, h
+		p.ImageW, p.ImageH = file.W, file.H
+		p.OriginalHash = file.Hash
 	} else {
-		p.ResultPath = rel
+		p.ResultPath = file.Path
 	}
 	p.Version++
 	f.projects[id] = p
-	return p, nil
+	return meta(p), nil
 }
 
 func (f *MemStore) DeleteProject(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.projects, id)
+	f.dropCharges(id)
 	return nil
+}
+
+// DeleteExpiredProjects mirrors the sweep query: expires_at in (0, now], never an id in keep.
+func (f *MemStore) DeleteExpiredProjects(_ context.Context, now int64, limit int, keep []string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	kept := map[string]bool{}
+	for _, id := range keep {
+		kept[id] = true
+	}
+	ids := make([]string, 0)
+	for id, p := range f.projects {
+		if p.ExpiresAt > 0 && p.ExpiresAt <= now && !kept[id] && (limit <= 0 || len(ids) < limit) {
+			ids = append(ids, id)
+			delete(f.projects, id)
+			f.dropCharges(id)
+		}
+	}
+	return ids, nil
 }

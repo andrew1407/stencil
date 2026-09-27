@@ -1,10 +1,9 @@
 #include "CanvasWidget.hpp"
 
-#include <QApplication>
 
 // The widget's construction. Everything it then does lives in the Canvas*.cpp partials
 // beside it (image, settings, draw mode, selection, geometry, stroke fx, paint, input,
-// render, hold-to-draw, transforms).
+// render, hold-to-draw, transforms); the document and its paint are the scene's (scene/).
 
 namespace stencil::gui {
 
@@ -12,18 +11,17 @@ namespace stencil::gui {
     setMouseTracking(true);
     setMinimumSize(320, 240);
     setFocusPolicy(Qt::StrongFocus);
-    applyDefaultsToCurrent();
     // Wheel edits (thickness/rotation) mutate live and commit one undo step once
     // the wheel goes quiet, mirroring the browser's debounced saveHistory.
     editCommitTimer.setSingleShot(true);
-    editCommitTimer.setInterval(280);
+    editCommitTimer.setInterval(pointerTuning::table().editCommitMs);
     connect(&editCommitTimer, &QTimer::timeout, this,
             [this] { commitHistory(); });
-    // Hold-to-draw: while a hold is engaged, tick the controller (~40 ms) so the
+    // Hold-to-draw: while a hold is engaged, tick the controller (HOLD_DRAW.tickMs) so the
     // hold/dwell thresholds fire even when the cursor is held perfectly still.
-    holdClock.start();
-    holdTimer.setInterval(40);
-    connect(&holdTimer, &QTimer::timeout, this, [this] { handleHoldTick(); });
+    hold.clock.start();
+    hold.timer.setInterval(pointerTuning::table().holdTickMs);
+    connect(&hold.timer, &QTimer::timeout, this, [this] { handleHoldTick(); });
     // Repaint at ~60fps while any just-added point is still travelling, and stop the moment the last
     // one lands (browser strokeFx.js drives the same loop off requestAnimationFrame).
     fxClock.start();

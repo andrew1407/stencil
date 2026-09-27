@@ -5,11 +5,15 @@
 #include <vector>
 
 // Cursor hit tests over drawn lines. Port of browser/js/core/draw/hitTest.js plus
-// shouldCloseShape (core/transforms.js) and holdDrawTarget (core/holdDraw.js).
+// shouldCloseShape (core/line/transforms.js) and holdDrawTarget (core/draw/holdDraw.js).
 namespace stencil::core {
 
-  // line/transforms.js shouldCloseShape: >= 3 points and the click within (pointSize + 8)
-  // image px of the first point.
+  // Image px a close-shape click may land past the first point's size: constants.json
+  // HIT.closeSlackPx, held equal by tests/geometry/hitTest.
+  inline constexpr double CLOSE_SLACK_PX = 8.0;
+
+  // line/transforms.js shouldCloseShape: >= 3 points and the click within
+  // (pointSize + CLOSE_SLACK_PX) image px of the first point.
   bool shouldCloseShape(const std::vector<Point>& points, const Point& click,
                         double pointSize);
 
@@ -22,7 +26,7 @@ namespace stencil::core {
     int ptIdx = -1;
   };
 
-  // hitTest.js findNearestPointWithIdx: topmost wins, strict `<` on std::hypot.
+  // hitTest.js findNearestPointWithIdx: topmost wins, strict `<` on the squared distance.
   std::optional<PointHit> findNearestPoint(const Lines& lines, double x, double y,
                                            double threshold = 12.0);
 
@@ -37,7 +41,8 @@ namespace stencil::core {
     int ptIdx2 = -1;
   };
 
-  // hitTest.js findNearestSegmentWithIdx: nearest distance wins across all lines.
+  // hitTest.js findNearestSegmentWithIdx: nearest distance wins across all lines; both scans
+  // skip a line whose bbox lies farther than `threshold`.
   std::optional<SegmentHit> findNearestSegment(const Lines& lines, double x,
                                                double y, double threshold = 12.0);
 

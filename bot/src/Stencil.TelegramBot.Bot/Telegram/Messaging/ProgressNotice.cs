@@ -5,19 +5,18 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram.Messaging;
 
-// One message whose leading glyph spins every Tick, with the chat action re-armed on the same beat
+// One message whose leading glyph spins every tick, with the chat action re-armed on the same beat
 // (Telegram's own fades after ~5 s). Every Telegram call here is best-effort and swallowed.
 public sealed class ProgressNotice
 {
     public static readonly string[] Frames = ["◐", "◓", "◑", "◒"];
-
-    public static readonly TimeSpan Tick = TimeSpan.FromSeconds(3);
 
     private readonly ITelegramBotClient _bot;
     private readonly long _chatId;
     private readonly int? _messageId; // null = the send failed; spinner inert, chat action still runs
     private readonly string _text;
     private readonly ChatAction _action;
+    private readonly TimeSpan _tick;
     // editMessageText DROPS an inline keyboard it is not given, so a Stop button has to be restated
     // every frame.
     private readonly InlineKeyboardMarkup? _markup;
@@ -26,9 +25,10 @@ public sealed class ProgressNotice
     private int _stopped;
 
     private ProgressNotice(
-        ITelegramBotClient bot, long chatId, int? messageId, string text, ChatAction action,
+        ITelegramBotClient bot, long chatId, int? messageId, string text, ChatAction action, TimeSpan tick,
         InlineKeyboardMarkup? markup)
     {
+        _tick = tick;
         _bot = bot;
         _chatId = chatId;
         _messageId = messageId;
@@ -42,7 +42,7 @@ public sealed class ProgressNotice
 
     // Never throws: a failed send just yields a notice that keeps the chat action alive.
     public static async Task<ProgressNotice> StartAsync(
-        ITelegramBotClient bot, long chatId, string text, ChatAction action, CancellationToken ct,
+        ITelegramBotClient bot, long chatId, string text, ChatAction action, TimeSpan tick, CancellationToken ct,
         InlineKeyboardMarkup? markup = null)
     {
         Message? sent = null;
@@ -53,7 +53,7 @@ public sealed class ProgressNotice
         catch (Exception)
         {
         }
-        return new ProgressNotice(bot, chatId, sent?.MessageId, text, action, markup);
+        return new ProgressNotice(bot, chatId, sent?.MessageId, text, action, tick, markup);
     }
 
     public async Task StopAsync()
@@ -77,7 +77,7 @@ public sealed class ProgressNotice
     {
         for (int frame = 1; ; frame++)
         {
-            try { await Task.Delay(Tick, _stop.Token); }
+            try { await Task.Delay(_tick, _stop.Token); }
             catch (OperationCanceledException) { return; }
             try
             {

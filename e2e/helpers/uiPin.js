@@ -1,7 +1,7 @@
 // UI regression pins — the no-screenshot answer to "did anything the user sees move?".
 // capturePin() records, per element, a stable path, its sorted class list, a fixed set of
 // computed styles and (for leaves) its text; expectPin() deep-equals that against
-// e2e/pins/<name>.json and prints the first differing paths.
+// e2e/pins/<platform>/<name>.json and prints the first differing paths.
 // UPDATE_PINS=1 rewrites the baseline instead of asserting.
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';

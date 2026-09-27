@@ -1,4 +1,4 @@
-// Headless check of the form-control state swaps (src/support/controlSwap.hpp), split across
+// Headless check of the form-control state swaps (src/support/control/swap/controlSwap.hpp), split across
 // controlSwap*.headless.cpp. This TU owns the host dialog and the two controls the sections drive,
 // and the geometry snapshots they assert nothing moved against.
 #include "controlSwapParts.hpp"

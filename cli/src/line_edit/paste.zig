@@ -1,6 +1,6 @@
 //! Pasted and dropped pictures: bracketed paste, a dropped path, the clipboard, and the
 //! mouse selection — each becoming one `[image N]` marker on the line.
-const le = @import("../line_edit.zig");
+const le = @import("line_edit.zig");
 const Editor = le.Editor;
 const std = @import("std");
 const logo = @import("../app/logo.zig");
@@ -176,14 +176,17 @@ pub fn handleMouse(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, po
     }
     const ev = screen_mod.parseMouse(mb[0..mi]) orelse return;
     const s = self.screen orelse return;
-    if (ev.isWheelUp()) {
-        s.scroll(true, false);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    } else if (ev.isWheelDown()) {
-        s.scroll(false, false);
+    if (ev.isWheelUp() or ev.isWheelDown()) {
+        // Notches already queued behind this one are read first; the view paints once.
+        s.scrollQuiet(ev.isWheelUp(), false);
+        if (self.waitReadable(0)) return;
+        s.settleScroll();
         self.refresh(prompt, buf[0..len.*], pos.*);
     } else if (ev.isLeftDrag()) {
-        s.selDrag(ev.col, ev.row); // extend the visual text selection
+        // Extend the visual text selection; reports queued behind this one are read first.
+        s.selDragQuiet(ev.col, ev.row);
+        if (self.waitReadable(0)) return;
+        s.settleDrag();
         self.refresh(prompt, buf[0..len.*], pos.*);
     } else if (ev.isRelease()) {
         if (s.selActive()) { // finished a drag → settle the highlight (visual only, no copy)

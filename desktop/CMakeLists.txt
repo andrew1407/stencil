@@ -95,7 +95,8 @@ if(Qt6_FOUND)
   endif()
   message(STATUS "Qt6 found — building stencil (${Qt6_VERSION})")
 
-  include(cmake/StencilPackaging.cmake)  # app icon, bundle shape, install + CPack
+  include(cmake/StencilPackaging.cmake)  # app icon, bundle shape, codesign
+  include(cmake/StencilDeploy.cmake)     # install, Qt deploy, CPack
   if(STENCIL_BUILD_TESTS)
     include(cmake/StencilTests.cmake)    # every ctest target
   endif()

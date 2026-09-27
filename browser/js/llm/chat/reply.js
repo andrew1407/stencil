@@ -1,7 +1,7 @@
 // What the user reads when a turn lands or fails (llm-contract.md §6.3): the reply plus its
 // warnings, and the one table that maps a failed turn to a kind, its text and its card. Pure.
 
-import { LlmError, PROVIDER_LABELS } from '../client.js';
+import { LlmError, NO_KEY_TEXT, PROVIDER_LABELS, providerUrl } from '../client.js';
 import { isAuthStatus } from '../../net/connectionManager.js';
 
 // The visible answer for a finished turn: the reply plus any unknown-op skips
@@ -22,7 +22,7 @@ export const settledReplyText = (entry) => replyWithWarnings(entry).trim() || EM
 export const unreachableText = (settings, err) => {
   if (settings?.provider === 'none') return 'The assistant is turned off — choose a provider to enable it.';
   const name = PROVIDER_LABELS[settings?.provider] || settings?.provider || 'the assistant';
-  const url = (settings?.provider === 'stencil-server' ? settings?.serverUrl : settings?.baseUrl) || '';
+  const url = providerUrl(settings);
   const at = url ? ` at ${url.replace(/^https?:\/\//i, '')}` : '';
   const why = err?.message ?? String(err ?? '');
   if (err?.answered) return `${name}${at}: ${why}`;
@@ -35,6 +35,11 @@ export const describeChatError = (err, settings) => {
   if (err?.name === 'AbortError') return { kind: 'abort', text: 'Stopped.' };
   const k = err instanceof LlmError ? err.kind : null;
   if (k === 'refusal') return { kind: 'refusal', text: `Refused: ${err.message}` };
+  // No anthropic session key (never entered, expired or forgotten): the card asks for it again.
+  if (k === 'disabled' && settings?.provider === 'anthropic') {
+    const fix = err.message === NO_KEY_TEXT ? ' — enter your key in the assistant settings' : '';
+    return { kind: 'unreachable', text: `${PROVIDER_LABELS.anthropic}: ${err.message}${fix}.` };
+  }
   if (k === 'truncated' || k === 'disabled') return { kind: 'notice', text: err.message };
   // A collaboration server that REFUSED the bearer token gets its own kind, so the card offers
   // the one thing that helps (reconnect) rather than "configure".

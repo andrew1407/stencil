@@ -3,10 +3,7 @@
 
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
-#include "../../../support/control/FlowLayout.hpp"
-#include "../../../support/motion/DisintegrateOverlay.hpp"
-#include "AppTooltip.hpp"
+#include "DisintegrateOverlay.hpp"
 
 #include <QCursor>
 #include <QGuiApplication>
@@ -14,6 +11,7 @@
 #include <QSize>
 #include <QVariant>
 #include <QVariantAnimation>
+#include <QLabel>
 
 // The floating hover-magnify preview over a row's thumbnail.
 

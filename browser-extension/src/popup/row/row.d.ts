@@ -1,4 +1,4 @@
-// Shapes for popup/row.js — one list row: thumbnail, name, badges, pin/actions buttons.
+// Shapes for popup/row/row.js — one list row: thumbnail, name, badges, pin/actions buttons.
 import type { PopupImage } from '../list/model.js';
 
 export interface FilterTransition {

@@ -25,14 +25,40 @@ export const trackPointer = () => {
     else if (!swapping()) lastPt = null;
   }, true);
 };
-export const pointerIn = (el) => {
+// One hit test of the last position, shared by every element asked about it in one event.
+const pointerHit = () => ({
+  pt: lastPt,
+  at: lastPt && !swapping() ? document.elementFromPoint?.(lastPt[0], lastPt[1]) : null,
+});
+const inHit = (el, { pt, at }) => {
   if (!el) return false;
-  if (!lastPt) return !!el.matches?.(':hover');
+  if (!pt) return !!el.matches?.(':hover');
   // A snapshot answers <html> for every point, a beat before its class lands: ask the box then.
-  const at = swapping() ? null : document.elementFromPoint?.(lastPt[0], lastPt[1]);
   if (at && at !== document.documentElement) return !!el.contains?.(at);
   const r = el.getBoundingClientRect?.();
-  return !!r && lastPt[0] >= r.left && lastPt[0] <= r.right && lastPt[1] >= r.top && lastPt[1] <= r.bottom;
+  return !!r && pt[0] >= r.left && pt[0] <= r.right && pt[1] >= r.top && pt[1] <= r.bottom;
+};
+export const pointerIn = (el) => inHit(el, pointerHit());
+
+// Every Alt trigger shares one document keydown/keyup and one window blur listener (re-wired
+// when the document is swapped); a press hit-tests the pointer once for all of them.
+const altKeyed = new Set();
+let altDoc = null;
+export const onAltKeys = (entry) => {
+  if (typeof document !== 'undefined' && altDoc !== document) {
+    altDoc = document;
+    altKeyed.clear();
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Alt') return;
+      const hit = pointerHit();
+      for (const k of [...altKeyed]) k.press?.(e, (el) => inHit(el, hit));
+    });
+    // Blur too — Alt+Tab switches away without delivering the keyup. A release gets the keyup
+    // event; a blur's gets none, so nothing is picked on the way out.
+    document.addEventListener('keyup', (e) => { if (e.key === 'Alt') for (const k of [...altKeyed]) k.release?.(e); });
+    if (typeof window !== 'undefined') window.addEventListener?.('blur', () => { for (const k of [...altKeyed]) k.release?.(); });
+  }
+  altKeyed.add(entry);
 };
 // A leave counts once the pointer is really out: a flood is waited out, and a hit test still
 // reading inside (the two disagree for a frame) waits for the next move.
@@ -90,14 +116,15 @@ export const wirePeekBox = (box, g) => {
 export const wireReleasePick = (menu, g, rows, { isPeek, isShowing }) => {
   trackPointer();
   let picking = false;
-  document.addEventListener('keyup', (e) => {
-    if (e.key !== 'Alt') return;
-    const row = isPeek() && isShowing() ? [...menu.querySelectorAll(rows)].find((li) => pointerIn(li)) : null;
-    g.altRelease();
-    if (!row || !isShowing()) return;   // only into a menu the release left open
-    picking = true;
-    row.click();
-    picking = false;
+  onAltKeys({
+    release: (e) => {
+      const row = e && isPeek() && isShowing() ? [...menu.querySelectorAll(rows)].find((li) => pointerIn(li)) : null;
+      g.altRelease();
+      if (!row || !isShowing()) return;   // only into a menu the release left open
+      picking = true;
+      row.click();
+      picking = false;
+    },
   });
   return { picking: () => picking };
 };
@@ -119,14 +146,14 @@ export const wireAltPeek = (hover, menu, { open, close, isOpen = () => !menu.hid
   hover.addEventListener('mouseenter', (e) => { if (e.altKey) peek(); });
   // The pointer on the trigger is the intent, so a focused field does not defer the peek; it
   // only keeps its Alt. preventDefault keeps bare Alt off the browser's menu bar.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Alt' || e.repeat || !pointerIn(hover)) return;
-    if (!isTyping()) e.preventDefault();
-    peek();
+  onAltKeys({
+    press: (e, isIn) => {
+      if (e.repeat || !isIn(hover)) return;
+      if (!isTyping()) e.preventDefault();
+      peek();
+    },
+    release: () => g.altRelease(),
   });
-  // Blur too — Alt+Tab switches away without delivering the keyup.
-  document.addEventListener('keyup', (e) => { if (e.key === 'Alt') g.altRelease(); });
-  if (typeof window !== 'undefined') window.addEventListener?.('blur', () => g.altRelease());
   menu.addEventListener?.('mouseenter', () => g.boxEnter());
   menu.addEventListener?.('mouseleave', () => confirmLeave(menu, () => pointerIn(menu), () => g.boxLeave()));
   return g;

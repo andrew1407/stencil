@@ -1,5 +1,6 @@
-// The editor-settings ops — theme, accent, units, view, zoom, connections, projects, chat panel and
-// incognito. None is allowed inside a variant, and each rides §10's true+note contract.
+// The editor-settings ops — theme, accent, units, view, zoom, disconnect, projects, chat panel and
+// incognito; connect and openProject wait on I/O, so they start from planExecutorAwait.cpp. None is
+// allowed inside a variant, and each rides §10's true+note contract.
 #include "planExecutorParts.hpp"
 
 namespace stencil::llm::exec {
@@ -22,7 +23,6 @@ namespace stencil::llm::exec {
         case OpKind::UNITS:
         case OpKind::VIEW:
         case OpKind::CLEAR:
-        case OpKind::CONNECT:
         case OpKind::DISCONNECT:
         case OpKind::COPY:
         case OpKind::REMOVE_PROJECT:
@@ -32,7 +32,6 @@ namespace stencil::llm::exec {
         case OpKind::RENAME_PROJECT:
         case OpKind::PROJECT_COLOR:
         case OpKind::BLANK_COLOR:
-        case OpKind::OPEN_PROJECT:
         case OpKind::CHAT_PANEL:
         case OpKind::INCOGNITO: {
           if (inVariant) {
@@ -73,7 +72,6 @@ namespace stencil::llm::exec {
             case OpKind::UNITS: target.setUnits(a.value); return true;
             case OpKind::VIEW: target.setViewVisibility(a.viewPoints, a.viewLines); return true;
             case OpKind::CLEAR: target.clearImage(); frame.reset(); return true;
-            case OpKind::CONNECT: return target.connectServer(a.server, err);
             case OpKind::COPY:
               // §10: copy what:"layout" needs drawn lines; the default image form needs a working image -
               // both are a note+skip, never a failed plan.
@@ -115,15 +113,6 @@ namespace stencil::llm::exec {
             case OpKind::BLANK_COLOR: {
               QString note;
               return noted("blankColor", target.setBlankColor(a.color, &note), note);
-            }
-            case OpKind::OPEN_PROJECT: {
-              QString note;
-              if (!noted("openProject", target.openProjectNamed(a.name, a.current, &note), note))
-                return false;
-              // An actually opened project is a fresh working image, so a fresh frame (a noted skip left the
-              // canvas alone, where the reset is harmless anyway).
-              if (note.isEmpty()) frame.reset();
-              return true;
             }
             case OpKind::INCOGNITO: {
               QString note;

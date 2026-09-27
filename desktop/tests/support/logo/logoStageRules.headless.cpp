@@ -1,6 +1,6 @@
-// The logo stage's table and kinematics against the browser's (support/logoStageRules.cpp,
+// The logo stage's table and kinematics against the browser's (support/logo/logoStageRules.cpp,
 // logoStageMotion.cpp): the same resolution rows, the same heart, the same steps. Sample values
-// printed from node (browser/tests/logoStage*.test.js).
+// printed from node (browser/tests/ui/logo/logoStage*.test.js).
 #include "logoStageMotion.hpp"
 #include "logoStageRules.hpp"
 #include "motionPrefs.hpp"

@@ -47,7 +47,7 @@ export const editorRow = (tab, state, { currentTabId } = {}) => {
   };
 };
 
-// Through lib/filters.js `matchesSearch`, so the editor list obeys the image list's rules.
+// Through lib/highlight/filters.js `matchesSearch`, so the editor list obeys the image list's rules.
 export const matchEditors = (rows, query, { regex = false } = {}) =>
   (rows || []).filter(r => matchesSearch({ name: r.projectName, src: r.url, videoUrl: r.title }, { search: query, regex }));
 

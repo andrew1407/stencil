@@ -90,8 +90,8 @@ class MainWindowGuiTest : public QObject {
     };
     struct Case { QToolButton* btn; QStringList faces; const char* what; };
     const QList<Case> cases = {
-        {win.startDrawBtn, {QStringLiteral("Start"), QStringLiteral("Stop")}, "Start/Stop"},
-        {win.drawModeBtn, {QStringLiteral("Line"), QStringLiteral("Rect")}, "Line/Rect"}};
+        {win.tools.startDrawBtn, {QStringLiteral("Start"), QStringLiteral("Stop")}, "Start/Stop"},
+        {win.tools.drawModeBtn, {QStringLiteral("Line"), QStringLiteral("Rect")}, "Line/Rect"}};
     for (const Case& c : cases) {
       QVERIFY(c.btn);
       QVERIFY2(c.btn->minimumWidth() == c.btn->maximumWidth(),
@@ -106,7 +106,7 @@ class MainWindowGuiTest : public QObject {
     }
     beat();
   }
-  // Both Draw toggles cross over through the ONE shared swap (support/faceSwap.hpp): the button never
+  // Both Draw toggles cross over through the ONE shared swap (support/theme/faceSwap.hpp): the button never
   // resizes, a burst of toggles always lands on the REAL state, and reduced motion goes to the end.
   void drawTogglesSwapTheirFaceAndConverge() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
@@ -116,8 +116,8 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QToolButton* btn = win.startDrawBtn;
-    QToolButton* mode = win.drawModeBtn;
+    QToolButton* btn = win.tools.startDrawBtn;
+    QToolButton* mode = win.tools.drawModeBtn;
     QVERIFY(btn && mode);
     const QSize drawSize = btn->size();
     const QSize modeSize = mode->size();

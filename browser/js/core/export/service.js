@@ -5,6 +5,8 @@ import {
   saveProjectFile, openProjectFile, pickAndOpenProjectFile, deleteProjectFile,
 } from '../project/filePicker.js';
 import { uploadJSON, applyPastedLayout, installLayout } from '../layoutInstall.js';
+import { paintRestingLines } from '../draw/restingPaint.js';
+import { currentLayoutPayload } from '../project/meta/projectMeta.js';
 
 // Image/layout export, clipboard and file IO. Holds no state: reads the app's editor state
 // and routes every mutation back through the app's shared methods.
@@ -39,15 +41,7 @@ export class ExportService {
       ctx.drawImage(app.image, 0, 0);
     } else {
       app.renderer.drawImageWithFilter(ctx);
-      if (variant === 'current' || variant === 'split') {
-        if (app.showLines) {
-          app.lines.forEach(line => app.renderer.drawLine(line, false));
-        } else if (app.showPoints) {
-          app.lines.forEach(line => {
-            line.points.forEach(p => app.renderer.drawPoint(p, line.color, line.pointSize ?? app.pointSize, false));
-          });
-        }
-      }
+      if (variant === 'current' || variant === 'split') paintRestingLines(app.renderer, app.lines, app);
       if (variant === 'split') {
         const mode = app.compareMode === 'horizontal' ? 'horizontal' : 'vertical';
         app.renderer.drawCompareSplit(mode, { withDivider: false });
@@ -119,7 +113,7 @@ export class ExportService {
     }
 
 // The FULL layout, matching the clipboard copy and the server payload.
-    const data = app.currentLayoutPayload();
+    const data = currentLayoutPayload(app);
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     this.downloadBlob(blob, `${app.imageBaseName || 'drawing'}-layout.json`);

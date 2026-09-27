@@ -1,6 +1,7 @@
 import { wireNameEditor } from '../../../utils.js';
 import { markIn, markOut } from '../../motion.js';
 import { validateProjectName } from '../../../core/parse/validation.js';
+import { updateProjectTitle } from '../../projects/window/projectTitle.js';
 export function wireProjectNameField(app) {
   const nameInput = document.getElementById('project-name-input');
   const nameEdit = document.getElementById('project-name-edit');
@@ -18,7 +19,7 @@ export function wireProjectNameField(app) {
       markOut(nameCancel);
       nameAccept.style.display = 'none';
       nameCancel.style.display = 'none';
-      app.updateProjectTitle(true);   // restore value + ✎ visibility
+      updateProjectTitle(app, true);   // restore value + ✎ visibility
     };
     const beginEdit = () => {
       if (!canRename() || app.nameEditing) return;
@@ -41,7 +42,7 @@ export function wireProjectNameField(app) {
       current: currentName,
       validate: (v) => validateProjectName(app.storage.store, v, app.activeProjectId),
       commit: (v) => {
-        if (app.activeProjectId != null) app.renameProject(app.activeProjectId, v);   // syncs imageBaseName itself
+        if (app.activeProjectId != null) app.projectTransfer.renameProject(app.activeProjectId, v);   // syncs imageBaseName itself
         endEdit();
       },
       cancel: () => endEdit(),

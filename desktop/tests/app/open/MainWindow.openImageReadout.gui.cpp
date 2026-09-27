@@ -63,7 +63,7 @@ class MainWindowGuiTest : public QObject {
       }
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(dx != 999, "the read-out never raised a cloud of its own");
     QVERIFY2(qAbs(dx) <= 2 && qAbs(dy) <= 2,
              qPrintable(QString("the cloud is (%1,%2) off the line it came from").arg(dx).arg(dy)));
@@ -118,7 +118,7 @@ class MainWindowGuiTest : public QObject {
           }
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(cw > 0, "the read-out never raised a cloud over a big picture");
     // A speck: roughly square, and never thinner than a pixel — under that the mote's
     // radius falls below the paint threshold and most of the line never flies at all.
@@ -167,7 +167,7 @@ class MainWindowGuiTest : public QObject {
       cloudsOnUntick = clouds();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(cloudsOnTick > 0, "ticking Crop must form the read-out out of particles");
     QVERIFY2(cloudsOnUntick > 0, "unticking it must scatter the read-out, not just hide it");
   }
@@ -208,7 +208,7 @@ class MainWindowGuiTest : public QObject {
       closedH = dlg->height();
       dlg->reject();
     });
-    win.openImage();
+    win.parts.sourceOpener.openImage();
     QVERIFY2(full > 8, qPrintable(QString("the read-out never opened (%1px)").arg(full)));
     QVERIFY2(after > before, "the window makes room for it");
     // Heights between nothing and the whole line — what a visibility toggle cannot produce.

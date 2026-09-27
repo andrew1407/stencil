@@ -1,5 +1,6 @@
 #pragma once
 #include "accentDefaults.hpp"
+#include "defaultVisuals.hpp"
 #include "../llm/client/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
@@ -13,7 +14,7 @@
 #include <optional>
 #include <vector>
 
-// File persistence — browser twin js/core/storage.js + projectsStore.js. All state lives in
+// File persistence — browser twin browser/js/core/storage/storage.js + projectsStore.js. All state lives in
 // one gitignored directory (desktop/.stencil/); JSON is Qt's here, so core/ stays STL-only.
 namespace stencil::gui {
 
@@ -28,17 +29,16 @@ namespace stencil::gui {
     bool syncToServer = true;
     bool showPoints = true;
     bool showLines = true;
-    QString defaultColor = "#FFFF00";
+    QString defaultColor = defaultVisuals::table().color;
     // Empty = follow defaultColor (core::Line::pointColor), so an old settings file keeps its behaviour.
     QString defaultPointColor = "";
-    double defaultThickness = 2.0;
-    double defaultPointSize = 4.0;
-    QString defaultStyle = "solid";   // solid | dashed | dotted
-    // Fill for a newly LOCKED area (browser DEFAULT_VISUALS.defaultFillColor).
-    QString defaultFillColor = "#ffffff";
-    QString selGlowColor = "#ffc800";    // selection highlight glow (lines + points)
-    QString hoverRingColor = DEFAULT_ACCENT_HEX;  // hover ring around points
-    QString focusRingColor = DEFAULT_ACCENT_HEX;  // focused/clicked point ring
+    double defaultThickness = defaultVisuals::table().thickness;
+    double defaultPointSize = defaultVisuals::table().pointSize;
+    QString defaultStyle = defaultVisuals::table().style;   // solid | dashed | dotted
+    QString defaultFillColor = defaultVisuals::table().fillColor;   // a newly LOCKED area's fill
+    QString selGlowColor = defaultVisuals::table().selGlow;       // selection glow (lines + points)
+    QString hoverRingColor = defaultVisuals::table().hoverRing;   // hover ring around points
+    QString focusRingColor = defaultVisuals::table().focusRing;   // focused/clicked point ring
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
@@ -55,23 +55,23 @@ namespace stencil::gui {
     // "none" | "bw" | "sepia" | "invert" | "contour" | "custom"; filterColor is the custom tint.
     QString imageFilter = "none";
     QString filterColor = DEFAULT_ACCENT_HEX;
-    int holdDrawDelay = 500;
-    // Motion (browser js/ui/prefs.js; support/modalReveal.hpp drives them).
+    int holdDrawDelay = defaultVisuals::table().holdDrawDelay;   // ms
+    // Motion (browser js/ui/motion/motionPrefs.js; support/modal/modalReveal.hpp drives them).
     bool drawingAnimations = true;
     bool modalBackdrop = true;
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
     // "toast" | "system": the in-app stack or the OS notification centre (support/notify).
     QString notifyChannel = "toast";
-    // Desktop-only "Open in…" targets; the browser keeps its own in js/config/openInConfig.json.
+    // Desktop-only "Open in…" targets; the browser keeps its own in browser/js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;
     // AI assistant (llm-contract.md §5): ships OFF until the user picks a provider. An
     // empty llmServerUrl resolves at use time to the first saved connection (net/connectionStore).
-    QString llmProvider = "none";       // "none" | "ollama" | "openai-compat" | "stencil-server"
+    QString llmProvider = "none";       // "none" | "ollama" | "openai-compat" | "anthropic" | "stencil-server"
     QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("none"));
     QString llmModel;
-    QString llmApiKey;                  // openai-compat only (Bearer)
+    QString llmApiKey;                  // openai-compat only (Bearer); never the anthropic session key
     QString llmServerUrl;               // stencil-server only ("" = first saved connection)
     // Chat persistence opt-in (llm-contract.md §12): OFF by default; incognito never persists.
     bool saveChatsWithProject = false;

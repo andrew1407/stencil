@@ -1,4 +1,4 @@
-// Viewport-fit sizing and the .logo-hover latch (js/ui/toolbar.js): the latch holds through an
+// Viewport-fit sizing and the .logo-hover latch (js/ui/toolbar/toolbar.js): the latch holds through an
 // accent swap's view transition, which force-drops :hover, and the two CSS motion hooks.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

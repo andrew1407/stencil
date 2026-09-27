@@ -4,7 +4,6 @@
 #include "../../../support/theme/filterFade.hpp"
 #include "OpenImageDialog.hpp"
 #include "chipDust.hpp"
-#include "openImageDialogParts.hpp"
 #include <QGraphicsOpacityEffect>
 #include <QLayout>
 #include <QPixmap>
@@ -35,9 +34,7 @@ namespace stencil::gui {
     slideRowHeight(this, row, slide, true);
     if (QLayout* l = host->layout()) l->activate();
     const QPixmap shot = row->grab();
-    auto* veil = new QGraphicsOpacityEffect(row);
-    veil->setOpacity(0.0);
-    row->setGraphicsEffect(veil);
+    QGraphicsOpacityEffect* veil = veilBehindDust(row);
     QPointer<QWidget> w(row);
     const int gen = motion.gen;
     QVariantAnimation** slidePtr = &slide;
@@ -56,7 +53,7 @@ namespace stencil::gui {
       };
       if (*slidePtr) connect(*slidePtr, &QVariantAnimation::valueChanged, fx, follow);
       if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
-      QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), w, lift);
+      QTimer::singleShot(int(keywordChipClocks().dustMs * FILTER_DUST_VEIL_STOP), w, lift);
     });
   }
 

@@ -2,12 +2,26 @@
 
 use std::io::Read;
 use std::net::TcpStream;
+use std::time::Instant;
 
-use super::{LlmError, BODY_TOO_LARGE, MAX_BODY_BYTES, MAX_HEADER_BYTES};
+use super::client::remaining;
+use super::{LlmError, MAX_HEADER_BYTES};
+
+/// The socket and the two bounds every read honours: the exchange's deadline and body cap.
+struct Reader<'a> {
+    stream: &'a mut TcpStream,
+    deadline: Instant,
+    max_body: usize,
+}
 
 /// Read one HTTP response off `stream`: status line + headers, then the body per its
 /// framing (`Transfer-Encoding: chunked` > `Content-Length` > read-to-EOF).
-pub(super) fn read_response(stream: &mut TcpStream) -> Result<(u16, String), LlmError> {
+pub(super) fn read_response(
+    stream: &mut TcpStream,
+    deadline: Instant,
+    max_body: usize,
+) -> Result<(u16, String), LlmError> {
+    let stream = &mut Reader { stream, deadline, max_body };
     let mut buf: Vec<u8> = Vec::with_capacity(8 * 1024);
 
     // 1. Accumulate until the header terminator, scanning only what each read brought in.
@@ -72,7 +86,7 @@ pub(super) fn read_response(stream: &mut TcpStream) -> Result<(u16, String), Llm
 
 /// Decode a `Transfer-Encoding: chunked` body: hex-size line, chunk bytes, CRLF, until the
 /// `0` chunk. `buf` starts with the body bytes read alongside the headers.
-fn read_chunked(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, LlmError> {
+fn read_chunked(mut buf: Vec<u8>, stream: &mut Reader) -> Result<Vec<u8>, LlmError> {
     let mut body: Vec<u8> = Vec::new();
     let mut pos = 0usize;
     loop {
@@ -99,8 +113,8 @@ fn read_chunked(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, Llm
         if size == 0 {
             return Ok(body); // done; any trailers are ignored
         }
-        if body.len() + size > MAX_BODY_BYTES {
-            return Err(LlmError::BadResponse(BODY_TOO_LARGE.to_string()));
+        if body.len() + size > stream.max_body {
+            return Err(too_large(stream));
         }
         // The chunk data + its trailing CRLF.
         while buf.len() < pos + size + 2 {
@@ -118,21 +132,12 @@ fn read_chunked(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, Llm
 }
 
 /// Read until `buf` holds exactly `len` body bytes (a declared `Content-Length`).
-fn read_exact_len(
-    mut buf: Vec<u8>,
-    stream: &mut TcpStream,
-    len: usize,
-) -> Result<Vec<u8>, LlmError> {
-    if len > MAX_BODY_BYTES {
-        return Err(LlmError::BadResponse(BODY_TOO_LARGE.to_string()));
+fn read_exact_len(mut buf: Vec<u8>, stream: &mut Reader, len: usize) -> Result<Vec<u8>, LlmError> {
+    if len > stream.max_body {
+        return Err(too_large(stream));
     }
-    if buf.len() < len {
-        let remaining = len - buf.len();
-        buf.reserve(remaining);
-        let read = Read::take(&mut *stream, remaining as u64)
-            .read_to_end(&mut buf)
-            .map_err(|e| LlmError::Io(format!("could not read the response: {e}")))?;
-        if read < remaining {
+    while buf.len() < len {
+        if fill(stream, &mut buf)? == 0 {
             return Err(LlmError::BadResponse(format!(
                 "connection closed after {} of {len} body bytes",
                 buf.len()
@@ -144,10 +149,10 @@ fn read_exact_len(
 }
 
 /// No framing declared: `Connection: close` semantics — the body is everything until EOF.
-fn read_to_eof(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, LlmError> {
+fn read_to_eof(mut buf: Vec<u8>, stream: &mut Reader) -> Result<Vec<u8>, LlmError> {
     loop {
-        if buf.len() > MAX_BODY_BYTES {
-            return Err(LlmError::BadResponse(BODY_TOO_LARGE.to_string()));
+        if buf.len() > stream.max_body {
+            return Err(too_large(stream));
         }
         if fill(stream, &mut buf)? == 0 {
             return Ok(buf);
@@ -155,10 +160,21 @@ fn read_to_eof(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, LlmE
     }
 }
 
-/// One `read` into a scratch block appended to `buf`; returns the byte count (0 = EOF).
-fn fill(stream: &mut TcpStream, buf: &mut Vec<u8>) -> Result<usize, LlmError> {
+fn too_large(stream: &Reader) -> LlmError {
+    LlmError::BadResponse(format!("response body exceeds {} MiB", stream.max_body >> 20))
+}
+
+/// One `read` into a scratch block appended to `buf`, given only what is left of the
+/// deadline; returns the byte count (0 = EOF).
+fn fill(stream: &mut Reader, buf: &mut Vec<u8>) -> Result<usize, LlmError> {
+    let left = remaining(stream.deadline)?;
+    stream
+        .stream
+        .set_read_timeout(Some(left))
+        .map_err(|e| LlmError::Io(format!("could not set socket timeouts: {e}")))?;
     let mut block = [0u8; 4096];
     let n = stream
+        .stream
         .read(&mut block)
         .map_err(|e| LlmError::Io(format!("could not read the response: {e}")))?;
     buf.extend_from_slice(&block[..n]);

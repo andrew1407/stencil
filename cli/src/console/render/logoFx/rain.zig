@@ -3,6 +3,7 @@
 const std = @import("std");
 const screen_mod = @import("../../screen.zig");
 const timing = @import("timing.zig");
+const frame = @import("../../screen/frame.zig");
 const Screen = screen_mod.Screen;
 
 const frames = 90;
@@ -23,19 +24,21 @@ pub fn rain(self: *Screen) void {
     var head: [max_cols]i32 = undefined;
     for (head[0..cols]) |*hd| hd.* = -rnd.intRangeLessThan(i32, 0, h + trail);
 
+    frame.begin(self);
+    defer frame.end(self);
+    const kept = frame.keepCursor(self);
+    defer frame.returnCursor(self, kept);
     var f: usize = 0;
     while (f < frames) : (f += 1) {
-        var frame = timing.Frame{ .fd = self.fd };
         var c: usize = 0;
         while (c < cols) : (c += 1) {
             head[c] += 1;
             if (head[c] - trail > h) head[c] = -rnd.intRangeLessThan(i32, 0, h); // a fresh drop falls
             const r = head[c];
-            put(&frame, top, h, r, c, head_sgr, digit(rnd));
-            put(&frame, top, h, r - 1, c, body_sgr, digit(rnd));
-            put(&frame, top, h, r - trail, c, body_sgr, " ");
+            put(self.fd, top, h, r, c, head_sgr, digit(rnd));
+            put(self.fd, top, h, r - 1, c, body_sgr, digit(rnd));
+            put(self.fd, top, h, r - trail, c, body_sgr, " ");
         }
-        frame.flush();
         if (timing.waitFrame(self, frame_ms)) break;
     }
 }
@@ -45,12 +48,12 @@ fn digit(rnd: std.Random) []const u8 {
 }
 
 // One cell of the rain, skipped when `r` (0-based below `top`) is off the output rows.
-fn put(frame: *timing.Frame, top: i32, h: i32, r: i32, c: usize, sgr: []const u8, glyph: []const u8) void {
+fn put(fd: std.posix.fd_t, top: i32, h: i32, r: i32, c: usize, sgr: []const u8, glyph: []const u8) void {
     if (r < 0 or r >= h) return;
     var b: [24]u8 = undefined;
-    frame.put(std.fmt.bufPrint(&b, "\x1b[{d};{d}H", .{ top + r, c + 1 }) catch return);
-    frame.put(sgr);
-    frame.put(glyph);
+    screen_mod.ttyWrite(fd, std.fmt.bufPrint(&b, "\x1b[{d};{d}H", .{ top + r, c + 1 }) catch return);
+    screen_mod.ttyWrite(fd, sgr);
+    screen_mod.ttyWrite(fd, glyph);
 }
 
 test "rain: a screen with no output rows draws nothing" {

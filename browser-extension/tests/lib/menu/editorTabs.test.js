@@ -1,4 +1,4 @@
-// src/lib/editorTabs.js — recognising an editor tab, projecting one into an EditorRow, and
+// src/lib/menu/editorTabs.js — recognising an editor tab, projecting one into an EditorRow, and
 // matching those rows against a query.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -2,7 +2,7 @@
 // and Chrome's createImageBitmap refuses SVG, so decoding is bitmap-first with an <img>
 // at an explicit size as the fallback. Every DOM seam is injected (node --test stubs it).
 
-import { isAllowedImageUrl } from '../connection/urlGuard.js';
+import { guardedFetch, isAllowedImageUrl, readBlobCapped } from '../connection/urlGuard.js';
 
 // Long edge a decoded image is fitted into by default (contract §7 downscale).
 export const DEFAULT_MAX_EDGE = 1568;
@@ -61,12 +61,8 @@ const domDeps = () => ({
   createBitmap: typeof createImageBitmap === 'function' ? (blob) => createImageBitmap(blob) : null,
   makeImage: () => document.createElement('img'),
   makeCanvas: () => document.createElement('canvas'),
-  // Sources reach here as data:/blob: (fetchAsDataUrl pulled the bytes under the guard
-  // already); anything else is a page-harvested URL, so it takes the same SSRF check.
-  toBlob: async (url) => {
-    if (!isAllowedImageUrl(url)) throw new Error(BLOCKED_URL);
-    return (await fetch(url)).blob();
-  },
+  // An http(s) source is page-harvested: the guarded, capped fetch every other read takes.
+  toBlob: async (url) => readBlobCapped(await guardedFetch(url)),
   objectUrl: (blob) => URL.createObjectURL(blob),
   revokeUrl: (url) => URL.revokeObjectURL(url),
   timer: (fn, ms) => setTimeout(fn, ms),
@@ -113,12 +109,15 @@ const decodeViaElement = (url, { width, height }, d, timeoutMs) => new Promise((
 
 // Bitmap path first (never for SVG), element path as the fallback; a `use` failure on the
 // bitmap path also falls through, since the element decoder handles more.
-const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize, noSource }, use) => {
-  // Both decoders reach the network for an http(s) source (fetch, then <img src>), so
-  // the SSRF guard sits here, ahead of either. data:/blob: pass (urlGuard.js).
+const decode = async (source, { d, timeoutMs, elementSize, noSource }, use) => {
+  let { dataUrl = '', blob = null } = source;
+  const named = dataUrl;
+  // An http(s) source is fetched once, under the guard, so no <img src> follows a redirect.
+  // data:/blob: pass (urlGuard.js).
   if (dataUrl && !isAllowedImageUrl(dataUrl)) throw new Error(BLOCKED_URL);
+  if (!blob && /^https?:/i.test(dataUrl)) { blob = await d.toBlob(dataUrl); dataUrl = ''; }
   const type = (blob && blob.type) || mediaTypeOf(dataUrl);
-  const vector = isSvgType(type) || (!type && isSvgUrl(dataUrl));
+  const vector = isSvgType(type) || (!type && isSvgUrl(named));
 
   if (!vector && d.createBitmap) {
     try {

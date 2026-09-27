@@ -4,7 +4,6 @@
 #include "chatDockShared.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/motionPrefs.hpp"
-#include "theme.hpp"
 #include "chatWidgets.hpp"
 
 #include <QFileInfo>
@@ -80,7 +79,7 @@ namespace stencil::gui {
         // or deleting it — an invisible chip still holds its slot for the hold+squeeze.
         for (QVariantAnimation* a : chip->findChildren<QVariantAnimation*>()) a->stop();
         auto* fx = qobject_cast<QGraphicsOpacityEffect*>(chip->graphicsEffect());
-        if (!fx) { fx = new QGraphicsOpacityEffect(chip); chip->setGraphicsEffect(fx); }
+        if (!fx) { fx = veilBehindDust(chip); fx->setOpacity(1.0); }
         auto* fade = new QVariantAnimation(chip);
         fade->setDuration(CHAT_LEAVE_MS);
         fade->setStartValue(fx->opacity());

@@ -6,15 +6,17 @@
 
 mod launch;
 
+use std::process::Stdio;
+
 use serde::Serialize;
 
 use crate::config::{Config, Surface};
-use crate::pipeline::EditResult;
+use crate::pipeline::{gui_env, EditResult};
 
-use launch::{build_launch_url, open_in_os};
+use launch::{build_launch_url, open_in_os, ECHO_MAX, OPEN_MAX};
 
 /// One surface's outcome; its `Serialize` IS the payload's per-delivery object.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct DeliveryNote {
     pub surface: &'static str,
     pub ok: bool,
@@ -51,7 +53,7 @@ pub async fn deliver(
                 result,
                 config,
                 "live editing of a running tab is driven by the stencil-operator agent (it \
-                 has the chrome-devtools tools); open this URL there or with the agent",
+                 has the chrome-devtools tools)",
             )
             .await,
             Surface::Extension => handoff_note(
@@ -59,7 +61,7 @@ pub async fn deliver(
                 result,
                 config,
                 "page scanning/marking is driven by the stencil-operator agent + the Chrome \
-                 extension; this server delivers the edited file and a launch URL",
+                 extension",
             )
             .await,
         };
@@ -78,9 +80,15 @@ fn deliver_desktop(result: &EditResult, config: &Config) -> DeliveryNote {
     };
 
     // Fire-and-forget: the GUI runs on its own; `tokio::process` reaps the child, std zombies.
+    // None of our stdio is lent to it: stdout is the JSON-RPC channel.
     match tokio::process::Command::new(bin)
         .arg("--src")
         .arg(&result.path)
+        .env_clear()
+        .envs(gui_env(std::env::vars_os()))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
     {
         Ok(_) => DeliveryNote::ok(
@@ -95,33 +103,50 @@ fn deliver_desktop(result: &EditResult, config: &Config) -> DeliveryNote {
     }
 }
 
-/// Build a browser-editor launch URL with the result loaded, and optionally open it.
+/// Build a browser-editor launch URL with the result loaded, and optionally open it. An
+/// opened URL is not echoed back; one too long for the result is not returned at all.
 async fn deliver_browser(result: &EditResult, config: &Config) -> DeliveryNote {
-    let url = match build_launch_url(&result.path, &config.browser_url).await {
-        Ok(url) => url,
-        Err(e) => {
-            return DeliveryNote::fail("browser", format!("could not build a launch URL: {e}"))
-        }
-    };
-
-    let mut detail = format!("editor launch URL ready ({} app)", config.browser_url);
-    if config.auto_open {
-        detail = match open_in_os(&url) {
-            Ok(()) => format!("opened in the editor at {}", config.browser_url),
-            Err(e) => format!("built the URL but could not auto-open it: {e}"),
-        };
+    if result.width.is_none() {
+        return DeliveryNote::fail("browser", PROJECT_NOT_IMAGE.into());
     }
-
-    DeliveryNote::ok("browser", detail, Some(url))
+    let cap = if config.auto_open { OPEN_MAX } else { ECHO_MAX };
+    let url = match build_launch_url(&result.path, &config.browser_url, cap).await {
+        Ok(url) => url,
+        Err(e) => return DeliveryNote::fail("browser", e),
+    };
+    if !config.auto_open {
+        let detail = format!("editor launch URL ready ({} app)", config.browser_url);
+        return DeliveryNote::ok("browser", detail, Some(url));
+    }
+    match open_in_os(&url) {
+        Ok(()) => DeliveryNote::ok(
+            "browser",
+            format!("opened in the editor at {}", config.browser_url),
+            None,
+        ),
+        Err(e) => DeliveryNote::ok(
+            "browser",
+            format!("built the URL but could not auto-open it: {e}"),
+            Some(url).filter(|u| u.len() <= ECHO_MAX),
+        ),
+    }
 }
 
-/// A hand-off note for the live/scan surfaces: still produce the editor launch URL.
+/// A hand-off note for the live/scan surfaces: the file to load, plus a launch URL when a
+/// small result fits one.
 async fn handoff_note(
     surface: &'static str,
     result: &EditResult,
     config: &Config,
     detail: &str,
 ) -> DeliveryNote {
-    let url = build_launch_url(&result.path, &config.browser_url).await.ok();
-    DeliveryNote::ok(surface, detail.to_string(), url)
+    let url = match result.width {
+        Some(_) => build_launch_url(&result.path, &config.browser_url, ECHO_MAX).await.ok(),
+        None => None,
+    };
+    DeliveryNote::ok(surface, format!("{detail}; the file to load is {}", result.path), url)
 }
+
+const PROJECT_NOT_IMAGE: &str =
+    "a .stencil project is not an image — the launch URL carries images only; open the \
+     project in the desktop app or the editor's Open dialog";

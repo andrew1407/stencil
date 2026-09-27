@@ -65,7 +65,7 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 	defer untrack()
 
 	// First frame must be a hello within the deadline.
-	hctx, hcancel := context.WithTimeout(ctx, helloTimeout)
+	hctx, hcancel := context.WithTimeout(ctx, h.tune.HelloTimeout)
 	raw, err := conn.Read(hctx)
 	hcancel()
 	if err != nil {
@@ -77,12 +77,17 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
 		return err
 	}
-	if err := h.checkHello(ctx, conn, hello); err != nil {
+	sess, err := h.checkHello(ctx, conn, hello)
+	if err != nil {
 		return err
 	}
+	defer h.expireAt(sess.ExpiresAt, conn, cancel)()
 
 	if hello.ProjectID == "" {
 		return h.serveEvents(ctx, conn)
+	}
+	if err := h.checkProject(ctx, conn, hello.ProjectID); err != nil {
+		return err
 	}
 	return h.serveProject(ctx, conn, hello)
 }
@@ -94,7 +99,7 @@ func (h *Hub) serveProject(ctx context.Context, conn transport.Conn, hello proto
 	if clientID == "" {
 		clientID = randomID()
 	}
-	m := newMember(clientID, hello.Name, conn)
+	m := newMember(clientID, hello.Name, conn, h.tune)
 
 	s := h.acquire(hello.ProjectID)
 	defer h.release(s)

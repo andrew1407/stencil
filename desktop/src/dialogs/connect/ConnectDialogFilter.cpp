@@ -1,57 +1,17 @@
 #include "ConnectDialog.hpp"
 #include "connectDialogParts.hpp"
-#include "../../support/motion/scrollReveal.hpp"
-#include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/motion/DissolveEffect.hpp"
 #include "../../support/theme/filterFade.hpp"
-#include "../../support/control/FlowLayout.hpp"
-#include "../../support/guiHelpers.hpp"
-#include "../../support/modal/modalChrome.hpp"
-#include "../../support/modal/modalReveal.hpp"
-#include "../../support/control/reveal/controlReveal.hpp"
-#include "../../support/motion/ShimmerOverlay.hpp"
 
-#include "connectionStore.hpp"
-#include "iconSet.hpp"
 #include "theme.hpp"
-#include "ReorderableListWidget.hpp"
-#include "SearchCombo.hpp"
-#include "ServerClient.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QClipboard>
-#include <QCursor>
-#include <QEnterEvent>
-#include <QEvent>
 #include <QColor>
-#include <QGuiApplication>
-#include <QFont>
-#include <QFrame>
 #include <QGraphicsOpacityEffect>
-#include <QGridLayout>
-#include <QHBoxLayout>
-#include <QIcon>
-#include <QLabel>
-#include <QKeyEvent>
-#include <QLineEdit>
 #include <QListWidget>
-#include <QPainter>
 #include <QPalette>
-#include <QPen>
-#include <QPixmap>
-#include <QPointer>
 #include <QPushButton>
-#include <QResizeEvent>
-#include <QScrollBar>
-#include <QSignalBlocker>
 #include <QSize>
-#include <QSizePolicy>
-#include <QStyle>
-#include <QTimer>
-#include <QVBoxLayout>
-
-#include <algorithm>
 
 namespace stencil::gui {
 
@@ -154,7 +114,7 @@ namespace stencil::gui {
     const QColor input = palette().color(QPalette::Base);
     const QColor info = infoBackground(dark);
     const QColor border = themePalette(dark).borderMain;
-    // Browser .connect-row, value for value (css/components.css). The transient states come AFTER the
+    // Browser .connect-row, value for value (css/components/). The transient states come AFTER the
     // admin gold so they still win the border (its ring folded into a 2px border — box-shadow has no Qt spelling).
     return QString(
                // The app-wide sheet pads every QListWidget::item by 4px with its own fill; the slot is nothing, the card everything.

@@ -1,6 +1,6 @@
 // UI regression pins for the MV3 extension — the same guard as tests/browser/ui-pins.spec.js
 // (helpers/uiPin.js): each surface is driven into a state and its subtree recorded as computed
-// styles + DOM shape, deep-equalled against e2e/pins/<name>.json. No screenshots.
+// styles + DOM shape, deep-equalled against e2e/pins/<platform>/<name>.json. No screenshots.
 // Context setup mirrors popup.smoke.spec.js. UPDATE_PINS=1 records the baselines.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
@@ -29,6 +29,13 @@ test.describe('extension UI pins', () => {
 
   test.afterAll(async () => { await context?.close(); });
 
+  // The windows are headed, so the desk's own cursor resting over one hovers whatever lies under
+  // it; a pin taken with no gesture of the spec's own parks the pointer outside the viewport first.
+  const parkedPin = async (page, spec) => {
+    await page.mouse.move(POPUP_VIEWPORT.width + 40, 8);
+    return expectPin(page, spec);
+  };
+
   // A surface page at a fixed size, with motion and theme frozen.
   const openSurface = async (rel) => {
     const ui = await context.newPage();
@@ -53,8 +60,8 @@ test.describe('extension UI pins', () => {
     await ui.bringToFront();   // the popup never re-scans on its own, so the rows persist
 
     // The filter accordion in its shipped state — every section open but Assistant.
-    await expectPin(ui, { name: 'popup-filter-open', root: '.filters' });
-    await expectPin(ui, { name: 'popup-list', root: '#list' });
+    await parkedPin(ui, { name: 'popup-filter-open', root: '.filters' });
+    await parkedPin(ui, { name: 'popup-list', root: '#list' });
 
     // The ⋯ row menu (retried: under xvfb the list can scroll itself once right after
     // the click, which closes the menu by design — popup.smoke.spec.js hits the same).
@@ -86,12 +93,12 @@ test.describe('extension UI pins', () => {
     await host.bringToFront();
     await panel.waitForFunction(() => document.querySelectorAll('.row').length > 0, null, { timeout: 15_000 });
     await panel.bringToFront();
-    await expectPin(panel, { name: 'side-panel', root: 'body' });
+    await parkedPin(panel, { name: 'side-panel', root: 'body' });
     await panel.close();
 
     const options = await openSurface('src/options/options.html');
     await options.waitForSelector('.card', { timeout: 15_000 });
-    await expectPin(options, { name: 'options-page', root: 'body' });
+    await parkedPin(options, { name: 'options-page', root: 'body' });
 
     await options.close();
     await host.close();

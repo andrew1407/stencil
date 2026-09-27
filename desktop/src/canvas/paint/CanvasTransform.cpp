@@ -1,26 +1,30 @@
 #include "CanvasWidget.hpp"
-#include "CanvasWidget.hpp"
 #include "hitTest.hpp"
 #include "pointMath.hpp"
+#include "../../support/control/lineLimits.hpp"
+
+#include <algorithm>
 
 // Transforming a selection, and growing a line a point at a time.
 
 namespace stencil::gui {
 
-  // Alt+wheel: bump the thickness of the line under the cursor by +-1 (clamped 1-20).
+  // Alt+wheel: bump the thickness of the line under the cursor by +-1 (clamped to LIMITS).
   // Port of drawingApp.js #adjustThicknessAtCursor.
   void CanvasWidget::adjustThicknessAtCursor(double imageX, double imageY,
                                              int dir) {
     int lineIdx = -1;
-    if (auto pt = core::findNearestPoint(lines, imageX, imageY, hitRadius(12.0))) {
+    if (auto pt = core::findNearestPoint(lines, imageX, imageY, grabHitRadius())) {
       lineIdx = pt->lineIdx;
     } else {
-      lineIdx = core::findLineAt(lines, imageX, imageY, hitRadius(8.0));
+      lineIdx = core::findLineAt(lines, imageX, imageY, lineHitRadius());
     }
     if (lineIdx < 0 || lineIdx >= static_cast<int>(lines.size())) return;
 
     core::Line& line = lines[lineIdx];
-    const double newT = std::max(1.0, std::min(20.0, line.thickness + dir));
+    const support::lineLimits::Table& limits = support::lineLimits::table();
+    const double newT =
+        std::clamp(line.thickness + dir, double(limits.thickMin), double(limits.thickMax));
     if (newT == line.thickness) return;
     line.thickness = newT;
     update();

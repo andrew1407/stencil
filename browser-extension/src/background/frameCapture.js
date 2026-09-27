@@ -1,10 +1,12 @@
 // Three routes to a still of the right-clicked <video>, tried in order by ctxActions: in-page
 // canvas readback, an extension-side byte re-fetch, and a screenshot crop as a last resort.
 import { blobToDataUrl } from '../lib/stencil.js';
-import { isAllowedImageUrl } from '../lib/connection/urlGuard.js';
+import { guardedFetch, readBlobCapped } from '../lib/connection/urlGuard.js';
 
 // An un-capped retina crop, as a data URL in the editor launch URL, overflows Chrome's limit.
 const FRAME_MAX_SIDE = 1920;
+// Bytes of video fetched to seek one frame from; the whole file rides into the page as a data URL.
+const VIDEO_FETCH_MAX = 25_000_000;
 
 // captureVisibleTab returns an extension-owned (never tainted) image.
 export const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
@@ -111,12 +113,9 @@ export const captureVideoFrameViaFetch = async (tabId, frameId, src, t, pageUrl 
   if (tabId == null || !src) return null;
   try {
     // `src` is page-derived — refuse private/internal targets (urlGuard.js).
-    if (!isAllowedImageUrl(src, { allowSameHostAs: pageUrl })) return null;
-    const resp = await fetch(src);
+    const resp = await guardedFetch(src, { allowSameHostAs: pageUrl });
     if (!resp.ok) return null;
-    const clen = Number(resp.headers.get('content-length') || 0);
-    if (clen && clen > 25_000_000) return null;
-    const dataUrl = await blobToDataUrl(await resp.blob());
+    const dataUrl = await blobToDataUrl(await readBlobCapped(resp, VIDEO_FETCH_MAX));
     const target = { tabId };
     if (frameId != null) target.frameIds = [frameId];
     const [res] = await chrome.scripting.executeScript({

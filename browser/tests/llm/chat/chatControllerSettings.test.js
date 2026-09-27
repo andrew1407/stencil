@@ -1,4 +1,4 @@
-// §10 settings ops through a chat turn (js/llm/controller.js): the facade dispatch,
+// §10 settings ops through a chat turn (js/llm/chat/controller.js): the facade dispatch,
 // clearChat deferred to the turn's end, and server resolution for connect/disconnect.
 import { test } from 'node:test';
 import assert from 'node:assert';

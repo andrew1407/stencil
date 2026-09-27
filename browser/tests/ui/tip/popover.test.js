@@ -1,9 +1,10 @@
-// The modal popover (js/ui/popover.js): the eager-click machine, the option forwarding and the
+// The modal popover (js/ui/tip/popover.js): the eager-click machine, the option forwarding and the
 // placement rules. Pure and injected, so the whole matrix runs without a DOM.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { popoverPosition, DOUBLE_CLICK_MS } from '../../../js/ui/tip/popover.js';
+import {
+  popoverPosition, wireModalOpenGestures, DOUBLE_CLICK_MS, LINGER_CLOSE_MS,
+} from '../../../js/ui/tip/popover.js';
 import { machine, eagerMachine } from '../../helpers/popoverGestureRig.js';
 
 test('eagerClick opens on the click itself, with no timer left pending', () => {
@@ -25,18 +26,62 @@ test('eagerClick still gets its popover from a double-click', () => {
 });
 
 // The wiring destructures its options explicitly, so a new one is silently dropped
-// unless it is listed there too — the bug that left the chat still waiting 250ms.
-test('wireModalOpenGestures forwards every option the machine understands', () => {
-  const src = readFileSync(new URL('../../../js/ui/tip/popover.js', import.meta.url), 'utf8');
-  const machineOpts = src.slice(src.indexOf('export const createModalOpenGesture = ({'),
-                                src.indexOf('} = {}) => {'));
-  const wiring = src.slice(src.indexOf('export const wireModalOpenGestures = (btn, {'));
-  const forwarded = wiring.slice(0, wiring.indexOf('}) => {'));
-  for (const name of ['openFull', 'openPopover', 'closePopover', 'isPopoverOpen',
-                      'isPeekEngaged', 'holdLinger', 'holds', 'eagerClick']) {
-    assert.ok(machineOpts.includes(name), `${name} is a machine option`);
-    assert.ok(forwarded.includes(name), `${name} must be forwarded by the wiring`);
-  }
+// unless it is listed there too — the bug that left the chat still waiting 250ms. Each option
+// is driven through the machine the wiring built, so a dropped one changes what it does.
+const stubButton = () => ({ disabled: false, addEventListener() {}, matches: () => false });
+const wired = (over = {}) => {
+  const calls = [];
+  const state = { open: false, engaged: false, linger: false, held: false };
+  const g = wireModalOpenGestures(stubButton(), {
+    openFull: () => calls.push('full'),
+    openPopover: () => { calls.push('popover'); state.open = true; },
+    closePopover: () => { calls.push('close'); state.open = false; },
+    isPopoverOpen: () => state.open,
+    isPeekEngaged: () => state.engaged,
+    holdLinger: () => state.linger,
+    holds: () => state.held,
+    ...over,
+  });
+  return { g, calls, state };
+};
+
+test('wireModalOpenGestures forwards every option the machine understands', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const eager = wired({ eagerClick: true });
+  eager.g.click();
+  assert.deepStrictEqual(eager.calls, ['full'], 'eagerClick + openFull: open on the click itself');
+
+  const peek = wired();
+  peek.g.dblclick();
+  assert.deepStrictEqual(peek.calls, ['popover'], 'openPopover');
+  peek.g.notifyClosed();
+  peek.state.open = false;
+  peek.g.altHover();
+  peek.g.altRelease();
+  assert.deepStrictEqual(peek.calls, ['popover', 'popover', 'close'], 'isPopoverOpen + closePopover: a released peek closes');
+
+  const linger = wired();
+  linger.state.engaged = true;
+  linger.g.altHover();
+  linger.g.altRelease();
+  assert.deepStrictEqual(linger.calls, ['popover'], 'isPeekEngaged: an engaged peek lingers');
+  linger.state.linger = true;
+  linger.g.boxLeave();
+  t.mock.timers.tick(LINGER_CLOSE_MS);
+  assert.deepStrictEqual(linger.calls, ['popover'], 'holdLinger: a held linger stays open');
+  linger.state.linger = false;
+  linger.g.boxLeave();
+  t.mock.timers.tick(LINGER_CLOSE_MS);
+  assert.deepStrictEqual(linger.calls, ['popover', 'close'], 'and closes once nothing holds it');
+
+  const outer = wired();
+  outer.g.altHover();
+  outer.state.held = true;
+  wired().g.altHover({});
+  assert.deepStrictEqual(outer.calls, ['popover'], 'holds: a peek inside this window leaves it open');
+  outer.state.held = false;
+  wired().g.altHover({});
+  assert.deepStrictEqual(outer.calls, ['popover', 'close'], 'any other glide closes it');
 });
 
 test('the default machine still defers, so a modal cannot flash open and shut', () => {

@@ -1,8 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Stencil.TelegramBot.Application.Llm.Plan;
 using Stencil.TelegramBot.Bot;
 using Stencil.TelegramBot.Bot.Telegram;
+using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Telegram.Bot;
 using Stencil.TelegramBot.Bot.Telegram.Commands;
@@ -31,10 +34,13 @@ TelegramBotClient bot = app.Services.GetRequiredService<TelegramBotClient>();
 // The host's lifetime owns shutdown: this token is what every in-flight update is cancelled by.
 CancellationToken shutdown = app.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
 
-// Handlers run off the polling loop, on the pump's bounded queue — see UpdatePump for why.
-await using UpdatePump pump = new(logger);
-bot.OnMessage += (message, _) => pump.EnqueueAsync(() => router.HandleMessageAsync(message, shutdown));
-bot.OnUpdate += update => pump.EnqueueAsync(() => router.HandleUpdateAsync(update, shutdown));
+// Handlers run off the polling loop, one lane per user on the pump — see UpdatePump for why.
+await using UpdatePump pump = new(logger, options);
+bot.OnMessage += (message, _) =>
+    pump.EnqueueAsync(UpdateRouter.LaneOf(message), () => router.HandleMessageAsync(message, shutdown));
+bot.OnUpdate += update => update.CallbackQuery is not Telegram.Bot.Types.CallbackQuery query
+    ? Task.CompletedTask
+    : pump.EnqueueAsync(UpdateRouter.LaneOf(query), () => router.HandleUpdateAsync(update, shutdown));
 bot.OnError += (exception, source) =>
 {
     logger.LogError(exception, "Telegram polling error ({Source})", source);
@@ -42,6 +48,19 @@ bot.OnError += (exception, source) =>
 };
 
 await app.StartAsync(); // starts the hosted loops: the sync poller and the scratch sweeper
+
+// A CLI built from another opRegistry.json would judge plans against ops the prompt never described.
+try
+{
+    if (await OpPlanParser.RegistrySkewAsync(app.Services.GetRequiredService<IStencilCli>(), shutdown) is string skew)
+    {
+        logger.LogWarning("Op registry skew: {Skew}", skew);
+    }
+}
+catch (StencilCliException ex)
+{
+    logger.LogWarning("Could not check the CLI's op registry: {Reason}", ex.OperatorDetail ?? ex.Message);
+}
 
 Telegram.Bot.Types.User me = await bot.GetMe(shutdown);
 logger.LogInformation("@{Username} started", me.Username);

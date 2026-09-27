@@ -1,12 +1,20 @@
 import { notify } from '../../utils.js';
 import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../../ui/canvas/serverLayoutPaint.js';
-import { mergeLines } from '../layout.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { guardedFetch } from '../../net/fetchGuard.js';
-import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../../net/remoteSync.js';
+import { shouldReloadFromEvent } from '../../net/remoteSync.js';
+import { ResultUploader } from './resultUpload.js';
+import { imageSignature, withOriginal, samePicture, applyPeerLayout } from './peerLayout.js';
+import { pushLayout, putResult, captureResult } from './push.js';
+import { restingJob } from '../draw/restingPaint.js';
+import { resultPngBytes } from '../../worker/imageTasks.js';
+import { keptSource } from '../project/store/projectSources.js';
+import constants from '../../config/constants.json' with { type: 'json' };
+import { loadImageFromFile } from '../image/loadFlow.js';
+import { newEditor } from '../launch/openFlow.js';
 
-// Live co-edit push/pull + server writes: the debounced save-back, the peer-event reload,
-// the conflict-merge retry loop. `remoteLink`, connections and the editor model live on the app.
+// Live co-edit push/pull + server writes: the debounced layout push, the throttled result upload,
+// the peer-event pull and the conflict-merge retry loop. The link and the model live on the app.
 export class RemoteSyncController {
   // Debounce timer + burst start (max-wait cap) for the trailing save-back.
   #syncTimer = null;
@@ -17,9 +25,29 @@ export class RemoteSyncController {
   #reloadingRemote = false;
   #syncPending = false;   // a push deferred during a reload, flushed when it settles
   #reloadPending = false; // a peer change that landed mid-reload, applied when it settles
+  // One server write at a time, so a result upload never races a layout push into a 409 with itself.
+  #writes = Promise.resolve();
+  #results;
+  // The picture on screen as the server named it (imageSignature); '' until one is loaded.
+  #imageSig = '';
+  // The state the last push / pull toast announced: a steady session toasts on a change only.
+  #announced = { push: '', pull: '' };
 
   constructor(app) {
     this.app = app;
+    const { resultIdleMs: idleMs, resultMinGapMs: minGapMs } = constants.COEDIT;
+    this.#results = new ResultUploader(() => { this.#enqueue(() => this.#putResult()); }, { idleMs, minGapMs });
+  }
+
+  #enqueue(op) {
+    const run = this.#writes.then(op, op);
+    this.#writes = run.catch(() => {});
+    return run;
+  }
+
+  #toast(channel, state, msg, kind, always = false) {
+    if (always || state !== this.#announced[channel]) notify(msg, kind);
+    this.#announced[channel] = state;
   }
 
   // Debounce a save-back after an edit so peers get a `project-event`. No-op for local-only
@@ -38,7 +66,7 @@ export class RemoteSyncController {
       this.#syncFirstAt = 0;
       if (!app.remoteLink || !getSyncToServer()) return;
       if (this.#reloadingRemote) { this.#syncPending = true; return; }
-      this.saveToServer();
+      this.#enqueue(() => this.#pushLayout(false)).then((link) => { if (link) this.#results.markDirty(); });
     }, wait);
   }
 
@@ -50,7 +78,8 @@ export class RemoteSyncController {
     if (msg?.type === 'project-event' && msg.event === 'deleted' && app.remoteLink
         && msg.project?.id === app.remoteLink.remoteId
         && (!conn || conn.url === app.remoteLink.address)) {
-      app.newEditor();
+      this.#results.cancel();
+      newEditor(app);
       app.updateButtons?.();
       notify('This server project was deleted', 'info');
       return;
@@ -66,8 +95,15 @@ export class RemoteSyncController {
     this.reloadRemoteActive();
   }
 
-  // Original/source is the base + the stored layout re-applied — never the baked `result`,
-  // which would double-draw. Guarded so the reload's own redraws don't push back.
+  // The server record of the picture just loaded, so a later peer event can tell a layout
+  // edit (adopted in place) from a new picture (reloaded).
+  noteServerImage(rec) { this.#imageSig = imageSignature(rec); }
+
+  // This editor's own upload is now the server's original ('' = its hash is unknown).
+  noteOwnOriginal(hash) { this.#imageSig = withOriginal(this.#imageSig, hash); }
+
+  // The same original (equal originalHash): the layout in place, crop and turn too, history kept.
+  // Otherwise the original/source is the base + the stored layout re-applied — never the baked `result`.
   async reloadRemoteActive() {
     const app = this.app;
     const link = app.remoteLink;
@@ -77,30 +113,13 @@ export class RemoteSyncController {
     this.#reloadingRemote = true;
     try {
       const full = await conn.getProject(link.remoteId);
-      const src = full.project?.source || '';
-      const blob = await this.fetchRemoteOriginal(conn, link.remoteId, src);
-      if (!blob) return;
-      const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-      const file = new File([blob], `${app.imageBaseName || 'image'}.${ext}`, { type: blob.type || 'image/png' });
-      app.loadImageFromFile(file, {
-        source: src,
-        resource: full.project?.resource || '',
-        color: full.project?.color || '',
-        address: link.address,
-        remoteId: link.remoteId,
-        version: full.project?.version || link.version,
-        layout: full.layout,
-      });
-      // A peer's RENAME is adopted through the store directly, so it is not echoed back.
-      const peerName = full.project?.name;
-      if (peerName && app.activeProjectId != null &&
-          peerName !== app.storage.store.getMeta(app.activeProjectId)?.name) {
-        app.storage.store.rename(app.activeProjectId, peerName);
-        app.imageBaseName = peerName;
-        app.updateProjectTitle();
-      }
-      notify('Updated from server', 'ok');
-    } catch { notify("Couldn't refresh from server — showing the last loaded version", 'info'); }
+      if (app.image && samePicture(this.#imageSig, full.project) && applyPeerLayout(app, full.layout, this)) {
+        app.remoteLink = { ...link, version: full.project?.version ?? link.version };
+      } else if (!(await this.#reloadPicture(conn, link, full))) return;
+      this.#imageSig = imageSignature(full.project);
+      this.#adoptPeerName(full.project?.name);
+      this.#toast('pull', 'ok', 'Updated from server', 'ok');
+    } catch { this.#toast('pull', 'failed', "Couldn't refresh from server — showing the last loaded version", 'info'); }
     finally {
       setTimeout(() => {
         this.#reloadingRemote = false;
@@ -118,6 +137,35 @@ export class RemoteSyncController {
     }
   }
 
+  async #reloadPicture(conn, link, full) {
+    const app = this.app;
+    const src = full.project?.source || '';
+    const blob = await this.fetchRemoteOriginal(conn, link.remoteId, src);
+    if (!blob) return false;
+    const ext = blob.type?.split('/')[1] || 'png';
+    const file = new File([blob], `${app.imageBaseName || 'image'}.${ext}`, { type: blob.type || 'image/png' });
+    loadImageFromFile(app, file, {
+      source: keptSource(src, app.imageSource),
+      resource: full.project?.resource || '',
+      color: full.project?.color || '',
+      address: link.address,
+      remoteId: link.remoteId,
+      version: full.project?.version || link.version,
+      layout: full.layout,
+    });
+    return true;
+  }
+
+  // A peer's RENAME is adopted through the store directly, so it is not echoed back.
+  #adoptPeerName(peerName) {
+    const app = this.app;
+    if (!peerName || app.activeProjectId == null) return;
+    if (peerName === app.storage.store.getMeta(app.activeProjectId)?.name) return;
+    app.storage.store.rename(app.activeProjectId, peerName);
+    app.imageBaseName = peerName;
+    app.updateProjectTitle();
+  }
+
   // The server's original bytes, else its http(s) source URL (CORS). Blob or null.
   async fetchRemoteOriginal(conn, remoteId, src) {
     let blob = null;
@@ -129,74 +177,50 @@ export class RemoteSyncController {
     return blob;
   }
 
-  // The editor state a server layout names, and the controls that show it (ui/serverLayoutPaint.js).
+  // The editor state a server layout names, and the controls that show it (ui/canvas/serverLayoutPaint.js).
   adoptServerFilter(layout) { adoptServerFilter(this.app, layout); }
 
   adoptServerPageFormat(layout) { adoptServerPageFormat(this.app, layout); }
 
   adoptServerFormulas(layout) { adoptServerFormulas(this.app, layout); }
 
-  // Save the annotated result + layout back. On a 409, pull, union-merge the peer's lines
-  // with ours and retry until convergence (the result-upload adds an extra bump).
-  async saveToServer() {
-    const app = this.app;
-    if (!app.remoteLink) return null;
-    if (!getSyncToServer()) return null;
-    let conn;
-    try {
-      conn = requireConnection(app.connections, app.remoteLink.address);
-    } catch (err) {
-      notify(err.message, 'fail');
-      return null;
-    }
-    const name = app.activeProjectId != null
-      ? (app.storage.store.getMeta(app.activeProjectId)?.name || app.imageBaseName || 'Untitled')
-      : (app.imageBaseName || 'Untitled');
-    const MAX_TRIES = 6;
-    for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
-      const layout = app.currentLayoutPayload();
-      const bytes = await this.renderResultBytes();
-      this.#lastRemoteSaveAt = Date.now();
-      try {
-        app.remoteLink = await saveRemoteProject(conn, app.remoteLink, {
-          name, layout, bytes, ext: 'png', w: app.canvas.width, h: app.canvas.height,
-        });
-        this.#lastRemoteSaveAt = Date.now();
-        app.filterDirty = false;
-        notify(attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
-        return app.remoteLink;
-      } catch (err) {
-        if (!err || !err.conflict) {
-          notify(`Server save failed — ${err.message}`, 'fail');
-          return null;
-        }
-        // A peer saved first: merge their lines, adopt the server version, loop — re-merging
-        // each time so repeated bumps can't drop our edit.
-        try {
-          const full = await conn.getProject(app.remoteLink.remoteId);
-          app.remoteLink = { ...app.remoteLink, version: full.project?.version ?? app.remoteLink.version };
-          const sl = full.layout || {};
-          const serverLines = Array.isArray(sl.lines) ? sl.lines : [];
-          app.lines = mergeLines(serverLines, app.lines);
-          // A line-only edit must not clobber a peer's filter change (the scalar can't merge).
-          if (!app.filterDirty) this.adoptServerFilter(sl);
-          app.history.push(app.lines);
-          app.renderer.redraw();
-        } catch { /* fetch failed; loop retries with current state */ }
-      }
-    }
-    // Reload so the user sees a consistent state (our lines were merged in by an earlier pass).
-    notify('Sync conflict — reloaded latest from the server', 'info');
-    this.reloadRemoteActive();
-    return null;
+  // An explicit save (stencil.save, a download, a replaced original): the layout and the result
+  // now, toasted every time. The co-edit debounce pushes the layout alone (scheduleRemoteSync).
+  saveToServer() {
+    return this.#enqueue(async () => {
+      const link = await this.#pushLayout(true);
+      if (!link) return null;
+      this.#results.cancel();
+      await this.#putResult();
+      return this.app.remoteLink;
+    });
   }
+
+  // Leaving the project (switch, close, unload): the pending result goes up with what is on screen now.
+  flushResult() {
+    if (!this.#results.pending) return;
+    this.#results.cancel();
+    const snap = captureResult(this.app);
+    this.#enqueue(() => this.#putResult(snap));
+  }
+
+  #hooks(explicit = false) {
+    return {
+      toast: (state, msg, kind) => this.#toast('push', state, msg, kind, explicit),
+      saved: () => { this.#lastRemoteSaveAt = Date.now(); },
+      adoptServerFilter: (layout) => this.adoptServerFilter(layout),
+      reload: () => this.reloadRemoteActive(),
+    };
+  }
+
+  #pushLayout(explicit) { return pushLayout(this.app, this.#hooks(explicit)); }
+
+  #putResult(snap = captureResult(this.app)) { return putResult(this.app, snap, this.#hooks()); }
 
   // The annotated result as PNG bytes (the server's `result` blob), or null if no image.
   async renderResultBytes() {
     const app = this.app;
     if (!app.image) return null;
-    const off = app.renderResultCanvas();
-    const blob = await new Promise(res => off.toBlob(res, 'image/png'));
-    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+    return resultPngBytes(restingJob(app));
   }
 }

@@ -1,4 +1,4 @@
-// The one-shot `.stencil` mode (src/project_cli.zig): bundling a source into a project,
+// The one-shot `.stencil` mode (src/project/cli.zig): bundling a source into a project,
 // rendering a project back out, the flag edits layered on top in pipeline order, and the
 // paths that refuse. Real files in the cwd, no network.
 const std = @import("std");

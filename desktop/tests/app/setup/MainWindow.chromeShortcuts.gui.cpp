@@ -29,7 +29,7 @@ class MainWindowGuiTest : public QObject {
         shown->reject();
       }
     });
-    win.actShortcuts->trigger();
+    win.acts.shortcuts->trigger();
     QVERIFY2(checked, "the shortcuts window opened");
     QVERIFY2(focused, "its search box holds the caret");
   }
@@ -39,18 +39,18 @@ class MainWindowGuiTest : public QObject {
   void windowShortcutsToggleAndSwap() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY2(!win.actInfo->shortcut().isEmpty(), "help carries a shortcut");
-    QVERIFY2(!win.actShortcuts->shortcut().isEmpty(),
+    QVERIFY2(!win.acts.info->shortcut().isEmpty(), "help carries a shortcut");
+    QVERIFY2(!win.acts.shortcuts->shortcut().isEmpty(),
              "the shortcuts window has one of its own now");
-    QVERIFY2(!win.actSettings->shortcut().isEmpty(), "…and so does Settings");
-    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openHotkeys")));
-    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openVisuals")));
-    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openAssistantSettings")));
-    QVERIFY2(!win.actInfo->shortcut().toString().contains(QStringLiteral("F1")),
+    QVERIFY2(!win.acts.settings->shortcut().isEmpty(), "…and so does Settings");
+    QVERIFY(win.keys.actions.contains(QStringLiteral("openHotkeys")));
+    QVERIFY(win.keys.actions.contains(QStringLiteral("openVisuals")));
+    QVERIFY(win.keys.actions.contains(QStringLiteral("openAssistantSettings")));
+    QVERIFY2(!win.acts.info->shortcut().toString().contains(QStringLiteral("F1")),
              "help left the lone F1 for the Alt+letter family");
 
     int settingsAsked = 0;
-    connect(win.actSettings, &QAction::triggered, &win, [&] { settingsAsked++; });
+    connect(win.acts.settings, &QAction::triggered, &win, [&] { settingsAsked++; });
 
     bool sawOwn = false, sawOther = false, parked = false;
     QTimer::singleShot(0, &win, [&] {
@@ -60,22 +60,22 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(shown);
       // While it is up, the main window's own copies of these chords are parked, so the two
       // cannot fire ambiguously at each other.
-      parked = win.actInfo->shortcutContext() == Qt::WidgetShortcut;
+      parked = win.acts.info->shortcutContext() == Qt::WidgetShortcut;
       // Its own chord…
       for (QShortcut* sc : shown->findChildren<QShortcut*>()) {
-        if (sc->key() == win.actInfo->shortcut()) { sawOwn = true; emit sc->activated(); }
+        if (sc->key() == win.acts.info->shortcut()) { sawOwn = true; emit sc->activated(); }
       }
       QVERIFY2(!shown->isVisible(), "its own shortcut closed the window");
       // …and another window's chord is wired too, queued to open after this one unwinds.
       for (QShortcut* sc : shown->findChildren<QShortcut*>())
-        if (sc->key() == win.actSettings->shortcut()) sawOther = true;
+        if (sc->key() == win.acts.settings->shortcut()) sawOther = true;
     });
-    win.openInfo();
+    win.parts.dialogs.openInfo();
 
     QVERIFY2(sawOwn, "the dialog carried its own opener's chord");
     QVERIFY2(sawOther, "…and the other windows' chords, for swapping");
     QVERIFY2(parked, "the main window's duplicate was parked while the dialog owned it");
-    QVERIFY2(win.actInfo->shortcutContext() != Qt::WidgetShortcut,
+    QVERIFY2(win.acts.info->shortcutContext() != Qt::WidgetShortcut,
              "…and handed back when the dialog closed");
     QCOMPARE(settingsAsked, 0);   // nothing was swapped to in this pass
     beat();
@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QLabel* hint = win.statusHint;
+    QLabel* hint = win.tools.statusHint;
     QVERIFY(hint);
     QCOMPARE(hint->text(), QStringLiteral("?"));
     // It is the COLLAPSED state's readout: with the tool rows up, the size line under them
@@ -100,15 +100,15 @@ class MainWindowGuiTest : public QObject {
 
     // Collapsed tool rows: the header row stays, and NOW the hint appears — with the size
     // line hidden alongside the rows, its bubble is the only place these facts are left.
-    win.actToolbars->setChecked(false);
-    QTRY_VERIFY(!win.actToolbars->isChecked());
+    win.acts.toolbars->setChecked(false);
+    QTRY_VERIFY(!win.acts.toolbars->isChecked());
     // Exactly ONE of the two readouts is up — polled for, not timed: the size line reads as gone only
     // once the fold's finish step hides the rows, and the fold's duration is not this test's business.
-    QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.imageSizeInfo->isVisible(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.tools.imageSizeInfo->isVisible(), 3000);
     QVERIFY2(hint->toolTip().contains(size), "…still carrying the size");
 
     // Incognito adds its line — and only its line.
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QTRY_VERIFY(win.incognito);
     const QStringList lines = hint->toolTip().split('\n');
     QCOMPARE(lines.size(), 2);
@@ -116,23 +116,22 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(lines[1], QStringLiteral("Incognito — not saved"));
 
     // …and it leaves again when incognito does.
-    win.actIncognito->setChecked(false);
+    win.acts.incognito->setChecked(false);
     QTRY_VERIFY(!win.incognito);
     QVERIFY2(!hint->toolTip().contains("Incognito"),
              "the incognito line goes with the mode");
     QCOMPARE(hint->toolTip().split('\n').size(), 1);
-    win.actToolbars->setChecked(true);
+    win.acts.toolbars->setChecked(true);
     beat();
   }
 
   // The desktop stays as quiet as the browser: no toast for a routine success the user can
   // already see (an image appearing, settings applying, the session restoring).
   void routineActionsDoNotToast() {
-    // MainWindow's definitions are split across TUs in feature folders — scan them all.
+    // The window and the parts it composes are split across TUs in feature folders — scan them all.
     const QString appDir = QStringLiteral(__FILE__).section('/', 0, -5) + "/src/app";
     QString src;
-    QDirIterator it(appDir, {"MainWindow*.cpp", "StencilFileSync.cpp"}, QDir::Files,
-                    QDirIterator::Subdirectories);
+    QDirIterator it(appDir, {"*.cpp"}, QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext()) {
       QFile f(it.next());
       QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable("cannot read " + f.fileName()));

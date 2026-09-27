@@ -1,0 +1,515 @@
+{
+ "$schema": "the adversarial op-plan inputs core/opplan is proven against (llm-contract.md §1): each case is `input` (the reply text, verbatim), `parts` ([chunk, times] pairs concatenated) or `inputBase64` (raw bytes, WHATWG-decoded); `expect` is the verdict the JS reference decides, checked by npm run gen-fixtures",
+ "cases": [
+  {
+   "name": "oracle-proto-op-names",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"toString\"},{\"op\":\"__proto__\"},{\"op\":\"valueOf\"},{\"op\":\"rotate\",\"dir\":\"left\"}]}",
+   "expect": "valid",
+   "note": "op names that are Object.prototype members are unknown ops: a warning each, never a lookup through the prototype"
+  },
+  {
+   "name": "oracle-proto-key-constructor",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"constructor\":1}]}",
+   "expect": "invalid",
+   "note": "\"constructor\" is an unknown field"
+  },
+  {
+   "name": "oracle-proto-key-dunder",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"__proto__\":{\"times\":2}}]}",
+   "expect": "invalid",
+   "note": "\"__proto__\" is an own, unknown field after JSON.parse"
+  },
+  {
+   "name": "oracle-proto-key-top-level",
+   "input": "{\"reply\":\"x\",\"__proto__\":{\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}}",
+   "expect": "valid",
+   "note": "an unknown top-level key is ignored, \"__proto__\" too: its actions never run"
+  },
+  {
+   "name": "oracle-proto-regexby-axis",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"formula\",\"axis\":\"constructor\",\"expr\":\"x\"}]}",
+   "expect": "invalid",
+   "note": "an axis named like a prototype member fails its enum, never selects a grammar"
+  },
+  {
+   "name": "oracle-dup-reply-last-wins",
+   "input": "{\"reply\":\"a\",\"actions\":[],\"reply\":\"b\"}",
+   "expect": "valid",
+   "note": "a duplicate key keeps its last value"
+  },
+  {
+   "name": "oracle-dup-op-last-wins",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"zzz\",\"dir\":\"left\",\"op\":\"rotate\"}]}",
+   "expect": "valid",
+   "note": "the last \"op\" decides the action"
+  },
+  {
+   "name": "oracle-dup-bad-then-good",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"up\",\"dir\":\"right\"}]}",
+   "expect": "valid",
+   "note": "an invalid value overwritten by a valid one is never seen"
+  },
+  {
+   "name": "oracle-dup-key-first-position",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"zz\":1,\"dir\":\"left\",\"zz\":2,\"yy\":3}]}",
+   "expect": "invalid",
+   "note": "a duplicate keeps its FIRST position: \"zz\" is reported, not \"yy\""
+  },
+  {
+   "name": "oracle-int-keys-ascending",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"10\":1,\"9\":1}]}",
+   "expect": "invalid",
+   "note": "integer-like keys come first, ascending (JS Object.keys): \"9\" is the first unknown field"
+  },
+  {
+   "name": "oracle-int-keys-index-edge",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"b\":1,\"4294967295\":1,\"4294967294\":1}]}",
+   "expect": "invalid",
+   "note": "4294967294 is an array index and comes first; 4294967295 is not one and keeps insertion order"
+  },
+  {
+   "name": "oracle-int-keys-not-canonical",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"z\":1,\"01\":1,\"-1\":1,\"1\":1}]}",
+   "expect": "invalid",
+   "note": "\"01\" and \"-1\" are strings, \"1\" is an index"
+  },
+  {
+   "name": "oracle-num-1e400",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"times\":1e400}]}",
+   "expect": "invalid",
+   "note": "1e400 parses to Infinity, which is not an integer"
+  },
+  {
+   "name": "oracle-num-1e-400",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"page\",\"width\":1e-400,\"height\":10}]}",
+   "expect": "invalid",
+   "note": "1e-400 underflows to 0, below the 0.1 cm floor"
+  },
+  {
+   "name": "oracle-num-2.0",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"times\":2.0}]}",
+   "expect": "valid",
+   "note": "2.0 is the integer 2 and comes back as 2"
+  },
+  {
+   "name": "oracle-num-minus-zero",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"frame\",\"index\":-0},{\"op\":\"rotate\",\"dir\":\"left\",\"times\":-0}]}",
+   "expect": "invalid",
+   "note": "-0 is >= 0 for the frame index but below 1 for times"
+  },
+  {
+   "name": "oracle-num-minus-zero-frame",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"frame\",\"index\":-0}]}",
+   "expect": "valid",
+   "note": "-0 passes as 0 and is written back as 0"
+  },
+  {
+   "name": "oracle-num-near-integer",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"times\":3.0000000000000001},{\"op\":\"undo\",\"steps\":1.0000000000000002}]}",
+   "expect": "invalid",
+   "note": "the first rounds to 3; the second is not an integer"
+  },
+  {
+   "name": "oracle-num-echo",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":1e21,\"y\":123456789012345680000},{\"x\":0.000001,\"y\":1e-7},{\"x\":5e-324,\"y\":1.7976931348623157e308},{\"x\":-0,\"y\":0.1},{\"x\":1E2,\"y\":2.50e-3},{\"x\":9007199254740993,\"y\":0.30000000000000004}],\"thickness\":2.0}]}]}",
+   "expect": "valid",
+   "note": "layout numbers come back in JS String() form"
+  },
+  {
+   "name": "oracle-astral-at-cap",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"save\",\"name\":\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"}]}",
+   "expect": "valid",
+   "note": "60 astral characters are 120 UTF-16 units: exactly the save-name cap"
+  },
+  {
+   "name": "oracle-astral-over-cap",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"save\",\"name\":\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀a\"}]}",
+   "expect": "invalid",
+   "note": "121 units: over the cap"
+  },
+  {
+   "name": "oracle-lone-surrogates-at-cap",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"save\",\"name\":\"\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\\ud800\"}]}",
+   "expect": "valid",
+   "note": "120 escaped lone surrogates are 120 units; each comes back as U+FFFD"
+  },
+  {
+   "name": "oracle-lone-surrogates-over-cap",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"save\",\"name\":\"\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\\udc00\"}]}",
+   "expect": "invalid",
+   "note": "121 units: over the cap"
+  },
+  {
+   "name": "oracle-escaped-pair-is-one-char",
+   "input": "{\"reply\":\"\\ud83d\\ude00 \\ud83d x \\ude00\",\"actions\":[{\"op\":\"save\",\"name\":\"\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\"}]}",
+   "expect": "valid",
+   "note": "an escaped surrogate PAIR is one astral character; the lone halves in the reply become U+FFFD"
+  },
+  {
+   "name": "oracle-lone-surrogate-op-name",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rot\\ud800\"}]}",
+   "expect": "valid",
+   "note": "the warning names the op with U+FFFD for the lone surrogate"
+  },
+  {
+   "name": "oracle-trim-nbsp-reply",
+   "input": "{\"reply\":\" 　\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}",
+   "expect": "valid",
+   "note": "NBSP and U+3000 are JS whitespace: the reply is omitted, so \"Done.\" plus a warning"
+  },
+  {
+   "name": "oracle-trim-set-url",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"openUrl\",\"url\":\"\\u2028\\ufeff https://a.example/x.png\\u00a0\\u3000\"}]}",
+   "expect": "valid",
+   "note": "the url is trimmed with the JS WhiteSpace + LineTerminator set"
+  },
+  {
+   "name": "oracle-trim-not-zwsp",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"openUrl\",\"url\":\"\\u200bhttps://a.example/x.png\"}]}",
+   "expect": "invalid",
+   "note": "U+200B is not whitespace: the url does not start with http"
+  },
+  {
+   "name": "oracle-trim-not-nel-mvs",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"connect\",\"server\":\"\\u0085\\u180e\"}]}",
+   "expect": "valid",
+   "note": "U+0085 and U+180E are not JS whitespace, so the server is not blank"
+  },
+  {
+   "name": "oracle-trim-line-sep-blank",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"connect\",\"server\":\"\\u2028\\u2029\\u000b\\u000c\"}]}",
+   "expect": "invalid",
+   "note": "line and paragraph separators, VT and FF are whitespace: the server is blank"
+  },
+  {
+   "name": "oracle-trim-chat-only",
+   "input": "　  just chatting  ﻿",
+   "expect": "valid",
+   "note": "a chat-only reply is trimmed with the same set"
+  },
+  {
+   "name": "oracle-trim-ask-question",
+   "input": "{\"reply\":\"x\",\"ask\":{\"question\":\"\\u00a0Q\\u205f\",\"customLabel\":\"\\u1680 Other\",\"options\":[{\"label\":\"\\u2000A\"},{\"label\":\"B\\u202f\"}]}}",
+   "expect": "valid",
+   "note": "trimmed ask text comes back without the Unicode spaces"
+  },
+  {
+   "name": "oracle-digits-arabic-crop",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"crop\",\"spec\":{\"x1\":\"١٠%\"}}]}",
+   "expect": "invalid",
+   "note": "the crop grammar's digits are ASCII only"
+  },
+  {
+   "name": "oracle-digits-fullwidth-page",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"page\",\"format\":\"a４\"}]}",
+   "expect": "invalid",
+   "note": "a fullwidth digit is not a page size"
+  },
+  {
+   "name": "oracle-digits-fullwidth-formula",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"formula\",\"axis\":\"x\",\"expr\":\"x*２\"}]}",
+   "expect": "invalid",
+   "note": "a fullwidth digit is outside the formula charset"
+  },
+  {
+   "name": "oracle-digits-arabic-aspect",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"crop\",\"spec\":{\"aspect\":\"٤:٣\"}}]}",
+   "expect": "invalid",
+   "note": "nor an aspect"
+  },
+  {
+   "name": "oracle-bom-before-object",
+   "input": "﻿{\"reply\":\"x\",\"actions\":[]}",
+   "expect": "valid",
+   "note": "a BOM before the object is prose around it"
+  },
+  {
+   "name": "oracle-bom-inside-object",
+   "input": "{﻿\"reply\":\"x\"}",
+   "expect": "valid",
+   "note": "a BOM is not JSON whitespace: the object does not parse, so the turn is chat-only"
+  },
+  {
+   "name": "oracle-broken-then-good",
+   "input": "{\"reply\": oops} then {\"reply\":\"good\",\"actions\":[]}",
+   "expect": "valid",
+   "note": "only the FIRST balanced object is tried: it does not parse, so the turn is chat-only"
+  },
+  {
+   "name": "oracle-brace-in-string-then-good",
+   "input": "{ \"a\": \"}\" } {\"reply\":\"x\"}",
+   "expect": "valid",
+   "note": "the scanner is string-aware; the first object has no reply, so the plan is empty"
+  },
+  {
+   "name": "oracle-unbalanced",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\"",
+   "expect": "valid",
+   "note": "no balanced object: chat-only"
+  },
+  {
+   "name": "oracle-fenced",
+   "input": "```json\n{\"reply\":\"fenced\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}\n```",
+   "expect": "valid",
+   "note": "fences and their language tag are stripped"
+  },
+  {
+   "name": "oracle-leading-zero",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"times\":01}]}",
+   "expect": "valid",
+   "note": "a leading zero is not JSON: chat-only"
+  },
+  {
+   "name": "oracle-trailing-comma",
+   "input": "{\"reply\":\"x\",\"actions\":[],}",
+   "expect": "valid",
+   "note": "a trailing comma is not JSON: chat-only"
+  },
+  {
+   "name": "oracle-raw-control-char",
+   "input": "{\"reply\":\"a\tb\"}",
+   "expect": "valid",
+   "note": "a raw tab inside a string is not JSON: chat-only"
+  },
+  {
+   "name": "oracle-escapes-echo",
+   "input": "{\"reply\":\"q\\\"b\\\\s\\/n\\n\\u0000\\u001f\\u007f\\u2028\",\"actions\":[]}",
+   "expect": "valid",
+   "note": "escapes decode, and the reply is written back with JSON.stringify escaping"
+  },
+  {
+   "name": "oracle-nest-64",
+   "input": "{\"reply\":\"x\",\"z\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}",
+   "expect": "valid",
+   "note": "64 levels (the root object is 1) is the cap"
+  },
+  {
+   "name": "oracle-nest-65",
+   "input": "{\"reply\":\"x\",\"z\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}",
+   "expect": "invalid",
+   "note": "one level deeper fails the plan: E_JSON_LIMIT"
+  },
+  {
+   "name": "oracle-nest-10k",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"z\":",
+     1
+    ],
+    [
+     "[",
+     9999
+    ],
+    [
+     "]",
+     9999
+    ],
+    [
+     "}",
+     1
+    ]
+   ],
+   "expect": "invalid",
+   "note": "10k levels is still valid JSON: the cap fails it, and nothing recurses"
+  },
+  {
+   "name": "oracle-nest-10k-broken",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"z\":",
+     1
+    ],
+    [
+     "[",
+     9999
+    ],
+    [
+     "]",
+     9998
+    ],
+    [
+     "}",
+     1
+    ]
+   ],
+   "expect": "valid",
+   "note": "10k levels that never close: the object is unbalanced, so chat-only"
+  },
+  {
+   "name": "oracle-nest-10k-bad-syntax",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"z\":",
+     1
+    ],
+    [
+     "[",
+     9999
+    ],
+    [
+     "1 2",
+     1
+    ],
+    [
+     "]",
+     9999
+    ],
+    [
+     "}",
+     1
+    ]
+   ],
+   "expect": "valid",
+   "note": "balanced but not JSON: chat-only, never a limit error"
+  },
+  {
+   "name": "oracle-nodes-at-cap",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"z\":[",
+     1
+    ],
+    [
+     "0,",
+     262140
+    ],
+    [
+     "0]}",
+     1
+    ]
+   ],
+   "expect": "valid",
+   "note": "262144 values (root, reply, array, 262141 zeros) is the cap"
+  },
+  {
+   "name": "oracle-nodes-over-cap",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"z\":[",
+     1
+    ],
+    [
+     "0,",
+     262141
+    ],
+    [
+     "0]}",
+     1
+    ]
+   ],
+   "expect": "invalid",
+   "note": "one value more: E_JSON_LIMIT"
+  },
+  {
+   "name": "oracle-bytes-at-cap",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"pad\":\"",
+     1
+    ],
+    [
+     "a",
+     2097130
+    ],
+    [
+     "\"}",
+     1
+    ]
+   ],
+   "expect": "valid",
+   "note": "the object is exactly 2 MiB"
+  },
+  {
+   "name": "oracle-bytes-over-cap",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"pad\":\"",
+     1
+    ],
+    [
+     "a",
+     2097131
+    ],
+    [
+     "\"}",
+     1
+    ]
+   ],
+   "expect": "invalid",
+   "note": "one byte more: E_JSON_LIMIT"
+  },
+  {
+   "name": "oracle-bytes-multibyte-over",
+   "parts": [
+    [
+     "{\"reply\":\"x\",\"pad\":\"",
+     1
+    ],
+    [
+     "é",
+     1048570
+    ],
+    [
+     "\"}",
+     1
+    ]
+   ],
+   "expect": "invalid",
+   "note": "bytes are UTF-8 bytes, not characters: 2-byte letters cross the cap"
+  },
+  {
+   "name": "oracle-rule-message-dollar",
+   "input": "{\"reply\":\"x\",\"actions\":[{\"op\":\"openFile\",\"path\":\"$&$1.txt\"},{\"op\":\"blank\",\"color\":\"Notacolor\"}]}",
+   "expect": "valid",
+   "note": "a surface rule quotes the value verbatim (\"$&\" is no replacement pattern); the cli refuses the path, the desktop the colour"
+  },
+  {
+   "name": "oracle-utf8-lone-continuation",
+   "inputBase64": "eyJyZXBseSI6ImGAYiIsImFjdGlvbnMiOltdfQ==",
+   "expect": "valid",
+   "note": "a stray continuation byte is U+FFFD"
+  },
+  {
+   "name": "oracle-utf8-overlong",
+   "inputBase64": "eyJyZXBseSI6IsCvIiwiYWN0aW9ucyI6W119",
+   "expect": "valid",
+   "note": "an overlong encoding is two U+FFFD"
+  },
+  {
+   "name": "oracle-utf8-truncated",
+   "inputBase64": "eyJyZXBseSI6IuKCIiwiYWN0aW9ucyI6W119",
+   "expect": "valid",
+   "note": "a truncated sequence is ONE U+FFFD (its maximal subpart)"
+  },
+  {
+   "name": "oracle-utf8-cesu-surrogate",
+   "inputBase64": "eyJyZXBseSI6Iu2ggCIsImFjdGlvbnMiOltdfQ==",
+   "expect": "valid",
+   "note": "an encoded surrogate is three U+FFFD"
+  },
+  {
+   "name": "oracle-utf8-above-max",
+   "inputBase64": "eyJyZXBseSI6IvSQgID/IiwiYWN0aW9ucyI6W119",
+   "expect": "valid",
+   "note": "above U+10FFFF, and 0xFF"
+  },
+  {
+   "name": "oracle-utf8-in-save-name-cap",
+   "inputBase64": "eyJyZXBseSI6IngiLCJhY3Rpb25zIjpbeyJvcCI6InNhdmUiLCJuYW1lIjoi////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////In1dfQ==",
+   "expect": "valid",
+   "note": "120 bad bytes are 120 U+FFFD: exactly the cap"
+  },
+  {
+   "name": "oracle-utf8-outside-object",
+   "inputBase64": "//4geyJyZXBseSI6IngifSDD",
+   "expect": "valid",
+   "note": "malformed bytes around the object are prose"
+  },
+  {
+   "name": "oracle-utf8-chat-only",
+   "inputBase64": "4oIgaGnw",
+   "expect": "valid",
+   "note": "a chat-only reply keeps its U+FFFD"
+  }
+ ]
+}

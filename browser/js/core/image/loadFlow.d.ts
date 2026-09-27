@@ -1,4 +1,4 @@
-// DrawingApp.loadImageFromFile's body: the session bookkeeping a load does up front
+// Loading a picture into the editor: the session bookkeeping a load does up front
 // (project promotion, filename, provenance, server linkage), then the decode; what the
 // decoded image settles is settle.js.
 import type { DrawingApp } from '../drawingApp.js';

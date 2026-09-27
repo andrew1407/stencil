@@ -5,6 +5,7 @@ import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../../config/openInConfig.js
 import {
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
 } from '../../core/launch/deepLink.js';
+import { openInLaunchPayloadResolved } from '../../core/launch/payload.js';
 
 // Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
 // tolerates far less than an in-page URL.
@@ -114,8 +115,8 @@ export class StencilOpenInModal extends StencilElement {
       open(from, backTo, { stacked: true });
     };
 
-    desktopBtn.addEventListener('click', () => {
-      const payload = app.openInLaunchPayload({ incognito: incog.checked, id: targetId });
+    desktopBtn.addEventListener('click', async () => {
+      const payload = await openInLaunchPayloadResolved(app, { incognito: incog.checked, id: targetId });
       if (!payload) { notify('That project could not be read from storage', 'fail'); return; }
       const url = payload.server
         ? buildStencilSchemeUrl({

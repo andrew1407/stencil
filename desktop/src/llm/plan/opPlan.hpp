@@ -6,9 +6,9 @@
 #include <QStringList>
 #include <QVector>
 
-// LLM op-plan parser, llm-contract.md §1–2; twins: browser js/llm/plan.js, pystencil llm.py,
-// the bot's OpPlanParser, mcp's opplan.rs — the parse matrix must stay identical. Limits come
-// from the registry (OpSchema.hpp); an UNKNOWN op is dropped with a warning, a known bad one fails.
+// LLM op-plan parser, llm-contract.md §1–2: core/opplan validates (the twin of browser
+// js/llm/plan/parser.js) and this is the typed plan it maps to; an UNKNOWN op is dropped with a
+// warning, a known bad one fails the plan.
 namespace stencil::llm {
 
   // §2 image ops + §10 editor-settings ops (banned in variants) + §2 history + §2.1 multi-image.

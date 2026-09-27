@@ -15,7 +15,7 @@ path = "src/main.rs"
 # Official Rust MCP SDK. `server` brings ServerHandler/ToolRouter, `transport-io`
 # brings the stdio transport, `macros` brings the #[tool_router]/#[tool] attributes.
 rmcp = { version = "=1.8.0", features = ["server", "transport-io", "macros"] }
-tokio = { version = "=1.52.3", features = ["macros", "rt-multi-thread", "process", "io-std", "time"] }
+tokio = { version = "=1.52.3", features = ["macros", "rt-multi-thread", "process", "io-std", "io-util", "sync", "time"] }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.150"
 schemars = "=1.2.1"
@@ -46,4 +46,8 @@ harness = false
 
 [[test]]
 name = "layout_fixtures_test"
+harness = false
+
+[[test]]
+name = "imagesize_fixtures_test"
 harness = false

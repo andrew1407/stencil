@@ -27,6 +27,9 @@ namespace stencil::gui {
         }
         return true;   // Qt's own label must not also appear
       }
+      case QEvent::ToolTipChange:
+        if (w) syncTipDescription(w);
+        break;
       case QEvent::Shortcut:
         // A LIVE shortcut never arrives as a key press — Qt sends this instead.
         dismiss();
@@ -71,12 +74,14 @@ namespace stencil::gui {
   }
 
 
-  // Idempotent — the filter and the panel are process-wide, like Qt's own tooltip.
+  // Idempotent — the filter and the panel are process-wide, like Qt's own tooltip. The tips set
+  // before it was listening get their plain reading once, here.
   AppTooltipFilter* installAppTooltips() {
     static QPointer<AppTooltipFilter> filter;
     if (!filter && qApp) {
       filter = new AppTooltipFilter(qApp);
       qApp->installEventFilter(filter);
+      for (QWidget* w : QApplication::allWidgets()) syncTipDescription(w);
     }
     return filter.data();
   }

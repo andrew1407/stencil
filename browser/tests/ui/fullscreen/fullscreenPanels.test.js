@@ -1,4 +1,4 @@
-// The fullscreen hover panels come and go as dust past their own edge (js/ui/panels.js):
+// The fullscreen hover panels come and go as dust past their own edge (js/ui/fullscreen/panels.js):
 // a panel keeps its box for the whole out-flight and drops the class with the last motes; with
 // the dust declined the class flips at once and the CSS slide plays as before.
 import test from 'node:test';
@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from '../../helpers/dom.js';
 import { createFsPanels, panelDust, syncFsTriggers, FS_TRIGGER_PX, POINTS_DUST_IN_MS } from '../../../js/ui/fullscreen/panels.js';
+import { populateFsPoints } from '../../../js/ui/fullscreen/clones.js';
 import { FOLD_DUST_OUT_MS, SURFACE_IN_MS } from '../../../js/ui/motion.js';
 
 const GRACE_MS = 400;
@@ -93,13 +94,41 @@ test('reset settles both panels for the exit, so the next reveal forms again', (
   assert.equal(calls[2].hiding, false);
 });
 
-test('the cloned points panel drops its collapse chevron and relays a tab click to the original', () => {
-  const clonesJs = readFileSync(new URL('../../../js/ui/fullscreen/clones.js', import.meta.url), 'utf8');
-  assert.match(clonesJs, /clone\.querySelector\('#fs-clone-toggle-coord-panel'\)\?\.remove\(\);/,
-    'the hover panel hides on its own, so the chevron goes');
+// The live coord panel, as a tree whose clones answer the id queries populateFsPoints makes.
+const coordTree = () => {
+  const withQueries = (el) => Object.assign(el, {
+    querySelectorAll: (sel) => (sel === '[id]' ? kids(el).filter((k) => k.id) : []),
+    querySelector: (sel) => kids(el).find((k) => sel === `#${k.id}`) ?? null,
+  });
+  const kids = (el) => el.children.flatMap((c) => [c, ...kids(c)]);
+  const root = withQueries(createStubElement('div', { id: 'coord-panel' }));
+  for (const id of ['coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coordinates-table'])
+    root.appendChild(withQueries(createStubElement('button', { id })));
+  return root;
+};
+
+test('the cloned points panel drops its collapse chevron and relays a tab click to the original', (t) => {
+  const doc = installDom({ autoCreateById: true });
+  t.after(() => doc.restore());
+  let clones = 0;
+  doc.register('coord-panel', createStubElement('div', { cloneNode: () => { clones++; return coordTree(); } }));
+  const clicked = [];
+  for (const id of ['coord-tab-points', 'coord-tab-lines'])
+    doc.register(id, createStubElement('button', { click: () => clicked.push([id, clones]) }));
+  const host = createStubElement('div');
+  populateFsPoints(host);
+  const copy = host.children.at(-1);
+  const ids = copy.querySelectorAll('[id]').map((el) => el.id);
+  assert.equal(copy.id, 'fs-coord-panel-clone');
+  assert.ok(!ids.includes('fs-clone-toggle-coord-panel'), 'the hover panel hides on its own, so the chevron goes');
+  assert.ok(ids.includes('fs-clone-coordinates-table'), 'the rest of the copy stays, under prefixed ids');
   // A tab in the copy has no handler of its own: the original switches, then the copy is rebuilt.
-  assert.match(clonesJs, /for \(const tab of \['coord-tab-points', 'coord-tab-lines'\]\)/);
-  assert.match(clonesJs, /document\.getElementById\(tab\)\?\.click\(\);\s*populateFsPoints\(fsPointsPanel\);/);
+  for (const tab of ['coord-tab-points', 'coord-tab-lines']) {
+    const before = clones;
+    host.children.at(-1).querySelector(`#fs-clone-${tab}`).dispatch('click');
+    assert.deepEqual(clicked.at(-1), [tab, before], `${tab}: the original is clicked first`);
+    assert.equal(clones, before + 1, `${tab}: then the copy is cloned again`);
+  }
 });
 
 test('the reveal band is 28px while a panel is away and shrinks into its padding once revealed', (t) => {

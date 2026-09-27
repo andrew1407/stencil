@@ -1,13 +1,14 @@
 // ── Op-plan: extension profile (llm-contract.md §1–§4 + §8 + §13) ──────
 // Pure module — no DOM, no chrome, no fetch. The extension's op set references images by index
 // in the context listing; `open.actions` carries the §2 core ops, validated with the same rules
-// as browser/js/llm/plan/plan.js. LLM output is data, not instructions: plans are strictly
+// as browser/js/llm/plan/parser.js. LLM output is data, not instructions: plans are strictly
 // validated before anything executes.
 import {
   ASK_LIMITS, CORE_OPS, DEFAULT_CUSTOM_LABEL, FORBIDDEN_OPS, LIMITS, SCHEMA, isObj, isStr,
 } from './profile.js';
 import { EXT_VALIDATORS, GATHER_OPS, OP_REGISTRY } from './validate.js';
 import { LLM_SYSTEM_PROMPT, buildSystemPrompt } from './prompt.js';
+import { jsonLimit } from './planCaps.js';
 
 export {
   ASK_LIMITS, DEFAULT_CUSTOM_LABEL, FORBIDDEN_OPS, LIMITS, SCHEMA,
@@ -85,6 +86,9 @@ export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) =>
   if (candidate == null) return chatOnly();
   let obj;
   try { obj = JSON.parse(candidate); } catch { return chatOnly(); }   // not actually JSON → chat-only
+  // §1 caps (E_JSON_LIMIT): bytes, then depth, then values, as every other surface checks them.
+  const cap = jsonLimit(obj, candidate, SCHEMA.jsonCaps);
+  if (cap) throw new Error(`Invalid plan: ${cap.detail}`);
 
   // `version` other than 1 (or absent) is accepted but ignored. §1 reply tolerance: models
   // routinely omit the reply while planning valid actions, so substitute rather than lose the plan.
@@ -106,7 +110,7 @@ export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) =>
   const actions = [];
   for (const a of list) {
     if (!isObj(a) || typeof a.op !== 'string') throw new Error('Invalid plan: every action must be an object with an "op"');
-    const validate = EXT_VALIDATORS[a.op];
+    const validate = Object.hasOwn(EXT_VALIDATORS, a.op) ? EXT_VALIDATORS[a.op] : undefined;
     if (validate) { actions.push(validate(a, listingLength, warnings, tabsLength)); continue; }
     // Core ops at the top level drop with a warning (§8); truly unknown ops drop
     // with the generic §1 forward-compatibility warning.

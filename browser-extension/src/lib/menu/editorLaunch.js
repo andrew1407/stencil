@@ -91,7 +91,7 @@ export const launchEditorModal = async ({ tabId, ...payload }) => {
   try {
     await chrome.scripting.executeScript({
       // The shell can't read our CSS variables inside someone else's page, so the theme
-      // travels as data (lib/shellTheme.js).
+      // travels as data (lib/prefs/shellTheme.js).
       target: { tabId }, world: 'ISOLATED', func: mountStencilModal, args: [url, title, 8000, await loadShellTheme()]
     });
     await noteOpened(payload);

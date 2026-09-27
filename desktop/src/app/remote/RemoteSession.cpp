@@ -14,6 +14,25 @@ namespace stencil::gui {
     return c;
   }
 
+  bool RemoteSession::saveOutcomeChanged(bool ok) {
+    const QString key = link.address + QLatin1Char('\n') + link.id;
+    if (key != outcomeKey) { outcomeKey = key; lastOutcome = -1; }
+    const bool changed = lastOutcome != (ok ? 1 : 0);
+    lastOutcome = ok ? 1 : 0;
+    return changed;
+  }
+
+  void RemoteSession::noteAdoptedOriginal(const QString& originalHash, qint64 imageKey) {
+    adoptedKey = link.address + QLatin1Char('\n') + link.id;
+    adoptedHash = originalHash;
+    adoptedImageKey = imageKey;
+  }
+
+  bool RemoteSession::isAdoptedOriginal(const QString& originalHash, qint64 imageKey) const {
+    return !originalHash.isEmpty() && originalHash == adoptedHash && imageKey == adoptedImageKey
+        && adoptedKey == link.address + QLatin1Char('\n') + link.id;
+  }
+
   void RemoteSession::putVersionGuardedAsync(
       stencil::net::ServerClient* c, const QString& id,
       std::function<void(qint64 version,

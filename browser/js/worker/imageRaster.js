@@ -1,6 +1,7 @@
 // ── Pixel work shared by the image worker and its inline fallback ──
 // Pure over a canvas factory, so the SAME drawImage sequence runs on an OffscreenCanvas in
 // the worker and on a document canvas on the main thread — one encoder, one set of pixels.
+import { paintRestingLines, restingPainter } from '../core/draw/restingPaint.js';
 
 // ≤ maxEdge px on the long edge, never upscaled, at least 1px a side.
 export const fitSize = (width, height, maxEdge) => {
@@ -33,5 +34,14 @@ export const contourCanvas = (makeCanvas, imageData, contour) => {
   contour(imageData.data, width, height);
   const out = makeCanvas(width, height);
   out.getContext('2d').putImageData(imageData, 0, 0);
+  return out;
+};
+
+// The co-edit result: the base, then the resting lines through the one loop the export paints with.
+export const paintResult = (makeCanvas, base, job) => {
+  const out = makeCanvas(job.width, job.height);
+  const ctx = out.getContext('2d');
+  ctx.drawImage(base, 0, 0);
+  paintRestingLines(restingPainter(ctx, job), job.lines, job);
   return out;
 };

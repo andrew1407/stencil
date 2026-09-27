@@ -7,7 +7,7 @@
    reducedMotion.css has to keep its place in the cascade. Purely cosmetic —
    every surface works without it. Selectors are scoped by class names unique to
    each surface, so unmatched rules are harmless no-ops. Injected in-page
-   surfaces (lib/overlay.js modal, lib/highlight.js image outlines) can't link a
+   surfaces (lib/drop/overlay.js modal, lib/highlight/highlight.js image outlines) can't link a
    file — they carry their own motion inline.
    ────────────────────────────────────────────────────────────────────── */
 

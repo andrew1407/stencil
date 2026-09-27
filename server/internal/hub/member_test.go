@@ -12,11 +12,11 @@ func drain(m *member) int {
 // The per-member backlog is bounded by bytes, not by message count: 256 frames
 // of up to transport.MaxMessageBytes each would have been 4 GiB.
 func TestMemberQueueIsByteBudgeted(t *testing.T) {
-	m := newMember("c_1", "peer", nil)
+	m := newMember("c_1", "peer", nil, defaultTuning)
 
 	// A single oversized frame still goes through on an empty queue — the budget
 	// bounds a backlog, it does not censor big messages.
-	huge := make([]byte, outBudgetBytes+1)
+	huge := make([]byte, defaultTuning.OutBudgetBytes+1)
 	if !m.enqueue(huge) {
 		t.Fatal("an empty queue must accept any one frame")
 	}
@@ -32,7 +32,7 @@ func TestMemberQueueIsByteBudgeted(t *testing.T) {
 	drain(m)
 
 	// Half the budget still leaves room for a small frame.
-	half := make([]byte, outBudgetBytes/2)
+	half := make([]byte, defaultTuning.OutBudgetBytes/2)
 	if !m.enqueue(half) || !m.enqueue([]byte("small")) {
 		t.Fatal("a frame that fits inside the budget must queue")
 	}
@@ -44,17 +44,17 @@ func TestMemberQueueIsByteBudgeted(t *testing.T) {
 // The message-count buffer is still the other bound: many tiny frames cannot
 // queue without limit either.
 func TestMemberQueueStillBoundsMessageCount(t *testing.T) {
-	m := newMember("c_2", "peer", nil)
+	m := newMember("c_2", "peer", nil, defaultTuning)
 	accepted := 0
-	for i := 0; i < outBuffer*2; i++ {
+	for i := 0; i < defaultTuning.OutBuffer*2; i++ {
 		if m.enqueue([]byte("x")) {
 			accepted++
 		}
 	}
-	if accepted != outBuffer {
-		t.Fatalf("accepted %d frames, want the %d-message buffer", accepted, outBuffer)
+	if accepted != defaultTuning.OutBuffer {
+		t.Fatalf("accepted %d frames, want the %d-message buffer", accepted, defaultTuning.OutBuffer)
 	}
-	if m.queued != outBuffer {
+	if m.queued != defaultTuning.OutBuffer {
 		t.Fatalf("queued bytes drifted from the queue depth: %d", m.queued)
 	}
 }

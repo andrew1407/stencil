@@ -1,4 +1,4 @@
-// Shapes for llm/controller.js — the surface-independent half of the assistant turn
+// Shapes for llm/chatController.js — the surface-independent half of the assistant turn
 // (llm-contract.md §7–§11). The page injects its capabilities; the controller owns the
 // history, the prompt, the plan validation and the rounds. Its listing (chatListing.js),
 // open-action translation (openActions.js) and op executors (executors.js) re-export
@@ -39,7 +39,8 @@ export interface TurnResult {
 
 /** Everything the page must supply; each capability throws on failure. */
 export interface ChatCapabilities {
-  getClient(): LlmClient;
+  /** Re-read per send; may resolve late, as the anthropic session key does. */
+  getClient(): LlmClient | Promise<LlmClient>;
   getListing(): ListingItem[];
   formatOfItem?(item: ListingItem): string;
   pageUrl?(): string;

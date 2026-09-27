@@ -5,7 +5,7 @@ using namespace stencil::core;
 
 static const DurationParser dp;
 
-// Mirrors browser/tests/durationParser.test.js.
+// Mirrors browser/tests/core/parse/durationParser.test.js.
 
 static constexpr long long DAY = DurationParser::DAY_MS;
 

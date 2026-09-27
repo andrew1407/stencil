@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
 import { overridesFor } from './lib/vocab/colorFamilies.js';
 import { programFor } from './lib/programCache.js';
+import { unitSpan } from './lib/spans.js';
 import { classify } from './lib/vocab/tokenClassify.js';
 
 const DEBOUNCE_MS = 200;
@@ -19,15 +20,15 @@ const onLight = () => {
   return kind === Light || kind === HighContrastLight;
 };
 
-/// type → the ranges its tokens occupy, for the types being overridden.
-const rangesFor = (tokens, types) => {
+/// type → the UTF-16 ranges its tokens occupy on `lines`, for the types being overridden.
+const rangesFor = (tokens, types, lines = []) => {
   const painted = classify(tokens);
   const out = new Map(types.map((type) => [type, []]));
   (tokens ?? []).forEach((token, i) => {
     const list = out.get(painted[i]);
     if (!list || !(token.len > 0)) return;
-    const line = token.line - 1;
-    list.push(new vscode.Range(line, token.col - 1, line, token.col - 1 + token.len));
+    const { line, start, end } = unitSpan(lines, token);
+    list.push(new vscode.Range(line, start, line, end));
   });
   return out;
 };
@@ -47,7 +48,7 @@ const register = (context) => {
     const { version } = editor.document;
     const program = await programFor(editor.document);
     if (editor.document.version !== version) return;
-    const ranges = rangesFor(program.tokens, [...types.keys()]);
+    const ranges = rangesFor(program.tokens, [...types.keys()], program.lines);
     for (const [type, decoration] of types) editor.setDecorations(decoration, ranges.get(type));
   };
 

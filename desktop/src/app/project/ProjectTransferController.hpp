@@ -34,8 +34,9 @@ namespace stencil::gui {
       // A move relinked the open local project to a fresh server project.
       std::function<void(const QString& serverUrl, const QString& newId, const QString& name,
                          const QString& color, qint64 version)> relinkActiveToServer;
-      // `animate` is true when a picture really lands, false for a rebind.
-      std::function<void(const QString& id, bool animate)> loadProjectIntoCanvas;
+      // `animate` is true when a picture really lands, false for a rebind; `then` runs once it is in
+      // (or could not be).
+      std::function<void(const QString& id, bool animate, std::function<void()> then)> loadProjectIntoCanvas;
       std::function<void()> afterChange;  // refreshActions + refreshDockMenu
     };
 
@@ -55,7 +56,15 @@ namespace stencil::gui {
    private:
     // nullptr on a miss, after notifying.
     stencil::net::ServerClient* requireClient(const QString& url);
-    bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
+    // What a local project uploads, read (and for the open one encoded) on the pool; `done` hears
+    // it only when it could be read, never once the canvas is gone.
+    struct Original {
+      QByteArray bytes;
+      QString ext = QStringLiteral("png");
+      int w = 0;
+      int h = 0;
+    };
+    void localProjectOriginal(const Project& pr, std::function<void(const Original&)> done);
     // Reports (ok, newId, newVersion) via `done`.
     void createServerFromLocal(stencil::net::ServerClient* c, const Project& pr, const QString& name,
                                const QByteArray& bytes, const QString& ext, int w, int h,

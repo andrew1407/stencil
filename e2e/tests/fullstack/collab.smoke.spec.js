@@ -5,7 +5,7 @@
 // cross-client visibility end to end.
 import { test, expect } from '@playwright/test';
 import { gotoApp, serverProjectIds, waitForNewServerProjectId } from '../../helpers/boot.js';
-import { issueToken, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
+import { issueToken, SERVER_URL, stackEnabled } from '../../helpers/server/api.js';
 
 test.describe('collaboration', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

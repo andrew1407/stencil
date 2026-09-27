@@ -36,3 +36,5 @@ server/vendor
 # Docs / editor
 **/*.md
 .claude
+# …except the one doc a binary embeds: mcp serves the .stc contract as a resource (include_str!).
+!contracts/stc/stc-contract.md

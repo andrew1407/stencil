@@ -1,6 +1,7 @@
-"""PNG decode (8-bit color types 0/2/3/4/6, all five row filters) and encode.
-
-Encode is deliberately trivial: color type 6, filter 0 on every scanline, zlib.
+"""PNG decode through the CLI's stb unit in the native library (else ``pngdecode``), and an
+encoder writing color type 6 with a per-row None/Sub/Up filter at zlib level 6. Decode refuses
+a side past ``MAX_SIDE``, or a stream too short for its rows, before stb allocates; stb then
+takes no block past ``stblib.block_cap``, so a stream cannot inflate far past its rows.
 """
 
 from __future__ import annotations
@@ -8,139 +9,62 @@ from __future__ import annotations
 import struct
 import zlib
 
-from .pngfilter import _plane_table, _swar_add, _unfilter_seq, _unfilter_sub
-from .sniff import _PNG_MAGIC, CodecError
+from . import pngdecode, stblib
+from .pngfilter import filter_row, pick_strategy
+from .sniff import _PNG_MAGIC, CodecError, check_size
+
+# Deflate emits at most 1032 bytes per input byte.
+_DEFLATE_RATIO = 1032
+_PALETTE_BYTES = 256 * 3
 
 
-# Channels per pixel in the raw (pre-expansion) sample stream, by PNG color type.
-_CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+def _chunks(data: bytes):
+  """``(type, payload start, length)`` per chunk header, through IEND or the last byte."""
+  pos = 8
+  while pos + 8 <= len(data):
+    length = struct.unpack_from(">I", data, pos)[0]
+    kind = bytes(data[pos + 4:pos + 8])
+    yield kind, pos + 8, length
+    if kind == b"IEND": return
+    pos += 12 + length
+
+
+def _padded_palette(data: bytes) -> bytes:
+  """``data`` with a short PLTE grown to 256 black entries: stb looks an index past PLTE up
+  in a stack array it never set, so an out-of-range pixel would carry old stack bytes."""
+  if data[25:26] != b"\x03": return data
+  for kind, start, length in _chunks(data):
+    if kind == b"PLTE":
+      if not 0 < length < _PALETTE_BYTES or length % 3: return data
+      grown = bytes(data[start:start + length]) + bytes(_PALETTE_BYTES - length)
+      return data[:start - 8] + __png_chunk(b"PLTE", grown) + data[start + length + 4:]
+    if kind == b"IDAT": return data
+  return data
+
+
+def _block_cap(data: bytes) -> int:
+  """stb's block cap for ``data``, after refusing a side past the cap or a stream that could
+  not inflate to the rows its IHDR claims."""
+  if data[8:16] != b"\x00\x00\x00\x0dIHDR" or len(data) < 29:
+    return stblib.block_cap(data, 0, 0)
+  width, height, depth, color = struct.unpack_from(">IIBB", data, 16)
+  check_size(width, height, "PNG")
+  rows = height * ((width * pngdecode.CHANNELS.get(color, 4) * depth + 7) // 8 + 1)
+  idat = sum(length for kind, _, length in _chunks(data) if kind == b"IDAT")
+  if idat * _DEFLATE_RATIO + stblib.SLACK < rows:
+    raise CodecError("PNG pixel data is %d bytes, too few to inflate to %d" % (idat, rows))
+  return stblib.block_cap(data, width, height, rows)
 
 
 def decode_png(data: bytes) -> tuple[int, int, bytearray]:
-  """Decode an 8-bit PNG to RGBA8.
-
-  Supports color types 0 (grayscale), 2 (RGB), 3 (palette), 4 (gray+alpha)
-  and 6 (RGBA), bit depth 8 only. Concatenates all IDAT chunks, inflates them,
-  then reverses the per-row filter (none/sub/up/average/paeth) before
-  expanding each sample model out to RGBA. A short inflate raises rather than
-  decoding to a buffer under the ``width*height*4`` every caller sizes its reads by.
-  """
+  """Decode a PNG — 1 to 16 bits, interlaced or not — to RGBA8, as the CLI does: a 16-bit
+  sample keeps its high byte, and a tRNS colour key clears the alpha of the pixels it names."""
   if data[:8] != _PNG_MAGIC:
     raise CodecError("not a PNG (bad signature)")
-
-  pos = 8
-  width = 0
-  height = 0
-  bit_depth = 0
-  color_type = 0
-  palette = b""
-  trns = b""
-  idat = bytearray()
-
-  # Walk the chunk stream: each chunk is length(4) + type(4) + data + crc(4).
-  total = len(data)
-  while pos + 8 <= total:
-    length = struct.unpack(">I", data[pos:pos + 4])[0]
-    ctype = data[pos + 4:pos + 8]
-    cstart = pos + 8
-    cend = cstart + length
-    if cend > total:
-      raise CodecError("truncated PNG chunk")
-    chunk = data[cstart:cend]
-    if ctype == b"IHDR":
-      (width, height, bit_depth, color_type, comp, filt, interlace) = struct.unpack(
-        ">IIBBBBB", chunk
-      )
-      if bit_depth != 8:
-        raise CodecError("only 8-bit PNG is supported (got %d)" % bit_depth)
-      if interlace != 0:
-        raise CodecError("interlaced PNG is not supported")
-    elif ctype == b"PLTE":
-      palette = chunk
-    elif ctype == b"tRNS":
-      trns = chunk
-    elif ctype == b"IDAT":
-      idat += chunk
-    elif ctype == b"IEND":
-      break
-    # advance past data + 4-byte CRC (we trust zlib to catch corruption)
-    pos = cend + 4
-
-  if width == 0 or height == 0:
-    raise CodecError("PNG has no IHDR / zero dimensions")
-
-  channels = _CHANNELS.get(color_type)
-  if channels is None:
-    raise CodecError("unsupported PNG color type %d" % color_type)
-
-  raw = zlib.decompress(bytes(idat))
-
-  stride = width * channels
-  bpp = channels  # bytes per pixel == channels at 8-bit depth
-  # Masks for the whole-row adds, built once — every scanline shares the stride.
-  low = int.from_bytes(b"\x7f" * stride, "big")
-  high = int.from_bytes(b"\x80" * stride, "big")
-
-  wanted = height * (stride + 1)
-  if len(raw) < wanted:
-    raise CodecError("PNG pixel data is %d of %d bytes" % (len(raw), wanted))
-
-  # Reverse the per-row filter; row 0's "previous row" is all zeros (RFC 2083).
-  rows = list()
-  prev = b"\x00" * stride
-  src = 0
-  for _y in range(height):
-    ftype = raw[src]
-    src += 1
-    row = raw[src:src + stride]
-    src += stride
-    if ftype == 0:
-      cur = row  # no filter — what our own encoder emits
-    elif ftype == 1:
-      cur = _unfilter_sub(row, bpp, low, high)
-    elif ftype == 2:
-      # Up: one whole-row add against the previous scanline.
-      cur = _swar_add(
-        int.from_bytes(row, "big"), int.from_bytes(prev, "big"), low, high
-      ).to_bytes(len(row), "big")
-    elif ftype == 3 or ftype == 4:
-      cur = _unfilter_seq(ftype, row, prev, bpp)
-    else:
-      raise CodecError("unknown PNG filter type %d" % ftype)
-    rows.append(cur)
-    prev = cur
-  out = b"".join(rows)
-
-  # Expand the sample model out to interleaved RGBA8. Every branch is a strided slice
-  # assignment (a C-level copy) rather than a per-pixel loop.
-  if color_type == 6:
-    return width, height, bytearray(out)
-  rgba = bytearray(b"\xff" * (width * height * 4))  # alpha defaults to opaque
-  if color_type == 2:
-    for c in (0, 1, 2):
-      rgba[c::4] = out[c::3]
-  elif color_type == 0:
-    # Grayscale: replicate the single sample across R/G/B.
-    for c in (0, 1, 2):
-      rgba[c::4] = out
-  elif color_type == 4:
-    # Grayscale + alpha.
-    gray = out[0::2]
-    for c in (0, 1, 2):
-      rgba[c::4] = gray
-    rgba[3::4] = out[1::2]
-  elif color_type == 3:
-    # Palette index -> PLTE RGB, plus optional per-index alpha from tRNS: one
-    # 256-entry translate table per channel turns each plane in C.
-    if not palette:
-      raise CodecError("palette PNG missing PLTE chunk")
-    if out and max(out) >= len(palette) // 3:
-      raise CodecError("PNG palette index out of range")
-    for c in (0, 1, 2):
-      rgba[c::4] = out.translate(_plane_table(palette, c, 3, 0))
-    rgba[3::4] = out.translate(_plane_table(trns, 0, 1, 255))
-
-  return width, height, rgba
+  cap = _block_cap(data)
+  lib = stblib.loaded()
+  if lib is None: return pngdecode.decode_png(data)
+  return stblib.decode("PNG", lib, _padded_palette(data), cap)
 
 
 def __png_chunk(ctype: bytes, payload: bytes) -> bytes:
@@ -151,11 +75,11 @@ def __png_chunk(ctype: bytes, payload: bytes) -> bytes:
 
 
 def encode_png(width: int, height: int, rgba: bytes | bytearray) -> bytes:
-  """Encode an RGBA8 buffer as a PNG (color type 6, 8-bit, filter 0).
+  """Encode an RGBA8 buffer as a PNG (color type 6, 8-bit).
 
-  We always prepend filter byte 0 ("none") to each scanline and let zlib do
-  the compression; this keeps the encoder trivial while staying a valid,
-  widely-readable PNG. CRC32 is computed per chunk via ``zlib.crc32``.
+  A deflate trial over sampled rows picks no filter, Up, or per row the cheapest of
+  None/Sub/Up — the whole-row filters a decode reverses fastest; zlib runs at level 6.
+  CRC32 is computed per chunk via ``zlib.crc32``.
   """
   if len(rgba) != width * height * 4:
     raise CodecError(
@@ -163,17 +87,23 @@ def encode_png(width: int, height: int, rgba: bytes | bytearray) -> bytes:
     )
 
   stride = width * 4
-  # Filter-0 framing: one 0 byte in front of every row of raw RGBA samples.
-  raw = b"".join(
-    b"\x00" + bytes(rgba[y * stride:(y + 1) * stride]) for y in range(height)
-  )
+  low = int.from_bytes(b"\x7f" * stride, "big")
+  high = int.from_bytes(b"\x80" * stride, "big")
+  allowed = pick_strategy(rgba, width, height, low, high)
+  raw = bytearray(height * (stride + 1))
+  prev = 0
+  for y in range(height):
+    ftype, line, prev = filter_row(
+      rgba[y * stride:(y + 1) * stride], prev, 4, low, high, allowed)
+    at = y * (stride + 1)
+    raw[at] = ftype
+    raw[at + 1:at + 1 + stride] = line
 
   ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
-  idat = zlib.compress(raw, 9)
+  idat = zlib.compress(raw, 6)
   return (
     _PNG_MAGIC
     + __png_chunk(b"IHDR", ihdr)
     + __png_chunk(b"IDAT", idat)
     + __png_chunk(b"IEND", b"")
   )
-

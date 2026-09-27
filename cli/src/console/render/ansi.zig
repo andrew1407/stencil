@@ -78,8 +78,9 @@ test "splitAt: cuts on VISIBLE columns, carrying escapes and the accent sentinel
     const colored = "\x1b[31mabc\x1b[0mdef";
     try testing.expectEqual(@as(usize, "\x1b[31mabc\x1b[0m".len), splitAt(colored, 3));
     try testing.expectEqual(@as(usize, "\x01abc".len), splitAt("\x01abcdef", 3));
-    // A UTF-8 rune is one column, not one byte.
+    // A UTF-8 rune is one column, not one byte — and a wide one is two, never cut in half.
     try testing.expectEqual(@as(usize, "…é".len), splitAt("…éx", 2));
+    try testing.expectEqual(@as(usize, "漢字".len), splitAt("漢字漢", 5));
 }
 
 test "accentReachOf: how far right the accent actually reaches on a row" {

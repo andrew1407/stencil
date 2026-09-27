@@ -1,6 +1,6 @@
 // Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/opPlan/)
 // against the REAL cli validator (llm.parsePlan — the entry handlers.zig doPrompt uses).
-// Port of the reference walker browser/tests/opPlanFixtures.test.js, with the cli's
+// Port of the reference walker browser/tests/llm/plan/opPlanFixtures.test.js, with the cli's
 // profile ("console"). Verdict = local override ?? knownDivergence.cli ?? expect;
 // "valid" = parsePlan returns a plan (chat-only counts), "invalid" = it rejects.
 const std = @import("std");

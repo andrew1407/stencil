@@ -38,13 +38,13 @@ namespace stencil::gui {
 
     motionMode = addCombo(r, QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
     motionMode->setObjectName(QStringLiteral("motionModeCombo"));
-    // The browser's MOTION_MODE_LABELS, in its order (ui/prefs.js).
+    // The browser's MOTION_MODE_LABELS, in its order (ui/motion/motionPrefs.js).
     motionMode->addItem("Dust", "particles");
     motionMode->addItem("Water", "water");
     motionMode->addItem("Fire", "fire");
     motionMode->addItem("Sliding", "slide");
     motionMode->addItem("None", "none");
-    // Each mode's glyph (support/motionIcons.hpp — the browser's motion/icons.js): on the
+    // Each mode's glyph (support/icon/motionIcons.hpp — the browser's motion/icons.js): on the
     // trigger at rest, and on the popup rows animated as they are hovered.
     {
       // In the text colour, like the labels (never the accent — user decision).

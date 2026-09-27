@@ -3,8 +3,8 @@
 The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 A **protocol adapter, not a core consumer**: it never links or recompiles `core/`, never
-decodes images (dimensions are passed in by the uploader), and keeps the parity contract out
-of scope. Its contract is `internal/protocol`, which every client mirrors.
+decodes images (the uploader passes dimensions), and keeps the parity contract out
+of scope.
 
 ```mermaid
 graph TD
@@ -20,7 +20,7 @@ graph TD
       LLM["llm/ · validate/"]
       STORE["store/"]
       FILES["filestore/"]
-      BUS["bus/ · redisbus/"]
+      BUS["eventbus/ · redisbus/"]
     end
     PG[("Postgres")]
     RD[("Redis")]
@@ -28,18 +28,12 @@ graph TD
 
     WS -->|"WebSocket"| TRANS
     TCP -->|"TCP NDJSON"| TRANS
-    WS --> API
-    REST --> API
-    API --> AUTH
-    API --> SVC
-    API --> LLM
+    WS & REST --> API
+    API --> AUTH & SVC & LLM
     LLM -.-> UP
     TRANS --> HUB
-    SVC --> STORE
-    SVC --> FILES
-    SVC --> BUS
-    HUB --> STORE
-    HUB --> BUS
+    SVC --> STORE & FILES & BUS
+    HUB --> STORE & BUS
     STORE --> PG
     BUS -.-> RD
 ```
@@ -55,17 +49,17 @@ owns no transport concept (no `ResponseWriter`, no statuses). `auth`, `ratelimit
 
 | Path | Holds | Rule |
 |---|---|---|
-| `cmd/stencil-server/` | `main.go` (flags + signals), `boot.go` (config → store + migrate → filestore → bus), `serve.go` (HTTP/WS + TCP listeners, CORS, healthz), `sweep.go` (project expiry) | wiring only |
-| `internal/protocol/` | the wire DTOs and the WS message envelope | **the contract**, mirrored by every client (`browser/js/net`, `browser-extension/src/lib/connections`, `desktop/src/net`, `cli/src/server`, `pystencil/pystencil/server`, the bot's server client) |
-| `internal/config/` | the environment configuration, one file per group (db, redis, llm, parse) | every key appears in `.env.example` and the README table |
-| `internal/auth/`, `internal/ratelimit/` | opaque bearer tokens (sha256-hashed, constant-time compare, expiry) + the HTTP/WS gate; the shared token buckets + `clientip.go` (`X-Forwarded-For` behind `TRUSTED_PROXY_CIDRS`) | a token travels as a header; `?token=` only on an RFC 6455 upgrade |
+| `cmd/stencil-server/` | flags, signals, boot, the listeners, the sweep, presence and reconcile loops | wiring only |
+| `internal/protocol/` | the wire DTOs and the WS message envelope | **the contract**, mirrored by every client (`browser/js/net`, `browser-extension/src/lib/connection`, `desktop/src/net`, `cli/src/server`, `pystencil/pystencil/server`, the bot's server client) |
+| `internal/config/` | the environment configuration; `assets/providers.json`, a copy of the canonical `browser/js/config/llm/providers.json` whose `serverDefaults` default `LLM_MODEL`/`LLM_MAX_TOKENS` | every key is in `.env.example` and the README table; the copy stays byte-equal (`llmdefaults_test.go`) |
+| `internal/auth/`, `internal/ratelimit/` | opaque bearer tokens (sha256-hashed, constant-time compare, expiry) + the HTTP/WS gate; the token buckets + `clientip.go` (`X-Forwarded-For` behind `TRUSTED_PROXY_CIDRS`) | a token travels as a header; `?token=` only on an RFC 6455 upgrade |
 | `internal/httpapi/` | the REST handlers, the LLM routes, `assets/` + `goldens/` for the pinned user-facing text | decode · authorize · call a service · encode — nothing else |
-| `internal/service/` | project and file policy, driven by both the handlers and the expiry sweep | |
-| `internal/store/` | the pgx `Store` (`projects.go` + `sessions.go`), the pool, keyset listing, embedded SQL migrations | migrations are idempotent and applied in lexical order at boot; Postgres is the sole source of truth |
-| `internal/filestore/` | the path-confined byte store: `safeJoin` (clean + root-prefix re-check + symlink-escape guard), atomic put (fsync before rename), quota | never touches a client-supplied filename; path-confined, not encrypted |
-| `internal/transport/`, `internal/hub/` | the `Conn` abstraction over WebSocket (with keepalive) and TCP NDJSON; one run-loop per project relaying edits and committing saves | all transports join the same session |
-| `internal/eventbus/`, `internal/redisbus/` | pub/sub fan-out, in-process and Redis; `drop.go` | both drop a delivery rather than stall a slow subscriber, and warn (rate-limited) because a silent drop reads like a lost edit; `Subscribe` returns only once the backend has the subscription, so the first publish after it cannot be lost |
-| `internal/llm/`, `internal/validate/` | the upstream proxy (one file per wire shape, enablement, upstream failure classification, sanitize); the chat-request check | requests validate before leaving; upstream text is untrusted and sanitized; the key and image payloads are never logged |
+| `internal/service/` | project and file policy for the handlers and the sweep, and the cross-instance presence both read | |
+| `internal/store/` | the pgx `Store` over projects, sessions, charges and presence, keyset listing, the migrations (SQL + the Go 0006 step) | migrations are idempotent, applied once each in lexical order under an advisory lock (`schema_migrations`); Postgres is the sole source of truth |
+| `internal/filestore/` | the path-confined byte store: `safeJoin` (clean + root-prefix re-check + symlink-escape guard), atomic put (fsync before rename), the quotas, the reconcile pass | never touches a client-supplied filename; confined, not encrypted |
+| `internal/transport/`, `internal/hub/` | the `Conn` abstraction over WebSocket (with keepalive) and TCP NDJSON; one run-loop per project relaying edits and committing saves | |
+| `internal/eventbus/`, `internal/redisbus/` | pub/sub fan-out, in-process and Redis | both drop rather than stall a slow subscriber, with a rate-limited warning; `Subscribe` returns once the backend holds the subscription |
+| `internal/llm/`, `internal/validate/` | the upstream proxy (one file per wire shape, enablement, failure classification, sanitize); the pure request predicates | requests validate before leaving; upstream text is untrusted and sanitized; the key and image payloads are never logged; `validate/` does no I/O |
 | `internal/clock/`, `internal/testutil/`, `internal/lint/` | the injectable `now()`, the shared test rigs, the test-count floor (run as a test) | |
 | `vendor/` | `go mod vendor` output | gitignored, as is `go.sum`; the only non-stdlib deps are `pgx`, `go-redis`, `coder/websocket` |
 
@@ -73,169 +67,107 @@ owns no transport concept (no `ResponseWriter`, no statuses). `auth`, `ratelimit
 
 ```mermaid
 classDiagram
-    class WSMessage {
-      <<protocol>>
-      +string Type
-      +string ProjectID
-      +int64 Version
-      +Peer[] Peers
-    }
-    class ProjectRecord {
-      <<protocol>>
-      +string ID
-      +int64 Version
-      +int64 ExpiresAt
-      +RawMessage Layout
-    }
-    class LlmChatRequest {
-      <<protocol>>
-      +string System
-      +LlmMessage[] Messages
-      +string Model
-    }
-    class Session {
-      <<auth>>
-      +string ID
-      +string Label
-      +int64 ExpiresAt
-    }
-    class Hub {
-      <<hub>>
-      +map sessions
-      +map conns
-      +helloGuard hello
-    }
-    class session {
-      <<hub>>
-      +string id
-      +map members
-      +int64 version
-      +ProjectRecord loadedRec
-    }
-    class member {
-      <<hub>>
-      +string clientID
-      +chan out
-      +int queued
-    }
-    class snapshotWorker {
-      <<hub>>
-      +chan jobs
-      +chan results
-      +Duration timeout
-    }
-    class Conn {
-      <<transport>>
-      +Read(ctx) bytes
-      +Write(ctx, bytes)
-      +Close(code, reason)
-    }
-    class Envelope {
-      <<bus>>
-      +string Type
-      +string From
-      +RawMessage Data
-    }
-    class Limiter {
-      <<ratelimit>>
-      +float64 perMin
-      +map buckets
-    }
-    class Client {
-      <<llm>>
-      +string provider
-      +string model
-      +Doer http
-    }
     WSMessage "1" --> "0..1" ProjectRecord : project
     Envelope "1" --> "1" WSMessage : Data
     Hub "1" *-- "0..*" session : sessions[id]
     Hub "1" --> "1" Limiter : hello.rate
     Hub "1" --> "0..*" Session : resolver
+    Hub "1" --> "0..*" Envelope : watchFeed
     session "1" *-- "0..*" member : members[clientID]
     session "1" *-- "1" snapshotWorker : persist
     session "1" --> "1" ProjectRecord : loadedRec
     session "1" --> "0..*" Envelope : busCh
     member "1" o-- "1" Conn : conn
     Client "1" --> "0..*" LlmChatRequest : Chat
+    Charge "0..*" --> "1" Session : SessionID
+    Charge "0..*" --> "1" ProjectRecord : ProjectID
+    Presence "1" --> "1" Hub : LiveCounts
 ```
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `WSMessage` (`protocol/ws.go`) | the flat envelope for every WS frame and TCP line; `Type` selects the live fields | built per frame by a client or by `hub`; the server's `internal/protocol` is canonical and every client mirrors it | carries `Peer`s (the `welcome` roster) and a `ProjectRecord`; wrapped in an `Envelope` on the bus |
-| `ProjectRecord` (`protocol/project.go`) | project metadata plus the server-only storage fields; `Version` is the last-writer-wins guard | a Postgres row in `store`; canonical here, mirroring `core/state/ProjectsStore.hpp` `ProjectMeta` semantics; the `Layout` payload is the browser's `buildLayoutPayload` | cached as `session.loadedRec`; the body of every REST project response |
-| `LlmChatRequest` / `LlmChatResponse` (`protocol/llm.go`) | one canonical chat turn and its reply; the provider wire shape never leaves `llm/` | per request, `llm-contract.md` §6.3 is canonical | validated by `validate.LLMChat`; mapped by a `providerMapping` |
-| `Session` (`auth/token.go`) | the authenticated principal resolved from a bearer token's SHA-256 hash | a `sessions` row created by `Store.CreateSession`, live until `ExpiresAt` | resolved by `auth.Verify` for REST and for the hub's hello; keys the per-session `Limiter` |
-| `Hub` (`hub/hub.go`) | the registry of live sessions and tracked connections | one per process; its own context, ended by `Close` after the drain | acquires and releases a `session` per project id; meters hellos through its `helloGuard` |
-| `session` (`hub/session.go`) | the single-goroutine owner of one project's live state: members, version, cached snapshot | created by `Hub.acquire` on the first join, refcounted, torn down when the last member leaves | fans `Envelope`s out to `member`s; delegates store I/O to its `snapshotWorker` |
-| `member` (`hub/member.go`) | one connected client inside a session, with its bounded outbound queue and `writeLoop` | per connection, from `serveProject` until disconnect | owns a `Conn`; addressed by `clientID` |
-| `snapshotWorker` (`hub/persist.go`) | the session's DB arm: `persistJob` in, `persistResult` out, one blocking store call at a time | one per session, exits when the session's `done` closes | calls `hub.Store` (`GetProject`, `UpdateProject`) |
-| `Conn` (`transport/transport.go`) | one message stream, `wsConn` (a text frame each) or `tcpConn` (an NDJSON line each) | per accepted socket, closed by the handler that owns it | read and written by `Hub.HandleConn`, `serveProject`, `serveEvents` |
-| `Envelope` (`eventbus/eventbus.go`) | a marshalled frame plus the two routing fields (`Type`, `From`) fan-out reads without re-parsing | published to `proj:<id>` or `events` on `inProc` or `redisBus`; dropped, not queued, for a slow subscriber | delivered to `session.busCh` and to `serveEvents` subscribers |
-| `Limiter` (`ratelimit/limiter.go`) | a per-key token bucket, capacity one minute's spend, refilled continuously; `nil` means unlimited | one per metered surface, held by `API` (`authRate`, `writeRate`, `llmRate`) and by `helloGuard` | keyed by client IP or `Session.ID` |
-| `Client` (`llm/client.go`) | the upstream proxy: provider id, base URL, key, default model, bounded `Doer` | one per process when a provider is configured, else `Deps.LLM` is nil | dispatches to a `providerMapping`; failures come back as `*UpstreamError` |
+| `WSMessage` (`protocol/ws.go`) | the flat envelope of every WS frame and TCP line; `Type` selects the live fields | per frame | carries `Peer`s and a `ProjectRecord`; wrapped in an `Envelope` on the bus |
+| `ProjectRecord` (`protocol/project.go`) | project metadata plus server-only storage fields; `Version` is the last-writer-wins guard | a Postgres row; mirrors `core/state/ProjectsStore.hpp` `ProjectMeta` | cached as `session.loadedRec`; the body of every REST project response |
+| `LlmChatRequest` / `LlmChatResponse` (`protocol/llm.go`) | one chat turn and its reply; the provider wire shape never leaves `llm/` | per request; `llm-contract.md` §6.3 is canonical | validated by `validate.LLMChat`; mapped by a `providerMapping` |
+| `Session` (`auth/token.go`) | the principal a bearer token's SHA-256 hash resolves to | a `sessions` row, live until `ExpiresAt` | resolved by `auth.Verify`; keys the per-session `Limiter` |
+| `Hub` (`hub/hub.go`) | the registry of live sessions and connections | one per process; its own context, ended by `Close` after the drain | holds a `session` per project id; meters hellos; watches `events` for foreign writes |
+| `session` (`hub/session.go`) | the single-goroutine owner of one project's live state: members, version, cached snapshot | refcounted, from the first join until the last member leaves; subscribes outside the hub lock | fans `Envelope`s out to `member`s; stores through its `snapshotWorker` |
+| `member` (`hub/member.go`) | one client in a session, with its bounded outbound queue and `writeLoop` | per connection | owns a `Conn`; addressed by `clientID` |
+| `snapshotWorker` (`hub/persist.go`) | the session's DB arm, one blocking store call at a time | one per session | takes `persistJob`s, returns `persistResult`s |
+| `Conn` (`transport/transport.go`) | one message stream: `wsConn` (a text frame each) or `tcpConn` (an NDJSON line each) | per socket | read and written by the hub |
+| `Envelope` (`eventbus/eventbus.go`) | a marshalled frame plus the routing fields (`Type`, `From`) fan-out reads unparsed | published to `proj:<id>` or `events` | delivered to `session.busCh` and `serveEvents` |
+| `Charge` (`store/charges.go`) | one stored file's bytes, charged to the session that wrote them | a `file_charges` row per (project, kind) while the cap is on; moved by a replacement, dropped by a credit or cascade | summed per `Session` under its row lock |
+| `Presence` (`service/presence.go`) | this instance's lease on its live projects in `project_presence`: an instance id, member counts, a TTL | one per process while `PRESENCE_TTL_SECONDS` > 0 | beats the `Hub`'s `LiveCounts`; read by `Expiry` and the delete guard |
+| `Limiter` (`ratelimit/limiter.go`) | a per-key token bucket holding one minute's spend, refilled continuously; `nil` is unlimited | one per metered surface (`authRate`, `writeRate`, `llmRate`, the hello) | keyed by client IP or `Session.ID` |
+| `Client` (`llm/client.go`) | the upstream proxy: provider, base URL, key, default model, bounded `Doer` | one per process when a provider is configured | dispatches to a `providerMapping`; fails as `*UpstreamError` |
 
 ## Patterns
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Repository | `store.Store` behind `httpapi.ProjectStore` / `SessionStore` / `hub.Store` / `service.ProjectStore`; `filestore.Store` behind `httpapi.FileStore` / `service.UploadFiles` | each consumer names only the methods it calls, so `testutil.MemStore` stands in without a database |
-| Observer | `bus.Bus` (`inProc`, `redisBus`) with `session.busCh` and `serveEvents` as subscribers | the session's own publish loops back through the bus, the single delivery path to local members |
-| Strategy | `llm.providerMapping` in the `mappings` table (`anthropicMapping`, `ollamaMapping`, `openAIMapping`) | `Client.Chat` looks the mapping up by provider id; adding a provider is a table entry plus its file |
-| Chain of Responsibility | `httpapi.CORS` → `auth.Middleware` → `limitByIP` / `limitBySession` → handler; `Hub.HandleConn` → `checkHello` → `serveProject` / `serveEvents` | each link either answers the request itself or passes it on |
-| Run-loop per project | `session.run` owning `members`, `version`, `loadedRec`; `snapshotWorker.run` as its only blocking arm | one goroutine per open project serialises registration, inbound frames, bus deliveries and persist results, so session state needs no lock |
-| Adapter | `transport.wsConn` and `transport.tcpConn` behind `transport.Conn` | WebSocket text frames and NDJSON lines land in the same hub session |
-| Saga | `service.FileService.Store` | one upload spans `filestore` and `store`; a row deleted mid-upload is compensated by `RemoveKind` |
-| Golden pin | `httpapi/goldens/` read by `textgolden_test.go` | the user-facing LLM prompt heads and the `/llm/info` body are pinned as text |
+| Repository | `store.Store` and `filestore.Store` behind the interfaces `httpapi`, `hub` and `service` declare | each consumer names only the methods it calls, so `testutil.MemStore` stands in without a database |
+| Observer | `bus.Bus` (`inProc`, `redisBus`) with `session.busCh`, `serveEvents` and the hub's `watchFeed` as subscribers | the session's own publish loops back through the bus, the single delivery path to local members |
+| Strategy | `llm.providerMapping` in the `mappings` table | keyed by provider id; a new provider is a table entry plus its file |
+| Chain of Responsibility | `httpapi.CORS` → `auth.Middleware` → `limitByIP` / `limitBySession` → handler; `Hub.HandleConn` → `checkHello` → `serveProject` / `serveEvents` | each link answers or passes on |
+| Run-loop per project | `session.run` owning `members`, `version`, `loadedRec`; `snapshotWorker.run` as its only blocking arm | one goroutine per open project serialises joins, frames, bus deliveries and persist results, so session state needs no lock |
+| Adapter | `transport.wsConn` and `transport.tcpConn` behind `transport.Conn` | text frames and NDJSON lines reach one hub session |
+| Saga | `service.FileService.Store`, `service.ProjectService.Create` | one upload spans `filestore` and `store`; `RemoveKind` compensates a row deleted mid-upload, the reconcile pass the rest; a refused inline original deletes its new row and directory |
+| Golden pin | `httpapi/goldens/` read by `textgolden_test.go` | user-facing LLM text and response bodies are pinned as text |
+| Lease | `service.Presence` over `project_presence` | a row is trusted until its `live_until` on the database clock, so a stopped instance's claim lapses on its own; for their own projects readers use the hub's exact counts |
 
 ## Design
 
-- **Boot.** `run()` in `main.go` loads `config.Config`, opens the pgx pool and applies the
-  embedded migrations, opens the `filestore.Store` under its quota, then `openBus` picks
-  `redisbus` or `bus.NewInProc`. `startExpirySweep` gets its own `ProjectService`,
-  `hub.New` is built with `WithHelloLimit`, `apiDeps` composes `httpapi.Deps` and
-  `configureLLM` attaches a `llm.Client` when a provider is configured. `newHTTPServer`
-  wraps the mux (REST routes, `/ws`, `/healthz`) in `CORS`; `listenTCP` opens the NDJSON
-  listener under the same TLS config. Shutdown drains in order: the sweep, TCP accepts,
-  `Hub.CloseAll` (a `shuttingDown` frame to every live connection), HTTP, then `Hub.Close`.
-  The hub holds a context of its own, carrying the signal context's values but not its
-  cancellation: TCP editors are served under it, so the signal cannot hang them up before the
-  notice is written, and the last peer-leave publish and an in-flight save still land.
-- **A REST project write.** `PUT /projects/{id}` passes `CORS`, then `auth.Middleware`
-  (`BearerToken` → `auth.Verify` → `Session` on the context), then `handleUpdateProject`
-  decodes an `UpdateProjectRequest`, opens an `opCtx` and calls `Store.UpdateProject` with a
-  `ProjectPatch` and the expected version; `ErrConflict` becomes `409 conflict`, success
-  publishes `updated` on the global feed. `POST /projects` runs `limitBySession` and
-  `ProjectService.Create` (the image rule, the `PROJECT_TTL` stamp). `POST
-  /projects/{id}/files/{kind}` runs `FileService.Store`: `GetProject`, `filestore.PutStream`
-  through `safeJoin` and the atomic put, `Store.SetFile` for `original`/`result`, `updated`
-  on the feed; a row gone mid-upload is compensated with `RemoveKind`.
-- **A live session.** `/ws` (`transport.AcceptWS`) or the TCP listener (`transport.NewTCP`)
-  hands a `Conn` to `Hub.HandleConn`, which reads the `hello` within `helloTimeout` and
-  runs `checkHello` (the per-IP `Limiter`, `auth.Verify`, a refund on success). An empty
-  `projectId` joins `serveEvents` on the `events` channel; otherwise `serveProject` makes a
-  `member`, `Hub.acquire` starts the project's `session.run` and `snapshotWorker.run`, and
-  `register` triggers `ensureLoaded`. `subscribe` answers `welcome` from `loadedRec`
-  (deferred until the load lands). An `edit` behind `session.version` gets `badVersion`;
-  otherwise it is stamped with `FromClientID`, published as an `Envelope` on
-  `proj:<id>`, and `fanout` enqueues it to every member but its originator, each member's
-  `writeLoop` draining to its `Conn`. A `save` becomes a `persistJob`; `applySaveResult`
-  bumps the version, acks the saver with `synced`, broadcasts `synced` to peers and
-  publishes `updated` on the global feed.
-- **An LLM turn.** `POST /llm/chat` passes the auth guard, spends `llmRate` for the
-  `Session.ID` before the body is read, decodes an `LlmChatRequest`, runs
-  `validate.LLMChat`, takes an `llmGate` slot (refused, not queued, when full) and calls
-  `Client.Chat`, which resolves the model and dispatches to `mappingFor(provider).chat`.
-  The reply is an `LlmChatResponse`; an `*UpstreamError` answers `502 llmUpstream` with its
-  `ClientMessage`, and the full detail goes only to the server log.
-- **The expiry sweep.** `startExpirySweep` runs once at boot and then every
-  `SweepInterval`: `Store.DeleteExpiredProjects` takes up to `sweepBatch` rows per round
-  trip and repeats while a pass comes back full; `dropEach` fans the ids over
-  `sweepWorkers` to `ProjectService.Dropped`, which removes the filestore directory and
-  publishes `deleted` on `events`, so a swept project looks exactly like a manual delete to
-  every `serveEvents` subscriber.
-- **Wire schema.** One `protocol.WSMessage` per WebSocket text frame or per TCP NDJSON line — a flat envelope
-  whose `type` decides which of the optional fields are set:
+- **Boot.** `main.go` loads `config.Config`, migrates in one transaction, then builds the
+  quota'd `filestore.Store`, the bus, the hub, `httpapi.Deps` and any `llm.Client`; the presence
+  heartbeat and the sweeps start last, as both ask the hub what is live. TCP shares the HTTP TLS
+  config. Shutdown drains the sweep, TCP accepts, `Hub.CloseAll`, HTTP, then
+  `Hub.Close`, whose context drops the signal's cancellation so the `shuttingDown` notice, the
+  last peer-leave and an in-flight save land.
+- **A REST project write.** `PUT /projects/{id}` passes the guard chain (Patterns) and calls
+  `Store.UpdateProject` with the expected version (`ErrConflict` is
+  `409 conflict`), then publishes `updated` on the global feed. `POST /projects` runs
+  `ProjectService.Create` (the image rule, the `PROJECT_TTL` stamp); a legacy
+  `originalContent` data URL is uploaded as the creator's, so `created` carries its path and hash.
+  `POST /projects/{id}/files/{kind}` runs the `FileService.Store` saga and publishes `updated`;
+  its `DELETE` credits the writer before the bytes go.
+- **A live session.** `Hub.HandleConn` reads a `Conn`'s `hello` within `helloTimeout`, runs
+  `checkHello` (per-IP `Limiter`, `auth.Verify`, a refund on success) and arms `expireAt`,
+  which hangs up with `unauthorized` when the session expires. An empty `projectId` joins
+  `serveEvents`; a malformed or unknown id gets `notFound`; otherwise `serveProject` adds a
+  `member` to the project's `session`, whose first join loads the snapshot `welcome` waits for.
+  An `edit` behind `session.version` (absent = 0) gets `badVersion`; otherwise it is stamped
+  `FromClientID`, published on `proj:<id>` and fanned out to every other member. A `save` bumps
+  the version, sends `synced` to all and publishes `updated`. Any other write reaches the
+  session through `Hub.watchFeed`: a newer version re-reads the snapshot and `subscribe` waits
+  for it, so no welcome predates a known write.
+- **An LLM turn.** `POST /llm/chat` passes the auth guard, spends `llmRate` before the body is
+  read, runs `validate.LLMChat`, takes an `llmGate` slot and calls `Client.Chat`, which
+  dispatches to the provider's mapping. An `*UpstreamError` answers `502 llmUpstream` with its
+  `ClientMessage`; the full detail goes only to the server log.
+- **Presence.** Every `PRESENCE_HEARTBEAT_SECONDS`, and once a burst of joins or leaves settles
+  for `PRESENCE_SETTLE_MS` (`Hub.LiveChanged`), `Presence.Beat` replaces this instance's
+  `project_presence` rows with the hub's `LiveCounts`, live for `PRESENCE_TTL_SECONDS`, and purges
+  rows lapsed a further TTL; they outlive a shutdown to cover reconnects elsewhere.
+  `DELETE /projects/{id}` refuses at two editors across every instance.
+- **The expiry sweep.** At boot and every `SweepInterval`, `service.Expiry` deletes expired
+  rows in `SWEEP_BATCH` round trips, sparing every project live here or in another instance's
+  presence (an unreadable presence sweeps nothing); `SWEEP_WORKERS` run `ProjectService.Dropped`,
+  so a swept project looks exactly like a manual delete. Expired sessions go too, their charges
+  by cascade. The reconcile loop removes a directory no row owns and a stale `.tmp-*` upload.
+- **Storage quotas.** Three caps, each off at `0`, refuse with `filestore.ErrQuotaExceeded`
+  (`507`): aggregate and per-owner, metered on disk under one in-process lock; per-session, in
+  the charge ledger. `Store.Admit` locks the writer's `sessions` row (then the meter), sums its
+  other files, upserts the (project, kind) charge and commits the meter in that transaction, so
+  one session's uploads are judged one at a time on every instance and a refusal stores nothing.
+  The ledger errs toward charging too little; with the cap off a boot clears it.
+- **The inline original (0006).** Before `0006_original_content_drop.sql`, in the migration
+  transaction over an unmetered filestore, each row's data-URL original becomes
+  `original.<subtype>` with its hash, the version untouched; a non-image payload is logged and
+  cleared. The drop refuses a column still holding one.
+- **Project list.** A page is `?limit=` rows, else `PROJECTS_PAGE_SIZE` (100; 0 = every project),
+  under a strong `ETag`; every client walks `nextCursor` to the end, so the default bounds one
+  response, never the list.
+- **Wire schema.** A `protocol.WSMessage`'s `type` decides which optional fields are set:
 
   | Group | Fields |
   |---|---|
@@ -250,13 +182,9 @@ classDiagram
   server → client: `welcome`, `peer-join`, `peer-leave`, `edit`, `synced`, `project-event`,
   `error`, `pong`.
 
-  REST bodies are the `protocol` DTOs. A `ProjectRecord` carries `id`, `name`, `createdAt`,
-  `updatedAt`, `expiresAt`, `hasImage`, `imageW`, `imageH`, `source`, `resource`, `color`,
-  `keywords`, `description`, `blank`, `blankColor`, `originalPath`, `resultPath`,
-  `originalContent`, `layout`, `version`, `ownerSession`; the list response is
-  `{ projects, nextCursor? }`, the single response `{ project, layout, originalContent }`, a file
-  write `{ path, w, h }`, and every error `{ code, message }`. Layout JSON is opaque to the
-  server (`json.RawMessage`) — its shape is the browser's `buildLayoutPayload`.
+  REST bodies are the `protocol` DTOs; a create, an update, an event and a welcome's `project`
+  carry metadata only. Layout JSON is opaque (`json.RawMessage`) — its shape is the browser's
+  `buildLayoutPayload`.
 
 ## Rules
 
@@ -275,17 +203,21 @@ classDiagram
    the user can act on; anything unclassified is stripped of control characters, redacted of
    URLs and token-shaped runs, capped at 200 characters, and dropped entirely if a fragment
    of the key appears. The `code` is always the server's.
-7. **Store calls run under `OP_TIMEOUT_SECONDS`** in every handler, and under `hub.opTimeout`
-   in the hub — the hello's token lookup included, since the handshake deadline is spent by then.
+7. **Store calls run under `OP_TIMEOUT_SECONDS`** in every handler and in the hub, the REST
+   guard's and the hello's token lookups included.
+8. **The payload reads once.** The layout leaves Postgres only for `GET /projects/{id}` and a
+   welcome; writes, lists, events and the file routes read metadata. An image is never a
+   column: its bytes leave the filestore only by the files route, never in a project body, the
+   feed or Redis.
 
 ## Tests
 
 Offline by default; only `store/` and `redisbus/` touch a real Postgres or Redis and
-self-skip without one. The store tests read a dedicated `TEST_DATABASE_URL`, never
-`DATABASE_URL`, because they truncate the database they name. The `httpapi` and `hub`
-suites run against the rigs in `internal/testutil` (`MemStore` for projects and sessions,
-`EchoLLM` for the proxy, `wsClient` for a driven socket), and `llm/` injects a `Doer` to
-assert the exact upstream request without a network. The hub's session loop is
-covered under the race detector. Benchmarks are opt-in and assert properties, not numbers:
-fan-out allocation-free and linear in peers, `Put` costing one `fsync` regardless of size,
-chat validation free without attachments, one keyset page a fraction of the whole list.
+self-skip without one. The store suite proves the migration ledger under concurrent boots,
+the 0006 upgrade, the per-session ledger and cross-instance presence; it reads a dedicated
+`TEST_DATABASE_URL`, never `DATABASE_URL`, because it truncates the database it names.
+`httpapi` and `hub` run against `internal/testutil`'s rigs; `llm/` injects a `Doer` to assert
+the exact upstream request. The hub's session loop runs under the race detector, and the hub
+suite drives the REST API over its own store and bus, proving a later joiner's welcome follows
+a REST write. Opt-in benchmarks assert properties, not numbers: fan-out allocation-free and
+linear in peers, `Put` one `fsync` at any size, a keyset page a fraction of the list.

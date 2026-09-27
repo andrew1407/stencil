@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — The project shortcuts, incognito's promotion to a real project, and clearing one.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/app/project/ProjectTitleController.hpp"
 #include "../../../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
@@ -38,7 +39,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY2(win.nameBar.editing, "the chord did not enter inline rename");
     QVERIFY(!win.nameBar.field->isReadOnly());
     QCOMPARE(win.nameBar.field, win.focusWidget());
-    win.cancelProjectName();
+    win.projectTitle->cancelProjectName();
   }
 
   // Incognito stops the app writing BY ITSELF; an explicit save is the user, not the app — so `save`
@@ -48,12 +49,12 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     const int before = static_cast<int>(win.projectList.size());
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QTRY_VERIFY(win.incognito);
 
     // The assistant's pathless save: it promotes rather than failing.
     QString err;
-    QVERIFY2(win.chatSaveProject(QString(), QString(), &err),
+    QVERIFY2(win.parts.chatAppliers.chatSaveProject(QString(), QString(), &err),
              qPrintable(QStringLiteral("save refused while incognito: %1").arg(err)));
     QVERIFY2(!win.incognito, "the session left incognito with the save");
     QCOMPARE(static_cast<int>(win.projectList.size()), before + 1);
@@ -67,7 +68,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    win.actIncognito->setChecked(true);
+    win.acts.incognito->setChecked(true);
     QTRY_VERIFY(win.incognito);
     const int before = static_cast<int>(win.projectList.size());
 
@@ -75,7 +76,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dir.isValid());
     const QString out = dir.path() + QStringLiteral("/from-incognito.png");
     QString err;
-    QVERIFY2(win.chatSaveProject(QStringLiteral("shot"), out, &err),
+    QVERIFY2(win.parts.chatAppliers.chatSaveProject(QStringLiteral("shot"), out, &err),
              qPrintable(QStringLiteral("file save refused: %1").arg(err)));
     QVERIFY2(QFileInfo::exists(out), "the file the user asked for is on disk");
     QVERIFY2(win.incognito, "an export is not a promotion — the session stays incognito");
@@ -93,7 +94,7 @@ class MainWindowGuiTest : public QObject {
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     QString err;
-    QVERIFY2(win.chatSaveProject(QStringLiteral("portrait-bw"), dir.path(), &err),
+    QVERIFY2(win.parts.chatAppliers.chatSaveProject(QStringLiteral("portrait-bw"), dir.path(), &err),
              qPrintable(QStringLiteral("folder save refused: %1").arg(err)));
     const QStringList written = QDir(dir.path()).entryList(QDir::Files);
     QCOMPARE(written.size(), 1);
@@ -131,8 +132,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QImage img(40, 30, QImage::Format_RGB32);
     img.fill(Qt::darkGreen);
-    const QString idA = win.addImageProjectEntry(img, "remove-me");
-    const QString idB = win.addImageProjectEntry(img, "keep-me");
+    const QString idA = win.parts.chatAppliers.addImageProjectEntry(img, "remove-me");
+    const QString idB = win.parts.chatAppliers.addImageProjectEntry(img, "keep-me");
     QVERIFY(!idA.isEmpty() && !idB.isEmpty());
     const auto hasProject = [&win](const QString& id) {
       for (const auto& p : win.projectList)
@@ -198,7 +199,7 @@ class MainWindowGuiTest : public QObject {
       rowGone = !rowFor(idA) && rowFor(idB) != nullptr;
       bailOut();
     });
-    win.openProjects();
+    win.parts.projects.openProjects();
     QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
     QVERIFY2(openAfterNo, "answering No closed the projects dialog");
     QVERIFY2(keptAfterNo, "answering No still removed the project");

@@ -13,15 +13,20 @@ export const storageKeys = (storage) => {
   }
 };
 
-export const readJSON = (storage, key, fallback) => {
+export const parseJSON = (raw, fallback) => {
+  if (raw == null) return fallback;
   try {
-    const raw = storage.getItem(key);
-    if (raw == null) return fallback;
     const val = JSON.parse(raw);
     return val == null ? fallback : val;
   } catch {
     return fallback;
   }
+};
+
+export const readJSON = (storage, key, fallback) => {
+  let raw;
+  try { raw = storage.getItem(key); } catch { return fallback; }
+  return parseJSON(raw, fallback);
 };
 
 // QuotaExceededError propagates so the DOM adapter can evict + retry.
@@ -42,6 +47,25 @@ export const normalizeMeta = (m) => {
   if (typeof m.blank !== 'boolean') m.blank = false;
   if (typeof m.blankColor !== 'string') m.blankColor = '';
   return m;
+};
+
+// What a JSON round trip of `v` yields, without one: an undefined field goes, an undefined or
+// non-finite element is null. Strings are immutable, so only the containers copy.
+export const cloneJson = (v) => {
+  if (Array.isArray(v)) return v.map((x) => (x === undefined ? null : cloneJson(x)));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) if (x !== undefined) out[k] = cloneJson(x);
+    return out;
+  }
+  return typeof v === 'number' && !Number.isFinite(v) ? null : v;
+};
+
+// The rows a read of the registry string `JSON.stringify(arr)` parses to.
+export const registryRows = (arr) => {
+  const rows = cloneJson(arr);
+  for (const m of rows) normalizeMeta(m);
+  return rows;
 };
 
 // MUST NOT touch drawingApp_theme / drawingApp_hotkeys or any other global key.

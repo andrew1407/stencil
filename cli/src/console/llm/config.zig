@@ -5,25 +5,30 @@ const server = @import("../../server/client.zig");
 const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
+const key = @import("key.zig");
 
 // The wire/parse half lives in llm.zig (the CLI's port of llm-contract.md); this is the executor
 // half — validated actions run through the SAME session operations the console commands use.
 
 /// `/llm [provider|url|model|key|server <value>]` — show or override the session's LLM config,
 /// seeded from `STENCIL_LLM_*`. A provider change re-fills its default baseUrl unless '/llm url' did.
-pub fn doLlm(session: *Session, arg: []const u8) !void {
-    const cfg = try session.llmConfig();
+pub fn doLlm(session: *Session, io: std.Io, arg: []const u8) !void {
+    const cfg = try session.llmConfig(io);
+    key.dropExpired(session, io, cfg);
     switch (llm.parseCmd(arg)) {
         .show => showLlm(session, cfg),
-        .usage => logo.print("usage: /llm [provider <ollama|openai-compat|stencil-server> | url <baseUrl> | model <name> | key <apiKey> | server <serverUrl>]\n", .{}),
-        .bad_provider => |t| logo.err("unknown LLM provider '{s}' — ollama, openai-compat, or stencil-server\n", .{t}),
+        .usage => logo.print("usage: /llm [provider <ollama|openai-compat|anthropic|stencil-server> | url <baseUrl> | model <name> | key [<apiKey>|forget] | server <serverUrl>]\n", .{}),
+        .bad_provider => |t| logo.err("unknown LLM provider '{s}' — ollama, openai-compat, anthropic, or stencil-server\n", .{t}),
         .provider => |p| {
+            const had_key = cfg.api_key.len != 0;
             try cfg.setProvider(session.gpa, p);
             if (p == .stencil_server) {
                 logo.print("llm provider set to {s}\n", .{p.label()});
             } else {
                 logo.print("llm provider set to {s} (url {s})\n", .{ p.label(), cfg.base_url });
             }
+            if (had_key and cfg.api_key.len == 0) logo.note("the API key was dropped — a key never follows a switch to or from anthropic\n", .{});
+            if (p == .anthropic and cfg.api_key.len == 0) logo.print("'/llm key' enters your Anthropic API key — the input is hidden, and it is held for this console only\n", .{});
         },
         .url => |u| {
             try cfg.setBaseUrl(session.gpa, u);
@@ -33,10 +38,11 @@ pub fn doLlm(session: *Session, arg: []const u8) !void {
             try cfg.setModel(session.gpa, m);
             logo.print("llm model set to {s}\n", .{cfg.model});
         },
-        .key => |k| {
-            try cfg.setApiKey(session.gpa, k);
-            logo.print("llm api key set (hidden)\n", .{});
+        .key => |k| try key.setKey(session, io, cfg, k),
+        .key_prompt => {
+            _ = try key.promptKey(session, io, cfg);
         },
+        .key_forget => key.forget(session, cfg),
         .server => |s| {
             try cfg.setServerUrl(session.gpa, s);
             logo.print("llm server set to {s}\n", .{cfg.server_url});
@@ -49,8 +55,10 @@ pub fn doLlm(session: *Session, arg: []const u8) !void {
 fn showLlm(session: *Session, cfg: *const llm.Config) void {
     logo.print("llm: provider {s} — '/llm provider|url|model|key|server <value>' to change (env: STENCIL_LLM_*)\n", .{cfg.provider.label()});
     logo.print("  url:    {s}\n", .{if (cfg.base_url.len != 0) cfg.base_url else "(none)"});
-    logo.print("  model:  {s}\n", .{if (cfg.model.len != 0) cfg.model else "(provider default)"});
-    logo.print("  key:    {s}\n", .{if (cfg.api_key.len != 0) "(set, hidden)" else "(not set)"});
+    const default_model = if (cfg.provider == .anthropic) llm.providerDefaults().default_model else "(provider default)";
+    logo.print("  model:  {s}\n", .{if (cfg.model.len != 0) cfg.model else default_model});
+    var kbuf: [64]u8 = undefined;
+    logo.print("  key:    {s}\n", .{key.status(cfg, &kbuf)});
     if (cfg.server_url.len != 0) {
         logo.print("  server: {s}\n", .{cfg.server_url});
     } else if (session.servers.items.len != 0) {

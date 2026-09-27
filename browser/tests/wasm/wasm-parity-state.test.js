@@ -1,5 +1,5 @@
 // Parity coverage for the core's STATEFUL classes (core/wasmStateApi.cpp, reached through the handle wrappers
-// in js/core/coreHandles.js). wasm-parity.test.js pins the pure ops; this one pins the classes that own state,
+// in js/core/abi/coreHandles.js). wasm-parity.test.js pins the pure ops; this one pins the classes that own state,
 // hand-kept twins until they gained an ABI: the JS implementation and the compiled C++ are driven through one
 // script and must agree on every returned event and every observable field, step by step. Node loads the
 // SINGLE_FILE ES module directly.

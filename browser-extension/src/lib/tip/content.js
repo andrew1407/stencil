@@ -1,5 +1,5 @@
 // ── Rich control tooltips: the content model ────────────────────────────────
-// Byte-pinned PORT of browser/js/ui/tip/content.js; tests/tipContent.test.js carries the browser
+// Byte-pinned PORT of browser/js/ui/tip/content.js; tests/lib/tip/tipContent.test.js carries the browser
 // suite's cases. Parses the conventions a control's one `title` string already uses into the
 // desktop app's tooltip shape — heading, keycaps, term/description rows, bullets, disabled-reason
 // note. Pure string in, escaped HTML out.

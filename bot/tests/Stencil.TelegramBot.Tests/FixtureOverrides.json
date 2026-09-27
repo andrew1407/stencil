@@ -56,5 +56,10 @@
       "expectParsed": { "version": 1, "savedAt": 42, "messages": [] },
       "note": "ChatDocument.TryParse tolerates a non-array messages value and returns a document with zero messages, where the reference treats the whole doc as missing (null)."
     }
+  },
+  "imageHeader": {
+    "bmp-bottom-up": { "expect": null, "note": "The reader sniffs only the attachment formats of llm-contract.md §7; a BMP always takes the ffmpeg path." },
+    "bmp-top-down-negative-height": { "expect": null, "note": "The reader sniffs only the attachment formats of llm-contract.md §7; a BMP always takes the ffmpeg path." },
+    "bmp-huge-top-down": { "expect": null, "note": "The reader sniffs only the attachment formats of llm-contract.md §7; a BMP always takes the ffmpeg path." }
   }
 }

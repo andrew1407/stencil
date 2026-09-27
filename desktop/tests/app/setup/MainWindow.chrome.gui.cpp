@@ -1,6 +1,7 @@
 // MainWindow GUI e2e — The name bar's hover, the app's own popups, and the height the window asks for.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
+#include "../../../src/app/project/ProjectTitleController.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -16,13 +17,13 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 300);
-    win.actToolbars->setChecked(false);   // collapsed: the header is all there is
+    win.acts.toolbars->setChecked(false);   // collapsed: the header is all there is
     settleLayout(&win, 400);
-    QToolBar* hdr = win.headerToolbar;
+    QToolBar* hdr = win.tools.headerToolbar;
     QVERIFY(hdr);
     const int before = hdr->height();
     win.nameBar.hover = true;
-    win.refreshProjectNameButtons();
+    win.projectTitle->refreshProjectNameButtons();
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
     // …and the same going into edit mode, where ✓/✗ take their place.
@@ -52,8 +53,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(checked >= 4, "no toolbar selectors were found to check");
 
     // …and opening one really puts OUR popup on screen, with the rows in it.
-    QVERIFY(win.lineStyle);
-    win.lineStyle->showPopup();
+    QVERIFY(win.tools.lineStyle);
+    win.tools.lineStyle->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
@@ -61,10 +62,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(popup, "the themed popup never appeared");
     auto* list = popup->findChild<QListView*>("searchComboList");
     QVERIFY(list);
-    QCOMPARE(list->model()->rowCount(), win.lineStyle->count());
+    QCOMPARE(list->model()->rowCount(), win.tools.lineStyle->count());
     // A short list carries no search box — three rows need no filter.
     QVERIFY2(!popup->findChild<QLineEdit*>("searchComboSearch"), "a 3-row list grew a search box");
-    win.lineStyle->hidePopup();
+    win.tools.lineStyle->hidePopup();
     // The long ISO page list keeps its search box, which is what it was built for.
     win.units.pageSize->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
@@ -76,7 +77,7 @@ class MainWindowGuiTest : public QObject {
     win.units.pageSize->hidePopup();
   }
 
-  // The window opens at the size it asked for: the wrapping tool run (support/WrapRow.hpp) hints its
+  // The window opens at the size it asked for: the wrapping tool run (support/control/WrapRow.hpp) hints its
   // WRAPPED height from the first pass, since a STACKED hint becomes QToolBarLayout's minimum.
   void theWindowOpensAtTheHeightItAsksFor() {
     MainWindow win(nullptr, /*restoreLast=*/false);

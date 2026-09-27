@@ -133,6 +133,10 @@ export const loadAccent = ({
     get skin() {
       return window.StencilSkin;
     },
+    /** The dust kit the classic scripts assemble (window.StencilKit). */
+    get kit() {
+      return window.StencilKit;
+    },
     /** `<html data-skin="…">` as currently stamped, null when off. */
     dataSkin: () => documentElement.getAttribute('data-skin'),
     /** `<html data-motion="…">` as currently stamped. */

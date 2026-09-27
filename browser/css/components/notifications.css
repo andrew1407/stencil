@@ -1,4 +1,4 @@
-/* ── Image-too-large warning banner (js/core/storage.js) ──
+/* ── Image-too-large warning banner (js/core/storage/storage.js) ──
    Fixed warning colours, not theme tokens: the same amber in either theme, as it always
    was. storage.js sets `display` to raise and drop it. */
 .image-missing-banner {
@@ -25,7 +25,7 @@
 }
 
 /* ── Notification stack (bottom-left) ──
-   The host is the COLUMN, not a toast: js/ui/notifications.js appends one .notify-toast
+   The host is the COLUMN, not a toast: js/ui/shell/notifications.js appends one .notify-toast
    per message, newest last → newest at the bottom, the stack growing upward. Capped at
    three there (desktop parity), so it can never wall off the side of the canvas. */
 #notify-balloon {
@@ -67,7 +67,7 @@
 /* TWO colours, not three: red means something went wrong, and everything else — a save, a
    clear, a plain notice — carries the theme accent. A green success sat outside the palette
    and made routine confirmations shout as loudly as failures. The ✓ / ✕ / ℹ glyph is what
-   still separates the kinds. Mirrored in desktop/src/support/Notifications.cpp. */
+   still separates the kinds. Mirrored in desktop/src/support/notify/Notifications.cpp. */
 .notify-toast.notify-ok,
 .notify-toast.notify-info  { background: var(--accent); color: var(--on-accent); }
 .notify-toast.notify-fail  { background: var(--danger); }

@@ -1,4 +1,4 @@
-// Unit tests for the pure .stencil project-file (de)serializer (js/core/file.js).
+// Unit tests for the pure .stencil project-file (de)serializer (js/core/project/file.js).
 // node --test never touches the DOM/wasm — this exercises the JS reference directly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

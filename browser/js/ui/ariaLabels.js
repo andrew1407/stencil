@@ -2,6 +2,7 @@
 // is named by a plain <label> beside it that carries no `for` — a screen reader reads both
 // as unnamed. Both names are already on the page; this points the a11y tree at them.
 import { parseTip } from './tip/content.js';
+import { onElementAdded, onTipChanged } from './domWatch.js';
 
 const FIELD = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
 const FIELD_SEL = 'input, select, textarea';
@@ -55,17 +56,10 @@ export const labelControls = (root = document) => {
 // later, and re-names one whose tooltip changes (the panel toggle's Hide↔Show).
 export const watchControlLabels = (root = document.body) => {
   labelControls(document);
-  const obs = new MutationObserver((records) => {
-    for (const rec of records) {
-      if (rec.type === 'attributes') { labelControl(rec.target); continue; }
-      for (const node of rec.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        if (node.matches?.('[data-title]')) labelControl(node);
-        if (FIELD.has(node.tagName)) nameField(node);
-        labelControls(node);
-      }
-    }
-  });
-  obs.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-title', 'data-tip'] });
-  return obs;
+  onTipChanged(labelControl, root);
+  onElementAdded((node) => {
+    if (node.matches?.('[data-title]')) labelControl(node);
+    if (FIELD.has(node.tagName)) nameField(node);
+    labelControls(node);
+  }, root);
 };

@@ -127,9 +127,9 @@ export const drawCloud = (ctx, motes, flight, tMs, colours, scratch = { out: {},
   for (const b of buckets.values()) b.length = 0;
   for (let i = 0; i < motes.length; i++) {
     const m = motes[i];
-    // A gathering grain is NOTHING until it sets off: parked at its far end with hundreds
-    // of others it filled the icon with a solid blob of the accent (user report).
-    if (fromFar && tMs < m.delay) continue;
+    // A gathering grain is NOTHING until it sets off (user report: a solid accent blob), and so is
+    // one cut out of a surface still shown under it (`cut`): a speck there is a static grid.
+    if ((fromFar || m.cut) && tMs < m.delay) continue;
     const p = m.dur > 0 ? Math.max(0, Math.min(1, (tMs - m.delay) / m.dur)) : 1;
     moteFrame(m, flight, p, out, tMs, style);
     if (out.alpha < 0.01 || out.r < 0.2) continue;

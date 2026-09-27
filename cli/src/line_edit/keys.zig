@@ -1,6 +1,6 @@
 //! Reading raw-mode bytes and decoding the CSI escape sequences a terminal sends for the
 //! cursor keys, the mouse and bracketed paste.
-const le = @import("../line_edit.zig");
+const le = @import("line_edit.zig");
 const Editor = le.Editor;
 const std = @import("std");
 const ByteResult = le.Editor.ByteResult;
@@ -9,6 +9,7 @@ const History = le.History;
 const wordRight = le.wordRight;
 const wordLeft = le.wordLeft;
 const markerEnd = le.markerEnd;
+const terminal = @import("../console/screen/terminal.zig");
 
 pub fn nowMs(self: *Editor) i64 {
     const io = self.io orelse return 0;
@@ -16,6 +17,7 @@ pub fn nowMs(self: *Editor) i64 {
 }
 
 pub fn readByte(self: *Editor) ?u8 {
+    if (takeUnread(self)) |b| return b;
     var b: [1]u8 = undefined;
     const n = std.posix.read(self.fd_in, &b) catch return null;
     return if (n == 0) null else b[0];
@@ -24,16 +26,62 @@ pub fn readByte(self: *Editor) ?u8 {
 // Like readByte but waits at most `timeout_ms` (−1 = forever); returns `.idle` on timeout so
 // the main loop can run its idle hook between keystrokes without blocking on input.
 pub fn pollByte(self: *Editor, timeout_ms: i32) ByteResult {
-    var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
+    if (takeUnread(self)) |b| return .{ .byte = b };
+    // The resize pipe rides along, so a SIGWINCH repaints at once instead of on the next beat.
+    var pfd = [_]std.posix.pollfd{
+        .{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 },
+        .{ .fd = terminal.resizeFd(), .events = std.posix.POLL.IN, .revents = 0 },
+    };
     const ready = std.posix.poll(&pfd, timeout_ms) catch return .closed;
     if (ready == 0) return .idle;
+    if (pfd[1].revents != 0) {
+        terminal.drainResize();
+        if (pfd[0].revents == 0) return .idle;
+    }
     var b: [1]u8 = undefined;
     const n = std.posix.read(self.fd_in, &b) catch return .closed;
     return if (n == 0) .closed else .{ .byte = b[0] };
 }
 
+/// Watch the tty up to `timeout_ms` while a call runs in the background of the idle prompt:
+/// true on a Ctrl-C; anything else typed is kept for the prompt (`unread`), never dropped.
+pub fn pollKeep(self: *Editor, timeout_ms: i32) bool {
+    var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
+    const ready = std.posix.poll(&pfd, timeout_ms) catch return false;
+    if (ready == 0) return false;
+    var buf: [32]u8 = undefined;
+    const n = std.posix.read(self.fd_in, &buf) catch return false;
+    var cancel = false;
+    for (buf[0..n]) |b| {
+        if (b == 3) {
+            cancel = true;
+        } else if (self.unread_len < self.unread.len) {
+            self.unread[self.unread_len] = b;
+            self.unread_len += 1;
+        }
+    }
+    return cancel;
+}
+
+fn takeUnread(self: *Editor) ?u8 {
+    if (self.unread_len == 0) return null;
+    const b = self.unread[0];
+    std.mem.copyForwards(u8, self.unread[0 .. self.unread_len - 1], self.unread[1..self.unread_len]);
+    self.unread_len -= 1;
+    return b;
+}
+
+// The next byte within `timeout_ms`, or null — the quiet after a lone ESC.
+pub fn pollNext(self: *Editor, timeout_ms: i32) ?u8 {
+    return switch (self.pollByte(timeout_ms)) {
+        .byte => |b| b,
+        else => null,
+    };
+}
+
 // Whether a byte is readable within `timeout_ms` — a peek that does NOT consume, unlike pollByte.
 pub fn waitReadable(self: *Editor, timeout_ms: i32) bool {
+    if (self.unread_len != 0) return true;
     var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
     const ready = std.posix.poll(&pfd, timeout_ms) catch return false;
     return ready > 0;
@@ -49,6 +97,23 @@ pub fn drainMouseRelease(self: *Editor) void {
     if ((self.readByte() orelse return) != '<') return;
     while (self.readByte()) |c| {
         if (c == 'M' or c == 'm') break; // consumed through the report's final byte
+    }
+}
+
+// A string sequence (OSC, DCS, APC, PM — `ESC ]` … already read) runs to BEL or ST (ESC \);
+// consume it whole. A missing terminator ends at the first quiet moment.
+pub fn drainString(self: *Editor) void {
+    var budget: usize = 4096;
+    while (budget > 0) : (budget -= 1) {
+        const b = switch (self.pollByte(50)) {
+            .byte => |c| c,
+            else => return,
+        };
+        if (b == 7) return;
+        if (b == 0x1b) {
+            _ = self.pollByte(50); // the `\` of ST
+            return;
+        }
     }
 }
 

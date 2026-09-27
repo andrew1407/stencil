@@ -23,6 +23,6 @@ Known divergences pinned here:
 - **length caps**: browser counts UTF-16 code units (and can split a surrogate
   pair at the 199 cut — one `expect` deliberately ends in a lone high surrogate,
   stored as `\ud83d` in JSON); Go/Python count code points, Zig counts bytes.
-- **secret-fragment veto** (server only): the server additionally returns `""`
-  when any 8-char run of its configured API key survives; clients have no key to
-  compare against, so no vector exists for it — a server walker should add its own.
+- **secret-fragment veto**: the server returns `""` when any 8-char run of its
+  configured API key survives, and so does every client on the direct `anthropic`
+  wire with its session key; the vector lives in `../providerWire/anthropic.json`.

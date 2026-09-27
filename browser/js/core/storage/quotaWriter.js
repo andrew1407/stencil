@@ -1,16 +1,18 @@
 // ── Writing a project under a storage quota ─────────────────────
-// Extracted from storage.js. Tries progressively harder JPEG compression, sweeps expired
-// projects, then evicts the oldest OTHER project, and finally falls back to lines-only.
-// `io` is the Storage instance (store / activeId / app / showImageMissingBanner).
+// Extracted from storage.js. Sheds a data-URL source's text, tries progressively harder JPEG
+// compression, sweeps expired projects, then evicts the oldest OTHER project, and finally falls
+// back to lines-only. `io` is the Storage instance (store / activeId / app / showImageMissingBanner).
+import { shedSource } from '../project/store/projectSources.js';
 
 // Upsert with progressive image compression + eviction on quota exhaustion.
 export const upsertWithQuota = (io, meta, payload) => {
   const qualities = [null, 0.85, 0.65, 0.45, 0.25]; // null = original
   const baseImage = payload.image;
+  let body = payload;
 
   const tryStore = imageField => {
     const m = { ...meta };
-    const p = { ...payload, image: imageField };
+    const p = { ...body, image: imageField };
     m.hasImage = !!imageField;
     io.store.upsert(m, p);
   };
@@ -30,6 +32,7 @@ export const upsertWithQuota = (io, meta, payload) => {
         return;
       } catch (e) {
         if (!isQuotaError(e)) throw e;
+        if (body === payload && (body = shedSource(payload)) !== payload) continue;
         if (!attempted) {
           // First quota hit at this quality: reclaim expired projects.
           io.store.sweepExpired(Date.now());
@@ -53,7 +56,7 @@ export const upsertWithQuota = (io, meta, payload) => {
   // 2) Final fallback: store with no image so at least the lines survive.
   try {
     const m = { ...meta, hasImage: false };
-    io.store.upsert(m, { ...payload, image: null });
+    io.store.upsert(m, { ...body, image: null });
     io.app.showSaveStatus('Lines saved — image too large for browser storage', 'var(--warning)', 'alert');
     io.showImageMissingBanner(true);
     console.warn('Project image too large for storage; saved layout only.');

@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
     // The float's exit is a cloud of its own pixels flown inside the main window, every
     // mote pouring back into the icon.
     const auto flight = [&win] { return surfaceFlight(&win); };
-    const auto settle = [&win] { awaitAnim(win.chatAnim); awaitFlights(&win); };
+    const auto settle = [&win] { awaitAnim(win.parts.dockChrome.chatAnim); awaitFlights(&win); };
 
     struct Area { Qt::DockWidgetArea area; const char* name; };
     const QVector<Area> areas{{Qt::LeftDockWidgetArea, "left"},
@@ -41,15 +41,15 @@ class MainWindowGuiTest : public QObject {
     for (const Area& a : areas) {
       win.addDockWidget(a.area, dock);
       dock->setFloating(false);
-      win.actChat->setChecked(true);
-      win.setChatShown(true, false);
+      win.acts.chat->setChecked(true);
+      win.parts.dockChrome.setChatShown(true, false);
       QTRY_VERIFY(dock->isVisible());
       settle();
       QCOMPARE(win.dockWidgetArea(dock), a.area);
 
       closeBtn->click();
       // Mid-slide: the extent animation is running and it has NOT blinked out.
-      QVERIFY2(win.chatAnim != nullptr,
+      QVERIFY2(win.parts.dockChrome.chatAnim != nullptr,
                qPrintable(QString("%1: the X closed with no animation").arg(a.name)));
       QVERIFY2(dock->isVisible(),
                qPrintable(QString("%1: the dock vanished before the slide").arg(a.name)));
@@ -64,12 +64,12 @@ class MainWindowGuiTest : public QObject {
                                                .arg(before)), 1500);
       QTRY_VERIFY2_WITH_TIMEOUT(!dock->isVisible(),
                                 qPrintable(QString("%1: it never finished closing").arg(a.name)), 3000);
-      QVERIFY2(!win.actChat->isChecked(),
+      QVERIFY2(!win.acts.chat->isChecked(),
                qPrintable(QString("%1: the toolbar toggle stayed lit").arg(a.name)));
       settle();
 
       // …and it reopens cleanly, transcript intact.
-      win.actChat->setChecked(true);
+      win.acts.chat->setChecked(true);
       QTRY_VERIFY2(dock->isVisible(), qPrintable(QString("%1: it would not reopen").arg(a.name)));
       settle();
       bool kept = false;
@@ -80,20 +80,20 @@ class MainWindowGuiTest : public QObject {
 
     // Floating: the X flies the window into the icon.
     dock->setFloating(true);
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible() && dock->isFloating());
     settle();
     const QRect windowBox(dock->mapToGlobal(QPoint(0, 0)), dock->size());
     closeBtn->click();
     stencil::gui::DisintegrateOverlay* from = nullptr;
     QTRY_VERIFY2((from = flight()) != nullptr, "floating: the X closed with no flight");
-    QWidget* icon = win.buttonForAction(win.actChat);
+    QWidget* icon = win.buttonForAction(win.acts.chat);
     QVERIFY(icon);
     QVERIFY2(!from->gathering(), "floating: the X must scatter the window INTO the icon");
     QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
     QTRY_VERIFY2(!dock->isVisible(), "floating: it never finished closing");
     settle();
-    win.actChat->setChecked(true);
+    win.acts.chat->setChecked(true);
     QTRY_VERIFY2(dock->isVisible(), "floating: it would not reopen");
     Q_UNUSED(windowBox);
     beat();

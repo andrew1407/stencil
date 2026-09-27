@@ -6,7 +6,6 @@
 
 #include <QPlainTextEdit>
 #include <QFileDialog>
-#include <QFileInfo>
 #include <QStringList>
 
 namespace stencil::gui {
@@ -31,28 +30,29 @@ namespace stencil::gui {
   void ChatDock::pickMedia() {
     // One dialog for both media kinds (browser single-attach parity); each
     // pick routes by suffix — the same sniffers the paste/drop paths use.
-    bool overCap = false;
     const QStringList paths = QFileDialog::getOpenFileNames(
         this, "Attach images or videos", QString(),
         "Images & videos (*.png *.jpg *.jpeg *.webp *.gif *.bmp "
         "*.mp4 *.m4v *.mov *.webm *.mkv *.avi *.mpg *.mpeg *.ogv);;"
         "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp);;"
         "Videos (*.mp4 *.m4v *.mov *.webm *.mkv *.avi *.mpg *.mpeg *.ogv)");
+    QStringList images;
     for (const QString& p : paths) {
       if (isVideoFileName(p)) {
         cmp.videoPath = p;
         emit videoAttached(p);
       } else {
-        if (cmp.images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
-        const QImage img = readImageFile(p);
-        if (!img.isNull()) {
-          cmp.images.append(img);
-          cmp.imageNames.append(QFileInfo(p).fileName());
-        }
+        images << p;
       }
     }
     refreshAttachmentTray();
-    if (overCap) warnAttachmentCap();
+    if (images.isEmpty()) return;
+    // The pictures decode on the pool and queue in the order they were picked.
+    readImageFilesThen(this, images, [this](const NamedImages& read) {
+      const bool overCap = queueAttachments(cmp.images, cmp.imageNames, read);
+      refreshAttachmentTray();
+      if (overCap) warnAttachmentCap();
+    });
   }
 
   // Browser parity: a queue past the §7 cap is SAID, as an accent toast on the owner's stack, not a

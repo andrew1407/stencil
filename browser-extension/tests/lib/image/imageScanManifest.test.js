@@ -1,13 +1,15 @@
-// lib/scan.js runs INJECTED in the scanned page and pulls its web-app manifest with
+// lib/image/scan.js runs INJECTED in the scanned page and pulls its web-app manifest with
 // the page's cookies. The href is page-supplied, so that credentialed fetch may only ever
-// reach the page's OWN origin — lib/urlGuard.js is the guard everywhere else, but an
+// reach the page's OWN origin — lib/connection/urlGuard.js is the guard everywhere else, but an
 // injected function can't import, and same-origin is tighter than its same-host carve-out.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scanPageForImages } from '../../../src/lib/image/scan.js';
 import { installDom, stubDoc } from '../../helpers/domStub.js';
 
-const scan = async (manifestHref, pageUrl = 'https://shop.example/cart') => {
+const MANIFEST = () => new Response(JSON.stringify({ icons: [{ src: '/icon.png' }] }));
+
+const scan = async (manifestHref, pageUrl = 'https://shop.example/cart', answer = MANIFEST) => {
   const fetched = [];
   const link = { getAttribute: (k) => (k === 'href' ? manifestHref : null), crossOrigin: null };
   const restore = installDom({
@@ -15,7 +17,7 @@ const scan = async (manifestHref, pageUrl = 'https://shop.example/cart') => {
     location: new URL(pageUrl),
     fetch: async (url, opts) => {
       fetched.push({ url, credentials: opts && opts.credentials });
-      return { json: async () => ({ icons: [{ src: '/icon.png' }] }) };
+      return answer();
     },
   });
   try {
@@ -44,4 +46,11 @@ test('the page\'s own manifest is still read, and its icons listed', async () =>
 test('a scheme-relative href that HAPPENS to resolve same-origin is still fine', async () => {
   const { fetched } = await scan('//shop.example/m.json');
   assert.equal(fetched.length, 1);
+});
+
+test('a manifest past 1 MiB, declared or streamed, lists nothing rather than buffering it', async () => {
+  const declared = () => new Response('{}', { headers: { 'content-length': String(2 << 20) } });
+  assert.deepEqual((await scan('/site.webmanifest', undefined, declared)).items, []);
+  const endless = () => new Response(new ReadableStream({ pull(c) { c.enqueue(new Uint8Array(64 << 10)); } }));
+  assert.deepEqual((await scan('/site.webmanifest', undefined, endless)).items, []);
 });

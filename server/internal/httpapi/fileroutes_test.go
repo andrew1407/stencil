@@ -190,7 +190,7 @@ func TestFilestoreOnlyKindOnMissingProjectIsProjectNotFound(t *testing.T) {
 // An upload that would push the filestore past STORAGE_QUOTA_BYTES is refused
 // with 507; one that fits is stored, and replacing a file re-uses its budget.
 func TestUploadAgainstStorageQuota(t *testing.T) {
-	fs, err := filestore.NewWithQuota(t.TempDir(), 1024)
+	fs, err := filestore.NewWithQuotas(t.TempDir(), filestore.Quotas{Total: 1024})
 	if err != nil {
 		t.Fatal(err)
 	}

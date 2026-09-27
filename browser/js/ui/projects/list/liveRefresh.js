@@ -1,6 +1,7 @@
 // What re-lists the projects modal from outside it: a connections change, another tab's project
 // or peer news, and the one-time open when the page starts alone with saved projects.
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
+import { getProjectsBackend } from '../../../core/project/store/projectsBackend.js';
 
 export function wireLiveRefresh({ app, store, mayRefresh, render, invalidateRemotes, setPeers,
   setIncognitoPeers, open }) {
@@ -10,8 +11,13 @@ export function wireLiveRefresh({ app, store, mayRefresh, render, invalidateRemo
     if (mayRefresh()) render();
   });
 
-  // Never mid-drag or mid-removal — the deferred render shows the recorded state.
-  app.tabs.onProjectsChanged(() => { if (mayRefresh()) render(); });
+  // Never mid-drag or mid-removal — the deferred render shows the recorded state. A named project is
+  // read again from IndexedDB, then its row re-rendered: a peer's thumbnail is in no local mirror.
+  app.tabs.onProjectsChanged((detail) => {
+    if (mayRefresh()) render();
+    if (detail?.id == null) return;
+    Promise.resolve(getProjectsBackend()?.refresh?.(detail.id)).then(() => { if (mayRefresh()) render(); });
+  });
   app.tabs.onPeers(ids => {
     setPeers(ids || []);
     if (mayRefresh()) render();

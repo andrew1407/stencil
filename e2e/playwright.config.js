@@ -2,7 +2,7 @@
 // fullstack (browser app + real Go server), server-protocol (black-box REST/WS/TCP) and cli.
 // `webServer` serves browser/ + the e2e fixtures on APP_URL (127.0.0.1:8188) for every project;
 // `globalSetup` brings up db+redis+server only when E2E_STACK=1, and the stack-dependent
-// projects self-skip otherwise (helpers/serverApi.js `stackEnabled`).
+// projects self-skip otherwise (helpers/server/api.js `stackEnabled`).
 import { defineConfig, devices } from '@playwright/test';
 import { APP_URL } from './helpers/config.js';
 
@@ -16,8 +16,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
-  globalSetup: './helpers/compose.js',
-  globalTeardown: './helpers/compose-teardown.js',
+  globalSetup: './helpers/compose/setup.js',
+  globalTeardown: './helpers/compose/teardown.js',
 
   use: {
     baseURL: APP_URL,

@@ -1,10 +1,11 @@
 // Colour from the parser rather than from the grammar: the TextMate rules paint a line at a
 // time, the lexer knows the whole file, so `#ccc` stays a colour and `# note` a comment.
-// Which colour each token gets is lib/tokenClassify.js; this is the legend and the wiring.
+// Which colour each token gets is lib/vocab/tokenClassify.js; this is the legend and the wiring.
 import * as vscode from 'vscode';
 
 import { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } from './lib/ids.js';
 import { programFor } from './lib/programCache.js';
+import { unitSpan } from './lib/spans.js';
 import { classify } from './lib/vocab/tokenClassify.js';
 
 // Standard VS Code token types only: a theme that has never heard of .stc still colours it.
@@ -16,14 +17,16 @@ const TOKEN_TYPES = Object.freeze([
 const TYPE_INDEX = Object.freeze(Object.fromEntries(TOKEN_TYPES.map((type, i) => [type, i])));
 const LEGEND = new vscode.SemanticTokensLegend(TOKEN_TYPES, []);
 
-// (line, char, length, typeIndex) rows, 0-based; an unclassified or zero-width token is skipped.
-const tokenRows = (tokens) => {
+// (line, char, length, typeIndex) rows, 0-based UTF-16 against `lines`; an unclassified or
+// zero-width token is skipped.
+const tokenRows = (tokens, lines = []) => {
   const types = classify(tokens);
   const rows = [];
   (tokens ?? []).forEach((token, i) => {
     const index = TYPE_INDEX[types[i]];
     if (index === undefined || !(token.len > 0)) return;
-    rows.push([token.line - 1, token.col - 1, token.len, index]);
+    const { line, start, end } = unitSpan(lines, token);
+    rows.push([line, start, end - start, index]);
   });
   return rows;
 };
@@ -34,7 +37,7 @@ const provider = {
     if (!enabled) return undefined;
     const program = await programFor(document);
     const builder = new vscode.SemanticTokensBuilder(LEGEND);
-    for (const [line, char, length, type] of tokenRows(program.tokens)) {
+    for (const [line, char, length, type] of tokenRows(program.tokens, program.lines)) {
       builder.push(line, char, length, type);
     }
     return builder.build();

@@ -16,11 +16,11 @@ namespace llmclient {
     check(t.method == "GET" && t.url.toString() == "http://localhost:11434/api/version",
           "ollama probes GET /api/version");
     check(t.headers.isEmpty(), "ollama probe sends no auth");
-    check(got.ok && got.detail == "0.6.2", "ollama probe ok + version surfaced");
+    check(got.ok && got.detail == "v0.6.2", "ollama probe ok + v<version> surfaced (§6.4)");
   }
   {
     MockTransport t;
-    t.response = R"({"data":[]})";
+    t.response = R"({"data":[{"id":"qwen3-8b"},{"id":"llama-3"}]})";
     LlmClient client(&t);
     LlmSettings cfg;
     cfg.provider = "openai-compat";
@@ -31,7 +31,7 @@ namespace llmclient {
     check(t.method == "GET" && t.url.toString() == "http://localhost:1234/v1/models",
           "openai-compat probes GET {base}/models");
     check(t.header("Authorization") == "Bearer sk-probe", "probe carries the apiKey");
-    check(got.ok, "openai-compat probe ok on 2xx");
+    check(got.ok && got.detail == "qwen3-8b", "openai-compat probe ok on 2xx, the first model id surfaced");
   }
   {
     MockTransport t;
@@ -46,7 +46,8 @@ namespace llmclient {
     check(t.method == "GET" && t.url.toString() == "https://s.example.com:8090/llm/info",
           "stencil-server probes GET /llm/info");
     check(t.header("Authorization") == "Bearer tok-9", "probe uses the connection token");
-    check(got.ok && got.model == "claude-opus-5", "probe reports the server-side model");
+    check(got.ok && got.model == "claude-opus-5" && got.detail == "claude-opus-5",
+          "probe reports the server-side model");
   }
   {
     MockTransport t;
@@ -58,7 +59,7 @@ namespace llmclient {
     cfg.serverUrl = "https://s.example.com";
     LlmProbeResult got;
     client.probe(cfg, [&](LlmProbeResult r) { got = r; });
-    check(!got.ok && got.detail.contains("disabled"), "enabled:false probes as not ok");
+    check(!got.ok && got.detail == "LLM disabled on this server", "enabled:false probes as not ok");
   }
   {
     MockTransport t;
@@ -92,7 +93,18 @@ namespace llmclient {
     LlmProbeResult got;
     got.ok = true;
     client.probe(cfg, [&](LlmProbeResult r) { got = r; });
-    check(!got.ok && got.detail.contains("404"), "HTTP error probes as not ok");
+    check(!got.ok && got.detail == "HTTP 404", "HTTP error probes as not ok");
+  }
+  {
+    MockTransport t;
+    LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
+    cfg.provider = "mystery";
+    LlmProbeResult got;
+    got.ok = true;
+    client.probe(cfg, [&](LlmProbeResult r) { got = r; });
+    check(!got.ok && got.detail == "unknown provider \"mystery\"" && t.url.isEmpty(),
+          "an unknown provider has no wire, so nothing is probed");
   }
 
   // ── provider "none" — assistant off (contract §5 note): a local-only value

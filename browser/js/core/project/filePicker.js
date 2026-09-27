@@ -3,11 +3,13 @@
 import { notify, shortName } from '../../utils.js';
 import { arriveFrom } from '../../ui/motion.js';
 import { serializeProjectFile, parseProjectFile } from './file.js';
+import { projectFileState, applyProjectFile } from './fileIO.js';
 
 export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
   const app = svc.app;
   if (!app.image || !app.imageDataUrl) { notify('Open an image first', 'fail'); return; }
-  const text = serializeProjectFile(app.projectFileState({ includeTheme }));
+  await app.storage.imageReady;
+  const text = serializeProjectFile(projectFileState(app, { includeTheme }));
   const base = (app.storage.store.getMeta(app.activeProjectId)?.name || app.imageBaseName || 'project')
     .replace(/[/\\?%*:|"<>]/g, '-').trim() || 'project';
   const filename = `${base}.stencil`;
@@ -41,7 +43,7 @@ export const openProjectFile = async (svc, input, { from = null } = {}) => {
   const res = parseProjectFile(text);
   if (!res.ok) { notify('Invalid .stencil file: ' + res.error, 'fail'); return; }
   try {
-    const name = await app.applyProjectFile(res.project);
+    const name = await applyProjectFile(app, res.project);
     // A project from the picker has no drop point and gets the plain landing.
     arriveFrom(document.getElementById('canvas-container'), from);
     notify(`Opened project “${shortName(name)}”`, 'ok');

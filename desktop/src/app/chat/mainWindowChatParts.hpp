@@ -3,6 +3,7 @@
 #include "mainWindowHelpers.hpp"
 #include "../../llm/client/LlmClient.hpp"
 #include "../../support/theme/theme.hpp"
+#include "tipContent.hpp"   // currentPalette() — the colours rich tooltips are drawn in
 
 #include <QLabel>
 #include <QGridLayout>
@@ -11,6 +12,7 @@
 #include <QColor>
 #include <QImage>
 #include <QString>
+#include <QTimer>
 #include <QVector>
 #include <QWidget>
 
@@ -155,7 +157,7 @@ namespace stencil::gui {
   inline constexpr const char* TIP_ERROR_COLOR = "#dc3545";
   inline constexpr const char* TIP_CONNECTING_COLOR = "#e0a800";
 
-  // Browser PROBE_TTL_MS (llm/session.js).
+  // Browser PROBE_TTL_MS (llm/chat/session.js).
   inline constexpr qint64 LLM_PROBE_TTL_MS = 15000;
 
   inline QString tipColored(const char* color, const QString& text) {
@@ -163,7 +165,7 @@ namespace stencil::gui {
         .arg(QLatin1String(color), text.toHtmlEscaped());
   }
 
-  // One .chat-status-tip table row (browser css/components.css); the value cell is pre-rendered by the caller.
+  // One .chat-status-tip table row (browser css/components/chat/touch.css); the value cell is pre-rendered by the caller.
   inline QString tipRow(const QString& label, const QString& valueHtml) {
     return QStringLiteral("<tr><td style=\"color:%1;\">%2&nbsp;&nbsp;&nbsp;</td><td>%3</td></tr>")
         .arg(currentPalette().textMuted.name(), label.toHtmlEscaped(), valueHtml);

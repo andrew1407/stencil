@@ -1,9 +1,9 @@
-// The hover "…" trigger and the touch routes (js/ui/view.js): one per settled row on the
+// The hover "…" trigger and the touch routes (js/ui/chat/view.js): one per settled row on the
 // corner facing the panel centre, plus long-press and double-tap where there is no hover.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { chatViewSource } from '../../helpers/chatViewSource.js';
 import { stubDom, menuOn, itemLabels, wiredRow } from '../../helpers/chatRowMenuRig.js';
+import { makeEl, stubDom as stubTranscriptDom, rowsOf } from '../../helpers/chatTranscriptRig.js';
 
 // ── The hover "…" trigger ──
 test('chatRowMenuButton: a trigger per settled row, on the corner facing the panel centre', async () => {
@@ -20,10 +20,21 @@ test('chatRowMenuButton: a trigger per settled row, on the corner facing the pan
   // Pending rows have no menu (chatRowMenuItems is []), so no trigger either.
   assert.strictEqual(chatRowMenuButton({ role: 'assistant', text: '…', pending: true }), null);
   assert.strictEqual(chatRowMenuButton(null), null);
-  // renderChatLog appends it per repaint (a text rewrite wipes the row's children).
-  const view = chatViewSource();
-  assert.ok(view.includes("if (!el.querySelector('.chat-row-menu-btn'))"));
-  assert.ok(view.includes('chatRowMenuButton(row)'));
+  // renderChatLog hangs one on every settled row, and a repaint never doubles it.
+  stubTranscriptDom();
+  const { renderChatLog } = await import('../../../js/ui/chat/view.js?rowmenu-btn-log');
+  const transcript = makeEl();
+  const log = [{ id: 1, role: 'user', text: 'hi' }, { id: 2, role: 'assistant', text: '…', pending: true }];
+  const triggers = (i) => rowsOf(transcript)[i].children.filter((c) => c.classList.contains('chat-row-menu-btn'));
+  renderChatLog(transcript, log, {});
+  assert.strictEqual(triggers(0).length, 1, 'the settled row carries its trigger');
+  assert.ok(triggers(0)[0].classList.contains('chat-row-menu-btn-left'), 'built from the row it hangs on');
+  assert.strictEqual(triggers(1).length, 0, 'the pending row carries none');
+  log[0].text = 'hi again';
+  Object.assign(log[1], { pending: false, text: 'yo' });
+  renderChatLog(transcript, log, {});
+  assert.strictEqual(triggers(0).length, 1, 'a repaint never doubles it');
+  assert.strictEqual(triggers(1).length, 1, 'and the reply gains one as it settles');
 });
 
 test('clicking the "…" button opens the SAME menu as right-click, anchored at the button', async () => {

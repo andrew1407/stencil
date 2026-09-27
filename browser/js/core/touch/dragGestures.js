@@ -1,7 +1,8 @@
+import { canvasCoords } from '../pointer/canvasCoords.js';
 // Alt-drag gestures (point / segment / whole-line) over the app's shared drag state, driven
 // by the mouse (controller.js) and touch (inputController.js) paths. A click-closed
 // shape repeats its first point at the end; "the ring" is the points minus that duplicate.
-// Desktop twin: chainEdit.hpp.
+// The chain helpers' core twin: core/geometry/lineChain.
 
 export const ringPoints = (points) => {
   const n = points.length;
@@ -80,7 +81,7 @@ export function movePointTo(app, dp, x, y) {
   if (!line) return;
   line.points[dp.ptIdx].x = x;
   line.points[dp.ptIdx].y = y;
-  app.renderer.redraw();
+  app.renderer.requestRedraw();
   app.coordTable.refreshCoordRow(dp.ptIdx);
 }
 
@@ -102,7 +103,7 @@ export function endSegmentDrag(app, altKey) {
 // For a SEGMENT drag `shiftKey` upgrades live: held → translate the whole line; released →
 // just the grabbed endpoints. Every mode derives from the snapshot, so toggling never accumulates.
 export function dragMove(app, clientX, clientY, shiftKey) {
-  const { x, y } = app.canvasCoords(clientX, clientY);
+  const { x, y } = canvasCoords(app, clientX, clientY);
 
   if (app.isDraggingSegment && app.draggingSegment) {
     const ds = app.draggingSegment;
@@ -112,7 +113,7 @@ export function dragMove(app, clientX, clientY, shiftKey) {
     const dy = y - ds.startY;
     if (shiftKey) {
       line.points.forEach((p, i) => { p.x = ds.origPoints[i].x + dx; p.y = ds.origPoints[i].y + dy; });
-      if (app.coordLineIdx === ds.lineIdx) app.coordTable.update(line.points, ds.lineIdx);
+      if (app.coordLineIdx === ds.lineIdx) app.coordTable.refreshRows(line.points, ds.lineIdx);
     } else {
       line.points.forEach((p, i) => { p.x = ds.origPoints[i].x; p.y = ds.origPoints[i].y; });
       line.points[ds.ptIdx1].x = ds.origPt1.x + dx;
@@ -122,7 +123,7 @@ export function dragMove(app, clientX, clientY, shiftKey) {
       app.coordTable.refreshCoordRow(ds.ptIdx1);
       app.coordTable.refreshCoordRow(ds.ptIdx2);
     }
-    app.renderer.redraw();
+    app.renderer.requestRedraw();
     return;
   }
 
@@ -138,14 +139,14 @@ export function dragMove(app, clientX, clientY, shiftKey) {
         const l = app.lines[li];
         if (l) l.points.forEach((p, i) => { p.x = pts[i].x + dx; p.y = pts[i].y + dy; });
       }
-      app.renderer.redraw();
+      app.renderer.requestRedraw();
       return;
     }
 // A line drag ALWAYS translates every point: degrading to the segment when Shift reads
 // false snaps most points back when Shift is released before the mouse.
     line.points.forEach((p, i) => { p.x = dl.origPoints[i].x + dx; p.y = dl.origPoints[i].y + dy; });
-    app.renderer.redraw();
-    if (app.coordLineIdx === dl.lineIdx) app.coordTable.update(line.points, dl.lineIdx);
+    app.renderer.requestRedraw();
+    if (app.coordLineIdx === dl.lineIdx) app.coordTable.refreshRows(line.points, dl.lineIdx);
     return;
   }
 }

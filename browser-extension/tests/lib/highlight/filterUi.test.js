@@ -1,4 +1,4 @@
-// src/lib/filterUi.js — the format pill model, the f-* controls it reads, and the round-trip it
+// src/lib/highlight/filterUi.js — the format pill model, the f-* controls it reads, and the round-trip it
 // persists to chrome.storage (with the cross-surface echo it must skip).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

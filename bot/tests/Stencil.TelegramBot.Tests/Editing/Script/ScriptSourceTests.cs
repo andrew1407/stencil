@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Tests.Editing.Script;
 /// <summary>What a script's <c>@source</c> may name: the bot has no file system of the user's, so only a sourceless block and an http(s) one run — and that link still faces the §10 echo guard, with the script standing in for the chat history it never went through.</summary>
 public sealed class ScriptSourceTests : ScriptServiceTestBase
 {
-    private const string _url = "http://203.0.113.9/a.png";
+    private const string _url = "http://93.184.216.34/a.png";
 
     [Fact]
     public async Task Should_Let_A_Url_The_Script_Names_Through_The_Echo_Guard()
@@ -25,7 +25,7 @@ public sealed class ScriptSourceTests : ScriptServiceTestBase
     public async Task Should_Refuse_A_Url_The_Script_Never_Wrote()
     {
         _cli.CannedScriptPlan = Plan(ScriptBlock.KIND_URL, _url,
-            """[{"op":"openUrl","url":"http://203.0.113.99/a.png"}]""");
+            """[{"op":"openUrl","url":"http://93.184.216.99/a.png"}]""");
 
         ScriptOutcome outcome = await _service.RunAsync(UserId, $"@source {_url}:\n  @save\n");
 
@@ -53,12 +53,12 @@ public sealed class ScriptSourceTests : ScriptServiceTestBase
     [Fact]
     public async Task Should_Return_One_Render_Per_Block_When_A_Script_Has_Several()
     {
-        const string second = "http://203.0.113.10/b.png";
+        const string second = "http://93.184.216.10/b.png";
         _cli.CannedScriptPlan = new ScriptPlan([], [
-            new ScriptBlock(0, _url, ScriptBlock.KIND_URL,
-                [$$"""[{"op":"openUrl","url":"{{_url}}"},{"op":"filter","mode":"bw"}]"""]),
-            new ScriptBlock(1, second, ScriptBlock.KIND_URL,
-                [$$"""[{"op":"openUrl","url":"{{second}}"},{"op":"filter","mode":"sepia"}]"""]),
+            Block(0, _url, ScriptBlock.KIND_URL,
+                $$"""[{"op":"openUrl","url":"{{_url}}"},{"op":"filter","mode":"bw"}]"""),
+            Block(1, second, ScriptBlock.KIND_URL,
+                $$"""[{"op":"openUrl","url":"{{second}}"},{"op":"filter","mode":"sepia"}]"""),
         ]);
 
         ScriptOutcome outcome = await _service.RunAsync(

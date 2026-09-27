@@ -21,14 +21,17 @@ type ProjectRecord struct {
 	// (blankColor != ""). "" / false for ordinary image projects. Recolourable after creation.
 	BlankColor string `json:"blankColor,omitempty"`
 	Blank      bool   `json:"blank,omitempty"`
+	// SHA-256 of the stored original, lowercase hex; "" = no original, or one stored before it was
+	// recorded. Equal hashes name the same picture, so a client may keep its history across an edit.
+	OriginalHash string `json:"originalHash,omitempty"`
 
-	// Server-only storage fields.
-	OriginalPath    string          `json:"originalPath,omitempty"`    // filestore-relative
-	ResultPath      string          `json:"resultPath,omitempty"`      // filestore-relative
-	OriginalContent string          `json:"originalContent,omitempty"` // original payload kept for re-fetch
-	Layout          json.RawMessage `json:"layout,omitempty"`          // JSON layout payload
-	Version         int64           `json:"version"`                   // monotonic edit version (LWW guard)
-	OwnerSession    string          `json:"ownerSession,omitempty"`
+	// Server-only storage fields. The layout payload rides only in GET /projects/{id} and in a welcome's
+	// own layout field; the original's bytes live in the filestore alone, served by the files route.
+	OriginalPath string          `json:"originalPath,omitempty"` // filestore-relative
+	ResultPath   string          `json:"resultPath,omitempty"`   // filestore-relative
+	Layout       json.RawMessage `json:"layout,omitempty"`       // JSON layout payload
+	Version      int64           `json:"version"`                // monotonic edit version (LWW guard)
+	OwnerSession string          `json:"ownerSession,omitempty"`
 }
 
 // ----- REST DTOs -----
@@ -39,6 +42,13 @@ type TokenResponse struct {
 	ExpiresAt int64  `json:"expiresAt"` // epoch ms
 }
 
+// SessionResponse is returned by GET /auth/session: the bearer's own session, a token probe that costs
+// one lookup. A token that does not authenticate (the admin token included) gets 401 instead.
+type SessionResponse struct {
+	SessionID string `json:"sessionId"`
+	ExpiresAt int64  `json:"expiresAt"` // epoch ms
+}
+
 // ProjectListResponse is returned by GET /projects. NextCursor appears only when
 // the request asked for a page (?limit=) and more rows may follow.
 type ProjectListResponse struct {
@@ -46,25 +56,26 @@ type ProjectListResponse struct {
 	NextCursor string          `json:"nextCursor,omitempty"` // pass back as ?after=
 }
 
-// ProjectResponse wraps a single project plus its payload (GET /projects/{id}).
+// ProjectResponse wraps a single project plus its layout (GET /projects/{id}).
 type ProjectResponse struct {
-	Project         ProjectRecord   `json:"project"`
-	Layout          json.RawMessage `json:"layout,omitempty"`
-	OriginalContent string          `json:"originalContent,omitempty"`
+	Project ProjectRecord   `json:"project"`
+	Layout  json.RawMessage `json:"layout,omitempty"`
 }
 
 // CreateProjectRequest is the body of POST /projects.
 type CreateProjectRequest struct {
-	Name            string          `json:"name,omitempty"`
-	Source          string          `json:"source,omitempty"`
-	Resource        string          `json:"resource,omitempty"`
-	Color           string          `json:"color,omitempty"`
-	Description     string          `json:"description,omitempty"`
-	Keywords        []string        `json:"keywords,omitempty"`
-	BlankColor      string          `json:"blankColor,omitempty"`
-	HasImage        bool            `json:"hasImage,omitempty"`
-	ImageW          int             `json:"imageW,omitempty"`
-	ImageH          int             `json:"imageH,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Source      string   `json:"source,omitempty"`
+	Resource    string   `json:"resource,omitempty"`
+	Color       string   `json:"color,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Keywords    []string `json:"keywords,omitempty"`
+	BlankColor  string   `json:"blankColor,omitempty"`
+	HasImage    bool     `json:"hasImage,omitempty"`
+	ImageW      int      `json:"imageW,omitempty"`
+	ImageH      int      `json:"imageH,omitempty"`
+	// A legacy inline original ("data:image/<type>;base64,…"), accepted so an older library caller is not
+	// refused: it is stored as the original file exactly as the files route stores one, never in the record.
 	OriginalContent string          `json:"originalContent,omitempty"`
 	Layout          json.RawMessage `json:"layout,omitempty"`
 	// Explicit create-time expiry; without one a project expires only if PROJECT_TTL is set.
@@ -84,11 +95,13 @@ type UpdateProjectRequest struct {
 	Version     int64           `json:"version"`
 }
 
-// FileWriteResponse is returned by POST /projects/{id}/files/{kind}.
+// FileWriteResponse is returned by POST /projects/{id}/files/{kind}. OriginalHash names an original's
+// bytes as the record now does, so the uploader can note its own picture without a racing re-read.
 type FileWriteResponse struct {
-	Path string `json:"path"`
-	W    int    `json:"w"`
-	H    int    `json:"h"`
+	Path         string `json:"path"`
+	W            int    `json:"w"`
+	H            int    `json:"h"`
+	OriginalHash string `json:"originalHash,omitempty"`
 }
 
 // ErrorResponse is the JSON body for any non-2xx REST response.

@@ -1,4 +1,4 @@
-// src/lib/accent.js's list against the copies that cannot import it — lib/color.js and the
+// src/lib/accent.js's list against the copies that cannot import it — lib/highlight/color.js and the
 // literal in content/pageApiBridge.js — and against the canonical browser/js/config/accents.json,
 // plus the on-accent ink the same list decides.
 
@@ -73,7 +73,7 @@ test('the extension and the browser deliberately use DIFFERENT storage keys', ()
 });
 
 // On-accent ink: the accent picks whichever of white / near-black contrasts more on --accent,
-// flagging <html data-accent-light>. Mirrors browser/tests/accentController.test.js.
+// flagging <html data-accent-light>. Mirrors browser/tests/ui/accent/accentController.test.js.
 
 test('data-accent-light is stamped only for the light presets', () => {
   const { accent, isAccentLight } = loadAccent();
