@@ -200,6 +200,9 @@ cmake --build build --config Release -j 4
 cpack --config build/CPackConfig.cmake -B build/dist
 ```
 
+On macOS, add `-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0` to the first line (the oldest macOS the
+bundled Qt runs on); without it the app starts only on the macOS it was built on, or newer.
+
 `cpack` runs Qt's deploy helper (`macdeployqt`, `windeployqt` or Qt's generic Linux deploy,
 Qt ≥ 6.3 — on older Qt run the platform's `*deployqt` by hand first) and wraps the result:
 
@@ -207,10 +210,10 @@ Qt ≥ 6.3 — on older Qt run the platform's `*deployqt` by hand first) and wra
 |---|---|---|
 | macOS | `stencil-<ver>-Darwin-<arch>.dmg` | `stencil.app` bundle |
 | Windows | `stencil-<ver>-Windows-<arch>.zip` | `bin/stencil.exe` + Qt DLLs and the VC++ runtime |
-| Linux | `stencil-<ver>-Linux-<arch>.tar.gz` | `bin/` + `lib/`, Qt plugins, `.desktop` entry & icon |
+| Linux | `stencil-<ver>-Linux-<arch>.tar.xz` | `bin/` + `lib/`, Qt plugins, `.desktop` entry & icon |
 
 Packaging registers the `.stencil` file type and the `stencil://` scheme with the OS. The
-macOS bundle is unsigned and warns on first launch; its icon is generated at configure time
+macOS bundle carries no Developer ID signature and warns on first launch; its icon is generated at configure time
 from `../browser/favicon.svg` (needs `sips` + `iconutil`, otherwise the build is iconless).
 CI builds a package for each OS and CPU architecture (macOS and Linux on arm64 and x86_64,
 Windows on x86_64) on every `v*` tag and attaches them to the GitHub release
