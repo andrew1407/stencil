@@ -49,6 +49,14 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
     # out; d3dcompiler_47 is in System32 on every Windows Qt 6 runs on.
     list(APPEND _stencil_deploy DEPLOY_TOOL_OPTIONS
       --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler)
+  elseif(UNIX AND NOT APPLE)
+    # Only the xcb platform plugin ships, and eglfs device integrations load under eglfs alone.
+    # Qt 6.10 moved the Linux deploy's plugin choice from the finalizer to its own options.
+    if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+      list(APPEND _stencil_deploy EXCLUDE_PLUGIN_TYPES egldeviceintegrations)
+    else()
+      qt6_import_plugins(stencil EXCLUDE_BY_TYPE egldeviceintegrations)
+    endif()
   endif()
   qt6_generate_deploy_app_script(
     TARGET stencil
@@ -73,6 +81,7 @@ endif()
 
 # After the deploy: the bundled Qt drops the architectures the app was not built for, and the
 # bundle is sealed again. Several CMAKE_OSX_ARCHITECTURES make a universal app, which keeps them.
+# On Linux the bundled ICU drops the data Qt's ICU calls never read.
 if(APPLE)
   list(LENGTH CMAKE_OSX_ARCHITECTURES _stencil_arch_count)
   set(_stencil_arch "")
@@ -86,6 +95,14 @@ if(APPLE)
     set(ARCH \"${_stencil_arch}\")
     set(SIGN \"${STENCIL_CODESIGN_IDENTITY}\")
     include(\"${CMAKE_CURRENT_SOURCE_DIR}/packaging/thin.cmake\")")
+elseif(UNIX)
+  add_executable(stencil_trimicu packaging/trimicu.cpp)
+  install(CODE "
+    set(LIB \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/lib\")
+    set(TOOL \"$<TARGET_FILE:stencil_trimicu>\")
+    set(CXX \"${CMAKE_CXX_COMPILER}\")
+    set(WORK \"${CMAKE_CURRENT_BINARY_DIR}/trimicu\")
+    include(\"${CMAKE_CURRENT_SOURCE_DIR}/packaging/trimicu.cmake\")")
 endif()
 
 # CPack: one self-contained package per platform.
