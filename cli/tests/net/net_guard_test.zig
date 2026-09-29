@@ -123,7 +123,9 @@ const Fake = struct {
     fn stop(self: *Fake) void {
         const a = testing.allocator;
         self.stopping.store(true, .release); // ends a stalling serve loop
-        self.listener.deinit(self.io); // unblocks the accept, ending the thread
+        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
+        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
+        self.listener.deinit(self.io);
         self.thread.join();
         self.threaded.deinit();
         a.destroy(self.threaded);
