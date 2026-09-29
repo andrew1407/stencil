@@ -46,10 +46,10 @@ jobs:
         # glibc. The x86_64 Linux build is the runner's own arch and gets a smoke run;
         # the Windows binary ships every one-shot mode but not the termios console.
         include:
-          - { target: x86_64-linux-musl,   name: Linux-x86_64,   ext: tar.gz, smoke: true }
-          - { target: aarch64-linux-musl,  name: Linux-arm64,    ext: tar.gz, smoke: false }
-          - { target: x86_64-macos,        name: Darwin-x86_64,  ext: tar.gz, smoke: false }
-          - { target: aarch64-macos,       name: Darwin-arm64,   ext: tar.gz, smoke: false }
+          - { target: x86_64-linux-musl,   name: Linux-x86_64,   ext: tar.xz, smoke: true }
+          - { target: aarch64-linux-musl,  name: Linux-arm64,    ext: tar.xz, smoke: false }
+          - { target: x86_64-macos,        name: Darwin-x86_64,  ext: tar.xz, smoke: false }
+          - { target: aarch64-macos,       name: Darwin-arm64,   ext: tar.xz, smoke: false }
           - { target: x86_64-windows-gnu,  name: Windows-AMD64,  ext: zip,    smoke: false }
     steps:
       - uses: actions/checkout@v5
@@ -59,9 +59,11 @@ jobs:
         with:
           version: 0.16.0
 
+      # ReleaseSmall shrinks the Zig code by about a third; build.zig keeps the core and the
+      # codecs at ReleaseFast's -O2, so images process as fast as before.
       - name: Build
         working-directory: cli
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast -Dstrip=true
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSmall -Dstrip=true
 
       - name: Smoke run
         if: matrix.smoke
@@ -78,7 +80,7 @@ jobs:
           if [ "${{ matrix.ext }}" = zip ]; then
             (cd zig-out/bin && zip -q "../../dist/${name}.zip" stencil.exe)
           else
-            tar -czf "dist/${name}.tar.gz" -C zig-out/bin stencil
+            tar -cJf "dist/${name}.tar.xz" -C zig-out/bin stencil
           fi
           ls -l dist
 
