@@ -153,7 +153,7 @@ the Projects search matches) and the image's source and resource links.
 
 **Open In…** (`Ctrl+Shift+E`) sends the current project to the desktop app or the Telegram
 bot. A link shared from a chat lands on the bounce page first, which forwards to the
-`stencil://` scheme the desktop app registers and offers the download when nothing answers.
+`stencil://` scheme the desktop app registers.
 
 ![the Open In window](img/open-in-modal.png)
 
