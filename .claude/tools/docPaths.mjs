@@ -171,8 +171,10 @@ export const scan = (root, only = []) => {
 };
 
 // A dead path that names something git ignores (a local secret, a recording) is no dead path.
+// Each is asked with a trailing slash too: a `dir/` pattern never matches a directory not on disk.
 export const dropIgnored = (root, dead) => {
-  const under = (d) => basesOf(d.doc).map((b) => join(b, cleanOf(d.token))).filter(Boolean);
+  const under = (d) => basesOf(d.doc).map((b) => join(b, cleanOf(d.token))).filter(Boolean)
+    .flatMap((p) => [p, `${p}/`]);
   const ignored = ignoredByGit(root, [...new Set(dead.flatMap(under))]);
   return dead.filter((d) => !under(d).some((p) => ignored.has(p)));
 };

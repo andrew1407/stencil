@@ -19,7 +19,12 @@ case "$pkg" in
     run=(xvfb-run -a "$root/bin/stencil") ;;
   *.dmg)
     hdiutil attach -nobrowse -readonly -mountpoint "$work/mnt" "$pkg" >/dev/null
-    trap 'hdiutil detach "$work/mnt" >/dev/null' EXIT
+    # The just-exited app or Spotlight can hold the image a moment: retry, then force.
+    detach() {
+      for _ in 1 2 3 4 5; do hdiutil detach "$work/mnt" >/dev/null 2>&1 && return; sleep 2; done
+      hdiutil detach -force "$work/mnt" >/dev/null
+    }
+    trap detach EXIT
     root="$work/mnt/stencil.app/Contents"
     for p in platforms/libqcocoa imageformats/libqjpeg imageformats/libqwebp multimedia/libffmpegmediaplugin; do
       need "$root/PlugIns/$p.dylib"

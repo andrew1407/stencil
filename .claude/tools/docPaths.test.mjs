@@ -3,8 +3,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deadRefs, extractRefs, isCandidate, makeUniverse, resolves } from './docPaths.mjs';
+import { deadRefs, dropIgnored, extractRefs, isCandidate, makeUniverse, resolves } from './docPaths.mjs';
 
 const u = makeUniverse([
   'browser/js/ui/tip/controlTooltip.js',
@@ -75,6 +78,19 @@ test('links resolve relative to the doc and nowhere else', () => {
 test('build output and the declared non-paths pass', () => {
   assert.deepEqual(dead('cli/README.md', '`zig-out/bin/stencil` `browser/js/wasm/stencilCore.js` `core/build/x`'), []);
   assert.deepEqual(dead('.claude/rules/architecture.md', '`parts/` `misc/`'), []);
+});
+
+test('a gitignored directory absent from disk is no dead path', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'docPaths-'));
+  try {
+    execFileSync('git', ['init', '-q', root]);
+    writeFileSync(path.join(root, '.gitignore'), 'build-asan/\nsrv/vendor/\n');
+    const dead = [{ doc: 'core/README.md', token: 'core/build-asan' }, { doc: 'srv/README.md', token: 'vendor/' },
+      { doc: 'srv/README.md', token: 'gone.go' }];
+    assert.deepEqual(dropIgnored(root, dead).map((d) => d.token), ['gone.go']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('the repo has no dead doc path', () => {
