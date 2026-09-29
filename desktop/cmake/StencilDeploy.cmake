@@ -97,6 +97,8 @@ if(APPLE)
     include(\"${CMAKE_CURRENT_SOURCE_DIR}/packaging/thin.cmake\")")
 elseif(UNIX)
   add_executable(stencil_trimicu packaging/trimicu.cpp)
+  # Built with the app: under Ninja cpack runs no preinstall, so nothing else would build it.
+  add_dependencies(stencil stencil_trimicu)
   install(CODE "
     set(LIB \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/lib\")
     set(TOOL \"$<TARGET_FILE:stencil_trimicu>\")
