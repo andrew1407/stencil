@@ -102,7 +102,7 @@ forces a recompile.
 
 - **cli release targets** — required whenever `cli/src/` changed. The Windows package has no
   console (termios), and a POSIX-only type reached from a shared path breaks only there:
-  `cd cli && env -u ZIG_LIBC zig build -Dtarget=x86_64-windows-gnu -Doptimize=ReleaseFast
+  `cd cli && env -u ZIG_LIBC zig build -Dtarget=x86_64-windows-gnu -Doptimize=ReleaseSmall
   --prefix "$TMPDIR/stencil-win"` must compile, as must `x86_64-linux-musl` (the other
   `cli-packages.yml` targets rarely differ).
 - **wasm parity** — required whenever a `core/` file or a `browser/js` pure-logic module

@@ -49,13 +49,13 @@ Zig cross-compiles the core and the codecs, so one machine produces every platfo
 
 ```bash
 # from this directory (cli/)
-zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast -Dstrip=true   # -> zig-out/bin/stencil
+zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseSmall -Dstrip=true  # -> zig-out/bin/stencil
 ```
 
 | Platform | Package | Form |
 |---|---|---|
-| Linux | `stencil-cli-<ver>-Linux-<arch>.tar.gz` | static `stencil` (musl, any distro) |
-| macOS | `stencil-cli-<ver>-Darwin-<arch>.tar.gz` | `stencil` |
+| Linux | `stencil-cli-<ver>-Linux-<arch>.tar.xz` | static `stencil` (musl, any distro) |
+| macOS | `stencil-cli-<ver>-Darwin-<arch>.tar.xz` | `stencil` |
 | Windows | `stencil-cli-<ver>-Windows-AMD64.zip` | `stencil.exe` |
 
 The macOS binary is unsigned: clear the quarantine flag after downloading (`xattr -d

@@ -89,10 +89,13 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addIncludePath(b.path(".."));
     for (core_include_dirs) |dir| mod.addIncludePath(b.path(dir));
     mod.addIncludePath(stb.path("."));
+    // ReleaseSmall shrinks the Zig code only: C/C++ keep ReleaseFast's -O2 (the later flag wins
+    // over Zig's -Os), so the core and codec objects stay byte-identical to a ReleaseFast build.
+    const small = mod.optimize == .ReleaseSmall;
     mod.addCSourceFiles(.{
         .root = b.path("../core"),
         .files = &core_sources,
-        .flags = &.{"-std=c++17"},
+        .flags = if (small) &.{ "-std=c++17", "-O2" } else &.{"-std=c++17"},
     });
     // Canonical shared static data from the browser app, embeddable via
     // @embedFile("<name>") (cross-tree paths need an anonymous import).
@@ -110,14 +113,14 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{ "media/stb_read_impl.c", "scrape/regex_shim.c" },
-        .flags = &.{"-std=c11"},
+        .flags = if (small) &.{ "-std=c11", "-O2" } else &.{"-std=c11"},
     });
     // stb's JPEG encoder relies on signed-shift wraparound; Zig instruments C with UBSan in Debug
     // and would trap on it. Its own TU so the exemption never reaches the decoder.
     mod.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{"media/stb_write_impl.c"},
-        .flags = &.{ "-std=c11", "-fno-sanitize=undefined" },
+        .flags = if (small) &.{ "-std=c11", "-fno-sanitize=undefined", "-O2" } else &.{ "-std=c11", "-fno-sanitize=undefined" },
     });
 }
 
@@ -171,11 +174,11 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&fmt.step);
 
     // `zig build bench` prints timings, it does not assert them, so it is deliberately out of `test`.
-    // ReleaseFast whatever the top-level optimize choice, so the numbers reflect a shipped build.
+    // ReleaseSmall whatever the top-level optimize choice, so the numbers reflect a shipped build.
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("bench_root.zig"),
         .target = target,
-        .optimize = .ReleaseFast,
+        .optimize = .ReleaseSmall,
     });
     wireNative(b, bench_mod, stb);
     const bench_exe = b.addExecutable(.{ .name = "stencil-bench", .root_module = bench_mod });
