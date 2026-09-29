@@ -32,7 +32,9 @@ pub const Served = struct {
 
     pub fn stop(self: *Served) void {
         const a = testing.allocator;
-        self.listener.deinit(self.io); // unblocks the accept, ending the thread
+        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
+        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
+        self.listener.deinit(self.io);
         self.thread.join();
         self.threaded.deinit();
         a.destroy(self.threaded);

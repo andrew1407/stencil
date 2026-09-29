@@ -35,7 +35,9 @@ pub const Mock = struct {
 
     /// Stop serving; what was recorded stays readable until `deinit`.
     pub fn stop(self: *Mock) void {
-        self.listener.deinit(self.io); // unblocks the accept, ending the thread
+        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
+        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.io, .both) catch {};
+        self.listener.deinit(self.io);
         self.thread.join();
     }
 

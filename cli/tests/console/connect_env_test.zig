@@ -30,7 +30,9 @@ const Gate = struct {
     }
 
     fn stop(self: *Gate) void {
-        self.listener.deinit(self.threaded.io()); // unblocks the accept, ending the thread
+        // Only shutdown wakes a thread blocked in accept on Linux; close alone leaves it asleep.
+        (std.Io.net.Stream{ .socket = self.listener.socket }).shutdown(self.threaded.io(), .both) catch {};
+        self.listener.deinit(self.threaded.io());
         self.thread.join();
         self.threaded.deinit();
     }
