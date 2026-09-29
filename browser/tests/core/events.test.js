@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 import EVENTS from '../../js/config/events.json' with { type: 'json' };
+import { loadOpenInConfig } from '../../js/config/openInConfig.js';
 import { installNullDom } from '../helpers/nullDom.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -73,6 +74,8 @@ test('a booted app answers switchToSource by resuming the project that holds the
   app.storage.incognito = true;
   dom.fire(EVENTS.switchToSource, { source: 'https://example.com/plan.png', name: 'plan.png' });
   assert.deepEqual(switched, ['p1'], 'nothing named, or an incognito editor: no switch');
+  // The constructor's config load repaints the toolbar when it settles; it must land on the null DOM.
+  await loadOpenInConfig();
 });
 
 test('a projects change nudges the extension bridge with registryChanged', async () => {
