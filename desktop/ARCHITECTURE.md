@@ -248,8 +248,9 @@ classDiagram
   skin's local project, and the same word restores the stored look.
 - **Packaging.** `cmake/StencilDeploy.cmake` drives CPack over Qt's deploy (`macdeployqt`,
   `windeployqt`, the generic Linux deploy; Qt ≥ 6.3): the installed binary's rpath points at the
-  bundled Qt, Qt's own translations stay out, and `packaging/smoke.sh` / `smoke.ps1` start each
-  package from its own files in CI. The `.stencil` type and `stencil://` scheme are registered on
+  bundled Qt, Qt's own translations stay out, the macOS bundle keeps only the architecture the
+  app was built for and is sealed again after the deploy (`packaging/thin.cmake`), and
+  `packaging/smoke.sh` / `smoke.ps1` start each package from its own files in CI. The `.stencil` type and `stencil://` scheme are registered on
   macOS (`packaging/MacOSXBundleInfo.plist.in`) and Linux (`stencil-mime.xml`,
   `stencil.desktop`). `packaging/mkicon.cpp`, a Qt host tool run at build time, rasterises
   `browser/favicon.svg` into `.icns` / `.ico` with no OS image tool; with Xcode's `actool`, macOS

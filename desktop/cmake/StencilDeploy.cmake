@@ -1,6 +1,6 @@
 # The distributable: `cmake --install build` lays the app out under the install prefix, Qt's
 # deploy script copies the Qt libraries and plugins in beside it (macdeployqt / windeployqt /
-# the generic Linux deploy), and `cpack` wraps that tree into a .dmg / .zip / .tar.gz. Build
+# the generic Linux deploy), and `cpack` wraps that tree into a .dmg / .zip / .tar.xz. Build
 # releases with -DSTENCIL_DEV_STATE_DIR=OFF; `packaging/smoke.sh` / `smoke.ps1` start the result.
 install(TARGETS stencil
   BUNDLE  DESTINATION .
@@ -71,6 +71,23 @@ else()
   message(STATUS "Qt ${Qt6_VERSION} < 6.3 — install will not bundle Qt; run *deployqt manually")
 endif()
 
+# After the deploy: the bundled Qt drops the architectures the app was not built for, and the
+# bundle is sealed again. Several CMAKE_OSX_ARCHITECTURES make a universal app, which keeps them.
+if(APPLE)
+  list(LENGTH CMAKE_OSX_ARCHITECTURES _stencil_arch_count)
+  set(_stencil_arch "")
+  if(_stencil_arch_count EQUAL 1)
+    set(_stencil_arch "${CMAKE_OSX_ARCHITECTURES}")
+  elseif(_stencil_arch_count EQUAL 0)
+    set(_stencil_arch "${CMAKE_SYSTEM_PROCESSOR}")
+  endif()
+  install(CODE "
+    set(APP \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/stencil.app\")
+    set(ARCH \"${_stencil_arch}\")
+    set(SIGN \"${STENCIL_CODESIGN_IDENTITY}\")
+    include(\"${CMAKE_CURRENT_SOURCE_DIR}/packaging/thin.cmake\")")
+endif()
+
 # CPack: one self-contained package per platform.
 set(CPACK_PACKAGE_NAME "Stencil")
 set(CPACK_PACKAGE_VENDOR "Stencil")
@@ -81,9 +98,10 @@ set(CPACK_PACKAGE_FILE_NAME
 set(CPACK_STRIP_FILES ON)
 if(APPLE)
   set(CPACK_GENERATOR "DragNDrop")
+  set(CPACK_DMG_FORMAT "ULMO")  # LZMA: needs macOS 10.15, and the bundled Qt 6.9 needs 12
 elseif(WIN32)
   set(CPACK_GENERATOR "ZIP")
 else()
-  set(CPACK_GENERATOR "TGZ")
+  set(CPACK_GENERATOR "TXZ")
 endif()
 include(CPack)

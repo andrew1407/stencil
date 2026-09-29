@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Starts a packaged desktop app from its own files (never the runner's Qt) and fails on a
-# library or plugin the deploy left out. Linux .tar.gz and macOS .dmg; smoke.ps1 is Windows.
+# library or plugin the deploy left out. Linux .tar.xz and macOS .dmg; smoke.ps1 is Windows.
 #   desktop/packaging/smoke.sh <package>
 set -euo pipefail
 pkg=$1
@@ -10,8 +10,8 @@ unset LD_LIBRARY_PATH QT_PLUGIN_PATH QML2_IMPORT_PATH DYLD_LIBRARY_PATH DYLD_FRA
 need() { [[ -f "$1" ]] || { echo "smoke: the package carries no ${1#"$work"/}" >&2; exit 1; }; }
 
 case "$pkg" in
-  *.tar.gz)
-    tar -xzf "$pkg" -C "$work"
+  *.tar.xz)
+    tar -xJf "$pkg" -C "$work"
     root=$(echo "$work"/stencil-*)
     for p in platforms/libqxcb imageformats/libqjpeg imageformats/libqwebp multimedia/libffmpegmediaplugin; do
       need "$root/plugins/$p.so"
@@ -29,6 +29,15 @@ case "$pkg" in
     for p in platforms/libqcocoa imageformats/libqjpeg imageformats/libqwebp multimedia/libffmpegmediaplugin; do
       need "$root/PlugIns/$p.dylib"
     done
+    codesign --verify --deep --strict "$work/mnt/stencil.app" ||
+      { echo "smoke: the bundle's signature does not hold" >&2; exit 1; }
+    want=$(lipo -archs "$root/MacOS/stencil")
+    other=$(find "$root" -type f -exec lipo -archs {} \; 2>/dev/null | grep -cvx "$want" || true)
+    (( other == 0 )) || { echo "smoke: $other binaries carry architectures beyond $want" >&2; exit 1; }
+    minos() { otool -l "$1" | awk '/LC_BUILD_VERSION/ {b = 1} b && /minos/ && !m {m = $2} END {print m}'; }
+    app_min=$(minos "$root/MacOS/stencil") qt_min=$(minos "$root/Frameworks/QtCore.framework/QtCore")
+    [[ $(printf '%s\n' "$app_min" "$qt_min" | sort -V | tail -1) == "$qt_min" ]] ||
+      { echo "smoke: the app needs macOS $app_min, but its bundled Qt runs from $qt_min" >&2; exit 1; }
     run=("$root/MacOS/stencil") ;;
   *) echo "smoke: unknown package $pkg" >&2; exit 2 ;;
 esac
