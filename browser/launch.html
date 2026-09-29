@@ -97,7 +97,7 @@
     .actions { display: flex; gap: .6rem; justify-content: center; margin-top: 1.4rem; flex-wrap: wrap; }
     /* The glass sweep is the editor's OWN: layout.css animates ui-shimmer on
        `button:hover::after`, and the anchors opt into the same rule through its
-       `.shimmer` hook — so all three behave identically, and at the app's timing.
+       `.shimmer` hook — so both behave identically, and at the app's timing.
        (A second, local sweep on top of it played the shine twice — user report.)
        The ::after is absolute + inset:0, so each host must be a positioned, clipping box. */
     a.btn, button.btn {
@@ -115,7 +115,7 @@
     a.btn:active, button.btn:active { transform: translateY(1px); }
     /* Each glyph mimes its own action on hover — the shared per-icon transforms in
        animations/icon/hover.css, keyed off --ic-on. Its trigger lists `button` but not `a`, so the
-       two links turn the switch on themselves. */
+       link turns the switch on itself. */
     a.btn:hover :is(.ic, .ic *) { --ic-on: 1; animation-name: var(--ic-play, none); }
     .ic { flex: 0 0 auto; }
     a.btn.primary {
@@ -162,8 +162,6 @@
     <div class="actions">
       <a id="open-btn" class="btn primary shimmer" hidden><svg class="ic ic-external" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><g class="ic-arrow"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></g></svg><span>Open in desktop app</span></a>
       <button id="copy-btn" class="btn" hidden><svg class="ic ic-copy" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect class="ic-front" x="9" y="9" width="13" height="13" rx="2"/><path class="ic-back" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy link</span></button>
-      <a class="btn shimmer" href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
-         rel="noopener"><svg class="ic ic-download" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><g class="ic-arrow"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></g></svg><span>Download the desktop app</span></a>
     </div>
   </main>
   <script>
