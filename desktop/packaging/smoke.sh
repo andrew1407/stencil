@@ -16,6 +16,13 @@ case "$pkg" in
     for p in platforms/libqxcb imageformats/libqjpeg imageformats/libqwebp multimedia/libffmpegmediaplugin; do
       need "$root/plugins/$p.so"
     done
+    # The whole ICU 73 data is 32 MB and the trimmed one 16 MB (packaging/trimicu.cmake).
+    for icu in "$root"/lib/libicudata.so.*.*; do
+      [[ ! -f "$icu" ]] || (( $(stat -c %s "$icu") < 20000000 )) ||
+        { echo "smoke: the bundled ICU still carries its whole data" >&2; exit 1; }
+    done
+    [[ ! -e "$root/plugins/egldeviceintegrations" ]] ||
+      { echo "smoke: the package carries eglfs integrations no shipped platform loads" >&2; exit 1; }
     run=(xvfb-run -a "$root/bin/stencil") ;;
   *.dmg)
     hdiutil attach -nobrowse -readonly -mountpoint "$work/mnt" "$pkg" >/dev/null
