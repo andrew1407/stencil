@@ -1,4 +1,4 @@
-// Walks the shared op-plan conformance corpus (js/config/llm/fixtures/opPlan/) against the REAL browser
+// Walks the shared op-plan conformance corpus (common/fixtures/llm/opPlan/) against the REAL browser
 // validator, and is the reference walker the other surfaces' walkers copy (fixture format: _schema.md).
 // Verdict semantics: "valid" means parseOpPlan returns, a chat-only fallback included, "invalid" that it
 // throws; an object `input` is serialized as a model reply would arrive, a string `input` fed verbatim. The
@@ -13,7 +13,7 @@ import { parseOpPlan } from '../../../js/llm/plan/opPlan.js';
 import { build } from '../../../tools/genOpPlanFixtures.mjs';
 
 const FIXTURES_DIR = path.join(
-  path.dirname(fileURLToPath(import.meta.url)), '../../..', 'js', 'config', 'llm', 'fixtures', 'opPlan');
+  path.dirname(fileURLToPath(import.meta.url)), '../../../..', 'common', 'fixtures', 'llm', 'opPlan');
 
 const PROFILES = new Set(['editor', 'console', 'bot', 'mcp', 'extension', 'all']);
 const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp', 'extension']);
@@ -35,7 +35,7 @@ const fixtures = [
 test('the generated bundle is fresh against the registry and the JS reference (npm run gen-fixtures)', () => {
   const stored = JSON.parse(read('generated', 'freshness.json'));
   const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-  assert.equal(sha256(readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'))),
+  assert.equal(sha256(readFileSync(path.join(FIXTURES_DIR, '..', '..', '..', 'config', 'llm', 'opRegistry.json'))),
     stored.registry, 'opRegistry.json changed without a regen — run `npm run gen-fixtures`');
   for (const [name, text] of Object.entries(build())) {
     assert.ok(text === read('generated', name), `generated/${name} is stale — run \`npm run gen-fixtures\``);

@@ -3,11 +3,11 @@
 // chrome.storage.session (never storage.local), the popup's turn carries it with the §6.5
 // headers, and Forget drops it. The key is fake; nothing here reaches Anthropic.
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 const KEY = 'sk-ant-e2e-0123456789abcdef-not-a-real-key';
 
 test.describe('extension assistant: your own Anthropic key, held for the browser session', () => {

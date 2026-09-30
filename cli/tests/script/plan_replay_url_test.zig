@@ -14,7 +14,7 @@ const doc_json = "{\"lines\":[{\"points\":[{\"x\":0,\"y\":0},{\"x\":15,\"y\":11}
 const green = "@use line #00ff00 2px; @line (2,3) (14,9)";
 
 fn serveFixtures(io: std.Io) !*Served {
-    const png = try std.Io.Dir.cwd().readFileAlloc(io, "tests/fixtures/sample.png", testing.allocator, .limited(1 << 20));
+    const png = try std.Io.Dir.cwd().readFileAlloc(io, "../common/samples/sample.png", testing.allocator, .limited(1 << 20));
     errdefer testing.allocator.free(png);
     const files = try testing.allocator.alloc(@import("served.zig").File, 2);
     files[0] = .{ .path = "sample.png", .body = png };

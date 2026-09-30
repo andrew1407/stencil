@@ -115,11 +115,16 @@ export async function copyServerProjectToIncognito(c, meta, { newTab = false } =
     return;
   }
   const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
+  openIncognitoHere(c, file, { source: src, resource: full.project?.resource || '', layout: full.layout });
+}
+
+// `file` into a fresh INCOGNITO editor in this tab, its layout adopted; the session is saved first.
+export function openIncognitoHere(c, file, loadOpts = {}) {
   if (!c.storage.incognito) c.storage.save();
   c.host.newEditor();
   c.storage.incognito = true;
   c.host.updateIncognitoUI();
-  c.host.loadImageFromFile(file, { source: src, resource: full.project?.resource || '', layout: full.layout, adoptLayout: true });
+  c.host.loadImageFromFile(file, { ...loadOpts, adoptLayout: true });
 }
 
 export function blobToDataUrl(c, blob) {

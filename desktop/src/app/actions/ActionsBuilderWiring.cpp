@@ -122,6 +122,7 @@ namespace stencil::gui {
     w.setActionTip(w.acts.assistantSettings, "AI assistant settings — provider, model & voice");
     QObject::connect(w.acts.assistantSettings, &QAction::triggered, &w, [this] { w.parts.dialogs.openAssistantSettings(); });
     QObject::connect(w.acts.openIn, &QAction::triggered, &w, [this] { w.parts.projects.openInAnotherApp(); });
+    QObject::connect(w.acts.copyProject, &QAction::triggered, &w, [this] { w.parts.projectCopy.showToolbarMenu(); });
     QObject::connect(w.acts.newProject, &QAction::triggered, &w,
                      [this] { w.parts.projects.newProjectFromCanvas(); });
     QObject::connect(w.acts.saveProject, &QAction::triggered, &w,

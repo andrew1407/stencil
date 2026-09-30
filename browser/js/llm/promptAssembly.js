@@ -8,7 +8,7 @@ import { OPS } from './plan/opExecutors.js';
 // registered op; a reduced set drops those bullets and §1's unknown-op skip catches them.
 export const BROWSER_CAPABILITIES = new Set([
   'loadAttachment', 'saveProject', 'removeProjectNamed', 'clearLocalProjects',
-  'renameActiveProject', 'setBlankColor', 'openProjectNamed', 'clearChatConversation',
+  'renameActiveProject', 'setBlankColor', 'openProjectNamed', 'copyActiveProject', 'clearChatConversation',
   'setChatPlacement', 'openDialog', 'setVoiceChat',
 ]);
 

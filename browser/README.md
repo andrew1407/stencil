@@ -147,7 +147,7 @@ all the directives apply to whatever is already open:
 
 The language is the same one the [CLI's](../cli/README.md) `--script` takes, written up in
 [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md); the shared example corpus
-is [`js/config/script/fixtures/`](js/config/script/fixtures/cases.txt).
+is [`common/fixtures/script/`](../common/fixtures/script/cases.txt).
 
 ### Project files (`.stencil`)
 
@@ -219,7 +219,11 @@ Orientation:
   `zoom()`, `undo()/redo()`, `clearLines()`; **export**: `downloadImage()`, `copyImage()`,
   `layout` (get/set), `applyLayout()`, `setLines()`, `saveProjectFile()` / `openProjectFile()`.
 - **Projects**: `stencil.current`, `openedProjects`, `getProjectByName()` → a `Project`
-  with `name`, `color`, `keywords`, `expire()`, `open()`, `close()`, `moveToServer()`.
+  with `name`, `color`, `keywords`, `expire()`, `open()`, `close()`, `moveToServer()`, and
+  `copy({ what, open, incognito, local })` — "Make a copy" as `<name>-copy`, then `-copy(1)`, …
+  (`what`: `'image'` | `'layout'` | `'project'`; `open`: `'none'` | `'here'` | `'newtab'`),
+  resolving to the new local `Project`, or null for an incognito or server copy.
+  `stencil.copyProject(opts)` copies what the editor shows now.
 - **Lines & points**: `stencil.lines[i]` → a `Line` (`apply()`, `move()`, `rotate()`, `add()`,
   `join()`); `line.points[j]` → a `Point` (`x`/`y` settable, `move()`, `remove()`).
 - **Servers**: `connect()`, `disconnect()`, `serverProjects()`, `publishIncognito()`;

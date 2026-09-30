@@ -17,7 +17,13 @@ export interface StencilSchemeFields {
   layout?: string | object;
   frame?: number | string;
   incognito?: boolean;
+  /** A .stc handed over with the link, or alone. */
+  script?: string;
+  /** 'open' puts the script in the Script window; anything else runs it. */
+  scriptMode?: LaunchScriptMode;
 }
+/** What a handed-over script does on arrival. */
+export type LaunchScriptMode = 'open' | 'run';
 /** server+id wins over src on the receiving side; empty fields are omitted. */
 export declare const buildStencilSchemeUrl: (fields?: StencilSchemeFields) => string;
 

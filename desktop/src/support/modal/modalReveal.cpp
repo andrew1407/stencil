@@ -123,6 +123,8 @@ namespace stencil::support {
     };
   }  // namespace
 
+  QRect riseRect(const QDialog& dlg) { return originRect(nullptr, dlg.geometry(), QRect(), hostFor(dlg)); }
+
   void noteActionAnchor(QWidget* icon) {
     gesture().icon = icon;
     gesture().iconAt = gesture().now();

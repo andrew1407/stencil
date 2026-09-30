@@ -1,6 +1,6 @@
 // The editor's plain-data defaults: a fresh object per call, nothing shared between editors.
 import { defaultUnitFromLocale } from '../utils.js';
-import constants from '../config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 const { DEFAULT_VISUALS: V, DEFAULT_PAGE, HOLD_DRAW } = constants;
 

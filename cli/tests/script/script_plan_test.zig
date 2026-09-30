@@ -34,7 +34,7 @@ test "--script-plan advertises the z-order --script paints: a @layout lands on t
     const doc = "stencil_script_zorder.json";
     const stc = "stencil_script_zorder.stc";
     const out = "stencil_script_zorder.png";
-    const text = "@source tests/fixtures/sample.png:\n    @use line #ff0000 5px\n" ++
+    const text = "@source ../common/samples/sample.png:\n    @use line #ff0000 5px\n" ++
         "    @line (0,6) (15,6)\n    @layout " ++ doc ++ "\n    @save " ++ out ++ "\n";
 
     try dir.writeFile(io, .{ .sub_path = doc, .data = "{\"imageWidth\":16,\"imageHeight\":12,\"lines\":[" ++
@@ -76,7 +76,7 @@ test "the plan envelope round-trips through std.json and names every save" {
     defer threaded.deinit();
 
     var s = try scriptCore.Script.parse(
-        "@source tests/fixtures/sample.png:\n  @crop x1=10% x2=-10%\n  @filter bw\n  @save out/\n",
+        "@source ../common/samples/sample.png:\n  @crop x1=10% x2=-10%\n  @filter bw\n  @save out/\n",
     );
     defer s.deinit();
 
@@ -108,7 +108,7 @@ test "a plan's actions are a plan the op-plan validator itself accepts" {
     defer threaded.deinit();
 
     var s = try scriptCore.Script.parse(
-        "@source tests/fixtures/sample.png:\n  @crop 10%\n  @rect (1,1) (4,4)\n  @filter aqua\n  @save o.png\n",
+        "@source ../common/samples/sample.png:\n  @crop 10%\n  @rect (1,1) (4,4)\n  @filter aqua\n  @save o.png\n",
     );
     defer s.deinit();
 
@@ -172,7 +172,7 @@ test "a glob over two sizes plans each input against its own, and keeps the firs
     const dir = std.Io.Dir.cwd();
 
     const names = [_][]const u8{ "stencil_plan_sizes_a.png", "stencil_plan_sizes_b.png" };
-    const sample = try dir.readFileAlloc(io, "tests/fixtures/sample.png", gpa, .limited(1 << 20));
+    const sample = try dir.readFileAlloc(io, "../common/samples/sample.png", gpa, .limited(1 << 20));
     defer gpa.free(sample);
     try dir.writeFile(io, .{ .sub_path = names[0], .data = sample }); // 16x12
     defer dir.deleteFile(io, names[0]) catch {};

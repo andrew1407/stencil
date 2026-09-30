@@ -7,7 +7,7 @@ const c = @cImport({
     @cInclude("core/cliApi.h");
 });
 
-/// The canonical registry (browser/js/config/llm/opRegistry.json), embedded whole.
+/// The canonical registry (common/config/llm/opRegistry.json), embedded whole.
 pub const registry_json = @embedFile("opRegistry.json");
 
 /// The surfaces whose validator is core's (the extension keeps its own §8 walk).

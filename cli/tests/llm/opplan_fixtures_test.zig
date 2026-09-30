@@ -1,4 +1,4 @@
-// Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/opPlan/)
+// Walks the shared op-plan conformance corpus (common/fixtures/llm/opPlan/)
 // against the REAL cli validator (llm.parsePlan — the entry handlers.zig doPrompt uses).
 // Port of the reference walker browser/tests/llm/plan/opPlanFixtures.test.js, with the cli's
 // profile ("console"). Verdict = local override ?? knownDivergence.cli ?? expect;
@@ -8,7 +8,7 @@ const llm = @import("../../src/llm.zig");
 const fx = @import("../fixture_corpus.zig");
 const testing = std.testing;
 
-const opplan_dir = "llm/fixtures/opPlan/";
+const opplan_dir = "llm/opPlan/";
 
 const known_profiles = [_][]const u8{ "editor", "console", "bot", "mcp", "extension", "all" };
 const known_surfaces = [_][]const u8{ "browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension" };

@@ -5,7 +5,7 @@ import { notify } from '../../utils.js';
 import { resolveInsertIdx } from '../layout.js';
 import { shouldCloseShape } from './transforms.js';
 import { strokeFoot } from '../../ui/motion.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { CHANGE, changed } from '../app/changes.js';
 
 // A screen radius divided by the zoom, zoomed out only: core adds its own +8, so hand it the

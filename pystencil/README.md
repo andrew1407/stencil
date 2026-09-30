@@ -26,7 +26,8 @@ The native library is not committed — build it once from `core/`:
 
 ```bash
 # from this directory (pystencil/)
-python3 build.py            # compiles core/*.cpp + cliApi.cpp + the stb codec units → the shared lib
+python3 build.py            # compiles core/*.cpp + cliApi.cpp + the stb codec units → the shared lib,
+                            # and copies the shared tables from common/config/ into pystencil/_data/
 ```
 
 You don't have to run it by hand: the first time the package needs the core it builds it on

@@ -1,6 +1,6 @@
 //! Drift guard for the media-type canon: src/media/types.zig now feeds video.zig's
 //! looksLikeVideo and scrape.zig's format normalisation + extension allow-list from
-//! browser/js/config/mediaTypes.json. These pin the values the CLI used before the move —
+//! common/config/mediaTypes.json. These pin the values the CLI used before the move —
 //! so the asset cannot silently change what the CLI accepts — and hold the asset's own
 //! internal claims (the cli surface list is a subset of the contract set).
 const std = @import("std");

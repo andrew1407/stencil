@@ -73,6 +73,12 @@
          picker or replace options in this build) carry no hairline of their own. */
       QWidget#oiNoDivider[vsRow="true"] { border-bottom: none; }
       QLabel[vsLabel="true"] { background: transparent; font-size: 13px; }
+      /* The copy confirmation (browser .confirm-message 16px over .vs-inline-check 14px). */
+      QLabel#copyProjectQuestion { font-size: 16px; }
+      QCheckBox#copyProjectLocal, QCheckBox#copyProjectIncognito { font-size: 14px; }
+      /* A box it cannot take now (incognito on a server copy) greys, label and all (browser opacity .55). */
+      QCheckBox#copyProjectIncognito:disabled { color: %DISABLED_TEXT%; }
+      QCheckBox#copyProjectIncognito::indicator:disabled { border-color: %BORDER%; background: %DISABLED_BG%; }
       /* ── The list-shaped modals (info, shortcuts, settings — modalChrome.hpp):
          the browser's .modal-search box, .settings-body scroller and .info-empty line. ── */
       QLineEdit#modalSearch { padding: 8px 10px; border-radius: 6px; font-size: 13px; }

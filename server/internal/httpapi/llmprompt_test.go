@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Drift check against canonical browser/js/config/llm/systemPrompt.json: the embedded copy must stay
+// Drift check against canonical common/config/llm/systemPrompt.json: the embedded copy must stay
 // byte-identical and the heads exact prefixes. go:embed can't cross the module boundary, so it is read here.
 func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
@@ -18,12 +18,12 @@ func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..", "..")
-	assetPath := filepath.Join(repoRoot, "browser", "js", "config", "llm", "systemPrompt.json")
+	assetPath := filepath.Join(repoRoot, "common", "config", "llm", "systemPrompt.json")
 
 	raw, err := os.ReadFile(assetPath)
 	if os.IsNotExist(err) {
 		t.Skipf("canonical asset %s not present (standalone server checkout); "+
-			"browser/tests/systemPromptAsset.test.js is the mirror canary", assetPath)
+			"browser/tests/llm/chat/systemPromptAsset.test.js is the mirror canary", assetPath)
 	}
 	if err != nil {
 		t.Fatalf("read canonical asset: %v", err)
@@ -31,7 +31,7 @@ func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 
 	if !bytes.Equal(raw, systemPromptAsset) {
 		t.Errorf("assets/systemPrompt.json differs from %s (%d vs %d bytes) — "+
-			"re-copy the canonical asset", assetPath, len(systemPromptAsset), len(raw))
+			"run go generate ./...", assetPath, len(systemPromptAsset), len(raw))
 	}
 
 	var asset struct {

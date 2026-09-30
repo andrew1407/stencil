@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
-import INFO from '../../config/infoConfig.json' with { type: 'json' };
+import INFO from '../../../../common/config/infoConfig.json' with { type: 'json' };
 import { icon } from '../icons.js';
 import { isKeyCombo, keysHtml, escapeHtml } from '../tip/content.js';
 export class StencilInfoModal extends StencilElement {

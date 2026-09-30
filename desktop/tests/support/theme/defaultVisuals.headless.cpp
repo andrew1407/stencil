@@ -1,5 +1,5 @@
 // The drawing and highlight defaults (support/theme/defaultVisuals.hpp) are read from
-// browser/js/config/constants.json DEFAULT_VISUALS and HOLD_DRAW.delayMs: read, fallback and table
+// common/config/constants.json DEFAULT_VISUALS and HOLD_DRAW.delayMs: read, fallback and table
 // agree, and a fresh Settings starts from them.
 #include "defaultVisuals.hpp"
 #include "fileStore.hpp"

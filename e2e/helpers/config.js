@@ -5,4 +5,6 @@
 // wrong stack.
 export const APP_HOST = process.env.APP_HOST || '127.0.0.1';
 export const APP_PORT = Number(process.env.APP_PORT) || 8188;
-export const APP_URL = process.env.APP_URL || `http://${APP_HOST}:${APP_PORT}/`;
+// The server's root is the app (browser/), with common/ at /common/ and the fixtures under /__e2e__/.
+export const SITE_URL = process.env.SITE_URL || `http://${APP_HOST}:${APP_PORT}/`;
+export const APP_URL = process.env.APP_URL || SITE_URL;

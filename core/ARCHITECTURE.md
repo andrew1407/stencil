@@ -142,7 +142,7 @@ classDiagram
   lowers to a flat `Op` stream. Lengths stay tokens because a crop changes the image
   mid-script: `resolveOp` turns them into pixels against the size the host holds right then.
   `contracts/stc/stc-contract.md` is normative; the corpus in
-  `browser/js/config/script/fixtures/` proves every surface agrees.
+  `common/fixtures/script/` proves every surface agrees.
 - **A formula evaluation.** The caller composes `FormulaParser::apply` after `pixelToPageRaw`,
   per axis, as the browser does; a failure leaves the value unchanged. A name
   (`[A-Za-z_][A-Za-z0-9_]*`, whole, case-sensitive) resolves to the caller's binding, then

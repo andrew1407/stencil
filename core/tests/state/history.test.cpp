@@ -112,7 +112,7 @@ TEST_CASE("reset with empty lines leaves NO redo (no stray redo step after a bla
 TEST_CASE("push caps the depth at MAX_STEPS, evicting the oldest snapshot") {
   HistoryStack h;
   const int cap = static_cast<int>(HistoryStack::MAX_STEPS);
-  CHECK(cap == 64);  // LIMITS.historyMax in browser/js/config/constants.json
+  CHECK(cap == 64);  // LIMITS.historyMax in common/config/constants.json
   for (int i = 0; i < cap; ++i) h.push({lineWithX(i)});
   CHECK(h.size() == HistoryStack::MAX_STEPS);
   CHECK(h.step() == cap - 1);

@@ -19,6 +19,7 @@ import { StencilLlmSettingsModal } from './llmSettings/modal.js';
 import { StencilDescriptionModal } from './meta/descriptionModal.js';
 import { StencilKeywordsModal } from './meta/keywordsModal.js';
 import { StencilScriptModal } from './script/modal.js';
+import { StencilCopyProjectModal } from './modal/copyProjectModal.js';
 // Importing the modules registers every customElements.define; layout() concatenates each
 // region's template() in this order, which is LOAD-BEARING (document body order).
 const REGIONS = [
@@ -44,5 +45,6 @@ const REGIONS = [
   StencilDescriptionModal,
   StencilKeywordsModal,
   StencilScriptModal,
+  StencilCopyProjectModal,
 ];
 export const layout = () => REGIONS.map((r) => r.template()).join('');

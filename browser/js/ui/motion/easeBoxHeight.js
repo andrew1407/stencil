@@ -14,6 +14,9 @@ export const easeBoxHeight = (box, scroller, ms = BOX_RESIZE_MS) => {
   // (controls.css) must not, or it blocks the ease on every tab switch.
   const isScriptedFlight = (a) => a.constructor === Animation;
   const ro = new ResizeObserver(() => {
+    // Sized by hand (modal/resize.js): its rows re-wrap under a new width, and releasing the
+    // inline height would drop the window to its content (user report).
+    if (box.dataset?.userSized) { flight?.cancel(); flight = null; shown = box.offsetHeight; return; }
     if (Array.from(scroller.children)
             .some((row) => row.getAnimations({ subtree: true }).some(isScriptedFlight))) {
       if (!flight) shown = box.offsetHeight;

@@ -12,7 +12,7 @@ from tests.helpers.fixturebase import _FIXTURES, _OVERRIDES, _load
 
 from pystencil.codecs import image_dimensions
 
-_CASES = _load(_FIXTURES / "fixtures" / "imageHeader" / "cases.json")
+_CASES = _load(_FIXTURES / "imageHeader" / "cases.json")
 
 
 class ImageHeaderCorpusTests(unittest.TestCase):

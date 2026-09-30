@@ -36,7 +36,7 @@ TEST_CASE("opplan golden: every case on every core surface is byte-equal to the 
   const auto all = schemas();
   for (const auto& row : all) REQUIRE_MESSAGE(row.second->error.empty(), row.first << ": " << row.second->error);
   const auto sources = opplanCorpus::sources();
-  const Value golden = opplanCorpus::readFile(opplanCorpus::llmDir() / "fixtures/opPlan/generated/normalized.json");
+  const Value golden = opplanCorpus::readFile(opplanCorpus::llmFixturesDir() / "opPlan/generated/normalized.json");
   const Value* cases = golden.get("cases");
   REQUIRE(cases);
   CHECK(cases->items.size() >= 690);

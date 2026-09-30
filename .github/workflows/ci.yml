@@ -17,8 +17,8 @@ env:
 jobs:
   # Which jobs a change can reach. Each job below runs only when something it builds
   # or reads changed — its own tree plus the cross-tree inputs it compiles, embeds or
-  # asserts parity against (core/ for everything that recompiles it, browser/js/config/
-  # for the surfaces that embed the shared JSON, and so on; the patterns are the
+  # asserts parity against (core/ for everything that recompiles it, common/ for every
+  # surface that embeds, copies or tests against the shared data, and so on; the patterns are the
   # inventory). Markdown never feeds a build or a test, so docs-only pushes run
   # nothing. A manual run, a new branch, a force-push whose old tip is gone, or an
   # edit to this file runs the lot.
@@ -70,33 +70,35 @@ jobs:
 
           hit() { $all || printf '%s\n' "$files" | grep -Eq "$1"; }
           flag() { local v=false; hit "$2" && v=true; echo "$1=$v" >> "$GITHUB_OUTPUT"; echo "$1: $v"; }
-          cfg='^browser/js/config/'
+          # common/ is the one home of the shared tables, corpora, brand art and samples: every
+          # surface embeds, copies, serves or tests against it.
+          cfg='^common/'
           # Tests pin parity against sibling trees (browser ↔ desktop/src and both extensions'
-          # icons; browser-extension ↔ browser/js + css; vscode-extension ↔ browser/js/core/script*
-          # and colorNames.json), so those count as inputs too.
-          flag browser     '^browser/|^browser-extension/(src|icons)/|^desktop/src/|^vscode-extension/icons/'
-          flag single_file '^browser/'
-          flag browser_extension '^browser-extension/|^browser/(js|css)/'
-          flag vscode_extension '^vscode-extension/|^browser/js/core/script|^browser/js/config/colorNames\.json$'
-          flag core        '^core/'
-          flag desktop     "^desktop/|^core/|^browser/js/|^browser/favicon\.svg$"
-          flag wasm        '^core/|^browser/'
+          # icons; browser-extension ↔ browser/js + css; vscode-extension ↔ browser/js/core/script*),
+          # so those count as inputs too.
+          flag browser     "^browser/|^browser-extension/(src|icons)/|^desktop/src/|^vscode-extension/icons/|$cfg"
+          flag single_file "^browser/|$cfg"
+          flag browser_extension "^browser-extension/|^browser/(js|css)/|$cfg"
+          flag vscode_extension "^vscode-extension/|^browser/js/core/script|$cfg"
+          flag core        "^core/|$cfg"
+          flag desktop     "^desktop/|^core/|^browser/js/|$cfg"
+          flag wasm        "^core/|^browser/|$cfg"
           flag cli         "^cli/|^core/|$cfg"
           flag pystencil   "^pystencil/|^core/|$cfg"
           flag mcp         "^mcp/|^cli/|^core/|$cfg"
           flag server      "^server/|$cfg"
           flag bot         "^bot/|^cli/|^core/|$cfg"
-          flag e2e         '^e2e/|^browser/|^browser-extension/|^server/|^cli/|^core/|^docker-compose\.yml$'
+          flag e2e         "^e2e/|^browser/|^browser-extension/|^server/|^cli/|^core/|^docker-compose\.yml$|$cfg"
           flag guard       '^\.claude/(hooks/|settings\.json$)'
 
           # The image matrix: only the images whose build context changed. Each entry is
-          # image,dockerfile,context; browser/cli/mcp/bot build from the repo root.
+          # image,dockerfile,context; every image builds from the repo root.
           images=()
-          hit "^browser/|^core/|^\.dockerignore$"        && images+=("stencil-browser,browser/Dockerfile,.")
+          hit "^browser/|^core/|$cfg|^\.dockerignore$"   && images+=("stencil-browser,browser/Dockerfile,.")
           hit "^cli/|^core/|$cfg|^\.dockerignore$"       && images+=("stencil-cli,cli/Dockerfile,.")
           hit "^mcp/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-mcp,mcp/Dockerfile,.")
           hit "^bot/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-bot,bot/Dockerfile,.")
-          hit '^server/'                                  && images+=("stencil-server,server/Dockerfile,server")
+          hit "^server/|$cfg|^\.dockerignore$"          && images+=("stencil-server,server/Dockerfile,.")
           json=$(jq -cn '[$ARGS.positional[] | split(",") | {image: .[0], dockerfile: .[1], context: .[2]}]' --args ${images[@]+"${images[@]}"})
           echo "images=$json" >> "$GITHUB_OUTPUT"; echo "images: $json"
 
@@ -364,6 +366,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y g++
+      # build.py compiles the core and writes pystencil/_data/ from common/config, which the
+      # package reads at import (it is not checked in).
+      - name: Build (core + shared tables)
+        working-directory: pystencil
+        run: python3 build.py
       - name: Run Python tests
         working-directory: pystencil
         run: python3 -m unittest discover -s tests
@@ -439,6 +446,11 @@ jobs:
         run: |
           go mod verify
           go mod vendor
+      # The embedded shared tables are generated from common/config (go:embed cannot leave
+      # the module), so every build/vet/test step needs them written first.
+      - name: Generate embedded assets
+        working-directory: server
+        run: go generate -mod=vendor ./...
       - name: Build
         working-directory: server
         run: go build -mod=vendor ./...
@@ -538,7 +550,7 @@ jobs:
           BOT_TEST_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
 
   # Harness: the PreToolUse AI-harness guard (.claude/hooks/guard.mjs) is security-relevant
-  # code, tested when it changes. The .claude/tools suites run on every push, docs-only included: a
+  # code, tested when it changes. The tools suites run on every push, docs-only included: a
   # move anywhere can strand a path in any doc, and an edit to any original can drift a twin.
   guard-hook:
     name: Harness (guard hook, doc paths, twins)
@@ -554,10 +566,10 @@ jobs:
         if: needs.changes.outputs.guard == 'true'
         run: node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs
       - name: Run tools tests (doc paths resolve, twins in step)
-        run: node --test .claude/tools/*.test.mjs
+        run: node --test tools/*.test.mjs
 
   # Docker images: assert every shipped Dockerfile still builds (packaging guard, no push).
-  # browser/cli/mcp/bot compile core/ so their build context is the REPO ROOT; server is ./server.
+  # Every image builds from the REPO ROOT: browser/cli/mcp/bot compile core/, and all embed common/.
   docker-images:
     name: Docker images (build)
     runs-on: ubuntu-latest

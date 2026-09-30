@@ -75,7 +75,7 @@ namespace stencil::gui {
   void ThemePainter::syncDrawModeFace(bool rect, bool animate) {
     if (!w.tools.drawModeBtn) return;
     FaceSpec face;
-    // Siblings from the shared canon (browser/js/config/icons.json), so they carry the motion
+    // Siblings from the shared canon (common/config/icons.json), so they carry the motion
     // hooks too.
     face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line");
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");

@@ -1,5 +1,5 @@
 import { core } from '../abi/stencilCore.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 
 // A wasm-parity surface (core/page/pageMetrics): the core owns the named-size table and the

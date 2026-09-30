@@ -1,6 +1,7 @@
 # Publishes the browser app to GitHub Pages. Two things ship together:
-#   • the app itself, served as the static ES-module site it is (browser/ becomes the site
-#     root, so index.html, css/, js/, sw.js and the PWA manifest all land where they expect)
+#   • the app itself, served as the static ES-module site it is: browser/ at /browser/ beside
+#     common/ (the shared tables and brand art it imports from ../common), and a root page
+#     that forwards old links there, query and fragment included
 #   • stencil.html — the single-file build, offered from that same site as a one-file copy
 #     people can save and open offline
 # The wasm core is built fresh here, so the deployed site runs the real C++ core rather
@@ -13,12 +14,14 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
-    # The site has exactly two inputs — browser/ is its root, core/ is what the wasm
-    # module is compiled from — plus this workflow. Nothing else can change a byte of
-    # what ships, and a run here is a full Emscripten build + npm install, so a push
-    # that touches only the other subprojects or the docs deploys nothing.
+    # The site has exactly three inputs — browser/, the common/ tables and art it imports,
+    # and core/, what the wasm module is compiled from — plus this workflow. Nothing else
+    # can change a byte of what ships, and a run here is a full Emscripten build + npm
+    # install, so a push that touches only other subprojects or the docs deploys nothing.
     paths:
       - 'browser/**'
+      - 'common/config/**'
+      - 'common/icons/**'
       - 'core/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:   # deploy on demand (use this for the first run, or to force one)
@@ -81,20 +84,21 @@ jobs:
         run: npm run build
 
       # ── The site tree ──
-      # Everything the app loads at runtime, and nothing else: no tests, no dev tooling,
-      # no build config, no node_modules. The manifest's start_url/scope are relative, so
-      # the PWA works under the /<repo>/ subpath Pages serves from.
+      # Everything the app loads at runtime, and nothing else: no tests, no fixtures, no dev
+      # tooling, no build config, no node_modules. The manifest's start_url/scope and every
+      # ../common import are relative, so the PWA works under the /<repo>/ subpath Pages serves from.
       - name: Assemble _site
         run: |
-          mkdir -p _site
+          mkdir -p _site/browser _site/common
           cp -r browser/index.html browser/launch.html browser/sw.js \
-                browser/manifest.webmanifest browser/favicon.svg browser/icon-maskable.svg \
-                browser/css browser/js _site/
+                browser/manifest.webmanifest browser/css browser/js _site/browser/
+          cp -r common/config common/icons _site/common/
+          cp browser/tools/siteRoot.html _site/index.html
           cp browser/stencil.html _site/stencil.html
           # No operator has a gitignored openInConfig.json here, and the app's runtime fetch
           # of it would log a 404 on every load. The example IS the defaults it falls back
           # to, so serving that copy changes nothing but the console.
-          cp browser/js/config/openInConfig.example.json _site/js/config/openInConfig.json
+          cp browser/js/config/openInConfig.example.json _site/browser/js/config/openInConfig.json
           find _site -name '.DS_Store' -delete
           du -sh _site && ls _site
 

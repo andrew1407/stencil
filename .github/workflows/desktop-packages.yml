@@ -13,8 +13,8 @@ on:
     paths:
       - 'desktop/**'
       - 'core/**'
-      - 'browser/js/config/**'
-      - 'browser/favicon.svg'
+      - 'common/config/**'
+      - 'common/icons/**'
       - '.github/workflows/desktop-packages.yml'
       - '!**/*.md'
   pull_request:
@@ -22,8 +22,8 @@ on:
     paths:
       - 'desktop/**'
       - 'core/**'
-      - 'browser/js/config/**'
-      - 'browser/favicon.svg'
+      - 'common/config/**'
+      - 'common/icons/**'
       - '.github/workflows/desktop-packages.yml'
       - '!**/*.md'
   workflow_dispatch:

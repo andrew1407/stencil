@@ -1,5 +1,5 @@
 //! Drift guard for the CLI's brand colours: src/app/brand.zig scans the embedded
-//! browser/js/config/themeTokens.json at COMPILE time (logo.zig needs constants), so this
+//! common/config/themeTokens.json at COMPILE time (logo.zig needs constants), so this
 //! re-reads the same bytes at runtime with std.json and pins every triple. It also holds the
 //! cross-asset claims themeTokens' own brandNotes make — brand.accent is accents.json's
 //! violet preset and the `--accent` light token — so the three canons cannot drift apart.

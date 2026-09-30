@@ -16,7 +16,8 @@ const IDS = [
     'ctx-copy-img-original', 'ctx-copy-img-tint', 'ctx-paste-img',
     'ctx-dl-img', 'ctx-dl-img-sub', 'ctx-dl-img-split', 'ctx-dl-img-split-hk', 'ctx-dl-img-current',
     'ctx-dl-img-current-hk', 'ctx-dl-img-original', 'ctx-dl-img-tint',
-    'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout', 'ctx-fullscreen',
+    'ctx-copy-layout', 'ctx-paste-layout', 'ctx-dl-layout', 'ctx-ul-layout',
+    'ctx-copy-project-menu', 'ctx-copy-project-sub', 'ctx-cp-image', 'ctx-cp-layout', 'ctx-cp-project', 'ctx-fullscreen',
     'ctx-fs-label', 'ctx-fit-window', 'ctx-draw-toggle', 'ctx-draw-label', 'ctx-draw-hotkey',
     'ctx-draw-line', 'ctx-draw-rect', 'ctx-show-points', 'ctx-chk-points',
     'ctx-show-lines', 'ctx-chk-lines', 'ctx-clear-lines', 'ctx-style-menu', 'ctx-style-sub',
@@ -43,7 +44,7 @@ const IDS = [
     'crop-modal-overlay', 'crop-close', 'crop-stage', 'crop-image-el', 'crop-box',
     'crop-dims', 'crop-orientation', 'crop-cancel', 'crop-apply',
     // State-aware Image section: compact load button + image-actions group (download/copy/share/open).
-    'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn',
+    'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn', 'copy-project-btn',
     // Description & attributes section (project meta): description + keywords buttons; links-btn moved here.
     'description-btn', 'keywords-btn',
     // Context-menu Share Image item.
@@ -74,11 +75,15 @@ const IDS = [
     'chat-session-key-forget', 'chat-session-key-note',
     // Project description / keywords modals (stencil-description-modal, stencil-keywords-modal).
     'description-overlay', 'description-close', 'description-text', 'description-cancel', 'description-save',
-    'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save'
+    'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save',
+    // "Make a copy" confirmation (stencil-copy-project-modal).
+    'copy-project-modal-overlay', 'copy-project-close', 'copy-project-question', 'copy-project-local-row',
+    'copy-project-local', 'copy-project-local-label', 'copy-project-incognito-row', 'copy-project-incognito',
+    'copy-project-incognito-label', 'copy-project-cancel', 'copy-project-just', 'copy-project-newtab', 'copy-project-open'
 ];
 
-test('fixture has exactly 264 IDs', () => {
-    assert.strictEqual(IDS.length, 264);
+test('fixture has exactly 283 IDs', () => {
+    assert.strictEqual(IDS.length, 283);
 });
 
 test('every static body ID is present exactly once', () => {

@@ -1,7 +1,7 @@
 // ── Parsing + validating a model's op plan (llm-contract.md §1, §11, §13) ───
 // Model text → ONE result {status, reply, actions, variants, ask, warnings, error}; model output
-// is DATA, so nothing here throws on it. The JS twin of core/opplan/planWalk.cpp, pinned
-// byte-for-byte by fixtures/opPlan/generated/normalized.json; browserPlan.js maps it for the app.
+// is DATA, so nothing here throws on it. The JS twin of core/opplan/planWalk.cpp, pinned byte-for-byte
+// by common/fixtures/llm/opPlan/generated/normalized.json; browserPlan.js maps it for the app.
 import { ASK_LIMITS } from './schema.js';
 import { isObj, own } from './opSchemaBase.js';
 import { isStr } from './values.js';

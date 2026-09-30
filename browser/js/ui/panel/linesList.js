@@ -4,9 +4,11 @@ import { leaveThenRemove } from '../motion.js';
 import { fillState } from '../../core/layout.js';
 import { selectionPredicate, selectLineFromList, setListHoverLine } from '../../core/line/selection.js';
 import { removeLine } from '../../core/line/editOps.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import { createSwatchPicker } from './swatchPicker.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const STROKE = constants.DEFAULT_VISUALS.color;
+const { doubleClickMs, doubleTapMs } = constants.POPOVER;
 
 // Class toggle only — the list is never scrolled by a canvas hover.
 export const applyLinesListHover = (app) => {
@@ -22,9 +24,23 @@ const COLUMNS = 5;   // #, colour, line, points, remove — the header in panel/
 // One listener per event type on the body, not per row, reading the app of the latest render;
 // mouseover/out stand in for a row's enter/leave, ignoring moves between its cells.
 const wiredApp = new WeakMap();
-const wire = (body) => {
+const wire = (body, host) => {
   const rowOf = (e) => e.target?.closest?.('tr.lines-row') || null;
   const indexOf = (row) => parseInt(row.dataset.idx, 10);
+  let picker = null;
+  // A swatch click selects and opens the picker once the double-click window passes — selecting
+  // raises the selection bar and moves the list — and a second click inside it resets instead.
+  let pending = null;
+  const swatchClick = (app, i, e) => {
+    const again = pending?.idx === i;
+    if (pending) clearTimeout(pending.timer);
+    pending = null;
+    picker ??= createSwatchPicker(host);
+    if (again) { selectLineFromList(app, i); picker.reset(app, i); return; }
+    const swatch = () => body.querySelector?.(`tr.lines-row[data-idx="${i}"] .lines-swatch`) ?? null;
+    const wait = e.pointerType === 'touch' ? doubleTapMs : doubleClickMs;
+    pending = { idx: i, timer: setTimeout(() => { pending = null; selectLineFromList(app, i); picker.open(app, i, swatch()); }, wait) };
+  };
   body.addEventListener('mouseover', (e) => {
     const row = rowOf(e);
     if (row && !row.contains(e.relatedTarget)) setListHoverLine(wiredApp.get(body), indexOf(row));
@@ -43,7 +59,9 @@ const wire = (body) => {
       if (!app.compareReadOnly()) leaveThenRemove(row, () => removeLine(app, i));   // read-only compare view
       return;
     }
-    selectLineFromList(app, i, (e.ctrlKey || e.metaKey) && e.shiftKey);
+    const ctrlShift = (e.ctrlKey || e.metaKey) && e.shiftKey;
+    if (!ctrlShift && e.target.closest('.lines-swatch')) { swatchClick(app, i, e); return; }
+    selectLineFromList(app, i, ctrlShift);
   });
 // Delete/Backspace scoped to a focused row, like the points table's rows; Alt+Delete stays global.
   body.addEventListener('keydown', (e) => {
@@ -65,7 +83,7 @@ export const renderLinesList = (app) => {
   const table = document.getElementById('lines-list');
   const el = table?.tBodies?.[0];
   if (!table || !el || table.style.display === 'none') return;
-  if (!wiredApp.has(el)) wire(el);
+  if (!wiredApp.has(el)) wire(el, table.parentElement ?? table);
   wiredApp.set(el, app);
   el.replaceChildren();
   if (!app.lines.length) {

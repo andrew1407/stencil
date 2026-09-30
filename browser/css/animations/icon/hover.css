@@ -7,9 +7,9 @@
    settling back to their default size), the chain links join, the sun shakes, the
    fullscreen corners extend — or retract, on the control that LEAVES fullscreen.
 
-   The table is canonical data (js/config/iconMotion.json) because the desktop app and
+   The table is canonical data (common/config/iconMotion.json) because the desktop app and
    the extension draw the same glyphs and must mime the same things; the part hooks it
-   addresses (class="ic-lid", "ic-arrow", "ic-rays"…) live in js/config/icons.json and
+   addresses (class="ic-lid", "ic-arrow", "ic-rays"…) live in common/config/icons.json and
    are inert for every non-CSS consumer — Qt's QSvgRenderer just ignores them.
 
    Two modes, one trigger. `--ic-on` is a 0/1 latch the hovered control flips: a HOLD
@@ -94,6 +94,10 @@
 .ic-script .ic-cog, .ic-chat-settings .ic-cog {
     --ic-ms: 0.3s; transform-origin: 16.6px 17.6px; transform: rotate(calc(var(--ic-on) * 45deg));
 }
+/* The brackets part and the slash tips: the source opening up for an editor. */
+.ic-code .ic-br-l  { transform: translateX(calc(var(--ic-on) * -1.2px)); }
+.ic-code .ic-br-r  { transform: translateX(calc(var(--ic-on) * 1.2px)); }
+.ic-code .ic-slash { transform-origin: 12px 12px; transform: rotate(calc(var(--ic-on) * 12deg)); }
 .ic-sun           { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
 .ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
@@ -124,6 +128,9 @@
 .ic-copy .ic-front { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * 1px)); }
 .ic-copy .ic-back  { transform: translate(calc(var(--ic-on) * -0.8px), calc(var(--ic-on) * -0.8px)); }
 .ic-clipboard .ic-clip { transform: translateY(calc(var(--ic-on) * -1.2px)); }
+/* The sheet underneath slides out and the new one's plus turns: a copy peeling off. */
+.ic-duplicate .ic-back { transform: translate(calc(var(--ic-on) * -1px), calc(var(--ic-on) * -1px)); }
+.ic-duplicate .ic-plus { --ic-ms: 0.3s; transform-origin: 15.5px 15.5px; transform: rotate(calc(var(--ic-on) * 90deg)); }
 /* The overflow dots spread — the menu about to open out. */
 .ic-more .ic-dot-l { transform: translateX(calc(var(--ic-on) * -1.4px)); }
 .ic-more .ic-dot-r { transform: translateX(calc(var(--ic-on) * 1.4px)); }

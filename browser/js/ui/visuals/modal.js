@@ -10,7 +10,7 @@ import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { wireVoiceSilenceRow } from './voiceRow.js';
 import { wireNotifyRow } from './notifyRow.js';
 import { clampThickness, clampPointSize } from '../../core/settings/limits.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() { return visualsModalInner(); }

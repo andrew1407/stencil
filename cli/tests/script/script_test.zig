@@ -100,10 +100,10 @@ test "an @undo reaches the pixels: the save after it has no rect in it" {
     const with_rect = "stencil_script_undo_one.png";
     const undone = "stencil_script_undo_two.png";
     const filter_only = "stencil_script_undo_three.png";
-    try dir.writeFile(io, .{ .sub_path = stc, .data = "@source tests/fixtures/sample.png:\n" ++
+    try dir.writeFile(io, .{ .sub_path = stc, .data = "@source ../common/samples/sample.png:\n" ++
         "    @filter bw\n    @rect (0,0) (9,9)\n    @save " ++ with_rect ++ "\n" ++
         "    @undo\n    @save " ++ undone ++ "\n" ++
-        "@source tests/fixtures/sample.png:\n    @filter bw\n    @save " ++ filter_only ++ "\n" });
+        "@source ../common/samples/sample.png:\n    @filter bw\n    @save " ++ filter_only ++ "\n" });
     defer dir.deleteFile(io, stc) catch {};
     defer dir.deleteFile(io, with_rect) catch {};
     defer dir.deleteFile(io, undone) catch {};

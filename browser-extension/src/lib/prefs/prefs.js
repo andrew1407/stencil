@@ -1,6 +1,6 @@
 // First of the pre-paint classic scripts (see accent.js): publishes window.StencilKit.
 // Choices live in localStorage — synchronous, unlike chrome.storage.sync, which would flash.
-// ACCENTS is a checked-in copy of browser/js/config/accents.json, pinned by tests/dataParity.test.js.
+// ACCENTS is a checked-in copy of common/config/accents.json, pinned by tests/dataParity.test.js.
 (function () {
   const ACCENTS = [
     { key: 'violet',    label: 'Violet',      hex: '#7c3aed' },

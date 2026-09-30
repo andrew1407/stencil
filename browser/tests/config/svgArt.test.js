@@ -10,9 +10,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import ART from '../../js/config/svgArt.json' with { type: 'json' };
-import ICONS from '../../js/config/icons.json' with { type: 'json' };
-import ACCENTS from '../../js/config/accents.json' with { type: 'json' };
+import ART from '../../../common/config/svgArt.json' with { type: 'json' };
+import ICONS from '../../../common/config/icons.json' with { type: 'json' };
+import ACCENTS from '../../../common/config/accents.json' with { type: 'json' };
 import { faviconSvg } from '../../js/core/settings/accents.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -29,7 +29,7 @@ const elements = (svg) => [...svg.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([a
 
 test('the favicon art draws exactly what favicon.svg draws', () => {
   const painted = elements(faviconSvg(ACCENTS[0].hex));
-  const onDisk = elements(read('favicon.svg'));
+  const onDisk = elements(read('../common/icons/favicon.svg'));
   assert.equal(painted.length, onDisk.length, 'the two marks have a different element count');
   // The root <svg> alone may differ, since the file carries role/aria-label a data: URI has no use for:
   // everything after it — panel, frame, polyline, the seven points — must match attribute for attribute.
@@ -41,7 +41,7 @@ test('the favicon art draws exactly what favicon.svg draws', () => {
 // Two surfaces ship the mark as a FILE, where the browser cannot import it from: the Chrome
 // extension's action icon and the VS Code extension's logo source. Same art, or they drift.
 test('the extension icon files are the same mark as favicon.svg', () => {
-  const onDisk = elements(read('favicon.svg'));
+  const onDisk = elements(read('../common/icons/favicon.svg'));
   for (const copy of ['../browser-extension/icons/icon.svg', '../vscode-extension/icons/stencil.svg'])
     assert.deepEqual(elements(read(copy)), onDisk, `${copy} drifted from favicon.svg`);
 });

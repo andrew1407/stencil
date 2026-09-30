@@ -126,6 +126,12 @@
       "detail": "Hands the facade back, so calls chain.",
       "example": "stencil.copyLayout();"
     },
+    "copyProject": {
+      "group": "projects",
+      "signature": "stencil.copyProject(opts: CopyProjectRequest): Promise<Project | null>",
+      "summary": "Make a copy of what the editor shows as <name>-copy: the image only, with its layout, or the whole project; the new local project, or null for an incognito or server copy.",
+      "example": "const copy = await stencil.copyProject({ what: 'layout', open: 'here' });"
+    },
     "copyServerProjectToIncognito": {
       "group": "servers",
       "signature": "stencil.copyServerProjectToIncognito(meta: RemoteProjectMeta, opts?: { newTab?: boolean }): Promise<unknown>",

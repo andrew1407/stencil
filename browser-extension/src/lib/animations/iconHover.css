@@ -1,7 +1,7 @@
 /* ── Icon hover: every glyph mimes its own action ────────────────────────────
    browser css/animations/icon/hover.css icon-motion twin, cut to the glyphs lib/icons.js
    actually carries (a deliberate SUBSET, pinned by tests/dataParity.test.js). The
-   canonical design table is browser/js/config/iconMotion.json: ONE motion per glyph,
+   canonical design table is common/config/iconMotion.json: ONE motion per glyph,
    matched to what that glyph's action DOES. One generic move for all of them is worse
    than none — a minus that swells reads as "increase" — so the trash lid lifts, the
    download arrow travels down, the crop brackets close in on the region, the sun

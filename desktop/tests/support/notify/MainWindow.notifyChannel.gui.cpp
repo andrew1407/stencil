@@ -3,6 +3,7 @@
 // Shared ground (helpers, the loaded window) is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "../../../src/support/control/dblReset.hpp"
+#include "../../../src/support/modal/modalChrome.hpp"
 #include <memory>
 
 namespace {
@@ -51,6 +52,22 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(dlg.result().notifyChannel, QString("system"));
     // The rows this dialog does not edit ride through untouched.
     QCOMPARE(dlg.result().motionMode, win.settings.motionMode);
+  }
+
+  void theRowsSelectGrowsWithAWidenedWindow() {
+    // The control column is 180 at the width the window opens at and scales with it (browser
+    // --vs-ctrl-pct), so widening the window widens the controls, not the gap before them.
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    stencil::gui::SettingsDialog dlg(win.settings, &win);
+    auto* combo = dlg.findChild<QComboBox*>(QStringLiteral("notifyChannelCombo"));
+    QVERIFY(combo);
+    dlg.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dlg));
+    dlg.resize(stencil::gui::MODAL_WIDTH, 600);
+    QCOMPARE(combo->width(), 180);
+    dlg.resize(stencil::gui::MODAL_WIDTH * 2, 600);
+    QCOMPARE(dlg.width(), stencil::gui::MODAL_WIDTH * 2);
+    QCOMPARE(combo->width(), 360);
   }
 
   void settingRoundTripsThroughTheStoreAndReset() {

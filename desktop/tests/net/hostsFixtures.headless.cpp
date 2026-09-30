@@ -1,4 +1,4 @@
-// The shared SSRF host corpus (browser/js/config/fixtures/net/hosts.json) through the real guard:
+// The shared SSRF host corpus (common/fixtures/net/hosts.json) through the real guard:
 // each host read as the address it names (or as a name), then judged under all four policy variants
 // of net/blockedRanges.json, as a bare literal and, for `fetch`, inside a URL. A local override
 // (tests/fixtureOverrides.json, "net/<name>") replaces verdicts with measured ones.
@@ -63,7 +63,7 @@ namespace {
 void checkHostsCorpus() {
   std::printf("host corpus (fixtures/net/hosts.json, net/blockedRanges.json):\n");
   check(ranges::tableError().isEmpty(), "the net/blockedRanges.json qrc alias loads");
-  const QJsonArray cases = readJsonFile(corpusPath("fixtures/net/hosts.json")).array();
+  const QJsonArray cases = readJsonFile(corpusPath("net/hosts.json")).array();
   check(cases.size() >= 80, qPrintable(QStringLiteral("hosts.json holds %1 cases").arg(cases.size())));
   int overridden = 0;
   for (const QJsonValue& cv : cases) {

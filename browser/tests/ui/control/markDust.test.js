@@ -114,6 +114,15 @@ test('showing sets display at once; hiding collapses the slot before it goes', (
   revealControls(plain, true, 'flex', { dust: false });
   assert.equal(plain.__dustHost ?? null, null);
   assert.ok(plain.classes.has('reveal-group-transition'));
+  // Revealed inside a window still display:none (a modal's onOpen) or still forming: no flight.
+  const unseen = boxEl(() => rect(0, 0, 0, 0));
+  unseen.style.display = 'none';
+  assert.equal(revealControls(unseen, true), false);
+  assert.deepEqual([unseen.style.display, unseen.__dustHost ?? null], ['inline-flex', null]);
+  const forming = group();
+  forming.closest = (sel) => (sel === '.surface-forming' ? {} : null);
+  assert.equal(revealControls(forming, true), false, 'a window still forming brings it with its own flight');
+  assert.deepEqual([forming.style.display, forming.__dustHost ?? null], ['inline-flex', null]);
   // A DECLINED flight hides at once.
   setMotionPrefs({ mode: 'none' });
   assert.equal(revealControls(timed, false), false);

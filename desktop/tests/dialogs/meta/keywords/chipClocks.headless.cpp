@@ -1,4 +1,4 @@
-// The keyword chips' clocks come from browser/js/config/motion.json the way the browser's keyword
+// The keyword chips' clocks come from common/config/motion.json the way the browser's keyword
 // chips read them: the cloud and the leave on CHIP_DUST_MS, the fade up held CHIP_ENTER_DELAY_MS and
 // then run over CHIP_ENTER_MS; read, fallback and table agree, and the fade's curve holds, then rises.
 #include "chipClocks.hpp"

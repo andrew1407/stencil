@@ -1,4 +1,4 @@
-// The coordinate panel's fold clocks come from browser/js/config/motion.json (PANEL_*), the table
+// The coordinate panel's fold clocks come from common/config/motion.json (PANEL_*), the table
 // the browser's panel/coordFold.js reads: read, fallback and table agree on the fold's clocks.
 #include "PanelSlide.hpp"
 

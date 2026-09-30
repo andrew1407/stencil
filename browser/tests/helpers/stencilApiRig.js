@@ -172,7 +172,7 @@ export const makeApp = (over = {}) => {
     'openRemoteProjectInNewTab', 'clearAllProjects', 'renewProject', 'setProjectExpiration', 'renameProject',
     'setProjectColor', 'setProjectKeywords', 'setProjectDescription', 'setProjectBlankColor', 'removeProject',
     'moveProjectToServer', 'copyProjectToServer', 'moveProjectToLocal', 'copyServerProjectToLocal',
-    'copyServerProjectToIncognito']);
+    'copyServerProjectToIncognito', 'copyProject']);
   return app;
 };
 

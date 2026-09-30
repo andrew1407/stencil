@@ -1,6 +1,6 @@
 // A signal that aborts a fetch after `ms` (the runtime's own AbortError/TimeoutError);
 // undefined where the platform has neither API.
-import constants from '../config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 export const NET_TIMEOUT_MS = constants.NETWORK.fetchTimeoutMs;
 

@@ -26,7 +26,7 @@ from pystencil.layout import (
   DEFAULT_THICKNESS,
 )
 
-_PROJECT_DIR = _FIXTURES / "fixtures" / "stencilProject"
+_PROJECT_DIR = _FIXTURES / "stencilProject"
 # Parsed once per module, not once per test method.
 _VALID = _load(_PROJECT_DIR / "valid.json")
 _INVALID = _load(_PROJECT_DIR / "invalid.json")

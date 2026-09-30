@@ -1,4 +1,4 @@
-// The webcore skin's glyphs: iconsWebcore.json (a byte copy of browser/js/config/iconsWebcore.json,
+// The webcore skin's glyphs: iconsWebcore.json (a byte copy of common/config/iconsWebcore.json,
 // tests/dataParity.test.js) as <rect> runs on a 16-grid, swapped into every svg.ic, the header
 // mark and the crop page's <img> mark. Browser twin: js/ui/webcore/icons.js.
 import PIXELS from './iconsWebcore.json' with { type: 'json' };

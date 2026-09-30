@@ -92,6 +92,13 @@
       QWidget#scriptMenuPanel QPushButton {
         font-size: 12px; padding: 4px 9px; min-height: 14px;
       }
+      /* The script window as a toolbar popover (420 wide): its bar at the flyout's scale, so the
+         five labels fit whole (browser #script-overlay.modal-popover). */
+      QWidget#popoverOverlay QDialog#stencilScriptDialog QPushButton[accentCta="true"],
+      QWidget#popoverOverlay QDialog#stencilScriptDialog QPushButton[dangerCta="true"],
+      QWidget#popoverOverlay QDialog#stencilScriptDialog QPushButton[successCta="true"] {
+        font-size: 12px; padding: 4px 6px; min-height: 14px; icon-size: 13px;
+      }
       /* Empty-state prompt chips (browser .chat-suggest, llm/dock/ChatDockChrome.cpp): a quiet
          pill whose radius is half its height — Qt squares the box off above that. */
       QPushButton#chatSuggestChip { padding: 4px 12px; border-radius: 14px; }

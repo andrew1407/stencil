@@ -3,6 +3,7 @@
 // the toolbar uses, most calls return the facade (or a Project / Line / Point) to chain.
 import type { DrawingApp } from '../core/drawingApp.js';
 import type { CodecLine } from '../core/line/linesCodec.js';
+import type { CopyProjectRequest } from '../core/project/copy/options.js';
 import type { LayoutPayload, WireCropRect } from '../core/layout.js';
 import type { ConnectSpec } from '../net/connectionManager.js';
 import type { TaggedRemoteProject } from '../net/serverConnection.js';
@@ -114,6 +115,8 @@ export interface Stencil extends StencilSettings {
   getProjectByName(name: string): Project | null;
   getProjectsByKeyword(...keywords: (string | string[])[]): Project[];
   expire(spec?: string): Project | string;
+  /** "Make a copy" of the live editor: the new local project, or null for an incognito or server copy. */
+  copyProject(opts: CopyProjectRequest): Promise<Project | null>;
 
   // Servers
   connect(urlOrUrls: ConnectSpec | ConnectSpec[]): Promise<Stencil>;

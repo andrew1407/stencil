@@ -1,7 +1,7 @@
 
       /* The webcore overlay: appended after the app sheet while the skin is on (support/webcore/
          stylesheet.cpp), so a rule here wins its twin above at equal weight. %WC_*% are the
-         browser's --wc-* tokens (js/config/webcore.json); the bevel is a light top-left edge
+         browser's --wc-* tokens (common/config/webcore.json); the bevel is a light top-left edge
          and a dark bottom-right one, as QSS has no box-shadow. */
       * { font-family: %WC_FONT%; font-size: %WC_FONT_PX%px; }
       /* The window's own face; the teal workspace is what the canvas frame is sunk INTO. */

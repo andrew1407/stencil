@@ -80,3 +80,8 @@ stencil_headless_test(stencil_coedit_headless
 stencil_headless_test(stencil_serverlist_headless
   SOURCES tests/net/serverList.headless.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Gui Qt6::Network)
+
+# POST /projects sends the optional fields a caller hands it (a copy's blank colour and expiry).
+stencil_headless_test(stencil_servercreate_headless
+  SOURCES tests/net/serverCreate.headless.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Gui Qt6::Network)

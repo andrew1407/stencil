@@ -1,4 +1,4 @@
-//! The SSRF address table (browser/js/config/net/blockedRanges.json, embedded) and its evaluator:
+//! The SSRF address table (common/config/net/blockedRanges.json, embedded) and its evaluator:
 //! classes of CIDRs, the IPv6 prefixes that carry an IPv4 address, and the two policies —
 //! `fetch` and `serverTarget` — each with the option that relaxes it. Semantics: its README.
 const std = @import("std");

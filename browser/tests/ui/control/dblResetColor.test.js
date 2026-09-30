@@ -1,0 +1,109 @@
+// Tests for js/ui/control/dblReset.js's colour fields: a double-click puts one with a stated default
+// back through its own change path, and its native picker waits out the double-click window.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
+
+globalThis.Element ??= class extends EventTarget {};
+globalThis.HTMLInputElement ??= class extends globalThis.Element {};
+const { defaultOf, resetControl, resetTarget, installDblReset } = await import('../../../js/ui/control/dblReset.js');
+
+const { doubleClickMs, doubleTapMs } = constants.POPOVER;
+const toolbar = { value: '#123456' };
+const doc = { getElementById: (id) => (id === 'line-color' ? toolbar : null) };
+
+class ColorField extends globalThis.HTMLInputElement {
+  constructor(props) {
+    super();
+    Object.assign(this, { type: 'color', disabled: false, dataset: {}, ownerDocument: doc, defaultValue: '#000000', picks: 0 }, props);
+  }
+  closest() { return null; }
+  showPicker() { this.picks++; }
+}
+const events = (el) => {
+  const seen = [];
+  for (const t of ['input', 'change']) el.addEventListener(t, () => seen.push(`${t}:${el.value}`));
+  return seen;
+};
+const click = (target, detail, pointerType = 'mouse') => {
+  const e = { target, detail, pointerType, prevented: false, preventDefault() { e.prevented = true; } };
+  return e;
+};
+const rig = () => {
+  const listeners = {};
+  installDblReset({ addEventListener: (type, fn) => (listeners[type] ??= []).push(fn) });
+  return (type, e) => listeners[type].forEach((fn) => fn(e));
+};
+
+test('the toolbar colour resets to the default line colour; a line\'s own, to the toolbar\'s', () => {
+  assert.equal(defaultOf(new ColorField({ id: 'line-color', value: '#ff0000' })), '#ffff00');
+  assert.equal(defaultOf(new ColorField({ id: 'sel-color', value: '#ff0000' })), '#123456');
+  assert.equal(defaultOf(new ColorField({ id: 'fs-sel-color', value: '#ff0000' })), '#123456');
+  assert.equal(defaultOf(new ColorField({ id: 'x', dataset: { default: '#ABC' } })), '#aabbcc');
+});
+
+test('a colour reset fires input then change, once, and only when the colour moves', () => {
+  const el = new ColorField({ id: 'line-color', value: '#ff0000' });
+  const seen = events(el);
+  assert.equal(resetControl(el), true);
+  assert.deepEqual(seen, ['input:#ffff00', 'change:#ffff00']);
+  el.value = '#FFFF00';
+  assert.equal(resetControl(el), false, 'the same colour in another case is no move');
+  assert.equal(resetControl(new ColorField({ id: 'line-color', value: '#ff0000', disabled: true })), false);
+});
+
+test('only a colour field with a stated default is a reset target', () => {
+  const stated = new ColorField({ id: 'sel-color' });
+  assert.equal(resetTarget(stated), stated);
+  assert.equal(resetTarget(new ColorField({ id: 'filter-color' })), null);
+});
+
+test('a click waits out the double-click window before opening the picker', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fire = rig();
+  const el = new ColorField({ id: 'line-color', value: '#ff0000' });
+  const e = click(el, 1);
+  fire('click', e);
+  assert.equal(e.prevented, true, 'the native picker does not open on the press');
+  t.mock.timers.tick(doubleClickMs - 1);
+  assert.equal(el.picks, 0);
+  t.mock.timers.tick(1);
+  assert.equal(el.picks, 1);
+  assert.equal(el.value, '#ff0000', 'a single click never resets');
+});
+
+test('a second click inside the window resets instead of opening; a tap waits the tap window', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fire = rig();
+  const el = new ColorField({ id: 'sel-color', value: '#ff0000' });
+  const seen = events(el);
+  fire('click', click(el, 1, 'touch'));
+  t.mock.timers.tick(doubleClickMs);
+  assert.equal(el.picks, 0, 'a tap waits longer than a click');
+  fire('click', click(el, 1, 'touch'));
+  t.mock.timers.tick(doubleTapMs);
+  assert.equal(el.picks, 0);
+  assert.deepEqual(seen, ['input:#123456', 'change:#123456']);
+});
+
+test('a keyboard press, or a field without a default, opens natively', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const fire = rig();
+  const keyed = click(new ColorField({ id: 'line-color' }), 0);
+  fire('click', keyed);
+  const plain = click(new ColorField({ id: 'filter-color' }), 1);
+  fire('click', plain);
+  t.mock.timers.tick(doubleTapMs);
+  assert.deepEqual([keyed.prevented, plain.prevented, keyed.target.picks, plain.target.picks], [false, false, 0, 0]);
+});
+
+test('a double-click on the document resets the field under it and stops there', () => {
+  const fire = rig();
+  const el = new ColorField({ id: 'sel-color', value: '#ff0000' });
+  let stopped = false;
+  fire('dblclick', { target: el, stopPropagation: () => { stopped = true; } });
+  assert.deepEqual([el.value, stopped], ['#123456', true]);
+  stopped = false;
+  fire('dblclick', { target: el, stopPropagation: () => { stopped = true; } });
+  assert.equal(stopped, false, 'already at its default: the double-click passes on');
+});

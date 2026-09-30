@@ -181,3 +181,37 @@ TEST_CASE("clearAll empties the registry") {
   CHECK(s.list().empty());
   CHECK(s.find("a") == nullptr);
 }
+
+// Mirrors browser/tests/core/project/meta/projectCopyName.test.js case for case.
+static ProjectsStore named(std::initializer_list<const char*> names) {
+  std::vector<ProjectMeta> reg;
+  long long i = 0;
+  for (const char* n : names) { reg.push_back(mk("p" + std::to_string(i), n, i)); ++i; }
+  ProjectsStore s;
+  s.load(reg);
+  return s;
+}
+
+TEST_CASE("copySuffixName: -copy, then the lowest free -copy(N)") {
+  CHECK(named({"photo"}).copySuffixName("photo") == "photo-copy");
+  CHECK(named({"photo", "photo-copy"}).copySuffixName("photo") == "photo-copy(1)");
+  CHECK(named({"photo-copy", "photo-copy(1)", "photo-copy(3)"}).copySuffixName("photo") == "photo-copy(2)");
+  CHECK(named({"photo", "photo-copy"}).copySuffixName("photo-copy") == "photo-copy(1)");
+  CHECK(named({"photo-copy", "photo-copy(1)", "photo-copy(2)"}).copySuffixName("photo-copy(2)") == "photo-copy(3)");
+  CHECK(named({"  PHOTO-COPY "}).copySuffixName("photo") == "photo-copy(1)");
+  CHECK(named({}).copySuffixName("  photo  ") == "photo-copy");
+  CHECK(named({}).copySuffixName("   ") == "Untitled-copy");
+  CHECK(named({}).copySuffixName("-copy(4)") == "Untitled-copy");
+  CHECK(named({}).copySuffixName("a-copy b") == "a-copy b-copy");
+}
+
+TEST_CASE("copySuffixName: a long base is cut so the whole name fits MAX_NAME_LENGTH") {
+  const std::string first = named({}).copySuffixName(std::string(100, 'x'));
+  CHECK(first == std::string(75, 'x') + "-copy");
+  CHECK(first.size() == ProjectsStore::MAX_NAME_LENGTH);
+  const std::string second = named({first.c_str()}).copySuffixName(std::string(100, 'x'));
+  CHECK(second == std::string(72, 'x') + "-copy(1)");
+  // A two-byte character straddling the cut is dropped whole, never split.
+  const std::string wide = std::string(74, 'x') + "\xC3\xA9" + "tail";
+  CHECK(named({}).copySuffixName(wide) == std::string(74, 'x') + "-copy");
+}

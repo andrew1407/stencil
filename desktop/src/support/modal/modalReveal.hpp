@@ -39,6 +39,8 @@ namespace stencil::support {
   QRect gestureAnchorRect();
   // The icon an action about to run stands for (null when it has no visible one).
   void noteActionAnchor(QWidget* icon);
+  // Where a close rises to when the home it names is folded away (browser shell.js: up, not the canvas).
+  QRect riseRect(const QDialog& dlg);
 
   // The same flight for a non-modal window: dismissWindow() hides it and flies a snapshot back.
   // veilForReveal() goes BEFORE the window maps: shown first, it stood whole for a frame.

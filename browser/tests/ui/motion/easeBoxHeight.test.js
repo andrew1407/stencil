@@ -86,6 +86,19 @@ test('the FIRST settle only records the height — there is nothing yet to fly f
   stop();
 });
 
+test('a box the user sized by hand keeps that height when its rows re-wrap', () => {
+  // Widening Open Image by its edge re-wraps the rows; releasing the held height dropped the
+  // window to its content in one frame (user report).
+  const { box, stop } = rig(300, [makeRow()]);
+  observer.cb();
+  box.dataset = { userSized: '1' };
+  box.style.height = '430px';
+  box.natural = 250;
+  observer.cb();
+  assert.deepStrictEqual([box.style.height, box.flights.length], ['430px', 0]);
+  stop();
+});
+
 test('a later change eases from the height last shown to the box\'s own natural one', () => {
   const { box, stop } = rig(300, [makeRow()]);
   observer.cb();            // 300 is what is on screen

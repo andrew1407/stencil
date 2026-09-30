@@ -89,6 +89,8 @@ namespace stencil::gui {
                              const QString& refreshPeriod, bool autoRefresh);
     // `closeRect` is the row's "⋯" chip in GLOBAL coords, where the dialog flies back to.
     void openInRequested(const QString& id, const QString& serverUrl, const QRect& closeRect);
+    // "Make a copy" of a row (a stay-open request too); `scope` is a support::CopyScope.
+    void copyRequested(const QString& id, const QString& serverUrl, int scope, const QRect& closeRect);
 
    protected:
     // Run in THIS order; filterHoverPreview only observes, an answer from the rest ends the chain.

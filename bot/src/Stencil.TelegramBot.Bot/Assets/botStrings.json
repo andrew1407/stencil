@@ -1,5 +1,5 @@
 {
-  "_doc": "The bot's chat copy: reply text (keyed; {0}-style placeholders are filled in order) and inline-button labels with their callback tokens ([label, token]). Bot-specific, so it lives here rather than in browser/js/config. Pinned byte-for-byte by the Goldens/ text goldens.",
+  "_doc": "The bot's chat copy: reply text (keyed; {0}-style placeholders are filled in order) and inline-button labels with their callback tokens ([label, token]). Bot-specific, so it lives here rather than in common/config. Pinned byte-for-byte by the Goldens/ text goldens.",
   "tones": {
     "Error": "🔴",
     "Warning": "🟡",

@@ -3,7 +3,7 @@
 // in a new one, and inert wherever the storage is missing or refuses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import PROVIDERS_ASSET from '../../js/config/llm/providers.json' with { type: 'json' };
+import PROVIDERS_ASSET from '../../../common/config/llm/providers.json' with { type: 'json' };
 import { createMemoryStorage, installMemoryStorage } from '../helpers/memoryStorage.js';
 
 const local = installMemoryStorage();

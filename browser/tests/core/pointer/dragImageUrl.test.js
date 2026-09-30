@@ -183,30 +183,30 @@ test('text/x-moz-url ("URL\\ntitle") is a source too', () => {
 // github.com answers /raw/ and /blob/ with a 302 whose Access-Control-Allow-Origin is empty, so the
 // browser refuses the redirect; raw.githubusercontent.com answers 200 with 'access-control-allow-origin: *'.
 test('a github /raw/ url gains its raw.githubusercontent twin directly after it', () => {
-  const raw = 'https://github.com/andrew1407/stencil/raw/main/browser/favicon.svg';
-  const cdn = 'https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg';
+  const raw = 'https://github.com/andrew1407/stencil/raw/main/common/icons/favicon.svg';
+  const cdn = 'https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg';
   assert.deepEqual(extractDraggedImageUrls(reader({ 'text/uri-list': raw })), [raw, cdn],
     'the original is still tried first');
 });
 
 test('the twin keeps a multi-segment ref and a /blob/ path maps the same way', () => {
   const twin = (u) => extractDraggedImageUrls(reader({ 'text/uri-list': u }))[1];
-  assert.equal(twin('https://github.com/andrew1407/stencil/raw/refs/heads/main/browser/favicon.svg'),
-    'https://raw.githubusercontent.com/andrew1407/stencil/refs/heads/main/browser/favicon.svg');
-  assert.equal(twin('https://github.com/andrew1407/stencil/blob/main/browser/favicon.svg?raw=true'),
-    'https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg?raw=true');
+  assert.equal(twin('https://github.com/andrew1407/stencil/raw/refs/heads/main/common/icons/favicon.svg'),
+    'https://raw.githubusercontent.com/andrew1407/stencil/refs/heads/main/common/icons/favicon.svg');
+  assert.equal(twin('https://github.com/andrew1407/stencil/blob/main/common/icons/favicon.svg?raw=true'),
+    'https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg?raw=true');
 });
 
 test('an unrelated url gains nothing, and neither does a github page url', () => {
   for (const u of ['https://cdn.test/a.png', 'https://andrew1407.github.io/stencil/',
     'https://github.com/andrew1407/stencil/tree/main/bot/assets',
-    'https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg'])
+    'https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg'])
     assert.deepEqual(extractDraggedImageUrls(reader({ 'text/uri-list': u })), [u], u);
 });
 
 test('the walk reaches the twin when the original is blocked', async () => {
-  const raw = 'https://github.com/andrew1407/stencil/raw/main/browser/favicon.svg';
-  const cdn = 'https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg';
+  const raw = 'https://github.com/andrew1407/stencil/raw/main/common/icons/favicon.svg';
+  const cdn = 'https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg';
   const calls = [];
   globalThis.fetch = async (u) => {
     calls.push(u);

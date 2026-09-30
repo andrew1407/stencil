@@ -1,5 +1,5 @@
 //! What the CLI counts as video, and how a format token is normalised — parsed from the
-//! canonical shared JSON (browser/js/config/mediaTypes.json, embedded at build time), the one
+//! canonical shared JSON (common/config/mediaTypes.json, embedded at build time), the one
 //! asset the browser, extension and desktop read for the same questions. Follows theme.zig:
 //! parsed lazily on first use (std.json needs an allocator comptime can't provide) into static
 //! storage; the strings slice into the embedded JSON, and the CLI is single-threaded.

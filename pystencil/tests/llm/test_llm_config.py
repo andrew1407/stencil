@@ -8,7 +8,7 @@ import unittest
 from pystencil.llm import LlmConfig, Variant, variant_slug, variant_slugs
 from pystencil.llm.config import KEY_TTL_SECONDS
 from tests.helpers.anthropicmock import FAKE_KEY, FakeClock
-from tests.helpers.fixturebase import _FIXTURES
+from tests.helpers.fixturebase import _CONFIG
 
 
 class LlmConfigTest(unittest.TestCase):
@@ -88,7 +88,7 @@ class AnthropicSessionKeyTest(unittest.TestCase):
     self.assertEqual((cfg.provider, cfg.api_key), ("anthropic", FAKE_KEY))
 
   def test_the_ttl_is_the_assets(self) -> None:
-    with open(_FIXTURES / "llm" / "providers.json", encoding="utf-8") as fh:
+    with open(_CONFIG / "llm" / "providers.json", encoding="utf-8") as fh:
       minutes = json.load(fh)["providers"]["anthropic"]["sessionKey"]["ttlMinutes"]
     self.assertEqual(KEY_TTL_SECONDS, minutes * 60)
 

@@ -5,7 +5,7 @@ use stencil_mcp::locate;
 /// The 16x12 PNG fixture shared with the CLI's own test suite.
 pub const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../cli/tests/fixtures/sample.png"
+    "/../common/samples/sample.png"
 );
 
 pub fn cli_present() -> bool {

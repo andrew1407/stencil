@@ -30,8 +30,13 @@ bot/**/bin
 bot/**/obj
 bot/packages
 
-# Go server: local dependency copy from `go mod vendor` (not shipped in these images).
+# Go server: local dependency copy from `go mod vendor` (not shipped), its local data and
+# binary, and the asset copies `go generate` writes in the image from common/config.
 server/vendor
+server/data
+server/stencil-server
+server/internal/config/assets/providers.json
+server/internal/httpapi/assets/systemPrompt.json
 
 # Docs / editor
 **/*.md

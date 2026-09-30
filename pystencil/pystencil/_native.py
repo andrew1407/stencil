@@ -37,6 +37,16 @@ def __load_build():
   return module
 
 
+def sync_data() -> None:
+  """Refresh _data/ from a checkout's common/config before any module reads it; an install has no build_data.py."""
+  script = _BUILD_PY.parent / "build_data.py"
+  if not script.exists(): return
+  spec = importlib.util.spec_from_file_location("pystencil._build_data", script)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  module.sync(_BUILD_PY.parent.parent / "common" / "config", Path(__file__).resolve().parent / "_data")
+
+
 def find_or_build(build_if_missing: bool = True) -> str:
   """Return a filesystem path to the shared core library.
 

@@ -7,8 +7,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import UI_STRINGS from '../../js/config/uiStrings.json' with { type: 'json' };
-import HOTKEY_DEFS from '../../js/config/hotkeysConfig.json' with { type: 'json' };
+import UI_STRINGS from '../../../common/config/uiStrings.json' with { type: 'json' };
+import HOTKEY_DEFS from '../../../common/config/hotkeysConfig.json' with { type: 'json' };
 import { layout } from '../../js/ui/layout.js';
 import {
   CHAT_SUGGESTIONS, chatSuggestionsHtml,

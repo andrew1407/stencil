@@ -24,9 +24,7 @@
 namespace stencil::gui {
 
   namespace {
-    // The browser's ONE control column (components.css --vs-ctrl-w / --vs-ctrl-h).
-    constexpr int CTRL_W = 180;
-    constexpr int CTRL_H = 30;
+    constexpr int CTRL_H = 30;   // the browser's ONE control column height (--vs-ctrl-h)
     constexpr const char* DEF_ACCENT = DEFAULT_ACCENT_KEY;
     // ui/motion/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
     constexpr bool DEF_DRAW_ANIM = true;
@@ -98,7 +96,10 @@ namespace stencil::gui {
   // Every control lands in the column at the column's size; checkboxes and the
   // assistant button keep their own shape, right-aligned in the same slot.
   void SettingsDialog::addRow(Rows& r, const QString& label, QWidget* field, bool column) {
-    if (column) field->setFixedSize(CTRL_W, CTRL_H);
+    if (column) {
+      field->setFixedSize(ctrlW, CTRL_H);
+      columnFields.push_back(field);
+    }
     QWidget* w = modalRow(r.host, label, field, /*grow=*/false);
     r.col->addWidget(w);
     groups.last().rows.push_back({label, w});
@@ -114,7 +115,7 @@ namespace stencil::gui {
                                const QString& title) {
     btn = new QPushButton(r.host);
     btn->setFont(r.mono);
-    setColorSwatch(btn, QColor(hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
+    setColorSwatch(btn, QColor(hex), QSize(ctrlW, CTRL_H), /*withHex=*/true);
     btn->setToolTip(tip);
     connect(btn, &QPushButton::clicked, this,
             [this, &hex, title, b = btn] { pickColorInto(b, hex, title); });
@@ -191,7 +192,7 @@ namespace stencil::gui {
     };
     for (const auto& w : wells) {
       *w.hex = w.def;
-      setColorSwatch(w.btn, QColor(*w.hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
+      setColorSwatch(w.btn, QColor(*w.hex), QSize(ctrlW, CTRL_H), /*withHex=*/true);
     }
     thickness->setValue(def.thickness);
     pointSize->setValue(def.pointSize);
@@ -212,7 +213,7 @@ namespace stencil::gui {
     const QColor c = support::pickColorAnimated(QColor(hex), this, title, btn);
     if (!c.isValid()) return;
     hex = c.name().toUpper();
-    setColorSwatch(btn, c, QSize(CTRL_W, CTRL_H), /*withHex=*/true);
+    setColorSwatch(btn, c, QSize(ctrlW, CTRL_H), /*withHex=*/true);
     applyLive();
   }
 }

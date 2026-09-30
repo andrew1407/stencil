@@ -4,7 +4,7 @@
 //   text: those four strings per line, concatenated UTF-8, in that field order.
 // A line missing a field encodes as the core's default for it (core/models.hpp).
 
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const utf8 = new TextEncoder();
 const utf8Decode = new TextDecoder();

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Llm.Wire;
 
-// Parsed once from the embedded browser/js/config/llm/providers.json — never a second copy.
+// Parsed once from the embedded common/config/llm/providers.json — never a second copy.
 public static class ProvidersAsset
 {
     private const string _resourceName = "Stencil.TelegramBot.Domain.Assets.providers.json";

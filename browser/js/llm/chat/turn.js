@@ -1,7 +1,7 @@
 // The pieces of one chat turn (llm-contract.md §7): its limits, the image encoders an
 // attachment goes through, the history replay rule and what a plan says about the picture.
-import PROMPT_ASSET from '../../config/llm/systemPrompt.json' with { type: 'json' };
-import EVENTS from '../../config/events.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
+import EVENTS from '../../../../common/config/events.json' with { type: 'json' };
 import { downscaleToDataUrl, contourToDataUrl } from '../../worker/imageTasks.js';
 
 export const HISTORY_LIMIT = 32;

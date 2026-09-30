@@ -39,14 +39,14 @@ namespace {
     return l;
   }
 
-  // One LIMITS value out of browser/js/config/constants.json, the canon; NaN when missing.
+  // One LIMITS value out of common/config/constants.json, the canon; NaN when missing.
   double canonicalLimit(const std::string& key) {
     namespace fs = std::filesystem;
     fs::path p = fs::current_path();
     while (!fs::exists(p / "CLAUDE.md") && p.has_parent_path() && p.parent_path() != p)
       p = p.parent_path();
     std::stringstream src;
-    src << std::ifstream(p / "browser/js/config/constants.json").rdbuf();
+    src << std::ifstream(p / "common/config/constants.json").rdbuf();
     const std::string json = src.str();
     const std::size_t at = json.find("\"" + key + "\"", json.find("\"LIMITS\""));
     if (at == std::string::npos) return std::numeric_limits<double>::quiet_NaN();
@@ -54,7 +54,7 @@ namespace {
   }
 }  // namespace
 
-TEST_CASE("drift: the layout caps match LIMITS in browser/js/config/constants.json") {
+TEST_CASE("drift: the layout caps match LIMITS in common/config/constants.json") {
   CHECK(canonicalLimit("layoutLinesMax") == abi::MAX_LAYOUT_LINES);
   CHECK(canonicalLimit("layoutLinePointsMax") == abi::MAX_LINE_POINTS);
   CHECK(canonicalLimit("layoutPointsMax") == abi::MAX_LAYOUT_POINTS);

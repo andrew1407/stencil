@@ -277,7 +277,7 @@ touches nothing. Its shape is pinned in [`CONTRACT.md`](CONTRACT.md) §4.3.
 
 The language — units, colours, templates, undo — is written out in
 [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md), and the worked examples
-are the `tour-*.stc` files in `browser/js/config/script/fixtures/`.
+are the `tour-*.stc` files in `common/fixtures/script/`.
 
 ## Console mode
 

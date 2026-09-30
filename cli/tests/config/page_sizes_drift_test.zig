@@ -1,5 +1,5 @@
 //! Cross-language drift guard: PAGE_SIZES in the canonical browser config
-//! (browser/js/config/constants.json, embedded at build time) must match the C++
+//! (common/config/constants.json, embedded at build time) must match the C++
 //! core's hard-coded table (core/page/pageMetrics.cpp) name for name and cm for cm.
 //! The browser only ever checks that JSON against the wasm build, so without this
 //! the CLI's native core could drift from the canon unnoticed.

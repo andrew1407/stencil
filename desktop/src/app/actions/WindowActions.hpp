@@ -55,6 +55,7 @@ namespace stencil::gui {
     QAction* shortcuts = nullptr;
     QAction* contextMenu = nullptr;
     QAction* openIn = nullptr;
+    QAction* copyProject = nullptr;   // the Image section's "Make a copy" (its scopes pop from the button)
     QAction* chat = nullptr;
     QAction* assistantSettings = nullptr;
     QAction* quit = nullptr;

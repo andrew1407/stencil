@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { createLlmClient, sanitizeProviderText, LlmError } from '../../js/llm/client.js';
 import { parseChatDoc, buildChatDoc, CHAT_DOC_VERSION } from '../../js/llm/chat/store.js';
 
-const FIXTURES = fileURLToPath(new URL('../../js/config/llm/fixtures/', import.meta.url));
+const FIXTURES = fileURLToPath(new URL('../../../common/fixtures/llm/', import.meta.url));
 
 // Every *.json in a family dir is an array of case objects with a unique name; read
 // once per family however many times a test asks for it.

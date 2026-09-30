@@ -1,7 +1,7 @@
 // Pure point-list geometry: bbox centre, rotate, mirror. Each is the shared C++ core (wasm)
 // op with the JS body as the reference + fallback — a wasm-parity surface, keep both identical.
 import { core } from '../abi/stencilCore.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 export const bboxCenterOf = (pts) => {
   const bboxCenter = core.op('boundingBoxCenter');

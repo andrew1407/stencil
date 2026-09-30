@@ -65,6 +65,7 @@ export class StencilContextMenu extends StencilElement {
     let unfollow = null;
     // Where the menu grew from, so the close pours back into it.
     let openPoint = null;
+    let openCanvasTop = null;
 
     let onMenuClose = () => {};
     const closeMenu = () => {
@@ -109,6 +110,7 @@ export class StencilContextMenu extends StencilElement {
 
     const openAt = (x, y) => {
       openPoint = { x, y };
+      openCanvasTop = app.canvas?.getBoundingClientRect().top ?? null;
       closeAllSubs();
       setKbItem(null);
       // Seeded with the click point, so the idle checks never see a stale position.
@@ -158,6 +160,8 @@ export class StencilContextMenu extends StencilElement {
       if (e.target && e.target.nodeType && menu.contains(e.target)) return;
       // Nor is the viewport re-scrolling because a plan just replaced the image.
       if (assistantBusy()) return;
+      // A scroll that left the canvas in place is the browser absorbing a layout shift above it.
+      if (openCanvasTop != null && Math.abs(app.canvas.getBoundingClientRect().top - openCanvasTop) < 1) return;
       closeMenu();
     }, true);
 

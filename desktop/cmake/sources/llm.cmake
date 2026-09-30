@@ -59,6 +59,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/app/chat/planTarget/ChatPlanTargetServer.cpp
   src/app/chat/planTarget/ChatPlanTargetProjects.cpp
   src/app/chat/planTarget/ChatPlanTargetAwait.cpp
+  src/app/chat/planTarget/ChatPlanTargetCopy.cpp
   src/app/chat/planTarget/PlanAwait.cpp
   ${STENCIL_OPPLAN_SOURCES}
   ${STENCIL_OPREGISTRY_SOURCES}

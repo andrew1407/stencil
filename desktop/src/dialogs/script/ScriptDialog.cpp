@@ -42,6 +42,7 @@ namespace stencil::gui {
       s.stripGap = BODY_SPACING;    // the gap the modal body left between the two
       s.hoverOnFrame = true;
       s.tabStops = true;
+      s.runKeys = true;   // the Run tooltip's Ctrl+Enter
       return s;
     }
 
@@ -103,7 +104,7 @@ namespace stencil::gui {
     connect(uploadBtn, &QPushButton::clicked, this, &ScriptDialog::loadFile);
     connect(clearBtn, &QPushButton::clicked, this, [this] { editor->setScript(QString()); });
     connect(runBtn, &QPushButton::clicked, this, &ScriptDialog::runRequested);
-    connect(editor, &ScriptEditorWidget::runRequested, this, &ScriptDialog::runRequested);
+    connect(editor, &ScriptEditorWidget::runRequested, this, [this] { if (runBtn->isEnabled()) emit runRequested(); });
     connect(editor, &ScriptEditorWidget::edited, this, &ScriptDialog::gateActions);
 
     if (!initialText.isEmpty()) editor->setScript(initialText);

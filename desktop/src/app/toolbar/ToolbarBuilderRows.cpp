@@ -63,7 +63,8 @@ namespace stencil::gui {
     }
     // OpenImageButton centres its own icon+label, so no icon-slot reserve to compensate for.
     w.tools.imageSection = makeToolSection("Image",
-                                    {w.acts.saveImage, w.acts.copyImage, w.acts.shareImage, w.acts.openIn, w.acts.openAnother},
+                                    {w.acts.saveImage, w.acts.copyImage, w.acts.shareImage, w.acts.openIn, w.acts.openAnother,
+                                     w.acts.copyProject},
                                     {}, {w.tools.openImageBtn});
     addWrapped(tb, w.tools.imageSection);
     addWrappedSeparator(tb);

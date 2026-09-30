@@ -2,7 +2,7 @@
 // The user's own Anthropic key, held in THIS tab's sessionStorage as { key, expiresAt } for at most
 // providers.json sessionKey.ttlMinutes: a reload keeps it, a new tab starts without it, and it never
 // reaches localStorage, a file, a URL or a log. Twin: browser-extension/src/llm/sessionKey.js.
-import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
+import PROVIDERS_ASSET from '../../../common/config/llm/providers.json' with { type: 'json' };
 
 export const SESSION_KEY_ITEM = 'stencil_llm_session_key';
 export const SESSION_KEY_TTL_MS = PROVIDERS_ASSET.providers.anthropic.sessionKey.ttlMinutes * 60_000;

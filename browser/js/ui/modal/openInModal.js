@@ -1,16 +1,10 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
-import { notify } from '../../utils.js';
+import { notify, openExternalUrl } from '../../utils.js';
 import { icon } from '../icons.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../../config/openInConfig.js';
-import {
-  buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
-} from '../../core/launch/deepLink.js';
+import { encodeTelegramStartPayload, buildTelegramLink } from '../../core/launch/deepLink.js';
 import { openInLaunchPayloadResolved } from '../../core/launch/payload.js';
-
-// Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
-// tolerates far less than an in-page URL.
-const INLINE_WARN_CHARS = 200_000;
-const INLINE_MAX_CHARS = 1_000_000;
+import { desktopLaunchUrl, inlineVerdict } from '../../core/launch/desktopLink.js';
 
 // A server-linked session sends only the server reference — no token; local and incognito embed
 // image + layout inline. The bot's 64-char `?start=` payload is server projects only.
@@ -118,34 +112,14 @@ export class StencilOpenInModal extends StencilElement {
     desktopBtn.addEventListener('click', async () => {
       const payload = await openInLaunchPayloadResolved(app, { incognito: incog.checked, id: targetId });
       if (!payload) { notify('That project could not be read from storage', 'fail'); return; }
-      const url = payload.server
-        ? buildStencilSchemeUrl({
-          scheme: cfg.desktopScheme,
-          server: payload.server.url,
-          id: payload.server.id,
-          version: payload.server.version,
-          incognito: payload.incognito,
-        })
-        : buildStencilSchemeUrl({
-          scheme: cfg.desktopScheme,
-          src: payload.dataUrl,
-          layout: payload.layout,
-          incognito: payload.incognito,
-        });
-      if (!payload.server && url.length > INLINE_MAX_CHARS) {
+      const url = desktopLaunchUrl({ scheme: cfg.desktopScheme, payload });
+      const verdict = inlineVerdict(url, { payload });
+      if (verdict === 'refuse') {
         notify('Image too large to hand off inline — save it to a server and share the server project instead', 'fail');
         return;
       }
-      if (!payload.server && url.length > INLINE_WARN_CHARS) {
-        notify('Large image — the hand-off may fail; prefer saving to a server', 'info');
-      }
-      // The anchor MUST be in the document — Chrome ignores navigation clicks on a detached one.
-      const a = document.createElement('a');
-      a.href = url;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      if (verdict === 'warn') notify('Large image — the hand-off may fail; prefer saving to a server', 'info');
+      openExternalUrl(url);
       close();
     });
 

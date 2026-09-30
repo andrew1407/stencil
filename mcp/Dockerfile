@@ -42,9 +42,9 @@ RUN set -eux; \
 WORKDIR /src
 COPY core/ ./core/
 COPY cli/ ./cli/
-# cli/build.zig embeds shared JSON from the browser app (accents, colour names, constants,
+# cli/build.zig embeds the shared JSON in common/config (accents, colour names, constants,
 # and the LLM prompt/registry/providers), so those files must be in the build context too.
-COPY browser/js/config/ ./browser/js/config/
+COPY common/config/ ./common/config/
 # Zig fetches the pinned stb_image dependency on demand (needs network).
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
@@ -53,8 +53,8 @@ FROM rust:slim-bookworm AS server
 WORKDIR /src/mcp
 COPY mcp/ ./
 # Separate stage, separate filesystem: the crate include_str!s the same shared JSON
-# (src/../../browser/js/config/…) and the .stc contract it serves, so this stage copies both.
-COPY browser/js/config/ /src/browser/js/config/
+# (src/../../common/config/…) and the .stc contract it serves, so this stage copies both.
+COPY common/config/ /src/common/config/
 COPY contracts/stc/ /src/contracts/stc/
 # cargo fetches the rmcp SDK and other crates on demand (needs network).
 RUN cargo build --release

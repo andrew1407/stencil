@@ -4,7 +4,7 @@ import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 import { isTypingInFocus } from '../../utils.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const PREVIEW_HOVER_MS = constants.DEBOUNCE.previewHoverMs;
 

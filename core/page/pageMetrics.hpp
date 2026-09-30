@@ -4,7 +4,7 @@
 
 // Pixel <-> page (cm) conversion. Port of getPageDimensions / pixelToPageCoords
 // from browser/js/core/drawingApp.js plus the PAGE_SIZES table from
-// browser/js/config/constants.json. Pure: formula transforms (see formulaParser)
+// common/config/constants.json. Pure: formula transforms (see formulaParser)
 // are composed by the caller, exactly as the browser app does.
 namespace stencil::core {
 

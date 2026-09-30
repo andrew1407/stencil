@@ -25,7 +25,8 @@ This is how to do one without breaking a tree you did not touch.
   import still resolves — to the wrong module ("does not provide an export named …").
 - **List who reads these files by path**, not by import: the parity tables
   (`browser-extension/tests/portParity.test.js`, `vscode-extension/tests/parserParity.test.js`,
-  `.claude/tools/twins.json`), cross-surface source readers (`browser/tests/helpers/desktopSource.js`,
+  `tools/twins.json` — whose parser tree entry's `rewrite` map must name any import
+  specifier a move changes on one side only), cross-surface source readers (`browser/tests/helpers/desktopSource.js`,
   `browser/tests/helpers/extensionCss.js`, `browser-extension/tests/helpers/sources.js`,
   `desktop/tests/support/tip/MainWindow.tooltips.gui.cpp` reading the browser toolbar), CMake
   source lists, and any test that slices its own path. The `twin-auditor` agent lists them
@@ -54,12 +55,13 @@ output names every stale specifier at once.
 
 ## Byte-pinned copies move with their originals
 
-A pinned copy imports exactly what its original imports, so it must sit at the **same depth**
-below its root (`browser/js/core/script/` ↔ `vscode-extension/src/parser/script/`, both two
-levels down to `config/colorNames.json`). Moving an original moves its copy, its row in
-`.claude/tools/twins.json` and its row in the parity test, together; then
-`node .claude/tools/syncTwins.mjs` re-copies. Never normalize an import away in the parity test —
-that is what the pin exists to stop.
+A pinned copy imports what its original imports, spelled for its own tree: the parser copy is
+byte-equal except the specifiers `tools/twins.json`'s `rewrite` declares
+(`browser/js/core/script/` reaches `common/config/colorNames.json`, the copy its own
+`src/config/colorNames.json`). Moving an original moves its copy, its row in `twins.json` (and any
+`rewrite` specifier the move changes) and its row in the parity test, together; then
+`node tools/syncTwins.mjs` re-copies. Never normalize an import away in the parity test
+beyond what `rewrite` declares — that is what the pin exists to stop.
 
 A file a port imports keeps its name through a split: `portParity.test.js` reduces a specifier
 to its basename so either tree's layout is allowed, which only works while both spell it the
@@ -123,26 +125,26 @@ module commonly carries several test files.
 `__FILE__` slicing, `Path(__file__).parent.parent`, `path.join(HERE, '..', '..')` break the
 moment the file moves, and read as missing data, not a path error. In C++ `__FILE__` carries
 the `#include` spelling, so it breaks even when the header never moved. Resolve to a landmark
-(walk up until `CLAUDE.md` or `browser/js/config` is in sight). Grep the moved files for
+(walk up until `CLAUDE.md` or `common/config` is in sight). Grep the moved files for
 `__FILE__`, `__file__`, `import.meta.url` and bare `'..'` before trusting a green run.
 
 ## The proofs
 
-- **JS:** `node .claude/tools/moveCheck.mjs <ref> <paths…>` — the signal is `LOST 0`, with only the
+- **JS:** `node tools/moveCheck.mjs <ref> <paths…>` — the signal is `LOST 0`, with only the
   enclosing wrapper as NEW (a method→function extraction reports its wrapper). It is JS-only:
   handed `.py` or `.cpp` it prints `0 files … LOST 0 NEW 0`, a false pass.
-- **Comments:** `node .claude/tools/commentOnlyDiff.mjs <ref> <paths…>`, every file `OK`. A regex
+- **Comments:** `node tools/commentOnlyDiff.mjs <ref> <paths…>`, every file `OK`. A regex
   holding `\/\/` inside a template literal's `${…}` gives a false `CHANGED` there; fall back to
   `git diff -U0` and check every changed line is a `//` line.
 - **C++:** never `gcc -fpreprocessed` — `gcc` is the clang shim here and emits empty files,
-  which compare equal. Use `normalizeLines` from `.claude/tools/commentOnlyDiff.mjs` over the old file
+  which compare equal. Use `normalizeLines` from `tools/commentOnlyDiff.mjs` over the old file
   and the new pair as multisets, assert the stripped text is **non-empty**, and expect `LOST 0`
   with NEW only scaffolding (`#include`, `namespace {`, braces).
 - **Python:** hash `ast` function bodies before and after; for a UI move, diff the set of
   user-facing string literals.
-- **Docs and comments:** `node .claude/tools/docPaths.mjs --check` and
-  `node .claude/tools/commentPaths.mjs --check` — a move strands paths in `.md` files and in the
+- **Docs and comments:** `node tools/docPaths.mjs --check` and
+  `node tools/commentPaths.mjs --check` — a move strands paths in `.md` files and in the
   comments that name a twin or a port.
-- **Twins:** `node .claude/tools/syncTwins.mjs --check`.
+- **Twins:** `node tools/syncTwins.mjs --check`.
 - **Pins identical**, then every suite that **reads** the moved tree, not only the one that
   owns it: parity pins reach across surfaces and go red after the owner reported green.

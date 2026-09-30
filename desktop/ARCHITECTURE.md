@@ -47,8 +47,8 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix sniffers and `sniffImageHeader`, the image-header corpus's sniffer) | QtCore-only serialization; `MediaLoader` decodes every picture it resolves on the pool and answers only from the event loop; any other decode is the window's (`decodeForCanvas`) |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore`, `fetchGuard`, `blockedRanges`, `httpStatus` | `fetchGuard` is the one SSRF guard, a port of `cli/src/net.zig`, judging every address by `net/blockedRanges.json` (`fetch`; `serverTarget`, private ranges allowed, for a server the user names); tokens never go in `QSettings`; `httpStatus` is the 2xx/401-403 triage both clients share |
 | `src/support/` | a folder per shared concern (`theme/` the ID-selector QSS, `webcore/` the session skin), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, the platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics; a platform helper is one declaration with a body per OS |
-| `resources/` | `app.qrc`: one `.qss` per feature under `qss/app/`, the `qss/webcore/` overlay, the browser's shared config JSON as aliases | shared tables are aliased from `browser/js/config/`, never copied; sheet pieces load in the one cascade order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists, each once in the qrc |
-| `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
+| `resources/` | `app.qrc`: one `.qss` per feature under `qss/app/`, the `qss/webcore/` overlay, the browser's shared config JSON as aliases | shared tables are aliased from `common/config/`, never copied; sheet pieces load in the one cascade order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists, each once in the qrc |
+| `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `common/icons/favicon.svg` |
 | `cmake/` | `StencilSources` and `StencilTests` (indexes over per-area parts), `StencilPackaging`, `StencilDeploy` | source lists live here, not in `CMakeLists.txt`; a source or suite joins its area's part, and parts are included in registration order |
 | `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` and the layer lint | every suite reports its own failures |
 
@@ -136,6 +136,7 @@ classDiagram
 | Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, and the hooks `support/webcore/look.cpp` installs | Asked by every restyle and animation, written to no file: `Settings` never carries a skin, and `applySettings` re-pushes stored switches only when the user moved one |
 | Golden pin / fixture walker | `uiPins`, `opPlanOracle`; the `*Fixtures` walkers | Pins guard pixels, QSS and typed plan results; walkers prove the shared corpora here |
 | Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), app-wide, opted into by `setResetDefault` | A combo's two quick presses or a check's double-click sets the declared default through `activated` / `click()`, so the row's own wiring applies it |
+| Deferred click | `support::wireColorChip` (`support/control/dblReset.hpp`); the Lines-tab swatch in `SelectionPanel` | A colour chip's click waits one `POPOVER.doubleClickMs` before its modal picker opens, so a double-click resets it (the toolbar line colour to `DEFAULT_VISUALS`, a line's own to the toolbar's) instead of landing outside the picker |
 | Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), `slidePopupIn` (`support/menu/popupSlide`) | One origin — a selector's caret, else the control's centre: particle modes fly dust out and back, 'slide' grows the list from it (0.66 scale, 6px lift, the browser's `menuFromAnchor` curve) with no exit, 'none' just shows it; the slide lands on the exact geometry |
 | Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`), app-wide | Port of the browser's `createModalOpenGesture` peek half: Alt+hover peeks; Alt release or focus loss closes unless the pointer is over the list, which lingers until it leaves (`LINGER_CLOSE_MS`); a click-open list ignores Alt. One filter, first on `qApp`, drives a gesture per `QComboBox`, polling while a `Qt::Popup` grabs the pointer. A registered handle (the popover) stays open under a selector peeking inside it; a glide onto an icon marked `ALT_PEEK_TARGET_PROPERTY` opens its peek; the Alt press that opened a peek is consumed. Only the accent popover picks on release (`commitAccent`) |
 
@@ -164,6 +165,10 @@ classDiagram
   line. A `.stc` dropped on the open editor fills it; elsewhere, or opened from the OS, it runs at
   once. The flyout runs in place; its file dialogs, which take every popup down, reopen the
   chain on the script row.
+- **A linked script.** A `stencil://` link may carry `script=` (at most `LAUNCH.scriptMaxChars`) and
+  `scriptMode=open|run`; `ScriptHost::adoptLinkedScript` waits for the linked picture to land.
+  `open` fills the Script window; `run` asks first and runs under `ScriptRunRules::webSourcesOnly`,
+  so an `@source` naming a local path fails its line and the edits before it stay.
 - **An open-image question's flight.** Every open-image dialog starts and ends at
   `canvasAnchorRect` (40 px on the canvas centre) or `openImageAnchorRect` (the Open half
   `hasImage` shows, read at flight time), from `support/modal/imageAnchor.hpp`, twin of the
@@ -195,6 +200,14 @@ classDiagram
   theme and opt-in chat, and links the file. `StencilFileSync` (the browser's `StencilSync`) owns
   the link, baseline, watcher and debounced auto-save; an external change returns through
   `applyStencilExternal`, merged or taken whole after the three-way choice.
+- **Make a copy.** The projects row menu, the canvas context menu and the toolbar's Image button
+  build one "Make a copy ›" flyout (`dialogs/projects/copy/copyProjectMenu.hpp`); a pick opens
+  `CopyProjectDialog` (`dialogs/projects/copy/`). Every entry point, the `copyProject` op
+  included, runs `ProjectCopy::run` (`app/project/copy/`): it reads the source (the live editor,
+  a stored row, or a server row fetched with its original), keeps incognito only for a local
+  copy that opens, names it with core `ProjectsStore::copySuffixName` past every taken name (the
+  server's too for a server copy), writes a fresh local row over its own image file or a new
+  project on the source's server, then opens it here, in a new window, or unsaved in incognito.
 - **Server connect and project fetch.** Each `ServerClient` speaks REST with a bearer token under
   `constants.json` `NETWORK.fetchTimeoutMs`, the browser's bound too. `listProjectsAsync` walks
   the `nextCursor` pages, failing on a repeated cursor or past `MAX_LIST_PAGES`.
@@ -256,7 +269,7 @@ classDiagram
   `.stencil` type and `stencil://` scheme are registered on
   macOS (`packaging/MacOSXBundleInfo.plist.in`) and Linux (`stencil-mime.xml`,
   `stencil.desktop`). `packaging/mkicon.cpp`, a Qt host tool run at build time, rasterises
-  `browser/favicon.svg` into `.icns` / `.ico` with no OS image tool; with Xcode's `actool`, macOS
+  `common/icons/favicon.svg` into `.icns` / `.ico` with no OS image tool; with Xcode's `actool`, macOS
   also gets a themed `AppIcon`.
 
 ## Rules
@@ -290,6 +303,9 @@ classDiagram
    follows the drag wherever Qt delivers it; a torn-off dock is not covered.
 8. **A tooltip is read as text.** Qt hands the raw `toolTip()` to accessibility, so every rich tip
    carries its plain reading as the accessible description (`syncTipDescription`), never its markup.
+9. **A script that arrives by link never runs unasked and never reads a local file.** A web page
+   can craft a `stencil://` link, and a desktop script could otherwise open a local picture and
+   `@save` it to a linked server.
 
 ## Tests
 
@@ -300,7 +316,7 @@ Headless suites are one per concern, each reporting its own failures. The GUI su
 `MainWindow` with `STENCIL_NO_ANIM=1`; each writes its pictures into its own state dir, since ctest
 runs the areas side by side. A case that opens a picture waits for it to land, never sleeps. The
 suites pin the off-thread decode, the overtaken load and a close mid-decode. The fixture walkers prove the
-shared `browser/js/config` corpora here (core's plan result byte-equal to
+shared `common/fixtures` corpora here (core's plan result byte-equal to
 `generated/normalized.json`); `opPlanOracle` pins `parseOpPlan`'s typed result over the corpus and
 adversarial inputs. The LLM suites use a mock `LlmTransport`, so all runs offline; the anthropic key
 is proved on a fake clock, over the wire fixtures, and through the real `QtLlmTransport` to a

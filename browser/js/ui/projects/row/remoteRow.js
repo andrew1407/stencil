@@ -3,6 +3,7 @@ import { escapeHtml } from '../../base.js';
 import { notify, shortName } from '../../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../../motion.js';
 import { clearedToast } from '../../../core/project/transferController.js';
+import { copyMenuItem, afterRowCopy } from './copyItem.js';
 
 // Thumbnail blobs keyed `serverUrl|id|version`, so the many re-renders (search keystrokes,
 // live events, peer pings) share one fetch per version. Twin: ProjectsDialog::remoteThumbs_.
@@ -192,6 +193,7 @@ export function createRemoteRow(deps) {
       // The "⋯" overflow menu, shared with the row's right-click menu (as local rows).
       const menuItems = () => [
         { icon: 'folder', label: 'Open from server', onClick: openFromServer },
+        copyMenuItem({ target: { remote: meta }, anchor: menuBtn, onDone: afterRowCopy({ close, render, invalidateRemotes, scrollRowIntoView }) }),
         { icon: 'copy', label: 'Copy to local', onClick: copyToLocal },
         { icon: 'incognito', label: 'Copy to incognito', onClick: copyToIncognito },
         { icon: 'download', label: 'Move to local', onClick: moveToLocal },

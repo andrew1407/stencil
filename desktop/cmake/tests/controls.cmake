@@ -38,6 +38,11 @@ stencil_headless_test(stencil_controlswap_headless
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
 
+# The row shimmer's band (support/motion/ShimmerOverlay.hpp shimmerSweepSpan).
+stencil_headless_test(stencil_shimmersweep_headless
+  SOURCES tests/support/motion/shimmerSweep.headless.cpp
+  LIBS Qt6::Widgets)
+
 # Double-click reset (support/control/dblReset.hpp).
 stencil_headless_test(stencil_dblreset_headless
   SOURCES tests/support/control/dblReset.headless.cpp

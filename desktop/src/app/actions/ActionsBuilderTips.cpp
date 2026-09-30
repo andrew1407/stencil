@@ -80,6 +80,7 @@ namespace stencil::gui {
     w.setActionTip(w.acts.copyImageTint, "Copy the filtered image — no lines/points");
     w.setActionTip(w.acts.shareImage, "Share image");
     w.setActionTip(w.acts.openIn, "Open in another app");
+    w.setActionTip(w.acts.copyProject, "Make a copy — image only, image and layout, or the whole project");
     w.setActionTip(w.acts.projects, "Projects");
     // The browser's twin adds "(Shift+click: without theme)"; Save has no such modifier here.
     w.setActionTip(w.acts.saveProjectFile, "Save Project (.stencil) — image + layout + settings in one file");

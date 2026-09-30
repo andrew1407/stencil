@@ -8,9 +8,9 @@ export function makeActionSteps({ config, runner, still }) {
   const pad = config.get('titleActions.padPx');
 
   return Object.freeze([
-    // package.json editor/title: a .stc script carries all three — Run script, Open in Stencil Web
-    // and its incognito twin — while a .stcjs file gets only Run in Stencil Web Console and a
-    // .stencil project the two Open ones. The shot takes the script, so all three are on it.
+    // package.json editor/title: a .stc script carries Run script, Open in Stencil Web and Run in
+    // Stencil Desktop, each web and desktop one with its incognito twin; a .stcjs file gets only Run
+    // in Stencil Web Console and a .stencil project the two web ones. The shot takes the script.
     {
       name: 'title-actions',
       run: async (ctx) => {

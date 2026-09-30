@@ -69,5 +69,33 @@ export function makeClipSteps({ config, runner, browser, pages }) {
       await page.locator('#script-run').click();
       await settle(look.holdMs);
     }),
+    // A phone: one finger on empty canvas drags the zoomed picture. Touch is emulated so the
+    // app takes its touch path; the finger is CDP's, as e2e's touch-pan spec drives it.
+    clip('touch-pan', async (page, mark, look) => {
+      await start(page, runner.themeOf('touch-pan'));
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+      await pages.blank(page, look.fill);
+      await page.evaluate(([lines, zoom]) => {
+        window.stencil.setLines(lines, { history: false });
+        window.stencil.zoom(zoom);
+      }, [config.get('canvas.lines'), look.zoom]);
+      // Folded, as a phone user keeps them: the canvas then fills the screen under the header.
+      await page.locator('#toggle-controls').click();
+      const viewport = page.locator('#canvas-viewport');
+      await viewport.scrollIntoViewIfNeeded();
+      await settle(look.settleMs);
+      const box = await viewport.boundingBox();
+      let [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+      const f = await pages.finger(page);
+      mark();
+      await f.down(x, y);
+      for (const [dx, dy] of look.glide) {
+        await f.glide(x, y, x + dx, y + dy, look.steps);
+        [x, y] = [x + dx, y + dy];
+      }
+      await f.up(x, y);
+      await settle(look.holdMs);
+    }),
   ]);
 }

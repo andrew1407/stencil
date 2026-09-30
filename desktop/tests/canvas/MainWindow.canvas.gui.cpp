@@ -1,5 +1,5 @@
-// MainWindow GUI e2e — Loading and clearing an image, the rotate round trip and its undo, and drawing
-// then undoing.
+// MainWindow GUI e2e — Loading and clearing an image, the rotate round trip and its undo, drawing
+// then undoing, and points pressed past the edge clamping to it.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../MainWindow.gui.hpp"
 
@@ -155,6 +155,27 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);
     QVERIFY(!canvas->canRedo());
     beat();
+  }
+
+  // A press just past the picture's edge lands on it: no -1 px, no point beyond the last one.
+  void pointsPastTheEdgeClampToIt() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    actionByText(&win, "Start Drawing")->trigger();
+    const int W = canvas->width(), H = canvas->height();
+    QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, QPoint(-3, -4));
+    beat();
+    QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, QPoint(W + 5, H + 6));
+    beat();
+    actionByText(&win, "New Line")->trigger();
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);
+    const auto& pts = canvas->getLines()[0].points;
+    QCOMPARE(static_cast<int>(pts.size()), 2);
+    QCOMPARE(pts[0].x, 0.0);
+    QCOMPARE(pts[0].y, 0.0);
+    QCOMPARE(pts[1].x, static_cast<double>(canvas->imageWidth()));
+    QCOMPARE(pts[1].y, static_cast<double>(canvas->imageHeight()));
   }
 
 };

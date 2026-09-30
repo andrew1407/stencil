@@ -1,8 +1,8 @@
 // ── Op-plan schema + limits (llm-contract.md §1, §4, §11, §13) ──
 // The table every op-plan module validates against, extracted from plan.js.
 import { createSchema } from './opSchema.js';
-import PROMPT_ASSET from '../../config/llm/systemPrompt.json' with { type: 'json' };
-import REGISTRY from '../../config/llm/opRegistry.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
+import REGISTRY from '../../../../common/config/llm/opRegistry.json' with { type: 'json' };
 
 // Canonical system prompt (§4 + §13): the PROSE CORE is embedded verbatim (append-only,
 // never prepend) while the ops section + §10 block are ASSEMBLED from the OPS registry.

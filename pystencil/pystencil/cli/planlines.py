@@ -10,7 +10,7 @@ from .. import _net
 from ..editor._lines import crop_change
 from ..layout import Layout
 
-# limits.MAX_LAYOUT_LINES of browser/js/config/llm/opRegistry.json: the most one layout holds.
+# limits.MAX_LAYOUT_LINES of common/config/llm/opRegistry.json: the most one layout holds.
 MAX_LINES = 200
 
 

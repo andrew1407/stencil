@@ -1,7 +1,6 @@
 // A VS Code extension cannot import across subprojects, so browser/js/core/script*.js is
-// COPIED into src/parser/script/, at the same depth so every import specifier matches. This is the drift guard, modeled on
-// browser-extension/tests/portParity.test.js: byte equality, both directions — no file in
-// either tree may appear, vanish or change alone. Nothing is normalized away.
+// COPIED into src/parser/script/. This is the drift guard: byte equality both ways, but for
+// the import specifiers tools/twins.json's `rewrite` maps (a table the .vsix carries).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -17,7 +16,7 @@ const CORE = fileURLToPath(new URL('../../browser/js/core/', import.meta.url));
 const WASM_SEAM = ['script.js', 'script.d.ts', 'scriptHandles.js', 'scriptHandles.d.ts'];
 
 // Data the copies import. Byte-pinned like any other shared table (.claude/rules/architecture.md).
-const DATA = [['colorNames.json', '../../browser/js/config/colorNames.json', '../src/config/colorNames.json']];
+const DATA = [['colorNames.json', '../../common/config/colorNames.json', '../src/config/colorNames.json']];
 
 // The folder IS the parser, so every module in it is copied — no name prefix to filter on.
 const scriptFiles = (dir) => readdirSync(dir)
@@ -25,6 +24,10 @@ const scriptFiles = (dir) => readdirSync(dir)
   .sort();
 
 const bytes = (dir, name) => readFileSync(`${dir}${name}`);
+const TREE = JSON.parse(readFileSync(new URL('../../tools/twins.json', import.meta.url), 'utf8'))
+  .trees.find((t) => t.to === 'vscode-extension/src/parser/script/');
+const rewritten = (name) => Object.entries(TREE.rewrite ?? {})
+  .reduce((text, [from, to]) => text.split(from).join(to), bytes(BROWSER, name).toString('utf8'));
 
 const originals = scriptFiles(BROWSER);
 const copies = scriptFiles(COPIES);
@@ -55,16 +58,16 @@ test('the wasm seam stays out of this tree, and still exists upstream', () => {
 
 for (const name of copies) {
   test(`src/parser/script/${name} is byte-identical to browser/js/core/script/${name}`, () => {
-    assert.ok(bytes(BROWSER, name).equals(bytes(COPIES, name)),
+    assert.equal(rewritten(name), bytes(COPIES, name).toString('utf8'),
       `${name} drifted from its browser original — change one, change the other, byte for byte`);
   });
 }
 
 for (const [name, browserPath, copyPath] of DATA) {
-  test(`src/config/${name} is byte-identical to its browser original`, () => {
+  test(`src/config/${name} is byte-identical to its common/config original`, () => {
     const original = readFileSync(new URL(browserPath, import.meta.url));
     assert.ok(original.equals(readFileSync(new URL(copyPath, import.meta.url))),
-      `${name} drifted from browser/js/config/`);
+      `${name} drifted from common/config/`);
   });
 }
 

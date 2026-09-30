@@ -1,6 +1,6 @@
-// The browser commands. Two routes: a hand-off the user's own browser opens (the `#stencil=`
-// fragment), and the page's console over VS Code's built-in JS debugger. Neither composes a
-// shell line, and neither reads its target from the document — that is target.js's job.
+// The hand-off commands. Three routes: a hand-off the user's own browser opens (the `#stencil=`
+// fragment), one the desktop app opens (a `stencil://` link), and the page's console over VS
+// Code's built-in JS debugger. None composes a shell line or reads its target from the document.
 import * as vscode from 'vscode';
 
 import { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
@@ -10,6 +10,7 @@ import { BAD_WEB_URL, webUrlFor } from './lib/web/target.js';
 import { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
   scriptLaunch } from './lib/web/launch.js';
 import { evaluate, expressionFor, loadExpression, pageSession } from './lib/web/console.js';
+import { desktopLaunch, isTooBigForDesktop } from './lib/desktop/launch.js';
 import { programFor } from './lib/programCache.js';
 
 const OUTPUT_NAME = 'Stencil';
@@ -17,6 +18,7 @@ const OPEN_A_FILE = 'Open a .stc script, a .stcjs file or a .stencil project fir
 const STCJS_IS_CONSOLE_ONLY = 'A .stcjs is JavaScript — run it with "Stencil: Run in Stencil '
   + 'Web Console". The hand-off carries scripts and pictures, never code.';
 const TOO_BIG = 'Too much to put in a URL — open the picture in the app and run the script there';
+const OPEN_A_SCRIPT = 'Open a .stc script first';
 
 let channel = null;
 const output = () => (channel ??= vscode.window.createOutputChannel(OUTPUT_NAME));
@@ -44,14 +46,14 @@ const pickFile = async () => {
 /* A script that names no source acts on whatever is open — and a fresh tab holds nothing, so
  * it brings a picture with it. A cancelled pick still hands the script over: the app reports
  * what it could not do, which is the answer the user asked for. */
-const scriptLaunchFor = async (document) => {
+const scriptLaunchFor = async (document, where = 'The browser') => {
   const script = document.getText();
   const { blocks } = await programFor(document);
   const local = localSources(blocks);
-  // Sent anyway: the app has no filesystem and says so itself, on the line it happened.
+  // Sent anyway: the app reports it itself, on the line it happened.
   if (local.length) {
     vscode.window.showWarningMessage(
-      `The browser cannot open ${local[0]} — a @source there must be an http(s) URL`);
+      `${where} cannot open ${local[0]} — a @source there must be an http(s) URL`);
   }
   // Every script has at least the project block; only a named @source brings its own picture.
   if (blocks.some((block) => block.source)) return scriptLaunch(script);
@@ -67,7 +69,7 @@ const LAUNCH_FOR = Object.freeze({
 
 const launchFor = (document) => LAUNCH_FOR[document.languageId]?.(document) ?? null;
 
-const handOff = async (incognito) => {
+const handOff = async (incognito, scriptMode) => {
   const document = activeDocument();
   if (!document) return vscode.window.showErrorMessage(OPEN_A_FILE);
   if (isJsSource(document)) return vscode.window.showErrorMessage(STCJS_IS_CONSOLE_ONLY);
@@ -77,6 +79,8 @@ const handOff = async (incognito) => {
   if (!payload) return vscode.window.showErrorMessage(OPEN_A_FILE);
   // The app's own throwaway session: it keeps no project, so nothing the run makes survives.
   if (incognito) payload.incognito = true;
+  // 'open' puts it in the Script window instead of running it; absent, it runs.
+  if (scriptMode && payload.script !== undefined) payload.scriptMode = scriptMode;
   const launch = buildLaunchUrl(url, payload);
   if (isTooBig(launch)) return vscode.window.showErrorMessage(TOO_BIG);
   return vscode.env.openExternal(vscode.Uri.parse(launch));
@@ -85,6 +89,20 @@ const handOff = async (incognito) => {
 // Two buttons, one hand-off: a menu click passes the resource, so neither takes an argument.
 const openInWeb = () => handOff(false);
 const openInWebIncognito = () => handOff(true);
+const openScriptInWeb = () => handOff(false, 'open');
+
+// The desktop asks before it runs a script that came by link, and reads URLs only while it does.
+const desktopHandOff = async (mode, incognito = false) => {
+  const document = activeDocument();
+  if (!document || document.languageId !== LANGUAGE_ID) return vscode.window.showErrorMessage(OPEN_A_SCRIPT);
+  const link = desktopLaunch(await scriptLaunchFor(document, 'A script sent to the desktop'), { mode, incognito });
+  if (isTooBigForDesktop(link)) return vscode.window.showErrorMessage(TOO_BIG);
+  return vscode.env.openExternal(vscode.Uri.parse(link));
+};
+
+const openInDesktop = () => desktopHandOff('open');
+const runInDesktop = () => desktopHandOff('run');
+const runInDesktopIncognito = () => desktopHandOff('run', true);
 
 // ── Route B: the console ─────────────────────────────────────────────────────
 /* One live session, reused; the first call also waits for the page to finish booting so the
@@ -160,6 +178,10 @@ const openImageInWeb = async () => {
 const HANDLERS = Object.freeze({
   [COMMANDS.openInWeb]: openInWeb,
   [COMMANDS.openInWebIncognito]: openInWebIncognito,
+  [COMMANDS.openScriptInWeb]: openScriptInWeb,
+  [COMMANDS.openInDesktop]: openInDesktop,
+  [COMMANDS.runInDesktop]: runInDesktop,
+  [COMMANDS.runInDesktopIncognito]: runInDesktopIncognito,
   [COMMANDS.runInWebConsole]: runInWebConsole,
   [COMMANDS.runSelectionInWebConsole]: runSelectionInWebConsole,
   [COMMANDS.openImageInWeb]: openImageInWeb,
@@ -176,7 +198,7 @@ const register = (context) => {
 };
 
 export {
-  HANDLERS, OPEN_A_FILE, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
-  openInWeb, openInWebIncognito, register, runExpression, runInWebConsole,
-  runSelectionInWebConsole,
+  HANDLERS, OPEN_A_FILE, OPEN_A_SCRIPT, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
+  openInDesktop, openInWeb, openInWebIncognito, openScriptInWeb, register, runExpression,
+  runInDesktop, runInDesktopIncognito, runInWebConsole, runSelectionInWebConsole,
 };

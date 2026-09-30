@@ -1,6 +1,7 @@
 import { motionReduced } from '../motionPrefs.js';
 import { MARK_IN_MS, MARK_LEAVING_CLASS, MARK_OUT_MS, markIn, markOut } from '../surface/marks.js';
 import { groupPainter } from '../surface/painters.js';
+import { SURFACE_FORMING_CLASS } from '../surface/motion.js';
 import { TUNE } from '../tune.js';
 // A group's clock is longer than a mark's; the dust rides it too, so both land together.
 export const REVEAL_GROUP_IN_MS = TUNE.REVEAL_GROUP_IN_MS;
@@ -98,6 +99,8 @@ export function revealControls(el, show, display = 'inline-flex',
     el.style.display = display;
     const r = el.getBoundingClientRect();   // now laid out at its natural size
     const size = vertical ? r.height : r.width;
+    // Unrendered, or inside a window still forming from dust: the window's own flight brings it.
+    if ((!r.width && !r.height) || el.closest?.(`.${SURFACE_FORMING_CLASS}`)) return false;
     const played = (dust && markIn(el, { ms: inMs, painter: groupPainter(el) })) || !motionReduced();
     if (size && played)
       slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });

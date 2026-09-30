@@ -1,4 +1,4 @@
-// Walks browser/js/config/fixtures/net/hosts.json through the real guard: each host reaches
+// Walks common/fixtures/net/hosts.json through the real guard: each host reaches
 // isAllowedImageUrl inside a URL, as a page would hand it over, and the table judge answers the
 // serverTarget variants the extension itself never dials.
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { isAllowedImageUrl } from '../../../src/lib/connection/urlGuard.js';
 import { isBlockedAddress, parseAddress } from '../../../src/lib/connection/addressRanges.js';
 
 const CASES = JSON.parse(readFileSync(
-  new URL('../../../../browser/js/config/fixtures/net/hosts.json', import.meta.url), 'utf8'));
+  new URL('../../../../common/fixtures/net/hosts.json', import.meta.url), 'utf8'));
 
 const urlHost = (host) => {
   const bare = host.replace(/^\[|\]$/g, '');

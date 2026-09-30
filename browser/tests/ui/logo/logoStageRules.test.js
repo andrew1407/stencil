@@ -2,7 +2,7 @@
 // custom hex picks by value, a styled show needs its motion mode, and the heart fits.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import ACCENTS from '../../../js/config/accents.json' with { type: 'json' };
+import ACCENTS from '../../../../common/config/accents.json' with { type: 'json' };
 import {
   STAGE, SHOWS, SHOW_NAMES, TYPED_WORDS, effectOf, resolveShow, showStyle,
   bigLogoSize, minLogoSize, heartPoints, heartLine,

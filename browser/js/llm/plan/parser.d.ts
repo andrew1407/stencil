@@ -1,6 +1,6 @@
 // Parsing + validating a model's op plan (llm-contract.md §1, §11, §13): model text → one result
 // document, never a throw on model data. The JS twin of core/opplan/planWalk.cpp, pinned
-// byte-for-byte by fixtures/opPlan/generated/normalized.json.
+// byte-for-byte by common/fixtures/llm/opPlan/generated/normalized.json.
 import type { PlanAsk } from './opPlan.js';
 import type { Schema } from './opSchema.js';
 

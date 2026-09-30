@@ -4,6 +4,7 @@
 import type { Stencil } from '../../console/stencilApi.js';
 import type { createSchema } from './opSchema.js';
 import type { EditorHistory } from './sandbox.js';
+import type { CopyProjectRequest } from '../../core/project/copy/options.js';
 
 export {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
@@ -82,6 +83,7 @@ export interface ExecuteOptions {
   renameActiveProject?: (name: string) => Promise<CapabilityNote>;
   setBlankColor?: (color: string) => Promise<CapabilityNote>;
   openProjectNamed?: (name: string, last: boolean) => Promise<CapabilityNote>;
+  copyActiveProject?: (req: CopyProjectRequest) => Promise<CapabilityNote>;
   clearChatConversation?: () => Promise<CapabilityNote>;
   setChatPlacement?: (placement: { open?: boolean | null; dock?: string | null }) => Promise<CapabilityNote>;
   /** null closes whatever dialog is open. */

@@ -13,6 +13,7 @@ type TaggedRemoteProject = unknown;
 type RemoteProjectMeta = unknown;
 type LlmSettings = unknown;
 type VariantResult = unknown;
+type CopyProjectRequest = unknown;
 
 interface XY { x: number; y: number; }
 interface Size { width: number; height: number; }
@@ -503,6 +504,8 @@ interface Project {
   remove(): null;
   moveToServer(address: string): Promise<string>;
   copyToServer(address: string, opts?: { name?: string }): Promise<string>;
+  /** "Make a copy": the new local project, or null for an incognito or server copy. */
+  copy(opts: CopyProjectRequest): Promise<Project | null>;
 }
 
 interface LlmFacade {
@@ -797,6 +800,16 @@ interface Stencil extends StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   expire(spec?: string): Project | string;
+  /**
+   * Make a copy of what the editor shows as <name>-copy: the image only, with its layout, or the whole project; the new local project, or null for an incognito or server copy.
+   *
+   * ```js
+   * const copy = await stencil.copyProject({ what: 'layout', open: 'here' });
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  copyProject(opts: CopyProjectRequest): Promise<Project | null>;
 
   // Servers
   /**

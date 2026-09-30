@@ -6,7 +6,7 @@ const std = @import("std");
 const console = @import("../../src/console.zig");
 const logo = @import("../../src/app/logo.zig");
 const testing = std.testing;
-const sample = @embedFile("../fixtures/sample.png");
+const sample = @embedFile("sample.png");
 
 const Cap = struct {
     buf: std.ArrayList(u8) = .empty,

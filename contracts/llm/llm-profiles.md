@@ -3,9 +3,9 @@
 Part of the [Stencil LLM contract](llm-contract.md); section numbers continue the
 root document's (code comments cite `§8`/`§10` everywhere). **Normative op membership,
 key schemas, flags and prompt bullets live in
-[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json)** (`profiles.editor` /
+[`opRegistry.json`](../../common/config/llm/opRegistry.json)** (`profiles.editor` /
 `console` / `bot` / `mcp` / `extension`, plus per-op `divergence` notes; see
-[its README](../../browser/js/config/llm/opRegistry.README.md)) — the hand-maintained op
+[its README](../../common/config/llm/opRegistry.README.md)) — the hand-maintained op
 tables these sections once carried are gone. This file keeps the per-profile
 BEHAVIOUR: what each surface's profile is for, its execution model, and its security
 boundaries.
@@ -135,6 +135,15 @@ Semantics (profile-wide):
   resolved by the surface off its own `updatedAt`. The model is never shown the project
   list, so it must never answer "tell me which project"; `removeProject`'s `current:true`
   is the same shape for the open one.
+- **`copyProject` saves a copy of the open project** — `what` ∈ image|layout|project
+  (the original image alone; the image and its layout; everything, with the project's
+  colour, keywords, description and chat), named `<name>-copy`, then `<name>-copy(1)`, …
+  (`ProjectsStore::copySuffixName`). It is non-destructive, so it runs without a confirm and
+  through the same path as the editor's "Make a copy" menus. `open` ∈ none|here|newtab
+  (default none; newtab is a new window on the desktop) opens the copy, `incognito: true`
+  (only with an `open`) opens it without ever saving it, and `local: true` copies a
+  server-linked project locally instead of on its server. A server copy never opens
+  incognito: the surface makes it opened normally and says so in a warning.
 - **The user-echo guard.** `openUrl` (and the console `openFile`, and `save`'s `path`
   where honored) accept only a URL/path the user themselves wrote verbatim in this
   conversation — the model may echo the user but can never introduce, complete, or

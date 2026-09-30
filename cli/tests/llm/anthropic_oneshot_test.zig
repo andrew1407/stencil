@@ -12,7 +12,7 @@ const Mock = @import("messages_mock.zig").Mock;
 const testing = std.testing;
 
 const test_key = "sk-ant-test-oneshot-0123456789";
-const sample = "tests/fixtures/sample.png"; // 16x12
+const sample = "../common/samples/sample.png"; // 16x12
 const plan_reply = "{\"model\":\"claude-opus-5\",\"stop_reason\":\"end_turn\",\"content\":[" ++
     "{\"type\":\"text\",\"text\":\"{\\\"version\\\":1,\\\"reply\\\":\\\"turned it\\\",\\\"actions\\\":[{\\\"op\\\":\\\"rotate\\\",\\\"dir\\\":\\\"right\\\"}]}\"}]}";
 

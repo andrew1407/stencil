@@ -4,6 +4,7 @@
 #include <QColor>
 #include <QDockWidget>
 #include <QString>
+#include <QTimer>
 #include <functional>
 #include <vector>
 
@@ -49,6 +50,8 @@ namespace stencil::gui {
     void spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms);
     // Off in fullscreen, where the panel hides on its own (browser: the clone drops its chevron).
     void setCollapseChevronVisible(bool on);
+    // The Lines row's swatch cell, the anchor its colour picker grows from.
+    QWidget* lineSwatchCell(int index) const;
     // True while the view is read-only (compare): the lists then leave Delete/Backspace to the window.
     std::function<bool()> readOnly;
 
@@ -61,6 +64,10 @@ namespace stencil::gui {
     void lineRowHovered(int index);
     void lineListActivated(int index, bool multi);
     void lineListRemoveRequested(int index);
+    // The row's colour chip: a click opens its picker once the double-click window passes, a
+    // double-click resets the line's colour instead (browser linesList.js swatch).
+    void lineSwatchPick(int index);
+    void lineSwatchReset(int index);
     // Inline px coord edit committed (axis 0 = x, 1 = y); mirrors browser coordTable.js double-
     // click-to-edit.
     void pointCoordChanged(int index, int axis, double value);
@@ -104,6 +111,8 @@ namespace stencil::gui {
     int canvasHoverPointRow = -1;
     int canvasHoverLineRow = -1;
     std::vector<int> linesSelected;
+    QTimer* swatchWait = nullptr;   // a swatch click waiting out the double-click window
+    int swatchRow = -1;
   };
 
 }

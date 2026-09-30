@@ -2,7 +2,7 @@
 // Access only): debounced auto-save on edit + a polled watch that applies external writes
 // in place, or prompts (mine/theirs/merge) on a conflict.
 import { parseProjectFile, serializeProjectFile } from '../project/file.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { projectFileState, applyProjectFileInPlace, chooseFileConflict, updateStencilSyncUI } from '../project/fileIO.js';
 
 const LIVE_KEY = 'drawingApp_stencilLiveSync';

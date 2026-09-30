@@ -4,6 +4,7 @@
 import type {
   XY, Size, ColorInput, LineStyle, ChatDock, StencilSettings, Stencil,
 } from './stencilApi.js';
+import type { CopyProjectRequest } from '../core/project/copy/options.js';
 import type { LayoutPayload } from '../core/layout.js';
 import type { RefreshPeriod } from '../core/project/store/projectsStore.js';
 import type { LlmSettings } from '../llm/settings.js';
@@ -82,6 +83,8 @@ export interface Project {
   remove(): null;
   moveToServer(address: string): Promise<string>;
   copyToServer(address: string, opts?: { name?: string }): Promise<string>;
+  /** "Make a copy": the new local project, or null for an incognito or server copy. */
+  copy(opts: CopyProjectRequest): Promise<Project | null>;
 }
 
 export interface LlmFacade {

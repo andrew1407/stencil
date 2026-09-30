@@ -1,7 +1,7 @@
 // The skin's icons (config/iconsWebcore.json): a palette map becomes <rect> runs on a 16-grid,
 // installed into ui/icons.js so every glyph assembled afterwards wears it, and swapped into the
 // ones already on the page. Desktop twin: support/webcore/icons.cpp.
-import PIXELS from '../../config/iconsWebcore.json' with { type: 'json' };
+import PIXELS from '../../../../common/config/iconsWebcore.json' with { type: 'json' };
 import { icon, setIconSkin, DRAW_MODE_ICON } from '../icons.js';
 
 // One <rect> per run of a lit colour along each row. `ink` re-inks single palette characters.

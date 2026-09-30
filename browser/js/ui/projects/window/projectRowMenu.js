@@ -1,13 +1,16 @@
 // The per-row "⋯" menu, one floating node reused by every row. Closes on click-away,
 // Escape, or re-render (the list calls closeMenu() before it rebuilds).
-import { icon } from '../../icons.js';
 import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../motion.js';
+import { menuItemButton, createRowSubmenu } from './rowSubmenu.js';
 
 export const createProjectRowMenu = () => {
   let openMenu = null;
   let menuPoint = null;
+  let subs = [];
   const closeMenu = () => {
     if (!openMenu) return;
+    for (const s of subs) s.hide();
+    subs = [];
     // Back into that point as dust in its own layer, so the node still goes away NOW.
     surfaceOut(openMenu, menuPoint, { ms: SURFACE_MENU_OUT_MS });
     openMenu.remove();
@@ -15,27 +18,25 @@ export const createProjectRowMenu = () => {
     document.removeEventListener('mousedown', onMenuDocDown, true);
     document.removeEventListener('keydown', onMenuKey, true);
   };
-  const onMenuDocDown = e => { if (openMenu && !openMenu.contains(e.target)) closeMenu(); };
+  const onMenuDocDown = e => {
+    if (openMenu && !openMenu.contains(e.target) && !subs.some((s) => s.contains(e.target))) closeMenu();
+  };
   const onMenuKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } };
   // Opens under `anchor` (the "⋯" button), or at `point` ({x,y}) for a right-click.
   const showMenu = (anchor, items, point = null) => {
     closeMenu();
     const menu = document.createElement('div');
     menu.className = 'project-menu';
+    const run = (it, at) => { closeMenu(); it.onClick(at); };
     for (const it of items) {
       if (!it) continue;
-      const b = document.createElement('button');
-      // Not the global `.danger` (which fills the button red): red text on the menu background.
-      b.className = 'project-menu-item btn-icon-text' + (it.danger ? ' is-danger' : '');
-      b.innerHTML = `${icon(it.icon, { size: 15 })}<span>${it.label}</span>`;
+      const b = menuItemButton(it);
+      // A nested list flies out beside its item; moving onto any other item folds it.
+      if (it.items) { subs.push(createRowSubmenu(b, it.items, run)); menu.appendChild(b); continue; }
+      b.addEventListener('mouseenter', () => { for (const s of subs) s.hide(); });
       // Each handler gets its row's rect, measured before the menu goes, so a window raised
       // from here grows out of the clicked row.
-      b.addEventListener('click', e => {
-        e.stopPropagation();
-        const at = b.getBoundingClientRect();
-        closeMenu();
-        it.onClick(at);
-      });
+      b.addEventListener('click', e => { e.stopPropagation(); run(it, b.getBoundingClientRect()); });
       menu.appendChild(b);
     }
     document.body.appendChild(menu);

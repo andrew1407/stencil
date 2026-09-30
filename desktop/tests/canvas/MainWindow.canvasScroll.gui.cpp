@@ -1,4 +1,5 @@
-// MainWindow GUI e2e — The canvas scrollbars staying hidden until a pan or a zoom asks for them.
+// MainWindow GUI e2e — The canvas scrollbars staying hidden until a pan or a zoom asks for them,
+// and a pan re-hovering under a still cursor.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "../MainWindow.gui.hpp"
 
@@ -112,6 +113,25 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!hbar->isVisible());
     QVERIFY(vbar->isVisible());
     QCOMPARE(vbar->height(), win.scroll->viewport()->height());
+  }
+
+  // A pan under a still cursor re-runs the hover where it rests, so a tooltip never lingers over
+  // what scrolled away. Skips where the platform cannot place the cursor.
+  void scrollingRehoversUnderAStillCursor() {
+    MainWindow win;
+    win.resize(600, 500);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(800, 4000, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.setZoom(1.0);
+    const QPoint inside = win.scroll->viewport()->mapToGlobal(win.scroll->viewport()->rect().center());
+    QCursor::setPos(inside);
+    if (QCursor::pos() != inside) QSKIP("this platform cannot place the cursor");
+    QSignalSpy hovered(win.canvas, &CanvasWidget::hovered);
+    win.scroll->verticalScrollBar()->setValue(win.scroll->verticalScrollBar()->value() + 120);
+    QVERIFY2(hovered.count() >= 1, "the scroll re-hovered at the resting cursor");
   }
 
 };

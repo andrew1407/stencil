@@ -5,6 +5,8 @@
 #include "SearchCombo.hpp"
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 #include "../../support/control/lineLimits.hpp"
+#include "../../support/control/dblReset.hpp"
+#include "defaultVisuals.hpp"
 #include "modalReveal.hpp"
 
 #include <QLabel>
@@ -77,18 +79,20 @@ namespace stencil::gui {
                        w.parts.theme.syncDrawModeFace(mode == CanvasWidget::DrawMode::RECT, true);
                      });
 
-    // drawingApp.js:155
-    QObject::connect(w.tools.lineColorBtn, &QToolButton::clicked, &w, [this] {
-      const QColor c =
-          support::pickColorAnimated(w.tools.lineColorValue, &w, "Line color", w.tools.lineColorBtn);
-      if (!c.isValid()) return;
+    // drawingApp.js:155; a double-click puts the canonical default back (browser dblReset.js 'line-color').
+    const auto applyLineColor = [this](const QColor& c) {
       w.tools.lineColorValue = c;
       w.updateColorSwatch(w.tools.lineColorBtn, c);
       w.settings.defaultColor = c.name(QColor::HexRgb);
       if (w.tools.pointColorBtn && w.settings.defaultPointColor.isEmpty())
         w.updateColorSwatch(w.tools.pointColorBtn, c);
       w.parts.styleControls.onLineStyleControlChanged();
-    });
+    };
+    support::wireColorChip(w.tools.lineColorBtn, [this, applyLineColor] {
+      const QColor c =
+          support::pickColorAnimated(w.tools.lineColorValue, &w, "Line color", w.tools.lineColorBtn);
+      if (c.isValid()) applyLineColor(c);
+    }, [applyLineColor] { applyLineColor(QColor(defaultVisuals::table().color)); });
     // Picking the line colour again stores empty (inherit), so later line-colour changes keep
     // carrying the points.
     QObject::connect(w.tools.pointColorBtn, &QToolButton::clicked, &w, [this] {

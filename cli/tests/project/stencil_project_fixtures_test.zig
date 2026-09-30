@@ -87,7 +87,7 @@ test "stencilProject corpus: valid.json + invalid.json against project.parse" {
     var w = fx.Walk.start();
     defer w.stop();
     try w.loadOverrides();
-    try walkFile(&w, "fixtures/stencilProject/valid.json");
-    try walkFile(&w, "fixtures/stencilProject/invalid.json");
+    try walkFile(&w, "stencilProject/valid.json");
+    try walkFile(&w, "stencilProject/invalid.json");
     try w.report("stencilProject");
 }

@@ -160,25 +160,9 @@ namespace stencil::gui {
     deselectBtn->setObjectName("selectedLineDeselect");
     flow->addWidget(deselectBtn);
 
-    // Each lambda early-returns while showLine repopulates (updating), the browser's selectedLineIdx
-    // guard. Cancel hands the original back through pickColorAnimated.
-    const auto wireColorWell = [this](QPushButton* well, QColor& current, const char* title,
-                                      std::function<void(const QString&, bool)> send) {
-      connect(well, &QPushButton::clicked, this, [this, well, &current, title, send] {
-        if (updating) return;
-        const QColor c = support::pickColorAnimated(
-            current, this, title, well, QRect(),
-            [well, send](const QColor& p) { setColorSwatch(well, p); send(cssName(p), true); },
-            /*withAlpha=*/true);
-        if (!c.isValid()) return;
-        current = c;
-        setColorSwatch(well, current);
-        syncAlpha();   // a picked alpha shows in the well's box
-        send(cssName(current), false);
-      });
-    };
     wireColorWell(colorSwatch, currentColor, "Line color",
-                  [this](const QString& v, bool preview) { emit lineColorChanged(v, preview); });
+                  [this](const QString& v, bool preview) { emit lineColorChanged(v, preview); },
+                  [this] { return lineColorDefault ? lineColorDefault() : defaultVisuals::table().color; });
     wireColorWell(pointColorSwatch, currentPointColor, "Point color",
                   [this](const QString& v, bool preview) { emit linePointColorChanged(v, preview); });
     connect(thickness, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {

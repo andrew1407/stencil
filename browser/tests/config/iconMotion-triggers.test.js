@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import ICONS from '../../js/config/icons.json' with { type: 'json' };
-import MOTION from '../../js/config/iconMotion.json' with { type: 'json' };
+import ICONS from '../../../common/config/icons.json' with { type: 'json' };
+import MOTION from '../../../common/config/iconMotion.json' with { type: 'json' };
 import { ANIMATIONS_CSS } from '../helpers/css.js';
 
 const css = ANIMATIONS_CSS;

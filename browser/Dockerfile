@@ -5,7 +5,7 @@
 # Because that step needs core/, the build context is the REPO ROOT, not browser/:
 #
 #   docker build -f browser/Dockerfile -t stencil-browser .
-#   docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
+#   docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080/
 #
 # See core/WASM.md for the wasm toolchain details.
 
@@ -20,8 +20,11 @@ RUN cd core \
  && emmake cmake --build build-wasm -j 4 --target stencil_wasm
 
 # ---- Stage 2: serve the static app -----------------------------------------
+# The app at the root, with the shared tables and brand art its ../common imports land on at /common/.
 FROM nginx:alpine
 COPY browser/ /usr/share/nginx/html/
+COPY common/config/ /usr/share/nginx/html/common/config/
+COPY common/icons/ /usr/share/nginx/html/common/icons/
 # Drop the generated artifact in where js/core/stencilCore.js imports it from.
 COPY --from=wasm /src/core/build-wasm/stencil_core.js \
      /usr/share/nginx/html/js/wasm/stencilCore.js

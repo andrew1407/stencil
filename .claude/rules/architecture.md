@@ -86,15 +86,20 @@ something a user saw, which the code cannot say — leave the ones in the tree a
 
 ## Canonical data
 
-**`browser/js/config/` is the only home for a shared data table.** Other surfaces embed it
-(qrc alias, `@embedFile`, `include_str!`, `<EmbeddedResource Link>`) or ship a checked-in copy
-**with a byte-equality drift test**. A copy without a drift test is a bug. If a value can be
-read back out of the core over the C ABI, do that instead of mirroring it.
+**`common/` is the only home for anything two or more surfaces share** — tables in
+`common/config/`, corpora in `common/fixtures/`, brand art in `common/icons/`, samples in
+`common/samples/`. Other surfaces serve, embed or read it (the browser's static servers, qrc
+alias, `@embedFile`, `include_str!`, `<EmbeddedResource Link>`), generate their copy at build
+time (pystencil, server), or — where a package cannot reach outside its folder (the Chrome
+extension, the `.vsix`) — ship a checked-in copy **with a byte-equality drift test**. A copy
+without a drift test is a bug. If a value can be read back out of the core over the C ABI, do
+that instead of mirroring it. A table only the browser reads stays in `browser/js/config/`.
 
 The same rule covers copied **code** — the ports in `browser-extension/src/lib/` and the parser
 copy in `vscode-extension/src/parser/`, pinned both ways by `portParity.test.js` and
-`parserParity.test.js`. A copy is never fixed in place, and a new one gets its row in
-`.claude/tools/twins.json` and in the parity test that pins it, together.
+`parserParity.test.js` (the parser copy byte-equal except the import specifiers its
+`twins.json` entry's `rewrite` declares). A copy is never fixed in place, and a new one gets its row in
+`tools/twins.json` and in the parity test that pins it, together.
 
 ## Typed boundaries
 

@@ -15,7 +15,7 @@
 
 #include "check.hpp"
 
-// STENCIL_CORPUS_DIR (= <repo>/browser/js/config) and STENCIL_OVERRIDES_JSON
+// STENCIL_CORPUS_DIR (= <repo>/common/fixtures) and STENCIL_OVERRIDES_JSON
 // come from the CMake target definitions, like STENCIL_FIXTURES_DIR elsewhere.
 inline QString corpusPath(const char* rel) {
   return QStringLiteral(STENCIL_CORPUS_DIR "/") + QString::fromUtf8(rel);

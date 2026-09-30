@@ -85,6 +85,10 @@ namespace stencil::core {
     // Rejects empty / too-long / duplicate names with a reason.
     NameCheck validateName(const std::string& name, const std::string& exceptId = {}) const;
 
+    // "Make a copy" naming (twin: projectNaming.js copySuffixName): one trailing "-copy" / "-copy(N)"
+    // dropped, then "<base>-copy", "<base>-copy(1)", … — the first free, cut to MAX_NAME_LENGTH bytes.
+    std::string copySuffixName(const std::string& name) const;
+
    private:
     std::vector<ProjectMeta>::iterator findById(const std::string& id);
     std::vector<ProjectMeta>::const_iterator findById(const std::string& id) const;

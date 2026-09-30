@@ -4,11 +4,11 @@ Part of the [Stencil LLM contract](llm-contract.md); section numbers continue th
 root document's (code comments cite `§5`/`§6.x` everywhere). The machine-readable
 constants — default base URLs, wire paths, timeouts, the server's Anthropic upstream
 constants — live in
-[`browser/js/config/llm/providers.json`](../../browser/js/config/llm/providers.json), the
+[`common/config/llm/providers.json`](../../common/config/llm/providers.json), the
 normative asset for this file's numbers (guarded by `desktop/tests/support/theme/configCanon.headless.cpp`,
 bot `ProvidersAssetTests`, `pystencil/tests/test_canonical_drift.py`, and the cli/mcp
 compile-time embeds). Wire/error behaviour is pinned by the conformance fixtures
-`browser/js/config/llm/fixtures/providerWire/` and `fixtures/sanitizer/` (see their
+`common/fixtures/llm/providerWire/` and `common/fixtures/llm/sanitizer/` (see their
 `_schema.md`), walked by every surface's fixture tests.
 
 ## 5. Provider configuration
@@ -165,7 +165,7 @@ settings UIs render "via server X (model)". When the server has no upstream cred
 `/llm/chat` answers `503 {"code":"llmDisabled","message":…}`.
 
 **Upstream failures say WHY** (the sanitizer rules; cases pinned by
-`fixtures/sanitizer/cases.json`). A proxied call that the upstream rejects answers
+`common/fixtures/llm/sanitizer/cases.json`). A proxied call that the upstream rejects answers
 `502 {"code":"llmUpstream","message":…}` whose message names the actual condition in
 the user's terms — out of credits, key rejected, unknown model, upstream timed out,
 unreachable host — because every one of those is the user's to fix and none of them
@@ -195,7 +195,7 @@ string) is a typed **bad-reply** error on every client — never a silent empty-
 reply (an empty string that IS present stays a blank reply). Likewise the server's
 `503 llmDisabled` is a typed **disabled** error, distinct from generic HTTP
 failures, so clients can render a configure hint instead of a transport error.
-(`fixtures/providerWire/httpErrors.json` pins the classification.)
+(`common/fixtures/llm/providerWire/httpErrors.json` pins the classification.)
 
 **The server proxies any of the three §6 mappings.** `LLM_PROVIDER` picks which
 upstream it speaks — `anthropic` (default), `ollama`, or `openai-compat` — using the
@@ -288,7 +288,7 @@ A non-2xx answer is an **http** error whose message says WHY, by the server's ow
 | `overloaded_error`, `api_error`, HTTP 5xx | the LLM provider is temporarily unavailable |
 | anything else | the LLM provider returned an error (HTTP n): <sanitized upstream text> |
 
-The sanitized text follows `fixtures/sanitizer/`, and the client applies the server's
+The sanitized text follows `common/fixtures/llm/sanitizer/`, and the client applies the server's
 secret-fragment veto with its own session key: upstream text containing any 8-character
 run of the key is dropped. A request with no key (never entered, expired or forgotten) is
 not sent; it fails as a **disabled** error reading "no API key for this session", so the

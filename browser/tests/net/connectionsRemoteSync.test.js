@@ -113,3 +113,12 @@ test('deleteProject removes a project on the server', async () => {
   assert.ok(!server.state.projects.has('p_a_b'));
   assert.ok(server.state.calls.includes('DELETE /projects/p_a_b'));
 });
+
+test('createRemoteProject sends a copy\'s description, keywords, blank colour and expiry only when set', async () => {
+  const bodies = [];
+  const conn = { url: 'http://srv:9', createProject: async (b) => { bodies.push(b); return { id: 'r1', version: 0 }; } };
+  await createRemoteProject(conn, { name: 'Plain', description: '', keywords: [], blankColor: '', expiresAt: 0 });
+  await createRemoteProject(conn, { name: 'Full', description: 'd', keywords: ['k'], blankColor: '#ffffff', expiresAt: 99 });
+  assert.deepEqual(Object.keys(bodies[0]).sort(), ['color', 'hasImage', 'name', 'resource', 'source']);
+  assert.deepEqual([bodies[1].description, bodies[1].keywords, bodies[1].blankColor, bodies[1].expiresAt], ['d', ['k'], '#ffffff', 99]);
+});

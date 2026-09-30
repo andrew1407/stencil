@@ -3,7 +3,7 @@
 // knobs live in the Visuals & Settings modal (markup.js) — this dialog holds
 // only the provider the voice transcript is sent to.
 import { icon } from '../icons.js';
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { SESSION_KEY_TTL_MS } from '../../llm/sessionKey.js';
 
 const TTL_HOURS = SESSION_KEY_TTL_MS / 3_600_000;

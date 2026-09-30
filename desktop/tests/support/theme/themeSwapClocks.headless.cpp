@@ -1,4 +1,4 @@
-// The theme wipe's numbers come from browser/js/config/motion.json, the table the browser's
+// The theme wipe's numbers come from common/config/motion.json, the table the browser's
 // themeSwap.js and swapDust.js read: the two clocks through the qrc, the rest held equal here.
 #include "ThemeSwapOverlay.hpp"
 

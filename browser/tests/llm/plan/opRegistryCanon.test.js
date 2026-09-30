@@ -1,4 +1,4 @@
-// Pins js/config/llm/opRegistry.json to the LIVE browser structures (js/llm/plan/
+// Pins common/config/llm/opRegistry.json to the LIVE browser structures (js/llm/plan/
 // OPS/LIMITS/ASK_LIMITS/FORBIDDEN_OPS) and to the shared op-plan fixture corpus: the
 // registry is normative, so it must not drift from the reference it was measured against.
 import { test } from 'node:test';
@@ -10,8 +10,8 @@ import { OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS } from '../../../js/llm/plan/opP
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const registry = JSON.parse(readFileSync(
-  path.join(HERE, '../../..', 'js', 'config', 'llm', 'opRegistry.json'), 'utf8'));
-const FIXTURES_DIR = path.join(HERE, '../../..', 'js', 'config', 'llm', 'fixtures', 'opPlan');
+  path.join(HERE, '../../../..', 'common', 'config', 'llm', 'opRegistry.json'), 'utf8'));
+const FIXTURES_DIR = path.join(HERE, '../../../..', 'common', 'fixtures', 'llm', 'opPlan');
 
 const ALL_PROFILES = ['editor', 'console', 'bot', 'mcp', 'extension'];
 const entriesByName = (name) => registry.ops.filter((e) => e.name === name);
@@ -44,7 +44,7 @@ test('registry is well-formed: unique ids, known profiles, profile lists ↔ op 
 });
 
 test('measured per-profile op counts', () => {
-  assert.equal(registry.profiles.editor.ops.length, 36);     // browser 35 (incl. voiceChat) + desktop openFile
+  assert.equal(registry.profiles.editor.ops.length, 37);     // browser 36 (incl. voiceChat) + desktop openFile
   assert.equal(registry.profiles.console.ops.length, 23);    // cli 23 ⊇ pystencil 19
   assert.equal(registry.profiles.bot.ops.length, 24);        // 22 bullet groups, undo/redo + connect/disconnect shared
   assert.equal(registry.profiles.mcp.ops.length, 10);
@@ -52,9 +52,9 @@ test('measured per-profile op counts', () => {
 });
 
 // `filter` is the one wire name carried twice: the editor op and the extension's panel filter.
-test('the registry carries 49 entries under 48 wire names', () => {
+test('the registry carries 50 entries under 49 wire names', () => {
   const names = registry.ops.map((e) => e.name);
-  assert.equal(names.length, 49);
+  assert.equal(names.length, 50);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), ['filter']);
 });
 

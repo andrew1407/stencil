@@ -54,7 +54,7 @@ namespace stencil::core::abi {
   }
 
   // Layout caps, twins of LIMITS.layoutLinesMax / layoutLinePointsMax / layoutPointsMax in
-  // browser/js/config/constants.json: 64 history snapshots of an uncapped layout exhaust memory.
+  // common/config/constants.json: 64 history snapshots of an uncapped layout exhaust memory.
   inline constexpr int MAX_LAYOUT_LINES = 50000;
   inline constexpr int MAX_LINE_POINTS = 100000;
   inline constexpr int MAX_LAYOUT_POINTS = 1000000;

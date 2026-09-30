@@ -1,5 +1,5 @@
 // The chat empty state + typing dots.
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { escapeHtml } from '../base.js';
 import { icon } from '../icons.js';
 

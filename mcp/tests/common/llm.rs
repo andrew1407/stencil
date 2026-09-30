@@ -90,7 +90,7 @@ pub fn server_env() -> LlmEnv {
 /// The 16x12 PNG fixture shared with the CLI's own test suite.
 pub const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../cli/tests/fixtures/sample.png"
+    "/../common/samples/sample.png"
 );
 
 /// Answers with the canned ollama bodies in order; once the queue is exhausted, a connect

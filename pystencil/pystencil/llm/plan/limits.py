@@ -11,7 +11,7 @@ import re
 from ..._ffi.types import NoneType
 
 # ── contract limits (§1/§7/§11 — the same numbers in every client) ──
-# The checked-in copy of browser/js/config/llm/opRegistry.json (byte-pinned by tests): core
+# The build-time copy of common/config/llm/opRegistry.json (byte-pinned by tests): core
 # validates against these bytes; Python reads only the limits, the profile and the entries.
 REGISTRY: dict = json.loads(
   importlib.resources.files("pystencil").joinpath("_data/opRegistry.json").read_text(encoding="utf-8")

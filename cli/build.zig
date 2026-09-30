@@ -97,17 +97,17 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
         .files = &core_sources,
         .flags = if (small) &.{ "-std=c++17", "-O2" } else &.{"-std=c++17"},
     });
-    // Canonical shared static data from the browser app, embeddable via
+    // Canonical shared static data from common/config, embeddable via
     // @embedFile("<name>") (cross-tree paths need an anonymous import).
-    mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../browser/js/config/accents.json") });
-    mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../browser/js/config/colorNames.json") });
-    mod.addAnonymousImport("blockedRanges.json", .{ .root_source_file = b.path("../browser/js/config/net/blockedRanges.json") });
-    mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../browser/js/config/constants.json") });
-    mod.addAnonymousImport("mediaTypes.json", .{ .root_source_file = b.path("../browser/js/config/mediaTypes.json") });
-    mod.addAnonymousImport("themeTokens.json", .{ .root_source_file = b.path("../browser/js/config/themeTokens.json") });
-    mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../browser/js/config/llm/systemPrompt.json") });
-    mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../browser/js/config/llm/opRegistry.json") });
-    mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../browser/js/config/llm/providers.json") });
+    mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../common/config/accents.json") });
+    mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../common/config/colorNames.json") });
+    mod.addAnonymousImport("blockedRanges.json", .{ .root_source_file = b.path("../common/config/net/blockedRanges.json") });
+    mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../common/config/constants.json") });
+    mod.addAnonymousImport("mediaTypes.json", .{ .root_source_file = b.path("../common/config/mediaTypes.json") });
+    mod.addAnonymousImport("themeTokens.json", .{ .root_source_file = b.path("../common/config/themeTokens.json") });
+    mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../common/config/llm/systemPrompt.json") });
+    mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../common/config/llm/opRegistry.json") });
+    mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../common/config/llm/providers.json") });
     // stb's DECODER (untrusted input) keeps UBSan on; regex_shim owns the POSIX regex_t for
     // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{
@@ -161,6 +161,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     wireNative(b, test_mod, stb);
+    // The 16x12 sample every surface's tests share; read at run time from ../common/samples too.
+    test_mod.addAnonymousImport("sample.png", .{ .root_source_file = b.path("../common/samples/sample.png") });
 
     const unit_tests = b.addTest(.{ .root_module = test_mod });
     const run_tests = b.addRunArtifact(unit_tests);

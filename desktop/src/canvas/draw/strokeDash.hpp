@@ -1,5 +1,5 @@
 #pragma once
-// The dash table, in px (browser/js/config/constants.json STROKE_DASH through the qrc), read
+// The dash table, in px (common/config/constants.json STROKE_DASH through the qrc), read
 // once. The browser's renderer reads the same table; a QPen counts in pen widths, so the
 // stroke divides by its own width.
 #include <QFile>

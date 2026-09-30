@@ -1,6 +1,6 @@
 """Cross-surface fixture-conformance walkers (pystencil side).
 
-Walks the shared, language-neutral fixture corpus under browser/js/config/
+Walks the shared, language-neutral fixture corpus under common/fixtures/
 (see each family's _schema.md) through pystencil's REAL entry points and pins
 the current behavior. Measured pystencil-vs-corpus divergences live in
 tests/helpers/fixture_overrides.json — the shared fixtures are never edited here.
@@ -15,9 +15,11 @@ from pathlib import Path
 
 from pystencil.layout import Line
 
-# Shared corpus root, __file__-relative: pystencil/tests → repo root → browser.
-_FIXTURES = Path(__file__).resolve().parent.parent.parent.parent / "browser" / "js" / "config"
-_LLM_FIXTURES = _FIXTURES / "llm" / "fixtures"
+# Shared roots, __file__-relative: pystencil/tests/helpers → repo root → common/.
+_COMMON = Path(__file__).resolve().parent.parent.parent.parent / "common"
+_CONFIG = _COMMON / "config"
+_FIXTURES = _COMMON / "fixtures"
+_LLM_FIXTURES = _FIXTURES / "llm"
 
 with open(Path(__file__).resolve().parent / "fixture_overrides.json", encoding="utf-8") as _fh:
   _OVERRIDES = json.load(_fh)

@@ -2,7 +2,7 @@
 // Persisted provider configuration in the contract's shape: { provider, baseUrl, model,
 // apiKey, serverUrl }; for anthropic everything but the key, which is a session key
 // (sessionKey.js). Every localStorage access is guarded so the leaf is inert in Node.
-import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
+import PROVIDERS_ASSET from '../../../common/config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
 import { validateHttpUrl } from '../core/parse/validation.js';
 import { sessionKey } from './sessionKey.js';

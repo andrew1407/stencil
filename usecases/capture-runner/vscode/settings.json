@@ -17,6 +17,7 @@
   "workbench.secondarySideBar.defaultVisibility": "hidden",
   "git.openRepositoryInParentFolders": "never",
   "workbench.tips.enabled": false,
+  "window.menuStyle": "custom",
   "editor.quickSuggestionsDelay": 10,
   "stencil.cliPath": "",
   "terminal.integrated.shellIntegration.enabled": false

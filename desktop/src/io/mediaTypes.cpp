@@ -1,6 +1,6 @@
 // What kind of media a source is: by suffix off mediaTypes.json `surfaces.desktop`, and by the
 // leading bytes through the codec-free header sniffer the shared corpus
-// browser/js/config/fixtures/imageHeader pins (twin of cli/src/scrape/sniff.zig).
+// common/fixtures/imageHeader pins (twin of cli/src/scrape/sniff.zig).
 #include "MediaLoader.hpp"
 
 #include <QFile>
@@ -17,7 +17,7 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 namespace stencil::gui {
 
   namespace {
-    // browser/js/config/mediaTypes.json `surfaces.desktop`. Deliberately not the wider
+    // common/config/mediaTypes.json `surfaces.desktop`. Deliberately not the wider
     // `video.extensions` contract set - that would accept more files (the asset's `drift` note).
     QStringList canonExtensions(const QString& kind) {
       ensureAppResources();

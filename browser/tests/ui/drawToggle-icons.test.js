@@ -31,7 +31,7 @@ test('the Line and Rect glyphs are siblings, not two different families', async 
 // the extension read it: the toolbar's inline 16-grid pair is that 24-grid drawing scaled x1.5.
 test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid', async () => {
   const { DRAW_MODE_ICON } = await import('../../js/ui/icons.js');
-  const ICONS = JSON.parse(readFileSync(new URL('../../js/config/icons.json', import.meta.url), 'utf8'));
+  const ICONS = JSON.parse(readFileSync(new URL('../../../common/config/icons.json', import.meta.url), 'utf8'));
   // Every geometry number in the inline face, x1.5 (16-grid → 24-grid).
   const scaled = (svg, attrs) => attrs.map((a) => {
     const v = svg.match(new RegExp(`${a}="([\\d.]+)"`));

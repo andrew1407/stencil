@@ -37,6 +37,7 @@ export const createChatController = ({
   renameActiveProject,    // §10 renameProject: async (name) => note-string | null (store errors as notes)
   setBlankColor,          // §10 blankColor: async (color) => note-string | null (non-blank → note)
   openProjectNamed,       // §10 openProject: async (name) => note-string | null (confirms in-app)
+  copyActiveProject,      // §10 copyProject: async ({what, open, incognito, local}) => note-string | null
   setChatPlacement,       // §10 chat: async ({open, dock}) => note-string | null (the panel's own buttons)
   openDialog,             // §10 dialog: async (name|null) => note-string | null (null closes; executor-deferred)
   clearChatConversation,  // §10 clearChat: async () => note-string | null (confirms in-app; executor-deferred)
@@ -81,7 +82,7 @@ export const createChatController = ({
     stencil, state, history, pushHistory, edgeOf, snapshot, getClient, loadImage, frameAt,
     exportImage, previewThumb, savedServers, openIncognito, editorHistory,
     caps: { saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage,
-      clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, setChatPlacement,
+      clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, copyActiveProject, setChatPlacement,
       openDialog, clearChatConversation, setVoiceChat },
   });
 

@@ -17,7 +17,8 @@ let fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'im
 const fetchStub = installFetchStub((...args) => fetchImpl(...args));
 const fetchCalls = fetchStub.calls;
 
-const { applyExternalLaunch, MAX_LAUNCH_SCRIPT } = await import('../../../js/core/launch/controller.js');
+const { applyExternalLaunch, MAX_LAUNCH_SCRIPT, launchScriptMode } = await import('../../../js/core/launch/controller.js');
+const constants = (await import('../../../../common/config/constants.json', { with: { type: 'json' } })).default;
 
 // The decode boundary: the real load reads its file and the picture decodes after `decode.delayMs`,
 // or never; the settle's crop rebuild is where the mock's picture appears. `reads` is every load.
@@ -169,4 +170,20 @@ test('a picture that never decodes gives up rather than hanging the boot', async
   }
   assert.equal(reads.length, 1, 'the load started');
   assert.equal(mock.image, null, 'no picture — and the boot carried on anyway');
+});
+
+test('the script cap is the shared LAUNCH.scriptMaxChars', () => {
+  assert.equal(MAX_LAUNCH_SCRIPT, constants.LAUNCH.scriptMaxChars);
+});
+
+test('scriptMode "open" asks for the Script window; anything else runs', async () => {
+  for (const [scriptMode, want] of [['open', 'open'], ['run', 'run'], [undefined, 'run'], ['OPEN', 'run'], [1, 'run']]) {
+    assert.equal(launchScriptMode({ script: '@crop 10%\n', scriptMode }), want, String(scriptMode));
+  }
+  assert.equal(launchScriptMode(null), 'run');
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ script: '@filter sepia\n', scriptMode: 'open' });
+  const mock = makeMock();
+  await run(mock);
+  assert.deepEqual([mock.pendingLaunchScript, mock.pendingLaunchScriptMode], ['@filter sepia\n', 'open']);
 });

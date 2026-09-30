@@ -1,4 +1,4 @@
-// Walks the shared image-header corpus (browser/js/config/fixtures/imageHeader/cases.json) against
+// Walks the shared image-header corpus (common/fixtures/imageHeader/cases.json) against
 // the cli's one sniffer, scrape/sniff.zig — the scraper's dimension filter and `--probe` both read
 // through it. The corpus says "jpeg" where the cli says "jpg".
 const std = @import("std");
@@ -10,7 +10,7 @@ test "image-header corpus: every case measures as pinned, or not at all" {
     var w = fx.Walk.start();
     defer w.stop();
     const a = w.alloc();
-    const cases = try w.cases("fixtures/imageHeader/cases.json");
+    const cases = try w.cases("imageHeader/cases.json");
     try testing.expect(cases.len >= 40);
     for (cases) |c| {
         const name = fx.memberStr(c, "name").?;

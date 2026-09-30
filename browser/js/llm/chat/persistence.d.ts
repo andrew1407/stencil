@@ -6,12 +6,21 @@ import type { DrawingApp } from '../../core/drawingApp.js';
 import type { ChatStore } from './store.js';
 import type { LlmSettings } from '../settings.js';
 
+/** A saved chat's home: a local project id, or a server project's `chat` file. */
+export interface ChatLocation {
+  id?: string | null;
+  conn?: { fetchFile(id: string, kind: string): Promise<Blob>; putFile(id: string, kind: string, body: unknown, opts?: object): Promise<unknown> } | null;
+  remoteId?: string | null;
+}
+
 export interface ChatPersistence {
   /** Swap the conversation to project `id` (null = a fresh temporary/blank editor). */
   projectOpened(id: string | null): Promise<void>;
   /** Stored chats go with their projects regardless of the toggle. */
   projectRemoved(id: string): Promise<void>;
   allProjectsCleared(): Promise<void>;
+  /** A whole-project copy takes its source's saved chat along; false when there was none. */
+  projectCopied(from: ChatLocation, to: ChatLocation): Promise<boolean>;
   /** Test seam: resolves when every snapshot filed so far has been written. */
   flush(): Promise<void>;
 }

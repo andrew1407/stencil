@@ -42,9 +42,9 @@ RUN set -eux; \
 WORKDIR /src
 COPY core/ ./core/
 COPY cli/ ./cli/
-# cli/build.zig embeds shared JSON from the browser app (accents, colour names, constants,
+# cli/build.zig embeds the shared JSON in common/config (accents, colour names, constants,
 # and the LLM prompt/registry/providers), so those files must be in the build context too.
-COPY browser/js/config/ ./browser/js/config/
+COPY common/config/ ./common/config/
 # Zig fetches the pinned stb_image dependency on demand (needs network).
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
@@ -53,8 +53,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src/bot
 COPY bot/ ./
 # Separate stage, separate filesystem: the csproj files <EmbeddedResource> the same shared
-# JSON (../../../browser/js/config/…), so this stage needs its own copy of it.
-COPY browser/js/config/ /src/browser/js/config/
+# JSON (../../../common/config/…), so this stage needs its own copy of it.
+COPY common/config/ /src/common/config/
 # nuget.config (copied above) pins globalPackagesFolder to ./packages, so this restore
 # pulls Telegram.Bot, StackExchange.Redis, … into an image-local bot/packages/ folder
 # rather than any global cache. --packages is passed too so it holds even if the config

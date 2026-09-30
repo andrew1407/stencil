@@ -4,14 +4,17 @@
 import type { DrawingApp } from '../drawingApp.js';
 import type { PinchSession } from '../touch/pinch.js';
 import type { TouchSession } from '../touch/drag.js';
+import type { TouchPanSession } from '../touch/pan.js';
 
 export declare class InputController {
   app: DrawingApp;
   constructor(app: DrawingApp);
   /** True while press-and-hold is armed or drawing (mouse or touch). */
   readonly holdEngaged: boolean;
+  /** True once the hold has started drawing, past its armed wait. */
+  readonly holdDrawing: boolean;
   /** The live touch gesture; input.js drives it, this class only ends a tap. */
-  touchSession: TouchSession | PinchSession | null;
+  touchSession: TouchSession | PinchSession | TouchPanSession | null;
   wireHoldDraw(): void;
   wireTouch(): void;
   /** Arms a hold at a modifier-free press; false when the editor is not eligible. */

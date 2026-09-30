@@ -64,14 +64,21 @@ const currentVersion = async (conn, id, fallback) => {
 };
 
 // Returns the session link { address, remoteId, version } to persist on the editor.
-export const createRemoteProject = async (conn, { name, source, resource, color, bytes, ext, w, h } = {}) => {
-  const rec = await conn.createProject({
+// description / keywords / blankColor / expiresAt (epoch ms) ride only when set, as a copy sends them.
+export const createRemoteProject = async (conn, { name, source, resource, color, description, keywords,
+  blankColor, expiresAt, bytes, ext, w, h } = {}) => {
+  const body = {
     name: name || 'Untitled',
     source: wireSource(source),
     resource: resource || '',
     color: color || '',
     hasImage: !!bytes,
-  });
+  };
+  if (description) body.description = description;
+  if (Array.isArray(keywords) && keywords.length) body.keywords = keywords;
+  if (blankColor) body.blankColor = blankColor;
+  if (expiresAt > 0) body.expiresAt = expiresAt;
+  const rec = await conn.createProject(body);
   let version = rec && rec.version != null ? rec.version : 0;
   if (bytes && bytes.length) {
     await conn.putFile(rec.id, 'original', bytes, { ext: ext || 'png', w: w || 0, h: h || 0 });

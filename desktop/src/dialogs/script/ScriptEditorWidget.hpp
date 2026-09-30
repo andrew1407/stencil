@@ -29,7 +29,8 @@ namespace stencil::gui {
       int editorMinH = 160;
       int stripGap = 0;        // the gap the host used to leave between the box and the strip
       int indent = 2;          // spaces a Tab inserts, where the editor owns Tab
-      bool codeKeys = false;   // Tab indents and Ctrl/⌘+Enter runs (the flyout)
+      bool codeKeys = false;   // Tab indents two spaces (the flyout)
+      bool runKeys = false;    // Ctrl/⌘+Enter runs
       bool hoverOnFrame = false;   // hover read off the halo, not the editor
       bool tabStops = false;       // Tab advances `indent` spaces' worth of pixels
     };
@@ -67,6 +68,8 @@ namespace stencil::gui {
     void parseAndPaint(const QString& text, bool withDiagnostics);
     void showFirstDiagnostic(bool withDiagnostics);
     void setFrameState(const char* key, bool on);
+    bool handleKey(QEvent* event);
+    void fadePlaceholder();
     void applyLineHeight();
 
     Style style;

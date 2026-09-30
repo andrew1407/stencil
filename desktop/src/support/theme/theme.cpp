@@ -75,7 +75,7 @@ namespace stencil::gui {
     return systemPrefersDark();  // "system" (default)
   }
 
-  // Parsed once from the shared canon (browser/js/config/accents.json via app.qrc).
+  // Parsed once from the shared canon (common/config/accents.json via app.qrc).
   const std::vector<AccentPreset>& accentPresets() {
     static const std::vector<AccentPreset> presets = [] {
       ensureAppResources();

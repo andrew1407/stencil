@@ -21,14 +21,14 @@ test('§13: the registered op names are exactly the contract browser surface set
     'theme', 'accent', 'lineStyle', 'units', 'view', 'clear', 'openUrl',
     'connect', 'disconnect', 'copy', 'removeProject', 'clearProjects',
     'compare', 'zoom', 'renameProject', 'projectColor', 'blankColor',
-    'openProject', 'incognito', 'voiceChat', 'chatPanel', 'dialog', 'clearChat',
+    'openProject', 'incognito', 'copyProject', 'voiceChat', 'chatPanel', 'dialog', 'clearChat',
   ]);
 });
 
 test('§13: each op carries its contract flags', () => {
   const editorSetting = ['theme', 'accent', 'lineStyle', 'units', 'view', 'clear', 'openUrl',
     'connect', 'disconnect', 'copy', 'removeProject', 'clearProjects', 'compare', 'zoom',
-    'renameProject', 'projectColor', 'blankColor', 'openProject', 'incognito', 'voiceChat',
+    'renameProject', 'projectColor', 'blankColor', 'openProject', 'incognito', 'copyProject', 'voiceChat',
     'chatPanel', 'dialog', 'clearChat'];
   const topLevelOnly = ['undo', 'redo', 'image', 'save'];
   const newFrame = ['blank', 'undo', 'redo', 'frame', 'image', 'clear', 'openUrl', 'openProject'];
@@ -72,6 +72,7 @@ test('§13: every bullet keeps its key semantic phrase', () => {
     blankColor: 'KEEPING the drawn lines',
     openProject: 'unsaved work would be replaced',
     incognito: 'only togglable on a blank editor',
+    copyProject: 'save a copy of the open project named "<name>-copy"',
     voiceChat: 'turn the hands-free voice chat mode off',
     chatPanel: 'a "dock" on its own opens the panel where it lands',
     dialog: 'when they ask for a change you can make yourself, make it instead',
@@ -91,6 +92,7 @@ test('§13: every bullet keeps its key semantic phrase', () => {
     accent: 'a named preset persists and syncs',
     lineStyle: 'the defaults of NEW lines',
     openProject: 'the project edited most recently',
+    copyProject: 'only a local copy opens incognito',
   };
   for (const [name, phrase] of Object.entries(also)) {
     assert.ok(flat(OPS[name].also).includes(phrase), `${name} also-line keeps "${phrase}"`);

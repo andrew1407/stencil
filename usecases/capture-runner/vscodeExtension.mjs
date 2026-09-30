@@ -8,6 +8,7 @@ import { PARK, config, runner, still } from './vscode/view.mjs';
 import { CHECK_STEPS, STC_STEPS } from './vscode/stcSteps.mjs';
 import { EMIT_STEPS } from './vscode/emitSteps.mjs';
 import { API_STEPS, PALETTE_STEPS } from './vscode/apiSteps.mjs';
+import { HANDOFF_STEPS } from './vscode/handoffSteps.mjs';
 
 const STEPS = Object.freeze([
   ...STC_STEPS,
@@ -15,6 +16,7 @@ const STEPS = Object.freeze([
   ...API_STEPS,
   ...makeActionSteps({ config, runner, still }),
   ...PALETTE_STEPS,
+  ...HANDOFF_STEPS,
   ...CHECK_STEPS,
 ]);
 

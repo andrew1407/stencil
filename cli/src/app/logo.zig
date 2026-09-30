@@ -1,4 +1,4 @@
-//! Console logo + help text. The logo echoes browser/favicon.svg: a purple rounded
+//! Console logo + help text. The logo echoes common/icons/favicon.svg: a purple rounded
 //! panel framing the signature yellow annotation polyline with points. Human
 //! output goes to stderr so it never contaminates a piped result; colour is suppressed
 //! when NO_COLOR is set, and the `error:`/`note:` prefixes (see err/note below) also need

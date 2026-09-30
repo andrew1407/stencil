@@ -7,7 +7,7 @@ import { animationsCss, browserAnimationsCss } from './sources.js';
 import { ICONS } from '../../src/lib/icons.js';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-export const MOTION = JSON.parse(read('../../../browser/js/config/iconMotion.json'));
+export const MOTION = JSON.parse(read('../../../common/config/iconMotion.json'));
 
 // The icon-motion section of a sheet: its comment header up to the next section.
 export const section = (css, from, to) => {

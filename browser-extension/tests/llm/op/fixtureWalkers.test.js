@@ -1,4 +1,4 @@
-// Extension walkers over the SHARED fixture corpus in browser/js/config/ — the cross-surface
+// Extension walkers over the SHARED fixture corpus in common/fixtures/ — the cross-surface
 // conformance net (each family's _schema.md documents its format). Node-only: the shipped
 // extension never reads browser/, its tests may. Walked here: opPlan (profile "extension") and
 // its oracle inputs, providerWire, sanitizer, deepLink/telegramStart. Skipped for want of an implementation:
@@ -14,8 +14,8 @@ import { createLlmClient, sanitizeProviderText, LlmError } from '../../../src/ll
 import { encodeTelegramStartPayload } from '../../../src/lib/menu/openIn.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LLM_FIXTURES = path.join(HERE, '../../../..', 'browser', 'js', 'config', 'llm', 'fixtures');
-const CORE_FIXTURES = path.join(HERE, '../../../..', 'browser', 'js', 'config', 'fixtures');
+const LLM_FIXTURES = path.join(HERE, '../../../..', 'common', 'fixtures', 'llm');
+const CORE_FIXTURES = path.join(HERE, '../../../..', 'common', 'fixtures');
 const OVERRIDES = JSON.parse(readFileSync(path.join(HERE, 'fixtureOverrides.json'), 'utf8'));
 
 // The extension parser's fixed measurement context (opPlan/_schema.md).

@@ -3,7 +3,7 @@
 import { MSG } from '../../worker/messages.js';
 import { Emitter } from '../emitter.js';
 import { PeerRoster } from '../remote/peerRoster.js';
-import EVENTS from '../../config/events.json' with { type: 'json' };
+import EVENTS from '../../../../common/config/events.json' with { type: 'json' };
 
 const CHANNEL_NAME = 'stencil_projects';
 const READY_TIMEOUT_MS = 400;

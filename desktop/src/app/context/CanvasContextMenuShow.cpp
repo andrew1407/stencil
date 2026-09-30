@@ -4,9 +4,12 @@
 #include "StayOpenMenu.hpp"
 #include "CanvasWidget.hpp"
 #include "MenuHotkeys.hpp"
+#include "menuIconColumn.hpp"
 #include "menuReveal.hpp"
 #include "MenuShimmer.hpp"
 #include "iconSet.hpp"
+#include "copyProjectMenu.hpp"
+#include <QTimer>
 
 // The canvas context menu tree (contextMenu.js parity).
 
@@ -75,6 +78,16 @@ namespace stencil::gui {
     if (hasLines) layout->addAction(w.acts.downloadJson);  // "Download Layout"
     layout->addAction(w.acts.uploadJson);    // "Upload Layout"
 
+    // browser #ctx-copy-project-menu: "Make a copy ›" right after Image / Layout.
+    support::addCopyProjectMenu(menu, w.painted.iconColor, subIcon, support::CONTEXT_MENU_DUST_MS,
+                                [this](support::CopyScope s) {
+                                  support::CopyScope scope = s;
+                                  QTimer::singleShot(0, &w, [this, scope] {
+                                    CopyRequest req;
+                                    req.what = scope;
+                                    w.parts.projectCopy.offer(req);
+                                  });
+                                });
     menu.addAction(w.acts.fullscreen);
     menu.addSeparator();
 
@@ -149,6 +162,7 @@ namespace stencil::gui {
     support::MenuHotkeyChips hotkeyChips(&menu);  // bordered keycap chips (.ctx-hotkey)
     support::MenuShimmer shimmer(&menu);          // per-row hover sweep (browser parity: .ctx-item)
     support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
+    support::tightenIconColumn(menu);
     // Coming back from the flyout's file dialog: land on the script row, flyout open, as if
     // the chain had never been dismissed. The keyboard path, so QMenu keeps its own state.
     if (w.ctxMenu.reopenScriptPending) {

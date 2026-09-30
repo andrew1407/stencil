@@ -1,5 +1,5 @@
 """One lowered ``.stc`` op as one action in the op-plan vocabulary of
-``browser/js/config/llm/opRegistry.json`` — the wire names ``applyPlanAction`` executes. Pure
+``common/config/llm/opRegistry.json`` — the wire names ``applyPlanAction`` executes. Pure
 builders: which actions a block needs, and in what frame, is ``plansequence.py``'s. Twin of
 ``cli/src/script/plan/{actions,crop}.zig``.
 """

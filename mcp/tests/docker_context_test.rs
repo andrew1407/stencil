@@ -130,5 +130,5 @@ fn the_ignore_matcher_reads_docker_rules() {
     assert!(ignored(rules, ".claude/rules/tests.md"));
     assert!(ignored(rules, "desktop/src/main.cpp"));
     assert!(!ignored(rules, "contracts/stc/stc-contract.md"));
-    assert!(!ignored(rules, "browser/js/config/constants.json"));
+    assert!(!ignored(rules, "common/config/constants.json"));
 }

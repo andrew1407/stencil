@@ -7,7 +7,7 @@ class QLineEdit;
 class QLabel;
 class QWidget;
 
-// Controls & Shortcuts Info dialog. Renders browser/js/config/infoConfig.json, embedded
+// Controls & Shortcuts Info dialog. Renders common/config/infoConfig.json, embedded
 // as a Qt resource, like the browser info modal (browser/js/ui/meta/infoModal.js): the shared
 // shell, its live search box, and uppercase group titles over key / description rows.
 namespace stencil::gui {

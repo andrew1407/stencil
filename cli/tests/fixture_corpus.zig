@@ -1,10 +1,10 @@
 //! Shared plumbing for the cross-surface fixture-corpus walkers
-//! (tests/**/*_fixtures_test.zig). The corpus lives in the browser tree;
+//! (tests/**/*_fixtures_test.zig). The corpus lives in common/fixtures;
 //! `zig build test` runs with cwd = cli/ (verified empirically), so fixtures
-//! resolve via "../browser/js/config/...". std.fs + std.json only.
+//! resolve via "../common/fixtures/...". std.fs + std.json only.
 const std = @import("std");
 
-pub const corpus_root = "../browser/js/config/";
+pub const corpus_root = "../common/fixtures/";
 
 /// Local walker overrides for measured cli-vs-corpus disagreements, keyed family → fixture/case name.
 /// The shared fixtures are NEVER edited; this pins where the cli's behavior diverges from the corpus.

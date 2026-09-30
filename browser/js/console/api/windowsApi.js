@@ -2,7 +2,7 @@
 // Each window is opened through its own shell, from its own toolbar control, so a
 // scripted open flies out of the same button a click would.
 import { closeOpenModal } from '../../ui/base.js';
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { str } from '../coerce.js';
 
 // The editor's windows, for stencil.openWindow(title). The table is config/uiStrings.json;

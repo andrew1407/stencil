@@ -101,6 +101,34 @@
     "script-run": {
       "typeDelayMs": 18,
       "holdMs": 1600
+    },
+    "touch-pan": {
+      "size": {
+        "width": 390,
+        "height": 780
+      },
+      "width": 390,
+      "fill": "#dde3ea",
+      "zoom": 3,
+      "settleMs": 700,
+      "glide": [
+        [
+          -140,
+          -70
+        ],
+        [
+          110,
+          50
+        ]
+      ],
+      "steps": 14,
+      "holdMs": 900
+    }
+  },
+  "handoff": {
+    "menuAt": {
+      "x": 60,
+      "y": 60
     }
   },
   "timeouts": {

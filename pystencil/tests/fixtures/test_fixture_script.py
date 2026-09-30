@@ -1,6 +1,6 @@
 """The shared ``.stc`` corpus, walked through pystencil's own parser binding.
 
-Replays ``browser/js/config/script/fixtures/cases.txt`` — the same file
+Replays ``common/fixtures/script/cases.txt`` — the same file
 ``core/tests/scriptFixtures.test.cpp`` and ``browser/tests/scriptFixtures.test.js``
 read, with the same splitting rules. A case named ``err-*`` must produce at least one
 error; every other case must produce none.
@@ -17,7 +17,7 @@ from tests.helpers.nativecase import NativeCase
 from pystencil.script import parse_script
 
 CASES_PATH = (
-  _PKG_ROOT.parent / "browser" / "js" / "config" / "script" / "fixtures" / "cases.txt"
+  _PKG_ROOT.parent / "common" / "fixtures" / "script" / "cases.txt"
 )
 _SECTIONS = ("script", "dump", "diagnostics")
 

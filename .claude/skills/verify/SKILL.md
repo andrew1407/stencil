@@ -25,7 +25,7 @@ is not a pass.
 
 | # | Surface | Command (from the repo root) | Expected |
 |---|---|---|---|
-| 0 | harness | `node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs .claude/tools/*.test.mjs` | 0 fail — this includes the live doc-path check and the twin check |
+| 0 | harness | `node --test .claude/hooks/guard.test.mjs .claude/hooks/guard/*.test.mjs tools/*.test.mjs` | 0 fail — this includes the live doc-path check and the twin check |
 | 1 | browser | `cd browser && npm test` | 0 fail |
 | 2 | browser-extension | `cd browser-extension && npm test` | 0 fail |
 | 3 | vscode-extension | `cd vscode-extension && npm test` | 0 fail |

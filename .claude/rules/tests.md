@@ -33,7 +33,7 @@ pins before any code moves, and never re-record to make a move's proof pass.
 | desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (the stylesheet hashes, tracked) + `desktop/tests/pins/<platform>/*.png` (the pinned states at @1x and @2x, a gitignored local baseline) | `STENCIL_UPDATE_UI_PINS=1 ctest --test-dir desktop/build -R uipins` |
 | CLI terminal output | `cli/tests/pins/*.txt` (the TUI goldens) | `cd cli && STENCIL_UPDATE_PINS=1 zig build test` |
 | CLI full-screen effects and easter eggs | `cli/tests/pins/fx/*.txt` (frame sequences) | `cd cli && STENCIL_UPDATE_FX_PINS=1 zig build test` — **never in a refactor**: they are what proves the effects survived it |
-| an op-plan mapper or executor (desktop, cli, pystencil) | the typed-result oracles over `browser/js/config/llm/fixtures/opPlan/oracle/inputs.json`: `desktop/tests/pins/opPlanOracle.json`, `cli/tests/pins/opplan_oracle.json`, `pystencil/tests/goldens/opplan_oracle.json` | `STENCIL_UPDATE_ORACLE=1` on the desktop headless run or `zig build test`; `ORACLE_WRITE=1` on pystencil's unittest run |
+| an op-plan mapper or executor (desktop, cli, pystencil) | the typed-result oracles over `common/fixtures/llm/opPlan/oracle/inputs.json`: `desktop/tests/pins/opPlanOracle.json`, `cli/tests/pins/opplan_oracle.json`, `pystencil/tests/goldens/opplan_oracle.json` | `STENCIL_UPDATE_ORACLE=1` on the desktop headless run or `zig build test`; `ORACLE_WRITE=1` on pystencil's unittest run |
 | mcp user-facing text | `mcp/tests/goldens/` | `cd mcp && MCP_UPDATE_GOLDENS=1 cargo test` |
 | pystencil user-facing text | `pystencil/tests/goldens/` | `cd pystencil && PYSTENCIL_UPDATE_GOLDENS=1 python3 -m unittest discover -s tests` |
 | server user-facing text | `server/internal/httpapi/goldens/` | `cd server && SERVER_UPDATE_GOLDENS=1 go test ./internal/httpapi/...` |
@@ -79,15 +79,15 @@ never wire one into a default test target.
 
 ## Fixtures
 
-The LLM op-plan fixture corpus under `browser/js/config/llm/fixtures/` is walked by **every**
+The LLM op-plan fixture corpus under `common/fixtures/llm/` is walked by **every**
 surface's tests — it is the cross-language proof that the op-plan validators agree. Its
 mechanical half is generated: after any `opRegistry.json` edit, run
 `cd browser && npm run gen-fixtures`, or the browser walker fails on a stale bundle, and
-`node .claude/tools/syncTwins.mjs` for the registry's checked-in copies.
+`node tools/syncTwins.mjs` for the registry's checked-in copies.
 Add the hand-written fixture for the interesting case yourself.
 
 The `.stc` corpus is its twin: one plain-text file,
-`browser/js/config/script/fixtures/cases.txt`, walked by `core/tests/script/scriptFixtures.test.cpp`,
+`common/fixtures/script/cases.txt`, walked by `core/tests/script/scriptFixtures.test.cpp`,
 `browser/tests/core/scriptFixtures.test.js` (and the wasm-parity script spec),
 `cli/tests/script/script_fixtures_test.zig`, `pystencil/tests/fixtures/test_fixture_script.py`,
 `vscode-extension/tests/parser/fixtureWalker.test.js` and the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
@@ -95,9 +95,9 @@ it: append the section by hand, run a walker, and read the mismatch it prints. A
 `err-*` must produce an error and every other case must not, so the name is part of the
 assertion.
 
-The conformance corpora under `browser/js/config/fixtures/` work the same way — `layout/`,
+The conformance corpora under `common/fixtures/` work the same way — `layout/`,
 `deepLink/`, `stencilProject/`, the SSRF hosts in `net/hosts.json` (judged against
-`browser/js/config/net/blockedRanges.json`) and the image-header cases in `imageHeader/` — each
+`common/config/net/blockedRanges.json`) and the image-header cases in `imageHeader/` — each
 walked by every surface its `_schema.md` names. A guard or sniffer change adds its case there,
 never a surface-local table.
 

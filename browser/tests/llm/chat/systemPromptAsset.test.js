@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import PROMPT_ASSET from '../../../js/config/llm/systemPrompt.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
 import {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, LLM_SYSTEM_PROMPT,
   OPS, BROWSER_CAPABILITIES,

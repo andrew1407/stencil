@@ -7,9 +7,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import WEBCORE from '../../js/config/webcore.json' with { type: 'json' };
-import PIXELS from '../../js/config/iconsWebcore.json' with { type: 'json' };
-import ICONS from '../../js/config/icons.json' with { type: 'json' };
+import WEBCORE from '../../../common/config/webcore.json' with { type: 'json' };
+import PIXELS from '../../../common/config/iconsWebcore.json' with { type: 'json' };
+import ICONS from '../../../common/config/icons.json' with { type: 'json' };
 import { splitThemeTokens } from '../helpers/themeCss.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');

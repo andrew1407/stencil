@@ -51,6 +51,7 @@ const env = {
   STENCIL_DOCS_CLIP_URL: media.url(clip.name),
   STENCIL_DOCS_PROMPT: config.prompt('stub'),
   STENCIL_DOCS_SCRIPT: config.get('canvas.script').join('\n'),
+  STENCIL_DOCS_COPY_SERVER: config.serverUrl,
   STENCIL_DOCS_REAL_PROMPT: config.prompt('real'),
   STENCIL_DOCS_PLAN: JSON.stringify(config.stubPlan('sepiaOutline')),
   ...(token ? { STENCIL_DOCS_SERVER_URL: config.serverUrl, STENCIL_DOCS_SERVER_TOKEN: token } : {}),

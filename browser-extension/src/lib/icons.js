@@ -1,4 +1,4 @@
-// A subset of the canonical browser/js/config/icons.json plus extension-only glyphs;
+// A subset of the canonical common/config/icons.json plus extension-only glyphs;
 // tests/dataParity.test.js pins every shared entry byte-for-byte. Injected surfaces
 // (lib/drop/overlay.js) inline their own SVG to stay import-free.
 export const ICONS = Object.freeze({

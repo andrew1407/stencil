@@ -27,7 +27,7 @@ import { installDelegates, installMethods } from './app/delegates.js';
 import { EditingMethods } from './app/editing.js';
 import { canToggleIncognito, reportIncognitoSession } from './launch/incognitoFlow.js';
 import { CHANGE, changed } from './app/changes.js';
-import constants from '../config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 const { DEBOUNCE } = constants;
 
@@ -86,6 +86,7 @@ export class DrawingApp {
     this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
 // A .stc handed over with it; applyExternalLaunch fills this, index.js runs it once the image lands.
     this.pendingLaunchScript = '';
+    this.pendingLaunchScriptMode = 'run';
 // Seeded with defaults so the toolbar button gates correctly before the async config load.
     this.openInConfig = { ...OPEN_IN_DEFAULTS };
     loadOpenInConfig().then(cfg => { this.openInConfig = cfg; this.updateButtons(); });

@@ -5,10 +5,10 @@
 // Runs headed; CI wraps the job in xvfb.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { APP_URL, SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 const POPUP = 'src/popup/popup.html';
 const SIDEPANEL = 'src/sidepanel/sidepanel.html';
 

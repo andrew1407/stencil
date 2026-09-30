@@ -46,7 +46,7 @@ guard, and the other `_`-prefixed helpers sit with `_native` at the bottom.
 | `pystencil/_native.py`, `core.py`, `_raster/`, `_ffi/`, `_severity.py` | locate → build → load; `class Core`; the ctypes tables and buffer guards; the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`) | every ABI function gets an explicit `argtypes`/`restype` row; bytes cross as flat RGBA8 buffers and C strings |
 | `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard and the redirect-refusing opener REST and LLM calls share; the one bounded fan-out | fan-out results land in submission order, so output matches a serial run |
 | `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle and its value types (twin of `core/script/types.hpp`); what a `@source` names and where a `@save` writes | the core lowers, the adapter opens — listing, glob, the `-stencil` rule, the `..` refusals and the save-format fallback live outside `core/`, each spelled once |
-| `pystencil/_data/` | the embedded copies of `browser/js/config/llm/` and `net/blockedRanges.json` | byte-pinned by `tests/test_canonical_drift.py`; core validates plans against the `opRegistry.json` copy |
+| `pystencil/_data/` | the embedded copies of `common/config/llm/` and `net/blockedRanges.json` | byte-pinned by `tests/test_canonical_drift.py`; core validates plans against the `opRegistry.json` copy |
 | `pystencil/image.py`, `layout.py`, `codecs/` | the RGBA8 buffer, the camelCase layout dataclasses, PNG, JPEG and BMP decode through the native lib's stb (`stblib.py`), the pure-Python fallbacks `pngdecode.py` and `bmpdecode.py`, the PNG and BMP encoders | a decoder refuses a side past `MAX_SIDE` (the CLI's cap) and never inflates far past the plane its header claims; only `_ffi/stb.py` touches `ctypes` for stb |
 | `pystencil/editor/` | the chainable `Editor`, one class over per-feature mixins and collaborators | the view is derived on demand, memoised on `revision`; history caps at `LIMITS.historyMax`, never evicting the pristine state |
 | `pystencil/llm/` (+ `plan/`) | config · wire · client · chat; under `plan/` the core-result mapping, the registry and execution | core/opplan validates every plan, its messages shown unchanged; execution calls `Editor` methods, never pixels; a provider's shapes are one `wire.py` row, the upstream classifier sits beside the sanitizer in `errors.py` |
@@ -106,12 +106,12 @@ classDiagram
 | `Layout` / `Line` / `Point` (`layout.py`) | The drawing payload: dimensions, lines, filter, crop, rotation, page, formulas | Values from `Editor.layout()` or JSON | Twin of the browser's canonical `buildLayoutPayload` (`browser/js/core/layout.js`) |
 | `_Snapshot` (`editor/_snapshot.py`) | One editing state: rotation, crop in rotated-original space, filter, drawn lines | Copied, never mutated, on the `Editor` history stack | Mirror of the CLI's `EditState` (`cli/src/console/session`) |
 | `Editor` (`editor/editor.py`) | The chainable facade: original image, history, cursor, project metadata, page format, chat | One per console session or library caller; `clear()` resets it in place | Port of `window.stencil` and the CLI `Session`; target of `execute_op_plan` |
-| `OpPlan` / `Variant` / `AskCard` (`llm/types.py`) | A validated model reply: text, actions, variants, an optional §11 question card, the paths its saves wrote | Made by `parse_op_plan` from core's result, consumed once by `execute_op_plan` | Typed and applied through `OP_REGISTRY`; `browser/js/config/llm/opRegistry.json` is canonical |
+| `OpPlan` / `Variant` / `AskCard` (`llm/types.py`) | A validated model reply: text, actions, variants, an optional §11 question card, the paths its saves wrote | Made by `parse_op_plan` from core's result, consumed once by `execute_op_plan` | Typed and applied through `OP_REGISTRY`; `common/config/llm/opRegistry.json` is canonical |
 | `Chat` (`llm/chat.py`) | A client-side conversation whose bounded history is replayed on every call | Created by `/chat on`; dropped when the working image is replaced | Serialises to the §12.1 chat document |
 | `ServerConnection` (`server/connection.py`) | One connected server: base URL, token, credential kind, status, the REST surface | Created by `ConnectionManager.connect`; `close()` flips status | Speaks `server/internal/protocol`, the Go side canonical |
 | `ConnectionManager` (`server/manager.py`) | The session's connections by normalised URL, with reconnect and parallel polling | One per `_Repl` | Port of the browser `ConnectionManager`, REST only |
 | `MediaItem` (`sitesource/format.py`) | One scanned media candidate: URL, kind, size, format, alt text | Made by `scan_html`, filtered and downloaded by `scan_page` | Twin of the extension's `image/scan.js` record |
-| `Script` (`_script.py`) | One parsed `.stc` program: diagnostics, `@source` blocks, lowered ops, and reads through the live handle | A core handle from `parse_script`, a context manager; what a runner needs is read out eagerly and outlives it | Replayed by `Editor` and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
+| `Script` (`_script.py`) | One parsed `.stc` program: diagnostics, `@source` blocks, lowered ops, and reads through the live handle | A core handle from `parse_script`, a context manager; what a runner needs is read out eagerly and outlives it | Replayed by `Editor` and `cli/scriptplan.py`; the corpus in `common/fixtures/script/` is canonical |
 | `LlmConfig` (`llm/config.py`) | The §5 provider shape — provider, base URL, model, key, server URL — and the key's TTL clock | One per `_Repl`, seeded from `STENCIL_LLM_*`, changed by `/llm`; the key lives until `/llm key forget`, exit or its TTL | Read by `LlmClient` on every request; the only holder of the key |
 | `_Repl` (`cli/repl.py`) | The console state and command table, composed from the `commands/` mixins and `_PlanHooks` | One per `--console` run, over stdin and stderr | Mediates `Editor`, `ConnectionManager`, `Chat`, `LlmConfig`, `Console` |
 
@@ -155,7 +155,7 @@ classDiagram
 - **An LLM turn.** `/prompt` sends the view, its edge map and the `/upload` set under
   `CONSOLE_SYSTEM_PROMPT`, through `Chat.send` under `/chat on`, else one-shot. `parse_op_plan`
   hands the reply's UTF-8 bytes by length (a lone surrogate as U+FFFD) to
-  `stencil_cli_opplanParse` against the schema handle from `_data/opRegistry.json`; core
+  `stencil_cli_opplanParse` against the schema handle from the package's generated `opRegistry.json` (written by `build.py` from `common/config/llm/`); core
   extracts, caps, validates and normalizes, and each `OpSpec` types the actions into an `OpPlan`
   with core's own error and warnings. `blocked_open_url` fails a plan naming a URL the user never
   wrote. `execute_op_plan` applies actions through `OP_REGISTRY` with `_FrameMap` re-mapping,
@@ -247,7 +247,7 @@ through `require_stb`. Opt-in benchmarks assert only ratios, never microseconds.
 Suites port their browser and CLI twins by subject. The fixture walkers run the canonical
 corpora verbatim through `fixturebase.py`, with `tests/helpers/fixture_overrides.json` naming
 this surface's deviations; every provider-wire corpus file is claimed by a walker, and the
-`--script-plan` envelope is held equal to the built CLI's. Pinned: the `_data/` copies, the
+`--script-plan` envelope is held equal to the built CLI's. Pinned: the generated asset copies (against `common/`), the
 source list and ctypes rows, the registry against core's resolution, the import direction, the
 typed op-plan result and the console text. The network is
 stubbed at the `_open` and `_http_open` seams; loopback servers prove a 30x never carries a

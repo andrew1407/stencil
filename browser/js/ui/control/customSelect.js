@@ -5,7 +5,7 @@ import { markSwap } from '../motion.js';
 import { buildSelectFace } from './customSelectFace.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 import { isTypingInFocus } from '../../utils.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // Custom dropdown overlaying a native <select> (kept as source of truth) — macOS cannot
 // style the native popup, so the toolbar's compact selects looked misplaced there.

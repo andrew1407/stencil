@@ -100,6 +100,8 @@ export function createRenderList(ctx) {
       await new Promise((r) => setTimeout(r, Math.max(0, wipe - arrive)));
       removalsInFlight = Math.max(0, removalsInFlight - 1);
       letGo = releaseHeldHeight(list, held);
+      // A listing that landed inside the hold had its re-render refused (canRefreshList).
+      if (!removalsInFlight && remotes.cache !== null && list.querySelector('.project-skeleton')) render();
     };
   };
 

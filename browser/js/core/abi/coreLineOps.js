@@ -1,7 +1,7 @@
 // The core's line-list ops over the wasm ABI: the co-edit merge's keep mask (a runtime op), and
 // the chain edits the app runs in JS on its live lines (parity only). Lines cross as the
 // linesCodec.js pair, a point list as one flat [x0,y0,…] array.
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { encodeLines } from '../line/linesCodec.js';
 
 const { layoutLinesMax, layoutLinePointsMax, layoutPointsMax } = constants.LIMITS;

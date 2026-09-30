@@ -20,22 +20,18 @@
 // Browser twins: js/ui/script/modal.js and js/ui/ctx/script.js.
 namespace stencil::gui {
 
-  namespace {
-
-    // A run's verdict, said the same way wherever it was started from.
-    void reportRun(Notifications* notify, const ScriptRunResult& result) {
-      if (!notify) return;
-      if (result.isOk) {
-        notify->success(QObject::tr("Script executed successfully"));
-        return;
-      }
-      notify->error(result.line > 0 ? QObject::tr("Script failed at line %1 — %2")
+  // A run's verdict, said the same way wherever it was started from.
+  void ScriptHost::reportRun(const ScriptRunResult& result) const {
+    if (!w.notify) return;
+    if (result.isOk) {
+      w.notify->success(QObject::tr("Script executed successfully"));
+      return;
+    }
+    w.notify->error(result.line > 0 ? QObject::tr("Script failed at line %1 — %2")
                                           .arg(result.line)
                                           .arg(result.error)
                                     : result.error);
-    }
-
-  }  // namespace
+  }
 
   void ScriptHost::openScript() {
     ScriptDialog dlg(QString(), &w);
@@ -47,7 +43,7 @@ namespace stencil::gui {
       // The dialog's own parse — the one it coloured from — so a Run lexes the text once.
       runScriptThen(dlg.program(), *target,
                     [this, target, shown = QPointer<ScriptDialog>(&dlg)](const ScriptRunResult& result) {
-                      reportRun(w.notify, result);
+                      reportRun(result);
                       if (!result.isOk && shown) shown->showRunDiagnostics();
                       if (result.isOk || result.ops > 0) refreshAfterScript();   // part-ran still stands
                     });
@@ -65,7 +61,7 @@ namespace stencil::gui {
       const auto target = std::make_shared<ChatPlanTarget>(w);
       runScriptThen(model::ScriptDoc::parse(text), *target,
                     [this, target](const ScriptRunResult& result) {
-                      reportRun(w.notify, result);
+                      reportRun(result);
                       if (result.ops > 0) refreshAfterScript();
                     });
     };
@@ -124,7 +120,7 @@ namespace stencil::gui {
   void ScriptHost::runScriptFromFile(const QString& path) {
     const auto target = std::make_shared<ChatPlanTarget>(w);
     runScriptFileThen(path, *target, [this, target](const ScriptRunResult& result) {
-      reportRun(w.notify, result);
+      reportRun(result);
       if (result.ops > 0) refreshAfterScript();
     });
   }

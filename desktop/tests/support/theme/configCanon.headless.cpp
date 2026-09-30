@@ -1,5 +1,5 @@
 // Pins the desktop consumption of the shared config canon embedded via resources/app.qrc
-// (browser/js/config/*.json): accents.json → theme.cpp accentPresets(); icons.json → iconSet.cpp;
+// (common/config/*.json): accents.json → theme.cpp accentPresets(); icons.json → iconSet.cpp;
 // constants.json PAGE_SIZES → core's pageMetrics, both ways; layoutFields.json → fileStore's export
 // key set; llm/systemPrompt.json → opRegistry's §4 prose; llm/opRegistry.json → core/opplan's schema;
 // llm/providers.json → llmSettings' §5 defaults (configCanonLlm); net/blockedRanges.json → fetchGuard.
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
     const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, 1.0);
     check(!crop.isNull() && !crop.pixmap(24, 24).isNull(),
           "crop glyph rasterizes (spot-check)");
-    // The canon's class="ic-…" motion hooks (js/config/iconMotion.json) are inert to QSvgRenderer, but
+    // The canon's class="ic-…" motion hooks (common/config/iconMotion.json) are inert to QSvgRenderer, but
     // only if it draws the same picture anyway, so this rasterizes the WHOLE set and looks for ink.
     bool drawn = true;
     for (auto it = canon.begin(); it != canon.end(); ++it) {
@@ -174,6 +174,14 @@ int main(int argc, char** argv) {
   }
 
   checkLlmCanon();
+
+  {
+    // The default web-app URL is the shared NETWORK.appUrl, less its trailing slash.
+    const QString appUrl = readConfig(":/config/constants.json").object().value("NETWORK").toObject()
+                               .value("appUrl").toString();
+    check(!appUrl.isEmpty() && stencil::gui::Settings().browserBaseUrl + "/" == appUrl,
+          "Settings::browserBaseUrl defaults to constants.json NETWORK.appUrl");
+  }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

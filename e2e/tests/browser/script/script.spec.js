@@ -1,6 +1,6 @@
 // Browser .stc e2e: the script window (browser/js/ui/script/modal.js) and the facade's
 // stencil.execScript, driven with the SHARED fixture corpus
-// (browser/js/config/script/fixtures/cases.txt) — the same scripts the core is proved on.
+// (common/fixtures/script/cases.txt) — the same scripts the core is proved on.
 // The highlight layer and the diagnostics strip both come from the core's own token stream,
 // so a span in the editor and a run of the script can never disagree about a line.
 import { test, expect } from '@playwright/test';
@@ -92,7 +92,7 @@ test('the hotkey opens the window, Upload fills it and Download writes it back o
   await gotoApp(page, { motion: 'none' });
   await blank(page, { width: 400, height: 300 });
 
-  // Alt+Shift+S is the registered opener (browser/js/config/hotkeysConfig.json).
+  // Alt+Shift+S is the registered opener (common/config/hotkeysConfig.json).
   await page.keyboard.press('Alt+Shift+S');
   await expectModalOpen(page, 'script-overlay');
   await settleModalAnimations(page, 'script-overlay');

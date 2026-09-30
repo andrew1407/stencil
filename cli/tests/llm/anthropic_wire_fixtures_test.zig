@@ -1,4 +1,4 @@
-//! Walks the shared §6.5 corpus (llm/fixtures/providerWire/anthropic.json) through the cli's real
+//! Walks the shared §6.5 corpus (common/fixtures/llm/providerWire/anthropic.json) through the cli's real
 //! client: buildRequestWithSystem, then postJsonVia over a capturing exchange that answers with the
 //! case's response, then extractReply — so the URL, the headers (the browser-only one ABSENT),
 //! the body, the typed errors and the reason printed are what would really leave and land. cli
@@ -10,7 +10,7 @@ const report = @import("../../src/app/report.zig");
 const fx = @import("../fixture_corpus.zig");
 const testing = std.testing;
 
-const corpus = "llm/fixtures/providerWire/anthropic.json";
+const corpus = "llm/providerWire/anthropic.json";
 
 /// The capturing exchange: counts the sends, keeps what the last one carried, answers as told.
 const Exchange = struct {

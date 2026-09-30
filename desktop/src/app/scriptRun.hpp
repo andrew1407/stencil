@@ -19,12 +19,18 @@ namespace stencil::gui {
     int col = 0;
   };
 
+  // webSourcesOnly: a script that arrived by a link may @source web images only, never a local path,
+  // as in the browser; the refusal fails its line and the edits before it stay.
+  struct ScriptRunRules {
+    bool webSourcesOnly = false;
+  };
+
   /* Runs an already-parsed program: a script with any error runs NOTHING and comes back with
    * the first one; a failure part-way leaves the edits already applied and names the line
    * that stopped it. The editors pass the parse they colour from, so a Run lexes once.
    * `done` answers at once, or from the answer of an @source / @frame load that waited. */
   void runScriptThen(const model::ScriptDoc& program, llm::PlanTarget& target,
-                     std::function<void(const ScriptRunResult&)> done);
+                     std::function<void(const ScriptRunResult&)> done, ScriptRunRules rules = {});
 
   // Reads a .stc from disk and runs it. A read failure is reported like a script error.
   void runScriptFileThen(const QString& path, llm::PlanTarget& target,

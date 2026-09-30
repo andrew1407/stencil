@@ -37,7 +37,7 @@ test('single-file build: index.html loads nothing the single-file build ignores'
   const handled = new Set([
     'js/index.js',                                                                   // vite: the module graph
     'css/theme.css',                                                                 // vite: the stylesheets
-    'js/prePaintTheme.js', 'favicon.svg', 'manifest.webmanifest',                    // vite.config.js: inlined or dropped
+    'js/prePaintTheme.js', '../common/icons/favicon.svg', 'manifest.webmanifest',    // vite.config.js: inlined or dropped
   ]);
   const refs = [...read('index.html').matchAll(/(?:src|href)="([^"]+)"/g)]
     .map(m => m[1])

@@ -36,6 +36,26 @@ namespace stencil::core {
       const auto parsed = std::from_chars(rest.data(), rest.data() + rest.size(), n);
       return parsed.ec == std::errc{} ? n : -1;
     }
+
+    // Where one trailing "-copy" or "-copy(<digits>)" starts, npos when the name ends in neither.
+    std::size_t copySuffixStart(std::string_view s) {
+      if (!s.empty() && s.back() == ')') {
+        std::size_t i = s.size() - 1;
+        while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1]))) --i;
+        if (i == s.size() - 1 || i == 0 || s[i - 1] != '(') return std::string_view::npos;
+        s = s.substr(0, i - 1);
+      }
+      const std::string_view tag = "-copy";
+      if (s.size() < tag.size() || s.substr(s.size() - tag.size()) != tag) return std::string_view::npos;
+      return s.size() - tag.size();
+    }
+
+    // The first `n` bytes, backed off to a lead byte so no UTF-8 sequence is split.
+    std::string_view cutUtf8(std::string_view s, std::size_t n) {
+      if (s.size() <= n) return s;
+      while (n > 0 && (static_cast<unsigned char>(s[n]) & 0xC0) == 0x80) --n;
+      return s.substr(0, n);
+    }
   }  // namespace
 
   long long ProjectsStore::periodMs(const std::string& period) {
@@ -164,6 +184,19 @@ namespace stencil::core {
       if (trimLowerAscii(m.name) == n) return true;
     }
     return false;
+  }
+
+  std::string ProjectsStore::copySuffixName(const std::string& name) const {
+    std::string_view base = trimAscii(name);
+    const std::size_t cut = copySuffixStart(base);
+    if (cut != std::string_view::npos) base = trimAscii(base.substr(0, cut));
+    const std::string root = base.empty() ? std::string("Untitled") : std::string(base);
+    for (long long n = 0;; ++n) {
+      const std::string suffix = n == 0 ? std::string("-copy") : "-copy(" + std::to_string(n) + ")";
+      const std::string candidate =
+          std::string(trimAscii(cutUtf8(root, MAX_NAME_LENGTH - suffix.size()))) + suffix;
+      if (!nameExists(candidate)) return candidate;
+    }
   }
 
   ProjectsStore::NameCheck ProjectsStore::validateName(

@@ -45,7 +45,7 @@ TEST_CASE("jsText: toWellFormed and the WHATWG decoder") {
 }
 
 TEST_CASE("jsNumber: every numbers.json pair is Number#toString's") {
-  const Value doc = opplanCorpus::readFile(opplanCorpus::llmDir() / "fixtures/opPlan/generated/numbers.json");
+  const Value doc = opplanCorpus::readFile(opplanCorpus::llmFixturesDir() / "opPlan/generated/numbers.json");
   const Value* cases = doc.get("cases");
   REQUIRE(cases);
   CHECK(cases->items.size() >= 5000);

@@ -1,6 +1,8 @@
 /** A window's edges resize it, the way the desktop's do; the held size clears on every open. */
 export declare const MIN_W: number;
 export declare const MIN_H: number;
+/** The box dataset key worn while the user holds a size (easeBoxHeight leaves such a box be). */
+export declare const USER_SIZED_ATTR: string;
 /** The cursor for each edge name. */
 export declare const CURSORS: Readonly<Record<string, string>>;
 

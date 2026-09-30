@@ -4,7 +4,7 @@ using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests.Llm;
 
-/// <summary>The canonical §4 prose parsed from <c>browser/js/config/llm/systemPrompt.json</c>, embedded at build time: byte-drift against the repo's canonical copy, the pinned head/tail shape, and the assembly <see cref="PromptService"/> runs.</summary>
+/// <summary>The canonical §4 prose parsed from <c>common/config/llm/systemPrompt.json</c>, embedded at build time: byte-drift against the repo's canonical copy, the pinned head/tail shape, and the assembly <see cref="PromptService"/> runs.</summary>
 public sealed class SystemPromptAssetTests
 {
     [Fact]
@@ -17,7 +17,7 @@ public sealed class SystemPromptAssetTests
         using var embedded = new MemoryStream();
         stream.CopyTo(embedded);
         byte[] canonical = File.ReadAllBytes(
-            SharedFixtures.PathOf("browser", "js", "config", "llm", "systemPrompt.json"));
+            SharedFixtures.PathOf("common", "config", "llm", "systemPrompt.json"));
         Assert.Equal(canonical, embedded.ToArray());
     }
 

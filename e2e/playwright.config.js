@@ -1,6 +1,6 @@
 // Stencil E2E — one Node/Playwright harness for every surface: browser-app, browser-extension,
 // fullstack (browser app + real Go server), server-protocol (black-box REST/WS/TCP) and cli.
-// `webServer` serves browser/ + the e2e fixtures on APP_URL (127.0.0.1:8188) for every project;
+// `webServer` serves browser/ + common/ + the e2e fixtures (the app at APP_URL, 127.0.0.1:8188/);
 // `globalSetup` brings up db+redis+server only when E2E_STACK=1, and the stack-dependent
 // projects self-skip otherwise (helpers/server/api.js `stackEnabled`).
 import { defineConfig, devices } from '@playwright/test';

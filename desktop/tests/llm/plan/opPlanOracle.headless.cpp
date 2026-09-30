@@ -83,7 +83,8 @@ namespace {
     b("pointColorSet", a.pointColorSet, d.pointColorSet); s("drawMode", a.drawMode, d.drawMode);
     s("fillColor", a.fillColor, d.fillColor); s("value", a.value, d.value); n("split", a.split, d.split);
     n("percent", a.percent, d.percent); b("fit", a.fit, d.fit); b("current", a.current, d.current);
-    s("what", a.what, d.what); s("preset", a.preset, d.preset);
+    s("what", a.what, d.what); s("open", a.open, d.open); b("local", a.local, d.local);
+    s("preset", a.preset, d.preset);
     n("viewPoints", a.viewPoints, d.viewPoints); n("viewLines", a.viewLines, d.viewLines);
     n("chatOpen", a.chatOpen, d.chatOpen); s("dock", a.dock, d.dock); s("dialog", a.dialog, d.dialog);
     s("server", a.server, d.server); s("url", a.url, d.url); b("incognito", a.incognito, d.incognito);

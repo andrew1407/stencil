@@ -40,8 +40,8 @@ test "--no-clobber stops a --script run before its first write, on the name the 
     defer cleanup(io);
 
     // Block 0 would write FIRST; block 1's `@save TAKEN` lands on TAKEN.png, which exists.
-    try dir.writeFile(io, .{ .sub_path = STC, .data = "@source tests/fixtures/sample.png:\n    @filter bw\n" ++
-        "    @save " ++ FIRST ++ "\n@source tests/fixtures/sample.png:\n    @save " ++ TAKEN ++ "\n" });
+    try dir.writeFile(io, .{ .sub_path = STC, .data = "@source ../common/samples/sample.png:\n    @filter bw\n" ++
+        "    @save " ++ FIRST ++ "\n@source ../common/samples/sample.png:\n    @save " ++ TAKEN ++ "\n" });
     try dir.writeFile(io, .{ .sub_path = TAKEN ++ ".png", .data = "keep" });
 
     report.install(.{ .ctx = @ptrCast(&sink_ctx), .emitFn = Last.take });
@@ -65,7 +65,7 @@ test "a destination the run itself writes twice is its own, not a clobber" {
     const io = threaded.io();
     defer cleanup(io);
 
-    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = STC, .data = "@source tests/fixtures/sample.png:\n" ++
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = STC, .data = "@source ../common/samples/sample.png:\n" ++
         "    @save " ++ FIRST ++ "\n    @filter bw\n    @save " ++ FIRST ++ "\n" });
     try run.run(gpa, io, .{ .no_clobber = true }, STC);
     try std.Io.Dir.cwd().access(io, FIRST, .{});

@@ -2,11 +2,11 @@
 // Local tab or one that loaded its own file, and a Local crop survives the URL tab's own crop.
 // Desktop twin: OpenImageDialog::stalePreview / applyMode.
 import { test, expect } from '@playwright/test';
-import { gotoApp, APP_URL } from '../../../helpers/boot.js';
+import { gotoApp, SITE_URL } from '../../../helpers/boot.js';
 import { pngFile } from '../../../helpers/png.js';
 import { cropBox, openModal, toggle } from '../../../helpers/openImage.js';
 
-const PICTURE = `${APP_URL}__e2e__/preview.png`;
+const PICTURE = `${SITE_URL}__e2e__/preview.png`;
 
 test.describe('Open Image video crop through an empty tab', () => {
   test('a URL video crop area survives a visit to an empty Local tab', async ({ page }) => {

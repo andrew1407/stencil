@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // `npm run serve`: node's built-in http plus Cache-Control: no-store, so a plain refresh always picks up edited
-// JS/CSS — a caching server lets Chrome heuristically cache module files.
+// JS/CSS — a caching server lets Chrome heuristically cache module files. It serves browser/ at `/` and common/
+// at /common/, where the app's ../common imports land (a URL's `..` stops at the root).
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// The only trees a page may reach; the rest of the checkout (sources, .git, env files) stays unserved.
+const APP = join(repo, 'browser');
+const COMMON = join(repo, 'common');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -31,10 +35,14 @@ const TYPES = {
   '.woff2': 'font/woff2',
 };
 
+const inside = (target, tree) => target === tree || target.startsWith(tree + sep);
+
 function resolveTarget(url) {
-  const path = decodeURIComponent(new URL(url, 'http://x').pathname);
-  const target = join(root, normalize(path));
-  return target === root || target.startsWith(root + sep) ? target : null;
+  const path = normalize(decodeURIComponent(new URL(url, 'http://x').pathname));
+  const common = path === '/common' || path.startsWith('/common/');
+  const tree = common ? COMMON : APP;
+  const target = join(tree, common ? path.slice('/common'.length) : path);
+  return inside(target, tree) ? target : null;
 }
 
 function send(res, status, body, type = TYPES['.txt']) {
@@ -52,6 +60,12 @@ async function listing(dir, path) {
 
 const server = createServer(async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method Not Allowed');
+  const { pathname: asked, search: query } = new URL(req.url, 'http://x');
+  // An old /browser/ link moves to the root; the browser carries its fragment across the redirect.
+  if (asked === '/browser' || asked.startsWith('/browser/')) {
+    res.writeHead(302, { 'Cache-Control': 'no-store', Location: `${asked.slice('/browser'.length) || '/'}${query}` });
+    return res.end();
+  }
   let file = resolveTarget(req.url);
   if (!file) return send(res, 403, 'Forbidden');
   try {
@@ -83,6 +97,6 @@ const server = createServer(async (req, res) => {
 const addr = process.env.ADDR || 'localhost';
 const port = Number(process.env.PORT || 8080);
 server.listen(port, addr, () => {
-  console.log(`Serving on http://${addr}:${port} (Cache-Control: no-store)`);
+  console.log(`Serving on http://${addr}:${port}/ (Cache-Control: no-store)`);
 });
 process.on('SIGINT', () => process.exit(0));

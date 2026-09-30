@@ -42,7 +42,7 @@ escape; `app/lint.zig` fails on a file that breaks the layering or an unread pri
 | `src/pipeline.zig` + `pipeline/` | the one-shot orchestration | headless; reports through `report.zig` |
 | `src/script.zig` + `script/` | `.stc` modes: check, run, lower to an op plan, emit for another surface (`emit/`), expand a `@source` | the core owns the language; this owns files, pixels and where output lands. An emit backend twins that surface's runner and refuses what stc-contract §10 says it cannot honour |
 | `src/core.zig` + `core/`, `media/` | the core bridge, codecs with stb's zero-filling allocator (a truncated file decodes the same whatever the heap held), page policy, layout JSON, the ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; the encoder TU builds without it; `media/decodeGuard.zig` grows a short PNG or BMP palette to 256 black entries, refuses a BMP shorter than its rows and caps every stb block at the header's largest plane, as pystencil does |
-| `src/net.zig` + `net/` | the **one fetch guard** (http(s) only, SSRF and redirect checks, 64 MiB cap, a per-request deadline) over the embedded `browser/js/config/net/blockedRanges.json`, the pinned server dial, the bounded fan-out, the watched call | every outbound URL passes `net.zig`; nothing re-derives its checks, keeps its own address list or waits on a host without a deadline; a server host is judged under `serverTarget` by every address it resolves to and dialled at one of them |
+| `src/net.zig` + `net/` | the **one fetch guard** (http(s) only, SSRF and redirect checks, 64 MiB cap, a per-request deadline) over the embedded `common/config/net/blockedRanges.json`, the pinned server dial, the bounded fan-out, the watched call | every outbound URL passes `net.zig`; nothing re-derives its checks, keeps its own address list or waits on a host without a deadline; a server host is judged under `serverTarget` by every address it resolves to and dialled at one of them |
 | `src/safety/` | output-path confinement, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or the server tokens | `..` always refused; absolute/`~` or out through a symbolic link refused under `--confine-output` |
 | `src/console.zig` + `console/` | the REPL: session, `commands` (pure grammar), `handlers/`, `render/`, `screen/` (the full-screen TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`, never both in one place; a model's or a server's text prints through `render/inert.zig` |
 | `src/line_edit/` | the raw-mode line editor and the hidden secret read | TTY only; piped stdin takes the plain reader |
@@ -88,7 +88,7 @@ classDiagram
 | `Session` (`console/session.zig`) | The console's working document: original, undo stack, view, servers, the LLM `Config`, attachments, chat | The console or the one-shot front, for the process | Holds `EditState`, `Client`, `EditConn`, `Config` |
 | `EditState` (`console/session/state.zig`) | One undoable snapshot: rotation, crop, filter, lines JSON | `Session.history`, up to `max_states` | The browser layout model is canonical |
 | `Command` (`console/commands.zig`) | A parsed console line, yielding a `Verb` or a transform | One dispatch | Routed into `handlers/` |
-| `Plan` (`llm/opplan/model.zig`) | A validated op plan: reply, actions, variants, ask, warnings | Its own arena, one turn | `opRegistry.json` (browser) is canonical |
+| `Plan` (`llm/opplan/model.zig`) | A validated op plan: reply, actions, variants, ask, warnings | Its own arena, one turn | `common/config/llm/opRegistry.json` is canonical |
 | `Action` (`llm/opplan/model.zig`) | One normalized op, one union variant per registered op | Its `Plan`'s arena | Pinned 1:1 onto the registry at comptime |
 | `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout, chat | Its own arena | The browser's `.stencil` writer is canonical |
 | `Client` (`server/rest.zig`) | One server connection: origin, session token, what the credential proved to be | `Session.servers` or one one-shot run | Mirrors `server/internal/protocol`; re-mints once on a stale session |
@@ -203,7 +203,7 @@ classDiagram
 2. **Every file is test-registered.** A package root names its files in a `test {}` block;
    `tests/test_registration_test.zig` fails on any module none names, and `test_root.zig` names
    every suite under `tests/`.
-3. **Embedded tables come from `browser/js/config/`** via `@embedFile` and are drift-tested
+3. **Embedded tables come from `common/config/`** via `@embedFile` and are drift-tested
    byte for byte. No value is hand-copied.
 4. **The stderr grammar is a contract.** `wrote {path} ({w}x{h})`, `error: …`, `note: …` and the
    scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`, `testdata/` and both
@@ -217,7 +217,7 @@ classDiagram
 Unit tests sit inline in `src/`, or under `tests/<area>/` once they would carry a module past
 the line cap; integration suites are banded by seam: the PNG fixture through every op, a full
 `pipeline.run`, a console session. The `*_fixtures_test.zig` suites walk the shared corpora
-under `browser/js/config/` (op plans, provider wire, chat documents, sanitizer, `.stencil`, the
+under `common/fixtures/` (op plans, provider wire, chat documents, sanitizer, `.stencil`, the
 SSRF hosts under every policy, the image headers), the anthropic wire through a capturing
 `SendFn`, so the headers sent and the reason printed are real. The op-plan rules are proved in
 core (`core/tests/opplan/`); the cli covers its typed mapping and the messages it shows, and

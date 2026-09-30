@@ -1,4 +1,4 @@
-// Writes the op-plan corpus's GENERATED half under js/config/llm/fixtures/opPlan/generated/: the
+// Writes the op-plan corpus's GENERATED half under common/fixtures/llm/opPlan/generated/: the
 // mechanical cases derived from opRegistry.json (opPlanCases.mjs), the normalized golden core/opplan
 // is byte-compared against (opPlanGoldens.mjs), and the grammar + number probes (opPlanProbes.mjs).
 // freshness.json holds the sha256 of every input and output; opPlanFixtures.test.js checks it.
@@ -12,9 +12,9 @@ import { checkOracle, normalized, renderNormalized } from './opPlanGoldens.mjs';
 import { grammarProbes, numberCases } from './opPlanProbes.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LLM_DIR = path.join(HERE, '..', 'js', 'config', 'llm');
-const OP_PLAN = path.join(LLM_DIR, 'fixtures', 'opPlan');
-const REGISTRY = path.join(LLM_DIR, 'opRegistry.json');
+const COMMON = path.join(HERE, '..', '..', 'common');
+const OP_PLAN = path.join(COMMON, 'fixtures', 'llm', 'opPlan');
+const REGISTRY = path.join(COMMON, 'config', 'llm', 'opRegistry.json');
 const HAND = path.join(OP_PLAN, 'cases.json');
 const ORACLE = path.join(OP_PLAN, 'oracle', 'inputs.json');
 const OUT_DIR = path.join(OP_PLAN, 'generated');

@@ -3,10 +3,10 @@
 pystencil duplicates no canonical table: page formats/sizes come from the native
 core over ctypes, and no accent, color-name or icon tables exist here. What IS
 hand-mirrored are a few scalar constants — asserted equal to
-``browser/js/config/constants.json`` so any upstream change fails loudly while the
-package stays relocatable. The checked-in ``_data/`` copies are the LLM
-system-prompt, providers and op-registry assets and the SSRF address table,
-byte-pinned below against their ``browser/js/config/`` originals.
+``common/config/constants.json`` so any upstream change fails loudly while the
+package stays relocatable. The ``_data/`` copies — the LLM system-prompt, providers and
+op-registry assets and the SSRF address table — are written by ``build.py`` from
+``common/config/`` and byte-pinned below against those originals.
 """
 
 from __future__ import annotations
@@ -20,10 +20,8 @@ from tests import _PKG_ROOT
 from pystencil import layout
 from pystencil.editor import _A4_FALLBACK
 
-# Canonical config root, __file__-relative: pystencil/tests → repo root → browser.
-_CONSTANTS = (
-  Path(__file__).resolve().parent.parent.parent / "browser" / "js" / "config" / "constants.json"
-)
+# Canonical config root, __file__-relative: pystencil/tests → repo root → common/config.
+_CONSTANTS = Path(__file__).resolve().parent.parent.parent / "common" / "config" / "constants.json"
 
 
 class CanonicalConstantsDriftTests(unittest.TestCase):
@@ -55,7 +53,7 @@ class CanonicalConstantsDriftTests(unittest.TestCase):
     self.assertEqual(_A4_FALLBACK, (a4["width"], a4["height"]))
 
 
-# Canonical LLM system-prompt asset + the checked-in copy llm.py loads at import.
+# Canonical LLM system-prompt asset + the build-time copy llm.py loads at import.
 _CANON_PROMPT = _CONSTANTS.parent / "llm" / "systemPrompt.json"
 _DATA_PROMPT = _PKG_ROOT / "pystencil" / "_data" / "systemPrompt.json"
 
@@ -86,7 +84,7 @@ class SystemPromptAssetDriftTests(unittest.TestCase):
     self.assertTrue(LLM_SYSTEM_PROMPT.endswith(shared))
 
 
-# Canonical LLM providers asset + the checked-in copy the llm and server packages load at import.
+# Canonical LLM providers asset + the build-time copy the llm and server packages load at import.
 _CANON_PROVIDERS = _CONSTANTS.parent / "llm" / "providers.json"
 _DATA_PROVIDERS = _PKG_ROOT / "pystencil" / "_data" / "providers.json"
 
@@ -114,7 +112,7 @@ class ProvidersAssetDriftTests(unittest.TestCase):
     self.assertEqual(_LLM_TIMEOUT, float(asset["timeouts"]["chatSeconds"]))
 
 
-# Canonical LLM op registry + the checked-in copy core validates against and llm/ reads.
+# Canonical LLM op registry + the build-time copy core validates against and llm/ reads.
 _CANON_REGISTRY = _CONSTANTS.parent / "llm" / "opRegistry.json"
 _DATA_REGISTRY = _PKG_ROOT / "pystencil" / "_data" / "opRegistry.json"
 
@@ -196,7 +194,7 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
     self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
 
 
-# Canonical SSRF address table + the checked-in copy _net.py loads at import.
+# Canonical SSRF address table + the build-time copy _net.py loads at import.
 _CANON_RANGES = _CONSTANTS.parent / "net" / "blockedRanges.json"
 _DATA_RANGES = _PKG_ROOT / "pystencil" / "_data" / "blockedRanges.json"
 

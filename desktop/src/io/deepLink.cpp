@@ -5,12 +5,13 @@
 
 namespace stencil::gui::deepLink {
 
+
   QString buildBrowserLaunchUrl(const QString& browserBase, const QJsonObject& payload) {
     QString base = browserBase.trimmed();
     while (base.endsWith(QLatin1Char('/'))) base.chop(1);
     const QByteArray json = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     // Over-limit payload → empty string (the encodeTelegramStartPayload overflow style).
-    if (json.size() > BROWSER_LAUNCH_PAYLOAD_MAX) return QString();
+    if (json.size() > browserLaunchPayloadMax()) return QString();
     // toPercentEncoding leaves only unreserved chars (A-Za-z0-9-._~) bare — a strict
     // subset of what encodeURIComponent leaves, so decodeURIComponent reads it back.
     return base + QStringLiteral("#stencil=") +

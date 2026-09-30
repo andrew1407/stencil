@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseScript, scriptDiagnostics, scriptDump } from '../../src/parser/index.js';
 
 const CASES_PATH = fileURLToPath(
-  new URL('../../../browser/js/config/script/fixtures/cases.txt', import.meta.url),
+  new URL('../../../common/fixtures/script/cases.txt', import.meta.url),
 );
 
 /* → [{ name, script, dump, diagnostics }], by the splitting rules in the corpus's

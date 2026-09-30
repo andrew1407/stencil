@@ -75,7 +75,7 @@ async fn a_cancelled_call_answers_as_cancelled() {
     let h = Harness::new();
     let context = h.context();
     context.ct.cancel();
-    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../common/samples/sample.png");
     let request = serde_json::from_value(json!({
         "name": "stencil_probe",
         "arguments": { "input": png },
@@ -91,7 +91,7 @@ async fn a_cancelled_call_answers_as_cancelled() {
 #[tokio::test]
 async fn a_probe_answers_with_structured_content() {
     let h = Harness::new();
-    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let png = concat!(env!("CARGO_MANIFEST_DIR"), "/../common/samples/sample.png");
     let result = h.call("stencil_probe", json!({ "input": png })).await.expect("a result");
 
     let wire = serde_json::to_value(&result).unwrap();

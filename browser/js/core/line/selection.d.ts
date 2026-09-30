@@ -13,7 +13,7 @@ export declare const toggleLineSelection: (app: DrawingApp, idx: number) => void
 export declare const updateMultiSelectStatus: (app: DrawingApp) => void;
 /** A click on the letterbox outside the image drops the selection. */
 export declare const deselectEmptyArea: (app: DrawingApp, e: MouseEvent | null | undefined) => void;
-/** One field of the selected line, then a history entry unless `commit` is false (a live preview). */
+/** One field of the selected line, then a history entry and a `lines` change unless `commit` is false (a live preview). */
 export declare const applySelectionChange: (app: DrawingApp, prop: string, value: unknown, opts?: { commit?: boolean }) => void;
 /** The Lines-tab hover glow; -1 or out of range clears it. */
 export declare const setListHoverLine: (app: DrawingApp, idx: number) => void;

@@ -6,7 +6,7 @@ import { defaultBlankSizePx } from '../layout.js';
 import { cropAspect, centeredCrop, isAlbumOrientation } from '../parse/cropGeometry.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { loadImageFromFile } from './loadFlow.js';
 const { PAGE_SIZES } = constants;
 

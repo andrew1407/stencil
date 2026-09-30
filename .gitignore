@@ -18,7 +18,6 @@ Thumbs.db
 !.claude/agents/
 !.claude/hooks/
 !.claude/rules/
-!.claude/tools/
 
 # Node (`node --test` plus the two sanctioned dev deps, browser/'s vite and
 # vscode-extension/'s @vscode/vsce; no runtime deps anywhere)
@@ -130,6 +129,11 @@ server/vendor/
 # Python package (pystencil/): on-demand compiled core artifact + Python build cruft, and
 # the stb headers build.py fetches at the pinned commit and verifies (pystencil/stb/pin.json).
 pystencil/pystencil/_native/
+# Written by pystencil/build.py from common/config (the package reads them at import).
+pystencil/pystencil/_data/
+# Written by `go generate ./...` from common/config (go:embed cannot leave the server module).
+server/internal/config/assets/providers.json
+server/internal/httpapi/assets/systemPrompt.json
 pystencil/stb/cache/
 __pycache__/
 *.py[cod]

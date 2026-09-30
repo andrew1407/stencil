@@ -109,7 +109,8 @@ test('anything that is not a project with an inline image is not a hand-off', ()
 });
 
 test('the cap is Chrome\'s navigation ceiling, well under the validator\'s 32 MiB', () => {
-  assert.equal(web.MAX_PAYLOAD, 1_800_000);
+  const constants = JSON.parse(readFileSync(new URL('../../../../common/config/constants.json', import.meta.url), 'utf8'));
+  assert.equal(web.MAX_PAYLOAD, constants.LAUNCH.fragmentMaxChars, 'the shared LAUNCH.fragmentMaxChars');
   // The Chrome extension writes the same fragment, so it holds the same number.
   const twin = readFileSync(new URL('../../../../browser-extension/src/lib/menu/editorLaunch.js', import.meta.url), 'utf8');
   const declared = /const MAX_PAYLOAD = ([0-9_]+);/.exec(twin);

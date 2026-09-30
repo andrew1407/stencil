@@ -19,7 +19,7 @@ export const CONTRACT_URL = 'https://github.com/andrew1407/stencil/blob/main/con
 // bodies, so each becomes an opaque alias rather than dragging in eight more modules.
 const OPAQUE = Object.freeze(['DrawingApp', 'CodecLine', 'LayoutPayload', 'WireCropRect',
   'RefreshPeriod', 'ConnectSpec', 'TaggedRemoteProject', 'RemoteProjectMeta', 'LlmSettings',
-  'VariantResult']);
+  'VariantResult', 'CopyProjectRequest']);
 
 const MEMBER = /^(?:readonly\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*[(:]/;
 const DOC_LINE = /^\/\*\*.*\*\/$/;

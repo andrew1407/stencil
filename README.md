@@ -1,7 +1,7 @@
 # Stencil
 
 <p align="center">
-  <a href="https://andrew1407.github.io/stencil/"><img src="browser/favicon.svg" alt="Stencil logo" width="120" height="120"></a>
+  <a href="https://andrew1407.github.io/stencil/"><img src="common/icons/favicon.svg" alt="Stencil logo" width="120" height="120"></a>
 </p>
 
 [![CI](https://github.com/andrew1407/stencil/actions/workflows/ci.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/ci.yml)
@@ -76,7 +76,7 @@ docker build -f browser/Dockerfile -t stencil-browser . && docker run --rm -p 80
 docker build -f cli/Dockerfile -t stencil-cli . && docker run --rm -v "$PWD:/work" -w /work stencil-cli --help
 docker build -f mcp/Dockerfile -t stencil-mcp . && docker run --rm -i -v "$PWD:/work" -w /work stencil-mcp
 docker build -f bot/Dockerfile -t stencil-bot . && docker run --rm -e TELEGRAM_BOT_TOKEN=123:abc stencil-bot
-docker build -t stencil-server ./server
+docker build -f server/Dockerfile -t stencil-server .
 ```
 
 For the full local stack — Postgres + Redis + the collaboration server (plus the browser
@@ -118,7 +118,7 @@ surface, and a script with **any error runs nothing**.
 
 The language is specified in [`contracts/stc/stc-contract.md`](contracts/stc/stc-contract.md),
 with worked examples as the `tour-*` cases in
-[`browser/js/config/script/fixtures/`](browser/js/config/script/fixtures/).
+[`common/fixtures/script/`](common/fixtures/script/).
 
 ## AI assistant — setting up a model
 

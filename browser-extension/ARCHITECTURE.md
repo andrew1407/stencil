@@ -39,7 +39,7 @@ import in `src/`.
 | Path | Holds | Rule |
 |---|---|---|
 | `manifest.json` | MV3 manifest | CSP `script-src 'self'`, no `unsafe-inline`; `web_accessible_resources` is exactly `src/crop/crop.html` — `tests/manifestSecurity.test.js` |
-| `src/config/` | copies of `browser/js/config/{,llm/}` tables | byte-pinned to the originals by `tests/dataParity.test.js` |
+| `src/config/` | copies of `common/config/{,llm/}` tables | byte-pinned to the originals by `tests/dataParity.test.js` |
 | `src/lib/` | the shared bottom, one folder per feature: the fetch guard (`connection/urlGuard.js` over `addressRanges` and a pinned `blockedRanges.json`), `stencil.js` (the editor launch), the scanner, pins, connections, menus, drop zones, the ported browser modules, and the theme, motion, `webcore/` and `logo/` kits | pure where possible and node-tested; a ported or copied file stays byte-identical to its browser original (`tests/portParity.test.js`); `numericWatch` is the one page-wide observer upgrading numeric fields |
 | `src/llm/` | settings, client, the Anthropic session key, the registry-driven validator (byte-identical to the browser's; `planCaps` holds the §1 JSON caps checked before the walk), the extension profile, executors, the chat controller | plans validate before any executor runs; the Anthropic key lives in `chrome.storage.session` only |
 | `src/background/` | the service worker: `background.js` is wiring only; `handlers/` holds one module per message group | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
@@ -98,7 +98,7 @@ classDiagram
 | `CropState` (`crop/handoff.js`) | the quick-crop page's whole mutable state: source, decoded size, page format, orientation, rect, zoom | one per `crop.html` document, seeded from `chrome.storage.session` | `EditorHandoffPayload` |
 | `TargetRecord` (`background/tabState.js`) | what the `ctxTarget.js` probe last resolved under the cursor in one tab (image, CSS background, video, poster) | `lastTargetByTab` in the worker, overwritten per probe | the context-menu click handlers (`background/ctxActions.js`) |
 | `StencilMessage` (`lib/messages.js`) | a `chrome.runtime` message: a `MSG` channel tag plus its fields; request/response channels answer `Answer<T>` | transient; one handler per `type` in `background/handlers/` | `EditorState`, every popup and content module |
-| `OpPlan` (`llm/op/plan.js`) | a validated model reply: prose, whitelisted `PlanAction`s, an optional `PlanAsk`, warnings; `browser/js/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/op/executors.js`) |
+| `OpPlan` (`llm/op/plan.js`) | a validated model reply: prose, whitelisted `PlanAction`s, an optional `PlanAsk`, warnings; `common/config/llm/opRegistry.json` is canonical | per model round inside `ChatController.send` | `ChatMessage`, `ScanEntry` (index-bound), `ExecContext` (`llm/op/executors.js`) |
 | `ChatMessage` (`llm/client.js`) | one replayed turn with base64 `ChatImage`s; the wire shape shared byte-for-byte with the browser client | `ChatController.history`, in memory only, trimmed to `HISTORY_LIMIT` | `OpPlan`, `LlmSettings` |
 | `LlmSettings` (`llm/settings.js`) | the explicit provider configuration: provider, endpoint, model, key, server URL, `shareTabs` | `chrome.storage` under `LLM_SETTINGS_KEY`, edited from `options/llm.js` | `StoredConnection`; `createLlmClient` reads it |
 | `HeldSessionKey` (`llm/sessionKey.js`) | the user's own Anthropic key and when it lapses (llm-providers §5) | `chrome.storage.session`, trusted contexts only (`lockSessionKeyArea` on every worker start); dropped on browser close, extension reload, `ttlMinutes` or Forget | joined to one request by `withSessionKey`; never in `storage.local` |
@@ -195,7 +195,7 @@ classDiagram
 2. **The hand-off is a fragment.** Bytes are fetched here (host permissions bypass page
    CORS), converted to a `data:` URL and passed in the `#stencil=` fragment, which never
    reaches a server; the editor's `applyExternalLaunch` consumes and strips it.
-3. **Ports stay byte-identical.** Every module `.claude/tools/twins.json` copies from the
+3. **Ports stay byte-identical.** Every module `tools/twins.json` copies from the
    browser is pinned byte-equal by `tests/portParity.test.js`; it is edited at its original.
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable
    object and postMessages requests to an ISOLATED script that relays them to the worker and
@@ -224,7 +224,7 @@ classDiagram
 `tests/` runs under `node --test`, offline and without Chrome: stubs in `helpers/` stand in
 for `chrome.*` and the document, and every REST and LLM function takes an injected `fetch`. Cross-surface drift is pinned, not re-tested:
 the ported modules, the `src/config/` copies and the MAIN-world inline helpers stay byte-equal
-to their originals. The fixture walkers run the shared corpora under `browser/js/config/`
+to their originals. The fixture walkers run the shared corpora under `common/fixtures/`
 (the `extension` op-plan profile and its adversarial inputs among them), measured divergences
 in `fixtureOverrides.json`. Source text
 asserts the import direction, every `.d.ts`, self-contained injected functions, every `MSG`

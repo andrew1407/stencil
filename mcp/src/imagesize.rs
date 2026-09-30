@@ -1,6 +1,6 @@
 //! Pixel dimensions straight out of an image file's header — the twin of the CLI's
 //! `cli/src/scrape/sniff.zig` and the bot's `ImageDimensionReader`, held to the corpus
-//! `browser/js/config/fixtures/imageHeader/cases.json`. The header answers for PNG / GIF /
+//! `common/fixtures/imageHeader/cases.json`. The header answers for PNG / GIF /
 //! BMP / JPEG / WebP — size, format and whether it can carry alpha; everything else (video,
 //! URLs, exotic formats) falls back to a whole CLI render.
 

@@ -44,6 +44,10 @@ namespace stencil::gui {
 
   void SelectionPanel::setCollapseChevronVisible(bool on) { if (collapseBtn) collapseBtn->setVisible(on); }
 
+  QWidget* SelectionPanel::lineSwatchCell(int index) const {
+    return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_SWATCH) : nullptr;
+  }
+
   void SelectionPanel::spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms) {
     if (collapseBtn) spinIcon(collapseBtn, "chevron-right", iconColor, TOGGLE_GLYPH, fromDeg, toDeg, ms);
   }

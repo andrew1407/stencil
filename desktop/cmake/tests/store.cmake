@@ -9,14 +9,14 @@ stencil_headless_test(stencil_holddraw_headless
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
-# A real PNG from tests/fixtures/ through the load -> crop -> core image-filter path.
+# A real PNG from common/samples/ through the load -> crop -> core image-filter path.
 stencil_headless_test(stencil_image_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/canvas/imageFixture.headless.cpp tests/canvas/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     src/canvas/overlay/IncognitoOverlay.cpp src/support/icon/iconSet.cpp src/support/control/numericInput.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
-  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
+  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../common/samples\""
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
 # The page format + x/y formulas round-trip through buildLayoutJson <-> parseLayoutMeta.
@@ -66,7 +66,7 @@ stencil_headless_test(stencil_projecttransfer_headless
 # the bot) and the browser-fragment builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
   SOURCES tests/io/deepLink.headless.cpp src/io/deepLink.cpp src/app/open/launchOptions.cpp
-    ${STENCIL_SERVERCLIENT_SOURCES}
+    ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Network)
 
 # The live push feed (net/liveFeed) against a mock QTcpServer speaking the NDJSON events.

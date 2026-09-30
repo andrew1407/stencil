@@ -1,4 +1,4 @@
-// Per-icon hover motion: the extension's half of the contract. browser/js/config/iconMotion.json is
+// Per-icon hover motion: the extension's half of the contract. common/config/iconMotion.json is
 // the CANONICAL table; the extension ships a subset of the glyphs on exactly the app's numbers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

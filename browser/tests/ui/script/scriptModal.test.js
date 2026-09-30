@@ -14,8 +14,8 @@ import { StencilDropOverlay } from '../../../js/ui/canvas/dropOverlay.js';
 
 import { layout } from '../../../js/ui/layout.js';
 import { HOTKEYS_WHILE_TYPING } from '../../../js/ui/bindings/keys/hotkeyRules.js';
-import hotkeysConfig from '../../../js/config/hotkeysConfig.json' with { type: 'json' };
-import uiStrings from '../../../js/config/uiStrings.json' with { type: 'json' };
+import hotkeysConfig from '../../../../common/config/hotkeysConfig.json' with { type: 'json' };
+import uiStrings from '../../../../common/config/uiStrings.json' with { type: 'json' };
 
 const MARKUP = layout();
 const src = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');

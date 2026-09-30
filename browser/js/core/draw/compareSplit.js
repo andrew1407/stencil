@@ -1,7 +1,7 @@
 // A split compare view's halves: the untouched original over the original side (the picture
 // layer, and a clean split export) and the divider bar + knob (the lines layer only). The lines
 // show on the edit side alone, so a layered frame erases them from the original side.
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const { COMPARE_DIVIDER } = constants;
 

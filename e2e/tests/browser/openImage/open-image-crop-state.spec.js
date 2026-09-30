@@ -3,11 +3,11 @@
 // Both used to drop the row (and the rect) while the picture stayed, so a ticked Crop
 // simply vanished. Desktop twin: OpenImageDialog::stalePreview / applyMode.
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../../helpers/boot.js';
+import { SITE_URL } from '../../../helpers/boot.js';
 import { pngFile } from '../../../helpers/png.js';
 import { cropBox, cropRow, openModal, toggle } from '../../../helpers/openImage.js';
 
-const PICTURE = `${APP_URL}__e2e__/preview.png`;
+const PICTURE = `${SITE_URL}__e2e__/preview.png`;
 
 test.describe('Open Image crop state', () => {
   test('choosing a NEW local file mid-crop hides the OLD box at once, not after the decode', async ({ page }) => {

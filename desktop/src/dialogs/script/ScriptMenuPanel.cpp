@@ -26,6 +26,7 @@ namespace stencil::gui {
       s.editorMinH = MENU_SCRIPT_EDITOR_MIN;
       s.indent = MENU_SCRIPT_INDENT;
       s.codeKeys = true;
+      s.runKeys = true;
       return s;
     }
 

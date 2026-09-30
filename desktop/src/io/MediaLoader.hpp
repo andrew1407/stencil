@@ -17,7 +17,7 @@ class QTimer;
 // video frame) into one QImage.
 namespace stencil::gui {
 
-  // Pure suffix sniffers off the canon (browser/js/config/mediaTypes.json `surfaces.desktop`).
+  // Pure suffix sniffers off the canon (common/config/mediaTypes.json `surfaces.desktop`).
   bool isVideoFileName(const QString& path);
   bool isImageFileName(const QString& path);
 

@@ -9,7 +9,7 @@ const layout_mod = @import("../../media/layout.zig");
 const net = @import("../../net.zig");
 const pipeline = @import("../../pipeline.zig");
 
-/// `limits.MAX_LAYOUT_LINES` of browser/js/config/llm/opRegistry.json: the most one layout holds.
+/// `limits.MAX_LAYOUT_LINES` of common/config/llm/opRegistry.json: the most one layout holds.
 pub const MAX_LINES: usize = 200;
 
 pub const Lines = []const core.LineDraw;

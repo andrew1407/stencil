@@ -113,3 +113,26 @@ test('closing by the × flies into the opener, like Cancel and Escape', (t) => {
   assert.deepEqual(readVars(box), expectedVars(boxRect, openBtn.getBoundingClientRect()),
     'the × close lands on the opener, not the canvas');
 });
+
+// A window that names where it goes home (the copy confirmation: the toolbar's copy button from the
+// canvas menu, the row's "⋯" from the projects list) lands there, asked at close time; once that home
+// is folded away or its list closed, the close rises to the top, never into the canvas.
+test('a named home takes the close while shown, and sends it up once hidden', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const boxRect = { left: 400, top: 300, width: 200, height: 150 };
+  const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
+  const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
+  const homeRect = { left: 60, top: 14, width: 30, height: 30 };
+  const home = createStubElement('button', { getBoundingClientRect: rectOf(homeRect) });
+  const from = { left: 500, top: 500, width: 120, height: 24, bottom: 524 };
+  const shell = wireModalShell(overlay, null, null, { stacked: true });
+
+  shell.open(from, () => home);
+  shell.close();
+  assert.deepEqual(readVars(box), expectedVars(boxRect, home.getBoundingClientRect()), 'into the named home');
+
+  shell.open(from, () => home);
+  home.getBoundingClientRect = rectOf({ left: 0, top: 0, width: 0, height: 0 });
+  shell.close();
+  assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'a hidden home sends the close up');
+});

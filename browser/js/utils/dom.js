@@ -88,6 +88,17 @@ export const anchorPickerInput = (input, btn) => {
 };
 
 
+// Hands a custom-scheme URL (stencil://) to the OS through an in-document anchor:
+// Chrome ignores navigation clicks on a detached one, and a tab would be left dead and blank.
+export const openExternalUrl = (url) => {
+  const a = document.createElement('a');
+  a.href = url;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
 // Checkbox/radio/file/color/button inputs are NOT typing targets.
 export const isTypingTarget = t => {
   if (!t) return false;

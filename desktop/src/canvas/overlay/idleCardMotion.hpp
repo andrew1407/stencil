@@ -2,7 +2,7 @@
 // The card paints its `image` glyph by hand (canvas/CanvasWidget.cpp) rather than through
 // support/iconSet - that would drag Qt6::Svg into every headless target compiling the canvas -
 // so the app-wide hover watcher (support/icon/iconMotion.hpp) cannot reach it.
-// These mirror the canon's entry for that glyph (browser js/config/iconMotion.json, "image",
+// These mirror the canon's entry for that glyph (common/config/iconMotion.json, "image",
 // mode "settle"); tests/support/icon/iconMotion.headless.cpp pins every one against the JSON.
 namespace stencil::gui {
 

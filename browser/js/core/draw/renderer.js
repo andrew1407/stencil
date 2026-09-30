@@ -5,7 +5,7 @@ import { StageLayers } from './stageLayers.js';
 import { paintOriginalSide, eraseOriginalSide, paintDivider, splitFraction } from './compareSplit.js';
 import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from '../line/render.js';
 import { selectionPredicate } from '../line/selection.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // Per-frame composition over two layers (stageLayers.js): the picture on #canvas, repainted only
 // when it changes, and the lines, points, hold preview and divider on the overlay above it. The
 // base lives in baseLayer.js, its filter chain in filterCanvas.js, one line/point in render.js.

@@ -67,13 +67,42 @@ int main(int argc, char** argv) {
     QUrl u("stencil://open");
     QUrlQuery q;
     q.addQueryItem("layout",
-                   QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX + 1, QLatin1Char('A')));
+                   QString(deepLink::browserLaunchPayloadMax() + 1, QLatin1Char('A')));
     u.setQuery(q);
     check(parseStencilUrl(u).layoutJson.isEmpty(), "over-limit inline layout is dropped");
     QUrlQuery ok;
     ok.addQueryItem("layout", QStringLiteral("{\"lines\":[]}"));
     u.setQuery(ok);
     check(parseStencilUrl(u).layoutJson == "{\"lines\":[]}", "…while a small one still rides");
+  }
+
+  // ── a script riding the link (script=, scriptMode=), capped at LAUNCH.scriptMaxChars ──
+  {
+    check(launchScriptMaxChars() == 200000, "the cap is constants.json LAUNCH.scriptMaxChars");
+    const LaunchOptions alone =
+        parseStencilUrl(QUrl("stencil://open?script=%40crop%2010%25%0A&scriptMode=open"));
+    check(!alone.empty(), "a script-only link is a launch");
+    check(alone.script == "@crop 10%\n", "script decoded");
+    check(alone.scriptMode == "open", "scriptMode=open opens the window");
+    const LaunchOptions run = parseStencilUrl(
+        QUrl("stencil://open?src=https%3A%2F%2Fx.example%2Fa.png&script=%40crop%2010%25&incognito=1"));
+    check(run.src == "https://x.example/a.png" && run.script == "@crop 10%" && run.incognito,
+          "a script rides beside a picture");
+    check(run.scriptMode == "run", "no scriptMode runs, as the browser's fragment does");
+    const LaunchOptions odd = parseStencilUrl(QUrl("stencil://open?script=x&scriptMode=OPEN"));
+    check(odd.scriptMode == "run", "anything but exactly 'open' runs");
+    QUrl u("stencil://open");
+    QUrlQuery q;
+    q.addQueryItem("script", QString(launchScriptMaxChars() + 1, QLatin1Char('a')));
+    u.setQuery(q);
+    const LaunchOptions over = parseStencilUrl(u);
+    check(over.script.isEmpty() && over.scriptDropped && !over.empty(),
+          "an over-cap script is dropped, and the launch says so");
+    QUrlQuery fit;
+    fit.addQueryItem("script", QString(launchScriptMaxChars(), QLatin1Char('a')));
+    u.setQuery(fit);
+    check(parseStencilUrl(u).script.size() == launchScriptMaxChars(), "…while one at the cap rides");
+    check(parseStencilUrl(QUrl("stencil://open?script=")).empty(), "an empty script is no launch");
   }
 
   // ── Telegram start-payload codec (shared golden vectors) ──
@@ -131,7 +160,7 @@ int main(int argc, char** argv) {
     // Over the shared 32 MiB payload cap → empty string, never a fragment URL.
     QJsonObject payload;
     payload["dataUrl"] = QStringLiteral("data:image/png;base64,") +
-                         QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX, QLatin1Char('A'));
+                         QString(deepLink::browserLaunchPayloadMax(), QLatin1Char('A'));
     check(deepLink::buildBrowserLaunchUrl("http://localhost:8080/", payload).isEmpty(),
           "over-limit launch payload yields empty url");
   }

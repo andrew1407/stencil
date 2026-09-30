@@ -1,5 +1,5 @@
 // The thickness and point-size ranges (support/control/lineLimits.hpp) come from
-// browser/js/config/constants.json LIMITS, with the values the spin boxes always took; read,
+// common/config/constants.json LIMITS, with the values the spin boxes always took; read,
 // fallback and the former literals agree.
 #include "lineLimits.hpp"
 

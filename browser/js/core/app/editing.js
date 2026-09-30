@@ -6,7 +6,7 @@ import * as hitTest from '../draw/hitTest.js';
 import * as dragGestures from '../touch/dragGestures.js';
 import * as launch from '../launch/controller.js';
 import { editorMemento, sameFilter } from '../historyStack.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { updateMultiSelectStatus } from '../line/selection.js';
 import { CHANGE, changed } from './changes.js';
 

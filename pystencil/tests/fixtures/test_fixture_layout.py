@@ -22,7 +22,7 @@ from pystencil.layout import (
   Line,
 )
 
-_LAYOUT_DIR = _FIXTURES / "fixtures" / "layout"
+_LAYOUT_DIR = _FIXTURES / "layout"
 # Parsed once per module, not once per test method.
 _SPARSE = _load(_LAYOUT_DIR / "sparse.json")
 _PAYLOAD = _load(_LAYOUT_DIR / "payload.json")

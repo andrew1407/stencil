@@ -62,7 +62,7 @@ test('the window shortcuts, not the editing ones, work from inside a text box', 
 // pointer while it rests on the canvas, else at the viewport's centre, always through a real event.
 test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or the viewport centre', async () => {
   const { readFileSync } = await import('node:fs');
-  const defs = JSON.parse(readFileSync(new URL('../../../../js/config/hotkeysConfig.json', import.meta.url), 'utf8'));
+  const defs = JSON.parse(readFileSync(new URL('../../../../../common/config/hotkeysConfig.json', import.meta.url), 'utf8'));
   const def = defs.find(d => d.id === 'contextMenu');
   assert.ok(def, 'contextMenu is a rebindable registry entry');
   assert.equal(def.default, 'Shift+F10');
@@ -101,7 +101,7 @@ test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or th
 // of its own, next to the assistant toggle's Alt+G, and it collides with nothing else.
 test('openAssistantSettings is a registry entry on Alt+Shift+G with a unique default', async () => {
   const { readFileSync } = await import('node:fs');
-  const defs = JSON.parse(readFileSync(new URL('../../../../js/config/hotkeysConfig.json', import.meta.url), 'utf8'));
+  const defs = JSON.parse(readFileSync(new URL('../../../../../common/config/hotkeysConfig.json', import.meta.url), 'utf8'));
   const def = defs.find(d => d.id === 'openAssistantSettings');
   assert.ok(def, 'openAssistantSettings is a rebindable registry entry');
   assert.equal(def.default, 'Alt+Shift+G');

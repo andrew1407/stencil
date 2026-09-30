@@ -1,4 +1,4 @@
-//! The embedded `browser/js/config/llm/providers.json` (llm-contract §5–§6): each provider's
+//! The embedded `common/config/llm/providers.json` (llm-contract §5–§6): each provider's
 //! default base URL, and the anthropic wire's chat path, API version, default model and token
 //! cap, and how long its session key is held. Parsed once on first use; every string slices
 //! into the embedded asset, so it is static.

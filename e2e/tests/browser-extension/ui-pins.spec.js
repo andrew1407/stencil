@@ -4,11 +4,11 @@
 // Context setup mirrors popup.smoke.spec.js. UPDATE_PINS=1 records the baselines.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { APP_URL, SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 import { expectPin, freezeMotion } from '../../helpers/uiPin.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 // A fixed box for every surface: the popup's own width, so the pins record the real
 // narrow layout rather than whatever the launched window happened to be.
 const POPUP_VIEWPORT = { width: 380, height: 720 };

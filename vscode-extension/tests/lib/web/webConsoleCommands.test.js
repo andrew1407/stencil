@@ -140,16 +140,18 @@ test('an image opens by URL, or by the bytes of a picked file', async () => {
   }
 });
 
-test('register contributes exactly the browser commands, and disposes its channel', async () => {
+test('register contributes exactly the hand-off and console commands, and disposes its channel', async () => {
   await withHost({}, async ({ calls, vscode, web }) => {
     const context = { subscriptions: [] };
     web.register(context);
     open(vscode, { languageId: 'stencil-js', path: '/tmp/a.stcjs', text: 'stencil.undo()' });
     await web.runInWebConsole();
     for (const disposable of context.subscriptions) disposable.dispose?.();
-    assert.deepEqual([...calls.commands.keys()].filter((id) => id.includes('Web')).sort(),
+    assert.deepEqual([...calls.commands.keys()].filter((id) => /Web|Desktop/.test(id)).sort(),
       ['stencil.openImageInWeb', 'stencil.openInWeb', 'stencil.openInWebIncognito',
-        'stencil.runInWebConsole', 'stencil.runSelectionInWebConsole'].sort());
+        'stencil.openScriptInWeb', 'stencil.openInDesktop', 'stencil.runInDesktop',
+        'stencil.runInDesktopIncognito', 'stencil.runInWebConsole',
+        'stencil.runSelectionInWebConsole'].sort());
     assert.equal(calls.channels.at(-1).disposed, true);
   });
 });

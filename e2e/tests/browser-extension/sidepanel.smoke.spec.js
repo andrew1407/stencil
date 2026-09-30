@@ -4,10 +4,10 @@
 // Runs headed; CI wraps the job in xvfb.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { APP_URL, SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 const SIDEPANEL = 'src/sidepanel/sidepanel.html';
 
 test.describe('extension popup + side panel UI', () => {
@@ -50,7 +50,7 @@ test.describe('extension popup + side panel UI', () => {
 
     // A page image that is NOT one of the scanned rows, so the entry is built from the
     // drag itself (unknown dimensions and all) rather than reusing a listed row.
-    const dropped = `${APP_URL}__e2e__/pixel.png?logo=1`;
+    const dropped = `${SITE_URL}__e2e__/pixel.png?logo=1`;
     const fireDrag = (type, selector, url = dropped) => ui.evaluate(({ type, selector, url }) => {
       const dt = new DataTransfer();
       dt.setData('text/uri-list', url);
@@ -99,7 +99,7 @@ test.describe('extension popup + side panel UI', () => {
 
     // Crop runs ONCE: the in-page modal, and no second crop as a tab. The unloadable URL is what
     // makes it bite — the overlay's ready-watchdog can only misfire on an image that never loads.
-    const slow = `${APP_URL}__e2e__/does-not-exist.png`;
+    const slow = `${SITE_URL}__e2e__/does-not-exist.png`;
     const cropTabs = () => context.pages().filter((p) => p.url().includes('/src/crop/crop.html')).length;
     await host.evaluate(() => document.getElementById('stencil-ext-modal')?.remove());
     await fireDrag('dragenter', 'header .logo', slow);

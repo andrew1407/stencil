@@ -26,7 +26,8 @@ export interface RemoteImageBytes { bytes?: Uint8Array | null; ext?: string; w?:
 /** A data-URL source reaches the server as '' — its bytes are the uploaded original. */
 export declare const createRemoteProject: (
   conn: ServerConnection,
-  opts?: { name?: string; source?: string; resource?: string; color?: string } & RemoteImageBytes,
+  opts?: { name?: string; source?: string; resource?: string; color?: string; description?: string;
+    keywords?: string[]; blankColor?: string; expiresAt?: number } & RemoteImageBytes,
 ) => Promise<RemoteLink>;
 
 export declare const saveRemoteProject: (

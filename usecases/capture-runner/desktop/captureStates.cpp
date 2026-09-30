@@ -1,6 +1,7 @@
 // The window states behind usecases/docs/desktop/img, in the order one window passes through
 // them: the blank fills, an image from a URL and the context menu here, then the assistant, the
-// dialogs and the video (capture{Assistant,Dialogs,Video}.cpp); and the theme-swap frames.
+// dialogs, the copy and script flyouts and the video (capture{Assistant,Dialogs,CopyScript,Video}.cpp);
+// and the theme-swap frames.
 #include "captureShared.hpp"
 
 #include "CanvasWidget.hpp"
@@ -13,7 +14,7 @@ using namespace stencil::gui;
 
 namespace {
   const QString FAVICON_URL = envOr("STENCIL_DOCS_FAVICON_URL",
-      "https://raw.githubusercontent.com/andrew1407/stencil/main/browser/favicon.svg");
+      "https://raw.githubusercontent.com/andrew1407/stencil/main/common/icons/favicon.svg");
 }  // namespace
 
 void MainWindowGuiTest::fit(MainWindow& win) {
@@ -94,6 +95,8 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
 
   if (shots.has("accent-picker"))
     grabModal(win, win.findChild<QAction*>(QStringLiteral("actAccent")), "accent-picker");
+  // Last: its linked-script step leaves a selected line and a closed Script window behind.
+  copyScriptShots(win, shots);
 }
 
 // The theme wipe (SWAP_MS + the dust's life) at ~30 fps: its own pass, at 1x and with

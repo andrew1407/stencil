@@ -1,5 +1,5 @@
 #pragma once
-// The webcore skin's table (browser/js/config/webcore.json over the qrc) and the pure rules over
+// The webcore skin's table (common/config/webcore.json over the qrc) and the pure rules over
 // it: the picture's cells and the word's lines. Twin of browser/js/ui/webcore/rules.js, value
 // for value.
 #include <QColor>

@@ -66,7 +66,7 @@ def image_dimensions(data: bytes) -> (Dimensions | NoneType):
   (BITMAPINFOHEADER), WebP (VP8/VP8L/VP8X) and JPEG (first Start-Of-Frame) — enough to
   size-filter scraped media without a full decode. Anything unrecognized, truncated or
   zero-sized returns ``None`` (an "unknown" size that dimension filters let pass). Held to
-  the shared corpus ``browser/js/config/fixtures/imageHeader/cases.json``.
+  the shared corpus ``common/fixtures/imageHeader/cases.json``.
   """
   n = len(data)
   if n >= 24 and data[:8] == _PNG_MAGIC and data[12:16] == b"IHDR":

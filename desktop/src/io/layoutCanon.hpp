@@ -8,7 +8,7 @@
 #include <QString>
 #include <QStringList>
 
-// The layout export field list lives in the shared canon browser/js/config/
+// The layout export field list lives in the shared canon common/config/
 // layoutFields.json (qrc-embedded), the same table browser buildLayoutPayload walks, so
 // adding or dropping an exported field is a canon edit, not a second hard-coded list. A
 // key the canon doesn't declare still goes out (last) — a mismatch is a diff, never a loss.

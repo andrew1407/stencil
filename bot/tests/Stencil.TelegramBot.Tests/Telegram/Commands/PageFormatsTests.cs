@@ -2,7 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram.Commands;
 
 namespace Stencil.TelegramBot.Tests.Telegram.Commands;
 
-/// <summary>The bot's ISO 216/269 table, parsed from the canonical <c>browser/js/config/constants.json</c> <c>PAGE_SIZES</c> embedded at build time: canonical order/casing, case-insensitive lookup, and the trimmed cm formatting used in chat text.</summary>
+/// <summary>The bot's ISO 216/269 table, parsed from the canonical <c>common/config/constants.json</c> <c>PAGE_SIZES</c> embedded at build time: canonical order/casing, case-insensitive lookup, and the trimmed cm formatting used in chat text.</summary>
 public sealed class PageFormatsTests
 {
     [Fact]
@@ -35,7 +35,7 @@ public sealed class PageFormatsTests
         using var embedded = new MemoryStream();
         stream.CopyTo(embedded);
         byte[] canonical = File.ReadAllBytes(
-            SharedFixtures.PathOf("browser", "js", "config", "constants.json"));
+            SharedFixtures.PathOf("common", "config", "constants.json"));
         Assert.Equal(canonical, embedded.ToArray());
     }
 

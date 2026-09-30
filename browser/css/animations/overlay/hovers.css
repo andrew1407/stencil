@@ -27,7 +27,7 @@
 }
 
 /* ── Coordinate table: smooth row hover + attention pulse ───────────── */
-.coordinates-table tbody tr { transition: background 0.15s ease; }
+.coordinates-table tbody tr { transition: background-color 0.15s ease; }
 .coordinates-table tbody tr.row-highlighted { animation: rowPulse 0.5s ease; }
 .coordinates-table tbody tr.row-focused      { animation: focusPulse 0.5s ease; }
 

@@ -1,5 +1,5 @@
 //! Brand-accent presets for the console UI, parsed from the canonical shared JSON
-//! (browser/js/config/accents.json, embedded at build time) — the same rows the browser,
+//! (common/config/accents.json, embedded at build time) — the same rows the browser,
 //! desktop and extension read; violet is the default. The accent colours the logo's panel
 //! outline, the prompt and the echoed `/commands`. `logo.zig` consumes the chosen RGB;
 //! `console.zig` exposes `/theme`.

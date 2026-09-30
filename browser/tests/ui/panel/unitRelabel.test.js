@@ -16,7 +16,7 @@ const elements = installDom({}, {
 
 const { DrawingApp } = await import('../../../js/core/drawingApp.js');
 const { pageFormatLabel } = await import('../../../js/core/settings/units.js');
-const constants = (await import('../../../js/config/constants.json', { with: { type: 'json' } })).default;
+const constants = (await import('../../../../common/config/constants.json', { with: { type: 'json' } })).default;
 const { PAGE_SIZES } = constants;
 
 // No trailing unit word (user report): the label sits beside #unit-select, which already

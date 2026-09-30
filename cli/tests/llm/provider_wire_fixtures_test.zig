@@ -9,10 +9,10 @@ const fx = @import("../fixture_corpus.zig");
 const testing = std.testing;
 
 const wire_files = [_][]const u8{
-    "llm/fixtures/providerWire/ollama.json",
-    "llm/fixtures/providerWire/openai.json",
-    "llm/fixtures/providerWire/server.json",
-    "llm/fixtures/providerWire/httpErrors.json",
+    "llm/providerWire/ollama.json",
+    "llm/providerWire/openai.json",
+    "llm/providerWire/server.json",
+    "llm/providerWire/httpErrors.json",
 };
 
 fn providerOf(s: []const u8) llm.Provider {

@@ -124,3 +124,18 @@ test('project.blank/blankColor: read-only blank flag, colour routes to setProjec
   assert.equal(imgP.blankColor, null);
   assert.throws(() => { imgP.blankColor = '#ffffff'; }, /not a blank image/);
 });
+
+test('project.copy / stencil.copyProject route to copyProject and hand back the new project', async () => {
+  const app = withProjects();
+  app.copyProject = async (call) => { app.calls.push(['copyProject', call]); return call.open === 'here' ? null : 2; };
+  const stencil = createStencil(app);
+
+  const copy = await stencil.getProjectByName('beta').copy({ what: 'project', open: 'newtab' });
+  assert.deepEqual(lastCall(app, 'copyProject'), ['copyProject', { what: 'project', open: 'newtab', id: 2 }]);
+  assert.equal(copy.id, 2);
+  // The live editor copies with id null, whatever the caller passes.
+  assert.equal((await stencil.copyProject({ what: 'image', id: 7 })).id, 2);
+  assert.deepEqual(lastCall(app, 'copyProject'), ['copyProject', { what: 'image', id: null }]);
+  // An incognito or server copy has no local project to hand back.
+  assert.equal(await stencil.copyProject({ what: 'image', open: 'here' }), null);
+});

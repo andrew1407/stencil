@@ -109,7 +109,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     .bar button:active{transform:translateY(1px) scale(.96);}
     .bar button svg{display:block;--ic-on:0;overflow:visible;}
     /* Per-icon hover motion for the two glyphs this shell carries, on the canonical
-       values (browser js/config/iconMotion.json, ported in lib/animations/iconHover.css — this
+       values (common/config/iconMotion.json, ported in lib/animations/iconHover.css — this
        surface is injected and can't link it): the arrow LEAVES the box, and the cross
        is struck out one stroke at a time, because close/clear/disconnect all mean
        "make this go away". Transform / stroke-dashoffset only, so the bar can't reflow. */

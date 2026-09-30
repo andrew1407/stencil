@@ -54,12 +54,14 @@ test('a press on the edge band drags the size, held on the box until reset', () 
   assert.equal(box.style.width, '450px');
   assert.equal(box.style.height, '300px');
   assert.equal(box.style.maxHeight, 'none', 'the shell ceiling yields to the held size');
+  assert.equal(box.dataset.userSized, '1', 'a content-driven height ease must now leave it be');
   overlay.dispatch('pointerup', pointer('pointerup', 548, 250));
   assert.ok(!box.classList.contains('modal-resizing'));
   assert.equal(box.style.width, '450px', 'the size stays after the release');
   wired.reset();
   assert.equal(box.style.width, '', 'the next open starts at the window\'s own size');
   assert.equal(box.dataset.edge, undefined);
+  assert.equal(box.dataset.userSized, undefined, 'and its height is the content\'s again');
 });
 
 test('the middle of the box, a popover and a closing window are left alone', () => {
