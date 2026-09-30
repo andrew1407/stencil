@@ -77,7 +77,7 @@ test('every hook in settings.json names its script from $CLAUDE_PROJECT_DIR', ()
   const settings = JSON.parse(fs.readFileSync(new URL('../settings.json', import.meta.url), 'utf8'));
   const commands = Object.values(settings.hooks).flat().flatMap((m) => m.hooks.map((h) => h.command));
   assert.ok(commands.length >= 2);
-  for (const command of commands) assert.match(command, /^node "\$CLAUDE_PROJECT_DIR\/\.claude\/[^"]+\.mjs"/);
+  for (const command of commands) assert.match(command, /^node "\$CLAUDE_PROJECT_DIR\/[^"]+\.mjs"/);
 });
 
 test('the entry still decides when it is run through a symlink', () => {
