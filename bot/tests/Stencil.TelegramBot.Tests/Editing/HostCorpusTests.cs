@@ -4,7 +4,7 @@ using Stencil.TelegramBot.Application.Editing;
 
 namespace Stencil.TelegramBot.Tests.Editing;
 
-/// <summary>Walks <c>browser/js/config/fixtures/net/hosts.json</c>: each host is read out of a URL the way <c>RemoteImageUrl</c> reads it, then judged by every policy variant of the embedded address table and by the guard's own entry points. Literal hosts only, so nothing resolves.</summary>
+/// <summary>Walks <c>common/fixtures/net/hosts.json</c>: each host is read out of a URL the way <c>RemoteImageUrl</c> reads it, then judged by every policy variant of the embedded address table and by the guard's own entry points. Literal hosts only, so nothing resolves.</summary>
 public sealed class HostCorpusTests
 {
     private static readonly string _path = Path.Combine(SharedFixtures.ConfigFixtureDir("net"), "hosts.json");

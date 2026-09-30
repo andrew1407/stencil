@@ -9,6 +9,7 @@ import { loadSavedServers } from '../../net/connectionStore.js';
 import { timeoutSignal } from '../../net/abortable.js';
 import { revealControls } from '../../ui/motion.js';
 import { newEditor, replaceProjectImage } from './openFlow.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 export const stripExt = (name) => {
   const s = String(name || '');
@@ -43,9 +44,9 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
     });
 };
 
-// A .stc rides the fragment as a top-level `script`, OUTSIDE the normalized shape: the
-// shared codec ignores unknown keys (pinned cross-surface), so desktop and bot stay put.
-export const MAX_LAUNCH_SCRIPT = 200000;
+// A .stc rides the fragment as a top-level `script` (+ `scriptMode`), OUTSIDE the normalized
+// shape: the shared codec ignores unknown keys (pinned cross-surface), so desktop and bot stay put.
+export const MAX_LAUNCH_SCRIPT = constants.LAUNCH.scriptMaxChars;
 
 const enterIncognito = (app) => {
   if (app.storage.incognito) return;
@@ -58,6 +59,9 @@ const launchScript = (payload) => {
     ? payload.script : '';
   return text.length > 0 && text.length <= MAX_LAUNCH_SCRIPT ? text : '';
 };
+
+// 'open' puts the script in the Script window; anything else, or nothing, runs it.
+export const launchScriptMode = (payload) => (payload?.scriptMode === 'open' ? 'open' : 'run');
 
 // Fragment (not query) keeps the payload off servers and logs; consumed once, then stripped.
 export const applyExternalLaunch = (app) => {
@@ -83,6 +87,7 @@ export const applyExternalLaunch = (app) => {
 // Read before the image check: a script-only hand-off carries no picture at all, so it
 // normalizes to nothing — and its incognito flag would go with it.
   app.pendingLaunchScript = launchScript(payload);
+  app.pendingLaunchScriptMode = launchScriptMode(payload);
   if (payload && payload.incognito) enterIncognito(app);
 
   const launch = normalizeLaunchPayload(payload);

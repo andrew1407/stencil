@@ -26,7 +26,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   const { reducedMotion, finishClose, playDust } = flight;
   let originEl = openBtn;
   // Where the close flies back to when a context-menu row is gone by then: the "⋯" that
-  // opened the menu. An element, measured at close time.
+  // opened the menu. An element (or a function naming one), measured at close time.
   let closeOriginEl = null;
   // One shell serves two callers — Open-in replaces from the toolbar, stacks from a row.
   let stackedNow = stacked;
@@ -48,7 +48,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   const open = (from, backTo = null, { stacked: stackThisOpen = stacked } = {}) => {
     originEl = anchorLike(from) ? from
              : (from === null ? null : defaultOrigin());
-    closeOriginEl = anchorLike(backTo) ? backTo : null;
+    closeOriginEl = anchorLike(backTo) || typeof backTo === 'function' ? backTo : null;
     stackedNow = stackThisOpen;
     if (!stackedNow) closeOpenModal(api);
     finishClose();
@@ -79,8 +79,10 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     sweepDust(overlay);
     // `modal-open` is what every caller tests, so it comes off now and the shrink runs under
     // `modal-closing`. Measure first — display:none measures 0.
-    const home = (anchorLike(backTo) ? backTo : null) || closeOriginEl || originEl || defaultOrigin();
-    const back = onScreenRect(rectOf(home)) ? home : (fromAbove ? null : canvasAnchorRect());
+    const named = typeof closeOriginEl === 'function' ? closeOriginEl() : closeOriginEl;
+    const home = (anchorLike(backTo) ? backTo : null) || named || originEl || defaultOrigin();
+    // A named home that is hidden by now (a folded toolbar, a closed list) sends the close up.
+    const back = onScreenRect(rectOf(home)) ? home : ((fromAbove || closeOriginEl) ? null : canvasAnchorRect());
     const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(back);
     overlay.classList.remove('modal-open');
     if (animate) {

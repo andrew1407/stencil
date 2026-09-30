@@ -1,6 +1,6 @@
 import { perFrame } from '../../utils.js';
 import { bboxCenterOf, rotatePointsAbout, flipPointsAbout } from '../line/transforms.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { selectedIndices } from '../line/selection.js';
 
 // Rotate / flip / quarter-turn / nudge over the selection: which pivot, which lines, and

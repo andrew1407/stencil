@@ -126,7 +126,7 @@ void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                const char* pointColor);
 
 /* The layout caps, LIMITS.layoutLinesMax / layoutLinePointsMax / layoutPointsMax of
- * browser/js/config/constants.json: lines kept, points per line, points over all lines. */
+ * common/config/constants.json: lines kept, points per line, points over all lines. */
 void stencil_cli_layoutCaps(int* lines, int* linePoints, int* points);
 
 /* The co-edit merge over two abi/linesCodec.hpp snapshots: keep[i] = 1 when local line i joins

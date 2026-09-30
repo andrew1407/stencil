@@ -8,7 +8,7 @@ const testing = std.testing;
 
 const replay = @import("replay.zig");
 
-const head = "@source tests/fixtures/sample.png:\n"; // 16x12, album
+const head = "@source ../common/samples/sample.png:\n"; // 16x12, album
 const doc = "stencil_replay_doc.json";
 
 fn expectSame(io: std.Io, ops: []const u8) !void {

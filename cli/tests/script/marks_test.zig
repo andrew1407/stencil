@@ -12,7 +12,7 @@ const run = @import("../../src/script/run.zig");
 const scriptCore = @import("../../src/script/core.zig");
 const pixelsOf = @import("pixels.zig").pixelsOf;
 
-const head = "@source tests/fixtures/sample.png:\n"; // 16x12, album
+const head = "@source ../common/samples/sample.png:\n"; // 16x12, album
 const stc = "stencil_marks_run.stc";
 
 /// Runs `body` as the one block over the fixture; its `@save`s name their own files.
@@ -35,7 +35,7 @@ fn consoleView(io: std.Io, ops: []const u8) ![]u8 {
     defer logo.clearSink();
     var session: console.Session = .{ .gpa = testing.allocator };
     defer session.deinit();
-    _ = try console.handle(&session, io, "/upload tests/fixtures/sample.png");
+    _ = try console.handle(&session, io, "/upload ../common/samples/sample.png");
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(testing.allocator);
     try line.print(testing.allocator, "/script {s}", .{ops});

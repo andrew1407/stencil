@@ -16,7 +16,7 @@ namespace stencil::llm {
     CROP, ROTATE, FILTER, LAYOUT, FORMULA, PAGE, BLANK, FRAME,
     OPEN_URL, OPEN_FILE, THEME, ACCENT, LINE_STYLE, UNITS, VIEW, CLEAR, CONNECT, DISCONNECT, COPY,
     REMOVE_PROJECT, CLEAR_PROJECTS,
-    COMPARE, ZOOM, RENAME_PROJECT, PROJECT_COLOR, BLANK_COLOR, OPEN_PROJECT, INCOGNITO,
+    COMPARE, ZOOM, RENAME_PROJECT, PROJECT_COLOR, BLANK_COLOR, OPEN_PROJECT, INCOGNITO, COPY_PROJECT,
     CHAT_PANEL, DIALOG, CLEAR_CHAT,
     UNDO, REDO,
     IMAGE, SAVE
@@ -77,8 +77,11 @@ namespace stencil::llm {
     int percent = 0;
     bool fit = false;
     bool current = false;
-    // copy: "" = "image"
+    // copy: "" = "image"; copyProject: image|layout|project
     QString what;
+    // copyProject: none|here|newtab ("" = none); `local` makes a server project's copy locally
+    QString open;
+    bool local = false;
     // accent preset form ("" = the hex form in `color`)
     QString preset;
     // view (-1 = absent, else 0/1)

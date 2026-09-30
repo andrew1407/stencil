@@ -112,6 +112,7 @@ namespace stencil::gui {
     if (tools.compareCombo) tools.compareCombo->setEnabled(hasImg);
     if (acts.cycleCompare) acts.cycleCompare->setEnabled(hasImg);
     if (ctxMenu.compareGroup) ctxMenu.compareGroup->setEnabled(hasImg);
+    if (acts.copyProject) acts.copyProject->setEnabled(hasImg);   // browser #copy-project-btn, with the image actions
     // "Open in…" mirrors the browser's #open-in-btn gating: hidden with no target, else enabled
     // only with an image.
     if (acts.openIn) {

@@ -11,6 +11,7 @@ import { wireLogoHold } from '../logo/stageTrigger.js';
 import { toolbarTopbarHtml } from './topbar.js';
 import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './sections.js';
 import { toolbarPageSectionsHtml } from './pageSections.js';
+import { wireCopyProjectMenu } from './copyMenu.js';
 // Owns the controls markup and the collapse/hints behaviour; the individual inputs and buttons
 // are wired by DrawingApp via global ids.
 export class StencilToolbar extends StencilElement {
@@ -121,6 +122,7 @@ ${toolbarPageSectionsHtml()}
     wireLogoColorPicker(this.querySelector('.app-logo'), _app);
     wireLogoHold(this.querySelector('.app-logo'), _app);
     wireVoiceChatToggle(this.querySelector('#voice-chat-btn'), _app);
+    wireCopyProjectMenu(this.querySelector('#copy-project-btn'), _app);
     // The section separators follow the wrap (below): measured again whenever this
     // toolbar, or the window around the fullscreen clone, changes size.
     const syncSeps = () => {

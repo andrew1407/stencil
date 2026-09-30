@@ -17,7 +17,7 @@ namespace stencil::gui {
   // (Qt's surface is colour-managed too). The one seam to change for an unmanaged surface.
   inline QColor displayColor(const QColor& c) { return c; }
 
-  // browser/js/config/themeTokens.json via app.qrc, keyed by CSS custom-property NAME —
+  // common/config/themeTokens.json via app.qrc, keyed by CSS custom-property NAME —
   // a wrong key is an invalid QColor and fails loudly.
   inline const QHash<QString, QColor>& themeTokens(bool dark) {
     static const std::array<QHash<QString, QColor>, 2> tables = [] {

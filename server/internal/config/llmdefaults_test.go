@@ -8,14 +8,14 @@ import (
 	"testing"
 )
 
-// Drift check against the canonical browser/js/config/llm/providers.json: the embedded copy stays
+// Drift check against the canonical common/config/llm/providers.json: the embedded copy stays
 // byte-identical, so LLM_MODEL's default can only change there.
 func TestProvidersAssetPinsCanonical(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	canonical := filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "browser", "js", "config", "llm", "providers.json")
+	canonical := filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "common", "config", "llm", "providers.json")
 	raw, err := os.ReadFile(canonical)
 	if os.IsNotExist(err) {
 		t.Skipf("canonical %s not present (standalone server checkout)", canonical)
@@ -24,7 +24,7 @@ func TestProvidersAssetPinsCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(raw, providersAsset) {
-		t.Errorf("assets/providers.json differs from %s — re-copy the canonical file", canonical)
+		t.Errorf("assets/providers.json differs from %s — run go generate ./...", canonical)
 	}
 }
 

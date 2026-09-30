@@ -1,4 +1,4 @@
-//! The shared image-header corpus (`browser/js/config/fixtures/imageHeader/cases.json`)
+//! The shared image-header corpus (`common/fixtures/imageHeader/cases.json`)
 //! walked through `sniff_info`, one reported case per header. Disagreements live in
 //! `tests/fixture_overrides.json` (family `imageHeader`).
 
@@ -12,7 +12,7 @@ mod common;
 use common::walk::Walk;
 
 static CASES: LazyLock<Vec<Value>> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../browser/js/config/fixtures/imageHeader/cases.json"))
+    serde_json::from_str(include_str!("../../common/fixtures/imageHeader/cases.json"))
         .expect("the image-header corpus is a JSON array")
 });
 

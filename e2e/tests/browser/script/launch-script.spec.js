@@ -68,3 +68,19 @@ test('a local @source is refused by the platform, in the app the user is looking
   await expectModalOpen(page, 'script-overlay');
   await expect(page.locator('#script-editor')).toHaveValue('@source ./cat.png:\n  @filter bw\n');
 });
+
+// scriptMode "open" (VS Code's "Open in Stencil Web's Script window"): the Script window comes up
+// holding the text, the picture still loads, and nothing runs until the user presses Run.
+test('an "open" hand-off shows the script in its window and runs nothing', async ({ page }) => {
+  await serveImage(page);
+  const script = '@filter sepia\n';
+  await gotoApp(page, { motion: 'none', hash: fragment({ src: IMAGE_URL, script, scriptMode: 'open' }) });
+
+  await expectModalOpen(page, 'script-overlay');
+  await expect(page.locator('#script-editor')).toHaveValue(script);
+  await expect.poll(() => page.evaluate(() => !!window.stencil.imageSize)).toBe(true);
+  expect(await page.evaluate(() => window.stencil.filter)).not.toBe('sepia');
+
+  await page.locator('#script-run').click();
+  await expect.poll(() => page.evaluate(() => window.stencil.filter)).toBe('sepia');
+});

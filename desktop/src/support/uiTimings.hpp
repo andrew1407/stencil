@@ -1,5 +1,5 @@
 #pragma once
-// Interaction timings the desktop shares with browser/js/config/constants.json (DEBOUNCE, POPOVER)
+// Interaction timings the desktop shares with common/config/constants.json (DEBOUNCE, POPOVER)
 // and motion.json (FLIP_MS / FLIP_EASING) through the qrc, read once; the browser's popover.js,
 // picker previews and ui/motion/flip.js read the same keys.
 #include <QEasingCurve>

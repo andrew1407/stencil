@@ -3,7 +3,7 @@
 // output share one entry. genOpPlanFixtures.mjs writes it as generated/normalized.json.
 import { createSchema } from '../js/llm/plan/opSchema.js';
 import { walkPlan } from '../js/llm/plan/parser.js';
-import COLOR_NAMES from '../js/config/colorNames.json' with { type: 'json' };
+import COLOR_NAMES from '../../common/config/colorNames.json' with { type: 'json' };
 
 // The surfaces whose validator is core/opplan (the browser walks its JS twin, the reference).
 export const CORE_SURFACES = Object.freeze(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp']);

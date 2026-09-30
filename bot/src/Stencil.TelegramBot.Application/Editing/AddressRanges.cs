@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-// The fetch guard's address table, parsed once from the embedded browser/js/config/net/blockedRanges.json
+// The fetch guard's address table, parsed once from the embedded common/config/net/blockedRanges.json
 // (semantics in its blockedRanges.README.md). An IPv6 form that carries an IPv4 address is judged by it.
 public static class AddressRanges
 {

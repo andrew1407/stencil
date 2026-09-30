@@ -13,7 +13,7 @@ using stencil::core::json::Value;
 using namespace stencil::core::opplan;
 
 TEST_CASE("opplan grammars: every probe matches what JS RegExp.test said") {
-  const Value doc = opplanCorpus::readFile(opplanCorpus::llmDir() / "fixtures/opPlan/generated/grammarProbes.json");
+  const Value doc = opplanCorpus::readFile(opplanCorpus::llmFixturesDir() / "opPlan/generated/grammarProbes.json");
   const Value* probes = doc.get("probes");
   REQUIRE(probes);
   CHECK(probes->items.size() >= 2000);

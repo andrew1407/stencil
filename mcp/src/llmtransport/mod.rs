@@ -23,8 +23,8 @@ pub use url::{parse_http_url, HttpTarget};
 /// `timeouts.chatSeconds`, parsed from the embedded canonical providers.json.
 pub static DEFAULT_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
     let asset: serde_json::Value =
-        serde_json::from_str(include_str!("../../../browser/js/config/llm/providers.json"))
-            .expect("canonical browser/js/config/llm/providers.json is not valid JSON");
+        serde_json::from_str(include_str!("../../../common/config/llm/providers.json"))
+            .expect("canonical common/config/llm/providers.json is not valid JSON");
     let secs = asset["timeouts"]["chatSeconds"]
         .as_u64()
         .expect("providers.json: timeouts.chatSeconds must be a number");

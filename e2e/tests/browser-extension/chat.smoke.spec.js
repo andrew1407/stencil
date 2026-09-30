@@ -5,12 +5,12 @@
 // state is deliberately not asserted: the hand-off URL payload is the headless-safe seam.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { APP_URL, SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
 import { contentText, imageUrls, llmSettings as stubLlmSettings } from '../../helpers/chat.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/page-with-image.html';
 
 test.describe('extension AI assistant (embedded section)', () => {
   /** @type {import('@playwright/test').BrowserContext} */

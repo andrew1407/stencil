@@ -1,7 +1,7 @@
 {
   "urls": {
     "raw": "https://raw.githubusercontent.com/andrew1407/stencil/main/",
-    "favicon": "browser/favicon.svg",
+    "favicon": "common/icons/favicon.svg",
     "botIcon": "bot/assets/icon.png",
     "localBotIcon": "bot/assets/icon.png"
   },

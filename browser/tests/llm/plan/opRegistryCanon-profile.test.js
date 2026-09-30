@@ -9,8 +9,8 @@ import { OPS, FORBIDDEN_OPS } from '../../../js/llm/plan/opPlan.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const registry = JSON.parse(readFileSync(
-  path.join(HERE, '../../..', 'js', 'config', 'llm', 'opRegistry.json'), 'utf8'));
-const FIXTURES_DIR = path.join(HERE, '../../..', 'js', 'config', 'llm', 'fixtures', 'opPlan');
+  path.join(HERE, '../../../..', 'common', 'config', 'llm', 'opRegistry.json'), 'utf8'));
+const FIXTURES_DIR = path.join(HERE, '../../../..', 'common', 'fixtures', 'llm', 'opPlan');
 
 const ALL_PROFILES = ['editor', 'console', 'bot', 'mcp', 'extension'];
 const entriesByName = (name) => registry.ops.filter((e) => e.name === name);
@@ -28,7 +28,7 @@ test('editor profile matches the live browser OPS keys, with drift entries note-
       assert.ok(notes[name], `editor op "${name}" is not in the browser OPS — it must carry a drift note`);
     }
   }
-  assert.equal(Object.keys(OPS).length, 35, 'the browser registers 35 ops today');
+  assert.equal(Object.keys(OPS).length, 36, 'the browser registers 36 ops today');
 });
 
 test('browser-baselined entries carry the live bullets, also-lines, flags and requires', () => {

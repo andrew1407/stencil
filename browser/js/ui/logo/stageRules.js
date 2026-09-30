@@ -1,7 +1,7 @@
 // The logo stage's table (config/logoStage.json) and the pure rules over it: which show a hold
 // opens for an accent + motion mode, the cloud style a show wears, the stage sizes and the heart
 // the pink show draws. DOM-free; desktop twin: support/logoStageRules.{hpp,cpp}, value for value.
-import LOGO_STAGE from '../../config/logoStage.json' with { type: 'json' };
+import LOGO_STAGE from '../../../../common/config/logoStage.json' with { type: 'json' };
 
 export const STAGE = LOGO_STAGE;
 export const SHOWS = Object.freeze(LOGO_STAGE.shows);

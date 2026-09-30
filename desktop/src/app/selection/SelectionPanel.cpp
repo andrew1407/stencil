@@ -1,6 +1,7 @@
 #include "SelectionPanel.hpp"
 #include "selectionPanelParts.hpp"
 #include "iconMotionTypes.hpp"
+#include "uiTimings.hpp"
 #include <QGuiApplication>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -178,13 +179,23 @@ namespace stencil::gui {
     connect(tabs, &QTabWidget::currentChanged, tabBar, &QTabBar::setCurrentIndex);
     connect(tabs, &QTabWidget::currentChanged, tabs, [this] { tabs->updateGeometry(); });
 
-    connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int) {
+    swatchWait = new QTimer(this);
+    swatchWait->setSingleShot(true);
+    swatchWait->setInterval(support::uiTimings().doubleClickMs);
+    connect(swatchWait, &QTimer::timeout, this, [this] { emit lineSwatchPick(swatchRow); });
+    connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int col) {
       if (idx < 0) return;
       lines->setCurrentCell(idx, LCOL_INDEX);   // the row Delete/Backspace will act on
       const auto mods = QGuiApplication::keyboardModifiers();
       const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
                          (mods & Qt::ShiftModifier);
       emit lineListActivated(idx, multi);
+      if (col == LCOL_SWATCH && !multi) { swatchRow = idx; swatchWait->start(); }
+    });
+    connect(lines, &QTableWidget::cellDoubleClicked, this, [this](int idx, int col) {
+      if (idx < 0 || col != LCOL_SWATCH) return;
+      swatchWait->stop();
+      emit lineSwatchReset(idx);
     });
 
     setWidget(body);

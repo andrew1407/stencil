@@ -160,6 +160,12 @@ namespace stencil::llm::opdetail {
         case OpKind::INCOGNITO:
           a.incognito = flag("on");
           break;
+        case OpKind::COPY_PROJECT:
+          a.what = str("what");
+          a.open = str("open");
+          a.incognito = flag("incognito");
+          a.local = flag("local");
+          break;
         case OpKind::CHAT_PANEL:
           if (present(n, "open")) a.chatOpen = flag("open") ? 1 : 0;
           a.dock = str("dock");

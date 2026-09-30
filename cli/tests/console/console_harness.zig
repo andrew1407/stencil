@@ -5,7 +5,7 @@ const console = @import("../../src/console.zig");
 const image = @import("../../src/media/image.zig");
 const logo = @import("../../src/app/logo.zig");
 
-pub const sample = @embedFile("../fixtures/sample.png");
+pub const sample = @embedFile("sample.png");
 
 pub fn cur(session: *console.Session) image.Rgba8 {
     return session.current().*;

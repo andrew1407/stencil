@@ -20,9 +20,9 @@ namespace llmclient {
         "theme", "accent", "lineStyle", "units", "view", "clear", "openUrl", "openFile",
         "connect", "disconnect", "copy", "removeProject", "clearProjects",
         "compare", "zoom", "renameProject", "projectColor", "blankColor",
-        "openProject", "incognito", "chatPanel", "dialog", "clearChat"};
+        "openProject", "incognito", "copyProject", "chatPanel", "dialog", "clearChat"};
     check(names == expected, "registry op-name set == the contract's desktop surface");
-    check(opRegistry().size() == 35, "one registry entry per OpKind (35)");
+    check(opRegistry().size() == 36, "one registry entry per OpKind (36)");
 
     // A KNOWN op with an unknown field fails the plan while an UNKNOWN op is only skipped with
     // a warning, so every registered name must be known to the opPlan parser.
@@ -81,6 +81,7 @@ namespace llmclient {
         {"blankColor", "KEEPING the drawn lines"},
         {"openProject", "open a saved local project into the editor"},
         {"incognito", "edit without saving; only togglable on a blank editor"},
+        {"copyProject", "save a copy of the open project named \"<name>-copy\""},
         {"chatPanel", "a \"dock\" on its own opens the panel where it lands"},
         {"dialog", "\"visuals\" (style & visual settings) or \"help\""},
         {"clearChat", "the clear happens after this plan's other actions finish"},
@@ -97,7 +98,7 @@ namespace llmclient {
         phrasesOk = false;
       }
     }
-    check(phrasesOk && phrases.size() == 35, "every bullet carries its key phrase");
+    check(phrasesOk && phrases.size() == 36, "every bullet carries its key phrase");
 
     // The §10 also-accepts widenings ride as addenda on their ops.
     const QVector<QPair<OpKind, QString>> addendaPhrases = {
@@ -106,6 +107,7 @@ namespace llmclient {
         {OpKind::ACCENT, "{\"op\":\"accent\",\"preset\":\"green\"}"},
         {OpKind::LINE_STYLE, "\"fillColor\" for the defaults of NEW lines"},
         {OpKind::OPEN_PROJECT, "{\"op\":\"openProject\",\"last\":true}"},
+        {OpKind::COPY_PROJECT, "\"copyProject\" also takes \"open\""},
     };
     bool addOk = opAddenda().size() == addendaPhrases.size();
     for (const auto& p : addendaPhrases) {
@@ -115,7 +117,7 @@ namespace llmclient {
           found = true;
       if (!found) addOk = false;
     }
-    check(addOk, "the five also-accepts widenings are registered as addenda");
+    check(addOk, "the six also-accepts widenings are registered as addenda");
   }
 
   }

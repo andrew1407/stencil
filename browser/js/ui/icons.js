@@ -1,8 +1,8 @@
 // One inline-SVG source for every glyph: stroked line-art on a 24×24 grid in `currentColor`.
 // Paths live in config/icons.json; browser-extension/src/lib/icons.js mirrors it — keep in sync.
 // Pure strings: icon() output contains no backtick or "${" (the markup tests assert that).
-import ICONS_DATA from '../config/icons.json' with { type: 'json' };
-import SVG_ART from '../config/svgArt.json' with { type: 'json' };
+import ICONS_DATA from '../../../common/config/icons.json' with { type: 'json' };
+import SVG_ART from '../../../common/config/svgArt.json' with { type: 'json' };
 
 // 'eraser' wipes drawn lines and is deliberately not the trash can (trash = delete). The
 // class="ic-…" hooks are inert here; config/iconMotion.json moves them via iconHover.css.

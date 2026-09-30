@@ -32,6 +32,8 @@ const COMMANDS = Object.freeze({
   runScript: 'stencil.runScript', runScriptOnImage: 'stencil.runScriptOnImage',
   checkScript: 'stencil.checkScript', configureColors: 'stencil.configureColors',
   openInWeb: 'stencil.openInWeb', openInWebIncognito: 'stencil.openInWebIncognito',
+  openScriptInWeb: 'stencil.openScriptInWeb', openInDesktop: 'stencil.openInDesktop',
+  runInDesktop: 'stencil.runInDesktop', runInDesktopIncognito: 'stencil.runInDesktopIncognito',
   runInWebConsole: 'stencil.runInWebConsole', runSelectionInWebConsole: 'stencil.runSelectionInWebConsole',
   openImageInWeb: 'stencil.openImageInWeb', addTypings: 'stencil.addTypings',
   emitScript: 'stencil.emitScript', runPythonScript: 'stencil.runPythonScript',

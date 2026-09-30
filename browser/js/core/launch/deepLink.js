@@ -1,4 +1,5 @@
 import { isLoopbackHost, normalizeUrl } from '../../net/connectionManager.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // Project deep links: a new tab carries the target id in `?open=<id>`, which the booting
 // app consumes once and strips from the URL. Pure string helpers.
@@ -29,8 +30,10 @@ export const buildExternalLaunchUrl = (base, payload) =>
 // Cross-front-end "Open in…" links (desktop `stencil://`, the bot's `/start <payload>`)
 // carry a server reference ({ url, id, version? }, never a token) or inline image + layout.
 
-// server+id wins over src on the receiving side; empty/absent fields are omitted.
-export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito } = {}) => {
+// server+id wins over src on the receiving side; empty/absent fields are omitted. A `script`
+// (with `scriptMode` open|run) rides beside either, or alone.
+export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito,
+  script, scriptMode } = {}) => {
   const params = [];
   const add = (k, v) => params.push(`${k}=${encodeURIComponent(v)}`);
   if (server && id) {
@@ -43,6 +46,10 @@ export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version,
     if (frame != null) add('frame', String(frame));
   }
   if (incognito) add('incognito', '1');
+  if (script) {
+    add('script', script);
+    add('scriptMode', scriptMode === 'open' ? 'open' : 'run');
+  }
   return `${scheme}://open?${params.join('&')}`;
 };
 
@@ -80,7 +87,7 @@ export const buildDesktopBounceUrl = (browserBase, stencilUrl) =>
   `${String(browserBase || '').replace(/\/+$/, '')}/launch.html#stencil-desktop=${encodeURIComponent(stencilUrl)}`;
 
 // chars ≈ bytes for base64: the server's 32 MiB MaxBodyBytes.
-export const LAUNCH_DATA_URL_MAX = 32 * 1024 * 1024;
+export const LAUNCH_DATA_URL_MAX = constants.LAUNCH.payloadMaxChars;   // 32 MiB
 
 // Null for junk, else { kind: 'server'|'dataUrl'|'src', ...normalized }. Precedence:
 // server > dataUrl > src (the server's copy is canonical).

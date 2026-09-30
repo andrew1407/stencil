@@ -85,6 +85,7 @@ list(APPEND STENCIL_GUI_SOURCES
   src/dialogs/script/ScriptDialog.cpp
   src/dialogs/script/ScriptDialogFile.cpp
   src/dialogs/script/ScriptEditorWidget.cpp
+  src/dialogs/script/ScriptEditorWidgetKeys.cpp
   src/dialogs/script/ScriptHighlighter.cpp
   src/dialogs/script/ScriptMenuPanel.cpp
   src/dialogs/script/ScriptMenuPanelState.cpp
@@ -97,4 +98,5 @@ list(APPEND STENCIL_GUI_SOURCES
   src/dialogs/settings/ShortcutsDialog.cpp
   src/dialogs/settings/ShortcutsDialogRows.cpp
   ${STENCIL_CONNECTDIALOG_SOURCES}
-  src/dialogs/meta/OpenInDialog.cpp)
+  src/dialogs/meta/OpenInDialog.cpp
+  src/dialogs/projects/copy/CopyProjectDialog.cpp)

@@ -40,10 +40,10 @@ fn system_prompt_matches_the_contract_head_and_tail() {
 
 #[test]
 fn the_prompt_prose_comes_verbatim_from_the_canonical_asset() {
-    // Fail-fast pin on the shared cross-surface asset (browser/js/config/llm/README.md):
+    // Fail-fast pin on the shared cross-surface asset (common/config/llm/README.md):
     // exact byte lengths, first sentence, and the assembled prompt bracketed by it.
     let asset: Value =
-        serde_json::from_str(include_str!("../../browser/js/config/llm/systemPrompt.json"))
+        serde_json::from_str(include_str!("../../common/config/llm/systemPrompt.json"))
             .expect("canonical systemPrompt.json is not valid JSON");
     let head = asset["head"].as_str().expect("head must be a string");
     let tail = asset["tail"].as_str().expect("tail must be a string");

@@ -60,6 +60,7 @@ namespace stencil::gui {
     bool setProjectColor(const QString& color, QString* note) override;
     bool setBlankColor(const QString& color, QString* note) override;
     void openProjectNamedThen(const QString& name, bool last, llm::OpDone done) override;
+    void copyActiveProjectThen(const llm::Action& a, llm::OpDone done) override;   // ChatPlanTargetCopy.cpp
     bool setIncognito(bool on, QString* note) override;
     bool setChatPlacement(int open, const QString& dock, QString* note) override;
     bool openDialog(const QString& name, QString* note) override;

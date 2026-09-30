@@ -59,6 +59,7 @@ namespace stencil::gui {
       edit->setTabStopDistance(this->style.indent *
                                 edit->fontMetrics().horizontalAdvance(QLatin1Char(' ')));
     edit->installEventFilter(this);
+    fadePlaceholder();
     applyLineHeight();
     wrapLayout->addWidget(edit);
     wrap->setMinimumHeight(this->style.editorMinH);
@@ -159,55 +160,6 @@ namespace stencil::gui {
     diag->style()->unpolish(diag);
     diag->style()->polish(diag);
     diag->setFixedHeight(diag->fontMetrics().height());
-  }
-
-  /* Hover lights the halo in the accent, focus thickens the border — the browser's
-   * .script-editor-wrap :hover / :focus-within, which QSS has no box-shadow for. Under a popup
-   * grab the editor is the only child the menu synthesises an Enter for, so the flyout reads
-   * the hover off it instead of off the halo. */
-  bool ScriptEditorWidget::eventFilter(QObject* watched, QEvent* event) {
-    if (style.hoverOnFrame) {
-      if (watched == glow) {
-        if (event->type() == QEvent::Enter) setFrameState("hovered", true);
-        else if (event->type() == QEvent::Leave) setFrameState("hovered", false);
-      } else if (watched == edit) {
-        if (event->type() == QEvent::FocusIn) setFrameState("focused", true);
-        else if (event->type() == QEvent::FocusOut) setFrameState("focused", false);
-      }
-      return QWidget::eventFilter(watched, event);
-    }
-    if (watched != edit) return QWidget::eventFilter(watched, event);
-    switch (event->type()) {
-      case QEvent::Enter: setFrameState("hovered", true); break;
-      case QEvent::Leave: setFrameState("hovered", false); break;
-      case QEvent::FocusIn: setFrameState("focused", true); break;
-      case QEvent::FocusOut: setFrameState("focused", false); break;
-      case QEvent::KeyPress: {
-        if (!style.codeKeys) break;
-        auto* ke = static_cast<QKeyEvent*>(event);
-        if (ke->key() == Qt::Key_Tab && !(ke->modifiers() & Qt::ShiftModifier)) {
-          edit->insertPlainText(QString(style.indent, QLatin1Char(' ')));
-          return true;
-        }
-        if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) &&
-            (ke->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))) {
-          emit runRequested();
-          return true;
-        }
-        break;
-      }
-      default: break;
-    }
-    return QWidget::eventFilter(watched, event);
-  }
-
-  void ScriptEditorWidget::setFrameState(const char* key, bool on) {
-    for (QFrame* f : {glow, wrap}) {
-      if (!f) continue;
-      f->setProperty(key, on);
-      f->style()->unpolish(f);
-      f->style()->polish(f);
-    }
   }
 
   /* Qt has no line-height, so the leading is a block format. Pressing Return copies the

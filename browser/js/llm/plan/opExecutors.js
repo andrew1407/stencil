@@ -6,6 +6,7 @@ import { clamp } from '../../utils/math.js';
 import { SCHEMA } from './schema.js';
 import { composeFrame, mapFramePoint } from '../frame.js';
 import { SETTINGS_RUN } from './settingsExecutors.js';
+import { PROJECT_RUN } from './projectExecutors.js';
 
 // ── Browser-side normalizers (the few outputs the generic deep-pick can't express) ──
 // They run on top of normalize(), which already trims `trim` keys and applies defaults.
@@ -96,8 +97,8 @@ const IMAGE_RUN = {
   },
 };
 
-// The §2.1 / §10 half of the table lives next door; one registry is built from both.
-const RUN = { ...IMAGE_RUN, ...SETTINGS_RUN };
+// The §2.1 / §10 halves of the table live next door; one registry is built from all three.
+const RUN = { ...IMAGE_RUN, ...SETTINGS_RUN, ...PROJECT_RUN };
 
 // The op registry, one entry per whitelisted op (§13), in registry order — which IS the
 // prompt's bullet order. `editorSetting` marks §10 ops, forbidden in variants.

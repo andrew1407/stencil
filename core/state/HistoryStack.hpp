@@ -25,7 +25,7 @@ namespace stencil::core {
   template <typename Snapshot>
   class SnapshotHistory {
    public:
-    // Depth cap; canon is LIMITS.historyMax in browser/js/config/constants.json, drift-
+    // Depth cap; canon is LIMITS.historyMax in common/config/constants.json, drift-
     // tested in browser/tests/core/history.test.js. cli/pystencil match; bot's 25 is a budget.
     static constexpr std::size_t MAX_STEPS = 64;
 

@@ -1,5 +1,5 @@
 #pragma once
-// The canvas's highlight and divider metrics (browser/js/config/constants.json FOCUS_RING,
+// The canvas's highlight and divider metrics (common/config/constants.json FOCUS_RING,
 // HOVER_RING, SELECT_GLOW and COMPARE_DIVIDER through the qrc), read once; the browser's
 // core/line/render.js and core/draw/renderer.js read the same keys.
 #include <QFile>

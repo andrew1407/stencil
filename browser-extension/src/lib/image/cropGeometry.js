@@ -3,7 +3,7 @@
 // rect {x,y,width,height} in ORIGINAL-image pixels whose aspect is locked to the chosen
 // page (resizing is corner-only). Keep in sync with the editor (tests/lib/image/cropGeometry.test.js).
 
-// Page natural dimensions (cm, portrait). Mirrors browser/js/config/constants.json:
+// Page natural dimensions (cm, portrait). Mirrors common/config/constants.json:
 // the full ISO 216 A/B + ISO 269 C series in canonical order (A0..A10, B0..B10, C0..C10).
 export const PAGE_SIZES = Object.freeze({
   A0: { width: 84.1, height: 118.9 },

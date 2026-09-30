@@ -57,10 +57,11 @@ sources resolve.
 
 ## The buttons on the editor itself
 
-An open `.stc` carries the three commands in its own title bar: **▷** runs it, **globe** opens it
-in Stencil Web, and the incognito mark opens it in a session the app keeps nothing from. A
-`.stcjs` shows **▷ Run in Stencil Web Console** instead, and a `.stencil` project the two Open
-buttons — each file only offers what applies to it.
+An open `.stc` carries its commands in its own title bar: **▷** runs it, **globe** opens it in
+Stencil Web and the incognito mark does the same in a session the app keeps nothing from, and the
+**monitor** runs it in the Stencil desktop app — the monitor wearing the incognito glasses in a
+desktop session that keeps nothing. A `.stcjs` shows **▷ Run in Stencil Web Console** instead, and
+a `.stencil` project the two web buttons — each file only offers what applies to it.
 
 ![the Stencil buttons in the editor title bar](img/title-actions.png)
 
@@ -76,6 +77,20 @@ send along with it. In the browser the script has no filesystem to read either: 
 there must be an `http(s)` URL, and the app says so itself, on the line it happened.
 
 ![the script, run on arrival in the browser app](../browser/img/script-handoff.png)
+
+## Send a script to the Stencil apps without running it
+
+The editor's **…** menu holds the two hand-offs that open rather than run.
+**Stencil: Open in Stencil Web's Script window** puts the script into the browser app's Script
+window and runs nothing, so you can look it over, change it and press Run there.
+**Stencil: Open in Stencil Desktop** does the same in the desktop app's Script window.
+
+![the editor's … menu with the two Open hand-offs](img/handoff-commands.png)
+
+To run it in the desktop app instead, press the **monitor** button (or its incognito twin). The
+desktop always asks before it runs a script that came by link, and while it runs one, a
+`@source` may name a web image only — never a file on your disk. A script that names no
+`@source` brings a picture along, as the browser hand-off does.
 
 ## Drive the browser console
 

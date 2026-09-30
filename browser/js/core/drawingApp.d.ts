@@ -126,6 +126,8 @@ export declare class DrawingApp {
   pendingRemoteAddress: string | null;
   pendingOpenProjectId: string | null;
   pendingLaunchScript: string;
+  /** What index.js does with the handed-over script: open the Script window with it, or run it. */
+  pendingLaunchScriptMode: 'open' | 'run';
   hasExternalLaunch: boolean;
   openInConfig: { desktopScheme: string; telegramBotUsername: string };
 

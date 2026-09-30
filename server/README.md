@@ -12,6 +12,7 @@ For how it is built, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ```bash
 cp .env.example .env          # set DATABASE_URL at minimum
+go generate ./...             # copies the shared tables from ../common/config into the embedded assets
 go run ./cmd/stencil-server   # REST/WS on :8090, TCP edit channel on :8091
 ```
 
@@ -249,6 +250,7 @@ code `shuttingDown`, so clients can prompt to save and reconnect. A WS keepalive
 ## Tests
 
 ```bash
+go generate ./...                   # once, and after a shared table changes
 go test ./...                       # everything but store/ + redisbus/ is offline
 go test -race ./internal/hub/...
 go test -run XXX -bench . ./internal/...   # opt-in benchmarks

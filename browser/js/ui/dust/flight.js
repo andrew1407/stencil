@@ -4,7 +4,7 @@
 // Desktop twin: DisintegrateOverlay.hpp legAt. Byte-pinned to browser-extension/src/lib.
 
 // The tuned numbers this painter runs on live in the shared asset, not here.
-import MOTION from '../../config/motion.json' with { type: 'json' };
+import MOTION from '../../../../common/config/motion.json' with { type: 'json' };
 // The family's one door to the shared asset: the other two TUs take TUNE from here.
 export const TUNE = MOTION.dust;
 

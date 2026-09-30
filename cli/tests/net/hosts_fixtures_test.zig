@@ -1,6 +1,6 @@
-// Walks the shared SSRF host corpus (browser/js/config/fixtures/net/hosts.json) against the cli's
+// Walks the shared SSRF host corpus (common/fixtures/net/hosts.json) against the cli's
 // guard: every host read as the address it names (bare, and as a URL authority would carry it),
-// and judged under all four policy variants of browser/js/config/net/blockedRanges.json.
+// and judged under all four policy variants of common/config/net/blockedRanges.json.
 const std = @import("std");
 const addr = @import("../../src/net/addr.zig");
 const ranges = @import("../../src/net/ranges.zig");
@@ -34,7 +34,7 @@ test "SSRF host corpus: every host reads as its address and gets every policy's 
     var w = fx.Walk.start();
     defer w.stop();
     const a = w.alloc();
-    const cases = try w.cases("fixtures/net/hosts.json");
+    const cases = try w.cases("net/hosts.json");
     try testing.expect(cases.len >= 80);
     for (cases) |c| {
         const name = fx.memberStr(c, "name").?;

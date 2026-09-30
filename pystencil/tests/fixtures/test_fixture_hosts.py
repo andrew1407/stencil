@@ -14,7 +14,7 @@ from tests.helpers.fixturebase import _FIXTURES, _load
 
 from pystencil._net import _address_blocked, _assert_fetchable, _is_blocked_ip, _literal
 
-_HOSTS = _load(_FIXTURES / "fixtures" / "net" / "hosts.json")
+_HOSTS = _load(_FIXTURES / "net" / "hosts.json")
 
 
 def _url(host: str) -> str:

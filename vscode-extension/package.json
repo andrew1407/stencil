@@ -178,6 +178,36 @@
         }
       },
       {
+        "command": "stencil.openScriptInWeb",
+        "title": "Stencil: Open in Stencil Web's Script window",
+        "category": "Stencil",
+        "icon": "$(window)"
+      },
+      {
+        "command": "stencil.openInDesktop",
+        "title": "Stencil: Open in Stencil Desktop",
+        "category": "Stencil",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "stencil.runInDesktop",
+        "title": "Stencil: Run in Stencil Desktop",
+        "category": "Stencil",
+        "icon": {
+          "light": "icons/monitor-light.svg",
+          "dark": "icons/monitor-dark.svg"
+        }
+      },
+      {
+        "command": "stencil.runInDesktopIncognito",
+        "title": "Stencil: Run in Stencil Desktop (incognito)",
+        "category": "Stencil",
+        "icon": {
+          "light": "icons/monitor-incognito-light.svg",
+          "dark": "icons/monitor-incognito-dark.svg"
+        }
+      },
+      {
         "command": "stencil.runInWebConsole",
         "title": "Stencil: Run in Stencil Web Console",
         "category": "Stencil",
@@ -316,6 +346,26 @@
         {
           "command": "stencil.openInWebIncognito",
           "when": "resourceLangId == stencil-script || resourceLangId == stencil-project",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.openScriptInWeb",
+          "when": "resourceLangId == stencil-script",
+          "group": "1_stencil@1"
+        },
+        {
+          "command": "stencil.openInDesktop",
+          "when": "resourceLangId == stencil-script",
+          "group": "1_stencil@2"
+        },
+        {
+          "command": "stencil.runInDesktop",
+          "when": "resourceLangId == stencil-script",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.runInDesktopIncognito",
+          "when": "resourceLangId == stencil-script",
           "group": "navigation"
         },
         {

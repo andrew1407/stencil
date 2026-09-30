@@ -1,5 +1,5 @@
 //! What mcp ACCEPTS as layout JSON: hand-written documents, then the shared corpus
-//! (`browser/js/config/fixtures/layout/`) walked through the real types.
+//! (`common/fixtures/layout/`) walked through the real types.
 //!
 //! mcp's analog of `sanitizeLines` is the serde round-trip the `--layout` temp file goes
 //! through. Disagreements live in `tests/fixture_overrides.json` (family `layout`).
@@ -13,11 +13,11 @@ mod common;
 use common::walk::Walk;
 
 const FIXTURES_DIR: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/fixtures/layout");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../common/fixtures/layout");
 
 /// `layoutFields.json`, the canonical table every surface's export order comes from.
 const FIELDS_PATH: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/layoutFields.json");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../common/config/layoutFields.json");
 
 /// Top-level corpus keys mcp's `Layout` can represent at all, in struct order; serde silently
 /// drops the rest. `imageFilter` is the canonical wire key (legacy `filter` is read-only).

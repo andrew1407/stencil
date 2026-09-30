@@ -1,4 +1,4 @@
-// Walks the shared layout conformance vectors (browser/js/config/fixtures/layout/) against the cli's
+// Walks the shared layout conformance vectors (common/fixtures/layout/) against the cli's
 // real tolerant reader (layout.parse — the path /apply and --layout use): sparse.json to expectFilled,
 // payload.json through the parse side. Measured cli drift is pinned via fixture_overrides.json
 // (`cliLines`): an empty-points line is skipped, every point OBJECT kept with missing coordinates 0, a
@@ -65,7 +65,7 @@ test "layout corpus: sparse.json — the tolerant parser's per-line defaults" {
     const a = w.alloc();
 
     try w.loadOverrides();
-    for (try w.cases("fixtures/layout/sparse.json")) |case| {
+    for (try w.cases("layout/sparse.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const doc = try std.fmt.allocPrint(a, "{{\"lines\":{s}}}", .{try fx.stringify(a, fx.member(case, "sparse").?)});
         var L = try layout.parse(testing.allocator, doc);
@@ -86,7 +86,7 @@ test "layout corpus: payload.json — exported payloads through the cli parse si
     const a = w.alloc();
 
     try w.loadOverrides();
-    for (try w.cases("fixtures/layout/payload.json")) |case| {
+    for (try w.cases("layout/payload.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const payload = fx.member(case, "expectPayload").?;
         var L = try layout.parse(testing.allocator, try fx.stringify(a, payload));

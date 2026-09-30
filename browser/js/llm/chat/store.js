@@ -3,7 +3,7 @@
 // not localStorage, to stay out of the projects' quota budget; every operation is
 // best-effort. The backend is injected so `node --test` drives it with an async Map shim.
 
-import PROMPT_ASSET from '../../config/llm/systemPrompt.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
 
 const CHAT_DB_NAME = 'stencil_chats';
 const CHAT_DB_STORE = 'chats';

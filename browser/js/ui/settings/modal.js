@@ -4,7 +4,7 @@ import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/content.js';
 import { markIn } from '../motion.js';
-import HOTKEY_DEFS from '../../config/hotkeysConfig.json' with { type: 'json' };
+import HOTKEY_DEFS from '../../../../common/config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────
 export class StencilSettingsModal extends StencilElement {
   static inner() {

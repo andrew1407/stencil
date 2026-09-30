@@ -219,7 +219,7 @@ test "a block stops at its last @save: an op after it is never run" {
     const dir = std.Io.Dir.cwd();
     const stc = "stencil_run_last_save.stc";
     const out = "stencil_run_last_save.png";
-    try dir.writeFile(io, .{ .sub_path = stc, .data = "@source tests/fixtures/sample.png:\n" ++
+    try dir.writeFile(io, .{ .sub_path = stc, .data = "@source ../common/samples/sample.png:\n" ++
         "    @filter bw\n    @crop 10%\n    @undo\n    @save " ++ out ++ "\n    @layout no-such.json\n" });
     defer dir.deleteFile(io, stc) catch {};
     defer dir.deleteFile(io, out) catch {};

@@ -90,6 +90,7 @@ namespace stencil::gui {
     w.acts.openIn = newAction("Open In…", w.keys.value("openIn", "Ctrl+Shift+E"));
     w.setActionTip(w.acts.openIn,
         "Open the current project in the browser app or the Telegram bot");
+    w.acts.copyProject = newAction("Make a Copy…", QString());
     w.acts.chat = newAction("AI Assistant", w.keys.value("toggleChat", "Alt+G"));
     // Named to disambiguate from the dock's own toggleViewAction (same text) for the GUI e2e lookup.
     w.acts.chat->setObjectName("actChat");

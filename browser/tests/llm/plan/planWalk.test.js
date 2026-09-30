@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSchema } from '../../../js/llm/plan/opSchema.js';
 import { walkPlan } from '../../../js/llm/plan/parser.js';
-import REGISTRY from '../../../js/config/llm/opRegistry.json' with { type: 'json' };
+import REGISTRY from '../../../../common/config/llm/opRegistry.json' with { type: 'json' };
 import { knownColor } from '../../../tools/opPlanGoldens.mjs';
 
 const schema = (surface, opts = {}) => createSchema(REGISTRY, surface, { knownColor, ...opts });

@@ -5,8 +5,8 @@
 #   docker compose --profile mcp run --rm mcp   # one-off MCP server over stdio
 #
 # Build contexts differ per image (see each Dockerfile's header):
-#   - server  builds from ./server  (standalone Go module, does NOT compile core/)
-#   - browser/mcp build from the repo root (.) because they compile core/
+#   - every image builds from the repo root (.): browser/mcp compile core/, and all of
+#     them embed shared tables from common/ (the server generates its copies from it)
 #
 # After `up`, the pieces are reachable on the host at:
 #   browser app  -> http://localhost:8080
@@ -58,7 +58,8 @@ services:
 
   server:
     build:
-      context: ./server
+      context: .
+      dockerfile: server/Dockerfile
     depends_on:
       db:
         condition: service_healthy

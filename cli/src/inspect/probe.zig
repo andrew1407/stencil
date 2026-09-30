@@ -146,7 +146,7 @@ test "probe: the fixture's header, as one JSON line" {
     defer threaded.deinit();
     var out: std.Io.Writer.Allocating = .init(gpa);
     defer out.deinit();
-    try run(gpa, threaded.io(), &out.writer, .{ .probe = true, .input = "tests/fixtures/sample.png" });
+    try run(gpa, threaded.io(), &out.writer, .{ .probe = true, .input = "../common/samples/sample.png" });
 
     const text = out.written();
     try testing.expect(std.mem.endsWith(u8, text, "}\n"));

@@ -121,7 +121,7 @@ fn the_fingerprint_is_fnv1a_64_over_the_embedded_registry() {
     assert!(fnv.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()), "{fnv}");
     let raw = std::fs::read(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../browser/js/config/llm/opRegistry.json"
+        "/../common/config/llm/opRegistry.json"
     ))
     .expect("the canonical registry");
     let hash = raw.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x100_0000_01b3));

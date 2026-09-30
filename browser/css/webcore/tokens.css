@@ -1,4 +1,4 @@
-/* The webcore skin's tokens: the Win95 palette as --wc-* (the source js/config/webcore.json
+/* The webcore skin's tokens: the Win95 palette as --wc-* (the source common/config/webcore.json
    `tokens` is pinned against, tests/config/webcore.test.js), and the app's own tokens
    re-pointed at it. The desktop reads the same table as webcorePalette. */
 :root[data-skin="webcore"] {

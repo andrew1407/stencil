@@ -40,7 +40,7 @@ result when it helps.
 | operate an editor the user has open, or a live GUI session | **browser app** over chrome-devtools | `browser/README.md` → "Console API (`window.stencil`)" |
 | scan / mark / search / pin media on real web pages | **Chrome extension** (its opt-in page `window.stencil`) | `browser-extension/README.md` → "Page scripting API" and "`stencil.extension`" |
 | a native desktop GUI is asked for | **desktop app**, launched with flags | `desktop/README.md` |
-| the same edits over many files, or a recipe worth keeping | a **`.stc` script** on whichever surface fits | `contracts/stc/stc-contract.md`, the `tour-*` cases in `browser/js/config/script/fixtures/cases.txt` |
+| the same edits over many files, or a recipe worth keeping | a **`.stc` script** on whichever surface fits | `contracts/stc/stc-contract.md`, the `tour-*` cases in `common/fixtures/script/cases.txt` |
 
 Say which surface in one line.
 

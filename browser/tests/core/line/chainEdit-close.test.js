@@ -4,7 +4,7 @@
 import test, { afterEach } from 'node:test';
 import assert from 'node:assert';
 import { installDom } from '../../helpers/dom.js';
-import constants from '../../../js/config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const doc = installDom({}, { window: { addEventListener() {} } });
 const shapeBuilder = await import('../../../js/core/line/shapeBuilder.js');

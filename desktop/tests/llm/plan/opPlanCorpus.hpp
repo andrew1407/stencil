@@ -1,5 +1,5 @@
 // The shared op-plan corpus as the desktop walkers read it: the hand-written, generated and
-// adversarial bundles under browser/js/config/llm/fixtures/opPlan/, each reply text built the way
+// adversarial bundles under common/fixtures/llm/opPlan/, each reply text built the way
 // genOpPlanFixtures.mjs builds it (JS key order, raw bytes, repeated parts). Twin of
 // core/tests/opplan/opplanCorpus.hpp.
 #pragma once
@@ -50,7 +50,7 @@ namespace opPlanCorpus {
   }
 
   inline std::vector<Case> load() {
-    const QString dir = corpusPath("llm/fixtures/opPlan");
+    const QString dir = corpusPath("llm/opPlan");
     const std::pair<const char*, QString> bundles[] = {
         {"hand", dir + "/cases.json"},
         {"generated", dir + "/generated/cases.json"},

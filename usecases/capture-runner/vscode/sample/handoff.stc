@@ -1,0 +1,10 @@
+# Roof survey: frame the drawing, then mark the ridge and the eaves.
+@crop x1=6% x2=-6% y1=6% y2=-6%
+@filter sepia
+
+@use px
+@use line #1e63c8 3px dashed, point red 4px
+@line (20%, 80%) (50%, 30%) (80%, 80%)
+@rect (10%, 10%) (90%, 90%)
+
+@save

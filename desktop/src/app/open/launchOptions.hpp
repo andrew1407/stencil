@@ -54,19 +54,29 @@ namespace stencil::gui {
     // Inline layout JSON (`layout=`), the in-URL variant of --layout.
     QString layoutJson;
 
+    // A .stc riding the link (`script=`, 1..LAUNCH.scriptMaxChars) and whether it opens in the
+    // Script window or runs ("open" | "run"); scriptDropped = one arrived over the cap.
+    QString script;
+    QString scriptMode = QStringLiteral("run");
+    bool scriptDropped = false;
+
     // A plain launch: applyLaunchOptions does nothing and the session restore stands.
     bool empty() const {
       return !hasTheme && project.isEmpty() && src.isEmpty() && layout.isEmpty() &&
              !projects && !incognito && file.isEmpty() && serverUrl.isEmpty() &&
-             serverProjectId.isEmpty() && layoutJson.isEmpty();
+             serverProjectId.isEmpty() && layoutJson.isEmpty() && script.isEmpty() && !scriptDropped;
     }
   };
+
+  // LAUNCH.scriptMaxChars (common/config/constants.json through the qrc): the longest script a link carries.
+  int launchScriptMaxChars();
 
   // QCommandLineParser (exact long-option matching keeps --project / --projects distinct); a stencil:// positional routes through parseStencilUrl.
   LaunchOptions parseLaunchOptions(const QCoreApplication& app);
 
   // Grammar mirrored by browser/js/core/launch/deepLink.js buildStencilSchemeUrl: server+id win over src; unknown params ignored;
   // src is restricted to web/data sources — links are remotely clickable, so local paths never ride them.
+  // A script (`script=`, `scriptMode=open|run`) rides beside either, or alone.
   LaunchOptions parseStencilUrl(const QUrl& url);
 
 }

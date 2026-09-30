@@ -21,7 +21,7 @@ internal sealed record OpPlanFixture(
 /// <summary>One adversarial input of <c>oracle/inputs.json</c>: its reply text and the JS reference's verdict.</summary>
 internal sealed record OpPlanOracleCase(string Name, string Expect, string InputText);
 
-/// <summary>The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>), read once: the hand-written bundle plus the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), keyed by label so <c>[MemberData]</c> carries one short string; the adversarial oracle inputs; and <c>generated/normalized.json</c>, core's result per case under the bot's surface.</summary>
+/// <summary>The shared op-plan conformance corpus (<c>common/fixtures/llm/opPlan/</c>), read once: the hand-written bundle plus the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), keyed by label so <c>[MemberData]</c> carries one short string; the adversarial oracle inputs; and <c>generated/normalized.json</c>, core's result per case under the bot's surface.</summary>
 internal static class OpPlanCorpus
 {
     private static readonly Lazy<IReadOnlyList<OpPlanOracleCase>> _oracle = new(loadOracle);

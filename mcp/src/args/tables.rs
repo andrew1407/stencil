@@ -1,5 +1,5 @@
 //! The canonical page-format and colour-name tables, and the validators that consult
-//! them. Both are embedded from `browser/js/config/` — the same assets the other surfaces
+//! them. Both are embedded from `common/config/` — the same assets the other surfaces
 //! read — because the CLI silently SKIPS a token it cannot parse.
 
 use std::collections::HashSet;
@@ -9,11 +9,11 @@ use std::sync::LazyLock;
 /// case-insensitively — the canonical `PAGE_SIZES` table, embedded at compile time.
 static PAGE_FORMATS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let constants: serde_json::Value =
-        serde_json::from_str(include_str!("../../../browser/js/config/constants.json"))
-            .expect("canonical browser/js/config/constants.json is not valid JSON");
+        serde_json::from_str(include_str!("../../../common/config/constants.json"))
+            .expect("canonical common/config/constants.json is not valid JSON");
     constants["PAGE_SIZES"]
         .as_object()
-        .expect("browser/js/config/constants.json: PAGE_SIZES must be an object")
+        .expect("common/config/constants.json: PAGE_SIZES must be an object")
         .keys()
         .cloned()
         .collect()
@@ -26,11 +26,11 @@ pub(super) fn is_page_format(name: &str) -> bool {
 }
 
 /// The CSS Color Level 4 keywords the core's `parseColor` recognizes, loaded from the
-/// canonical `browser/js/config/colorNames.json` at compile time.
+/// canonical `common/config/colorNames.json` at compile time.
 static COLOR_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let table: std::collections::HashMap<String, String> =
-        serde_json::from_str(include_str!("../../../browser/js/config/colorNames.json"))
-            .expect("canonical browser/js/config/colorNames.json is not a valid name->hex object");
+        serde_json::from_str(include_str!("../../../common/config/colorNames.json"))
+            .expect("canonical common/config/colorNames.json is not a valid name->hex object");
     table.into_keys().collect()
 });
 

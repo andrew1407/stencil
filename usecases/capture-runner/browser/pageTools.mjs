@@ -8,6 +8,7 @@ import { waitForAnimations } from '../lib/waits.mjs';
 export const { gotoApp, settleModalAnimations, expectModalOpen } = await e2e('helpers/boot.js');
 export const { freezeMotion } = await e2e('helpers/uiPin.js');
 export const { seedLlmSettings, sendChat } = await e2e('helpers/chat.js');
+export const { finger } = await e2e('helpers/drag.js');
 
 export function makeBrowserPages({ config, browser }) {
   const view = config.get('viewports.app');
@@ -56,5 +57,5 @@ export function makeBrowserPages({ config, browser }) {
     .filter({ hasText: /sepia/ }).first().waitFor({ timeout: config.get('timeouts.stubReplyMs') });
 
   return { fresh, shared, blank, drawLines, openModal, closeModal, chatReplied,
-    seedLlm: seedLlmSettings, send: sendChat, gotoApp, settleModalAnimations, expectModalOpen };
+    seedLlm: seedLlmSettings, send: sendChat, gotoApp, settleModalAnimations, expectModalOpen, finger };
 }

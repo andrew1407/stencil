@@ -95,7 +95,7 @@ const CORE_DOM_ALLOWANCE = {
   'core/image/filterCanvas.js': 1, 'core/image/model.js': 2, 'core/image/settle.js': 1,
   'core/pointer/inputController.js': 7, 'core/launch/controller.js': 4, 'core/layoutInstall.js': 1,
   'core/line/selection.js': 1, 'core/pointer/controller.js': 5, 'core/project/fileIO.js': 2,
-  'core/project/filePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/serverTransfer.js': 1, 'core/project/transferController.js': 3,
+  'core/project/filePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/serverTransfer.js': 1, 'core/project/transferController.js': 2,
   'core/storage/quotaWriter.js': 1, 'core/remote/stencilSync.js': 2, 'core/storage/storage.js': 1,
   'core/launch/tabsCoordinator.js': 3, 'core/export/videoFrame.js': 1,
   'core/zoom/viewportSync.js': 6, 'core/zoom/animation.js': 2, 'core/zoom/pan.js': 1,
@@ -148,7 +148,7 @@ const UI_ID_ALLOWANCE = {
   'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/modal.js': 21,
   'ui/panel/mainContent.js': 9, 'ui/modal/imageAnchor.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
-  'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 9, 'ui/panel/selectionPanel.js': 16,
+  'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 12, 'ui/script/modal.js': 10, 'ui/panel/selectionPanel.js': 16,
   'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/modal.js': 5, 'ui/toolbar/toolbar.js': 7,
   'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1, 'ui/visuals/notifyRow.js': 1,
 };

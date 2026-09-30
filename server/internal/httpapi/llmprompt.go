@@ -3,7 +3,7 @@ package httpapi
 // System-prompt pin: the proxy only forwards a system prompt that starts with
 // one of Stencil's own heads, so a token can't turn the operator's key into a
 // general LLM. The heads are not retyped here — assets/systemPrompt.json is a
-// checked-in copy of browser/js/config/llm/systemPrompt.json (outside this Go
+// generated copy of common/config/llm/systemPrompt.json (outside this Go
 // module, so it can't be embedded directly), and llmprompt_test.go pins it.
 
 import (
@@ -16,6 +16,7 @@ import (
 // line the two profiles share verbatim before their op bullets diverge.
 const promptShapeMarker = `{"version":1,"reply":`
 
+//go:generate go run ../tools/syncassets ../../../common/config/llm/systemPrompt.json assets/systemPrompt.json
 //go:embed assets/systemPrompt.json
 var systemPromptAsset []byte
 

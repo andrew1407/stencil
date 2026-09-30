@@ -11,7 +11,7 @@ inline void stencilLlmEnsureAppResources() { Q_INIT_RESOURCE(app); }
 // LLM provider config, llm-contract.md §5; persisted via io/fileStore Settings as llm*.
 namespace stencil::llm {
 
-  // browser/js/config/llm/providers.json; empty on a broken alias (configCanon test fails fast).
+  // common/config/llm/providers.json; empty on a broken alias (configCanon test fails fast).
   inline const QJsonObject& providersCanon() {
     static const QJsonObject canon = [] {
       stencilLlmEnsureAppResources();

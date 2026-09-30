@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { HistoryStack, MAX_STEPS } from '../../js/core/historyStack.js';
-import constants from '../../js/config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 test('fresh stack cannot undo at base', () => {
     const h = new HistoryStack();

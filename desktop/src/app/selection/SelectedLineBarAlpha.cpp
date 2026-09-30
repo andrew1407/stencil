@@ -1,9 +1,12 @@
-// The 0-255 opacity box beside each colour well of the selected-line bar: the colour's own
+// The selected-line bar's colour wells: the picker each opens (a double-click resets the line
+// well, browser dblReset.js 'sel-color') and the 0-255 opacity box beside each, the colour's own
 // alpha byte, typed (browser panel/selectionPanel.js .alpha-input, writeColorPair).
 #include "SelectedLineBar.hpp"
 #include "cssColor.hpp"
 #include "../../support/guiHelpers.hpp"
+#include "../../support/control/dblReset.hpp"
 #include "../../support/control/numericInput.hpp"
+#include "../../support/modal/modalReveal.hpp"
 
 #include <QPushButton>
 #include <QSpinBox>
@@ -25,6 +28,33 @@ namespace stencil::gui {
               send(cssName(current));
             });
     return box;
+  }
+
+  void SelectedLineBar::setLineColorDefault(std::function<QColor()> source) {
+    lineColorDefault = std::move(source);
+  }
+
+  // Early-returns while showLine repopulates (updating), the browser's selectedLineIdx guard.
+  // Cancel hands the original back through pickColorAnimated.
+  void SelectedLineBar::wireColorWell(QPushButton* well, QColor& current, const char* title,
+                                      std::function<void(const QString&, bool)> send,
+                                      std::function<QColor()> resetTo) {
+    const auto settle = [this, well, &current, send](const QColor& c) {
+      current = c;
+      setColorSwatch(well, current);
+      syncAlpha();   // a picked alpha shows in the well's box
+      send(cssName(current), false);
+    };
+    const auto open = [this, well, &current, title, send, settle] {
+      if (updating) return;
+      const QColor c = support::pickColorAnimated(
+          current, this, title, well, QRect(),
+          [well, send](const QColor& p) { setColorSwatch(well, p); send(cssName(p), true); },
+          /*withAlpha=*/true);
+      if (c.isValid()) settle(c);
+    };
+    if (!resetTo) { connect(well, &QPushButton::clicked, this, open); return; }
+    support::wireColorChip(well, open, [this, settle, resetTo] { if (!updating) settle(resetTo()); });
   }
 
   void SelectedLineBar::syncAlpha() {

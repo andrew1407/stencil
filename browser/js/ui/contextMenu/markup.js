@@ -2,6 +2,14 @@ import { icon } from '../icons.js';
 import { ctxArrow } from '../ctx/arrow.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from '../export/variants.js';
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
+import { COPY_SCOPES, COPY_SCOPE_ICONS } from '../../core/project/copy/options.js';
+
+// The menu's own title case over the scopes copy/options.js names.
+const COPY_ROW_LABELS = Object.freeze({ image: 'Image Only', layout: 'Image and Layout', project: 'Whole Project' });
+const copyScopeRows = () => COPY_SCOPES.map((what) =>
+  `<div class="ctx-item ctx-sub-item" id="ctx-cp-${what}" data-copy-scope="${what}">`
+  + `<span class="ctx-icon">${icon(COPY_SCOPE_ICONS[what])}</span>`
+  + `<span class="ctx-label">${COPY_ROW_LABELS[what]}</span>${ctxArrow()}</div>`).join('\n                ');
 
 // The variant rows of a Copy/Download Image flyout (variants.js owns labels, glyphs
 // and order). split/current share the primary combo, filled by syncState.
@@ -52,6 +60,13 @@ export function contextMenuInner() {
                 <div class="ctx-item ctx-sub-item" id="ctx-paste-layout"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Layout</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span>${ctxArrow()}</div>
                 <div class="ctx-item ctx-sub-item" id="ctx-dl-layout"><span class="ctx-icon">${icon('file-text')}</span><span class="ctx-label">Download Layout</span>${ctxArrow()}</div>
                 <div class="ctx-item ctx-sub-item" id="ctx-ul-layout"><span class="ctx-icon">${icon('upload')}</span><span class="ctx-label">Upload Layout</span>${ctxArrow()}</div>
+            </div>
+        </div>
+        <!-- Make a Copy: the open project by scope, each row opening the copy confirmation -->
+        <div class="ctx-item" id="ctx-copy-project-menu">
+            <span class="ctx-icon">${icon('duplicate')}</span><span class="ctx-label">Make a Copy</span>${ctxArrow(true)}
+            <div class="ctx-sub" id="ctx-copy-project-sub">
+                ${copyScopeRows()}
             </div>
         </div>
         <!-- Fullscreen toggle -->

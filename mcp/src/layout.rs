@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A full layout: optional source dimensions/filter/page format plus the lines to draw.
-/// Field order IS the emitted key order; it follows `browser/js/config/layoutFields.json`.
+/// Field order IS the emitted key order; it follows `common/config/layoutFields.json`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Layout {
     /// Source image width in pixels (advisory; the CLI draws against the live image).

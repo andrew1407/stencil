@@ -4,7 +4,7 @@ import { chatRowMenuItems, copyChatText, selectionCoversRow } from './chatRowMen
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';
 import { publish, EVENTS } from '../../../eventBus/appBus.js';
-import constants from '../../../config/constants.json' with { type: 'json' };
+import constants from '../../../../../common/config/constants.json' with { type: 'json' };
 
 const { POPOVER } = constants;
 

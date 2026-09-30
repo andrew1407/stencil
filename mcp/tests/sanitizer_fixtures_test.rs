@@ -1,4 +1,4 @@
-//! `browser/js/config/llm/fixtures/sanitizer/cases.json` against `sanitize_detail`, one
+//! `common/fixtures/llm/sanitizer/cases.json` against `sanitize_detail`, one
 //! reported case per fixture. Where mcp's word-based sanitizer differs from the browser's,
 //! `tests/fixture_overrides.json` pins mcp's own output; every output — pinned or shared —
 //! keeps the no-URL and bounded-length invariants.
@@ -13,7 +13,7 @@ use common::wire::load_array;
 
 const SANITIZER_CASES: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../browser/js/config/llm/fixtures/sanitizer/cases.json"
+    "/../common/fixtures/llm/sanitizer/cases.json"
 );
 
 static CORPUS: LazyLock<Vec<Value>> = LazyLock::new(|| load_array(SANITIZER_CASES));

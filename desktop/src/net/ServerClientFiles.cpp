@@ -24,6 +24,9 @@ namespace stencil::net {
                    meta.color = p.value("color").toString();
                    meta.description = p.value("description").toString();
                    meta.blankColor = p.value("blankColor").toString();
+                   for (const QJsonValue& kv : p.value("keywords").toArray())
+                     if (!kv.toString().isEmpty()) meta.keywords << kv.toString();
+                   meta.expiresAt = static_cast<qint64>(p.value("expiresAt").toDouble());
                    meta.hasImage = p.value("hasImage").toBool();
                    meta.imageW = p.value("imageW").toInt();
                    meta.imageH = p.value("imageH").toInt();

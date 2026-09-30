@@ -1,4 +1,4 @@
-// Walks the shared provider-wire and sanitizer conformance corpora (browser/js/config/llm/fixtures/
+// Walks the shared provider-wire and sanitizer conformance corpora (common/fixtures/llm/
 // providerWire + sanitizer) against the REAL desktop LLM client through a capturing MockTransport (no
 // network) — the desktop counterpart of browser/tests/llm/llmWireFixtures.test.js. The fixtures carry a
 // literal `chat.system`, so the walker passes it AS the suffix and substitutes it back before the deep
@@ -21,11 +21,11 @@ int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
   int walked = 0, overridden = 0;
-  walkWireFile("llm/fixtures/providerWire/ollama.json", walked, overridden);
-  walkWireFile("llm/fixtures/providerWire/openai.json", walked, overridden);
-  walkWireFile("llm/fixtures/providerWire/server.json", walked, overridden);
-  walkWireFile("llm/fixtures/providerWire/httpErrors.json", walked, overridden);
-  walkWireFile("llm/fixtures/providerWire/anthropic.json", walked, overridden);
+  walkWireFile("llm/providerWire/ollama.json", walked, overridden);
+  walkWireFile("llm/providerWire/openai.json", walked, overridden);
+  walkWireFile("llm/providerWire/server.json", walked, overridden);
+  walkWireFile("llm/providerWire/httpErrors.json", walked, overridden);
+  walkWireFile("llm/providerWire/anthropic.json", walked, overridden);
   std::printf("providerWire: walked %d cases, %d local overrides\n", walked, overridden);
 
   // Sanitizer vectors: `expect` is the BROWSER's output, and a measured desktop difference is pinned in
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   {
     bool ok = false;
     const QJsonArray cases =
-        readJsonFile(corpusPath("llm/fixtures/sanitizer/cases.json"), &ok).array();
+        readJsonFile(corpusPath("llm/sanitizer/cases.json"), &ok).array();
     check(ok && !cases.isEmpty(), "sanitizer/cases.json loads");
     static const QRegularExpression urlRe(
         QStringLiteral(R"([a-zA-Z][a-zA-Z0-9+.-]*://\S+)"));

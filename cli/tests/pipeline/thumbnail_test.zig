@@ -6,7 +6,7 @@ const args = @import("../../src/args.zig");
 const image = @import("../../src/media/image.zig");
 const report = @import("../../src/app/report.zig");
 const testing = std.testing;
-const sample = @embedFile("../fixtures/sample.png");
+const sample = @embedFile("sample.png");
 
 const Wrote = struct {
     var buf: [256]u8 = undefined;

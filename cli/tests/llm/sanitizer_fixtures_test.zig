@@ -1,4 +1,4 @@
-// Walks the shared provider-error sanitizer corpus (llm/fixtures/sanitizer/cases.json) against the
+// Walks the shared provider-error sanitizer corpus (common/fixtures/llm/sanitizer/cases.json) against the
 // cli's real sanitizer (llm.sanitizeDetail — the one errorDetail/finish use). Corpus expectations are
 // the BROWSER's output, so DIVERGENCE(...) cases (and measured cli drift pinned in
 // fixture_overrides.json) are recomputed locally: the walker enforces the invariants instead — no URL,
@@ -30,7 +30,7 @@ test "sanitizer corpus: cases.json against the cli sanitizer (byte-counted caps)
     var w = fx.Walk.start();
     defer w.stop();
     try w.loadOverrides();
-    for (try w.cases("llm/fixtures/sanitizer/cases.json")) |case| {
+    for (try w.cases("llm/sanitizer/cases.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const input_v = fx.member(case, "input").?;
         if (input_v == .null) {

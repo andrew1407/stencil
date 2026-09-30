@@ -40,6 +40,10 @@ namespace stencil::llm {
     done(ok, note);
   }
 
+  void PlanTarget::copyActiveProjectThen(const Action&, OpDone done) {
+    done(false, QStringLiteral("copyProject: managing projects is not available here"));
+  }
+
   void PlanTarget::saveProjectThen(const QString& name, const QString& dest, OpDone done) {
     QString err;
     const bool ok = saveProject(name, dest, &err);
@@ -50,7 +54,8 @@ namespace stencil::llm {
 
     bool isAwaitedOp(OpKind op) {
       return op == OpKind::CONNECT || op == OpKind::FRAME || op == OpKind::OPEN_URL ||
-             op == OpKind::OPEN_FILE || op == OpKind::OPEN_PROJECT || op == OpKind::SAVE;
+             op == OpKind::OPEN_FILE || op == OpKind::OPEN_PROJECT || op == OpKind::SAVE ||
+             op == OpKind::COPY_PROJECT;
     }
 
   }  // namespace exec
@@ -125,6 +130,19 @@ namespace stencil::llm {
                 else if (notes) *notes << QStringLiteral("openProject: %1").arg(note);
                 done(true);
               });
+        case OpKind::COPY_PROJECT:
+          if (inVariant) return refuse(QStringLiteral("editor-settings ops are not allowed inside a variant"));
+          // A refused or reduced copy is a note (browser projectExecutors.js); one opened here is a fresh frame.
+          return target.copyActiveProjectThen(a, [map = &frame, opened = a.open == QLatin1String("here"), notes, err,
+                                                  done](bool ok, const QString& note) {
+            if (!ok) {
+              *err = note;
+              return done(false);
+            }
+            if (opened && note.isEmpty()) map->reset();
+            if (!note.isEmpty() && notes) *notes << QStringLiteral("copyProject: %1").arg(note);
+            done(true);
+          });
         case OpKind::SAVE:
           if (inVariant) return refuse(QStringLiteral("save: not allowed inside a variant"));
           return startSave(a, target, notes, err, done);

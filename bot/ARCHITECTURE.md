@@ -94,7 +94,7 @@ classDiagram
 | `ProjectRecord` | A mirror of the protocol's `ProjectRecord`; `Version` is the LWW counter | returned by `IStencilServerClient`; the active one is flattened into `UserSession` | `ProjectFull`, the create and update requests |
 | `StencilProject` | The portable `.stencil` bundle: name, metadata, original image bytes, the raw layout | built and parsed by `StencilProjectFile` | `EditState` via `ProjectLayoutMapper`; canonical is `project/file.js` |
 | `PlanCheck` | Core's verdict on one reply: the §7 `result` document kept raw, plus the CLI's registry size and FNV-1a 64 | returned by `IStencilCli.PlanCheckAsync`; one parse | mapped into an `OpPlan`; its fingerprint checked by `OpRegistryAsset.Matches` |
-| `OpPlan` | A validated model reply: text, top-level actions, up to 16 `OpVariant`s, an optional `AskCard` | mapped by `OpPlanParser` from core's verdict; one turn | `PlanAction`; canonical is `browser/js/config/llm/opRegistry.json` |
+| `OpPlan` | A validated model reply: text, top-level actions, up to 16 `OpVariant`s, an optional `AskCard` | mapped by `OpPlanParser` from core's verdict; one turn | `PlanAction`; canonical is `common/config/llm/opRegistry.json` |
 | `PlanAction` | The op-plan action union, one record per `Op` | inside an `OpPlan` | dispatched through `OpRegistry.HandlerFor` |
 | `ScriptPlan` | One `.stc` as the CLI lowered it: the diagnostics and, only when there is no error, one `ScriptBlock` per `@source` | parsed from the `--script-plan` envelope; one `/script` run | the envelope is `cli/CONTRACT.md` §4.3 |
 | `ScriptBlock` | One block's source, its kind (`project`/`url`, or a `file`/`dir`/`glob` the bot refuses) and core's raw verdict on each chunk | inside a `ScriptPlan` | each check mapped by `OpPlanParser.MapScriptChunk` into an `OpPlan` |
@@ -114,7 +114,7 @@ classDiagram
 | Mediator | `CommandHandlers` over the services, `SyncRegistry` and the bot client; `UpdateRouter` over the gates and routers | the services never talk to each other or to the chat; every command and tap folds through `DispatchAsync` |
 | Table-driven dispatch | `CommandHandlers._routes` keyed by `BotCommands.Canonical`; `OpRegistry.Ops` → `HandlerFor`; the per-op mapper over `OpRegistryAsset` | the prompt is assembled from the same entries the executor dispatches on |
 | Hosted loop | `SyncWatcher`, `WorkspaceJanitor` | `BackgroundService`s; SIGTERM cancels and awaits both |
-| Fixture walker, Golden pin | `*FixtureWalkerTests`, `SharedOutcomeFixturesTests`; `TextGoldenTests`; `MockStencilCli` replaying `planChecks.json` | the shared corpora under `browser/js/config` and `cli/testdata`; byte-exact user-facing text; core's verdicts recorded once |
+| Fixture walker, Golden pin | `*FixtureWalkerTests`, `SharedOutcomeFixturesTests`; `TextGoldenTests`; `MockStencilCli` replaying `planChecks.json` | the shared corpora under `common/fixtures` and `cli/testdata`; byte-exact user-facing text; core's verdicts recorded once |
 
 ## Design
 
@@ -238,7 +238,7 @@ Plans are judged offline by `MockStencilCli`, which replays core's verdict per r
 `PlanCheckCliParityTests` prove the live CLI judges every case as recorded and embeds the bot's
 registry.
 
-The fixture walkers replay the shared corpora under `browser/js/config/` through the real
+The fixture walkers replay the shared corpora under `common/fixtures/` through the real
 parsers, one case per vector, measured divergences pinned in `FixtureOverrides.json`;
 `SharedOutcomeFixturesTests` replays `cli/testdata/outcome_fixtures.json`, which the Rust MCP
 server walks too. The script suites run a canned `--script-plan` envelope through the real

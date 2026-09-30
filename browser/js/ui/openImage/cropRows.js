@@ -1,6 +1,6 @@
 // The Open-Image crop's aspect choice (page / plain ratio / custom) and the rows that come and
 // go with the Crop tick. Split out of ui/openImage/modal.js; the rect itself is openImageCrop.js.
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { makeDustRow, makeDustToggle } from '../motion/dust/row.js';
 const { PAGE_SIZES } = constants;
 

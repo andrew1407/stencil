@@ -1,5 +1,5 @@
 {
-  "_doc": "The bot's command vocabulary — the single source for the dispatch table, the Telegram '/' menu, /help and the README's command tables. Bot-specific, so it lives here rather than in browser/js/config.",
+  "_doc": "The bot's command vocabulary — the single source for the dispatch table, the Telegram '/' menu, /help and the README's command tables. Bot-specific, so it lives here rather than in common/config.",
   "commands": [
     {
       "verb": "help",

@@ -1,7 +1,7 @@
 // Minimal static file server for the E2E harness, zero non-Node deps — Playwright's
-// `webServer` launches it. `/` serves ../browser (the app under test, on PORT, default 8188)
-// and `/__e2e__/...` serves ./fixtures, the host pages the scanner needs on an http origin.
-// Not general-purpose: no directory listing, path traversal blocked.
+// `webServer` launches it. It serves the checkout's browser/ (the app under test, at `/` on PORT,
+// default 8188), common/ at /common/, and `/__e2e__/...` from ./fixtures, the host pages
+// the scanner needs on an http origin. Not general-purpose: no listing, traversal blocked.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +9,14 @@ import path from 'node:path';
 import { APP_PORT, APP_HOST } from './config.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const BROWSER_ROOT = path.resolve(HERE, '../../browser');
+const REPO_ROOT = path.resolve(HERE, '../..');
 const FIXTURES_ROOT = path.resolve(HERE, '../fixtures');
+// The only checkout trees a page may reach, by URL prefix; the app's ../common imports land on /common/.
+const TREES = Object.freeze([
+  ['/__e2e__', FIXTURES_ROOT],
+  ['/common', path.join(REPO_ROOT, 'common')],
+  ['', path.join(REPO_ROOT, 'browser')],
+]);
 const PORT = Number(process.env.PORT) || APP_PORT;
 const HOST = process.env.ADDR || APP_HOST;
 
@@ -33,22 +39,27 @@ const MIME = {
   '.map': 'application/json',
 };
 
-// Resolve a URL path to an on-disk file under one of the two roots, refusing any
-// path that escapes its root.
+const inside = (abs, root) => abs === root || abs.startsWith(root + path.sep);
+
+// Resolve a URL path to an on-disk file under the fixtures or a served tree, refusing any
+// path that escapes them.
 const resolveFile = (urlPath) => {
-  let root = BROWSER_ROOT;
-  let rel = decodeURIComponent(urlPath.split('?')[0]);
-  if (rel.startsWith('/__e2e__/')) {
-    root = FIXTURES_ROOT;
-    rel = rel.slice('/__e2e__'.length);
-  }
-  if (rel === '/' || rel === '') rel = '/index.html';
-  const abs = path.join(root, rel);
-  if (abs !== root && !abs.startsWith(root + path.sep)) return null; // traversal guard
+  const rel = path.posix.normalize(decodeURIComponent(urlPath.split('?')[0]));
+  const [prefix, root] = TREES.find(([p]) => rel === p || rel.startsWith(`${p}/`));
+  let abs = path.join(root, rel.slice(prefix.length));
+  if (!inside(abs, root)) return null;
+  if (rel.endsWith('/')) abs = path.join(abs, 'index.html');
   return abs;
 };
 
 const server = http.createServer(async (req, res) => {
+  const [pathname, query = ''] = (req.url || '/').split('?');
+  // An old /browser/ link moves to the root; a fragment rides the redirect in the browser, never to here.
+  if (pathname === '/browser' || pathname.startsWith('/browser/')) {
+    const to = pathname.slice('/browser'.length) || '/';
+    res.writeHead(302, { Location: `${to}${query ? `?${query}` : ''}`, 'Cache-Control': 'no-store' }).end();
+    return;
+  }
   const file = resolveFile(req.url || '/');
   if (!file) { res.writeHead(403).end('forbidden'); return; }
   try {
@@ -64,5 +75,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
-  console.log(`[e2e static] serving browser/ + fixtures on http://${HOST}:${PORT}`);
+  console.log(`[e2e static] serving browser/ + common/ + fixtures on http://${HOST}:${PORT}/`);
 });

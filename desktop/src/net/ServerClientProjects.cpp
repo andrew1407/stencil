@@ -188,8 +188,8 @@ namespace stencil::net {
 
   void ServerClient::createProjectAsync(
       const QString& name, const QString& source, const QString& resource, bool hasImage,
-      int w, int h, std::function<void(bool, QString, qint64)> done) {
-    QJsonObject obj;
+      int w, int h, std::function<void(bool, QString, qint64)> done, const QJsonObject& extra) {
+    QJsonObject obj = extra;
     obj.insert("name", name);
     obj.insert("source", source);
     obj.insert("resource", resource);

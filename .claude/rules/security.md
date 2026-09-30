@@ -50,8 +50,8 @@ instance the web commands open (`stencil.webUrl`, else the published default, `h
 and `terminal.js` is the one place a command line is composed, so document text never reaches
 a shell unquoted.
 
-**The address classes a guard refuses are one table**, `browser/js/config/net/blockedRanges.json`
-(policies `fetch` and `serverTarget`), with `browser/js/config/fixtures/net/hosts.json` as its
+**The address classes a guard refuses are one table**, `common/config/net/blockedRanges.json`
+(policies `fetch` and `serverTarget`), with `common/fixtures/net/hosts.json` as its
 corpus: a guard embeds or drift-copies the table and walks the corpus, and keeps no CIDR list of
 its own. The browser's guard judges no address — it cannot resolve a name.
 

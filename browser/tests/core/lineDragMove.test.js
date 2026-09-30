@@ -39,9 +39,10 @@ test('a line drag translates EVERY point, even with Shift released', () => {
     { x: 7, y: 3 }, { x: 17, y: 3 }, { x: 27, y: 8 }, { x: 37, y: 12 },
   ], 'all points (including the LAST) carry the full drag delta');
 
-  dragMove(app, 2, -1, /*shiftKey=*/true);   // Shift held must be identical
+  // Shift held must be identical; the cursor above the picture reads its top edge (canvasCoords).
+  dragMove(app, 2, -1, /*shiftKey=*/true);
   assert.deepEqual(line.points, [
-    { x: 2, y: -1 }, { x: 12, y: -1 }, { x: 22, y: 4 }, { x: 32, y: 8 },
+    { x: 2, y: 0 }, { x: 12, y: 0 }, { x: 22, y: 5 }, { x: 32, y: 9 },
   ], 'deltas derive from the snapshot — toggling Shift never accumulates');
 });
 

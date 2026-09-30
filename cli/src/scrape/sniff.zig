@@ -25,7 +25,7 @@ pub const png_sig = [_]u8{ 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a };
 
 /// Sniff pixel dimensions + format from an image byte header (PNG / JPEG / GIF / BMP / WebP).
 /// Null for anything it can't measure — video, SVG, truncated data, a zero side, a PNG side past
-/// 2^31−1, a WebP chunk without its signature (browser/js/config/fixtures/imageHeader pins them).
+/// 2^31−1, a WebP chunk without its signature (common/fixtures/imageHeader pins them).
 pub fn sniff(b: []const u8) ?Sniff {
     const s = measure(b) orelse return null;
     if (s.width == 0 or s.height == 0) return null;

@@ -978,6 +978,12 @@
    "@keyframes ui-shimmer-bg|to": {
     "background-position": "-85% 0"
    },
+   "@keyframes ui-shimmer-row|from": {
+    "background-position": "150% 0"
+   },
+   "@keyframes ui-shimmer-row|to": {
+    "background-position": "-50% 0"
+   },
    "@keyframes ui-shimmer|from": {
     "transform": "translateX(-135%)",
     "opacity": "1"
@@ -1243,6 +1249,9 @@
     "flex-direction": "column",
     "align-items": "stretch"
    },
+   "@media (max-width: 960px)|.panel-resizer": {
+    "display": "none"
+   },
    "@media (max-width: 960px)|body": {
     "padding": "12px"
    },
@@ -1379,7 +1388,7 @@
     "animation": "none",
     "opacity": "0.6"
    },
-   "@media (prefers-reduced-motion: reduce)|.coordinates-table tbody tr:hover": {
+   "@media (prefers-reduced-motion: reduce)|.coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving), .coordinates-table tbody tr:hover:not(.row-focused):not(.leaving)": {
     "animation": "none",
     "background-image": "none"
    },
@@ -1642,6 +1651,13 @@
    "|#coord-body, .coord-tabs": {
     "opacity": "1",
     "transition": "opacity var(--panel-fade-ms) var(--fold-ease), display var(--panel-fade-ms) allow-discrete"
+   },
+   "|#copy-project-incognito-row": {
+    "border-bottom": "none"
+   },
+   "|#copy-project-question": {
+    "overflow-wrap": "anywhere",
+    "margin-bottom": "10px"
    },
    "|#ctx-assist-input": {
     "flex": "1 1 auto",
@@ -2048,6 +2064,13 @@
     "flex-direction": "column",
     "min-height": "0"
    },
+   "|#script-overlay.modal-popover .script-actions-bar .btn-icon-text": {
+    "font-size": "12px",
+    "padding": "4px 9px"
+   },
+   "|#script-overlay.modal-popover .script-actions-bar .chat-settings-actions": {
+    "gap": "6px"
+   },
    "|#script-overlay:not(.modal-popover) .app-modal": {
     "height": "min(82vh, 760px)"
    },
@@ -2431,7 +2454,7 @@
     "flex": "1",
     "min-width": "0"
    },
-   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button": {
+   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button": {
     "position": "relative",
     "overflow": "hidden"
    },
@@ -2439,7 +2462,7 @@
     "background": "var(--bg-coord-hover)",
     "transform": "translateX(2px)"
    },
-   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after": {
+   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after": {
     "content": "''",
     "position": "absolute",
     "inset": "0",
@@ -2471,7 +2494,7 @@
    "|.accent-dd-opt:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .ctx-item:hover > .ctx-hotkey .tip-key": {
     "animation": "keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both"
    },
-   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after": {
+   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after": {
     "animation": "ui-shimmer 0.75s ease"
    },
    "|.accent-dd-opt[aria-selected=\"true\"]": {
@@ -4231,20 +4254,23 @@
    "|.coordinates-table tbody tr": {
     "background-repeat": "no-repeat",
     "background-size": "250% 100%",
-    "background-position": "185% 0",
-    "transition": "background 0.15s ease"
+    "background-position": "150% 0",
+    "transition": "background-color 0.15s ease"
    },
    "|.coordinates-table tbody tr.row-focused": {
-    "background": "rgba(255,200,0,0.28) !important",
+    "background-color": "rgba(255,200,0,0.28) !important",
     "outline": "2px solid #e6b800",
     "outline-offset": "-2px",
     "animation": "focusPulse 0.5s ease"
    },
    "|.coordinates-table tbody tr.row-highlighted": {
-    "background": "color-mix(in srgb, var(--accent) 18%, transparent) !important",
+    "background-color": "color-mix(in srgb, var(--accent) 18%, transparent) !important",
     "outline": "2px solid var(--accent)",
     "outline-offset": "-2px",
     "animation": "rowPulse 0.5s ease"
+   },
+   "|.coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving)": {
+    "animation": "ui-shimmer-row 0.75s ease, rowPulse 0.5s ease"
    },
    "|.coordinates-table tbody tr:has(.empty-message)": {
     "cursor": "default"
@@ -4253,9 +4279,9 @@
     "background-color": "var(--bg-coord-hover)",
     "cursor": "pointer"
    },
-   "|.coordinates-table tbody tr:hover:not(.row-focused):not(.row-highlighted)": {
+   "|.coordinates-table tbody tr:hover:not(.row-focused):not(.leaving)": {
     "background-image": "linear-gradient(115deg, transparent 40%, color-mix(in srgb, #ffffff 24%, transparent) 50%, transparent 60%)",
-    "animation": "ui-shimmer-bg 0.75s ease"
+    "animation": "ui-shimmer-row 0.75s ease"
    },
    "|.coordinates-table td, .coordinates-table th": {
     "padding": "6px 5px",
@@ -5122,6 +5148,16 @@
    "|.ic-cloud": {
     "transform": "translate(calc(var(--ic-on) * 5.83%), calc(var(--ic-on) * -2.5%))"
    },
+   "|.ic-code .ic-br-l": {
+    "transform": "translateX(calc(var(--ic-on) * -1.2px))"
+   },
+   "|.ic-code .ic-br-r": {
+    "transform": "translateX(calc(var(--ic-on) * 1.2px))"
+   },
+   "|.ic-code .ic-slash": {
+    "transform-origin": "12px 12px",
+    "transform": "rotate(calc(var(--ic-on) * 12deg))"
+   },
    "|.ic-compare .ic-box": {
     "--ic-ms": "0.34s",
     "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
@@ -5171,6 +5207,14 @@
    },
    "|.ic-download .ic-arrow": {
     "transform": "translateY(calc(var(--ic-on) * 2.2px))"
+   },
+   "|.ic-duplicate .ic-back": {
+    "transform": "translate(calc(var(--ic-on) * -1px), calc(var(--ic-on) * -1px))"
+   },
+   "|.ic-duplicate .ic-plus": {
+    "--ic-ms": "0.3s",
+    "transform-origin": "15.5px 15.5px",
+    "transform": "rotate(calc(var(--ic-on) * 90deg))"
    },
    "|.ic-eraser .ic-baseline": {
     "--ic-ms": "0.52s",
@@ -5844,6 +5888,13 @@
     "overflow": "hidden",
     "animation": "rowLeave 0.22s cubic-bezier(0.4, 0, 1, 1) both"
    },
+   "|.lines-color-picker": {
+    "position": "fixed",
+    "width": "1px",
+    "height": "1px",
+    "opacity": "0",
+    "pointer-events": "none"
+   },
    "|.lines-count-cell": {
     "width": "46px"
    },
@@ -5861,7 +5912,7 @@
     "cursor": "pointer"
    },
    "|.lines-row-hover:not(.lines-row-selected)": {
-    "background": "color-mix(in srgb, var(--accent) 18%, transparent)"
+    "background-color": "color-mix(in srgb, var(--accent) 18%, transparent)"
    },
    "|.lines-row-selected td": {
     "box-shadow": "inset 0 1px var(--accent), inset 0 -1px var(--accent)"
@@ -5873,7 +5924,7 @@
     "box-shadow": "inset -1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent)"
    },
    "|.lines-row:hover": {
-    "background": "var(--bg-coord-hover)"
+    "background-color": "var(--bg-coord-hover)"
    },
    "|.lines-swatch": {
     "width": "14px",
@@ -6605,6 +6656,20 @@
    "|.project-local-badge .ic": {
     "color": "var(--text-muted, #8b93a7)"
    },
+   "|.project-menu-item.has-sub .project-menu-arrow": {
+    "margin-left": "auto",
+    "flex": "none"
+   },
+   "|.project-menu-item.has-sub > span": {
+    "margin-right": "12px"
+   },
+   "|.project-menu-item.has-sub.is-open": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
+   },
+   "|.project-menu-item.has-sub.is-open .ic": {
+    "color": "var(--on-accent)"
+   },
    "|.project-menu-item.is-danger": {
     "color": "var(--danger)"
    },
@@ -7021,7 +7086,8 @@
     "z-index": "1"
    },
    "|.script-input::placeholder": {
-    "color": "var(--text-muted)"
+    "color": "var(--text-muted)",
+    "opacity": "0.5"
    },
    "|.script-input:focus": {
     "outline": "none"
@@ -8915,6 +8981,14 @@
     "background": "var(--border-main)",
     "transition": "background 0.15s, width 0.15s, height 0.15s"
    },
+   "|stencil-copy-project-modal .cp-row": {
+    "padding-top": "9px",
+    "padding-bottom": "9px"
+   },
+   "|stencil-copy-project-modal .cp-row:has(input:disabled) .vs-inline-check": {
+    "cursor": "default",
+    "opacity": "0.55"
+   },
    "|stencil-fullscreen-layer": {
     "display": "contents"
    },
@@ -8922,7 +8996,8 @@
     "--vs-label-w": "118px"
    },
    "|stencil-llm-settings-modal": {
-    "--vs-ctrl-w": "320px"
+    "--vs-ctrl-w": "320px",
+    "--vs-ctrl-pct": "61%"
    },
    "|stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger, stencil-llm-settings-modal .vs-ctrl > .accent-dd, stencil-llm-settings-modal .vs-ctrl > .cs-dd, stencil-llm-settings-modal .vs-ctrl > input, stencil-llm-settings-modal .vs-ctrl > select, stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > .accent-dd, stencil-visuals-modal .vs-ctrl > .cs-dd, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select": {
     "width": "100%",
@@ -8936,8 +9011,8 @@
     "border-radius": "6px"
    },
    "|stencil-llm-settings-modal .vs-row > .vs-ctrl, stencil-visuals-modal .vs-row > .vs-ctrl": {
-    "flex": "0 0 var(--vs-ctrl-w)",
-    "width": "var(--vs-ctrl-w)",
+    "flex": "0 0 max(var(--vs-ctrl-w), var(--vs-ctrl-pct))",
+    "width": "max(var(--vs-ctrl-w), var(--vs-ctrl-pct))",
     "min-width": "0",
     "display": "flex",
     "align-items": "center",
@@ -8970,7 +9045,8 @@
     "min-width": "0"
    },
    "|stencil-visuals-modal": {
-    "--vs-ctrl-w": "180px"
+    "--vs-ctrl-w": "180px",
+    "--vs-ctrl-pct": "34%"
    },
    "|stencil-visuals-modal .vs-ctrl.vs-color": {
     "gap": "8px",
@@ -9098,9 +9174,9 @@
    "|#draw-toggle.active:not(:disabled):hover",
    "|.btn-icon",
    "|.btn-icon .ic",
-   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button",
-   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after",
-   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after",
+   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button",
+   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after",
+   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after",
    "@keyframes ui-shimmer|from",
    "@keyframes ui-shimmer|to",
    "@media (prefers-reduced-motion: reduce)|.accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .coord-tab::after, .idle-create-btn::after, .name-edit-btn::after, .pill-toggle::after, .shimmer::after, button::after",
@@ -9111,8 +9187,11 @@
    "@keyframes ui-shimmer-bg|to",
    "@media (prefers-reduced-motion: reduce)|input[type=\"number\"]:hover, input[type=\"password\"]:hover, input[type=\"search\"]:hover, input[type=\"text\"]:hover, input[type=\"url\"]:hover, select:hover",
    "|.coordinates-table tbody tr",
-   "|.coordinates-table tbody tr:hover:not(.row-focused):not(.row-highlighted)",
-   "@media (prefers-reduced-motion: reduce)|.coordinates-table tbody tr:hover",
+   "|.coordinates-table tbody tr:hover:not(.row-focused):not(.leaving)",
+   "|.coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving)",
+   "@keyframes ui-shimmer-row|from",
+   "@keyframes ui-shimmer-row|to",
+   "@media (prefers-reduced-motion: reduce)|.coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving), .coordinates-table tbody tr:hover:not(.row-focused):not(.leaving)",
    "|button:disabled, input:disabled, select:disabled",
    "|#theme-toggle",
    "|#theme-toggle:hover",
@@ -9238,6 +9317,7 @@
    "|.lines-swatch-cell",
    "|.lines-count-cell",
    "|.lines-swatch",
+   "|.lines-color-picker",
    "|.lines-label",
    "|.lines-remove-cell",
    "|.coordinates-table",
@@ -9531,6 +9611,8 @@
    "|.script-actions-bar",
    "|.ctx-script .primary:not(:disabled), .script-actions-bar .primary:not(:disabled)",
    "|#script-overlay:not(.modal-popover) .app-modal",
+   "|#script-overlay.modal-popover .script-actions-bar .chat-settings-actions",
+   "|#script-overlay.modal-popover .script-actions-bar .btn-icon-text",
    "|.script-modal .settings-body",
    "|.script-editor-wrap",
    "|.script-editor-wrap:hover",
@@ -9774,6 +9856,14 @@
    "|.confirm-prompt-reason",
    "|textarea.confirm-prompt-input",
    "|textarea.confirm-prompt-input:focus",
+   "|.project-menu-item.has-sub > span",
+   "|.project-menu-item.has-sub .project-menu-arrow",
+   "|.project-menu-item.has-sub.is-open",
+   "|.project-menu-item.has-sub.is-open .ic",
+   "|#copy-project-question",
+   "|stencil-copy-project-modal .cp-row",
+   "|#copy-project-incognito-row",
+   "|stencil-copy-project-modal .cp-row:has(input:disabled) .vs-inline-check",
    "|#description-overlay:not(.modal-popover) .app-modal, #keywords-overlay:not(.modal-popover) .app-modal",
    "|.meta-body",
    "|textarea.meta-text",
@@ -10164,6 +10254,9 @@
    "|.ic-ruler",
    "|.ic-gear",
    "|.ic-chat-settings .ic-cog, .ic-script .ic-cog",
+   "|.ic-code .ic-br-l",
+   "|.ic-code .ic-br-r",
+   "|.ic-code .ic-slash",
    "|.ic-sun",
    "|.ic-refresh",
    "|.ic-stop",
@@ -10180,6 +10273,8 @@
    "|.ic-copy .ic-front",
    "|.ic-copy .ic-back",
    "|.ic-clipboard .ic-clip",
+   "|.ic-duplicate .ic-back",
+   "|.ic-duplicate .ic-plus",
    "|.ic-more .ic-dot-l",
    "|.ic-more .ic-dot-r",
    "|.ic-link .ic-link-a",
@@ -10533,6 +10628,7 @@
    "@media (max-width: 960px)|.canvas-section",
    "@media (max-width: 960px)|.canvas-viewport",
    "@media (max-width: 960px)|.coordinates-panel",
+   "@media (max-width: 960px)|.panel-resizer",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed .coord-tabs",
    "@media (max-width: 960px)|.coordinates-panel.coord-collapsed #coord-body",

@@ -3,7 +3,7 @@ using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests.Llm.Wire;
 
-/// <summary>The canonical provider constants parsed from <c>browser/js/config/llm/providers.json</c>, embedded at build time: byte-drift against the repo's canonical copy, plus the pinned parsed values.</summary>
+/// <summary>The canonical provider constants parsed from <c>common/config/llm/providers.json</c>, embedded at build time: byte-drift against the repo's canonical copy, plus the pinned parsed values.</summary>
 public sealed class ProvidersAssetTests
 {
     [Fact]
@@ -16,7 +16,7 @@ public sealed class ProvidersAssetTests
         using var embedded = new MemoryStream();
         stream.CopyTo(embedded);
         byte[] canonical = File.ReadAllBytes(
-            SharedFixtures.PathOf("browser", "js", "config", "llm", "providers.json"));
+            SharedFixtures.PathOf("common", "config", "llm", "providers.json"));
         Assert.Equal(canonical, embedded.ToArray());
     }
 

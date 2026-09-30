@@ -5,10 +5,10 @@
 // does not fetch the web-app manifest, so manifest icons are covered by unit tests instead.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
-import { APP_URL } from '../../helpers/config.js';
+import { APP_URL, SITE_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 
-const FIXTURE_URL = APP_URL + '__e2e__/all-image-sources.html';
+const FIXTURE_URL = SITE_URL + '__e2e__/all-image-sources.html';
 const EDITOR_URL = APP_URL;
 
 test.describe('extension image-source coverage', () => {

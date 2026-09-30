@@ -20,13 +20,13 @@ export { askAnswerText } from './parser.js';
 
 // Execute a parsed plan against the frozen window.stencil facade — every op routes through the
 // facade, never new editor logic. savedServers is the ONLY pool `connect` may resolve against.
-export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink, editorHistory } = {}) => {
+export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, copyActiveProject, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink, editorHistory } = {}) => {
   const warnings = (plan.warnings || []).slice();
   const results = [];
 
   // `notes`: what an executor reports (rendered with the reply); `frame`: the §1 re-mapping
   // accumulated from executed crops/rotates, reset to identity by newFrame ops.
-  const ctx = { stencil, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, results, notes: warnings, frame: identityFrame() };
+  const ctx = { stencil, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, copyActiveProject, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, results, notes: warnings, frame: identityFrame() };
   const run = async (a) => {
     // §13: a forbidden op is refused with a typed error even if a plan carrying
     // one reached the executor without passing the parser's unknown-op drop.

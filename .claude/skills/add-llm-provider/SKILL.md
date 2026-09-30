@@ -9,8 +9,8 @@ description: >-
 
 # Add an LLM provider
 
-1. `browser/js/config/llm/providers.json` — id, `displayName`, `defaultBaseUrl`, `chatPath`,
-   `modelsPath`, `probePath`, `wire`. Then `node .claude/tools/syncTwins.mjs` — the extension,
+1. `common/config/llm/providers.json` — id, `displayName`, `defaultBaseUrl`, `chatPath`,
+   `modelsPath`, `probePath`, `wire`. Then `node tools/syncTwins.mjs` — the extension,
    pystencil and the server ship copies.
 2. `contracts/llm/llm-providers.md` — the wire mapping, normatively.
 3. The mapping in each client, using its platform's built-in HTTP (**no new dependency**):
@@ -23,6 +23,6 @@ description: >-
 4. Settings UI per surface (browser `browser/js/llm/settings.js`, desktop
    `desktop/src/dialogs/settings/LlmSettingsForm.cpp`, extension
    `browser-extension/src/llm/settings.js`, cli `/llm`).
-5. Fixtures under `browser/js/config/llm/fixtures/providerWire/`, plus each surface's walker.
+5. Fixtures under `common/fixtures/llm/providerWire/`, plus each surface's walker.
 6. An endpoint is **always explicit user configuration** — never discovered from fetched or
    scanned content. Keys live in env, never in a URL. See `.claude/rules/security.md`.

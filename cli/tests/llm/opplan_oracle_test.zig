@@ -8,7 +8,7 @@ const fx = @import("../fixture_corpus.zig");
 const testing = std.testing;
 
 const golden = "tests/pins/opplan_oracle.json"; // `zig build test` runs with cwd = cli/
-const dir = "llm/fixtures/opPlan/";
+const dir = "llm/opPlan/";
 // A string past this many bytes is pinned by its length and digest.
 const long = 160;
 

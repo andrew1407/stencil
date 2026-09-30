@@ -18,6 +18,7 @@ namespace stencil::gui::scriptrun {
     llm::PlanTarget& target;
     QVector<core::EditorMemento> marks;
     ScriptRunResult out;
+    ScriptRunRules rules;
   };
 
   // The numbered edits of §7; @frame and @source start a fresh set.

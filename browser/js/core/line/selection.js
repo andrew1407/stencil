@@ -64,7 +64,8 @@ export const deselectEmptyArea = (app, e) => {
   app.deselectLine();
 };
 
-// `commit:false` is a picker's live `input` preview; the trailing `change` commits one history step.
+// `commit:false` is a picker's live `input` preview; the trailing `change` commits one history step,
+// and names the line set so the Lines tab's swatch follows.
 export const applySelectionChange = (app, prop, value, { commit = true } = {}) => {
   if (app.compareReadOnly()) return;
   if (app.selectedLineIdx === -1) return;
@@ -72,7 +73,7 @@ export const applySelectionChange = (app, prop, value, { commit = true } = {}) =
 // A line still on the inherit fallback ('' pointColor) pins its rendered colour first.
   if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
   line[prop] = value;
-  if (commit) app.saveHistory();
+  if (commit) { app.saveHistory(); changed(app, CHANGE.lines); }
   app.renderer.redraw();
 };
 

@@ -1,5 +1,5 @@
 #pragma once
-// The chat dock's slide and its dust flight, one clock each way, ms: browser/js/config/motion.json's
+// The chat dock's slide and its dust flight, one clock each way, ms: common/config/motion.json's
 // CHAT_SURFACE_IN_MS / CHAT_SURFACE_OUT_MS through the qrc, the pair the browser's chat panel flies
 // on; read once, tests/app/chrome/chatSlideClocks holds them.
 #include <QFile>

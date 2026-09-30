@@ -1,5 +1,5 @@
 #pragma once
-// Per-icon hover motion — port of browser/js/config/iconMotion.json (qrc-embedded) and
+// Per-icon hover motion — port of common/config/iconMotion.json (qrc-embedded) and
 // its CSS in browser/css/animations/. QSvgRenderer has no CSS engine, so a frame
 // REWRITES the markup: a transform is injected on each `ic-*` hooked element. Q_OBJECT-free.
 #include "iconMotionTypes.hpp"

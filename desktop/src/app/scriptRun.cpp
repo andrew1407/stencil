@@ -20,8 +20,8 @@ namespace stencil::gui {
     // target is torn down mid-load ends with it, unanswered.
     struct Run : RunState, std::enable_shared_from_this<Run> {
       Run(const model::ScriptDoc& program, llm::PlanTarget& target,
-          std::function<void(const ScriptRunResult&)> done)
-          : RunState{program, target, {}, {}}, done(std::move(done)) {}
+          std::function<void(const ScriptRunResult&)> done, ScriptRunRules rules)
+          : RunState{program, target, {}, {}, rules}, done(std::move(done)) {}
 
       void step() {
         const QVector<ScriptOp>& ops = program.getOps();
@@ -53,9 +53,8 @@ namespace stencil::gui {
       void startLoad(const ScriptOp& op, llm::OpDone done) {
         if (op.kind == ScriptOpKind::OPEN) {
           const QString spec = strAt(op, 0);
-          const bool isUrl = spec.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)
-                          || spec.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
-          if (isUrl) return target.openUrlThen(spec, false, std::move(done));
+          if (isWebUrl(spec)) return target.openUrlThen(spec, false, std::move(done));
+          if (rules.webSourcesOnly) return done(false, localRefusal(spec));
           return target.openFileThen(spec, std::move(done));
         }
         // The block's own source, reloaded at that frame — not the chat's frames-as-projects.
@@ -63,7 +62,17 @@ namespace stencil::gui {
         const ScriptBlock block = op.block >= 0 && op.block < blocks.size() ? blocks.at(op.block)
                                                                            : ScriptBlock{};
         const int frame = op.nums.isEmpty() ? block.frame : static_cast<int>(op.nums[0]);
+        if (rules.webSourcesOnly && !isWebUrl(block.source)) return done(false, localRefusal(block.source));
         target.openSourceFrameThen(block.source, frame, std::move(done));
+      }
+
+      static bool isWebUrl(const QString& spec) {
+        return spec.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)
+            || spec.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
+      }
+
+      static QString localRefusal(const QString& spec) {
+        return QStringLiteral("a script from a link may open web images only, not '%1'").arg(spec);
       }
 
       // A fresh picture starts a fresh set of numbered edits.
@@ -111,7 +120,7 @@ namespace stencil::gui {
   }  // namespace
 
   void runScriptThen(const model::ScriptDoc& program, llm::PlanTarget& target,
-                     std::function<void(const ScriptRunResult&)> done) {
+                     std::function<void(const ScriptRunResult&)> done, ScriptRunRules rules) {
     ScriptRunResult out;
     for (const model::ScriptDiagnostic& d : program.getDiagnostics()) {
       if (!d.isError) continue;
@@ -128,7 +137,7 @@ namespace stencil::gui {
       out.error = QStringLiteral("open an image first");
       return done(out);
     }
-    std::make_shared<Run>(program, target, std::move(done))->step();
+    std::make_shared<Run>(program, target, std::move(done), rules)->step();
   }
 
   void runScriptFileThen(const QString& path, llm::PlanTarget& target,

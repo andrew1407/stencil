@@ -110,7 +110,7 @@ export class StencilProjectsModal extends StencilElement {
       localKey, selected, selectables, isServerMeta, toggleSelect,
       enableThumbZoom, projectTooltip, fmtDate, expiryLabel, isPeerOpen, hasServers,
       pickServer, confirmOpen, scrollRowIntoView, openColorPicker, beginRemoval, retireKey,
-      rowById, showMenu,
+      rowById, showMenu, invalidateRemotes: () => invalidateRemotes(),
     });
 
     // One server-project row (ui/projects/row/remoteRow.js); `render`, `close`, `openRemote` and

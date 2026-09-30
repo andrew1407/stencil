@@ -42,14 +42,14 @@ namespace {
     rasterizeLine(buf.data(), w, h, l);
     return buf;
   }
-  // The `[on, off]` of one STROKE_DASH row in browser/js/config/constants.json, the canon.
+  // The `[on, off]` of one STROKE_DASH row in common/config/constants.json, the canon.
   std::vector<double> canonicalDash(const std::string& style) {
     namespace fs = std::filesystem;
     fs::path p = fs::current_path();
     while (!fs::exists(p / "CLAUDE.md") && p.has_parent_path() && p.parent_path() != p)
       p = p.parent_path();
     std::stringstream src;
-    src << std::ifstream(p / "browser/js/config/constants.json").rdbuf();
+    src << std::ifstream(p / "common/config/constants.json").rdbuf();
     const std::string json = src.str();
     const std::size_t table = json.find("\"STROKE_DASH\"");
     const std::size_t row = json.find("\"" + style + "\"", table);
@@ -125,7 +125,7 @@ TEST_CASE("rasterizeLine: a dashed stroke leaves gaps along the path") {
   CHECK(at(dots, 48, 6, 10, 3) == 0);    // pos 4.5: its gap
 }
 
-TEST_CASE("drift: the dash table matches STROKE_DASH in browser/js/config/constants.json") {
+TEST_CASE("drift: the dash table matches STROKE_DASH in common/config/constants.json") {
   const auto dashed = canonicalDash("dashed"), dotted = canonicalDash("dotted");
   REQUIRE_MESSAGE(dashed.size() == 2, "constants.json lost STROKE_DASH.dashed (or moved)");
   REQUIRE_MESSAGE(dotted.size() == 2, "constants.json lost STROKE_DASH.dotted");

@@ -78,6 +78,17 @@ test('buildStencilSchemeUrl builds an inline image link with layout + frame', ()
   );
 });
 
+test('buildStencilSchemeUrl carries a script and its mode beside a server link, or alone', () => {
+  assert.strictEqual(
+    buildStencilSchemeUrl({ server: 'http://h:1', id: 'p', script: '@crop 10%\n', scriptMode: 'open', incognito: true }),
+    'stencil://open?server=http%3A%2F%2Fh%3A1&id=p&incognito=1&script=%40crop%2010%25%0A&scriptMode=open',
+  );
+  assert.strictEqual(buildStencilSchemeUrl({ script: '@save' }), 'stencil://open?script=%40save&scriptMode=run',
+    'a script-only link runs unless it asks to open, and a missing mode is spelled out');
+  assert.strictEqual(buildStencilSchemeUrl({ script: '@save', scriptMode: 'bogus' }), 'stencil://open?script=%40save&scriptMode=run');
+  assert.strictEqual(buildStencilSchemeUrl({ src: 'a.png', script: '' }), 'stencil://open?src=a.png', 'an empty script is no script');
+});
+
 test('buildStencilSchemeUrl accepts a pre-serialized layout string and omits empty fields', () => {
   const url = buildStencilSchemeUrl({ src: 'a.png', layout: '{"lines":[]}' });
   assert.strictEqual(url, 'stencil://open?src=a.png&layout=%7B%22lines%22%3A%5B%5D%7D');

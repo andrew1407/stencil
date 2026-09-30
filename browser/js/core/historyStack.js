@@ -1,4 +1,4 @@
-import constants from '../config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 // Snapshot history: a snapshot is a Lines array, or an editor memento {lines, cropRect,
 // rotationQuarters, filter, filterColor} — the view and the filter the lines sit on, so a crop, a

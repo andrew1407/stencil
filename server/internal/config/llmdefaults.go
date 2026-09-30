@@ -1,5 +1,5 @@
 // LLM_MODEL / LLM_MAX_TOKENS defaults: the serverDefaults block of the canonical
-// browser/js/config/llm/providers.json, embedded through assets/providers.json, a checked-in
+// common/config/llm/providers.json, embedded through assets/providers.json, a generated
 // byte-equal copy (go:embed cannot leave this module) that llmdefaults_test.go pins.
 package config
 
@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 )
 
+//go:generate go run ../tools/syncassets ../../../common/config/llm/providers.json assets/providers.json
 //go:embed assets/providers.json
 var providersAsset []byte
 

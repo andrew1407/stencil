@@ -19,7 +19,7 @@ const METAS = [
 const entering = (m) => m.rows().filter((r) => r.classList.contains(FILTER_ENTERING_CLASS)).map((r) => r.dataset.filterKey);
 
 // createRenderList alone, over rows keyed by `plan.keys`; every setTimeout held for the test.
-const renderRig = (t, initial) => {
+const renderRig = (t, initial, { remotes = { cache: null, loading: false, failed: false }, servers = false } = {}) => {
   const doc = installMenuDom();
   const realSetTimeout = globalThis.setTimeout;
   const timers = [];
@@ -30,9 +30,9 @@ const renderRig = (t, initial) => {
   const row = () => Object.assign(doc.createElement('div'), { className: 'project-row' });
   const rows = createRenderList({
     app: {}, list, search: { value: '' }, clearAllBtn: doc.body.appendChild(doc.createElement('button')),
-    remotes: { cache: null, loading: false, failed: false }, remoteObjectUrls: new Set(),
-    rowPlan: () => plan.keys.map((key) => ({ key, build: row })), showsServer: () => false,
-    filterMode: () => 'all', hasServers: () => false, ensureRemotes() {}, keyMeta: new Map(),
+    remotes, remoteObjectUrls: new Set(),
+    rowPlan: () => plan.keys.map((key) => ({ key, build: row })), showsServer: () => servers,
+    filterMode: () => 'all', hasServers: () => servers, ensureRemotes() {}, keyMeta: new Map(),
     attachRowDrag() {}, hideZoom() {}, closeMenu() {}, selected: new Map(), selectables: new Map(), updateBatchBar() {},
   });
   const fire = (ms) => timers.splice(0).forEach((x) => { assert.strictEqual(x.ms, ms); x.fn(); });
@@ -124,6 +124,27 @@ test('the row and its arrival land together, once the ash has thinned', async (t
   assert.deepStrictEqual([r.keys(), r.timers.map((x) => x.ms)], [[], [0]], 'no arrival beat without a wipe');
   r.fire(0);
   await now;
+});
+
+test('a server listing that lands inside the removal hold still replaces its skeletons', async (t) => {
+  // Deleting the last server projects re-fetches the listing at the settle; its reply arrives while
+  // the hold refuses refreshes, so the hold's end re-renders or the two skeletons stay for good.
+  const remotes = { cache: null, loading: true, failed: false };
+  const r = renderRig(t, ['x'], { remotes, servers: true });
+  r.rows.render();
+  const settle = r.rows.beginRemoval();
+  r.plan.keys = [];
+  const done = settle();
+  const wipe = wipeDurationMs();
+  const arrive = Math.min(ROW_ARRIVE_DELAY_MS, wipe);
+  r.fire(arrive);
+  await settled();
+  const skeletons = () => r.list.children.filter((c) => c.classList.contains('project-skeleton')).length;
+  assert.strictEqual(skeletons(), 2, 'the fetch is in flight at the settle');
+  Object.assign(remotes, { cache: [], loading: false });
+  r.fire(wipe - arrive);
+  await done;
+  assert.strictEqual(skeletons(), 0, 'the hold released, the landed listing is shown');
 });
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', async (t) => {

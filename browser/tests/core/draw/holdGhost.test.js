@@ -3,7 +3,7 @@
 // recording context stands in for the overlay canvas.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import constants from '../../../js/config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { Renderer } from '../../../js/core/draw/renderer.js';
 
 const recordingCtx = () => {

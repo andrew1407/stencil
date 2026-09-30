@@ -15,5 +15,7 @@ export declare const validateName: (metas: readonly ProjectMeta[], name: unknown
 export declare const findByImage: (metas: readonly ProjectMeta[], source: string | null | undefined, name: string | null | undefined) => ProjectMeta[];
 /** The bare base name when free, else the lowest unused "Name (N)". */
 export declare const copyName: (metas: readonly ProjectMeta[], baseName: string | null | undefined, source: string | null | undefined) => string;
+/** "Make a copy" naming: "<base>-copy", then "<base>-copy(1)", … — the first free, within 80 characters. */
+export declare const copySuffixName: (metas: readonly ProjectMeta[], name: string | null | undefined) => string;
 /** "Untitled N", one past the highest already taken. */
 export declare const defaultName: (metas: readonly ProjectMeta[]) => string;

@@ -1,7 +1,7 @@
 // ── §10 window adapters: the chat, the editor's dialogs, and voice ─────────
 // Opened through the very toolbar buttons the user would click, so a plan and a
 // shortcut take the same path. A disabled button is a note, never a failed plan.
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { clearSharedConversation } from '../chat/session.js';
 
 // §10 dialog: op `name` (plan.js) -> the toolbar button behind that window, from

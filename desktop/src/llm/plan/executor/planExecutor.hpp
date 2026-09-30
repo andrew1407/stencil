@@ -86,6 +86,8 @@ namespace stencil::llm {
     virtual void openFileThen(const QString& path, OpDone done);
     virtual void openSourceFrameThen(const QString& spec, int frame, OpDone done);
     virtual void openProjectNamedThen(const QString& name, bool last, OpDone done);   // ok + err = a note
+    // "Make a copy" of the live editor (open: none|here|newtab); ok + err = a note, false = none here.
+    virtual void copyActiveProjectThen(const Action& a, OpDone done);
     virtual void saveProjectThen(const QString& name, const QString& dest, OpDone done);
     // Runs only with a working image present; no-image is the executor's note+skip.
     virtual bool copyImage(QString* err);

@@ -12,12 +12,12 @@ using namespace stencil::core;
 
 // Mirrors the hit-test cases in browser/tests/ui/chat/geometry.test.js.
 
-TEST_CASE("drift: CLOSE_SLACK_PX is HIT.closeSlackPx in browser/js/config/constants.json") {
+TEST_CASE("drift: CLOSE_SLACK_PX is HIT.closeSlackPx in common/config/constants.json") {
   namespace fs = std::filesystem;
   fs::path p = fs::current_path();
   while (!fs::exists(p / "CLAUDE.md") && p.has_parent_path() && p.parent_path() != p) p = p.parent_path();
   std::stringstream src;
-  src << std::ifstream(p / "browser/js/config/constants.json").rdbuf();
+  src << std::ifstream(p / "common/config/constants.json").rdbuf();
   const std::string json = src.str();
   const std::size_t at = json.find("\"closeSlackPx\"", json.find("\"HIT\""));
   REQUIRE(at != std::string::npos);

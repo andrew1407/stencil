@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use serde_json::Value;
 
-pub const REGISTRY_JSON: &str = include_str!("../../../browser/js/config/llm/opRegistry.json");
+pub const REGISTRY_JSON: &str = include_str!("../../../common/config/llm/opRegistry.json");
 
 /// This binary's surface; `$meta.surfaceProfiles` maps it to its profile.
 pub const SURFACE: &str = "mcp";

@@ -1,6 +1,6 @@
 import { notify } from '../../utils.js';
 import { editorMemento } from '../historyStack.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter } from '../parse/cropGeometry.js';
 
 const { PAGE_SIZES } = constants;

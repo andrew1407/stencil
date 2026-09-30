@@ -21,11 +21,11 @@ pub use error::ChatError;
 pub use message::{ChatMessage, ImageAttachment, Role};
 use providers::{build_request, extract_reply};
 
-/// The canonical cross-surface prompt asset (see `browser/js/config/llm/README.md`),
+/// The canonical cross-surface prompt asset (see `common/config/llm/README.md`),
 /// embedded at compile time — every shared sentence this surface speaks comes from it.
 static PROMPT_ASSET: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../browser/js/config/llm/systemPrompt.json"))
-        .expect("canonical browser/js/config/llm/systemPrompt.json is not valid JSON")
+    serde_json::from_str(include_str!("../../../common/config/llm/systemPrompt.json"))
+        .expect("canonical common/config/llm/systemPrompt.json is not valid JSON")
 });
 
 /// One string field of that asset, verbatim.

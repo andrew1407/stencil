@@ -1,4 +1,4 @@
-//! The console logo: a text rendering of browser/favicon.svg — a purple rounded panel
+//! The console logo: a text rendering of common/icons/favicon.svg — a purple rounded panel
 //! framing the signature yellow annotation polyline, rasterised from the favicon's own
 //! vertices at two sizes (the small one is the pressed-button frame).
 const std = @import("std");
@@ -12,7 +12,7 @@ const print = logo.print;
 const c = logo.colorSeq;
 const accentReal = logo.accentReal;
 
-// A larger text rendering of browser/favicon.svg, laid out to read square in a terminal (cells are
+// A larger text rendering of common/icons/favicon.svg, laid out to read square in a terminal (cells are
 // ~2:1 tall). FRAME_W/H is the lighter inner frame; Mh/Mv the dark app-panel margin around it.
 const FRAME_W = 14; // lighter inner frame width, in cells
 const FRAME_H = 6; // lighter inner frame height, in rows

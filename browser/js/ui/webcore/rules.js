@@ -1,7 +1,7 @@
 // The webcore skin's table (config/webcore.json) and the pure rules over it: the picture's
 // cells and the word's lines. DOM-free; desktop twin: support/webcore/rules.{hpp,cpp}, value
 // for value.
-import WEBCORE_DATA from '../../config/webcore.json' with { type: 'json' };
+import WEBCORE_DATA from '../../../../common/config/webcore.json' with { type: 'json' };
 
 export const WEBCORE = WEBCORE_DATA;
 export const SKIN_ATTR = 'data-skin';

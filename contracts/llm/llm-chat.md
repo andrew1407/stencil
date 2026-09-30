@@ -3,9 +3,9 @@
 Part of the [Stencil LLM contract](llm-contract.md); section numbers continue the
 root document's (code comments cite `§11`/`§12.x` everywhere). The `ask` limits (2..5
 options, question 300, label 80, answer 500) are recorded normatively in
-[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json) → `limits` and `ask`;
+[`opRegistry.json`](../../common/config/llm/opRegistry.json) → `limits` and `ask`;
 the ask fixtures are `fixtures/opPlan/088–106`; the persisted-chat document's tolerance
-rules are pinned by `fixtures/chatDoc/` (see its `_schema.md`).
+rules are pinned by `common/fixtures/llm/chatDoc/` (see its `_schema.md`).
 
 ## 11. Interactive replies (`ask`)
 
@@ -127,7 +127,7 @@ The card is the same contract everywhere; only its widgets differ — the GUIs r
 radio/checkbox list with inline thumbnails, the consoles a numbered list answered by number
 (or comma-separated numbers for `multi`), the bot an inline keyboard with a media group when
 previews exist. The normative record of the rendering split is
-[`opRegistry.json`](../../browser/js/config/llm/opRegistry.json) → `ask.divergence`; validation is
+[`opRegistry.json`](../../common/config/llm/opRegistry.json) → `ask.divergence`; validation is
 identical everywhere.
 
 A surface that cannot render an image preview (the consoles) drops the preview and keeps the
@@ -176,7 +176,7 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   older document — a user is still entitled to paste JSON as THEIR turn and see it again.
   Reference: browser `js/llm/chat/store.js` `isInternalChatText` (+ `sanitizeChatMessages`
   on restore), which every other surface's reader mirrors. Tolerance vectors:
-  `fixtures/chatDoc/`.
+  `common/fixtures/llm/chatDoc/`.
 - On restore, `messages` seed both the client's replay history (§7) and its transcript
   UI, in order. Restoring never triggers a model call.
 

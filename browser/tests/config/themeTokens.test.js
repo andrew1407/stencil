@@ -10,9 +10,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import ASSET from '../../js/config/themeTokens.json' with { type: 'json' };
-import ACCENTS from '../../js/config/accents.json' with { type: 'json' };
-import CONSTANTS from '../../js/config/constants.json' with { type: 'json' };
+import ASSET from '../../../common/config/themeTokens.json' with { type: 'json' };
+import ACCENTS from '../../../common/config/accents.json' with { type: 'json' };
+import CONSTANTS from '../../../common/config/constants.json' with { type: 'json' };
 import { splitThemeTokens } from '../helpers/themeCss.js';
 import { LAYOUT_CSS } from '../helpers/css.js';
 
@@ -64,7 +64,7 @@ test('the 6 colours the cli logo paints are all present', () => {
 });
 
 test('brand colours agree with the art and the tables that also carry them', () => {
-  const favicon = read('favicon.svg');
+  const favicon = read('../common/icons/favicon.svg');
   for (const key of ['annotation', 'panel', 'panelInner'])
     assert.ok(favicon.includes(ASSET.brand[key]), `brand.${key} is not in favicon.svg`);
   assert.equal(ASSET.brand.accent, ASSET.tokens['--accent'].light);

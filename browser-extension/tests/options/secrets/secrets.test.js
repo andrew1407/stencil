@@ -10,7 +10,7 @@ import { SECRET_EGG } from '../../../src/options/secrets/toast.js';
 import { createEasterEggs } from '../../../src/options/secrets/easterEggs.js';
 
 const json = (rel) => JSON.parse(readFileSync(new URL(rel, import.meta.url), 'utf8'));
-const BROWSER = '../../../../browser/js/config/';
+const BROWSER = '../../../../common/config/';
 
 test('the notice\'s egg and the webcore off line are the browser\'s own', () => {
   assert.equal(SECRET_EGG, json(`${BROWSER}svgArt.json`).secretEgg);

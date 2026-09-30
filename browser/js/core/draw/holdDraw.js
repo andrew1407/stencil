@@ -1,5 +1,5 @@
 import { findNearestPointWithIdx, findNearestSegmentWithIdx } from './hitTest.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const { HIT, HOLD_DRAW } = constants;
 const NO_POINTS = Object.freeze({ points: [] });

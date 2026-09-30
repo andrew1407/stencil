@@ -14,7 +14,7 @@ stencil_headless_test(stencil_llmopplan_headless
 
 # The shared fixture corpus + the desktop override map, for the walkers below.
 set(STENCIL_FIXTURE_WALKER_DEFS
-  "STENCIL_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../browser/js/config\""
+  "STENCIL_CORPUS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../common/fixtures\""
   "STENCIL_OVERRIDES_JSON=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtureOverrides.json\"")
 
 # Every shared opPlan fixture through the real parseOpPlan, with the desktop's known divergences.
@@ -85,9 +85,9 @@ stencil_headless_test(stencil_llmexecutor_headless
     tests/llm/plan/executor/llmExecutorFiles.headless.cpp tests/llm/plan/executor/llmExecutorProject.headless.cpp
     tests/llm/plan/executor/llmExecutorImages.headless.cpp tests/llm/plan/executor/llmExecutorHistory.headless.cpp
     tests/llm/plan/executor/llmExecutorAccent.headless.cpp tests/llm/plan/executor/llmExecutorRows.headless.cpp
-    tests/llm/plan/executor/llmExecutorAwait.headless.cpp
+    tests/llm/plan/executor/llmExecutorAwait.headless.cpp tests/llm/plan/executor/llmExecutorCopy.headless.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
-  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
+  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../common/samples\""
   LIBS stencil_core Qt6::Widgets)

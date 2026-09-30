@@ -163,6 +163,7 @@ namespace stencil::gui {
     friend class DocumentPersistence;
     friend class ChatAppliers;
     friend class ProjectFlows;
+    friend class ProjectCopy;
     friend class ThemePainter;
     friend class EditorView;
     friend class DockChrome;

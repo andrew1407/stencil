@@ -11,7 +11,7 @@ description: >-
 # Add a script directive
 
 One parser (`core/script/`) serves every surface; the JS fallback and the VS Code copy follow
-it op for op, and `browser/js/config/script/fixtures/cases.txt` proves all of them.
+it op for op, and `common/fixtures/script/cases.txt` proves all of them.
 
 1. `contracts/stc/stc-contract.md` — §3 for the directive and its argument grammar, §8 for any
    new diagnostic code (codes are stable — never re-spell one), §9 if it needs a cap.
@@ -26,11 +26,11 @@ it op for op, and `browser/js/config/script/fixtures/cases.txt` proves all of th
 3. The JS fallback — the modules in `browser/js/core/script/` + their `.d.ts`, op-for-op with
    the C++ (`DIRECTIVES` is the twin of `DIRECTIVE_WORDS`).
    `browser/tests/wasm/wasm-parity-script.test.js` is the proof.
-4. A fixture pair in `browser/js/config/script/fixtures/cases.txt`: the correct case, and an
+4. A fixture pair in `common/fixtures/script/cases.txt`: the correct case, and an
    `err-*` case for the way it will most often be written wrong.
 5. cli **only if** the directive needs a flag or a console verb — otherwise `--script` already
    runs it through `cli/src/script/apply.zig`.
-6. `node .claude/tools/syncTwins.mjs browser/js/core/script/` — re-copies the parser into
+6. `node tools/syncTwins.mjs browser/js/core/script/` — re-copies the parser into
    `vscode-extension/src/parser/script/` byte for byte — and add the word to
    `vscode-extension/syntaxes/stc.tmLanguage.json` (its directive list is asserted equal to
    `DIRECTIVES`).

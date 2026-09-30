@@ -7,8 +7,8 @@ use crate::config::LlmEnv;
 /// The `providers` table of the canonical cross-surface asset, embedded at compile time.
 static PROVIDERS: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
     let asset: Value =
-        serde_json::from_str(include_str!("../../../browser/js/config/llm/providers.json"))
-            .expect("canonical browser/js/config/llm/providers.json is not valid JSON");
+        serde_json::from_str(include_str!("../../../common/config/llm/providers.json"))
+            .expect("canonical common/config/llm/providers.json is not valid JSON");
     asset["providers"].clone()
 });
 

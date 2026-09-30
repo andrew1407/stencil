@@ -62,7 +62,7 @@ option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packagi
 option(STENCIL_BUILD_TESTS "Configure the ctest targets (OFF for release packaging)" ON)
 option(STENCIL_DOCS_CAPTURE "Build the usecases/ screenshot capture binary (not a test)" OFF)
 # Svg is needed by support/iconSet.cpp, which rasterizes the shared SVG icon set
-# (the qrc-embedded browser/js/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
+# (the qrc-embedded common/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
 # drawn by the same module's SVG icon engine.
 # 6.3 is the floor: the install step below needs qt6_generate_deploy_app_script (Qt >= 6.3).

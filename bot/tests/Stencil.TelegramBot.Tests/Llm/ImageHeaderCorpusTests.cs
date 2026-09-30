@@ -3,7 +3,7 @@ using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Tests.Llm;
 
-/// <summary>Walks <c>browser/js/config/fixtures/imageHeader/cases.json</c> through <c>ImageDimensionReader.TryRead</c>, which reports a size and no format. A case the bot measures differently on purpose is pinned in <c>FixtureOverrides.json</c> under <c>imageHeader</c>.</summary>
+/// <summary>Walks <c>common/fixtures/imageHeader/cases.json</c> through <c>ImageDimensionReader.TryRead</c>, which reports a size and no format. A case the bot measures differently on purpose is pinned in <c>FixtureOverrides.json</c> under <c>imageHeader</c>.</summary>
 public sealed class ImageHeaderCorpusTests
 {
     private static readonly string _path = Path.Combine(SharedFixtures.ConfigFixtureDir("imageHeader"), "cases.json");

@@ -214,7 +214,7 @@ Qt ≥ 6.3 — on older Qt run the platform's `*deployqt` by hand first) and wra
 
 Packaging registers the `.stencil` file type and the `stencil://` scheme with the OS. The
 macOS bundle carries no Developer ID signature and warns on first launch; its icon is generated at configure time
-from `../browser/favicon.svg` (needs `sips` + `iconutil`, otherwise the build is iconless).
+from `../common/icons/favicon.svg` (needs `sips` + `iconutil`, otherwise the build is iconless).
 CI builds a package for each OS and CPU architecture (macOS and Linux on arm64 and x86_64,
 Windows on x86_64) on every `v*` tag and attaches them to the GitHub release
 (`.github/workflows/desktop-packages.yml`); a manual run produces them as workflow artifacts.

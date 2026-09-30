@@ -45,7 +45,7 @@ test('fillState: a real fill color → enabled, value is that color', () => {
 // against the shared constants, so this fallback and the app-wide default cannot drift apart.
 test('fillState: no default supplied falls back to the shared default (white)', () => {
     assert.deepStrictEqual(fillState({}, undefined), { enabled: false, value: '#ffffff' });
-    const canon = JSON.parse(readFileSync(new URL('../../js/config/constants.json', import.meta.url), 'utf8'));
+    const canon = JSON.parse(readFileSync(new URL('../../../common/config/constants.json', import.meta.url), 'utf8'));
     assert.equal(canon.DEFAULT_VISUALS.defaultFillColor, '#ffffff');
 });
 

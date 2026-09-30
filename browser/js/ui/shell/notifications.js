@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from '../motion.js';
 import { attachToastGlow } from '../dust/toastGlow.js';
 import { STAGE } from '../logo/stageRules.js';
-import SVG_ART from '../../config/svgArt.json' with { type: 'json' };
+import SVG_ART from '../../../../common/config/svgArt.json' with { type: 'json' };
 import { notifyChannel } from '../../core/settings/notifyChannel.js';
 import { ToastSink, SystemSink, pickSink } from './notifySinks.js';
 // The bottom-left notification stack; utils.js `notify()` delegates here and the stored channel

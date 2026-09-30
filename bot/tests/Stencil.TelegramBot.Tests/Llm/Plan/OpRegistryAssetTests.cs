@@ -12,7 +12,7 @@ public sealed class OpRegistryAssetTests
     {
         // The embed copies the shared registry at build time; catch drift against the repo's copy.
         byte[] canonical = File.ReadAllBytes(
-            SharedFixtures.PathOf("browser", "js", "config", "llm", "opRegistry.json"));
+            SharedFixtures.PathOf("common", "config", "llm", "opRegistry.json"));
         Assert.Equal(canonical, OpRegistryAsset.Bytes);
     }
 

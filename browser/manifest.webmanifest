@@ -12,13 +12,13 @@
   "categories": ["productivity", "graphics", "utilities"],
   "icons": [
     {
-      "src": "favicon.svg",
+      "src": "../common/icons/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "icon-maskable.svg",
+      "src": "../common/icons/icon-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"

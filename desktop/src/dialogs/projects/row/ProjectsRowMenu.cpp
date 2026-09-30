@@ -8,6 +8,7 @@
 #include "../../../support/menu/menuReveal.hpp"
 #include "../../../support/theme/theme.hpp"
 #include "../../../support/menu/menuDangerRow.hpp"
+#include "../copy/copyProjectMenu.hpp"
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/modal/modalChrome.hpp"
 #include "../../../support/modal/modalReveal.hpp"
@@ -23,7 +24,10 @@ namespace stencil::gui {
 
   void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
-    const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
+    // Read NOW, never through `it` later: a server refresh rebuilds the list under an open menu.
+    const QString rowId = it->data(Qt::UserRole).toString();
+    const QString rowServer = it->data(Qt::UserRole + 1).toString();
+    const bool remote = !rowServer.isEmpty();
     const QColor ico = palette().color(QPalette::WindowText);
     const bool haveServers = connections && !connections->urls().isEmpty();
     QMenu menu(this);
@@ -40,9 +44,9 @@ namespace stencil::gui {
 
     // "Add description" — edit the row's free-text description inline (no accept()/close),
     // mirroring the colour edit. An empty value clears.
-    auto editDescription = [this, it, kebabGlobal] {
-      const QString id = it->data(Qt::UserRole).toString();
-      const QString server = it->data(Qt::UserRole + 1).toString();
+    auto editDescription = [this, rowId, rowServer, kebabGlobal] {
+      const QString& id = rowId;
+      const QString& server = rowServer;
       QString current;
       if (server.isEmpty()) {
         for (const auto& p : projects)
@@ -80,9 +84,9 @@ namespace stencil::gui {
 
     // "Add keywords" — the row's search keywords, comma/space separated, normalized to
     // lowercase unique words the way the browser store's setKeywords does. Empty clears.
-    auto editKeywords = [this, it, kebabGlobal] {
-      const QString id = it->data(Qt::UserRole).toString();
-      const QString server = it->data(Qt::UserRole + 1).toString();
+    auto editKeywords = [this, rowId, rowServer, kebabGlobal] {
+      const QString& id = rowId;
+      const QString& server = rowServer;
       QStringList current;
       if (server.isEmpty()) {
         for (const auto& p : projects)
@@ -126,9 +130,9 @@ namespace stencil::gui {
 
     // "Set expiration" opens the expiration editor OVER this window (browser parity: ui/base.js
     // `stacked`), so the owner is signalled and calls setProjects() rather than closing the list.
-    auto editExpiration = [this, it, kebabGlobal] {
-      if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;   // local only
-      const QString id = it->data(Qt::UserRole).toString();
+    auto editExpiration = [this, rowId, rowServer, kebabGlobal] {
+      if (!rowServer.isEmpty()) return;   // local only
+      const QString& id = rowId;
       const core::ProjectMeta* meta = nullptr;
       for (const auto& p : projects)
         if (QString::fromStdString(p.meta.id) == id) { meta = &p.meta; break; }
@@ -143,6 +147,13 @@ namespace stencil::gui {
 
     // "Clear color" only when the row HAS a custom colour (browser modal parity): with none set
     // there is nothing to clear, and "Set color" already clicks straight into the picker.
+    // "Make a copy ›" rides right after "Open in another app" (browser row/actions.js copyMenuItem).
+    const auto addCopyMenu = [this, &menu, rowId, rowServer, kebabGlobal, ico] {
+      gui::compactIconMenu(*support::addCopyProjectMenu(menu, ico, 16, support::CONTEXT_MENU_DUST_MS,
+                                                        [this, rowId, rowServer, kebabGlobal](support::CopyScope s) {
+        emit copyRequested(rowId, rowServer, s, kebabGlobal);
+      }));
+    };
     const bool hasColor = !rowColor(it).isEmpty();
     QAction* removeAct = nullptr;   // marked as the danger row once the sheet is on (below)
     QColor dangerColor;
@@ -153,10 +164,8 @@ namespace stencil::gui {
                      &ProjectsDialog::openSelected);
       if (openInServerOk)
         menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
-                       [this, it, kebabGlobal] {
-                         emit openInRequested(it->data(Qt::UserRole).toString(),
-                                              it->data(Qt::UserRole + 1).toString(), kebabGlobal);
-                       });
+                       [this, rowId, rowServer, kebabGlobal] { emit openInRequested(rowId, rowServer, kebabGlobal); });
+      addCopyMenu();
       menu.addAction(themedIcon("copy", ico, 16), "Copy to local", this,
                      &ProjectsDialog::makeLocalCopySelected);
       menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
@@ -175,10 +184,8 @@ namespace stencil::gui {
                      &ProjectsDialog::openSelectedInNewWindow);
       if (openInLocalOk)
         menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
-                       [this, it, kebabGlobal] {
-                         emit openInRequested(it->data(Qt::UserRole).toString(), QString(),
-                                              kebabGlobal);
-                       });
+                       [this, rowId, kebabGlobal] { emit openInRequested(rowId, QString(), kebabGlobal); });
+      addCopyMenu();
       menu.addAction(themedIcon("pencil", ico, 16), "Rename", this,
                      [this] { beginInlineRename(list->currentItem()); });
       menu.addAction(themedIcon("palette", ico, 16), "Set color", this,
@@ -209,7 +216,7 @@ namespace stencil::gui {
     gui::compactIconMenu(menu);
     // After compactIconMenu — it replaces the menu's stylesheet, and this appends to it.
     support::markDangerRow(menu, removeAct, dangerColor);
-    support::revealMenu(menu, globalPos);   // grow-from-the-cursor pop
+    support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);   // the canvas menu's 1.5x clock
     // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly
     // as long as the popup lives — they capture it and fly their answer back into the chip.
     hover.menuKebabRect = kebabGlobal;

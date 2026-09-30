@@ -1,7 +1,7 @@
 // The op-plan corpus's MECHANICAL cases, derived from opRegistry.json: boundary pairs (N ok / N+1
 // invalid), unknown fields, wrong types, missing required keys, enum/grammar rejections and the
 // cross-field presence rules for every op × profile. genOpPlanFixtures.mjs writes them as
-// js/config/llm/fixtures/opPlan/generated/cases.json; opPlanCardCases.mjs adds the envelope + §11 card.
+// common/fixtures/llm/opPlan/generated/cases.json; opPlanCardCases.mjs adds the envelope + §11 card.
 import { cardCases } from './opPlanCardCases.mjs';
 
 export const generate = (registry) => {

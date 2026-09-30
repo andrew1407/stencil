@@ -16,20 +16,25 @@ import { onElementAdded } from './ui/domWatch.js';
 import { installControlSwap } from './ui/control/swap.js';
 import { installVoiceModes } from './llm/voice/modes.js';
 import { applyMotionAttr } from './ui/motion/motionPrefs.js';
-import EVENTS from './config/events.json' with { type: 'json' };
+import EVENTS from '../../common/config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 import { applyExternalLaunch } from './core/launch/controller.js';
 // Application entrypoint. Loaded LAST — importing layout registers every custom element.
 // On load: init the shared C++ core (wasm), mount component hosts, construct the app, then
 // dispatch `stencil:ready`, preserving DOM → app → wire order. Failed wasm leaves no-ops
 // installed and consumers on their JS fallback.
-// A handed-over script runs HERE because the layer order forbids core/ importing console/.
-const runLaunchScript = async (app) => {
+// A handed-over script lands HERE because the layer order forbids core/ importing console/:
+// 'open' shows it in the Script window, 'run' runs it; both leave it in the buffer.
+const LAUNCH_SCRIPT = Object.freeze({
+  open: async (_text, stencil) => { try { stencil.openWindow('script'); } catch { /* the buffer still holds it */ } },
+  run: (text) => runScriptHere(text).catch(() => {}),
+});
+const runLaunchScript = async (app, stencil) => {
   const text = app.pendingLaunchScript;
   if (!text) return;
   app.pendingLaunchScript = '';
   setScriptText(text);
-  await runScriptHere(text).catch(() => {});
+  await (LAUNCH_SCRIPT[app.pendingLaunchScriptMode] ?? LAUNCH_SCRIPT.run)(text, stencil);
 };
 
 window.onload = async () => {
@@ -76,8 +81,9 @@ window.onload = async () => {
   });
   // Locked (non-writable, non-configurable) so page scripts can't reassign or delete it; the
   // instance and its prototypes are frozen too.
+  const stencil = createStencil(app);
   Object.defineProperty(window, 'stencil', {
-    value: createStencil(app), writable: false, configurable: false, enumerable: true
+    value: stencil, writable: false, configurable: false, enumerable: true
   });
   // Wired after the facade exists (a restore forces the shared chat controller, which captures
   // window.stencil on first use) and before the launch/deep-link project loads.
@@ -90,7 +96,7 @@ window.onload = async () => {
   // …and the same text as the accessible name of every icon-only control, here and in
   // whatever a modal renders later (ui/ariaLabels.js).
   watchControlLabels();
-  applyExternalLaunch(app).then(() => runLaunchScript(app));
+  applyExternalLaunch(app).then(() => runLaunchScript(app, stencil));
   // If launched via the projects modal's "open in new tab" action (?open=<id>),
   // load that project now. No-op for normal sessions.
   app.applyProjectDeepLink();

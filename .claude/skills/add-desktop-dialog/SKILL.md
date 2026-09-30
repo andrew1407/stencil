@@ -22,7 +22,7 @@ Read `desktop/ARCHITECTURE.md` first; `.claude/rules/desktop-qt.md` has the Qt t
    `ActionsBuilderWiring.cpp`, its tip in `ActionsBuilderTips.cpp`) and place it in a menu in
    `desktop/src/app/actions/MenuBuilder.cpp` — builders only connect, the handler lives on
    the window or a part.
-4. A shortcut goes in `browser/js/config/hotkeysConfig.json` — canonical — and reaches the
+4. A shortcut goes in `common/config/hotkeysConfig.json` — canonical — and reaches the
    desktop through the qrc alias.
 5. Styling goes in the shared sheet in `desktop/src/support/theme/theme.cpp`, never
    `setStyleSheet` on the widget.

@@ -1,5 +1,5 @@
 #pragma once
-// The canvas's pointer tunings (browser/js/config/constants.json HIT, HOLD_DRAW and
+// The canvas's pointer tunings (common/config/constants.json HIT, HOLD_DRAW and
 // DEBOUNCE.editCommitMs through the qrc), read once; the browser's pointer code and its hold ghost
 // (renderer.js drawHoldPreview) read the same keys.
 #include <QFile>

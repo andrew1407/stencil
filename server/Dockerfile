@@ -1,19 +1,21 @@
-# Build the Stencil collaboration server. Build context is the server/ directory:
-#   docker build -t stencil-server server/
-# (Unlike browser/ and cli/, this image does NOT compile core/, so it needs no
-# repo-root context — the server is a standalone Go module.)
+# Build the Stencil collaboration server. Build context is the repo root, so `go generate` can
+# copy the shared tables it embeds out of common/config:
+#   docker build -f server/Dockerfile -t stencil-server .
+# (It does NOT compile core/; the server is a standalone Go module.)
 
 FROM golang:1.26 AS build
-WORKDIR /src
-COPY go.mod ./
+WORKDIR /src/server
+COPY server/go.mod ./
 # Warm this image layer's own module cache — never a host cache. (Local dev vendors into
 # server/vendor/ via `go mod vendor`; that dir is git-ignored and excluded from the build
 # context by .dockerignore, so the image always uses this clean download.)
 RUN go mod download
-COPY . .
+COPY server/ ./
+COPY common/config/ /src/common/config/
 # go.sum is not tracked either, and `go mod download` above leaves it incomplete, so the
 # checksums have to be written here — after the source is in, since tidy reads the imports.
 RUN go mod tidy
+RUN go generate ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stencil-server ./cmd/stencil-server
 
 FROM gcr.io/distroless/static-debian12:nonroot

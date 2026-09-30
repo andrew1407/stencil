@@ -2,6 +2,7 @@
 // guarded flows (their confirms included). Each resolves to a note string when nothing
 // happened (unknown / ambiguous / declined) and to `null` when it did the work.
 import type { DrawingApp } from '../../core/drawingApp.js';
+import type { CopyProjectRequest } from '../../core/project/copy/options.js';
 
 export interface ProjectAdapters {
   removeProjectNamed(name: string): Promise<string | null>;
@@ -10,6 +11,8 @@ export interface ProjectAdapters {
   /** `last` opens the most recently edited project instead of resolving `name`. */
   openProjectNamed(name: string, last?: boolean): Promise<string | null>;
   renameActiveProject(name: string): Promise<string | null>;
+  /** "Make a copy" of the live editor; a dropped incognito or a failure is the note. */
+  copyActiveProject(req: CopyProjectRequest): Promise<string | null>;
   /** Valid only on a BLANK project; CSS colour names resolve to hex first. */
   setBlankColor(color: string): Promise<string | null>;
   /** Every saved local project, or every one but the open one with `keepCurrent`. */

@@ -33,6 +33,9 @@ namespace stencil::gui {
    signals:
     void visualsReset();                    // Reset All was applied (the owner toasts it)
 
+   protected:
+    void resizeEvent(QResizeEvent* event) override;
+
    private:
     // The ctor's build context, handed down the buildXRows chain: the scroll body rows land
     // in, and the one mono font a colour well writes its hex in.
@@ -108,6 +111,10 @@ namespace stencil::gui {
     QString selGlowHex;
     QString hoverRingHex;
     QString focusRingHex;
+    QList<QWidget*> columnFields;   // every control sized to the column
+    // The browser's ONE control column (--vs-ctrl-w), and its width now, scaled with the window.
+    static constexpr int CTRL_W = 180;
+    int ctrlW = CTRL_W;
   };
 
 }

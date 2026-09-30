@@ -6,7 +6,7 @@ import { createChatController, MAX_ATTACHMENTS, CHAT_ATTACHMENTS_EVENT } from '.
 import { createLlmClient } from '../client.js';
 import { loadLlmSettings, serverBearerToken, withSessionKey } from '../settings.js';
 import { describeChatError, settledReplyText } from './reply.js';
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { publish } from '../../eventBus/appBus.js';
 import { mediaAdapters } from '../adapters/media.js';
 import { projectAdapters } from '../adapters/project.js';

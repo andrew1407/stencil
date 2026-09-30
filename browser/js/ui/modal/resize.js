@@ -7,6 +7,8 @@ const EDGE_PX = 8;      // the band along each edge that takes the pointer
 const MARGIN_PX = 20;   // stays this far inside the viewport, as .app-modal's max-width does
 export const MIN_W = 320;
 export const MIN_H = 200;
+// Worn while the user holds a size, so a content-driven height ease (easeBoxHeight) leaves it be.
+export const USER_SIZED_ATTR = 'userSized';
 
 export const CURSORS = Object.freeze({
   n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
@@ -57,6 +59,7 @@ export const wireModalResize = (overlay, boxOf) => {
   // The box sits centred by its overlay, so a new width would move both edges: the held
   // size is set first, then `translate` carries the box back onto the edge that must not move.
   const place = (box, want) => {
+    if (box.dataset) box.dataset[USER_SIZED_ATTR] = '1';
     box.style.minHeight = '0';
     box.style.maxHeight = 'none';
     box.style.width = `${want.width}px`;
@@ -71,6 +74,7 @@ export const wireModalResize = (overlay, boxOf) => {
     if (!box?.style) return;
     for (const p of ['width', 'height', 'minHeight', 'maxHeight', 'translate']) box.style[p] = '';
     box.classList.remove('modal-resizing');
+    if (box.dataset) delete box.dataset[USER_SIZED_ATTR];
     showEdge(box, '');
   };
 

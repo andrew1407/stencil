@@ -1,5 +1,5 @@
 // The desktop's shared interaction timings (support/uiTimings.hpp) are read from
-// browser/js/config/constants.json and motion.json, the sources both surfaces read: read, fallback
+// common/config/constants.json and motion.json, the sources both surfaces read: read, fallback
 // and table agree, and the FLIP glide's curve is the CSS cubic-bezier exactly.
 #include "uiTimings.hpp"
 

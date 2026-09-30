@@ -1,0 +1,15 @@
+/* "Make a copy": the row menu's nested list and the copy confirmation. */
+
+/* A row menu item that nests a list: its chevron hugs the right edge, and it stays lit while
+   its list is out, so the eye can follow where the flyout came from. */
+.project-menu-item.has-sub > span { margin-right: 12px; }
+.project-menu-item.has-sub .project-menu-arrow { margin-left: auto; flex: none; }
+.project-menu-item.has-sub.is-open { background: var(--accent); color: var(--on-accent); }
+.project-menu-item.has-sub.is-open .ic { color: var(--on-accent); }
+
+/* The confirmation's boxes read as the settings' inline checks (box, then its label), set off
+   from the question above; the box and its label carry the tooltip, not the whole row. */
+#copy-project-question { overflow-wrap: anywhere; margin-bottom: 10px; }
+stencil-copy-project-modal .cp-row { padding-top: 9px; padding-bottom: 9px; }
+#copy-project-incognito-row { border-bottom: none; }   /* the last row: nothing below to divide */
+stencil-copy-project-modal .cp-row:has(input:disabled) .vs-inline-check { cursor: default; opacity: 0.55; }

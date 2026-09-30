@@ -1,4 +1,4 @@
-//! The CLI's brand art colours, read from the canonical shared JSON (browser/js/config/
+//! The CLI's brand art colours, read from the canonical shared JSON (common/config/
 //! themeTokens.json `brand`, embedded at build time) — no hex is retyped here. logo.zig needs them
 //! as COMPILE-TIME constants, which rules out theme.zig's runtime std.json parse, so this is a
 //! comptime scan of the same bytes; tests/config/theme_tokens_drift_test.zig pins every triple.

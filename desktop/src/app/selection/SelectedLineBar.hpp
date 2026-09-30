@@ -24,6 +24,8 @@ namespace stencil::gui {
     // showSelectionPanel/hideSelectionPanels.
     void showLine(const core::Line* line);
     void setDefaultFillColor(const QColor& color);
+    // What a double-click on the line well resets the line to: the toolbar's current line colour.
+    void setLineColorDefault(std::function<QColor()> source);
     void restyleIcons(const QColor& iconColor);
 
    protected:
@@ -51,6 +53,10 @@ namespace stencil::gui {
     QSpinBox* alphaBox(QPushButton* well, QColor& current, const QString& what,
                        std::function<void(const QString&)> send);
     void syncAlpha();
+    // A well's picker; a `resetTo` also makes a double-click put that colour back.
+    void wireColorWell(QPushButton* well, QColor& current, const char* title,
+                       std::function<void(const QString&, bool)> send, std::function<QColor()> resetTo = {});
+    std::function<QColor()> lineColorDefault;
     QSpinBox* lineAlpha = nullptr;
     QSpinBox* pointAlpha = nullptr;
     QSpinBox* fillAlpha = nullptr;

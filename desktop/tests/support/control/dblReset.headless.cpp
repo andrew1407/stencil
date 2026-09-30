@@ -1,10 +1,13 @@
 // Headless checks for support/control/dblReset.hpp (browser twin js/ui/control/dblReset.js): a
 // double-click puts a combo or a check back to its default through the signals a pick fires,
-// a caption resets its box, and a control that declared no default is left alone.
+// a caption resets its box, a control that declared no default is left alone, and a colour chip
+// opens its picker only once the double-click window passes, a second click resetting instead.
 #include "../../../src/support/control/dblReset.hpp"
 #include "../../../src/support/control/clickToToggle.hpp"
 
 #include <QApplication>
+#include <QElapsedTimer>
+#include <QPushButton>
 #include <QLabel>
 #include <QMenu>
 #include <QMouseEvent>
@@ -25,6 +28,11 @@ namespace {
     send(w, QEvent::MouseButtonDblClick);
     send(w, QEvent::MouseButtonRelease);
     QApplication::processEvents();
+  }
+  void waitMs(int ms) {
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 10);
   }
 }  // namespace
 
@@ -89,6 +97,19 @@ int main(int argc, char** argv) {
   }
   QApplication::processEvents();
   check(row->isChecked(), "a double-click on a checkable menu row ends on its default");
+
+  auto* chip = new QPushButton(&host);
+  int opens = 0, resets = 0;
+  stencil::support::wireColorChip(chip, [&opens] { ++opens; }, [&resets] { ++resets; });
+  const int window = stencil::support::uiTimings().doubleClickMs;
+  chip->click();
+  check(opens == 0, "a chip's click waits out the double-click window before opening");
+  waitMs(window + 80);
+  check(opens == 1 && resets == 0, "a lone click opens the picker once the window passes");
+  chip->click();
+  chip->click();
+  waitMs(window + 80);
+  check(opens == 1 && resets == 1, "a double-click resets and never opens the picker");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

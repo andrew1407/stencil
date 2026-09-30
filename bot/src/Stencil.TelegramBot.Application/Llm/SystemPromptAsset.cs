@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// The canonical §4 prose, parsed once from the embedded browser/js/config/llm/systemPrompt.json.
+// The canonical §4 prose, parsed once from the embedded common/config/llm/systemPrompt.json.
 public static class SystemPromptAsset
 {
     private const string _resourceName = "Stencil.TelegramBot.Application.Assets.systemPrompt.json";

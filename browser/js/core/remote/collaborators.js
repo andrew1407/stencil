@@ -20,6 +20,7 @@ import { Emitter } from '../emitter.js';
 import { loadImageFromFile } from '../image/loadFlow.js';
 import { newEditor } from '../launch/openFlow.js';
 import { setBlankColor } from '../image/blankImage.js';
+import { liveProjectSnapshot } from '../project/copy/source.js';
 
 // `host` is the narrow slice of app state/callbacks the transfer controller needs;
 // `getConnections` is a getter because stencilApi creates the manager lazily.
@@ -36,6 +37,7 @@ const transferHost = (app) => ({
   newEditor: (opts) => newEditor(app, opts),
   loadImageFromFile: (file, opts) => loadImageFromFile(app, file, opts),
   setBlankColor: (color) => setBlankColor(app, color),
+  liveProject: () => liveProjectSnapshot(app),
 });
 
 export const wireCollaborators = (app, { CoordTable, AccentController, onProjectsChanged }) => {

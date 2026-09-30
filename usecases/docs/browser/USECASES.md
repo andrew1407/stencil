@@ -60,12 +60,26 @@ selection bar, where colour, thickness, point size and style change for that lin
 |---|---|
 | ![a selected line and its points](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
 
+Click a line's colour swatch in the **Lines** tab to pick a new colour for it; double-click the
+swatch to put it back to the toolbar's line colour. Double-clicking the toolbar's own line colour
+resets it to the default yellow, and the selection bar's colour goes back to the toolbar's.
+
+On a phone, fold the controls with **Controls** and drag one finger across the picture to move
+around it — a quick tap still selects, and a press held still starts a line.
+
+![one finger panning a zoomed picture on a phone](img/touch-pan.gif)
+
 ## The canvas menu
 
 Right-click the canvas (or `Shift+F10`) for everything the toolbar has, plus filters,
 transforms, a script flyout and the assistant, without leaving the picture.
 
 ![the canvas context menu](img/context-menu.png)
+
+**Make a Copy** in the same menu copies the open project: the picture alone, the picture with its
+lines and layout, or the whole project with its colour, keywords, description and chat.
+
+![the Make a Copy submenu](img/copy-ctx-menu.png)
 
 ## Change the look
 
@@ -119,7 +133,8 @@ error by line, and runs it with `Ctrl+Enter`. Drop a `.stc` file on the page to 
 
 A script can also arrive from somewhere else — the VS Code extension hands one over in the
 page's URL fragment. It runs on the picture as the page opens, and the window shows the
-source that acted.
+source that acted. Sent with **Open in Stencil Web's Script window** instead, it lands in the
+window without running, ready to edit.
 
 ![a script handed over from VS Code](img/script-handoff.png)
 
@@ -139,6 +154,20 @@ under the pointer lights up, the row rides along under the cursor, and the drop 
 action — dropping back on the list reorders instead.
 
 ![a project row dragged out over the drop zones](img/projects-dropzones.png)
+
+### Make a copy
+
+A row's **⋯** menu has **Make a copy ›**, beside **Open in another app**; the toolbar's Image
+section has the same list behind its copy button. Pick **Image only**, **Image and layout** or
+**Whole project**, and a short question names the copy — `photo-copy`, then `photo-copy(1)`, and
+so on. **Just copy** adds it to the list and leaves everything else as it was, **Open** switches to
+it, and **Open in new tab** opens it beside this one. Tick **Open in incognito** to open a copy
+that is never saved; for a project that lives on a server, **Make a local copy** chooses between a
+copy in this browser and one on that server.
+
+| The row menu | The toolbar | The question |
+|---|---|---|
+| ![a project row's Make a copy submenu](img/copy-row-menu.png) | ![the toolbar's copy list](img/copy-toolbar-menu.png) | ![the copy question](img/copy-project-modal.png) |
 
 ## Describe the project
 

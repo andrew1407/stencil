@@ -1,5 +1,5 @@
-// Tests for js/ui/control/dblReset.js — a double-click puts a selector or a checkbox back to
-// its default through the control's own change path. Fakes stand in for the DOM controls.
+// Tests for js/ui/control/dblReset.js — a double-click puts a selector, a checkbox or a mirrored menu
+// row back to its default through the control's own change path. Fakes stand in for the DOM controls.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,4 +51,14 @@ test('a reset applies through change, once, and only when something moves', () =
 test('a disabled control, or a default the list does not offer, is left alone', () => {
   assert.equal(resetControl(select('line-style', 'dashed', ['solid', 'dashed'], { disabled: true })), false);
   assert.equal(resetControl(select('x', 'b', ['b'], { dataset: { default: 'gone' } })), false);
+});
+
+test('a mirrored menu row resets through its own toggle, only while its toolbar check is off default', () => {
+  const box = { id: 'show-points', type: 'checkbox', checked: true, dataset: {} };
+  box.checked = !defaultOf(box);
+  let toggles = 0;
+  const row = { id: 'ctx-show-points', ownerDocument: { getElementById: () => box }, click: () => { toggles++; box.checked = !box.checked; } };
+  assert.equal(resetControl(row), true);
+  assert.equal(resetControl(row), false, 'at its default, nothing to do');
+  assert.equal(toggles, 1);
 });

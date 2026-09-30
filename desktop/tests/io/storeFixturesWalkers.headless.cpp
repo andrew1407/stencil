@@ -18,7 +18,7 @@ QString taggedName(const QString& name, const FixtureOverride& ov) {
 int walkChatDoc() {
   int overridden = 0;
   std::printf("chatDoc/roundtrip:\n");
-  for (const QJsonValue& cv : loadCases("llm/fixtures/chatDoc/roundtrip.json")) {
+  for (const QJsonValue& cv : loadCases("llm/chatDoc/roundtrip.json")) {
     const QJsonObject c = cv.toObject();
     const QString name = c.value("name").toString();
     const FixtureOverride ov = findOverride("chatDoc", name);
@@ -33,7 +33,7 @@ int walkChatDoc() {
   }
 
   std::printf("chatDoc/tolerance (messages half; savedAt has no desktop read path):\n");
-  for (const QJsonValue& cv : loadCases("llm/fixtures/chatDoc/tolerance.json")) {
+  for (const QJsonValue& cv : loadCases("llm/chatDoc/tolerance.json")) {
     const QJsonObject c = cv.toObject();
     const QString name = c.value("name").toString();
     const FixtureOverride ov = findOverride("chatDoc", name);
@@ -82,7 +82,7 @@ QJsonObject filledLineJson(const core::Line& l) {
 int walkLayout() {
   int overridden = 0;
   std::printf("layout/payload (desktop buildLayoutJson from the vector's export inputs):\n");
-  for (const QJsonValue& cv : loadCases("fixtures/layout/payload.json")) {
+  for (const QJsonValue& cv : loadCases("layout/payload.json")) {
     const QJsonObject c = cv.toObject();
     const QString name = c.value("name").toString();
     const FixtureOverride ov = findOverride("layout", name);
@@ -115,7 +115,7 @@ int walkLayout() {
   }
 
   std::printf("layout/sparse (linesFromJson vs the cross-surface expectFilled):\n");
-  for (const QJsonValue& cv : loadCases("fixtures/layout/sparse.json")) {
+  for (const QJsonValue& cv : loadCases("layout/sparse.json")) {
     const QJsonObject c = cv.toObject();
     const QString name = c.value("name").toString();
     const FixtureOverride ov = findOverride("layout", name);
@@ -184,7 +184,7 @@ int walkStencilProject(const char* rel) {
   int overridden = 0;
   std::printf("stencilProject/%s:\n", rel);
   for (const QJsonValue& cv : loadCases(
-           (QByteArrayLiteral("fixtures/stencilProject/") + rel).constData())) {
+           (QByteArrayLiteral("stencilProject/") + rel).constData())) {
     const QJsonObject c = cv.toObject();
     const QString name = c.value("name").toString();
     const FixtureOverride ov = findOverride("stencilProject", name);

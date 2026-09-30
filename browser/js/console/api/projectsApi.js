@@ -51,6 +51,11 @@ export const createProjectsApi = ({ app, makeProject, openedIds }) => {
         .filter((p) => (p.keywords || []).some((kw) => terms.some((t) => str(kw).toLowerCase().includes(t))))
         .map((p) => makeProject(p.id));
     },
+    // "Make a copy" of what the editor shows now (Project.copy for a stored one).
+    async copyProject(opts = {}) {
+      const newId = await app.projectTransfer.copyProject({ ...opts, id: null });
+      return newId != null && app.storage.store.getMeta(newId) ? makeProject(newId) : null;
+    },
     expire(spec) {
       const s = str(spec).trim();
       if (!s) return DURATION_HELP;

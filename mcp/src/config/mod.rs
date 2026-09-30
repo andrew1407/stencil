@@ -138,3 +138,15 @@ impl Config {
         (config, warnings)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // The literal default is the shared NETWORK.appUrl (common/config/constants.json), sans slash.
+    #[test]
+    fn default_browser_url_is_the_shared_app_url() {
+        let constants: serde_json::Value =
+            serde_json::from_str(include_str!("../../../common/config/constants.json")).unwrap();
+        let app_url = constants["NETWORK"]["appUrl"].as_str().unwrap();
+        assert_eq!(super::DEFAULT_BROWSER_URL, app_url.trim_end_matches('/'));
+    }
+}

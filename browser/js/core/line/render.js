@@ -1,7 +1,7 @@
 // One committed (or in-flight) line and one point, painted into `r.ctx`; `r` is the Renderer (or
 // the resting stand-in the result paint hands it). Desktop twin: CanvasWidget.cpp.
 import { hexToRgba } from '../../utils/color.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // px, the one dash table the desktop pen and the core rasteriser read too.
 const { dashed: DASH_PATTERN, dotted: DOT_PATTERN } = constants.STROKE_DASH;

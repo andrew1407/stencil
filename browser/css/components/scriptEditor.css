@@ -25,6 +25,10 @@
 /* Projects grows to the shared ceiling because its list is long; an editor has no such
    content to push it, so take that height outright and give the room to the text. */
 #script-overlay:not(.modal-popover) .app-modal { height: min(82vh, 760px); }
+/* As a toolbar popover (420 wide) the bar takes the flyout's scale (ctx/script.css), so the
+   five labels fit whole (desktop QSS: QWidget#popoverOverlay QDialog#stencilScriptDialog). */
+#script-overlay.modal-popover .script-actions-bar .chat-settings-actions { gap: 6px; }
+#script-overlay.modal-popover .script-actions-bar .btn-icon-text { font-size: 12px; padding: 4px 9px; }
 
 /* The body flexes, so the editor fills whatever height the window has. */
 .script-modal .settings-body { display: flex; flex-direction: column; }
@@ -80,7 +84,8 @@
   z-index: 1;
 }
 
-.script-input::placeholder { color: var(--text-muted); }
+/* Fainter than muted, so the example never reads as a script already typed. */
+.script-input::placeholder { color: var(--text-muted); opacity: 0.5; }
 .script-input:focus { outline: none; }
 /* The shared field-hover ring (layout/shimmer.css `textarea:hover`) lays a square hairline
    inside this rounded frame, since the text layer carries no radius of its own. The box is

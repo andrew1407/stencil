@@ -1,5 +1,5 @@
 // Port of core/script/values.cpp — length tokens, colours and point lists.
-import colorNamesTable from '../../config/colorNames.json' with { type: 'json' };
+import colorNamesTable from '../../../../common/config/colorNames.json' with { type: 'json' };
 import { makeDiag } from './diagnostics.js';
 import { isHexColorWord } from './lexer.js';
 import { MAX_POINTS_PER_LINE, isUnitWord, unquoteWord } from './types.js';

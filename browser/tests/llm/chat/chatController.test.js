@@ -2,7 +2,7 @@
 // exports, the history record, and the system prompt the browser profile assembles.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import PROMPT_ASSET from '../../../js/config/llm/systemPrompt.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
 import { splitDataUrl } from '../../../js/llm/chat/controller.js';
 import {
   makeClient, chatOnlyReply, variantPlan, pngUrl, makeController,

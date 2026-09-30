@@ -1,5 +1,5 @@
-import LAYOUT_FIELDS_DATA from '../config/layoutFields.json' with { type: 'json' };
-import constants from '../config/constants.json' with { type: 'json' };
+import LAYOUT_FIELDS_DATA from '../../../common/config/layoutFields.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 import { core } from './abi/stencilCore.js';
 import { LINE_DEFAULTS } from './line/linesCodec.js';
 

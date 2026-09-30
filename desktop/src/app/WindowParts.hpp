@@ -9,6 +9,7 @@
 #include "HoverTip.hpp"
 #include "MenuBuilder.hpp"
 #include "PopoverGestures.hpp"
+#include "ProjectCopy.hpp"
 #include "ProjectFlows.hpp"
 #include "ScriptHost.hpp"
 #include "SettingsDialogs.hpp"
@@ -28,7 +29,7 @@ namespace stencil::gui {
   struct WindowParts {
     explicit WindowParts(MainWindow& w)
         : toolbarBuilder(w), actionsBuilder(w), menuBuilder(w), canvasMenu(w), sourceOpener(w),
-          dockChrome(w), view(w), theme(w), projects(w), chatAppliers(w),
+          dockChrome(w), view(w), theme(w), projects(w), projectCopy(w), chatAppliers(w),
           persistence(w), popoverGestures(w), hoverTip(w), dialogs(w), scriptHost(w),
           exportMenus(w), assembly(w), events(w), styleControls(w) {}
 
@@ -41,6 +42,7 @@ namespace stencil::gui {
     EditorView view;
     ThemePainter theme;
     ProjectFlows projects;
+    ProjectCopy projectCopy;
     ChatAppliers chatAppliers;
     DocumentPersistence persistence;
     PopoverGestures popoverGestures;

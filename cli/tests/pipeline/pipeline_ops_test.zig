@@ -8,7 +8,7 @@ const core = @import("../../src/core.zig");
 const image = @import("../../src/media/image.zig");
 const steps = @import("../../src/pipeline/steps.zig");
 const testing = std.testing;
-const sample = @embedFile("../fixtures/sample.png");
+const sample = @embedFile("sample.png");
 
 /// The decoded fixture, checked against its pinned dimensions and first pixel before any
 /// op runs — so a codec change surfaces here instead of as a mangled crop/rotate result.

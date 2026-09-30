@@ -127,7 +127,7 @@ test('the ? badge sits inside the project-name field, right after the name', () 
 test('the ? bubble carries the size and the incognito line — and nothing else', () => {
     // The old shortcut wall is gone; those hints live in the ℹ info modal (infoConfig.json).
     assert.match(markup, /<span class="hints-popup" id="hints-popup"><\/span>/, 'the bubble ships empty');
-    const info = readFileSync(new URL('../../../js/config/infoConfig.json', import.meta.url), 'utf8');
+    const info = readFileSync(new URL('../../../../common/config/infoConfig.json', import.meta.url), 'utf8');
     for (const hint of ['Ctrl + wheel', 'Alt + wheel', 'Ctrl + Shift + wheel'])
         assert.ok(info.includes(hint), `${hint} must still be documented in the info modal`);
     // Two facts: the #image-info size line, plus an incognito line off body.incognito-mode.

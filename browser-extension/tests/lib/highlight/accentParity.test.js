@@ -1,5 +1,5 @@
 // src/lib/accent.js's list against the copies that cannot import it — lib/highlight/color.js and the
-// literal in content/pageApiBridge.js — and against the canonical browser/js/config/accents.json,
+// literal in content/pageApiBridge.js — and against the canonical common/config/accents.json,
 // plus the on-accent ink the same list decides.
 
 import { test } from 'node:test';
@@ -27,7 +27,7 @@ test('the browser palette (config/accents.json) carries the same keys and hexes'
   const { accent } = loadAccent();
   // The canonical palette now lives in the browser's JSON config; parse it directly.
   const rows = JSON.parse(readFileSync(
-    fileURLToPath(new URL('../../../../browser/js/config/accents.json', import.meta.url)),
+    fileURLToPath(new URL('../../../../common/config/accents.json', import.meta.url)),
     'utf8',
   ));
   const browserAccents = Object.fromEntries(rows.map((a) => [a.key, a.hex.toLowerCase()]));

@@ -1,5 +1,5 @@
 #pragma once
-// The skin's icons (browser/js/config/iconsWebcore.json over the qrc): a palette map becomes
+// The skin's icons (common/config/iconsWebcore.json over the qrc): a palette map becomes
 // one <rect> per lit run on a 16-grid, colour baked in. Twin of browser/js/ui/webcore/icons.js.
 #include <QColor>
 #include <QImage>

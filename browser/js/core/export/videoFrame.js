@@ -1,6 +1,6 @@
 // Video-frame capture for `stencil.load(videoUrl)` and the open-image modal. Browser-only.
 import { scaledDataUrl } from '../../utils.js';
-import MEDIA_TYPES from '../../config/mediaTypes.json' with { type: 'json' };
+import MEDIA_TYPES from '../../../../common/config/mediaTypes.json' with { type: 'json' };
 
 // From config/mediaTypes.json (`surfaces.browser`); the two lists deliberately differ from
 // each other and from every other surface — see the asset's `drift` note.

@@ -95,6 +95,7 @@ static const char LEGACY_EDITOR_OPS_BLOCK[] =
 - {"op":"openProject","name":"…"} — open a saved local project into the editor (the
   app confirms first when unsaved work would be replaced).
 - {"op":"incognito","on":true} — edit without saving; only togglable on a blank editor.
+- {"op":"copyProject","what":"layout"} — save a copy of the open project named "<name>-copy" (then "-copy(1)", …): what = "image" (the original image alone), "layout" (the image and its layout) or "project" (everything, with its colour, keywords, description and chat).
 - {"op":"chatPanel","open":true,"dock":"right"} — show, hide or move THIS assistant
   panel: "dock" is "left"|"right"|"top"|"bottom"|"float" ("float" = a free-standing
   window), and a "dock" on its own opens the panel where it lands. At least one field.
@@ -117,7 +118,10 @@ static const char LEGACY_EDITOR_OPS_BLOCK[] =
   ("line"|"rect") and "fillColor" for the defaults of NEW lines.
 - "openProject" also accepts {"op":"openProject","last":true} — the project edited
   most recently, which is what "the last project" / "the one I worked on last" means.
-  The app resolves it; you never see the list, so never ask which one that is.)__";
+  The app resolves it; you never see the list, so never ask which one that is.
+- "copyProject" also takes "open": "here" | "newtab" to open the copy (it stays closed
+  otherwise), "incognito": true with open to open it without saving it, and "local": true to
+  copy a server project locally instead of on its server (only a local copy opens incognito).)__";
 
   void checkPromptAssembly() {
   // ── §13 byte-stability: assembly reproduces the pre-registry constants ──

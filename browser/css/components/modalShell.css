@@ -127,12 +127,14 @@
    Shared with the Assistant modal (provider/model/server), same table shape both dialogs —
    but WIDER there: a base URL, a model name and an API key clip at the Visuals column's 180px. */
 stencil-visuals-modal, stencil-llm-settings-modal { --vs-ctrl-h: 30px; }
-stencil-visuals-modal { --vs-ctrl-w: 180px; }
-stencil-llm-settings-modal { --vs-ctrl-w: 320px; }
+/* --vs-ctrl-pct is the column's share of the default 522px row, so a widened window grows the
+   controls with it (desktop settingsDialog's CTRL_SHARE twin) instead of leaving a gap. */
+stencil-visuals-modal { --vs-ctrl-w: 180px; --vs-ctrl-pct: 34%; }
+stencil-llm-settings-modal { --vs-ctrl-w: 320px; --vs-ctrl-pct: 61%; }
 stencil-visuals-modal .vs-row > .vs-ctrl,
 stencil-llm-settings-modal .vs-row > .vs-ctrl {
-    flex: 0 0 var(--vs-ctrl-w);
-    width: var(--vs-ctrl-w);
+    flex: 0 0 max(var(--vs-ctrl-w), var(--vs-ctrl-pct));
+    width: max(var(--vs-ctrl-w), var(--vs-ctrl-pct));
     min-width: 0;
     display: flex;
     align-items: center;

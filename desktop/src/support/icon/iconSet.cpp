@@ -23,7 +23,7 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 namespace stencil::gui {
 
   namespace {
-    // Parsed once from the shared canon (browser/js/config/icons.json via app.qrc); the
+    // Parsed once from the shared canon (common/config/icons.json via app.qrc); the
     // desktop-only glyphs are appended literally.
     const QHash<QString, QString>& iconTable() {
       static const QHash<QString, QString> t = [] {

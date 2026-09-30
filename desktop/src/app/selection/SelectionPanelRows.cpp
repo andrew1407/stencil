@@ -3,6 +3,7 @@
 #include "iconSet.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/skinPrefs.hpp"
+#include "defaultVisuals.hpp"
 #include <QLabel>
 #include <QPalette>
 #include <QPushButton>
@@ -50,7 +51,7 @@ namespace stencil::gui {
 
       // What the line LOOKS like: its fill when it has one, its stroke otherwise — the stroke
       // always as the rim (browser linesList.js over core/layout.js fillState).
-      const QString rim = ln.color.empty() ? QStringLiteral("#ffff00")
+      const QString rim = ln.color.empty() ? defaultVisuals::table().color
                                            : QString::fromStdString(ln.color);
       const bool filled = !ln.fillColor.empty() && ln.fillColor != "transparent";
       const QString face = filled ? QString::fromStdString(ln.fillColor)

@@ -1,4 +1,4 @@
-// The chat dock's slide clocks come from browser/js/config/motion.json (CHAT_SURFACE_*), the pair
+// The chat dock's slide clocks come from common/config/motion.json (CHAT_SURFACE_*), the pair
 // the browser's chat panel flies on: read, fallback and table agree.
 #include "chatSlideClocks.hpp"
 

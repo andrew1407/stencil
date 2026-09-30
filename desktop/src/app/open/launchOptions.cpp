@@ -3,6 +3,9 @@
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -103,13 +106,29 @@ namespace stencil::gui {
       }
       // Bounded: parsed as JSON downstream, so the same cap as the browser hand-off payload.
       const QString layout = q.queryItemValue("layout", QUrl::FullyDecoded).trimmed();
-      if (layout.size() <= deepLink::BROWSER_LAUNCH_PAYLOAD_MAX) o.layoutJson = layout;
+      if (layout.size() <= deepLink::browserLaunchPayloadMax()) o.layoutJson = layout;
       bool ok = false;
       const int n = q.queryItemValue("frame").toInt(&ok);
       o.frame = (ok && n > 0) ? n : 0;
     }
     o.incognito = q.queryItemValue("incognito") == QLatin1String("1");
+    const QString script = q.queryItemValue("script", QUrl::FullyDecoded);
+    if (script.size() > launchScriptMaxChars()) o.scriptDropped = true;
+    else if (!script.isEmpty()) o.script = script;
+    if (q.queryItemValue("scriptMode") == QLatin1String("open")) o.scriptMode = QStringLiteral("open");
     return o;
+  }
+
+  int launchScriptMaxChars() {
+    static const int cap = [] {
+      QFile f(QStringLiteral(":/config/constants.json"));
+      const int fallback = 200000;   // a build without the qrc
+      if (!f.open(QIODevice::ReadOnly)) return fallback;
+      const int v = QJsonDocument::fromJson(f.readAll()).object().value(QLatin1String("LAUNCH"))
+                        .toObject().value(QLatin1String("scriptMaxChars")).toInt(0);
+      return v > 0 ? v : fallback;
+    }();
+    return cap;
   }
 
 }

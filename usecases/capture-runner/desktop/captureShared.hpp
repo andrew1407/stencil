@@ -13,6 +13,7 @@
 #include <QDialog>
 #include <QDir>
 #include <QImage>
+#include <QList>
 #include <QPainter>
 #include <QPalette>
 #include <QPixmap>
@@ -61,6 +62,38 @@ inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
   QRect box(at - QPoint(MODAL_MARGIN_PX, MODAL_MARGIN_PX), dlg->size() + margin);
   box &= QRect(QPoint(), canvas);
   // grab() hands back a device-pixel image with its ratio set; copy() counts device pixels.
+  QImage out = base.copy(QRect(box.topLeft() * dpr, box.size() * dpr));
+  out.setDevicePixelRatio(dpr);
+  save(name, out);
+}
+
+// The window dimmed under popups drawn where they really are, cropped to them and a margin. With
+// `centreFirst`, the first layer (a dialog) is centred on the window and the rest keep their
+// places relative to it, as saveOver() centres a dialog.
+inline void saveLayers(const QString& name, QWidget* win, const QList<QWidget*>& tops, bool centreFirst) {
+  const QPixmap shot = win->grab();
+  const qreal dpr = shot.devicePixelRatio();
+  QPoint shift = -win->geometry().topLeft();
+  if (centreFirst && !tops.isEmpty()) {
+    const QWidget* first = tops.first();
+    shift = QPoint((win->width() - first->width()) / 2, (win->height() - first->height()) / 2)
+            - first->geometry().topLeft();
+  }
+  QRect used;
+  for (QWidget* top : tops) used |= top->geometry().translated(shift);
+  const QRect canvas = QRect(QPoint(), win->size()) | used.adjusted(-MODAL_MARGIN_PX, -MODAL_MARGIN_PX,
+                                                                    MODAL_MARGIN_PX, MODAL_MARGIN_PX);
+  QImage base(canvas.size() * dpr, QImage::Format_ARGB32_Premultiplied);
+  base.setDevicePixelRatio(dpr);
+  base.fill(win->palette().color(QPalette::Window));
+  QPainter p(&base);
+  p.translate(-canvas.topLeft());
+  p.drawPixmap(QPoint(), shot);
+  p.fillRect(canvas, QColor(0, 0, 0, 80));
+  for (QWidget* top : tops) p.drawPixmap(top->geometry().translated(shift).topLeft(), top->grab());
+  p.end();
+  const QRect box = used.adjusted(-MODAL_MARGIN_PX, -MODAL_MARGIN_PX, MODAL_MARGIN_PX, MODAL_MARGIN_PX)
+                        .translated(-canvas.topLeft());
   QImage out = base.copy(QRect(box.topLeft() * dpr, box.size() * dpr));
   out.setDevicePixelRatio(dpr);
   save(name, out);
@@ -173,6 +206,8 @@ class MainWindowGuiTest {
   static void assistantShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
   static void dialogShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
   static void videoShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The Make a copy flyouts and dialog, the swatch picker and the linked-script confirm.
+  static void copyScriptShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // Fit the image to the window, then clear the toasts the load left.
   static void fit(stencil::gui::MainWindow& win);
   // `load` puts a clip on a tab the way that tab's own control does; `crop` also ticks the

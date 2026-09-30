@@ -18,13 +18,13 @@ if(UNIX AND NOT APPLE)
   # Linux desktop integration: menu entry + scalable icon (shared with the
   # browser favicon), picked up by system menus and AppImage tooling.
   install(FILES packaging/stencil.desktop DESTINATION share/applications)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../common/icons/favicon.svg
     DESTINATION share/icons/hicolor/scalable/apps RENAME stencil.svg)
   # .stencil file-type association: the shared-mime-info definition (registers the
   # application/x-stencil type + *.stencil glob) plus its themed file icon, so the file
   # manager gives .stencil files the Stencil logo and double-click-to-open.
   install(FILES packaging/stencil-mime.xml DESTINATION share/mime/packages)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../common/icons/favicon.svg
     DESTINATION share/icons/hicolor/scalable/mimetypes RENAME application-x-stencil.svg)
 endif()
 

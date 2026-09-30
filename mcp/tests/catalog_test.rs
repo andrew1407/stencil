@@ -85,7 +85,7 @@ async fn the_resources_are_the_canonical_files() {
         serde_json::to_value(&result.contents[0]).unwrap()["text"].as_str().unwrap().to_string()
     };
     let registry = text_of(read("stencil://config/opRegistry.json").await.unwrap());
-    let canonical = include_str!("../../browser/js/config/llm/opRegistry.json");
+    let canonical = include_str!("../../common/config/llm/opRegistry.json");
     assert_eq!(registry, canonical);
 
     let json_of = |text: String| serde_json::from_str::<Value>(&text).unwrap();

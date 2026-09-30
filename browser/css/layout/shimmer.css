@@ -4,12 +4,11 @@
    prefers-reduced-motion. ── */
 button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
 .accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
-.project-menu-item, .lines-list-row, .ctx-item, .vs-color, .oi-color,
+.project-menu-item, .ctx-item, .vs-color, .oi-color,
 .shimmer { position: relative; overflow: hidden; }
 button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
 .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .project-row::after,
-.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after,
-.ctx-item::after, .vs-color::after, .oi-color::after, .shimmer::after {
+.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .ctx-item::after, .vs-color::after, .oi-color::after, .shimmer::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -25,7 +24,7 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
 .btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
 .idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
 .project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
-.project-menu-item:hover::after, .lines-list-row:hover::after, .ctx-item:hover::after,
+.project-menu-item:hover::after, .ctx-item:hover::after,
 .vs-color:hover::after, .oi-color:hover::after, .shimmer:hover::after {
     animation: ui-shimmer 0.75s ease;
 }
@@ -87,14 +86,25 @@ select:hover:not(:disabled) {
     input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover,
     input[type="password"]:hover, select:hover { animation: none; background-image: none; }
 }
-/* Points table rows shimmer on hover too (a background band — table rows can't host an ::after).
-   Skips focused/highlighted rows so their own pulse animation isn't overridden. */
-.coordinates-table tbody tr { background-repeat: no-repeat; background-size: 250% 100%; background-position: 185% 0; }
-.coordinates-table tbody tr:hover:not(.row-focused):not(.row-highlighted) {
+/* Points and Lines rows sweep a background band (a <tr> can't host an ::after); every row tint is a
+   background-COLOR longhand, as a shorthand resets the size and position the band rides on. */
+.coordinates-table tbody tr { background-repeat: no-repeat; background-size: 250% 100%; background-position: 150% 0; }
+.coordinates-table tbody tr:hover:not(.row-focused):not(.leaving) {
     background-image: linear-gradient(115deg, transparent 40%,
         color-mix(in srgb, #ffffff 24%, transparent) 50%, transparent 60%);
-    animation: ui-shimmer-bg 0.75s ease;
+    animation: ui-shimmer-row 0.75s ease;
+}
+/* Hovering a points row highlights it at once; one list runs its pulse beside the sweep. */
+.coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving) {
+    animation: ui-shimmer-row 0.75s ease, rowPulse 0.5s ease;
+}
+/* 150% → -50% of a 250% band: it crosses the row in the middle half of the clock, as the
+   ::after sweep does across a button. */
+@keyframes ui-shimmer-row {
+    from { background-position: 150% 0; }
+    to   { background-position: -50% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .coordinates-table tbody tr:hover { animation: none; background-image: none; }
+    .coordinates-table tbody tr:hover:not(.row-focused):not(.leaving),
+    .coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving) { animation: none; background-image: none; }
 }

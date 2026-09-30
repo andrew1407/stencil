@@ -129,34 +129,41 @@ inherits parity through the file it is pinned to.
 
 ## 2. Shared-data rails
 
-**`browser/js/config/` is the canonical home for every shared data table**; nothing else is a
-source of truth. That includes the LLM assets under `llm/` (`opRegistry.json`,
-`systemPrompt.json`, `providers.json`), the SSRF address table every fetch guard judges an
-address by (`net/blockedRanges.json`), the `.stc` corpus under `script/fixtures/` and the
-conformance corpora under `fixtures/`.
+**`common/` is the canonical home for everything two or more surfaces share**; nothing else is a
+source of truth. `common/config/` holds the data tables — the LLM assets under `llm/`
+(`opRegistry.json`, `systemPrompt.json`, `providers.json`) and the SSRF address table every
+fetch guard judges an address by (`net/blockedRanges.json`) among them; `common/fixtures/`
+the conformance corpora, the `.stc` corpus (`script/cases.txt`) and the LLM fixtures;
+`common/icons/` the logo and app-icon art; `common/samples/` the shared test picture. A table
+only the browser reads stays in `browser/js/config/`.
 
-Five consumption mechanisms:
+Six consumption mechanisms:
 
 | Mechanism | Surface | Shape |
 |---|---|---|
-| **qrc alias** | desktop | `<file alias="X.json">../../browser/js/config/X.json</file>` in `desktop/resources/app.qrc` |
+| **served beside the app** | browser | the static servers, the nginx image and Pages serve `common/` next to `browser/`; a module imports the table from `common/config/` by its relative path |
+| **qrc alias** | desktop | `<file alias="X.json">…/common/config/X.json</file>` in `desktop/resources/app.qrc` |
 | **`@embedFile`** | cli | `mod.addAnonymousImport("X.json", …)` in `cli/build.zig`, then `@embedFile("X.json")` |
-| **`include_str!`** | mcp | `include_str!("../../browser/js/config/X.json")` |
-| **`<EmbeddedResource Link>`** | bot | `<EmbeddedResource Include="../../../browser/js/config/X.json" Link="Assets/X.json" />` |
-| **checked-in copy + byte-equality drift test** | browser-extension, pystencil, vscode-extension | the copy ships with the surface; a test pins it to the canonical file |
+| **`include_str!`** | mcp | `include_str!("../../common/config/X.json")` |
+| **`<EmbeddedResource Link>`** | bot | `<EmbeddedResource Include="../../../common/config/X.json" Link="Assets/X.json" />` |
+| **generated copy** | pystencil, server | written from `common/` by the build (`pystencil/build.py`, the server's `go generate`), never checked in: package data and `//go:embed` cannot reach outside their tree |
+| **checked-in copy + byte-equality drift test** | browser-extension, vscode-extension | the copy ships with the surface; a test pins it to the canonical file |
 
 A table a surface writes in its own words is held to the canonical list without being a copy:
 `vscode-extension/src/config/stencilApiVocabulary.json` explains every `window.stencil`
 member, and `tests/lib/vocab/apiVocabulary.test.js` checks its keys and signatures against
 `interface Stencil` in `browser/js/console/stencilApi.d.ts`, both directions.
 
-The copy rail exists only where embedding is impossible: the extensions ship self-contained
-(MV3 reads nothing outside its own tree; a `.vsix` carries only what it packaged) and
-pystencil stays relocatable. Its drift tests are `browser-extension/tests/dataParity.test.js`
-(modes `full` / `subset`, with declared `extensionOnly` names),
-`pystencil/tests/test_canonical_drift.py` and `vscode-extension/tests/parserParity.test.js`,
-which pins `src/config/colorNames.json` and the copied `src/parser/script/` in **both
-directions** — no file may appear, vanish or change on one side alone.
+The checked-in copy rail exists only where neither embedding nor a build step reaches: the
+extensions ship self-contained (MV3 reads nothing outside its own tree; a `.vsix` carries only
+what it packaged). Its drift tests are `browser-extension/tests/dataParity.test.js` (modes
+`full` / `subset`, with declared `extensionOnly` names) and
+`vscode-extension/tests/parserParity.test.js`, which pins `src/config/colorNames.json` and the
+copied `src/parser/script/` in **both directions** — no file may appear, vanish or change on
+one side alone; the parser copy is byte-equal except the import specifiers the
+`tools/twins.json` tree entry's `rewrite` declares. The generated copies need no drift
+test of their own: `pystencil/tests/test_canonical_drift.py` and the server's asset tests
+compare what the build wrote against `common/`.
 
 A value the core can compute is read rather than mirrored: page formats and colour names come
 back out of the core over the C ABI (`pystencil` does this; desktop and cli drift-test
@@ -166,11 +173,11 @@ The **op registry drives one op-plan validator and its twin.** `core/opplan/` is
 validator — cli, pystencil and desktop call it directly, mcp and bot through `--plan-check` —
 and `browser/js/llm/plan/` is its JS twin, which the extension copies. Each surface keeps only
 its typed mapper and executors, shows core's canonical messages, and adds only the surface
-rules the registry names. `llm/fixtures/opPlan/generated/normalized.json` pins the normalized
-result per surface; `browser/js/config/llm/opRegistry.README.md` is the spec.
+rules the registry names. `common/fixtures/llm/opPlan/generated/normalized.json` pins the normalized
+result per surface; `common/config/llm/opRegistry.README.md` is the spec.
 
 The **`.stc` fixture corpus plays the same role for the script language.**
-`script/fixtures/cases.txt` holds every case as a plain-text section — source, canonical
+`common/fixtures/script/cases.txt` holds every case as a plain-text section — source, canonical
 dump, expected diagnostics — so a case reads as a user writes and sees it. The C++ engine,
 the JS fallback and the copy in `vscode-extension/src/parser/` walk that one file, so the
 language has a single implementation in `core/script/` and no surface grows a grammar of its

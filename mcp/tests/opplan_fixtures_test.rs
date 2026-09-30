@@ -1,4 +1,4 @@
-//! The shared op-plan corpus (`browser/js/config/llm/fixtures/opPlan/`) against core's golden,
+//! The shared op-plan corpus (`common/fixtures/llm/opPlan/`) against core's golden,
 //! one reported case each: offline, every mcp result in `generated/normalized.json` is typed,
 //! round-tripped and its verdict checked; with a CLI, `--plan-check` must print that golden.
 
@@ -16,7 +16,7 @@ use common::plan::{action_json, canon};
 use common::walk::Walk;
 
 const FIXTURES_DIR: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/opPlan");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../common/fixtures/llm/opPlan");
 
 const PROFILES: [&str; 6] = ["editor", "console", "bot", "mcp", "extension", "all"];
 const SURFACES: [&str; 7] = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];

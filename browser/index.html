@@ -8,7 +8,7 @@
        LLM/collaboration endpoints are user-configured, so connect-src can't be 'self'.
        No frame-ancestors — the extension frames this app in its in-page modal. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; font-src 'self' data:; connect-src 'self' data: blob: https: http: wss: ws:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../common/icons/favicon.svg">
   <meta name="theme-color" content="#7c3aed">
   <!-- PWA: installable + offline (see manifest.webmanifest, sw.js) -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Stencil">
-  <link rel="apple-touch-icon" href="favicon.svg">
+  <link rel="apple-touch-icon" href="../common/icons/favicon.svg">
   <!-- Apply saved theme + accent before paint (classic script → no flash) -->
   <script src="js/prePaintTheme.js"></script>
   <link rel="stylesheet" href="css/theme.css">
@@ -57,6 +57,7 @@
   <link rel="stylesheet" href="css/components/projects/projects.css">
   <link rel="stylesheet" href="css/components/projects/rows.css">
   <link rel="stylesheet" href="css/components/projects/rowMenu.css">
+  <link rel="stylesheet" href="css/components/copyProject.css">
   <link rel="stylesheet" href="css/components/projects/meta.css">
   <link rel="stylesheet" href="css/components/connect/connections.css">
   <link rel="stylesheet" href="css/components/incognito.css">

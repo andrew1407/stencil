@@ -10,7 +10,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
-import EVENTS from '../../js/config/events.json' with { type: 'json' };
+import EVENTS from '../../../common/config/events.json' with { type: 'json' };
 import { loadOpenInConfig } from '../../js/config/openInConfig.js';
 import { installNullDom } from '../helpers/nullDom.js';
 

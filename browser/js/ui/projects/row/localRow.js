@@ -9,7 +9,7 @@ export const createLocalRow = ({
   app, close, render, localKey, selected, selectables, isServerMeta, toggleSelect,
   enableThumbZoom, projectTooltip, fmtDate, expiryLabel, isPeerOpen, hasServers,
   pickServer, confirmOpen, scrollRowIntoView, openColorPicker, beginRemoval, retireKey,
-  rowById, showMenu,
+  rowById, showMenu, invalidateRemotes,
 }) => (meta, opts = {}) => {
     const row = document.createElement('div');
     row.className = 'project-row';
@@ -137,7 +137,7 @@ export const createLocalRow = ({
         row, name, meta, app, close: () => close(), render: () => render(),
         serverLinked, hasServers, isPeerOpen, pickServer, confirmOpen,
         scrollRowIntoView, openColorPicker, beginRemoval, retireKey, localKey,
-        rowById, showMenu,
+        rowById, showMenu, invalidateRemotes,
       });
     } else if (opts.incognito && hasServers()) {
       attachIncognitoActions({ row, app, render: () => render() });

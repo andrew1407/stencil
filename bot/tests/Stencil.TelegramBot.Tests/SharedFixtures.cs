@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>Locates the shared fixture corpus under <c>browser/js/config/</c> (walking up to the repo root) and this suite's <c>FixtureOverrides.json</c> — the pinned cases where the bot's measured behavior diverges from the corpus expectation.</summary>
+/// <summary>Locates the shared fixture corpus under <c>common/</c> (walking up to the repo root) and this suite's <c>FixtureOverrides.json</c> — the pinned cases where the bot's measured behavior diverges from the corpus expectation.</summary>
 internal static class SharedFixtures
 {
     private static readonly Lazy<string> _root = new(findRepoRoot);
@@ -14,26 +14,26 @@ internal static class SharedFixtures
     {
         for (string? dir = AppContext.BaseDirectory; dir is not null; dir = Path.GetDirectoryName(dir))
         {
-            if (Directory.Exists(Path.Combine(dir, "browser", "js", "config")))
+            if (Directory.Exists(Path.Combine(dir, "common", "config")))
             {
                 return dir;
             }
         }
         throw new InvalidOperationException(
-            $"could not find the repo root (a directory containing browser/js/config) above {AppContext.BaseDirectory}");
+            $"could not find the repo root (a directory containing common/config) above {AppContext.BaseDirectory}");
     }
 
     /// <summary>Absolute path of a file under the repo root.</summary>
     public static string PathOf(params string[] parts) =>
         Path.Combine([RepoRoot, .. parts]);
 
-    /// <summary>The shared LLM fixture directory <c>browser/js/config/llm/fixtures/{name}</c>.</summary>
+    /// <summary>The shared LLM fixture directory <c>common/fixtures/llm/{name}</c>.</summary>
     public static string LlmFixtureDir(string name) =>
-        PathOf("browser", "js", "config", "llm", "fixtures", name);
+        PathOf("common", "fixtures", "llm", name);
 
-    /// <summary>The shared config fixture directory <c>browser/js/config/fixtures/{name}</c>.</summary>
+    /// <summary>The shared config fixture directory <c>common/fixtures/{name}</c>.</summary>
     public static string ConfigFixtureDir(string name) =>
-        PathOf("browser", "js", "config", "fixtures", name);
+        PathOf("common", "fixtures", name);
 
     /// <summary>Parse one JSON fixture file into a document (caller disposes).</summary>
     public static JsonDocument Load(string path) =>

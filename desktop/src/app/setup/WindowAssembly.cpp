@@ -14,11 +14,28 @@
 #include "../../support/modal/hoverResync.hpp"
 #include "../../support/menu/comboAltPeek.hpp"
 #include "../../support/tip/altPeek.hpp"
+#include <QCursor>
+#include <QGuiApplication>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QGraphicsOpacityEffect>
 
 namespace stencil::gui {
+
+  namespace {
+    // A buttonless move at the cursor, only while it rests over the canvas: a held button is a
+    // drag gesture in flight, which a synthetic move must never feed.
+    void rehoverAtCursor(QWidget* canvas) {
+      if (!canvas || QGuiApplication::mouseButtons() != Qt::NoButton) return;
+      const QPoint global = QCursor::pos();
+      const QPoint local = canvas->mapFromGlobal(global);
+      if (!canvas->rect().contains(local)) return;
+      QMouseEvent move(QEvent::MouseMove, QPointF(local), QPointF(global), Qt::NoButton, Qt::NoButton,
+                       QGuiApplication::keyboardModifiers());
+      QCoreApplication::sendEvent(canvas, &move);
+    }
+  }  // namespace
 
   void WindowAssembly::setupCanvasArea() {
     w.canvas = new CanvasWidget(&w);
@@ -67,10 +84,15 @@ namespace stencil::gui {
     w.scroll->viewport()->installEventFilter(&w);
     // Pan persistence and the scrollbar reveal ride the scrollbar value (browser: storage.js
     // scroll listener).
-    QObject::connect(w.scroll->horizontalScrollBar(), &QScrollBar::valueChanged, &w,
-                     [this](int) { w.parts.view.revealCanvasScrollbars(); w.parts.persistence.scheduleViewSave(); });
-    QObject::connect(w.scroll->verticalScrollBar(), &QScrollBar::valueChanged, &w,
-                     [this](int) { w.parts.view.revealCanvasScrollbars(); w.parts.persistence.scheduleViewSave(); });
+    // A pan moves the picture under a still cursor: re-hover where it rests (browser canvasPointer.js),
+    // so the ring and tooltip never linger over what used to be there.
+    const auto scrolled = [this](int) {
+      w.parts.view.revealCanvasScrollbars();
+      w.parts.persistence.scheduleViewSave();
+      rehoverAtCursor(w.canvas);
+    };
+    QObject::connect(w.scroll->horizontalScrollBar(), &QScrollBar::valueChanged, &w, scrolled);
+    QObject::connect(w.scroll->verticalScrollBar(), &QScrollBar::valueChanged, &w, scrolled);
     // The effects sit on the floating overlay bars, not the hidden model bars.
     QScrollBar* vOverlay = w.parts.view.canvasScrollBar(Qt::Vertical);
     QScrollBar* hOverlay = w.parts.view.canvasScrollBar(Qt::Horizontal);
@@ -151,6 +173,7 @@ namespace stencil::gui {
     // A top dock spans the full window width, unlike a central child; the empty title widget
     // suppresses Qt's.
     w.selectedLineBar = new SelectedLineBar(&w);
+    w.selectedLineBar->setLineColorDefault([this] { return QColor(w.settings.defaultColor); });
     w.selectedLineDock = new QDockWidget(&w);
     w.selectedLineDock->setObjectName("selectedLineDock");
     w.selectedLineDock->setFeatures(QDockWidget::NoDockWidgetFeatures);

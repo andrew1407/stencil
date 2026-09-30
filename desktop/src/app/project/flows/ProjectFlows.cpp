@@ -125,10 +125,9 @@ namespace stencil::gui {
     const QString botUser = w.settings.telegramBotUsername.trimmed();
     const bool browserTarget = !w.settings.browserBaseUrl.trimmed().isEmpty();
     dlg.setOpenInAvailable(browserTarget, browserTarget || !botUser.isEmpty());
-    QObject::connect(&dlg, &ProjectsDialog::openInRequested, &w,
-                     [this](const QString& id, const QString& serverUrl, const QRect& closeRect) {
-      openInAnotherAppFor(id, serverUrl, closeRect);
-    });
+    QObject::connect(&dlg, &ProjectsDialog::openInRequested, &w, [this](const QString& id, const QString& serverUrl,
+                     const QRect& closeRect) { openInAnotherAppFor(id, serverUrl, closeRect); });
+    w.parts.projectCopy.wireProjectsList(dlg);   // "Make a copy" (app/project/copy/ProjectCopyFlow.cpp)
     QObject::connect(&dlg, &ProjectsDialog::expirationRequested, &w,
                      [this, &dlg](const QString& id, long long expiresAt, const QString& period,
                                   bool autoRefresh) {

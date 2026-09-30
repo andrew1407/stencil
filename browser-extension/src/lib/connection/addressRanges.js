@@ -1,6 +1,6 @@
 // The SSRF address table as a judge: `blockedRanges.json` is a checked-in copy of
-// browser/js/config/net/blockedRanges.json (tests/dataParity.test.js pins it), and
-// browser/js/config/fixtures/net/hosts.json is the corpus it answers to. Addresses are
+// common/config/net/blockedRanges.json (tests/dataParity.test.js pins it), and
+// common/fixtures/net/hosts.json is the corpus it answers to. Addresses are
 // byte arrays: 4 for IPv4, 16 for IPv6.
 import TABLE from './blockedRanges.json' with { type: 'json' };
 

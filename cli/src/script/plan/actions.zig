@@ -1,5 +1,5 @@
 //! One lowered op as one action in the op-plan vocabulary of
-//! browser/js/config/llm/opRegistry.json — the same wire names `applyPlanAction` executes.
+//! common/config/llm/opRegistry.json — the same wire names `applyPlanAction` executes.
 //! Pure builders: which actions a block needs, and in what frame, is sequence.zig's.
 const std = @import("std");
 

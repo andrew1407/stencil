@@ -6,6 +6,7 @@ import type { Stencil } from '../../console/stencilApi.js';
 import type { ChatMessage, LlmClient } from '../client.js';
 import type { AskPreview, PlanAsk, SavedServerEntry, VariantResult } from '../plan/opPlan.js';
 import type { EditorHistory } from '../plan/sandbox.js';
+import type { CopyProjectRequest } from '../../core/project/copy/options.js';
 export { CHAT_ATTACHMENTS_EVENT, EDGE_MAP_SENTENCE, HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE,
   VIDEO_FRAME_COUNT, contourDataUrl, downscaleImageToDataUrl, planEditsTheImage,
   planLoadsWithoutTracing, replayMessages, splitDataUrl } from './turn.js';
@@ -50,6 +51,7 @@ export interface ChatCapabilities {
   renameActiveProject?: (name: string) => Promise<CapabilityNote>;
   setBlankColor?: (color: string) => Promise<CapabilityNote>;
   openProjectNamed?: (name: string, last: boolean) => Promise<CapabilityNote>;
+  copyActiveProject?: (req: CopyProjectRequest) => Promise<CapabilityNote>;
   clearChatConversation?: () => Promise<CapabilityNote>;
   setChatPlacement?: (placement: { open?: boolean | null; dock?: string | null }) => Promise<CapabilityNote>;
   /** null closes whatever dialog is open. */

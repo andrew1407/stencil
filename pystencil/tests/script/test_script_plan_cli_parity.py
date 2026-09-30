@@ -22,7 +22,7 @@ from tests.fixtures.test_fixture_script import CASES_PATH, read_cases
 from tests.image.test_jpeg_cli import _CLI
 from tests.script.test_script_cli import _run
 
-_SAMPLE = _PKG_ROOT.parent / "cli" / "tests" / "fixtures" / "sample.png"  # 16x12, album
+_SAMPLE = _PKG_ROOT.parent / "common" / "samples" / "sample.png"  # 16x12, album
 _HEAD = "@source sample.png:\n"
 _DOC = "doc.json"
 _GREEN = "@use line #00ff00 2px; @line (2,3) (14,9)"

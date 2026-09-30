@@ -2,7 +2,7 @@ import { HoldDrawController, holdDrawTarget } from '../draw/holdDraw.js';
 import { classifyEnd } from '../touch/gestures.js';
 import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor, holdDrawEligible } from '../draw/holdDrawView.js';
 import { touchHandlers } from '../touch/input.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { canvasCoords } from './canvasCoords.js';
 import { startDrawingMode, stopDrawingMode } from '../draw/mode.js';
 import { tryCloseShapeAt, insertPointOnSegment } from '../line/shapeBuilder.js';
@@ -26,6 +26,7 @@ export class InputController {
 
 // Keeps the tooltip off a mid-hold ghost line (canvasMouseMove's drag guard).
   get holdEngaged() { return !!this.#holdDraw && this.#holdDraw.engaged; }
+  get holdDrawing() { return !!this.#holdDraw && this.#holdDraw.active; }
 
 // The live touch gesture; input.js drives it, this class only ends a tap.
   get touchSession() { return this.#touch; }

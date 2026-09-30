@@ -1,4 +1,4 @@
-// The shared image-header corpus (browser/js/config/fixtures/imageHeader/cases.json) through the
+// The shared image-header corpus (common/fixtures/imageHeader/cases.json) through the
 // desktop's sniffer, io/mediaTypes.cpp sniffImageHeader: a measured case names its format and
 // size, a null one leaves the size 0x0. A local override (tests/fixtureOverrides.json,
 // "imageHeader/<name>") replaces an expectation with a measured one.
@@ -15,7 +15,7 @@
 void checkImageHeaderCorpus() {
   std::printf("imageHeader:\n");
   bool ok = false;
-  const QJsonArray cases = readJsonFile(corpusPath("fixtures/imageHeader/cases.json"), &ok).array();
+  const QJsonArray cases = readJsonFile(corpusPath("imageHeader/cases.json"), &ok).array();
   check(ok && cases.size() >= 40, "cases.json loads");
 
   int overridden = 0;

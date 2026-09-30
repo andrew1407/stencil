@@ -1,11 +1,11 @@
-// Splits the shared corpus (js/config/script/fixtures/cases.txt) into its cases. The C++
+// Splits the shared corpus (common/fixtures/script/cases.txt) into its cases. The C++
 // walker in core/tests/script/scriptFixtures.test.cpp reads the same file with the same rules —
 // plain text, because core/ has no JSON parser.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const CASES_PATH = fileURLToPath(
-  new URL('../../js/config/script/fixtures/cases.txt', import.meta.url),
+  new URL('../../../common/fixtures/script/cases.txt', import.meta.url),
 );
 
 /* → [{ name, script, dump, diagnostics }]. A case with no diagnostics section expects none;

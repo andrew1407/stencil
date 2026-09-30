@@ -5,7 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-// The logo stage's table, read once from browser/js/config/logoStage.json over the qrc; the
+// The logo stage's table, read once from common/config/logoStage.json over the qrc; the
 // defaults in LogoStageConfig stand for any key the file leaves out.
 
 namespace stencil::support {

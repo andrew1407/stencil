@@ -33,6 +33,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/open/source
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/project
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/project/flows
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/project/copy
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/remote
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/selection
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/setup
@@ -50,6 +51,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/row
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/list
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/projects/copy
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/script
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs/settings
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm/client

@@ -19,7 +19,7 @@ namespace stencil::core {
   // Case-insensitive; 'transparent' is {0,0,0,0}; nullopt if unrecognized.
   std::optional<Rgba> parseColor(const std::string& spec);
 
-  // Alphabetical, so an adapter can drift-check its copy of browser/js/config/colorNames.json
+  // Alphabetical, so an adapter can drift-check its copy of common/config/colorNames.json
   // in BOTH directions. 'transparent' is not in here. nullptr out of range, 0xRRGGBB in *rgb.
   std::size_t colorNameCount();
   const char* colorNameAt(std::size_t index, unsigned* rgb);

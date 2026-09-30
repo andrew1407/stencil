@@ -5,6 +5,7 @@ import { createOpenGesture } from '../../../core/project/openGesture.js';
 import { beginRowRename } from './rename.js';
 import { clearedToast } from '../../../core/project/transferController.js';
 import { publishIncognitoToServer } from '../../../core/launch/incognitoFlow.js';
+import { copyMenuItem, afterRowCopy } from './copyItem.js';
 
 // Everything a SAVED project row can do: the ⋯ / right-click menu, its prompts, and the open
 // gestures. Returns the gesture so the rename editor can cancel an open it already armed.
@@ -12,7 +13,7 @@ export function attachRowActions(deps) {
   const {
     row, name, meta, app, close, render, serverLinked, hasServers, isPeerOpen,
     pickServer, confirmOpen, scrollRowIntoView, openColorPicker,
-    beginRemoval, retireKey, localKey, rowById, showMenu,
+    beginRemoval, retireKey, localKey, rowById, showMenu, invalidateRemotes,
   } = deps;
   let rowGesture = null;
   const beginRename = () => beginRowRename({ meta, name, app, render, gesture: rowGesture });
@@ -109,6 +110,7 @@ export function attachRowActions(deps) {
     // Hidden when no target is configured, exactly as the toolbar button hides
     // (ui/control/state.js), so it never offers a dead action.
     app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
+    copyMenuItem({ target: { id: meta.id }, anchor: menuBtn, onDone: afterRowCopy({ close, render, invalidateRemotes, scrollRowIntoView }) }),
     { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
     { icon: 'palette', label: 'Set color', onClick: pickColor },
     meta.color ? { icon: 'x', label: 'Clear color', onClick: clearColor } : null,

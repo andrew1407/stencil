@@ -27,7 +27,7 @@ test "chatDoc corpus: roundtrip.json — parse ∘ serialize is the identity" {
     defer w.stop();
     const a = w.alloc();
 
-    for (try w.cases("llm/fixtures/chatDoc/roundtrip.json")) |case| {
+    for (try w.cases("llm/chatDoc/roundtrip.json")) |case| {
         w.walked += 1;
         const doc = fx.member(case, "doc").?;
         const bytes = try fx.stringify(a, doc);
@@ -55,7 +55,7 @@ test "chatDoc corpus: tolerance.json — the lenient-read pins" {
     defer w.stop();
     const a = w.alloc();
 
-    for (try w.cases("llm/fixtures/chatDoc/tolerance.json")) |case| {
+    for (try w.cases("llm/chatDoc/tolerance.json")) |case| {
         w.walked += 1;
         const bytes = if (fx.memberStr(case, "docString")) |s|
             s

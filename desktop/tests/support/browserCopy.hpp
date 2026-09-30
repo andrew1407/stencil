@@ -15,11 +15,11 @@
 
 namespace stencil::test {
 
-  // The repo root: walk up from this header until browser/js/config is in sight. __FILE__
+  // The repo root: walk up from this header until common/config is in sight. __FILE__
   // carries the spelling the include used, so slicing its segments is not safe.
   inline QString repoRoot() {
     QDir d(QFileInfo(QStringLiteral(__FILE__)).absolutePath());
-    while (!d.exists("browser/js/config") && d.cdUp()) { }
+    while (!d.exists("common/config") && d.cdUp()) { }
     return d.canonicalPath();
   }
 
@@ -31,7 +31,7 @@ namespace stencil::test {
     bool load(const QString& jsPath) {
       QFile f(repoRoot() + '/' + jsPath);
       if (f.open(QIODevice::ReadOnly)) js += QString::fromUtf8(f.readAll());
-      QFile s(repoRoot() + "/browser/js/config/uiStrings.json");
+      QFile s(repoRoot() + "/common/config/uiStrings.json");
       if (s.open(QIODevice::ReadOnly))
         strings = QJsonDocument::fromJson(s.readAll()).object();
       return !js.isEmpty() && !strings.isEmpty();

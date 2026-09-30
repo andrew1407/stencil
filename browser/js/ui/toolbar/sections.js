@@ -1,10 +1,10 @@
 // The toolbar's control sections as markup: image/meta/projects/connections/edit, then the
 // line, point, draw, view and zoom rows. ui/toolbar/toolbar.js composes them; every input is wired by id.
 import { icon, DRAW_MODE_ICON } from '../icons.js';
-import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
+import UI_STRINGS from '../../../../common/config/uiStrings.json' with { type: 'json' };
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
 import { zoomPercentBounds } from '../../core/zoom/pan.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const { DEFAULT_VISUALS: V } = constants;
 
@@ -27,6 +27,7 @@ export const toolbarImageSectionsHtml = () => `            <!-- ── Section: 
                         <button id="share-image" class="btn-icon" data-hk-title="shareImage" data-title="Share image" style="display:none;">${icon('share')}</button>
                         <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app">${icon('monitor')}</button>
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank">${icon('external')}</button>
+                        <button id="copy-project-btn" class="btn-icon" data-title="Make a copy — the image only, with its layout, or the whole project">${icon('duplicate')}</button>
                     </span>
                 </div>
             </div>

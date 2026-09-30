@@ -9,6 +9,10 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 
+from . import _native
+
+_native.sync_data()
+
 # Public surface. All stdlib-only, no third-party deps.
 from . import codecs
 from ._ffi.formula import FormulaContext

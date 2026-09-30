@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-// Walks the shared corpus in browser/js/config/script/fixtures/cases.txt, the same file
+// Walks the shared corpus in common/fixtures/script/cases.txt, the same file
 // every surface's walker replays. Mirrors browser/tests/core/scriptFixtures.test.js.
 using namespace stencil::core::script;
 
@@ -89,7 +89,7 @@ namespace {
 TEST_CASE("script fixtures: every case matches its recorded dump and diagnostics") {
   const std::filesystem::path root = repoRoot();
   REQUIRE_MESSAGE(!root.empty(), "could not locate the repo root (CLAUDE.md)");
-  const std::filesystem::path path = root / "browser/js/config/script/fixtures/cases.txt";
+  const std::filesystem::path path = root / "common/fixtures/script/cases.txt";
   REQUIRE_MESSAGE(std::filesystem::exists(path), "the script fixture corpus is missing");
 
   const std::vector<Case> cases = readCases(path);
@@ -110,7 +110,7 @@ TEST_CASE("script fixtures: every case matches its recorded dump and diagnostics
 TEST_CASE("script fixtures: a parse never crashes on truncated input") {
   const std::filesystem::path root = repoRoot();
   REQUIRE(!root.empty());
-  const std::vector<Case> cases = readCases(root / "browser/js/config/script/fixtures/cases.txt");
+  const std::vector<Case> cases = readCases(root / "common/fixtures/script/cases.txt");
   std::string src;
   for (const Case& c : cases)
     if (c.name == "tour-crop") src = c.script;

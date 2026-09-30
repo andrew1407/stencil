@@ -1,4 +1,4 @@
-//! Cross-language drift guard: the canonical CSS colour-name table (browser/js/config/colorNames.json,
+//! Cross-language drift guard: the canonical CSS colour-name table (common/config/colorNames.json,
 //! embedded at build time) and the linked C++ core's own table (core/color/colorNames.cpp) must hold
 //! the SAME names with the same hexes. The core exports its table through cliApi.h (colorNameCount /
 //! colorNameAt), so the check runs both ways: a name known only to the core, or only to the JSON, fails.

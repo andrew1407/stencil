@@ -4,7 +4,7 @@
 
 import { isTypingInFocus } from '../../utils.js';
 import { onAltKeys } from './altPeek.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const { POPOVER } = constants;
 export const DOUBLE_CLICK_MS = POPOVER.doubleClickMs;

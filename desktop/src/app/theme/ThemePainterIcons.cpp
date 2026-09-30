@@ -2,7 +2,9 @@
 #include "ThemePainter.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
+#include "iconMotion.hpp"
 #include "iconSet.hpp"
+#include "skinPrefs.hpp"
 #include "theme.hpp"
 
 // MainWindow theming: applyTheme() and the icon restyling passes.
@@ -34,6 +36,7 @@ namespace stencil::gui {
     set(w.acts.keywords, "keywords");
     set(w.acts.connect, "server");
     set(w.acts.openIn, "monitor");
+    set(w.acts.copyProject, "duplicate");
     set(w.acts.crop, "crop");
     set(w.acts.rotateLeft, "rotate-ccw");
     set(w.acts.rotateRight, "rotate-cw");
@@ -58,10 +61,21 @@ namespace stencil::gui {
     set(w.acts.zoomIn, "plus");
     set(w.acts.zoomOut, "minus");
     set(w.acts.fit, "fit");
-    // Checkable toggles stay icon-less so the menu shows its native check (browser contextMenu.js
-    // parity).
-    if (w.acts.showPoints) w.acts.showPoints->setIcon(QIcon());
-    if (w.acts.showLines) w.acts.showLines->setIcon(QIcon());
+    // The tick is the row's icon while checked (browser .ctx-check), so it plays the check motion on
+    // hover; webcore keeps its pixel QMenu::indicator tick.
+    for (QAction* a : {w.acts.showPoints, w.acts.showLines}) {
+      if (!a) continue;
+      const auto tick = [this, a] {
+        if (ActionIconMotionRunner* r = icm::runnerOfAction(a)) delete r;
+        a->setIcon(a->isChecked() && !support::isWebcore()
+                       ? themedIcon(QStringLiteral("check"), w.painted.iconColor, TOOL_ICON) : QIcon());
+      };
+      tick();
+      if (!a->property("tickSync").toBool()) {
+        a->setProperty("tickSync", true);
+        QObject::connect(a, &QAction::toggled, &w, tick);
+      }
+    }
     set(w.acts.panel, w.acts.panel && w.acts.panel->isChecked() ? "chevron-right" : "chevron-left");
     set(w.acts.toolbars, "chevron-up");   // top-menu (toolbars) show/hide, View menu only
     set(w.acts.chat, "sparkle");          // AI Assistant chat dock (browser sparkle parity)

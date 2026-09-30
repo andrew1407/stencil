@@ -80,6 +80,7 @@ set(STENCIL_GUI_SOURCES
   src/app/project/ProjectTitleControllerEdit.cpp
   src/app/view/MainWindowRefresh.cpp
   src/app/ScriptHost.cpp
+  src/app/ScriptHostLaunch.cpp
   src/app/scriptRun.cpp
   src/app/scriptRunOps.cpp
   src/model/ScriptBuffer.cpp
@@ -96,6 +97,12 @@ set(STENCIL_GUI_SOURCES
   src/app/setup/WindowAssemblyChat.cpp
   src/app/setup/WindowAssemblyState.cpp
   src/app/setup/WindowAssemblyWidgets.cpp
+  src/app/setup/WindowAssemblySwatch.cpp
+  src/app/project/copy/ProjectCopy.cpp
+  src/app/project/copy/ProjectCopySource.cpp
+  src/app/project/copy/ProjectCopySave.cpp
+  src/app/project/copy/ProjectCopyOpen.cpp
+  src/app/project/copy/ProjectCopyFlow.cpp
   src/app/meta/MainWindowSettings.cpp
   src/app/mainWindowShared.cpp
   src/app/open/MainWindowSource.cpp

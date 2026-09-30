@@ -40,7 +40,7 @@ graph TD
     CACHE --> HOST
     HINTS & WEB --> APIV
     HOST -->|"import()"| COPIES
-    SRC -.->|"byte-equal copy"| COPIES
+    SRC -.->|"copy, specifiers rewritten"| COPIES
     DTS -.->|"drift test"| APIV
     DIAG -->|"execFile --script-check"| CLI
     CMD -->|"terminal: --script"| CLI
@@ -67,7 +67,7 @@ the only root file that may import a sibling root file. Enforced by
 | `language-configuration.{stcjs,pystc}.json` + `syntaxes/{stcjs,pystc}.tmLanguage.json` | the `.stcjs` and `.pystc` flavours: the host language's comments, pairs and indent rules, and a grammar whose whole body is `include: source.js` / `source.python` | it defers, never re-spells the host language; the editor's own services own it, this tree adds only Stencil's words |
 | `syntaxes/stencilMarker.tmLanguage.json` | the one rule that lights `// @use stencil` up inside a JavaScript line comment | an INJECTION (`injectTo: source.js`, `source.stcjs`), so it adds a scope and re-spells nothing; both halves take ONE scope a theme already knows, so the marker reads as a single declaration |
 | `language-configuration.project.json` + `syntaxes/stencilProject.tmLanguage.json` | the `.stencil` project file: brackets, and a grammar whose whole body is `include: source.json` | it defers, never re-spells JSON; contributing it already wakes the host, so it spells out no `activationEvents` entry (`tests/manifest.test.js`) |
-| `icons/` | the app mark (the logo's source) and each file type's explorer glyph | `stencil.svg` is a copy of `browser/favicon.svg`, pinned by `browser/tests/config/svgArt.test.js`; the glyphs are this surface's own art. A panelled badge serves both themes in one file; a bare stroke is a light/dark pair |
+| `icons/` | the app mark (the logo's source) and each file type's explorer glyph | `stencil.svg` is a copy of `common/icons/favicon.svg`, pinned by `browser/tests/config/svgArt.test.js`; the glyphs are this surface's own art. A panelled badge serves both themes in one file; a bare stroke is a light/dark pair |
 | `icon.png` | the extension-page logo, rasterized from `icons/stencil.svg` | PNG, ≥128px — VS Code refuses an SVG here |
 | `src/extension.js` | `activate` / `deactivate` | wiring only; every disposable goes on the context |
 | `src/diagnostics.js` | the two diagnostic sources, the debounce and the version guard | the CLI answers for a saved file, the parser copies for a buffer; both become `vscode.Diagnostic` |
@@ -83,8 +83,8 @@ the only root file that may import a sibling root file. Enforced by
 | `src/typings.js` over `src/lib/emit/typingsFile.js` | the one command that writes the facade's types into a workspace | it writes `stencil.d.ts`, and a `jsconfig.json` only where the project has none — one it already has is the user's |
 | `typings/stencil.d.ts` + `tools/genTypings.mjs` | the facade as ONE ambient script: the app's types flattened, every member carrying its summary, its example and a link to the docs | generated, never hand-edited (`tests/typings.test.js` regenerates and compares); a top-level `export` would make it a module and its declarations would stop being global |
 | `src/lib/` (+ `spawn/`, `web/`, `vocab/`, `emit/`) | the tree's own logic below the editor: contributed ids, the parser host and program cache, byte-span ↔ UTF-16 mapping, the `--script-check` grammar; `spawn/` — `cliLocator.js` and `pythonLocator.js`, the ONE way the CLI and the Python are found, and `terminal.js`, the ONE place a command line is composed; `web/` — the hand-off, the debug console and `target.js`, the ONE way the browser instance is named; `vocab/` — vocabularies, token classes, colour families; `emit/` — which buffers are Stencil's (the `@use stencil` marker), emit targets, the typings file | `vscode` is passed in, never imported, so each is a pure unit |
-| `src/parser/` | `script/`, byte-equal copies of `browser/js/core/script/`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | pinned both directions by `tests/parserParity.test.js` |
-| `src/config/` | `colorNames.json`, the one table the copies import, and the two vocabularies, `stcVocabulary.json` and `stencilApiVocabulary.json` | `colorNames.json` is byte-pinned to `browser/js/config/colorNames.json`; both vocabularies are this surface's own prose over another's list: directive keys held to the parser's `DIRECTIVES`, member keys and signatures to `interface Stencil` |
+| `src/parser/` | `script/`, copies of `browser/js/core/script/` byte-equal except the import specifiers `tools/twins.json`'s `rewrite` declares (the colour table is `../../config/` here, `common/config/` there), plus `index.js`, which re-composes what `script.js` does without the wasm binding | pinned both directions by `tests/parserParity.test.js`, which applies the same `rewrite` |
+| `src/config/` | `colorNames.json`, the one table the copies import, and the two vocabularies, `stcVocabulary.json` and `stencilApiVocabulary.json` | `colorNames.json` is byte-pinned to `common/config/colorNames.json`; both vocabularies are this surface's own prose over another's list: directive keys held to the parser's `DIRECTIVES`, member keys and signatures to `interface Stencil` |
 | `tests/` | `node --test` suites and `helpers/vscodeStub.js` | no editor, no network |
 
 ## Entities
@@ -186,7 +186,8 @@ classDiagram
   script window without opening it. A script that names no `@source` acts on whatever is open, so
   the command asks for a picture to send with it, as run-on-image does; a cancelled pick still
   sends the script, and what the app cannot do, it reports. `stencil.openInWebIncognito` sets
-  `incognito`, so the app opens a session it keeps nothing from. A `.stencil` arrives already split
+  `incognito`, so the app opens a session it keeps nothing from, and `stencil.openScriptInWeb` sets
+  `scriptMode: "open"`, so the app shows the script in its Script window and runs nothing. A `.stencil` arrives already split
   into the image and the layout the loader adopts. Local bytes travel in the fragment, which no
   server sees, under Chrome's ~1.8 MB navigation ceiling rather than the validator's 32 MiB.
   `stencil.runInWebConsole` and its siblings take the other route: `vscode.debug.startDebugging`
@@ -201,6 +202,12 @@ classDiagram
   forbids it, so the code runs in DevTools or not at all. The first call waits for
   `window.stencil` rather than racing a booting page, the session is reused so a second run opens
   no second browser, and every answer and failure lands in the `Stencil` output channel.
+- **A run on the desktop.** `stencil.openInDesktop`, `stencil.runInDesktop` and its incognito twin
+  build the desktop's `stencil://open?…` link in `lib/desktop/launch.js` — the browser's
+  `buildStencilSchemeUrl` grammar and order, pinned byte for byte — with the picked picture as
+  `src`, the script and its `scriptMode`, under the browser's inline-link cap, and hand it to
+  `env.openExternal`. The scheme is fixed, so no workspace can route a script elsewhere; the desktop
+  asks before running a linked script and lets it read web sources only.
 - **Two vocabularies, one shape.** `.stc` words come from `stcVocabulary.json`, facade members from
   `stencilApiVocabulary.json`; both are read by one module each and rendered by the same
   `markdownFor`, which takes the fence language so one reads as `stc` and the other as `js`. The
@@ -283,7 +290,7 @@ as carefully as what they do. Cross-surface drift is pinned, not re-tested: `par
 holds `src/parser/` byte-equal to `browser/js/core/` both ways and pins what `index.js` re-composes,
 `apiVocabulary.test.js` holds the documented members and signatures to `interface Stencil` both
 ways, and `fixtureWalker.test.js` replays the shared corpus in
-`browser/js/config/script/fixtures/cases.txt` — the file the core and the browser walk — through
+`common/fixtures/script/cases.txt` — the file the core and the browser walk — through
 the copies. Which buffers are Stencil's, and which CLI and Python a run takes, are proved one layer
 down, with documents and environments rather than an editor. Data is asserted as data:
 `grammar.test.js` compiles every TextMate and language-configuration regex, resolves every

@@ -3,12 +3,12 @@
 // so tests never click through brittle UI. `window.stencil` is defined right after the
 // `stencil:ready` event in browser/js/index.js, so its presence is the readiness gate.
 import { expect } from '@playwright/test';
-import { APP_URL } from './config.js';
+import { APP_URL, SITE_URL } from './config.js';
 
 /** @typedef {import('../../browser/js/console/stencilApi.js').Stencil} Stencil */
 /** @typedef {Window & { stencil?: Stencil }} StencilWindow */
 
-export { APP_URL };
+export { APP_URL, SITE_URL };
 
 // A 1×1 PNG as a data: URL — a trivially loadable image for deep-link / handoff paths.
 export const PNG_DATA_URL =

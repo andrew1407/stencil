@@ -2,14 +2,14 @@
 # exe icon and the optional codesign. The install rules, Qt deploy and CPack are
 # StencilDeploy.cmake. Included from CMakeLists.txt after the app target exists.
 
-# App icon: browser/favicon.svg — the artwork every front-end shares — rasterised into the
+# App icon: common/icons/favicon.svg — the artwork every front-end shares — rasterised into the
 # container each platform names, by packaging/mkicon.cpp built here as a host tool. Nothing
 # binary is committed, and no OS image tool takes part: the .icns and .ico are written
 # directly, so a Linux or CI box needs only Qt.
 set(STENCIL_BUNDLE_ICON_FILE "")
 set(STENCIL_BUNDLE_ICON_NAME "")
 if(APPLE OR WIN32)
-  set(STENCIL_FAVICON "${CMAKE_CURRENT_SOURCE_DIR}/../browser/favicon.svg")
+  set(STENCIL_FAVICON "${CMAKE_CURRENT_SOURCE_DIR}/../common/icons/favicon.svg")
   add_executable(stencil_mkicon packaging/mkicon.cpp)
   target_link_libraries(stencil_mkicon PRIVATE Qt6::Gui Qt6::Svg)
 endif()
@@ -77,9 +77,9 @@ if(APPLE)
     add_custom_command(OUTPUT "${_foreground}"
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${_iconbundle}/Assets"
       COMMAND stencil_mkicon
-              "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon/appicon-foreground.svg"
+              "${CMAKE_CURRENT_SOURCE_DIR}/../common/icons/appicon-foreground.svg"
               "${_foreground}" 1024
-      DEPENDS stencil_mkicon "${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon/appicon-foreground.svg"
+      DEPENDS stencil_mkicon "${CMAKE_CURRENT_SOURCE_DIR}/../common/icons/appicon-foreground.svg"
       VERBATIM)
     add_custom_command(OUTPUT "${_car}"
       COMMAND "${CMAKE_COMMAND}" -E env "DEVELOPER_DIR=${_developer_dir}"

@@ -52,7 +52,7 @@ class MainWindowGuiTest : public QObject {
   // pins the result to what Chrome puts on screen for --accent (#7c3aed → #743ee4, measured).
   void accentMatchesTheBrowsersRenderedColour() {
     // The palette IS the browser's, byte for byte, on every platform: encoding into Display P3 on macOS
-    // was a second conversion. The values below are those in theme.css and js/config/constants.json.
+    // was a second conversion. The values below are those in theme.css and common/config/constants.json.
     QCOMPARE(stencil::gui::accentPrimary("violet").name(), QStringLiteral("#7c3aed"));
     QCOMPARE(stencil::gui::themePalette(true).bgPage.name(), QStringLiteral("#1a1a1a"));
     QCOMPARE(stencil::gui::themePalette(false).bgPage.name(), QStringLiteral("#f0f0f0"));

@@ -2,7 +2,7 @@
 // '-4in', '50%') is absolute, where a leading '-' means "measured from the axis END", NOT
 // a negative length.
 import { CM_PER_INCH, cmToUnit } from '../../utils.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 
 // → { kind, value, fromEnd }: 'delta' (px move, signed) | 'px' | 'cm' (in/mm converted) |

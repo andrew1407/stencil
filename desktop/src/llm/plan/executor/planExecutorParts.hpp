@@ -97,7 +97,7 @@ namespace stencil::llm {
                        QStringList* notes, bool* handled, QString* err);
 
     // Any op through its group, answering `done` at once — or, for an op that waits on I/O
-    // (isAwaitedOp: connect, frame, openUrl, openFile, openProject, save), once the target answers it.
+    // (isAwaitedOp: connect, frame, openUrl, openFile, openProject, copyProject, save), once the target answers it.
     void applyActionThen(const Action& a, PlanTarget& target, FrameMap& frame, bool inVariant,
                          QStringList* notes, QString* err, const std::function<void(bool)>& done);
     bool isAwaitedOp(OpKind op);

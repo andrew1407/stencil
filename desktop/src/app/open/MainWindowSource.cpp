@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <optional>
+
 // What the OS hands the window — the launch options, a stencil:// link, a path routed by suffix —
 // and the pool decode every picture load goes through.
 
@@ -60,6 +62,11 @@ namespace stencil::gui {
       applySettings(settings, /*persist=*/true);
     }
 
+    // Taken before any load starts, so a linked script can tell when that picture has landed.
+    const qint64 pictureBefore = canvas->getOriginalImage().cacheKey();
+    const bool picture = !opts.project.isEmpty() || !opts.serverProjectId.isEmpty() || !opts.src.isEmpty() ||
+                         !opts.file.isEmpty();
+
     // Priority: --project > stencil:// server reference > --src > positional file.
     if (!opts.project.isEmpty()) {
       if (!parts.projects.openProjectByName(opts.project))
@@ -89,6 +96,13 @@ namespace stencil::gui {
 
     // Queued so it runs after a primary load has been kicked off.
     if (opts.projects) QTimer::singleShot(0, this, [this] { parts.projects.openProjects(); });
+
+    if (opts.scriptDropped)
+      notify->error(QString("The script in the link was longer than %1 characters, so it was left out")
+                        .arg(launchScriptMaxChars()));
+    if (!opts.script.isEmpty())
+      parts.scriptHost.adoptLinkedScript(opts.script, opts.scriptMode == QLatin1String("open"),
+                                         picture ? std::optional<qint64>(pictureBefore) : std::nullopt);
   }
 
   // A stencil:// deep link on a RUNNING app (macOS QFileOpenEvent url).

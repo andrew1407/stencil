@@ -147,7 +147,7 @@ test('stacked under the canvas nothing slides: the table is its own picture, unv
 // One table for both apps (config/motion.json PANEL_*; the desktop reads it in PanelSlide.hpp):
 // the panel slides on PANEL_SLIDE_* and the fold ease in both, veiled or not (user report).
 test('the panel clocks are motion.json PANEL_*, handed to its CSS, which names no clock of its own', () => {
-  const tune = JSON.parse(readFileSync(new URL('../../../js/config/motion.json', import.meta.url), 'utf8')).ui;
+  const tune = JSON.parse(readFileSync(new URL('../../../../common/config/motion.json', import.meta.url), 'utf8')).ui;
   const clocks = { PANEL_DUST_IN_MS: 450, PANEL_DUST_OUT_MS: 390, PANEL_SLIDE_IN_MS: 470,
                    PANEL_SLIDE_OUT_MS: 470, PANEL_FADE_MS: 250 };
   for (const [key, ms] of Object.entries(clocks)) {

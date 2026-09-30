@@ -52,5 +52,9 @@
   "titleActions": {
     "padPx": 10
   },
+  "handoff": {
+    "file": "roof-survey-20260930-101530.stc",
+    "settleMs": 600
+  },
   "cropPadPx": 6
 }

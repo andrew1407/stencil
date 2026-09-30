@@ -1,10 +1,11 @@
-// The touchscreen flow's gesture machine: which of tap / point / segment / pinch a press
+// The touchscreen flow's gesture machine: which of tap / point / segment / pan / pinch a press
 // became, and how each follows and ends. The hold-draw half stays in inputController.js.
 import { TOUCH_DEFAULTS } from './gestures.js';
 import { nowMs } from '../draw/holdDrawView.js';
 import { beginPinch, pinchTo, applyPinchFrame, endPinch } from './pinch.js';
 import { findTouchById, grabTouchTarget, touchDragTo, touchDragEnd,
          releaseTouchGrab, tapClickAt } from './drag.js';
+import { beginTouchPan, touchPanTo, endTouchPan } from './pan.js';
 
 export const touchHandlers = (ctrl, viewport) => {
   const app = ctrl.app;
@@ -53,7 +54,8 @@ export const touchHandlers = (ctrl, viewport) => {
     e.preventDefault();
     const t = e.touches[0];
 
-    const grabbed = grabTouchTarget(app, t);
+    // The read-only compare view only pans, as its mouse twin does.
+    const grabbed = app.compareReadOnly() ? null : grabTouchTarget(app, t);
     if (grabbed) {
       ctrl.touchSession = { mode: grabbed, id: t.identifier, startX: t.clientX, startY: t.clientY };
       armGeometryLongPress(t);
@@ -61,7 +63,7 @@ export const touchHandlers = (ctrl, viewport) => {
     }
 
     ctrl.touchSession = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, startT: nowMs() };
-    ctrl.armHold(t.clientX, t.clientY);
+    if (!app.compareReadOnly()) ctrl.armHold(t.clientX, t.clientY);
   };
 
   const onMove = e => {
@@ -88,10 +90,17 @@ export const touchHandlers = (ctrl, viewport) => {
       touchDragTo(app, st, t);
       return;
     }
-    if (st.mode === 'tap') {
-      st.moved = Math.max(st.moved || 0, moved);
-      ctrl.moveTapGesture(t.clientX, t.clientY);
+    if (st.mode === 'pan') { touchPanTo(viewport, st, t); return; }
+    if (st.mode !== 'tap') return;
+    st.moved = Math.max(st.moved || 0, moved);
+    // Past the tap tolerance an empty-space press pans, unless the hold already draws.
+    if (moved > moveTol && !ctrl.holdDrawing) {
+      ctrl.abandonHold();
+      beginTouchPan(app, st);
+      touchPanTo(viewport, st, t);
+      return;
     }
+    ctrl.moveTapGesture(t.clientX, t.clientY);
   };
 
   const onEnd = e => {
@@ -113,12 +122,16 @@ export const touchHandlers = (ctrl, viewport) => {
       else { releaseTouchGrab(app, st); tapClickAt(app, e, st); }
     } else if (st.mode === 'tap') {
       ctrl.endTapGesture(st, () => tapClickAt(app, e, st));
+    } else if (st.mode === 'pan') {
+      endTouchPan(app);
     }
     ctrl.touchSession = null;
   };
 
   const onCancel = () => {
-    if (ctrl.touchSession && ctrl.touchSession.raf) cancelAnimationFrame(ctrl.touchSession.raf);
+    const st = ctrl.touchSession;
+    if (st && st.raf) cancelAnimationFrame(st.raf);
+    if (st && st.mode === 'pan') endTouchPan(app);
     dropSingle();
     ctrl.touchSession = null;
   };

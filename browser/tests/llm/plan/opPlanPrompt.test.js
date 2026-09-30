@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import {
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT, LIMITS,
 } from '../../../js/llm/plan/opPlan.js';
-import PROMPT_ASSET from '../../../js/config/llm/systemPrompt.json' with { type: 'json' };
+import PROMPT_ASSET from '../../../../common/config/llm/systemPrompt.json' with { type: 'json' };
 
 // ── System prompt (contract §4: embedded verbatim) ──
 test('LLM_SYSTEM_PROMPT pins the contract wording', () => {
@@ -57,7 +57,7 @@ test('EDITOR_SYSTEM_PROMPT: prose core + generated ops splice at the settings an
   // generated from the editorSetting entries, and it seats between that list and §11's `ask`.
   assert.ok(!LLM_SYSTEM_PROMPT.includes('"op":"theme"'));
   assert.ok(EDITOR_SETTINGS_PROMPT.startsWith('- {"op":"theme","mode":"light"|"dark"}'));
-  assert.ok(EDITOR_SETTINGS_PROMPT.endsWith('The app resolves it; you never see the list, so never ask which one that is.'));
+  assert.ok(EDITOR_SETTINGS_PROMPT.endsWith('instead of on its server (only a local copy opens incognito).'));
   assert.ok(EDITOR_SYSTEM_PROMPT.includes(
     `save, image 2, its edits, save, …\n${EDITOR_SETTINGS_PROMPT}\n\nWhen a choice is genuinely`));
   // …and §4 itself still teaches `ask`, so every surface gets it, not just the editors.

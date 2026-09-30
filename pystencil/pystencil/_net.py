@@ -71,7 +71,7 @@ def _no_redirect_opener(
     _NoRedirect, urllib.request.HTTPSHandler(context=context))
 
 
-# The SSRF address table: a checked-in copy of browser/js/config/net/blockedRanges.json
+# The SSRF address table: a build-time copy of common/config/net/blockedRanges.json
 # (tests/test_canonical_drift.py byte-pins it); fixtures/net/hosts.json is its corpus.
 _RANGES = json.loads(
   importlib.resources.files("pystencil").joinpath("_data/blockedRanges.json").read_text(encoding="utf-8")

@@ -14,11 +14,11 @@ test('a flyout opens to the RIGHT of its row when there is room', () => {
 });
 
 test('it flips to the LEFT rather than cross the right edge, pad included', () => {
-  // 900 + 2 + 180 = 1082, past 1000 - 6, so the flyout goes to the row's left instead.
+  // 900 + 180 = 1080, past 1000 - 6, so the flyout goes to the row's left instead.
   const { left } = submenuPlacement(row(700, 900, 100), 180, 120, 1000, 800);
   assert.strictEqual(left, 700 - 180 - SUB_GAP);
   // One pixel of room on the right is still the right: 814 + 180 = 994, exactly the limit.
-  assert.strictEqual(submenuPlacement(row(600, 812, 100), 180, 120, 1000, 800).left, 814);
+  assert.strictEqual(submenuPlacement(row(600, 814 - SUB_GAP, 100), 180, 120, 1000, 800).left, 814);
 });
 
 test('a flyout taller than the room below is lifted, never pushed off the top', () => {

@@ -1,4 +1,4 @@
-// Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/opPlan/) against the REAL
+// Walks the shared op-plan conformance corpus (common/fixtures/llm/opPlan/) against the REAL
 // desktop parser — the port of browser/tests/llm/plan/opPlanFixtures.test.js. Verdict semantics: "valid" =
 // parseOpPlan succeeds (a chat-only fallback counts), "invalid" = it fails; the desktop profile is
 // "editor", a knownDivergence.desktop (or a tests/fixtureOverrides.json entry) replaces expect, and
@@ -35,7 +35,7 @@ namespace {
     for (const opPlanCorpus::Case& c : all)
       byName[{c.source, QString::fromStdString(c.fx.get("name")->text)}] = &c;
     const QJsonArray cases =
-        readJsonFile(corpusPath("llm/fixtures/opPlan/generated/normalized.json")).object().value("cases").toArray();
+        readJsonFile(corpusPath("llm/opPlan/generated/normalized.json")).object().value("cases").toArray();
     int compared = 0, missing = 0, differ = 0;
     for (const QJsonValue& cv : cases) {
       const QJsonObject c = cv.toObject();

@@ -123,7 +123,7 @@ async fn read_dimensions_reads_a_file_and_declines_anything_else() {
 async fn the_shared_cli_fixture_measures_as_the_cli_reports_it() {
     let fixture = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../cli/tests/fixtures/sample.png"
+        "/../common/samples/sample.png"
     );
     assert_eq!(read_dimensions(fixture).await, Some((16, 12)));
 }
@@ -157,7 +157,7 @@ fn the_header_names_the_format_and_what_it_knows_of_alpha() {
 
 #[tokio::test]
 async fn a_local_file_reports_its_whole_header() {
-    let fixture = concat!(env!("CARGO_MANIFEST_DIR"), "/../cli/tests/fixtures/sample.png");
+    let fixture = concat!(env!("CARGO_MANIFEST_DIR"), "/../common/samples/sample.png");
     let info = read_info(fixture).await.expect("the fixture is a PNG");
     assert_eq!((info.width, info.height, info.format), (16, 12, "png"));
     assert!(info.alpha.is_some());

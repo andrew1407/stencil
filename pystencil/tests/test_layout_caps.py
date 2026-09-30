@@ -8,7 +8,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from tests.helpers.fixturebase import _FIXTURES, _load
+from tests.helpers.fixturebase import _CONFIG, _load
 from tests.helpers.nativecase import NativeCase
 
 from pystencil import layout as layout_mod
@@ -21,7 +21,7 @@ def _line(n: int, start: int = 0) -> dict:
 
 class LayoutCapsTests(NativeCase):
   def test_core_caps_are_constants_json_limits(self):
-    limits = _load(_FIXTURES / "constants.json")["LIMITS"]
+    limits = _load(_CONFIG / "constants.json")["LIMITS"]
     want = (limits["layoutLinesMax"], limits["layoutLinePointsMax"], limits["layoutPointsMax"])
     self.assertEqual(self.core.layout_caps(), want)
 

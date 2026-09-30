@@ -4,7 +4,7 @@
 
 import { encodeLines, decodeLines } from '../line/linesCodec.js';
 import { buildProjectRules, projectRuleExports } from '../project/meta/projectRules.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 const { HOLD_DRAW } = constants;
 const F64 = 8;

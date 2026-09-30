@@ -1,8 +1,10 @@
+/** An action, or with `items` a list nested beside it (rowSubmenu.js). */
 export interface ProjectRowMenuItem {
   icon: string;
   label: string;
   danger?: boolean;
-  onClick: (anchorRect: DOMRect) => void;
+  onClick?: (anchorRect: DOMRect) => void;
+  items?: ProjectRowMenuItem[];
 }
 
 export interface ProjectRowMenu {

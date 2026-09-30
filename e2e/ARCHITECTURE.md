@@ -52,7 +52,7 @@ imports a spec. `playwright.config.js` sits above all three, reading `config.js`
 | `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it; `{ motion: 'none' }` for specs that measure geometry mid-gesture |
 | `helpers/extension.js` | the persistent-context launch + extension-id resolution | headed (`headless: false`, `channel: 'chromium'`); CI wraps in xvfb |
 | `helpers/cli/` | one run of the Zig binary read by its argv/outcome contract; `/command` lines piped into `stencil --console` | the stderr grammar mcp and bot parse; the console spawns async, never `spawnSync`: a stub LLM lives in this process and a sync child would block it out |
-| `helpers/stcCases.js` | reads the shared `.stc` corpus (`browser/js/config/script/fixtures/cases.txt`): a case's script and its expected diagnostics | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
+| `helpers/stcCases.js` | reads the shared `.stc` corpus (`common/fixtures/script/cases.txt`): a case's script and its expected diagnostics | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
 | `helpers/server/` | REST helpers (token issuance with `X-Admin-Token`, project CRUD); WS + raw-TCP clients for the live-edit protocol | |
 | `helpers/chat.js`, `drag.js`, `uiPin.js`, `openImage.js` | LLM wire-shape readers + the chat gestures; the real-finger CDP touch driver; the computed-style + DOM-shape pin recorder; the Open Image dialog's driver | |
 | `helpers/png.js` | a real truecolour PNG encoded with Node's own `zlib` | the picture a spec hands a file input; `fixtures/pixel.png` is 1x1, too small for a preview, a crop or a dust stage |

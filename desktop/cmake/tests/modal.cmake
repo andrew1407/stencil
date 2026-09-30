@@ -57,6 +57,17 @@ stencil_headless_test(stencil_modalchrome_headless
     src/support/modal/modalReveal.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
+# The "Make a copy" confirmation (dialogs/projects/copy/CopyProjectDialog): its question and the
+# local / incognito / Just copy interlocks.
+stencil_headless_test(stencil_copyprojectdialog_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/dialogs/projects/copy/copyProjectDialog.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    src/dialogs/projects/copy/CopyProjectDialog.cpp
+    src/support/icon/iconSet.cpp
+    src/support/modal/modalReveal.cpp resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
 # The modal shell's header drag: it moves a dialog that is its own window, never one
 # execMaybePopover reparented into the popover overlay.
 stencil_headless_test(stencil_modalheaderdrag_headless

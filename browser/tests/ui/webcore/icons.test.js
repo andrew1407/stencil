@@ -2,7 +2,7 @@
 // icon() serve the pixel art, and the live swap redraws what is on the page and back.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import PIXELS from '../../../js/config/iconsWebcore.json' with { type: 'json' };
+import PIXELS from '../../../../common/config/iconsWebcore.json' with { type: 'json' };
 import { icon, DRAW_MODE_ICON, iconSkin } from '../../../js/ui/icons.js';
 import { pixelRects, pixelTable, pixelIconSvg, setPixelIcons, swapIconArt } from '../../../js/ui/webcore/icons.js';
 

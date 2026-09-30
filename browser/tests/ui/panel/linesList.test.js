@@ -5,14 +5,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../helpers/dom.js';
 
-// closest() over the stub tree, for the two selectors the list asks.
+// closest() over the stub tree, for the selectors the list asks.
+const MATCH = {
+  '.lines-remove': (n) => n.classList?.contains('lines-remove'),
+  '.lines-swatch': (n) => n.classList?.contains('lines-swatch'),
+  'tr.lines-row': (n) => n.tagName === 'TR' && n.classList?.contains('lines-row'),
+};
 const withClosest = (el) => {
   el.closest = (sel) => {
-    const want = sel === '.lines-remove' ? (n) => n.classList?.contains('lines-remove')
-      : (n) => n.tagName === 'TR' && n.classList?.contains('lines-row');
-    for (let n = el; n; n = n.parentNode) if (want(n)) return n;
+    for (let n = el; n; n = n.parentNode) if (MATCH[sel](n)) return n;
     return null;
   };
+  el.showPicker = () => { el.picks = (el.picks ?? 0) + 1; };
   return el;
 };
 
@@ -26,14 +30,16 @@ globalThis.document = {
   createElement: (tag) => withClosest(createStubElement(tag)),
 };
 const { renderLinesList } = await import('../../../js/ui/panel/linesList.js');
+const { default: constants } = await import('../../../../common/config/constants.json', { with: { type: 'json' } });
+const { doubleClickMs: DOUBLE_CLICK_MS, doubleTapMs: DOUBLE_TAP_MS } = constants.POPOVER;
 
 const line = (color) => ({ points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], color });
 const makeApp = () => {
   const app = {
-    lines: [line('#ff0000'), line(''), line('#0000ff')],
+    lines: [line('#ff0000'), line(''), line('#0000ff80')], color: '#00ff00',
     selectedLines: [0, 2], selectedLineIdx: -1, hoverLineIdx: -1, listHoverLineIdx: -1,
-    coordLineIdx: -1, focusedPtIdx: -1, defaultFillColor: '#ffffff', saved: 0,
-    renderer: { redraw() {} }, coordTable: { update() {} }, showSelectionPanel() {},
+    coordLineIdx: -1, focusedPtIdx: -1, defaultFillColor: '#ffffff', saved: 0, shown: 0,
+    renderer: { redraw() {} }, coordTable: { update() {} }, showSelectionPanel() { app.shown++; },
     deselectLine() { app.selectedLineIdx = -1; }, saveHistory() { app.saved++; },
     compareReadOnly: () => false,
   };
@@ -77,4 +83,51 @@ test('the bin removes its own row and never selects it', async () => {
   body.dispatch('click', { target: bin, stopPropagation() { stopped++; } });
   await new Promise((r) => setTimeout(r, 400));
   assert.deepEqual([app.lines.length, app.lines[0].color, stopped, app.selectedLineIdx], [2, '', 1, -1]);
+});
+
+const swatchOf = (i) => at(i).children[1].children[0];
+const picker = () => table.children.find((c) => c.className === 'lines-color-picker');
+
+test('a swatch click selects its line and opens the picker once the double-click window passes', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const app = makeApp();
+  renderLinesList(app);
+  body.dispatch('click', { target: swatchOf(2) });
+  assert.equal(app.selectedLineIdx, -1, 'nothing moves the list before a second click could land');
+  t.mock.timers.tick(DOUBLE_CLICK_MS);
+  assert.deepEqual([app.selectedLines, app.selectedLineIdx], [[], 2]);
+  const input = picker();
+  assert.equal(input.picks, 1);
+  assert.equal(input.value, '#0000ff', 'the picker starts on the line colour, without its opacity');
+  input.value = '#ff00ff';
+  input.dispatch('input');
+  assert.deepEqual([app.lines[2].color, app.saved], ['#ff00ff80', 0], 'a live pick previews, keeping the opacity');
+  input.dispatch('change');
+  assert.deepEqual([app.lines[2].color, app.saved, app.shown > 0], ['#ff00ff80', 1, true]);
+});
+
+test('a second swatch click inside the window resets the line to the toolbar colour', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const app = makeApp();
+  renderLinesList(app);
+  const before = picker()?.picks ?? 0;
+  body.dispatch('click', { target: swatchOf(0) });
+  body.dispatch('click', { target: swatchOf(0) });
+  t.mock.timers.tick(DOUBLE_TAP_MS);
+  assert.deepEqual([app.lines[0].color, app.saved], ['#00ff00', 1]);
+  assert.equal(picker().picks, before, 'the double never opens the picker');
+});
+
+test('a tap waits the longer tap window; a read-only compare view never recolours', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const app = makeApp();
+  renderLinesList(app);
+  body.dispatch('click', { target: swatchOf(1), pointerType: 'touch' });
+  t.mock.timers.tick(DOUBLE_CLICK_MS);
+  body.dispatch('click', { target: swatchOf(1), pointerType: 'touch' });
+  assert.equal(app.lines[1].color, '#00ff00');
+  app.compareReadOnly = () => true;
+  body.dispatch('click', { target: swatchOf(0) });
+  body.dispatch('click', { target: swatchOf(0) });
+  assert.deepEqual([app.lines[0].color, app.saved], ['#ff0000', 1]);
 });

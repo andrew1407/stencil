@@ -22,6 +22,13 @@ export function wireCanvasPointer(app) {
   }
   app.canvas.addEventListener('dblclick', e => canvasDblClick(app, e));
   app.canvas.addEventListener('mousemove', perFrame(e => canvasMouseMove(app, e)), { passive: true });
+  // A pan or scroll moves the picture under a still cursor: hover again where it rests, so the
+  // ring and tooltip follow what is under it now instead of what was.
+  emptyArea?.addEventListener('scroll', perFrame((e) => {
+    if (!app.mouseOverCanvas) return;
+    canvasMouseMove(app, { clientX: app.lastMouseClientX, clientY: app.lastMouseClientY, timeStamp: e.timeStamp,
+      altKey: false, shiftKey: false, ctrlKey: false, metaKey: false });
+  }), { passive: true });
   app.canvas.addEventListener('mouseleave', (e) => {
     app.mouseOverCanvas = false; app.mouseLeftAt = e.timeStamp;   // outruns a move queued for this frame
     app.tooltip.hide();

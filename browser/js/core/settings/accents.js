@@ -1,5 +1,5 @@
-import ACCENTS_DATA from '../../config/accents.json' with { type: 'json' };
-import SVG_ART from '../../config/svgArt.json' with { type: 'json' };
+import ACCENTS_DATA from '../../../../common/config/accents.json' with { type: 'json' };
+import SVG_ART from '../../../../common/config/svgArt.json' with { type: 'json' };
 
 // Accent presets: one primary hex each; --accent-2 and the glows derive via color-mix() in
 // css/theme.css. config/accents.json is canonical — the extension (lib/accent/accent.js) and

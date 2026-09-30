@@ -1,6 +1,6 @@
 #pragma once
 // The icon-motion data model and its canon: the pose/key/part/spec shapes read out of the
-// qrc-embedded browser/js/config/iconMotion.json, and the glyph tag index they are applied to.
+// qrc-embedded common/config/iconMotion.json, and the glyph tag index they are applied to.
 // Included from iconMotion.hpp, so every call site keeps reaching these by their own names.
 #include "iconSet.hpp"
 

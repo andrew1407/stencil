@@ -1,5 +1,5 @@
 // Data-copy drift guard. The extension ships self-contained (MV3) and never reads ../browser at
-// runtime, so the canonical tables in browser/js/config/*.json live here as checked-in copies.
+// runtime, so the canonical tables in common/config/*.json live here as checked-in copies.
 // Nothing at runtime enforces the sync; this manifest does. Two modes:
 //   full   — the extension copy equals the canonical table entry-for-entry, in order.
 //   subset — every extension entry byte-matches its canonical one; extras declare extensionOnly.
@@ -24,38 +24,38 @@ const MANIFEST = [
     mode: 'full',
     // Sandbox values cross a realm boundary; the JSON round-trip normalizes prototypes.
     extension: () => JSON.parse(JSON.stringify(loadAccent().accent.list)),
-    canonical: () => canonical('../../browser/js/config/accents.json'),
+    canonical: () => canonical('../../common/config/accents.json'),
   },
   {
     name: 'icons: lib/icons.js ICONS ⊂ config/icons.json',
     mode: 'subset',
     extensionOnly: ['sidebar', 'type'],   // extension-UI glyphs with no browser twin
     extension: () => ICONS,
-    canonical: () => canonical('../../browser/js/config/icons.json'),
+    canonical: () => canonical('../../common/config/icons.json'),
   },
   {
     name: 'page sizes: lib/cropGeometry.js PAGE_SIZES ↔ config/constants.json',
     mode: 'full',
     extension: () => PAGE_SIZES,
-    canonical: () => canonical('../../browser/js/config/constants.json').PAGE_SIZES,
+    canonical: () => canonical('../../common/config/constants.json').PAGE_SIZES,
   },
   {
     name: 'video filter: lib/filters.js VIDEO_FORMATS ↔ config/mediaTypes.json',
     mode: 'full',
     extension: () => VIDEO_FORMATS,
-    canonical: () => canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.videoFilter,
+    canonical: () => canonical('../../common/config/mediaTypes.json').surfaces.extension.videoFilter,
   },
   {
     name: 'format chips: lib/filterUi.js COMMON_FORMATS ↔ config/mediaTypes.json',
     mode: 'full',
     extension: () => COMMON_FORMATS,
-    canonical: () => canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.imageFilter,
+    canonical: () => canonical('../../common/config/mediaTypes.json').surfaces.extension.imageFilter,
   },
   {
     name: 'providers: src/config/providers.json ↔ config/llm/providers.json',
     mode: 'full',
     extension: () => canonical('../src/config/providers.json'),
-    canonical: () => canonical('../../browser/js/config/llm/providers.json'),
+    canonical: () => canonical('../../common/config/llm/providers.json'),
   },
   {
     // The motion tuning both copies of cloud.js read (portParity pins the module
@@ -63,38 +63,38 @@ const MANIFEST = [
     name: 'motion tuning: src/config/motion.json ↔ config/motion.json',
     mode: 'full',
     extension: () => canonical('../src/config/motion.json'),
-    canonical: () => canonical('../../browser/js/config/motion.json'),
+    canonical: () => canonical('../../common/config/motion.json'),
   },
   {
     name: 'webcore pixel icons: lib/webcore/iconsWebcore.json ↔ config/iconsWebcore.json',
     mode: 'full',
     extension: () => canonical('../src/lib/webcore/iconsWebcore.json'),
-    canonical: () => canonical('../../browser/js/config/iconsWebcore.json'),
+    canonical: () => canonical('../../common/config/iconsWebcore.json'),
   },
   {
     name: 'logo shows: lib/logo/logoStage.json ↔ config/logoStage.json',
     mode: 'full',
     extension: () => canonical('../src/lib/logo/logoStage.json'),
-    canonical: () => canonical('../../browser/js/config/logoStage.json'),
+    canonical: () => canonical('../../common/config/logoStage.json'),
   },
   {
     name: 'op registry: src/config/opRegistry.json ↔ config/llm/opRegistry.json',
     mode: 'full',
     extension: () => canonical('../src/config/opRegistry.json'),
-    canonical: () => canonical('../../browser/js/config/llm/opRegistry.json'),
+    canonical: () => canonical('../../common/config/llm/opRegistry.json'),
   },
   {
     name: 'SSRF address table: lib/connection/blockedRanges.json ↔ config/net/blockedRanges.json',
     mode: 'full',
     extension: () => canonical('../src/lib/connection/blockedRanges.json'),
-    canonical: () => canonical('../../browser/js/config/net/blockedRanges.json'),
+    canonical: () => canonical('../../common/config/net/blockedRanges.json'),
   },
   {
     name: 'system prompt: src/config/systemPrompt.json ↔ config/llm/systemPrompt.json extension keys',
     mode: 'full',
     extension: () => canonical('../src/config/systemPrompt.json'),
     canonical: () => {
-      const { extensionHead, extensionTail } = canonical('../../browser/js/config/llm/systemPrompt.json');
+      const { extensionHead, extensionTail } = canonical('../../common/config/llm/systemPrompt.json');
       return { extensionHead, extensionTail };
     },
   },
@@ -104,7 +104,7 @@ const MANIFEST = [
     mode: 'full',
     extension: () => canonical('../src/lib/tip/constants.json'),
     canonical: () => {
-      const { POPOVER } = canonical('../../browser/js/config/constants.json');
+      const { POPOVER } = canonical('../../common/config/constants.json');
       return { POPOVER };
     },
   },
@@ -137,7 +137,7 @@ for (const { name, mode, extension, canonical: canon, extensionOnly = [] } of MA
 // The scalar riding along with PAGE_SIZES: the crop dialog's default format name.
 test('DEFAULT_PAGE matches the canonical default format', () => {
   assert.equal(DEFAULT_PAGE,
-    canonical('../../browser/js/config/constants.json').DEFAULT_PAGE.size);
+    canonical('../../common/config/constants.json').DEFAULT_PAGE.size);
 });
 
 // These copies live in modules that ship as classic scripts or big content scripts, so they
@@ -146,11 +146,11 @@ const source = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 test('the SSRF address table copy is byte-identical to its original', () => {
   assert.equal(source('../src/lib/connection/blockedRanges.json'),
-    source('../../browser/js/config/net/blockedRanges.json'));
+    source('../../common/config/net/blockedRanges.json'));
 });
 
 test('every stencil:* literal in src/ is a channel from config/events.json', () => {
-  const channels = new Set(Object.values(canonical('../../browser/js/config/events.json')));
+  const channels = new Set(Object.values(canonical('../../common/config/events.json')));
   const files = ['../src/content/editorBridge.js', '../src/lib/accent/accent.js', '../src/options/options.js'];
   const found = new Set();
   for (const rel of files)
@@ -161,7 +161,7 @@ test('every stencil:* literal in src/ is a channel from config/events.json', () 
   // The cross-surface pair the editor bridge exists for must still be wired on this side.
   const bridge = source('../src/content/editorBridge.js');
   for (const key of ['switchToSource', 'registryChanged'])
-    assert.ok(bridge.includes(canonical('../../browser/js/config/events.json')[key]),
+    assert.ok(bridge.includes(canonical('../../common/config/events.json')[key]),
       `editorBridge lost ${key}`);
   assert.ok(found.size >= 3);
 });
@@ -170,12 +170,21 @@ test('pageApiMain VIDEO_FMTS matches config/mediaTypes.json surfaces.extension.v
   const src = source('../src/content/pageApiMain.js');
   const list = /const VIDEO_FMTS = new Set\(\[([^\]]*)\]\)/.exec(src)[1]
     .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
-  assert.deepEqual(list, canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.videoScan);
+  assert.deepEqual(list, canonical('../../common/config/mediaTypes.json').surfaces.extension.videoScan);
 });
 
 test('both format normalizers apply exactly the canonical rewrites, in order', () => {
-  const rules = Object.entries(canonical('../../browser/js/config/mediaTypes.json').normalize);
+  const rules = Object.entries(canonical('../../common/config/mediaTypes.json').normalize);
   const chain = rules.map(([from, to]) => `.replace('${from}', '${to}')`).join('');
   for (const rel of ['../src/lib/highlight/filters.js', '../src/content/pageApiMedia.js'])
     assert.ok(source(rel).includes(`ext.toLowerCase()${chain}`), `${rel} drifted from mediaTypes.normalize`);
+});
+
+// Loose values the extension spells as literals, each pinned to its shared constant.
+test('the default editor URL and the hand-off cap are the shared constants', async () => {
+  const constants = JSON.parse(readFileSync(new URL('../../common/config/constants.json', import.meta.url), 'utf8'));
+  const { DEFAULT_EDITOR_URL } = await import('../src/lib/prefs/settings.js');
+  assert.equal(DEFAULT_EDITOR_URL, constants.NETWORK.appUrl);
+  const launch = readFileSync(new URL('../src/lib/menu/editorLaunch.js', import.meta.url), 'utf8');
+  assert.equal(Number(/const MAX_PAYLOAD = ([0-9_]+);/.exec(launch)[1].replaceAll('_', '')), constants.LAUNCH.fragmentMaxChars);
 });

@@ -9,7 +9,8 @@ runs; without them the core still builds, JPEG is left out and PNG and BMP decod
 stdlib-only (subprocess), matching the project's "no third-party deps" constraint.
 
 Output lands in pystencil/pystencil/_native/<platform lib name> so _native.py can find a
-locally built artifact without any packaging/install step.
+locally built artifact without any packaging/install step. The shared tables the package
+reads (pystencil/_data/) are copied here from the repo's common/config, never checked in.
 """
 
 from __future__ import annotations
@@ -141,6 +142,12 @@ def __load_sibling(name: str):
 
 _compile = __load_sibling("build_compile")
 _stb = __load_sibling("build_stb")
+_data = __load_sibling("build_data")
+
+
+def sync_data() -> Path:
+  """The package's copies of the shared tables, refreshed from common/config (build_data.py)."""
+  return _data.sync(_REPO_ROOT / "common" / "config", _HERE / "pystencil" / "_data")
 
 
 def stb_headers(verbose: bool = False):
@@ -193,6 +200,7 @@ def build(force: bool = False, verbose: bool = False) -> Path:
   in one rename, so no loader ever maps a half-written library. Raises RuntimeError
   carrying the compiler's stderr if the build fails or outlives ``BUILD_TIMEOUT``.
   """
+  sync_data()
   out = lib_path()
   if not force and not is_stale(out):
     return out

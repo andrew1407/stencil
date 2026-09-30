@@ -92,9 +92,11 @@ namespace stencil::net {
     // Pages are walked to the end; a server still handing out cursors after this many is cut off.
     static constexpr int MAX_LIST_PAGES = 1000;
     void listProjectsAsync(std::function<void(bool ok, QVector<ServerProject> projects)> done);
+    // `extra`: optional CreateProjectRequest fields (blankColor, expiresAt epoch ms, …) sent as given.
     void createProjectAsync(const QString& name, const QString& source, const QString& resource,
                             bool hasImage, int w, int h,
-                            std::function<void(bool ok, QString id, qint64 version)> done);
+                            std::function<void(bool ok, QString id, qint64 version)> done,
+                            const QJsonObject& extra = QJsonObject());
     void getProjectAsync(const QString& id,
                          std::function<void(bool ok, ServerProject meta, QJsonObject layout)> done);
     void updateProjectAsync(const QString& id, const QString& name, const QJsonObject& layout,

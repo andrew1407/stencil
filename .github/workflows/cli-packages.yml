@@ -15,7 +15,7 @@ on:
     paths:
       - 'cli/**'
       - 'core/**'
-      - 'browser/js/config/**'
+      - 'common/config/**'
       - '.github/workflows/cli-packages.yml'
       - '!**/*.md'
   pull_request:
@@ -23,7 +23,7 @@ on:
     paths:
       - 'cli/**'
       - 'core/**'
-      - 'browser/js/config/**'
+      - 'common/config/**'
       - '.github/workflows/cli-packages.yml'
       - '!**/*.md'
   workflow_dispatch:

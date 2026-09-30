@@ -1,5 +1,5 @@
 #pragma once
-// The line thickness and point-size ranges (browser/js/config/constants.json LIMITS through the
+// The line thickness and point-size ranges (common/config/constants.json LIMITS through the
 // qrc), read once; the browser's toolbar and selected-line inputs clamp to the same keys.
 #include <QFile>
 #include <QJsonDocument>

@@ -2,7 +2,7 @@
 
 export const SUB_EDGE_PAD = 6;
 export const SUB_MIN_INSET = 4;
-export const SUB_GAP = 2;
+export const SUB_GAP = 0;
 
 // To the right by default, flipped left when that would cross the viewport's edge, then clamped.
 export function submenuPlacement(ir, sw, sh, vw, vh) {

@@ -60,6 +60,19 @@ export const copyName = (metas, baseName, source) => {
   return `${base} (${n})`;
 };
 
+// "Make a copy" naming (twin: ProjectsStore::copySuffixName): a trailing "-copy" / "-copy(N)" is
+// dropped, then "<base>-copy", "<base>-copy(1)", … — the first free one, cut to fit 80 characters
+// without splitting a surrogate pair.
+const COPY_SUFFIX = /-copy(?:\(\d+\))?$/;
+export const copySuffixName = (metas, name) => {
+  const base = String(name || '').trim().replace(COPY_SUFFIX, '').trim() || 'Untitled';
+  for (let n = 0; ; n++) {
+    const suffix = n === 0 ? '-copy' : `-copy(${n})`;
+    const candidate = base.slice(0, 80 - suffix.length).replace(/[\uD800-\uDBFF]$/, '').trimEnd() + suffix;
+    if (!nameExists(metas, candidate)) return candidate;
+  }
+};
+
 export const defaultName = (metas) => {
   let max = 0;
   for (const m of metas) {

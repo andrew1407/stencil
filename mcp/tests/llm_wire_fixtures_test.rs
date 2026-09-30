@@ -1,4 +1,4 @@
-//! Walk the shared LLM wire fixtures (`browser/js/config/llm/fixtures/providerWire/`)
+//! Walk the shared LLM wire fixtures (`common/fixtures/llm/providerWire/`)
 //! through mcp's real client against a capturing mock transport, one case per fixture.
 //!
 //! mcp sends its own §4 canonical prompt, so the walker asserts that first and then
@@ -14,7 +14,7 @@ use common::walk::Walk;
 use common::wire::{config_for, load_array, messages_for, system_slot, MockTransport};
 
 const WIRE_DIR: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/providerWire");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../common/fixtures/llm/providerWire");
 
 const WIRE_FILES: [&str; 4] = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
 

@@ -2,7 +2,7 @@
 #include <QHostAddress>
 #include <QString>
 
-// The SSRF address table (browser/js/config/net/blockedRanges.json, qrc alias net/blockedRanges.json)
+// The SSRF address table (common/config/net/blockedRanges.json, qrc alias net/blockedRanges.json)
 // and its evaluator: classed CIDRs, the IPv6 prefixes that carry an IPv4 address, and the two
 // policies. Twin of cli/src/net/ranges.zig; semantics in the table's README.
 namespace stencil::net::blockedRanges {

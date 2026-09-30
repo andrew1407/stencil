@@ -9,7 +9,7 @@
 #include <algorithm>
 
 // The §4 prose core rides in app.qrc (the shared canon
-// browser/js/config/llm/systemPrompt.json). A pre-main caller can reach it
+// common/config/llm/systemPrompt.json). A pre-main caller can reach it
 // before the resource's own global initializer ran, so force registration on
 // first read — same guard as theme.cpp. Global scope: Q_INIT_RESOURCE declares
 // the generated init function.
@@ -108,6 +108,7 @@ namespace stencil::llm {
         {OpKind::BLANK_COLOR, "blankColor", CAP_NONE},
         {OpKind::OPEN_PROJECT, "openProject", CAP_NONE},
         {OpKind::INCOGNITO, "incognito", CAP_NONE},
+        {OpKind::COPY_PROJECT, "copyProject", CAP_NONE},
         {OpKind::CHAT_PANEL, "chatPanel", CAP_NONE},
         {OpKind::DIALOG, "dialog", CAP_NONE},
         {OpKind::CLEAR_CHAT, "clearChat", CAP_NONE},

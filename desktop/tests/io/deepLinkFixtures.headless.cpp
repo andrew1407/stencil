@@ -1,4 +1,4 @@
-// Walks the shared deep-link conformance vectors (browser/js/config/fixtures/deepLink) against the
+// Walks the shared deep-link conformance vectors (common/fixtures/deepLink) against the
 // desktop codec (src/io/deepLink.cpp). Desktop's module is BUILDERS only, so only telegramStart.json
 // applies: encodeTelegramStartPayload against the golden vectors (expectPayload null = overflow → an
 // empty string). launchPayload.json pins the receiver side, which desktop does not implement.
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   std::printf("deepLink/telegramStart:\n");
   bool ok = false;
   const QJsonArray cases =
-      readJsonFile(corpusPath("fixtures/deepLink/telegramStart.json"), &ok).array();
+      readJsonFile(corpusPath("deepLink/telegramStart.json"), &ok).array();
   check(ok && !cases.isEmpty(), "telegramStart.json loads");
 
   int overridden = 0;

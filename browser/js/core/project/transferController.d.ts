@@ -7,6 +7,8 @@ import type { RemoteSyncController, RemoteLink } from '../remote/syncController.
 import type { ProjectMeta, ProjectLayout } from './store/projectsStore.js';
 import type { ConnectionManager } from '../../net/connectionManager.js';
 import type { RemoteProjectRecord } from '../../net/serverConnection.js';
+import type { CopyProjectCall } from './copy/copyProject.js';
+import type { CopySource } from './copy/source.js';
 
 /** The narrow app facade the controller drives (mirrors the desktop twin's Hooks). */
 export interface ProjectTransferHost {
@@ -18,7 +20,11 @@ export interface ProjectTransferHost {
     projectOpened(id: string | null): void;
     projectRemoved(id: string): void;
     allProjectsCleared(): void;
+    /** A local id or a { conn, remoteId } server chat file, on each side. */
+    projectCopied?(from: object, to: object): Promise<boolean>;
   } | null;
+  /** The live editor as a registry row + payload (copy/source.js liveProjectSnapshot). */
+  liveProject(): Omit<CopySource, 'remote'>;
   updateProjectTitle(): void;
   updateIncognitoUI(): void;
   newEditor(): void;
@@ -63,6 +69,8 @@ export declare class ProjectTransferController {
   switchToProject(id: string): boolean;
   openProjectInNewTab(id: string | null, win?: Window | null): void;
   openRemoteProjectInNewTab(meta: RemoteProjectMeta | null, win?: Window | null): void;
+  /** Any `#stencil=` hand-off payload in a new tab. */
+  openLaunchInNewTab(payload: object, win?: Window | null): void;
   /** Switches to an already-linked local twin rather than downloading a duplicate. */
   openRemoteProject(meta: RemoteProjectMeta): Promise<void>;
   renewProject(id: string): ProjectMeta | null;
@@ -81,4 +89,6 @@ export declare class ProjectTransferController {
   moveProjectToLocal(m: RemoteProjectMeta): Promise<string>;
   copyServerProjectToLocal(m: RemoteProjectMeta, opts?: { name?: string }): Promise<string>;
   copyServerProjectToIncognito(m: RemoteProjectMeta, opts?: { newTab?: boolean }): Promise<unknown>;
+  /** "Make a copy": the new local id, the server copy's remote id, or null for an incognito copy. */
+  copyProject(call: CopyProjectCall): Promise<string | null>;
 }

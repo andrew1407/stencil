@@ -1,5 +1,5 @@
 #pragma once
-// The drawing and highlight defaults a fresh editor starts from (browser/js/config/constants.json
+// The drawing and highlight defaults a fresh editor starts from (common/config/constants.json
 // DEFAULT_VISUALS, plus HOLD_DRAW.delayMs as the browser's VIS_DEFAULTS adds it, through the qrc),
 // read once; the browser's editorState.js and visuals modal read the same keys.
 #include "accentDefaults.hpp"

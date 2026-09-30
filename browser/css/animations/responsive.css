@@ -20,6 +20,9 @@
         width: 100%;
         margin-top: 14px;
     }
+    /* Nothing sits side by side to resize once stacked; its grip would float between the drop
+       hint and the panel as a stray grey bar. */
+    .panel-resizer { display: none; }
     /* A side panel collapsed to its rail makes no sense once stacked. */
     .coordinates-panel.coord-collapsed {
         width: 100%;

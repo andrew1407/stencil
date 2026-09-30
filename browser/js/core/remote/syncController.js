@@ -9,7 +9,7 @@ import { pushLayout, putResult, captureResult } from './push.js';
 import { restingJob } from '../draw/restingPaint.js';
 import { resultPngBytes } from '../../worker/imageTasks.js';
 import { keptSource } from '../project/store/projectSources.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { loadImageFromFile } from '../image/loadFlow.js';
 import { newEditor } from '../launch/openFlow.js';
 

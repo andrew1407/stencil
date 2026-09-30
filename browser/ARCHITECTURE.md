@@ -3,8 +3,9 @@
 The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 The browser app is the reference front-end: a vanilla ES-module editor with no build step,
-running `core/` as wasm behind a JS fallback that matches it op-for-op. It owns the canonical
-data tables in `js/config/`, the `.stencil` document format and the layout payload the other
+running `core/` as wasm behind a JS fallback that matches it op-for-op. It is served beside
+the repo's `common/` (the shared tables, corpora and brand art it imports), and owns the
+`.stencil` document format and the layout payload the other
 surfaces mirror. It does not own the collaboration protocol (`server/internal/protocol`) and
 carries no codec beyond what the DOM provides.
 
@@ -45,9 +46,9 @@ change feed a ui area subscribes to (`core/app/changes.js`), and the app's view 
 | Path | Holds | Rule |
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
-| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, and last `webcore/`, the session skin | one file per section; `theme.css` tokens mirror `js/config/themeTokens.json`, a skin's own `tokens.css` mirrors `js/config/webcore.json` |
-| `js/config/` | constants, the hotkey and help-text registries, and every cross-surface table | **the canonical home of shared data**; the other surfaces embed or drift-test it |
-| `js/config/script/fixtures/` | `cases.txt`, the `.stc` corpus | plain text, never JSON — `core/` reads this same file; a case named `err-*` must produce an error |
+| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, and last `webcore/`, the session skin | one file per section; `theme.css` tokens mirror `common/config/themeTokens.json`, a skin's own `tokens.css` mirrors `common/config/webcore.json` |
+| `js/config/` | the operator's `openInConfig` and its example | operator config, fetched beside its module; never shared, never committed |
+| `../common/` | the shared tables (`config/`), corpora (`fixtures/`, the `.stc` `script/cases.txt` among them), the logo (`icons/`) | served next to `browser/` by every server; a module imports it by relative path, never by a root URL, so the Pages subpath works |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
 | `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the DOM-free mixin, change feed and seam) | **no DOM access** — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` | one file per `core/script/*.cpp`; pure — it resolves ops but calls no facade |
@@ -127,7 +128,7 @@ classDiagram
 | `DrawingApp` | The editor: image, provenance, lines, viewport, selection, settings and the project session as plain fields (`core/editorState.js`), its collaborators and its change feed (`app.changes`) | One per window, created by `js/index.js` | Mediates every collaborator |
 | `CodecLine` | One drawn line, every field explicit (`core/line/linesCodec.js`, twin of `core/models.hpp`) | `DrawingApp.lines`; copied into snapshots and layouts | `HistoryStack`, `LayoutPayload` |
 | `HistoryStack` | Undo/redo over `{lines, cropRect, rotationQuarters, filter, filterColor}` mementos (a step without a filter leaves it as it is), with a cursor, `MAX_STEPS` and the floor step 0 undoes to; twin of `core/state/HistoryStack.hpp` | One per app, reset on each project switch | `CodecLine` snapshots |
-| `LayoutPayload` | The export subset of `LAYOUT_FIELDS` (`config/layoutFields.json`) plus `lines`; `cropRect` crosses as `{x,y,w,h}` | Built by `buildLayoutPayload` (`core/layout.js`); the browser definition is canonical | `ProjectFileDoc.layout`, the server's project `layout` |
+| `LayoutPayload` | The export subset of `LAYOUT_FIELDS` (`common/config/layoutFields.json`) plus `lines`; `cropRect` crosses as `{x,y,w,h}` | Built by `buildLayoutPayload` (`core/layout.js`); the browser definition is canonical | `ProjectFileDoc.layout`, the server's project `layout` |
 | `ProjectFileDoc` | The `.stencil` document (`core/project/file.js`); `format` is the sentinel, `version` the schema | Built by `buildProjectFile`, hardened by `parseProjectFile`; the browser definition is canonical | `LayoutPayload` |
 | `ProjectMeta` | One registry row: name, colour, keywords, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry arithmetic twinned with `core/state/ProjectsStore.cpp` | `RemoteLink` |
 | `RemoteLink` | The editor's link to a server project; `version` is the save-back guard (`core/remote/syncController.js`) | `DrawingApp.remoteLink` for a server-linked session | `ProjectMeta`, `ServerConnection` |
@@ -158,7 +159,8 @@ classDiagram
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over both axes and `core/parse/formulaContext.js` | Port of `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses. Outside `llm/`: an op plan's caps guard model output, not the user's own script |
 | Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), laid down by `ui/webcore/toggle.js` | Read by everything, written to no store; the user's next choice through the ordinary setter lifts the motion one |
-| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A select or checkbox takes its default (`DEFAULTS` by id, else `data-default`, else the markup's) and fires `change` |
+| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document`; the Lines-tab swatch (`ui/panel/linesList.js`) | A select, checkbox or colour field takes its default (`DEFAULTS` by id, else `data-default`, else the markup's) and fires `change`; a line's own colour returns to the toolbar's. A colour field with a default opens its picker only after `POPOVER.doubleClickMs`, so the second click resets instead |
+| Nested row menu | `ui/projects/window/rowSubmenu.js` | A row-menu item with `items` flies its list out beside it, on the same surface motion; the parent's click-away asks it whether a press is its own |
 | Anchored entrance | `growFrom` (`ui/control/dropdownMenu.js`) | A list's slide entrance grows out of the point its particle cloud flies from, from the edge nearest its trigger |
 | Alt peek | `createModalOpenGesture` (`ui/tip/popover.js`) on the modal icons, the logo accent menu and the export list; `wireAltPeek` (`ui/tip/altPeek.js`) on every dropdown | Alt+hover peeks; released over the list it lingers until the pointer leaves, elsewhere closes; one glide registry, so a new peek closes the last unless the window `holds` it; a click-opened list ignores Alt. The logo's colour menu alone commits on release (`wireReleasePick`) |
 
@@ -169,6 +171,10 @@ classDiagram
   constructs `DrawingApp` (the change feed, the collaborators, then `wireControls`, whose first
   act subscribes the control areas), installs `window.stencil`, wires chat persistence, and
   `publishReady(app)` hands every `<stencil-*>` element the app.
+- **A touch.** One finger on a point or segment drags it, a still press taps, a held one
+  draws (`HoldDrawController`), and a press on empty canvas that wanders past
+  `TOUCH_DEFAULTS.moveTol` pans the viewport 1:1 (`core/touch/pan.js`); two fingers pinch.
+  The read-only compare view only pans.
 - **An edit.** A pointer event reaches `InputController` / `PointerController`, which call the
   core functions the facade calls. `saveHistory()` pushes a memento onto `HistoryStack` — as a
   crop or a turn does from `ImageModel` — `Renderer` repaints the overlay (a drag once per frame
@@ -196,6 +202,13 @@ classDiagram
   `withSessionKey` joins the `HeldSessionKey` to one request; without one, or over plain http off
   loopback, nothing is sent (`keyedInit` in `llm/http.js`; no LLM request follows a redirect), upstream text
   echoing any eight characters of the key is dropped, and `stencil.llm.apiKey` reads `'[redacted]'`.
+- **A copy.** The projects row's "Make a copy ›", the canvas menu's, the Image section's button,
+  `Project.copy` / `stencil.copyProject` and the `copyProject` op all reach
+  `projectTransfer.copyProject` (`core/project/copy/`): it reads the source (the live editor, a
+  stored row or a server-only row), names it with `copySuffixName`, saves it as a detached local
+  row or on the source's server, then opens it here, in a new tab, or unsaved in incognito. An
+  incognito copy writes nothing, a server copy is never incognito, and a whole-project copy
+  takes its saved chat along (`chatPersistence.projectCopied`).
 - **A script.** `stencil.execScript(text)`, the script window and a dropped `.stc` call
   `runScript` (`js/console/scriptRunner.js`): one parse through `js/core/script.js`, nothing run
   on an error diagnostic, then each lowered op is one facade call (a `layout` fetches
@@ -219,8 +232,10 @@ classDiagram
 - **Deep links.** `js/core/launch/deepLink.js` normalizes the inbound `#stencil=` fragment
   (`server` / `dataUrl` / `src` / `layout`) and builds the outbound `stencil://` and Telegram
   `?start=` links; `applyExternalLaunch` (`core/launch/controller.js`) loads it and strips it. A
-  `.stc` and the incognito flag ride the same fragment; `index.js` runs the script once the launch
-  settles, leaving it in the buffer, never the window.
+  `.stc` and the incognito flag ride the same fragment, with `scriptMode`: `run` (the default)
+  runs it once the launch settles, leaving it in the buffer; `open` puts it in the Script window
+  and runs nothing. `stencil://` carries it as `script=` / `scriptMode=`, alone or beside the
+  picture (`core/launch/desktopLink.js`, shared with Open In).
 - **A logo show.** The held mark, a typed name and `stencil.EasterEggs.<show>()` reach
   `activateShow` (`ui/logo/stageTrigger.js`): the stage (`ui/logo/stage.js`, one canvas
   swallowing the keyboard but Escape), or for the pink show one `installLayout` edit;
@@ -244,9 +259,9 @@ classDiagram
    fallback and the two match op-for-op (`tests/wasm/wasm-parity.test.js`). A value the core
    owns is read from it, never mirrored: the fallback twin is its one JS home and the UI
    derives from that. No `eval` / `new Function` anywhere.
-3. **`js/config/` is canonical.** A value another surface needs is a table here, never a
+3. **`common/` is canonical.** A value another surface needs is a table in `common/config/`, never a
    literal in code.
-4. **Ported modules stay byte-identical.** The modules `.claude/tools/twins.json` copies into
+4. **Ported modules stay byte-identical.** The modules `tools/twins.json` copies into
    `browser-extension/src/lib/` and `vscode-extension/src/parser/script/` are pinned in both
    directions (`browser-extension/tests/portParity.test.js`,
    `vscode-extension/tests/parserParity.test.js`). Edit here, then re-copy.

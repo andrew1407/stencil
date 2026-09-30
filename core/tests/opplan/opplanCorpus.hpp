@@ -9,8 +9,8 @@
 #include <sstream>
 #include <string>
 
-// The op-plan corpus as the core suites read it: the canonical registry and fixtures under
-// browser/js/config/llm/, and each case's text built the way genOpPlanFixtures.mjs builds it.
+// The op-plan corpus as the core suites read it: the canonical registry under common/config/llm/,
+// its fixtures under common/fixtures/llm/, each case's text built the way genOpPlanFixtures.mjs does.
 namespace opplanCorpus {
 
   inline std::filesystem::path repoRoot() {
@@ -30,7 +30,8 @@ namespace opplanCorpus {
     return buf.str();
   }
 
-  inline std::filesystem::path llmDir() { return repoRoot() / "browser" / "js" / "config" / "llm"; }
+  inline std::filesystem::path llmDir() { return repoRoot() / "common" / "config" / "llm"; }
+  inline std::filesystem::path llmFixturesDir() { return repoRoot() / "common" / "fixtures" / "llm"; }
 
   inline std::string registryText() { return slurp(llmDir() / "opRegistry.json"); }
 
@@ -79,9 +80,9 @@ namespace opplanCorpus {
   inline std::map<std::string, std::map<std::string, stencil::core::json::Value>> sources() {
     std::map<std::string, std::map<std::string, stencil::core::json::Value>> out;
     const std::map<std::string, std::filesystem::path> files{
-        {"hand", llmDir() / "fixtures/opPlan/cases.json"},
-        {"generated", llmDir() / "fixtures/opPlan/generated/cases.json"},
-        {"oracle", llmDir() / "fixtures/opPlan/oracle/inputs.json"},
+        {"hand", llmFixturesDir() / "opPlan/cases.json"},
+        {"generated", llmFixturesDir() / "opPlan/generated/cases.json"},
+        {"oracle", llmFixturesDir() / "opPlan/oracle/inputs.json"},
     };
     for (const auto& [source, path] : files) {
       stencil::core::json::Value doc = readFile(path);

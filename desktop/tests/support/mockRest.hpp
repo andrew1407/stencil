@@ -20,6 +20,8 @@ namespace stencil::test {
 
   struct MockProject {
     QString name, color;
+    QStringList keywords;
+    qint64 expiresAt = 0;
     qint64 version = 1;
     QJsonObject layout;
     QByteArray original;
@@ -36,6 +38,7 @@ namespace stencil::test {
     bool endlessCursors = false;   // every list page hands back a fresh cursor
     int listGets = 0;
     QString lastAfter;      // the decoded ?after= of the last list request
+    QJsonObject lastCreate;   // the body of the last POST /projects
 
     bool listen() {
       QObject::connect(&server, &QTcpServer::newConnection, [this] {
@@ -69,6 +72,8 @@ namespace stencil::test {
     QJsonObject record(const QString& id, const MockProject& p) const {
       QJsonObject o{{"id", id}, {"name", p.name}, {"color", p.color}, {"version", double(p.version)},
                     {"hasImage", !p.original.isEmpty()}};
+      if (!p.keywords.isEmpty()) o.insert("keywords", QJsonArray::fromStringList(p.keywords));
+      if (p.expiresAt) o.insert("expiresAt", double(p.expiresAt));
       if (withHash && !p.original.isEmpty())
         o.insert("originalHash", QString::fromLatin1(
                                      QCryptographicHash::hash(p.original, QCryptographicHash::Sha256).toHex()));
@@ -106,7 +111,8 @@ namespace stencil::test {
       if (path.size() == 1 && verb == QLatin1String("GET")) return listPage(m.captured(3));
       if (path.size() == 1 && verb == QLatin1String("POST")) {
         const QString id = QStringLiteral("p%1").arg(++created);
-        projects[id].name = QJsonDocument::fromJson(body).object().value("name").toString();
+        lastCreate = QJsonDocument::fromJson(body).object();
+        projects[id].name = lastCreate.value("name").toString();
         return {200, json(record(id, projects[id]))};
       }
       if (!projects.contains(path.value(1))) return {404};

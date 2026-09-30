@@ -5,8 +5,29 @@
 #include <QSpinBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QPushButton>
+#include <QResizeEvent>
+
+#include "guiHelpers.hpp"
+#include "modalChrome.hpp"
 
 namespace stencil::gui {
+
+  // The column grows with the window in proportion, 180 at the 560 it opens at (browser
+  // --vs-ctrl-pct), so a widened window widens the controls rather than the gap before them.
+  void SettingsDialog::resizeEvent(QResizeEvent* event) {
+    QDialog::resizeEvent(event);
+    const int want = qMax(CTRL_W, CTRL_W * width() / MODAL_WIDTH);
+    if (want == ctrlW) return;
+    ctrlW = want;
+    for (QWidget* f : columnFields) {
+      auto* well = qobject_cast<QPushButton*>(f);
+      if (well && well->property("swatchColor").isValid())
+        setColorSwatch(well, well->property("swatchColor").value<QColor>(), QSize(ctrlW, f->height()), true);
+      else
+        f->setFixedWidth(ctrlW);
+    }
+  }
 
   // Rows filter by their label (the browser matches the <label> text); a section
   // whose rows all hid hides too, and an emptied list shows the muted line.

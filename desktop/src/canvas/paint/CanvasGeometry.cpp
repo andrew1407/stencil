@@ -1,5 +1,7 @@
 #include "CanvasWidget.hpp"
 
+#include <algorithm>
+
 // Rect drawing, and the widget → image-space mapping.
 
 namespace stencil::gui {
@@ -52,8 +54,14 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  // A press just past the picture's edge lands on it (browser canvasCoords.js): image px never
+  // leave [0, width] × [0, height].
   core::Point CanvasWidget::toImageSpace(int widgetX, int widgetY) const {
-    return {widgetX / scale, widgetY / scale};
+    const double x = widgetX / scale;
+    const double y = widgetY / scale;
+    if (!hasImage()) return {x, y};
+    return {std::clamp(x, 0.0, static_cast<double>(imageWidth())),
+            std::clamp(y, 0.0, static_cast<double>(imageHeight()))};
   }
 
 }  // namespace stencil::gui

@@ -185,6 +185,12 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
         if (incognito) throw new Error('Cannot move an incognito editor — use stencil.publishIncognito(address)');
         return app.projectTransfer.moveProjectToServer(id, address);
       },
+      // "Make a copy" — { what: 'image'|'layout'|'project', open: 'none'|'here'|'newtab', incognito,
+      // local }. Resolves to the new local project, or null for an incognito or server copy.
+      async copy(opts = {}) {
+        const newId = await app.projectTransfer.copyProject({ ...opts, id: incognito ? null : id });
+        return newId != null && store().getMeta(newId) ? makeProject(newId) : null;
+      },
       // Copy this LOCAL project to a server, leaving the local one in place. opts: { name }.
       copyToServer(address, opts = {}) {
         if (incognito) throw new Error('Cannot copy an incognito editor — use stencil.publishIncognito(address)');

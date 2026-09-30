@@ -88,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/tools/syncTwins.mjs\" --hook"
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/syncTwins.mjs\" --hook"
           }
         ]
       }

@@ -13,7 +13,7 @@ import { distToSegment, parseHex } from '../../js/utils.js';
 import { FormulaEngine } from '../../js/core/parse/formulaEngine.js';
 import { parseDuration } from '../../js/core/parse/durationParser.js';
 import { ZoomPan, rectZoom, zoomMin, zoomMax } from '../../js/core/zoom/pan.js';
-import constants from '../../js/config/constants.json' with { type: 'json' };
+import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.

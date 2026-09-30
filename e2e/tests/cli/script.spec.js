@@ -1,5 +1,5 @@
 // CLI .stc e2e: the one-shot --script / --script-check flags and the console's /script verb,
-// driven with the SHARED fixture corpus (browser/js/config/script/fixtures/cases.txt), so the
+// driven with the SHARED fixture corpus (common/fixtures/script/cases.txt), so the
 // binary is proved on the very scripts the core's own suites use. Every case asserts the real
 // written PNG, or the exact diagnostic line an editor parses — never the CLI's own claim.
 import { test, expect } from '@playwright/test';
@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli/run.js';
 import { runConsole } from '../../helpers/cli/console.js';
 import { stcCase, writeStcCase } from '../../helpers/stcCases.js';
-import { APP_URL } from '../../helpers/config.js';
+import { SITE_URL } from '../../helpers/config.js';
 
 test.describe('cli .stc scripts', () => {
   test.skip(!cliAvailable(), 'build the CLI first: (cd cli && zig build) or set STENCIL_CLI');
@@ -99,7 +99,7 @@ test.describe('cli .stc scripts', () => {
     const dir = testInfo.outputPath();
     // The harness's own static server, not the internet: the block goes through the CLI's
     // fetch guard (cli/src/net.zig) and decodes the bytes it gets back.
-    const url = `${APP_URL}__e2e__/pixel.png`;   // the 3x2 fixture
+    const url = `${SITE_URL}__e2e__/pixel.png`;   // the 3x2 fixture
     writeFileSync(path.join(dir, 'url.stc'), `@source ${url}:\n    @filter bw\n    @save fetched.png\n`);
 
     const r = runCli(['--script', 'url.stc'], { cwd: dir });

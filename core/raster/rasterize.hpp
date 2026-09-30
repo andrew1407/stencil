@@ -10,7 +10,7 @@
 namespace stencil::core {
 
   // One dash cycle in px along the path, whatever the thickness (canvas setLineDash). Twin:
-  // STROKE_DASH in browser/js/config/constants.json, drift-tested in rasterize.test.cpp.
+  // STROKE_DASH in common/config/constants.json, drift-tested in rasterize.test.cpp.
   struct DashPattern {
     double on;
     double off;

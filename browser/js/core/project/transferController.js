@@ -3,6 +3,10 @@ import { buildOpenProjectUrl, buildExternalLaunchUrl } from '../launch/deepLink.
 import { requireConnection } from '../../net/remoteSync.js';
 import * as meta from './meta/projectMetaOps.js';
 import * as xfer from './serverTransfer.js';
+import { copyProject } from './copy/copyProject.js';
+
+// `win` was pre-opened inside the user gesture so a strict popup blocker cannot swallow it.
+const openInNewTab = (url, win) => { if (win) win.location = url; else window.open(url, '_blank'); };
 
 // What a removal of `n` projects from the projects window says (desktop: clearedToast).
 export const clearedToast = (n) => (n === 1 ? 'Project cleared' : 'Projects cleared');
@@ -50,17 +54,19 @@ export class ProjectTransferController {
   openProjectInNewTab(id, win = null) {
     if (id == null) { if (win) win.close(); return; }
     const base = location.origin + location.pathname;
-    const url = buildOpenProjectUrl(base, id);
-    // `win` was pre-opened inside the user gesture so a strict popup blocker cannot swallow it.
-    if (win) win.location = url; else window.open(url, '_blank');
+    openInNewTab(buildOpenProjectUrl(base, id), win);
   }
 
   // A SERVER project in a new tab via the server-launch fragment (applyExternalLaunch consumes it).
   openRemoteProjectInNewTab(meta, win = null) {
     if (!meta || !meta.serverUrl || meta.id == null) { if (win) win.close(); return; }
     const base = location.origin + location.pathname;
-    const url = buildExternalLaunchUrl(base, { server: { url: meta.serverUrl, id: meta.id, version: meta.version || 0 } });
-    if (win) win.location = url; else window.open(url, '_blank');
+    openInNewTab(buildExternalLaunchUrl(base, { server: { url: meta.serverUrl, id: meta.id, version: meta.version || 0 } }), win);
+  }
+
+  // Any `#stencil=` hand-off (an unsaved incognito copy's bytes) in a NEW tab.
+  openLaunchInNewTab(payload, win = null) {
+    openInNewTab(buildExternalLaunchUrl(location.origin + location.pathname, payload), win);
   }
 
   // Load a remote project into the editor, linking the session for live co-edit. A local
@@ -160,4 +166,7 @@ export class ProjectTransferController {
   copyServerProjectToLocal(m, opts = {}) { return xfer.copyServerProjectToLocal(this, m, opts); }
 
   copyServerProjectToIncognito(m, opts = {}) { return xfer.copyServerProjectToIncognito(this, m, opts); }
+
+  // "Make a copy" (copy/copyProject.js): { id | remote, what, open, incognito, local, win }.
+  copyProject(call = {}) { return copyProject(this, call); }
 }

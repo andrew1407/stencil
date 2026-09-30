@@ -1,4 +1,4 @@
-// Conformance-fixture walker: runs the shared format corpora in js/config/fixtures/
+// Conformance-fixture walker: runs the shared format corpora in common/fixtures/
 // ({layout, stencilProject, deepLink}) through the REAL browser modules, pinning the
 // browser reference behavior the other surfaces mirror (cli/mcp/pystencil/bot/desktop).
 // Self-contained on purpose (no helpers/): later per-surface walkers port this file.
@@ -13,8 +13,9 @@ import { buildLayoutPayload, sanitizeLines } from '../../js/core/layout.js';
 import { parseProjectFile, MAX_PROJECT_FILE_CHARS } from '../../js/core/project/file.js';
 import { normalizeLaunchPayload, encodeTelegramStartPayload, LAUNCH_DATA_URL_MAX } from '../../js/core/launch/deepLink.js';
 
-const CONFIG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../..', 'js', 'config');
-const FIXTURES = path.join(CONFIG_DIR, 'fixtures');
+const COMMON = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../..', 'common');
+const CONFIG_DIR = path.join(COMMON, 'config');
+const FIXTURES = path.join(COMMON, 'fixtures');
 
 // Load a family's vectors from every *.json in its dir (sorted for stable test names),
 // once per family however many times a test asks for it.

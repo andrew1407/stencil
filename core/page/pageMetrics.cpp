@@ -4,7 +4,7 @@ namespace stencil::core {
 
   namespace {
     // ISO 216 A/B + ISO 269 C, portrait cm, in the order every selector uses. Mirrors
-    // PAGE_SIZES in browser/js/config/constants.json (drift-tested by cli/tests).
+    // PAGE_SIZES in common/config/constants.json (drift-tested by cli/tests).
     struct NamedSize {
       const char* name;
       PageSize size;

@@ -1,6 +1,6 @@
 // ── The §1 JSON caps over a parsed op plan (llm-contract.md §1) ──
 // Pure. The JS twin of core/json/jsonReader's caps (limits.json in opRegistry.json), pinned
-// by fixtures/opPlan/generated/normalized.json.
+// by common/fixtures/llm/opPlan/generated/normalized.json.
 
 // UTF-8 bytes of a JS string; a lone surrogate counts the 3 bytes of its U+FFFD.
 export const utf8Length = (s) => {

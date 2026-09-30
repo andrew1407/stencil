@@ -2,7 +2,7 @@
 // and announces it; what the window then previews is the window's business.
 import { StencilElement, hostTag, define } from '../../base.js';
 import { icon } from '../../icons.js';
-import MEDIA_TYPES from '../../../config/mediaTypes.json' with { type: 'json' };
+import MEDIA_TYPES from '../../../../../common/config/mediaTypes.json' with { type: 'json' };
 
 export class StencilOiFileSource extends StencilElement {
   // The chooser is OURS, not the platform's: a native file input's button cannot hold an

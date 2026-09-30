@@ -1,4 +1,4 @@
-// Reads the shared .stc corpus (browser/js/config/script/fixtures/cases.txt) so the e2e
+// Reads the shared .stc corpus (common/fixtures/script/cases.txt) so the e2e
 // specs drive the surfaces with the very scripts the core's own suites are proved on.
 // A case is '=== <name>' followed by '--- script' and an optional '--- diagnostics'.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const CASES = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../browser/js/config/script/fixtures/cases.txt',
+  '../../common/fixtures/script/cases.txt',
 );
 
 // One corpus diagnostic: 'line:col:len: severity: message [CODE]'.

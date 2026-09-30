@@ -1,5 +1,5 @@
 #pragma once
-// The keyword chips' clocks, ms: browser/js/config/motion.json's CHIP_DUST_MS / CHIP_DUST_DRIFT, the
+// The keyword chips' clocks, ms: common/config/motion.json's CHIP_DUST_MS / CHIP_DUST_DRIFT, the
 // chip cloud both ways and the leave (keywordChips.js KEYWORD_LEAVE_MS = CHIP_DUST_MS), and
 // CHIP_ENTER_DELAY_MS / CHIP_ENTER_MS, a new chip's fade up; read once,
 // tests/dialogs/meta/keywords/chipClocks holds them.

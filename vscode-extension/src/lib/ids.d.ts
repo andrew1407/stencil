@@ -17,7 +17,9 @@ export declare const PROJECT_SCOPE_NAME: string;
 export declare const PROJECT_FILE_EXTENSION: string;
 export declare const COMMANDS: {
   runScript: string; runScriptOnImage: string; checkScript: string; configureColors: string;
-  openInWeb: string; runInWebConsole: string; runSelectionInWebConsole: string;
+  openInWeb: string; openInWebIncognito: string; openScriptInWeb: string;
+  openInDesktop: string; runInDesktop: string; runInDesktopIncognito: string;
+  runInWebConsole: string; runSelectionInWebConsole: string;
   openImageInWeb: string; addTypings: string; emitScript: string; runPythonScript: string;
 };
 export declare const SETTINGS: {

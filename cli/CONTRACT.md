@@ -443,7 +443,7 @@ error, **0** otherwise.
 - `plans` is the block's actions as plan objects an adapter runs one after another, each with
   an empty `reply`; a plan ends at the op-plan's own `limits.MAX_ACTIONS` (**16**) and after
   every `undo`. Every action is a validated op in the
-  `browser/js/config/llm/opRegistry.json` vocabulary — `openFile`/`openUrl`, `frame`, `crop`,
+  `common/config/llm/opRegistry.json` vocabulary — `openFile`/`openUrl`, `frame`, `crop`,
   `filter`, `layout`, `save`, `undo` — so an adapter can feed a plan straight to its op-plan
   executor, and the plans leave what a `--script` run saves. A `layout` sets the drawn lines
   to exactly its own (llm-contract §2), so **every `layout` carries every line that should
@@ -676,7 +676,7 @@ A kind the project lacks is the server's 404: `error: {server} refused the resul
   them once at startup: a mismatch means the CLI and the adapter were built from different
   registries.
 - `result` is core's document, byte-equal to what `browser/js/llm/plan/parser.js` `walkPlan`
-  returns (pinned by `browser/js/config/llm/fixtures/opPlan/generated/normalized.json`):
+  returns (pinned by `common/fixtures/llm/opPlan/generated/normalized.json`):
   - `status` — `valid`, `chatOnly` (no JSON object: `reply` is the trimmed text) or `invalid`.
   - `actions` — each normalized: `{op, …declared keys}`, defaults applied, trims honoured.
   - `variants` — `{label, actions}`; `label` is the model's own, or `null`.

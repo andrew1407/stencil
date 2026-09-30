@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { notify } from '../../utils.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../../core/parse/cropGeometry.js';
 import { icon, spinIconOnce } from '../icons.js';
 import { tweenRect } from '../motion/rectTween.js';

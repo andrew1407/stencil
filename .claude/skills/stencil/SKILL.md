@@ -124,7 +124,7 @@ One `.stc` file of `@` directives beats N calls: a `@source <file|url|dir|glob>:
 once per matched file, its indented body any of `@crop` / `@filter` / `@line` / `@rect` /
 `@layout` / `@frame` / `@undo` / `@save`, in `px % cm mm in` units. The language is
 `contracts/stc/stc-contract.md`; the worked examples are the `tour-*` cases in
-`browser/js/config/script/fixtures/cases.txt` — read those rather than writing from memory.
+`common/fixtures/script/cases.txt` — read those rather than writing from memory.
 
 ```bash
 cat > batch.stc <<'STC'

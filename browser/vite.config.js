@@ -29,7 +29,7 @@ const prepareHtml = () => ({
       .replace(CSP_META, '')
       .replace(MANIFEST_LINK, '')
       .replace(PRE_PAINT_TAG, `<script>\n${prePaint}\n</script>`)
-      .replace(FAVICON_HREF, `href="${dataUri('favicon.svg')}"`);
+      .replace(FAVICON_HREF, `href="${dataUri('../common/icons/favicon.svg')}"`);
     // Better a failed build than a "single" file that quietly needs siblings once index.html moves on.
     for (const stale of NO_SIBLINGS) {
       if (out.includes(stale)) this.error(`index.html still references ${stale} after the single-file rewrite`);

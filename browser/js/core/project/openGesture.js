@@ -1,6 +1,6 @@
 // Pure row-open gesture logic — no DOM here.
 import { isTouchLike } from '../../utils.js';
-import constants from '../../config/constants.json' with { type: 'json' };
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // A projects-row gesture to an open intent. Touch has NO hold gesture: press-and-hold is the
 // drag-to-reorder pickup, and past the slop a pending open is dropped (drag.js).

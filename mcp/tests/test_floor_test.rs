@@ -14,14 +14,14 @@ const CORPUS_FLOOR: usize = 80;
 /// the generated bulk of the suite, which no scan of the sources can see.
 const CORPORA: [&str; 9] = [
     "cli/testdata/outcome_fixtures.json",
-    "browser/js/config/fixtures/imageHeader/cases.json",
-    "browser/js/config/llm/fixtures/sanitizer/cases.json",
-    "browser/js/config/fixtures/layout/payload.json",
-    "browser/js/config/fixtures/layout/sparse.json",
-    "browser/js/config/llm/fixtures/providerWire/ollama.json",
-    "browser/js/config/llm/fixtures/providerWire/openai.json",
-    "browser/js/config/llm/fixtures/providerWire/server.json",
-    "browser/js/config/llm/fixtures/providerWire/httpErrors.json",
+    "common/fixtures/imageHeader/cases.json",
+    "common/fixtures/llm/sanitizer/cases.json",
+    "common/fixtures/layout/payload.json",
+    "common/fixtures/layout/sparse.json",
+    "common/fixtures/llm/providerWire/ollama.json",
+    "common/fixtures/llm/providerWire/openai.json",
+    "common/fixtures/llm/providerWire/server.json",
+    "common/fixtures/llm/providerWire/httpErrors.json",
 ];
 
 fn crate_dir() -> &'static Path {

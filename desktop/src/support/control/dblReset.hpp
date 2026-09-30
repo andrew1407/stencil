@@ -14,6 +14,11 @@
 #include <QTimer>
 #include <QVariant>
 
+#include <functional>
+#include <utility>
+
+#include "../uiTimings.hpp"
+
 namespace stencil::support {
 
   inline constexpr const char* RESET_DEFAULT_PROPERTY = "resetDefault";
@@ -104,6 +109,20 @@ namespace stencil::support {
     QPointer<QAbstractButton> pendingCheck;
     QPointer<QAction> pendingAction;
   };
+
+  // A colour chip opens a modal picker on its release, so a double-click's second press would land
+  // outside it: the open waits one double-click interval (POPOVER.doubleClickMs), a second click resets.
+  inline void wireColorChip(QAbstractButton* chip, std::function<void()> open, std::function<void()> reset) {
+    auto* wait = new QTimer(chip);
+    wait->setSingleShot(true);
+    wait->setInterval(uiTimings().doubleClickMs);
+    QObject::connect(wait, &QTimer::timeout, chip, std::move(open));
+    QObject::connect(chip, &QAbstractButton::clicked, chip, [wait, reset = std::move(reset)] {
+      if (!wait->isActive()) { wait->start(); return; }
+      wait->stop();
+      reset();
+    });
+  }
 
   inline void installDblReset() {
     static QPointer<DblResetFilter> filter;

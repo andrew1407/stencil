@@ -107,11 +107,11 @@ classDiagram
 | Adapter | `ArgvBuilder` + one `build_*_argv` per CLI mode; `outcome::parse_*`; `opplan::result::map` | typed request in, documented flags out; output lines or core's plan document in, typed results out |
 | Strategy | `ProviderMapping` (`llm/providers/`) | one wire mapping per file; `llm::chat` never branches on the provider |
 | Chain of Responsibility | URL → header bytes → per-address credential guard; `Roots::place` + `Servers::find` → no-root refusal → `--no-clobber` → `confine` | each guard refuses or passes on; a socket or a child opens only after the last one |
-| Table-driven registry | `OpDescriptor` from `browser/js/config/llm/opRegistry.json` | prompt and lowering come off one table; validation off the CLI's copy, the same bytes by fingerprint |
+| Table-driven registry | `OpDescriptor` from `common/config/llm/opRegistry.json` | prompt and lowering come off one table; validation off the CLI's copy, the same bytes by fingerprint |
 | Pipeline | `Fold` in `opplan/fold.rs` (source → frame → crop → rotate → filter → layout) | the CLI's fixed order is why a plan collapses into one run |
 | Bounded pool | the process-wide `Semaphore` in `pipeline/runner.rs` | every CLI child waits for a slot (`STENCIL_MCP_MAX_CONCURRENT_CLI`), a plan's fan-out included |
 | Ports | `CliRunner`, `LlmTransport` | the only CLI spawn and the only socket sit behind traits |
-| Fixture walker | `tests/common/walk.rs` | one named case per shared fixture under `browser/js/config/llm/fixtures/` and `browser/js/config/fixtures/` |
+| Fixture walker | `tests/common/walk.rs` | one named case per shared fixture under `common/fixtures/llm/` and `common/fixtures/` |
 | Golden pin | `tests/goldens/` | tool prose and the README table are byte-pinned to `toolDescriptions.json` |
 
 ## Design

@@ -1,6 +1,6 @@
 // Hotkey registry singleton: defaults from hotkeysConfig.json, overrides merged from
 // localStorage 'drawingApp_hotkeys'; importing in Node stays inert.
-import HOTKEY_DEFS from '../../config/hotkeysConfig.json' with { type: 'json' };
+import HOTKEY_DEFS from '../../../../common/config/hotkeysConfig.json' with { type: 'json' };
 import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle, setHtml } from '../../utils.js';
 import { keysHtml } from '../../ui/tip/content.js';
 

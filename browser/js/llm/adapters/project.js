@@ -5,6 +5,7 @@ import { toHexColor } from '../../core/settings/accents.js';
 import { resolveProjectByName } from '../projectNames.js';
 import { newEditor } from '../../core/launch/openFlow.js';
 import { activeIsBlank, setBlankColor } from '../../core/image/blankImage.js';
+import { settleCopyOptions } from '../../core/project/copy/options.js';
 export const projectAdapters = (app) => ({
   removeProjectNamed: async (name) => {
     const { meta, note } = resolveProjectByName(app, name);
@@ -40,6 +41,17 @@ export const projectAdapters = (app) => ({
       if (!ok) return 'open canceled';
     }
     return app.projectTransfer.switchToProject(meta.id) ? null : `could not open "${meta.name}"`;
+  },
+  // §10 copyProject: the live editor, as the canvas menu and the toolbar copy it; what the
+  // request could not have (incognito unopened or on a server copy) comes back as the note.
+  copyActiveProject: async (req) => {
+    if (!app.image) return 'there is no image to copy';
+    let note;
+    try { note = settleCopyOptions(req, { serverSource: !!app.remoteLink }).note; }
+    catch (err) { return err.message; }
+    try { await app.projectTransfer.copyProject({ id: null, ...req }); }
+    catch (err) { return `could not make the copy — ${err?.message || err}`; }
+    return note;
   },
   // §10 renameProject: the inline rename control's path; the store's own
   // duplicate-name refusal surfaces as the note.

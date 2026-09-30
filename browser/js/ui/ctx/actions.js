@@ -5,6 +5,7 @@ import { wireAltPreview } from '../export/preview.js';
 import { EXPORT_VARIANTS } from '../export/variants.js';
 import { loadImageFromFile } from '../../core/image/loadFlow.js';
 import { startDrawingMode, setDrawMode, stopDrawingMode } from '../../core/draw/mode.js';
+import { copyProjectButton } from '../toolbar/copyMenu.js';
 
 // The context menu's image, layout, clipboard and draw rows.
 export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
@@ -33,6 +34,17 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
   shareItem?.addEventListener('click', () => {
     app.export.shareImage(); closeMenu();
   });
+
+  // Make a Copy: each scope row opens the copy confirmation, grown out of the row, and closes into
+  // the toolbar's copy button (up, when the toolbar is folded away).
+  for (const row of menu.querySelectorAll('[data-copy-scope]')) {
+    row.addEventListener('click', () => {
+      const at = row.getBoundingClientRect();
+      closeMenu();
+      document.querySelector('stencil-copy-project-modal')?.openFor({ id: null, what: row.dataset.copyScope },
+        { from: at, backTo: copyProjectButton });
+    });
+  }
 
   document.getElementById('ctx-dl-layout').addEventListener('click', () => {
     closeMenu(); app.export.downloadJSON();

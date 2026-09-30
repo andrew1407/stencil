@@ -20,7 +20,7 @@ const wcTokens = (css, selector) => {
 
 test('the palette is the browser skin\'s, value for value, on both faces', () => {
   const css = read('../../../src/lib/webcore/tokens.css');
-  const { tokens } = json('../../../../browser/js/config/webcore.json');
+  const { tokens } = json('../../../../common/config/webcore.json');
   assert.deepEqual(wcTokens(css, ':root[data-skin="webcore"]'), tokens.light);
   assert.deepEqual(wcTokens(css, ':root[data-skin="webcore"][data-theme="dark"]'), tokens.dark);
 });

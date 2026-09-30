@@ -12,7 +12,7 @@ const crop_action = @import("crop.zig");
 const decode = @import("../decode.zig");
 const lines = @import("lines.zig");
 
-/// A copy of the op-plan envelope's `limits.MAX_ACTIONS` (browser/js/config/llm/opRegistry.json),
+/// A copy of the op-plan envelope's `limits.MAX_ACTIONS` (common/config/llm/opRegistry.json),
 /// which this layer sits below; tests/script/script_plan_test.zig pins the two together.
 pub const MAX_ACTIONS: usize = 16;
 /// `limits.MAX_UNDO_STEPS` of the same registry.

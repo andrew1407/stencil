@@ -2,7 +2,7 @@
 
 The normative definition of Stencil's script language: what a `.stc` file means, what every
 surface must do with it, and what it must say when the script is wrong. Machine-readable
-proof lives in the fixture corpus at `browser/js/config/script/fixtures/`.
+proof lives in the fixture corpus at `common/fixtures/script/`.
 
 ---
 
@@ -12,7 +12,7 @@ proof lives in the fixture corpus at `browser/js/config/script/fixtures/`.
 |---|---|---|
 | `core/script/` | the one parser, expander and lowerer | `core/tests/script/*.test.cpp` |
 | `browser/js/core/script/` | the JS fallback, op-for-op identical | `browser/tests/wasm/wasm-parity.test.js` |
-| `browser/js/config/script/fixtures/` | the shared corpus every surface replays | each surface's walker |
+| `common/fixtures/script/` | the shared corpus every surface replays | each surface's walker |
 | `core/cliApi.h` `stencil_cli_script*` | the C ABI the CLI and pystencil drive | `core/tests/abi/scriptApi.test.cpp` |
 | `cli/CONTRACT.md` §5 | `--script`, `--script-plan`, `--script-check` | `cli/tests/script/script_test.zig`, `script_plan_test.zig` |
 
@@ -261,7 +261,7 @@ model-chosen script still passes `--confine-output`.
 
 ## §11 Fixtures
 
-`browser/js/config/script/fixtures/` holds the corpus; `_schema.md` beside it describes the
+`common/fixtures/script/` holds the corpus; `_schema.md` beside it describes the
 file triple and the `err-*` naming rule. The four `tour-*` cases are the language's worked
 examples and are what the READMEs point at. Adding a directive means adding a fixture.
 

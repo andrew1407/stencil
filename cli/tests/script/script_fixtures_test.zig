@@ -1,4 +1,4 @@
-//! Walks the shared .stc corpus (script/fixtures/cases.txt) through the cli's own core
+//! Walks the shared .stc corpus (common/fixtures/script/cases.txt) through the cli's own core
 //! bridge, the same file core/, browser/, pystencil/ and vscode-extension/ replay. Plain
 //! text, not JSON, so the splitting lives here: a section ends at the next marker and the
 //! blank line before it belongs to the file.
@@ -9,7 +9,7 @@ const load = @import("../../src/script/load.zig");
 const scriptCore = @import("../../src/script/core.zig");
 const testing = std.testing;
 
-const corpus_path = "script/fixtures/cases.txt";
+const corpus_path = "script/cases.txt";
 
 const Section = enum { script, dump, diagnostics };
 

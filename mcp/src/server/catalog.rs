@@ -15,8 +15,8 @@ use super::PROSE;
 use crate::registry::REGISTRY_JSON as OP_REGISTRY;
 
 const STC_CONTRACT: &str = include_str!("../../../contracts/stc/stc-contract.md");
-const CONSTANTS: &str = include_str!("../../../browser/js/config/constants.json");
-const COLOR_NAMES: &str = include_str!("../../../browser/js/config/colorNames.json");
+const CONSTANTS: &str = include_str!("../../../common/config/constants.json");
+const COLOR_NAMES: &str = include_str!("../../../common/config/colorNames.json");
 
 fn entries(key: &str) -> &'static [Value] {
     PROSE[key].as_array().map(Vec::as_slice).unwrap_or_default()

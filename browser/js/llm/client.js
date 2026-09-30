@@ -3,7 +3,7 @@
 // shape as canonical ({ role, text, images: [{ mediaType, data }] }); the ollama / openai-compat /
 // anthropic bodies derive from it. fetch is injected for `node --test`. Byte-pinned below this
 // header to browser-extension/src/llm/client.js; anything per-surface lives in surface.js.
-import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
+import PROVIDERS_ASSET from '../../../common/config/llm/providers.json' with { type: 'json' };
 import { ASSISTANT_OFF_TEXT, defaultGetToken, isLoopbackHost } from './surface.js';
 import { LlmError, NO_REDIRECT, getInfo, keyedInit, postJson, readReply, upstreamFailure } from './http.js';
 export { LlmError, sanitizeProviderText } from './http.js';

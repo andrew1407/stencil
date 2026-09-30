@@ -46,12 +46,24 @@ page units.
 |---|---|
 | ![a selected line](img/lines-selection-light.png) | ![the same, dark](img/lines-selection-dark.png) |
 
+The **Lines** tab lists every line with its colour. Click a line's colour chip to pick a new
+colour for it, with the canvas following as you drag; double-click the chip to give the line
+the toolbar's line colour back. Double-clicking the toolbar's own line colour resets it to the
+default yellow.
+
+![picking a line's colour from the Lines tab](img/lines-swatch-picker.png)
+
 ## The canvas menu
 
-Right-click (or `Shift+F10`) for the image, layout, filter, transform, script and assistant
-submenus.
+Right-click (or `Shift+F10`) for the image, layout, copy, filter, transform, script and
+assistant submenus.
 
 ![the context menu](img/context-menu.png)
+
+**Make a copy** saves a copy of the open project — the image only, the image and its layout, or
+the whole project with its colour, keywords, description and chat:
+
+![the Make a copy submenu](img/context-menu-copy.png)
 
 ## Change the look
 
@@ -91,9 +103,18 @@ turn through a collaboration server's proxy: the model framed the S and applied 
 ## Run a script
 
 **Data ▸ Stencil Script…** (`Alt+Shift+S`) edits and runs a `.stc` recipe with the
-core's own highlighting; dropping a `.stc` file on the window runs it too.
+core's own highlighting; dropping a `.stc` file on the window runs it too. The canvas menu's
+**Stencil Script** row opens the same editor beside the menu.
 
-![the script dialog](img/script-dialog.png)
+| Script window | From the canvas menu |
+|---|---|
+| ![the script dialog](img/script-dialog.png) | ![the script editor in the canvas menu](img/context-menu-script.png) |
+
+A script can also arrive by a `stencil://` link, from the browser app or from VS Code. It opens
+in the Script window, or, when the link asks to run it, the app shows it and asks first; a
+script that came by link may open web images only.
+
+![the question before a linked script runs](img/script-link-confirm.png)
 
 ## Projects and servers
 
@@ -103,6 +124,20 @@ servers; **Project ▸ Servers…** (`Ctrl+Shift+K`) connects to a collaboration
 | Projects, light | Projects, dark | Servers |
 |---|---|---|
 | ![projects](img/projects-dialog-light.png) | ![projects, dark](img/projects-dialog-dark.png) | ![servers](img/connect-dialog.png) |
+
+**Make a copy** is also on a project row's menu (right after **Open in another app**) and on
+the toolbar's Image section. Pick what to copy, then answer the question: **Just copy** adds
+the copy to the list and leaves everything else open, **Open** switches to it, **Open in new
+window** opens it beside this one. **Open in incognito** opens the copy without ever saving it.
+Copies are named after the project — `Kitchen plan-copy`, then `Kitchen plan-copy(1)`, and so
+on. For a project that lives on a server, the copy is made on that server unless **Make a local
+copy** is ticked, and only a local copy can open incognito.
+
+![a project row's Make a copy submenu](img/projects-row-copy.png)
+
+| A local project | A server project |
+|---|---|
+| ![the copy question](img/copy-dialog.png) | ![the copy question, with Make a local copy](img/copy-dialog-server.png) |
 
 Drag a project row out of the list and the window behind it offers **Open here**, **Open in a new
 window** and **Remove**; the zone under the pointer lights up and the drop decides which one runs.

@@ -15,7 +15,7 @@ from ..layout import Layout, Line
 
 
 # History depth cap: the pristine state plus 63 undoable edits. Canon is LIMITS.historyMax
-# in browser/js/config/constants.json; cli/src/console/session/state.zig carries the same.
+# in common/config/constants.json; cli/src/console/session/state.zig carries the same.
 _MAX_STATES = 64
 
 # Fallback A4 page (cm) if the core has no named page table — matches pipeline.zig's

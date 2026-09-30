@@ -5,7 +5,7 @@ const pipeline = @import("../../src/pipeline.zig");
 const args = @import("../../src/args.zig");
 const image = @import("../../src/media/image.zig");
 const testing = std.testing;
-const sample = @embedFile("../fixtures/sample.png");
+const sample = @embedFile("sample.png");
 const layout_json = @embedFile("../fixtures/layout.json");
 
 test "pipeline: file in -> crop+rotate+layout+filter -> file out" {

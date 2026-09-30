@@ -1,6 +1,7 @@
 // Shape of launch.js — the `#stencil=` hand-off the browser app boots on.
 export interface LaunchPayload {
-  script?: string; dataUrl?: string; src?: string; name?: string; incognito?: boolean;
+  script?: string; scriptMode?: 'open' | 'run'; dataUrl?: string; src?: string; name?: string;
+  incognito?: boolean;
   layout?: Record<string, unknown>;
 }
 export declare const IMAGE_TYPES: Readonly<Record<string, string>>;

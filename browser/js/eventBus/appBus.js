@@ -1,7 +1,7 @@
 // The one home for the stencil:* channels (config/events.json). Delivery IS a window
 // event — the contract the extension's content scripts read — and nothing throws, so a
 // caller with no DOM (worker, test) is never broken.
-import EVENTS from '../config/events.json' with { type: 'json' };
+import EVENTS from '../../../common/config/events.json' with { type: 'json' };
 
 export { EVENTS };
 

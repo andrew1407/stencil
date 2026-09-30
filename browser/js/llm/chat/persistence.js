@@ -98,8 +98,27 @@ export const createChatPersistence = ({
     return swap.finally(() => { muted--; });
   };
 
+  // A whole-project copy takes its source's saved chat along, whatever the toggle says: the
+  // document is the project's. `from` / `to` name a local id or a { conn, remoteId } server file.
+  const readChat = async ({ id = null, conn = null, remoteId = null } = {}) => {
+    if (id != null) return (await store.load(id)) || (await fetchServer(id));
+    if (!conn) return null;
+    try { return parseChatDoc(await (await conn.fetchFile(remoteId, 'chat')).text()); } catch { return null; }
+  };
+  const projectCopied = async (from, to = {}) => {
+    const doc = await readChat(from);
+    if (!doc || !doc.messages?.length) return false;
+    if (to.id != null) await store.save(to.id, doc);
+    if (to.conn) {
+      try { await to.conn.putFile(to.remoteId, 'chat', JSON.stringify(doc), { ext: 'json' }); }
+      catch { /* best-effort, as every server chat write */ }
+    }
+    return true;
+  };
+
   const controller = {
     projectOpened,
+    projectCopied,
     // Stored chats are cleaned up with their projects REGARDLESS of the toggle —
     // a project that no longer exists must not leave its conversation behind.
     projectRemoved: (id) => store.remove(id),

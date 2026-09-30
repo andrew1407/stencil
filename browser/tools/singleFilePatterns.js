@@ -6,7 +6,7 @@
 export const CSP_META = /^.*<!-- CSP:(?:.*\n)*?.*<meta http-equiv="Content-Security-Policy"[^>]*>\n/m;
 export const PRE_PAINT_TAG = /<script src="js\/prePaintTheme\.js"><\/script>/;
 export const MANIFEST_LINK = /^.*<link rel="manifest".*\n/m;
-export const FAVICON_HREF = /href="favicon\.svg"/g;
+export const FAVICON_HREF = /href="\.\.\/common\/icons\/favicon\.svg"/g;
 export const PROJECTS_WORKER_URL = /new URL\((['"])(?:\.\.\/)+worker\/projectsWorker\.js\1,\s*import\.meta\.url\)/;
 export const IMAGE_WORKER_URL = /new URL\((['"])\.\/imageWorker\.js\1,\s*import\.meta\.url\)/;
 export const WASM_IMPORT = /import\(WASM_MODULE_PATH\)/;
