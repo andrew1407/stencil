@@ -9,8 +9,20 @@ namespace Stencil.TelegramBot.Tests.Doubles;
 /// <summary>Records every outbound request object — the <c>Send*</c> extension methods all build an <see cref="IRequest{TResponse}"/> and call <see cref="SendRequest{TResponse}"/> — so tests inspect <see cref="Requests"/> and no Telegram network is touched.</summary>
 public class MockBotClient : ITelegramBotClient
 {
+    // Background services (the sync watcher) send while a test polls, so the log is guarded.
+    private readonly List<object> _requests = [];
+
     /// <summary>Every request the bot handed to <see cref="SendRequest{TResponse}"/>, in order.</summary>
-    public List<object> Requests { get; } = new();
+    public IReadOnlyList<object> Requests { get { lock (_requests) { return [.. _requests]; } } }
+
+    /// <summary>Forget every recorded request.</summary>
+    public void ClearRequests()
+    {
+        lock (_requests)
+        {
+            _requests.Clear();
+        }
+    }
 
     public bool LocalBotServer => false;
 
@@ -28,7 +40,10 @@ public class MockBotClient : ITelegramBotClient
 
     public virtual Task<TResponse> SendRequest<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
-        Requests.Add(request);
+        lock (_requests)
+        {
+            _requests.Add(request);
+        }
         // File-info lookups need a real TGFile back (GetInfoAndDownloadFile reads its FilePath).
         if (request is global::Telegram.Bot.Requests.GetFileRequest getFile)
         {

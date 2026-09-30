@@ -131,7 +131,7 @@ public sealed class DocumentDownloadTests : IDisposable
         _bot.FileBytes = 8;
         await makeRouter().HandleMessageAsync(photoMessage(), CancellationToken.None);
         _bot.FileBytes = size;
-        _bot.Requests.Clear();
+        _bot.ClearRequests();
     }
 
     private static Message documentFrom(string fileName, string? caption) =>
