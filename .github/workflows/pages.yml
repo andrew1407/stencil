@@ -1,7 +1,6 @@
 # Publishes the browser app to GitHub Pages. Two things ship together:
-#   • the app itself, served as the static ES-module site it is: browser/ at /browser/ beside
-#     common/ (the shared tables and brand art it imports from ../common), and a root page
-#     that forwards old links there, query and fragment included
+#   • the app itself, served as the static ES-module site it is: browser/ at the site root beside
+#     common/ (the shared tables and brand art)
 #   • stencil.html — the single-file build, offered from that same site as a one-file copy
 #     people can save and open offline
 # The wasm core is built fresh here, so the deployed site runs the real C++ core rather
@@ -85,20 +84,24 @@ jobs:
 
       # ── The site tree ──
       # Everything the app loads at runtime, and nothing else: no tests, no fixtures, no dev
-      # tooling, no build config, no node_modules. The manifest's start_url/scope and every
-      # ../common import are relative, so the PWA works under the /<repo>/ subpath Pages serves from.
+      # tooling, no build config, no node_modules. The manifest's start_url/scope are relative,
+      # so the PWA works under the /<repo>/ subpath Pages serves from.
       - name: Assemble _site
         run: |
-          mkdir -p _site/browser _site/common
+          mkdir -p _site/common
           cp -r browser/index.html browser/launch.html browser/sw.js \
-                browser/manifest.webmanifest browser/css browser/js _site/browser/
+                browser/manifest.webmanifest browser/css browser/js _site/
           cp -r common/config common/icons _site/common/
-          cp browser/tools/siteRoot.html _site/index.html
+          # The app reaches common/ one level above itself (../common): on localhost that clamps
+          # to /common/, under /<repo>/ it would leave the site. Here common/ sits inside the app
+          # root, so every such path climbs one level less.
+          grep -rlE "['\"(](\.\./)+common/" _site | xargs perl -pi -e 's#([\x27"(])\.\./((?:\.\./)*common/)#$1$2#g'
+          if grep -rnE "['\"(]\.\./common/" _site/index.html _site/launch.html _site/sw.js; then exit 1; fi
           cp browser/stencil.html _site/stencil.html
           # No operator has a gitignored openInConfig.json here, and the app's runtime fetch
           # of it would log a 404 on every load. The example IS the defaults it falls back
           # to, so serving that copy changes nothing but the console.
-          cp browser/js/config/openInConfig.example.json _site/browser/js/config/openInConfig.json
+          cp browser/js/config/openInConfig.example.json _site/js/config/openInConfig.json
           find _site -name '.DS_Store' -delete
           du -sh _site && ls _site
 
