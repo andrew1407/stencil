@@ -53,13 +53,6 @@ const resolveFile = (urlPath) => {
 };
 
 const server = http.createServer(async (req, res) => {
-  const [pathname, query = ''] = (req.url || '/').split('?');
-  // An old /browser/ link moves to the root; a fragment rides the redirect in the browser, never to here.
-  if (pathname === '/browser' || pathname.startsWith('/browser/')) {
-    const to = pathname.slice('/browser'.length) || '/';
-    res.writeHead(302, { Location: `${to}${query ? `?${query}` : ''}`, 'Cache-Control': 'no-store' }).end();
-    return;
-  }
   const file = resolveFile(req.url || '/');
   if (!file) { res.writeHead(403).end('forbidden'); return; }
   try {
