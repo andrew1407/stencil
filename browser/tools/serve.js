@@ -60,12 +60,6 @@ async function listing(dir, path) {
 
 const server = createServer(async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method Not Allowed');
-  const { pathname: asked, search: query } = new URL(req.url, 'http://x');
-  // An old /browser/ link moves to the root; the browser carries its fragment across the redirect.
-  if (asked === '/browser' || asked.startsWith('/browser/')) {
-    res.writeHead(302, { 'Cache-Control': 'no-store', Location: `${asked.slice('/browser'.length) || '/'}${query}` });
-    return res.end();
-  }
   let file = resolveTarget(req.url);
   if (!file) return send(res, 403, 'Forbidden');
   try {
