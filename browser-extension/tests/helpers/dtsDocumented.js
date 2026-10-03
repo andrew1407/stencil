@@ -93,6 +93,7 @@ export const DOCUMENTED = [
   'lib/motion/disintegrate.d.ts',
   'lib/motion/enterLeave.d.ts',
   'lib/motion/painters.d.ts',
+  'lib/motion/quarterTurn.d.ts',
   'lib/motion/reveal.d.ts',
   'lib/motion/surfaceMotion.d.ts',
   'lib/motion/surfaces.d.ts',

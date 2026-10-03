@@ -135,11 +135,13 @@ export class ImageModel {
       return;
     }
     const img = app.originalImage;
+    const motion = app.quarterTurn?.() ?? { play() {} };
     const turn = rotateEditQuarter(app.lines, app.cropRect, app.rotationQuarters, img.width, img.height, dir > 0);
     app.rotationQuarters = turn.quarters;
     app.cropRect = turn.crop;
     this.rebuildCroppedImage();
     this.#afterImageGeometryChange();
+    motion.play(dir);
   }
 
 // With opts.recalc, lines are cleared on an orientation flip or rescaled to the new size.

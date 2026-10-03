@@ -5,7 +5,7 @@ import constants from '../../../../common/config/constants.json' with { type: 'j
 
 // px, the one dash table the desktop pen and the core rasteriser read too.
 const { dashed: DASH_PATTERN, dotted: DOT_PATTERN } = constants.STROKE_DASH;
-const { FOCUS_RING, HOVER_RING, SELECT_GLOW } = constants;
+const { FOCUS_RING, HOVER_RING, SELECT_GLOW, MARKER_RING } = constants;
 
 // Glow/ring colours are asked for once per selected line and highlighted point EVERY
 // frame; the (colour, alpha) pairs are few, so memoize. The cap bounds a runaway accent sweep.
@@ -14,6 +14,24 @@ const rgba = (hex, a) => {
   const key = hex + a;
   let v = RGBA.get(key);
   if (v === undefined) { if (RGBA.size > 64) RGBA.clear(); RGBA.set(key, v = hexToRgba(hex, a)); }
+  return v;
+};
+
+// A point's 1 px ring on its canvas-normalised fill (core markers::ringFor): black from Rec. 709 luma
+// MARKER_RING.darkFromLuma up, else white; a fill it cannot read keeps black.
+const RINGS = new Map();
+export const ringFor = (css) => {
+  let v = RINGS.get(css);
+  if (v !== undefined) return v;
+  const s = String(css).trim();
+  const hex = /^#([0-9a-f]{6})$/i.exec(s)?.[1]
+    ?? /^#([0-9a-f]{3})$/i.exec(s)?.[1].replace(/./g, '$&$&');
+  const fn = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(s);
+  const rgb = hex ? [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) : fn ? fn.slice(1, 4).map(Number) : null;
+  const luma = rgb ? Math.trunc(0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) : 255;
+  v = luma >= MARKER_RING.darkFromLuma ? '#000' : '#fff';
+  if (RINGS.size > 64) RINGS.clear();
+  RINGS.set(css, v);
   return v;
 };
 
@@ -133,7 +151,7 @@ export function drawPoint(r, point, color, pointSize = 4, isSelected = false, hi
   ctx.beginPath();
   ctx.arc(point.x, point.y, rad, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#000';
+  ctx.strokeStyle = ringFor(ctx.fillStyle);
   ctx.lineWidth = 1;
   ctx.stroke();
 }

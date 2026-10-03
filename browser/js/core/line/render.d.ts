@@ -18,6 +18,8 @@ export interface LinePainter {
   pointHighlightState(lineIdx: number, ptIdx: number): 0 | 1 | 2;
 }
 
+/** A point's ring colour for its canvas-normalised fill: '#000' from MARKER_RING.darkFromLuma up, else '#fff'. */
+export declare const ringFor: (css: string) => '#000' | '#fff';
 /** The colour a line's points draw in: its own pointColor when set, else its stroke colour. */
 export declare const pointColorOf: (line: { color: string; pointColor?: string }) => string;
 export declare function drawLine(r: LinePainter, line: object, isSelected?: boolean, lineIdx?: number): void;

@@ -70,6 +70,7 @@ export const zoomAroundCenter = (zp, newScale) => {
       setZoomInputValue(Math.round(newScale * 100));
       app.canvas.classList.remove('zoom-no-transition');
       app.zoomAnimRaf = null;
+      app.renderer?.requestRedraw?.();
       if (app.image) zp.persistZoom();
     }
   };

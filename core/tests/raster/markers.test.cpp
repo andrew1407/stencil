@@ -68,7 +68,7 @@ namespace {
     Buf b = backdrop(w, h);
     for (const Point& p : pts) {
       boxDisc(b, w, h, p.x, p.y, size, fill);
-      boxRing(b, w, h, p.x, p.y, size, Rgba{0, 0, 0, 255});
+      boxRing(b, w, h, p.x, p.y, size, markers::ringFor(fill));
     }
     return b;
   }
@@ -87,7 +87,7 @@ namespace {
 
 TEST_CASE("markers: the chord scan paints exactly what a box scan paints") {
   const int w = 37, h = 29;
-  const Rgba fill{255, 0, 0, 128}, ring{0, 0, 0, 255};
+  const Rgba fill{255, 0, 0, 128}, ring = markers::ringFor(fill);
   const double sizes[] = {0.3, 0.5, 1.0, 1.7, 2.5, 4.0, 6.25, 11.0, 23.5, 60.0};
   const Point at[] = {{10.2, 9.7}, {0.0, 0.0}, {36.5, 28.9}, {-3.0, 14.0}, {18.5, -5.5}, {40.0, 31.0}};
   for (double s : sizes)
@@ -126,7 +126,7 @@ TEST_CASE("markers: overlapping markers paint exactly what stamping each in turn
   for (const Rgba& fill : fills)
     for (double size : sizes) {
       Buf got = backdrop(w, h);
-      markers::drawMarkers(got.data(), w, h, pts, size, fill, Rgba{0, 0, 0, 255});
+      markers::drawMarkers(got.data(), w, h, pts, size, fill, markers::ringFor(fill));
       CHECK_MESSAGE(got == stamped(w, h, pts, size, fill), "size " << size << " alpha " << int(fill.a));
     }
 }
@@ -136,8 +136,8 @@ TEST_CASE("markers: overlapping discs cost their edges and the area once, not ma
   std::vector<Point> pts;
   for (int i = 0; i < 300; ++i) pts.push_back({150.0 + (i % 7) * 3.5, 100.0 + (i % 5) * 2.25});
   const std::size_t naive = pts.size() * w * h;  // stamping blends every pixel a disc covers
-  const Rgba ring{0, 0, 0, 255};
   for (const Rgba fill : {Rgba{255, 0, 0, 3}, Rgba{255, 0, 0, 128}, Rgba{255, 0, 0, 255}}) {
+    const Rgba ring = markers::ringFor(fill);
     Buf whole = backdrop(w, h), part = backdrop(w, h);
     const std::size_t covers = markers::drawMarkers(whole.data(), w, h, pts, 400.0, fill, ring);
     const std::size_t crosses = markers::drawMarkers(part.data(), w, h, pts, 120.0, fill, ring);

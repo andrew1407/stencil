@@ -88,6 +88,8 @@ export class ZoomPan {
     // Not for the zoom but for the room: a reflowed toolbar moves the viewport's top.
     this.syncViewportHeight();
     this.setZoomInputValue(Math.round(newScale * 100));
+    // The marks overlay's resolution follows the zoom.
+    this.app.renderer?.requestRedraw?.();
     // Debounced (createTrailingSave): a burst writes once, at its end.
     if (persist && this.app.image) this.persistZoom();
   }

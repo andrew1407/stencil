@@ -36,6 +36,8 @@ const MANIFEST = [
   ['motionIcons', '../../browser/js/ui/motion/icons.js', '../src/lib/motionIcons.js'],
   // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
   ['rectTween', '../../browser/js/ui/motion/rectTween.js', '../src/lib/rectTween.js'],
+  // The picture's quarter turn: one WAAPI flight on the clock its caller hands it.
+  ['quarterTurn', '../../browser/js/ui/motion/quarterTurn.js', '../src/lib/motion/quarterTurn.js'],
   // The shared LLM client: per-surface wording/token defaults live in surface.js,
   // so the client itself differs only in its header + providers.json import path.
   ['llmClient', '../../browser/js/llm/client.js', '../src/llm/client.js'],
@@ -70,6 +72,7 @@ const MANIFEST = [
   ['dustFlightDts', '../../browser/js/ui/dust/flight.d.ts', '../src/lib/dust/flight.d.ts'],
   ['dustGrainDts', '../../browser/js/ui/dust/grain.d.ts', '../src/lib/dust/grain.d.ts'],
   ['rectTweenDts', '../../browser/js/ui/motion/rectTween.d.ts', '../src/lib/rectTween.d.ts'],
+  ['quarterTurnDts', '../../browser/js/ui/motion/quarterTurn.d.ts', '../src/lib/motion/quarterTurn.d.ts'],
   ['cappedBodyDts', '../../browser/js/net/cappedBody.d.ts', '../src/lib/connection/cappedBody.d.ts'],
   ['stageRulesDts', '../../browser/js/ui/logo/stageRules.d.ts', '../src/lib/logo/stageRules.d.ts'],
   ['stageMotionDts', '../../browser/js/ui/logo/stageMotion.d.ts', '../src/lib/logo/stageMotion.d.ts'],

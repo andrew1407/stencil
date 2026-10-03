@@ -180,6 +180,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/raster/rasterize.test.cpp
     tests/raster/strokeCoverage.test.cpp
     tests/raster/markers.test.cpp
+    tests/raster/markerRing.test.cpp
     tests/raster/rowRanges.test.cpp
     tests/raster/downscale.test.cpp
     tests/twinDrift.test.cpp

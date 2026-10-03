@@ -74,6 +74,8 @@
     "PANEL_SLIDE_IN_MS": 470,
     "PANEL_SLIDE_OUT_MS": 470,
     "PANEL_FADE_MS": 250,
+    "ROTATE_MS": 360,
+    "ROTATE_EASING": "cubic-bezier(0.22, 1, 0.36, 1)",
     "HOVER_DUST_HOLD_MS": 120,
     "MARK_IN_MS": 400,
     "MARK_OUT_MS": 300,

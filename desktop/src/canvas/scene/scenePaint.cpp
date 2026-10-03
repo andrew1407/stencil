@@ -154,7 +154,8 @@ namespace stencil::gui {
     const bool isActive = highlight && (&line == live->panelLine);
     const double r = line.pointSize;
     const markMetrics::Table& m = markMetrics::table();
-    p.setPen(QPen(pal.textMain, 1));
+    const QPen ringPen(markMetrics::ringFor(stroke), 1);
+    p.setPen(ringPen);
     for (int i = 0; i < poly.size(); ++i) {
       const QPointF v = poly[i];
       // Focused point: the selection disc, then a bold ring with its glow (render.js drawPoint
@@ -171,7 +172,7 @@ namespace stencil::gui {
         p.setPen(ring);
         p.setBrush(Qt::NoBrush);
         p.drawEllipse(v, r + m.focusGapPx, r + m.focusGapPx);
-        p.setPen(QPen(pal.textMain, 1));
+        p.setPen(ringPen);
       }
       // Hovered point: thin translucent ring (renderer.js state 1). Skipped on the focused point,
       // which has the bolder ring above.
@@ -186,7 +187,7 @@ namespace stencil::gui {
         p.setBrush(Qt::NoBrush);
         p.setPen(rpen);
         p.drawEllipse(v, r + m.hoverGapPx, r + m.hoverGapPx);
-        p.setPen(QPen(pal.textMain, 1));
+        p.setPen(ringPen);
       }
       const double vr = r * pointScaleAt(lineIdx, line, i, live);
       p.setBrush(stroke);
