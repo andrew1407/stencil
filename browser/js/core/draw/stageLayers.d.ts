@@ -11,8 +11,8 @@ export declare class StageLayers {
   stale(key: readonly unknown[]): boolean;
   /** Forget what #canvas holds, so the next frame repaints it. */
   invalidate(): void;
-  /** Empty the overlay at `canvas`'s backing size; false when unlayered. */
-  clear(canvas: { width: number; height: number }): boolean;
+  /** Empty the overlay at `density` backing px per `canvas` px, drawing in `canvas` px; false when unlayered. */
+  clear(canvas: { width: number; height: number }, density?: number): boolean;
   /** Bottom first: `canvas`, then the overlay when there is one. */
   layers<C>(canvas: C): (C | HTMLCanvasElement)[];
 }

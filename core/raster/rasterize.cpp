@@ -57,7 +57,7 @@ namespace stencil::core {
     if (strokeOn)
       coverage::strokePolyline(buf, w, h, line.points, line.locked, line.thickness,
                                lookupPtr(DASH_STYLES, line.style), *stroke);
-    // Markers (a disc under the editor's dark handle ring) do not ride on the stroke, as
+    // Markers (a disc under a ring contrasting with it) do not ride on the stroke, as
     // canvas/Qt draw them either way; an unset point colour inherits `color`, though.
     if (line.pointSize <= 0.0) return;
     const auto own = parseColor(pointColorOr(line));
@@ -65,7 +65,7 @@ namespace stencil::core {
     if (fill.a == 0) return;
     // Capped as a stroke is.
     markers::drawMarkers(buf, w, h, line.points, std::min(line.pointSize, MAX_STROKE_THICKNESS), fill,
-                         Rgba{0, 0, 0, CHANNEL_MAX});
+                         markers::ringFor(fill));
   }
 
   void fillPolygonRows(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,

@@ -3,8 +3,11 @@
 #include "ActionsBuilder.hpp"
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
+#include "QuarterTurnOverlay.hpp"
 #include "../../support/modal/modalChrome.hpp"   // confirmModal — the browser-styled question
 #include "tipContent.hpp"
+
+#include <QScrollArea>
 
 namespace stencil::gui {
 
@@ -33,9 +36,12 @@ namespace stencil::gui {
         w.notify->error("Open an image first");
         return;
       }
+      QWidget* vp = w.scroll->viewport();
+      const QRect from = QuarterTurnOverlay::boxIn(w.canvas, vp);
       w.canvas->rotateImage(clockwise);
       w.fitToWindow();
       w.refreshActions();
+      QuarterTurnOverlay::play(w.canvas, vp, from, clockwise ? 1 : -1);
     };
     // Alt+R fires before keyPressEvent: with a line selected it arms the line-rotate chord instead of rotating the image.
     QObject::connect(w.acts.rotateLeft, &QAction::triggered, &w, [this, rotate] {

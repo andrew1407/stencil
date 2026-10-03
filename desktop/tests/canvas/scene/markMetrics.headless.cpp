@@ -63,6 +63,11 @@ int main(int argc, char** argv) {
   pin("COMPARE_DIVIDER", "lineWidthPx", t.dividerLineWidthPx, f.dividerLineWidthPx, 2);
   pin("COMPARE_DIVIDER", "knobRadiusPx", t.dividerKnobRadiusPx, f.dividerKnobRadiusPx, 7);
   pin("COMPARE_DIVIDER", "grabSlackPx", t.dividerGrabSlackPx, f.dividerGrabSlackPx, 8);
+  pin("MARKER_RING", "darkFromLuma", t.ringDarkFromLuma, f.ringDarkFromLuma, 128);
+  check(metrics::ringFor(QColor(255, 255, 0)) == QColor(0, 0, 0), "a yellow point's ring is black");
+  check(metrics::ringFor(QColor(255, 0, 0)) == QColor(255, 255, 255), "a red point's ring is white");
+  check(metrics::ringFor(QColor(128, 128, 128)) == QColor(0, 0, 0)
+        && metrics::ringFor(QColor(127, 127, 127)) == QColor(255, 255, 255), "split at luma 128, as the core");
 
   CanvasWidget canvas;
   QImage page(200, 200, QImage::Format_RGB32);

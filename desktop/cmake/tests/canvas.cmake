@@ -107,6 +107,11 @@ stencil_headless_test(stencil_panelfoldclocks_headless
   SOURCES tests/app/chrome/panelFoldClocks.headless.cpp resources/app.qrc
   LIBS Qt6::Core)
 
+# The image rotate's quarter turn (canvas/overlay/quarterTurn.hpp over motion.json's ROTATE_MS).
+stencil_headless_test(stencil_quarterturn_headless
+  SOURCES tests/canvas/quarterTurn.headless.cpp resources/app.qrc
+  LIBS Qt6::Core)
+
 # The chat dock's slide clocks (app/chrome/chatSlideClocks.hpp over motion.json's CHAT_SURFACE_* keys).
 stencil_headless_test(stencil_chatslideclocks_headless
   SOURCES tests/app/chrome/chatSlideClocks.headless.cpp resources/app.qrc

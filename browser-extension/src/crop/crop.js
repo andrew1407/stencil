@@ -3,10 +3,12 @@
 import { cropAspect, isAlbumOrientation, pageDims } from '../lib/image/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
+import MOTION from '../config/motion.json' with { type: 'json' };
 import { watchNumericInputs } from '../lib/numericWatch.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
+import { beginQuarterTurn } from '../lib/motion/quarterTurn.js';
 import { installWebcore, wireWebcoreHold } from '../lib/webcore/skin.js';
 import { createCropStage } from './stage.js';
 import { createCropControls } from './controls.js';
@@ -106,6 +108,8 @@ const init = async () => {
 // Rotate is baked into the source image, so the crop coords the editor gets match the picture.
 const rotate = (clockwise) => {
   if (!state.imgW) return;
+  const turn = beginQuarterTurn(document.getElementById('stage'),
+    { ms: MOTION.ui.ROTATE_MS, easing: MOTION.ui.ROTATE_EASING, viewport: document.getElementById('viewport') });
   const c = document.createElement('canvas');
   c.width = state.imgH;
   c.height = state.imgW;
@@ -122,6 +126,7 @@ const rotate = (clockwise) => {
     fitToWindow();
     resetCrop();
     overlay.hidden = false;
+    turn.play(clockwise ? 1 : -1);
   };
   imgEl.src = state.dataUrl;
 };

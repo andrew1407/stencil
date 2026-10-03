@@ -9,6 +9,7 @@ export class StageLayers {
   #overlay = null;
   #ctx = null;
   #painted = null;   // the key of the picture #canvas holds
+  #scaled = false;   // the overlay's context carries a density transform
 
   attach(canvas) {
     this.#ctx = canvas?.getContext?.('2d') || null;
@@ -29,14 +30,22 @@ export class StageLayers {
 
   invalidate() { this.#painted = null; }
 
-  // The overlay emptied at #canvas's backing size (a resize empties it too); false when unlayered.
-  clear(canvas) {
+  // The overlay emptied at `density` backing px per image px and left drawing in image px (a resize
+  // empties it too); false when unlayered.
+  clear(canvas, density = 1) {
     const o = this.#overlay;
     if (!o) return false;
-    if (o.width !== canvas.width || o.height !== canvas.height) {
-      o.width = canvas.width;
-      o.height = canvas.height;
-    } else this.#ctx.clearRect(0, 0, o.width, o.height);
+    const w = Math.round(canvas.width * density);
+    const h = Math.round(canvas.height * density);
+    if (o.width !== w || o.height !== h) {
+      o.width = w;
+      o.height = h;
+    } else {
+      if (this.#scaled) this.#ctx.setTransform?.(1, 0, 0, 1, 0, 0);
+      this.#ctx.clearRect(0, 0, w, h);
+    }
+    this.#scaled = w !== canvas.width || h !== canvas.height;
+    if (this.#scaled) this.#ctx.setTransform?.(w / canvas.width, 0, 0, h / canvas.height, 0, 0);
     return true;
   }
 

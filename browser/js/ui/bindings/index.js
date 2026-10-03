@@ -21,6 +21,8 @@ import { wireCanvasPointer } from './canvasPointer.js';
 import { wireSmoothZoom } from './viewport/smoothZoom.js';
 import { wireTypedWords } from './keys/typedWords.js';
 import { wireControlState } from '../control/state.js';
+import { beginQuarterTurn } from '../motion/quarterTurn.js';
+import { TUNE } from '../motion/tune.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
 // order depends on it.
@@ -44,6 +46,13 @@ export function wireControls(app) {
   wireCanvasPointer(app);
   wireSmoothZoom(app);
   wireTypedWords(app);
+  app.quarterTurn = () => {
+    const canvas = app.canvas, box = canvas.parentElement;
+    return beginQuarterTurn(box, { ms: TUNE.ROTATE_MS, easing: TUNE.ROTATE_EASING,
+      viewport: box?.closest('.canvas-viewport'),
+      onStart: () => canvas.classList.add('zoom-no-transition'),
+      onEnd: () => canvas.classList.remove('zoom-no-transition') });
+  };
   installDblReset(document);
   // Last, so every select the layout rendered wears the app's own dropdown rather than the OS
   // one; a second pass over an already-enhanced select is a no-op.

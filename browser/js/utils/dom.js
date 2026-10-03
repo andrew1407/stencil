@@ -62,7 +62,7 @@ export const flattenLayers = (layers) => {
   c.width = layers[0].width;
   c.height = layers[0].height;
   const ctx = c.getContext('2d');
-  for (const layer of layers) ctx.drawImage(layer, 0, 0);
+  for (const layer of layers) ctx.drawImage(layer, 0, 0, c.width, c.height);   // the overlay is backed at the zoom
   return c;
 };
 

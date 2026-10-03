@@ -1,7 +1,8 @@
 #pragma once
 // The canvas's highlight and divider metrics (common/config/constants.json FOCUS_RING,
-// HOVER_RING, SELECT_GLOW and COMPARE_DIVIDER through the qrc), read once; the browser's
+// HOVER_RING, SELECT_GLOW, COMPARE_DIVIDER and MARKER_RING through the qrc), read once; the browser's
 // core/line/render.js and core/draw/renderer.js read the same keys.
+#include <QColor>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -27,6 +28,7 @@ namespace stencil::gui::markMetrics {
     double dividerLineWidthPx = 2.0;  // screen px
     double dividerKnobRadiusPx = 7.0;
     double dividerGrabSlackPx = 8.0;  // screen px either side the divider takes a press
+    double ringDarkFromLuma = 128.0;  // a point's ring is black from this Rec. 709 luma up, else white
   };
 
   inline const Table& table() {
@@ -55,9 +57,16 @@ namespace stencil::gui::markMetrics {
       out.dividerLineWidthPx = num("COMPARE_DIVIDER", "lineWidthPx", out.dividerLineWidthPx);
       out.dividerKnobRadiusPx = num("COMPARE_DIVIDER", "knobRadiusPx", out.dividerKnobRadiusPx);
       out.dividerGrabSlackPx = num("COMPARE_DIVIDER", "grabSlackPx", out.dividerGrabSlackPx);
+      out.ringDarkFromLuma = num("MARKER_RING", "darkFromLuma", out.ringDarkFromLuma);
       return out;
     }();
     return t;
+  }
+
+  // A point's 1 px ring contrasts with its fill (browser render.js ringFor, core markers::ringFor).
+  inline QColor ringFor(const QColor& fill) {
+    const int luma = static_cast<int>(0.2126 * fill.red() + 0.7152 * fill.green() + 0.0722 * fill.blue());
+    return luma >= table().ringDarkFromLuma ? QColor(0, 0, 0) : QColor(255, 255, 255);
   }
 
 }  // namespace stencil::gui::markMetrics

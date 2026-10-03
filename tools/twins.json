@@ -195,6 +195,11 @@
       "to": "browser-extension/src/lib/rectTween.js"
     },
     {
+      "name": "quarterTurn",
+      "from": "browser/js/ui/motion/quarterTurn.js",
+      "to": "browser-extension/src/lib/motion/quarterTurn.js"
+    },
+    {
       "name": "llmClient",
       "from": "browser/js/llm/client.js",
       "to": "browser-extension/src/llm/client.js"
@@ -293,6 +298,11 @@
       "name": "rectTweenDts",
       "from": "browser/js/ui/motion/rectTween.d.ts",
       "to": "browser-extension/src/lib/rectTween.d.ts"
+    },
+    {
+      "name": "quarterTurnDts",
+      "from": "browser/js/ui/motion/quarterTurn.d.ts",
+      "to": "browser-extension/src/lib/motion/quarterTurn.d.ts"
     },
     {
       "name": "cappedBodyDts",

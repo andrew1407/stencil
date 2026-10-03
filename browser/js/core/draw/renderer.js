@@ -12,6 +12,9 @@ import constants from '../../../../common/config/constants.json' with { type: 'j
 export { pointColorOf };
 
 const { HOLD_DRAW } = constants;
+// The overlay's backing caps: 4096² pixels in all, and a side no browser refuses.
+const OVERLAY_MAX_PX = 4096 * 4096;
+const OVERLAY_MAX_SIDE = 16384;
 
 export class Renderer {
   #base = new BaseLayer(() => this.requestRedraw());
@@ -83,9 +86,19 @@ export class Renderer {
     return this.app.compareHoldOriginal ? 'original' : (this.app.compareMode || 'none');
   }
 
+  // Overlay px per image px: the zoom × devicePixelRatio, so marks paint at screen resolution as the
+  // desktop's drawLineScaled does, not as image pixels CSS stretches; 1/100 steps.
+  #overlayDensity() {
+    const { width: w, height: h } = this.app.canvas;
+    const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    const k = Math.min((this.app.scale || 1) * dpr, Math.sqrt(OVERLAY_MAX_PX / Math.max(1, w * h)),
+      OVERLAY_MAX_SIDE / Math.max(1, w, h));
+    return Math.max(0.01, Math.round(k * 100) / 100);
+  }
+
   redraw() {
     const app = this.app;
-    const layered = this.#stage.clear(app.canvas);
+    const layered = this.#stage.clear(app.canvas, this.#overlayDensity());
     if (!app.image) { this.#stage.invalidate(); return; }
 
     const compare = this.effectiveCompareMode();
