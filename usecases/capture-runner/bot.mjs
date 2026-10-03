@@ -169,7 +169,7 @@ const STEPS = Object.freeze([
     await ensurePhoto(ctx);
     await send(`/prompt ${config.prompt('real')}`, WAITS.promptMs);
     await waitForPlan();
-    await shot('prompt');
+    await shot('prompt', 3);
   } },
   { name: 'draw', run: async () => { await send('/draw rect 20%,20% 80%,80%'); await shot('draw-rect'); } },
   // The reply keyboards behind the edit menu's buttons; each submenu edits it in place.
@@ -189,7 +189,7 @@ const STEPS = Object.freeze([
     await shot('chat-mode');
     await send(config.prompt('botChat'));
     await waitForPlan();
-    await shot('chat-turn');
+    await shot('chat-turn', 3);
     await tap('Chat off');
   } },
   { name: 'script', run: async () => {
