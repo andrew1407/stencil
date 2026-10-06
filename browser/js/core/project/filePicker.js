@@ -35,7 +35,8 @@ export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
 };
 
 // From a File (input / drag-drop) or raw JSON text.
-export const openProjectFile = async (svc, input, { from = null } = {}) => {
+// `incognito` opens it without saving, as an incognito image drop does.
+export const openProjectFile = async (svc, input, { from = null, incognito = false } = {}) => {
   const app = svc.app;
   let text;
   try { text = typeof input === 'string' ? input : await input.text(); }
@@ -43,7 +44,7 @@ export const openProjectFile = async (svc, input, { from = null } = {}) => {
   const res = parseProjectFile(text);
   if (!res.ok) { notify('Invalid .stencil file: ' + res.error, 'fail'); return; }
   try {
-    const name = await applyProjectFile(app, res.project);
+    const name = await applyProjectFile(app, res.project, { incognito });
     // A project from the picker has no drop point and gets the plain landing.
     arriveFrom(document.getElementById('canvas-container'), from);
     notify(`Opened project “${shortName(name)}”`, 'ok');

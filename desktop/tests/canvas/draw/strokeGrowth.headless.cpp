@@ -146,6 +146,18 @@ int main(int argc, char** argv) {
   check(head && head->from == QPointF(0, 0), "the first corner only pops");
   check(whole.at(4, rect.points[1])->from == QPointF(0, 0), "the second leaves the first");
 
+  // A held vertex (a drawing click's double-click window) waits as a lone dot, then flies.
+  {
+    core::Line seg;
+    seg.points = {{0, 0}, {100, 0}};
+    fx::Fx held;
+    held.flyIn(-1, seg, 1, 0.0, nullptr, 250.0);
+    const fx::Flight* f = held.at(-1, seg.points[1]);
+    check(f && f->waiting(100.0) && !f->waiting(250.0), "a held vertex waits out its window");
+    held.release(120.0);
+    check(f && !f->waiting(120.0) && near(f->start, 120.0), "released, it flies from that instant");
+  }
+
   // ── The wiring, on the real widget: a click paints the vertex ON ITS WAY, an export
   // never does, and the resting picture is what is left behind.
   canvasWiring();

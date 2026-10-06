@@ -82,6 +82,7 @@ namespace stencil::gui {
     void setLabelAlpha(QAbstractButton* btn, const QColor& color, double alpha);
 
     void clearLabelAlpha(QAbstractButton* btn);
+    QString swapSheet(const QAbstractButton* btn, const QString& rgba);
 
     void rememberFace(QAbstractButton* btn, const FaceSpec& f);
 
@@ -94,6 +95,9 @@ namespace stencil::gui {
   }  // namespace detail
 
   bool faceSwapping(const QAbstractButton* btn);
+
+  // The button's own sheet (e.g. its centring padding): a swap keeps it under its colour rule.
+  void setFaceBaseSheet(QAbstractButton* btn, const QString& sheet);
 
   void repaintFace(QAbstractButton* btn);
 

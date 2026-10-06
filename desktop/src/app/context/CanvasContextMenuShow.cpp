@@ -8,12 +8,23 @@
 #include "menuReveal.hpp"
 #include "MenuShimmer.hpp"
 #include "iconSet.hpp"
+#include "ThemePainter.hpp"
 #include "copyProjectMenu.hpp"
 #include <QTimer>
 
 // The canvas context menu tree (contextMenu.js parity).
 
 namespace stencil::gui {
+
+  namespace {
+    // The shared actions wear the system's menu-bar ink on macOS (ThemePainter::retintMenuIconsForSystem);
+    // this menu is drawn in the app's theme, so they take the app's ink while it is open.
+    struct AppInkWhileOpen {
+      ThemePainter& theme;
+      AppInkWhileOpen(ThemePainter& t, QMenu& menu) : theme(t) { theme.appInkFor(menu); }
+      ~AppInkWhileOpen() { theme.restoreMenuInk(); }
+    };
+  }  // namespace
 
   void CanvasContextMenu::showContextMenu(const QPoint& globalPos) {
     // No image, no menu — the single gate for all three ways in (contextMenu.js `if (!app.image) return`).
@@ -161,6 +172,7 @@ namespace stencil::gui {
     // Declared AFTER menu: destroyed before it, which makes restoring the shared actions' text safe (MenuHotkeys.hpp).
     support::MenuHotkeyChips hotkeyChips(&menu);  // bordered keycap chips (.ctx-hotkey)
     support::MenuShimmer shimmer(&menu);          // per-row hover sweep (browser parity: .ctx-item)
+    AppInkWhileOpen appInk(w.parts.theme, menu);
     support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
     support::tightenIconColumn(menu);
     // Coming back from the flyout's file dialog: land on the script row, flyout open, as if

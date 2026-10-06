@@ -15,7 +15,6 @@
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QEasingCurve>
-#include <QFileInfo>
 #include <QImage>
 #include <QMimeData>
 #include <QStringList>
@@ -45,6 +44,19 @@ namespace stencil::gui {
           + QString::fromLatin1(pngBytes(img).toBase64());
     }
 
+    // The browser's dropOverlay.js SINGLE table, word for word.
+    void showKind(DropZonesOverlay* zones, DropKind kind, bool hasImage) {
+      if (kind == DropKind::LAYOUT)
+        zones->setSingle(QStringLiteral("layers"), QObject::tr("Apply layout"),
+                         hasImage ? QObject::tr("Draw the .json layout over the open image")
+                                  : QObject::tr("Open an image first — a layout needs one to draw on"));
+      else if (kind == DropKind::SCRIPT)
+        zones->setSingle(QStringLiteral("script"), QObject::tr("Run script"),
+                         QObject::tr("Load the .stc script and run it"));
+      else
+        zones->setSingle();
+    }
+
     enum class DropTarget { CANCEL, HERE, NEW_WINDOW };
 
     // An image already open → ask this window vs a new one (the browser's askAlt).
@@ -69,6 +81,7 @@ namespace stencil::gui {
     if (!canDrop(event->mimeData())) return;
     event->acceptProposedAction();
     if (overlays.dropZones) {
+      showKind(overlays.dropZones, dropKindOf(event->mimeData()), canvas->hasImage());
       overlays.dropZones->showZones();   // fits the window first, so the read below is the painted split
       overlays.dropZones->setActiveLeft(onSaveHalf(this, overlays.dropZones, event->position()));
     }
@@ -100,11 +113,14 @@ namespace stencil::gui {
       return;
     }
 
-    // A .json layout and a .stc script ignore the save/incognito split: neither opens an image.
-    if (src.kind == DropSrc::LOCAL_FILE) {
-      const QString suffix = QFileInfo(src.value).suffix();
-      if (suffix.compare("json", Qt::CaseInsensitive) == 0) { parts.sourceOpener.applyLayoutFromSource(src.value); return; }
-      if (suffix.compare("stc", Qt::CaseInsensitive) == 0) { parts.scriptHost.runScriptFromFile(src.value); return; }
+    switch (dropKindOf(src)) {
+      case DropKind::LAYOUT: parts.sourceOpener.applyLayoutFromSource(src.value); return;
+      case DropKind::SCRIPT: parts.scriptHost.runScriptFromFile(src.value); return;
+      case DropKind::OPEN: break;
+    }
+    if (src.kind == DropSrc::LOCAL_FILE && src.value.endsWith(QLatin1String(".stencil"), Qt::CaseInsensitive)) {
+      parts.sourceOpener.openProjectFileHere(src.value, incognito);
+      return;
     }
 
     const QString source = src.value;

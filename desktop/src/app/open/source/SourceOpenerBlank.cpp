@@ -14,8 +14,8 @@
 
 namespace stencil::gui {
 
-  // Browser openImageHere: persist the current content first (unless incognito), then a fresh editor in the requested mode.
-  void SourceOpener::openImageHere(const QString& path, bool incognito) {
+  // Browser newEditor: persist the current content first (unless incognito), then a fresh editor in the requested mode.
+  void SourceOpener::freshEditorIn(bool incognito) {
     if (!w.incognito) {
       if (!w.activeProjectId.isEmpty()) w.saveToActiveProject();
       else w.saveSessionNow();
@@ -30,6 +30,10 @@ namespace stencil::gui {
       w.acts.incognito->blockSignals(false);
       w.projectTitle->updateProjectTitle();
     }
+  }
+
+  void SourceOpener::openImageHere(const QString& path, bool incognito) {
+    freshEditorIn(incognito);
     loadLocalImageReset(path, [this](bool ok) {
       if (!ok) return;
       w.playImageArrival();

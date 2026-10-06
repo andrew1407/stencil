@@ -125,6 +125,14 @@ stencil_headless_test(stencil_chainedit_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
+# Breaking the drawing chain: ⌘/Ctrl+click and a double-click open an unconnected stroke.
+stencil_headless_test(stencil_chainbreak_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/canvas/draw/chainBreak.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
+
 # The canvas's undo steps as editor mementos (core EditorHistory); a load's crop starts the stack,
 # and a committed filter pick is one step.
 stencil_headless_test(stencil_canvashistory_headless

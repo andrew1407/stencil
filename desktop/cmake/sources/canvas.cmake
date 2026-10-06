@@ -12,6 +12,7 @@ set(STENCIL_CANVAS_SOURCES
   src/canvas/scene/sceneRender.cpp
   src/canvas/CanvasWidget.cpp
   src/canvas/input/CanvasDrag.cpp
+  src/canvas/draw/CanvasChainBreak.cpp
   src/canvas/draw/CanvasDrawClick.cpp
   src/canvas/draw/CanvasDrawMode.cpp
   src/canvas/paint/CanvasGeometry.cpp

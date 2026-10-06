@@ -102,6 +102,7 @@ namespace stencil::gui {
       const QString seq = w.keys.bound.value(it.key(), w.keys.defaults.value(it.key()));
       it.value()->setShortcut(QKeySequence(platformizeSeq(qtKeySeq(seq))));
     }
+    w.refreshActions();   // the drawing toggle's key belongs to whichever of Start / Stop is live
   }
 
 }  // namespace stencil::gui

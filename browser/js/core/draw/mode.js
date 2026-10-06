@@ -52,6 +52,12 @@ export const startDrawingMode = (app, opts = {}) => {
   app.renderer.redraw();
 };
 
+// The one drawing hotkey (Alt+A, or ~ pressed twice): stop if drawing, else start.
+export const toggleDrawing = (app) => {
+  if (app.isDrawing) stopDrawingMode(app);
+  else if (app.image) startDrawingMode(app);
+};
+
 export const setDrawMode = (app, mode) => {
   app.drawMode = (mode === 'rect') ? 'rect' : 'line';
   app.syncDrawModeUI();

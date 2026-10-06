@@ -47,8 +47,8 @@ export const ctxSyncState = (app) => {
     gate('ctx-paste-layout', !hasImage);
 
     hotkeys.updateCtxHints();
-    // Overridden after updateCtxHints so it reflects the start/stop binding for the live state.
-    const drawCombo = hotkeys.get(app.isDrawing ? 'stopDraw' : 'startDraw');
+    // Overridden after updateCtxHints: the entry's label flips, its one toggle binding does not.
+    const drawCombo = hotkeys.get('startDraw');
     setHtml(document.getElementById('ctx-draw-hotkey'),
       keysHtml(formatCombo(drawCombo, hotkeys.isMac), hotkeys.isMac));
 

@@ -206,6 +206,8 @@ class MainWindowGuiTest {
   static void assistantShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
   static void dialogShots(stencil::gui::MainWindow& win, const QString& theme, const ShotSet& shots);
   static void videoShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The file-drop overlay mid-drag: the save/incognito split, and the one layout zone.
+  static void dropShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // The Make a copy flyouts and dialog, the swatch picker and the linked-script confirm.
   static void copyScriptShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // Fit the image to the window, then clear the toasts the load left.

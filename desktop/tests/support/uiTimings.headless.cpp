@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
   const stencil::support::UiTimings f;
   pin("DEBOUNCE", "previewHoverMs", t.previewHoverMs, f.previewHoverMs);
   pin("POPOVER", "doubleClickMs", t.doubleClickMs, f.doubleClickMs);
+  pin("POPOVER", "doubleTapMs", t.doubleTapMs, f.doubleTapMs);
   pin("POPOVER", "pressSlopPx", t.pressSlopPx, f.pressSlopPx);
   pin("POPOVER", "lingerCloseMs", t.lingerCloseMs, f.lingerCloseMs);
 

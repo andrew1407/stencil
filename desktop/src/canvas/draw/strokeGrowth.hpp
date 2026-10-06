@@ -78,6 +78,8 @@ namespace stencil::gui::stroke {
     double bow = 0.0;
     double fly = FLY_MIN_MS;
     double start = 0.0;    // ms on the widget's clock; may be in the FUTURE (staggered)
+    bool hold = false;     // until `start`, a lone dot on its spot with no segment yet
+    bool waiting(double now) const { return hold && now < start; }
   };
 
   class Fx {
@@ -85,8 +87,10 @@ namespace stencil::gui::stroke {
     bool active() const { return !flights.empty(); }
     void clear() { flights.clear(); }
 
+    // `holdMs`: the vertex waits that long as a lone dot before its segment flies.
     void flyIn(int lineIdx, const core::Line& line, int ptIdx, double now,
-               const QPointF* from = nullptr);
+               const QPointF* from = nullptr, double holdMs = 0.0);
+    void release(double now);   // every waiting vertex flies from `now`
 
     void flyInRange(int lineIdx, const core::Line& line, int startIdx, int count, double now);
 

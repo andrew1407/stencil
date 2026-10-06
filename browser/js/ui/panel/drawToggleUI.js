@@ -15,8 +15,8 @@ export const syncDrawToggleUI = (app) => {
   pinWidestFace(btn, [face(false), face(true)]);
   swapContent(btn, face(on), { key: on ? 'stop' : 'start' });
   btn.classList.toggle('active', on);
-// Alt+A starts, Alt+S stops.
-  btn.dataset.hkTitle = on ? 'stopDraw' : 'startDraw';
+// One binding both starts and stops.
+  btn.dataset.hkTitle = 'startDraw';
   btn.dataset.title = on ? 'Stop Drawing' : 'Start Drawing';
   btn.dataset.tip = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
 };

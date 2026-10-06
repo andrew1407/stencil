@@ -15,7 +15,6 @@ namespace stencil::gui {
     w.keys.actions["rotateImageLeft"] = w.acts.rotateLeft;
     w.keys.actions["rotateImageRight"] = w.acts.rotateRight;
     w.keys.actions["startDraw"] = w.acts.startDraw;
-    w.keys.actions["stopDraw"] = w.acts.stopDraw;
     w.keys.actions["clearAllLines"] = w.acts.clearAll;
     w.keys.actions["deleteLine"] = w.acts.deleteLine;
     w.keys.actions["deletePoint"] = w.acts.deletePoint;

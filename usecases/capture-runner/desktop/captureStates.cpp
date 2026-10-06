@@ -1,6 +1,6 @@
 // The window states behind usecases/docs/desktop/img, in the order one window passes through
-// them: the blank fills, an image from a URL and the context menu here, then the assistant, the
-// dialogs, the copy and script flyouts and the video (capture{Assistant,Dialogs,CopyScript,Video}.cpp);
+// them: the blank fills, an image from a URL and the context menu here, then the file drops, the
+// assistant, the dialogs, the copy and script flyouts and the video (capture{Drops,Assistant,Dialogs,CopyScript,Video}.cpp);
 // and the theme-swap frames.
 #include "captureShared.hpp"
 
@@ -89,6 +89,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
     pumpFor(100);
   }
 
+  dropShots(win, shots);
   assistantShots(win, theme, shots);
   dialogShots(win, theme, shots);
   videoShots(win, shots);

@@ -1,5 +1,6 @@
 #include "CanvasWidget.hpp"
 #include "hitTest.hpp"
+#include "../../support/uiTimings.hpp"
 
 // A click while drawing: closing the shape, or adding the next point.
 
@@ -50,6 +51,13 @@ namespace stencil::gui {
     // in rect mode, areas are created by dragging, never click-to-add
     // (browser drawingApp.js ~1182).
     if (drawMode == DrawMode::RECT) return;
+    if (mods & Qt::ControlModifier) {
+      breakChain(ip, /*repeat=*/false);
+      return;
+    }
+    strokeFx.release(fxNow());   // this click is not the second of a double-click
+    // A dropped point's segment waits out the double-click window, so a double-click never shows one.
+    const double holdMs = support::uiTimings().doubleClickMs;
 
     // Continuation drawing (drawingApp.js canvasClick continuation branch): a click on the stroke's
     // first point closes it into a locked area, whichever stroke is being drawn.
@@ -59,6 +67,9 @@ namespace stencil::gui {
         continueLineIdx < static_cast<int>(lines.size())) {
       const int idx = continueLineIdx;
       insertContinuationPoint(ip, /*advance=*/true);
+      gesture.dropLine = idx;
+      gesture.dropIdx = continueInsertIdx - 1;
+      flyInPoint(idx, lines[idx], gesture.dropIdx, nullptr, holdMs);
       update(lineRect(idx));
       emit changed();
       emit selectionChanged();
@@ -66,8 +77,10 @@ namespace stencil::gui {
     }
 
     currentLine.points.push_back(ip);
-    flyInPoint(-1, currentLine, static_cast<int>(currentLine.points.size()) - 1);
     selectedPoint = static_cast<int>(currentLine.points.size()) - 1;
+    flyInPoint(-1, currentLine, selectedPoint, nullptr, holdMs);
+    gesture.dropLine = -1;
+    gesture.dropIdx = selectedPoint;
     update();
     emit changed();
     emit selectionChanged();

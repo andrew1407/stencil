@@ -59,9 +59,9 @@ namespace stencil::gui {
   // Send a just-added vertex on its way and keep the frame timer running while it and
   // any other are still moving.
   void CanvasWidget::flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
-                                const QPointF* from) {
+                                const QPointF* from, double holdMs) {
     if (!support::isDrawingMotionOk()) return;   // "Drawing animation" off, or nothing may move
-    strokeFx.flyIn(lineIdx, line, ptIdx, fxNow(), from);
+    strokeFx.flyIn(lineIdx, line, ptIdx, fxNow(), from, holdMs);
     if (strokeFx.active() && !fxTimer.isActive()) fxTimer.start();
   }
 

@@ -32,6 +32,8 @@ namespace stencil::gui {
     QPoint lastPanPos;              // last cursor pos during a pan (GLOBAL space)
     QPoint zoomStart, zoomEnd;      // the zoom rubber band (widget space)
     QPoint rectStart, rectEnd;      // the rect-draw rubber band (widget space)
+    // The point the last drawing click dropped (line -1 = in-progress; dropIdx -1 = none).
+    int dropLine = -1, dropIdx = -1;
   };
 
 }  // namespace stencil::gui

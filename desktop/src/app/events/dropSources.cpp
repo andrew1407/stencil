@@ -3,6 +3,7 @@
 #include <QImage>
 
 #include <QByteArray>
+#include <QFileInfo>
 #include <QMimeData>
 #include <QRegularExpression>
 #include <QStringDecoder>
@@ -124,6 +125,16 @@ namespace stencil::gui {
       if (namesAnImage(u) || !isHttpUrl(u)) return false;
     return true;
   }
+
+  DropKind dropKindOf(const DropSrc& src) {
+    if (src.kind != DropSrc::LOCAL_FILE) return DropKind::OPEN;
+    const QString suffix = QFileInfo(src.value).suffix();
+    if (suffix.compare(QLatin1String("json"), Qt::CaseInsensitive) == 0) return DropKind::LAYOUT;
+    if (suffix.compare(QLatin1String("stc"), Qt::CaseInsensitive) == 0) return DropKind::SCRIPT;
+    return DropKind::OPEN;
+  }
+
+  DropKind dropKindOf(const QMimeData* mime) { return dropKindOf(droppableSource(mime)); }
 
   bool canDrop(const QMimeData* mime) {
     if (!mime) return false;

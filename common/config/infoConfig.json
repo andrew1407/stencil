@@ -12,10 +12,11 @@
     ["Arrow keys", "Pan the viewport (Shift = faster)."]
   ]],
   ["Drawing", [
-    ["Start / Stop (Alt+A / Alt+S)", "Begin or finish drawing the current line."],
+    ["Start / Stop (Alt+A, or press ~ twice)", "Begin or finish drawing the current line — the same key toggles."],
     ["Line / Rect toggle", "Switch between polyline drawing and rectangle drawing."],
     ["Click (line mode)", "Add a point to the line being drawn."],
     ["Click the first point", "Close the shape into a locked, fillable area."],
+    ["Ctrl + click / double-click (line mode)", "Keep the line drawn so far and start a new, unconnected one at that spot — drawing stays on. Double-tap on touch."],
     ["Drag (rect mode)", "Sweep out a rectangle: 4 corner points, a locked area."],
     ["Unchain", "Turn a closed area (a closed shape or a rectangle) back into an open line — the button on the selected-line bar, or Alt+Ctrl+drag on the line itself."],
     ["Ctrl + click (empty)", "Add a new point; connects to the selected line/point if one is selected."],

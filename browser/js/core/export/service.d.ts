@@ -20,7 +20,7 @@ export declare class ExportService {
   copyImageToClipboard(variant?: ExportVariant): Promise<void>;
   copyLayoutToClipboard(): Promise<void>;
   saveProjectFile(opts?: { includeTheme?: boolean }): Promise<void>;
-  openProjectFile(input: File | string, opts?: { from?: unknown }): Promise<void>;
+  openProjectFile(input: File | string, opts?: { from?: unknown; incognito?: boolean }): Promise<void>;
   pickAndOpenProjectFile(): Promise<void>;
   deleteProjectFile(): Promise<void>;
   applyPastedLayout(data: LayoutPayload, from?: { x: number; y: number } | null): Promise<void>;

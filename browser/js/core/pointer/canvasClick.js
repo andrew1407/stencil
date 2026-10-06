@@ -2,9 +2,10 @@ import * as shapeBuilder from '../line/shapeBuilder.js';
 import { toggleLineSelection, updateMultiSelectStatus } from '../line/selection.js';
 import { canvasCoords } from './canvasCoords.js';
 import { CHANGE, changed } from '../app/changes.js';
+import { breakChainAt, breakChainOnRepeat, noteDrop, dropHoldMs } from '../draw/chainBreak.js';
 
-// One router for a canvas click: extend/close the stroke while drawing, Ctrl/Cmd inserts
-// or adds a point, a plain click selects the point or line under the cursor.
+// One router for a canvas click: extend/close the stroke while drawing (a double-click or
+// Ctrl/Cmd breaks the chain), Ctrl/Cmd inserts or adds a point, a plain click selects.
 
 export const canvasClick = (app, e) => {
   if (!app.image) return;
@@ -25,6 +26,9 @@ export const canvasClick = (app, e) => {
 
   if (app.isDrawing) {
     if (app.drawMode === 'rect') return;
+// A double-click's second click (detail 2; a double-tap's synthetic one too) never adds a point.
+    if (e.detail >= 2) { breakChainOnRepeat(app, x, y); return; }
+    app.strokeFx.release?.();
 
 // Ctrl/Cmd+click on a committed segment inserts BETWEEN its endpoints rather than
 // appending at the tail.
@@ -37,6 +41,8 @@ export const canvasClick = (app, e) => {
           app.continueInsertIdx++;
         return;
       }
+      breakChainAt(app, x, y);
+      return;
     }
 
 // A click near the first point closes the stroke into a locked area.
@@ -45,7 +51,8 @@ export const canvasClick = (app, e) => {
     if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
       const line = app.lines[app.continueLineIdx];
       line.points.splice(app.continueInsertIdx, 0, { x, y });
-      app.strokeFx.flyIn(line, app.continueInsertIdx);
+      noteDrop(app, line, line.points[app.continueInsertIdx]);
+      app.strokeFx.flyIn(line, app.continueInsertIdx, null, dropHoldMs(e));
       app.focusedPtIdx = app.continueInsertIdx;
       app.continueInsertIdx++;
       app.coordTable.update(line.points, app.continueLineIdx);
@@ -56,7 +63,8 @@ export const canvasClick = (app, e) => {
 
     app.undonePoints = [];
     app.currentLine.points.push({ x, y });
-    app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
+    noteDrop(app, app.currentLine, app.currentLine.points.at(-1));
+    app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1, null, dropHoldMs(e));
     app.renderer.redraw();
     changed(app, CHANGE.history);
     return;

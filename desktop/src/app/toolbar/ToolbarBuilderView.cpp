@@ -6,6 +6,7 @@
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 
 #include "../../support/control/clickToToggle.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
 #include "tipContent.hpp"
 
 #include <QDockWidget>
@@ -91,8 +92,12 @@ namespace stencil::gui {
         if (act->isChecked() != on) act->setChecked(on);   // runs the action's own handler
       });
       QObject::connect(act, &QAction::toggled, &w, [box](bool on) {
-        QSignalBlocker blocked(box);   // echo back without re-entering the handler
-        box->setChecked(on);
+        if (box->isChecked() == on) return;   // the box was the one clicked: it already dusted
+        {
+          QSignalBlocker blocked(box);   // echo back without re-entering the handler
+          box->setChecked(on);
+        }
+        swapCheckIndicator(box, on);   // a mirrored change dusts too (browser setChecked)
       });
     };
     bindCheck(w.tools.showPointsCheck, w.acts.showPoints);

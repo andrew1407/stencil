@@ -73,6 +73,13 @@ class MainWindowGuiTest : public QObject {
                        QString::fromLatin1(stencil::gui::CHECK_SWAP_OBJECT_NAME)).isEmpty());
     QCOMPARE(box->isChecked(), last);
     QCOMPARE(box->geometry(), boxGeom);
+    // Toggled from elsewhere (the context menu, Alt+P), the mirrored box dusts too (browser setChecked).
+    win.acts.showPoints->toggle();
+    QCOMPARE(box->isChecked(), !last);
+    QVERIFY2(!win.findChildren<QWidget*>(QString::fromLatin1(stencil::gui::CHECK_SWAP_OBJECT_NAME)).isEmpty(),
+             "the toolbar's synced Points box changed without its dust");
+    QTRY_VERIFY(win.findChildren<QWidget*>(
+                       QString::fromLatin1(stencil::gui::CHECK_SWAP_OBJECT_NAME)).isEmpty());
 
     if (combo->count() > 1) {
       const int other = combo->currentIndex() == 0 ? 1 : 0;

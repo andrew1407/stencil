@@ -8,6 +8,40 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
+  // A shared action's icon in the context menu wears the APP's ink, even where macOS re-tints it for a
+  // native menu bar in the other appearance (the docs capture's black glyphs on a dark menu).
+  void ctxSharedIconsWearTheAppsInk() {
+    MainWindow win(nullptr, false);
+    win.settings.themeMode = QStringLiteral("dark");
+    win.applyTheme();
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const auto ink = [](const QIcon& icon) {   // mean lightness of the glyph's drawn pixels
+      const QImage im = icon.pixmap(18, 18).toImage().convertToFormat(QImage::Format_ARGB32);
+      double sum = 0; int n = 0;
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x)
+          if (QColor c = im.pixelColor(x, y); c.alpha() > 128) { sum += c.lightnessF(); ++n; }
+      return n ? sum / n : -1.0;
+    };
+    double whileOpen = -1;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      whileOpen = ink(win.acts.startDraw->icon());
+      root->close();
+    });
+    win.parts.canvasMenu.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
+    QVERIFY2(whileOpen > 0.6, qPrintable(QString("Start Drawing's glyph is dark on the dark menu (%1)").arg(whileOpen)));
+  }
+
   // The Custom Tint pick shows the "Tint Color…" row at once and moving off it hides the row again,
   // while the flyout is open (browser parity: .ctx-tint-visible follows the radio change).
   void ctxCustomTintRowFollowsTheFilterPick() {

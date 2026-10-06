@@ -73,6 +73,13 @@ input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor:
 #global-drop-overlay .drop-zone-right p { color: var(--text-muted); }
 #global-drop-overlay .drop-zone span { font-size: 13px; color: var(--text-muted); max-width: 90%; }
 #global-drop-overlay .drop-foot { flex: 0 0 auto; text-align: center; font-size: 13px; color: var(--text-muted); }
+/* A .json layout or .stc script opens no image: one zone replaces the split. */
+#global-drop-overlay .drop-zone-single,
+#global-drop-overlay.drop-single .drop-zone-left,
+#global-drop-overlay.drop-single .drop-zone-right,
+#global-drop-overlay.drop-single .drop-foot { display: none; }
+#global-drop-overlay.drop-single .drop-zone-single { display: flex; }
+#global-drop-overlay .drop-zone-single { background: color-mix(in srgb, var(--accent) 28%, var(--bg-container)); }
 /* Draw-mode toggle glyph (line / rect) — align with the button label. */
 .draw-mode-icon {
     vertical-align: -2px;

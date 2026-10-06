@@ -1,5 +1,6 @@
 #include "StayOpenMenu.hpp"
 #include "stayOpenMenuStops.hpp"
+#include "../../support/control/swap/menuCheckSwap.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -103,10 +104,12 @@ namespace stencil::gui {
         return;                           // do NOT call base → the menu stays open
       }
       if (QAction* a = checkableAt(e->pos())) {
-        if (QActionGroup* g = a->actionGroup(); g && g->isExclusive())
-          a->setChecked(true);
-        else
-          a->toggle();
+        QActionGroup* g = a->actionGroup();
+        const bool radio = g && g->isExclusive();
+        toggleMenuRowsWithDust(this, radio ? g->actions() : QList<QAction*>{a}, [a, radio] {
+          if (radio) a->setChecked(true);
+          else a->toggle();
+        });
         e->accept();
         return;                           // keep the menu open
       }

@@ -10,8 +10,10 @@
 namespace stencil::gui {
 
   // Open a portable .stencil project; mirrors browser DrawingApp.applyProjectFile. The picture
-  // decodes on the pool; `done` hears whether it landed (a newer load wins).
-  void SourceOpener::openProjectFile(const QString& path, std::function<void(bool)> done) {
+  // decodes on the pool; `done` hears whether it landed (a newer load wins). `incognito` files no
+  // project and links no file, so nothing it holds is written back.
+  void SourceOpener::openProjectFile(const QString& path, std::function<void(bool)> done,
+                                     bool incognito) {
     QByteArray bytes;
     if (!readFileBytes(path, bytes)) {
       w.notify->error("Could not read the project file");
@@ -27,7 +29,7 @@ namespace stencil::gui {
     }
     w.decodeForCanvas(
         [image = pf.imageBytes] { return QImage::fromData(image); },
-        [this, path, bytes, pf, done](const QImage& img) {
+        [this, path, bytes, pf, done, incognito](const QImage& img) {
           if (img.isNull()) {
             w.notify->error("Could not decode the project image");
             if (done) done(false);
@@ -59,8 +61,10 @@ namespace stencil::gui {
               fileStore::saveSettings(w.settings);
             }
           }
-          w.createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
-          w.stencilSync->link(path, bytes);
+          if (!incognito) {
+            w.createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
+            w.stencilSync->link(path, bytes);
+          }
           // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is on.
           if (w.settings.saveChatsWithProject) {
             w.chatSession->restoreChatFromDoc(pf.chat);
@@ -76,5 +80,10 @@ namespace stencil::gui {
           if (done) done(true);
         },
         [done] { if (done) done(false); });
+  }
+
+  void SourceOpener::openProjectFileHere(const QString& path, bool incognito) {
+    freshEditorIn(incognito);
+    openProjectFile(path, {}, incognito);
   }
 }  // namespace stencil::gui

@@ -21,10 +21,14 @@ namespace stencil::gui {
     acts.undo->setEnabled(canvas->canUndo() && !ro);
     acts.redo->setEnabled(canvas->canRedo() && !ro);
     acts.saveProject->setEnabled(!activeProjectId.isEmpty());
-    // Mirrors the browser HK_HANDLERS startDraw/stopDraw guards.
+    // Mirrors the browser toggleDrawing guards.
     const bool drawing = canvas->getIsDrawing();
     acts.startDraw->setEnabled(canvas->hasImage() && !drawing && !ro);
     acts.stopDraw->setEnabled(drawing && !ro);
+    // One key toggles drawing; it rides only the live action, as two enabled owners would fire neither.
+    const QKeySequence drawKey(platformizeSeq(qtKeySeq(keys.value("startDraw", keys.defaults.value("startDraw")))));
+    acts.startDraw->setShortcut(drawing ? QKeySequence() : drawKey);
+    acts.stopDraw->setShortcut(drawing ? drawKey : QKeySequence());
     // One Draw button for both: handing it the other action carries icon, tooltip, state and
     // target across (browser: syncDrawToggleUI).
     if (tools.startDrawBtn) {

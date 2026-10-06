@@ -2,6 +2,7 @@
 // the resting picture is what is left behind. Needs a live CanvasWidget, so it sits apart.
 #include "CanvasWidget.hpp"
 #include "motionPrefs.hpp"
+#include "uiTimings.hpp"
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -69,9 +70,14 @@ void canvasWiring() {
   click(anchor);
   spin(700);                       // let the first point settle
   click(target);
+  // The double-click window first: the dot is on the click, its segment not drawn yet.
+  spin(40);
+  const QImage waiting = shot(canvas);
+  check(inkNear(waiting, target.x(), target.y(), ink, 8), "while it waits the dot is already on the click");
+  check(!inkNear(waiting, anchor.x() + 30, anchor.y() + 21, ink, 10), "…and no segment heads for it yet");
   // A moment into the flight, not at the very start of it: at t=0 the vertex is still on
   // the anchor and the segment has no length yet, so there would be nothing to see leaving.
-  spin(90);
+  spin(stencil::support::uiTimings().doubleClickMs - 40 + 90);
   const QImage flying = shot(canvas);
   check(canvas.getCurrentLine().points.size() == 2, "the click really added the point");
   check(!inkNear(flying, target.x(), target.y(), ink, 8),

@@ -59,3 +59,36 @@ test('the chat-attach path words its failure the same way', async () => {
     assert.ok(toasts[0].msg.endsWith(HINT), 'both drop paths offer the same way out');
   } finally { doc.restore(); }
 });
+
+const fileDrag = (type) => ({ types: ['Files'], files: [], items: [{ kind: 'file', type }], getData: () => '' });
+
+test('a dragged .json shows one layout zone; an image or a .stencil shows the split', () => {
+  const doc = installDom({}, { window: { innerWidth: 1000, innerHeight: 800 } });
+  try {
+    const overlay = createStubElement('div');
+    doc.register('global-drop-overlay', overlay);
+    wireDropPaste({ image: null });
+    const enter = (type) => doc.dispatch('dragenter', { preventDefault() {}, clientX: 10, clientY: 10, dataTransfer: fileDrag(type) });
+    enter('application/json');
+    assert.ok(overlay.classList.contains('drop-single'));
+    assert.equal(overlay.dataset.dropKind, 'layout:false', 'worded for a window with no image');
+    enter('image/png');
+    assert.ok(!overlay.classList.contains('drop-single'));
+    enter('');
+    assert.ok(!overlay.classList.contains('drop-single'), 'a .stencil opens saved or incognito');
+  } finally { doc.restore(); }
+});
+
+test('a .stencil dropped on the right half opens incognito', () => {
+  const doc = installDom({}, { window: { innerWidth: 1000, innerHeight: 800 } });
+  try {
+    doc.register('global-drop-overlay', createStubElement('div'));
+    const opened = [];
+    wireDropPaste({ image: null, export: { openProjectFile: (f, o) => opened.push([f.name, o.incognito]) } });
+    const drop = (x) => doc.dispatch('drop', { preventDefault() {}, clientX: x, clientY: 10,
+      dataTransfer: { types: ['Files'], files: [{ name: 'trip.stencil', type: '' }], getData: () => '' } });
+    drop(800);
+    drop(100);
+    assert.deepEqual(opened, [['trip.stencil', true], ['trip.stencil', false]]);
+  } finally { doc.restore(); }
+});

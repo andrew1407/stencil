@@ -136,3 +136,24 @@ test('a line with nothing in the air is not copied, and paints no overlay', () =
   h.fx.paintOver(ctx, line, line.points);
   assert.equal(calls, 0);
 });
+
+test('a held vertex waits as a lone dot on its spot, no segment, until the hold ends or is released', () => {
+  const h = harness();
+  const line = lineOf([0, 0], [100, 0]);
+  h.fx.flyIn(line, 1, null, 250);
+  assert.deepEqual(h.fx.pointsOf(line)[1], { x: 0, y: 0 }, 'it sits on its anchor: the segment is zero-length');
+  assert.equal(h.fx.scaleAt(line.points[1]), 0, 'the travelling vertex is hidden while it waits');
+  h.at(100);
+  assert.equal(h.fx.scaleAt(line.points[1]), 0, 'still waiting inside the window');
+  h.fx.release();
+  h.at(101);
+  assert.ok(h.fx.scaleAt(line.points[1]) > 0, 'released: it flies from now');
+  assert.notDeepEqual(h.fx.pointsOf(line)[1], line.points[1], 'and is in the air, not landed');
+});
+
+test('an unheld vertex flies at once, as before', () => {
+  const h = harness();
+  const line = lineOf([0, 0], [100, 0]);
+  h.fx.flyIn(line, 1);
+  assert.ok(h.fx.scaleAt(line.points[1]) > 0);
+});

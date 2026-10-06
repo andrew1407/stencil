@@ -24,6 +24,19 @@ and size. `stencil --src <path|url>` and `stencil --blank` do the same from a sh
 |---|---|---|
 | ![white blank](img/blank-white.png) | ![black blank](img/blank-black.png) | ![the logo from the repository](img/open-from-url.png) |
 
+## Drop a file on the window
+
+Drag an image or a `.stencil` project over the window and it splits in two: drop on the left
+to open it and keep it in your projects, on the right to open it **incognito**, without saving
+it. The half under the pointer lights up.
+
+![an image or project dragged over the save / incognito halves](img/file-dropzones.png)
+
+A `.json` layout gets one zone that draws it over the open picture, and a `.stc` script one
+that runs it.
+
+![a .json layout dragged over the window](img/layout-dropzone.png)
+
 ## Open a frame from a video
 
 Choose a video instead and the dialog turns into a small player. Drag the bar under the

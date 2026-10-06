@@ -17,7 +17,7 @@ follows your OS; the moon/sun button (`Ctrl+D`) flips it.
 
 1. Click **Blank image** on the empty canvas (or the Open Image button, `Ctrl+O`).
 2. Pick **Blank**, choose a fill (White, Black, or any colour) and a size, then **Create blank**.
-3. Press **Start** (`Alt+A`) and click on the canvas to place points; **Stop** with `Alt+S`.
+3. Press **Start** (`Alt+A`, or press `~` twice) and click on the canvas to place points; the same key **stops**.
 
 ![create a blank page and draw](img/create-blank.gif)
 
@@ -34,6 +34,19 @@ repository:
 ![the open-image window](img/open-image-modal.png)
 
 ![an image opened from a URL](img/open-from-url.png)
+
+## Drop a file on the page
+
+Drag an image or a `.stencil` project over the page and it splits in two: drop on the left to
+open it and keep it in your projects, on the right to open it **incognito**, without saving it.
+The half under the pointer lights up.
+
+![an image or project dragged over the save / incognito halves](img/file-dropzones.png)
+
+A `.json` layout opens no image, so it gets one zone that draws the layout over the open
+picture. A `.stc` script runs from either half.
+
+![a .json layout dragged over the page](img/layout-dropzone.png)
 
 ## Open a frame from a video
 

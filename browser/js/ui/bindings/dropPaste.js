@@ -1,6 +1,7 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
 import { extractDraggedImageUrls, mediaFilesFromData, fetchFirstDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
-import { showDropOverlay, hideDropOverlay } from '../canvas/dropOverlay.js';
+import { showDropOverlay, hideDropOverlay, setDropKind } from '../canvas/dropOverlay.js';
+import { dropKindOfDrag, dropKindOfFile } from '../../core/pointer/dropKind.js';
 import { loadScriptFile } from '../script/modal.js';
 import { openImageConfirmAnchors } from '../modal/imageAnchor.js';
 import { loadImageFromFile } from '../../core/image/loadFlow.js';
@@ -51,6 +52,13 @@ export function wireDropPaste(app) {
     return false;
   };
 
+  // Item types are readable mid-drag; names are not (dropKind.js).
+  const showFor = (dt) => {
+    const itemTypes = [...(dt.items || [])].filter((it) => it.kind === 'file').map((it) => it.type);
+    setDropKind(dropZone, dropKindOfDrag([...dt.types], itemTypes), { hasImage: !!app.image });
+    showDropOverlay(dropZone);
+  };
+
   document.addEventListener('dragenter', e => {
     e.preventDefault();
     if (isReorderDrag(e)) return;   // internal row reorder — not an image drop
@@ -58,7 +66,7 @@ export function wireDropPaste(app) {
     // Show the overlay for a dragged File OR an image dragged from another page (uri-list /
     // html — a URL, not a File). Plain text alone isn't treated as a drop (too noisy).
     const t = e.dataTransfer.types;
-    if (t.includes('Files') || t.includes('text/uri-list') || t.includes('text/html')) showDropOverlay(dropZone);
+    if (t.includes('Files') || t.includes('text/uri-list') || t.includes('text/html')) showFor(e.dataTransfer);
   });
   document.addEventListener('dragover', e => {
     e.preventDefault();
@@ -108,14 +116,15 @@ export function wireDropPaste(app) {
           + 'If the site blocks cross-origin downloads, try the extension or desktop app.', 'fail'));
       return;
     }
-    if (file.name.endsWith('.stencil')) {
-      app.export.openProjectFile(file, { from });   // a whole .stencil project ignores the save/incognito split
-    } else if (file.name.endsWith('.stc')) {
+    const kind = dropKindOfFile(file);
+    if (kind === 'script') {
       loadScriptFile(file);   // into the script window when it is open, else it runs
+    } else if (kind === 'layout') {
+      app.loadJSONFromFile(file, { from });
+    } else if (file.name.toLowerCase().endsWith('.stencil')) {
+      app.export.openProjectFile(file, { from, incognito });
     } else if (file.type.startsWith('image/')) {
       handleImageDrop(file, incognito, from);
-    } else if (file.name.endsWith('.json') || file.type === 'application/json') {
-      app.loadJSONFromFile(file, { from });   // a .json layout ignores the save/incognito split
     } else {
       notify('Please drop an image, a .json layout, a .stencil project, or a .stc script', 'fail');
     }

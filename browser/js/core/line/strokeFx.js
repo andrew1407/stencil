@@ -15,7 +15,7 @@ export class StrokeFx {
   #app;
   #now;
   #schedule;
-  #fx = [];        // { line, pt, from, to, bow, flyMs, start }
+  #fx = [];        // { line, pt, from, to, bow, flyMs, start, hold }
   #byPt = new Map();
   #suspended = false;
   #raf = 0;
@@ -43,7 +43,8 @@ export class StrokeFx {
   }
 
   // `from` defaults to the neighbour it hangs off; a line's first point has none and only pops.
-  flyIn(line, idx, from = null) {
+  // `holdMs`: the vertex waits that long as a lone dot at its spot before its segment flies.
+  flyIn(line, idx, from = null, holdMs = 0) {
     // "Drawing animation" off puts the vertex straight where it was put.
     if (!this.#schedule || !drawMotionEnabled()) return null;
     const pts = line?.points;
@@ -55,7 +56,7 @@ export class StrokeFx {
     // A rapid re-add replaces its own record rather than stacking two clocks on one point.
     const rec = {
       line, pt, to, from: { x: src.x, y: src.y },
-      bow: strokeBowSign(to.x, to.y), flyMs: strokeFlyMs(len), start: this.#now(),
+      bow: strokeBowSign(to.x, to.y), flyMs: strokeFlyMs(len), start: this.#now() + holdMs, hold: holdMs > 0,
     };
     this.#setFlights([...this.#fx.filter((f) => f.pt !== pt), rec]);
     this.#kick();
@@ -77,12 +78,19 @@ export class StrokeFx {
 
   cancel() { this.#setFlights([]); }
 
+  // Every waiting vertex starts flying now (the next click is not a double-click's second).
+  release() {
+    const t = this.#now();
+    for (const f of this.#fx) if (f.hold && f.start > t) f.start = t;
+  }
+
   has(line) { return !this.#idle && this.#fx.some((f) => f.line === line); }
 
   #recOf(pt) { return this.#idle ? null : this.#byPt.get(pt) || null; }
 
   // Each pass reads the clock ONCE and hands `t` down (desktop twin: canvasWidget's `const double now`).
   #phase(f, t) { return strokePhase(t - f.start, f.flyMs); }
+  #waiting(f, t) { return f.hold && t < f.start; }
 
   // The array itself when nothing on the line moves, so the common case allocates nothing.
   pointsOf(line) {
@@ -98,7 +106,9 @@ export class StrokeFx {
 
   scaleAt(pt) {
     const f = this.#recOf(pt);
-    return f ? strokeVertexScale(this.#phase(f, this.#now())) : 1;
+    if (!f) return 1;
+    const t = this.#now();
+    return this.#waiting(f, t) ? 0 : strokeVertexScale(this.#phase(f, t));
   }
 
 
@@ -108,7 +118,7 @@ export class StrokeFx {
     const t = this.#now();
     line.points.forEach((p, i) => {
       const f = this.#recOf(p);
-      if (!f) return;
+      if (!f || this.#waiting(f, t)) return;
       const a = strokeWake(this.#phase(f, t).span);
       if (a < 0.01) return;
       ctx.save();
@@ -140,7 +150,14 @@ export class StrokeFx {
       if (!f) return;
       const ph = this.#phase(f, t);
       const at = pts[i];
-      if (ph.fly < 1) {
+      if (this.#waiting(f, t)) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(f.to.x, f.to.y, r, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      } else if (ph.fly < 1) {
         const sp = strokeSpark(ph.fly);
         ctx.save();
         ctx.globalAlpha = sp.alpha;

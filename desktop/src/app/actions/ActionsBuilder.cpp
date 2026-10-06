@@ -52,9 +52,9 @@ namespace stencil::gui {
     w.setActionTip(w.acts.cycleCompare,
         "Cycle the compare view (none → original → vertical split → horizontal split); "
         "hold Alt+Shift+O to peek at the original");
-    // hotkeysConfig startDraw=Alt+A, stopDraw=Alt+S; acts.newLine loses its shortcut to Stop.
+    // hotkeysConfig startDraw=Alt+A toggles: refreshActions hands that one key to whichever is live.
     w.acts.startDraw = newAction("Start Drawing", w.keys.value("startDraw", "Alt+A"));
-    w.acts.stopDraw = newAction("Stop Drawing", w.keys.value("stopDraw", "Alt+S"));
+    w.acts.stopDraw = newAction("Stop Drawing", QString());
     // Short labels for the toolbar button (iconText()); the menu keeps the full text.
     w.acts.startDraw->setIconText("Start");
     w.acts.stopDraw->setIconText("Stop");

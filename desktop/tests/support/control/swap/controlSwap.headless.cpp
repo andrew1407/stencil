@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
   const QRect comboGeom = combo->geometry();
 
   checkScatter(host, box, boxGeom);
+  menuRowDust();
   comboValueExchange(host, combo, lay, comboGeom);
   optOutAndReducedMotion(host, lay, box, combo, boxGeom, comboGeom);
 

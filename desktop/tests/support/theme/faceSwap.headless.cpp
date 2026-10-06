@@ -22,6 +22,7 @@ using stencil::gui::FACE_SWAP_MS;
 using stencil::gui::FACE_SWAP_PIVOT;
 using stencil::gui::FACE_SWAPPING_PROPERTY;
 using stencil::gui::FACE_SWAP_TURN_DEG;
+using stencil::gui::setFaceBaseSheet;
 using stencil::gui::swapFace;
 
 #include "../../support/check.hpp"
@@ -191,6 +192,20 @@ int main(int argc, char** argv) {
         "…it lands on the end state, state flip and all");
   check(btn->styleSheet().isEmpty(), "…leaving no colour override behind");
   qunsetenv("STENCIL_NO_ANIM");
+
+  // The button's own sheet (the draw toggle's centring padding) survives a swap under the fade's
+  // colour rule, and the pivot can re-centre for the new word while no label shows.
+  const QString padStart = QStringLiteral("QToolButton{padding-left:9px;}");
+  const QString padStop = QStringLiteral("QToolButton{padding-left:4px;}");
+  setFaceBaseSheet(btn, padStart);
+  check(btn->styleSheet() == padStart, "the base sheet applies at rest");
+  swapFace(btn, face("stop", "Stop", accent), [btn, padStop] { setFaceBaseSheet(btn, padStop); });
+  check(faceSwapping(btn) && btn->styleSheet().startsWith(padStart),
+        "mid-swap the old word keeps its padding: the label never jumps left");
+  check(pumpUntil([btn] { return !faceSwapping(btn); }), "the padded swap converges");
+  check(btn->styleSheet() == padStop, "…ending on the padding the pivot set for the new word");
+  setFaceBaseSheet(btn, QString());
+  swapFace(btn, face("play", "Start", accent), {}, 0);
 
   // Degenerate calls are no-ops, not crashes.
   swapFace(nullptr, face("play", "Start", accent));

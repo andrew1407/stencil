@@ -74,11 +74,13 @@ set(STENCIL_THEMESWAP_SOURCES
 
 # Form-control state swaps (support/controlSwap.hpp) are split across three TUs: the
 # checkbox/combo pixmaps and bookkeeping, the value-swap cloud overlay, and the app-wide
-# event filter. They define one header's members, so they travel together.
+# event filter. They define one header's members, so they travel together — with the menu
+# row's check swap (menuCheckSwap.hpp), which draws on the same constants.
 set(STENCIL_CONTROLSWAP_SOURCES
   src/support/control/swap/controlSwap.cpp
   src/support/control/swap/controlSwapValue.cpp
-  src/support/control/swap/controlSwapFilter.cpp)
+  src/support/control/swap/controlSwapFilter.cpp
+  src/support/control/swap/menuCheckSwap.cpp)
 
 # The toggle face swap is split across two TUs defining one header's functions (the
 # frame maths and painting, then the live driver); every target that swaps a face needs

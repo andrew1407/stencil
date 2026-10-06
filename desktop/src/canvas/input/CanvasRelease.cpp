@@ -42,6 +42,13 @@ namespace stencil::gui {
       emit fitRequested();
       return;
     }
+    // While drawing, the second press breaks the chain instead of dropping a duplicate point.
+    if (event->button() == Qt::LeftButton && isDrawing && drawMode == DrawMode::LINE &&
+        !(event->modifiers() & Qt::ShiftModifier) && !compareReadOnly()) {
+      const QPoint pos = event->position().toPoint();
+      breakChain(toImageSpace(pos.x(), pos.y()), /*repeat=*/true);
+      return;
+    }
     // Plain left double-click on a line erases it (drawingApp.js canvasDblClick).
     if (event->button() == Qt::LeftButton && !isDrawing && !compareReadOnly()) {
       const QPoint pos = event->position().toPoint();

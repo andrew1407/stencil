@@ -54,7 +54,7 @@ test('Start/Stop: the glyph, the word and the accent fill all follow isDrawing',
   assert.equal(drawBtn.classes.has('active'), true, 'drawing is the accent-FILLED state');
 });
 
-test('Start/Stop: the swap keeps the tooltip and its state-dependent hotkey', () => {
+test('Start/Stop: the swap keeps the tooltip and its one toggle hotkey', () => {
   const { app, drawBtn } = uiRig();
   syncDrawToggleUI(app);
   assert.equal(drawBtn.dataset.hkTitle, 'startDraw');
@@ -63,7 +63,7 @@ test('Start/Stop: the swap keeps the tooltip and its state-dependent hotkey', ()
 
   app.isDrawing = true;
   syncDrawToggleUI(app);
-  assert.equal(drawBtn.dataset.hkTitle, 'stopDraw', 'Alt+A starts, Alt+S stops');
+  assert.equal(drawBtn.dataset.hkTitle, 'startDraw', 'Alt+A both starts and stops');
   assert.equal(drawBtn.dataset.title, 'Stop Drawing');
   assert.ok(drawBtn.dataset.tip.startsWith('Stop Drawing'), `composed tip, got ${drawBtn.dataset.tip}`);
 });

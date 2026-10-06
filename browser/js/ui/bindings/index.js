@@ -20,6 +20,7 @@ import { wireDropPaste } from './dropPaste.js';
 import { wireCanvasPointer } from './canvasPointer.js';
 import { wireSmoothZoom } from './viewport/smoothZoom.js';
 import { wireTypedWords } from './keys/typedWords.js';
+import { wireDrawDoublePress } from './keys/drawDoublePress.js';
 import { wireControlState } from '../control/state.js';
 import { beginQuarterTurn } from '../motion/quarterTurn.js';
 import { TUNE } from '../motion/tune.js';
@@ -37,6 +38,7 @@ export function wireControls(app) {
   wireScrollPersist(app);
   wireTheme(app);
   wireKeyboard(app);
+  wireDrawDoublePress(app);
   wireArrowPan(app);
   wireDropPaste(app);
   // The canvas gets its own overlay bars (js/ui/canvas/scrollbars.js); every other

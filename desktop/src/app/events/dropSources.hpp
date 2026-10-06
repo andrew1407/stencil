@@ -24,6 +24,12 @@ namespace stencil::gui {
   DropSrc droppableSource(const QMimeData* mime, const QString& bitmap = {},
                           const support::DragPasteboard& native = {});
 
+  // OPEN = an image or a .stencil (save or incognito); LAYOUT = a .json; SCRIPT = a .stc. Browser
+  // twin: core/pointer/dropKind.js, which reads only the MIME type until the drop.
+  enum class DropKind { OPEN, LAYOUT, SCRIPT };
+  DropKind dropKindOf(const DropSrc& src);
+  DropKind dropKindOf(const QMimeData* mime);
+
   // Whether the drag is worth accepting; a drag-move asks it on every pixel, so it never encodes.
   bool canDrop(const QMimeData* mime);
 

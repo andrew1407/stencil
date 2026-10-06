@@ -1,5 +1,6 @@
 #include "MainWindow.hpp"
 #include "../../support/control/textFocus.hpp"
+#include "../../support/uiTimings.hpp"
 #include "ArrowPanner.hpp"
 #include "CanvasWidget.hpp"
 
@@ -16,6 +17,16 @@
 namespace stencil::gui {
 
   namespace {
+    // The key left of 1 (` / ~): Qt's key under a Latin layout, macOS's kVK_ANSI_Grave under any other.
+    bool isTildeKey(const QKeyEvent* e) {
+      if (e->key() == Qt::Key_QuoteLeft || e->key() == Qt::Key_AsciiTilde) return true;
+#ifdef Q_OS_MACOS
+      return e->nativeVirtualKey() == 0x32;
+#else
+      return false;
+#endif
+    }
+
     // A press on something that takes no focus, or Escape, blurs the field (browser parity).
     void blurFieldOn(QWidget* win, QObject* obj, QEvent* event) {
       QWidget* focus = QApplication::focusWidget();
@@ -57,6 +68,22 @@ namespace stencil::gui {
 
     // Escape leaves fullscreen (browser parity).
     if (key == Qt::Key_Escape && fs.active) { parts.view.toggleFullscreen(); event->accept(); return; }
+
+    // ~ pressed twice toggles drawing, beside Alt+A (browser drawDoublePress.js); a third press starts over.
+    if (isTildeKey(event) && !(mods & (Qt::AltModifier | Qt::ControlModifier | Qt::MetaModifier))) {
+      if (!event->isAutoRepeat()) {
+        const quint64 at = event->timestamp();
+        if (held.tildeAtMs && at - held.tildeAtMs <= quint64(support::uiTimings().doubleTapMs)) {
+          held.tildeAtMs = 0;
+          QAction* toggle = acts.startDraw->isEnabled() ? acts.startDraw : acts.stopDraw;
+          if (toggle->isEnabled()) toggle->trigger();
+        } else {
+          held.tildeAtMs = at ? at : 1;
+        }
+      }
+      event->accept();
+      return;
+    }
 
     // R held for the Alt+R+←/→ chord (browser #rHeld).
     if (key == Qt::Key_R) { held.r = true; QMainWindow::keyPressEvent(event); return; }

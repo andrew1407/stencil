@@ -113,6 +113,52 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.overlays.dropZones->getActiveLeft(),
              "the dock swallowed the move and left the zones on the wrong half");
   }
+
+  // A .json or .stc opens no image, so it gets ONE zone; an image or a .stencil keeps the split.
+  void aLayoutOrScriptDragShowsOneZone() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    showWithChat(win);
+    const auto enterWith = [&](const QString& name) {
+      QMimeData mime;
+      mime.setUrls({QUrl::fromLocalFile(QDir::temp().filePath(name))});
+      dragTo(win, mime, QPoint(40, 300), QEvent::DragEnter);
+      return win.overlays.dropZones->isSingle();
+    };
+    QVERIFY2(enterWith(QStringLiteral("layout.json")), "a .json layout");
+    QVERIFY2(enterWith(QStringLiteral("batch.STC")), "a .stc script");
+    QVERIFY2(!enterWith(QStringLiteral("trip.stencil")), "a .stencil opens saved or incognito");
+    QVERIFY2(!enterWith(QStringLiteral("photo.png")), "an image too");
+    win.overlays.dropZones->hideZonesNow();
+  }
+
+  // A .stencil is opened, not decoded as a picture, and the half it lands on picks the mode.
+  void aStencilDroppedOnTheIncognitoHalfFilesNoProject() {
+    QTemporaryDir dir;
+    stencil::gui::fileStore::ProjectFileData pf;
+    pf.name = QStringLiteral("Dropped trip");
+    pf.imageExt = QStringLiteral("png");
+    QFile png(guiTestImage());
+    QVERIFY(png.open(QIODevice::ReadOnly));
+    pf.imageBytes = png.readAll();
+    const QImage img = QImage::fromData(pf.imageBytes);
+    pf.imageWidth = img.width();
+    pf.imageHeight = img.height();
+    pf.layout = stencil::gui::fileStore::buildLayoutJson(img.width(), img.height(), {});
+    const QString path = dir.filePath(QStringLiteral("trip.stencil"));
+    QFile out(path);
+    QVERIFY(out.open(QIODevice::WriteOnly) && out.write(stencil::gui::fileStore::buildProjectFile(pf)) > 0);
+    out.close();
+
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    showWithChat(win);
+    const size_t before = win.projectList.size();
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile(path)});
+    dropOn(win, mime, QPoint(win.width() - 40, 300));
+    QTRY_VERIFY(win.canvas->hasImage());
+    QVERIFY(win.incognito);
+    QCOMPARE(win.projectList.size(), before);
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

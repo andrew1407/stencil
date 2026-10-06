@@ -8,6 +8,35 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
+  // One key toggles drawing: Alt+A rides whichever of Start / Stop is live, and ~ twice toggles too.
+  void drawToggleKeyFollowsState() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QAction* start = actionByText(&win, "Start Drawing");
+    QAction* stop = actionByText(&win, "Stop Drawing");
+    QVERIFY(start && stop);
+    const QKeySequence altA(QStringLiteral("Alt+A"));
+    QVERIFY(start->shortcut() == altA && stop->shortcut().isEmpty());
+    start->trigger();
+    QTRY_VERIFY(canvas->getIsDrawing());
+    QVERIFY2(stop->shortcut() == altA && start->shortcut().isEmpty(), "Alt+A now stops");
+    const auto tilde = [&win](ulong at) {
+      QKeyEvent e(QEvent::KeyPress, Qt::Key_QuoteLeft, Qt::NoModifier, QStringLiteral("`"));
+      e.setTimestamp(at);
+      QCoreApplication::sendEvent(&win, &e);
+    };
+    tilde(1000);
+    QVERIFY2(canvas->getIsDrawing(), "one ~ does nothing");
+    tilde(1100);
+    QTRY_VERIFY(!canvas->getIsDrawing());
+    tilde(5000);
+    tilde(9000);
+    QVERIFY2(!canvas->getIsDrawing(), "two slow presses are not a double");
+    tilde(9100);
+    QTRY_VERIFY(canvas->getIsDrawing());
+  }
+
   // Browser parity: the single #draw-toggle and .btn-draw-fixed.
   void drawToggleIsOneButtonAndModeKeepsWidth() {
     MainWindow win(nullptr, false);
@@ -173,7 +202,10 @@ class MainWindowGuiTest : public QObject {
                                                                 : QString("Line"));
     QCOMPARE(btn->size(), drawSize);
     QCOMPARE(mode->size(), modeSize);
-    QVERIFY(btn->styleSheet().isEmpty() && mode->styleSheet().isEmpty());
+    for (QToolButton* b : {btn, mode})
+      QVERIFY2(!b->styleSheet().contains(stencil::gui::FACE_SWAPPING_PROPERTY) &&
+                   (b->styleSheet().isEmpty() || b->styleSheet().startsWith("QToolButton{padding-left:")),
+               qPrintable(b->styleSheet()));
 
     // ── Reduced motion: the end state at once, no animation to wait on.
     qputenv("STENCIL_NO_ANIM", "1");

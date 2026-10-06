@@ -157,7 +157,8 @@ namespace stencil::gui {
     QRect strokeFxRect() const;
     QRect dragRect() const;
     LiveMarks liveMarks() const;
-    void flyInPoint(int lineIdx, const core::Line& line, int ptIdx, const QPointF* from = nullptr);
+    void flyInPoint(int lineIdx, const core::Line& line, int ptIdx, const QPointF* from = nullptr,
+                    double holdMs = 0.0);
     void flyInPoints(int lineIdx, const core::Line& line, int startIdx, int count);
     // A flight is keyed by LINE INDEX: anything that renumbers the lines (undo, restore, removal)
     // must ground them first, or the last one finishes on whatever line inherited its number.
@@ -170,6 +171,7 @@ namespace stencil::gui {
     void beginZoomRect(const QPoint& widgetPos);
     bool handleCtrlClick(const core::Point& ip);
     void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods, const QPoint& widgetPos);
+    bool breakChain(core::Point ip, bool repeat);   // ⌘/Ctrl+click or a double-click while drawing
     void beginHold(const QPoint& widgetPos);
     void stopHold();
     void handleHoldTick();

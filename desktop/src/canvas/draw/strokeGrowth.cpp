@@ -93,7 +93,8 @@ namespace stencil::gui::stroke {
 
   // Send the point at `ptIdx` on its way. `from` defaults to the neighbour it hangs off
   // (the one before, else the one after); a line's first point has none and only pops.
-  void Fx::flyIn(int lineIdx, const core::Line& line, int ptIdx, double now, const QPointF* from) {
+  void Fx::flyIn(int lineIdx, const core::Line& line, int ptIdx, double now, const QPointF* from,
+                 double holdMs) {
     const int n = static_cast<int>(line.points.size());
     if (ptIdx < 0 || ptIdx >= n) return;
     const core::Point& pt = line.points[ptIdx];
@@ -111,8 +112,14 @@ namespace stencil::gui::stroke {
     f.from = src;
     f.bow = bowSign(to.x(), to.y());
     f.fly = flyMs(std::hypot(to.x() - src.x(), to.y() - src.y()));
-    f.start = now;
+    f.start = now + holdMs;
+    f.hold = holdMs > 0.0;
     flights.push_back(f);
+  }
+
+  void Fx::release(double now) {
+    for (Flight& f : flights)
+      if (f.waiting(now)) f.start = now;
   }
 
   // Several points at once (a rect's corners): each leaves the one before it and waits for it to

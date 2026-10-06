@@ -13,3 +13,5 @@ export interface StartDrawingOptions {
 export declare const startDrawingMode: (app: DrawingApp, opts?: StartDrawingOptions) => void;
 export declare const setDrawMode: (app: DrawingApp, mode: DrawMode | string) => void;
 export declare const stopDrawingMode: (app: DrawingApp) => void;
+/** Stop if drawing, else start (when an image is loaded). */
+export declare const toggleDrawing: (app: DrawingApp) => void;

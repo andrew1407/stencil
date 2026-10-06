@@ -1972,12 +1972,21 @@
    "|#global-drop-overlay .drop-zone-right.drop-zone-active": {
     "background": "color-mix(in srgb, var(--text-muted) 30%, var(--bg-container))"
    },
+   "|#global-drop-overlay .drop-zone-single": {
+    "background": "color-mix(in srgb, var(--accent) 28%, var(--bg-container))"
+   },
+   "|#global-drop-overlay .drop-zone-single, #global-drop-overlay.drop-single .drop-foot, #global-drop-overlay.drop-single .drop-zone-left, #global-drop-overlay.drop-single .drop-zone-right": {
+    "display": "none"
+   },
    "|#global-drop-overlay .drop-zone.drop-zone-active": {
     "background": "color-mix(in srgb, var(--accent) 28%, var(--bg-container))"
    },
    "|#global-drop-overlay.drop-closing": {
     "pointer-events": "none",
     "animation": "dropOverlayOut 0.22s ease both"
+   },
+   "|#global-drop-overlay.drop-single .drop-zone-single": {
+    "display": "flex"
    },
    "|#hints-btn:hover .hints-popup": {
     "display": "block",
@@ -9356,6 +9365,9 @@
    "|#global-drop-overlay .drop-zone-right p",
    "|#global-drop-overlay .drop-zone span",
    "|#global-drop-overlay .drop-foot",
+   "|#global-drop-overlay .drop-zone-single, #global-drop-overlay.drop-single .drop-foot, #global-drop-overlay.drop-single .drop-zone-left, #global-drop-overlay.drop-single .drop-zone-right",
+   "|#global-drop-overlay.drop-single .drop-zone-single",
+   "|#global-drop-overlay .drop-zone-single",
    "|.draw-mode-icon",
    "|.tooltip",
    "|.tooltip-table",

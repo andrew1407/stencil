@@ -7,6 +7,7 @@
 class QAction;
 class QPixmap;
 class QToolButton;
+class QMenu;
 
 namespace stencil::gui {
 
@@ -38,6 +39,11 @@ namespace stencil::gui {
     void syncDrawModeFace(bool rect, bool animate);
     // macOS menu-bar icons follow the SYSTEM appearance, not our theme.
     void retintMenuIconsForSystem(bool appDark, const QColor& appIconColor);
+    // True while that retint is in force: the shared actions wear the system's ink, not the app's.
+    bool menuIconsRetinted() const;
+    // A menu drawn in the app's theme: its shared actions take the app's ink until restoreMenuInk().
+    void appInkFor(QMenu& menu);
+    void restoreMenuInk();
     void restyleContextToggles(const QColor& textColor);
 
     QString accentPreviewSaved;

@@ -1,6 +1,8 @@
 import { canvasCoords } from '../pointer/canvasCoords.js';
 import { canvasClick } from '../pointer/canvasClick.js';
 import { beginSegmentDrag, movePointTo, endPointDrag, endSegmentDrag, dragMove } from './dragGestures.js';
+import { nowMs } from '../draw/holdDrawView.js';
+import constants from '../../../../common/config/constants.json' with { type: 'json' };
 // Single-finger direct manipulation: what a finger grabs where it lands, how that grab
 // follows it, what a release does, and the synthetic click a stationary tap becomes.
 
@@ -46,11 +48,21 @@ export const releaseTouchGrab = (app, st) => {
   else { app.isDraggingSegment = false; app.draggingSegment = null; }
 };
 
+// A tap's `detail` counts like a mouse click's: one more per tap within doubleTapMs and the slop.
+const { doubleTapMs, pressSlopPx } = constants.POPOVER;
+let lastTap = null;
+const tapDetail = (x, y, t) => {
+  const repeat = lastTap && t - lastTap.t <= doubleTapMs && Math.hypot(x - lastTap.x, y - lastTap.y) <= pressSlopPx;
+  lastTap = { x, y, t, detail: repeat ? lastTap.detail + 1 : 1 };
+  return lastTap.detail;
+};
+
 // A stationary tap is a modifier-free left click (canvasClick handles both cases).
 export const tapClickAt = (app, e, st) => {
   const ct = (e.changedTouches && e.changedTouches[0]) || st;
+  const clientX = ct.clientX ?? st.startX, clientY = ct.clientY ?? st.startY;
   canvasClick(app, {
-    clientX: ct.clientX ?? st.startX, clientY: ct.clientY ?? st.startY,
+    clientX, clientY, detail: tapDetail(clientX, clientY, nowMs()), pointerType: 'touch',
     altKey: false, shiftKey: false, ctrlKey: false, metaKey: false,
   });
 };

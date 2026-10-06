@@ -34,8 +34,8 @@ export const projectFileState = (app, { includeTheme = true } = {}) => {
 };
 
 // Apply a parsed .stencil as a NEW local project via the server-reopen path; the theme only
-// if the file carried one. Returns the project name.
-export const applyProjectFile = async (app, project) => {
+// if the file carried one; `incognito` keeps it out of the projects. Returns the project name.
+export const applyProjectFile = async (app, project, { incognito = false } = {}) => {
   if (!project || !project.image || !project.image.dataUrl) throw new Error('Project file has no image');
   const name = project.name || 'Untitled';
   const blob = await (await fetch(project.image.dataUrl)).blob();
@@ -44,6 +44,7 @@ export const applyProjectFile = async (app, project) => {
   // Mirror openImageHere: flush current, reset, then load.
   if (!app.storage.incognito) app.storage.save();
   newEditor(app);
+  if (incognito) { app.storage.incognito = true; app.updateIncognitoUI(); }
   loadImageFromFile(app, file, {
     name,
     source: project.source || '',

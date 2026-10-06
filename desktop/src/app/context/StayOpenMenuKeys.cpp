@@ -1,5 +1,6 @@
 #include "StayOpenMenu.hpp"
 #include "stayOpenMenuStops.hpp"
+#include "../../support/control/swap/menuCheckSwap.hpp"
 
 #include <QAction>
 #include <QActionGroup>
@@ -104,7 +105,8 @@ namespace stencil::gui {
       // Arrowing an exclusive group applies the option (browser parity); trigger() bypasses
       // QMenu's activate path so the menu stays open.
       if (QAction* a = activeAction(); a && a->isCheckable() && !a->isChecked()) {
-        if (QActionGroup* g = a->actionGroup(); g && g->isExclusive()) a->trigger();
+        if (QActionGroup* g = a->actionGroup(); g && g->isExclusive())
+          toggleMenuRowsWithDust(this, g->actions(), [a] { a->trigger(); });
       }
       return;
     }

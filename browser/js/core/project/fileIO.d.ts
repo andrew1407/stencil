@@ -34,7 +34,7 @@ export interface ProjectFileState {
 
 export declare const projectFileState: (app: DrawingApp, opts?: { includeTheme?: boolean }) => ProjectFileState;
 /** Opens the file as a NEW local project (flush → reset → load); resolves to the project name. */
-export declare const applyProjectFile: (app: DrawingApp, project: ProjectFileData) => Promise<string>;
+export declare const applyProjectFile: (app: DrawingApp, project: ProjectFileData, opts?: { incognito?: boolean }) => Promise<string>;
 /** Live file sync: replaces the CURRENT project's layout; `mergeLines` unions on a conflict. */
 export declare const applyProjectFileInPlace: (app: DrawingApp, project: ProjectFileData, opts?: { mergeLines?: boolean }) => void;
 export type FileConflictChoice = 'theirs' | 'merge' | 'mine';

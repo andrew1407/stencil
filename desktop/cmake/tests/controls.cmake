@@ -31,6 +31,7 @@ stencil_headless_test(stencil_controlswap_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/support/control/swap/controlSwap.headless.cpp tests/support/control/swap/controlSwapCheck.headless.cpp
     tests/support/control/swap/controlSwapValue.headless.cpp tests/support/control/swap/controlSwapReduced.headless.cpp
+    tests/support/control/swap/menuCheckSwap.headless.cpp
     ${STENCIL_THEME_SOURCES} src/support/icon/iconSet.cpp
     ${STENCIL_FACESWAP_SOURCES} src/support/menu/menuReveal.cpp src/support/menu/popupSlide.cpp
     src/support/modal/modalReveal.cpp

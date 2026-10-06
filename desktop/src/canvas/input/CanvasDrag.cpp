@@ -113,7 +113,7 @@ namespace stencil::gui {
   }
 
   // Ctrl+left (browser canvasClick): insert on the nearest segment, else add a connected point.
-  // False only for drawing + Ctrl + no segment, which falls through to append.
+  // False only for drawing + Ctrl + no segment, which breaks the chain (CanvasChainBreak.cpp).
   bool CanvasWidget::handleCtrlClick(const core::Point& ip) {
     if (auto seg = core::findNearestSegment(lines, ip.x, ip.y, grabHitRadius())) {
       insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);

@@ -14,7 +14,8 @@ namespace stencil::gui {
   void ThemePainter::retintMenuIconsForSystem(bool appDark, const QColor& appIconColor) {
 #ifdef Q_OS_MACOS
     const bool sysDark = systemPrefersDark();
-    if (sysDark == appDark) return;   // nothing to reconcile
+    // Nothing to reconcile; an in-window bar is drawn in the app's theme like any other menu.
+    if (sysDark == appDark || !w.settings.nativeMenuBar) return;
     const QColor menuCol = themePalette(sysDark, w.settings.accentColor).textMain;
     const int s = TOOL_ICON;
     for (auto it = w.painted.iconNames.constBegin(); it != w.painted.iconNames.constEnd(); ++it) {
@@ -40,6 +41,28 @@ namespace stencil::gui {
 #endif
   }
 
+  bool ThemePainter::menuIconsRetinted() const {
+#ifdef Q_OS_MACOS
+    return w.settings.nativeMenuBar && systemPrefersDark() != resolveDark(w.settings.themeMode);
+#else
+    return false;
+#endif
+  }
+
+  void ThemePainter::appInkFor(QMenu& menu) {
+    if (!menuIconsRetinted()) return;
+    for (QAction* a : menu.actions()) {
+      if (a->menu()) appInkFor(*a->menu());
+      const auto name = w.painted.iconNames.constFind(a);
+      if (name != w.painted.iconNames.constEnd())
+        a->setIcon(themedIcon(name.value(), w.painted.iconColor, TOOL_ICON));
+    }
+  }
+
+  void ThemePainter::restoreMenuInk() {
+    if (menuIconsRetinted()) retintMenuIconsForSystem(resolveDark(w.settings.themeMode), w.painted.iconColor);
+  }
+
   // Start ▶ / Stop ■: the functional half lands at once, the face and accent state cross over
   // through the shared swap. Browser: #draw-toggle / .active.
   void ThemePainter::syncDrawToggleFace(bool drawing, bool animate) {
@@ -60,14 +83,15 @@ namespace stencil::gui {
     face.textColor = face.glyphColor;
     // The fill flip hides at the swap's pivot; it sets the state, so a superseded swap can be
     // dropped.
-    auto applyFill = [this, drawing] {
+    // The new word is centred at the pivot too, while no label shows, so the text never jumps.
+    auto applyFill = [this, drawing, label = face.label] {
       w.tools.startDrawBtn->setProperty("drawToggle", drawing ? QStringLiteral("on")
                                                        : QStringLiteral("idle"));
+      centreFaceLabel(w.tools.startDrawBtn, FACE_PAD_X_PX, label);
       w.tools.startDrawBtn->style()->unpolish(w.tools.startDrawBtn);
       w.tools.startDrawBtn->style()->polish(w.tools.startDrawBtn);
     };
     swapFace(w.tools.startDrawBtn, face, applyFill, animate && flipped ? FACE_SWAP_MS : 0);
-    centreFaceLabel(w.tools.startDrawBtn, FACE_PAD_X_PX);
   }
 
   // Line ✎ / Rect ▭: the same swap with a permanent accent fill, like the browser's bare
@@ -88,8 +112,8 @@ namespace stencil::gui {
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
         w.tools.drawModeBtn->property(FACE_LABEL_PROPERTY).toString() != face.label;
-    swapFace(w.tools.drawModeBtn, face, {}, animate && flipped ? FACE_SWAP_MS : 0);
-    centreFaceLabel(w.tools.drawModeBtn, FACE_PAD_X_PX);
+    auto centre = [this, label = face.label] { centreFaceLabel(w.tools.drawModeBtn, FACE_PAD_X_PX, label); };
+    swapFace(w.tools.drawModeBtn, face, centre, animate && flipped ? FACE_SWAP_MS : 0);
   }
 }  // namespace stencil::gui
 

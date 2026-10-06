@@ -4,6 +4,7 @@
 
 #include "pageMetrics.hpp"
 #include "../support/dust/dustKit.hpp"   // support::frameIntervalMs
+#include "../support/theme/faceSwap.hpp"
 
 #include <QApplication>
 #include <QBuffer>
@@ -34,13 +35,12 @@ namespace stencil::gui {
   // Qt left-anchors a text-beside-icon face, so the narrower word of a pinned pair takes half its
   // slack (pinned width less its own hint) as left padding (browser .btn-draw-fixed centring).
   inline QByteArray faceHintKey(const QString& label) { return "faceHint_" + label.toUtf8(); }
-  inline void centreFaceLabel(QToolButton* btn, int padX) {
+  inline void centreFaceLabel(QToolButton* btn, int padX, const QString& label) {
     if (!btn || btn->maximumWidth() == QWIDGETSIZE_MAX) return;
-    const int hint = btn->property(faceHintKey(btn->text()).constData()).toInt();
+    const int hint = btn->property(faceHintKey(label).constData()).toInt();
     const int slack = hint > 0 ? btn->maximumWidth() - hint : 0;
-    btn->setStyleSheet(slack > 1
-                           ? QStringLiteral("QToolButton{padding-left:%1px;}").arg(padX + slack / 2)
-                           : QString());
+    setFaceBaseSheet(btn, slack > 1 ? QStringLiteral("QToolButton{padding-left:%1px;}").arg(padX + slack / 2)
+                                    : QString());
   }
 
   // The chat dock's extent as it opens: the one it last had, else the browser's default (px).

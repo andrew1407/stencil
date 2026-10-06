@@ -76,6 +76,24 @@ namespace stencil::gui {
 
   // A widget stylesheet is the only lever over the app-wide `QToolButton[...] { color }`
   // rules; every state is listed so a hover/press mid-swap cannot outrank it.
+  // The button's own sheet (its centring padding) with the swap's colour rule on top, never instead.
+  QString detail::swapSheet(const QAbstractButton* btn, const QString& rgba) {
+    return btn->property(FACE_BASE_SHEET_PROPERTY).toString() +
+           QStringLiteral("QToolButton[%1=\"true\"],QToolButton[%1=\"true\"]:hover,"
+                          "QToolButton[%1=\"true\"]:pressed,QToolButton[%1=\"true\"]:disabled,"
+                          "QPushButton[%1=\"true\"],QPushButton[%1=\"true\"]:hover"
+                          "{color:%2;}")
+               .arg(QString::fromLatin1(FACE_SWAPPING_PROPERTY), rgba);
+  }
+
+  void setFaceBaseSheet(QAbstractButton* btn, const QString& sheet) {
+    if (!btn) return;
+    btn->setProperty(FACE_BASE_SHEET_PROPERTY, sheet);
+    const bool swapping = btn->property(FACE_SWAPPING_PROPERTY).toBool();
+    btn->setStyleSheet(swapping ? detail::swapSheet(btn, btn->property(FACE_LABEL_COLOR_PROPERTY).toString())
+                                : sheet);
+  }
+
   void detail::setLabelAlpha(QAbstractButton* btn, const QColor& color, double alpha) {
     if (!color.isValid()) return;
     // Quantised: every write re-polishes the widget.
@@ -89,12 +107,7 @@ namespace stencil::gui {
     if (already && btn->property(FACE_LABEL_COLOR_PROPERTY).toString() == rgba) return;
     btn->setProperty(FACE_LABEL_COLOR_PROPERTY, rgba);
     btn->setProperty(FACE_SWAPPING_PROPERTY, true);
-    btn->setStyleSheet(
-        QStringLiteral("QToolButton[%1=\"true\"],QToolButton[%1=\"true\"]:hover,"
-                       "QToolButton[%1=\"true\"]:pressed,QToolButton[%1=\"true\"]:disabled,"
-                       "QPushButton[%1=\"true\"],QPushButton[%1=\"true\"]:hover"
-                       "{color:%2;}")
-            .arg(QString::fromLatin1(FACE_SWAPPING_PROPERTY), rgba));
+    btn->setStyleSheet(swapSheet(btn, rgba));
     // Qt matches property selectors at POLISH time.
     if (!already) repolish(btn);
   }

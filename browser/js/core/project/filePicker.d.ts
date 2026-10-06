@@ -7,8 +7,8 @@ export interface ExportHost {
 /** Save the whole project as a .stencil file, linking the handle for live sync. */
 export declare function saveProjectFile(svc: ExportHost, opts?: { includeTheme?: boolean }): Promise<void>;
 
-/** Open a .stencil project from a File or raw JSON text. */
-export declare function openProjectFile(svc: ExportHost, input: unknown, opts?: { from?: unknown }): Promise<void>;
+/** Open a .stencil project from a File or raw JSON text; `incognito` opens it unsaved. */
+export declare function openProjectFile(svc: ExportHost, input: unknown, opts?: { from?: unknown; incognito?: boolean }): Promise<void>;
 
 /** Prompt for a .stencil file, then open it. */
 export declare function pickAndOpenProjectFile(svc: ExportHost): Promise<void>;

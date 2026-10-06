@@ -34,7 +34,8 @@ namespace stencil::gui {
     if (!live || ptIdx < 0 || ptIdx >= static_cast<int>(line.points.size())) return 1.0;
     const stroke::Flight* f = live->flights->at(lineIdx, line.points[ptIdx]);
     if (!f) return 1.0;
-    return stroke::vertexScale(stroke::phase(live->now() - f->start, f->fly));
+    const double now = live->now();
+    return f->waiting(now) ? 0.0 : stroke::vertexScale(stroke::phase(now - f->start, f->fly));
   }
 
   // The heat a flying vertex drags behind it: a fat, faint stroke in the line's own
@@ -46,7 +47,7 @@ namespace stencil::gui {
     const double now = live.now();
     for (int i = 0; i < static_cast<int>(line.points.size()); ++i) {
       const stroke::Flight* f = live.flights->at(lineIdx, line.points[i]);
-      if (!f) continue;
+      if (!f || f->waiting(now)) continue;
       const double a = stroke::wake(stroke::phase(now - f->start, f->fly).span);
       if (a < 0.01) continue;
       QColor heat = stroke;
@@ -76,7 +77,11 @@ namespace stencil::gui {
       const stroke::Flight* f = live.flights->at(lineIdx, line.points[i]);
       if (!f) continue;
       const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
-      if (ph.fly < 1.0) {
+      if (f->waiting(now)) {
+        p.setPen(Qt::NoPen);
+        p.setBrush(pointFill);
+        p.drawEllipse(f->to, r, r);
+      } else if (ph.fly < 1.0) {
         const stroke::Ring sp = stroke::spark(ph.fly);
         QColor glow = pointFill;
         glow.setAlphaF(sp.alpha);

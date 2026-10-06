@@ -2,7 +2,7 @@ import { isSplitCompare } from '../../../utils.js';
 import { setChecked } from '../../control/swap.js';
 import { COMPARE_MODES } from '../../../core/settings/controller.js';
 import { contextMenuPoint } from './hotkeyRules.js';
-import { startDrawingMode, stopDrawingMode } from '../../../core/draw/mode.js';
+import { toggleDrawing } from '../../../core/draw/mode.js';
 import { selectedIndices } from '../../../core/line/selection.js';
 import { flipSelectedLine, rotateSelectedLineQuarter } from '../../../core/draw/transformOps.js';
 import { removePoint, removeSelectedLines } from '../../../core/line/editOps.js';
@@ -22,8 +22,7 @@ export function hotkeyActions(app) {
   const HK_HANDLERS = {
     undo: () => { if (!document.getElementById('undo').disabled) app.undo(); },
     redo: () => { if (!document.getElementById('redo').disabled) app.redo(); },
-    startDraw: () => { if (app.image && !app.isDrawing) startDrawingMode(app); },
-    stopDraw: () => { if (app.isDrawing) stopDrawingMode(app); },
+    startDraw: () => toggleDrawing(app),
     togglePoints: () => {
       const cb = document.getElementById('show-points');
       setChecked(cb, !cb.checked);
@@ -141,7 +140,7 @@ export function hotkeyActions(app) {
   };
   // Editing hotkeys are inert while a compare view is active (it's read-only).
   const EDIT_HOTKEYS = new Set([
-    'startDraw', 'stopDraw', 'undo', 'redo', 'clearAllLines', 'deleteLine', 'deletePoint',
+    'startDraw', 'undo', 'redo', 'clearAllLines', 'deleteLine', 'deletePoint',
     'flipLineHorizontal', 'flipLineVertical', 'rotateLineCW90', 'rotateLineCCW90',
   ]);
   // The Alt+Shift+Arrow line transforms — flip ↑/↓, rotate ±90 ↔ — act on the selection only.

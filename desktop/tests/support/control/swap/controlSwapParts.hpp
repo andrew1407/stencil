@@ -71,6 +71,7 @@ inline int inkedPixels(const QImage& im) {
 }
 
 void checkScatter(QDialog& host, QCheckBox* box, const QRect& boxGeom);
+void menuRowDust();
 void comboValueExchange(QDialog& host, QComboBox* combo, QVBoxLayout* lay, const QRect& comboGeom);
 void optOutAndReducedMotion(QDialog& host, QVBoxLayout* lay, QCheckBox* box, QComboBox* combo,
                             const QRect& boxGeom, const QRect& comboGeom);

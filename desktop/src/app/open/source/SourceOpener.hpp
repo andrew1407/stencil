@@ -57,9 +57,13 @@ namespace stencil::gui {
                             std::function<void(bool ok, const QString& why)> done);
     void openImage();
     void pasteImage();
-    void openProjectFile(const QString& path, std::function<void(bool)> done = {});
+    void openProjectFile(const QString& path, std::function<void(bool)> done = {},
+                         bool incognito = false);
+    // A dropped .stencil: a fresh editor in the half's mode, as a dropped image gets.
+    void openProjectFileHere(const QString& path, bool incognito);
 
    private:
+    void freshEditorIn(bool incognito);
     MainWindow& w;
   };
 

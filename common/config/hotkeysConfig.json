@@ -11,13 +11,8 @@
   },
   {
     "id": "startDraw",
-    "label": "Start Drawing",
+    "label": "Start / Stop Drawing",
     "default": "Alt+A"
-  },
-  {
-    "id": "stopDraw",
-    "label": "Stop Drawing",
-    "default": "Alt+S"
   },
   {
     "id": "togglePoints",

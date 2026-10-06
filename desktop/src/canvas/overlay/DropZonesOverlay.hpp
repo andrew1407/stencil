@@ -58,6 +58,14 @@ namespace stencil::gui {
       container = panel;
       update();
     }
+    // An empty `title` paints the save/incognito split; else one zone (browser .drop-single).
+    void setSingle(const QString& iconName = {}, const QString& title = {}, const QString& sub = {}) {
+      singleIcon = iconName;
+      singleTitle = title;
+      singleSub = sub;
+      update();
+    }
+    bool isSingle() const { return !singleTitle.isEmpty(); }
     void setActiveLeft(bool left) { if (activeLeft != left) { activeLeft = left; update(); } }
     bool getActiveLeft() const { return activeLeft; }
     // The lit half is the one the pointer is over, wherever the drag was delivered.
@@ -83,6 +91,11 @@ namespace stencil::gui {
       p.setOpacity(opacity);
       p.fillRect(rect(), QColor(0, 100, 255, WASH_ALPHA));
       const int w = width(), h = height();
+      if (isSingle()) {
+        drawZone(p, QRect(PAD, PAD, w - 2 * PAD, h - 2 * PAD), accent, textKey, singleIcon, singleTitle,
+                 singleSub, zoneFill(accent, LEFT_TINT, true));
+        return;
+      }
       // The footer is its own strip BELOW the zones (browser .drop-foot).
       const int footH = QFontMetrics(scaledFont(p, FOOT_PX, false)).height();
       const int zoneH = h - 2 * PAD - footH - FOOT_GAP;
@@ -91,16 +104,15 @@ namespace stencil::gui {
       const QRect right(w - PAD - zoneW, PAD, zoneW, zoneH);
       // The SAME glyphs as ui/canvas/dropOverlay.js, not the text "↑"/"◐" (system-font dependent).
       drawZone(p, left, accent, textKey, QStringLiteral("upload"), QStringLiteral("Upload & save"),
-               QStringLiteral("Load the image and keep it in your projects"),
+               QStringLiteral("Load the image or .stencil project and keep it in your projects"),
                zoneFill(accent, LEFT_TINT, activeLeft));
       drawZone(p, right, muted, muted, QStringLiteral("incognito"), QStringLiteral("Upload incognito"),
-               QStringLiteral("Load the image without saving it"),
+               QStringLiteral("Load the image or .stencil project without saving it"),
                zoneFill(muted, RIGHT_TINT, !activeLeft));
       p.setFont(scaledFont(p, FOOT_PX, false));
       p.setPen(muted);
       p.drawText(QRect(PAD, h - PAD - footH, w - 2 * PAD, footH), Qt::AlignHCenter | Qt::AlignVCenter,
-                 QStringLiteral("…or drop a .json layout / .stencil project / .stc script "
-                                "(either side — the split above is for images)"));
+                 QStringLiteral("…or drop a .stc script on either side to run it"));
     }
 
    private:
@@ -190,6 +202,7 @@ namespace stencil::gui {
     QColor muted{"#80868f"};
     QColor container{"#242424"};
     bool activeLeft = true;
+    QString singleIcon, singleTitle, singleSub;
     QTimer pulse;
     QTimer fade;
     double phase = 0.0;
