@@ -76,7 +76,7 @@ void MainWindowGuiTest::dialogShots(MainWindow& win, const QString& theme, const
         waitUntil([&] { dlg = QApplication::activeModalWidget(); return dlg && dlg->isVisible(); }, 4000);
         if (!dlg || !win.overlays.projectZones) return;
         pumpFor(400);
-        win.overlays.projectZones->begin(dlg->frameGeometry());
+        win.overlays.projectZones->begin(dlg);
         // Top-left quadrant of the canvas, clear of the centred dialog: the "Open here" zone.
         const QRect canvas = win.scroll->viewport()->rect();
         const QPoint here = win.scroll->viewport()->mapToGlobal(

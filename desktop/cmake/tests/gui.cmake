@@ -38,7 +38,7 @@ if(STENCIL_DOCS_CAPTURE)
   set(_docs ${CMAKE_CURRENT_SOURCE_DIR}/../usecases/capture-runner/desktop)
   add_executable(stencil_docs_capture ${_docs}/captureUseCases.cpp ${_docs}/captureStates.cpp
     ${_docs}/captureAssistant.cpp ${_docs}/captureDialogs.cpp ${_docs}/captureVideo.cpp
-    ${_docs}/captureCopyScript.cpp ${_docs}/captureDrops.cpp)
+    ${_docs}/captureCopyScript.cpp ${_docs}/captureDrops.cpp ${_docs}/captureGestures.cpp)
   target_include_directories(stencil_docs_capture PRIVATE ${STENCIL_GUI_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/tests ${_docs})
   target_compile_definitions(stencil_docs_capture PRIVATE

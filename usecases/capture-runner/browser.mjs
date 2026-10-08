@@ -13,6 +13,7 @@ import { makeStillSteps } from './browser/stillSteps.mjs';
 import { makeHandoffSteps } from './browser/handoffSteps.mjs';
 import { makeDragSteps } from './browser/dragSteps.mjs';
 import { makeClipSteps } from './browser/clipSteps.mjs';
+import { makeGestureSteps } from './browser/gestureSteps.mjs';
 import { makeVideoSteps } from './browser/videoSteps.mjs';
 import { sampleVideo } from './lib/sampleMedia.mjs';
 
@@ -46,6 +47,9 @@ console.log('browser clips');
 await runner.play(makeClipSteps({
   config, runner, browser, pages: { ...pages, stubUrl: stub.url, queuePlan: (plan) => stub.queue(plan) },
 }));
+
+console.log('browser gestures');
+await runner.play(makeGestureSteps({ config, runner, browser, pages }));
 
 await browser.close();
 await stub.close();

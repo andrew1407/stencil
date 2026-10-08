@@ -71,6 +71,21 @@ of these changes which line is selected.
 
 ![picking a line's colour from the Lines tab](img/lines-swatch-picker.png)
 
+## Drag a toolbar icon out
+
+Drag a toolbar icon that opens a window — Open Image, Crop, Projects, Servers, Script, Settings,
+Shortcuts, Help — and drop it anywhere away from the toolbar: the window opens with its top-left
+corner where you let go. Drag rotate, flip or clear onto the canvas to apply them there. Dropping
+back on the icon, dropping anywhere else, or pressing Escape does nothing.
+
+![the Open Image icon dragged onto the canvas, opening its window there](img/drag-icon-dialog.gif)
+
+Drag one colour chip onto another to copy the colour. While you drag, every chip that can take
+the colour glows, and the one you drop on uses it as if you had picked it yourself. Below, the
+line colour is dropped on the tint chip.
+
+![the line colour dragged onto the tint chip](img/drag-color.gif)
+
 ## The canvas menu
 
 Right-click (or `Shift+F10`) for the image, layout, copy, filter, transform, script and
@@ -96,9 +111,22 @@ The theme switch wipes the new palette across the window:
 
 ![the theme swap](img/theme-swap.gif)
 
+Drag the theme switch instead of clicking it and a round lens follows the pointer, showing the
+window in the other theme; over the picture it shows the colours inverted. Let go and nothing
+changes.
+
+![the theme lens dragged across the window](img/theme-lens.gif)
+
+Drag the logo onto the picture to see it bare: no filter, lines, points or compare split while
+the logo is over it. Drop it there to keep that clean view; the toolbar's filter and view
+controls follow. Drop it anywhere else and nothing changes.
+
+![the logo dropped on the canvas for the clean view](img/drag-logo-clean.gif)
+
 ## Crop, flip, rotate
 
 **File ▸ Crop Image…** (`Ctrl+Shift+X`) crops inside a page-shaped box, album or portrait.
+The window always fits on the screen, and resizing it re-fits the picture.
 **File ▸ Flip Horizontally** (`Alt+Shift+F`) mirrors the picture left to right and the
 rotate pair turns it by quarter turns; the lines and the crop follow both.
 

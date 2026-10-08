@@ -65,5 +65,16 @@
     "open-video-local",
     "open-video-url",
     "crop-video"
-  ]
+  ],
+  "gestures": {
+    "names": [
+      "drag-icon-dialog",
+      "drag-logo-clean",
+      "theme-lens",
+      "drag-color"
+    ],
+    "inFps": 10,
+    "fps": 10
+  },
+  "mediaPort": 8202
 }

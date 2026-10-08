@@ -82,6 +82,13 @@ number to type a new one — Enter keeps it, Escape leaves it as it was — and 
 to pick the points' colour; double-click it to give the points the line's own colour again. None
 of these changes which line is selected.
 
+Drag one colour swatch onto another to copy its colour across — the toolbar's line or point
+colour onto a row in the **Lines** tab, the selection bar's onto the toolbar's, and so on. While you
+drag, a chip of the colour rides beside the pointer and every swatch that can take it glows; the one
+you let go on changes, through the same path a pick would.
+
+![the toolbar's line colour dragged onto a line's swatch](img/drag-color.gif)
+
 On a phone, fold the controls with **Controls** and drag one finger across the picture to move
 around it — a quick tap still selects, and a press held still starts a line.
 
@@ -99,6 +106,36 @@ lines and layout, or the whole project with its colour, keywords, description an
 
 ![the Make a Copy submenu](img/copy-ctx-menu.png)
 
+## Drag a toolbar icon
+
+With a mouse or pen, an icon dragged off the toolbar carries its action to wherever you let go.
+Let go back on the icon, or press Escape, and nothing changes.
+
+An icon that opens a window — Projects, Servers, Crop, Script, Visuals & Settings and the rest —
+opens it with its corner on the release point; a window already open moves there. The chat icon
+raises the dock zones: drop in one to dock the chat on that side, anywhere else to float it there.
+
+![the Projects icon dragged out, opening its window where it lands](img/drag-icon-window.gif)
+
+Rotate, flip and **Clear All Lines** (the eraser, which then asks nothing) act only when dropped
+on the picture: the canvas frame glows while you drag and brightens under the pointer.
+
+![rotate dragged onto the canvas](img/drag-icon-canvas.gif)
+
+Drag **+** or **−** and the zoom follows the pointer: the farther from the button, the closer in or
+farther out. Drag **Fit to window** and the two light up as targets: hold it over **+** to step in,
+over **−** to step out, and drop it back on its button to return to where you started.
+
+![zoom + dragged away from the toolbar](img/drag-icon-zoom.gif)
+
+### Clean view from the logo
+
+Drag the logo in the header over the picture and it previews its clean view: no filter, no lines,
+no points, no compare split. Move off and the picture comes back as it was; let go over it and the
+clean view is applied, with the filter, **Points**, **Lines** and **Compare** controls following.
+
+![the logo dragged over a sepia picture with lines](img/drag-logo-clean.gif)
+
 ## Change the look
 
 **Visuals & Settings** (`Alt+V`) holds the accent colour, light/dark/system appearance,
@@ -113,12 +150,21 @@ The theme switch sweeps the new palette in from the button you pressed:
 
 ![the theme swap](img/theme-swap.gif)
 
+Drag the moon/sun switch instead of clicking it and a round lens follows the pointer, showing the
+page under it in the other theme. It is a preview only: wherever you let go, or on Escape, the lens
+closes and the theme stays as it was.
+
+![the theme lens dragged across the page](img/theme-lens.gif)
+
 ## Crop, flip, rotate, filter
 
 **Crop** (`Ctrl+Shift+X`) opens a page-locked crop box; the Edit section flips the picture
 left to right (`Alt+Shift+F`), rotates it by quarter turns and applies Black & White, Sepia,
-Invert, Contour or a tint. The lines follow a flip and a turn, and undo and redo cover all
-of it.
+Invert, Contour or a tint. The lines follow a flip and a turn, the zoom and the spot you were
+looking at stay put, and undo and redo cover all of it.
+
+The crop window opens sized around the picture, as large as the screen allows, and resizing the
+window fits the picture to its new room.
 
 ![the crop window](img/crop-modal.png)
 

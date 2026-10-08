@@ -18,6 +18,8 @@ const runner = makeShotRunner({ config, out: outDir('desktop') });
 const FRAMES = scratchDir('desktop-frames');
 const BUILD = process.env.STENCIL_DESKTOP_BUILD || repoPath('desktop', 'build');
 const CLIP = config.get('clip');
+// The chrome drags: frame strips the stills pass films step by step, one GIF each.
+const GESTURES = config.get('gestures');
 // The video shots open a real clip: made with ffmpeg into the scratch dir and served
 // over http for the URL tab, so nothing binary is committed.
 const clip = sampleVideo();
@@ -66,7 +68,9 @@ const binary = [path.join(BUILD, exeName), path.join(BUILD, 'Release', exeName)]
 const wantedNames = [
   ...config.get('pairs').flatMap((base) => pairNames(base)),
   ...config.get('stills'),
+  ...GESTURES.names,
 ].filter((name) => runner.wanted(name));
+for (const name of GESTURES.names) if (wantedNames.includes(name)) fs.rmSync(path.join(FRAMES, name), { recursive: true, force: true });
 const themes = ['dark', 'light'].filter((theme) => wantedNames.some((name) => runner.themeOf(name) === theme));
 
 // Qt Multimedia hands back no frame under the offscreen platform, so the clip shots take
@@ -98,6 +102,10 @@ for (const theme of themes) {
 for (const name of taken) {
   const file = path.join(runner.out, `${name}.png`);
   if (fs.existsSync(file)) quantizePng(file);
+  if (!GESTURES.names.includes(name) || !fs.existsSync(path.join(FRAMES, name))) continue;
+  framesToGif(path.join(FRAMES, name), path.join(runner.out, `${name}.gif`),
+    { ...config.gifLook, inFps: GESTURES.inFps, fps: GESTURES.fps });
+  console.log(`  ${name}.gif`);
 }
 
 // The theme wipe at 1x with motion on: a 2x grab outlasts a frame.

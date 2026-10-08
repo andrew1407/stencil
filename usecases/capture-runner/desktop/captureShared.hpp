@@ -210,6 +210,8 @@ class MainWindowGuiTest {
   static void dropShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // The Make a copy flyouts and dialog, the swatch picker and the linked-script confirm.
   static void copyScriptShots(stencil::gui::MainWindow& win, const ShotSet& shots);
+  // The chrome drags as frame strips: icon to dialog, mark to clean view, theme lens, colour chip.
+  static void gestureShots(stencil::gui::MainWindow& win, const ShotSet& shots);
   // Fit the image to the window, then clear the toasts the load left.
   static void fit(stencil::gui::MainWindow& win);
   // `load` puts a clip on a tab the way that tab's own control does; `crop` also ticks the

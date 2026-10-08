@@ -123,6 +123,116 @@
       ],
       "steps": 14,
       "holdMs": 900
+    },
+    "drag-icon-window": {
+      "steps": 14,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900,
+      "dropAt": [
+        0.42,
+        0.62
+      ]
+    },
+    "drag-icon-zoom": {
+      "steps": 24,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900,
+      "glide": [
+        [
+          0,
+          150
+        ],
+        [
+          -60,
+          300
+        ],
+        [
+          -40,
+          130
+        ]
+      ]
+    },
+    "drag-icon-canvas": {
+      "steps": 14,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900,
+      "dropAt": [
+        0.35,
+        0.7
+      ]
+    },
+    "drag-logo-clean": {
+      "steps": 14,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900,
+      "image": "botIcon",
+      "filter": "sepia",
+      "path": [
+        [
+          0.3,
+          0.7
+        ],
+        [
+          0.5,
+          0.3
+        ],
+        [
+          0.33,
+          0.72
+        ]
+      ]
+    },
+    "theme-lens": {
+      "steps": 22,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900,
+      "path": [
+        [
+          0.55,
+          0.25
+        ],
+        [
+          0.3,
+          0.65
+        ],
+        [
+          0.75,
+          0.7
+        ],
+        [
+          0.6,
+          0.2
+        ]
+      ]
+    },
+    "drag-color": {
+      "steps": 20,
+      "stepMs": 40,
+      "pauseMs": 500,
+      "leadMs": 600,
+      "holdMs": 1200,
+      "fps": 10,
+      "width": 900
     }
   },
   "handoff": {

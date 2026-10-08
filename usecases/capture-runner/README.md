@@ -49,10 +49,11 @@ of a documented pair — then from `theme.steps[<name>]`, then from the app's `t
 | `system` | resolved through `theme.systemPrefers` |
 | `random` | resolved per shot from `theme.randomSeed`, so a re-run reproduces it |
 
-Steps are tables (`browser/stillSteps.mjs`, `browser/clipSteps.mjs`, `vscode/*Steps.mjs`, and the
-`STEPS` array in each other script): a name, and what to do. Waits are for the state being photographed — a
-finished animation, a decoded canvas, a terminal buffer that stopped changing — not a guessed
-delay; the few remaining pauses are clip timings and live in the config.
+Steps are tables (`browser/stillSteps.mjs`, `browser/clipSteps.mjs`, `browser/gestureSteps.mjs`,
+`vscode/*Steps.mjs`, and the `STEPS` array in each other script): a name, and what to do. Waits
+are for the state being photographed — a finished animation, a decoded canvas, a terminal buffer
+that stopped changing — not a guessed delay; the few remaining pauses are clip timings and live
+in the config.
 
 ## The bot
 
@@ -77,6 +78,8 @@ screenshots the chat column. The bot is never started from here and its env is n
   `videoShots` take their own pass on the real one; and the desktop hands a URL straight to
   `QMediaPlayer` (`MediaLoaderVideo.cpp`), which streams it through the platform media stack
   and refuses that little server — so `open-video-url` is browser-only and self-skips there.
+  `config/desktop.json` sets its own `mediaPort`, so the browser and desktop captures can run
+  side by side.
 - The assistant shots use a real model when a collaboration server with an LLM proxy is
   reachable: set `STENCIL_DOCS_SERVER_URL` (default `http://127.0.0.1:8090`) and either
   `STENCIL_DOCS_SERVER_TOKEN` or a session token in `.out/session.token` (mint one with

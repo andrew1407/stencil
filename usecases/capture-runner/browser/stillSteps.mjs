@@ -147,10 +147,17 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
         const before = await canvasSize(page);
         await page.evaluate((url) => window.stencil.load(url), config.url('favicon'));
         await waitForCanvasChange(page, before, timeouts.loadMs).catch(() => blank(page));
-        await page.evaluate(async ([url, key]) => {
-          await window.stencil.connect({ url, token: key });
+        // A stale token with no server behind it keeps the last real turn's stills; the stub stands
+        // in so the later shots still show an assistant that is set up.
+        const reached = await page.evaluate(async ([url, key]) => {
+          try { await window.stencil.connect({ url, token: key }); } catch { return false; }
           window.stencil.llm.setup({ provider: 'stencil-server', serverUrl: url });
+          return true;
         }, [config.serverUrl, token]);
+        if (!reached) {
+          await pages.seedLlm(page, `${stub.url}/v1`);
+          return console.warn(`  assistant skipped: no server at ${config.serverUrl}`);
+        }
       } else {
         await blank(page);
         await pages.seedLlm(page, `${stub.url}/v1`);

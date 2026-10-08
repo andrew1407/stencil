@@ -1,6 +1,7 @@
 // The window states behind usecases/docs/desktop/img, in the order one window passes through
 // them: the blank fills, an image from a URL and the context menu here, then the file drops, the
-// assistant, the dialogs, the copy and script flyouts and the video (capture{Drops,Assistant,Dialogs,CopyScript,Video}.cpp);
+// assistant, the dialogs, the copy and script flyouts, the video and the chrome drags
+// (capture{Drops,Assistant,Dialogs,CopyScript,Video,Gestures}.cpp);
 // and the theme-swap frames.
 #include "captureShared.hpp"
 
@@ -98,6 +99,7 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
     grabModal(win, win.findChild<QAction*>(QStringLiteral("actAccent")), "accent-picker");
   // Last: its linked-script step leaves a selected line and a closed Script window behind.
   copyScriptShots(win, shots);
+  gestureShots(win, shots);
 }
 
 // The theme wipe (SWAP_MS + the dust's life) at ~30 fps: its own pass, at 1x and with
