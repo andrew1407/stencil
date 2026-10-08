@@ -172,3 +172,18 @@ test('restoreView brings a mirror back even when crop and turn match', () => {
   assert.equal(m.restoreView({ lines: [], cropRect: { x: 0, y: 0, width: 200, height: 100 }, rotationQuarters: 0, mirrored: true }), true);
   assert.equal(app.mirrored, true);
 });
+
+// A turn or a flip used to refit, dropping the user's zoom: the anchor rides through the edit.
+test('rotateImage and flipImage carry the zoom anchor through the edit', () => {
+  const restored = [];
+  const zoomPan = { viewAnchor: () => ({ scale: 3, fit: false, x: 50, y: 20 }), restoreAnchor: (a) => restored.push(a), fitToWindow() { restored.push('fit'); } };
+  const m = new ImageModel(makeApp({ zoomPan }));
+  m.rotateImage(1);
+  m.rotateImage(-1);
+  m.flipImage();
+  assert.deepEqual(restored, [
+    { scale: 3, fit: false, x: 80, y: 50 },
+    { scale: 3, fit: false, x: 20, y: 50 },
+    { scale: 3, fit: false, x: 150, y: 20 },
+  ]);
+});

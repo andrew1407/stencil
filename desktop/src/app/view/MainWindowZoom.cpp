@@ -31,10 +31,7 @@ namespace stencil::gui {
 
   void MainWindow::fitToWindow() {
     if (!canvas->hasImage()) return;
-    const QSize vp = scroll->viewport()->size();
-    const double sx = double(vp.width()) / canvas->imageWidth();
-    const double sy = double(vp.height()) / canvas->imageHeight();
-    setZoom(std::min(sx, sy) * 0.95);
+    setZoom(parts.view.fitScale());
   }
 
   // Keeps the image pixel under the cursor fixed; mirrors zoom/pan.js zoomToward via

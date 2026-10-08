@@ -41,6 +41,9 @@ const belowInColumn = (vp) => {
   return total;
 };
 
+// The scrolling frame around the canvas; null before the shell is built.
+export const canvasViewport = () => (typeof document !== 'undefined' && document.getElementById('canvas-viewport')) || null;
+
 // Auto margins centre a canvas SMALLER than the frame (layout/canvas/frame.css), so its
 // origin is not the scroll origin; 0 once the canvas overflows.
 export const canvasOrigin = () => {

@@ -38,8 +38,14 @@ namespace stencil::gui {
       }
       QWidget* vp = w.scroll->viewport();
       const QRect from = QuarterTurnOverlay::boxIn(w.canvas, vp);
+      // The centred point turns with the picture (core::rotateLinePointsQuarter), so the zoom survives it.
+      EditorView::ViewAnchor a = w.parts.view.viewAnchor();
+      const double ow = w.canvas->imageWidth(), oh = w.canvas->imageHeight();
+      const double ax = a.x;
+      a.x = clockwise ? oh - a.y : a.y;
+      a.y = clockwise ? ax : ow - ax;
       w.canvas->rotateImage(clockwise);
-      w.fitToWindow();
+      w.parts.view.restoreAnchor(a);
       w.refreshActions();
       QuarterTurnOverlay::play(w.canvas, vp, from, clockwise ? 1 : -1);
     };
@@ -56,7 +62,10 @@ namespace stencil::gui {
       }
       QWidget* vp = w.scroll->viewport();
       const QRect from = QuarterTurnOverlay::boxIn(w.canvas, vp);
+      EditorView::ViewAnchor a = w.parts.view.viewAnchor();
+      a.x = w.canvas->imageWidth() - a.x;
       w.canvas->flipImage();
+      w.parts.view.restoreAnchor(a);
       w.refreshActions();
       QuarterTurnOverlay::play(w.canvas, vp, from, 0);
     });

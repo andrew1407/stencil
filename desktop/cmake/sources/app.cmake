@@ -113,6 +113,7 @@ set(STENCIL_GUI_SOURCES
   src/app/actions/MainWindowStyleOps.cpp
   src/app/toolbar/StyleControls.cpp
   src/app/view/EditorViewUnits.cpp
+  src/app/view/EditorViewAnchor.cpp
   src/app/view/SiblingWindows.cpp
   src/app/view/MainWindowZoom.cpp
   src/app/view/EditorView.cpp

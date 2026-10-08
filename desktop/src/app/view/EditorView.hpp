@@ -43,6 +43,12 @@ namespace stencil::gui {
     void setToolbarsShown(bool show, bool animate);
     void animateBarsHeight(const QList<QToolBar*>& bars, bool show);
     void scrollTo(int x, int y);
+    // The zoom and the image point under the viewport's centre; `fit` while the picture sits at its fit.
+    struct ViewAnchor { double scale = 0; bool fit = false; double x = 0, y = 0; };
+    double fitScale() const;
+    ViewAnchor viewAnchor() const;
+    // Back to the anchor's zoom with its point centred; a fitted anchor refits instead.
+    void restoreAnchor(const ViewAnchor& a);
     // A QGraphicsOpacityEffect per bar: QSS cannot express hidden-until-pan-then-fade.
     void revealCanvasScrollbars();
     void scheduleScrollbarHide();

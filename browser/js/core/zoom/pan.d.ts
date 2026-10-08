@@ -52,6 +52,19 @@ export declare class ZoomPan {
   zoomToImagePoint(newScale: number, imgX: number, imgY: number): void;
   /** No image → ignored. `persist` false skips the debounced save. */
   setZoom(newScale: number, persist?: boolean): void;
+  /** The zoom and the image point under the viewport's centre; null without an image. */
+  viewAnchor(): ViewAnchor | null;
+  /** Back to the anchor's zoom with its point centred; a fitted (or missing) anchor refits. */
+  restoreAnchor(anchor: ViewAnchor | null): void;
   /** Never upscales past 100%; rounds DOWN to the 1% the zoom input shows. */
   fitToWindow(): void;
+}
+
+export interface ViewAnchor {
+  scale: number;
+  /** The picture sat at its fit scale. */
+  fit: boolean;
+  /** Image-space px at the viewport's centre. */
+  x: number;
+  y: number;
 }

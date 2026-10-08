@@ -5,6 +5,7 @@ import type { CropRect } from '../geometry.js';
 import type { DrawingApp } from '../drawingApp.js';
 import type { CropRectInput } from './loadFlow.js';
 import type { EditorMemento } from '../historyStack.js';
+import type { ViewAnchor } from '../zoom/pan.js';
 
 export declare class ImageModel {
   app: DrawingApp;
@@ -21,8 +22,8 @@ export declare class ImageModel {
   rebuildCroppedImage(): void;
   /** An undo step's crop and turn, rebuilt from the original when they differ; false when they match. */
   restoreView(m: Partial<EditorMemento>): boolean;
-  /** The picture under the lines changed: clears the selection, refits, persists and (unless `sync: false`) syncs. */
-  settleView(opts?: { sync?: boolean }): void;
+  /** The picture under the lines changed: clears the selection, refits (or returns to `anchor`'s zoom), persists and (unless `sync: false`) syncs. */
+  settleView(opts?: { sync?: boolean; anchor?: ViewAnchor | null }): void;
   /** dir < 0 rotates left (CCW), dir > 0 right (CW); crop window and lines follow the picture — one undo step. */
   rotateImage(dir: number): void;
   /** A left-right flip of the shown picture; crop window and lines follow — one undo step. */

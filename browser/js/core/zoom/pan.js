@@ -1,7 +1,7 @@
 import { core } from '../abi/stencilCore.js';
 import { zoomAroundCenter, zoomToImagePoint } from './animation.js';
 import {
-  canvasOrigin, availContentHeight, availContentWidth, viewportChromeY,
+  canvasOrigin, canvasViewport, availContentHeight, availContentWidth, viewportChromeY,
   originAt, syncViewportHeight, syncCoordPanelHeight,
 } from '../../utils/viewportMetrics.js';
 import {
@@ -104,6 +104,39 @@ export class ZoomPan {
     // Round DOWN to the 1% the zoom input shows: rounding up re-introduces the overflow
     // (619px at 0.7754 → 0.78 → 3px clipped).
     return Math.floor(fit * 100) / 100;
+  }
+
+  // The zoom and the image point under the viewport's centre; `fit` while the picture sits at its fit.
+  viewAnchor() {
+    const app = this.app;
+    const scale = app.renderedScale ?? app.scale;
+    if (!app.image || !(scale > 0)) return null;
+    const vp = canvasViewport();
+    const o = canvasOrigin();
+    return {
+      scale, fit: Math.abs(scale - this.fitScale()) < 1e-6,
+      x: vp ? (vp.scrollLeft + vp.clientWidth / 2 - o.x) / scale : app.image.width / 2,
+      y: vp ? (vp.scrollTop + vp.clientHeight / 2 - o.y) / scale : app.image.height / 2,
+    };
+  }
+
+  // Back to an anchor's zoom with image point (x, y) centred; a fitted picture refits instead.
+  restoreAnchor(anchor) {
+    const app = this.app;
+    if (!app.image) return;
+    if (!anchor || anchor.fit) { this.fitToWindow(); return; }
+    if (app.zoomAnimRaf) { cancelAnimationFrame(app.zoomAnimRaf); app.zoomAnimRaf = null; }
+    app.canvas.classList?.add('zoom-no-transition');
+    this.setZoom(anchor.scale);
+    const vp = canvasViewport();
+    if (vp) {
+      const o = canvasOrigin();
+      vp.scrollLeft = Math.max(0, anchor.x * app.scale + o.x - vp.clientWidth / 2);
+      vp.scrollTop = Math.max(0, anchor.y * app.scale + o.y - vp.clientHeight / 2);
+    }
+    const settle = () => app.canvas.classList?.remove('zoom-no-transition');
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(settle);
+    else settle();
   }
 
   fitToWindow() {

@@ -107,21 +107,22 @@ export class ImageModel {
   }
 
 // After rotate or crop: one undo step, then the view settles.
-  #afterImageGeometryChange() {
+  #afterImageGeometryChange(anchor) {
     this.app.history.push(editorMemento(this.app));
-    this.settleView();
+    this.settleView({ anchor });
   }
 
-// The picture under the lines changed: clear the selection, refit, persist; `sync: false` for a
-// view a peer's layout brought, which the server already holds.
-  settleView({ sync = true } = {}) {
+// The picture under the lines changed: clear the selection, refit (or return to `anchor`'s zoom),
+// persist; `sync: false` for a view a peer's layout brought, which the server already holds.
+  settleView({ sync = true, anchor = null } = {}) {
     const app = this.app;
     app.currentLine = null;
     app.selectedLineIdx = -1;
     app.coordLineIdx = -1;
     app.focusedPtIdx = -1;
     app.hideSelectionPanels();
-    app.zoomPan.fitToWindow();
+    if (anchor && app.zoomPan.restoreAnchor) app.zoomPan.restoreAnchor(anchor);
+    else app.zoomPan.fitToWindow();
     app.updateInfo();
     app.renderer.redraw();
     app.updateButtons();
@@ -134,7 +135,8 @@ export class ImageModel {
 // dir < 0 rotates left (CCW), dir > 0 right (CW); the crop window and every line follow.
   rotateImage(dir) {
     this.#reorient(this.app.quarterTurn, (img) =>
-      rotateEditQuarter(this.app.lines, this.app.cropRect, this.app.rotationQuarters, img.width, img.height, dir > 0), dir);
+      rotateEditQuarter(this.app.lines, this.app.cropRect, this.app.rotationQuarters, img.width, img.height, dir > 0), dir,
+    (a, w, h) => (dir > 0 ? { ...a, x: h - a.y, y: a.x } : { ...a, x: a.y, y: w - a.x }));
   }
 
 // A left-right flip of the shown picture; the crop window and every line follow.
@@ -143,22 +145,25 @@ export class ImageModel {
       const flip = mirrorEdit(this.app.lines, this.app.cropRect, this.app.rotationQuarters, img.width, img.height);
       this.app.mirrored = !this.app.mirrored;
       return flip;
-    });
+    }, 0, (a, w) => ({ ...a, x: w - a.x }));
   }
 
 // One orientation edit: `edit` moves the lines and returns the new window and turn; one undo step.
-  #reorient(arm, edit, dir) {
+// `follow` carries the zoom anchor's image point through the same turn, so the zoom survives it.
+  #reorient(arm, edit, dir, follow) {
     const app = this.app;
     if (!app.originalImage) {
       notify('Open an image first', 'fail');
       return;
     }
+    const anchor = app.zoomPan.viewAnchor?.();
+    const { width: w, height: h } = app.cropRect;
     const motion = arm?.() ?? { play() {} };
     const next = edit(app.originalImage);
     app.rotationQuarters = next.quarters;
     app.cropRect = next.crop;
     this.rebuildCroppedImage();
-    this.#afterImageGeometryChange();
+    this.#afterImageGeometryChange(anchor && follow(anchor, w, h));
     motion.play(dir);
   }
 
