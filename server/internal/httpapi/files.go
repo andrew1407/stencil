@@ -113,8 +113,6 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
-	ctx, cancel := a.opCtx(req)
-	defer cancel()
 	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(req.URL.Query().Get("ext"), ".")}
 	if sess, ok := auth.SessionFromContext(req.Context()); ok {
 		put.Writer = sess.ID
@@ -122,8 +120,8 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	put.W, _ = strconv.Atoi(req.URL.Query().Get("w"))
 	put.H, _ = strconv.Atoi(req.URL.Query().Get("h"))
 
-	// The body streams straight to disk: a 32 MiB upload never sits in the heap.
-	resp, err := a.files.Store(ctx, put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))
+	// The body streams straight to disk under the request's context; each store call takes its own op timeout.
+	resp, err := a.files.Store(req.Context(), put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeNotFound(rw, msgProjectNotFound)

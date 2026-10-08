@@ -7,17 +7,14 @@ import urllib.parse
 from .._ffi.types import NoneType
 
 
-# Default port the collaboration server listens on (server/.env.example). Used
-# only as documentation here; normalize_url keeps whatever port the caller gave.
+# The server's default port (server/.env.example); normalize_url never adds it.
 DEFAULT_PORT = 8090
 
 
 def is_loopback_host(host: (str | NoneType)) -> bool:
-  """True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where
-  plaintext http is safe because the bytes never leave the machine. Port of
-  connectionManager.js isLoopbackHost."""
+  """True for localhost, *.localhost, 127.0.0.0/8 or ::1 (twin of connectionManager.js)."""
   if not host: return False
-  h = host.lower().strip("[]")  # strip any IPv6 brackets
+  h = host.lower().strip("[]")
   if h == "localhost" or h.endswith(".localhost"): return True
   if h == "::1": return True
   parts = h.split(".")
@@ -28,14 +25,8 @@ def is_loopback_host(host: (str | NoneType)) -> bool:
 
 
 def normalize_url(raw: (str | NoneType)) -> str:
-  """Turn 'host:8090' / 'http://host:8090/path' into a clean origin.
-
-  Port of connectionManager.js normalizeUrl: trim, then keep only
-  scheme://host[:port] (drop any path, query or fragment) so every connection
-  is keyed by a stable origin. Secure by default: a bare REMOTE host gets
-  https; loopback keeps http (dev servers run plaintext on localhost). An
-  explicit scheme is preserved — the caller opts into cleartext.
-  """
+  """``scheme://host[:port]`` of ``raw``; a bare remote host gets https, a bare loopback one
+  http, and an explicit scheme is kept (twin of connectionManager.js normalizeUrl)."""
   s = str(raw if raw is not None else "").strip()
   if not s: raise ValueError("Server URL is required")
   if not s.lower().startswith(("http://", "https://")):
@@ -43,16 +34,11 @@ def normalize_url(raw: (str | NoneType)) -> str:
     s = ("http://" if is_loopback_host(host) else "https://") + s
   parts = urllib.parse.urlsplit(s)
   if not parts.netloc: raise ValueError(f"Invalid server URL: {raw!r}")
-  # origin == scheme://netloc, nothing else.
   return f"{parts.scheme}://{parts.netloc}"
 
 
 def split_invite_token(url: (str | NoneType), token: (str | NoneType) = None) -> tuple[str, (str | NoneType)]:
-  """Split an invite link's '#token=<value>' fragment off a connect URL.
-
-  Returns (url, token): the fragment is stripped and its value becomes the
-  supplied token — unless an explicit token was passed, which wins.
-  """
+  """``(url, token)`` with an invite link's '#token=' fragment split off; an explicit token wins."""
   s = str(url if url is not None else "")
   i = s.find("#token=")
   if i < 0: return s, token

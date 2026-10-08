@@ -1,4 +1,3 @@
-      /* ── Lists / tables ── */
       QListWidget, QTableWidget, QTreeWidget {
         background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%;
         border-radius: 8px; alternate-background-color: %BG_CONTROLS%; outline: none;
@@ -6,41 +5,30 @@
       QListWidget::item, QTreeWidget::item { padding: 4px; border-radius: 6px; }
       QListWidget::item:hover, QTreeWidget::item:hover { background: %ACCENT_SOFT%; }
       QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected { background: %ACCENT%; color: %ON_ACCENT%; }
-      /* Projects/Connect rows paint their own text and badges in fixed colours (not
-         HighlightedText), so the generic solid selected-fill above swallowed them —
-         same fix as #pointsTable below: kill it, keep only the hover wash. */
+      /* These rows paint fixed-colour text, so the solid selected fill swallowed them. */
       QListWidget#projectsList::item:selected, QListWidget#connList::item:selected {
         background: transparent; color: %TEXT%;
       }
       QListWidget#projectsList::item:selected:hover, QListWidget#connList::item:selected:hover {
         background: %ACCENT_SOFT%;
       }
-      /* Projects rows are CARDS (browser .project-row: input-bg fill, 8px radius,
-         8px 10px padding, neutral --bg-info hover — not the accent wash) and the list
-         itself is frameless: the browser's list area is just a padded scroll body. */
+      /* Rows are cards (browser .project-row), the list frameless. */
       QListWidget#projectsList { border: none; background: transparent; }
-      /* 3px tighter than the browser's 8px 10px (user decision): Qt's item metrics
-         already add their own slack, so the equal padding read wider here. */
+      /* 3px under the browser's 8px 10px: Qt's item metrics add slack (user decision). */
       QListWidget#projectsList::item {
         background: %INPUT_BG%; border-radius: 8px; padding: 5px 7px;
       }
       QListWidget#projectsList::item:selected { background: %INPUT_BG%; color: %TEXT%; }
       QListWidget#projectsList::item:hover,
       QListWidget#projectsList::item:selected:hover { background: %BG_INFO%; }
-      /* Flat fill, no gradient — matches the browser's own coordinates-table th
-         (layout.css: background: var(--bg-coord-th), a single solid colour). */
+      /* Flat, as the browser's coordinates-table th. */
       QHeaderView::section {
         background: %ACCENT%;
         color: %ON_ACCENT%; border: 0; padding: 5px 6px;
       }
       QTableWidget { gridline-color: %BORDER%; }
-      /* Points table (SelectionPanel): roomy cells, no grid clutter, hover tint, and an outline
-         (not a fill) for the selected row — the delegate (PointRowDelegate) draws the outline. */
-      /* A hairline around every cell, header included — the browser draws one on each th
-         and td (layout.css .coordinates-table: border 1px solid --border-coord), which is
-         what makes its accent header read as five separate cells rather than one bar. */
-      /* One size across the whole panel — cells, header and the Points | Lines strip, so the
-         header and the tabs never fall back to the system font and stack two type scales. */
+      /* A hairline round every cell, so the accent header reads as separate cells. */
+      /* One size across the panel, so header and tabs never fall back to the system font. */
       QTableWidget#pointsTable, QTableWidget#linesList {
         /* Browser .coordinates-table: a square box on its own ground, a hairline round each cell. */
         background: %BG_COORD_TABLE%; alternate-background-color: %BG_COORD_EVEN%;
@@ -63,9 +51,7 @@
       QTabBar#selectionTabBar::tab:selected { color: %TEXT_COORD_H3%; border-bottom: 2px solid %ACCENT%; }
       /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
       QTableWidget#pointsTable::item, QTableWidget#linesList::item { padding: 6px 5px; }
-      /* Kill BOTH selection fills (row panel via selection-background-color above + the per-item
-         fill here, which would otherwise inherit the generic ::item:selected accent) so only the
-         delegate's outline shows. */
+      /* Both selection fills off, so only the delegate's outline shows. */
       QTableWidget#pointsTable::item:selected, QTableWidget#linesList::item:selected { background: transparent; color: %TEXT%; }
       QPushButton#pointDelBtn {
         background: transparent; border: none; border-radius: 6px; padding: 2px;

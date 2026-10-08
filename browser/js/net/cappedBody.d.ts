@@ -9,5 +9,7 @@ export declare const MAX_ERROR_BYTES: number;
 export declare function cancelBody(resp: Response): Promise<void>;
 /** The body, refused past `max` bytes whether declared or streamed. */
 export declare function readCapped(resp: Response, max?: number): Promise<ArrayBuffer>;
+/** The body as a Blob typed by its Content-Type, under the same cap; one with no stream reads through its own blob(). */
+export declare function readBlobCapped(resp: Response | { blob(): Promise<Blob> }, max?: number): Promise<Blob>;
 /** The body as JSON under the same cap; a plain object with no stream reads through its own json(). */
 export declare function readJsonCapped(resp: Response | { json(): Promise<unknown> }, max?: number): Promise<unknown>;

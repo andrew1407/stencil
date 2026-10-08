@@ -14,7 +14,7 @@ public sealed partial class LayerBoundaryTests
     {
         ["Domain"] = [],
         ["Application"] = ["Domain"],
-        ["Infrastructure"] = ["Domain", "Application"],
+        ["Infrastructure"] = ["Domain"],
         ["Bot"] = _rings,
     };
 

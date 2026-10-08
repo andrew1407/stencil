@@ -1,38 +1,20 @@
 /* ── Scroll reveal (lib/motion.js) ────────────────────────────────────
-   Rows in a long scroller fade + lift into place as they enter and dissolve
-   again as they leave. motion.js only adds .reveal-item once it has an
-   IntersectionObserver to drive it, so a row is never stranded at the dimmed
-   rest state. Mirrors browser/css/animations/reveal/reveal.css. */
+   Rows dissolve in and out at a scroller's edges; .reveal-item is added only once an
+   IntersectionObserver drives it. Mirrors browser/css/animations/reveal/reveal.css. */
 @property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
 
 .reveal-item {
-    /* 0 = fully assembled, 1 = fully dissolved. Registered above so it can be
-       TRANSITIONED — a plain custom property can't be, it would just jump. */
+    /* 0 = assembled, 1 = dissolved; registered above so it can transition. */
     --dissolve: 1;
     transform: none;
-    /* SHORT while scrolling: the dissolve now tracks scroll position continuously, and
-       a long transition would lag visibly behind the scrollbar. A row's FIRST ramp gets
-       the long one instead (.reveal-entering), so an arriving message still assembles
-       where you can see it. */
+    /* Short, to track the scrollbar; a row's first ramp takes the long one (.reveal-entering). */
     transition: --dissolve 0.14s linear, transform 0.14s linear;
 }
 .reveal-item.reveal-in { --dissolve: 0; transform: none; }
-/* Mounted ONLY while a row straddles an edge (motion.js) — normally one or two rows.
-   Every row carrying four gradient layers is what made a long transcript stutter, and a
-   row that is fully readable or fully clipped needs no mask at all. */
+/* Mounted only while a row straddles an edge: four gradient layers on every row stutter. */
 .reveal-item.reveal-masked {
-    /* Four mask layers, UNIONed (`add`), so the row is solid when settled:
-         · THREE dot grains at different cell sizes (4/7/11px) and offsets. One grid
-           alone is a regular lattice — its dots line up and merge into joining
-           rectangles, which is exactly what stops it reading as sand. Three coprime
-           grids at different phases interfere, so the specks land irregularly and at
-           mixed sizes. Each dies at a different rate (80/95/110), so they thin out in
-           sequence rather than vanishing together.
-         · a bottom→top wipe: the region still fully intact. Its edge climbs as
-           --dissolve rises, so the row erodes upward — the same direction the
-           removal snap runs.
-       Union, not intersect: intersect would punch dot-holes through a settled row.
-       max() floors the radii, since a negative gradient stop is not meaningful. */
+    /* Unioned: three coprime dot grains (4/7/11px, dying at 80/95/110) read as sand, and a
+       bottom→top wipe is the still-intact span; max() floors negative gradient stops. */
     -webkit-mask-image:
         radial-gradient(circle at 50% 50%, #000 max(0%, calc(78% - var(--dissolve) * 78%)),
                         transparent max(0%, calc(84% - var(--dissolve) * 78%))),
@@ -55,25 +37,17 @@
                         #000 calc(var(--vis-start, 0%) + 10%),
                         #000 calc(var(--vis-end, 100%) - 10%),
                         transparent var(--vis-end, 100%), transparent 100%);
-    /* The wipe is stretched to 3x the row's WIDTH and centred, so it also covers what a
-       row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
-       the layer stopping at the box edge the mask erased it (and its hit-testing with it:
-       the row stayed hoverable, the control did not). Only the vertical mapping matters to
-       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations/reveal/reveal.css. */
+    /* The wipe spans 3× the row's width, so the chat "…" painted beside the bubble keeps
+       its pixels and its hit-testing. */
     -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
     mask-position: 0 0, 2px 3px, 5px 1px, center top;
-    /* The wipe layer is the STILL-VISIBLE span, kept solid; the grain only ever shows
-       outside it. So a row you can read is untouched and the sanding happens on the
-       edge the scroller is already cutting off. */
     -webkit-mask-repeat: repeat, repeat, repeat, no-repeat;
     mask-repeat: repeat, repeat, repeat, no-repeat;
     -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
     mask-composite: add;
-    /* …and the mask must not CLIP to the row's box either, or the "⋯" painted beside the
-       bubble is cut away wholesale — invisible AND un-clickable, which is how a partially
-       scrolled message lost its actions. */
+    /* Unclipped, for the same "⋯" beside the bubble. */
     -webkit-mask-clip: no-clip;
     mask-clip: no-clip;
 }
@@ -82,9 +56,7 @@
 }
 
 /* ── Leaving (lib/motion.js leaveThenRemove) ──────────────────────────
-   A row about to be destroyed collapses and slides out first, so a delete reads as
-   the row going away instead of the list jumping. --leave-h is the row's measured
-   height, frozen by motion.js: `height: auto` has nothing to animate from. */
+   --leave-h is the row's measured height: `height: auto` has nothing to animate from. */
 .leaving {
     pointer-events: none;
     overflow: hidden;
@@ -96,8 +68,7 @@
     to   { opacity: 0; transform: translateX(-14px) scale(0.97);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
 }
-/* Transcript entries and tray chips sit in flex columns where a height collapse
-   fights the gap — they dissolve in place instead. */
+/* A height collapse fights a flex column's gap, so these dissolve in place. */
 #chat-transcript > .leaving, #chat-tray .leaving {
     animation: stCardLeave 0.22s ease both;
 }
@@ -107,10 +78,7 @@
 }
 
 /* ── Filtered out / in (lib/motion.js createFilterTransition) ─────────
-   A row EXCLUDED BY A FILTER is not a row that was deleted: no particles, and a
-   shorter, flatter collapse than .leaving above — so narrowing a list reads as the
-   set closing up, never as part of it being destroyed. --leave-h is the measured
-   height, frozen by motion.js. Entering rows play the mirror image. */
+   Lighter and quicker than .leaving: a filtered row is hidden, not destroyed. */
 .filter-out {
     pointer-events: none;
     overflow: hidden;
@@ -129,54 +97,37 @@
 }
 
 /* ── Disintegration (lib/motion.js disintegrate) ──────────────────────
-   A removed row doesn't fade — it comes apart. motion.js paints one round mote per
-   grid cell in the row's own colours (speckPainter); the motes then drift off in a
-   top-down sweep. The layer is FIXED over the page because the row underneath is
-   collapsing to zero height at the same moment. Mirrors browser/css/animations/dust.css. */
+   Fixed over the page, since the row underneath collapses at the same moment.
+   Mirrors browser/css/animations/dust.css. */
 .disintegrate-host {
     position: fixed;
     z-index: 100010;
     pointer-events: none;
     overflow: visible;
 }
-/* The cloud is ONE canvas inside the layer (lib/dust/cloud.js): every grain is drawn
-   there per frame in a few batched fills, so a dialog-sized cloud is one layer, not a
-   compositor layer per mote. The flights that used to be keyframes here (stTileScatter,
-   stTileGather, stTileGatherSurface, stTileScatterSurface) are dustCloud's FLIGHTS
-   table now; the host still owns the cross-fades below. */
+/* One canvas per cloud (lib/dust/cloud.js), not a compositor layer per mote. */
 .disintegrate-host > canvas { position: absolute; display: block; }
 
 /* ── Materializing (lib/motion.js materialize) — the leave reversed ────
-   A freshly-added row plays the removal backwards: its box expands out of nothing
-   on the collapse's own timer while a dust copy of the row gathers over the list.
-   --enter-h is the row's measured natural height, frozen by motion.js. Mirrors
-   browser/css/animations/dust.css. */
+   --enter-h is the row's measured natural height. */
 .materializing {
     pointer-events: none;
     overflow: hidden;
-    /* Expo-out over 0.32s, not 0.22s of ease-out: the slot used to finish opening in
-       ~90ms, which reads as the list POPPING a gap rather than making room. */
+    /* Expo-out over 0.32s: a ~90ms opening reads as the list popping a gap. */
     animation: stRowMaterialize 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-/* Two frames, not three: box, spacing and opacity all ride the one curve, so nothing
-   lands on a step partway through. The move is a short rise (the mirror of .filter-in);
-   translateX(-14px) slid the row in sideways while the slot snapped open behind it. */
+/* Two frames, so box, spacing and opacity ride one curve. */
 @keyframes stRowMaterialize {
     from { opacity: 0; transform: translateY(-6px) scale(0.985);
            max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
     to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
 }
-/* While the dust gathers the real row stays hidden — the motes ARE the row forming;
-   motion.js lifts the veil the moment they land (wipeDurationMs). !important so the
-   veil outranks stRowMaterialize's animated opacity. The lift is a CUT unless the row
-   itself declares `transition: opacity` — with one it crossfades up under the motes
-   still sitting where they landed (see .pin-row in options.html). */
+/* Hidden while the motes gather; !important outranks stRowMaterialize's opacity. The lift
+   is a cut unless the row declares `transition: opacity`. */
 .materialize-veil { opacity: 0 !important; }
 
-/* ── Status line: the closest thing to a toast here ───────────────────
-   `.status:empty { display:none }` (popup.css) makes it vanish instantly, and
-   display:none can't transition — so the appearance is an animation, and the
-   clear is routed through .status-leaving by popup.js before it empties. */
+/* ── Status line ──────────────────────────────────────────────────────
+   display:none cannot transition, so the clear plays .status-leaving before it empties. */
 .status:not(:empty) { animation: stStatusIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes stStatusIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -188,10 +139,7 @@
     to   { opacity: 0; transform: translateY(6px); }
 }
 
-/* ── Drag-and-drop landing ────────────────────────────────────────────
-   A row created by a DROP announces itself: it drops in from the drag, then
-   pulses the accent ring once so it is findable mid-list. Distinct from
-   .just-pinned (popup.css), which only flashes an existing row. */
+/* ── Drag-and-drop landing ──────────────────────────────────────────── */
 @keyframes stDropLand {
     0%   { opacity: 0; transform: translateY(-14px) scale(0.94); }
     55%  { opacity: 1; transform: translateY(0) scale(1.015); }
@@ -205,6 +153,5 @@
     animation: stDropLand 0.42s cubic-bezier(0.16, 1, 0.3, 1) both,
                stDropRing 0.9s ease both;
 }
-/* The list's drop cue breathes while a drag hovers it, instead of sitting flat. */
 @keyframes stDragCue { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
 .list.drag-over { animation: stDragCue 1.1s ease-in-out infinite; }

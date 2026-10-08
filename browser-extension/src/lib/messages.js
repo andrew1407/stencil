@@ -31,6 +31,7 @@ export const MSG = Object.freeze({
   EDITOR_FOCUS_TAB: 'stencil-editor-focus-tab', // panel / editor page API → SW: focus an editor tab and raise its window
   SOURCE_TABS: 'stencil-source-tabs',   // panel / editor page API → SW: the other open http(s) tabs an image can be pulled from
   SCAN_TAB: 'stencil-scan-tab',         // panel / editor page API → SW: scan one tab for images (the popup's scanner, on a tab you're not on)
+  STORE_WRITE: 'stencil-store-write',   // panel / options / crop page → SW: one pin or ledger write, run on the worker's chain
 });
 
 export const SRC = Object.freeze({

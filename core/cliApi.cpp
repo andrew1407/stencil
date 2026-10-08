@@ -26,6 +26,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace stencil::core;
@@ -193,16 +194,6 @@ extern "C" {
     if (lines) *lines = abi::MAX_LAYOUT_LINES;
     if (linePoints) *linePoints = abi::MAX_LINE_POINTS;
     if (points) *points = abi::MAX_LAYOUT_POINTS;
-  }
-
-  int stencil_cli_mergeLinesKeep(const double* sNums, int sNumsLen, const uint8_t* sText,
-                                 int sTextLen, const double* lNums, int lNumsLen,
-                                 const uint8_t* lText, int lTextLen, uint8_t* keep, int keepCap) {
-    const std::vector<bool> k = mergeKeep(abi::decodeLines(sNums, sNumsLen, sText, sTextLen),
-                                          abi::decodeLines(lNums, lNumsLen, lText, lTextLen));
-    for (std::size_t i = 0; keep != nullptr && i < k.size() && static_cast<int>(i) < keepCap; ++i)
-      keep[i] = k[i] ? 1 : 0;
-    return static_cast<int>(k.size());
   }
 
   int stencil_cli_colorNameCount(void) { return static_cast<int>(colorNameCount()); }

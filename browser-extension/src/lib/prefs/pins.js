@@ -1,5 +1,7 @@
 // User pins in chrome.storage.local, keyed by (site origin, source URL); independent of
 // the opened ledger (lib/prefs/ledger.js).
+import { writeChain, viaWorker } from './writeChain.js';
+
 export const PINS_KEY = 'stencil-pinned';
 const MAX_PINS = 500;
 
@@ -119,14 +121,12 @@ const savePins = async (entries) => {
   }
 };
 
-// chrome.storage has no atomic read-modify-write: every mutation chains off the previous
-// one's completed write before it reads, or concurrent pins would lose writes.
-let pinWriteChain = Promise.resolve();
+const pinTurn = writeChain();
 
-export const setPinned = async ({ source, site, resource, name, kind, keywords, pinned }) => {
+const applySetPinned = async ({ source, site, resource, name, kind, keywords, pinned }) => {
   const src = norm(source);
   if (!src) return loadPins();   // nothing openable to key on
-  const run = pinWriteChain.then(async () => {
+  return pinTurn(async () => {
     const before = await loadPins();
     const after = pinned
       ? addPinEntry(before, { source: src, site, resource, name, kind, keywords })
@@ -134,14 +134,11 @@ export const setPinned = async ({ source, site, resource, name, kind, keywords, 
     if (after !== before) await savePins(after);
     return after;
   });
-  // A rejected op must not wedge the queue.
-  pinWriteChain = run.catch(() => {});
-  return run;
 };
 
-export const setPinKeywords = async (site, source, keywords) => {
+const applySetPinKeywords = async (site, source, keywords) => {
   const src = norm(source);
-  const run = pinWriteChain.then(async () => {
+  return pinTurn(async () => {
     const before = await loadPins();
     const k = pinKey(site, src);
     const i = (Array.isArray(before) ? before : []).findIndex((e) => pinKey(e.site, e.source) === k);
@@ -154,19 +151,25 @@ export const setPinKeywords = async (site, source, keywords) => {
     await savePins(after);
     return after;
   });
-  pinWriteChain = run.catch(() => {});
-  return run;
 };
 
-// `site` of 'all' (or empty) wipes every pin.
-export const clearPins = async (site) => {
+const applyClearPins = async (site) => {
   const all = !norm(site) || norm(site) === 'all';
-  const run = pinWriteChain.then(async () => {
+  return pinTurn(async () => {
     const before = await loadPins();
     const after = all ? [] : removeSiteEntries(before, site);
     if (after !== before && !(all && before.length === 0)) await savePins(after);
     return after;
   });
-  pinWriteChain = run.catch(() => {});
-  return run;
 };
+
+// The local writes, which the worker runs for every context.
+export const pinWrites = Object.freeze({
+  setPinned: applySetPinned, setPinKeywords: applySetPinKeywords, clearPins: applyClearPins,
+});
+
+export const setPinned = (rec) => viaWorker('pins', 'setPinned', [rec], applySetPinned);
+export const setPinKeywords = (site, source, keywords) =>
+  viaWorker('pins', 'setPinKeywords', [site, source, keywords], applySetPinKeywords);
+// `site` of 'all' (or empty) wipes every pin.
+export const clearPins = (site) => viaWorker('pins', 'clearPins', [site], applyClearPins);

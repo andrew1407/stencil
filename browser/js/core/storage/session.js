@@ -8,6 +8,7 @@ import { getProjectsBackend } from '../project/store/projectsBackend.js';
 export const attachProjectsStore = (storage) => {
   const backend = getProjectsBackend();
   const store = new ProjectsStore(backend);
+  storage.backend = backend;
   if (backend && 'onWriteError' in backend) {
     backend.onWriteError = () =>
       storage.app.showSaveStatus('Save failed (browser storage error)', 'var(--danger)', 'x');

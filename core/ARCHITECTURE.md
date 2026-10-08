@@ -12,7 +12,8 @@ adapters, which reach it through `wasm*Api.cpp`, a direct link, or `cliApi.h`.
 `page/`, `format/`, `state/`, `script/`, `opplan/` → `abi/` → `wasm*Api.cpp`, `cliApi.cpp`.
 
 A group includes only what is to its left; `script/` lowers into the vocabulary of `parse/` and
-`color/` rather than growing its own, and the library never includes `abi/`. By convention, no
+`color/` rather than growing its own, spells its numbers through `json/jsNumber.hpp`, and the
+library never includes `abi/`. By convention, no
 lint: every group directory is on one flat include path, so includes are bare
 (`"cropGeometry.hpp"`) and the direction shows only in the `#include` lines.
 
@@ -22,7 +23,7 @@ lint: every group directory is on one flat include path, so includes are bare
 |---|---|---|
 | `models.hpp`, `text.hpp`, `rgba.hpp` | the shared value types (Point / Line), ASCII string helpers, the keyed word table | header-only; no group defines its own Point |
 | `geometry/` | point math, hit-testing, crop-window geometry, chain edits | pure functions over `Point`/`Line` |
-| `raster/` | whole-image RGBA8 transforms, the line rasteriser, per-pixel filters and contour, downscale | caller-owned buffers, never allocates the image; `downscale` is adapter-only, so has no JS twin |
+| `raster/` | whole-image RGBA8 transforms, the line rasteriser, per-pixel filters and contour, downscale | writes caller-owned buffers and never allocates an output image; the three-argument `applyContourRGBA` allocates one width×height luma plane per call, the four-argument form reuses the caller's scratch; `downscale` is adapter-only, so has no JS twin |
 | `color/` | hex/keyword parsing, the luma formulas | `luma.hpp` names each formula once |
 | `parse/` | the formula parser and its context, length tokens, crop and duration specs | recursive descent only — no `eval`; a name is the bound axis or a `FormulaContext` constant |
 | `page/` | pixel ↔ page conversion, the `PAGE_SIZES` table, locale unit | the one page table; adapters read it over the ABI |
@@ -132,6 +133,17 @@ classDiagram
 - **A CLI ABI call.** The adapter decodes the image and owns the RGBA8 buffer. A crop spec
   resolves through `parseCropSpec` → `resolveCropRect` to pixels; transforms write
   caller-sized buffers in place. Core never allocates, frees or retains caller memory.
+- **The C ABI contract.** `cliApi.h` trusts its buffers and bounds-checks nothing: a
+  `w`×`h` pixel buffer is exactly `w*h*4` bytes (R,G,B,A, contiguous rows, no stride), a
+  `pixelCount` buffer `pixelCount*4`, a `pts` array `2*nPts` doubles, a `luma` plane `w*h`
+  bytes; `src` and `dst` never overlap, and an in-place call takes one buffer. A row-range
+  call takes a half-open `[y0, y1)` and clamps it, except `applyFilterRows`, which trusts `y1`.
+  No pointer argument is retained past the call. A `const char*` argument is NUL-terminated
+  or NULL (read as `""`); a returned `const char*` is static storage the caller never frees,
+  except in the `script*` and `opplan*` families, whose strings point into their handle and
+  stay valid until it is destroyed. An out-pointer may be NULL (not written) unless a
+  function says otherwise, and a 0 or failure return leaves the out-pointers untouched. An
+  unknown handle returns NULL, 0 or -1, never a crash.
 - **A script run.** `ScriptProgram::parse` lexes, parses indentation-scoped blocks, expands
   templates, then lowers to a flat `Op` stream. Lengths stay tokens because a crop changes the
   image mid-script: `resolveOp` turns them into pixels against the host's current size.
@@ -150,8 +162,7 @@ classDiagram
 - **A plan walk.** A host creates a `Schema` from its registry text and hands each model reply
   to `walkPlan`: fences go, the first balanced `{…}` is read under the JSON caps, then actions
   pass the key-spec checks, native rules, normalization and `surfaceRules`. Each surface maps
-  the result document onto its typed actions. The ABI (`abi/opplanShared.inc`) is
-  mutex-guarded because ctypes releases the GIL.
+  the result document onto its typed actions.
 
 The one wire schema the core owns is the `Lines` snapshot of `abi/linesCodec.hpp`, in two
 caller-owned buffers:
@@ -164,10 +175,33 @@ nums (double[]): lineCount, then per line:
 text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenated
 ```
 
+## Concurrency
+
+Core owns no thread and starts none: every call runs on its caller's thread. The adapters
+bring the parallelism — the CLI and pystencil slice whole-image work across a caller-owned pool
+through the `*Rows` kernels, and pystencil calls the C ABI from a thread pool with the GIL
+released, so a script's `__del__` may destroy a handle on any thread. Shared mutable state
+exists only in the ABI's handle tables and the two memos they own; every other `static` in the
+tree is a `static const` (or `constexpr`) table whose function-local initialisation C++11
+makes thread-safe. `HandleTable` itself is unsynchronised: its ids are monotonic and never
+reused, so a stale handle stays stale, and callers rely on the ABI's lock. The wasm module is
+built without pthreads and runs on the browser's one thread, so its mutexes compile to
+Emscripten's single-thread stubs.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| op-plan ABI (`abi/opplanShared.inc`) | any caller thread, both ABIs | the `Schema` and `Result` tables and `Schema`'s lazily built entries text | `opplanLock()`, one mutex taken by every export | destroy frees under the lock; a returned string lives until its handle is destroyed |
+| script ABI (`abi/scriptShared.inc`) | any caller thread, both ABIs | the `ScriptProgram` table and its memoized `getDump()` | `scriptLock()`, one mutex taken by every export; `parse` runs before the lock, only the insert holds it | destroy frees under the lock; pointers into a program stay valid until `scriptDestroy`, since it is immutable after `parse` |
+| holdDraw and history tables (`wasmStateApi.cpp`, `wasmHistoryApi.cpp`) | the browser's main thread (wasm only) | their `HandleTable`s | none: wasm-only, single-threaded | an unknown handle is a no-op |
+| `*Rows` kernels (`raster/`) | the adapter's pool threads | the caller's buffers, disjoint row ranges | none needed: re-entrant, no statics, each writes only its own rows | `applyFilterRows` trusts `y1`; the others clamp |
+| contour two-phase (`buildLumaRows` → `sobelRows`) | the adapter's pool threads | the caller's `luma` plane | the caller's barrier: every luma row is built before any Sobel row runs, since Sobel reads one row past each end of its range | — |
+
 ## Rules
 
-1. **Parity.** Each module ports the browser call site named at the top of its header,
-   identical down to edge cases; its tests port `browser/tests/`, and
+1. **Parity.** Each module ports the browser call site its header's doc banner names,
+   identical down to edge cases (the helpers with no browser call site — `abi/HandleTable.hpp`,
+   `abi/marshal.hpp`, `cliApi.h`, `raster/downscale.hpp`, `raster/pixelBlend.hpp`,
+   `color/hexNibble.hpp`, `rgba.hpp`, `text.hpp` — name none); its tests port `browser/tests/`, and
    `browser/tests/wasm/wasm-parity.test.js` holds the compiled core to the JS fallback op-for-op.
 2. **No `eval`.** `parse/formulaParser` is recursive descent over `+ - * / ** ( )`, both axes
    and the `FormulaContext` constants — `**` right-associative, empty = identity, division by
@@ -191,7 +225,8 @@ text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenat
 
 Each suite ports the matching `browser/tests/` file. The ABI units are plain STL, so
 `stencil_tests` drives every export natively; `tests/abi/` calls each `*.inc` export under both
-spellings and asserts they agree. `tests/twinDrift.test.cpp` reads constants out of their
+spellings and asserts they agree, and drives the op-plan and script handle tables from
+concurrent threads. `tests/twinDrift.test.cpp` reads constants out of their
 canonical browser `.js`, so a twin edited alone fails natively. The browser's
 `wasm-parity*.test.js` drive the compiled module and the JS fallback through one script.
 

@@ -1,9 +1,5 @@
-"""A real local static HTTP server serving one fixture page, for the scraper tests.
-
-Three suites drive the scraper end-to-end over http(s); they share this fixture — the
-page, the tiny real PNGs behind it, and the thread serving them on 127.0.0.1:0 — rather
-than each standing up its own copy.
-"""
+"""A real local static HTTP server on 127.0.0.1:0 serving one fixture page and its PNGs,
+shared by the scraper suites that drive it end-to-end."""
 
 from __future__ import annotations
 
@@ -40,10 +36,8 @@ _FIXTURE_HTML = """<!doctype html>
   <video src="clip.mp4" poster="poster.png"></video>
   <svg><image href="vector.png"/></svg>
   <div style="background-image: url('bg.png')"></div>
-</body></html>
-"""
+</body></html>\n"""
 
-# name -> (width, height) for the served PNGs.
 _IMAGES = {
   "logo.png": (200, 80),
   "hero.png": (120, 90),
@@ -57,7 +51,7 @@ _IMAGES = {
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
-  def log_message(self, *args):  # keep the test output clean
+  def log_message(self, *args):
     pass
 
   def do_GET(self):
@@ -87,10 +81,7 @@ class _QuietHandler(SimpleHTTPRequestHandler):
 
 
 class ServedSiteCase(unittest.TestCase):
-  """Serves the fixture page + images for the life of the test class.
-
-  Subclasses read ``cls.base`` (the site root) and ``cls.page`` (the fixture page).
-  """
+  """Serves the fixture for the class's life; ``cls.base`` is the site root, ``cls.page`` the page."""
 
   @classmethod
   def setUpClass(cls):

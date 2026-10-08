@@ -1,8 +1,6 @@
 // Control tooltip: shows a control's `data-tip` or `data-title` on hover after a short delay.
 // The app authors NO native `title` — the browser's own popup is slow, skips disabled controls
 // and would double this one — so this is the only tooltip. tooltip.js is the canvas readout.
-// content.js parses the composed title into the desktop app's tooltip shape; this only
-// positions and shows it.
 
 import { renderTip, parseTip } from './content.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
@@ -30,7 +28,6 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 // Dust comes from the control's centre (rectCenter); past this distance a control STRETCHED
 // across its row has its centre in empty space, so the pointer is the better origin.
 export const DUST_CURSOR_PX = 40;
-// The choice itself, pure so it is testable without a pointer.
 export const dustOrigin = (centre, cursor, maxPx = DUST_CURSOR_PX) => {
   if (!centre || !cursor) return centre;
   return Math.hypot(cursor.x - centre.x, cursor.y - centre.y) > maxPx ? cursor : centre;
@@ -66,7 +63,6 @@ const ensureTip = () => {
 };
 
 // Prefer the live composed data-tip (carries the "(combo)" hint + "— reason"), else data-title.
-// Never the native `title`: the app authors none, so its delayed popup cannot double this one.
 const textFor = (el) => (el.dataset && (el.dataset.tip || el.dataset.title)) || '';
 
 const place = (e) => {
@@ -95,8 +91,7 @@ const hide = ({ instant = false } = {}) => {
   const owner = curEl;
   curEl = null;
   if (!tip) return;
-  // It comes apart into its control. The class goes NOW either way: the cloud owns its
-  // own lifetime, and the end state must never depend on the animation.
+  // The class goes NOW either way: the cloud owns its own lifetime, never the end state.
   if (tip.classList.contains('visible') && !instant) surfaceOut(tip, dustPoint(owner), { ms: TIP_OUT_MS });
   else settleSurface(tip);
   placeHeldUntil = 0;
@@ -111,17 +106,14 @@ const reveal = (el) => {
   if (!html) return;
   const t = ensureTip();
   t.innerHTML = html;         // renderTip escapes every value it interpolates
-  // The same parse renderTip ran, kept so a keystroke can be matched against the caps
-  // it drew. Order matches the .tip-combo spans in the markup one for one.
+  // renderTip's parse, in .tip-combo span order, so a keystroke matches the cap it drew.
   curCombos = parseTip(txt).keys;
   t.classList.add('visible');
   placeHeldUntil = 0;
   place(lastEvent);
   // Placed first, so the motes stream at the box the tip will actually occupy.
-  // (surfaceIn settles the tip itself when there is no point to fly from.)
   const dusted = surfaceIn(t, dustPoint(el), { ms: TIP_IN_MS });
   if (dusted) placeHeldUntil = now() + TIP_IN_MS;
-  // …and the caps nudge once it has ARRIVED — never while it is still sand.
   clearTimeout(shakeTimer);
   if (dusted) shakeTimer = setTimeout(() => { shakeTimer = null; shakeKeys(t); }, TIP_IN_MS);
   else shakeKeys(t);
@@ -147,8 +139,7 @@ const shakeMatchingKeys = (e) => {
   return hit;
 };
 
-// Drop the tip now, whatever the hover/focus state — for a caller opening its own
-// popup over the same control (the tip's 100003 tier would bury it).
+// Drop the tip now, for a caller opening its own popup over the control (tier 100003 buries it).
 export const dismissTip = () => hide();
 
 export const initTooltips = () => {
@@ -180,15 +171,13 @@ export const initTooltips = () => {
   });
   document.addEventListener('pointerout', (e) => {
     if (!curEl) return;
-    // Hide only when the pointer truly leaves the active element (not onto a descendant).
     if (!curEl.contains(e.relatedTarget)) hide();
   });
   // Never let a tooltip get stuck: drop it on any scroll / click / key / blur.
   document.addEventListener('scroll', hide, true);
   document.addEventListener('pointerdown', hide, true);
   document.addEventListener('keydown', (e) => {
-    // Escape is the app's universal "get out" and always dismisses, even when a cap
-    // spells it. Anything else that matches the live tooltip's shortcut shakes it.
+    // Escape always dismisses, even when a cap spells it; another matching shortcut shakes it.
     if (e.key !== 'Escape' && shakeMatchingKeys(e)) return;
     hide();
   }, true);

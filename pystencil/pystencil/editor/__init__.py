@@ -1,8 +1,4 @@
-"""The chainable :class:`Editor` facade, split into collaborating mixins.
-
-``editor`` holds the history (original image, snapshot stack, cursor); the rest of the
-surface lives in the modules it composes. This module re-exports what callers bind to.
-"""
+"""The chainable :class:`Editor` facade over per-feature mixins; re-exports what callers bind to."""
 
 from __future__ import annotations
 

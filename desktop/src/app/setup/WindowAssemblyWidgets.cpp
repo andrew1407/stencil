@@ -1,6 +1,7 @@
 // MainWindow construction, phase 3 of 4: panel shimmer, toasts, overlays, the page-format + zoom
 // combos. Order is pinned; see WindowAssembly.cpp.
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "WindowAssembly.hpp"
 #include "SelectionPanel.hpp"
 #include "SelectedLineBar.hpp"
@@ -65,7 +66,7 @@ namespace stencil::gui {
     w.status = new QLabel(QString(), w.editor->centralWidget());   // cursor readout only — blank until one hovers the canvas
     w.status->setObjectName("coordStatus");
     w.status->setAttribute(Qt::WA_StyledBackground, true);
-    w.status->setStyleSheet("font-family: monospace;");
+    w.status->setStyleSheet(support::coordStatusSheet());
     w.centralLayout->insertWidget(w.centralLayout->indexOf(w.tools.dropHint), w.status);
   }
 

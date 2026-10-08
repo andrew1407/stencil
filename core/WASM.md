@@ -7,7 +7,8 @@ replacing its hand-written JS engines with one shared, tested implementation.
 `core/wasmApi.cpp` is a thin `extern "C"` surface over the core, split on size into
 siblings: `wasmCropApi.cpp` (crop geometry), `wasmStateApi.cpp` (the handle-based
 holdDraw), `wasmHistoryApi.cpp` (the handle-based editor history), `wasmEditApi.cpp` (the
-co-edit merge mask and the chain edits) and `wasmProjectsApi.cpp` (the scalar expiry rules). The
+chain edits) and `wasmProjectsApi.cpp` (the scalar expiry rules); `wasmApi.cpp` also emits the
+exports both ABIs share from `abi/shared.inc`, the co-edit merge mask among them. The
 `if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds them all into `stencil_core.js`
 + `stencil_core.wasm`; `EXPORTED_FUNCTIONS` there is a separate list a new export must
 also join. One more, `wasmOpplanApi.cpp` (the LLM op-plan validator of `opplan/`), is compiled

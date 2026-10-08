@@ -1,8 +1,6 @@
-//! Typed tool parameters and their translation into the CLI's argv.
-//!
-//! Mirrors `cli/src/args.zig`: it owns the mapping between a request and the exact
-//! `stencil [options] <output>` command line. The CLI parses flags order-independently,
-//! so argv order here is only cosmetic.
+//! Typed tool parameters and their translation into the exact `stencil [options] <output>`
+//! command line, mirroring `cli/src/args.zig`. The CLI parses flags order-independently, so
+//! argv order here is only cosmetic.
 
 mod argv;
 mod crop;

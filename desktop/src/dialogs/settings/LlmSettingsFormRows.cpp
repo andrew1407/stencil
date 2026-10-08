@@ -1,5 +1,6 @@
 // The LLM assistant form's rows; call order and the shared row helpers live in LlmSettingsForm.cpp.
 #include "../../support/control/dblReset.hpp"
+#include "dialogSheets.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
@@ -193,7 +194,7 @@ namespace stencil::gui {
       // the outer QVBoxLayout it inherits the QStyle's own metric, a real ~70px gap (user report).
       form->addRow(noteBox);
     } else {
-      saveChatsHint->setStyleSheet("color: palette(mid);");
+      saveChatsHint->setStyleSheet(support::paletteMidTextSheet());
       form->addRow(saveChatsHint);
     }
   }

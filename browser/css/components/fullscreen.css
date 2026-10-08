@@ -55,10 +55,8 @@ body.fullscreen-mode .canvas-viewport {
 }
 body.fullscreen-mode .canvas-viewport.remote-editing { border-color: var(--remote-gold) !important; }
 
-/* ── Fullscreen enter/exit flight (js/ui/motion.js flipFrom): the viewport is transform-scaled
-   between its in-flow box and the whole window. For the whole flight, both ways: no scrollbars
-   (they belong to the settled state, and a bar appearing mid-scale is the flicker), and nothing
-   paints over it (LEAVING starts far beyond the in-flow rect, under the toolbars and panel). */
+/* Fullscreen enter/exit flight (motion.js flipFrom): no scrollbars and nothing painted over the
+   viewport while it is transform-scaled between its in-flow box and the window. */
 .canvas-viewport.flip-active {
     overflow: hidden !important;
     will-change: transform;

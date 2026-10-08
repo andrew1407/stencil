@@ -50,7 +50,7 @@
     "perSurface": {
       "cli": {
         "chatSeconds": 600,
-        "note": "console waiter allows long local-model runs; unification to 120 deliberately deferred — change is one constant (cli/src/llm.zig request_timeout_ms)"
+        "note": "console waiter allows long local-model runs; the CLI embeds this value at build time"
       },
       "browser": {
         "chatSeconds": null,

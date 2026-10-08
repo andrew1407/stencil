@@ -1,14 +1,18 @@
 //! Video through the system ffmpeg. The C++ core never touches codecs and pure-Zig video
 //! decoding isn't practical, so we shell out: ffmpeg seeks the requested frame and writes a
 //! single PNG to stdout for the normal image pipeline, and ffprobe reads a stream's size,
-//! duration and frame count. A missing tool is its own error, so the caller can hint.
+//! duration and frame count. Both only ever read a local file (remoteVideo.zig).
 const std = @import("std");
 const child = @import("../safety/child.zig");
+const remoteVideo = @import("remoteVideo.zig");
 const report = @import("../app/report.zig");
 const sanitize = @import("../safety/sanitize.zig");
 const mediaTypes = @import("types.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed, FfprobeMissing, FfprobeFailed };
+
+/// The spawn seam: `child.run` outside tests.
+pub const RunFn = *const fn (std.mem.Allocator, std.Io, std.process.RunOptions, u32) child.RunError!std.process.RunResult;
 
 /// Heuristic: does this path/URL look like a video (by extension)? The list is the shared
 /// canon's `surfaces.cli.video` (media/types.zig), not a copy kept here.
@@ -23,21 +27,28 @@ pub fn looksLikeVideo(path: []const u8) bool {
     return false;
 }
 
-/// Grab frame `frame` of `src` (a local path or URL ffmpeg can read) as PNG bytes.
+/// Grab frame `frame` of `src` (a local path, or a user-named http(s) URL) as PNG bytes.
 /// Caller owns the returned slice.
 pub fn extractFrame(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: u32) ![]u8 {
+    return extractFrameWith(gpa, io, src, frame, false, child.run);
+}
+
+/// `extractFrame` with the guard's strictness and the spawn seam chosen.
+pub fn extractFrameWith(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: u32, strict: bool, spawn: RunFn) ![]u8 {
     var filter_buf: [48]u8 = undefined;
     const select = try std.fmt.bufPrint(&filter_buf, "select=eq(n\\,{d})", .{frame});
+    var source = try remoteVideo.stage(gpa, io, src, strict);
+    defer source.deinit(gpa, io);
 
     const argv = [_][]const u8{
-        "ffmpeg",              "-nostdin",     "-loglevel", "error",
-        "-protocol_whitelist", whitelist(src), "-i",        src,
-        "-vf",                 select,         "-frames:v", "1",
-        "-f",                  "image2pipe",   "-vcodec",   "png",
+        "ffmpeg",              "-nostdin",   "-loglevel", "error",
+        "-protocol_whitelist", "file",       "-i",        source.path,
+        "-vf",                 select,       "-frames:v", "1",
+        "-f",                  "image2pipe", "-vcodec",   "png",
         "-",
     };
 
-    const res = child.run(gpa, io, .{ .argv = &argv }) catch |e| switch (e) {
+    const res = spawn(gpa, io, .{ .argv = &argv }, child.media_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.FfmpegMissing,
         else => return e,
     };
@@ -60,26 +71,20 @@ pub fn extractFrame(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: 
     return res.stdout;
 }
 
-/// Constrain ffmpeg's protocol surface (it defaults to file/http/ftp/rtmp/concat/…): a local source only
-/// needs `file`, and a remote one is denied `file` so a malicious playlist cannot read local files.
-fn whitelist(src: []const u8) []const u8 {
-    const remote = std.ascii.startsWithIgnoreCase(src, "http://") or
-        std.ascii.startsWithIgnoreCase(src, "https://");
-    return if (remote) "http,https,tcp,tls,crypto" else "file";
-}
-
 /// A video's first stream: pixel size, and what the container says of its length.
 pub const Stream = struct { width: u32, height: u32, duration_ms: ?u64 = null, frames: ?u64 = null };
 
 /// Read `src`'s first video stream with ffprobe. `FfprobeMissing` when it is not on PATH.
 pub fn probe(gpa: std.mem.Allocator, io: std.Io, src: []const u8) !Stream {
+    var source = try remoteVideo.stage(gpa, io, src, false);
+    defer source.deinit(gpa, io);
     const argv = [_][]const u8{
         "ffprobe",             "-v",            "error",
-        "-protocol_whitelist", whitelist(src),  "-select_streams",
+        "-protocol_whitelist", "file",          "-select_streams",
         "v:0",                 "-show_entries", "stream=width,height,nb_frames,avg_frame_rate,duration:format=duration",
-        "-of",                 "json",          src,
+        "-of",                 "json",          source.path,
     };
-    const res = child.run(gpa, io, .{ .argv = &argv, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &argv, .stdout_limit = .limited(1 << 20) }, child.media_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.FfprobeMissing,
         else => return e,
     };
@@ -137,6 +142,38 @@ fn estimate(seconds: f64, rate: []const u8) ?u64 {
 }
 
 const testing = std.testing;
+
+// Counts spawns and records whether any argv named a URL; answers as if ffmpeg were missing.
+const Spawns = struct {
+    var count: usize = 0;
+    var saw_url = false;
+    fn run(_: std.mem.Allocator, _: std.Io, o: std.process.RunOptions, _: u32) child.RunError!std.process.RunResult {
+        count += 1;
+        for (o.argv) |arg| saw_url = saw_url or std.mem.indexOf(u8, arg, "://") != null;
+        return error.FileNotFound;
+    }
+    fn mute(_: *anyopaque, _: report.Severity, _: []const u8) void {}
+};
+
+test "a blocked video host is refused before ffmpeg is spawned; a local file reaches it alone" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    var ctx: u8 = 0;
+    report.install(.{ .ctx = &ctx, .emitFn = Spawns.mute });
+    defer report.uninstall();
+
+    Spawns.count = 0;
+    try testing.expectError(error.BlockedHost, extractFrameWith(a, io, "http://169.254.169.254/latest/x.mp4", 0, false, Spawns.run));
+    try testing.expectError(error.BlockedHost, extractFrameWith(a, io, "http://127.0.0.1:8080/x.mp4", 0, true, Spawns.run));
+    try testing.expectError(error.BlockedHost, extractFrameWith(a, io, "http://[::ffff:169.254.169.254]/x.webm", 0, false, Spawns.run));
+    try testing.expectEqual(@as(usize, 0), Spawns.count);
+
+    try testing.expectError(Error.FfmpegMissing, extractFrameWith(a, io, "clip.mp4", 0, false, Spawns.run));
+    try testing.expectEqual(@as(usize, 1), Spawns.count);
+    try testing.expect(!Spawns.saw_url);
+}
 
 test "looksLikeVideo by extension, ignoring URL query" {
     try testing.expect(looksLikeVideo("clip.MP4"));

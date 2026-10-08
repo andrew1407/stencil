@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -27,5 +28,31 @@ func TestExpiryDefersProjectsWithLiveEditors(t *testing.T) {
 	}
 	if ids, _ := (Expiry{Store: st}).DeleteExpiredProjects(context.Background(), 100, 10); len(ids) != 1 {
 		t.Fatalf("with no live source the deferred project goes next pass: %v", ids)
+	}
+}
+
+// deadlineStore records whether each store call it saw carried a deadline.
+type deadlineStore struct{ saw []bool }
+
+func (d *deadlineStore) DeleteExpiredProjects(ctx context.Context, _ int64, _ int, _ []string) ([]string, error) {
+	_, ok := ctx.Deadline()
+	d.saw = append(d.saw, ok)
+	return nil, nil
+}
+
+func (d *deadlineStore) LiveElsewhere(ctx context.Context) ([]string, error) {
+	_, ok := ctx.Deadline()
+	d.saw = append(d.saw, ok)
+	return nil, nil
+}
+
+// The sweep runs on the root context, so each of its store calls carries the op timeout of its own.
+func TestExpiryBoundsEachStoreCall(t *testing.T) {
+	d := &deadlineStore{}
+	if _, err := (Expiry{Store: d, Remote: d, OpTimeout: time.Second}).DeleteExpiredProjects(context.Background(), 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if len(d.saw) != 2 || !d.saw[0] || !d.saw[1] {
+		t.Fatalf("deadlines seen %v, want one on each of the two calls", d.saw)
 	}
 }

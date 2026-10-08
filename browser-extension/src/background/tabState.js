@@ -14,10 +14,16 @@ export const lastPosterByTab = new Map();
 // The context-menu probe relabels Pin ↔ Unpin SYNCHRONOUSLY to beat the native menu
 // appearing, so it reads this cache instead of awaiting loadPins().
 export let pinsCache = [];
-const refreshPinsCache = async () => { try { pinsCache = await loadPins(); } catch { /* keep the last snapshot */ } };
-refreshPinsCache();
+export let pinsLoaded = false;
+// A change event that lands first is newer than this start-up read, so the read yields to it.
+export const pinsReady = (async () => {
+  try { const pins = await loadPins(); if (!pinsLoaded) pinsCache = pins; } catch { /* keep the last snapshot */ }
+  pinsLoaded = true;
+})();
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[PINS_KEY]) pinsCache = Array.isArray(changes[PINS_KEY].newValue) ? changes[PINS_KEY].newValue : [];
+  if (area !== 'local' || !changes[PINS_KEY]) return;
+  pinsCache = Array.isArray(changes[PINS_KEY].newValue) ? changes[PINS_KEY].newValue : [];
+  pinsLoaded = true;
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   lastTargetByTab.delete(tabId);

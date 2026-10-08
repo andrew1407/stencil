@@ -1,23 +1,15 @@
-/* ── Narrow column: below this the left/right split has no room to READ as one —
-   88% max-width either squeezes the text into a sliver or the two sides sit close
-   enough to look accidental. Both roles go near-full-width and STACK instead, one
-   under the other; colour + the tail still carry which side spoke. Measured off the
-   TRANSCRIPT's own box (container query), so a resized dock/float answers correctly
-   without a resize listener — the ctx-assist flyout (no container-type) is
-   unaffected, it already renders at a fixed compact width. */
+/* Narrow column: below this the left/right split cannot read as one, so both roles go
+   near-full-width and stack; colour and the tail still say who spoke. A container query on the
+   transcript, so a resized dock or float answers without a resize listener. */
 @container chat-transcript (max-width: 300px) {
-    /* flex-start, not stretch: a short "ok" still sizes to its content — only the
-       alternating LEFT/RIGHT indent goes away, not the bubble's own shape. The doubled
-       class matches the swap rules' specificity above and sits later, so column mode
-       wins with no !important on align-self; max-width keeps its !important because it
-       must also outrank the inline shrink-wrap pin (chatView.js applyShrinkWrap). */
+    /* flex-start keeps a short bubble its shape; the doubled class matches the swap rules. max-width
+       keeps !important to outrank the inline shrink-wrap pin (chatView.js applyShrinkWrap). */
     .chat-msg.chat-msg-user, .chat-msg.chat-msg-assistant, .chat-msg.chat-msg-error {
         max-width: 96% !important;
         align-self: flex-start;
     }
 }
 
-/* Variant / frame result cards: thumbnail + label + download / open-as-working. */
 /* §11 choice card: the model's question rendered as pick-one / pick-many, with the option
    previews it rendered. Sits in the transcript flow like a result row. */
 .chat-ask {
@@ -52,11 +44,8 @@
     background: var(--bg-main); color: var(--text-main);
 }
 .chat-ask-actions { display: flex; align-items: center; gap: 8px; }
-/* An affirmative action like any other in the app: the accent fill, the hover lift and the
-   glass sweep all come from the shared `button` rules (layout/shell.css) — only the card's
-   tighter metrics are its own. It used to paint itself from `--accent-color`, a variable
-   that does not exist: the whole declaration was invalid, so the button came out as bare
-   white text on the card with no box at all (user report, with a picture). */
+/* The accent fill, hover lift and sweep come from the shared `button` rules (layout/shell.css);
+   only the card's tighter metrics are its own. */
 .chat-ask-submit {
     font: inherit; padding: 3px 12px; border-radius: 7px; cursor: pointer;
 }
@@ -99,14 +88,11 @@
     border: 1px solid var(--border-main);
     background: var(--bg-container);
 }
-/* Hover preview: the thumbnail is deliberately small, so hovering shows the picture
-   at a readable size. On the BODY (the panel clips its overflow), above everything.
-   Sized by the SAME rule as the projects modal's row zoom (.project-thumb-zoom img):
-   a hover preview is a GLANCE, not a lightbox — unclamped it filled most of the
-   window and buried the conversation it belongs to. */
+/* Hover preview on the body (the panel clips its overflow), sized like .project-thumb-zoom img:
+   a glance, not a lightbox. */
 .chat-thumb-preview {
     position: fixed;
-    left: -9999px;                 /* measured, then placed by wireThumbPreview */
+    left: -9999px;
     z-index: 100010;               /* over the panel (90000) and its cue */
     display: flex;
     flex-direction: column;

@@ -67,7 +67,7 @@ stencil_headless_test(stencil_popupslide_headless
 
 # Dragging a toolbar control (support/drag/iconDrag): slop, drop, cancel and Escape on a live button.
 stencil_headless_test(stencil_icondrag_headless
-  SOURCES tests/support/drag/iconDrag.headless.cpp
+  SOURCES tests/support/drag/iconDrag.headless.cpp tests/support/drag/iconDragSources.headless.cpp
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 

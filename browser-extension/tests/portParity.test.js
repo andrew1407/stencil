@@ -82,6 +82,15 @@ const MANIFEST = [
   ['logoPointerDts', '../../browser/js/ui/logo/pointer.d.ts', '../src/lib/logo/pointer.d.ts'],
   ['toastGlowDts', '../../browser/js/ui/dust/toastGlow.d.ts', '../src/lib/logo/toastGlow.d.ts'],
   ['altPeekDts', '../../browser/js/ui/tip/altPeek.d.ts', '../src/lib/tip/altPeek.d.ts'],
+  ['planCapsDts', '../../browser/js/llm/plan/planCaps.d.ts', '../src/llm/op/planCaps.d.ts'],
+  ['escapeHtmlDts', '../../browser/js/ui/escapeHtml.d.ts', '../src/lib/escapeHtml.d.ts'],
+  ['dustCloudDts', '../../browser/js/ui/dust/cloud.d.ts', '../src/lib/dust/cloud.d.ts'],
+  ['comboMatchDts', '../../browser/js/ui/control/comboMatch.d.ts', '../src/lib/control/comboMatch.d.ts'],
+  ['numericExprDts', '../../browser/js/ui/control/numericExpr.d.ts', '../src/lib/control/numericExpr.d.ts'],
+  ['tipKeysDts', '../../browser/js/ui/tip/keys.d.ts', '../src/lib/tip/keys.d.ts'],
+  ['tipHoldDts', '../../browser/js/ui/tip/tipHold.d.ts', '../src/lib/tip/tipHold.d.ts'],
+  ['llmHttpDts', '../../browser/js/llm/http.d.ts', '../src/llm/http.d.ts'],
+  ['opSchemaBaseDts', '../../browser/js/llm/plan/opSchemaBase.d.ts', '../src/llm/op/opSchemaBase.d.ts'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -143,6 +152,9 @@ const FUNCTIONS = [
     ['LONGEST', 'matchTypedWord', 'typedLetter']],
   ['typingTarget', '../../browser/js/utils/dom.js', '../src/options/secrets/typedWords.js', ['isTypingTarget']],
   ['stageAccents', '../../browser/js/core/settings/accents.js', '../src/lib/logo/accents.js', ['normalizeHex']],
+  // The stage's lock and lifecycle; only the bare-window test and the mark's selector are the page's own.
+  ['logoStage', '../../browser/js/ui/logo/stage.js', '../src/lib/logo/stage.js', [
+    'STAGE_CLASS', 'OPEN_CLASS', 'logoStageOpen', 'SWALLOWED', 'closeLogoStage', 'openLogoStage', 'currentLogoStage']],
 ];
 
 // One top-level `const NAME = …` / `function NAME …` statement — exported or not, since a shared

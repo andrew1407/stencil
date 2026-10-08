@@ -1,8 +1,10 @@
 // Writing the ACTIVE project: what blocks a save, and the one payload write — through the
-// quota-retrying upsert, which puts the payload key down before the registry row.
+// quota-retrying upsert, which puts the payload key down before the registry row, then the
+// confirmation that it committed to IndexedDB.
 import { shouldPersist } from '../project/store/projectsStore.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { upsertWithQuota } from './quotaWriter.js';
+import { confirmCommit } from './quotaConfirm.js';
 import { buildLayoutState, buildProjectMeta } from '../project/meta/projectMeta.js';
 
 // Nothing persists when sync is off on a fetched server project, or in a temporary editor.
@@ -15,6 +17,7 @@ export const writeActiveProject = (storage) => {
   const prev = storage.store.getMeta(storage.activeId) || {};
   // The row keeps its last thumbnail; a fresh one renders in idle time (thumbnail.js).
   const meta = buildProjectMeta(storage.app, { prev, id: storage.activeId, layout, thumbnail: prev.thumbnail ?? null });
-  upsertWithQuota(storage, meta, { image: storage.app.imageDataUrl || null, layout });
+  const rungs = upsertWithQuota(storage, meta, { image: storage.app.imageDataUrl || null, layout });
   storage.thumbs.schedule(storage.activeId);
+  return confirmCommit(storage, storage.activeId, rungs);
 };

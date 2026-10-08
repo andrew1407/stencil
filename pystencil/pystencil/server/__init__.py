@@ -1,9 +1,7 @@
 """Stencil collaboration-server client (REST over urllib).
 
-A port of the browser net layer (browser/js/net/connectionManager.js + remoteSync.js)
-over the REST contract in server/internal/protocol/protocol.go. REST-only: it never
-opens the /ws feed, so a "connection" here is a validated token + base URL.
-The server is codec-free, so every upload passes w/h and an ext hint on the query.
+Twin of browser/js/net/connectionManager.js + remoteSync.js over
+server/internal/protocol/protocol.go. REST-only: a "connection" is a validated token + base URL.
 """
 
 from __future__ import annotations

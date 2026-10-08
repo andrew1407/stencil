@@ -1,8 +1,6 @@
-//! The §13 op registry — the single source of the ops this server can plan and execute.
-//!
-//! Every op the `stencil_prompt` pipeline runs has exactly ONE entry carrying its prompt
-//! bullet and flags; §4's "Available ops" section is generated from them and the plan
-//! lowers off the same entries, so the prompt can never promise an op this surface lacks.
+//! The §13 op registry: every op `stencil_prompt` runs has ONE entry carrying its prompt bullet
+//! and flags; §4's "Available ops" and the lowering both come off it, so the prompt can never
+//! promise an op this surface lacks.
 
 mod entries;
 
@@ -121,7 +119,6 @@ pub fn censor_violation(bullet: &str) -> Option<&'static str> {
     CENSOR_PATTERNS.iter().copied().find(|p| lower.contains(p))
 }
 
-/// Is an entry needing `capability` active given the surface's wired list?
 fn capability_wired(capability: Option<&str>, wired: &[&str]) -> bool {
     capability.is_none_or(|c| wired.contains(&c))
 }

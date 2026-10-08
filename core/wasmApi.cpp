@@ -9,9 +9,12 @@
 #include "formulaParser.hpp"
 #include "hitTest.hpp"
 #include "imageFilter.hpp"
+#include "lineMerge.hpp"
+#include "linesCodec.hpp"
 #include "pageMetrics.hpp"
 #include "pointMath.hpp"
 #include "zoomPan.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 

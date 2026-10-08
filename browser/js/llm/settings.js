@@ -20,8 +20,7 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
-// Endpoint keys are http(s) ONLY. The gate itself is core/parse/validation.js, so this module,
-// the stencil.llm facade and every other caller share one rule.
+// Endpoint keys are http(s) ONLY, by the one rule in core/parse/validation.js.
 export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => validateHttpUrl(v).ok;
 
@@ -49,7 +48,6 @@ export const defaultSettings = () => ({
   saveChats: false,
 });
 
-// Saved overrides merged over the defaults. Bad/missing data degrades to defaults.
 export const loadLlmSettings = () => {
   const out = defaultSettings();
   try {
@@ -76,8 +74,7 @@ export const loadLlmSettings = () => {
 export const withSessionKey = (settings) =>
   (settings?.provider === 'anthropic' ? { ...settings, apiKey: sessionKey() } : settings);
 
-// stencil-server auth: the LIVE connection's bearer token, falling back to the saved one so
-// the assistant works before or without an open connection.
+// stencil-server auth: the LIVE connection's bearer token, else the saved one.
 export const serverBearerToken = (app, url) => app?.connections?.get(url)?.token
   || loadSavedServers().find((s) => s.url === url)?.token || '';
 

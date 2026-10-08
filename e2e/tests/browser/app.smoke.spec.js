@@ -52,6 +52,5 @@ test('#stencil= deep link loads the handed-off image', async ({ page }) => {
   const name = await page.evaluate(() => window.stencil.current.imageName);
   expect(name).toContain('handoff');
 
-  // The fragment must be stripped from the URL after consumption.
   expect(new URL(page.url()).hash).toBe('');
 });

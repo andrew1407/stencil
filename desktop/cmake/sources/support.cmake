@@ -108,8 +108,15 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/icon/iconMotionRunner.cpp
   src/support/icon/iconMotionFilter.cpp)
 
+# The per-widget sheets the chat, the window and the dialogs wear (support/sheets/).
+set(STENCIL_SHEETS_SOURCES
+  src/support/sheets/chatSheets.cpp
+  src/support/sheets/windowSheets.cpp
+  src/support/sheets/dialogSheets.cpp)
+
 list(APPEND STENCIL_GUI_SOURCES
   ${STENCIL_THEME_SOURCES}
+  ${STENCIL_SHEETS_SOURCES}
   ${STENCIL_NOTIFY_SOURCES}
   src/support/guiHelpers.cpp
   src/support/guiHelpersColor.cpp

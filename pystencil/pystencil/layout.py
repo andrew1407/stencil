@@ -1,12 +1,6 @@
-"""Layout dataclasses: the structured drawing payload mirrored across Stencil.
-
-Python port of the layout JSON the browser exports (``browser/js/core/layout.js``
-``buildLayoutPayload``) and the CLI/MCP server parse (``mcp/src/layout.rs`` ←
-``cli/src/media/layout.zig`` ← ``core/raster``). Coordinates are **image pixels**; JSON keys
-are camelCase to match the other front-ends. Like ``buildLayoutPayload``,
-:meth:`Layout.to_dict` always emits ``imageWidth``/``imageHeight``/``lines`` and omits
-the optional geometry/filter fields when ``None``. Parsing is tolerant: missing keys
-fall back to the per-line defaults below.
+"""The layout JSON as dataclasses — twin of ``buildLayoutPayload`` in
+``browser/js/core/layout.js`` and ``cli/src/media/layout.zig``. Coordinates are image
+pixels, keys camelCase; parsing is tolerant, a missing key taking the defaults below.
 """
 
 from __future__ import annotations
@@ -21,8 +15,7 @@ from .core import get_core
 from ._ffi.coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
 
 
-# Per-line defaults, applied when a field is omitted. Kept as module constants so
-# the dataclass field defaults and the tolerant from_dict parsing cannot drift.
+# Per-line defaults, shared by the dataclass fields and from_dict so they cannot drift.
 DEFAULT_COLOR = "#FFFF00"
 DEFAULT_THICKNESS = 2.0
 DEFAULT_POINT_SIZE = 4.0
@@ -45,8 +38,7 @@ class Point:
   @classmethod
   def from_dict(cls, d: Any) -> "Point":
     """Parse a ``{x, y}`` mapping; missing coordinates default to 0."""
-    # Tolerate non-dict junk by treating it as the origin, mirroring the
-    # browser's defensive ``p && p.x`` handling in lineDedupeKey.
+    # Non-dict junk is the origin, as the browser's ``p && p.x`` reads it.
     if not isinstance(d, dict): return cls(0.0, 0.0)
     return cls(_as_float(d.get("x"), 0.0), _as_float(d.get("y"), 0.0))
 
@@ -67,14 +59,8 @@ class Line:
   point_color: str = ""
 
   def to_dict(self) -> dict:
-    """Serialize to the camelCase JSON shape the front-ends share.
-
-    All fields are always present (the browser export keeps a fixed field
-    order); only ``pointSize``/``fillColor``/``pointColor`` are renamed to
-    camelCase. ``pointColor`` is the one exception to "always present": it is
-    emitted only when set, so an unset point colour round-trips as an absent key
-    and the bytes of a layout that predates the field are unchanged.
-    """
+    """The shared camelCase shape, every key in the browser's order; ``pointColor`` only when
+    set, so a layout without one keeps its bytes."""
     out = {
       "points": [p.to_dict() for p in self.points],
       "color": self.color,
@@ -143,11 +129,8 @@ def cap_lines(lines: list[Line]) -> list[Line]:
 
 @dataclass
 class Layout:
-  """A full layout: required dimensions + lines, plus optional geometry/filter.
-
-  The optional fields (filter, crop, turn, mirror) round-trip the editor's filter and geometry to
-  peers and on reopen; omitted when ``None``, a bare layout is exactly ``{imageWidth, imageHeight, lines}``.
-  """
+  """Dimensions and lines, plus optional filter, geometry, page and formulas — each omitted
+  when ``None``, so a bare layout is exactly ``{imageWidth, imageHeight, lines}``."""
 
   image_width: int
   image_height: int
@@ -157,7 +140,6 @@ class Layout:
   crop_rect: (dict | NoneType) = None
   rotation_quarters: (int | NoneType) = None
   mirrored: (bool | NoneType) = None  # the original mirrored before the turn; True only
-  # Page format + x/y coordinate-transform formulas (the browser applies them).
   page_size: (str | NoneType) = None
   custom_page_width: (float | NoneType) = None
   custom_page_height: (float | NoneType) = None
@@ -166,11 +148,7 @@ class Layout:
   formula_y: (str | NoneType) = None
 
   def to_dict(self) -> dict:
-    """Serialize, omitting optional fields that are ``None``.
-
-    Mirrors ``buildLayoutPayload``: start from the required trio and append
-    each optional camelCase key only when its value is present.
-    """
+    """Serialize, omitting optional fields that are ``None``."""
     out: dict = {
       "imageWidth": self.image_width,
       "imageHeight": self.image_height,
@@ -202,7 +180,7 @@ class Layout:
       image_width=_as_int(d.get("imageWidth"), 0),
       image_height=_as_int(d.get("imageHeight"), 0),
       lines=_read_lines(d.get("lines")),
-      # Canonical "imageFilter" wins; legacy "filter" (pre-Phase-6) still reads.
+      # "imageFilter" wins over the older "filter" key.
       image_filter=_opt_str(d.get("imageFilter", d.get("filter"))),
       filter_color=_opt_str(d.get("filterColor")),
       crop_rect=d.get("cropRect") if isinstance(d.get("cropRect"), dict) else None,
@@ -221,8 +199,6 @@ class Layout:
     """Parse a layout from a JSON string (tolerant of missing fields)."""
     return cls.from_dict(json.loads(text))
 
-  # ``parse`` is an alias so callers can read either name; both the browser
-  # paste path and the CLI accept a raw JSON string here.
   @classmethod
   def parse(cls, text: str) -> "Layout":
     """Alias for :meth:`from_json`."""

@@ -1,6 +1,5 @@
 """The provider client (contract §6): one non-streaming chat call per provider, over
-the same shared urllib plumbing as :mod:`pystencil.server`. The wire shapes it speaks
-are :mod:`.wire`'s table.
+:mod:`pystencil.server`'s urllib plumbing; the wire shapes are :mod:`.wire`'s table.
 """
 
 from __future__ import annotations
@@ -18,16 +17,9 @@ from .wire import WIRES, Messages, _proxy_error
 
 
 class LlmClient:
-  """A per-provider LLM chat client (urllib, no deps, offline-testable).
-
-  Messages are dicts ``{"role": "user"|"assistant", "text": str, "images": [...]}``
-  where each image is a ``(media_type, bytes)`` tuple, base64-encoded into the
-  provider's wire shape (contract §6). Request builders are pure (no network);
-  every call executes through the private :meth:`_open` seam, mirroring
-  :class:`pystencil.server.ServerConnection`. For ``stencil-server``, pass either
-  a ``server`` object (a :class:`~pystencil.server.ServerConnection`, whose
-  ``.base`` URL and ``.token`` are read) or a config ``server_url`` + ``token``.
-  ``anthropic`` goes straight to the Messages API with the config's session key.
+  """A per-provider LLM chat client. Messages are ``{"role", "text", "images"}`` dicts, each
+  image a ``(media_type, bytes)`` tuple. ``stencil-server`` takes a ``server`` connection or
+  the config's ``server_url`` + ``token``; ``anthropic`` uses the config's session key.
   """
 
   def __init__(
@@ -50,7 +42,6 @@ class LlmClient:
   def _wire(self):
     return WIRES[WIRE_OF[self.config.provider]]
 
-  # ── request plumbing ──
   def _build_request(
     self, messages: Messages, system: str = LLM_SYSTEM_PROMPT
   ) -> urllib.request.Request:
@@ -65,14 +56,8 @@ class LlmClient:
     return req
 
   def _open(self, req: urllib.request.Request) -> Any:
-    """Execute a Request, translating non-2xx / bad payloads into :class:`LlmError`
-    (a network-level ``URLError`` propagates as ``OSError``, like the server client).
-
-    The single network seam (tests monkey-patch this, like ServerConnection._open);
-    the urlopen/HTTPError plumbing is the one shared with the server client, under the
-    LLM timeout rather than the REST one.
-    Redirects are refused: urllib would replay the key against the host the 30x named.
-    """
+    """The one network seam: non-2xx or a bad payload is :class:`LlmError`, a ``URLError``
+    propagates as ``OSError``. Redirects are refused: urllib would replay the key to the 30x."""
     _status, payload = _http_open(req, self._wire_error, timeout=_LLM_TIMEOUT)
     if not payload: raise LlmError("empty response from the LLM provider")
     try:
@@ -91,17 +76,12 @@ class LlmClient:
     return _proxy_error(e, None)
 
   def _extract_reply(self, payload: Any) -> str:
-    """Pull the reply text out of a provider response (contract §6).
-
-    For ``stencil-server`` and ``anthropic``, a stop reason of ``max_tokens``/``refusal``
-    raises a typed :class:`LlmError` — those replies are never parsed as plans.
-    """
+    """The reply text (§6); a ``max_tokens``/``refusal`` stop raises :class:`LlmError`."""
     text = self._wire.reply(payload)
     if not isinstance(text, str):
       raise LlmError("malformed %s response: no reply text" % self.config.provider)
     return text
 
-  # ── the one public call ──
   def chat(self, messages: Messages, system: str = LLM_SYSTEM_PROMPT) -> str:
     """Send one non-streaming chat call and return the raw reply text."""
     return self._extract_reply(self._open(self._build_request(messages, system)))

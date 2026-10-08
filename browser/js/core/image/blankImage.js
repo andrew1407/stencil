@@ -6,9 +6,8 @@ import { defaultBlankSizePx } from '../layout.js';
 import { cropAspect, centeredCrop, isAlbumOrientation } from '../parse/cropGeometry.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
-import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import { pageNaturalSize } from '../settings/units.js';
 import { loadImageFromFile } from './loadFlow.js';
-const { PAGE_SIZES } = constants;
 
 const blankFillBlob = (w, h, color) => {
   const cnv = document.createElement('canvas');
@@ -26,9 +25,7 @@ const blankFillBlob = (w, h, color) => {
 export const createBlankImage = (app, { color = '#ffffff', width, height, address } = {}) => {
   if (app.storage.incognito) address = undefined;   // incognito never creates on a server
   if (address) requireConnection(app.connections, address);
-  const page = app.pageSize === 'custom'
-    ? { width: app.customPageWidth, height: app.customPageHeight }
-    : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
+  const page = pageNaturalSize(app);
   const dims = (width != null && height != null) ? { width, height } : defaultBlankSizePx(page);
   const rw = Math.max(1, Math.min(8192, Math.round(dims.width)));
   const rh = Math.max(1, Math.min(8192, Math.round(dims.height)));

@@ -85,7 +85,7 @@ func New(deps Deps) *API {
 		deps.BusyRetryAfter = defaultBusyRetryAfter
 	}
 	files := service.NewFiles(deps.Projects, deps.Files, deps.Bus)
-	files.Charges, files.SessionQuota = deps.Charges, deps.SessionQuotaBytes
+	files.Charges, files.SessionQuota, files.OpTimeout = deps.Charges, deps.SessionQuotaBytes, deps.OpTimeout
 	projects := service.NewProjects(deps.Projects, deps.Files, liveSessions(deps), deps.Bus, deps.ProjectTTL)
 	projects.Originals = files
 	projects.Remote = deps.RemoteSessions

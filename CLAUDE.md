@@ -68,6 +68,8 @@ CMake + Doctest; each other surface uses its platform's default.
   extension's `src/lib/` ports, the config copies in `pystencil/pystencil/_data/` …) is never
   edited in place: edit the original, then `node tools/syncTwins.mjs` re-copies every twin
   listed in `tools/twins.json` (`--check` only reports).
+- The CLI builds with Zig 0.16 (`cli/build.zig.zon` `minimum_zig_version`); a newer Zig fails
+  inside `build.zig` on the changed build API.
 - `zig build` where every SDK `xcrun` offers is newer than Zig supports (`INFINITY`
   undeclared) needs a libc file naming an older one: `zig libc | sed -E 's#MacOSX[0-9.]*\.sdk#MacOSX26.5.sdk#' > "$TMPDIR/zig-libc.txt"`, then
   `ZIG_LIBC="$TMPDIR/zig-libc.txt" zig build`.
@@ -118,7 +120,8 @@ Stated in full in `ARCHITECTURE.md` §1–§2; `.claude/rules/core-changes.md` l
 - **Each subproject's `ARCHITECTURE.md`** — **normative for that tree.** Before changing a
   surface, read its `ARCHITECTURE.md` and keep the change inside its layers, placement
   table and rules. Each is an independent document of that surface's design, in the same
-  seven sections — Layers, Where things go, Entities, Patterns, Design, Rules, Tests — and
+  eight sections — Layers, Where things go, Entities, Patterns, Design, Concurrency, Rules,
+  Tests — and
   stays current with the tree.
 - **Each subproject's `README.md`** — the user-facing guide only: what it is, build, run,
   test, configure, use. No architecture, internals or feature inventories.

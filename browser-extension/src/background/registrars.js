@@ -1,5 +1,7 @@
-// Injection into already-open tabs, plus the SCRIPT_SETS registration pass.
+// Injection into already-open tabs, the SCRIPT_SETS registration pass, and the settings keys
+// that re-run it.
 import { getSettings, originPattern } from '../lib/stencil.js';
+import { syncDesktopMenuVisibility } from './menus.js';
 
 // Declared/registered content scripts only inject into pages loaded AFTER
 // install/update/registration — this covers the tabs already open.
@@ -106,4 +108,16 @@ export const setUpScripts = ({ keys, inject = true } = {}) => serializeRegistrat
     }, set.label)));
     if (inject === true || inject.includes(set.key)) await injectIntoOpenTabs(set.openTabs || matches, set.scripts);
   }));
+});
+
+// React to settings changes: re-scope the editor bridge/page APIs, collected into one pass
+// so a change touching two sets is still a single settings read.
+export const watchScriptSettings = () => chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync') return;
+  const keys = [];
+  if (changes.editorUrl) keys.push('bridge');
+  if (changes.editorUrl || changes.editorPageApi) keys.push('editorApi');
+  if (changes.exposeWindowStencil) keys.push('pageApi');
+  if (keys.length) setUpScripts({ keys });
+  if (changes.desktopScheme) syncDesktopMenuVisibility();   // reveal/hide the desktop-app items
 });

@@ -1,10 +1,8 @@
 import { notify } from '../../utils.js';
 import { editorMemento } from '../historyStack.js';
 import { keepLineSelection } from '../line/selection.js';
-import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import { pageNaturalSize } from '../settings/units.js';
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter, mirrorEdit } from '../parse/cropGeometry.js';
-
-const { PAGE_SIZES } = constants;
 
 // Non-destructive crop + mirror + quarter-turn rotation over `originalImage` (never modified);
 // `cropRect` is in rotated-original pixels. Geometry: cropGeometry.js (wasm/JS twin).
@@ -13,13 +11,8 @@ export class ImageModel {
     this.app = app;
   }
 
-// Only the aspect is used by cropping. Mirrors blankImageModal.pageDims.
-  #pageCmDims() {
-    const app = this.app;
-    return app.pageSize === 'custom'
-      ? { width: app.customPageWidth, height: app.customPageHeight }
-      : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
-  }
+// Only the aspect is used by cropping.
+  #pageCmDims() { return pageNaturalSize(this.app); }
 
 // Page aspect in the orientation matching the image; `albumOverride` forces album (true) /
 // portrait (false). Public so storage can default-crop legacy projects.

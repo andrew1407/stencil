@@ -1,8 +1,7 @@
-"""The file half of a connection's REST surface, plus high-level remote sync.
+"""The file half of a connection's REST surface, plus remote sync (twin of ``remoteSync.js``).
 
-A mixin over ``_request`` (owned by :class:`ServerConnection`). The server is
-codec-free, so every upload carries its dimensions and extension in the query while
-the pixel bytes go in an octet-stream body. The sync half ports ``remoteSync.js``.
+The server is codec-free, so every upload carries its dimensions and extension in the query
+while the pixel bytes go in an octet-stream body.
 """
 
 from __future__ import annotations
@@ -14,37 +13,25 @@ from .._ffi.types import NoneType
 
 
 class _FileApi:
-  """Per-project file bytes and the create/save remote-project flows."""
-
   def get_file(self, pid: str, kind: str) -> bytes:
     """GET /projects/{id}/files/{kind} → raw image bytes."""
     path = f"/projects/{urllib.parse.quote(str(pid))}/files/{urllib.parse.quote(str(kind))}"
     return self._request("GET", path, raw=True)
 
   def put_file(self, pid: str, kind: str, data: bytes, ext: str, w: int, h: int) -> dict:
-    """POST /projects/{id}/files/{kind}?ext&w&h → {path, w, h}.
-
-    The server is codec-free, so dimensions/extension are passed in query
-    params while the pixel bytes go in the octet-stream body.
-    """
+    """POST /projects/{id}/files/{kind}?ext&w&h → {path, w, h}."""
     path = f"/projects/{urllib.parse.quote(str(pid))}/files/{urllib.parse.quote(str(kind))}"
     query = {"ext": ext, "w": str(w), "h": str(h)}
     return self._request("POST", path, body=data, raw=True, query=query)
 
   def delete_file(self, pid: str, kind: str) -> None:
-    """DELETE /projects/{id}/files/{kind} (204 No Content; idempotent).
-
-    Valid only for the filestore-only kinds (`video`, `variantN`, `chat`) —
-    the server answers 400 for `original`/`result`, which are part of the
-    project record and are removed with the project.
-    """
+    """DELETE /projects/{id}/files/{kind}, idempotent; only `video`, `variantN` and `chat` —
+    the server answers 400 for `original`/`result`, which go with the project."""
     path = f"/projects/{urllib.parse.quote(str(pid))}/files/{urllib.parse.quote(str(kind))}"
     self._request("DELETE", path)
 
-  # ── high-level sync (remoteSync.js) ──
   def _current_version(self, pid: str, fallback: int) -> int:
-    """Re-read a project's version after a file write (which bumps it but
-    returns none of its own), mirroring remoteSync.js currentVersion."""
+    """The version after a file write, which bumps it but returns none; `fallback` on error."""
     try:
       proj = self._project_record(pid)
       v = proj.get("version") if proj else None
@@ -54,8 +41,6 @@ class _FileApi:
 
   @staticmethod
   def __image_bytes(image: Any) -> tuple[bytes, int, int]:
-    """Encode an Image to PNG bytes + dimensions (duck-typed to avoid a
-    hard import of pystencil.image)."""
     data = image.encode("png")
     return bytes(data), int(image.width), int(image.height)
 
@@ -68,12 +53,7 @@ class _FileApi:
     description: (str | NoneType) = None,
     layout: Any = None,
   ) -> dict:
-    """Create a project and (when an image is given) upload the original.
-
-    Port of remoteSync.js createRemoteProject: create → putFile('original').
-    Returns the created project record with its version refreshed after the
-    upload (which bumps it server-side).
-    """
+    """Create a project, then upload `image` as its original; the record's version is refreshed."""
     has_image = image is not None
     rec = self.create_project(
       name=name or "Untitled",
@@ -101,13 +81,8 @@ class _FileApi:
     name: (str | NoneType) = None,
     color: (str | NoneType) = None,
   ) -> dict:
-    """Version-guarded save-back (layout/name/color) plus optional result upload.
-
-    Port of remoteSync.js saveRemoteProject: update → putFile('result'). A
-    409 (lost last-writer-wins race) is surfaced as ServerError(code=
-    "conflict"). Returns the refreshed project record. `color` follows the
-    same nil-means-unchanged contract as `name`.
-    """
+    """Version-guarded save-back, then the result upload; a 409 is ServerError("conflict").
+    None keeps `name` or `color`."""
     try:
       rec = self.update_project(pid, layout=layout, name=name, color=color, version=version)
     except ServerError as err:

@@ -64,7 +64,7 @@ const register = (context) => {
   rebuild();
   paintAll();
   context.subscriptions.push(
-    { dispose() { for (const type of types.values()) type.dispose(); } },
+    { dispose() { clearTimeout(timer); for (const type of types.values()) type.dispose(); } },
     vscode.window.onDidChangeVisibleTextEditors(paintAll),
     vscode.window.onDidChangeActiveColorTheme(() => { rebuild(); paintAll(); }),
     vscode.workspace.onDidChangeTextDocument((e) => {

@@ -65,6 +65,7 @@ namespace stencil::gui {
     // (persistSettings).
     settings.windowState = QString::fromLatin1(editor->saveState(TOOLBAR_LAYOUT_VERSION).toBase64());
     persistSettings();
+    session.flushPending();
     fileStore::flushWrites();   // any debounced registry write still inside its window
     QMainWindow::closeEvent(event);
   }

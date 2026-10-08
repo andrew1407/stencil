@@ -41,7 +41,7 @@ stencil_headless_test(stencil_connectrow_headless
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
-    resources/app.qrc
+    resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The shared modal shell's small dialogs (support/modalChrome): choose, the prompts, the confirm,
@@ -54,7 +54,7 @@ stencil_headless_test(stencil_modalchrome_headless
     src/dialogs/meta/OpenInDialog.cpp src/io/deepLink.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
     src/support/icon/iconSet.cpp
-    src/support/modal/modalReveal.cpp resources/app.qrc
+    src/support/modal/modalReveal.cpp resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The "Make a copy" confirmation (dialogs/projects/copy/CopyProjectDialog): its question and the

@@ -1,12 +1,5 @@
-      /* ── Scrollbars: QSS only SIZES them — browser layout.css parity, a 12px slot
-         (10px + 1px margin) with a transparent track and the handle's minimum length.
-         The thumb itself is painted on every bar by support/control/PillScrollBars.hpp: a rounded
-         pill in --sb-thumb's grey that swells and takes the theme accent under the
-         pointer (--sb-thumb-hover: var(--accent)). QSS on macOS drew the handle square
-         whatever radius it was given, and its `::handle:hover` never lit the dialogs'
-         bars. The handle colour here is only the unthemed fallback. Canvas bar
-         visibility (hidden until an actual pan/zoom) is code too — see
-         MainWindow::revealCanvasScrollbars. */
+      /* QSS only SIZES the bars (a 12px slot); PillScrollBars.hpp paints every thumb, as macOS QSS
+         drew it square. The handle colour is the unthemed fallback. */
       QScrollBar:vertical { background: transparent; width: 10px; margin: 1px; }
       QScrollBar::handle:vertical { background: %SB_THUMB%; border: 1px solid transparent; border-radius: 5px; min-height: 28px; }
       QScrollBar:horizontal { background: transparent; height: 10px; margin: 1px; }
@@ -14,31 +7,22 @@
       QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
       QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 
-      /* 2px, because Qt counts this box TWICE: QTipLabel sets its own label margin to
-         1 + PM_ToolTipLabelFrameWidth, and under a stylesheet that metric IS border+padding.
-         The old 1px/4px therefore became a 6px margin on top of a 5px frame and the text sat
-         16px in from the accent outline (user report). At 2px the measured inset is 8px at
-         the sides and 7px top/bottom — the browser's #app-tooltip padding: 7px 10px. */
+      /* 2px because QTipLabel counts this box twice; 1px/4px left the text 16px in (user report).
+         2px measures 8px/7px, the browser's #app-tooltip padding. */
       QToolTip {
         background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 2px;
       }
-      /* …and the FADING twin that replaces it on controls (support/tip/AppTooltip.hpp). An
-         ordinary QFrame, so it counts its box once — hence the browser's real padding
-         here rather than QTipLabel's doubled 2px. */
+      /* The fading twin (AppTooltip.hpp) is a QFrame, which counts its box once. */
       QFrame#stencilAppTooltip {
-        /* --bg-info, like the browser's #app-tooltip — its own raised fill, not the
-           toolbar's (the accent ring below is already shared with it). */
+        /* --bg-info, like the browser's #app-tooltip. */
         background: %BG_INFO%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 7px 10px;
       }
       /* The browser's #app-tooltip type (components/tooltip.css), not the platform tooltip font. */
       QLabel#stencilAppTooltipBody { background: transparent; color: %TEXT%; font-size: 12px; }
 
-      /* ── Searchable combo popup (SearchComboBox, e.g. the page-format picker):
-         the desktop rendering of the browser's .accent-dd-menu panel — rounded
-         container, a pinned .accent-dd-search input over a hairline divider,
-         hover/selected-tinted option rows, and the muted "no match" row. ── */
+      /* Browser .accent-dd-menu. */
       QWidget#searchComboPopup {
         background: %BG_CONTAINER%; border: 1px solid %BORDER%; border-radius: 8px;
       }
@@ -50,11 +34,7 @@
         border-radius: 6px; padding: 4px 8px; font-size: 13px;
       }
       QLineEdit#searchComboSearch:focus { border: 1px solid %ACCENT%; }
-      /* The browser's rows are the PAGE's own 16px, not the 13px its trigger wears: an
-         open menu is moved to <body> (js/ui/control/dropdownMenu.js) and leaves the modal's
-         smaller type behind, so its options read a size larger than the control. Set on
-         the LIST, not on ::item — the widget's font is what reaches a delegate's
-         QStyleOptionViewItem, and the motion rows are painted through one. */
+      /* The browser's options are the page's 16px; set on the LIST, the font a delegate sees. */
       QListView#searchComboList {
         background: transparent; border: 0; outline: none; font-size: 16px;
       }

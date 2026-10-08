@@ -1,5 +1,6 @@
 // Three of the Servers dialog's construction phases; call order lives in ConnectDialog.cpp's ctor.
 #include "../../support/control/dblReset.hpp"
+#include "dialogSheets.hpp"
 #include "ConnectDialog.hpp"
 #include "ReorderableListWidget.hpp"
 #include "connectionStore.hpp"
@@ -73,21 +74,13 @@ namespace stencil::gui {
     // The projects bar's shape (browser modal.js): it STAYS while the list has rows (it hosts Select all).
     batchBar = new QWidget;
     {
-      // Browser .connect-batch-bar, value for value. min-height is the 14px line box: a QSS min-height IS
-      // the minimumSizeHint, and at 0 a squeezed dialog crushes the buttons to their padding.
       batchBar->setObjectName(QStringLiteral("connBatchBar"));
       batchBar->setAttribute(Qt::WA_StyledBackground, true);
       {
         const bool dark = palette().color(QPalette::Window).lightness() < 128;
         // --border-main, not QPalette::Mid: Mid is the MUTED TEXT grey (near-white on dark).
-        batchBar->setStyleSheet(
-            QStringLiteral("QWidget#connBatchBar{background:%1;border:1px solid %2;"
-                           "border-radius:8px;}"
-                           "QLabel#connBatchCount{font-weight:600;color:%3;}"
-                           "QWidget#connBatchBar QPushButton{border-radius:4px;"
-                           "padding:6px 10px;min-height:17px;}")
-                .arg(infoBackground(dark).name(), themePalette(dark).borderMain.name(),
-                     palette().color(QPalette::Link).name()));
+        batchBar->setStyleSheet(support::connBatchBarSheet(
+            infoBackground(dark), themePalette(dark).borderMain, palette().color(QPalette::Link)));
       }
       // FlowLayout, as the browser's flex-wrap: a squeezed dialog stacks the actions under the count.
       auto* bh = new FlowLayout(batchBar, 0, 10, 6);

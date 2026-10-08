@@ -1,14 +1,7 @@
-"""Timing helpers for the opt-in benchmark suite (``tests/bench_*.py``).
+"""Timing helpers for the opt-in benchmarks, run with ``python3 -m unittest discover -s tests
+-p "bench_*.py"``; the default ``test*.py`` discovery never runs them.
 
-``unittest discover`` matches ``test*.py``, so the normal run never executes these and no
-timing assertion can gate a merge on a loaded machine. Run them on demand:
-
-  python3 -m unittest discover -s tests -p "bench_*.py"
-  python3 -m unittest tests.bench.bench_codecs              # one file
-
-Every assertion is RELATIVE — a ratio between two measurements, or how one scales as its
-input doubles — never a wall-clock ceiling, so it means the same here and on CI. The µs/op
-are printed, not asserted, and each ceiling names the algorithmic property it guards.
+Every assertion is a ratio between two measurements, never a wall-clock ceiling.
 """
 
 from __future__ import annotations
@@ -24,11 +17,8 @@ class BenchCase(NativeCase):
   """Measurement + ratio reporting. Native because most hot paths cross the ABI."""
 
   def micros(self, label: str, iterations: int, body) -> float:
-    """Best-of-:data:`REPS` µs per invocation, after a warm-up pass.
-
-    The best (fastest) run is kept rather than the mean: it is the one least
-    contaminated by another process taking the core away mid-measurement.
-    """
+    """Best-of-:data:`REPS` µs per invocation, after a warm-up pass; the fastest run is the
+    one least contaminated by another process."""
     timeit.timeit(body, number=min(iterations, 200))
     best = min(timeit.timeit(body, number=iterations) for _ in range(REPS))
     per = best / iterations * 1e6

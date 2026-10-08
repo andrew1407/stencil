@@ -10,6 +10,7 @@
 #include "RemoteSession.hpp"
 #include "RemoteSyncController.hpp"
 #include "ServerClient.hpp"
+#include "lineUnion.hpp"
 
 #include <QLabel>
 #include <QCheckBox>
@@ -17,26 +18,11 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 
+#include <optional>
+
 // Opening a server-stored project.
 
 namespace stencil::gui {
-
-  namespace {
-    bool sameLines(const core::Lines& a, const core::Lines& b) {
-      if (a.size() != b.size()) return false;
-      for (size_t i = 0; i < a.size(); ++i) {
-        const core::Line& x = a[i];
-        const core::Line& y = b[i];
-        if (x.color != y.color || x.pointColor != y.pointColor || x.thickness != y.thickness ||
-            x.pointSize != y.pointSize || x.style != y.style || x.locked != y.locked ||
-            x.fillColor != y.fillColor || x.points.size() != y.points.size())
-          return false;
-        for (size_t p = 0; p < x.points.size(); ++p)
-          if (x.points[p].x != y.points[p].x || x.points[p].y != y.points[p].y) return false;
-      }
-      return true;
-    }
-  }  // namespace
 
   // Mirrors the browser projectsModal openRemote(). Async chain: getProject →
   // downloadFile("original") → fetchUrlBytes(source) on empty → decode (pool) → adopt.
@@ -44,13 +30,21 @@ namespace stencil::gui {
                                      bool link) {
     if (!w.remote.connections) return;
     stencil::net::ServerClient* c = w.remote.session->requireClient(serverUrl);
-    if (!c) return;
+    if (!c || (silent && w.remote.reloading)) return;
     // Loading emits changed(); the flag stops it being pushed straight back. Async-in-flight: the
     // shared clearer's destructor resets it once the last continuation is gone.
     w.remote.reloading = true;
-    auto reloadGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w)](void*) {
-      if (self) self->remote.reloading = false;
+    const int seq = ++w.remote.reloadSeq;
+    auto reloadGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(&w), seq](void*) {
+      if (self && self->remote.reloadSeq == seq) self->remote.reloading = false;
     });
+    // Lines drawn while a reload of this same project is in flight are merged into what lands.
+    const bool sameProject = silent && link && w.remote.session->address() == serverUrl &&
+                             w.remote.session->id() == id;
+    auto editsSince = [this, sameProject, before = w.canvas->allLines()] {
+      const core::Lines now = w.canvas->allLines();
+      return sameProject && !model::sameLines(now, before) ? std::make_optional(now) : std::nullopt;
+    };
     // A peer's edit that left the original alone lands in place as one undo step, a new crop or
     // turn rebuilt from the picture already held. False only for a layout with no crop.
     auto applyLayoutOnly = [this](const QJsonObject& layout) {
@@ -74,12 +68,13 @@ namespace stencil::gui {
       // A filter-only edit is its own step, or undoing a later stroke would hand it back; a
       // result upload over the same layout pushes none.
       if (!sameView) w.canvas->commitLayout(lines, crop, rot, mirrored);
-      else if (!sameLines(lines, w.canvas->allLines())) w.canvas->commitLines(lines);
+      else if (!model::sameLines(lines, w.canvas->allLines())) w.canvas->commitLines(lines);
       else w.canvas->commitFilter(filter, w.tools.filterColorValue);
       return true;
     };
     QPointer<MainWindow> self(&w);
-    c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, reloadGuard, applyLayoutOnly](
+    c->getProjectAsync(id, [this, self, c, serverUrl, id, silent, link, reloadGuard, applyLayoutOnly,
+                            editsSince, seq](
                                bool ok, stencil::net::ServerProject meta, QJsonObject layout) {
       if (!self) return;
       if (!ok) {
@@ -87,9 +82,14 @@ namespace stencil::gui {
         return;
       }
       // A null image is the layout-only path: the picture on the canvas IS the server's.
-      auto adopt = [this, self, serverUrl, id, silent, link, meta, layout, reloadGuard](QImage img) {
+      auto adopt = [this, self, serverUrl, id, silent, link, meta, layout, reloadGuard, seq](
+                       QImage img, std::optional<core::Lines> local) {
         if (!self) return;
         if (!img.isNull()) w.loadImageWithLayout(img, layout);
+        if (local) {
+          const model::LineUnion merged = model::unionLines(w.canvas->allLines(), *local);
+          if (merged.lines.size() != w.canvas->allLines().size()) w.canvas->commitLines(merged.lines);
+        }
         w.docSource.blankColor = meta.blankColor;  // restore blank-fill so the recolour control tracks it
         w.canvas->setBlankPage(!w.docSource.blankColor.isEmpty());
         // Unlinked (incognito deep-link) opens adopt the content only, mirroring the browser's
@@ -132,23 +132,28 @@ namespace stencil::gui {
           w.notify->success(QString("Opened \"%1\" from %2")
                                .arg(support::shortName(meta.name.isEmpty() ? QStringLiteral("Untitled") : meta.name),
                                     serverUrl));
+        // The merged local edit is the reload's last change; it goes out like any other edit.
+        if (local && w.remote.reloadSeq == seq) {
+          w.remote.reloading = false;
+          w.remoteSync->scheduleRemotePush();
+        }
       };
       const bool sameOriginal = silent && link && w.remote.session->address() == serverUrl &&
           w.remote.session->id() == id && w.canvas->hasImage() &&
           w.remote.session->isAdoptedOriginal(meta.originalHash, w.canvas->getOriginalImage().cacheKey());
-      if (sameOriginal && applyLayoutOnly(layout)) {
-        adopt(QImage());
+      if (std::optional<core::Lines> local = editsSince(); sameOriginal && applyLayoutOnly(layout)) {
+        adopt(QImage(), std::move(local));
         return;
       }
-      auto decode = [this, adopt](QByteArray bytes) {
+      auto decode = [this, adopt, editsSince](QByteArray bytes) {
         w.decodeForCanvas(
             [bytes] { return QImage::fromData(bytes); },
-            [this, adopt](const QImage& img) {
+            [this, adopt, editsSince](const QImage& img) {
               if (img.isNull()) {
                 w.notify->error("Server image could not be decoded");
                 return;
               }
-              adopt(img);
+              adopt(img, editsSince());
             });
       };
       c->downloadFileAsync(id, "original", [this, self, c, meta, decode,

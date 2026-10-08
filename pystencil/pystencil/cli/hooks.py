@@ -37,8 +37,6 @@ class PlanConsole(Protocol):
 class _PlanHooks:
   """The REPL side of :class:`PlanConsole` — each hook runs the SAME path the
   matching slash command uses."""
-  # ── §10 console-profile op hooks (execute_op_plan calls these via console=self;
-  # a returned string is an execution-miss note per §1, None is success) ──
   def plan_connect(self, action: dict) -> (str | NoneType):
     """A plan `connect`: resolve ONLY among the session's live connections (§10's
     stance — the model can never introduce a host); anything else is a note."""
@@ -77,8 +75,7 @@ class _PlanHooks:
     return None
 
   def plan_delete(self, action: dict) -> (str | NoneType):
-    """A plan `delete`: the SAME guards + messages as /delete (cli parity — a
-    guard rejection prints its error and the plan carries on)."""
+    """A guard rejection prints its error and the plan carries on (cli parity)."""
     self._cmd_delete(action["path"])
     return None
 
@@ -93,18 +90,15 @@ class _PlanHooks:
       self._editor.load(url)
     except (OSError, ValueError, RuntimeError, codecs.CodecError) as e:
       return 'skipped openUrl — could not load "%s" (%s)' % (url, e)
-    # A fresh picture detaches any fetched server project; the running
-    # conversation survives — the load happened INSIDE it, at the user's ask.
+    # The conversation survives: the load happened inside it, at the user's ask.
     self._remote = None
     w, h = self._editor.image_size
     self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))
     return None
 
   def plan_clear(self, action: dict) -> (str | NoneType):
-    """§10 `clear` → the /drop path's state, in place: drop the working image and
-    its lines, leaving the session empty. The conversation survives (the §10 stance
-    for model-driven clears: image and edits only — clearing the CHAT is the
-    confirmed clearChat op)."""
+    """§10 `clear`: drops the image and its lines; the conversation survives (clearing the
+    chat is the confirmed clearChat op)."""
     self._editor.clear()
     self._remote = None
     self._say("dropped the working image")
@@ -117,10 +111,8 @@ class _PlanHooks:
     return None
 
   def _confirm_clear_chat(self) -> None:
-    """The deferred §10 clearChat: ask y/N on the console's own input stream; a
-    typed yes runs the exact /chat clear path (Chat.clear + the §12 server-side
-    `chat` delete); anything else — EOF / non-interactive input included — is a
-    "clear canceled" note, never a failed plan."""
+    """The deferred §10 clearChat: a typed yes runs /chat clear; anything else, EOF
+    included, is a "clear canceled" note, never a failed plan."""
     if not self._clear_chat_pending: return
     self._clear_chat_pending = False
     self._say("clear this conversation's history? [y/N]")

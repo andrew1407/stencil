@@ -2,7 +2,7 @@
 // The chat panel and the context-menu chat are two views of the SAME conversation: both go
 // through the single controller this module memoizes per app, so history, attachments and
 // the working-video binding stay continuous. Nothing here touches the DOM.
-import { createChatController, MAX_ATTACHMENTS, CHAT_ATTACHMENTS_EVENT } from './controller.js';
+import { createChatController, chatBusyError, MAX_ATTACHMENTS, CHAT_ATTACHMENTS_EVENT } from './controller.js';
 import { createLlmClient } from '../client.js';
 import { loadLlmSettings, serverBearerToken, withSessionKey } from '../settings.js';
 import { describeChatError, settledReplyText } from './reply.js';
@@ -12,7 +12,6 @@ import { mediaAdapters } from '../adapters/media.js';
 import { projectAdapters } from '../adapters/project.js';
 import { dialogAdapters } from '../adapters/dialog.js';
 import { editorAdapters } from '../adapters/editor.js';
-// Re-exported: both were found here first, and the adapters are the other caller.
 export { uniqueProjectName, resolveProjectByName } from '../projectNames.js';
 export { replyWithWarnings, EMPTY_REPLY_TEXT, settledReplyText, unreachableText, describeChatError }
   from './reply.js';
@@ -176,6 +175,7 @@ export const spokenEcho = (text) =>
 // Returns null when nothing should be said — an abort is the user's own doing.
 export const closedTurnToast = (res) => {
   if (!res || res.kind === 'abort') return null;
+  if (res.kind === 'busy') return { text: res.text, type: 'info' };
   if (!res.ok) return { text: truncateForToast(`Assistant failed — ${res.error?.message ?? res.text ?? ''}`), type: 'fail' };
   const made = res.entry?.results?.length || 0;
   const images = made ? ` (${made} image${made === 1 ? '' : 's'})` : '';
@@ -185,7 +185,14 @@ export const closedTurnToast = (res) => {
 
 // One LOGGED turn, shared by both chat surfaces: the user row plus a pending row, an
 // AbortController for Stop, the patch, then cleanup. Never throws; hooks carry the deltas.
+// A turn already running refuses this one before it logs a row; begin and cleanup never run.
 export const runLoggedChatTurn = async (controller, text, { settings, begin, onResult, cleanup } = {}) => {
+  if (turnInFlight || controller?.busy) {
+    const error = chatBusyError();
+    const res = { ok: false, error, kind: 'busy', text: error.message };
+    onResult?.(res);
+    return res;
+  }
   turnInFlight = true;
   // The queue is read BEFORE the send drains it, so the images ride the user's own
   // row (they are the user's, not the assistant's).

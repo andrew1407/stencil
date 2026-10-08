@@ -1,10 +1,13 @@
-// The crop exports abi/shared.inc emits into both extern "C" ABIs: each case calls the
-// wasm and the CLI spelling and asserts they agree, down to a -0 and a NaN.
+// The crop and merge exports abi/shared.inc emits into both extern "C" ABIs: each case calls
+// the wasm and the CLI spelling and asserts they agree, down to a -0 and a NaN.
 #include "doctest.h"
 #include "cliApi.h"
+#include "linesCodec.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <vector>
 
 extern "C" {
   void stencil_snapCropRect(double, double, double, double, double, double, double*);
@@ -13,11 +16,31 @@ extern "C" {
   void stencil_cropChange(double, double, double, double, double, double, double, double,
                           double*);
   void stencil_mirrorEdit(double, double, double, double, int, double, double, double*);
+  int stencil_mergeLinesKeep(const double*, int, const std::uint8_t*, int, const double*, int,
+                             const std::uint8_t*, int, std::uint8_t*, int);
 }
 
 namespace {
   bool sameBits(const double* a, const double* b, int n) {
     return std::memcmp(a, b, sizeof(double) * static_cast<std::size_t>(n)) == 0;
+  }
+
+  struct Encoded {
+    std::vector<double> nums;
+    std::vector<std::uint8_t> text;
+  };
+  Encoded encode(const stencil::core::Lines& lines) {
+    const stencil::core::abi::LinesSize s = stencil::core::abi::linesSize(lines);
+    Encoded e{std::vector<double>(static_cast<std::size_t>(s.nums)),
+              std::vector<std::uint8_t>(static_cast<std::size_t>(s.text) + 1)};
+    stencil::core::abi::encodeLines(lines, e.nums.data(), e.text.data());
+    return e;
+  }
+  stencil::core::Line at(double x, const char* color) {
+    stencil::core::Line l;
+    l.points = {{x, 0}};
+    l.color = color;
+    return l;
   }
 }  // namespace
 
@@ -78,4 +101,26 @@ TEST_CASE("abi shared: cropChange agrees under both spellings") {
   CHECK(out[1] == 1.0);
   stencil_cropChange(0, 0, 1, 1, 0, 0, 1, 1, nullptr);  // a null out slot is a no-op
   stencil_cli_cropChange(0, 0, 1, 1, 0, 0, 1, 1, nullptr);
+}
+
+TEST_CASE("abi shared: mergeLinesKeep agrees under both spellings") {
+  const Encoded s = encode({at(1, "#f00")});
+  const Encoded l = encode({at(1, "#f00"), at(2, "#f00"), at(2, "#f00")});
+  using Fn = int (*)(const double*, int, const std::uint8_t*, int, const double*, int,
+                     const std::uint8_t*, int, std::uint8_t*, int);
+  for (Fn merge : {static_cast<Fn>(stencil_mergeLinesKeep), static_cast<Fn>(stencil_cli_mergeLinesKeep)}) {
+    std::uint8_t keep[3] = {9, 9, 9};
+    CHECK(merge(s.nums.data(), static_cast<int>(s.nums.size()), s.text.data(),
+                static_cast<int>(s.text.size()), l.nums.data(), static_cast<int>(l.nums.size()),
+                l.text.data(), static_cast<int>(l.text.size()), keep, 3) == 3);
+    CHECK(keep[0] == 0);
+    CHECK(keep[1] == 1);
+    CHECK(keep[2] == 0);
+    std::uint8_t capped[1] = {9};
+    CHECK(merge(nullptr, 0, nullptr, 0, l.nums.data(), static_cast<int>(l.nums.size()),
+                l.text.data(), static_cast<int>(l.text.size()), capped, 1) == 3);
+    CHECK(capped[0] == 1);
+    CHECK(merge(nullptr, 0, nullptr, 0, l.nums.data(), static_cast<int>(l.nums.size()),
+                l.text.data(), static_cast<int>(l.text.size()), nullptr, 0) == 3);
+  }
 }

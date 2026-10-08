@@ -1,11 +1,6 @@
-/* ── Chat panel on phones & touch (breakpoints follow animations/responsive.css:
-   680px = phones, hover:none+coarse = touch). Side docks / floating / resizing don't fit a phone:
-   whatever the mode says, the OPEN panel presents as an ORDINARY MODAL — a CENTRED
-   card over the dimmed #chat-backdrop, with every interactive placement affordance
-   hidden (the header drag is also gated in JS, and the backdrop/Escape close it like
-   any other modal). Centring is inset:0 + margin:auto, not a translate(-50%,-50%) —
-   transform belongs to the open/close animation. The !important beats float mode's
-   inline rect. ── */
+/* Phones & touch (680px = phones, hover:none + coarse = touch): the open panel is an ordinary
+   centred modal over #chat-backdrop, placement affordances hidden. Centred by inset:0 + margin:auto,
+   since transform belongs to the open/close animation; !important beats float mode's inline rect. */
 @media (max-width: 680px) {
     stencil-chat-panel.chat-open {
         inset: 0 !important;
@@ -41,14 +36,9 @@
    ARE the toolbar, and a docked chat at 90000 sat over the strip's own fullscreen
    toggle. The chat goes beneath them there; modal overlays stay above both. */
 body.fullscreen-mode stencil-chat-panel { z-index: 9990; }
-/* A DOCKED chat shares the page instead of covering it: the panel is fixed, so
-   the body gives up exactly its band as padding and the whole editor reflows
-   beside it. Driven by the same --chat-size the panel and its resizer use, so
-   dragging the edge moves the content live. Float mode is deliberately absent —
-   a floating panel is meant to overlay, and so is fullscreen (edge-to-edge by
-   design, hence the :not(.fullscreen-mode) guard — :has() would otherwise
-   out-specify body.fullscreen-mode's padding:0). The transition matches the
-   panel's own open/close slide so the two move together. */
+/* A docked chat shares the page: the body gives up its --chat-size band as padding and reflows
+   live with the resizer. Float and fullscreen overlay by design (:not(.fullscreen-mode), as :has()
+   would out-specify its padding:0); the transition matches the panel's own slide. */
 body { transition: background 0.3s, color 0.3s, padding 0.51s ease; }
 /* …but a resize drag tracks the pointer: a padding eased per step trailed the edge by half a second. */
 body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color 0.3s; }
@@ -60,11 +50,8 @@ body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 10px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 10px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 10px); }
-    /* …and the drop overlay gives up the same band, for the same reason: a DOCKED
-       panel shares the page rather than being covered by it. The panel wires its own
-       drop (drop an image on the chat to attach it — [data-drop-owner]), so leaving
-       it uncovered keeps both drop targets readable during one drag. A float/
-       fullscreen panel deliberately overlays, so it keeps the full-bleed overlay. */
+    /* The drop overlay gives up the same band, so the docked panel's own drop target stays
+       readable during one drag; float/fullscreen keep the full-bleed overlay. */
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) #global-drop-overlay { left: var(--chat-size, 340px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) #global-drop-overlay { right: var(--chat-size, 340px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay { top: var(--chat-size, 300px); }
@@ -74,9 +61,7 @@ body:has(stencil-chat-panel.chat-gesturing) { transition: background 0.3s, color
    releases on the out-duration, in step with the panel and starting with it. */
 body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s ease; }
 
-/* Gear provider-status tooltip: a themed TABLE (label column muted, status cell
-   coloured by state) + a pre-line footer, fixed-positioned above the gear. Uses
-   the shared theme vars, so it follows light/dark like #app-tooltip. */
+/* Gear provider-status tooltip: a themed table plus a pre-line footer, above the gear. */
 .chat-status-tip {
     position: fixed;
     z-index: 100003;
@@ -91,9 +76,7 @@ body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0
     transition: opacity 90ms ease;
 }
 .chat-status-tip.visible { opacity: 1; }
-/* Once the real motes have flown (js/ui/chat/panel.js showGearTip/hideGearTip), the
-   plain fade steps aside for good — same reasoning as #app-tooltip.dust-driven — so
-   it can never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+/* Once the motes have flown the plain fade steps aside, so it never fights surfaceForm/surfaceLeave. */
 .chat-status-tip.dust-driven { transition: none; }
 .chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
 .chat-status-tip th {

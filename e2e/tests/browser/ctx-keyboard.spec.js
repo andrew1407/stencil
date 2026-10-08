@@ -1,7 +1,6 @@
 // The canvas context menu walked with real key presses (desktop QMenu parity): ↑/↓ move
 // over the rows, → opens a flyout onto its first row, ← closes it back onto the parent,
-// Enter picks, Escape closes — and none of it reaches the canvas pan. The arrows used to
-// fall through to controlsBinder.js's arrow pan; its scroll then closed the menu.
+// Enter picks, Escape closes — and none of it reaches the canvas pan.
 import { test, expect } from '@playwright/test';
 import { gotoApp } from '../../helpers/boot.js';
 
@@ -55,7 +54,6 @@ test('arrow keys walk the context menu instead of panning the canvas', async ({ 
   await page.keyboard.press('ArrowDown');
   await expect(highlighted).toHaveText('Paste Image');
 
-  // ← closes it back onto the parent row; the root menu stays.
   await page.keyboard.press('ArrowLeft');
   await expect(flyout).not.toHaveClass(/ctx-sub-visible/);
   await expect(highlighted).toHaveText('Image / Layout');
@@ -66,7 +64,6 @@ test('arrow keys walk the context menu instead of panning the canvas', async ({ 
   await page.keyboard.press('ArrowUp');
   await expect(highlighted).toHaveText('Tooltip');
 
-  // Enter picks the highlighted row: Show Points toggles.
   const before = await page.evaluate(() => window.stencil.showPoints);
   for (let i = 0; i < 20 && (await highlighted.textContent()) !== 'Show Points'; i++) {
     await page.keyboard.press('ArrowDown');
@@ -98,7 +95,6 @@ test('arrow keys walk the context menu instead of panning the canvas', async ({ 
   await page.keyboard.press('ArrowLeft');
   await expect(style).not.toHaveClass(/ctx-sub-visible/);
   await expect(highlighted).toHaveText('Style');
-  // Walking off a parent row folds its flyout too.
   await page.keyboard.press('ArrowRight');
   await expect(style).toHaveClass(/ctx-sub-visible/);
   await page.keyboard.press('ArrowDown');

@@ -4,6 +4,7 @@
 #include "chatDockShared.hpp"
 #include "iconSet.hpp"
 #include "iconMotionTypes.hpp"
+#include "chatSheets.hpp"
 
 #include <QApplication>
 #include <QCursor>
@@ -38,8 +39,7 @@ namespace stencil::gui {
                             .arg(accentCache.name(), textCache.name());
     if (key == placementKey) return;
     placementKey = key;
-    const QString activeQss = QStringLiteral("background:%1;border:none;border-radius:5px;")
-                                  .arg(chipCache.name());
+    const QString activeQss = support::chatPlacementActiveSheet(chipCache);
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
       b->setIcon(themedIcon(glyph, active ? accentCache : textCache, HEADER_ICON));
       b->setStyleSheet(active ? activeQss : QString());

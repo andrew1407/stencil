@@ -1,19 +1,6 @@
-/* The image-facts line. The incognito tag appended to it is passive DECOR: toggling
-   the mode must not move a single pixel of the app. The desktop's equivalent label grew
-   when the tag appeared and pushed the canvas and the points panel down (user report),
-   so this row's geometry is PINNED rather than left to the content:
-     · an explicit line-height the tag cannot exceed (an inline-flex child with a 13px
-       glyph would otherwise stretch the line box by a pixel or two on its own);
-     · a min-height of that same line box, so an empty editor and a tagged one match;
-     · no wrapping — at a narrow width the extra words would fold onto a second line
-       and grow the row, which is the same shift by another route.
-   Both incognito states therefore occupy the identical box. */
-/* Folded toolbar: the size line goes with it — the "?" beside the project name carries the
-   same two facts in its bubble (toolbar.js), and leaving the line behind put a full-width
-   band plus 27px of margin between the collapsed header and the canvas.
-   The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 10 (the
-   viewport's own gap under the info line) stacked to 30px of nothing under a header that is
-   itself only 33px tall. Collapsed, the canvas sits right under it. */
+/* The image-facts line: its geometry is PINNED (line-height, min-height, no wrap) so the incognito tag
+   never moves a pixel — the desktop's label grew and pushed the canvas down (user report). */
+/* Folded toolbar: the line and its 8 + 12 + 10px of margins go — the "?" bubble carries the same facts. */
 body.controls-collapsed .info { height: 0; min-height: 0; padding-block: 0; opacity: 0; visibility: hidden; }
 body.controls-collapsed .controls-topbar { margin-bottom: 0; }
 body.controls-collapsed .controls-wrapper { margin-bottom: 8px; }
@@ -25,10 +12,7 @@ body.controls-collapsed .canvas-viewport { margin-top: 0; }
     border-radius: 4px;
     font-size: 14px;
     color: var(--text-info);
-    /* A FLEX row, not a line box: an inline tag with vertical-align:middle still
-       stretched the line by ~1.4px however tightly its own height was pinned (measured),
-       and that pushed the canvas and the points panel down. As flex items the text and
-       the tag are laid out against the row's height instead of deciding it. */
+    /* A FLEX row: an inline middle-aligned tag still stretched the line by ~1.4px (measured). */
     display: flex;
     align-items: center;
     /* 27 + 2×10 = 47: the desktop's imageInfoBar, an 11px margin around its 25px line. */
@@ -41,12 +25,8 @@ body.controls-collapsed .canvas-viewport { margin-top: 0; }
 input[type="number"] {
     width: 80px;
 }
-/* Color pickers share the dark input chrome (the UA default is a white chip that
-   clashes with the sibling fields); the swatch fills the chip inside a thin frame. */
 input[type="color"] {
-    /* A colour chip inside an input frame — a 32x16 swatch in a 46x26 box, the desktop's own
-       well (guiHelpers setColorSwatch) and the shape all three surfaces share. Filling the
-       box made the colour a slab and the loudest thing in the row. */
+    /* A 32x16 swatch in a 46x26 box, the desktop's well (guiHelpers setColorSwatch) on all three surfaces. */
     width: 46px;
     height: 26px;
     cursor: pointer;
@@ -55,8 +35,7 @@ input[type="color"] {
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main); border-radius: 3px; }
-/* Outranks `.coordinates-table td` (left, main ink); the system face at 13px is the desktop's
-   empty row (SelectionPanel::emptyMessage). */
+/* The system face at 13px is the desktop's empty row (SelectionPanel::emptyMessage). */
 .coordinates-table td.empty-message {
     text-align: center;
     color: var(--text-empty);
@@ -65,6 +44,5 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     font-size: 13px;
 }
 .coordinates-table tbody tr:has(.empty-message) { cursor: default; }
-/* An empty points table shows its message alone, as the Lines tab beside it does: column
-   headings over nothing read as a table that failed to load. Desktop twin: PointsTable. */
+/* Headings over nothing read as a failed load. Desktop twin: PointsTable. */
 .coordinates-table:has(.empty-message) thead { display: none; }

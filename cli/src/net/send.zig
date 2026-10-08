@@ -59,6 +59,7 @@ pub fn once(
     // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the cap, aborting
     // the stream instead of growing memory. Page-allocated, so a small response commits its own pages.
     const scratch = fetchPool.bodyScratch(MAX_FETCH_BYTES) orelse return Error.HttpFailed;
+    defer fetchPool.releaseScratch();
     var body: std.Io.Writer = .fixed(scratch);
 
     const result = client.fetch(.{

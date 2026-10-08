@@ -15,16 +15,10 @@ from .source import _SourceApi
 
 
 class _LayoutApi:
-  """Drawing lines, serializing the layout, and coercing layout-ish inputs."""
   def draw(self, layout: LayoutLike, combine: bool = True) -> "Editor":
-    """Draw a layout's lines (mirror ``session.addLines``).
-
-    ``combine`` (the default) APPENDS them after the lines already drawn — the same
-    choice the GUI editors offer when a layout lands on an existing one, and cut at the
-    same layout caps when the two together pass them. Pass
-    ``combine=False`` to REPLACE the current lines instead, keeping the rest of the
-    state (use :meth:`apply_layout` to adopt a layout's rotation/crop/filter too).
-    ``layout`` may be a :class:`Layout`, dict, JSON string, path, URL or Line list.
+    """Draw a layout's lines (``session.addLines``): appended after the drawn ones and cut at the
+    layout caps, or with ``combine=False`` replacing them; the rest of the state stays (see
+    :meth:`apply_layout`). ``layout`` is a :class:`Layout`, dict, JSON string, path, URL or Line list.
     """
     self._require_original()
     add = self.__coerce_lines(layout)
@@ -35,18 +29,15 @@ class _LayoutApi:
     return self
 
   def apply_layout(self, layout: LayoutLike) -> "Editor":
-    """ADOPT a layout's rotation+crop+filter+lines wholesale (mirror ``adoptServerLayout``).
-
-    Unlike :meth:`draw` (which appends), this replaces the geometry/filter/lines of the
-    new state from the layout — used when reopening a peer's stored project layout.
-    """
+    """ADOPT a layout's rotation, crop, filter and lines wholesale (``adoptServerLayout``), as
+    when reopening a peer's stored project."""
     self._require_original()
     core = self._get_core()
     L = self.__coerce_layout(layout)
     crop: (tuple[int, int, int, int] | NoneType) = None
     if isinstance(L.crop_rect, dict):
       cr = L.crop_rect
-      # Canonical {w,h} wins; legacy {width,height} (pre-Phase-6) still reads.
+      # Canonical {w,h} wins; legacy {width,height} still reads.
       crop = (
         int(cr.get("x", 0)),
         int(cr.get("y", 0)),
@@ -71,13 +62,8 @@ class _LayoutApi:
 
 
   def layout(self) -> Layout:
-    """Build the structured layout for the current state (mirror ``currentLayoutJson``).
-
-    ``imageWidth``/``imageHeight`` are the RESULT dimensions; the optional
-    filter/rotation fields are emitted only when meaningful (filter present and not
-    "none", a non-zero rotation), exactly like ``server.buildLayout``. ``cropRect`` is
-    always emitted — see below.
-    """
+    """The structured layout of the current state (``currentLayoutJson``): the RESULT size, the
+    optional fields only when meaningful (as ``server.buildLayout``), ``cropRect`` always."""
     orig = self._require_original()
     snap = self._current()
     img_w, img_h = self._view_dims(snap)
@@ -91,7 +77,6 @@ class _LayoutApi:
       # the page aspect unless the layout names a cropRect.
       cx, cy = 0, 0
       cw, ch = self._get_core().rotated_dims(orig.width, orig.height, snap.rotation)
-    # Canonical browser keys ({w,h}) since Phase 6.
     crop_rect = {"x": cx, "y": cy, "w": cw, "h": ch}
     rotation_quarters = snap.rotation if snap.rotation != 0 else None
     return Layout(
@@ -126,7 +111,6 @@ class _LayoutApi:
     if path and path.lower().endswith(".json"):
       out_path = path
     elif path:
-      # Directory/prefix form: join with a single separator.
       sep = "" if path.endswith("/") else "/"
       out_path = "%s%s%s.json" % (path, sep, name)
     else:
@@ -137,16 +121,10 @@ class _LayoutApi:
     return out_path
 
 
-  # ── layout coercion ────────────────────────────────────────────────────────
   @staticmethod
   def __read_layout_source(src: str) -> str:
-    """Turn a layout-source string into layout JSON text.
-
-    A string may be inline JSON, an http(s) URL, or a local file path — mirroring the
-    Zig CLI's ``/apply``/``-l`` which accept a path or URL. Inline JSON (starts with
-    ``{`` or ``[``) is returned as-is; a URL is fetched; an existing file is read;
-    anything else is returned unchanged so :meth:`Layout.from_json` raises a clear error.
-    """
+    """Layout JSON from inline JSON (as-is), an http(s) URL or an existing file, as the CLI's
+    ``/apply``/``-l``; anything else returns unchanged for :meth:`Layout.from_json` to refuse."""
     stripped = src.lstrip()
     if stripped.startswith("{") or stripped.startswith("["): return src
     if is_url(src): return _SourceApi._fetch_url(src).decode("utf-8")
@@ -167,9 +145,6 @@ class _LayoutApi:
 
   @staticmethod
   def __coerce_lines(layout: LayoutLike) -> list[Line]:
-    """Extract a list of :class:`Line` from any accepted layout input."""
-    # A raw list may hold Line objects or line dicts; everything else routes
-    # through __coerce_layout so the str/dict/Layout parsing lives in one place.
     if isinstance(layout, list):
       return [ln if isinstance(ln, Line) else Line.from_dict(ln) for ln in layout]
     return list(_LayoutApi.__coerce_layout(layout).lines)

@@ -8,6 +8,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"stencil/server/internal/store"
 )
@@ -38,3 +39,11 @@ func exists(ctx context.Context, projects ProjectStore, id string) error {
 
 // isMissing reports whether err says the project is gone.
 func isMissing(err error) bool { return errors.Is(err, store.ErrNotFound) }
+
+// withOpTimeout bounds one store call; a zero timeout leaves ctx as it is.
+func withOpTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	if d <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, d)
+}

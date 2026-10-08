@@ -1,7 +1,5 @@
 """Per-plan execution state and its helpers: the attachment wire form, the §2.1
 multi-image run record, output-path derivation and coordinate clamping.
-
-Sits below the appliers so both they and :mod:`.execute` can reach it.
 """
 
 from __future__ import annotations
@@ -13,10 +11,8 @@ from typing import Any, Iterable, Sequence
 from .._ffi.types import NoneType
 
 def wire_images(images: (Iterable | NoneType)) -> list:
-  """Attachments in their WIRE form: strictly ``(media_type, bytes)`` pairs.
-
-  An attachment may carry a third element — the source file name §2.1's ``save``
-  derives its default project name from — which never rides the wire."""
+  """Attachments as ``(media_type, bytes)`` pairs; an optional third element (the source
+  file name) never rides the wire."""
   out: list = list()
   for item in images or []:
     try:
@@ -31,32 +27,19 @@ def wire_images(images: (Iterable | NoneType)) -> list:
 
 
 def _attachment_parts(item: Any) -> tuple[Any, str]:
-  """``(bytes, name)`` from one attachment.
-
-  Attachments are the contract's ``(media_type, bytes)`` tuples — the very list a
-  caller passed to :meth:`Chat.send` / :meth:`Editor.prompt`. An optional third
-  element carries the original file name, which §2.1's ``save`` derives its default
-  project name from (a plain 2-tuple simply has none)."""
+  """``(bytes, name)`` from one attachment; ``name`` is "" for a plain pair."""
   parts = tuple(item)
   return parts[1], (str(parts[2]) if len(parts) > 2 and parts[2] else "")
 
 
 class _PlanRun:
-  """Per-execution state the §2.1 multi-image ops need (contract §2.1).
-
-  ``attachments`` is the turn's attached images in attachment order — the auto-attached
-  working snapshot is not one of them; ``save_dir`` is where ``save`` writes its
-  ``.stencil`` files (the console/API's own output directory, cwd by default);
-  ``notes`` collects per-action skip warnings (an unsatisfiable index or a save with
-  nothing loaded costs that ACTION, never the plan); ``saved`` records the written
-  paths and ``active_name`` the name a later unnamed ``save`` derives from.
-  """
+  """Per-execution state the §2.1 multi-image ops need. ``attachments`` excludes the
+  auto-attached working snapshot; ``notes`` are per-action skip warnings."""
 
   def __init__(self, attachments: (Sequence | NoneType) = None, save_dir: str = "",
         console: Any = None) -> None:
     self.attachments: list = list(attachments or [])
     self.save_dir = save_dir or ""
-    # The §10 console-profile hook object (the REPL), or None at the library level.
     self.console = console
     self.notes: list[str] = list()
     self.saved: list[str] = list()
@@ -68,16 +51,14 @@ class _PlanRun:
 
 
 def _save_stem(name: str) -> str:
-  """A file name reduced to the project name a ``save`` uses: no directories, no
-  extension. Empty when nothing usable is left — the caller then falls back."""
+  """A file name without directories or extension; "" when nothing usable is left."""
   base = str(name or "").replace("\\", "/").rsplit("/", 1)[-1]
   base = re.sub(r"\.[^.]+$", "", base).strip()
   return "" if set(base) <= {"."} else base
 
 
 def _unique_save_path(directory: str, name: str) -> str:
-  """``<name>.stencil`` in ``directory``, suffixed " 2", " 3"… past a name already
-  on disk — so a plan saving several images never overwrites its own output."""
+  """``<name>.stencil`` in ``directory``, suffixed " 2", " 3"… past a name already on disk."""
   stem = _save_stem(name) or "project"
   path = os.path.join(directory, stem + ".stencil") if directory else stem + ".stencil"
   n = 2
@@ -89,9 +70,5 @@ def _unique_save_path(directory: str, name: str) -> str:
 
 
 def _clamp_point(x: float, y: float, w: float, h: float) -> tuple[float, float]:
-  """Clamp a layout point into the current image's bounds (contract §1)."""
   return (min(max(x, 0.0), float(w)), min(max(y, 0.0), float(h)))
 
-
-# One applier per op, mapping the validated action onto the Editor method it stands for
-# (§2), riding its OP_REGISTRY entry beside its validator. `frame` is the §1 transform.

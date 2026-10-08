@@ -1,13 +1,10 @@
-      /* Controls collapse pill: an outlined pill, not bare text — the browser's
-         #toggle-controls (1px border, 16px radius, 12px label). */
+      /* The browser's #toggle-controls: an outlined pill. */
       QToolButton#controlsPill {
-        /* ControlsPill paints the chevron + label itself, centred, and sizes to them
-           (support/control/ControlsPill.hpp) — so this rule is just the oval: border + fill. */
+        /* ControlsPill paints chevron and label itself; this rule is just the oval. */
         color: %TEXT%; background: transparent; font-size: 12px;
         border: 1px solid %BORDER%; border-radius: 12px; padding: 0px;
       }
-      /* The pill has no menu, but QToolButton still reserves ~13px on the right for the
-         menu-indicator — trailing whitespace inside the button (user report). Zero it. */
+      /* Qt reserves ~13px for a menu indicator even with no menu (user report). */
       QToolButton#controlsPill::menu-indicator { image: none; width: 0; }
       QToolButton#controlsPill:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton#controlsPill:pressed { background: %ACCENT_SOFT2%; }
@@ -15,29 +12,19 @@
         color: %TEXT%; background: transparent; padding: 5px 7px;
         border: 1px solid transparent; border-radius: 7px;
       }
-      /* A tool button is 19px wider than its glyph, so the odd pixel leaves every icon half a
-         pixel left of centre. It only SHOWS on the one glyph that is a frame, so fit-to-window
-         takes the odd pixel on its left edge and its box lands dead centre. */
+      /* A tool button is 19px wider than its glyph; the frame glyph takes the odd pixel left. */
       QToolButton[zoomFit="true"] { padding-left: 8px; }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
-      /* The ✎ / 🎨 beside the project name: the toolbar's own filled squares, so they read
-         as buttons of the same family as everything above them rather than as loose glyphs
-         on a tinted chip (user decision; browser twin: the name-edit buttons in
-         components.css). Square: the same radius the section buttons use. */
+      /* The name buttons: the toolbar's filled squares (user decision; browser components.css). */
       QToolButton[nameAffordance="true"] {
         background: %ACCENT%; border: 1px solid %ACCENT%; color: %ON_ACCENT%; border-radius: 7px;
-        /* Room for the glyph and no more: the row's default 5px 7px pushed the mark past the
-           chip and Qt clipped it (user report, with a picture). The sides are wider than the
-           top so the ✓/✗ — whose width is free, to let their reveal slide — still ASK for
-           the chip's full 28px rather than settling narrower than their twins. */
+        /* Room for the glyph only: 5px 7px clipped the mark (user report, with a picture). Wider
+           sides keep the ✓/✗ asking for the chip's full 28px. */
         padding: 2px 6px;
       }
-      /* Under the cursor it takes the app's own accent, SOLID — the browser's
-         `button:hover { background: var(--accent-2) }` — with the glyph flipping to white
-         through QIcon::Active (MainWindowTheme.cpp). The soft tint every other tool button
-         wears was barely visible on these two (user report). Restated at this rule's own
-         weight because an attribute selector outranks the plain `QToolButton:hover`. */
+      /* The browser's solid --accent-2 on hover: the soft tint was barely visible (user report).
+         Restated here: an attribute selector outranks QToolButton:hover. */
       QToolButton[nameAffordance="true"]:hover {
         background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%;
       }
@@ -47,52 +34,28 @@
       QToolButton[nameAffordance="true"]:disabled {
         background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* The Resend/Retry icon under a failed turn: no fill at all on hover, just its
-         own muted glyph colour traced as a thin outline (browser .chat-retry-cta /
-         extension .chat-retry parity) — the generic accent-soft fill read as a stray
-         tinted square on the error card's danger wash (user report). */
+      /* Browser .chat-retry-cta: an outline, no fill — a fill read as a stray square (user report). */
       QToolButton#chatRetry:hover { background: transparent; border-color: %MUTED%; }
-      /* Active toggle → SOLID accent fill with white text, matching the browser's
-         .active toolbar buttons (fullscreen while on, incognito while on) rather than
-         a soft tint — so an enabled toggle clearly reads as active. */
+      /* An active toggle is SOLID accent, as the browser's .active toolbar buttons. */
       QToolButton:checked {
         background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%;
       }
       QToolButton:checked:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%; }
-      /* Disabled: a filled, low-contrast "inactive" chip (matches QPushButton:disabled)
-         so a greyed toolbar button reads clearly. The :checked:disabled override is
-         higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
-         image is loaded) drops its accent highlight instead of looking still-active. */
+      /* :checked:disabled outranks :checked, so a dead toggle drops its accent. */
       QToolButton:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
       QToolButton:checked:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
-      /* No indicator, and no RESERVE for one either: a popover button (Start/Stop, Line/Rect)
-         kept ~11px of empty right margin, so its icon+label block sat left of centre
-         (user report, with a picture). Width 0 centres the pair. */
+      /* No indicator and no reserve for one: it pushed the icon off centre (user report). */
       QToolButton::menu-indicator { image: none; width: 0; }
-      /* The Start/Stop and Line/Rect faces read as WORDS, not as chips: a size up from the
-         toolbar's dense default, with the browser's own gap between glyph and label. */
-      /* The padding is deliberately ASYMMETRIC: Qt anchors a text-beside-icon label at the
-         left of the content rect and leaves its own ~6px of slack on the right, so equal
-         padding drew the pair off-centre in its box (user report, with a picture). Moving
-         that slack to the left centres the glyph+word without changing the button's width
-         (the size hint, and the pin taken from it, see the same total). */
-      /* Left padding trimmed to the row's own: the glyph+word block sits where the
-         browser's does rather than pushed in from the left, and the air between glyph and
-         label comes from the icon RECT instead (kFaceIconGap) — Qt's own gap is a fixed
-         4px and QSS `spacing` does nothing here (user report, with a picture). */
+      /* Start/Stop and Line/Rect read as words: a size up, the browser's glyph-to-label gap. */
+      /* Qt's icon-text gap is a fixed 4px, so the air comes from the icon rect (kFaceIconGap)
+         and the padding is the row's own (user report, with a picture). */
       QToolButton#drawFaceBtn { font-size: 12px; padding: 5px %FACE_PAD_X%px; }
-      /* Chat-dock action buttons (send / attach / gear): the standard FILLED
-         accent icon-button treatment (browser chat-panel parity); disabled =
-         the shared muted chip (button:disabled parity — browser/css/layout/shell.css).
-         The explicit :disabled rule must follow the base rule — same specificity
-         class, last-one-wins. */
+      /* The chat's filled accent buttons; :disabled must follow the base rule (same specificity). */
       QToolButton[chatAccent="true"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[chatAccent="true"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[chatAccent="true"]:pressed { background: %ACCENT2%; }
       QToolButton[chatAccent="true"]:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
-      /* Toolbar-section buttons carry a SOLID fill, as in the browser: accent for an
-         ordinary action, danger for a destructive one, the shared muted chip when
-         disabled. Only a TOGGLE stays a bordered ghost (no toolFill). */
+      /* Section buttons are SOLID: accent, danger when destructive; only a toggle stays a ghost. */
       QToolButton[toolFill="accent"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[toolFill="accent"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[toolFill="accent"]:pressed { background: %ACCENT2%; }
@@ -102,12 +65,8 @@
       QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* The Draw Start/Stop toggle is an ACCENT TOGGLE, not another filled section
-         button (browser #draw-toggle in layout.css): OUTLINED while idle — accent ring,
-         accent word and glyph on a neutral face — and accent-FILLED while a session is
-         live, in the on-accent ink the app's other filled accent controls use.
-         It opts out of toolFill for exactly this reason: filled in both states, the
-         toggle said nothing about which one you were in. */
+      /* The draw toggle (browser #draw-toggle): outlined while idle, filled while live — filled
+         in both states it said nothing about which one you were in. */
       QToolButton[drawToggle="idle"] {
         background: transparent; border-color: %UI_OUTLINE%; color: %TEXT%;
       }
@@ -116,25 +75,16 @@
       QToolButton[drawToggle="on"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[drawToggle="on"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%; }
       QToolButton[drawToggle="on"]:pressed { background: %ACCENT2%; }
-      /* Disabled outranks both states (the browser's :not(:disabled) guard): the shared
-         muted chip, so a toggle you cannot press never wears the accent. */
+      /* Disabled outranks both states (the browser's :not(:disabled) guard). */
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Fit-to-window is filled like every other ACTING button (browser twin: #zoom-fit in
-         css/components/settings/settings.css), and DISABLED it is the same grey chip as the − / +
-         steppers beside it, so the glyph never gains a second frame of its own. */
-      /* The toolbar's TOGGLES: the browser's bordered ghosts (#incognito-toggle, #chat-btn,
-         whichever cluster holds them). Keyed on a property set per button, not on the section,
-         because the cluster's other three OPEN DIALOGS and wear the accent fill like every
-         other dialog-opening button — this rule is the last word on background, so a
-         section-wide one greyed them back out (user report). A CHECKED toggle still wins
-         its accent fill (the more specific rule below). */
+      /* The TOGGLES are ghosts by a per-button property: a section-wide rule greyed the dialog
+         openers too (user report). A checked toggle still fills (below). */
       QToolButton[toolGhostBox="true"] { background: transparent; border: 1px solid %UI_OUTLINE%; }
       QToolButton[toolGhostBox="true"]:hover { background: %BG_INFO%; border-color: %ACCENT%; }
       QToolButton[toolGhostBox="true"]:pressed { background: %BG_COORD_HOVER%; }
-      /* …and ON it fills, like the browser's #incognito-toggle.active. It needs its own rule:
-         the ghost above ties QToolButton:checked on specificity and comes later, so it won. */
+      /* Its own rule: the ghost ties QToolButton:checked on specificity and comes later. */
       QToolButton[toolGhostBox="true"]:checked {
         background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%;
       }

@@ -73,8 +73,6 @@ class _PipelineCase(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls) -> None:
-    # The one-shot pipeline always touches the core (blank/crop/filter), so
-    # skip the whole suite if the shared library is unavailable.
     require_core()
 
   def setUp(self) -> None:

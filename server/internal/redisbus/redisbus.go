@@ -89,7 +89,7 @@ func (b *redisBus) Subscribe(channel string) (<-chan eventbus.Envelope, func()) 
 	// The subscription's lifetime is bounded by the returned unsubscribe func, not by a per-call context, so
 	// the initial SUBSCRIBE uses a background context.
 	pubsub := b.client.Subscribe(context.Background(), channel)
-	// A publish that beats the subscription is lost even to local members, who receive through the bus.
+	// A publish that beats the acknowledgement is lost to this subscriber; past the wait it returns unconfirmed.
 	ctx, cancel := context.WithTimeout(context.Background(), b.subscribeTimeout)
 	defer cancel()
 	if _, err := pubsub.Receive(ctx); err != nil {

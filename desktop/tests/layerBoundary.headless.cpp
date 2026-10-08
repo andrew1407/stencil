@@ -28,8 +28,8 @@ namespace {
     return d;
   }
 
-  // Source files that may include a core/ header until Wave 3 introduces model/. Paths
-  // are relative to desktop/src. Shrink this list; never add to it.
+  // Source files outside model/ that may still include a core/ header, relative to desktop/src.
+  // Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
       "app/chat/planTarget/ChatPlanTarget.cpp",         "app/setup/WindowAssemblySignals.cpp",
       "app/selection/SelectedLineBar.hpp",        "app/selection/SelectionPanel.hpp",

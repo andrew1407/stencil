@@ -1,4 +1,5 @@
 #include "chatWidgets.hpp"
+#include "chatSheets.hpp"
 
 namespace stencil::gui {
 
@@ -55,9 +56,7 @@ namespace stencil::gui {
     // live palette so the preview matches the theme in both light and dark.
     const QColor bg = thumb->palette().color(QPalette::Window);
     const QColor line = thumb->palette().color(QPalette::Mid);
-    popup->setStyleSheet(
-        QStringLiteral("#chatThumbPreview{background:%1;border:1px solid %2;border-radius:10px;}")
-            .arg(bg.name(), line.name()));
+    popup->setStyleSheet(support::chatThumbPreviewSheet(bg, line));
     auto* col = new QVBoxLayout(popup);
     col->setContentsMargins(6, 6, 6, 6);
     col->setSpacing(4);

@@ -1,4 +1,5 @@
 #include "ConnectDialog.hpp"
+#include "dialogSheets.hpp"
 #include "connectDialogParts.hpp"
 #include "../../support/theme/filterFade.hpp"
 
@@ -114,41 +115,9 @@ namespace stencil::gui {
     const QColor input = palette().color(QPalette::Base);
     const QColor info = infoBackground(dark);
     const QColor border = themePalette(dark).borderMain;
-    // Browser .connect-row, value for value (css/components/). The transient states come AFTER the
-    // admin gold so they still win the border (its ring folded into a 2px border — box-shadow has no Qt spelling).
-    return QString(
-               // The app-wide sheet pads every QListWidget::item by 4px with its own fill; the slot is nothing, the card everything.
-               "QListWidget#connList{border:none;background:transparent;}"
-               "QListWidget::item{padding:0;background:transparent;border:none;}"
-               "QListWidget::item:hover,QListWidget::item:selected{background:transparent;}"
-               // With no label Qt still reserves the app-wide `spacing: 7px` to the box's right.
-               "QCheckBox#connRowSelect{spacing:0px;}"
-               "QWidget#connRow,QWidget#connRowAdmin,QWidget#connRowExpired{"
-               "border:1px solid %1;border-radius:8px;background:%2;}"
-               "QWidget#connRowAdmin{border:2px solid %3;}"
-               "QWidget#connRowExpired{border:1px solid %4;background:%5;}"
-               "QWidget#connRow[selected=\"true\"],QWidget#connRowAdmin[selected=\"true\"],"
-               "QWidget#connRowExpired[selected=\"true\"]{border-color:%6;background:%7;}"
-               "QWidget#connRow[hovered=\"true\"],QWidget#connRowAdmin[hovered=\"true\"],"
-               "QWidget#connRowExpired[hovered=\"true\"]{background:%7;}"
-               // Compact filled chrome: 31x25 matches the browser only BECAUSE the border is none; the content box
-               // is pinned to the 15px glyph so the expired row's action is the same size.
-               "QPushButton[rowAction=\"true\"]{background:%6;border:none;"
-               "border-radius:4px;color:#ffffff;padding:5px 8px;"
-               "min-height:15px;max-height:15px;}"
-               "QPushButton#rowReconnect,QPushButton#expiredReconnect,"
-               "QPushButton#rowDisconnect,QPushButton#inviteBtn{"
-               "min-width:15px;max-width:15px;}"
-               "QPushButton[rowAction=\"true\"]:hover{background:%8;}"
-               "QPushButton[rowAction=\"true\"]:pressed{background:%9;}"
-               "QPushButton#rowDisconnect{background:%10;}"
-               "QPushButton#rowDisconnect:hover{background:%11;}"
-               "QPushButton#expiredReconnect{background:%4;color:#1f1f1f;}"
-               "QPushButton#expiredReconnect:hover{background:%12;}")
-        .arg(border.name(), input.name(), GOLD.name(), AMBER.name(),
-             mixSrgb(input, AMBER, 0.08).name(), accent.name(), info.name(),
-             accentShade(accent, dark).name(), accentShade(accent, dark).name())
-        .arg(themePalette(dark).danger.name(), dangerHover(dark).name(), AMBER_HOVER.name());
+    return support::connRowSheet({border, input, GOLD, AMBER, mixSrgb(input, AMBER, 0.08), accent, info,
+                                  accentShade(accent, dark), accentShade(accent, dark),
+                                  themePalette(dark).danger, dangerHover(dark), AMBER_HOVER});
   }
 }  // namespace stencil::gui
 

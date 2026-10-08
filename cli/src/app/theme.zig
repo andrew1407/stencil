@@ -5,6 +5,7 @@
 //! `console.zig` exposes `/theme`.
 const std = @import("std");
 const logo = @import("logo.zig");
+const brand = @import("brand.zig");
 
 const accents_json = @embedFile("accents.json");
 
@@ -17,9 +18,9 @@ pub const Accent = struct {
 
 pub const default_key = "violet";
 
-/// Neutral grey for a project name with no custom colour — mirrors the browser's --project-name-fg and
-/// the desktop default, so a default project reads as "unset" rather than wearing the brand accent.
-pub const name_default_hex = "#80868f";
+/// Neutral grey for a project name with no custom colour — themeTokens.json `--project-name-fg`, so a
+/// default project reads as "unset" rather than wearing the brand accent.
+pub const name_default_hex = brand.tokenLight("--project-name-fg");
 
 // Parsed lazily on first use: std.json needs an allocator, and the strings slice into the embedded
 // JSON. A worker thread can reach this, so the one-shot parse is published through `parse_state`.

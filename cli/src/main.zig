@@ -128,6 +128,7 @@ test {
     _ = @import("media/image.zig");
     _ = @import("media/layout.zig");
     _ = @import("media/video.zig");
+    _ = @import("media/remoteVideo.zig");
     _ = @import("net.zig");
     _ = @import("llm.zig");
     _ = @import("scrape.zig");

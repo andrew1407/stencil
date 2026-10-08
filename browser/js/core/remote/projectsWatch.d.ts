@@ -3,5 +3,5 @@
 import type { DrawingApp } from '../drawingApp.js';
 import type { ProjectsChangedDetail } from '../launch/tabsCoordinator.js';
 
-/** A removal/clear/close tears the editor down; an update re-reads it while idle. */
+/** A removal/clear/close tears the editor down; an update re-reads it once idle, unless an edit made meanwhile supersedes it. */
 export declare const onRemoteProjectsChange: (app: DrawingApp, detail: ProjectsChangedDetail) => void;

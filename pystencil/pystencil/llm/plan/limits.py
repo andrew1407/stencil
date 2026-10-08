@@ -10,7 +10,6 @@ import re
 
 from ..._ffi.types import NoneType
 
-# ── contract limits (§1/§7/§11 — the same numbers in every client) ──
 # The build-time copy of common/config/llm/opRegistry.json (byte-pinned by tests): core
 # validates against these bytes; Python reads only the limits, the profile and the entries.
 REGISTRY: dict = json.loads(
@@ -25,7 +24,6 @@ MAX_STRING_LENGTH = _LIMITS["MAX_STRING_CHARS"]   # per string field unless its 
 MAX_FRAME_INDICES = _LIMITS["MAX_FRAME_INDICES"]
 MAX_SAVE_NAME = _LIMITS["MAX_SAVE_NAME"]          # §2.1: the `save` op's optional project name
 MAX_PATH_CHARS = _LIMITS["MAX_PATH_CHARS"]        # §10: the longest local path a `save` op may carry
-# §11 interactive replies — the same numbers as every other client.
 MIN_ASK_OPTIONS = _LIMITS["ask"]["minOptions"]
 MAX_ASK_OPTIONS = _LIMITS["ask"]["maxOptions"]
 MAX_ASK_QUESTION = _LIMITS["ask"]["question"]
@@ -33,8 +31,7 @@ MAX_ASK_LABEL = _LIMITS["ask"]["label"]
 MAX_ASK_ANSWER = _LIMITS["ask"]["answer"]
 DEFAULT_CUSTOM_LABEL = REGISTRY["ask"]["defaultCustomLabel"]
 MAX_HISTORY = 32        # chat messages replayed per call
-# §12 chat persistence — the persisted-chat document version Chat.to_doc writes and
-# Chat.from_doc accepts (any other version is treated as "no saved chat").
+# §12: any other persisted-chat version reads as "no saved chat".
 CHAT_DOC_VERSION = 1
 # §7's auto-continuation note: the sentence the console appends to the RESTATED request.
 # It sits beside the §12 rules so the one place that writes it and the one that must not agree.
@@ -50,15 +47,9 @@ _PLAN_FIELD_KEY = re.compile(r'"(?:actions|reply|variants|ask)"\s*:')
 def chat_display_text(role: str, text: str) -> (str | NoneType):
   """The §12.1 text to persist/restore for one turn, or None when it is dropped.
 
-  The document is SHARED across surfaces and "a restored transcript must read as a
-  conversation", so machinery never enters it. Applied on BOTH sides (``Chat.to_doc``
-  and ``Chat.from_doc``, plus the editor's ``chat`` block), so a document from another
-  surface or an older build can't be replayed as the user's own words:
-
-  * §7's continuation note — appended to the restated request (stripped, the request
-   stays) or standing alone in any bracketed variant (the turn is dropped);
-  * an assistant turn that is a raw op-plan — §7 permits that on the WIRE, §12.1 does
-   not. Assistant turns only: a user may paste JSON and see it again.
+  Applied on save and restore alike: §7's continuation note is stripped (a turn that is
+  only the note is dropped), and an assistant turn that is a raw op-plan is dropped —
+  §7 allows that on the wire, §12.1 not in the shared transcript.
   """
   t = str(text or "").strip()
   if t.endswith("]"):

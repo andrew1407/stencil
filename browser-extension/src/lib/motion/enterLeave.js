@@ -1,43 +1,37 @@
 // ── Leaving ─────────────────────────────────────────────────────────────────
-// A row about to be destroyed collapses and fades first, so a delete reads as the row
-// going away rather than the list jumping. The caller still does the removal in the
-// callback — this only buys it the time. Mirrors the browser twin.
+// A row collapses and fades before the caller removes it in the callback. Mirrors the browser twin.
 import { motionReduced, dustEnabled, prefersReducedMotion } from '../prefs/motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { DISINTEGRATE_MS } from './tiles.js';
 export const LEAVE_MS = 220;
-// Chat entries leave more slowly than a list row (browser twin): the extra time reads
-// as "it dissolved" rather than "it blinked out".
+// Chat entries leave more slowly than a list row (browser twin).
 export const CHAT_LEAVE_MS = 260;
 export const LEAVING_CLASS = 'leaving';
 
-// Play `el` out, then run `done`. `done` ALWAYS runs — with no element, under
-// reduced motion, anywhere — because the removal must never depend on the animation.
+// `done` always runs: the removal never depends on the animation.
 export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
   if (!el?.classList || motionReduced()) { finish(); return Promise.resolve(); }
-  // Freeze the height so the collapse has something to animate from: `height: auto`
-  // has no start value to transition away from.
+  // `height: auto` has no start value to transition from.
   if (el.getBoundingClientRect) {
     const h = el.getBoundingClientRect().height;
     if (h) el.style.setProperty('--leave-h', `${h}px`);
   }
-  // The box collapses (the list closes the gap at once) while a copy scatters in its OWN
-  // fixed layer — the row never waits for it. cols === 0 is scatterGridFor's "fade only".
+  // The box collapses at once while a copy scatters in its own fixed layer.
+  // cols === 0 is scatterGridFor's "fade only".
   if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}) });
   el.classList.add(LEAVING_CLASS);
   return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
 }
 
-// Browser motion.js twin: leaveThenRemove resolves on the short collapse while particles fall
-// for DISINTEGRATE_MS, so a caller swapping in a placeholder must wait for the longer one.
+// Particles fall for DISINTEGRATE_MS after the short collapse (browser motion.js twin).
 export const wipeDurationMs = () => {
   if (motionReduced()) return 0;
   return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
 };
 
-// begin() opens one hold per playing leave/materialize and returns a settle fn: await it AFTER
-// the removal. finalizeAll() settles everything NOW, for a view closing mid-animation.
+// begin() opens a hold per playing leave/materialize and returns a settle fn, awaited after the
+// removal; finalizeAll() settles everything for a view closing mid-animation.
 export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTimer = setTimeout } = {}) => {
   const pending = new Set();
   const begin = () => {
@@ -58,25 +52,21 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
   };
 };
 
-// Under a hold the empty state would land beneath the falling ash and read as appearing before
-// the removal finished. Pure — unit-tested.
+// Under a hold the empty state would land beneath the falling ash. Pure.
 export const emptyStateVisible = (count, holding = false) => count === 0 && !holding;
 
-// A row the FILTER stopped admitting is not a row that was DELETED: no particles, and a
-// lighter collapse — narrowing a list must never read as destroying part of it.
+// A filtered-out row is not deleted: no particles, a lighter collapse.
 export const FILTER_LEAVE_MS = 150;
 export const FILTER_ENTER_MS = 180;
 export const FILTER_OUT_CLASS = 'filter-out';
 export const FILTER_IN_CLASS = 'filter-in';
 
-// Which keys arrived and which went away between two renders, in render order. Pure.
 export const diffListKeys = (prev = [], next = []) => {
   const had = new Set(prev);
   const has = new Set(next);
   return { entered: next.filter((k) => !had.has(k)), left: prev.filter((k) => !has.has(k)) };
 };
 
-// `done` ALWAYS runs, as in leaveThenRemove. For a whole re-render use createFilterTransition.
 export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
                                                    reduced = prefersReducedMotion, setTimer = setTimeout } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
@@ -89,8 +79,8 @@ export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
   return new Promise((resolve) => setTimer(() => { finish(); resolve(); }, ms));
 }
 
-// begin() before the wipe, end() after the rebuild; keys are read off `el.dataset[keyAttr]`.
-// begin() kills every ghost first, so a burst of changes can neither stack nor strand a row.
+// begin() before the wipe kills every ghost, end() after the rebuild; keys are
+// `el.dataset[keyAttr]`.
 export const createFilterTransition = ({
   list, keyAttr = 'key', ms = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS,
   reduced = prefersReducedMotion, setTimer = setTimeout, clearTimer = clearTimeout,
@@ -106,7 +96,6 @@ export const createFilterTransition = ({
     g.el.remove?.();
     ghosts = ghosts.filter((x) => x !== g);
   };
-  // Every ghost goes NOW: the same row must never animate twice.
   const clear = () => {
     for (const g of [...ghosts]) drop(g);
     ghosts = [];
@@ -118,8 +107,7 @@ export const createFilterTransition = ({
     return taken.map((t) => t.key);
   };
 
-  // `skipEnter` = keys whose arrival the caller animates itself (a freshly added row
-  // materializing), so the two effects don't stack on one element.
+  // `skipEnter`: keys the caller animates itself, so two effects never stack.
   const end = ({ skipEnter = [] } = {}) => {
     const before = taken;
     taken = [];
@@ -137,7 +125,6 @@ export const createFilterTransition = ({
     before.forEach(({ el, key }, i) => {
       if (!gone.has(key) || !el.classList) return;
       onLeave(el);
-      // Freeze the height so the collapse has a start value — `height: auto` has none.
       const h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
       if (h) el.style?.setProperty?.('--leave-h', `${h}px`);
       el.classList.remove(FILTER_IN_CLASS);
@@ -155,7 +142,6 @@ export const createFilterTransition = ({
   return { begin, end, clear, get ghostCount() { return ghosts.length; } };
 };
 
-// One-shot "it landed here" flash — restart-safe, so two drops in a row both play.
 export function flashLanding(el, cls = 'just-dropped', ms = 900) {
   if (!el?.classList) return;
   clearTimeout(el._landingTimer);

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"stencil/server/internal/auth"
 	"stencil/server/internal/config"
 	"stencil/server/internal/httpapi"
 	"stencil/server/internal/hub"
@@ -35,7 +36,7 @@ func newTLSConfig(cfg config.Config) (*tls.Config, error) {
 func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls.Config) *http.Server {
 	mux := http.NewServeMux()
 	api.Register(mux)
-	mux.Handle("/ws", h.WSHandler())
+	mux.Handle(auth.WSRoute, h.WSHandler())
 	mux.HandleFunc("GET /healthz", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 		_, _ = rw.Write([]byte("ok"))
@@ -66,7 +67,7 @@ func listenTCP(cfg config.Config, tlsConf *tls.Config) (net.Listener, error) {
 }
 
 // serve runs both listeners until a signal arrives or HTTP fails, then drains within drain, in order: the
-// sweep goroutines, TCP accepts, every live edit conn, then HTTP.
+// sweep goroutines, TCP accepts, every live edit conn, HTTP, then the sessions' in-flight saves.
 func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub, tcpAddr, banner string, tlsOn bool, stop func(), sweepWG *sync.WaitGroup, drain time.Duration) error {
 	go func() {
 		log.Printf("TCP edit listener on %s (tls=%v)", tcpAddr, tlsOn)
@@ -96,7 +97,12 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 	// and hijacked WebSocket editors (which Shutdown cannot close) release, so Shutdown finishes.
 	h.CloseAll()
 	err := srv.Shutdown(shutdownCtx)
-	h.Close() // the hub's context outlives the drain, so the last peer-leave publish still lands
+	// Every run loop still commits and announces the saves its worker holds; only then do their store
+	// contexts end, and run()'s deferred bus and pool closes follow.
+	if derr := h.Drain(shutdownCtx); derr != nil {
+		log.Printf("shutdown: live sessions still saving at the drain deadline: %v", derr)
+	}
+	h.Close()
 	return err
 }
 

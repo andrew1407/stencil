@@ -34,13 +34,18 @@ pub fn clearPromptLine(done: *bool) void {
     done.* = true;
 }
 
+/// Events one prompt boundary handles; the rest wait in the buffer for the next one, so a
+/// flooding server cannot keep the prompt from returning.
+pub const max_events_per_poll = 64;
+
 /// Drain pending project events and act on ones touching the active project: auto-pull a peer's
 /// newer edit, reflect name/colour changes, or warn rather than clobber unsynced local edits.
 pub fn pollEvents(session: *Session, io: std.Io) bool {
     if (session.events == null) return false;
     const now = std.Io.Clock.real.now(io).toMilliseconds();
     var printed = false;
-    while (session.events.?.poll() catch null) |ev| {
+    for (0..max_events_per_poll) |_| {
+        const ev = (session.events.?.poll() catch null) orelse break;
         var e = ev;
         defer e.deinit(session.gpa);
         const ids_match = session.remote_id != null and std.mem.eql(u8, e.id, session.remote_id.?);
@@ -133,9 +138,32 @@ pub fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
     logo.print("↺ pulled \"{s}\" from the server (changed {s})\n", .{ shown, server.formatAgo(&tb, now, e.updated_at) });
 }
 
-//
-
 const testing = std.testing;
+
+test "pollEvents handles at most max_events_per_poll events per prompt boundary" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    var session = Session{ .gpa = a };
+    defer session.deinit();
+    session.events = .{ .gpa = a, .io = undefined, .stream = undefined };
+    defer {
+        session.events.?.rbuf.deinit(a);
+        session.events = null;
+    }
+    const total = max_events_per_poll * 2 + 5;
+    for (0..total) |i| {
+        var b: [96]u8 = undefined;
+        try session.events.?.feed(try std.fmt.bufPrint(&b, "{{\"type\":\"project-event\",\"project\":{{\"id\":\"p{d}\"}}}}\n", .{i}));
+    }
+    _ = pollEvents(&session, threaded.io());
+    var left: usize = 0;
+    while (try session.events.?.nextEvent()) |ev| : (left += 1) {
+        var e = ev;
+        e.deinit(a);
+    }
+    try testing.expectEqual(@as(usize, total - max_events_per_poll), left);
+}
 
 test "pullAction: live-pull a newer peer edit, warn on local edits, ignore self/old" {
     // No active project, or an event for a different project → ignore.

@@ -1,8 +1,5 @@
-"""The scanned-media record and its format-token derivation.
-
-Port of the extension's ``formatOf`` + ``norm`` (``browser-extension/src/lib/image/scan.js``).
-The leaf of the package: nothing here imports a sibling.
-"""
+"""The scanned-media record and its format token (twin of ``formatOf`` + ``norm`` in
+``browser-extension/src/lib/image/scan.js``)."""
 
 from __future__ import annotations
 
@@ -13,15 +10,8 @@ from dataclasses import dataclass
 
 @dataclass
 class MediaItem:
-  """One scanned media candidate.
-
-  ``kind`` is the internal record kind — ``"img"``, ``"video"``, ``"bg"`` (CSS
-  background) or ``"poster"`` (a ``<video poster>`` still) — which maps to the
-  user-facing category tokens ``img`` / ``video`` / ``background`` / ``poster``.
-  ``width``/``height`` are pixel dimensions once measured (``0`` = unknown), ``ext`` is
-  the normalized format token (``""`` when undetectable, bucketed as ``etc`` in
-  filters), ``alt`` is any alt/aria text.
-  """
+  """One scanned media candidate: ``kind`` img/video/bg/poster (category ``bg`` = background),
+  ``width``/``height`` in px (``0`` = unmeasured), ``ext`` the format token (``""`` = ``etc``)."""
 
   url: str
   kind: str
@@ -33,24 +23,18 @@ class MediaItem:
 
 _DATA_FMT_RE = re.compile(r"^data:(?:image|video)/([a-z0-9.+-]+)", re.I)
 _EXT_RE = re.compile(r"\.([a-z0-9]{2,5})(?:[?#]|$)", re.I)
-# Extract every url(...) target from a CSS value (single / double / no quotes).
 _CSS_URL_RE = re.compile(r"""url\((['"]?)(.*?)\1\)""")
 
 
 def _norm(ext: str) -> str:
-  """Normalize a raw extension: lowercase, then jpeg→jpg, svg+xml→svg, quicktime→mov."""
   return ext.lower().replace("jpeg", "jpg").replace("svg+xml", "svg").replace(
     "quicktime", "mov"
   )
 
 
 def format_of(url: str) -> str:
-  """Lowercase media format token for a URL or ``data:`` URI (``""`` if unknown).
-
-  Exact port of the extension's ``formatOf``: a ``data:`` URI yields the subtype after
-  ``data:image/`` / ``data:video/``; otherwise the last ``.<ext>`` (2–5 chars) of the
-  pathname (query/fragment stripped) is taken and normalized.
-  """
+  """The format token of a URL's last ``.<ext>`` (2–5 chars) or a ``data:`` URI's subtype; ``""``
+  if unknown."""
   if not url: return ""
   if url.startswith("data:"):
     m = _DATA_FMT_RE.match(url)

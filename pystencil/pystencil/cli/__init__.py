@@ -1,33 +1,8 @@
 """Command-line front-end for pystencil — ``python -m pystencil`` / ``stencil-py``.
 
-This is the Python counterpart of the Zig CLI (``cli/``). It offers the same two
-modes over the shared core, driving an :class:`~pystencil.editor.Editor`:
-
-* **One-shot pipeline** (default): flags mirror the Zig CLI as far as is
- practical — ``-i/--input``, ``--blank``, ``-f/--frame``, ``-c/--crop``,
- ``--album``, ``--flip``, ``-r/--rotate``, ``-l/--layout`` (draw), ``--filter``,
- ``--save-layout`` (export the structured layout), and a positional output
- image. Steps run in the fixed order **source → crop → flip → rotate → filter →
- draw-layout**, then the image and/or layout are written. On success the canonical
- ``wrote {path} ({w}x{h})`` line is printed to stderr (matching the Zig
- contract); failures print ``error: …`` and return a non-zero code.
-
-* **Console / REPL** (``--console`` / ``--repl``): reads ``/command <args>``
- lines mirroring the Zig console grammar (``cli/src/console/commands.zig``):
- ``/upload`` (``/open``/``/load``), ``/blank`` (``/new``), ``/format``,
- ``/crop``, ``/rotate`` (``/rot``), ``/flip``, ``/filter`` (+ ``/bw`` ``/sepia``
- ``/none``), ``/apply`` (``/draw``), ``/layout`` (export), ``/save``,
- ``/undo`` ``/redo`` ``/reset``, ``/status``, ``/connect``, ``/disconnect``,
- ``/delete`` (``/rm``), ``/projects``, ``/fetch``, ``/prompt`` (``/p``) +
- ``/llm`` + ``/chat`` (the LLM assistant — see ``llm-contract.md``),
- ``/help``, ``/exit``. Messages go to stderr, the
- CLI's human channel, exactly like the Zig REPL.
-
-Both modes reuse the exact same ``core/`` transforms as the browser and Zig
-
-Split across blank / oneshot / console / registry / hooks / repl and the per-area
-``commands/`` modules; this module is the façade that keeps ``main`` and the console's
-names where callers expect them.
+The Python counterpart of the Zig CLI: the one-shot pipeline (source → crop → flip → rotate →
+filter → draw-layout) and the ``--console`` REPL, both over the shared core and printing the
+CLI's stderr grammar (``cli/CONTRACT.md``). This module is the façade over the split modules.
 """
 
 from __future__ import annotations
@@ -49,12 +24,7 @@ from .registry import command
 from .repl import _HELP, _Repl, _parse_command
 
 def main(argv: (Sequence[str] | NoneType) = None) -> int:
-  """Entry point for ``python -m pystencil`` and the ``stencil-py`` script.
-
-  ``argv`` defaults to ``sys.argv[1:]``. Returns a process exit code (0 on
-  success, non-zero on error). All human-facing output goes to **stderr** so
-  that any piped/automation use stays clean.
-  """
+  """The process exit code (0 on success); every human-facing line goes to stderr."""
   parser = _build_parser()
   args = parser.parse_args(list(argv) if argv is not None else None)
   err = sys.stderr

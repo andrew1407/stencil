@@ -1,4 +1,4 @@
-"""The package-wide AST lints: import direction, and the module docstring's place.
+"""The package-wide AST lints: import direction, the module header, and who imports ctypes.
 
 ``.claude/rules/architecture.md`` orders the layers ``_native``/``core`` → ``image``/
 ``codecs``/``layout``/``scriptpaths`` → ``editor`` → ``llm``/``script``/``server``/
@@ -143,6 +143,36 @@ class LayerBoundaryTest(unittest.TestCase):
       rightward, unranked = violations(scan(root))
     self.assertEqual(rightward, ["codecs/png.py → llm", "core.py → editor"])
     self.assertEqual(unranked, {"extra"})
+
+
+CTYPES_MODULES = {"_native.py", "core.py", "_raster/ops.py", "_script.py"}
+
+
+def _imports(tree, name):
+  return any(
+    (isinstance(n, ast.Import) and any(a.name.split(".")[0] == name for a in n.names))
+    or (isinstance(n, ast.ImportFrom) and (n.module or "").split(".")[0] == name and not n.level)
+    for n in ast.walk(tree))
+
+
+class ModuleHeaderTest(unittest.TestCase):
+  def test_every_module_imports_future_annotations(self):
+    missing = [
+      path.relative_to(PACKAGE).as_posix()
+      for path in sorted(PACKAGE.rglob("*.py"))
+      if not any(isinstance(n, ast.ImportFrom) and n.module == "__future__"
+                 for n in ast.parse(path.read_text(encoding="utf-8")).body)
+    ]
+    self.assertEqual(missing, [])
+
+  def test_only_the_bottom_layer_imports_ctypes(self):
+    found = {
+      path.relative_to(PACKAGE).as_posix()
+      for path in PACKAGE.rglob("*.py")
+      if _imports(ast.parse(path.read_text(encoding="utf-8")), "ctypes")
+    }
+    outside = {p for p in found if not p.startswith("_ffi/")}
+    self.assertEqual(outside, CTYPES_MODULES)
 
 
 class ModuleDocstringTest(unittest.TestCase):

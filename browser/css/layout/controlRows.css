@@ -1,6 +1,5 @@
-/* ── Controls section labels & separators ── */
-/* The column gap carries the whole 21px between two sections — 10px, the hairline, 10px —
-   so no item stands between them and nothing a separator does can move the wrap. */
+/* Controls section labels and separators. */
+/* The column gap carries the whole 21px between sections (10px, the hairline, 10px). */
 .controls {
     align-items: stretch;
     gap: 4px 21px;
@@ -31,16 +30,12 @@
     flex-wrap: wrap;
     flex: 1;
 }
-/* A picker and a checkbox are different kinds of control: the toggles get a little more air
-   than the row's own gap so they read as their own group (desktop twin: the View cluster). */
+/* Desktop twin: the View cluster. */
 #compare-mode + label { margin-left: 4px; }
-/* The toolbar's glyphs match the desktop's 18px box (mainWindowHelpers.hpp TOOL_ICON);
-   the buttons keep their size — only the art inside them grows. Each glyph has a viewBox,
-   so this scales the drawing rather than cropping it. */
+/* The desktop's 18px glyph box (mainWindowHelpers.hpp TOOL_ICON); the buttons keep their size. */
 .ctrl-section-row .btn-icon .ic,
 .ctrl-section-row .btn-icon-text .ic { width: 18px; height: 18px; }
 
-/* Each section paints the hairline before it, centred in the gap it does not occupy. */
 .ctrl-section + .ctrl-section::before {
     content: '';
     position: absolute;
@@ -50,13 +45,9 @@
     width: 1px;
     background: var(--border-main);
 }
-/* …unless the row wrapped in front of this section (ui/toolbar/separators.js): a hairline
-   at the head of a row is a stray, not a divider. */
+/* A hairline at the head of a wrapped row (ui/toolbar/separators.js) is a stray. */
 .ctrl-section.ctrl-sep-wrapped::before { content: none; }
-/* Blank-image fill chip (js/ui/toolbar/toolbar.js; drawingApp.js sets `display` on a blank
-   project). A flat info-coloured control, not an accent action, so it also opts out of
-   the toolbar sheen — see the :not() list in animations/controls.css. Descendant-of-.controls so
-   it outranks the shared `button` and narrow-viewport `.controls button` rules. */
+/* The blank-image chip is flat, not an accent action: no sheen (animations/controls.css). */
 .controls .blank-color-btn {
     display: none;
     align-items: center;

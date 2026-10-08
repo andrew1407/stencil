@@ -9,8 +9,10 @@ read through the handle and refuse once it is closed.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import functools
+import threading
 
 from ._scripttypes import (
   OP_KINDS, SOURCE_KINDS, TOKEN_KINDS, Block, Blocks, Diagnostic, Diagnostics, Op, Ops,
@@ -34,9 +36,12 @@ def _text(raw) -> str:
 
 
 class Script:
-  """One parsed ``.stc`` program. Use it as a context manager, or call :meth:`close`."""
+  """One parsed ``.stc`` program. Use it as a context manager, or call :meth:`close`.
+
+  Every handle read and the destroy hold one lock, so any thread may read or close it."""
 
   def __init__(self, handle: int, core: Core) -> None:
+    self.__lock = threading.Lock()
     self.__handle = handle
     self.__core = core
     # One buffer for every resolve: one call per crop/line/rect op adds up.
@@ -61,17 +66,19 @@ class Script:
   @functools.cached_property
   def tokens(self) -> Tokens:
     """The editor colouring classes, read on first use — only a highlighter wants them."""
-    return _read_tokens(self.__lib(), self.__handle)
+    with self.__held() as lib:
+      return _read_tokens(lib, self.__handle)
 
   @functools.cached_property
   def dump(self) -> str:
     """The canonical dump the fixture corpus records, serialised on first use."""
-    return _text(self.__lib().stencil_cli_scriptDump(self.__handle))
+    with self.__held() as lib:
+      return _text(lib.stencil_cli_scriptDump(self.__handle))
 
   def close(self) -> None:
-    if self.__handle:
-      self.__core._lib.stencil_cli_scriptDestroy(self.__handle)
-      self.__handle = 0
+    with self.__lock:
+      handle, self.__handle = self.__handle, 0
+      if handle: self.__core._lib.stencil_cli_scriptDestroy(handle)
 
   def __enter__(self) -> "Script":
     return self
@@ -104,17 +111,20 @@ class Script:
     A crop earlier in the block already moved the frame, so pass what you hold now.
     """
     buf = self.__resolve_buf
-    n = self.__lib().stencil_cli_scriptOpResolve(
-      self.__handle, index, float(image_w), float(image_h), PX_PER_CM, PX_PER_CM,
-      buf, _RESOLVE_CAP,
-    )
-    if n < 0: raise ScriptError("op %d resolves to nothing" % index)
-    return [buf[i] for i in range(n)]
+    with self.__held() as lib:
+      n = lib.stencil_cli_scriptOpResolve(
+        self.__handle, index, float(image_w), float(image_h), PX_PER_CM, PX_PER_CM,
+        buf, _RESOLVE_CAP,
+      )
+      if n < 0: raise ScriptError("op %d resolves to nothing" % index)
+      return [buf[i] for i in range(n)]
 
-  def __lib(self):
-    """The bound library, refused once the handle has been destroyed."""
-    if not self.__handle: raise ScriptError("this script handle is closed")
-    return self.__core._lib
+  @contextlib.contextmanager
+  def __held(self):
+    """The bound library under the handle lock, refused once the handle has been destroyed."""
+    with self.__lock:
+      if not self.__handle: raise ScriptError("this script handle is closed")
+      yield self.__core._lib
 
 
 def parse_script(text: str, core: (Core | NoneType) = None) -> Script:

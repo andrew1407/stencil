@@ -1,8 +1,7 @@
 //! One registration convention for the whole tree: a package root lists its package's files in
-//! a `test { _ = @import("…"); }` block, and main.zig lists the top-level modules. Without it a
-//! new file compiles, is reachable through an alias, and silently has NO tests run — which is
-//! how a module can sit green for months with a broken assertion in it. This lint walks src/
-//! and fails on any file no `test {}` block names. std.fs + std.mem only.
+//! a `test { _ = @import("…"); }` block, and main.zig lists the top-level modules — else a new
+//! file compiles, is reachable through an alias, and has no tests run. This lint walks src/ for
+//! any file no `test {}` block names, and tests/ for any suite test_root.zig does not name.
 const std = @import("std");
 const testing = std.testing;
 
@@ -82,5 +81,35 @@ test "test registration: every src module is pulled into the test build by a tes
         std.debug.print("UNREGISTERED: src/{s} — add `_ = @import(\"…\");` to {s}'s package root\n", .{ f, dir });
         failures += 1;
     }
+    try testing.expectEqual(@as(usize, 0), failures);
+}
+
+test "test registration: every suite under tests/ is named in test_root.zig" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    const in_cli = if (std.Io.Dir.cwd().access(io, "test_root.zig", .{})) |_| true else |_| false;
+    const root_src = try std.Io.Dir.cwd().readFileAlloc(io, if (in_cli) "test_root.zig" else "cli/test_root.zig", a, .limited(1 << 20));
+    var tests = try std.Io.Dir.cwd().openDir(io, if (in_cli) "tests" else "cli/tests", .{ .iterate = true });
+    defer tests.close(io);
+
+    var walker = try tests.walk(a);
+    defer walker.deinit();
+    var suites: usize = 0;
+    var failures: usize = 0;
+    while (try walker.next(io)) |e| {
+        if (e.kind != .file or !std.mem.endsWith(u8, e.basename, "_test.zig")) continue;
+        const rel = try std.fmt.allocPrint(a, "\"tests/{s}\"", .{e.path});
+        std.mem.replaceScalar(u8, rel, '\\', '/');
+        suites += 1;
+        if (std.mem.indexOf(u8, root_src, rel) != null) continue;
+        std.debug.print("UNREGISTERED SUITE: {s} — name it in test_root.zig\n", .{rel});
+        failures += 1;
+    }
+    try testing.expect(suites >= 40); // the tree really was walked
     try testing.expectEqual(@as(usize, 0), failures);
 }

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ProjectTitleController.hpp"
 #include "ToolbarBuilder.hpp"
 #include "mainWindowHelpers.hpp"
@@ -44,9 +45,7 @@ namespace stencil::gui {
     w.tools.statusHint->setFixedSize(18, 18);
     w.tools.statusHint->setFocusPolicy(Qt::NoFocus);
     w.tools.statusHint->setAttribute(Qt::WA_TransparentForMouseEvents, false);   // hover still shows the tip
-    w.tools.statusHint->setStyleSheet(
-        "QLabel#statusHint{color:rgba(154,160,168,0.75);font-size:11px;font-weight:600;"
-        "border:1px solid rgba(154,160,168,0.45);border-radius:9px;background:transparent;}");
+    w.tools.statusHint->setStyleSheet(support::statusHintSheet());
     // Fixed 26px chips (the hover reveal would grow the header row otherwise); QSS half:
     // QToolButton[nameAffordance] in theme.cpp.
     const auto sizeToRow = [](QToolButton* b) {

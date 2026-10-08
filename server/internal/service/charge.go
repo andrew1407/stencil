@@ -27,7 +27,9 @@ func (s *FileService) admit(ctx context.Context, put FilePut) func(n int64, comm
 			}
 			return nil
 		}
-		return s.Charges.Admit(ctx, c, fits, commit)
+		octx, cancel := withOpTimeout(ctx, s.OpTimeout)
+		defer cancel()
+		return s.Charges.Admit(octx, c, fits, commit)
 	}
 }
 

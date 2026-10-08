@@ -1,8 +1,6 @@
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
-// A removed element comes apart into MOTES: one round speck per grid cell in the
-// element's own colours (speckPainter), drifting off in a staggered sweep. Never clones
-// of the element — hundreds of copies of a row's subtree show nothing a speck does not.
-// Mirror of browser motion.js; the layer is FIXED because the row collapses under it.
+// A removed element comes apart into motes in its own colours (speckPainter), never clones.
+// Mirror of browser motion.js; the layer is fixed because the row collapses under it.
 import { startCloud, resolveColour, paletteCss } from '../dust/cloud.js';
 import { dustEnabled } from '../prefs/motionPrefs.js';
 import { speckPainter } from './painters.js';
@@ -16,24 +14,21 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    spread = SURFACE_SPREAD, toBody = false, hostEl = null,
                                    hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
-  // Every element-sized cloud is built here, so this is where the mode turns particles
-  // off: a `false` return leaves the caller on its own CSS entrance.
+  // The mode turns particles off here: `false` leaves the caller on its own CSS entrance.
   if (!dustEnabled()) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
     const r = el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
-    // Specks in the element's own colours unless the caller brought a recipe.
     const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
     host.className = hostClass ? `disintegrate-host ${hostClass}` : 'disintegrate-host';
-    // Decoration, and nothing but: the layer must never take a click or a Tab stop.
     host.setAttribute('aria-hidden', 'true');
     host.inert = true;
     const span = ms || DISINTEGRATE_MS;
-    // A surface flies on its own (shorter) clock; a row keeps the defaults. The gather holds the
-    // default's proportions, so the last mote to set off still lands before the veil lifts.
+    // A surface flies on its own shorter clock; the gather keeps the default's proportions so the
+    // last mote lands before the veil lifts.
     const gatherMs = toward || !gather ? span : Math.round(span * TILE_GATHER_SHARE);
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
@@ -45,46 +40,36 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.height = `${r.height}px`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
-    // Every grain is computed once and ONE canvas evaluates them per frame (cloud.js) — no
-    // node per mote, so a dialog-sized cloud costs batched fills, not hundreds of layers.
+    // One canvas evaluates every grain per frame (cloud.js), not a node per mote.
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
-        // A row FALLS (tileMotion); a surface flies at the control that owns it.
         const m = toward
           ? surfaceMotion(cx, cy, cols, rows, r, toward, { span, spread })
           : tileMotion(cx, cy, cols, rows, gather, span);
-        // The speck's size, opacity and glint; its colour comes from the palette below.
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
-        // The sweep is INSIDE the span, never added to it: a late mote flies the window
-        // it has left, so the whole cloud is done at `span` with no stragglers.
+        // The sweep is inside the span, so the whole cloud is done at `span`.
         motes.push({
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
           dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
           delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
-          // …and its own hash for the wobble, the twinkle and its place in the palette
-          // (cloud.js turbulenceAt / dustMix).
           w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
         });
       }
     }
     const kind = flightOf(toward, gather);
-    // Every cloud is painted from the theme's palette, never in the surface's own colours:
-    // each grain picks its stop by its mix and its tint (cloud.js stopOfTint).
+    // Painted from the theme's palette, never the surface's own colours (cloud.js stopOfTint).
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
-    // The element's own PARENT, not <body>: a row's cloud is torn down with its list. A SURFACE
-    // goes on <body> — its parent is about to be removed under it; `hostEl` is the middle ground.
+    // The element's parent, so a row's cloud goes with its list; a surface goes on <body>.
     (toBody ? document.body : (hostEl || el.parentElement || document.body)).appendChild(host);
-    // An ancestor with a transform/filter becomes the containing block for position:fixed, so the
-    // landing is MEASURED and re-homed on <body> when it moved.
+    // A transformed ancestor contains position:fixed, so the landing is measured and re-homed.
     const got = host.getBoundingClientRect();
     if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
       document.body.appendChild(host);
     }
-    // Colours resolved ONCE per cloud, after the host is in the document — a `var(--…)`
-    // needs the page's own scope to mean anything.
+    // Resolved once the host is in the document, where a `var(--…)` has its scope.
     const probe = document.createElement('span');
     host.appendChild(probe);
     const fills = paints.map((css) => resolveColour(document, css, probe));
@@ -102,6 +87,5 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   }
 }
 
-// Reintegration, the snap played backwards (browser motion.js twin): every mote starts where
-// the scatter would have flung it and flies HOME, sweep reversed.
+// Reintegration (browser motion.js twin): every mote flies home from its scatter pose.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });

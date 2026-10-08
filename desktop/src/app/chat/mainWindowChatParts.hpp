@@ -3,6 +3,7 @@
 #include "mainWindowHelpers.hpp"
 #include "../../llm/client/LlmClient.hpp"
 #include "../../support/theme/theme.hpp"
+#include "chatSheets.hpp"
 #include "tipContent.hpp"   // currentPalette() — the colours rich tooltips are drawn in
 
 #include <QLabel>
@@ -110,11 +111,7 @@ namespace stencil::gui {
     void showToast(const QString& text, bool success, std::function<void()> onClick) {
       this->onClick = std::move(onClick);
       setStyleSheet(
-          QStringLiteral(
-              "#chatToast{background:rgba(40,46,60,242);border:1px solid rgba(255,255,255,42);"
-              "border-left:3px solid %1;border-radius:8px;}"
-              "#chatToast QLabel{color:white;background:transparent;}")
-              .arg(QLatin1String(success ? CHAT_STATUS_OK_COLOR : CHAT_STATUS_BAD_COLOR)));
+          support::chatToastSheet(QLatin1String(success ? CHAT_STATUS_OK_COLOR : CHAT_STATUS_BAD_COLOR)));
       label->setText(text);
       reposition();
       show();

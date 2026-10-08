@@ -19,8 +19,8 @@ const Request = wire.Request;
 pub const PostError = error{ BlockedHost, HttpFailed, LlmDisabled, OutOfMemory, Cancelled, TimedOut };
 
 /// How long one LLM call may run before it is abandoned: a vision plan over a big image is slow, but
-/// a silent provider must not wedge the console. 600s is providers.json timeouts.perSurface.cli.
-pub const request_timeout_ms: i64 = 10 * 60 * 1000;
+/// a silent provider must not wedge the console.
+pub const request_timeout_ms: i64 = @as(i64, providers.cli_chat_seconds) * std.time.ms_per_s;
 
 /// What an anthropic turn with no key fails with (§6.5) — nothing has been sent.
 pub const no_key_message = "no API key for this session";

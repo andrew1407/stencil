@@ -20,14 +20,10 @@ MAX_ATTACHMENTS = 3
 # `image` op (the cli console's max_attachments). Past it the oldest upload falls off.
 MAX_UPLOAD_ATTACHMENTS = 8
 
-# Media types the contract accepts for attached images (§7).
+# §7.
 ACCEPTED_MEDIA_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif")
 
-# Every LLM call is bounded by pystencil.server's _LLM_TIMEOUT (the asset's
-# timeouts.chatSeconds) so a hostile/slow/hung provider can't block the caller.
-
-# Providers + their default base URLs (§5) from the build-time copy of the canonical asset
-# (tests/test_canonical_drift.py byte-pins it). stencil-server's null default drops out.
+# §5, from the build-time copy of providers.json; stencil-server's null default drops out.
 _PROVIDERS_ASSET = json.loads(
   importlib.resources.files("pystencil")
   .joinpath("_data/providers.json")
@@ -39,7 +35,6 @@ DEFAULT_BASE_URLS = {
   for name, p in _PROVIDERS_ASSET["providers"].items()
   if p["defaultBaseUrl"]
 }
-# provider -> its wire shape ("ollama" | "openai" | "server") and chat route (§6).
 WIRE_OF = {name: p["wire"] for name, p in _PROVIDERS_ASSET["providers"].items()}
 CHAT_PATHS = {name: p["chatPath"] for name, p in _PROVIDERS_ASSET["providers"].items()}
 
@@ -50,20 +45,11 @@ MAX_TOKENS = _PROVIDERS_ASSET["serverDefaults"]["maxTokens"]
 KEY_TTL_SECONDS = 60 * _PROVIDERS_ASSET["providers"]["anthropic"]["sessionKey"]["ttlMinutes"]
 
 
-# ── provider configuration (contract §5) ──────────────────────────────────────
 @dataclass(repr=False)
 class LlmConfig:
-  """Which LLM endpoint to talk to — the same shape every client shares.
-
-  ``base_url``/``model``/``api_key`` apply to ``ollama``/``openai-compat``/``anthropic``
-  (the key is optional and a Bearer header on ``openai-compat``; on ``anthropic`` it is
-  the user's own key, sent as ``x-api-key``); ``server_url`` applies to
-  ``stencil-server`` only (the collaboration server proxying Anthropic, authenticated
-  with the existing session token). An empty ``base_url`` is pre-filled with the
-  provider's contract default.
-
-  The key lives in this object alone: its repr redacts it, and on ``anthropic`` it is a
-  §5 session key that :meth:`session_key` drops ``KEY_TTL_SECONDS`` after it was set.
+  """Which LLM endpoint to talk to (§5). ``server_url`` is ``stencil-server``'s alone; an
+  empty ``base_url`` takes the provider default. The key lives here alone, redacted in the
+  repr; on ``anthropic`` :meth:`session_key` drops it ``KEY_TTL_SECONDS`` after it was set.
   """
 
   provider: str = "ollama"
@@ -81,8 +67,6 @@ class LlmConfig:
         % (self.provider, ", ".join(PROVIDERS))
       )
     if not self.base_url: self.base_url = DEFAULT_BASE_URLS.get(self.provider, "")
-    # True once a caller pins an explicit base URL via set_base_url();
-    # set_provider() then keeps it instead of re-filling the provider default.
     self._url_pinned = False
     self._key_at = self.clock()
 
@@ -108,8 +92,7 @@ class LlmConfig:
     return self.api_key
 
   def set_base_url(self, url: str) -> "LlmConfig":
-    """Pin an explicit base URL (a user override): :meth:`set_provider` keeps a
-    pinned URL across provider switches instead of re-filling the default."""
+    """Pin a base URL that :meth:`set_provider` then keeps across switches."""
     self.base_url = url
     self._url_pinned = True
     return self
@@ -117,14 +100,8 @@ class LlmConfig:
   def set_provider(
     self, provider: str, *, keep_url: (bool | NoneType) = None
   ) -> "LlmConfig":
-    """Switch providers in place, managing the default base URL (this module owns
-    :data:`DEFAULT_BASE_URLS`).
-
-    Unless the URL is kept, ``base_url`` is re-filled with the new provider's
-    contract default. ``keep_url`` defaults to whether the current URL was pinned
-    via :meth:`set_base_url`; pass an explicit bool to override. An unknown
-    provider raises ``ValueError`` and changes nothing.
-    """
+    """Switch providers in place, re-filling the default ``base_url`` unless ``keep_url``
+    (default: whether it was pinned). An unknown provider raises ``ValueError``, changing nothing."""
     p = (provider or "").strip().lower()
     if p not in PROVIDERS:
       raise ValueError(
@@ -137,11 +114,7 @@ class LlmConfig:
 
   @classmethod
   def from_env(cls, env: (dict | NoneType) = None) -> "LlmConfig":
-    """Build a config from the ``STENCIL_LLM_*`` environment keys (contract §5).
-
-    ``env`` defaults to ``os.environ``; pass a mapping to test without touching
-    the process environment. Missing/blank keys fall back to the defaults.
-    """
+    """A config from the ``STENCIL_LLM_*`` keys of ``env`` (default ``os.environ``)."""
     e = os.environ if env is None else env
     return cls(
       provider=(e.get("STENCIL_LLM_PROVIDER") or "").strip() or "ollama",

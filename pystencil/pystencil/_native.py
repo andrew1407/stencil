@@ -1,10 +1,5 @@
-"""Locate, (lazily) build, and ctypes-load the shared Stencil core library.
-
-Resolution order:
- 1. $STENCIL_CORE_LIB — an explicit path to a prebuilt shared lib (CI / packaging).
- 2. The locally built artifact under pystencil/_native/ (built on demand via build.py).
-
-The loaded CDLL is cached in a module global so every Core / get_core() shares one handle.
+"""Locate, lazily build, and ctypes-load the shared core: ``$STENCIL_CORE_LIB`` first, else
+the artifact ``build.py`` writes under ``pystencil/_native/``. One CDLL per process.
 """
 
 from __future__ import annotations
@@ -18,7 +13,6 @@ from pathlib import Path
 from ._ffi.types import NoneType
 
 
-# build.py sits at the package root (pystencil/build.py), one dir above this file's package.
 _BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 
 
@@ -48,12 +42,8 @@ def sync_data() -> None:
 
 
 def find_or_build(build_if_missing: bool = True) -> str:
-  """Return a filesystem path to the shared core library.
-
-  Honours $STENCIL_CORE_LIB first. Otherwise looks for the locally built artifact and,
-  when missing and allowed, imports build.py to compile it. Raises FileNotFoundError if
-  nothing is found and building is disabled.
-  """
+  """The shared library's path, building a missing or stale one when allowed; a stale one
+  comes back as is when not. ``FileNotFoundError`` when there is nothing to return."""
   override = os.environ.get("STENCIL_CORE_LIB")
   if override:
     path = Path(override)
@@ -71,7 +61,6 @@ def find_or_build(build_if_missing: bool = True) -> str:
   if expected.exists() and not _build.is_stale(expected): return str(expected)
 
   if not build_if_missing:
-    # Stale but present: the caller refused a compile, so hand back what exists.
     if expected.exists(): return str(expected)
     raise FileNotFoundError(
       "stencil core library not built yet (expected at %s)" % expected
@@ -81,12 +70,8 @@ def find_or_build(build_if_missing: bool = True) -> str:
 
 
 def load_library() -> ctypes.CDLL:
-  """Load (once) and return the ctypes CDLL handle for the shared core.
-
-  Double-checked under :data:`_LOCK`, so the hot path stays lock-free while racing
-  first callers still build once: two threads through find_or_build() would mean two
-  concurrent ``c++ -shared`` writes to the same artifact.
-  """
+  """The process's one CDLL, double-checked under :data:`_LOCK` so racing first callers
+  build once."""
   global _CDLL
   if _CDLL is not None: return _CDLL
   with _LOCK:

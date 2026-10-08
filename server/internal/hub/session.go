@@ -1,13 +1,10 @@
 package hub
 
 import (
-	"errors"
-	"log"
 	"sync"
 
 	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
-	"stencil/server/internal/store"
 )
 
 // inbound couples a parsed message with the member that sent it.
@@ -29,6 +26,9 @@ type session struct {
 	incoming   chan inbound
 	written    chan int64 // one slot: the newest version the global feed reported (feed.go)
 	done       chan struct{}
+	deleted    chan struct{} // closed once the global feed reports the project deleted (feed.go)
+	deleteOnce sync.Once
+	exited     chan struct{} // closed when run has applied every committed save and returned
 
 	// persist is the session's DB arm: blocking store I/O runs on its own
 	// goroutine and comes back over persist.results (persist.go).
@@ -43,6 +43,9 @@ type session struct {
 	reread         bool                   // that write was reported while a load ran
 	loadedRec      protocol.ProjectRecord // cached snapshot: our own saves update it, others' re-read it
 	pendingWelcome []*member              // members whose welcome waits for a load
+	saveInFlight   bool                   // the worker holds a save; later ones wait in pendingSave
+	pendingSave    *persistJob            // the newest save not yet dispatched
+	gone           bool                   // the project no longer exists: every member is turned away
 	busCh          <-chan eventbus.Envelope
 	busStop        func()
 }
@@ -56,6 +59,8 @@ func newSession(h *Hub, id string) *session {
 		incoming:   make(chan inbound),
 		written:    make(chan int64, 1),
 		done:       make(chan struct{}),
+		deleted:    make(chan struct{}),
+		exited:     make(chan struct{}),
 		members:    map[string]*member{},
 	}
 	s.persist = newSnapshotWorker(h.ctx, h.store, id, h.tune, s.done)
@@ -74,13 +79,17 @@ func (s *session) start() {
 // run is the session's sole goroutine. It serializes registration, inbound
 // messages, and bus deliveries, so session state needs no locks.
 func (s *session) run() {
+	defer s.hub.loopExited(s)
 	defer s.busStop()
-	// The worker performs blocking store I/O off the run-loop and posts results back over persist.results; it
-	// exits when s.done closes, so it is bounded by the session's lifetime and cannot leak.
 	go s.persist.run()
+	deleted := s.deleted
 	for {
 		select {
 		case m := <-s.register:
+			if s.gone {
+				s.evict(m)
+				continue
+			}
 			s.members[m.clientID] = m
 			// Load the snapshot/version once, at first join, off the run-loop.
 			s.ensureLoaded()
@@ -92,20 +101,67 @@ func (s *session) run() {
 				s.publish(protocol.WSMessage{Type: protocol.WSPeerLeave, ClientID: m.clientID})
 			}
 		case env := <-s.busCh:
-			s.fanout(env)
+			if env.Origin != s.hub.instance {
+				s.fanout(env) // this instance's own frames were fanned out when published
+			}
 		case in := <-s.incoming:
-			s.handle(in.member, in.msg)
+			if !in.member.evicted {
+				s.handle(in.member, in.msg)
+			}
 		case v := <-s.written:
 			s.refresh(v)
 		case res := <-s.persist.results:
 			s.applyResult(res)
+		case <-deleted:
+			deleted = nil
+			s.endProject()
 		case <-s.done:
-			for _, m := range s.members {
-				close(m.out)
-			}
+			s.teardown()
 			return
 		}
 	}
+}
+
+// teardown runs once the last member has left: it still commits a save the worker holds or one waiting
+// behind it, and applies each outcome, so the global feed announces every committed save.
+func (s *session) teardown() {
+	for _, m := range s.members {
+		close(m.out)
+	}
+	s.members = map[string]*member{}
+	if job := s.pendingSave; job != nil {
+		s.pendingSave = nil
+		s.persist.dispatch(*job)
+	}
+	close(s.persist.jobs)
+	for res := range s.persist.results {
+		if res.kind == persistSave {
+			s.applySaveResult(res)
+		}
+	}
+}
+
+// projectGone is the last frame a member gets once its project no longer exists.
+var projectGone = protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeNotFound, Message: "project not found"}
+
+// endProject turns every member away once the store or the feed says the project is gone.
+func (s *session) endProject() {
+	s.gone = true
+	s.pendingWelcome = nil
+	for _, m := range s.members {
+		s.evict(m)
+	}
+}
+
+// evict tells m its project is gone and drops it; its writer flushes the notice, then hangs up.
+func (s *session) evict(m *member) {
+	s.sendMsg(m, projectGone)
+	if s.present(m) {
+		delete(s.members, m.clientID)
+	}
+	m.evicted = true
+	m.hangUp.Store(true)
+	close(m.out)
 }
 
 // handle dispatches one inbound message from a member.
@@ -166,56 +222,4 @@ func (s *session) handleEdit(m *member, msg protocol.WSMessage) {
 	}
 	msg.FromClientID = m.clientID
 	s.publish(msg)
-}
-
-// handleSave dispatches the last-writer-wins UpdateProject to the worker; the outcome is applied back on
-// the run-loop (applySaveResult) so version/state stay single-owner.
-func (s *session) handleSave(m *member, msg protocol.WSMessage) {
-	s.persist.dispatch(persistJob{kind: persistSave, member: m, layout: msg.Layout, version: msg.Version})
-}
-
-// applySaveResult applies a completed save on the run-loop: LWW/conflict/error handling, the version
-// bump, the saver ack, the peer broadcast, and the global feed.
-func (s *session) applySaveResult(res persistResult) {
-	m := res.member
-	switch {
-	case errors.Is(res.err, store.ErrConflict):
-		if s.present(m) {
-			s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeConflict, Message: "stale version; reload"})
-		}
-		return
-	case errors.Is(res.err, store.ErrNotFound):
-		if s.present(m) {
-			s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeNotFound, Message: "project gone"})
-		}
-		return
-	case res.err != nil:
-		log.Printf("hub: save project %s failed: %v", s.id, res.err)
-		if s.present(m) {
-			s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeInternal, Message: "save failed"})
-		}
-		return
-	}
-	rec := res.rec
-	rec.Layout = s.loadedRec.Layout
-	if len(res.layout) > 0 {
-		rec.Layout = res.layout // an empty save leaves the stored layout, as the store's COALESCE does
-	}
-	s.version = rec.Version
-	s.loadedRec = rec // keep the cached snapshot current with our own committed save
-	// Ack the saver (if still connected) and broadcast the committed version to peers.
-	if s.present(m) {
-		s.sendMsg(m, protocol.WSMessage{Type: protocol.WSSynced, Version: rec.Version, ResultPath: rec.ResultPath})
-	}
-	synced := protocol.WSMessage{Type: protocol.WSSynced, Version: rec.Version, ResultPath: rec.ResultPath, FromClientID: m.clientID}
-	s.publish(synced)
-	// Notify the global feed so projects lists refresh live.
-	eventbus.PublishProjectEvent(s.hub.ctx, s.hub.bus, protocol.EventUpdated, rec)
-}
-
-// present reports whether m is still the registered member for its client id
-// (its out channel is open). Run-loop-only, so it is atomic vs. unregister.
-func (s *session) present(m *member) bool {
-	cur, ok := s.members[m.clientID]
-	return ok && cur == m
 }

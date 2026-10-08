@@ -1,11 +1,10 @@
-// Which JavaScript buffers are Stencil's: a `.stcjs` always, a plain `.js` when its first
-// line says `// @use stencil`. The document is passed in, so `vscode` is never imported.
+// Which JavaScript buffers are Stencil's: a `.stcjs` always, a plain `.js` when a comment
+// line of its own says `// @use stencil`. The document is passed in, so `vscode` is never imported.
 import { JS_LANGUAGE_ID, USE_MARKER } from '../ids.js';
 import { versionCache } from '../spawn/versionCache.js';
 
 const JS_LANGUAGE = 'javascript';
 
-// The marker itself: a comment to JavaScript, so no editor has an opinion about it.
 const MARKER_DOC = [
   "**The Stencil marker** — this file drives the browser app's `stencil` facade.",
   ['```js', USE_MARKER, '```'].join('\n'),
@@ -23,8 +22,7 @@ const MARKER_TRAILING_DOC = [
   + ' marker at all.',
 ].join('\n\n');
 
-// The marker's span on its line — `@use stencil`, without the comment slashes. A hover is
-// given this range, so the whole marker lights up rather than the one word under the pointer.
+// `@use stencil` on a line of its own, without the slashes: the range a hover lights up whole.
 const markerSpan = (lineText) => {
   const text = String(lineText ?? '');
   const start = text.indexOf(USE_MARKER);
@@ -32,8 +30,7 @@ const markerSpan = (lineText) => {
   return { start: text.indexOf('@', start), end: start + USE_MARKER.length };
 };
 
-// The marker's words under the caret. An own-line marker also has a `markerSpan`; one with
-// code in front of it does not, and is explained instead.
+// The marker's words under the caret; with code in front they have no `markerSpan` and are explained.
 const markerWordsAt = (lineText, character) => {
   const text = String(lineText ?? '');
   const start = text.indexOf(USE_MARKER);
@@ -44,8 +41,7 @@ const markerWordsAt = (lineText, character) => {
   return at >= from && at <= to ? { start: from, end: to } : null;
 };
 
-// The first line carrying it, ANYWHERE — a whole-text scan, which is what "anywhere" costs,
-// so one scan stands for one edit.
+// The first line carrying it, anywhere: a whole-text scan, so one scan stands for one edit.
 const marked = versionCache();
 
 const markerLine = (document) => {
@@ -60,10 +56,8 @@ const markerLine = (document) => {
 // where the quotes could not be followed.
 const PLAIN_SLASHES = /(?:^|[^:])(\/\/)/;
 
-/* Where a line comment opens, or -1. Quotes are tracked, so the `//` of a URL in a string does
- * not open one, nor does one an escape put there. A line ENDING inside a quote was misread —
- * a regex literal holding an apostrophe, a string still being typed — so the plain reading
- * stands in rather than swallowing the rest of the line. */
+/* Where a line comment opens, or -1, tracking quotes; a line ENDING inside a quote was misread
+ * (a regex holding an apostrophe, a string being typed), so the plain reading stands in. */
 const commentStart = (text) => {
   let quote = '';
   for (let i = 0; i < text.length; i += 1) {
@@ -78,8 +72,7 @@ const commentStart = (text) => {
   return plain ? plain.index + plain[0].length - 2 : -1;
 };
 
-/* A word inside a line comment is prose, not code: `stencil` written in a sentence should not
- * pop the facade's explanation. */
+// A word inside a line comment is prose: `stencil` in a sentence pops no explanation.
 const inLineComment = (lineText, character) => {
   const start = commentStart(String(lineText ?? ''));
   return start >= 0 && (Number(character) || 0) >= start + 2;

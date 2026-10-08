@@ -2,6 +2,7 @@
 // The members that replace what the editor is holding. Each one that names a server
 // validates the connection BEFORE it resets or fetches anything.
 import { guardedFetch } from '../../net/fetchGuard.js';
+import { readBlobCapped } from '../../net/cappedBody.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import { videoFrameDataUrl } from '../../core/export/videoFrame.js';
 import { waitForImage as waitForImageOn, loadImageFromFile } from '../../core/image/loadFlow.js';
@@ -50,7 +51,7 @@ export const createSessionApi = ({ app, connMgr }) => {
       if (address) requireConnection(connMgr, address);   // validate before fetching
       const resp = await guardedFetch(url);
       if (!resp.ok) throw new Error(`Failed to fetch ${url}: HTTP ${resp.status}`);
-      const blob = await resp.blob();
+      const blob = await readBlobCapped(resp);
       const type = blob.type || '';
       const baseName = opts.name || decodeURIComponent(url.split('/').pop().split(/[?#]/)[0] || '') || 'image';
 

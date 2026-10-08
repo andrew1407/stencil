@@ -76,6 +76,4 @@ namespace stencil::gui {
 
   // A word-wrapped QLabel clips its own last line unless its real height is reserved.
   void applyChatBubbleWidths(QWidget* transcript, QScrollArea* scroll);
-  // Keyed on the whole sheet: a card's own local QSS shifts its wrapped label's height.
-  QString chatCardStyleSheet(const Palette& pal, bool swapped);
 }  // namespace stencil::gui

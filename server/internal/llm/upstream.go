@@ -62,17 +62,17 @@ type UpstreamError struct {
 	secret string
 }
 
-// Error is the server-log form: full upstream detail, never the key.
+// Error is the server-log form: the upstream detail scrubbed and capped like a client's, the endpoint kept.
 func (e *UpstreamError) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("llm: %s request failed: %v", e.Provider, e.Err)
+		return fmt.Sprintf("llm: %s request failed: %s", e.Provider, scrubForLog(e.Err.Error(), e.secret))
 	}
 	head := "llm: " + e.Provider
-	if e.Type != "" {
-		head += " " + e.Type
+	if t := scrubForLog(e.Type, e.secret); t != "" {
+		head += " " + t
 	}
-	if e.Detail != "" {
-		return fmt.Sprintf("%s (HTTP %d): %s", head, e.Status, e.Detail)
+	if detail := scrubForLog(e.Detail, e.secret); detail != "" {
+		return fmt.Sprintf("%s (HTTP %d): %s", head, e.Status, detail)
 	}
 	return fmt.Sprintf("%s HTTP %d", head, e.Status)
 }

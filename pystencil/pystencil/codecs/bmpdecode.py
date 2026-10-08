@@ -13,21 +13,14 @@ _HEADER_BYTES = 54
 
 
 def decode_bmp(data: bytes) -> tuple[int, int, bytearray]:
-  """Decode a 24- or 32-bit ``BI_RGB`` BMP to RGBA8.
-
-  BMP rows are stored bottom-up and padded to 4-byte boundaries, and pixels
-  are BGR(A); we flip the rows and swizzle to RGBA. Compression other than
-  ``BI_RGB`` (0) is not supported. A 32-bit alpha that is 0 throughout reads as
-  opaque, as stb reads it.
-  """
+  """A 24- or 32-bit ``BI_RGB`` BMP as RGBA8; a 32-bit alpha that is 0 throughout reads as
+  opaque, as stb reads it."""
   if data[:2] != _BMP_MAGIC:
     raise CodecError("not a BMP (bad signature)")
   if len(data) < _HEADER_BYTES:
     raise CodecError("truncated BMP header (%d bytes)" % len(data))
 
-  # BITMAPFILEHEADER: pixel data offset at byte 10.
   pixel_offset = struct.unpack("<I", data[10:14])[0]
-  # BITMAPINFOHEADER (we read the fields we need).
   header_size = struct.unpack("<I", data[14:18])[0]
   width = struct.unpack("<i", data[18:22])[0]
   height_raw = struct.unpack("<i", data[22:26])[0]
@@ -54,11 +47,9 @@ def decode_bmp(data: bytes) -> tuple[int, int, bytearray]:
   rgba = bytearray(b"\xff" * (width * height * 4))  # alpha defaults to opaque
   view = memoryview(rgba)
   for row in range(height):
-    # Source row index, accounting for bottom-up storage.
     base = pixel_offset + (row if top_down else height - 1 - row) * row_size
     line = data[base:base + width * bytes_per_px]
     dst = view[row * width * 4:(row + 1) * width * 4]
-    # BGR(A) -> RGBA, one strided copy per channel.
     dst[0::4] = line[2::bytes_per_px]
     dst[1::4] = line[1::bytes_per_px]
     dst[2::4] = line[0::bytes_per_px]

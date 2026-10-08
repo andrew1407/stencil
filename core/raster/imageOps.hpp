@@ -3,7 +3,8 @@
 #include <cstdint>
 
 // Whole-image RGBA8 transforms for the headless pipeline over caller-owned buffers
-// (the Zig CLI allocates them); byte order R,G,B,A like imageFilter.hpp.
+// (the Zig CLI allocates them); byte order R,G,B,A like imageFilter.hpp. Twin of the canvas
+// turn, mirror and crop in browser/js/core/image/model.js rebuildCroppedImage.
 namespace stencil::core {
 
   // Signed quarter-turn count -> 0..3 clockwise (-1 -> 3, 5 -> 1).

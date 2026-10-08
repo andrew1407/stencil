@@ -6,7 +6,6 @@
 .zbtn:hover, .btn:not(:disabled):hover { transform: translateY(-1px); }
 .zbtn:active, .btn:not(:disabled):active, .seg button:active { transform: translateY(1px) scale(0.98); }
 .btn.primary:not(:disabled):hover { box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent); }
-/* Resize handles + crop box track drags smoothly and grow on hover. */
 .crop-box { transition: outline-color 0.15s ease; }
 .handle { transition: transform 0.12s ease, background 0.15s ease; }
 .handle:hover { transform: scale(1.25); }

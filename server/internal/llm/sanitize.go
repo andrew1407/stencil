@@ -22,6 +22,16 @@ var urlish = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://\S+`)
 // sanitizeUpstreamText makes untrusted upstream text safe for an error message: control characters out,
 // URLs and token-shaped runs redacted, capped. Returns "" when any fragment of secret survives.
 func sanitizeUpstreamText(text, secret string) string {
+	return scrub(text, secret, true, maxUpstreamDetail)
+}
+
+// scrubForLog is the server log's form: the same scrub, but the operator-configured endpoint a transport
+// error names stays readable, under a looser cap.
+func scrubForLog(text, secret string) string {
+	return scrub(text, secret, false, scanUpstreamDetail)
+}
+
+func scrub(text, secret string, redactURLs bool, limit int) string {
 	if text == "" {
 		return ""
 	}
@@ -36,11 +46,13 @@ func sanitizeUpstreamText(text, secret string) string {
 		}
 		return r
 	}, text)
-	text = urlish.ReplaceAllString(text, "[redacted]")
+	if redactURLs {
+		text = urlish.ReplaceAllString(text, "[redacted]")
+	}
 	text = secretish.ReplaceAllString(text, "[redacted]")
 	text = strings.Join(strings.Fields(text), " ")
-	if r := []rune(text); len(r) > maxUpstreamDetail {
-		text = strings.TrimSpace(string(r[:maxUpstreamDetail-1])) + "…"
+	if r := []rune(text); len(r) > limit {
+		text = strings.TrimSpace(string(r[:limit-1])) + "…"
 	}
 	if containsSecretFragment(text, secret) {
 		return ""

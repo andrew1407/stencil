@@ -1,15 +1,10 @@
 * { box-sizing: border-box; }
-/* Every focus ring is the BRAND accent — without this the platform's own blue ring turned
-   up on whatever no rule styled. Bare `:focus-visible`, so a control with its own ring
-   (fields.css, select.css) still outranks it, and only focus-visible, so a pointer click
-   never draws one. Browser twin: css/layout/shell.css. */
+/* Bare `:focus-visible`, so a control's own ring outranks it. Browser twin: css/layout/shell.css. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* Checkboxes & radios: a transparent box outlined in the brand accent, filled
-   with the accent (+ a white check / dot) when on — matching the editor + the
-   desktop Qt indicator. appearance:none so the look is ours, not the OS default. */
+/* Checkboxes & radios, matching the editor and the desktop indicator. */
 input[type="checkbox"], input[type="radio"] {
   appearance: none;
   -webkit-appearance: none;
@@ -43,10 +38,7 @@ input[type="radio"]:checked {
 }
 input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cursor: default; }
 
-/* Short toggle CHIPS (.chk) as accent PILLS — matching the editor's f(x,y) toggle: accent
-   outline + text when off, accent-filled with white text when on. The native checkbox is
-   hidden; the whole chip conveys the state. Shared by the popup filter/option chips and the
-   options page's compact toggles. (Descriptive, sentence-label settings stay plain checkboxes.) */
+/* Toggle chips (.chk) as accent pills, the editor's f(x,y) toggle. */
 .chk {
   display: inline-flex; align-items: center; gap: 4px;
   color: var(--accent); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer;
@@ -54,28 +46,20 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   background: transparent; user-select: none;
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
-/* `display` above out-specifies the UA's [hidden] rule, so a chip a page hides from JS
-   (e.g. the popup's "server pins" pill, with no server connected) needs saying explicitly
-   — otherwise it keeps its box and its width in the filter row. popup.css does the same
-   for .fsection / .icon-btn, and .accent-dd below needs it for the same reason. */
+/* `display` above out-specifies the UA's [hidden] rule. */
 .chk[hidden] { display: none; }
 .chk:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-/* Off in dark: --accent is too deep a violet against the dark panel at label sizes, so
-   borrow the lighter shade. The :not() is load-bearing — this out-specifies the ON rule,
-   which would otherwise lose its white label to the light accent. */
+/* Off in dark, the deep accent is too dark at label sizes; the :not() keeps the on rule's ink. */
 :root[data-theme="dark"] .chk:not(:has(> input:checked)) {
   color: var(--accent-2); border-color: var(--accent-2);
 }
 .chk > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
-/* On: accent fill + the accent's own ink, shadowed to stay crisp at small sizes. */
 .chk:has(> input:checked) {
   background: var(--accent); color: var(--on-accent); border-color: var(--accent);
   text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
 }
 
-/* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for the
-   extension's interactive items (icon buttons, mini buttons, chips, image thumbs), matching the
-   browser app + desktop. Clipped ::after gradient; honours prefers-reduced-motion. ── */
+/* ── Glass shimmer on hover, matching the browser app and desktop ── */
 .icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer { position: relative; overflow: hidden; }
 .icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after,
 .accent-dd-opt::after, .shimmer::after {

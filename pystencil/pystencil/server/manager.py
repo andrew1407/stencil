@@ -1,6 +1,4 @@
-"""The set of connected servers for one session — a port of the browser's
-ConnectionManager, REST-only.
-"""
+"""The set of connected servers for one session (twin of the browser's ConnectionManager)."""
 
 from __future__ import annotations
 
@@ -13,19 +11,15 @@ from .urls import normalize_url, split_invite_token
 from .._net import _fetch_all
 
 
-# Specs accepted by ConnectionManager.connect: a url string, a {url, token}
-# mapping, or an iterable of either.
+# A url string, a {url, token} mapping, or an iterable of either.
 ConnectSpec = Union[str, dict, Iterable[Any]]
 
 
 class ConnectionManager:
-  """The set of connected servers for one session (port of the browser's
-  ConnectionManager, REST-only)."""
-
   def __init__(self, *, verify: bool = True) -> None:
     self._verify = verify
-    self._conns: dict[str, ServerConnection] = dict()  # url -> connection
-    self._last: list[tuple[str, str]] = list()  # for reconnect(): [(url, token)]
+    self._conns: dict[str, ServerConnection] = dict()
+    self._last: list[tuple[str, str]] = list()
 
   @property
   def connections(self) -> list:
@@ -41,14 +35,13 @@ class ConnectionManager:
   def connect(self, spec: ConnectSpec) -> "ConnectionManager":
     """Connect one or more servers; already-connected urls are no-ops."""
     for url, token in _iter_specs(spec):
-      # Split any invite-link fragment before normalizing (it drops fragments).
+      # Before normalizing, which drops the fragment.
       url, token = split_invite_token(url, token)
       norm = normalize_url(url)
       if norm in self._conns: continue
       conn = ServerConnection(norm, token, verify=self._verify)
       conn.connect()
       self._conns[norm] = conn
-    # Remember the live set so reconnect() can rebuild it (with tokens).
     self._last = [(c.base, c.token) for c in self._conns.values()]
     return self
 
@@ -70,15 +63,13 @@ class ConnectionManager:
     return self
 
   def reconnect(self) -> "ConnectionManager":
-    """Re-establish the last connected set (tokens re-validated/re-issued)."""
     previous = list(self._last)
     self.disconnect_all()
     for url, token in previous: self.connect({"url": url, "token": token})
     return self
 
   def remote_projects(self) -> list:
-    """Aggregate every connection's projects, polled in PARALLEL (one round-trip per
-    server, all at once); an unreachable or erroring one is skipped, as the browser does."""
+    """Every connection's projects, polled in parallel; an unreachable one is skipped."""
     def listing(conn) -> list:
       try:
         return conn.list_projects()
@@ -86,31 +77,23 @@ class ConnectionManager:
         return []
     return [p for got in _fetch_all(self._conns.values(), listing) for p in got]
 
-  # ── aggregate project-change tracking (poll-based) ──
-  # The session-wide analogue of ServerConnection.watch_projects, across every connection.
   def poll_project_changes(self, previous: (list | NoneType) = None) -> tuple:
-    """One-shot poll across every connection. Returns ``(current_list, changes)``
-    (see diff_projects). Pass the prior list back to detect what moved."""
+    """``(current_list, changes)`` across every connection, against ``previous``."""
     current = self.remote_projects()
     return current, diff_projects(previous, current)
 
   def watch_projects(self, on_change, *, interval: float = 2.0, stop=None) -> None:
-    """Block, polling every connected server every `interval` s, calling
-    on_change(change) per project create/update/delete across all of them. The first
-    poll seeds the baseline silently. Pass a threading.Event as `stop` to end it."""
+    """ServerConnection.watch_projects across every connection."""
     _poll_loop(self.remote_projects, on_change, interval, stop)
 
 
 def __one_spec(item: Any) -> tuple[Any, str]:
-  """A single (url, token) from a url string or a {url, token?} mapping."""
   if isinstance(item, str): return item, ""
   if isinstance(item, dict): return item.get("url"), item.get("token") or ""
   raise TypeError(f"Unsupported connection spec: {item!r}")
 
 
 def _iter_specs(spec: ConnectSpec):
-  """Yield (url, token) pairs from a url string, {url,token} dict, or an
-  iterable of either. Centralizes the browser's flexible connect() input."""
   if isinstance(spec, (str, dict)):
     yield __one_spec(spec)
     return

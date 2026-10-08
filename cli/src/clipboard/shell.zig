@@ -31,7 +31,7 @@ pub fn scratchPath(gpa: std.mem.Allocator, comptime name: []const u8) ![]u8 {
 
 // Run a tool, mapping "not installed" to ToolMissing and a non-zero exit to Failed.
 pub fn runOrFail(gpa: std.mem.Allocator, io: std.Io, argv: []const []const u8) !void {
-    const res = child.run(gpa, io, .{ .argv = argv }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = argv }, child.helper_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };

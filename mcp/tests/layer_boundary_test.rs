@@ -1,6 +1,7 @@
-//! Import-direction lint for mcp/src. `.claude/rules/architecture.md` lists the layers top-down
-//! — `server/` + tools → `opplan/` → `args` → `pipeline` → `llm` — so a module may reach every
-//! module BELOW it in that row and none above. Today's crossings are a frozen allowance.
+//! Import-direction lint for mcp/src. `.claude/rules/architecture.md` lists the layers
+//! dependency-free first — `llm` → `pipeline` → `args` → `opplan` → `server/` + tools — so a
+//! module may reach every module to its LEFT in that row and none to its right. Today's
+//! crossings are a frozen allowance.
 
 use std::collections::BTreeSet;
 use std::fs;

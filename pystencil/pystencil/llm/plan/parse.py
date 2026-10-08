@@ -1,6 +1,5 @@
-"""Op-plan parsing (contract §1/§2/§3): core/opplan walks the reply and this maps its one
-result document onto the typed :class:`OpPlan` the executor runs, every failure and warning in
-core's canonical §1 words. Twin of the cli's ``src/llm/opplan/validate.zig``.
+"""Op-plan parsing (contract §1/§2/§3): core/opplan's result typed into :class:`OpPlan`, in
+core's §1 words. Twin of the cli's ``src/llm/opplan/validate.zig``.
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ PREVIEW_NOTE = "the console can't show option previews — the choices are liste
 
 
 def __typed(actions: list) -> list[dict]:
-  """Each action core normalized, through its op's own normalizer when it has one."""
   out: list[dict] = list()
   for a in actions:
     normalizer = OP_REGISTRY[a["op"]].normalizer
@@ -49,7 +47,6 @@ def __has_previews(doc: dict) -> bool:
 
 
 def __notes(doc: dict) -> list[str]:
-  """Core's warnings in its own words and order, then the console's preview note if it applies."""
   out = [w["message"] for w in doc["warnings"]]
   if __has_previews(doc): out.append(PREVIEW_NOTE)
   return out
@@ -68,16 +65,11 @@ def __ask(card: (dict | NoneType)) -> (AskCard | NoneType):
 
 
 def parse_op_plan(text: str) -> OpPlan:
-  """Parse raw LLM reply text into a validated :class:`OpPlan` (contract §1).
+  """Raw LLM reply text as a validated :class:`OpPlan` (contract §1).
 
-  Extraction is tolerant: Markdown code fences are stripped and the first balanced
-  ``{…}`` is taken. Text with no JSON object at all is a *chat-only* turn — the raw
-  text becomes ``reply`` with zero actions (not an error). Once an object is found,
-  validation is strict: every action must validate per §2 (unknown ops are dropped with
-  a warning appended to the reply; a known op with invalid params raises
-  :class:`LlmPlanError`), the shared limits and the JSON caps apply, and a missing reply
-  is substituted. A variant holding a top-level-only or console-settings op is dropped
-  with a warning naming it, and the rest of the plan still runs.
+  Text with no JSON object is a chat-only turn (zero actions, not an error). Unknown ops
+  and a variant holding a top-level-only or console op drop with a warning; a known op with
+  invalid params raises :class:`LlmPlanError`.
   """
   raw = text if isinstance(text, str) else str(text)
   status, doc = get_core().opplan_parse(raw)

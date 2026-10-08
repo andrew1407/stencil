@@ -1,4 +1,5 @@
 #include "linksDialogParts.hpp"
+#include "dialogSheets.hpp"
 #include "LinksDialog.hpp"
 #include "iconSet.hpp"
 #include "../../../support/modal/modalChrome.hpp"
@@ -31,8 +32,8 @@ namespace stencil::gui {
     setMinimumWidth(MODAL_WIDTH);
     const QColor txt = palette().color(QPalette::WindowText);
     // Theme muted tone for hint/secondary text (browser --text-muted).
-    const QString mutedCss =
-        QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
+    const QColor muted = palette().color(QPalette::PlaceholderText);
+    const QString mutedCss = support::mutedTextSheet(muted);
 
     // Browser linksModal.js parity: the shared modal shell, not framed group boxes.
     ModalChrome chrome = installModalChrome(this, "link", tr("Image links"));
@@ -142,7 +143,7 @@ namespace stencil::gui {
     addForm->addRow(frameRow);
 
     previewHint = new QLabel(this);
-    previewHint->setStyleSheet(mutedCss + " font-size: 11px;");
+    previewHint->setStyleSheet(support::mutedHintSheet(muted));
     previewHint->setWordWrap(true);
     addForm->addRow(previewHint);
 

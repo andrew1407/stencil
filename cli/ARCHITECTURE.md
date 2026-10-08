@@ -28,22 +28,25 @@ owns I/O, codecs (stb_image), video (ffmpeg), HTTP (`std.http`) and JSON.
 
 `core.zig` + `script/core.zig` → `args.zig` (+ `params/`) → `net.zig` (+ `net/`) → ops
 (`pipeline/`, `script/`, `media/`, `inspect/`) → `llm/` → `console/` → `app/` → `main.zig`.
-**Only the presentation layer may write to a terminal** — `app/`, the entry points, `console/`
-and `line_edit/`. Everything below reports through `app/report.zig`; `app/lint.zig` fails on a
-file that breaks the layering or an unread private name.
+**Only the presentation layer may write to a terminal.** `app/lint.zig` names it: the files
+`main.zig`, `args.zig`, `console.zig` and `project/cli.zig`, and everything under `app/`,
+`bench/`, `console/`, `line_edit/` and `params/`. Every other file reports through
+`app/report.zig`; the lint fails on one that calls a `logo` print or writes an ANSI escape, on
+an `error: `/`note: ` prefix spelled outside `app/logo/severity.zig`, and on a private alias
+or import nothing reads.
 
 ## Where things go
 
 | Path | Holds | Rule |
 |---|---|---|
 | `build.zig`, `build.zig.zon` | the build and the pinned stb dependency | the core file list matches `STENCIL_CORE_SOURCES` |
-| `src/main.zig`, `help.txt`, `app/` | the entry point, `--help`, the presentation ring and the source lints | every user-facing string is a named constant in `app/messages.zig`, pinned in `tests/pins/` |
+| `src/main.zig`, `help.txt`, `app/` | the entry point, `--help`, the presentation ring, the report sink and the source lints | the console's strings and skins are named in `app/messages.zig` and `app/skin/`, pinned in `tests/pins/`; a one-shot line is spelled at its call through `app/report.zig` and pinned by `CONTRACT.md` and `testdata/` |
 | `src/args.zig` + `params/` | `Options` + `Mode` and the argv loop | the flag surface is `CONTRACT.md`; `tests/help_flags_test.zig` scans every parser file |
 | `src/pipeline.zig` + `pipeline/` | the one-shot orchestration | headless; reports through `report.zig` |
 | `src/script.zig` + `script/` | the `.stc` modes, including emit for another surface (`emit/`) | the core owns the language; this owns files, pixels and output |
-| `src/core.zig` + `core/`, `media/` | the core bridge, codecs, page policy, layout JSON, the ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; `media/decodeGuard.zig` bounds what stb may read |
+| `src/core.zig` + `core/`, `media/` | the core bridge, codecs, page policy, layout JSON, the ffmpeg frame grab and ffprobe read | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; `media/decodeGuard.zig` bounds what stb may read; ffmpeg and ffprobe read only a local file (`media/remoteVideo.zig`) |
 | `src/net.zig` + `net/` | the **one fetch guard** over the embedded `common/config/net/blockedRanges.json`, the pinned server dial, the bounded fan-out, the watched call | every outbound URL passes `net.zig`; nothing keeps its own address list or waits on a host without a deadline |
-| `src/safety/` | output-path confinement, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens | `..` always refused; absolute or symlinked escapes refused under `--confine-output` |
+| `src/safety/` | output-path confinement, the one sanitizer for untrusted text, child spawning without `STENCIL_LLM_*` or server tokens and under a deadline | `..` always refused; absolute or symlinked escapes refused under `--confine-output`; every child is killed at its deadline |
 | `src/console.zig` + `console/` | the REPL: session, `commands`, `handlers/`, `render/`, `screen/` (the TUI) | grammar is parsed in `commands.zig` and executed in `handlers/`; a model's or server's text prints through `render/inert.zig` |
 | `src/line_edit/` | the raw-mode line editor and the hidden secret read | TTY only; piped stdin takes the plain reader |
 | `src/clipboard.zig` + `clipboard/` | `/paste` + `/copy` over the per-OS shell helpers | |
@@ -53,7 +56,7 @@ file that breaks the layering or an unread private name.
 | `src/server/` | the collaboration-server client and `tokens.zig`, which credential a URL is dialled with | follows `server/internal/protocol`; a token is never printed |
 | `src/inspect.zig` + `inspect/` | `--probe` and the project report modes | one JSON document on stdout, only on success |
 | `src/bench/` | the opt-in `zig build bench` | ratio assertions only |
-| `tests/` | suites and rigs, `*_drift_test.zig` byte-pins of embedded tables, `pins/` text goldens, `fixtures/` | a suite sits in the folder of the `src/` area it covers; `test_root.zig` names every suite |
+| `tests/` | suites and rigs, `config/*_drift_test.zig` cross-checks, `pins/` text goldens, `fixtures/` | a suite sits in the folder of the `src/` area it covers; `test_root.zig` names every `*_test.zig`, and `tests/test_registration_test.zig` fails on one it does not |
 | `testdata/` | the stderr goldens `mcp/` and `bot/` replay | one set of goldens for all three suites |
 | `scripts/tui_smoke.py` | the manual pseudo-terminal smoke check for the TUI | not in CI |
 
@@ -134,6 +137,10 @@ classDiagram
 - **A one-shot run.** `pipeline.run` acquires an `Rgba8` (a file, `net.fetch`, a video frame, a
   blank page or a server download) and runs the Pipeline; the `wrote …` line goes through
   `report.print`, the one exit below the presentation layer.
+- **A video frame.** A path whose extension `looksLikeVideo` accepts goes to ffmpeg (`--probe`:
+  ffprobe first). A URL is first fetched by `net.fetch` under the image policy (the guard, no
+  redirects, the 64 MiB cap) into an owner-only temp file deleted after the call, and the tool
+  runs with `-protocol_whitelist file` on that path, so it never dials a host.
 - **A console turn.** The console is POSIX-only; a Windows build ships every one-shot mode.
   A transform pushes a copy of the current `EditState` and rebuilds the view
   (`derivedView.Base` caches rotate → crop → filter). Lines live in view coordinates and follow
@@ -154,6 +161,10 @@ classDiagram
   `/llm key`, is masked wherever it is typed, expires after the configured TTL and is zeroed on
   expiry, `/llm key forget` or a provider switch. It travels as `x-api-key`, never over plain
   http other than loopback; upstream error text echoing the key is dropped. No key reaches a file.
+  What is zeroed: the `Config` key on expiry, forget or switch, a `Request`'s `auth` and
+  `api_key` on `deinit`, and the console's line buffers after a typed key. What cannot be: the
+  process environment the key arrived in, the request head `std.http.Client` serialises into its
+  connection buffer, and a server `Client`'s token and credential, which are freed unzeroed.
 - **A server connection.** `/connect url [token]` resolves a token into a `Client`;
   `server.tokenFor` picks each URL's token in `CONTRACT.md`'s order. Every exchange resolves
   the host once and dials only an address `serverTarget` admitted (`net/pin.zig`). A push is a
@@ -170,22 +181,61 @@ classDiagram
 - **A scrape.** The page is fetched, its media filtered by category, format and name and cut to
   the window; `fetchPool.fetchAll` fetches them on a bounded pool in submission order.
 
+## Concurrency
+
+One thread owns the process: the one-shot run, or the console's input loop with every paint,
+`EditConn` poll and handler. Concurrency comes from `std.Io.Threaded` tasks the Io owns (the
+watched call, each request's deadline, the pinned-dial race, the fetch pool), from plain
+`std.Thread`s that `media/imageRows.zig` joins before returning, and from child processes. Io
+cancellation interrupts only an Io call (a syscall the Io issued), so a worker stops at its
+next one, and a child process is stopped by its deadline alone. `init.gpa` is thread-safe and
+shared by every task; a fetch-pool job allocates from its own arena. Thread-locals hold
+per-thread state that must never be read across a worker: the thread's watch (`net/job.zig`),
+the parsed range table (`net/ranges.zig`), the body scratch (`net/fetchPool.zig`), the last
+server rejection (`server/http.zig`, set and read on the caller), stb's allocator
+(`media/imageAlloc.zig`) and the format scratch buffers of `core.zig`, `app/logo/severity.zig`,
+`console/render/ansi/restyle.zig` and `console/session/scriptLog.zig`.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `net/jobCall.zig` watched call | an Io concurrent task; the caller polls the terminal every beat | the borrowed arguments | `finished` atomic, then `fut.await` or `fut.cancel` before returning | Ctrl-C or the waiter's timeout cancels it and waits; what the stopped call returned is the caller's to free; no worker to spare runs it inline |
+| `net/send.zig` deadlined exchange | an Io concurrent task | the `Task` on the caller's stack | `done` event, `muted` atomic | past `timeout_ms` (30 s, the LLM's 600 s) it is cancelled, its body freed, its error muted, and `no answer from … within Ns` printed |
+| `net/pin.zig` dial race | one Io task per judged address, at most `max_pins` (8) | the dial context | the first connection wins | the losers are cancelled and their connections closed |
+| `net/fetchPool.zig` pool | Io tasks in waves of `max_workers` (8) | a per-job arena and result row | submission-order `await` | a task the Io will not spawn runs on the caller; each job releases its thread's body scratch when it ends |
+| `media/imageRows.zig` bands | `std.Thread`s, at most 8, the caller taking the last band | disjoint output rows | `join` before returning | a band that will not spawn runs on the caller |
+| child processes (`safety/child.zig`) | another process, read on the calling thread | its stdout and stderr pipes | `media_timeout_ms` (60 s) for ffmpeg and ffprobe, `helper_timeout_ms` (10 s) for clipboard helpers | killed (SIGTERM, then reaped) at the deadline, with `error: <tool> did not finish within Ns — stopped`; output past `stdout_limit` ends the run |
+| `app/logo/deferred.zig` held prints | any thread that does not own the human channel | the held queue | a spinlock; no callback runs inside it | past 1 MiB a print is dropped; the owner lands the rest at its next flush |
+| `console/screen/terminal.zig` signal handlers | the interrupted thread, in signal context | the borrowed terminal state | only `write` and `raise`, which are async-signal-safe | TERM, HUP, INT and QUIT restore the terminal and re-raise under `SA_RESETHAND`; WINCH writes one byte to a non-blocking pipe |
+| `server/edit.zig` `EditConn` | the console thread, at each prompt boundary | its frame buffer | single owner; `poll` never blocks | a line past `max_frame_bytes` (16 MiB, the server's frame cap) closes the feed with a note; one boundary handles at most `max_events_per_poll` (64) events, the rest wait for the next |
+| once-parsed tables (`app/theme.zig`, `llm/opplan/guards.zig`) | the first thread to read | a static table | atomic state, the losers spin until it is ready | parsed once, never freed |
+
 ## Rules
 
 1. **A module that outgrows one file becomes a package**: `x.zig` stays the surface its callers
    bind to (re-exporting the names they used) and `x/` holds the pieces — or, in a full parent
-   folder, the entry moves inside its own folder (`bench/bench.zig`).
+   folder, the entry moves inside its own folder (`bench/bench.zig`). `app/`, `media/`,
+   `params/`, `safety/` and `server/` are folders with no surface file: each is a set of
+   independent modules its callers import one by one (`server/client.zig` is the server
+   client's own surface), and `main.zig` registers them.
 2. **Every file is test-registered.** A package root names its files in a `test {}` block;
    `tests/test_registration_test.zig` fails on any module none names, and `test_root.zig` names
    every suite under `tests/`.
-3. **Embedded tables come from `common/config/`** via `@embedFile` and are drift-tested
-   byte for byte. No value is hand-copied.
+3. **Embedded tables come from `common/config/`** via `@embedFile` straight from the canonical
+   file, so there is no copy to drift. A value read at comptime (`app/brand.zig`'s colours and
+   `tokenLight`, `llm/providers.zig`'s `cli_chat_seconds`) is cross-checked against a real
+   parse of the same bytes, and the one port of a constant no build can embed
+   (`net/fetchPool.zig` `max_workers` = pystencil's `MAX_FETCH_WORKERS`) is pinned by
+   `tests/config/fetch_workers_drift_test.zig`.
 4. **The stderr grammar is a contract.** `wrote {path} ({w}x{h})`, `error: …`, `note: …` and the
    scrape lines are parsed by mcp and bot and pinned by `CONTRACT.md`, `testdata/` and both
    adapters' fixtures.
 5. **Security guards are singular**: one fetch guard (`net.zig`), one output confinement
    (`safety/confine.zig`), one prose sanitizer (`safety/sanitize.zig`), one child spawner
-   (`safety/child.zig`).
+   (`safety/child.zig`). A video URL passes the fetch guard like any other before a child
+   sees its bytes. A collaboration server is dialled at the address judged; any other fetch
+   judges a name's resolved addresses and lets `std.http.Client` resolve it again
+   (`net/host.zig` `hostResolvesToBlocked`), so a host that rebinds between the two lookups
+   is not caught.
 
 ## Tests
 
@@ -196,6 +246,8 @@ and the reason printed are real. The op-plan rules are proved in core (`core/tes
 the cli covers its typed mapping and messages, pinned over the whole corpus by
 `tests/pins/opplan_oracle.json`. `tests/pins/` holds every console screen's rendering and each
 effect's frames on a fake terminal and clock. Every network or disk seam takes an in-memory
-fake, so the suite runs offline; `--prompt` runs end to end against a loopback mock. `test`
+fake, so the suite runs offline; `--prompt` runs end to end against a loopback mock. The
+video path takes a spawn seam, so a refused host is proved never to reach ffmpeg; a child's
+deadline is proved on a real `sleep`. `test`
 depends on `fmt`, so every Zig file is `zig fmt` clean. Benchmarks assert only ratios, never a
 wall-clock.

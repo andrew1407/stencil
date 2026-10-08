@@ -19,6 +19,5 @@ export const mediaAdapters = (app) => ({
   // §10 copy: the clipboard write's REAL outcome, so a blocked write becomes a
   // reply warning instead of only a transient toast.
   copyRendered: () => app.export.copyImageToClipboard(),
-  // §10 copy what:"layout": same outcome-promise pattern for the layout JSON.
   copyLayoutRendered: () => app.export.copyLayoutToClipboard(),
 });

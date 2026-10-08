@@ -32,6 +32,28 @@ func (h *Hub) Close() {
 	h.cancel()
 }
 
+// Drain waits, until ctx ends, for every session's run loop to return; a run loop returns once its last
+// member has left and every save its worker held has committed and been announced. Call it after CloseAll.
+func (h *Hub) Drain(ctx context.Context) error {
+	for {
+		h.mu.Lock()
+		var next *session
+		for s := range h.loops {
+			next = s
+			break
+		}
+		h.mu.Unlock()
+		if next == nil {
+			return nil
+		}
+		select {
+		case <-next.exited:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 // liveConns snapshots the tracked connections so the notice + cancel run outside
 // the hub lock (a write must never block connects and disconnects).
 func (h *Hub) liveConns() []*connReg {

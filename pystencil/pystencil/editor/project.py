@@ -15,15 +15,9 @@ from ..scriptpaths import is_url
 from ._snapshot import _BASE64_PREFIX, _EXT_MIME, _clean_keywords
 
 def _valid_chat_doc(doc) -> (dict | NoneType):
-  """Return a §12.1-clean copy of ``doc``, or None when it isn't such a document.
-
-  Shape (version 1 + a ``messages`` list) plus the §12.1 gate
-  (:func:`pystencil.llm.chat_display_text`): the document is shared across surfaces,
-  so §7's continuation note and raw op-plan assistant turns are refused on the way in
-  AND on the way out — a dirty block written by an older build never round-trips back
-  out of :meth:`Editor.save_project`. Never raises: an invalid block is treated as
-  "no saved chat", the contract's rule for malformed documents.
-  """
+  """A §12.1-clean copy of ``doc``, or None: version 1 with a ``messages`` list, each turn gated by
+  :func:`pystencil.llm.chat_display_text` on the way in AND out, so a dirty block never
+  round-trips. Never raises — a malformed block means "no saved chat"."""
   if not isinstance(doc, dict) or doc.get("version") != 1: return None
   messages = doc.get("messages")
   if not isinstance(messages, list): return None
@@ -38,9 +32,6 @@ def _valid_chat_doc(doc) -> (dict | NoneType):
 
 
 class _ProjectApi:
-  """Saving, opening and deleting portable ``.stencil`` project files."""
-
-  # ── portable .stencil project files ─────────────────────────────────────────
   def save_project(self, path: str) -> str:
     """Write the project (ORIGINAL image + export layout + metadata) as one portable ``.stencil`` file; returns the path."""
     orig = self._require_original()
@@ -62,8 +53,6 @@ class _ProjectApi:
     if self._keywords: doc["keywords"] = list(self._keywords)
     if self._source: doc["source"] = self._source
     if self._resource: doc["resource"] = self._resource
-    # §12 chat persistence: the attached conversation rides along ONLY while the
-    # opt-in save_chats toggle is on (omit-when-empty, like keywords/color).
     if self.save_chats and _valid_chat_doc(self.chat_doc) and self.chat_doc["messages"]:
       doc["chat"] = self.chat_doc
     doc["image"] = {
@@ -120,20 +109,14 @@ class _ProjectApi:
     self._source_ext = (image.get("ext") or self._source_ext or "png").lower()
     self._color = doc.get("color") or ""
     self._keywords = _clean_keywords(doc.get("keywords"))
-    # §12 chat persistence: keep a valid saved-chat block for restore/re-save
-    # (absent or malformed → None, silently — the format's unknown-key tolerance).
     self.chat_doc = _valid_chat_doc(doc.get("chat"))
     layout = doc.get("layout")
     if isinstance(layout, dict): self.apply_layout(layout)
     return self
 
   def attach_chat(self, chat_or_doc) -> "Editor":
-    """Attach a conversation for :meth:`save_project` to persist (contract §12).
-
-    Accepts a :class:`pystencil.llm.Chat` (serialized via its ``to_doc()``) or a
-    ready §12.1 dict; an invalid document attaches nothing. The key is only
-    written while the opt-in :attr:`save_chats` toggle is on. Returns self.
-    """
+    """Attach a :class:`pystencil.llm.Chat` (via ``to_doc()``) or a §12.1 dict for
+    :meth:`save_project`, written only while :attr:`save_chats` is on; an invalid one attaches nothing."""
     doc = chat_or_doc.to_doc() if hasattr(chat_or_doc, "to_doc") else chat_or_doc
     self.chat_doc = _valid_chat_doc(doc)
     return self
@@ -155,14 +138,9 @@ class _ProjectApi:
 
   @staticmethod
   def delete_project(path: str) -> str:
-    """Delete a local ``.stencil`` file from disk; returns the deleted path.
-
-    Parity with the browser/desktop trash button and the CLI ``/delete``, including
-    its full guard set (``deleteReject``): ``.stencil`` paths only, never a URL, and
-    never a ``..`` component that could climb out of the working directory. Stateless
-    (a loaded project stays loaded). Raises ``ValueError`` for a rejected path,
-    ``FileNotFoundError`` when the file is missing.
-    """
+    """Delete a local ``.stencil`` file and return its path, behind the CLI's ``deleteReject``
+    guards: no URL, no other extension, no ``..`` component. A loaded project stays loaded.
+    Raises ``ValueError`` for a rejected path, ``FileNotFoundError`` for a missing one."""
     reject = _ProjectApi.delete_reject(path)
     if reject == "url":
       raise ValueError("delete_project only removes local files, not URLs: %r" % (path,))

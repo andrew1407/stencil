@@ -1,10 +1,6 @@
-/* ── Message tails: a small triangular flag hanging from the BOTTOM edge, at the
-   corner facing the panel centre — user right, assistant/error left. The classic
-   border-triangle trick (zero-size box, one transparent side), as two copies:
-   border colour behind, 1px smaller fill in front. The border copy's anchor is
-   pushed 1px further out on BOTH axes so it grows past the fill on all three
-   edges — sharing the fill's anchor left the outline coincident, and so painted
-   over, along the tail's bottom edge. Desktop mirrors this in chatWidgets.cpp. */
+/* Message tails: a triangular flag from the bottom edge at the corner facing the panel centre, as
+   two border triangles (outline behind, fill 1px smaller in front; the outline's anchor 1px further
+   out on both axes, or it paints under the fill). Desktop twin: chatWidgets.cpp. */
 .chat-msg-user::before, .chat-msg-user::after,
 .chat-msg-assistant::before, .chat-msg-assistant::after,
 .chat-msg-error::before, .chat-msg-error::after {
@@ -18,12 +14,8 @@
 .chat-msg-assistant::after, .chat-msg-error::after {
     bottom: 0; left: -8px; border-width: 8px 8px 0 0; border-color: transparent var(--msg-fill) transparent transparent;
 }
-/* ── Swapped sides (chatPanel.js / contextMenu.js wireChatSideToggle): the "…"
-   chat-more-menu item between Clear history and Settings. `.chat-swapped` only ever
-   lands on a transcript container (the panel's and the ctx-assist flyout's — one
-   preference, either surface), so a plain class selector covers both, and one class
-   flips every bubble at once: alignment, tail geometry, and the row "…" trigger's
-   side. Default (no class) is exactly today's layout. */
+/* Swapped sides: `.chat-swapped` on a transcript (one preference, either surface) flips every
+   bubble at once — alignment, tail geometry and the row "…" trigger's side. */
 .chat-swapped .chat-msg-user {
     align-self: flex-start;
     border-bottom-right-radius: 10px; border-bottom-left-radius: 0;

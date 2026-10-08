@@ -1,7 +1,4 @@
-"""One applier per op — the validated action mapped onto the Editor method it stands
-for (contract §2). Each rides its op's OP_REGISTRY entry beside the validator, so
-dispatch is table-driven on both the parse and the execute side.
-"""
+"""One applier per op: the validated action mapped onto its Editor method (contract §2)."""
 
 from __future__ import annotations
 
@@ -29,8 +26,7 @@ def _apply_crop(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
     "%s=%s" % (k, spec[k]) for k in ("x1", "y1", "x2", "y2", "aspect") if k in spec
   )
   if frame is not None:
-    # Resolve exactly as Editor.crop is about to (the same core resolveCrop path); a bad spec
-    # is the same no-op crop() performs, so the transform stays unchanged.
+    # A bad spec is the same no-op crop() performs, so the transform stays unchanged.
     resolve = getattr(editor, "resolve_crop_rect", None)
     rect = None
     if callable(resolve):
@@ -94,7 +90,7 @@ def _apply_blank(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
   # §2: explicit cm dims override "format" — rendered at the core's default DPI,
   # exactly like the console's `/blank <w> <h>` custom flow.
   if "width" in action:
-    from ...core import get_core  # lazy, like Editor's own core access
+    from ...core import get_core
 
     w_px, h_px = get_core().default_blank_size_px(action["width"], action["height"])
     editor.blank(w_px, h_px, color=action["color"])
@@ -113,11 +109,8 @@ def _apply_frame(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
 
 def _apply_image(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: (_PlanRun | NoneType) = None) -> None:
-  """§2.1: adopt the turn's Nth attached image as the working image.
-
-  An index the turn cannot satisfy is a skipped ACTION with a note, never a failed
-  plan — and the adopted picture starts a fresh coordinate frame (§1's accumulated
-  crop/rotate re-mapping no longer describes it)."""
+  """§2.1: adopt the turn's Nth attached image, in a fresh coordinate frame; an index the
+  turn cannot satisfy is a skipped action with a note."""
   index = action["index"]
   attachments = run.attachments if run is not None else []
   if index > len(attachments):
@@ -135,16 +128,12 @@ def _apply_image(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
 
 def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: (_PlanRun | NoneType) = None) -> None:
-  """§2.1: write the current image + layout as ``<name>.stencil`` beside the output.
-
-  The name comes from the action, else from the active attachment's file name, else
-  from the editor's own project name; a name already on disk gains a " 2"/" 3"…
-  suffix. Nothing loaded is a skipped action with a note, never a failed plan."""
+  """§2.1: write ``<name>.stencil`` — the action's name, else the active attachment's, else
+  the editor's; a taken name gains " 2"/" 3"…; nothing loaded skips with a note."""
   has_image = getattr(editor, "has_image", None)
   if has_image is not None and not has_image():
     if run is not None: run.notes.append("Skipped save — no working image to save")
     return
-  # A "path" destination is valid but not honoured here — note + usual place.
   if action.get("path") and run is not None:
     run.notes.append("Saved to the usual place — this surface cannot save to a path")
   active = run.active_name if run is not None else ""
@@ -156,8 +145,7 @@ def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
 
 def _apply_history_step(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
             run: (_PlanRun | NoneType) = None) -> None:
-  """§2 ``undo``/``redo``: step the editor's OWN edit history. One step is one
-  history entry; running out of entries is a note, never a failed plan."""
+  """§2 ``undo``/``redo``: one step per history entry; running out is a note."""
   op = action["op"]
   step = editor.undo if op == "undo" else editor.redo
   steps = action.get("steps", 1)
@@ -171,8 +159,7 @@ def _apply_history_step(action: dict, editor: Any, frame: (_FrameMap | NoneType)
 
 def _apply_reset(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: (_PlanRun | NoneType) = None) -> None:
-  """§2 ``reset``: drop every pending edit back to the original (the console's
-  /reset). Nothing loaded is a skipped action with a note, never a failed plan."""
+  """§2 ``reset`` back to the original; nothing loaded skips with a note."""
   has_image = getattr(editor, "has_image", None)
   if has_image is not None and not has_image():
     if run is not None: run.notes.append("Skipped reset — no working image")

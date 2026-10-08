@@ -16,8 +16,7 @@ export const BROWSER_CAPABILITIES = new Set([
 // a test that no OPS key uses one of these names, and the reject in executeOpPlan.
 export const FORBIDDEN_OPS = new Set(SCHEMA.forbidden);
 
-// The typed error the executor throws for a forbidden op — even one that somehow
-// bypassed the parser (which drops unknown names before they get here).
+// The typed error the executor throws for a forbidden op, even one that got past the parser.
 export class ForbiddenOpError extends Error {
   constructor(op) {
     super(`Forbidden operation "${op}" — this op is never model-drivable (contract §13)`);

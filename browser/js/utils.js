@@ -1,7 +1,6 @@
 // One import point over ./utils/ (a file per concern); the mutable hotkey registry lives
 // in ./core/settings/hotkeys.js.
 export { onWindowResize, perFrame } from './ui/canvas/frameSync.js';
-// Lives in ui/control/scrollbarHover.js (an extension port); re-exported for its old callers.
 export { SCROLLBAR_STRIP_PX, scrollbarHit, scrollbarOwnerAt, wireScrollbarHover } from './ui/control/scrollbarHover.js';
 export * from './utils/dom.js';
 export * from './utils/math.js';

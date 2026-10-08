@@ -274,6 +274,7 @@ Failures print one or more lines beginning with `error:` (e.g. from `args.zig`, 
 error: could not parse crop spec "oops"
 error: unknown flag '--nope'
 error: refusing to fetch internal/blocked host 'x'
+error: ffmpeg did not finish within 60s — stopped
 error: --remote-update needs --server <url> -i <project>
 ```
 
@@ -591,6 +592,10 @@ asked for a project's files; `stencil_project_update` reads §6.3 and `stencil_p
   `null`, `format` the file's extension. Without ffprobe, ffmpeg's first frame still gives
   the size and both keys are `null`; without either, `error: ffmpeg not found on PATH — needed
   only for video input`. A still never carries the two keys.
+- A video **URL** is fetched through the same guard and 64 MiB cap as a still (redirects
+  refused) before ffprobe or ffmpeg reads it, so a refused host prints the same
+  `error: refusing to fetch …` line. ffmpeg and ffprobe are killed after 60 s with
+  `error: <tool> did not finish within 60s — stopped`; a frame grab under `-i` is the same.
 
 ### 6.2 `--list-projects` / `--project-info <id|name>` (with `--server <url>`)
 

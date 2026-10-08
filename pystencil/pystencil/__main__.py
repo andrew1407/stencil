@@ -1,8 +1,4 @@
-"""Package entry point so ``python -m pystencil`` runs the CLI.
-
-Mirrors the ``stencil-py`` console-script entry point declared in pyproject; both
-just delegate to :func:`pystencil.cli.main`.
-"""
+"""``python -m pystencil``: the same :func:`pystencil.cli.main` as the ``stencil-py`` script."""
 
 from __future__ import annotations
 

@@ -29,6 +29,8 @@ type Envelope struct {
 	Type string          `json:"type"`
 	From string          `json:"from,omitempty"` // originating client id ("" = server)
 	Data json.RawMessage `json:"data"`           // the frame as sent to clients
+	// Origin names the publishing hub instance ("" = none), which delivers to its own members directly.
+	Origin string `json:"origin,omitempty"`
 }
 
 // EnvelopeOf wraps an already-marshalled frame for publication.

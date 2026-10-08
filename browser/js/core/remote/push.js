@@ -2,7 +2,7 @@
 // merge-and-retry loop, and the rendered result upload. `hooks` carries the controller's side:
 // the toast policy, the echo clock and the filter adoption a merge needs.
 import { notify } from '../../utils.js';
-import { mergeLines, sanitizeLines, capLayoutPoints } from '../layout.js';
+import { mergeLines, sanitizeLines, capLayoutPoints, lineDedupeKey } from '../layout.js';
 import { editorMemento } from '../historyStack.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { requireConnection, saveRemoteProject, putRemoteResult } from '../../net/remoteSync.js';
@@ -16,16 +16,18 @@ const projectName = (app) => (app.activeProjectId != null
   ? (app.storage.store.getMeta(app.activeProjectId)?.name || app.imageBaseName || 'Untitled')
   : (app.imageBaseName || 'Untitled'));
 
-// A peer saved first: merge their lines, adopt the server version — re-merged on every pass,
-// so repeated bumps can't drop our edit.
-const mergePeer = async (app, conn, hooks) => {
+// A peer saved first: merge their lines and adopt the server version. Each pass merges against
+// what the last pass saw: a line of that peer set is theirs, so a peer's move never resurrects it.
+const mergePeer = async (app, conn, hooks, seen) => {
   const full = await conn.getProject(app.remoteLink.remoteId);
   app.remoteLink = { ...app.remoteLink, version: full.project?.version ?? app.remoteLink.version };
   const sl = full.layout || {};
-  app.lines = capLayoutPoints(mergeLines(sanitizeLines(sl.lines), app.lines));
+  const peer = sanitizeLines(sl.lines);
+  const local = app.lines.filter((l) => !seen.peerKeys.has(lineDedupeKey(l)));
+  seen.peerKeys = new Set(peer.map(lineDedupeKey));
+  app.lines = capLayoutPoints(mergeLines(peer, local));
 // A line-only edit must not clobber a peer's filter change (the scalar can't merge).
   if (!app.filterDirty) hooks.adoptServerFilter(sl);
-  app.history.push(editorMemento(app));
   app.renderer.redraw();
 };
 
@@ -40,6 +42,12 @@ export const pushLayout = async (app, hooks) => {
     return null;
   }
   const name = projectName(app);
+  const seen = { peerKeys: new Set(), merged: false };
+  // One undo step for the whole save, however many passes it merged.
+  const settle = (out) => {
+    if (seen.merged) app.history.push(editorMemento(app));
+    return out;
+  };
   for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
     const layout = currentLayoutPayload(app);
     hooks.saved();
@@ -48,15 +56,16 @@ export const pushLayout = async (app, hooks) => {
       hooks.saved();
       app.filterDirty = false;
       hooks.toast('ok', attempt === 0 ? 'Saved to server' : 'Merged changes from another editor', 'ok');
-      return app.remoteLink;
+      return settle(app.remoteLink);
     } catch (err) {
       if (!err || !err.conflict) {
         hooks.toast('failed', `Server save failed — ${err.message}`, 'fail');
-        return null;
+        return settle(null);
       }
-      try { await mergePeer(app, conn, hooks); } catch { /* fetch failed; loop retries with current state */ }
+      try { await mergePeer(app, conn, hooks, seen); seen.merged = true; } catch { /* fetch failed; loop retries with current state */ }
     }
   }
+  settle();
   // Reload so the user sees a consistent state (our lines were merged in by an earlier pass).
   notify('Sync conflict — reloaded latest from the server', 'info');
   hooks.reload();
@@ -67,7 +76,10 @@ export const pushLayout = async (app, hooks) => {
 // image worker when there is one (worker/imageTasks.js resultPngBytes).
 export const captureResult = (app) => ({ link: app.remoteLink, job: app.image ? restingJob(app) : null });
 
-// The link that is still open adopts the version the upload bumped to.
+const sameLink = (a, b) => !!a && !!b && a.remoteId === b.remoteId && a.address === b.address;
+
+// The write is measured against the link as it stands when it starts, so a push queued before it
+// does not hide this write's own bump; the still-open link adopts only that bump.
 export const putResult = async (app, { link, job }, hooks) => {
   if (!link || !job || !getSyncToServer()) return;
   try {
@@ -75,10 +87,10 @@ export const putResult = async (app, { link, job }, hooks) => {
     const bytes = await resultPngBytes(job);
     if (!bytes) return;
     hooks.saved();
-    const next = await putRemoteResult(conn, link, { bytes, ext: 'png', w: job.width, h: job.height });
+    const base = sameLink(app.remoteLink, link) ? app.remoteLink : link;
+    const next = await putRemoteResult(conn, base, { bytes, ext: 'png', w: job.width, h: job.height });
     hooks.saved();
     const cur = app.remoteLink;
-    if (cur && cur.remoteId === link.remoteId && cur.address === link.address && next.version > cur.version)
-      app.remoteLink = { ...cur, version: next.version };
+    if (sameLink(cur, link) && next.version > cur.version) app.remoteLink = { ...cur, version: next.version };
   } catch (err) { hooks.toast('failed', `Server save failed — ${err.message}`, 'fail'); }
 };

@@ -1,8 +1,6 @@
-"""pystencil — a stdlib-only Python front-end over the shared Stencil C++ core.
-
-Mirrors the browser editor's window.stencil facade and the Zig CLI's editing pipeline
-against the SAME core/ logic via ctypes (no third-party deps). This module file is the
-package sentinel; the public surface is re-exported here as the other modules land.
+"""pystencil — a stdlib-only Python front-end over the shared Stencil C++ core, through
+ctypes: the browser's ``window.stencil`` facade and the Zig CLI's pipeline over the same
+``core/``. The public surface is re-exported here.
 """
 
 from __future__ import annotations
@@ -13,7 +11,6 @@ from . import _native
 
 _native.sync_data()
 
-# Public surface. All stdlib-only, no third-party deps.
 from . import codecs
 from ._ffi.formula import FormulaContext
 from .core import Core, get_core
@@ -44,7 +41,6 @@ from .llm import (
   parse_op_plan,
 )
 
-# `Stencil` is the friendly alias for the Editor facade (mirrors window.stencil).
 Stencil = Editor
 
 __all__ = [

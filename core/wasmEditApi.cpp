@@ -1,13 +1,10 @@
-// WebAssembly ABI: the line-list edits — the co-edit merge's keep mask, and the chain edits
-// the browser runs in JS on its live lines (exported for the parity suite). Lines cross as the
-// abi/linesCodec.hpp pair; a point list as a flat [x0,y0,…] array.
+// WebAssembly ABI: the chain edits the browser runs in JS on its live lines (exported for the
+// parity suite); a point list crosses as a flat [x0,y0,…] array. The co-edit merge's keep mask
+// is in abi/shared.inc.
 
-#include "linesCodec.hpp"
 #include "lineChain.hpp"
-#include "lineMerge.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 using namespace stencil::core;
@@ -31,20 +28,6 @@ namespace {
 }  // namespace
 
 extern "C" {
-
-  // keep[i] = 1 when local line i joins the merge; returns how many local lines were decoded,
-  // of which the first keepCap are written.
-  int stencil_mergeLinesKeep(const double* sNums, int sNumsLen, const std::uint8_t* sText,
-                             int sTextLen, const double* lNums, int lNumsLen,
-                             const std::uint8_t* lText, int lTextLen, std::uint8_t* keep,
-                             int keepCap) {
-    const Lines server = abi::decodeLines(sNums, sNumsLen, sText, sTextLen);
-    const Lines local = abi::decodeLines(lNums, lNumsLen, lText, lTextLen);
-    const std::vector<bool> k = mergeKeep(server, local);
-    for (std::size_t i = 0; keep != nullptr && i < k.size() && static_cast<int>(i) < keepCap; ++i)
-      keep[i] = k[i] ? 1 : 0;
-    return static_cast<int>(k.size());
-  }
 
   // The ring without its closing copy into out (n points of room); the new point count, or -1
   // when the line is not an area and nothing changed.

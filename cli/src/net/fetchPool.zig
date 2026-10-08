@@ -6,26 +6,38 @@
 const std = @import("std");
 
 /// Upper bound on concurrent fetches in one batch: the jobs are I/O-bound, so a small pool turns N
-/// serial round-trips into roughly one without antisocial socket counts. = pystencil MAX_FETCH_WORKERS.
+/// serial round-trips into roughly one without antisocial socket counts. Pinned to pystencil's
+/// MAX_FETCH_WORKERS by tests/config/fetch_workers_drift_test.zig.
 pub const max_workers = 8;
 
-// One reusable body scratch per THREAD rather than one per request: eight concurrent fetches would
-// otherwise map eight 64 MiB buffers. Pages commit lazily, so a thread pays for what it read.
+// The body scratch of the exchange running on this thread. Pages commit lazily, so a request
+// pays for what it read; the exchange (and each pool job) releases it on the thread that took it.
 threadlocal var scratch: ?[]u8 = null;
+var live_scratch: std.atomic.Value(usize) = .init(0);
 
-/// A page-allocated buffer of at least `min_len` bytes, cached for this thread; null on OOM.
+/// A page-allocated buffer of at least `min_len` bytes, held by this thread until
+/// `releaseScratch`; null on OOM.
 pub fn bodyScratch(min_len: usize) ?[]u8 {
     if (scratch) |s| {
         if (s.len >= min_len) return s;
         releaseScratch();
     }
     scratch = std.heap.page_allocator.alloc(u8, min_len) catch null;
+    if (scratch != null) _ = live_scratch.fetchAdd(1, .monotonic);
     return scratch;
 }
 
 pub fn releaseScratch() void {
-    if (scratch) |s| std.heap.page_allocator.free(s);
+    if (scratch) |s| {
+        std.heap.page_allocator.free(s);
+        _ = live_scratch.fetchSub(1, .monotonic);
+    }
     scratch = null;
+}
+
+/// Scratch buffers held across every thread.
+pub fn liveScratch() usize {
+    return live_scratch.load(.monotonic);
 }
 
 /// The `net.fetch` shape, as the injectable seam scrape already passes around.
@@ -66,7 +78,6 @@ pub const Batch = struct {
     /// path only — never under the full-screen console, whose sink repaints from the terminal's thread.
     pub fn run(self: *Batch, io: std.Io, ctx: *anyopaque, f: FetchFn, jobs: []const Job) void {
         std.debug.assert(jobs.len == self.results.len);
-        defer releaseScratch();
         if (jobs.len < 2) {
             for (jobs, 0..) |job, i| self.results[i] = one(f, ctx, self.arenas[i].allocator(), io, job);
             return;
@@ -97,6 +108,7 @@ pub fn fetchAll(gpa: std.mem.Allocator, io: std.Io, ctx: *anyopaque, f: FetchFn,
 }
 
 fn one(f: FetchFn, ctx: *anyopaque, a: std.mem.Allocator, io: std.Io, job: Job) Fetched {
+    defer releaseScratch();
     const bytes = f(ctx, a, io, job.url, job.strict) catch |e| return .{ .err = e };
     return .{ .bytes = bytes };
 }
@@ -110,6 +122,7 @@ const Recorder = struct {
     fn fetch(ptr: *anyopaque, a: std.mem.Allocator, _: std.Io, url: []const u8, _: bool) anyerror![]u8 {
         const self: *Recorder = @ptrCast(@alignCast(ptr));
         _ = self.calls.fetchAdd(1, .monotonic);
+        _ = bodyScratch(4096) orelse return error.OutOfMemory; // as the real exchange does, on the job's thread
         if (std.mem.endsWith(u8, url, ".bad")) return error.HttpFailed;
         return a.dupe(u8, url);
     }
@@ -135,6 +148,7 @@ test "Batch.run keeps submission order and reports per-job failures" {
     batch.run(io, @ptrCast(&rec), Recorder.fetch, &jobs);
 
     try testing.expectEqual(@as(usize, n), rec.calls.load(.monotonic));
+    try testing.expectEqual(@as(usize, 0), liveScratch()); // every worker gave its scratch back
     for (batch.results, 0..) |r, i| {
         if (i % 5 == 0) {
             try testing.expect(r.bytes == null);

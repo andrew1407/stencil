@@ -1,7 +1,5 @@
-/* ── AI assistant chat panel (stencil-chat-panel) ──
-   Dockable overlay panel driven by chatPanel.js. Docked size lives in --chat-size;
-   float mode gets an inline rect from JS. Both are session-only — nothing persists.
-   Theme-aware via the shared vars — no per-theme rules needed. */
+/* The AI assistant chat panel (stencil-chat-panel): docked size in --chat-size, float mode an
+   inline rect from JS; both session-only. */
 /* Not inherited: on :root every resize step restyled the whole page (dock.js sets each reader). */
 @property --chat-size { syntax: '*'; inherits: false; }
 stencil-chat-panel {
@@ -73,19 +71,12 @@ stencil-chat-panel.chat-dock-float  { border-radius: 10px; }
     cursor: pointer;
 }
 .chat-hbtn:hover { background: var(--bg-container); color: var(--text-main); }
-/* The Resend/Retry icon under a failed turn (chatView.js chatConfigureButton's sibling,
-   the .chat-hbtn shape) reads on the DANGER wash a plain error card sits on — the
-   header ghosts' bg-container fill (near-black in dark mode) landed as a stray dark
-   square there (user report). No fill at all: just its own muted glyph colour traced
-   as a thin outline, so hovering it never looks like it grew a background. Border
-   reserved at rest (transparent) so gaining it on hover costs no layout shift. */
+/* The Retry icon sits on the danger wash: no fill (a dark square there, user report), its glyph
+   traced as an outline; the border reserved at rest so hover shifts nothing. */
 .chat-retry-cta { border: 1px solid transparent; }
 .chat-retry-cta:hover { background: transparent; border-color: var(--text-muted); color: var(--text-muted); }
 .chat-dock-btns { display: inline-flex; gap: 1px; flex: 0 0 auto; }
 .chat-dock-btn-active, .chat-hbtn.chat-dock-btn-active { color: var(--accent); background: var(--bg-container); }
-/* The toolbar toggle (#chat-btn) shares the Settings-section ghost/active rules —
-   its open state toggles the same `active` class as fullscreen/incognito (white
-   glyph on the accent fill), see the group styling above. */
 /* Disabled ghost buttons follow the app's disabled palette. */
 .chat-hbtn:disabled {
     color: var(--disabled-text);
@@ -97,9 +88,8 @@ a.chat-hbtn { text-decoration: none; }
    btn-icon treatment — order is send first, then media, then settings. */
 .chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px; padding: 0; flex: 0 0 auto; border-radius: 6px; }
 .chat-abtn .ic, .ctx-assist-abtn .ic { flex: 0 0 auto; }
-/* Send with nothing typed, where voice input exists: not :disabled (a disabled button
-   hears no double-click / hold — the gesture that switches an EMPTY composer to
-   dictation), but drawn as one. Same palette as layout/shell.css's button:disabled. */
+/* Send with nothing typed where voice exists: not :disabled (it must hear the double-click/hold
+   that starts dictation), but drawn as one. */
 .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle {
     background: var(--disabled-bg);
     color: var(--disabled-text);
@@ -108,9 +98,7 @@ a.chat-hbtn { text-decoration: none; }
 /* The mic's outer sound waves reach past its 24-unit frame: the glyph keeps its box (the
    buttons around it have the room), only its ink may spill. */
 .ic-mic { overflow: visible; }
-/* The mic face: a plain ghost while paused (no accent — the chat button's idle look),
-   accent-filled while listening. Its glow, ray ring and swell — the logo's own shine,
-   driven by the voice — live in animations/voice.css beside the logo's rules. */
+/* The mic: a plain ghost while paused, accent-filled while listening (its glow: animations/voice.css). */
 .chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on {
     background: transparent;
     color: var(--text-main);

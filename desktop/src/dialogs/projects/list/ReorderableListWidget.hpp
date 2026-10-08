@@ -4,6 +4,7 @@
 // an in-list drop reports (from,to) for the caller to permute and rebuild, a drop outside invokes
 // onDragOut(row). Header-only and deliberately Q_OBJECT-free (std::function callbacks, no MOC).
 // Drags start from a DragGrip handle in each row, which itemWidgets would otherwise swallow.
+#include "../../../support/sheets/dialogSheets.hpp"
 #include <QAbstractItemView>
 #include <QByteArray>
 #include <QCursor>
@@ -129,8 +130,7 @@ namespace stencil::gui {
     // Position the insertion line at viewport-y `y` (the top or bottom edge of the target row).
     void positionDropIndicator(int y) {
       if (!dropIndicator) return;
-      dropIndicator->setStyleSheet(
-          QStringLiteral("background:%1; border-radius:2px;").arg(palette().color(QPalette::Highlight).name()));
+      dropIndicator->setStyleSheet(support::dropIndicatorSheet(palette().color(QPalette::Highlight)));
       dropIndicator->setGeometry(3, y - 2, viewport()->width() - 6, 4);
       dropIndicator->raise();
       dropIndicator->show();

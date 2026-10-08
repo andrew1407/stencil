@@ -1,4 +1,5 @@
 #include "SelectionPanel.hpp"
+#include "windowSheets.hpp"
 #include "selectionPanelParts.hpp"
 #include "iconMotionTypes.hpp"
 #include <QFrame>
@@ -77,7 +78,7 @@ namespace stencil::gui {
     // Shown while 2+ lines are multi-selected; the "Selected Line:" bar stays hidden then.
     multiLabel = new QLabel(card);
     multiLabel->setWordWrap(true);
-    multiLabel->setStyleSheet("color: palette(highlight); font-weight: 600;");
+    multiLabel->setStyleSheet(support::multiSelectLabelSheet());
     multiLabel->setVisible(false);
     layout->addWidget(multiLabel);
 

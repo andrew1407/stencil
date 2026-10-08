@@ -98,8 +98,7 @@ namespace stencil::gui {
     void deleteSelectedLine();
 
     bool getIsDrawing() const { return isDrawing; }
-    // Hold-to-draw (browser holdDraw.js); the delay (ms) is the hold/dwell threshold from Settings.
-    void setHoldDrawDelay(int ms);
+    void setHoldDrawDelay(int ms);   // the hold-to-draw dwell (browser holdDraw.js)
     int holdDrawDelay() const { return hold.delayMs; }
 
    signals:
@@ -121,8 +120,7 @@ namespace stencil::gui {
     void blankImageRequested();
     void drawingModeChanged(bool drawing);
     void drawModeChanged(DrawMode mode);  // line vs. rect
-    // Widget-space px; MainWindow owns the scroll area.
-    void panBy(int dx, int dy, bool fast);          // drag pan
+    void panBy(int dx, int dy, bool fast);          // drag pan, widget-space px
     void fitRequested();                            // double-click fit
     void zoomAtCursor(int dir, const QPoint& posInWidget, bool fast);
     // Trackpad pinch: a continuous factor about the cursor.
@@ -165,12 +163,11 @@ namespace stencil::gui {
     // must ground them first, or the last one finishes on whatever line inherited its number.
     void resetStrokeFx();
     double fxNow() const;
-    // mousePressEvent dispatch; handleCtrlClick returns true when it consumes the click.
     void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods, const QPoint& globalPos);
     // Alt+Ctrl: pull a NEW point out of the line under the cursor, breaking a closed area (core lineChain).
     bool beginPullOut(const core::Point& ip);
     void beginZoomRect(const QPoint& widgetPos);
-    bool handleCtrlClick(const core::Point& ip);
+    bool handleCtrlClick(const core::Point& ip);   // true = it consumed the click
     void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods, const QPoint& widgetPos);
     bool breakChain(core::Point ip, bool repeat);   // ⌘/Ctrl+click or a double-click while drawing
     void beginHold(const QPoint& widgetPos);

@@ -1,5 +1,6 @@
 // One connection card, as rebuildList() makes it; its row of controls is ConnectDialogRowActions.cpp.
 #include "ConnectDialog.hpp"
+#include "dialogSheets.hpp"
 #include "ReorderableListWidget.hpp"
 #include "iconSet.hpp"
 #include "connectDialogParts.hpp"
@@ -36,9 +37,8 @@ namespace stencil::gui {
     // Browser .connect-row align-items: center — taller items otherwise stretched and sat off-centre.
     h->setAlignment(Qt::AlignVCenter);
     auto* grip = new DragGrip;
-    // Scoped by objectName: bare property rules bleed into the widget's own QToolTip.
     grip->setObjectName("connGrip");
-    grip->setStyleSheet("#connGrip { color: palette(mid); letter-spacing: -3px; }");
+    grip->setStyleSheet(support::connGripSheet());
     grip->onDrag = [reList, myIndex] { reList->beginRowDrag(myIndex); };
     h->addWidget(grip);
     h->addSpacing(12);
@@ -96,7 +96,7 @@ namespace stencil::gui {
       bf.setBold(true);
       bf.setPointSizeF(bf.pointSizeF() * 0.86);
       btxt->setFont(bf);
-      btxt->setStyleSheet(QStringLiteral("color:%1;").arg(GOLD.name()));
+      btxt->setStyleSheet(support::connAdminTextSheet(GOLD));
       bl->addWidget(lock);
       bl->addWidget(btxt);
       h->addWidget(badge);

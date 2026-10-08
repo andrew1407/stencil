@@ -3,6 +3,7 @@
 import { cropAspect, isAlbumOrientation, pageDims } from '../lib/image/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
+import { routeStoreWrites } from '../lib/prefs/writeChain.js';
 import MOTION from '../config/motion.json' with { type: 'json' };
 import { watchNumericInputs } from '../lib/numericWatch.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
@@ -24,6 +25,7 @@ const postToHost = (type) => {
 // Answered as soon as this script runs: the host's watchdog asks "did the frame load at
 // all?" (a CSP / mixed-content block stops it dead), not "did the image finish loading".
 postToHost('ready');
+routeStoreWrites();
 installWebcore(document);
 wireWebcoreHold(document.querySelector('header .logo-wrap'));
 

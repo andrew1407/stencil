@@ -5,6 +5,8 @@
 #include "scriptProgram.hpp"
 
 #include <cstddef>
+#include <mutex>
+#include <utility>
 
 extern "C" {
 

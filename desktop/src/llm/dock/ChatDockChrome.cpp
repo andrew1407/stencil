@@ -2,6 +2,7 @@
 #include "chatDockShared.hpp"
 
 #include "theme.hpp"        // Palette (restyleIcons)
+#include "chatSheets.hpp"
 #include "../../support/control/FlowLayout.hpp"           // the suggestion chips wrap like browser chips
 
 #include <QHBoxLayout>
@@ -35,10 +36,7 @@ namespace stencil::gui {
         status == ChatDock::ProviderStatus::OK            ? QString(CHAT_STATUS_OK_COLOR)
         : status == ChatDock::ProviderStatus::UNREACHABLE ? QString(CHAT_STATUS_BAD_COLOR)
                                                           : pal.color(QPalette::Mid).name();
-    // Badge on the gear's corner: filled dot + a subtle ring for legibility.
-    dot->setStyleSheet(
-        QStringLiteral("background:%1;border-radius:3px;border:1px solid rgba(255,255,255,160);")
-            .arg(color));
+    dot->setStyleSheet(support::chatStatusDotSheet(color));
     gear->setToolTip(richTooltip);
     dot->setToolTip(richTooltip);
   }
@@ -135,18 +133,9 @@ namespace stencil::gui {
     return box;
   }
 
-  // Quiet solid chips: normal border/card background/text, accent border + a
-  // faint accent fill on hover. The boxes are qss/app/modals.qss's; only the palette is live.
   void styleSuggestionChips(QWidget* chips, const Palette& pal) {
     if (!chips) return;
-    const QString qss =
-        QStringLiteral("QPushButton{border:1px solid %1;background:%2;color:%3;}"
-                       "QPushButton:hover{border-color:%4;background:rgba(%5,%6,%7,26);}")
-            .arg(pal.borderMain.name(), pal.bgContainer.name(), pal.textMain.name(),
-                 pal.accent.name())
-            .arg(pal.accent.red())
-            .arg(pal.accent.green())
-            .arg(pal.accent.blue());
+    const QString qss = support::chatSuggestChipSheet(pal);
     for (QPushButton* chip : chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip")))
       chip->setStyleSheet(qss);
   }

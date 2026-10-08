@@ -68,3 +68,24 @@ func TestSweepDeletesExpiredSessions(t *testing.T) {
 		t.Fatalf("%d session batches, want 2", calls)
 	}
 }
+
+// stuckSessionSweep blocks until its context ends, as a wedged database would.
+type stuckSessionSweep struct{}
+
+func (stuckSessionSweep) DeleteExpiredSessions(ctx context.Context, _ int64, _ int) (int, error) {
+	<-ctx.Done()
+	return 0, ctx.Err()
+}
+
+// A pass runs on the root context, so a wedged session DELETE must give up at the op timeout.
+func TestSweepBoundsTheSessionDeleteByTheOpTimeout(t *testing.T) {
+	m := sweepOf(&fakeSweepStore{expires: map[string]int64{}}, sweepDrops(nil))
+	m.sessions, m.timeout = stuckSessionSweep{}, 50*time.Millisecond
+	done := make(chan struct{})
+	go func() { m.pass(context.Background()); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the pass waited on a wedged store past its op timeout")
+	}
+}

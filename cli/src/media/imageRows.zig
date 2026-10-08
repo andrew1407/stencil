@@ -1,5 +1,5 @@
 //! Row-parallel image transforms. The core exposes half-open [y0,y1) row slices of its
-//! whole-image ops (core/cliApi.h, "Row ranges") precisely because it owns no threading
+//! whole-image ops (the `*Rows` exports of core/cliApi.h) precisely because it owns no threading
 //! policy — this file owns the CLI's. It also holds the row slice of the C ABI: nothing
 //! else calls it, and core.zig stays the whole-image/scalar bridge.
 //! Bands write disjoint rows, so the output is byte-identical to the serial call.

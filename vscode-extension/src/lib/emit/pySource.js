@@ -6,8 +6,7 @@ import { versionCache } from '../spawn/versionCache.js';
 
 const PY_LANGUAGE = 'python';
 
-// The marker's span on its line — `@use stencil`, without the `#`. Only a line that carries
-// nothing before it: with code in front, the words are prose in a trailing comment.
+// `@use stencil` without the `#`, only on a line that carries nothing before it.
 const markerSpan = (lineText) => {
   const text = String(lineText ?? '');
   const start = text.indexOf(PY_USE_MARKER);

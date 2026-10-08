@@ -106,3 +106,17 @@ void STENCIL_ABI(mirrorEdit, mirrorEdit)(double x, double y, double w, double h,
   out[0] = t.crop.x; out[1] = t.crop.y; out[2] = t.crop.width; out[3] = t.crop.height;
   out[4] = t.quarters;
 }
+
+// keep[i] = 1 when local line i joins the co-edit merge; returns how many local lines were
+// decoded, of which the first keepCap are written.
+int STENCIL_ABI(mergeLinesKeep, mergeLinesKeep)(const double* sNums, int sNumsLen,
+                                               const std::uint8_t* sText, int sTextLen,
+                                               const double* lNums, int lNumsLen,
+                                               const std::uint8_t* lText, int lTextLen,
+                                               std::uint8_t* keep, int keepCap) {
+  const std::vector<bool> k = mergeKeep(abi::decodeLines(sNums, sNumsLen, sText, sTextLen),
+                                        abi::decodeLines(lNums, lNumsLen, lText, lTextLen));
+  for (std::size_t i = 0; keep != nullptr && i < k.size() && static_cast<int>(i) < keepCap; ++i)
+    keep[i] = k[i] ? 1 : 0;
+  return static_cast<int>(k.size());
+}

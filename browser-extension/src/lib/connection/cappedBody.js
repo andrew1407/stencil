@@ -40,6 +40,18 @@ export const readCapped = async (resp, max = MAX_FETCH_BYTES) => {
   return out.buffer;
 };
 
+// The body as a Blob of the response's own type under the same cap; a response with no stream
+// (an empty body, an injected fetch's plain object) reads through its own blob(), measured after.
+export const readBlobCapped = async (resp, max = MAX_FETCH_BYTES) => {
+  if (typeof resp.body?.getReader !== 'function' && typeof resp.blob === 'function') {
+    const blob = await resp.blob();
+    if (blob.size > max) throw new Error(`response exceeds the ${max}-byte fetch cap`);
+    return blob;
+  }
+  const type = resp.headers?.get?.('content-type') || '';
+  return new Blob([await readCapped(resp, max)], { type });
+};
+
 // The body parsed as JSON under the same cap. A response with neither a stream nor a buffer
 // (an injected fetch's plain object) reads through its own json().
 export const readJsonCapped = async (resp, max = MAX_FETCH_BYTES) => {

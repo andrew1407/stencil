@@ -1,25 +1,14 @@
-"""The executor-side coordinate re-mapping (contract §1).
-
-Self-contained: every plan coordinate arrives in the frame the model SAW, and this
-composes the crop translations and quarter-turn rotations that have run since.
-"""
+"""The executor-side coordinate re-mapping (contract §1)."""
 
 from __future__ import annotations
 
 from ..._ffi.types import NoneType
 
-# ── plan execution over the Editor facade ─────────────────────────────────────
 class _FrameMap:
-  """Contract §1 executor-side coordinate re-mapping: the running transform from
-  the frame the model SAW (the pre-plan snapshot) into the current working frame.
+  """The running transform from the frame the model SAW into the current working frame.
 
-  Every plan coordinate arrives in the pre-plan frame; each executed ``crop``
-  composes a translation by minus its resolved rect origin, and each ``rotate``
-  composes core ``rotateImageRGBA``'s quarter-turn mapping in continuous
-  coordinates — one clockwise turn of a w×h view sends (x, y) to (h − y, x).
-  Layout points are pushed through the accumulated steps, clamped into the
-  current bounds, then drawn. Bare stub editors without geometry (no
-  ``resolve_crop_rect``/``image_size``) record nothing and draw plans as-is.
+  A ``crop`` translates by minus its rect origin; a ``rotate`` composes core
+  ``rotateImageRGBA``'s mapping — one clockwise turn of a w×h view sends (x, y) to (h − y, x).
   """
 
   def __init__(self, steps: (list | NoneType) = None) -> None:
@@ -28,8 +17,6 @@ class _FrameMap:
     self._steps: list = list(steps or [])
 
   def branch(self) -> "_FrameMap":
-    """An independent copy for a variant (which composes its own crops/rotates
-    on top of the top-level actions' transform)."""
     return _FrameMap(self._steps)
 
   def push_crop(self, origin_x: float, origin_y: float) -> None:
@@ -51,6 +38,5 @@ class _FrameMap:
     return x, y
 
   def reset(self) -> None:
-    """Drop the accumulated steps: a fresh picture (a §2.1 ``image`` switch) starts
-    a fresh coordinate frame, so nothing planned before it applies any more."""
+    """A §2.1 ``image`` switch starts a fresh coordinate frame."""
     self._steps.clear()

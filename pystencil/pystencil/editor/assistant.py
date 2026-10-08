@@ -8,8 +8,6 @@ from .._ffi.types import NoneType
 
 
 class _AssistantApi:
-  """The editor-side LLM prompt round."""
-  # ── LLM assistant (llm-contract.md) ────────────────────────────────────
   def prompt(
     self,
     text: str,
@@ -19,21 +17,12 @@ class _AssistantApi:
   ) -> tuple[str, list]:
     """Ask the configured LLM to edit this image; returns ``(reply, outputs)``.
 
-    A thin single-turn delegate over :mod:`pystencil.llm`: the prompt (plus any
-    ``images`` as ``(media_type, bytes)`` tuples) is sent to the provider, the
-    reply is parsed into an op-plan, and — when ``execute`` — the plan runs against
-    THIS editor via :func:`pystencil.llm.execute_op_plan` (top-level actions mutate
-    the editor; each variant yields one extra :class:`Image`). ``llm`` is an
-    optional :class:`pystencil.llm.LlmClient`; when None one is built from the
-    ``STENCIL_LLM_*`` env keys. ``outputs`` is the list of result Images (empty for
-    chat-only turns or ``execute=False``). For a multi-turn conversation, use
-    :class:`pystencil.llm.Chat` and call ``execute_op_plan`` yourself.
-
-    ``images`` are also the turn's ATTACHMENTS for contract §2.1: an ``image`` op
-    switches the working image to the Nth of them (1-based) and a ``save`` op
-    writes ``<name>.stencil`` in the cwd, so one prompt can edit and keep several
-    pictures. Add a third tuple element — ``(media_type, bytes, "cat.jpg")`` — to
-    name the file an unnamed ``save`` derives its project name from.
+    One turn through :mod:`pystencil.llm`. ``images`` are ``(media_type, bytes[, name])`` tuples,
+    also the turn's §2.1 attachments: an ``image`` op switches to the Nth (1-based), and an
+    unnamed ``save`` writes ``<name>.stencil`` in the cwd after the active one's name. With
+    ``execute`` the plan runs against THIS editor and ``outputs`` holds the result Images (one
+    extra per variant), else it is empty, as for a chat-only turn. ``llm`` defaults to a client
+    built from ``STENCIL_LLM_*``; multi-turn is :class:`pystencil.llm.Chat` + ``execute_op_plan``.
     """
     # Imported lazily so constructing/using an Editor never pulls the LLM module.
     from ..llm import (
@@ -56,7 +45,5 @@ class _AssistantApi:
       [{"role": "user", "text": str(text), "images": wire_images(imgs)}]
     )
     plan = parse_op_plan(raw)
-    # The turn's attachments are what a §2.1 `image` op indexes (1-based), and an
-    # unnamed `save` names its .stencil after the active one.
     outputs = execute_op_plan(plan, self, attachments=imgs) if execute else []
     return plan.reply, outputs

@@ -10,7 +10,8 @@ fail a build or a review.
 
 ## Layers — imports point one way
 
-A layer may use everything to its left, nothing to its right.
+A layer may use everything to its left, nothing to its right; every line starts at the
+dependency-free end.
 
 - **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → `eventBus/` (`core/emitter.js`) →
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
@@ -23,11 +24,12 @@ A layer may use everything to its left, nothing to its right.
 - **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `media`) → `llm/` →
   `console/` → `app/` → `main.zig`. **`console/` and `app/` are the only layers allowed to
   write to a terminal**; lower layers return values and errors.
-- **server** — `cmd/` → `internal/httpapi` (**transport only** — decode, authorize, encode) →
-  service → `store`/`filestore` → `hub` → `protocol`. No business rule in a handler.
-- **bot** — `Domain` ← `Application` ← `Infrastructure` ← `Bot`. Dependencies point inward;
+- **server** — `protocol`, `clock`, `ratelimit`, `transport` → `validate`, `auth`, `eventbus`,
+  `llm` → `store`, `filestore`, `redisbus` → `service`, `hub`, `config` → `internal/httpapi`
+  (**transport only** — decode, authorize, encode) → `cmd/`. No business rule in a handler.
+- **bot** — `Domain` → `Application`, `Infrastructure` → `Bot`. Dependencies point inward;
   `Domain` stays free of Telegram, HTTP and process types.
-- **mcp** — `server/` + tools → `opplan/` → `args` → `pipeline` → `llm`.
+- **mcp** — `llm` + `llmtransport` → `pipeline` → `args` → `opplan/` → `server/` + tools.
 - **pystencil** — `_native`/`core` → `image`/`codecs`/`layout` → `editor` → `llm`/`server`/
   `sitesource` → `cli`.
 

@@ -75,12 +75,8 @@ def __png_chunk(ctype: bytes, payload: bytes) -> bytes:
 
 
 def encode_png(width: int, height: int, rgba: bytes | bytearray) -> bytes:
-  """Encode an RGBA8 buffer as a PNG (color type 6, 8-bit).
-
-  A deflate trial over sampled rows picks no filter, Up, or per row the cheapest of
-  None/Sub/Up — the whole-row filters a decode reverses fastest; zlib runs at level 6.
-  CRC32 is computed per chunk via ``zlib.crc32``.
-  """
+  """An RGBA8 buffer as an 8-bit type-6 PNG at zlib level 6, its filters picked by a deflate
+  trial among the whole-row ones a decode reverses fastest."""
   if len(rgba) != width * height * 4:
     raise CodecError(
       "rgba length %d != %d (w*h*4)" % (len(rgba), width * height * 4)

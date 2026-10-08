@@ -1,25 +1,7 @@
-"""The chainable editor facade — pystencil's port of the browser ``window.stencil``
-surface and the Zig CLI's structured editing session (``cli/src/console/session.zig``).
-
-The model mirrors the CLI's ``Session``/``EditState`` exactly: we keep one untouched
-ORIGINAL :class:`Image` plus a history of edit *snapshots* (rotation + crop + filter +
-lines) and a cursor into it. The current view is never baked eagerly — it is DERIVED on
-demand by :meth:`result`, applying the same pipeline the CLI's ``rebuild()`` uses:
-
-  rotate → crop → filter → rasterize lines
-
-so any edit can be serialized back to a browser-compatible layout JSON (see :meth:`layout`),
-not just flattened into pixels. ``/undo``, ``/redo`` and ``/reset`` move the cursor and the
-view re-derives. Every mutator is chainable (returns ``self``).
-
-Geometry composition (crop into rotated-original space, the crop and the lines riding along
-through a rotation, the lines recalculated by a crop) is ported one-to-one from
-``session.applyCrop`` / ``session.applyRotate``; crop-spec page metrics come from
-``cli/src/pipeline.zig`` (``resolveCropSpec`` + ``pageForImage``).
-
-Split across _snapshot / source / edits / derive / layout_io / project / assistant;
-what stays here is the history itself — the original image, the snapshot stack and the
-cursor every mixin reads and pushes through.
+"""The chainable editor facade — the port of the browser's ``window.stencil`` and the CLI's
+``Session``/``EditState`` (``cli/src/console/session.zig``): one untouched ORIGINAL image, a
+history of edit snapshots and a cursor. The view is derived on demand by :meth:`result`, so
+any edit serializes back to layout JSON; every mutator returns ``self``.
 """
 
 from __future__ import annotations
@@ -50,31 +32,21 @@ class Editor(
   _AssistantApi,
   _ScriptApi,
 ):
-  """Chainable image-annotation editor over the shared Stencil core.
-
-  Construct one, :meth:`load` (or :meth:`blank`) a source, then chain edits
-  (:meth:`rotate`, :meth:`crop`, :meth:`set_filter`, :meth:`draw`, ...). Call
-  :meth:`result` for the derived :class:`Image`, :meth:`save` to write it, or
-  :meth:`layout`/:meth:`save_layout` for the structured payload.
-  """
+  """Chainable image-annotation editor over the shared Stencil core: :meth:`load` or
+  :meth:`blank`, chain edits, then :meth:`result`, :meth:`save` or :meth:`layout`."""
 
   def __init__(self, core: (Core | NoneType) = None) -> None:
-    # A caller may inject a Core; otherwise we lazily share the process singleton so
-    # codec-only construction stays cheap and tests can pass an explicit handle.
     self._core = core
     self._original: (Image | NoneType) = None
-    # Raw encoded bytes of the original + its ext (None ⇒ none), kept so save_project embeds
-    # the untouched source (lossless) instead of a PNG re-encode. See _set_source.
+    # The original's encoded bytes and ext, embedded verbatim by save_project; None = none.
     self._source_bytes: (bytes | NoneType) = None
     self._source_ext: (str | NoneType) = None
     self._history: list[_Snapshot] = list()
     self._cursor: int = 0
-    # Monotonic edit-state counter backing the public `revision` property.
     self._revision: int = 0
     # One-slot memo for result(): ((revision, with_lines), derived Image).
     self._result: (tuple[tuple[int, bool], Image] | NoneType) = None
-    # Project name = image basename without extension; "layout" is the documented
-    # fallback used by save_layout when nothing better is known.
+    # Image basename without extension; "layout" when nothing better is known.
     self._name: str = "layout"
     # Optional provenance metadata (mirrors the server project's source/resource fields).
     self._source: (str | NoneType) = None
@@ -99,9 +71,7 @@ class Editor(
     self._custom_page_width: float = 0.0
     self._custom_page_height: float = 0.0
 
-  # ── core access ────────────────────────────────────────────────────────────
   def _get_core(self) -> Core:
-    """Return the injected Core or the lazily-loaded process singleton."""
     if self._core is None: self._core = get_core()
     return self._core
 
@@ -113,14 +83,10 @@ class Editor(
     return img
 
 
-  # ── introspection ──────────────────────────────────────────────────────────
   @property
   def revision(self) -> int:
-    """A monotonic counter bumped on every edit-state mutation: load()/blank()
-    (and everything routing through them), each edit, undo/redo (when they
-    move), and reset. An unchanged revision means :meth:`result` derives the
-    same view, so it is the public key for caches over the rendered image —
-    e.g. the console's encoded-PNG memo for /prompt attachments."""
+    """Bumped on every edit-state change (load/blank, each edit, a moving undo/redo, reset); an
+    unchanged revision means :meth:`result` derives the same view, so it keys caches."""
     return self._revision
 
   @property
@@ -140,14 +106,9 @@ class Editor(
     return self._color
 
   def set_project_color(self, color: str) -> "Editor":
-    """Set the project's custom accent colour (normalised to lower-case "#rrggbb").
-
-    An empty/blank value clears it back to "" (theme fallback); any other value is
-    parsed by the shared core and rejected with ValueError when unrecognised — the
-    same contract the browser's normalizeHex and the CLI's /project-color enforce.
-    Push the result to a server project via
-    ``ServerConnection.update_project(..., color=editor.project_color)``.
-    """
+    """Set the accent colour as lower-case "#rrggbb"; blank clears it to "" (theme fallback), an
+    unparseable one raises ``ValueError`` — the browser's ``normalizeHex`` and the CLI's
+    ``/project-color`` contract."""
     spec = (color or "").strip()
     if not spec:
       self._color = ""
@@ -164,9 +125,8 @@ class Editor(
     return list(self._keywords)
 
   def set_keywords(self, keywords) -> "Editor":
-    """Replace the project keywords with a list of strings (trimmed, empties/non-strings
-    dropped — mirrors project/file.js ``cleanKeywords`` and the browser
-    ``projectsStore.setKeywords``). Returns self for chaining."""
+    """Replace the keywords, trimmed with empties and non-strings dropped (project/file.js
+    ``cleanKeywords``, the browser's ``projectsStore.setKeywords``)."""
     self._keywords = _clean_keywords(keywords)
     return self
 

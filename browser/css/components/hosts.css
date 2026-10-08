@@ -1,8 +1,5 @@
-/* ── Custom-element hosts ───────────────────────────────────────
-   Custom elements default to display:inline. Hosts reusing a styled id/class
-   that sets display (#ctx-menu, .main-content, #notify-balloon, modals, …) are
-   covered; these block-flow hosts aren't, so restore their layout. The fullscreen
-   layer is a pure wrapper of fixed-positioned children, so it occupies no box. */
+/* Custom-element hosts default to display:inline; these block-flow hosts get their layout back,
+   and the fullscreen layer, a wrapper of fixed children, occupies no box. */
 stencil-app-container,
 stencil-toolbar,
 stencil-image-info { display: block; }

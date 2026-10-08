@@ -8,8 +8,9 @@
 #include <vector>
 
 // A line's stroke as one coverage pass, row by row: a pixel takes the max coverage over the
-// path's segments and blends once, as a canvas stroke does, so translucent ink never piles up
-// where the path meets itself. Only rasterize.cpp draws with it.
+// path's segments and blends once, as the canvas stroke of browser/js/core/line/render.js
+// does, so translucent ink never piles up where the path meets itself. Only rasterize.cpp
+// draws with it.
 namespace stencil::core::coverage {
 
   // `thickness` clamps to MAX_STROKE_THICKNESS; `dash` nullptr strokes solid.

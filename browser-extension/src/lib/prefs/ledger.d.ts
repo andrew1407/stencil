@@ -16,6 +16,7 @@ export declare function loadLedger(): Promise<LedgerEntry[]>;
 export declare function recordOpened(
   rec: { source: string; resource?: string; name?: string; editorUrl?: string; t?: number },
 ): Promise<LedgerEntry | null>;
+export declare const ledgerWrites: Readonly<{ recordOpened: typeof recordOpened }>;
 export declare function lookup(source: string, name: string): Promise<LedgerEntry[]>;
 export declare function originOf(url: string): string;
 export declare function reconcileLedger(

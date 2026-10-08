@@ -45,8 +45,8 @@ three lists, or the other two builds fail to find its headers:
 
 ## 3. Behavior parity — update the twin and the tests
 
-Each core module is a port of a specific `browser/js/` call site (the mapping is at the top
-of each core header) and the browser keeps a **JS fallback that must match the wasm build
+Each core module is a port of a specific `browser/js/` call site (the mapping is in
+each core header's opening comment) and the browser keeps a **JS fallback that must match the wasm build
 op-for-op** (`browser/tests/wasm/wasm-parity.test.js` enforces it). So a behavioral change to a
 core module also means:
 

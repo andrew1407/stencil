@@ -65,7 +65,7 @@ fn readMac(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     const script = try std.mem.concat(gpa, u8, &.{ mac_js_head, quoted, mac_js_tail });
     defer gpa.free(script);
 
-    const res = child.run(gpa, io, .{ .argv = &.{ "osascript", "-l", "JavaScript", "-e", script } }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "osascript", "-l", "JavaScript", "-e", script } }, child.helper_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -84,7 +84,7 @@ fn readLinux(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
         &.{ "wl-paste", "--no-newline", "--type", "image/png" },
         &.{ "xclip", "-selection", "clipboard", "-t", "image/png", "-o" },
     }) |argv| {
-        const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(MAX_IMAGE) }) catch |e| switch (e) {
+        const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(MAX_IMAGE) }, child.helper_timeout_ms) catch |e| switch (e) {
             error.FileNotFound => {
                 missing += 1;
                 continue;
@@ -120,7 +120,7 @@ fn readWindows(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     dir.deleteFile(io, path) catch {};
     defer dir.deleteFile(io, path) catch {};
 
-    const res = child.run(gpa, io, .{ .argv = &.{ "powershell", "-NoProfile", "-STA", "-Command", win_ps, "-args", path } }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "powershell", "-NoProfile", "-STA", "-Command", win_ps, "-args", path } }, child.helper_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -139,7 +139,7 @@ pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
         .windows => &.{ "powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw" },
         else => return Error.Unsupported,
     };
-    const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(1 << 20) }, child.helper_timeout_ms) catch |e| switch (e) {
         // X11 without wl-paste: xclip is the other half of the Linux pair.
         error.FileNotFound => if (builtin.os.tag == .linux) return readTextXclip(gpa, io) else return Error.ToolMissing,
         else => return e,
@@ -154,7 +154,7 @@ pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
 }
 
 fn readTextXclip(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
-    const res = child.run(gpa, io, .{ .argv = &.{ "xclip", "-selection", "clipboard", "-o" }, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "xclip", "-selection", "clipboard", "-o" }, .stdout_limit = .limited(1 << 20) }, child.helper_timeout_ms) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };

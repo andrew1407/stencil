@@ -77,7 +77,7 @@ func run() error {
 	ratelimit.SetIdleTTL(cfg.RateBucketIdle)
 	h := hub.New(rootCtx, st, b, st, hubOptions(cfg)...)
 	deps := apiDeps(cfg, st, fs, h, b)
-	expiry := service.Expiry{Store: st, Live: h}
+	expiry := service.Expiry{Store: st, Live: h, OpTimeout: cfg.OpTimeout}
 
 	// Presence, the expiry reaper (filestore bytes dropped, clients notified) and the filestore reconcile
 	// run on timers; the WaitGroup lets shutdown join all three before the store/bus close.
@@ -97,6 +97,7 @@ func run() error {
 		sessions: st,
 		batch:    cfg.Sweep.Batch,
 		workers:  cfg.Sweep.Workers,
+		timeout:  cfg.OpTimeout,
 	}, cfg.SweepInterval)
 	startReconcile(rootCtx, &sweepWG, fs, st, cfg.OpTimeout, cfg.Sweep.Reconcile, cfg.Sweep.TmpMaxAge)
 

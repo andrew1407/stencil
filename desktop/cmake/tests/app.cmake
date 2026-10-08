@@ -19,6 +19,11 @@ stencil_headless_test(stencil_remotesynccontroller_headless
     src/net/LiveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Gui Qt6::Network)
 
+# The linked .stencil file's conflict question and its write (app/remote/StencilFileSync).
+stencil_headless_test(stencil_stencilfilesync_headless
+  SOURCES tests/app/remote/stencilFileSync.headless.cpp
+  LIBS stencil_gui_objs)
+
 # What a press outside an open compact popover means (app/events/popover/PopoverHost.hpp).
 stencil_headless_test(stencil_popoverhost_headless
   SOURCES tests/app/events/popover/PopoverHost.headless.cpp

@@ -26,15 +26,8 @@ _CONSOLE_HOOKS = {
 
 def _apply_console_op(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
            run: ("_PlanRun" | NoneType) = None) -> None:
-  """Dispatch a §10 console-profile op to the surface's console hooks.
-
-  Without a console session (the library API — ``Editor.prompt`` / a bare
-  ``execute_op_plan``) the op is skipped with a note: connections, local project
-  files, the working-image slot and the conversation (``clearChat`` — a
-  single-turn ``Editor.prompt`` has none to clear) belong to the interactive
-  console, and ``openUrl`` additionally needs the console's user-echo guard, so
-  nothing here may fetch. A hook returns an optional note string (a §1
-  execution miss)."""
+  """A §10 console-profile op through the console's hook, whose optional return is a §1
+  miss note. Without a console session the op is skipped with a note and nothing is read."""
   op = action["op"]
   console = run.console if run is not None else None
   if console is None:
@@ -56,11 +49,9 @@ def _apply_console_op(action: dict, editor: Any, frame: (_FrameMap | NoneType) =
       run.active_name = ""
 
 
-# ── §10 console-profile executor helpers (the cli console's, ported) ─────────
 def url_echoed_by_user(history: Messages, current_text: str, url: str) -> bool:
-  """§10 openUrl guard: the model may only ECHO the user — true when ``url`` appears
-  verbatim in the current turn's text or a replayed USER turn (assistant text and
-  fetched/attached content never count). ``history`` is Chat-shaped message dicts."""
+  """§10 openUrl guard: true when ``url`` appears verbatim in the current text or a replayed
+  user turn; assistant text and attached content never count."""
   if url in (current_text or ""):
     return True
   for m in history or []:
@@ -81,10 +72,8 @@ def blocked_open_url(plan: OpPlan, history: Messages, current_text: str) -> (str
 
 
 def resolve_server(urls: Sequence[str], want: str):
-  """§10's connect/disconnect stance over the console's own URL list: exact URL
-  match, else a UNIQUE host (or host:port) match, case-insensitive. Returns the
-  matched index, ``"none"``, or ``"ambiguous"`` — the model can never introduce a
-  new address (an unmatched name is the user's to /connect)."""
+  """§10: the index of the exact URL, else of the unique case-insensitive host (or host:port)
+  match, else ``"none"`` or ``"ambiguous"`` — the model never introduces an address."""
   want = (want or "").strip()
   if not want:
     return "none"
@@ -116,16 +105,12 @@ class ConsoleServer:
   projects: (list[str] | NoneType) = None  # None = not fetched/unreachable (line omitted)
 
 
-# How many project names one server contributes to the context suffix.
 MAX_CONTEXT_PROJECTS = 20
 
 
 def console_context(servers: Sequence[ConsoleServer], active_project: str = "") -> str:
-  """The console's dynamic system-prompt suffix (§4 allows one; the cli console's
-  ``consoleContextAlloc`` ported verbatim): the connection list (URLs only), the
-  active project, and each server's project names — so "what am I connected to?" /
-  "which projects are on my server?" are answered from context, and the
-  connect/disconnect ops resolve against addresses the user already owns."""
+  """The console's §4 system-prompt suffix — connection URLs, the active project, each
+  server's project names; port of the cli's ``consoleContextAlloc``."""
   out = [
     "Console state (the console's own connections and project, for answering "
     "questions about it):\n"

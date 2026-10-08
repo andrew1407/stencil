@@ -14,6 +14,9 @@ export declare const resolveAxisPx: (token: unknown,
 /** Canonical page-size name ('A0'…'C10' or 'custom') for any casing; null otherwise. */
 export declare const normalizePageSize: (s: unknown) => string | null;
 
+/** The page's natural size in cm (no landscape swap); an unknown name reads as A4. */
+export declare const pageNaturalSize: (page: { pageSize?: string; customPageWidth?: number; customPageHeight?: number }) => { width: number; height: number };
+
 /** The saved-layout subset the length measure reads. */
 export interface MeasurableLayout {
   lines?: Array<{ points?: Array<{ x: number; y: number }> }>;

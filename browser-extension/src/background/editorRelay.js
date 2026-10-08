@@ -25,12 +25,15 @@ export const getTab = async (tabId) => {
   try { return await chrome.tabs.get(tabId); } catch { return null; }
 };
 
-// Who may ask for the privileged, cross-tab handlers. Our own pages are identified by
-// ORIGIN, not a missing `sender.tab` (popup.html can open as an ordinary tab).
+// Our own pages are identified by ORIGIN, not a missing `sender.tab` (popup.html can open
+// as an ordinary tab).
+export const fromExtensionPage = (sender) => String(sender?.url || '').startsWith(chrome.runtime.getURL(''));
+
+// Who may ask for the privileged, cross-tab handlers.
 const senderMayRelayPrivileged = async (sender) => {
   if (!sender) return false;
   const from = sender.url || '';
-  if (from.startsWith(chrome.runtime.getURL(''))) return true;   // popup / side panel / options
+  if (fromExtensionPage(sender)) return true;   // popup / side panel / options
   const { editorUrl, editorPageApi } = await getSettings();
   if (!editorPageApi) return false;
   return isEditorTab(from || sender.tab?.url || '', editorUrl);

@@ -1,6 +1,5 @@
-/* ── Assistant "thinking" dots ───────────────────────────────────────────────
-   The in-flight turn's placeholder: three dots bouncing in sequence, instead of a
-   static "…". Mirrored in browser-extension/src/popup/popup.css and the desktop dock. */
+/* Assistant "thinking" dots: three dots bouncing in sequence. Mirrored in
+   browser-extension/src/popup/popup.css and the desktop dock. */
 .chat-typing {
     display: inline-flex;
     align-items: center;
@@ -25,9 +24,7 @@
     .chat-typing i { animation: none; opacity: 0.6; }
 }
 
-/* The composer's drop-to-attach cue: the icon bobs toward the input while a drag
-   hovers it, so the target reads as "let go here" rather than a static outline.
-   The cue itself is styled in components/chat/narrow.css (.chat-drop-cue). */
+/* The composer's drop-to-attach cue (.chat-drop-cue in components/chat/narrow.css) bobs toward the input. */
 .chat-drop-cue-icon { animation: chat-drop-bob 1s infinite ease-in-out; }
 @keyframes chat-drop-bob {
     0%, 100% { transform: translateY(-2px); }
@@ -37,33 +34,14 @@
     .chat-drop-cue-icon { animation: none; transform: none; }
 }
 
-/* The hover preview fades in once it has been measured and placed (the class the
-   placement adds), so it never flashes at its pre-measurement position. */
+/* Faded in only once measured and placed, so it never flashes at its pre-measurement position. */
 .chat-thumb-preview { transition: opacity 0.12s ease; }
 @media (prefers-reduced-motion: reduce) {
     .chat-thumb-preview { transition: none; }
 }
 
-/* ── Motion mode (js/ui/motion/motionPrefs.js) ──────────────────────────────────────
-   The user's own switch over everything above, stamped on <html> before first paint
-   (js/prePaintTheme.js) and rewritten live when the Visuals modal moves it:
-
-     data-motion="particles"  the default — every surface forms out of specks;
-     data-motion="water"      the same particles as drops (ovals and wave lines);
-     data-motion="fire"       …as embers (triangles and sparks) — every style in the
-                              accent and its shade (dustCloud.js styleFrame / grainShape —
-                              the JS decides, nothing to write here);
-     data-motion="slide"      no particles: each surface plays the plain entrance it already
-                              owns (modalFromIcon, menuPop, chatSlide*, the FLIP
-                              landings) — the flight the cloud normally stands in for,
-                              which is why nothing has to be written here for it;
-     data-motion="none"       nothing moves.
-
-   The JS half turns itself off through motionReduced()/dustEnabled(), so this only has
-   to answer for what CSS alone drives — the hover transitions and looping keyframes no
-   script ever asks about. Near-zero rather than `none`, so an animation that carries an
-   element to its END state still lands there (and still fires animationend for the
-   scripts that wait on it), exactly as the prefers-reduced-motion blocks above do. */
+/* Motion mode (js/ui/motion/motionPrefs.js), stamped on <html> before first paint: particles | water |
+   fire | slide | none. Near-zero rather than `none`, so an animation still lands and fires animationend. */
 :root[data-motion="none"] *,
 :root[data-motion="none"] *::before,
 :root[data-motion="none"] *::after {
@@ -75,30 +53,18 @@
     scroll-behavior: auto !important;
 }
 
-/* A chat entry is the one surface whose ONLY entrance was its dust (the transcript
-   scrolls to it, so it never had a pop of its own). Without particles it would appear
-   from nothing mid-conversation, so `slide` gives it the rise the others already have —
-   motion.js chatIn adds the class exactly when the cloud declined but motion is still on. */
+/* A chat entry's only entrance was its dust, so `slide` gives it the rise (motion.js chatIn). */
 .chat-slide-in { animation: chatRiseIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes chatRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
     .chat-slide-in { animation: none; }
 }
 
-/* ── The motion modes' icons (js/ui/motion/icons.js) ──────────────────────────
-   Each dropdown row wears its mode's glyph, and hovering the row plays the mode:
-   the ⊘ line draws from top-right to bottom-left, the arrow is drawn from bottom-left to
-   top-right (its head last),
-   the drop falls in from the top and squashes as it lands, the flame lights from its
-   base and flickers, the specks settle in from the top one after another. The trigger
-   shows the current mode's glyph, still. Neutralised with everything else under
-   data-motion="none" and the OS preference (the blocks above). */
-/* In the row's own TEXT colour, hovered or not (never the accent) — the glyph reads like
-   the label beside it, white or black by theme. */
+/* The motion modes' icons (js/ui/motion/icons.js): hovering a row plays its mode; the trigger stays still. */
+/* The row's TEXT colour, hovered or not — never the accent. */
 .mm-icon { display: inline-block; width: 16px; height: 16px; flex: none; color: currentColor; }
 .mm-line { stroke-dashoffset: 0; }
-/* Played by a hovered row, by the hovered trigger, and by a trigger whose value just
-   changed (customSelect.js stamps .mm-play on the fresh glyph for one play). */
+/* customSelect.js stamps .mm-play on a freshly changed glyph for one play. */
 .accent-dd-opt:hover .mm-line, .accent-dd-trigger:hover .mm-line, .mm-play .mm-line { animation: mmLineDraw 0.45s ease-out both; }
 @keyframes mmLineDraw { from { stroke-dashoffset: 11.4; } to { stroke-dashoffset: 0; } }
 .mm-shaft { stroke-dashoffset: 0; }
@@ -127,6 +93,5 @@
 .mm-mote:nth-of-type(4) { animation-delay: 0.27s; }
 .mm-mote:nth-of-type(5) { animation-delay: 0.36s; }
 @keyframes mmDust { from { transform: translateY(-7px); opacity: 0; } to { transform: none; opacity: 1; } }
-/* The icon slot in a dropdown row and its trigger (customSelect.js `icons`). */
 .cs-opt-icon, .cs-cur-icon { display: inline-flex; align-items: center; flex: none; }
 .cs-cur-icon:empty { display: none; }

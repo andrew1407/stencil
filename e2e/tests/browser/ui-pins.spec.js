@@ -43,7 +43,6 @@ test.describe('browser UI pins', () => {
     await expect(page.locator('#selection-panel')).toBeVisible();
     await expectPin(page, { name: 'selection-panel-with-line', root: '#selection-panel' });
 
-    // Back to Points: the selected line's vertices, in the table.
     await page.locator('#coord-tab-points').click();
     await expect(page.locator('#coordinates-body tr').first()).toBeVisible();
     await expectPin(page, { name: 'coord-table-with-points', root: '#coord-panel' });

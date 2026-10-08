@@ -85,14 +85,12 @@ const confirmLeave = (el, isIn, leave) => {
   check();
 };
 
-// A dropdown opened inside `box` lives on <body> (dropdownMenu.js showMenu): the list is
-// part of the box all the same.
+// A dropdown opened inside `box` lives on <body>; its list is part of the box all the same.
 const ownedList = (box, el) => {
   const list = el?.closest?.('.dd-portal');
   return list && box?.contains?.(list.__ddTrigger) ? list : null;
 };
 
-// Pointer inside `box`, or inside a list one of its dropdowns opened.
 export const peekEngaged = (box) => pointerIn(box)
   || [...document.querySelectorAll('.dd-portal')].some((l) => ownedList(box, l) && pointerIn(l));
 

@@ -10,44 +10,6 @@
 
 namespace stencil::gui {
 
-  // Browser .chat-msg parity: the ROLE is colour and side; role/body ride as widget PROPERTIES.
-  QString chatCardStyleSheet(const Palette& pal, bool swapped) {
-    const auto rgba = [](const QColor& c, double a) {
-      return QStringLiteral("rgba(%1,%2,%3,%4)")
-          .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a);
-    };
-    // Flattened at the tail corner (browser .chat-swapped). Sheet-wide: a per-card local QSS
-    // shifted that card's wrapped-label height.
-    const QString flatBL =
-        QStringLiteral("border-top-left-radius:10px;border-top-right-radius:10px;"
-                       "border-bottom-left-radius:0;border-bottom-right-radius:10px;");
-    const QString flatBR =
-        QStringLiteral("border-top-left-radius:10px;border-top-right-radius:10px;"
-                       "border-bottom-left-radius:10px;border-bottom-right-radius:0;");
-    const QString& userRadii = swapped ? flatBL : flatBR;
-    const QString& otherRadii = swapped ? flatBR : flatBL;
-    return QStringLiteral(
-               "#chatCardUser{background:%3;border:1px solid %4;%10}"
-               "#chatCardAssistant{background:%2;border:1px solid %1;%11}"
-               // --text-muted through the STYLESHEET — under QSS a palette colour loses.
-               "#chatCardMuted{background:%8;border:1px solid %1;border-radius:10px;}"
-               "#chatCardMuted QLabel{color:%7;background:transparent;}"
-               // browser .chat-msg-error; the label rule matters — a stylesheet colour beats applyDangerText.
-               "#chatCardError{background:%6;border:1px solid %5;%11}"
-               "#chatCardError QLabel{color:%9;background:transparent;}"
-               // browser .chat-result: the variant card, its label in --text-muted
-               "#chatResult{background:%2;border:1px solid %1;border-radius:8px;}"
-               "#chatResult QLabel{color:%7;background:transparent;}")
-        .arg(pal.borderMain.name(), pal.bgContainer.name(),
-             // browser color-mix(accent 14%/32%)
-             rgba(pal.accent, 0.14), rgba(pal.accent, 0.32),
-             // color-mix(danger 45%/10%) + `color: var(--danger)`
-             rgba(pal.danger, 0.45), rgba(pal.danger, 0.10),
-             rgba(pal.textMuted, pal.textMuted.alphaF()), pal.bgControls.name(),
-             pal.danger.name())
-        .arg(userRadii, otherRadii);
-  }
-
   // Flattened opaque: ChatBubbleTail's fill triangle would otherwise blend a second time over its border.
   bool chatBubbleColorsFor(const QString& objectName, const QColor& accent, const QColor& chip,
                            const QColor& border, const QColor& danger, const QColor& pageBg,

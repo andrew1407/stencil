@@ -51,3 +51,10 @@ test "brand accent is accents.json's violet default and the --accent light token
     try testing.expectEqual(try rgbOfHex(light.string), brand.accent);
     try testing.expectEqual(theme.rgbOf(theme.default_key), brand.accent);
 }
+
+test "the default project-name grey is the --project-name-fg token, read by brand.tokenLight" {
+    const parsed = try std.json.parseFromSlice(std.json.Value, testing.allocator, theme_tokens_json, .{});
+    defer parsed.deinit();
+    const fg = parsed.value.object.get("tokens").?.object.get("--project-name-fg").?.object;
+    try testing.expectEqualStrings(fg.get("light").?.string, theme.name_default_hex);
+}

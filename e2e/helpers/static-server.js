@@ -20,8 +20,7 @@ const TREES = Object.freeze([
 const PORT = Number(process.env.PORT) || APP_PORT;
 const HOST = process.env.ADDR || APP_HOST;
 
-// ES modules refuse to load without the right Content-Type, so this table is the
-// whole point of the server.
+// ES modules refuse to load without the right Content-Type: this table is the server's point.
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',

@@ -90,6 +90,29 @@ async fn stdout_past_its_cap_is_refused() {
     assert!(error.contains("more than 2 MiB"), "{error}");
 }
 
+/// A child still writing past the cap is drained to its end, so it exits on its own (not by a
+/// broken pipe, and not at the run deadline) and the refusal comes back at once.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_child_writing_past_the_cap_is_drained_to_its_exit() {
+    let mut child = tokio::process::Command::new("sh")
+        .args(["-c", "head -c 4194304 /dev/zero"])
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("sh runs");
+    let pipe = child.stdout.take().unwrap();
+    let run = async {
+        let refused = read_capped(pipe, 1 << 20).await.unwrap_err();
+        (refused, child.wait().await.unwrap())
+    };
+    let (refused, status) = tokio::time::timeout(std::time::Duration::from_secs(10), run)
+        .await
+        .expect("the capped read returned and the child exited");
+    assert!(refused.contains("more than 1 MiB"), "{refused}");
+    assert!(status.success(), "the child was cut off instead of finishing: {status}");
+}
+
 /// A report reaches the sink its task is scoped to, spawned tasks included once re-scoped;
 /// outside any scope it is dropped.
 #[tokio::test]

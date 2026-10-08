@@ -1,14 +1,8 @@
-"""Shared outbound-HTTP plumbing for pystencil: the fetch guard (a stdlib-only port of
-the Zig CLI's ``cli/src/net.zig``) plus the dev-only TLS context.
+"""The one fetch guard (a stdlib port of ``cli/src/net.zig``) and the dev-only TLS context.
 
-Every outward fetch in this package goes through :func:`_fetch`: the scraper's page and
-media downloads (``sitesource``) and ``Editor.load(url)`` / layout-URL reads (``editor``).
-Keeping one copy means one place to reason about the scheme gate, the SSRF address block,
-the refused redirect and the size cap.
-
-Callers differ only in strictness: a URL the USER named runs ``strict=False`` (loopback
-allowed), a URL harvested from untrusted content runs strict. :func:`_fetch_all` runs a
-batch of independent fetches at once, since they are pure I/O waits.
+Every outward fetch goes through :func:`_fetch`: scheme gate, SSRF address block, refused
+redirect, byte cap. A URL the user named runs ``strict=False`` (loopback allowed); one
+harvested from untrusted content runs strict.
 """
 
 from __future__ import annotations
@@ -26,8 +20,7 @@ from ._ffi.types import NoneType
 from ._raster.parallel import map_parallel
 
 
-# A browser-like User-Agent so plain static hosts (and CDNs that 403 the urllib default)
-# serve us the same bytes a real browser would fetch.
+# CDNs that 403 the urllib default serve a browser-like agent the bytes a browser gets.
 USER_AGENT = (
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -40,16 +33,13 @@ def _is_http(url: str) -> bool:
   return low.startswith("http://") or low.startswith("https://")
 
 
-# Bounds memory against a hostile host streaming an endless body (parity with the Zig
-# CLI's net.MAX_FETCH_BYTES).
-MAX_FETCH_BYTES = 64 * 1024 * 1024  # 64 MiB
+# Bounds a hostile endless body; parity with net.zig's MAX_FETCH_BYTES.
+MAX_FETCH_BYTES = 64 * 1024 * 1024
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
-  """Refuse HTTP redirects. A public first hop must not 30x-bounce to an internal host,
-  which would slip past the pre-fetch host check (parity with net.zig's redirect_behavior =
-  .not_allowed), and urllib would replay every header — ``Authorization`` included — to
-  whatever host the 30x names. Also stops a redirect to a non-http(s) scheme."""
+  """Refuse every 30x: a bounce to an internal host or another scheme would skip the host
+  check, and urllib would replay ``Authorization`` to it (net.zig's ``.not_allowed``)."""
 
   def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
     raise urllib.error.HTTPError(
@@ -57,7 +47,6 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
     )
 
 
-# A dedicated opener with redirects refused (the default global opener follows them).
 _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
@@ -119,27 +108,18 @@ def _literal(host: str):
 
 
 def _is_blocked_ip(ip, strict: bool) -> bool:
-  """True when ``ip`` is an internal/reserved target a fetch must refuse (SSRF guard).
-
-  The table's ``fetch`` policy decides, judging an IPv6 form by the IPv4 address it carries;
-  loopback is refused only when ``strict``. Anything stdlib ``is_global`` calls non-global is
-  refused as well.
-  """
+  """True when the table's ``fetch`` policy or stdlib ``is_global`` refuses ``ip``, an IPv6
+  form judged by the IPv4 it carries; loopback only when ``strict``."""
   ip = _carried(ip)
   if ip.is_loopback: return strict
   return _address_blocked(ip, "fetch", allowLoopback=not strict) or not ip.is_global
 
 
 def _assert_fetchable(url: str, strict: bool) -> None:
-  """Raise ValueError if ``url``'s host is an internal/blocked SSRF target.
-
-  Classifies an IP literal directly (``2130706433`` and ``0x7f000001`` included, read as
-  :func:`_literal` reads them); for a DNS name, resolves it and refuses when ANY resolved
-  address is internal (closes the hostname-with-internal-record vector). A residual
-  DNS-rebinding TOCTOU remains, same as the Zig CLI. Resolution failure is left for the real
-  fetch to surface as a connection error.
-  """
-  host = urllib.parse.urlsplit(url).hostname  # lowercased, IPv6 brackets stripped, no userinfo
+  """Raise ValueError if ``url``'s host is a blocked SSRF target: an IP literal in any
+  :func:`_literal` form, or a name ANY of whose addresses is blocked. The fetch resolves
+  again, so DNS rebinding between the lookups is a residual TOCTOU, as in the Zig CLI."""
+  host = urllib.parse.urlsplit(url).hostname
   if not host:
     raise ValueError("could not parse a host from URL: %r" % url)
   ip = _literal(host)
@@ -152,7 +132,7 @@ def _assert_fetchable(url: str, strict: bool) -> None:
   try:
     infos = socket.getaddrinfo(host, None)
   except OSError:
-    return  # let the real fetch surface the connection error rather than block the URL
+    return  # the fetch surfaces the connection error
   for info in infos:
     try:
       rip = ipaddress.ip_address(info[4][0])
@@ -166,12 +146,8 @@ def _assert_fetchable(url: str, strict: bool) -> None:
 
 
 def _fetch(url: str, *, strict: bool = True, timeout: float = 30.0) -> bytes:
-  """Fetch raw bytes over http(s) only, SSRF-guarded, redirect-refused, size-capped.
-
-  ``strict`` blocks loopback in addition to the always-blocked internal ranges — the default,
-  since most callers fetch sub-resources; pass ``strict=False`` for a URL the user named. A
-  browser-like User-Agent is sent and a 30s timeout bounds a hostile/hung server.
-  """
+  """Raw bytes over http(s), SSRF-guarded, redirect-refused, size-capped; ``ValueError`` on a
+  refusal. ``strict`` also blocks loopback; ``timeout`` is seconds."""
   if not _is_http(url):
     raise ValueError("refusing to fetch non-http(s) URL: %r" % url)
   _assert_fetchable(url, strict)
@@ -186,20 +162,18 @@ def _fetch(url: str, *, strict: bool = True, timeout: float = 30.0) -> bytes:
   return data
 
 
-# Bounded pool: these jobs are I/O-bound, but a scrape must never open an antisocial
-# number of sockets against one host.
+# Bounds the sockets one scrape opens against one host.
 MAX_FETCH_WORKERS = 8
 
 
 def _fetch_all(jobs, work):
-  """Run a batch of independent fetches at once, bounded by :data:`MAX_FETCH_WORKERS`."""
+  """``map_parallel`` bounded by :data:`MAX_FETCH_WORKERS`."""
   return map_parallel(jobs, work, MAX_FETCH_WORKERS)
 
 
 def _unverified_ssl_context() -> ssl.SSLContext:
-  """The dev-only ``verify=False`` context for the server client: TLS with the cert
-  checks off, built from the public API (no ``ssl._create_unverified_context``).
-  check_hostname must be cleared before the verify mode or ssl raises."""
+  """The dev-only ``verify=False`` TLS context; ``check_hostname`` is cleared before the
+  verify mode or ssl raises."""
   ctx = ssl.create_default_context()
   ctx.check_hostname = False
   ctx.verify_mode = ssl.CERT_NONE

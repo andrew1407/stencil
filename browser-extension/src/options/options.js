@@ -3,6 +3,7 @@ import './scrollTop.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
 import { installDblReset } from '../lib/control/dblReset.js';
+import { routeStoreWrites } from '../lib/prefs/writeChain.js';
 import { installWebcore } from '../lib/webcore/skin.js';
 import { wireLogoHold } from './secrets/trigger.js';
 import { wireTypedWords } from './secrets/typedWords.js';
@@ -17,6 +18,7 @@ import './llm.js';
 import './pins.js';
 import './connections.js';
 
+routeStoreWrites();
 installDblReset(document);
 installWebcore(document);
 wireLogoHold(document.querySelector('.brand .logo-wrap'));

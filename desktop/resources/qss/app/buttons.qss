@@ -1,4 +1,3 @@
-      /* ── Push buttons: gradient face, accent lift on hover, gradient primary ── */
       QPushButton {
         background: %BTN_FLAT%;
         color: %TEXT%; border: 1px solid %BORDER%; border-radius: 7px;
@@ -6,24 +5,16 @@
       }
       QPushButton:hover { border-color: %ACCENT%; background: %ACCENT_SOFT%; }
       QPushButton:pressed { background: %ACCENT_SOFT2%; }
-      /* Accent CTA — the affirmative action button (makeModalCta/makeButtonBox) and the
-         chat error cards' own CTAs (Configure provider / Reconnect to <host>): browser
-         parity — a plain <button> there is accent-filled by default (layout.css). One
-         dynamic-property selector, so the buttons' objectNames stay free for the tests. */
+      /* A plain browser <button> is accent-filled; one property selector leaves objectNames free. */
       QPushButton[accentCta="true"] {
         background: %ACCENT%; color: %ON_ACCENT%; border: none;
       }
       QPushButton[accentCta="true"]:hover {
         background: %ACCENT2%;
       }
-      /* Fixed-width Album/Portrait swap (OpenImageDialog): a plain fixed-width QPushButton
-         centres its icon+text as one block, so the icon drifts a little with every toggle
-         between the two different-length words — left keeps the icon at one fixed inset
-         instead (user report; browser twin: openImage.css's own left, not centred). */
+      /* Left, so the icon keeps one inset as the word changes length (user report). */
       QPushButton#cropAlbumBtn { text-align: left; }
-      /* The Open-Image file chooser is ONE control (browser twin: .oi-file): the BOX holds
-         the outline and the rounding, and the two halves inside it are square and
-         border-free, so the accent button butts against the path readout with no seam. */
+      /* One control (browser .oi-file): the box holds outline and rounding, the halves are square. */
       QFrame#oiFileBox {
         border: 1px solid %UI_OUTLINE%; border-radius: 7px; background: %INPUT_BG%;
       }
@@ -38,11 +29,7 @@
       QPushButton:disabled, QPushButton[accentCta="true"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Danger button (e.g. the selection panel's Delete Line) — the browser's
-         --danger red treatment, tuned per theme. */
-      /* Run is the one GO action in the script editors, so it wears the browser's
-         --success-cta green rather than the accent every other CTA uses — deeper than
-         --success, so white ink reads on it. Dead, it greys like the rest. */
+      /* Run wears the browser's --success-cta green, deeper than --success so white reads on it. */
       QPushButton[successCta="true"] { background: %SUCCESS_CTA%; color: white; border: none; }
       QPushButton[successCta="true"]:hover { background: %SUCCESS_CTA2%; }
       QPushButton[successCta="true"]:disabled {
@@ -54,16 +41,11 @@
       QPushButton#dangerButton:hover, QPushButton[dangerCta="true"]:hover {
         background: %DANGER2%;
       }
-      /* …and a DEAD one has to look it: these selectors outrank QPushButton:disabled above,
-         so a disabled Clear All kept painting solid red and still read as pressable. */
+      /* These selectors outrank QPushButton:disabled, so a dead danger button needs its own. */
       QPushButton#dangerButton:disabled, QPushButton[dangerCta="true"]:disabled {
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
-      /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS", and
-         the context menu's own — MainWindowActions.cpp's makeSectionLabel), mirroring
-         the browser's uppercased .ctx-sub-label. No padding of its own: every caller
-         hosts it in a row whose OWN layout margins already place it (padding here
-         would double up with those). */
+      /* Browser .ctx-sub-label; no padding: every host row's own margins place it. */
       QLabel#panelSectionHeader {
         color: %MUTED%; font-weight: bold; font-size: 11px; letter-spacing: 1px;
       }

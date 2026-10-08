@@ -1,6 +1,7 @@
 // buildMainToolbar()'s first row: the always-visible header (logo, Controls pill, project name).
 // addToolBarBreak() ends it.
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
 #include "ToastStack.hpp"
 #include "mainWindowHelpers.hpp"
@@ -41,7 +42,7 @@ namespace stencil::gui {
     // LogoHoverFx paints the resting mark and blanks this icon — QToolButton draws it at half size
     // on Retina.
     w.tools.logoBtn->setToolTip(QString());   // no tooltip on the logo
-    w.tools.logoBtn->setStyleSheet("QToolButton{border:none;background:transparent;padding:2px;}");
+    w.tools.logoBtn->setStyleSheet(support::logoButtonSheet());
     // Deferred so a double-click can pre-empt it and open the picker (browser logo parity).
     w.tools.logoClickTimer = new QTimer(&w);
     w.tools.logoClickTimer->setSingleShot(true);

@@ -9,17 +9,21 @@ import { ICONS } from '../../src/lib/icons.js';
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 export const MOTION = JSON.parse(read('../../../common/config/iconMotion.json'));
 
-// The icon-motion section of a sheet: its comment header up to the next section.
+// The icon-motion section of a sheet: from the comment holding `from` up to the one holding `to`.
+const commentWith = (css, text) => {
+  const at = css.indexOf(text);
+  return at < 0 ? -1 : css.lastIndexOf('/*', at);
+};
 export const section = (css, from, to) => {
-  const a = css.indexOf(from);
-  const b = css.indexOf(to);
+  const a = commentWith(css, from);
+  const b = commentWith(css, to);
   assert.ok(a >= 0 && b > a, `the icon-motion section is where the tests expect it (${from})`);
   return css.slice(a, b);
 };
 export const EXT = section(animationsCss(),
-  '/* ── Icon hover: every glyph mimes its own action', '/* ── Header logo hover');
+  'Icon hover: every glyph mimes its own action', 'Header logo hover');
 export const APP = section(browserAnimationsCss(),
-  '/* ── Icon hover: every glyph mimes its own action', '/* ── App logo hover');
+  'Icon hover: every glyph mimes its own action', 'App logo hover');
 
 // Glyphs lib/icons.js carries that the browser has no twin for (dataParity.test.js
 // holds the same list): they have no canonical design and must stay still.

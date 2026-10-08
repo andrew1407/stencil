@@ -48,7 +48,7 @@ export interface LoggedTurnHooks {
 }
 
 /** A notification balloon for a turn that landed while the surface was closed. */
-export interface TurnToast { text: string; type: 'ok' | 'fail'; }
+export interface TurnToast { text: string; type: 'ok' | 'fail' | 'info'; }
 
 /** Created on FIRST USE (so it captures the frozen facade); `create` is a test seam. */
 export declare const sharedChatController: (app: DrawingApp, opts?: { create?: (opts: ChatControllerOptions) => ChatController }) => ChatController;
@@ -95,5 +95,6 @@ export declare const truncateForToast: (text: string, max?: number) => string;
 export declare const spokenEcho: (text: unknown) => string;
 /** The balloon a landed turn deserves, or null when nothing should be said (an abort). */
 export declare const closedTurnToast: (res: ChatTurnResult | null | undefined) => TurnToast | null;
-/** One LOGGED turn: user row + pending row, Stop wiring, the outcome patched in; never throws. */
+/** One LOGGED turn: user row + pending row, Stop wiring, the outcome patched in; never throws.
+ *  While another turn runs it logs nothing and resolves `kind: 'busy'`. */
 export declare const runLoggedChatTurn: (controller: ChatController, text: string, hooks?: LoggedTurnHooks) => Promise<ChatTurnResult>;

@@ -1,4 +1,5 @@
 #include "ProjectTitleController.hpp"
+#include "windowSheets.hpp"
 #include "CanvasWidget.hpp"
 #include "ProjectNameBar.hpp"
 #include "RemoteSession.hpp"
@@ -158,25 +159,10 @@ namespace stencil::gui {
                              : QStringLiteral("#9aa0a8");
     if (editing) {
       const QColor accent = accentPrimary(settings.accentColor);
-      nameBar.field->setStyleSheet(
-          QString("QLineEdit{color:%1;font-weight:600;border:1px solid %2;border-radius:6px;"
-                  "background:palette(base);padding:2px 6px;}"
-                  "QLineEdit:focus{border:1px solid %2;}")
-              .arg(fg, accent.name()));
+      nameBar.field->setStyleSheet(support::projectNameEditingSheet(fg, accent));
     } else {
-      // The hover ring has to live HERE: this per-widget sheet outranks the app-wide one, so the themed
-      // `QLineEdit#projectNameField:hover` never applied. Same ring strength as the browser's two stacked 45% layers.
       const QColor accent = accentPrimary(settings.accentColor);
-      const QString ring = QString("rgba(%1,%2,%3,0.45)")
-                               .arg(accent.red())
-                               .arg(accent.green())
-                               .arg(accent.blue());
-      nameBar.field->setStyleSheet(
-          QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;"
-                  "border-radius:6px;background:transparent;padding:3px 8px;}"
-                  "QLineEdit:hover{border:2px solid %2;padding:2px 7px;}"
-                  "QLineEdit:focus{border:1px solid transparent;}")
-              .arg(fg, ring));
+      nameBar.field->setStyleSheet(support::projectNameRestingSheet(fg, accent));
     }
   }
 

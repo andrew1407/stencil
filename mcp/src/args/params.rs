@@ -88,7 +88,6 @@ pub struct EditParams {
     #[serde(default)]
     pub surface: Option<SurfaceArg>,
 
-    // ── Collaboration server (server/) ──
 
     /// Connect to a collaboration server at this `http(s)://` URL — one the operator
     /// allowlisted — and treat `input` as the name of a project on it. Requires `input`;

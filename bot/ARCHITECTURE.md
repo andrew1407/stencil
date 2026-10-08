@@ -31,13 +31,15 @@ graph TD
 
 ## Layers
 
-`Domain` ← `Application` ← `Infrastructure` ← `Bot`: one project per ring under
-`src/Stencil.TelegramBot.<Ring>/`, dependencies pointing inward. `Domain` is the contract in pure
-C#, with no project references; `Application` is policy over Domain abstractions; `Infrastructure`
-depends only on Domain; `Bot` is the only ring that sees Telegram types, and takes every string
+`Domain` → `Application`, `Infrastructure` → `Bot`: one project per ring under
+`src/Stencil.TelegramBot.<Ring>/`; a ring may use everything to its left, and `Application` and
+`Infrastructure` share a tier, so neither uses the other. `Domain` is the contract in pure C#,
+with no project references; `Application` is policy over Domain abstractions; `Infrastructure`
+depends on Domain only; `Bot` is the only ring that sees Telegram types, and takes every string
 and command from its assets. The `.csproj` `ProjectReference`s enforce the order, and
-`tests/…/LayerBoundaryTests.cs` forbids `Telegram.Bot`, `System.Net.Http`,
-`System.Diagnostics.Process` and `StackExchange.Redis` inside `Domain`.
+`tests/…/LayerBoundaryTests.cs` pins each ring's project references and `using` lines to it and
+forbids `Telegram.Bot`, `System.Net.Http`, `System.Diagnostics.Process` and
+`StackExchange.Redis` inside `Domain`.
 
 ## Where things go
 
@@ -48,7 +50,7 @@ and command from its assets. The `.csproj` `ProjectReference`s enforce the order
 | `Domain/Llm/` (+ `Wire/`) | the op-plan and chat types; under `Wire/`, `ILlmClient` and the provider request and reply | the contract's types; no wire format |
 | `Domain/Sessions/` | `UserSession`, its server connections and pending inputs | one JSON value per user; paths, never bytes |
 | `Domain/Abstractions/`, `Domain/Configuration/` | the ports (`IStencilCli`, `ISessionStore`, `IBotPolicy`, …) | `Infrastructure` implements them |
-| `Domain/Serialization/`, `Domain/Exceptions/` | `StencilJson`, `JsonRead`; the CLI and server exceptions | every JSON goes through `StencilJson` |
+| `Domain/Serialization/`, `Domain/Exceptions/` | `StencilJson`, `JsonRead`; the CLI and server exceptions | every typed (de)serialization runs under `StencilJson.Options` (or `Indented`); a DOM read (`JsonDocument`, `JsonNode`) parses on its own |
 | `Application/Editing/` | `EditingService`, project files, video frames, and `RemoteImageUrl`, the fetch guard over `AddressRanges` (the embedded `net/blockedRanges.json`) | every render replays the state through `IStencilCli` |
 | `Application/Servers/` | `ServerService`, the project layout mapper and writer, invite links | version-guarded writes |
 | `Application/Llm/` (+ `Plan/`) | the prompt and script turns; `Plan/` maps core's verdict onto typed actions | no validator: the mapper only types core's verdict; the embedded `opRegistry.json` feeds the prompt and the skew fingerprint |
@@ -58,7 +60,7 @@ and command from its assets. The `.csproj` `ProjectReference`s enforce the order
 | `Infrastructure/Llm/` | `HttpLlmClient` + one `IProviderMapping` per wire shape | the platform's `HttpClient`; endpoint from configuration only |
 | `Infrastructure/Sessions/`, `Infrastructure/Workspace/` | the in-memory and Redis session stores; `UserWorkspace` | bytes live in the workspace, never in a session |
 | `Infrastructure/Configuration/`, `Links/`, `Media/` | `BotOptions`; deep and desktop links, `LayoutFetcher`; the ffmpeg downscaler | operator environment in, never chat text |
-| `src/Stencil.TelegramBot.Bot/` | `Program` + `BotComposition` (the DI root), `UpdatePump` | `Program` registers nothing else |
+| `src/Stencil.TelegramBot.Bot/` | `Program` + `BotComposition` (the DI root), `UpdatePump` | `Program` registers nothing else; it builds the `UpdatePump` itself, outside DI, and loads the dotenv files beside the app (`AppContext.BaseDirectory`), in the CWD, then in `bot/` of the CWD and its parents, real environment variables winning |
 | `Bot/Telegram/` (+ `Commands/`, `Intake/`, `Messaging/`, `Access/`, `Sync/`) | the routers, then a folder per step of an update's path | the only code that sees `Telegram.Bot` |
 | `Bot/Assets/` | `botCommands.json`, `botStrings.json` | `<EmbeddedResource>`s; the dispatch table, the `/` menu and every reply |
 | `tests/` | xUnit, offline: `Doubles/` (mocks and `planChecks.json`, core's recorded verdicts), `Goldens/` | no token, server, CLI or Redis unless `BOT_TEST_CLI` names a built CLI |
@@ -161,6 +163,27 @@ classDiagram
 - **Composition.** `BotComposition.AddStencilBot` registers every ring and the hosted loops;
   once started, `OpPlanParser.RegistrySkewAsync` logs a CLI built from another registry.
 
+## Concurrency
+
+Telegram.Bot's polling loop hands each update to `UpdatePump`, which detaches it onto a fixed
+pool of workers: one serial lane per user, so a user's updates run one at a time in arrival
+order and a waiting lane holds no worker. Handlers are async all the way down; the CLI, ffmpeg
+and the LLM are I/O awaited on the pool. The hosted loops (`SyncWatcher`, `WorkspaceJanitor`)
+run beside the pump, and SIGTERM cancels the host's `ApplicationStopping` token every handler
+carries. State is per process: the bot is single-instance by design, so `UserGate`, the lanes
+and every semaphore below hold for one process only, whichever session store is configured.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `UpdatePump` (`Bot/UpdatePump.cs`) | `STENCIL_BOT_UPDATE_WORKERS` (32) worker tasks; the Stop tap on a task of its own, off every lane | the lanes and the ready channel | `_lanes` lock; `UpdateQueueCapacity` (256) process-wide slots, a full pump holding the poller back, the Stop tap included; `MaxPendingPerUser` (64) per lane | a full lane drops the update and logs it; dispose stops intake and waits up to `ShutdownDrainTimeout` (10 s) |
+| `UserGate` (`Telegram/Access/UserGate.cs`) | the message and callback routers, the album flush, the sync poller | one user's session read-modify-write | a `SemaphoreSlim(1)` per user, never nested: the album buffer and the Stop tap run outside it | a gate is forgotten once its last holder leaves |
+| `AlbumCollector` (`Telegram/Intake/`) | a flush task per album group | the group's photos | the group lock; a flushed group is marked under it, so a late photo starts a new group | cancellation drops the buffered group unflushed |
+| CLI spawns (`Infrastructure/Cli/ProcessStencilCli.cs`) | the calling handler | the process budget | `STENCIL_BOT_MAX_CONCURRENT_CLI` (one per CPU) awaited slots; a per-run deadline | a run past its deadline is killed |
+| ffmpeg (`Infrastructure/Media/FfmpegImageDownscaler.cs`) | the calling handler, outside the CLI semaphore | — | the CLI's per-run deadline | a failure keeps the original image |
+| `LlmGate` (`Domain/Llm/LlmGate.cs`) | prompt and chat turns | in-flight model calls | `STENCIL_BOT_MAX_CONCURRENT_LLM` (8) slots, taken without waiting | over the cap the turn is refused at once |
+| `SyncWatcher` | a hosted loop | synced users' sessions | `UserGate` per pull | SIGTERM cancels and awaits it |
+| `WorkspaceJanitor` | a hosted loop | the workspace files | prunes only files older than `WorkspaceTtl` that no session references, so a render in flight survives | SIGTERM cancels and awaits it |
+
 ## Rules
 
 1. **The CLI is the pixel engine.** Located `STENCIL_CLI` → `cli/zig-out/bin/stencil` → `PATH`,
@@ -179,11 +202,9 @@ classDiagram
    reply, button label and callback token. Both are `<EmbeddedResource>`s pinned by goldens.
 5. **Fail closed.** `STENCIL_BOT_ALLOWED_USERS` gates everything but `/start` and `/help`; an
    unlisted caller gets one sentence, the id goes to the log.
-6. **Concurrency.** `UpdatePump` runs one user's updates one at a time and never lets one user
-   hold more than one worker; `UserGate` serializes each user's session updates against the
-   album flush and the sync poller; a process-wide semaphore caps CLI processes; every outbound
-   call carries a timeout and every read a size cap; a CLI run past its deadline is killed. All
-   single-instance by design.
+6. **Bounded and single-instance.** One user never holds more than one worker; every outbound
+   call carries a timeout and every read a size cap; a CLI run past its deadline is killed. The
+   locks are per process, so the bot runs as one instance.
 7. **Sessions** live in Redis when `REDIS_URL` is set, else in memory — tests need neither.
 8. **Provider, URL, model and token come from the operator's environment**, never from a chat
    message; `/chatapi` is a picker over `STENCIL_LLM_PROFILES`.

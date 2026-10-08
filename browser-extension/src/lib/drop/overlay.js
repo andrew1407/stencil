@@ -136,8 +136,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
 
   const wrap = document.createElement('div');
   wrap.className = 'wrap';   // .wrap.leaving is what plays the dispersal
-  // The one place the extension uses a native `title`: lib/tip/controlTooltip.js never runs
-  // over the host page, so data-title alone would leave the two icons unexplained.
+  // No native `title` here either; lib/tip/controlTooltip.js never runs over the host page, so
+  // the two icons' data-title shows no tooltip.
   wrap.innerHTML =
     '<div class="backdrop"></div>' +
     '<div class="panel">' +

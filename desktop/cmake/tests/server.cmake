@@ -20,7 +20,7 @@ stencil_headless_test(stencil_serverauth_headless
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
-    resources/app.qrc
+    resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The Projects dialog's multi-select surface: the batch bar, select all, the filter fade and batch
@@ -47,7 +47,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
     src/support/drag/dragOverlays.cpp
-    resources/app.qrc
+    resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The same dialog's composition + row-data pin: what it builds, and what refresh() writes per row.
@@ -71,7 +71,7 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
     src/support/drag/dragOverlays.cpp
-    resources/app.qrc
+    resources/app.qrc src/support/sheets/dialogSheets.cpp
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # The Projects window's header while a row is held (dialogs/projects/list/ProjectDragMenu): the ⋯,

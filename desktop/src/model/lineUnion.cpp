@@ -30,4 +30,19 @@ namespace stencil::model {
     return lines;
   }
 
+  bool sameLines(const core::Lines& a, const core::Lines& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+      const core::Line& x = a[i];
+      const core::Line& y = b[i];
+      if (x.color != y.color || x.pointColor != y.pointColor || x.thickness != y.thickness ||
+          x.pointSize != y.pointSize || x.style != y.style || x.locked != y.locked ||
+          x.fillColor != y.fillColor || x.points.size() != y.points.size())
+        return false;
+      for (size_t p = 0; p < x.points.size(); ++p)
+        if (x.points[p].x != y.points[p].x || x.points[p].y != y.points[p].y) return false;
+    }
+    return true;
+  }
+
 }  // namespace stencil::model

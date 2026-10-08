@@ -32,10 +32,14 @@ graph TD
 
 ## Layers
 
-`server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` (`llmtransport/` beside it),
-enforced by `tests/layer_boundary_test.rs`, an import-direction scan over `src/` with a frozen
-allowance for the `pipeline → args` crossings of the modes that run nothing. A module becomes a
-directory once it holds more than one job.
+`llm/` (+ `llmtransport/`) → `pipeline/` → `args/` → `opplan/` → `server/` + tools; a layer
+may use everything to its left. `tests/layer_boundary_test.rs` scans every `crate::` reference
+in `src/` and fails one that points right, beyond the frozen allowance in that file: the
+`pipeline → args` crossing of `pipeline/mod.rs` and `pipeline/run.rs`, where the runner takes
+`args::EditParams` and builds its argv, an upward reference. The helper modules (`config`,
+`confine`, `deliver`, `imagesize`, `layout`, `llmtransport`, `locate`, `outcome`, `registry`)
+sit outside the row, pinned by name. A module becomes a directory once it holds more than one
+job.
 
 ## Where things go
 
@@ -45,7 +49,7 @@ directory once it holds more than one job.
 | `toolDescriptions.json` + `toolDescriptions/` | tool, `get_info`, resource and prompt prose, and the generated shards the `#[tool]` attributes `include_str!` | the one home of wire prose and the README's Tools table |
 | `src/main.rs` | entry: config before the runtime, then stdio serve | **stdout is the JSON-RPC channel** — all logging is `eprintln!` |
 | `src/server/` | `StencilServer`, the `#[tool]` methods, the call wrapper, resources, prompts; `tools/` one body per tool | a `#[tool]` delegates to `tools/`, which fences the call (roots, allowlist) before the pipeline sees it |
-| `src/config/` | the operator configuration: defaults ← dotenv file ← env ← `--surface` | the dotenv file is found beside the executable, never in the CWD |
+| `src/config/` | the operator configuration: defaults ← dotenv file ← env ← `--surface` | the dotenv file is the one beside the executable, else the one in `mcp/` of the checkout the executable sits in; never the CWD's |
 | `src/args/` | the published DTOs, the CLI option strings, each tool's params, guards and argv | the CLI's flags, single-sourced |
 | `src/pipeline/` | locate → spawn → parse; `CliRunner` in `runner.rs`, the one place a CLI child is spawned or fed stdin | generic over `CliRunner` so tests record; an edit run with no root is refused |
 | `src/deliver/` | per-surface delivery: file, desktop launch, the `#stencil=` browser URL | an unavailable surface is a failed `deliveries[]` note, never a sunk call; a launched child never shares our stdio |
@@ -162,6 +166,26 @@ classDiagram
 | `stencil_projects` | `{ server, projects[], next_cursor }`, public metadata only |
 | `stencil_project_update` | `{ server, project }` |
 | `stencil_project_file` | `{ server, id, kind, path, bytes, format }` |
+
+## Concurrency
+
+One multi-threaded tokio runtime serves the stdio session; rmcp runs each request as its own
+future, and `server/call.rs` `decorate` wraps every tool call in one: it races the call against
+the client's cancel token, and a cancel drops the call future and everything it owns. A CLI
+child lives inside that future from spawn to exit, its pipes read concurrently with the stdin
+feed and joined before the wait. A prompt turn's blocking LLM socket runs on the blocking pool,
+and a plan's runs on a `JoinSet` the call owns. Process-wide state is two lazily set statics:
+`SLOTS` and the resolved CLI path.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `decorate` (`server/call.rs`) | one future per tool call | the call's `Roots` and progress `Sink` | `tokio::select!`, cancel first | a cancel drops the call, killing its children and aborting its LLM socket |
+| `SLOTS` (`pipeline/runner.rs`) | every CLI spawn in the process, a plan's fan-out included | the CLI child budget | a `Semaphore` of `STENCIL_MCP_MAX_CONCURRENT_CLI` (default 2), held from spawn to exit | a spawn past it waits and reports `waiting for a free stencil CLI slot` |
+| CLI child (`pipeline/runner.rs`) | another process; its pipes read on the call's future | stdout, stderr, stdin | `kill_on_drop`; the stdin feed and both readers joined before `wait`; `STENCIL_CLI_TIMEOUT_SECONDS` (120 s) | the deadline drops and kills it; stderr keeps a 1 MiB tail; stdout past 16 MiB is read to its end, discarded and refused |
+| plan fan-out (`server/tools/prompt/execute.rs`) | a `JoinSet` per prompt turn, each task re-entering the call's progress scope | the runner | results in request order | dropping the set (a cancel or the first failure) aborts every run it holds |
+| LLM request (`llmtransport/client.rs`) | `spawn_blocking`, one per model round | the socket in flight | `AbortOnDrop` armed around the await; the `aborted` atomic and the `live` mutex | a dropped call shuts the socket, which wakes the blocked read; one deadline bounds the exchange |
+| progress forwarder (`server/call.rs`) | one task per call with a progress token | an unbounded channel from the `Sink` | in order, numbered | the call waits at most 1 s for it after the result, so a late notification may follow the result |
+| `RESOLVED` (`locate.rs`) | the first spawn | the CLI path | `OnceLock` | set once per process, never re-resolved |
 
 ## Rules
 

@@ -6,8 +6,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Infrastructure.Sessions;
 
-// The same Redis the Go server uses, so multiple bot instances share per-user state; one JSON value
-// per user.
+// One JSON value per user, in the Redis the Go server may share. It outlives a restart; it does not
+// make the bot multi-instance, since UserGate and the update lanes are per-process.
 public sealed class RedisSessionStore : ISessionStore
 {
     private readonly IConnectionMultiplexer _redis;

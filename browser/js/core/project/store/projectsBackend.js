@@ -8,38 +8,7 @@ import { IMAGE_PREFIX } from './projectImages.js';
 import { THUMB_PREFIX } from './projectThumbs.js';
 import { createThumbMirror, isDataUrl, isThumbRecord } from './thumbBlobs.js';
 import { createImageMirror } from './imageBlobs.js';
-
-const PROJECTS_DB_NAME = 'stencil_projects';
-const PROJECTS_DB_STORE = 'payloads';
-
-// Minimal promise KV over one object store (store.js's createIdbBackend shape plus the
-// bulk entries() read). Null when IndexedDB is missing.
-const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
-  if (!idb) return null;
-  let dbPromise = null;
-  const openDb = () => new Promise((resolve, reject) => {
-    const req = idb.open(PROJECTS_DB_NAME, 1);
-    req.onupgradeneeded = () => { req.result.createObjectStore(PROJECTS_DB_STORE); };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  const db = () => (dbPromise ||= openDb());
-  const op = (mode, run) => db().then((d) => new Promise((resolve, reject) => {
-    const tx = d.transaction(PROJECTS_DB_STORE, mode);
-    const req = run(tx.objectStore(PROJECTS_DB_STORE));
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  }));
-  return {
-    get: (key) => op('readonly', (s) => s.get(key)),
-    set: (key, value) => op('readwrite', (s) => s.put(value, key)),
-    remove: (key) => op('readwrite', (s) => s.delete(key)),
-    entries: () => Promise.all([
-      op('readonly', (s) => s.getAllKeys()),
-      op('readonly', (s) => s.getAll()),
-    ]).then(([keys, values]) => keys.map((k, i) => [k, values[i]])),
-  };
-};
+import { createIdbKv } from './idbKv.js';
 
 // `kv` is injectable for tests; when IndexedDB is unusable the plain `storage` is returned
 // as-is — exactly the pre-IndexedDB behaviour.
@@ -69,6 +38,10 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     return ls;
   }
   for (const [k, v] of stored) adopt(k, v);
+  // The own keys IndexedDB holds, and the outcome of each key's latest write once it settles.
+  const committed = new Set(stored.map(([k]) => k));
+  const outcome = new Map();
+  let writeSeq = 0;
 
   const lsKeys = () => {
     if (!ls) return [];
@@ -89,6 +62,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     try {
       if (record == null) continue;
       await store.set(k, record);
+      committed.add(k);
     } catch {
       continue;
     }
@@ -105,10 +79,20 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     return p;
   };
 
-  const writeFailed = (e) => { try { backend.onWriteError?.(e); } catch { /* status line gone */ } };
+  const writeFailed = (e, k) => { try { backend.onWriteError?.(e, k); } catch { /* status line gone */ } };
+  // `false` is a superseded image: nothing was written, nothing committed.
+  const persist = (k, p) => {
+    const seq = ++writeSeq;
+    outcome.set(k, { seq, error: null });
+    track(p).then((v) => { if (v !== false) committed.add(k); }, (e) => {
+      if (outcome.get(k)?.seq === seq) outcome.set(k, { seq, error: e });
+      writeFailed(e, k);
+    });
+  };
   // Best-effort: a failed refresh leaves the mirror stale rather than throwing.
   const refreshing = new Map();
   const forget = (k) => {
+    committed.delete(k);
     if (isThumb(k)) thumbs.drop(k);
     else if (isImage(k)) images.drop(k);
     else mirror.delete(k);
@@ -117,8 +101,8 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     try {
       for (const key of [PROJECT_PREFIX + id, IMAGE_PREFIX + id, THUMB_PREFIX + id]) {
         const v = await store.get(key);
-        if (v !== undefined) adopt(key, v);
-        else forget(key);
+        if (v === undefined) forget(key);
+        else { adopt(key, v); committed.add(key); }
       }
     } catch { /* stale mirror beats a throw */ }
   };
@@ -127,12 +111,12 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       const all = await store.entries();
       mirror.clear();
       for (const k of [...thumbs.keys(), ...images.keys()]) forget(k);
-      for (const [k, v] of all) adopt(k, v);
+      for (const [k, v] of all) { adopt(k, v); committed.add(k); }
     } catch { /* stale mirror beats a throw */ }
   };
   // What IndexedDB is to hold for an image once its Blob is decoded; a superseded one writes nothing.
   const persistImage = (k, pending) => {
-    if (pending) track(pending.then((record) => record != null && store.set(k, record))).catch(writeFailed);
+    if (pending) persist(k, pending.then((record) => record != null && store.set(k, record)));
   };
   const backend = {
     // Storage points this at the save-status line.
@@ -148,7 +132,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       if (isThumb(k)) {
         // Only a new picture is stored; the object URL a read handed out is already this key's.
         const record = isDataUrl(v) ? thumbs.put(k, v) : null;
-        if (record) track(store.set(k, record)).catch(writeFailed);
+        if (record) persist(k, store.set(k, record));
         return;
       }
       if (isImage(k)) return persistImage(k, images.put(k, String(v)));
@@ -158,7 +142,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       }
       const s = String(v);
       mirror.set(k, s);
-      track(store.set(k, s)).catch(writeFailed);
+      persist(k, store.set(k, s));
     },
     removeItem(k) {
       if (!isOwn(k)) {
@@ -166,6 +150,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
         return;
       }
       forget(k);
+      outcome.delete(k);
       track(store.remove(k)).catch(() => { /* registry entry is the source of truth */ });
       try { ls?.removeItem(k); } catch { /* no leftover to clean */ }
     },
@@ -188,6 +173,10 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       .then((v) => v ?? backend.getItem(k)),
 
     flush: () => Promise.allSettled(Array.from(pending)).then(() => {}),
+
+    // The error the key's latest settled write failed with, else null; whether IndexedDB holds it.
+    writeFailure: (k) => outcome.get(k)?.error ?? null,
+    isCommitted: (k) => committed.has(k),
   };
   // An older build's image strings become Blobs in the background; this boot reads them as they are.
   for (const [k, v] of stored) {

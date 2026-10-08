@@ -1,5 +1,8 @@
 # The window: app/ and the model seam's sources, the head of the GUI translation-unit set.
 
+# The app's entry point, the one unit no test target links.
+set(STENCIL_APP_MAIN src/app/main.cpp)
+
 # The full GUI translation-unit set MINUS the entry point (main.cpp), shared between
 # the app and the MainWindow GUI e2e test target below so the two never drift.
 set(STENCIL_GUI_SOURCES

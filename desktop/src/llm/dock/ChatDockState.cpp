@@ -4,6 +4,7 @@
 #include "chatDockShared.hpp"
 #include "iconSet.hpp"
 #include "theme.hpp"
+#include "../../support/sheets/chatSheets.hpp"
 
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -74,36 +75,9 @@ namespace stencil::gui {
     dangerCache = pal.danger;
     mutedCache = pal.textMuted;
     setStyleSheet(
-        (support::isWebcore() ? QString() : QStringLiteral(
-            "#chatTitleBar{background:%1;border:1px solid %2;border-bottom:1px solid %2;}"
-            // .chat-hbtn has no padding/border, so the 13 px glyph fills the 23 px chip.
-            "#chatTitleBar QToolButton{padding:0;border:none;background:transparent;"
-            "border-radius:5px;}"
-            "#chatTitleBar QToolButton:hover{background:%6;}"
-            "#chatBody{background:%1;border:1px solid %2;border-top:none;}"
-            "#chatBody QScrollArea{background:%1;border:none;}"
-            "#chatInputArea{background:%1;border-top:1px solid %2;}"
-            "#chatBody QScrollArea > QWidget > QWidget{background:transparent;}"
-            "#chatInput{background:%3;color:%4;border:1px solid %2;border-radius:8px;"
-            "padding:6px 8px;font-size:14px;}"
-            "#chatInput:focus{border:1px solid %5;}"
-            // --text-muted through the STYLESHEET — under QSS a palette colour loses.
-            "QLabel#chatNoteLabel{color:%7;background:transparent;}"
-            // browser .chat-attach-chip
-            "#chatAttachChip{background:%3;border:1px solid %2;border-radius:6px;}"
-            "#chatAttachChip QLabel{color:%4;font-size:11px;background:transparent;}"
-            "#chatAttachRemove{border:none;background:transparent;color:%4;"
-            "font-size:13px;padding:0 2px;}"
-            "#chatAttachRemove:hover{color:%5;}")
-            .arg(pal.bgControls.name(), pal.borderMain.name(), pal.inputBg.name(),
-                 pal.inputText.name(), pal.accent.name(), pal.bgContainer.name(),
-                 QStringLiteral("rgba(%1,%2,%3,%4)")
-                     .arg(pal.textMuted.red())
-                     .arg(pal.textMuted.green())
-                     .arg(pal.textMuted.blue())
-                     .arg(pal.textMuted.alphaF())))
+        (support::isWebcore() ? QString() : support::chatDockSheet(pal))
         // The bubbles come from the SHARED sheet the context menu's panel applies too.
-        + chatCardStyleSheet(pal, chatSwapSides));
+        + support::chatCardStyleSheet(pal, chatSwapSides));
     const QColor onAccent = pal.onAccent;
     cmp.send->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, ACCENT_ICON));
     cmp.attach->setIcon(themedIcon("image", onAccent, ACCENT_ICON));
@@ -122,24 +96,14 @@ namespace stencil::gui {
     if (cmp.dropCue) {
       // SOLID, blended: a translucent slab let the placeholder text show through.
       cmp.dropCue->setStyleSheet(
-          QStringLiteral("#chatDropCue{border:2px dashed %1;border-radius:10px;background:%2;}")
-              .arg(pal.accent.name(), blendColors(pal.accent, pal.inputBg, 0.16).name()));
+          support::chatDropCueSheet(pal.accent, blendColors(pal.accent, pal.inputBg, 0.16)));
       if (cmp.dropCueIcon) cmp.dropCueIcon->setPixmap(themedIcon("image", pal.accent, 16).pixmap(16, 16));
       if (cmp.dropCueText)
-        cmp.dropCueText->setStyleSheet(
-            QStringLiteral("color:%1;background:transparent;font-weight:600;").arg(pal.accent.name()));
+        cmp.dropCueText->setStyleSheet(support::chatDropCueTextSheet(pal.accent));
     }
-    chrome.headerTitle->setStyleSheet(
-        QStringLiteral("color:%1;background:transparent;").arg(pal.textMain.name()));
-    // browser .chat-jump-btn: its hover fill comes from the app-wide generic `button:hover`
-    // rule, which QSS has no equivalent of, so it is stated here. pal.textKey doubles as --accent-2.
+    chrome.headerTitle->setStyleSheet(support::chatHeaderTitleSheet(pal.textMain));
     if (log.jumpTop && log.jumpBottom) {
-      const QString jumpQss =
-          QStringLiteral(
-              "QToolButton{border:1px solid %1;border-radius:14px;background:%2;}"
-              "QToolButton:hover{border-color:%3;background:%4;}")
-              .arg(pal.borderMain.name(), pal.bgControls.name(), pal.accent.name(),
-                   pal.textKey.name());
+      const QString jumpQss = support::chatJumpButtonSheet(pal);
       log.jumpTop->setIcon(themedIcon("chevron-up", pal.textMuted, 14));
       log.jumpBottom->setIcon(themedIcon("chevron-down", pal.textMuted, 14));
       log.jumpTop->setStyleSheet(jumpQss);

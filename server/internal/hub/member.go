@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"stencil/server/internal/transport"
 )
@@ -14,7 +15,9 @@ type member struct {
 	name     string
 	conn     transport.Conn
 	out      chan []byte
-	budget   int // queued bytes allowed, not messages: a frame may be transport.MaxMessageBytes
+	budget   int         // queued bytes allowed, not messages: a frame may be transport.MaxMessageBytes
+	evicted  bool        // run-loop-owned: the session dropped this member, so its frames are ignored
+	hangUp   atomic.Bool // the writer closes the conn once out drains, so the reader unwinds
 
 	mu     sync.Mutex
 	queued int // bytes sitting in out, guarded by mu
@@ -62,5 +65,8 @@ func (m *member) writeLoop(ctx context.Context, done chan struct{}) {
 			}
 			return
 		}
+	}
+	if m.hangUp.Load() {
+		_ = m.conn.Close(transport.CloseNormal, "project gone")
 	}
 }

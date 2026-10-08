@@ -7,8 +7,7 @@
 //   expr  := term (('+' | '-') term)*        term  := unary (('*' | '/') unary)*
 //   unary := ('+' | '-') unary | power       power := primary ('**' unary)?  // right-assoc
 //   primary := number | name | '(' expr ')'  name  := [A-Za-z_][A-Za-z0-9_]*
-// A name is the bound variable or a FormulaContext constant; any other is a parse error,
-// as is a non-finite result.
+// A name other than the bound axis or a FormulaContext constant, or a non-finite result, errs.
 namespace stencil::core {
 
   struct FormulaParser {

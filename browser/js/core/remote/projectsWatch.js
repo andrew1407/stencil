@@ -17,6 +17,30 @@ const tearDown = (app, message) => {
   notify(message, 'info');
 };
 
+// ms between idle checks while a peer's save of the open project waits out a gesture.
+const DEFER_MS = 120;
+const deferred = new WeakSet();
+const top = (app) => app.history?.history?.[app.history.historyStep];
+
+// A gesture defers the peer's save, never drops it. An edit the gesture committed meanwhile is
+// saved after it and wins (cross-tab last-writer-wins); otherwise the peer's save is adopted.
+const adoptPeerSave = (app, id, since = null) => {
+  if (id !== app.activeProjectId) return;
+  if (!isIdle(app)) {
+    if (deferred.has(app)) return;
+    deferred.add(app);
+    const from = since ?? { step: top(app) };
+    setTimeout(() => {
+      deferred.delete(app);
+      Promise.resolve(getProjectsBackend()?.refresh?.(id)).then(() => adoptPeerSave(app, id, from));
+    }, DEFER_MS);
+    return;
+  }
+  if (!since || top(app) === since.step) app.storage.syncActiveFromStorage();
+// A colour change lives in the registry meta, not the payload syncActiveFromStorage reloads.
+  app.updateProjectTitle();
+};
+
 export const onRemoteProjectsChange = (app, detail) => {
   const { id, action } = detail;
 // Payloads live in a per-tab IndexedDB mirror (projectsBackend.js): pull the changed one in
@@ -35,10 +59,6 @@ export const onRemoteProjectsChange = (app, detail) => {
     return;
   }
   if (action === PROJECT_ACTION.UPDATED && id === app.activeProjectId) {
-    refreshed.then(() => {
-      if (isIdle(app)) app.storage.syncActiveFromStorage();
-// A colour change lives in the registry meta, not the payload syncActiveFromStorage reloads.
-      app.updateProjectTitle();
-    });
+    refreshed.then(() => adoptPeerSave(app, id));
   }
 };

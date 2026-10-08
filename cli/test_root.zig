@@ -5,6 +5,7 @@ test {
     _ = @import("src/main.zig"); // inline unit tests (args, core, image, layout, ...)
     _ = @import("tests/pipeline/pipeline_ops_test.zig");
     _ = @import("tests/script/script_test.zig");
+    _ = @import("tests/script/clobber_test.zig");
     _ = @import("tests/media/layout_filter_test.zig");
     _ = @import("tests/pipeline/pipeline_e2e_test.zig");
     _ = @import("tests/pipeline/thumbnail_test.zig");
@@ -47,6 +48,7 @@ test {
     _ = @import("tests/config/page_sizes_drift_test.zig");
     _ = @import("tests/config/theme_tokens_drift_test.zig");
     _ = @import("tests/config/media_types_drift_test.zig");
+    _ = @import("tests/config/fetch_workers_drift_test.zig");
     _ = @import("tests/console/commands_test.zig");
     _ = @import("tests/console/commands_args_test.zig");
     _ = @import("tests/llm/config_test.zig");

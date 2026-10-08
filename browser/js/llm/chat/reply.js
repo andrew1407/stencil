@@ -33,6 +33,7 @@ export const unreachableText = (settings, err) => {
 // expired → card + reconnect; unreachable → card + configure; error → retry. Pure.
 export const describeChatError = (err, settings) => {
   if (err?.name === 'AbortError') return { kind: 'abort', text: 'Stopped.' };
+  if (err?.busy) return { kind: 'busy', text: err.message };
   const k = err instanceof LlmError ? err.kind : null;
   if (k === 'refusal') return { kind: 'refusal', text: `Refused: ${err.message}` };
   // No anthropic session key (never entered, expired or forgotten): the card asks for it again.

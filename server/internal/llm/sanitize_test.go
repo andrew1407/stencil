@@ -96,3 +96,26 @@ func TestClientMessageIsBoundedAndKeepsOurFraming(t *testing.T) {
 		t.Fatalf("upstream text must sit behind our own phrasing: %q", msg)
 	}
 }
+
+// The log form is untrusted text too: a forged line, a token-shaped run or the key itself never reaches
+// the server log, and the length is capped.
+func TestUpstreamErrorLogFormIsScrubbed(t *testing.T) {
+	const key = "sk-ant-0123456789abcdef"
+	up := &UpstreamError{Provider: ProviderAnthropic, Status: 400, Type: "bad\ntype",
+		Detail: "oops\nINFO forged line Bearer abcdefghijklmnop " + strings.Repeat("x ", 2000), secret: key}
+	got := up.Error()
+	if strings.ContainsAny(got, "\n\r") || strings.Contains(got, "abcdefghijklmnop") {
+		t.Fatalf("log form kept a forged line or a token: %q", got)
+	}
+	if n := len([]rune(got)); n > scanUpstreamDetail+64 {
+		t.Fatalf("log form is %d runes, want it capped", n)
+	}
+	up.Detail = "echo: " + key[:12]
+	if strings.Contains(up.Error(), key[:12]) {
+		t.Fatalf("log form echoed a fragment of the key: %q", up.Error())
+	}
+	up.Detail, up.Err = "", errors.New("dial https://llm.example/v1 failed with key "+key)
+	if got := up.Error(); strings.Contains(got, key[:8]) {
+		t.Fatalf("transport log form echoed the key: %q", got)
+	}
+}

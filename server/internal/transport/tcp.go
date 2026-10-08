@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -14,7 +13,7 @@ import (
 type tcpConn struct {
 	conn    net.Conn
 	sc      *bufio.Scanner
-	wmu     sync.Mutex
+	wsem    chan struct{} // one slot: the writer's lock, taken under the caller's ctx
 	scratch []byte
 }
 
@@ -37,7 +36,7 @@ func NewTCP(conn net.Conn) Conn {
 	// +1 for the delimiter: the scanner buffers the '\n' too, so a cap of exactly
 	// MaxMessageBytes would reject a message OF that size, which WS accepts.
 	sc.Buffer(make([]byte, 0, 64*1024), MaxMessageBytes+1)
-	return &tcpConn{conn: conn, sc: sc}
+	return &tcpConn{conn: conn, sc: sc, wsem: make(chan struct{}, 1)}
 }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
@@ -77,9 +76,14 @@ func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
 
 // Write sends data and its delimiter in one call, under the earlier of ctx's deadline and tcpWriteTimeout:
 // writev on a plain socket, one joined buffer elsewhere, since a TLS conn seals each Write as its own record.
+// A write still waiting for the lock gives up when ctx ends, so a notice never queues behind a stuck frame.
 func (t *tcpConn) Write(ctx context.Context, data []byte) error {
-	t.wmu.Lock()
-	defer t.wmu.Unlock()
+	select {
+	case t.wsem <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-t.wsem }()
 	dl := time.Now().Add(tcpWriteTimeout)
 	if d, ok := ctx.Deadline(); ok && d.Before(dl) {
 		dl = d

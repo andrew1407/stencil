@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ThemePainter.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
@@ -92,15 +93,7 @@ namespace stencil::gui {
       }  // painter destroyed before save
       dot.save(dotPath, "PNG");
     }
-    const QString css =
-        QStringLiteral(
-            "QCheckBox::indicator,QRadioButton::indicator{width:15px;height:15px;"
-            "border:1px solid %1;background:transparent;}"
-            "QCheckBox::indicator{border-radius:4px;}"
-            "QRadioButton::indicator{border-radius:8px;}"
-            "QCheckBox::indicator:checked{image:url(\"%2\");}"
-            "QRadioButton::indicator:checked{image:url(\"%3\");}")
-            .arg(textColor.name(), checkPath, dotPath);
+    const QString css = support::contextToggleSheet(textColor, checkPath, dotPath);
     QList<QWidget*> toggles = {w.ctxMenu.tooltipEnableCheck, w.ctxMenu.ttPageCheck, w.ctxMenu.ttScreenCheck,
                                w.ctxMenu.ttCoordsCheck, w.ctxMenu.allowFormulas};
     if (w.ctxMenu.filterButtons)

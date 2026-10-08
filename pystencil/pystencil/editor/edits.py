@@ -1,8 +1,4 @@
-"""The chainable edits: rotation, crop, filter/tint and the x/y coordinate formulas.
-
-Each mutator snapshots history through the ``_push`` that :class:`Editor` owns and
-returns ``self``.
-"""
+"""The chainable edits: rotation, flip, crop, filter/tint and the x/y coordinate formulas."""
 
 from __future__ import annotations
 
@@ -12,9 +8,6 @@ from ._lines import mirror_lines, recrop_lines, turn_lines
 
 
 class _EditApi:
-  """Rotate / crop / filter / formula mutators."""
-
-  # ── edits (chainable; each snapshots history) ──────────────────────────────
   def rotate(self, quarters: int) -> "Editor":
     """Rotate by ``quarters`` clockwise quarter-turns; the crop and the drawn lines ride along,
     the lines turning inside the pre-turn view as the browser's rotate turns them."""
@@ -50,11 +43,9 @@ class _EditApi:
     return self
 
   def rotate_left(self) -> "Editor":
-    """Rotate one quarter-turn counter-clockwise (-1)."""
     return self.rotate(-1)
 
   def rotate_right(self) -> "Editor":
-    """Rotate one quarter-turn clockwise (+1)."""
     return self.rotate(1)
 
   def crop(
@@ -67,14 +58,11 @@ class _EditApi:
     y2: (float | NoneType) = None,
     album: bool = False,
   ) -> "Editor":
-    """Crop the current view by a crop spec (or x1/y1/x2/y2 edges).
+    """Crop the current view by a crop spec, or one built from the given edges.
 
-    When ``spec`` is omitted, a ``"x1=.. y1=.. x2=.. y2=.."`` spec is built from the
-    given edges (None edges are omitted). The spec resolves against the CURRENT view's
-    dimensions and page metrics (mirroring ``pipeline.resolveCropSpec`` →
-    ``pageForImage``), then composes into rotated-original space exactly like
-    ``session.applyCrop``. An unparseable spec is a no-op (matching the CLI, which
-    prints an error and leaves the image unchanged).
+    The spec resolves against the CURRENT view's size and page metrics
+    (``pipeline.resolveCropSpec``), then composes into rotated-original space like
+    ``session.applyCrop``. An unparseable spec is a no-op, as in the CLI.
     """
     self._require_original()
     core = self._get_core()
@@ -82,7 +70,6 @@ class _EditApi:
     if spec is None: spec = self._build_crop_spec(x1, y1, x2, y2)
     rect = self.resolve_crop_rect(spec, album=album)
     if rect is None:
-      # Bad spec: leave the editor untouched, just like the Zig handler.
       return self
     return self.crop_rect(*rect)
 
@@ -108,14 +95,9 @@ class _EditApi:
   def resolve_crop_rect(
     self, spec: str, *, album: bool = False
   ) -> (tuple[int, int, int, int] | NoneType):
-    """Resolve a crop spec against the CURRENT view without applying it.
-
-    Exactly the resolution :meth:`crop` performs — the same core ``resolveCrop``
-    call against the same view dimensions and page metrics — returning the
-    ``(x, y, w, h)`` sub-rect of the current view the crop would keep, or ``None``
-    for an unparseable spec. The rect's origin is what the LLM executor's §1
-    coordinate re-mapping subtracts from later plan coordinates.
-    """
+    """The ``(x, y, w, h)`` sub-rect of the current view :meth:`crop` would keep for ``spec``, or
+    ``None`` for an unparseable one, without applying it; the LLM executor's §1 re-mapping
+    subtracts its origin from later plan coordinates."""
     self._require_original()
     core = self._get_core()
     view_w, view_h = self._view_dims(self._current())
@@ -151,13 +133,8 @@ class _EditApi:
     return self
 
   def apply_filter(self, mode: str) -> "Editor":
-    """Convenience filter setter mirroring the CLI's ``/filter`` (``applyFilterArg``).
-
-    "bw"/"sepia"/"invert"/"contour"/"none" set those modes directly (the named modes
-    are checked BEFORE the colour fallback); anything else is treated as a colour —
-    parsed by the core and stored as a custom #rrggbb duotone tint. An unrecognized
-    value raises ``ValueError``.
-    """
+    """The CLI's ``/filter``: a named mode ("bw"/"sepia"/"invert"/"contour"/"none", checked first),
+    else a colour stored as a custom #rrggbb tint; anything else raises ``ValueError``."""
     low = mode.strip().lower()
     if low in ("bw", "sepia", "invert", "contour", "none"): return self.set_filter(low)
     core = self._get_core()
@@ -169,7 +146,6 @@ class _EditApi:
       )
     return self.set_filter_color(mode.strip())
 
-  # ── formulas (x/y coordinate transform) ─────────────────────────────────────
   def set_formula(self, axis: str, expr: str) -> "Editor":
     """Set the x or y coordinate-transform formula (validated by the shared parser; raises
     ValueError on a bad expression). A non-empty formula enables formulas. The expression
@@ -192,7 +168,6 @@ class _EditApi:
 
   @property
   def allow_formulas(self) -> bool:
-    """Whether the x/y formulas are currently applied."""
     return self._allow_formulas
 
   def formula_context(self) -> FormulaContext:

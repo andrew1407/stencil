@@ -17,8 +17,7 @@ export const dialogAdapters = (app) => ({
     clearSharedConversation(app);
     return null;
   },
-  // §10 dialog: the editor's own windows, through the very toolbar buttons the user would
-  // click. A disabled button is a note, never a failed plan; null closes whatever is open.
+  // §10 dialog: the editor's own windows; null closes whatever is open.
   openDialog: async (name) => {
     if (typeof document === 'undefined') return 'no dialogs on this surface';
     if (!name) {

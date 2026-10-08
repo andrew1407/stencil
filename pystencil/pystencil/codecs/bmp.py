@@ -67,11 +67,9 @@ def encode_bmp(width: int, height: int, rgba: bytes | bytearray) -> bytes:
     )
 
   bytes_per_px = 4
-  # 32-bit rows are already 4-byte aligned, so no padding is needed.
   row_size = width * bytes_per_px
   pixel_data_size = row_size * height
 
-  # Bottom-up BGRA pixel block: copy the rows in reverse, then swap R and B.
   pixels = bytearray(pixel_data_size)
   for row in range(height):
     src = (height - 1 - row) * row_size

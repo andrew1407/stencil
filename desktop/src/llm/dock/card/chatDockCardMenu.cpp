@@ -9,6 +9,7 @@
 #include "../../../support/guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "chatWidgets.hpp"
+#include "chatSheets.hpp"
 
 #include <QClipboard>
 #include <QFrame>
@@ -129,16 +130,7 @@ namespace stencil::gui {
     more->setIconSize(QSize(15, 15));
     // browser .chat-row-menu-btn. Not a QGraphicsOpacityEffect: a widget carries only ONE
     // graphics effect and the accent glow already claims it, so the 0.7 is baked into the chrome.
-    const auto rgba = [](const QColor& c, double a) {
-      return QStringLiteral("rgba(%1,%2,%3,%4)")
-          .arg(c.red()).arg(c.green()).arg(c.blue()).arg(a);
-    };
-    more->setStyleSheet(QStringLiteral("QToolButton{padding:1px;background:%1;"
-                                       "border:1px solid %2;border-radius:10px;}"
-                                       "QToolButton:hover{background:%3;border-color:%4;}")
-                            .arg(rgba(hooks.chip, GHOST_REST_OPACITY),
-                                 rgba(hooks.border, GHOST_REST_OPACITY),
-                                 hooks.chip.name(), hooks.border.name()));
+    more->setStyleSheet(support::chatRowMenuButtonSheet(hooks.chip, hooks.border, GHOST_REST_OPACITY));
     auto* glow = new QGraphicsDropShadowEffect(more);
     glow->setOffset(0, 0);
     glow->setBlurRadius(12);

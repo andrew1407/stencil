@@ -33,3 +33,6 @@ export declare function setPinned(rec: {
 }): Promise<PinEntry[]>;
 export declare function setPinKeywords(site: string, source: string, keywords: string[]): Promise<PinEntry[]>;
 export declare function clearPins(site?: string): Promise<PinEntry[]>;
+export declare const pinWrites: Readonly<{
+  setPinned: typeof setPinned; setPinKeywords: typeof setPinKeywords; clearPins: typeof clearPins;
+}>;

@@ -49,7 +49,7 @@ imports a spec. `playwright.config.js` sits above all three, reading `config.js`
 | `playwright.config.js` | the test projects, their workers, the `webServer` | projects that share one server's state run serially |
 | `helpers/config.js` | the app's host and port | the one place; a port of its own, so a stray dev server is never reused |
 | `helpers/static-server.js`, `helpers/compose/` | the Node static server; compose up / down with the server's LLM env at the stub | up only under `E2E_STACK=1`, down only under `E2E_STACK_DOWN=1` |
-| `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it |
+| `helpers/boot.js` | `gotoApp(page, { motion })`: clear `localStorage`, navigate, await `window.stencil` | every browser spec boots through it |
 | `helpers/extension.js` | the persistent-context launch + extension-id resolution | headed; CI wraps in xvfb |
 | `helpers/cli/` | one run of the Zig binary read by its argv/outcome contract; lines piped into `stencil --console` | the stderr grammar mcp and bot parse; the console spawns async so the in-process stub stays reachable |
 | `helpers/stcCases.js` | reads the shared `.stc` corpus (`common/fixtures/script/cases.txt`) | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
@@ -202,6 +202,23 @@ The pin file the harness owns:
 `style` holds only `PIN_PROPS` values outside the `DROPPED` defaults; `text` appears on leaves
 only; `<svg>` children are not walked.
 
+## Concurrency
+
+Playwright runs spec files in worker processes: up to eight at once, or one when
+`E2E_STACK=1`. The `browser-app`, `browser-extension` and `cli` projects are `fullyParallel` on
+up to four workers each, so two tests of one file can run in different workers;
+`fullstack` and `server-protocol` take one worker each. Those two share one compose server and
+the fixed stub port, and nothing but the global `workers: 1` of a stack run keeps them from
+running beside each other. Every project shares the one static server, which only reads.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `browser-app` tests | up to four workers | the static server on `APP_URL` | a fresh `BrowserContext` per test, the app service worker blocked | the context closes with the test |
+| `browser-extension` suites | up to four workers | one persistent profile per describe in each worker that runs it: `chrome.storage`, the app origin's storage and service worker | a describe's tests that land in one worker run in order over one profile | the `afterAll` closes the context; its temporary profile goes with it |
+| `cli` tests | up to four workers | the static server, for the URL-input case | each run is its own child process with its own output directory | the child exits with its run |
+| `fullstack`, `server-protocol` | one worker each, one in all under `E2E_STACK=1` | the compose server, its database, and `LLM_STUB_PORT` | the global `workers: 1` of a stack run | `globalTeardown` takes the stack down under `E2E_STACK_DOWN=1` |
+| LLM stub (`helpers/llm-stub.js`) | the worker that starts it | its port: fixed for the stack specs, ephemeral for the rest | one stub per spec that needs it | closed by the spec that started it |
+
 ## Rules
 
 1. **Real artifacts, public contracts.** A spec drives `window.stencil`, the REST/WS/TCP
@@ -209,8 +226,13 @@ only; `<svg>` children are not walked.
 2. **One stub for every model**, on a fixed port (`LLM_STUB_PORT`) for the stack specs because
    compose bakes it into `LLM_BASE_URL` at boot, so a stack run goes single-file. Every other
    spec takes an ephemeral port.
-3. **State isolation.** `boot.js` clears `localStorage` per navigation and the config blocks
-   the app service worker.
+3. **State isolation is the browser context's.** `boot.js` clears only `localStorage`; the
+   app's projects and chats live in IndexedDB, so a `page`-fixture spec is isolated by
+   Playwright's fresh `BrowserContext` per test, where the config also blocks the app service
+   worker. An extension suite launches its own persistent context, which the config's `use`
+   does not reach: its tests share that profile's storage, IndexedDB included, and the app's
+   service worker runs. Its editor tabs hold their IndexedDB connection open, so the suites do
+   not delete the databases between tests.
 4. **Pins are computed styles + DOM shape, not screenshots**, so a failure names the element
    and the property that moved. They freeze the app's own motion and pin the light theme.
 5. **Motion is switched off through the app's own setting**, not by emulating

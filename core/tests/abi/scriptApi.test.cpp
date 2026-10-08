@@ -4,6 +4,8 @@
 
 #include <cstring>
 #include <string>
+#include <thread>
+#include <vector>
 
 // The extern "C" script surface, driven through its own prototypes. The wasm twin is
 // emitted from the same abi/scriptShared.inc, so this also guards that body.
@@ -175,4 +177,29 @@ TEST_CASE("the token stream carries spans an editor can colour") {
     if (kind == 1) ++directives;  // TokenKind::DIRECTIVE
   }
   CHECK(directives == 4);
+}
+
+TEST_CASE("script ABI: the handle table and the dump memo survive concurrent callers") {
+  const int shared = stencil_cli_scriptParse(kScript, static_cast<int>(std::strlen(kScript)));
+  std::vector<std::thread> workers;
+  std::vector<const char*> dumps(4, nullptr);
+  std::vector<int> ok(4, 0);
+  for (int t = 0; t < 4; ++t)
+    workers.emplace_back([&, t] {
+      dumps[static_cast<std::size_t>(t)] = stencil_cli_scriptDump(shared);
+      for (int i = 0; i < 50; ++i) {
+        const std::string src = "@source a.png:\n  @crop " + std::to_string(1 + i) +
+                                "%\n  @rect (10,10) (100,80)\n  @save out.png\n";
+        const int h = stencil_cli_scriptParse(src.data(), static_cast<int>(src.size()));
+        const bool good = stencil_cli_scriptErrorCount(h) == 0 && stencil_cli_scriptOpCount(h) == 4 &&
+                          stencil_cli_scriptDump(h) != nullptr;
+        ok[static_cast<std::size_t>(t)] += good ? 1 : 0;
+        stencil_cli_scriptDestroy(h);
+      }
+    });
+  for (std::thread& w : workers) w.join();
+  for (int n : ok) CHECK(n == 50);
+  REQUIRE(dumps[0] != nullptr);
+  for (const char* d : dumps) CHECK(d == dumps[0]);
+  stencil_cli_scriptDestroy(shared);
 }

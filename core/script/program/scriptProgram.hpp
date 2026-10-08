@@ -1,7 +1,8 @@
 #pragma once
 #include "types.hpp"
 
-// The parsed script as the ABI hands it out: the C++ shape behind what parseScript returns.
+// The parsed script as the ABI hands it out: the C++ shape behind what parseScript in
+// browser/js/core/script.js returns.
 namespace stencil::core::script {
 
   // Immutable after parse(), so the C ABI can hand out pointers that outlive the call.

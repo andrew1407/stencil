@@ -20,7 +20,7 @@ graph TD
     CANVAS & DLG --> SUP
     LLM --> NET
     CANVAS & DLG & LLM --> CORE
-    NET -.->|"REST"| SRV
+    NET -.->|"REST, events feed"| SRV
     LLM -.->|"chat proxy"| SRV
 ```
 
@@ -28,8 +28,10 @@ graph TD
 
 The core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
 `support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces
-it: nothing below `app/` includes an `app/` header, `dialogs/` never includes `canvas/`, a `core/`
-header enters the GUI only through the core seam, and no header passes `MainWindow.hpp` (or,
+it: nothing below `app/` includes an `app/` header beyond its one allowance
+(`dialogs/projects/ProjectsDialog.cpp` reaching `app/mainWindowHelpers.hpp` for the name-chip
+metrics), `dialogs/` never includes `canvas/`, a `core/` header enters the GUI only through
+`model/` beyond the frozen allowance in `layerBoundary.headless.cpp`, and no header passes `MainWindow.hpp` (or,
 outside `canvas/`, `CanvasWidget.hpp`) on — a header forward-declares them, and only the units that
 reach into them include them. The document state lives in `CanvasScene` (`core::Lines` +
 `core::EditorHistory`), which `CanvasWidget` is; the controllers are the `*Controller` classes,
@@ -41,15 +43,15 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow` (hub and state groups in `MainWindow.hpp`, its parts in `WindowParts.hpp`), a folder per feature | composition only; a new job is a part or a TU in its feature folder, and a part never reaches into another |
 | `src/canvas/` | `scene/` `CanvasScene`, the document and its paint path with no widget; `CanvasWidget`, the scene plus the pointer | pixel, geometry and page math come from `core/` through `model/canvasCore.hpp`; pointer tunings come from `constants.json` through `input/pointerTuning` and `scene/markMetrics`, ranges through `support/control/lineLimits`; an offscreen render uses a `CanvasScene`, never a hidden widget; the canvas never reads a file |
-| `src/model/` | Qt-shaped wrappers over core types the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: only `model/` includes `core/`; nothing here is persisted |
-| `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` and `ScriptMenuPanel` | every prompt/picker goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets |
+| `src/model/` | Qt-shaped wrappers over core types the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `core/` headers enter through `model/`, beyond the frozen `CORE_INCLUDE_ALLOWANCE` in `tests/layerBoundary.headless.cpp`; nothing here is persisted |
+| `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` and `ScriptMenuPanel` | every prompt and choice goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; the native file picker (`QFileDialog`) and the non-native `QColorDialog` inside the reveal helper are the exempt pickers; a menu-hosted panel reuses the window's widgets |
 | `src/llm/` | `dock/` and `panel/` (chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`, `SessionKey`), `plan/` (registry, typed plan mapping, executor) | plans validate in `core/opplan` before execution; `plan/` only maps core's result to typed actions; the executor calls the toolbar's appliers |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix and header sniffers) | QtCore-only serialization; `MediaLoader` decodes on the pool and answers only from the event loop |
-| `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore`, `fetchGuard`, `blockedRanges`, `httpStatus` | `fetchGuard` is the one SSRF guard, a port of `cli/src/net.zig`, judging every address by `net/blockedRanges.json`; tokens never go in `QSettings` |
-| `src/support/` | a folder per shared concern (`theme/`, `webcore/`), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, the platform helpers | QSS lives here only; a platform helper is one declaration with a body per OS |
+| `src/net/` | `serverClient` (REST + `ConnectionManager`), `LiveFeed` (the read-only events subscription), `connectionStore`, `fetchGuard`, `blockedRanges`, `httpStatus` | `fetchGuard` is the one SSRF guard, a port of `cli/src/net.zig`, judging every address by `net/blockedRanges.json`; tokens never go in `QSettings` |
+| `src/support/` | a folder per shared concern (`theme/`, `webcore/`, `sheets/` for the per-widget style sheets, `process/` for a child's environment), the session switches `motionPrefs.hpp` / `skinPrefs.hpp`, `rowWork.hpp` (the pool helpers), the platform helpers | QSS text lives here only, a caller passing `setStyleSheet` what a `support::…Sheet` returns; a platform helper is one declaration with a body per OS |
 | `resources/` | `app.qrc`: per-feature `.qss` under `qss/app/`, the `qss/webcore/` overlay, the shared config JSON as aliases | shared tables are aliased from `common/config/`, never copied; sheet pieces load in the one order `stylesheetPieces` (`support/theme/themeStylesheet.cpp`) lists |
 | `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `common/icons/favicon.svg` |
-| `cmake/` | `StencilSources` and `StencilTests` (indexes over per-area parts), `StencilPackaging`, `StencilDeploy` | source lists live here, not in `CMakeLists.txt`; a source or suite joins its area's part |
+| `cmake/` | `StencilSources` and `StencilTests` (indexes over per-area parts), `StencilPackaging`, `StencilDeploy` | source lists live here, not in `CMakeLists.txt` (the entry point too, `STENCIL_APP_MAIN`); a source or suite joins its area's part |
 | `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` and the layer lint | every suite reports its own failures |
 
 ## Entities
@@ -123,12 +125,12 @@ classDiagram
 | State group | `WindowActions`, `ToolbarControls`, `PopoverHost`, `RemoteState`, …, held by value in `MainWindow` | Plain structs with no back-reference, read by name |
 | Memento | `core::EditorHistory` in `CanvasScene`; `PlanTarget::stepHistory` | A stroke, crop, turn or committed filter pushes an `EditorMemento`; a preview or no-op pushes none; a restore rebuilds from the original only when crop or turn differ |
 | Strategy | `LlmClient`'s per-wire `chat*` keyed by `providers.json` `wire`; `CanvasScene::setFilter` modes; `MotionMode` → `ParticleStyle`; `NotificationSink` by `Settings.notifyChannel` | Table lookup, no growing `if` chain; a sink that cannot deliver falls back to the toasts |
-| Observer | Qt signals (`CanvasWidget::changed`, `LiveFeed::projectUpdated`, `MediaLoader::loaded`, …) | Async completions run on the GUI thread, captures guarded with `QPointer` |
+| Observer | Qt signals (`CanvasWidget::changed`, `LiveFeed::projectUpdated`, `MediaLoader::loaded`, …) | Async completions run on the GUI thread, bound to an owning context — a pool job's `QFutureWatcher` is a child of its `ctx`, a reply dies with its `QNetworkAccessManager` — so a completion never outlives its owner; a `QPointer` guards only a callback that crosses to another object |
 | Repository | `fileStore`, `connectionStore`, `core::ProjectsStore` | Callers see typed structs, never JSON or paths |
 | Chain of Responsibility | `fetchGuard::checkAsync` → `request` → `get` | The one guard on every untrusted `http(s)` fetch: blocked hosts, resolution, no redirects, byte cap |
 | Adapter | `LlmTransport` → `QtLlmTransport` or a test mock; `PlanTarget` → `ChatPlanTarget` (live editor) / `CanvasPlanTarget` (offscreen sandbox) | One seam per boundary, so the tests run offline |
 | Debounced write | `SessionController`, `RemoteSyncController`, `io/deferredWrite`, `StencilFileSync` | Gates (`incognito`, `remoteUnsynced`) are checked at fire time |
-| Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a 409 re-reads, merges (`model::unionLines` over `core::mergeLines`) and retries, bounded |
+| Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a layout push takes 6 tries, each 409 re-reading and merging (`model::unionLines` over `core::mergeLines`); a meta PUT takes 4, re-reading the version without a merge |
 | Continuation | `executePlanThen`, `runScriptThen` (`app/scriptRun.cpp`) over `PlanTarget`'s `…Then` ops; `PlanAwait` | An op waiting on I/O suspends the run and its answer resumes it at the next op; a window torn down mid-await takes the plan with it |
 | Off-thread decode | `MainWindow::decodeForCanvas` over `support::runOnPool`, checked against `CanvasScene::pictureGeneration`; `MediaLoader::decodeThen` | No user picture decodes on the GUI thread; the pool job touches no GUI object; an overtaken load is dropped |
 | Hosted menu panel | `ChatMenuPanel`, `ScriptMenuPanel`: a `QWidgetAction` in a `StayOpenMenu` | The action owns the panel, so its state outlives the per-right-click menu rebuild |
@@ -202,7 +204,10 @@ classDiagram
   the original, a pool decode and `RemoteLink::bind`. A peer's edit with an equal `originalHash`
   lands in place as one undo step (`CanvasScene::commitLayout`); only a changed original is a full
   reload. Writes go through `RemoteSession::putVersionGuardedAsync`; `RemoteSyncController`
-  debounces pushes, polls while linked and subscribes `LiveFeed` (raw TCP NDJSON). A push marks
+  debounces pushes, polls while linked and subscribes `LiveFeed` (raw TCP NDJSON). A reload holds
+  `RemoteState::reloading` from its first request to its landing: no push, poll or second silent
+  reload starts meanwhile, and lines drawn during it are union-merged into what lands, then
+  pushed. A push marks
   the baked `result` stale; a `renderCopy` is rendered on the pool and uploaded once edits idle,
   throttled by `COEDIT.resultMinGapMs`. A re-read after our own write adopts only our own version
   bump, so a peer's edit in between still reloads.
@@ -240,6 +245,35 @@ classDiagram
   (`stencil-mime.xml`, `stencil.desktop`). `packaging/mkicon.cpp`, a Qt host tool, rasterises
   `common/icons/favicon.svg` into `.icns` / `.ico`.
 
+## Concurrency
+
+Everything that touches a `QObject` runs on the GUI thread; the one other executor is Qt's global
+`QThreadPool`. Pool work goes through `support::runOnPool` (or `MediaLoader`'s own promise, or
+`io/deferredWrite`): the job captures its inputs by value, touches no `QObject`, `QWidget` or
+`QPixmap`, and returns a value that a `QFutureWatcher` parented to `ctx` hands back on the GUI
+thread — never once `ctx` is gone. What runs there is picture decode, PNG encode, a
+`CanvasScene::renderCopy` render (the co-edit result, a plan save) and the JSON writes.
+`support::forEachSlice` fans row slices out only from the GUI thread; called on a pool thread it
+runs inline, since a job waiting on slices queued behind it would starve the pool. `SessionKey`,
+`Settings`, the palette, icon and thumbnail caches and every `QPixmap` are GUI-thread only. Network
+completions run on the GUI thread through their `QNetworkAccessManager`. At close the window
+flushes its pending session and view saves, then `deferredWrite::flush`; the co-edit result is
+waited for up to `RESULT_CLOSE_CAP_MS`.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `support::runOnPool` jobs (decode, encode, render copies) | global pool | inputs captured by value; a `renderCopy` scene owned by the job | the watcher is a child of `ctx`; a decode checks `CanvasScene::pictureGeneration` on landing | `ctx` gone: the result is dropped; an overtaken decode answers false |
+| `support::forEachSlice` | GUI thread plus pool slices | the caller's buffers, disjoint row ranges | a `QSemaphore` the caller waits on | off the GUI thread or under `minPer` rows a slice: inline |
+| `io/deferredWrite` | GUI-thread timers, pool writes | the pending-job table (GUI only), the files | `writeGate` serialises writes in order; `countGate` + a wait condition track in-flight jobs | a burst coalesces to one write; `flush()` blocks until the pool is quiet; each write is a `QSaveFile` rename |
+| `dragPasteboardMac` promise reader | an `NSOperationQueue` thread and the GUI thread | the offered promise, the landed path, `generation` | one `std::mutex` | a bounded wait, then the drop goes on; a file landing after `abandon()` bumped the generation is deleted |
+| `canvasPaintCache`, `scenePaint` buffers | whichever thread paints | nothing | `thread_local` | per thread, freed at thread exit |
+| `net/LiveFeed` | GUI thread (socket slots) | nothing; emits `projectUpdated` | — | a line over 1 MiB drops the socket; one reconnect after 3 s per drop, the poll as backstop |
+| `RemoteSyncController` timers | GUI thread | `RemoteState::reloading` / `pushing`, `planRunning` | push, poll, reload and result each refuse while another holds the canvas | feed events coalesce 40 ms into one reload; a push is debounced 350 ms, capped at 1.5 s |
+| Layout push / meta PUT | GUI thread, async REST chain | the link's version | `runGuardedWriteAsync` | layout: 6 tries, union merge per 409; meta: 4 tries, version re-read, no merge; then a toast |
+| Server reload (`openServerProject`) | GUI thread, async REST chain + pool decode | the canvas | `reloading` held to the landing, owned by `reloadSeq`; a second silent reload is refused | lines drawn meanwhile are union-merged into what lands, then pushed |
+| `SessionController` debounces | GUI thread | the session file, the project row | gates read at fire time | 600 ms / 400 ms; flushed at close |
+| `StencilFileSync` | GUI thread | the linked `.stencil` file | the conflict question is not re-entered: a change or flush meanwhile re-runs after it | 800 ms debounce; atomic write; our own write is the baseline, never a conflict |
+
 ## Rules
 
 1. **The core is the logic.** Filters, crop, rotation, page coordinates, history, project expiry and
@@ -247,11 +281,15 @@ classDiagram
 2. **Shared data is aliased, not copied.** Hotkeys, info text, theme tokens, motion, pointer and
    highlight tunings, the LLM assets and the SSRF address table are `common/config/` files aliased
    in the qrc.
-3. **REST only.** The server connection is `QNetworkAccessManager` REST — no WebSocket of any kind,
-   no TCP edit channel; server projects refresh by polling while the Projects dialog is open.
+3. **Requests are REST.** Every read and write of server state is a `QNetworkAccessManager` REST
+   request. The one other channel is `net/LiveFeed`: a read-only NDJSON event subscription over plain
+   TCP on the REST port + 1, no WebSocket, carrying a project id and version that only trigger a
+   REST re-read; the 2 s poll is its backstop, and the Projects dialog polls while open.
 4. **Secrets.** Connection tokens live in the 0600 `connectionStore`, the openai-compat LLM key in
-   the settings JSON only, the anthropic key in process memory only (`SessionKey`).
-   `STENCIL_LLM_*` never reaches a child process.
+   the settings JSON only, the anthropic key in process memory only (`SessionKey`). Every
+   `QProcess` the app starts runs with `support::scrubbedChildEnv` (no `STENCIL_LLM_*`, no server
+   token — `cli/src/safety/child.zig`'s list); a link opened through `QDesktopServices::openUrl` is
+   handed to the OS opener (LaunchServices, ShellExecute, `xdg-open`), which the app does not scrub.
 5. **Motion** is gated by `support/motionPrefs.hpp` (`STENCIL_NO_ANIM=1` overrides) and mirrors
    `browser/js/ui/dust/cloud.js` value for value: sprite blits, and a `QTimer` at the screen's
    refresh rate. A widget hidden under its dust wears `veilBehindDust`, never a bare opacity

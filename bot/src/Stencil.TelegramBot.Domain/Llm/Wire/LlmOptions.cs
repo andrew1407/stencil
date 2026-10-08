@@ -26,8 +26,7 @@ public sealed record LlmOptions
     // stencil-server only; null = the invoking user's first connected server, resolved per call.
     public string? ServerUrl { get; init; }
 
-    // The operator's bearer for an explicit ServerUrl, used when the user has no /connect of their
-    // own.
+    // The operator's bearer for an explicit ServerUrl, used when the user has no /connect of their own.
     public string ServerToken { get; init; } = "";
 
     public static string DefaultBaseUrlFor(string provider) =>

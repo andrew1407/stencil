@@ -32,10 +32,12 @@ type Hub struct {
 	cancel   context.CancelFunc
 	hello    helloGuard // per-IP throttle on failed handshakes (hellolimit.go)
 	tune     Tuning     // queues and deadlines (tuning.go)
+	instance string     // stamps this hub's bus envelopes, so it skips its own on receipt
 
 	mu       sync.Mutex
 	sessions map[string]*session
 	conns    map[*connReg]struct{} // live connection cancels, guarded by mu
+	loops    map[*session]struct{} // run loops not yet returned, released or not; guarded by mu
 	changed  chan struct{}         // one pending signal: a session's member count moved
 }
 
@@ -57,8 +59,10 @@ func New(ctx context.Context, store Store, b eventbus.Bus, resolver auth.Session
 		ctx:      hctx,
 		cancel:   cancel,
 		tune:     defaultTuning,
+		instance: randomID(),
 		sessions: map[string]*session{},
 		conns:    map[*connReg]struct{}{},
+		loops:    map[*session]struct{}{},
 		changed:  make(chan struct{}, 1),
 	}
 	for _, opt := range opts {
@@ -93,6 +97,7 @@ func (h *Hub) acquire(id string) *session {
 	if s == nil {
 		s = newSession(h, id)
 		h.sessions[id] = s
+		h.loops[s] = struct{}{}
 	}
 	s.refs++
 	h.signalChanged()
@@ -112,6 +117,14 @@ func (h *Hub) release(s *session) {
 		delete(h.sessions, s.id)
 		close(s.done)
 	}
+}
+
+// loopExited forgets a session whose run loop has returned, so Drain stops waiting for it.
+func (h *Hub) loopExited(s *session) {
+	h.mu.Lock()
+	delete(h.loops, s)
+	h.mu.Unlock()
+	close(s.exited)
 }
 
 // signalChanged leaves one pending signal on LiveChanged; later ones coalesce into it.

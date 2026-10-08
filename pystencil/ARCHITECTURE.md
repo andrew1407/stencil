@@ -41,9 +41,9 @@ guard, and the other `_`-prefixed helpers sit with `_native` at the bottom.
 
 | Path | Holds | Rule |
 |---|---|---|
-| `build.py`, `build_compile.py`, `build_stb.py` | the shared-lib build of `core/`, the CLI's stb units and `stb/shim.c` | its source list is the third copy of `STENCIL_CORE_SOURCES` |
+| `build.py`, `build_compile.py`, `build_stb.py`, `build_data.py` | the shared-lib build of `core/`, the CLI's stb units and `stb/shim.c`; the `pystencil/_data/` sync | its source list is the third copy of `STENCIL_CORE_SOURCES` |
 | `stb/` | the `stencil_py_*` shim, `pin.json`, the gitignored cache | `stb/cache/` holds only bytes that hash to `pin.json` |
-| `pystencil/_native.py`, `core.py`, `_raster/`, `_ffi/`, `_severity.py` | locate → build → load; `class Core`; the ctypes tables and buffer guards; the `error: ` / `note: ` prefixes | every ABI function gets an explicit `argtypes`/`restype` row; bytes cross as flat RGBA8 buffers and C strings |
+| `pystencil/_native.py`, `core.py`, `_raster/`, `_ffi/`, `_severity.py` | locate → build → load; `class Core`; the ctypes tables and buffer guards; the `error: ` / `note: ` prefixes | every function pystencil calls gets an explicit `argtypes`/`restype` row — the row-band kernels and the helpers of features this surface lacks stay unbound, since nothing here calls them; only these modules and `_ffi/` import `ctypes`; bytes cross as flat RGBA8 buffers and C strings |
 | `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard and the redirect-refusing opener; the one bounded fan-out | fan-out results land in submission order |
 | `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle and its value types; what a `@source` names and where a `@save` writes | the core lowers, the adapter opens — path expansion and save naming live outside `core/`, each spelled once |
 | `pystencil/_data/` | the generated copies of `common/config/llm/` and `net/blockedRanges.json` | byte-pinned by `tests/test_canonical_drift.py` |
@@ -101,7 +101,7 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `Core` (`core.py` + `_raster/ops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI | A `get_core()` singleton or injected; holds the `CDLL` and one op-plan schema handle | Called by `Editor`, `Image.blank` and `parse_op_plan`; never holds pixels |
+| `Core` (`core.py` + `_raster/ops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI | A `get_core()` singleton or injected; holds the `CDLL` and one op-plan schema handle, released by `close()` | Called by `Editor`, `Image.blank` and `parse_op_plan`; never holds pixels |
 | `Image` (`image.py`) | A flat RGBA8 `bytearray` with its dimensions | Value type; the `Editor` keeps one pristine original | Coded by `codecs/`; uploaded by `ServerConnection` |
 | `Layout` / `Line` / `Point` (`layout.py`) | The drawing payload: dimensions, lines, filter, crop, rotation, page, formulas | Values from `Editor.layout()` or JSON | The layout JSON every surface reads |
 | `_Snapshot` (`editor/_snapshot.py`) | One editing state: rotation, crop in rotated-original space, filter, drawn lines | Copied, never mutated, on the `Editor` history stack | Pushed by every `Editor` mutator |
@@ -136,7 +136,8 @@ classDiagram
 - **Boot.** `Core.load()` → `find_or_build()`: `$STENCIL_CORE_LIB` wins, else `build.py`,
   imported by path, rebuilds when the artifact is older than any input. `build()` locks,
   compiles, links into a temp file and `os.replace`s it in, so no loader maps a half-written
-  library; without the stb headers PNG and BMP decode through the fallbacks.
+  library; without the stb headers PNG and BMP decode through the fallbacks. Importing the
+  package refreshes `pystencil/_data/` from `common/config` through `build_data.sync`.
 - **An image op.** `Editor.result()` derives the view from the snapshot under the cursor —
   rotate → crop → filter or contour → `rasterize_line` per `Line` — memoised on `revision`.
   Buffers are Python-allocated; the core never allocates across the ABI.
@@ -182,6 +183,41 @@ classDiagram
 - **A project file.** `save_project` writes the `.stencil` document, omitting an empty optional
   key.
 
+## Concurrency
+
+A library, not a runtime: pystencil starts no thread of its own outside a call. Every call
+runs on its caller's thread, and ctypes releases the GIL for each call into the core, so
+pixel kernels and I/O overlap. The core serializes its op-plan and script handle tables
+itself; the `Core` kernels are re-entrant over caller-owned buffers. `Editor` and `_Repl` are
+single-owner: one thread drives each, and no state of theirs is locked. The one fan-out,
+`map_parallel` in `_raster/parallel.py`, runs self-contained jobs on a bounded
+`ThreadPoolExecutor` and returns results in submission order, re-raising a job's exception at
+its position. Across processes, two writers share the checkout: the native build and the
+`pystencil/_data/` sync, each under its own `flock` and each landing by `os.replace`. Locks nest in one
+order only: `codecs/stblib._LOCK` → `_native._LOCK`.
+
+Errors that cross the library API are `ValueError` (bad input, a guard refusal, a malformed
+project; `ScriptError` is one), `TypeError` (an unsupported input kind), `RuntimeError` (no
+image loaded, a failed build or load, a registry the core refused), `FileNotFoundError` (a
+missing `$STENCIL_CORE_LIB` or an unbuilt library with building off), `CodecError`,
+`ServerError`, the `LlmError` family and the transport's `OSError` / `urllib.error.URLError`.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `_native.load_library` / `get_core` | first caller's thread | `_CDLL`, `core._CORE` | double-checked under the one `_native._LOCK` (`RLock`) | racing first callers build and load once |
+| `build.build` | any process | `_native/<lib>` | `flock` on `<lib>.lock`, staleness re-checked inside; temp file + `os.replace` | a failed or timed-out compile leaves the old library and no temp file |
+| `build_data.sync` | any importing process | the `pystencil/_data/` copies | unlocked equality check, then `flock` on a lock file beside the copies; temp file + `os.replace` | equal bytes are never rewritten; a reader sees old or new bytes, never a torn file |
+| `Core` op-plan schema handle | caller | the handle | created under `_native._LOCK`; the core locks its handle table | `close()` / `__del__` destroy it once; the `get_core()` instance keeps its handle for the process; a teardown failure is swallowed |
+| `Script` | any thread | its core handle, the resolve buffer | one `threading.Lock` per `Script` over every handle read and the destroy; the core locks its table | `close()` is idempotent from any thread; a read after it raises `ScriptError` |
+| `map_parallel` | `ThreadPoolExecutor`, `min(bound, jobs)` workers | nothing — each job its own | none needed | a batch of one runs inline; the first failing job's exception surfaces at its position |
+| `execute_op_plan` variants | `map_parallel`, `MAX_VARIANT_WORKERS` | the injected `Core` | each branch owns a fresh `Editor`, built in plan order on the caller's thread | outputs in variant order |
+| `_net._fetch_all` (scan, measure, download, server polls) | `map_parallel`, `MAX_FETCH_WORKERS` | nothing | each fetch runs `_net._fetch`'s guard on its own | a failing item is skipped by its job |
+| `ConnectionManager.remote_projects` | `_fetch_all`, one job per connection | each `ServerConnection` | a connection's listing error yields `[]` | an unreachable server is skipped |
+| `ServerConnection._request` re-mint | any thread on that connection | `token`, `credential_kind` | the per-connection `_mint_lock`; a request whose token already changed retries without minting | one mint per stale token; a failed mint re-raises the original 401/403 |
+| `codecs/stblib.loaded` | first decoding thread | `_LIB`, `_MISSING` | `stblib._LOCK`, then `_native._LOCK` inside it | a missing library is remembered with its reason |
+| stb decode | any thread | stb's process-global failure reason | the shim's per-thread block cap; the reason itself is unguarded | two failing decodes at once may report each other's reason |
+| `_net._assert_fetchable` | caller | DNS | resolves and judges every address, then the fetch resolves again | a rebinding between the two lookups is the residual TOCTOU the Zig CLI shares |
+
 ## Rules
 
 1. **Stdlib only, ctypes only.** No PyPI package, no C extension module. `from __future__
@@ -217,4 +253,6 @@ import direction, the typed op-plan result and the console text. The network is 
 `_open` and `_http_open` seams; loopback servers prove a redirect never carries a credential and
 an over-cap body is refused, and `tests/helpers/anthropicmock.py` serves direct turns. Codec
 suites hold stb and the fallbacks to the same pixels and against bombs and oversized headers;
-concurrency suites prove submission order and one build under a racing `get_core()`.
+concurrency suites prove submission order, one build under a racing `get_core()`, the
+`pystencil/_data/` sync against racing writer processes, scripts parsed and closed from a pool, a double
+close destroying once, one re-mint for racing stale requests and a `Core` releasing its schema.

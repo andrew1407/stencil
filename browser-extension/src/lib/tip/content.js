@@ -76,7 +76,6 @@ export const parseTip = text => {
   }
   if (lines.length === 0) return tip;
 
-  // ── heading ──
   let head = lines[0];
   // "a · b · c" on the heading line: the first piece titles the tooltip, the rest are bullets — but
   // a single trailing piece has nothing to enumerate against, so it reads as a hint instead.
@@ -94,9 +93,7 @@ export const parseTip = text => {
   if (tail.length > 1) for (const t of tail) tip.blocks.push({ kind: 'bullet', text: sentenceCase(t) });
   else if (tail.length === 1) tip.blocks.push({ kind: 'hint', text: sentenceCase(tail[0]) });
 
-  // ── body ──
   for (const raw of lines.slice(1)) {
-    // The disabled-reason line composeControlTitle appends.
     const note = raw.match(/^[—–-]{1,2}\s+(.*)$/);
     if (note) {
       tip.blocks.push({ kind: 'note', text: sentenceCase(note[1]) });
@@ -130,8 +127,7 @@ export const parseTip = text => {
   return tip;
 };
 
-// Consecutive rows share one grid and consecutive bullets one list, so columns line up.
-// '' when there is nothing to show.
+// Consecutive rows share one grid and consecutive bullets one list; '' when nothing shows.
 export const renderTip = (text, mac = isMacPlatform()) => {
   const tip = parseTip(text);
   if (!tip.title && tip.blocks.length === 0) return '';

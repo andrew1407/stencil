@@ -13,8 +13,9 @@ type maintenance struct {
 	projects expiredProjectDeleter
 	drops    projectDropper
 	sessions expiredSessionDeleter
-	batch    int // rows one DELETE ... RETURNING takes (SWEEP_BATCH)
-	workers  int // concurrent byte drops (SWEEP_WORKERS)
+	batch    int           // rows one DELETE ... RETURNING takes (SWEEP_BATCH)
+	workers  int           // concurrent byte drops (SWEEP_WORKERS)
+	timeout  time.Duration // bounds each session-row DELETE (OP_TIMEOUT_SECONDS); 0 = unbounded
 }
 
 // dropEach drops each swept project over a bounded pool: thousands of ids should
@@ -62,7 +63,7 @@ func (m maintenance) pass(ctx context.Context) {
 	}
 	sessions := 0
 	for {
-		n, err := m.sessions.DeleteExpiredSessions(ctx, time.Now().UnixMilli(), m.batch)
+		n, err := m.deleteSessions(ctx)
 		if err != nil {
 			log.Printf("expiry sweep: sessions: %v", err)
 			break
@@ -74,6 +75,15 @@ func (m maintenance) pass(ctx context.Context) {
 	if sessions > 0 {
 		log.Printf("expiry sweep: removed %d expired session(s)", sessions)
 	}
+}
+
+func (m maintenance) deleteSessions(ctx context.Context) (int, error) {
+	if m.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, m.timeout)
+		defer cancel()
+	}
+	return m.sessions.DeleteExpiredSessions(ctx, time.Now().UnixMilli(), m.batch)
 }
 
 // startExpirySweep sweeps once, then every interval until ctx is cancelled, dropping filestore bytes and

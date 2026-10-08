@@ -5,7 +5,8 @@
 #include <string>
 
 // The CLI's crop string, e.g. "x1 = 90 x2 = 200, y1 = 90 y2 = 567", each edge a length
-// token (lengthTokens.hpp): the headless twin of the browser's stencil.crop({x1,x2,y1,y2}).
+// token (lengthTokens.hpp): the headless twin of stencil.crop({x1,x2,y1,y2}) in
+// browser/js/console/api/cropApi.js.
 namespace stencil::core {
 
   // `valid` is false on an unknown key or malformed structure — a present-but-unparseable

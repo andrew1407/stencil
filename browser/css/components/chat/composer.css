@@ -1,7 +1,5 @@
-/* Jump pills riding the transcript's bottom edge: a zero-height strip between the
-   transcript and the tray anchors them, so they float over the log without owning
-   layout. ⌃ = the very beginning, ⌄ = the latest message; each shows only while
-   there is somewhere to go (can-up / can-down, chatPanel syncJumps). */
+/* Jump pills ride the transcript's bottom edge on a zero-height strip, floating without owning
+   layout; each shows only while there is somewhere to go (can-up / can-down). */
 .chat-jumps { position: relative; height: 0; overflow: visible; z-index: 6; }
 /* …6 is only ever contested INSIDE the panel: every popup that can cover this corner
    (the row menu, the tooltip) sits in the 100003 tier, far above the panel's own 90000. */
@@ -80,14 +78,11 @@
 #chat-input {
     flex: 1 1 auto;
     min-width: 0;
-    /* Height driven by the slider strip above the row (.chat-input-sizer) — the
-       native corner grip is off (the textarea is bottom-anchored, so only its top
-       edge can actually move). Clamped here, persisted by the panel. */
+    /* Height comes from the sizer strip above: the textarea is bottom-anchored, so only its top edge
+       can move. Clamped here, persisted by the panel. */
     resize: none;
-    /* Tall enough that the whole placeholder (three short lines at 14px line
-       height ~19px, plus padding and border) reads without clipping — 64px cut
-       the first line in the compact float; the sizer strip above still
-       grows/shrinks it. */
+    /* Tall enough for the whole three-line placeholder (64px clipped the first line in the compact
+       float). */
     min-height: 76px;
     max-height: 40vh;
     font-size: 14px;   /* matches the transcript and the app base size */
@@ -121,12 +116,8 @@
 }
 stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before, .chat-input-sizer.dragging::before,
 .ctx-assist-sizer:hover::before, .ctx-assist-sizer.dragging::before { background: var(--accent); width: 68px; }
-/* Drop-to-attach cue. The target is the TEXT BOX, not the whole row: a drop there
-   means "take this into the message I'm writing", while the buttons beside it and
-   the transcript above stay out of it (the panel swallows those and says where to
-   aim). The cue is an icon + label drawn OVER the box (pointer-events: none keeps
-   the drop on the wrap), never a tint the input shows through. Extension parity:
-   popup.css .chat-composer.drop-over. */
+/* Drop-to-attach cue on the text box only, drawn over it (pointer-events: none keeps the drop on
+   the wrap). Extension parity: popup.css .chat-composer.drop-over. */
 .chat-input-wrap { position: relative; display: flex; flex: 1 1 auto; min-width: 0; }
 .chat-drop-cue {
     position: absolute;

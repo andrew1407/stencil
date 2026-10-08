@@ -1,8 +1,5 @@
-/* Edge drop zones shown only while a header drag is live (transient DOM): four
-   accent-tinted bands; the hovered one highlights stronger. Pointer events stay
-   off — the header's pointer capture owns the gesture. Below the panel (90000):
-   the zones say where the PANEL would land, so the panel itself must ride over
-   them instead of being painted on. */
+/* Edge drop zones while a header drag is live. Pointer events off (the header's capture owns the
+   gesture); below the panel (90000), since they show where the panel would land. */
 .chat-dock-zones {
     position: fixed;
     inset: 0;
@@ -51,9 +48,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* Measured for the narrow-column rule below (a docked/floating panel resizes
-       independently of the viewport, so a plain media query would answer the wrong
-       question). */
+    /* Measured for the narrow-column rule: the panel resizes independently of the viewport. */
     container-type: inline-size;
     container-name: chat-transcript;
 }

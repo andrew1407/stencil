@@ -1,14 +1,8 @@
 """Severity prefixes for the console channel — the Python twin of ``cli/src/app/logo.zig``.
 
-The whole vocabulary is two word prefixes: ``error: `` (the command did not do what was
-asked) and ``note: `` (it went ahead, with something worth saying). Word prefixes, never
-emoji — they are the Unix convention that grep, CI logs and the adapters parse. Build every
-message through here rather than writing the literal, so the wording and the colouring have
-exactly one definition.
-
-The prefix is bold red / bold amber only when the destination stream is a real terminal and
-``NO_COLOR`` is unset; anywhere else (a pipe, a file, a test's ``StringIO``) the text stays
-byte-for-byte ``error: …`` / ``note: …``.
+``error: `` (the command did not do what was asked) and ``note: `` (it went ahead, with
+something worth saying), which grep and the adapters parse. Bold red / amber only on a
+terminal with ``NO_COLOR`` unset; anywhere else the text is byte-for-byte the plain prefix.
 """
 
 from __future__ import annotations
@@ -31,7 +25,7 @@ def color_enabled(stream: (TextIO | NoneType)) -> bool:
   if stream is None or os.environ.get("NO_COLOR") is not None: return False
   try:
     return bool(stream.isatty())
-  except (AttributeError, ValueError):  # detached / closed stream
+  except (AttributeError, ValueError):
     return False
 
 

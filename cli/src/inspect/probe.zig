@@ -5,6 +5,7 @@ const std = @import("std");
 const args = @import("../args.zig");
 const image = @import("../media/image.zig");
 const video = @import("../media/video.zig");
+const remoteVideo = @import("../media/remoteVideo.zig");
 const net = @import("../net.zig");
 const report = @import("../app/report.zig");
 const scrape = @import("../scrape.zig");
@@ -90,7 +91,9 @@ fn probeVideo(gpa: std.mem.Allocator, io: std.Io, input: []const u8) !Info {
         };
         info.bytes = st.size;
     }
-    if (video.probe(gpa, io, input)) |s| {
+    var source = try remoteVideo.stage(gpa, io, input, false);
+    defer source.deinit(gpa, io);
+    if (video.probe(gpa, io, source.path)) |s| {
         info.width = s.width;
         info.height = s.height;
         info.duration_ms = s.duration_ms;
@@ -98,7 +101,7 @@ fn probeVideo(gpa: std.mem.Allocator, io: std.Io, input: []const u8) !Info {
         return info;
     } else |e| if (e != video.Error.FfprobeMissing) return e;
     // Without ffprobe, ffmpeg's first frame still carries the size.
-    const png = video.extractFrame(gpa, io, input, 0) catch |e| return sources.mapMediaError(e);
+    const png = video.extractFrame(gpa, io, source.path, 0) catch |e| return sources.mapMediaError(e);
     defer gpa.free(png);
     const s = scrape.sniff(png) orelse return error.NotAnImage;
     info.width = s.width;

@@ -1,8 +1,7 @@
-//! Discover the Stencil CLI binary the server shells out to.
-//!
-//! Resolution order: `STENCIL_CLI`, then the nearest ancestor of the running executable
-//! holding `cli/build.zig`, then `stencil` on `PATH`. Never the CWD: a workspace must not be
-//! able to plant the binary this server runs. A hit is cached; the override is re-read.
+//! Discover the Stencil CLI binary the server shells out to. Resolution order: `STENCIL_CLI`,
+//! then the nearest ancestor of the running executable holding `cli/build.zig`, then `stencil`
+//! on `PATH`. Never the CWD: a workspace must not be able to plant the binary this server runs.
+//! A hit is cached; the override is re-read.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -22,7 +21,6 @@ pub fn missing_message() -> String {
     )
 }
 
-/// Resolve the CLI binary path, or return an actionable error message.
 pub fn find_cli() -> Result<PathBuf, String> {
     if let Some(env) = std::env::var_os("STENCIL_CLI") {
         let path = PathBuf::from(env);
@@ -46,7 +44,6 @@ pub fn find_cli() -> Result<PathBuf, String> {
 }
 
 /// Find the repo root (nearest ancestor with `cli/build.zig`) above the running executable.
-/// Other modules use this to derive sibling paths (e.g. the desktop binary).
 pub fn repo_root() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     repo_root_from(exe.parent()?)
@@ -58,7 +55,6 @@ fn find_in_repo() -> Option<PathBuf> {
     candidate.is_file().then_some(candidate)
 }
 
-/// Walk up from `start` looking for an ancestor that contains `cli/build.zig`.
 pub fn repo_root_from(start: &Path) -> Option<PathBuf> {
     let mut dir = Some(start);
     while let Some(d) = dir {
@@ -70,7 +66,6 @@ pub fn repo_root_from(start: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Scan `PATH` for an executable named `stencil`.
 fn find_on_path() -> Option<PathBuf> {
     search_path(&std::env::var_os("PATH")?)
 }

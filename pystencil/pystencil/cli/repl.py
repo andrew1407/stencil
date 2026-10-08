@@ -24,11 +24,8 @@ from .registry import build_help, build_table, command
 
 
 def _parse_command(line: str) -> tuple[str, str]:
-  """Split a line into (verb, arg) at the first whitespace, dropping one leading '/'.
-
-  Port of commands.zig parseCommand: ``/upload x`` ≡ ``upload x``; a ``://`` in the
-  argument is preserved.
-  """
+  """(verb, arg) split at the first whitespace, one leading '/' dropped (commands.zig
+  parseCommand); a ``://`` in the argument is preserved."""
   s = line.strip()
   if s.startswith("/"): s = s[1:].lstrip(" \t")
   if not s: return ("", "")
@@ -57,8 +54,7 @@ class _Repl(
     self._ask: (AskCard | NoneType) = None
     self._manager = ConnectionManager()
     self._console = Console(out)
-    # In-session LLM provider config, seeded from the STENCIL_LLM_* env keys
-    # (llm-contract.md §5); a bad env provider falls back to the defaults.
+    # A bad STENCIL_LLM_* provider falls back to the defaults (llm-contract.md §5).
     try:
       self._llm = LlmConfig.from_env()
     except ValueError:
@@ -70,21 +66,16 @@ class _Repl(
     # plan's `image` op indexes. Capped at MAX_UPLOAD_ATTACHMENTS, the oldest falling off.
     self._attachments: list[tuple[str, bytes, str]] = list()
     self._attachments_used: bool = False
-    # §12 chat persistence: /chat on|off (session-scoped, default OFF — /prompt
-    # stays single-turn) and the multi-turn Chat used while it is on.
+    # §12: /chat is session-scoped and off by default, so /prompt stays single-turn.
     self._chat_on: bool = False
     self._chat: (Chat | NoneType) = None
     # The active remote project recorded by /fetch, so /chat clear can also drop the
     # server-side `chat` file. Cleared whenever the working image is replaced.
     self._remote: (tuple | NoneType) = None
-    # §10 clearChat: set by the plan_clear_chat hook during execution and
-    # consumed by the end-of-turn confirm in _cmd_prompt.
     self._clear_chat_pending: bool = False
-    # The command stream run() reads; the clearChat confirm reads its y/N
-    # answer from the same stream (None until run() starts = declined).
+    # None until run() starts, which reads a clearChat confirm as declined.
     self._in: (TextIO | NoneType) = None
 
-  # The output channel, reached by the short names every command already uses.
   @property
   def _out(self) -> TextIO:
     return self._console.out
@@ -102,17 +93,9 @@ class _Repl(
     self._console.report_wrote(path, w, h)
 
   def _image_replaced(self, editor: (Editor | NoneType) = None) -> None:
-    """The one chokepoint for "the working image was replaced".
-
-    Installs ``editor`` when given (``/drop``'s fresh one; the in-place
-    loaders pass nothing) and resets every piece of state scoped to the
-    previous image: the active remote project identity and the running
-    conversation. Without this, ``/chat clear`` after moving off a fetched
-    project would delete the PREVIOUS project's server-side ``chat`` file.
-    ``/fetch`` records the new ``_remote`` (and restores a saved chat)
-    after coming through here — the same funnel shape as the Zig console
-    Session's setRemote()/clearRemote() (cli/src/console/session.zig).
-    """
+    """The one chokepoint for "the working image was replaced": resets the remote project
+    and the conversation, so ``/chat clear`` never deletes the previous project's chat
+    (twin of ``cli/src/console/session.zig`` setRemote()/clearRemote())."""
     if editor is not None: self._editor = editor
     self._remote = None
     self._chat = None

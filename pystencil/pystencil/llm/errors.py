@@ -1,9 +1,6 @@
-"""The LLM exception family, the provider-detail scrubber every message runs through, and the
-upstream classifier a direct ``anthropic`` failure is worded by (twin of the server's
-``internal/llm/upstream.go`` + ``sanitize.go``).
-
-A provider's own prose may be echoed (contract §6.3), but only after control
-characters, URLs and secret-shaped runs are stripped and it is length-capped.
+"""The LLM exception family, the provider-detail scrubber and the upstream classifier a direct
+``anthropic`` failure is worded by (twin of the server's ``internal/llm/upstream.go`` +
+``sanitize.go``).
 """
 
 from __future__ import annotations
@@ -13,7 +10,6 @@ from typing import Any
 
 from .._ffi.types import NoneType
 
-# ── errors ────────────────────────────────────────────────────────────────────
 #: How much of a provider's own prose an error may quote (contract §6.3).
 MAX_PROVIDER_DETAIL = 200
 
@@ -31,10 +27,8 @@ _SECRETISH = re.compile(
 
 
 def _clean_detail(text: str, secret: str = "") -> str:
-  """Untrusted provider prose made safe to print: control characters out, URLs and
-  token-shaped runs redacted (an endpoint may echo the key back), whitespace
-  collapsed, hard-truncated. Port of the server's ``sanitizeUpstreamText``, so it is
-  "" when any 8-character run of ``secret`` survives."""
+  """Provider prose made printable: controls out, URLs and token-shaped runs redacted,
+  truncated; "" when any 8-character run of ``secret`` survives (``sanitizeUpstreamText``)."""
   t = _CONTROLISH.sub(" ", text[: 4 * MAX_PROVIDER_DETAIL])
   t = _SECRETISH.sub("[redacted]", _URLISH.sub("[redacted]", t))
   t = " ".join(t.split())
@@ -46,9 +40,8 @@ def _clean_detail(text: str, secret: str = "") -> str:
 
 
 class LlmError(Exception):
-  """An LLM transport/provider failure (non-2xx, malformed payload, or a
-  stencil-server ``stopReason`` of ``max_tokens``/``refusal`` — which per contract
-  §6.3 must surface as an error, never be parsed as a plan)."""
+  """A transport/provider failure: non-2xx, a malformed payload, or a §6.3
+  ``max_tokens``/``refusal`` stop, never parsed as a plan."""
 
   def __init__(
     self,
@@ -66,14 +59,11 @@ class LlmError(Exception):
 
 
 class LlmPlanError(LlmError):
-  """A found op-plan JSON object failed strict validation (contract §1/§2): a
-  missing/empty reply, a known op with invalid params, or an exceeded limit.
-  Nothing executes when this is raised."""
+  """An op-plan object failed strict validation (§1/§2); nothing executes."""
 
 
 class LlmExecutionError(LlmError):
-  """A validated plan could not be executed on this surface (e.g. the ``frame``
-  op, which needs a video input pystencil cannot decode)."""
+  """A validated plan this surface cannot execute (the ``frame`` op needs video)."""
 
 
 def stop_error(stop: str, text: Any) -> (LlmError | NoneType):

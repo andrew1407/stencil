@@ -74,6 +74,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/motion
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/notify
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/share
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/sheets
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/theme
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/tip
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/webcore)

@@ -8,7 +8,8 @@
 #include <string>
 
 // The walk over a parsed plan's three slots — actions, variants, the §11 card — for planWalk.
-// A method returns false once the plan has failed, leaving the failure in `error`.
+// Twin of walkActions / walkVariants / walkAsk in browser/js/llm/plan/parser.js. A method
+// returns false once the plan has failed, leaving the failure in `error`.
 namespace stencil::core::opplan {
 
   // Inside a variant or an ask preview: a top-level op there is misplaced, not fatal.

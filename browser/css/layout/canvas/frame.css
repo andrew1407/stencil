@@ -3,16 +3,13 @@
     /* Canvas ↔ resizer ↔ panel: 4 + 8 (.panel-resizer) + 4 = 16px, as the desktop's. */
     gap: 4px;
     align-items: flex-start;
-    /* Takes the height the toolbar/info rows leave over (fill chain on body). */
     flex: 1 1 auto;
     min-height: 0;
-    min-width: 0;   /* shrink with the window rather than pushing the page wide */
+    min-width: 0;
 }
 .canvas-section {
     flex: 1;
     min-width: 0;
-    /* Full height of the row (the panel beside it keeps hugging its content), and a column
-       so the viewport can grow into the space above the status + drop-hint lines. */
     align-self: stretch;
     display: flex;
     flex-direction: column;
@@ -20,31 +17,21 @@
 }
 .canvas-viewport {
     overflow: auto;
-    scrollbar-width: none;   /* its bars are the overlay ones above (js/ui/canvas/scrollbars.js) */
+    scrollbar-width: none;   /* its bars are the overlay ones (js/ui/canvas/scrollbars.js) */
     margin-top: 10px;
     border: 2px solid var(--border-canvas);
     max-width: 100%;
-    /* The end of the fill chain — and the frame ALWAYS takes every remaining pixel, image or
-       not, at any zoom: the picture is centred inside it (.canvas-container below), never
-       shrink-wrapped by it. ZoomPan.syncViewportHeight pins that height in px (measured, so
-       a tall canvas scrolls INSIDE the frame instead of stretching the page); these two are
-       what fill the box before it has run. */
+    /* The frame always takes every remaining pixel; ZoomPan.syncViewportHeight pins it in px, so a tall
+       canvas scrolls inside it — these fill the box before that has run. */
     flex: 1 1 auto;
     min-height: 0;
     background: var(--bg-page);
-    /* A column flex box purely so the canvas can centre itself with `margin: auto` below.
-       Column, not row: the sticky .incognito-frame is a flex item too and must stay ABOVE
-       the picture in flow, not beside it. */
+    /* Column, not row: the sticky .incognito-frame must stay ABOVE the picture in flow. */
     display: flex;
     flex-direction: column;
-    /* Cursor: see the canvas-cursor block below — the aim is state-driven, not a constant. */
     cursor: default;
-    /* anchor for the idle blank-image overlay (.idle-create) */
     position: relative;
-    /* Touch input: we implement pan/pinch ourselves in #wireTouch, so stop the
-       browser from hijacking these gestures for native scroll/zoom. The callout/
-       select disables iOS's long-press text-selection menu, which would otherwise
-       fight our long-press-to-open-context-menu. Harmless for mouse/desktop. */
+    /* Pan/pinch are ours (#wireTouch); no native gestures, and no iOS long-press menu. */
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
@@ -52,19 +39,12 @@
 }
 .canvas-container {
     position: relative;
-    /* Centre a picture smaller than the frame, both axes. `margin: auto` — NOT
-       justify/align-content or text-align: auto margins take the free space when there is
-       any and collapse to 0 when there isn't, so a zoomed-in canvas still scrolls all the
-       way to its top-left edge instead of overflowing equally in both directions. */
+    /* `margin: auto` collapses to 0 when there is no free space, so a zoomed canvas still scrolls to its
+       top-left edge. */
     margin: auto;
-    /* Pin it to the canvas's own size: a flex item defaults to shrinking, which would
-       squash the picture instead of letting the viewport scroll. (This is also what
-       retires the old inline-block — a flex item sits on no baseline, so the descender
-       gap that once scrolled a fitted canvas ~4px cannot come back.) */
+    /* No shrinking: the viewport scrolls instead. A flex item sits on no baseline, so no descender gap. */
     flex: none;
-    /* No border here — border is on viewport */
 }
-/* The lines layer: exactly the canvas's box above it, and never the pointer's target. */
 #canvas-overlay {
     position: absolute;
     left: 0;
@@ -73,10 +53,7 @@
     height: 100%;
     pointer-events: none;
 }
-/* Golden frame while editing a project stored on a server (mirrors the projects
-   modal's remote rows), so server-backed editing is unmistakable. Recolours the
-   viewport's own border + a soft glow — on the viewport (not the inner container)
-   so the scroll overflow can't clip it. */
+/* Golden frame on a server-stored project, on the viewport so the scroll overflow can't clip it. */
 .canvas-viewport.remote-editing {
     border-color: var(--remote-gold);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--remote-gold) 25%, transparent);
@@ -93,9 +70,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Reserve one filled line's height (1 line + vertical padding + border, box-sizing:
-       border-box) so the bar keeps its height when the readout is empty (cursor off the
-       canvas) — no layout jump as the cursor enters/leaves. */
+    /* One filled line's height reserved, so the bar never jumps when the readout empties. */
     min-height: calc(1.2em + 14px);
 }
 .drop-hint {

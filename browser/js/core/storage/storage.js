@@ -34,8 +34,8 @@ export class Storage {
 
   #tempStatusTimer = null;
   #syncTimer = null;
+  #commit = null;
 
-  // No-op (with a throttled hint) in temp mode.
   save() {
     const blocked = saveBlockedReason(this);
     if (blocked) {
@@ -46,17 +46,19 @@ export class Storage {
       return;
     }
 
-    writeActiveProject(this);
-
-    // Debounced so a burst of edits coalesces into one cross-tab broadcast.
+    this.#commit = writeActiveProject(this);
     this.scheduleSyncBroadcast();
     this.app.stencilSync?.onEdit();
   }
 
+  // Another tab is told only once the last save's write has committed: it reads IndexedDB.
   scheduleSyncBroadcast() {
     const id = this.activeId;
     clearTimeout(this.#syncTimer);
-    this.#syncTimer = setTimeout(() => {
+    this.#syncTimer = setTimeout(async () => {
+      const commit = this.#commit;
+      this.#commit = null;
+      if ((await commit) === false) return;
       try {
         this.app.tabs?.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
       } catch {

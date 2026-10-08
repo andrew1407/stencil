@@ -41,8 +41,11 @@ func verifyBounded(ctx context.Context, resolver SessionResolver, token string, 
 	return Verify(ctx, resolver, token, clock.NowMs())
 }
 
-// BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". Only WS upgrades
-// may fall back to a `token` query param; on REST a URL token is ignored — it would leak via logs.
+// WSRoute is the one path a WebSocket upgrade is served on, so the one path a URL token is read on.
+const WSRoute = "/ws"
+
+// BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". Only an upgrade on
+// WSRoute may fall back to a `token` query param; elsewhere a URL token is ignored — it would leak via logs.
 func BearerToken(req *http.Request) string {
 	h := req.Header.Get("Authorization")
 	if h != "" {
@@ -51,7 +54,7 @@ func BearerToken(req *http.Request) string {
 		}
 		return strings.TrimSpace(h)
 	}
-	if isWebSocketUpgrade(req) {
+	if req.URL.Path == WSRoute && isWebSocketUpgrade(req) {
 		return req.URL.Query().Get("token")
 	}
 	return ""

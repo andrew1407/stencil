@@ -16,7 +16,10 @@ afterEach(() => {
 });
 
 test('moveProjectToServer creates the project remotely and links the local copy', async () => {
-  const conn = makeConn();
+  // The original upload bumps the created v1 to v2, exactly what the re-read finds.
+  const conn = makeConn(undefined, {
+    getProject: async (id) => { conn.calls.push(['getProject', id]); return { project: { id, version: 2 }, layout: {} }; },
+  });
   const { ctrl, calls, host } = makeRig({
     conn,
     meta: { color: '#abcdef', source: 'https://img/x.png' },
@@ -40,9 +43,9 @@ test('moveProjectToServer creates the project remotely and links the local copy'
   assert.equal(upsert[1].id, 'p1');
   assert.equal(upsert[1].address, conn.url);
   assert.equal(upsert[1].remoteId, 'r1');
-  assert.equal(upsert[1].remoteVersion, 8, 'adopts the layout save\'s bumped version (7 + 1)');
+  assert.equal(upsert[1].remoteVersion, 3, 'adopts the layout save\'s bumped version (2 + 1)');
   // The open session follows the link and the UI repaints.
-  assert.deepEqual(host.remoteLink, { address: conn.url, remoteId: 'r1', version: 8 });
+  assert.deepEqual(host.remoteLink, { address: conn.url, remoteId: 'r1', version: 3 });
   assert.ok(calls.some(c => c[0] === 'updateProjectTitle'));
   assert.ok(calls.some(c => c[0] === 'projectsChanged' && c[1].id === 'p1'));
 });

@@ -1,7 +1,6 @@
-// Drag gestures shared by the browser drag specs. A REAL finger goes through the
-// browser's input pipeline (CDP), never `dispatchEvent`: synthetic PointerEvents never
-// reach the compositor, so they can't show whether the browser steals the gesture for
-// scrolling — which is exactly how a reorder no finger could complete once passed here.
+// Drag gestures shared by the browser drag specs. A REAL finger goes through the browser's
+// input pipeline (CDP), never `dispatchEvent`: synthetic PointerEvents never reach the
+// compositor, so they cannot show whether the browser steals the gesture for scrolling.
 
 // { down, move, up, glide } over Input.dispatchTouchEvent, one touch point.
 export async function finger(page) {

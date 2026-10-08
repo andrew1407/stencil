@@ -3,6 +3,7 @@
 // Inline helpers shared by the MainWindow translation units.
 
 #include "pageMetrics.hpp"
+#include "../support/sheets/windowSheets.hpp"
 #include "../support/dust/dustKit.hpp"   // support::frameIntervalMs
 #include "../support/theme/faceSwap.hpp"
 
@@ -39,8 +40,7 @@ namespace stencil::gui {
     if (!btn || btn->maximumWidth() == QWIDGETSIZE_MAX) return;
     const int hint = btn->property(faceHintKey(label).constData()).toInt();
     const int slack = hint > 0 ? btn->maximumWidth() - hint : 0;
-    setFaceBaseSheet(btn, slack > 1 ? QStringLiteral("QToolButton{padding-left:%1px;}").arg(padX + slack / 2)
-                                    : QString());
+    setFaceBaseSheet(btn, slack > 1 ? support::faceLeftPadSheet(padX + slack / 2) : QString());
   }
 
   // The chat dock's extent as it opens: the one it last had, else the browser's default (px).

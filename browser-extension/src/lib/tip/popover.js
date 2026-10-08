@@ -1,8 +1,6 @@
 // ── Popover placement (panel dialogs) ───────────────────────────────────────
-// Below the anchor with left edges aligned, flipped above when above has more room,
-// clamped inside the viewport on both axes. Port of browser/js/ui/tip/popover.js
-// popoverPosition and createModalOpenGesture — keep them rule-for-rule
-// (tests/portParity.test.js pins both).
+// Below the anchor, flipped above when above has more room, clamped to the viewport. Port of
+// browser/js/ui/tip/popover.js popoverPosition and createModalOpenGesture (portParity.test.js).
 
 import constants from './constants.json' with { type: 'json' };
 
@@ -11,11 +9,7 @@ export const DOUBLE_CLICK_MS = POPOVER.doubleClickMs;
 export const LONG_PRESS_MS = POPOVER.longPressMs;
 export const PRESS_SLOP_PX = POPOVER.pressSlopPx;
 
-/**
- * @param {object} args - `{anchor, box, viewport}` rects; `gap` is the anchor↔box space,
- *   `margin` the minimum distance to every viewport edge.
- * @returns {{left:number, top:number}} The box's fixed position.
- */
+// `{anchor, box, viewport}` rects; `gap` = anchor↔box space, `margin` = least viewport inset.
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {
   const roomAbove = anchor.top - gap - margin;
   const roomBelow = viewport.height - anchor.bottom - gap - margin;

@@ -105,6 +105,14 @@ class AbiBindingTests(unittest.TestCase):
   def test_no_binding_names_a_function_the_header_does_not_declare(self):
     self.assertEqual(sorted(self._bound() - self._declared()), [])
 
+  def test_every_function_the_package_calls_is_bound(self):
+    called = set()
+    for path in (_PKG_ROOT / "pystencil").rglob("*.py"):
+      if path.name != "bindings.py":
+        called |= set(re.findall(r"\.(stencil_cli_[A-Za-z0-9_]+)\b", path.read_text(encoding="utf-8")))
+    self.assertGreater(len(called), 30)
+    self.assertEqual(sorted(called - self._bound()), [])
+
   def test_the_whole_script_family_is_bound(self):
     # Unlike the row-wise kernels, which this surface deliberately leaves alone, every
     # stencil_cli_script* call is reached from script.py.

@@ -30,18 +30,19 @@ graph TD
     VSC -->|"scripts, pictures"| WEB
     WEB -.->|"parser copy"| VSC
     VSC -->|"spawn"| CLI
+    VSC -->|"spawn"| PY
     MCP -->|"spawn"| CLI
     BOT -->|"spawn"| CLI
     WEB -.->|"REST + WS"| SRV
     DESK -.->|"REST + TCP"| SRV
     CLI -.->|"REST + TCP"| SRV
-    PY -.->|"REST + TCP"| SRV
+    PY -.->|"REST"| SRV
     BOT -.->|"REST"| SRV
 ```
 
-Every surface has its own `ARCHITECTURE.md` in the same seven sections — **Layers**,
-**Where things go**, **Entities**, **Patterns**, **Design**, **Rules**, **Tests** — where
-Layers and Patterns instantiate §3 and §4 for that surface:
+Every surface has its own `ARCHITECTURE.md` in the same eight sections — **Layers**,
+**Where things go**, **Entities**, **Patterns**, **Design**, **Concurrency**, **Rules**,
+**Tests** — where Layers, Patterns and Concurrency instantiate §3, §4 and §5 for that surface:
 [core](core/ARCHITECTURE.md) · [browser](browser/ARCHITECTURE.md) ·
 [desktop](desktop/ARCHITECTURE.md) · [cli](cli/ARCHITECTURE.md) ·
 [pystencil](pystencil/ARCHITECTURE.md) · [browser-extension](browser-extension/ARCHITECTURE.md) ·
@@ -166,8 +167,9 @@ normative prose.
 
 ## 3. Layer model, per app
 
-Imports point **downward only**: a layer may use everything to its left and nothing to its
-right.
+Every row reads from the dependency-free end: a layer may use everything to its left and
+nothing to its right. Where a lint holds older reaches as a frozen allowance, that allowance may
+only shrink, and the surface's doc names it.
 
 | Surface | Order (left → right) | Enforced by |
 |---|---|---|
@@ -177,9 +179,9 @@ right.
 | desktop | core seam → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
 | cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `app/` → `main.zig` | the layer lint in `app/lint.zig` |
 | pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |
-| server | `cmd/` → `httpapi` (transport only) → `service` → `store` + `filestore` → `hub` → `protocol` | convention |
-| bot | `Domain` ← `Application` ← `Infrastructure` ← `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |
-| mcp | `server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` | `mcp/tests/layer_boundary_test.rs` |
+| server | `protocol`, `clock`, `ratelimit`, `transport` → `validate`, `auth`, `eventbus`, `llm` → `store`, `filestore`, `redisbus` → `service`, `hub`, `config` → `httpapi` (transport only) → `cmd/` | the import-edge lint in `internal/lint/` |
+| bot | `Domain` → `Application`, `Infrastructure` → `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |
+| mcp | `llm/` + `llmtransport/` → `pipeline/` → `args/` → `opplan/` → `server/` + tools | `mcp/tests/layer_boundary_test.rs` |
 | core | value types → `geometry/`, `color/`, `parse/`, `json/` → `raster/`, `page/`, `format/`, `state/`, `script/`, `opplan/` → `abi/` → the two ABIs | convention + the no-throw lint |
 
 Two rules cut across every surface: the pure logic ring (browser `core/`, the desktop's core
@@ -211,3 +213,20 @@ below returns values and errors.
 - **Port (byte-equal copy)** — a module a consumer cannot import across subprojects, copied
   and pinned (`browser-extension/src/lib/`, `browser-extension/src/llm/`,
   `vscode-extension/src/parser/script/`). The pin, not the copy, is the contract.
+
+---
+
+## 5. Concurrency model
+
+Each surface's **Concurrency** section names its threads, tasks and queues; three contracts
+span surfaces.
+
+- **The C ABI is thread-safe per handle family.** Kernels over caller buffers are re-entrant;
+  the op-plan and script handle tables are each held under one lock in `core/abi/`, because
+  pystencil calls them with the GIL released. Core starts no thread.
+- **A server project converges by version.** Every layout write carries the version it was
+  based on; a 409 re-reads, merges the peer's lines with `mergeLines` and retries a bounded
+  number of times. A client adopts a server version only together with the layout it names.
+- **Live frames are best effort, saves are not.** The hub relays `edit` frames without
+  persisting them and saves the full layout under the version guard; a peer that misses a
+  frame catches up from the next `updated` event or welcome.

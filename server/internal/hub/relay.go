@@ -1,8 +1,7 @@
 package hub
 
-// Frame delivery. Everything a session sends leaves through here: the bus
-// publish (which loops back to fanout, the single path to local members) and
-// the direct reply to one member.
+// Frame delivery. Everything a session sends leaves through here: the local fan-out plus the bus publish
+// that carries it to other instances, and the direct reply to one member.
 
 import (
 	"encoding/json"
@@ -27,13 +26,18 @@ func echoSuppressed(t string) bool {
 	return t == protocol.WSEdit || t == protocol.WSCursor || t == protocol.WSPresence
 }
 
-// publish marshals msg and posts it to this project's bus channel; the subscription loops it back to
-// fanout (including this instance), the single delivery path to local members.
+// publish marshals msg, fans it out to the local members, and posts it to this project's bus channel for
+// the other instances; this hub's own envelopes are skipped when they loop back.
 func (s *session) publish(msg protocol.WSMessage) {
-	if data, err := json.Marshal(msg); err == nil {
-		if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ProjectChannel(s.id), eventbus.EnvelopeOf(msg, data)); err != nil {
-			log.Printf("hub: publish to project %s failed: %v", s.id, err)
-		}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	env := eventbus.EnvelopeOf(msg, data)
+	s.fanout(env)
+	env.Origin = s.hub.instance
+	if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ProjectChannel(s.id), env); err != nil {
+		log.Printf("hub: publish to project %s failed: %v", s.id, err)
 	}
 }
 

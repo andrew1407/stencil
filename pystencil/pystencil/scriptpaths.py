@@ -1,10 +1,6 @@
-"""Which file a ``.stc`` is read from, what a ``@source`` names, where a ``@save`` writes.
-
-The core classifies a source spec and hands back the save target verbatim; turning
-either into concrete paths is the adapter's job, so directory listing, the one-segment
-glob, the ``-stencil`` naming rule and the two ``..`` refusals live here. Every door
-that reads a script file goes through :func:`read_script`. Twin of
-``cli/src/script/sources.zig`` and ``cli/src/script/save.zig``.
+"""Which file a ``.stc`` is read from, what a ``@source`` names, where a ``@save`` writes:
+directory listing, the one-segment glob, the ``-stencil`` name and the ``..`` refusals.
+Twin of ``cli/src/script/sources.zig`` and ``cli/src/script/save.zig``.
 """
 
 from __future__ import annotations
@@ -119,12 +115,9 @@ def save_format(source_ext: (str | NoneType)) -> str:
 
 
 def resolve_target(target: str, source: str, frame: (int | NoneType), ext: str) -> str:
-  """The path a ``@save <target>`` writes, for a result derived from ``source``.
-
-  ``""`` lands beside the source as ``<stem>-stencil.<ext>``, a trailing ``/`` moves
-  that into the named directory, a bare name is taken as given (no suffix) and gains
-  the extension, and a path with a known image extension is used verbatim.
-  """
+  """The path a ``@save <target>`` writes: ``""`` is ``<stem>-stencil.<ext>`` beside
+  ``source``, a trailing ``/`` puts that in the directory, a bare name gains ``.<ext>``,
+  and a path with a known image extension is used verbatim."""
   src_base = base_name(source)
   stem = _stem(src_base) if src_base else "image"
   if frame is not None: stem = "%s-frame-%d" % (stem, frame)

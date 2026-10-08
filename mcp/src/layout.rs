@@ -1,8 +1,6 @@
-//! The layout JSON the CLI's `--layout` flag draws onto an image.
-//!
-//! These types mirror the schema the browser exports and the CLI parses
-//! (`cli/src/media/layout.zig` ← `core/raster`). Coordinates are image pixels; a line is a
-//! polyline through its `points`, closed and filled by repeating the first point.
+//! The layout JSON the CLI's `--layout` flag draws onto an image, mirroring the schema the browser
+//! exports and the CLI parses (`cli/src/media/layout.zig` ← `core/raster`). Coordinates are image
+//! pixels; a line is a polyline through its `points`, closed and filled by repeating the first point.
 
 use std::io::Write;
 

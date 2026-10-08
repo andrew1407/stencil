@@ -63,8 +63,7 @@ public sealed record UserSession
     // Slash commands and PendingInput always win over chat mode.
     public bool ChatMode { get; init; }
 
-    // Contract §12: the store is the active SERVER project's chat file; nothing to write without
-    // one.
+    // Contract §12: the store is the active SERVER project's chat file; nothing to write without one.
     public bool SaveChats { get; init; }
 
     // Chat save-back is best-effort: warn once, re-armed by a successful save.

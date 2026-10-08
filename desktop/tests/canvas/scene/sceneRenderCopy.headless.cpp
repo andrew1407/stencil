@@ -8,7 +8,11 @@
 #include <QEventLoop>
 #include <QImage>
 #include <QThread>
+#include <QThreadPool>
 #include <QTimer>
+
+#include <atomic>
+#include <cstdlib>
 
 #include "../../support/check.hpp"
 
@@ -77,6 +81,33 @@ int main(int argc, char** argv) {
   const PoolRender rebuilt = renderOnPool(stale);
   check(rebuilt.offGuiThread && rebuilt.image == canvas.renderToImage(true),
         "a stale filter is rebuilt on the pool, to the same pixels");
+
+  // Every pool thread rendering a stale-filter copy at once: a slice fan-out from the pool would
+  // queue behind the jobs waiting on it, and nothing would finish.
+  {
+    QThreadPool::globalInstance()->setMaxThreadCount(2);
+    QImage tall(320, 1024, QImage::Format_RGB32);
+    tall.fill(qRgb(90, 140, 200));
+    canvas.loadFromImage(tall, stencil::core::CropRect{0, 0, 320, 1024}, 0);
+    canvas.setImageFilter(QStringLiteral("contour"), QColor("#7c3aed"));
+    constexpr int JOBS = 6;
+    std::atomic<int> rendered{0};
+    QEventLoop loop;
+    QTimer::singleShot(10000, &loop, &QEventLoop::quit);
+    for (int i = 0; i < JOBS; ++i)
+      stencil::support::runOnPool<bool>(
+          &loop, [copy = canvas.renderCopy()] { return !copy->renderToImage(true).isNull(); },
+          [&rendered, &loop](bool ok) {
+            if (ok && ++rendered == JOBS) loop.quit();
+          });
+    loop.exec();
+    check(rendered == JOBS, "concurrent stale-filter renders on a two-thread pool all finish");
+    if (rendered != JOBS) {
+      std::printf("\nFAILURE (pool deadlocked)\n");
+      std::fflush(stdout);
+      std::_Exit(1);
+    }
+  }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures, failures == 1 ? "" : "s");
   return failures ? 1 : 0;

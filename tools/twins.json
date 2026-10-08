@@ -343,6 +343,51 @@
       "name": "altPeekDts",
       "from": "browser/js/ui/tip/altPeek.d.ts",
       "to": "browser-extension/src/lib/tip/altPeek.d.ts"
+    },
+    {
+      "name": "planCapsDts",
+      "from": "browser/js/llm/plan/planCaps.d.ts",
+      "to": "browser-extension/src/llm/op/planCaps.d.ts"
+    },
+    {
+      "name": "escapeHtmlDts",
+      "from": "browser/js/ui/escapeHtml.d.ts",
+      "to": "browser-extension/src/lib/escapeHtml.d.ts"
+    },
+    {
+      "name": "dustCloudDts",
+      "from": "browser/js/ui/dust/cloud.d.ts",
+      "to": "browser-extension/src/lib/dust/cloud.d.ts"
+    },
+    {
+      "name": "comboMatchDts",
+      "from": "browser/js/ui/control/comboMatch.d.ts",
+      "to": "browser-extension/src/lib/control/comboMatch.d.ts"
+    },
+    {
+      "name": "numericExprDts",
+      "from": "browser/js/ui/control/numericExpr.d.ts",
+      "to": "browser-extension/src/lib/control/numericExpr.d.ts"
+    },
+    {
+      "name": "tipKeysDts",
+      "from": "browser/js/ui/tip/keys.d.ts",
+      "to": "browser-extension/src/lib/tip/keys.d.ts"
+    },
+    {
+      "name": "tipHoldDts",
+      "from": "browser/js/ui/tip/tipHold.d.ts",
+      "to": "browser-extension/src/lib/tip/tipHold.d.ts"
+    },
+    {
+      "name": "llmHttpDts",
+      "from": "browser/js/llm/http.d.ts",
+      "to": "browser-extension/src/llm/http.d.ts"
+    },
+    {
+      "name": "opSchemaBaseDts",
+      "from": "browser/js/llm/plan/opSchemaBase.d.ts",
+      "to": "browser-extension/src/llm/op/opSchemaBase.d.ts"
     }
   ],
   "functions": [
@@ -436,6 +481,20 @@
       "to": "browser-extension/src/lib/logo/accents.js",
       "names": [
         "normalizeHex"
+      ]
+    },
+    {
+      "name": "logoStage",
+      "from": "browser/js/ui/logo/stage.js",
+      "to": "browser-extension/src/lib/logo/stage.js",
+      "names": [
+        "STAGE_CLASS",
+        "OPEN_CLASS",
+        "logoStageOpen",
+        "SWALLOWED",
+        "closeLogoStage",
+        "openLogoStage",
+        "currentLogoStage"
       ]
     },
     {

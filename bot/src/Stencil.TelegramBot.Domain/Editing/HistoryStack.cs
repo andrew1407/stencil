@@ -11,7 +11,6 @@ public readonly record struct HistoryStack<T>(IReadOnlyList<T> Done, IReadOnlyLi
 
     public bool CanRedo => Undone.Count > 0;
 
-    // A fresh edit clears redo.
     public HistoryStack<T> Push(T current) => new(bounded(Done.Append(current)), []);
 
     public (HistoryStack<T> Stack, T Restored) Undo(T current) =>

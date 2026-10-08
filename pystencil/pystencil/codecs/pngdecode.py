@@ -39,13 +39,8 @@ def _key_alpha(samples: bytearray, channels: int, key: bytes) -> bytes:
 
 
 def decode_png(data: bytes) -> tuple[int, int, bytearray]:
-  """Decode an 8-bit, non-interlaced PNG to RGBA8.
-
-  Concatenates all IDAT chunks, inflates them, reverses the per-row filter
-  (none/sub/up/average/paeth) and expands each sample model out to RGBA. A short inflate
-  raises rather than decoding to a buffer under the ``width*height*4`` every caller sizes
-  its reads by.
-  """
+  """An 8-bit, non-interlaced PNG as RGBA8. A short inflate raises rather than decoding to a
+  buffer under the ``width*height*4`` every caller sizes its reads by."""
   if data[:8] != _PNG_MAGIC:
     raise CodecError("not a PNG (bad signature)")
 
@@ -54,7 +49,6 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
   palette = trns = b""
   idat = bytearray()
 
-  # Walk the chunk stream: each chunk is length(4) + type(4) + data + crc(4).
   total = len(data)
   while pos + 8 <= total:
     length = struct.unpack(">I", data[pos:pos + 4])[0]
@@ -83,7 +77,6 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
       idat += chunk
     elif ctype == b"IEND":
       break
-    # advance past data + 4-byte CRC (we trust zlib to catch corruption)
     pos = cend + 4
 
   if width == 0 or height == 0:
@@ -105,8 +98,6 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
   del out[0::stride + 1]
   unfilter(out, width, height, channels, ftypes)
 
-  # Expand the sample model out to interleaved RGBA8. Every branch is a strided slice
-  # assignment (a C-level copy) rather than a per-pixel loop.
   if color_type == 6:
     return width, height, out
   rgba = bytearray(b"\xff" * (width * height * 4))  # alpha defaults to opaque
@@ -115,12 +106,10 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
       rgba[c::4] = out[c::3]
     if len(trns) == 6: rgba[3::4] = _key_alpha(out, 3, trns)
   elif color_type == 0:
-    # Grayscale: replicate the single sample across R/G/B.
     for c in (0, 1, 2):
       rgba[c::4] = out
     if len(trns) == 2: rgba[3::4] = _key_alpha(out, 1, trns)
   elif color_type == 4:
-    # Grayscale + alpha.
     gray = out[0::2]
     for c in (0, 1, 2):
       rgba[c::4] = gray

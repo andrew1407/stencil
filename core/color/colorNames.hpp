@@ -6,7 +6,7 @@
 
 // CSS colour resolver for the headless pipeline (the GUIs have QColor / the canvas):
 // extended keywords, #rgb / #rgba / #rrggbb / #rrggbbaa and 'transparent'. Complements
-// the hex-only color.hpp.
+// the hex-only color.hpp; its vocabulary is isColorToken in browser/js/core/script/values.js.
 namespace stencil::core {
 
   struct Rgba {

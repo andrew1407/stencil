@@ -1,13 +1,13 @@
 #pragma once
 #include <cstdint>
 
-// The two Rec. 709 luma reductions the core's filters use. They are deliberately
-// NOT interchangeable and must never be merged: each is pinned byte-for-byte
-// against its own JS fallback twin, and they can disagree by one. Named here so
-// the split reads as a decision rather than as two stray copies.
+// The two Rec. 709 luma reductions the core's filters use, deliberately NOT interchangeable:
+// they can disagree by one, and each is pinned byte-for-byte against its own twin —
+// browser/js/core/image/filterCanvas.js grayscale(100%) for the filter path,
+// browser/js/core/image/contourFilter.js for the contour path.
 namespace stencil::core::luma {
 
-  // Filter path (imageFilter filterPixel ← renderer.js grayscale(100%)): float
+  // Filter path (imageFilter filterPixel ← filterCanvas.js grayscale(100%)): float
   // weights on 0..255 channels, truncated toward zero.
   inline int rec709Truncated(int r, int g, int b) {
     return static_cast<int>(0.2126 * r + 0.7152 * g + 0.0722 * b);

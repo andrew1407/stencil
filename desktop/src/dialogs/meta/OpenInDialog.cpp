@@ -1,4 +1,5 @@
 #include "../../support/control/dblReset.hpp"
+#include "dialogSheets.hpp"
 #include "OpenInDialog.hpp"
 #include "deepLink.hpp"
 #include "iconSet.hpp"
@@ -30,8 +31,7 @@ namespace stencil::gui {
     rows->setHorizontalSpacing(16);
     rows->setVerticalSpacing(0);
     rows->setColumnStretch(1, 1);
-    const QString mutedCss =
-        QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
+    const QString mutedCss = support::mutedTextSheet(palette().color(QPalette::PlaceholderText));
 
     // Row: what will be handed over (server reference vs inline bytes).
     auto* projectLbl = new QLabel(tr("Project"), this);

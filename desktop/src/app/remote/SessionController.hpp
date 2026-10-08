@@ -36,8 +36,15 @@ namespace stencil::gui {
     }
 
     void attach(QObject* owner, std::function<void()> saveSession, std::function<void()> saveView) {
+      this->saveSession = saveSession;
+      this->saveView = saveView;
       autosave = newTimer(owner, std::move(saveSession));
       viewSave = newTimer(owner, std::move(saveView));
+    }
+    // A save still inside its debounce runs now (a closing window); the bodies ask the gates.
+    void flushPending() {
+      if (autosave && autosave->isActive()) { autosave->stop(); saveSession(); }
+      if (viewSave && viewSave->isActive()) { viewSave->stop(); saveView(); }
     }
     // Only incognito stops the timer arming; the remote-unsynced case is decided at fire time.
     void scheduleAutosave(bool autosaveEnabled, const Gates& g) {
@@ -59,6 +66,7 @@ namespace stencil::gui {
     }
     QTimer* autosave = nullptr;
     QTimer* viewSave = nullptr;
+    std::function<void()> saveSession, saveView;
     bool restoring = false;
   };
 

@@ -1,8 +1,5 @@
-//! Entry point: serve the Stencil MCP server over stdio.
-//!
-//! IMPORTANT: stdout is the JSON-RPC channel for the stdio transport. All logging therefore
-//! goes to **stderr** — plain `eprintln!`, no logging crate — because writing logs to stdout
-//! would corrupt the protocol stream.
+//! Entry point: serve the Stencil MCP server over stdio. stdout is the JSON-RPC channel, so all
+//! logging goes to **stderr** through plain `eprintln!`; a log line on stdout corrupts the stream.
 
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
@@ -14,7 +11,6 @@ use stencil_mcp::server::StencilServer;
 /// Synchronous on purpose: `Config::load` reads the dotenv file with `setenv`, and `setenv`
 /// races any other thread's `getenv`. The runtime — and its workers — start after it.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Resolve config from the dotenv file + process env + the --surface arg.
     let args: Vec<String> = std::env::args().collect();
     let (config, warnings) = Config::load(&args);
     for warning in &warnings {

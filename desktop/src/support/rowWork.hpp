@@ -1,10 +1,12 @@
 #pragma once
 // Spread independent work over the global thread pool. core/ owns no threading policy:
 // it exposes half-open row slices of its kernels and leaves the policy to each adapter.
+#include <QCoreApplication>
 #include <QFutureWatcher>
 #include <QObject>
 #include <QPromise>
 #include <QSemaphore>
+#include <QThread>
 #include <QThreadPool>
 #include <algorithm>
 #include <functional>
@@ -12,11 +14,13 @@
 
 namespace stencil::support {
 
-  // Returns once every slice has finished, so the caller may keep buffers on its own
-  // stack. Fewer than `minPer` per slice runs inline.
+  // Returns once every slice has finished, so the caller may keep buffers on its stack. Under `minPer`
+  // per slice, or off the GUI thread (a pool job waiting on its own slices starves the pool), runs inline.
   inline void forEachSlice(int count, int minPer,
                            const std::function<void(int i0, int i1)>& body) {
     if (count <= 0) return;
+    const QCoreApplication* app = QCoreApplication::instance();
+    if (!app || QThread::currentThread() != app->thread()) { body(0, count); return; }
     QThreadPool* pool = QThreadPool::globalInstance();
     const int want = std::max(1, count / std::max(1, minPer));
     const int slices = std::min(std::max(1, pool->maxThreadCount()), want);

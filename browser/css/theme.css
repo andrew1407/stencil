@@ -1,21 +1,15 @@
 :root {
-    /* Brand accent — violet, matching the Stencil logo + extension palette
-       (browser-extension/src/lib/theme/). --accent is primary; --accent-2 is the
-       hover/active shade derived from it (darker in light, lighter in dark) so
-       any chosen accent stays harmonised. Swappable via a data-accent preset
-       (see below + js/core/settings/accents.js); default violet. */
+    /* Brand accent — violet, as the logo and the extension palette (browser-extension/src/lib/theme/);
+       --accent-2 is its hover shade. Presets via data-accent (js/core/settings/accents.js). */
     --accent:         #7c3aed;
     --accent-2:       color-mix(in srgb, var(--accent) 86%, black);
-    /* Two of a cloud's tints (js/ui/dust/cloud.js TINT_CSS) are theme-aware: a white speck
-       is invisible on a pale surface, and a deep accent one on a dark surface. */
+    /* Theme-aware cloud tints (js/ui/dust/cloud.js TINT_CSS): white vanishes on pale, deep accent on dark. */
     --dust-ink:        #1f1f1f;
     --dust-accent-alt: color-mix(in srgb, var(--accent) 55%, #000000);
-    /* The ink an accent-BACKED control paints its label and its line-art in. A light
-       accent swallows white, so <html data-accent-light> — set by js/core/settings/accents.js +
-       prePaintTheme.js from the WCAG contrast — swaps this for the near-black below. */
+    /* Ink on an accent-backed control; <html data-accent-light> (WCAG contrast, accents.js +
+       prePaintTheme.js) swaps it for near-black. */
     --on-accent:      #ffffff;
-    /* The ✓ inside an accent-filled checkbox: a data URL can't read a CSS var, so the
-       whole url() is the token and the light-accent block swaps the stroke. */
+    /* A data URL can't read a CSS var, so the whole url() is the token. */
     --accent-tick:    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     --bg-page:        #f0f0f0;
     --bg-container:   #ffffff;
@@ -30,18 +24,14 @@
     --bg-tt-th:       #e9ecef;
     --bg-tt-td:       #ffffff;
     --bg-sel-panel:   #fff8e1;
-    /* Drop-hint bg/border tint with the chosen accent (was fixed violet). */
     --bg-drop-hint:   color-mix(in srgb, var(--accent) 9%, white);
-    /* The keywords well: a NEUTRAL surface: the accent lives in its border, not here. */
     --bg-keywords:    #f2f2f2;
     --border-main:    #ddd;
     --border-canvas:  #ddd;
     --border-coord:   #ddd;
     --border-tooltip: #2c3e50;
     --border-sel:     #f0b429;
-    /* The selected-line bar's own buttons (clear-fill, Unchain): the bar is amber, so its
-       controls are too — they used the app ACCENT and read as borrowed from elsewhere.
-       The glyph colour is per-theme because white on light gold is unreadable. */
+    /* The amber bar's own buttons are amber too; the glyph colour is per-theme (white on gold is unreadable). */
     --bg-sel-btn:     #d99e0b;
     --bg-sel-btn-hov: #b7791f;
     --text-sel-btn:   #ffffff;
@@ -49,11 +39,8 @@
     --text-main:      #000000;
     --text-label:     inherit;
     --text-muted:     #888;
-    --section-title:  color-mix(in srgb, var(--text-main) 62%, transparent);  /* captions: the ink, softened */
-    /* The line an input or icon button draws around itself: the control's OWN ink, well
-       down — full ink was hard and half still read heavy (user report, twice). A quarter
-       keeps the colour family while landing light-grey on the light theme and dark-grey on
-       the dark one, which is what a border should be in each. */
+    --section-title:  color-mix(in srgb, var(--text-main) 62%, transparent);
+    /* A control's border is its own ink at a quarter: full and half read heavy (user report, twice). */
     --ui-outline:     color-mix(in srgb, var(--text-main) 25%, transparent);
     --text-info:      inherit;
     --text-coord-h3:  #333;
@@ -61,46 +48,34 @@
     --text-shortcut:  #999;
     --text-key:       var(--accent-2);
     --text-empty:     #666;
-    /* A project's name (toolbar + projects modal) when it has no custom colour: ONE fixed
-       neutral grey in BOTH themes, made legible by a theme-flipped shadow — a dark shadow
-       on light, a light shadow on dark (see [data-theme="dark"]). The colour never switches;
-       only the shadow does. A custom per-project colour overrides --project-name-fg inline. */
+    /* A project name without a custom colour: one fixed grey, legible by a theme-flipped shadow. */
     --project-name-fg:     #80868f;
-    /* A whisper-soft shadow — enough to lift the grey name off a light background. The old
-       0.55 alpha / 2px blur drooped below the glyphs, so the name read as hanging low
-       against the shadow-free logo and pill beside it (user report). */
+    /* Whisper-soft: 0.55 alpha / 2px blur made the name read as hanging low (user report). */
     --project-name-shadow: 0 1px 1px rgba(0, 0, 0, 0.20);
     --text-tooltip:   #2c3e50;
     --text-tt-header: #1a252f;
     --input-bg:       #ffffff;
     --input-text:     #000000;
     --shadow:         rgba(0,0,0,0.1);
-    /* Status colors — single source for the reds/greens/ambers formerly hard-coded
-       (#dc3545 / #28a745 / #e0a800) across CSS + inline JS. Tuned per theme to keep
-       contrast on light and dark surfaces. */
+    /* Status colours, tuned per theme for contrast. */
     --danger:         #d6293e;
     --danger-2:       #b71d30;
     --success:        #2e9e4f;
-    /* The FILLED go button (script Run) only: white ink needs a deeper green than the
-       --success text and rings read best in. */
+    /* White ink on the filled Run button needs a deeper green. */
     --success-cta:    #26883f;
     --warning:        #c98a00;
     --disabled-bg:    #e4e6ea;
     --disabled-text:  #9aa0a8;
     --sb-track:        transparent;
     --sb-thumb:        #d4d8de;
-    /* Hover/active pick up the brand accent — a neutral grey thumb read as "nothing
-       happened" on hover; --accent-2 for the boldest, about-to-drag state. */
+    /* A grey thumb read as "nothing happened" on hover. */
     --sb-thumb-hover:  var(--accent);
     --sb-thumb-active: var(--accent-2);
-    /* The one mono stack: the hotkey chips, the hex and formula fields, and the script
-       editor all read code, and should read it in the same face. */
     --font-mono: 'Menlo', 'Consolas', monospace;
 }
 
-/* Accent presets — set only --accent; --accent-2, --text-key and every glow derive
-   from it, so a preset is one line. Keys mirror js/core/settings/accents.js, applied as
-   <html data-accent="…"> (pre-paint in index.html). No attribute = :root violet. */
+/* Accent presets set only --accent; everything else derives. Keys mirror js/core/settings/accents.js;
+   no attribute = :root violet. */
 :root[data-accent="violet"]    { --accent: #7c3aed; }
 :root[data-accent="burgundy"]  { --accent: #660033; }
 :root[data-accent="pink"]      { --accent: #ec4899; }
@@ -118,15 +93,13 @@
 :root[data-accent="grey"]      { --accent: #64748b; }
 :root[data-accent="blue"]      { --accent: #2563eb; }
 
-/* A light accent — one black reads better on than white does. Set from the RESOLVED
-   hex, so custom colours get it too. The ink is the page ink, not pure black. */
+/* Set from the RESOLVED hex, so custom colours get it too. */
 :root[data-accent-light] {
     --on-accent:      #1a1a1a;
     --accent-tick:    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%231a1a1a'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 [data-theme="dark"] {
-    /* Same accent (from :root / data-accent); only the shade flips lighter. */
     --accent-2:       color-mix(in srgb, var(--accent) 78%, white);
     --dust-ink:        #ffffff;
     --dust-accent-alt: color-mix(in srgb, var(--accent) 30%, #ffffff);
@@ -144,7 +117,6 @@
     --bg-tt-td:       #242424;
     --bg-sel-panel:   #2e2a17;
     --bg-drop-hint:   color-mix(in srgb, var(--accent) 16%, var(--bg-page));
-    /* Dark grey, lifted off black but under the modal behind it. */
     --bg-keywords:    #202020;
     --border-main:    #444;
     --border-canvas:  #555;
@@ -165,15 +137,12 @@
     --text-shortcut:  #888888;
     --text-key:       var(--accent-2);
     --text-empty:     #888888;
-    /* Dark theme keeps the same soft dark drop shadow (invisible on dark, where the grey already
-       reads) — no light-on-dark glow. A custom light name colour still reads against the dark bg. */
     --project-name-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
     --text-tooltip:   #e0e0e0;
     --text-tt-header: #f0f0f0;
     --input-bg:       #333333;
     --input-text:     #e0e0e0;
     --shadow:         rgba(0,0,0,0.4);
-    /* Lifted toward the light so reds/greens/ambers read clearly on dark panels. */
     --danger:         #f0697a;
     --danger-2:       #e8455a;
     --success:        #4cc471;
@@ -183,7 +152,6 @@
     --disabled-text:  #777777;
     --sb-track:        transparent;
     --sb-thumb:        #6a6a6a;
-    /* Hover/active pick up the brand accent, same as light — see :root. */
     --sb-thumb-hover:  var(--accent);
     --sb-thumb-active: var(--accent-2);
 }

@@ -36,3 +36,7 @@ export declare const lastVideoByTab: Map<number, VideoRecord | null>;
 export declare const lastPosterByTab: Map<number, string>;
 /** Kept fresh from storage; read synchronously to beat the native menu appearing. */
 export declare const pinsCache: PinEntry[];
+/** False until the first storage read (or a change event) has filled `pinsCache`. */
+export declare const pinsLoaded: boolean;
+/** Settles once that first read lands. */
+export declare const pinsReady: Promise<void>;

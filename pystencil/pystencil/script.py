@@ -1,9 +1,5 @@
-"""Running a whole ``.stc`` file: the block loop over the inputs each ``@source`` names.
-
-The core decides *what* to do; this decides what that means for a file — which inputs a
-block opens, which editor carries them, and where each ``@save`` lands. Twin of
-``cli/src/script/run.zig``. ``Editor.script`` is the single-image door; this is the
-batch one.
+"""Running a whole ``.stc`` file: which inputs each block opens, which editor carries them,
+and where each ``@save`` lands — twin of ``cli/src/script/run.zig``.
 """
 
 from __future__ import annotations
@@ -60,14 +56,9 @@ def run_program(
   program: Script, *, source: (str | NoneType) = None, confine_output: bool = False,
   on_save=None
 ) -> ScriptRun:
-  """Run an already-parsed program, so a caller that reported its diagnostics need not
-  parse it twice. The handle must still be open — the shape ops resolve through it.
-
-  A block with no ``@source`` runs against ``source`` (the one-shot ``-i`` input) and
-  raises when there is none. A directory or glob block opens one fresh
-  :class:`~pystencil.editor.Editor` per input, in sorted order. A script carrying any
-  error runs nothing — the returned :class:`ScriptRun` still carries its diagnostics.
-  """
+  """Run a parsed program whose handle is still open. A block with no ``@source`` runs on
+  ``source`` and raises without one; a directory or glob opens a fresh ``Editor`` per input,
+  sorted. A program with any error runs nothing and returns its diagnostics."""
   run = ScriptRun(diagnostics=program.diagnostics)
   if run.has_errors: return run
   for block in program.blocks:

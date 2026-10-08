@@ -18,7 +18,7 @@ images generated under `usecases/docs/<app>/img/` by `usecases/capture-runner/` 
 is followed by a re-run, never by editing a picture), no architecture, no feature inventory, no
 counts.
 
-Every `ARCHITECTURE.md` carries the same seven `##` sections in this order, each in one fixed
+Every `ARCHITECTURE.md` carries the same eight `##` sections in this order, each in one fixed
 form — a table where every item has the same fields, a list where they are parallel but
 uneven, prose where it is one argument:
 
@@ -28,10 +28,14 @@ uneven, prose where it is one argument:
 | Where things go | table | path · holds · rule |
 | Entities | `classDiagram` + table | entity · what it is · owned by / lifetime · relates to |
 | Patterns | table | pattern · where · notes |
-| Design | bold-led bullets | the flows, and any schema this surface owns |
+| Design | bold-led bullets | the flows, and any schema this surface owns or persists |
+| Concurrency | prose + table | the execution model in one paragraph, then one row per thread, task, goroutine, worker or async writer: owner · runs on · shares · guard · on overflow or teardown |
 | Rules | numbered list | the invariants |
 | Tests | prose | what the suite proves, what it stubs, what it pins |
 
-A new entity, pattern or flow goes into its section, never a new heading. Name what a thing
+A rule a lint enforces as a frozen allowance is written as one ("beyond the frozen allowance
+in `x.test.js`"), never as an absolute. A surface with no concurrency of its own says so in one
+sentence under Concurrency. A new entity, pattern or flow goes into its section, never a new
+heading. Name what a thing
 *is*, never how many there are: counts of suites, files, pinned states or cases go stale on
 the next commit and are not design.

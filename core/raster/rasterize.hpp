@@ -5,8 +5,8 @@
 #include <cstdint>
 
 // Software rasteriser burning models.hpp lines into an RGBA8 image in place, for the
-// headless CLI (the GUIs draw with Qt/canvas). Pure geometry, no glyphs; "transparent"
-// or unparseable colours are skipped.
+// headless CLI: the twin of the canvas paint in browser/js/core/line/render.js. Pure
+// geometry, no glyphs; "transparent" or unparseable colours are skipped.
 namespace stencil::core {
 
   // One dash cycle in px along the path, whatever the thickness (canvas setLineDash). Twin:

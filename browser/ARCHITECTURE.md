@@ -36,9 +36,14 @@ graph TD
 
 `config/` + `utils.js` → `core/` (**no DOM**) → `eventBus/` (`core/emitter.js`) → `net/` → `llm/` →
 console facade (`console/stencilApi.js`) → `ui/` → render. A layer imports only from its
-left; `tests/layerBoundary.test.js` enforces it. The core reaches the view two ways only: the
-change feed a ui area subscribes to (`core/app/changes.js`), and the app's view seam
-(`VIEW_SEAM` in `core/drawingApp.js`, the one core file that may import `ui/`).
+left. `tests/layerBoundary.test.js` lints it as ratchets: each frozen allowance names the files
+that still cross and how often, a new site or a grown count fails, and a count that shrank must
+be lowered — `CORE_DOM_ALLOWANCE` (core files that still touch `document`/`window`),
+`UI_IMPORT_ALLOWANCE` (core files that still import a `ui/` paint helper; `llm/` and `net/` import
+none), `FACADE_ALLOWANCE` (`window.stencil` read outside `console/`) and `UI_ID_ALLOWANCE` (`ui/`
+modules that still look a node up by global id). The core reaches the view through the change
+feed a ui area subscribes to (`core/app/changes.js`) and the app's view seam (`VIEW_SEAM` in
+`core/drawingApp.js`), and beyond `UI_IMPORT_ALLOWANCE` in no other way.
 
 ## Where things go
 
@@ -49,13 +54,13 @@ change feed a ui area subscribes to (`core/app/changes.js`), and the app's view 
 | `js/config/` | the operator's `openInConfig` and its example | operator config, fetched beside its module; never shared, never committed |
 | `../common/` | the shared tables (`config/`), corpora (`fixtures/`), the logo (`icons/`) | served next to `browser/`; imported by relative path, never a root URL, so a subpath deploy works |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
-| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the mixin, change feed and seam) | **no DOM access** — it runs under `node --test` |
+| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the mixin, change feed and seam) | **no DOM access** beyond the frozen `CORE_DOM_ALLOWANCE` in `tests/layerBoundary.test.js` — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` | one file per `core/script/*.cpp`; pure — it resolves ops but calls no facade |
 | `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
-| `js/net/` | the fetch guard, abortable fetch, the capped body read, the connection store + manager, remote sync | every fetch goes through `fetchGuard.js` here, every server or provider reply through `cappedBody.js` |
+| `js/net/` | the fetch guard, abortable fetch, the capped body read, the connection store + manager, remote sync | a URL the user or a page names goes through `guardedFetch` (`fetchGuard.js`: http(s)/data:/blob: only, the 30 s `NETWORK.fetchTimeoutMs` deadline); the launch `src` image and a dragged image URL are CORS fetches under the same deadline. `ServerConnection` wraps `globalThis.fetch` itself (`redirect: 'manual'`, the same deadline), and so does the LLM client (`llm/http.js`: `redirect: 'error'`, a turn ended by its Stop signal, a probe by the `providers.json` probe timeout). Every server, provider or fetched-image body is read through `cappedBody.js` (64 MiB; a provider reply 8 MiB) |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the session key | every plan is validated against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; it calls what the toolbar calls |
-| `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | components emit on the bus and never reach into `net/` or `llm/` |
+| `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | a region answers its parent by event and the app by the bus; it may import `net/` and `llm/` (left of it in the layer order) for the connection and assistant controls it renders |
 | `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
 | `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build |
@@ -181,13 +186,31 @@ classDiagram
   visible; a row edits its line through `applyLineChange` (`core/line/selection.js`), one history
   step each. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
   undo or redo keeps it on the lines that still exist (`keepLineSelection`).
-- **Save and sync.** `ProjectsStore.upsert` writes the image and payload keys before the
-  registry, so a quota failure leaves the registry untouched. A data-URL `source` enters the
-  registry as a hash reference and never leaves the browser (`keptSource`). The co-edit debounce
-  pushes the layout under `RemoteLink.version`, a 409 merging the peer's lines (`mergeLines`) and
-  retrying; the rendered result follows once edits go quiet (`core/remote/resultUpload.js`).
-  Server writes run one at a time. A peer's `project-event` on the picture on screen is adopted
-  as one undo step (`core/remote/peerLayout.js`); another original reloads.
+- **Save and sync.** An edit's trailing save runs `ProjectsStore.upsert` through the quota
+  ladder (`core/storage/quotaWriter.js`: shed a data-URL source's text, sweep expired projects,
+  evict the oldest other project, compress the image, then lines only), and the upsert writes the
+  image, payload and thumbnail keys before the registry row, so a synchronous quota failure leaves
+  the registry untouched. On IndexedDB those keys commit after the call returns: `confirmCommit`
+  (`core/storage/quotaConfirm.js`) awaits the commit, resumes the ladder where it stopped on an
+  asynchronous quota failure, and removes the registry row of a project whose payload never
+  committed; the cross-tab `UPDATED` goes out only once the save has committed. A data-URL
+  `source` enters the registry as a hash reference and never leaves the browser (`keptSource`).
+  The co-edit debounce pushes the layout under `RemoteLink.version`; a 409 merges the peer's
+  lines (`mergeLines`, each pass against the peer set the previous pass saw, one undo step per
+  save) and retries. The rendered result follows once edits go quiet
+  (`core/remote/resultUpload.js`), and the link adopts only the one version bump its own file
+  write produced, so a peer's save in between still 409s the next push. A peer's
+  `project-event` on the picture on screen is adopted as one undo step
+  (`core/remote/peerLayout.js`); another original reloads.
+- **Persistent schema.** IndexedDB `stencil_projects`, store `payloads`: `stencil_project_<id>`
+  (the payload JSON without its image), `stencil_image_<id>` and `stencil_thumb_<id>` (Blob
+  records). IndexedDB `stencil_chats`, store `chats`: one §12 chat document per project id.
+  localStorage: the registry `stencil_projects_v1`, `stencil_schema_migrated`, the projects
+  window's `stencil_projects_order` / `_sortmode` / `_searchmode`, and the `drawingApp_*`
+  settings — `constants.STORAGE_KEYS` (`theme`, `hotkeys`, and the legacy `image` / `layout` the
+  migration reads once), `accent`, `motion`, `notify`, `servers`, `autoConnectServers`,
+  `syncToServer`, `stencilLiveSync`, `llmSettings`, `voiceSettings`. sessionStorage:
+  `stencil_llm_session_key` alone.
 - **An LLM turn.** `ChatController.send(text)` replays history, calls `LlmClient.chat`,
   `parseOpPlan` validates the reply against the browser profile of `opRegistry.json`, and
   `executeOpPlan` maps each op 1:1 onto a facade call; variants and ask previews branch through
@@ -239,23 +262,53 @@ classDiagram
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.
 
+## Concurrency
+
+The app runs on the page's one JS thread: handlers, timers and promise continuations interleave at
+each `await`, never in parallel. Two workers run off it — the image worker
+(`worker/imageWorker.js`, a module Worker with its own wasm instance, each request correlated by
+id, retired for the session on its first error, after which the same raster sequence runs inline)
+and the cross-tab router (`worker/projectsWorker.js`, a SharedWorker that relays pings between
+tabs and touches no storage; `core/launch/tabsCoordinator.js` falls back to a BroadcastChannel
+roll-call, then to one tab). What overlaps on the main thread is the async writers below: the
+debounced saves and the IndexedDB and server writes they start.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| Image worker (`worker/imageTasks.js`) | a module Worker, own wasm instance | transferred bitmaps; the id → promise map | one id per request | an error rejects every pending request and retires the worker; renders run inline from then on |
+| Cross-tab router (`projectsWorker.js` / `tabsCoordinator.js`) | SharedWorker, else BroadcastChannel | each port's active project id; `projectsChanged` pings | messages only, no storage | a closed port leaves the tab count; no coordinator means one tab |
+| Trailing project save (`Storage.saveSoon`) | main-thread timer, 400 ms trailing | the active project's keys and registry row | one timer; a burst saves once | flushed at once on a project switch, `beforeunload`, `pagehide` and a hidden `visibilitychange` |
+| IndexedDB write-through mirror (`projectsBackend.js`) | IndexedDB transactions | the in-memory mirror and the stored keys | reads served from the mirror; each key's latest write outcome kept; a write settles when its transaction commits | a failed write keeps the mirror; `confirmCommit` resumes the quota ladder (a newer save supersedes it) or removes the orphaned registry row |
+| Cross-tab save ping (`Storage.scheduleSyncBroadcast`) | main-thread timer, 400 ms | the `UPDATED` message | sent once the last save's commit resolves | a failed or superseded commit sends nothing |
+| A peer tab's save (`core/remote/projectsWatch.js`) | main thread | the open project's stored payload; across tabs the last writer wins | deferred while a gesture runs, re-checked every 120 ms, adopted once idle | an edit the gesture committed is saved after it and wins; a project switched away is left alone |
+| Co-edit layout push (`RemoteSyncController`) | main thread; the serial `#writes` promise queue | `RemoteLink.version` and the server project | 350 ms trailing debounce capped at 1.5 s; one server write at a time; a 409 merges and retries up to `MAX_TRIES` (6) | never converged: reload from the server; a push landing mid-reload is deferred and supersedes the pending reload |
+| Result upload (`ResultUploader`) | the same `#writes` queue | the `result` file and the link version | `COEDIT.resultIdleMs` idle, `resultMinGapMs` gap; the link adopts only the bump its own write produced | flushed on a switch or unload; cancelled when the project is deleted |
+| Peer project-event pull (`reloadRemoteActive`) | main thread, outside `#writes` | the editor's lines and the link version | adopted only for a newer version than the link, not mid-stroke, and outside the 150 ms echo window of our own save; one reload at a time | an event mid-reload collapses into one follow-up pass |
+| Server writers outside the queue | `project/meta/projectMetaOps.js` (field sets), `image/settle.js` (original replace), `llm/chat/persistence.js` (the `chat` file) | the server project | a field set re-reads the version on 409, 4 attempts; the original replace then saves through the queue; the chat file is versionless and best-effort | a failure is a notice; the link moves only while it still names that project |
+| Chat turn (the one `ChatController` per app) | main thread | history, attachments, the transcript log | the controller refuses a second `send` while one runs; the panel, the context menu, `stencil.prompt` and voice check `chatTurnInFlight()` first | a refused turn logs nothing and says the assistant is answering; Stop aborts the running one |
+| `HeldSessionKey` (`llm/sessionKey.js`) | this tab's sessionStorage | the Anthropic key and its `expiresAt` | read at each request, its TTL checked at use | an expired record is dropped on read; it goes with the tab |
+| Live `.stencil` file sync (`core/remote/stencilSync.js`) | main-thread timers | the linked file | 800 ms debounced save, polled watch | a conflict prompts mine / theirs / merge |
+
 ## Rules
 
 1. **Every mutation goes through the facade's own path.** Toolbar, hotkey, console script,
    LLM plan — all reach the same core functions and collaborators; the facade is typed in
    `stencilApi.d.ts`. A core function is imported by its caller, never forwarded through the
-   app; only the view seam, the mixin and the gesture flags are installed on `DrawingApp`.
+   app (`tests/core/app/delegates.test.js` holds the retired forwarders as an enumerated
+   denylist); only the view seam, the mixin and the gesture flags are installed on `DrawingApp`.
 2. **wasm with a fallback.** Each module that calls the core keeps its JS body as the
    fallback and the two match op-for-op (`tests/wasm/wasm-parity.test.js`). A value the core
-   owns is read from it, never mirrored: the fallback twin is its one JS home and the UI
-   derives from that. No `eval` / `new Function` anywhere.
+   owns is read from it, never mirrored: the fallback twin is its one JS home, and `ui/` reads
+   it through the core module that names it (the page table through `core/settings/units.js`).
+   No `eval` / `new Function` anywhere.
 3. **`common/` is canonical.** A value another surface needs is a table in `common/config/`, never a
    literal in code.
 4. **Ported modules stay byte-identical.** The modules `tools/twins.json` copies into
    `browser-extension/src/lib/` and `vscode-extension/src/parser/script/` are pinned in both
    directions (`browser-extension/tests/portParity.test.js`,
    `vscode-extension/tests/parserParity.test.js`). Edit here, then re-copy.
-5. **Typed boundary.** Every public module has a sibling `.d.ts`. A shape file with no module
+5. **Typed boundary.** Every public module has a sibling `.d.ts`, beyond the frozen
+   `NO_SHAPE_YET` list in `tests/dts.test.js`. A shape file with no module
    behind it declares types only, and what a module installs on `DrawingApp` merges into the class (`AppCollaborators`).
 6. **An edit names what changed.** The core signals channels on `app.changes`, never a
    control; a control area follows the channels its inputs move on, and a narrow flush leaves
@@ -273,8 +326,8 @@ classDiagram
    token.
 10. **A child answers its parent by event.** Child → parent is a bubbling `CustomEvent`
    declared in the child's `.d.ts`; app-wide is the bus (`config/events.json`); a region
-   never reaches another region's nodes by id (`layerBoundary.test.js` freezes each `ui/`
-   module's reaches).
+   never reaches another region's nodes by id, beyond the frozen `UI_ID_ALLOWANCE` in
+   `tests/layerBoundary.test.js`.
 11. **Every control is named, once.** An icon-only control's accessible name is its tooltip
    heading and a field's is the label beside it (`ui/ariaLabels.js`); only a control whose
    name is nowhere on the page writes its own `aria-label`.
@@ -289,8 +342,8 @@ through one script; they self-skip without it, and CI builds it.
 The op-plan validator stays out of wasm: no `abi/opplanShared.inc` name is in `EXPORTED_FUNCTIONS`
 or the export lists, and the built module carries no `_stencil_opplan*` export.
 
-The structural lints assert the design: the import direction and the `window.stencil` name, no
-pass-through call on the app, every `.d.ts` against its module, and each config table against
+The structural lints assert the design as ratchets: the import direction and the `window.stencil`
+name, the retired pass-through calls on the app, every `.d.ts` against its module, and each config table against
 its consumer. An edit runs only its control areas, each flush matching a full sweep. The CSS pin holds every declaration `index.html`
 loads, the markup pin the body ids of `layout()`; the fixture walkers run the shared corpora
 through the real modules.

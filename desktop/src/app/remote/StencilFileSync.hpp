@@ -5,6 +5,8 @@
 #include <QString>
 #include <functional>
 
+#include "../../support/modal/modalChrome.hpp"
+
 class QFileSystemWatcher;
 class QTimer;
 class QWidget;
@@ -24,6 +26,8 @@ namespace stencil::gui {
       std::function<QByteArray()> build;
       std::function<void(const QByteArray& text, bool merge)> applyExternal;
       std::function<void(bool linked)> linkChanged;
+      // The three-way conflict question; empty asks through confirmModalChoice.
+      std::function<ConfirmChoice(QWidget* host, const ConfirmSpec& spec)> choose;
     };
 
     StencilFileSync(QWidget* host, QPointer<Notifications> notify, Hooks hooks);
@@ -52,6 +56,8 @@ namespace stencil::gui {
     QByteArray baseline;
     bool liveSync = false;
     bool applying = false;
+    bool prompting = false;   // the conflict question is open; a change or flush meanwhile is re-run after it
+    bool missedWhilePrompting = false;
     QFileSystemWatcher* watcher = nullptr;
     QTimer* autosaveTimer = nullptr;
   };

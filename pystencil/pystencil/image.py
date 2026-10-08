@@ -1,10 +1,5 @@
-"""The ``Image`` value type: a plain RGBA8 pixel buffer.
-
-This mirrors the raw RGBA8 buffers the C++ ``core/`` operates on — interleaved
-R,G,B,A bytes, top-to-bottom rows — so it can be handed straight to the core
-ABI (crop/rotate/filter/rasterize) without conversion. Decoding/encoding goes
-through :mod:`pystencil.codecs` (pure-Python PNG/BMP, JPEG through the CLI's stb units);
-the core stays codec-free by design, exactly like the browser/wasm and Zig CLI front-ends.
+"""The ``Image`` value type: interleaved RGBA8, top-to-bottom rows, no stride — the buffer
+the core ABI takes as is. Coding goes through :mod:`pystencil.codecs`; the core stays codec-free.
 """
 
 from __future__ import annotations
@@ -24,8 +19,7 @@ class Image:
       )
     self.width = width
     self.height = height
-    # Always hold a bytearray so in-place core ops (fill/filter/rasterize)
-    # can mutate the buffer directly via ctypes.from_buffer.
+    # A bytearray, so in-place core ops write through ctypes.from_buffer.
     self.data = data if isinstance(data, bytearray) else bytearray(data)
 
   @property
@@ -40,14 +34,8 @@ class Image:
     height: int,
     rgba: tuple[int, int, int, int] = (255, 255, 255, 255),
   ) -> "Image":
-    """Create a solid-color image.
-
-    Prefers the native core's ``fill_rgba`` (so a blank page is filled by the
-    exact same code path the CLI/browser use). The import is deferred and
-    guarded: codec tests and any environment without a compiled core lib must
-    still be able to build blank images, so we fall back to a pure-Python
-    fill when the native library can't be loaded.
-    """
+    """A solid-colour image, filled by the core's ``fill_rgba`` or, with no native library,
+    in Python."""
     data = bytearray(width * height * 4)
     r, g, b, a = rgba
     try:
@@ -55,7 +43,6 @@ class Image:
 
       get_core().fill_rgba(data, width * height, r, g, b, a)
     except Exception:
-      # Pure-Python fallback: write the RGBA pattern across the buffer.
       for i in range(width * height):
         d = i * 4
         data[d] = r
@@ -86,11 +73,7 @@ class Image:
     raise codecs.CodecError("unsupported encode format: %s" % fmt)
 
   def save(self, path: str, fmt: (str | NoneType) = None) -> None:
-    """Encode and write this image to ``path``.
-
-    When ``fmt`` is omitted, it's inferred from the extension, defaulting to
-    PNG for unknown/missing extensions.
-    """
+    """Encode to ``path``; ``fmt`` defaults to the extension's format, else PNG."""
     if fmt is None: fmt = codecs.format_from_ext(path) or "png"
     data = self.encode(fmt)
     with open(path, "wb") as fh:

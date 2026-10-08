@@ -9,6 +9,7 @@ public sealed record AlbumPhoto(int MessageId, string FileId, string? Caption);
 public sealed class AlbumCollector
 {
     private readonly Func<CancellationToken, Task> _settle;
+    private readonly Action? _afterLookup;
     private readonly ConcurrentDictionary<(long UserId, string GroupId), Group> _groups = new();
     private readonly ConcurrentDictionary<Task, byte> _inFlight = new();
 
@@ -18,8 +19,15 @@ public sealed class AlbumCollector
     }
 
     public AlbumCollector(Func<CancellationToken, Task> settle)
+        : this(settle, null)
+    {
+    }
+
+    // afterLookup runs between a photo's group lookup and its lock: the window a flush can close.
+    public AlbumCollector(Func<CancellationToken, Task> settle, Action? afterLookup)
     {
         _settle = settle;
+        _afterLookup = afterLookup;
     }
 
     // Runs in the background — the caller must NOT hold per-user locks the flush itself acquires.
@@ -27,14 +35,25 @@ public sealed class AlbumCollector
         Func<IReadOnlyList<AlbumPhoto>, Task> flush, CancellationToken ct)
     {
         (long, string) key = (userId, groupId);
-        Group group = _groups.GetOrAdd(key, _ => new Group());
+        Group group;
         bool start;
-        lock (group.Lock)
+        while (true)
         {
-            group.Photos.Add(photo);
-            group.Generation++;
-            start = !group.Started;
-            group.Started = true;
+            group = _groups.GetOrAdd(key, _ => new Group());
+            _afterLookup?.Invoke();
+            lock (group.Lock)
+            {
+                if (!group.Flushed)
+                {
+                    group.Photos.Add(photo);
+                    group.Generation++;
+                    start = !group.Started;
+                    group.Started = true;
+                    break;
+                }
+            }
+            // That group already flushed: retire it if its flusher has not yet, and start a new one.
+            _groups.TryRemove(new KeyValuePair<(long, string), Group>(key, group));
         }
         if (start)
         {
@@ -49,6 +68,7 @@ public sealed class AlbumCollector
     private async Task flushWhenSettledAsync((long, string) key, Group group,
         Func<IReadOnlyList<AlbumPhoto>, Task> flush, CancellationToken ct)
     {
+        List<AlbumPhoto> photos;
         try
         {
             while (true)
@@ -63,6 +83,8 @@ public sealed class AlbumCollector
                 {
                     if (group.Generation == seen)
                     {
+                        group.Flushed = true;
+                        photos = new List<AlbumPhoto>(group.Photos);
                         break;
                     }
                 }
@@ -71,15 +93,14 @@ public sealed class AlbumCollector
         catch (OperationCanceledException)
         {
             // Shutdown — drop the buffered group quietly.
-            _groups.TryRemove(key, out _);
+            lock (group.Lock)
+            {
+                group.Flushed = true;
+            }
+            _groups.TryRemove(new KeyValuePair<(long, string), Group>(key, group));
             return;
         }
-        _groups.TryRemove(key, out _);
-        List<AlbumPhoto> photos;
-        lock (group.Lock)
-        {
-            photos = new List<AlbumPhoto>(group.Photos);
-        }
+        _groups.TryRemove(new KeyValuePair<(long, string), Group>(key, group));
         await flush(photos).ConfigureAwait(false);
     }
 
@@ -89,5 +110,6 @@ public sealed class AlbumCollector
         public readonly List<AlbumPhoto> Photos = new();
         public int Generation;
         public bool Started;
+        public bool Flushed; // set under Lock once the photos are taken; a later Add must not join
     }
 }

@@ -65,7 +65,8 @@ const collect = async (document, { saved }) => {
 const register = (context) => {
   const collection = vscode.languages.createDiagnosticCollection(LANGUAGE_ID);
   const timers = new Map();
-  context.subscriptions.push(collection);
+  const clearTimers = { dispose: () => { for (const timer of timers.values()) clearTimeout(timer); timers.clear(); } };
+  context.subscriptions.push(collection, clearTimers);
 
   // A collect() is asynchronous, so a result the next keystroke has already outdated is dropped.
   const refresh = async (document, options) => {

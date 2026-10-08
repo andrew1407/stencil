@@ -106,7 +106,7 @@ pub fn build_scrape_argv(params: &ScrapeParams) -> Result<Argv, EditError> {
     }
 
     // The destination directory defaults to the current directory, matching the CLI's own
-    // positional default. An empty or dash-leading directory is rejected up front.
+    // positional default.
     let output = params.output.as_deref().unwrap_or(".");
     if output.trim().is_empty() {
         return Err(EditError::EmptyValue("output"));

@@ -8,6 +8,11 @@ stencil_headless_test(stencil_connectionsecrets_headless
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Core)
 
+# A child process's environment (support/process/childEnv.hpp): no STENCIL_LLM_* key, no server token.
+stencil_headless_test(stencil_childenv_headless
+  SOURCES tests/support/process/childEnv.headless.cpp
+  LIBS Qt6::Core)
+
 # The media loader: its candidate walk (io/MediaLoader::loadFirstOf) over guard-blocked hosts, the
 # route a picture that will not decode takes (a loopback server stands in for a download), and the
 # shared image-header corpus through its sniffer.

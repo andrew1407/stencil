@@ -28,8 +28,7 @@ public sealed record EditState
 
     public double? CustomPageHeight { get; init; }
 
-    // Metadata, like the browser's: never changes the raster, rides the saved layout for other
-    // surfaces.
+    // Metadata, like the browser's: never changes the raster, rides the saved layout for other surfaces.
     public string? FormulaX { get; init; }
 
     public string? FormulaY { get; init; }

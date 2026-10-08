@@ -9,12 +9,8 @@
 }
 #sec-assistant .chat-status-dot.ok { background: var(--ok); }
 #sec-assistant .chat-status-dot.bad { background: var(--danger); }
-/* The … trigger's rich status tooltip (assistant.js gearTip): a themed TABLE — label
-   column muted, status cell coloured by state — plus a pre-line footer, fixed-positioned
-   above the trigger. Browser .chat-status-tip parity (browser components/chat/touch.css):
-   same accent-outlined card #app-tooltip already uses here, not the plain flat lines the
-   generic controlTooltip.js prints a `title` as. Unscoped like #app-tooltip: appended to
-   <body>, outside #sec-assistant. */
+/* Browser .chat-status-tip parity (components/chat/touch.css), unscoped like #app-tooltip
+   since it hangs off <body>. */
 .chat-status-tip {
   position: fixed;
   z-index: 100003;
@@ -29,9 +25,7 @@
   transition: opacity 90ms ease;
 }
 .chat-status-tip.visible { opacity: 1; }
-/* Once the real motes have flown (lib/motion.js surfaceIn/surfaceOut), the plain fade
-   steps aside for good — same reasoning as #app-tooltip.dust-driven above — so it can
-   never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+/* Once real motes fly, the fade steps aside so it never fights surfaceForm/surfaceLeave. */
 .chat-status-tip.dust-driven { transition: none; }
 .chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
 .chat-status-tip th {
@@ -62,15 +56,11 @@
   font-size: 12px; text-align: left; cursor: pointer;
 }
 #sec-assistant .chat-more-item:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
-/* An inapplicable item (nothing to clear, attach paused mid-turn) leaves the menu
-   instead of greying out — browser/desktop parity. */
+/* An inapplicable item leaves the menu rather than greying out (browser/desktop parity). */
 #sec-assistant .chat-more-item:disabled { display: none; }
-/* Transcript entries ride the shared scroll reveal (lib/animations/reveal.css), which
-   covers the entrance AND the scroll — an `animation: … both` end state here
-   would out-rank the reveal's transform (browser parity). */
+/* An `animation: … both` here would out-rank the scroll reveal's transform. */
 
-/* §11 choice card — the model's question as pick-one / pick-many, with the referenced
-   images it named. Same panel language as the result cards above it. */
+/* §11 choice card: the model's question as pick-one / pick-many. */
 .chat-ask {
   display: flex; flex-direction: column; gap: 6px; margin: 6px 0;
   padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2);
@@ -95,7 +85,6 @@
   border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent);
 }
 .chat-ask-submit:disabled { opacity: .5; cursor: default; }
-/* Answered: a record of what was sent, not a control. */
 .chat-ask-answered { opacity: .8; }
 .chat-ask-answered .chat-ask-option { cursor: default; }
 .chat-ask-sent { color: var(--muted); font-style: italic; font-size: 11.5px; }

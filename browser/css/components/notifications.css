@@ -1,6 +1,5 @@
-/* ── Image-too-large warning banner (js/core/storage/storage.js) ──
-   Fixed warning colours, not theme tokens: the same amber in either theme, as it always
-   was. storage.js sets `display` to raise and drop it. */
+/* Image-too-large warning banner (js/core/storage/storage.js): fixed amber in either theme, not
+   theme tokens; storage.js sets `display`. */
 .image-missing-banner {
     background: #fff3cd;
     border: 2px solid #ffc107;
@@ -24,10 +23,8 @@
     font-weight: bold;
 }
 
-/* ── Notification stack (bottom-left) ──
-   The host is the COLUMN, not a toast: js/ui/shell/notifications.js appends one .notify-toast
-   per message, newest last → newest at the bottom, the stack growing upward. Capped at
-   three there (desktop parity), so it can never wall off the side of the canvas. */
+/* The notification stack (bottom-left): the host is the column, one .notify-toast per message,
+   newest at the bottom, capped at three (desktop parity). */
 #notify-balloon {
     position: fixed;
     /* A docked chat owns its corner: the panel sets the inset vars (chatPanel.js
@@ -64,10 +61,8 @@
     align-items: center;
     gap: 8px;
 }
-/* TWO colours, not three: red means something went wrong, and everything else — a save, a
-   clear, a plain notice — carries the theme accent. A green success sat outside the palette
-   and made routine confirmations shout as loudly as failures. The ✓ / ✕ / ℹ glyph is what
-   still separates the kinds. Mirrored in desktop/src/support/notify/Notifications.cpp. */
+/* Two colours: red for wrong, the accent for everything else; the ✓ / ✕ / ℹ glyph tells the kinds
+   apart. Mirrored in desktop/src/support/notify/Notifications.cpp. */
 .notify-toast.notify-ok,
 .notify-toast.notify-info  { background: var(--accent); color: var(--on-accent); }
 .notify-toast.notify-fail  { background: var(--danger); }

@@ -1,8 +1,7 @@
 // The Open-Image crop's aspect choice (page / plain ratio / custom) and the rows that come and
 // go with the Crop tick. Split out of ui/openImage/modal.js; the rect itself is openImageCrop.js.
-import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import { pageNaturalSize } from '../../core/settings/units.js';
 import { makeDustRow, makeDustToggle } from '../motion/dust/row.js';
-const { PAGE_SIZES } = constants;
 
 // The crop's own aspect affects only this preview, never the project. Plain ratios sit beside
 // it: every named ISO page shares one ratio (√2), so a single "Page" entry says it all.
@@ -15,9 +14,7 @@ export function createCropRows({ app, els, fitToPage, persist }) {
   const pageDims = () => {
     if (pageKey === 'custom') return { width: customW, height: customH };
     if (CROP_RATIOS[pageKey]) return CROP_RATIOS[pageKey];
-    return app.pageSize === 'custom'
-      ? { width: app.customPageWidth, height: app.customPageHeight }
-      : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
+    return pageNaturalSize(app);
   };
 
   // Crop-only rows fly on the KEYWORD-CHIP recipe (motion/dust/row.js) so both surfaces play the

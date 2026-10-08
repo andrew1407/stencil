@@ -2,31 +2,21 @@
 // and CSS background-image via the probe, ctxTarget.js) and routes messages/clicks to
 // the modules beside it.
 import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/control/actionIcon.js';
-import { buildMenus, syncDesktopMenuVisibility } from './menus.js';
-import { injectProbeIntoOpenTabs, setUpScripts } from './registrars.js';
+import { buildMenus } from './menus.js';
+import { injectProbeIntoOpenTabs, setUpScripts, watchScriptSettings } from './registrars.js';
 import { resolveClickHandler } from './ctxActions.js';
 import { pageApiHandlers } from './handlers/pageApi.js';
 import { dropZoneHandlers } from './handlers/dropZones.js';
 import { ctxProbeHandlers } from './handlers/ctxProbe.js';
 import { editorModeHandlers } from './handlers/editorMode.js';
+import { storeWriteHandlers } from './handlers/storeWrites.js';
 import { lockSessionKeyArea } from '../llm/sessionKey.js';
 import './tabState.js';   // per-tab probe state + the pins snapshot, kept fresh from storage
 
 // Build immediately on worker startup (covers reloads where onInstalled/onStartup
-// don't fire); idempotent thanks to the removeAll above.
+// don't fire); idempotent because buildMenus clears the menu first.
 buildMenus();
-
-// React to settings changes: re-scope the editor bridge/page APIs, collected into one pass
-// so a change touching two sets is still a single settings read.
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'sync') return;
-  const keys = [];
-  if (changes.editorUrl) keys.push('bridge');
-  if (changes.editorUrl || changes.editorPageApi) keys.push('editorApi');
-  if (changes.exposeWindowStencil) keys.push('pageApi');
-  if (keys.length) setUpScripts({ keys });
-  if (changes.desktopScheme) syncDesktopMenuVisibility();   // reveal/hide the desktop-app items
-});
+watchScriptSettings();
 
 const bootstrap = () => {
   buildMenus();
@@ -47,7 +37,7 @@ watchAccentActionIcon();   // …and re-tint it whenever the accent changes
 // One handler per message `type`: fire-and-forget ones return undefined (port closes);
 // request/response ones are wrapped in `answers()` and return true, which this propagates.
 const messageHandlers = {
-  ...pageApiHandlers, ...dropZoneHandlers, ...ctxProbeHandlers, ...editorModeHandlers,
+  ...pageApiHandlers, ...dropZoneHandlers, ...ctxProbeHandlers, ...editorModeHandlers, ...storeWriteHandlers,
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

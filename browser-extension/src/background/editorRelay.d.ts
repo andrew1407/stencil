@@ -10,6 +10,8 @@ export type MessageListener = (msg: Record<string, unknown>, sender: unknown, se
 export declare const answers: (fn: RelayHandler) => MessageListener;
 /** chrome.tabs.get, but null instead of a throw for a tab that has closed. */
 export declare const getTab: (tabId: number) => Promise<unknown | null>;
+/** The sender is one of the extension's own pages (popup, side panel, DevTools, options, crop). */
+export declare const fromExtensionPage: (sender: { url?: string } | null | undefined) => boolean;
 /** Only our own pages or (if enabled) the editor page may call the wrapped handler. */
 export declare const privileged: (fn: RelayHandler) => (msg: Record<string, unknown>, sender: unknown) => Promise<unknown>;
 /** Always resolves to a reply object — a silent or missing bridge becomes `{ ok:false, error }`. */

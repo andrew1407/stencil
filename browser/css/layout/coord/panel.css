@@ -1,12 +1,8 @@
-/* ── Coordinates panel ── */
-/* What the panel is wide BEFORE the user has ever dragged it (--coord-panel-width is
-   written by the resizer, js/utils.js). One token, because the fullscreen points drawer
-   and its resizer rail fall back to the same number (components/fullscreen.css and
-   animations/responsive.css) — they read as one panel and must not drift apart. */
+/* The panel's width before any drag (--coord-panel-width, written by js/utils.js). One token: the
+   fullscreen drawer and its rail fall back to it (components/fullscreen.css, animations/responsive.css). */
 :root { --coord-panel-default: 405px; }
 .coordinates-panel {
-    /* Width is user-resizable via #panel-resizer (drag handle), held in --coord-panel-width for the
-       page's life; clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
+    /* flex:0 0 auto, so the canvas-section (flex:1) takes the rest. */
     flex: 0 0 auto;
     width: var(--coord-panel-width, var(--coord-panel-default));
     min-width: 240px;
@@ -16,14 +12,10 @@
     border-radius: 5px;
     margin-top: 10px;   /* level with .canvas-viewport's top (layout/canvas/frame.css) */
     transition: padding 0.2s;
-    /* A long point list must scroll INSIDE the panel, not stretch the page under the
-       canvas. Sticky keeps it in view while the rest of the page scrolls. */
     position: sticky;
     top: 10px;
-    /* max-height is set by JS (ZoomPan.syncCoordPanelHeight), NOT here: the panel starts
-       below the toolbar, so a `calc(100vh - …)` cap over-reports its room by however far
-       down it sits and let a ~40-row outline run past the window bottom. This is the
-       boot-time fallback for the frame before the first measurement lands. */
+    /* max-height is set by ZoomPan.syncCoordPanelHeight: a `calc(100vh - …)` cap over-reports by however
+       far down the panel sits. This is the boot fallback. */
     max-height: calc(100vh - 40px);
     display: flex;
     flex-direction: column;
@@ -32,14 +24,12 @@
     overflow-y: auto;
     min-height: 0;   /* a flex child defaults to min-content — without this it never shrinks */
 }
-/* Column headers stay put while the rows scroll under them. */
 .coordinates-table thead th {
     position: sticky;
     top: 0;
     z-index: 1;
 }
-/* Vertical drag handle between the canvas and the coordinates panel — the browser counterpart of
-   the desktop canvas↔panel splitter. Sits in the .main-content flex row (see mainContent.js). */
+/* The canvas↔panel drag handle, the desktop splitter's counterpart (mainContent.js). */
 .panel-resizer {
     position: relative;
     flex: 0 0 auto;
@@ -51,7 +41,6 @@
     background: transparent;
     transition: background 0.15s;
 }
-/* Always-visible grip so the handle is discoverable (a short vertical bar, centered). */
 .panel-resizer::before {
     content: '';
     position: absolute;
@@ -65,21 +54,16 @@
     transition: background 0.15s, height 0.15s;
 }
 .panel-resizer:hover::before, .panel-resizer.dragging::before { background: var(--accent); height: 52px; }
-/* No resizing while the panel is collapsed to its 36px rail. */
 .main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
 .coordinates-panel.coord-collapsed {
-    /* The way out rides its own clock, --panel-slide-out-ms (panel/coordFold.js). Declared HERE,
-       on the after-change style, so only the way out takes it. */
+    /* --panel-slide-out-ms (panel/coordFold.js), declared on the after-change style so only the way out takes it. */
     transition: width var(--panel-slide-out-ms) var(--fold-ease),
                 min-width var(--panel-slide-out-ms) var(--fold-ease),
                 padding var(--panel-slide-out-ms) var(--fold-ease);
-    /* 0, not `unset`: `min-width: auto` cannot be interpolated, and with `unset` the
-       240px floor snapped back the instant the class came off — the panel jumped most of
-       the way open before the width transition (animations/collapse.css) had anything left to do. */
+    /* 0, not `unset`: `min-width: auto` cannot interpolate, and the 240px floor snapped back at once. */
     min-width: 0;
     max-width: unset;
-    /* No card on the rail, only the button, where the open panel keeps it (its 10px 12px padding):
-       a card around it sat out of line with the page edge (user report; desktop: the bare chevron). */
+    /* No card on the rail, only the button (user report; desktop: the bare chevron). */
     width: 40px;
     padding: 10px 12px 10px 0;
     background: transparent;
@@ -93,10 +77,7 @@
     gap: 6px;
     white-space: nowrap;
 }
-/* One 28px rounded square in BOTH states — open and collapsed to the rail. It used to be
-   a 30x22 pill here (a 16px glyph in a 14.3px line box: 7px of side padding against 3px
-   above and below) that turned into a square on collapse, so the same control changed
-   shape and sat cramped whenever the panel was open. */
+/* One 28px rounded square in both states, so the control never changes shape. */
 #toggle-coord-panel {
     background: transparent;
     border: 1px solid var(--border-main) !important;
@@ -111,17 +92,14 @@
     border-radius: 8px;
     cursor: pointer;
     flex-shrink: 0;
-    /* Keeps it pinned right once the tabs are gone and it is the header's only child. */
     margin-left: auto;
 }
 #toggle-coord-panel:hover { background: var(--bg-info); }
-/* On the rail it keeps that box and just drops the outline. */
 .coordinates-panel.coord-collapsed #toggle-coord-panel { border: none !important; }
 .coordinates-panel.coord-collapsed #coord-body { display: none; }
 .coordinates-panel.coord-collapsed .coord-tabs { display: none; }
 .coordinates-panel.coord-collapsed .coord-panel-header { margin-bottom: 0; }
 
-/* ── Points | Lines tab strip ── */
 .coord-tabs { display: inline-flex; gap: 2px; }
 .coord-tab {
     font-weight: bold;
@@ -140,16 +118,14 @@
     border-bottom-color: var(--accent);
 }
 
-/* ── Lines tab: one row per committed line, on the points table's own grid ── */
-/* Fixed layout over the colgroup: the swatches, the count and the bin state their widths and the
-   two numbers share the rest, so a row fits the panel at its 240px narrowest. */
+/* Fixed layout over the colgroup, so a row fits the panel at its 240px narrowest. */
 .lines-table { table-layout: fixed; }
 .lines-swatch-col { width: 26px; }
 .lines-count-col { width: 40px; }
 .lines-remove-col { width: 28px; }
 .lines-row { cursor: pointer; }
 .lines-row:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); }
-/* Canvas-driven counterpart of :hover — the row whose line is under the canvas cursor. */
+/* The row whose line is under the canvas cursor. */
 .lines-row-hover:not(.lines-row-selected) {
     background-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
@@ -165,12 +141,10 @@
     display: inline-block;
     vertical-align: middle;
 }
-/* A point is a dot: its colour is round where the line's is square. */
 .lines-point-swatch { border-radius: 50%; }
-/* A number reads as a value to edit: a double-click opens it (panel/lines/numEdit.js). */
+/* A double-click edits it (panel/lines/numEdit.js). */
 .lines-num { cursor: text; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
 .lines-num:has(.lines-num-input) { padding: 2px; }
-/* The swatch's one hidden colour field (panel/lines/swatchPicker.js), moved under the swatch that
-   opens it; never display:none, or the native picker opens at the page corner. */
+/* Never display:none (panel/lines/swatchPicker.js), or the native picker opens at the page corner. */
 .lines-color-picker { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .lines-remove-cell { width: 28px; padding: 4px; }

@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include <QButtonGroup>
 #include <QComboBox>
 #include "CanvasWidget.hpp"
@@ -72,14 +73,7 @@ namespace stencil::gui {
     else btn->setFixedWidth(46);
     btn->setCursor(Qt::PointingHandCursor);
     const bool skin = support::isWebcore();   // a skin squares every corner, the chip included
-    btn->setStyleSheet(
-        QStringLiteral(
-            "QToolButton{background:%1;border:1px solid %2;border-radius:%6px;"
-            "color:%4;padding:0 %5px;}"
-            "QToolButton:hover{border-color:%3;}")
-            .arg(pal.inputBg.name(), pal.borderMain.name(), pal.accent.name(),
-                 pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0"),
-                 skin ? QStringLiteral("0") : QStringLiteral("7")));
+    btn->setStyleSheet(support::colorSwatchSheet(pal, labelled, skin));
     // A luminance-tuned outline keeps a colour near the input background visible in either theme.
     QPixmap pm(32, 16);
     pm.fill(Qt::transparent);

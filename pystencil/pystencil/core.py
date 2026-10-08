@@ -1,10 +1,6 @@
-"""ctypes binding over the stencil_cli_* extern "C" ABI (core/cliApi.h) -> class Core.
-
-The scalar half lives here (colour, page sizing, formula, duration, the op-plan walk); the
-pixel-buffer half is :class:`pystencil._raster.ops.RasterOps`, and the marshalling rules —
-including the caller-owns-every-buffer memory model — are in :mod:`pystencil._ffi.marshal`.
-Every bound function gets explicit .argtypes/.restype (the rasterize call in particular FAILS
-silently without argtypes on the double* parameter on 64-bit).
+"""``class Core`` over the ``stencil_cli_*`` ABI (``core/cliApi.h``): the scalar half here,
+the pixel half in :class:`pystencil._raster.ops.RasterOps`, the caller-owns-every-buffer
+marshalling in :mod:`pystencil._ffi.marshal`, the signatures in ``_ffi/bindings.py``.
 """
 
 from __future__ import annotations
@@ -22,23 +18,16 @@ from ._raster.ops import RasterOps
 
 
 class Core(RasterOps):
-  """Thin, typed wrapper around the shared core's CLI ABI: construct via Core.load(),
-  and every method maps 1:1 to a stencil_cli_* entry point, handling the ctypes
-  marshalling so callers work in plain Python types."""
+  """Typed wrapper over the ABI: each method maps to one ``stencil_cli_*`` entry point."""
 
   def __init__(self, lib: ctypes.CDLL) -> None:
     self._lib = lib
     self.__opplan = 0
     bind(lib)
 
-  # ── construction ──────────────────────────────────────────────────────────
   @classmethod
   def load(cls, lib_path: (str | NoneType) = None, build: bool = True) -> "Core":
-    """Find/build/dlopen the shared core and return a ready Core.
-
-    `lib_path` overrides discovery with an explicit prebuilt library; `build=False`
-    refuses to compile and requires an already-built (or overridden) artifact.
-    """
+    """A Core over `lib_path`, else the discovered library; `build=False` never compiles."""
     if lib_path is not None:
       lib = ctypes.CDLL(lib_path)
     elif build:
@@ -48,7 +37,6 @@ class Core(RasterOps):
       lib = ctypes.CDLL(path)
     return cls(lib)
 
-  # ── colour ────────────────────────────────────────────────────────────────
   def parse_color(self, spec: str) -> (tuple[int, int, int, int] | NoneType):
     """Parse a CSS colour to an (r,g,b,a) 0..255 tuple, or None if unrecognized."""
     r = ctypes.c_int()
@@ -65,7 +53,6 @@ class Core(RasterOps):
     if not ok: return None
     return (r.value, g.value, b.value, a.value)
 
-  # ── page sizing ───────────────────────────────────────────────────────────
   def named_page_size(self, name: str) -> (tuple[float, float] | NoneType):
     """Return (width_cm, height_cm) for a known page name (e.g. "A4"), else None."""
     wcm = ctypes.c_double()
@@ -106,7 +93,6 @@ class Core(RasterOps):
     )
     return (out_w.value, out_h.value)
 
-  # ── formula (coordinate transform) ──────────────────────────────────────────
   def validate_formula(self, expr: str, var: str = "x", ctx: (FormulaContext | NoneType) = None) -> bool:
     """True if `expr` is a valid formula in `var` ('x'/'y'); empty = identity. With `ctx` the
     named values are in reach and `var` no longer binds — both axes probe at 1 instead."""
@@ -123,25 +109,19 @@ class Core(RasterOps):
     if ctx is None: return float(self._lib.stencil_cli_applyFormula(*args))
     return float(self._lib.stencil_cli_applyFormulaCtx(*args, *ctx_args(ctx)))
 
-  # ── layout caps ─────────────────────────────────────────────────────────────
   def layout_caps(self) -> tuple[int, int, int]:
     """(lines, points per line, points in all) a layout keeps: constants.json LIMITS, from core."""
     lines, line_points, points = ctypes.c_int(), ctypes.c_int(), ctypes.c_int()
     self._lib.stencil_cli_layoutCaps(ctypes.byref(lines), ctypes.byref(line_points), ctypes.byref(points))
     return (lines.value, line_points.value, points.value)
 
-  # ── duration (expiration) ───────────────────────────────────────────────────
   def parse_duration(self, spec: str) -> (int | NoneType):
-    """Parse a human duration ("days 23", "months 3", "fortnight", "month", "off") to
-    milliseconds (0 = keep forever), or None if the spec is invalid — the same
-    DurationParser the CLI `/expire` and the browser `stencil.expire` use. Add the
-    result to an epoch-ms 'now' and pass to ServerConnection.set_project_expiration
-    to expire a server project."""
+    """A human duration ("days 23", "fortnight", "off") in milliseconds (0 = keep forever), or
+    None if invalid — the DurationParser behind the CLI's `/expire`."""
     out = ctypes.c_longlong(0)
     if not self._lib.stencil_cli_parseDuration(_encode(spec), ctypes.byref(out)): return None
     return int(out.value)
 
-  # ── op plan (core/opplan, llm-contract.md §1) ─────────────────────────────────
   def opplan_entries(self) -> dict:
     """The registry as core resolved it for pystencil: entries, forbidden names, limits."""
     return json.loads(self._lib.stencil_cli_opplanSchemaEntries(self.__opplan_schema()))
@@ -159,11 +139,34 @@ class Core(RasterOps):
       lib.stencil_cli_opplanDestroy(p)
 
   def __opplan_schema(self) -> int:
-    """The schema handle, created once per Core and kept for its lifetime."""
+    """The schema handle, created once per Core and kept until :meth:`close`."""
     if not self.__opplan:
       with _native._LOCK:
         if not self.__opplan: self.__opplan = _opplan_schema(self._lib)
     return self.__opplan
+
+  def close(self) -> None:
+    """Destroy the op-plan schema handle; idempotent, and the next walk makes a new one.
+
+    The shared :func:`get_core` instance keeps its handle for the process. Call it only
+    once no walk on this Core is in flight."""
+    if self is _CORE: return
+    with _native._LOCK:
+      handle, self.__opplan = self.__opplan, 0
+    if handle: self._lib.stencil_cli_opplanSchemaDestroy(handle)
+
+  def __enter__(self) -> "Core":
+    return self
+
+  def __exit__(self, *exc) -> bool:
+    self.close()
+    return False
+
+  def __del__(self) -> None:
+    try:
+      self.close()
+    except Exception:  # interpreter teardown may already have dropped the module or the lib
+      pass
 
 
 def _opplan_schema(lib: ctypes.CDLL) -> int:
@@ -186,7 +189,6 @@ def _reply_bytes(text: str) -> bytes:
     return text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace").encode("utf-8")
 
 
-# Process-wide singleton so repeated get_core() calls share one library handle.
 _CORE: (Core | NoneType) = None
 
 
@@ -194,6 +196,6 @@ def get_core() -> Core:
   """Return a cached, lazily-loaded Core singleton; racing callers share the winner."""
   global _CORE
   if _CORE is None:
-    with _native._LOCK:  # double-checked: the hot path never takes the lock
+    with _native._LOCK:
       if _CORE is None: _CORE = Core.load()
   return _CORE

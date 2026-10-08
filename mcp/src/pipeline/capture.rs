@@ -79,7 +79,8 @@ pub async fn read_lines<R: AsyncRead + Unpin>(
     tail.into_text()
 }
 
-/// Read `pipe` whole, refusing past `cap` bytes.
+/// Read `pipe` whole, refusing past `cap` bytes. Past the cap the rest is read and discarded
+/// to the end, so the child finishes on its own rather than blocking until the deadline.
 pub async fn read_capped<R: AsyncRead + Unpin>(pipe: R, cap: usize) -> Result<String, String> {
     let mut bytes = Vec::new();
     let mut limited = pipe.take(cap as u64 + 1);
@@ -87,6 +88,7 @@ pub async fn read_capped<R: AsyncRead + Unpin>(pipe: R, cap: usize) -> Result<St
         return Err(format!("could not read the stencil CLI's output: {e}"));
     }
     if bytes.len() > cap {
+        let _ = tokio::io::copy(&mut limited.into_inner(), &mut tokio::io::sink()).await;
         return Err(format!("the stencil CLI printed more than {} MiB on stdout", cap >> 20));
     }
     Ok(String::from_utf8_lossy(&bytes).into_owned())

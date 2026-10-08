@@ -13,6 +13,7 @@ namespace stencil::gui {
     RemoteSession* session = nullptr;
     bool pushing = false;
     bool reloading = false;
+    int reloadSeq = 0;   // the reload that owns `reloading`; an older one's late clear leaves it alone
   };
 
 }  // namespace stencil::gui

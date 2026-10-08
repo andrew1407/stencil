@@ -1,7 +1,5 @@
-/* Checkboxes & radios: a transparent box outlined in the brand accent, filled
-   with the accent (+ a white check / dot) when on — matching the desktop Qt
-   indicator. appearance:none so the look is ours (not the OS default), and the
-   box tracks the chosen main theme via var(--accent). */
+/* Checkboxes & radios: accent-outlined, accent-filled with a white check / dot when on (desktop
+   Qt indicator parity); appearance:none so the look is ours. */
 input[type=checkbox], input[type=radio] {
     appearance: none;
     -webkit-appearance: none;
@@ -39,10 +37,8 @@ input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor:
     display: none;
     position: fixed;
     inset: 0;
-    /* Above the chat panel (90000) and its dock zones (90001), below every modal
-       overlay (99999+). At 9999 the overlay painted BEHIND an open chat panel, so
-       dragging an image in with the chat docked showed the transcript's messages
-       where the drop zones should have been. */
+    /* Above the chat panel (90000) and its dock zones (90001), below every modal overlay (99999+):
+       at 9999 a docked chat covered the drop zones. */
     z-index: 90002;
     background: rgba(0, 100, 255, 0.2);
     backdrop-filter: blur(2px);

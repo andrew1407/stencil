@@ -1,33 +1,21 @@
-/* ── Disintegration (js/ui/motion.js disintegrate) ───────────────────────────
-   A removed row doesn't fade — it comes apart. motion.js paints one round mote per
-   grid cell in the row's own colours (speckPainter); the motes then drift off in a
-   top-down sweep, so the silhouette erodes from one edge instead of the whole thing
-   blowing apart at once. The layer is FIXED over the page because the row underneath
-   is collapsing to zero height at the same moment. */
+/* Disintegration (js/ui/motion.js disintegrate): a removed row comes apart top-down in motes of its own
+   colours. The layer is FIXED because the row underneath collapses at the same moment. */
 .disintegrate-host {
     position: fixed;
     z-index: 100010;
     pointer-events: none;
     overflow: visible;
 }
-/* The cloud is ONE canvas inside the layer (js/ui/dust/cloud.js): every grain is drawn
-   there per frame in a few batched fills, so a window-sized cloud is one layer, not a
-   compositor layer per mote. The flights that used to be keyframes here (tileScatter,
-   tileGather, tileGatherSurface, tileScatterSurface, tileFall) are dustCloud's FLIGHTS
-   table now; the host still owns the cross-fades below. */
+/* One canvas per cloud (js/ui/dust/cloud.js): a window-sized cloud is one layer, not one per mote. */
 .disintegrate-host > canvas { position: absolute; display: block; }
-/* A page surface's cloud (surfaces.js belowChat) sits under a docked chat panel (chat/panel.css
-   90000): the tool rows' fold and the points bar leave beneath the chat, not across it. */
+/* Under a docked chat panel (chat/panel.css 90000): the folds leave beneath the chat, not across it. */
 .disintegrate-host.dust-below-chat { z-index: 89990; }
 @media (prefers-reduced-motion: reduce) {
     .disintegrate-host { display: none; }
 }
 
-/* ── Materializing (js/ui/motion.js materialize) — the leave reversed ────────
-   A freshly-added row plays the removal backwards: its box expands out of nothing
-   on the collapse's own timer (so the list opens the gap the way it closes one)
-   while a dust copy of the row gathers over the list. --enter-h is the row's
-   measured natural height, frozen by motion.js. */
+/* Materializing (js/ui/motion.js materialize): the leave reversed. --enter-h is the row's measured
+   natural height. */
 .materializing {
     pointer-events: none;
     overflow: hidden;
@@ -39,13 +27,9 @@
     40%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--enter-h, 200px); }
     to   { opacity: 1; transform: none; max-height: var(--enter-h, 200px); }
 }
-/* While the dust gathers the real row stays hidden — the motes ARE the row forming;
-   motion.js lifts the veil the moment they land (wipeDurationMs). !important so the
-   veil outranks rowMaterialize's animated opacity (author !important beats keyframes). */
+/* !important: author !important beats rowMaterialize's keyframed opacity. */
 .materialize-veil { opacity: 0 !important; }
-/* A DUSTED arrival's box animation leaves opacity alone: a transition never starts on a
-   property a CSS animation is holding, and rowMaterialize's own 0→1 fade (the undusted
-   case's whole entrance) held the veil's lift to a jump. Same box keyframes, no alpha. */
+/* A transition never starts on a property an animation holds: a dusted arrival animates no alpha. */
 .materializing.materialize-veil { animation-name: rowMaterializeBox; }
 @keyframes rowMaterializeBox {
     from { transform: translateX(-14px) scale(0.97);
@@ -53,71 +37,40 @@
     40%  { transform: translateX(-14px) scale(0.97); max-height: var(--enter-h, 200px); }
     to   { transform: none; max-height: var(--enter-h, 200px); }
 }
-/* …and lifts UNDER the landing motes (motion.js materialize adds this at the gather leg):
-   the row fades up to full over the rest of the flight, so the last motes land on a row
-   that is already there — never dust, then nothing, then the row. The transition lives on
-   the LIFT alone: on the veil itself it also ran the other way, and the row was seen
-   fading OUT for the first fifth of its own arrival. Both !important, so the lift runs
-   between two declarations that both outrank the box keyframes. */
+/* The row fades up under the landing motes; the transition lives on the LIFT alone, or the row is seen
+   fading out at the start of its own arrival. */
 .materialize-veil.materialize-lift { opacity: 1 !important; transition: opacity var(--veil-fade, 0ms) linear; }
-/* ── Surfaces made of dust (js/ui/motion.js surfaceIn / surfaceOut) ──────────
-   A modal, the chat panel and the ⋯/context popups no longer SCALE out of the icon
-   that owns them — they form from motes streaming out of it and come apart into motes
-   pouring back in. Same tiles, same noise, same keyframes as a removed row; only the
-   flight is aimed at a point instead of falling (motion.js surfaceMotion).
-   `.dust-driven` is permanent and kills the element's own pop/slide for good: dropping
-   it at the end of the flight would let the old entrance restart on the spot. */
+/* Surfaces made of dust (motion.js surfaceIn / surfaceOut). `.dust-driven` is permanent: dropping it
+   after the flight would restart the element's own entrance. */
 .dust-driven { animation: none !important; }
 .dust-driven.surface-forming { animation: surfaceForm var(--dust-ms, 420ms) linear both !important; }
 .dust-driven.surface-leaving { animation: surfaceLeave var(--dust-ms, 340ms) linear both !important; }
-/* Held back while the motes gather (they ARE the window forming), then up as they land
-   — the veil idea .materialize-veil uses, written as one keyframe so the same class
-   also carries the duration. Visible well before the last mote, so nothing you can
-   already click stays invisible. */
 @keyframes surfaceForm  { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
-/* …and out at once on the way back: the cloud starts as an exact copy of the box, so
-   the hand-over is a cross-fade over one beat rather than a cut. */
+/* The cloud starts as an exact copy of the box: the hand-over is a one-beat cross-fade, not a cut. */
 @keyframes surfaceLeave { 0% { opacity: 1; } 16%, 100% { opacity: 0; } }
 @keyframes dustHostIn   { 0% { opacity: 0; } 16%, 100% { opacity: 1; } }
 @keyframes dustHostOut  { 0%, 58% { opacity: 1; } 100% { opacity: 0; } }
 .disintegrate-host.dust-leaving { animation: dustHostIn var(--dust-ms, 340ms) linear both; }
-/* The forming host lives the WHOLE span (--host-ms, motion.js): a row gather's tiles fly
-   the short --gather-ms each but set off across the reversed sweep, and a host fading on
-   the leg alone cut every late mote off at half time. */
+/* The host lives the WHOLE span (--host-ms): fading on one leg cut every late mote off. */
 .disintegrate-host.dust-forming { animation: dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both; }
-/* A cloud over a surface still under it (surfaces.js picture): a grain is hidden until it leaves (cloud.js
-   `cut`), so the cloud is whole from the start — ramped, it was a dim still field that blinked out (user
-   report). On the way in it holds until the surface fades up, then clears by four fifths. */
+/* A grain is hidden until it leaves (cloud.js `cut`), so the cloud is whole from the start — ramped,
+   it was a dim field that blinked out (user report). */
 @keyframes dustHostSettle { 0%, 55% { opacity: 1; } 80%, 100% { opacity: 0; } }
 .disintegrate-host.dust-leaving.dust-over-picture { animation: none; }
 .disintegrate-host.dust-forming.dust-over-picture { animation-name: dustHostSettle; }
-/* A popup whose visibility is a pure `:hover` rule (the toolbar's hints bubble) still
-   leaves as sand. By the time pointerleave runs `:hover` is
-   already gone and the box is display:none, so there is nothing left to copy — this
-   holds it on screen for the one beat the motes need (motion.js wireHoverDust). Its
-   own alpha is the surfaceLeave keyframes', which are down to nothing by then. */
+/* A pure `:hover` popup is display:none by pointerleave: held one beat for its motes (motion.js wireHoverDust). */
 .hints-popup.dust-hold { display: block; }
 @media (prefers-reduced-motion: reduce) {
-    /* motion.js never adds these under reduced motion; this is the preference flipped
-       mid-flight — the surface must land at its true opacity, not a keyframed one. */
+    /* The preference flipped mid-flight: land at the true opacity. */
     .dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving { animation: none !important; }
 }
 
-/* ── A control's own mark, made of dust (js/ui/motion.js markIn / markOut) ───
-   A checkbox's tick, a select's chosen word and the input rows a toggle reveals come
-   and go as sand too — the same motes, the same keyframes, a shorter throw and a finer
-   grain (motion.js MARK_*). The element's BOX never moves: only what it displays does.
-   `.mark-forming` is the veil the arrival waits behind — the motes ARE the mark
-   forming, so the real thing is held back until they have very nearly landed. */
+/* A control's mark made of dust (motion.js markIn / markOut): the box never moves, only what it shows. */
 .mark-forming { animation: markForm var(--mark-ms, 320ms) linear both; }
-/* …and `.mark-leaving` the one a GROUP goes behind (motion.js revealControls → markOut):
-   the real buttons vanish the moment their motes set off, and the dust — in their own
-   colours (groupPainter) — is what leaves, while the slot closes underneath. Without it
-   the buttons were seen squeezing shut through the cloud (user report). */
+/* `.mark-leaving`: the real buttons vanish as their motes set off, or they are seen squeezing shut
+   through the cloud (user report). */
 .mark-leaving { opacity: 0 !important; }
 @keyframes markForm { 0%, 62% { opacity: 0; } 100% { opacity: 1; } }
-/* A checkbox keeps its outline throughout — only the accent fill and the tick are the
-   mark, so the veil suppresses those rather than the whole control. */
 input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked {
     animation: none;
     background-color: transparent;
@@ -127,43 +80,27 @@ input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checke
     .mark-forming { animation: none; }
 }
 
-/* While the dust falls, the freshly-emptied editor stays out of sight: the canvas is
-   cleared synchronously, so the "＋ Blank image" idle state would otherwise pop in
-   underneath the particles and read as the clear happening twice. It fades in as the
-   last motes land. */
+/* The cleared editor stays hidden while the dust falls, or the idle state reads as a second clear. */
 .canvas-viewport.canvas-clearing .idle-create,
 .canvas-viewport.canvas-clearing #canvas,
 .canvas-viewport.canvas-clearing #canvas-overlay { opacity: 0; }
-/* The same trick for the arrival (ghostIn): the canvas is painted before the motes
-   have gathered, so it waits behind them and fades up as the last one lands —
-   otherwise the finished picture sits there while its own dust flies at it. */
-/* …and it goes out INSTANTLY: the shared transition below is there for the fade back UP
-   (when the class comes off, the last motes landing), but it applied to the hide too — so
-   a pasted image sat there at full strength for 280ms, fading, while its own dust flew at
-   it. That fade-out IS the blink in "the image appears, vanishes, then animates in". */
+/* …and goes out INSTANTLY: a fade on the hide was the blink in "appears, vanishes, then animates in". */
 .canvas-viewport.canvas-assembling #canvas,
 .canvas-viewport.canvas-assembling #canvas-overlay { opacity: 0; transition: none; }
 .canvas-viewport .idle-create, .canvas-viewport #canvas,
 .canvas-viewport #canvas-overlay { transition: opacity 0.28s ease; }
 
-/* ── Canvas dust (js/ui/motion.js ghostOut) ──────────────────────────────────
-   Clearing the canvas is instant and leaves nothing to animate, so the pixels are
-   snapshotted into this overlay and a particle system blows them away on it as round
-   grains of their own colour. One element: dust needs thousands of motes, and thousands
-   of DOM tiles would not survive a frame. Positioning and the animation both live in JS. */
+/* Canvas dust (js/ui/motion.js ghostOut): one element, because thousands of DOM motes drop frames. */
 .canvas-dust {
     position: absolute;
     z-index: 5;
     pointer-events: none;
 }
 
-/* ── Drop landing ────────────────────────────────────────────────────────────
-   The overlay leaves on an animation instead of blinking out, and the canvas it
-   was covering scales up into place with one accent pulse — so a dropped file is
-   visibly the thing that just appeared in the editor. */
+/* Drop landing: the overlay animates out and the canvas scales into place with one accent pulse. */
 @keyframes dropOverlayOut { from { opacity: 1; } to { opacity: 0; transform: scale(1.02); } }
 #global-drop-overlay.drop-closing {
-    pointer-events: none;   /* must never swallow the drop it is dismissing for */
+    pointer-events: none;
     animation: dropOverlayOut 0.22s ease both;
 }
 @keyframes canvasLand {
@@ -178,15 +115,13 @@ input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checke
     animation: canvasLand 0.56s cubic-bezier(0.16, 1, 0.3, 1) both,
                canvasLandGlow 0.7s ease both;
 }
-/* Dropped WITH a position (js/ui/motion.js arriveFrom): the canvas flies out of the point
-   the file was let go of, as an inline FLIP transform. So this variant contributes the
-   glow ONLY — canvasLand would animate `transform` too and the two would fight over it,
-   and the CSS animation would win, snapping the flight away mid-air. */
+/* Dropped at a point (motion.js arriveFrom): the flight is an inline FLIP transform, so this variant
+   animates the glow only — a CSS transform animation would win and snap the flight away. */
 .canvas-container.drop-arriving { animation: canvasLandGlow 0.7s ease both; }
 .canvas-container.arrive-active {
     will-change: transform;
     position: relative;
-    z-index: 3;   /* the flight starts scaled down over the page; it must paint above it */
+    z-index: 3;
 }
 @media (prefers-reduced-motion: reduce) {
     #global-drop-overlay.drop-closing, .canvas-container.drop-landing,

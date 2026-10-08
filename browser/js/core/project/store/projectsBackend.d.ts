@@ -27,7 +27,7 @@ export interface PayloadKv {
 
 export interface ProjectsBackend extends StorageLike {
   /** Async IndexedDB write failure — Storage points this at the save-status line. */
-  onWriteError: ((err: unknown) => void) | null;
+  onWriteError: ((err: unknown, key: string) => void) | null;
   keys(): string[];
   /** Re-read one project's payload, image and thumbnail (or the whole mirror) after another tab wrote them. */
   refresh(id?: string | null): Promise<void>;
@@ -35,6 +35,10 @@ export interface ProjectsBackend extends StorageLike {
   materialize(key: string, keep?: boolean): Promise<string | null>;
   /** Resolves once every queued IndexedDB write has settled. */
   flush(): Promise<void>;
+  /** The error the key's latest settled write failed with, else null. */
+  writeFailure(key: string): unknown;
+  /** Whether IndexedDB holds a committed value for the key. */
+  isCommitted(key: string): boolean;
 }
 
 /** Returns the plain `storage` when IndexedDB is unusable — the pre-IndexedDB behaviour. */

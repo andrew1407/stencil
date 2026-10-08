@@ -1,22 +1,8 @@
-"""LLM assistant support: provider client, op-plan parsing, and plan execution.
+"""LLM assistant support over ``contracts/llm/``: provider client, op-plan parsing, execution.
 
-The Python implementation of the shared Stencil LLM contract — ``llm-contract.md``
-is authoritative for the op-plan schema/limits, system prompt, provider config
-(``STENCIL_LLM_*`` env keys), wire mappings, and history rules. The model never touches
-pixels: it answers with an *op-plan* whose actions map 1:1 onto existing
-:class:`~pystencil.editor.Editor` methods, driven by :func:`execute_op_plan`. All
-network goes through :class:`LlmClient`'s private ``_open`` seam — built on the same
-shared urllib plumbing (and 30 s timeout) as :mod:`pystencil.server` — so tests stay
-offline.
-
-One documented deviation from contract §7: pystencil has no image resampling (the core
-is deliberately resize-free), so attached images are NOT downscaled to 1568 px — callers
-pass reasonably-sized images. Media types, the 32-message bound, and the image replay
-rule match the contract.
-
-Split across limits/errors/config/types/frame/run/ops/console/registry/parse/
-ask/prompt/execute/wire/client/chat; this module is the façade, and its import surface is
-the contract every caller binds to.
+The model answers with an op-plan whose actions map onto :class:`~pystencil.editor.Editor`
+methods. One deviation from §7: with no resampling, attachments are not downscaled to 1568 px.
+This façade's import surface is the contract every caller binds to.
 """
 
 from __future__ import annotations

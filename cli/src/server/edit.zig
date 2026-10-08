@@ -3,6 +3,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const net = @import("../net.zig");
+const report = @import("../app/report.zig");
 const Error = @import("errors.zig").Error;
 const urls = @import("urls.zig");
 const hostAndPort = urls.hostAndPort;
@@ -67,6 +68,10 @@ pub fn parseEvent(gpa: std.mem.Allocator, json: []const u8) !?Event {
     };
 }
 
+/// Bytes one frame may hold: the server's `MaxMessageBytes` (server/internal/transport/transport.go).
+/// A longer line is no frame the server sends, so the subscription is closed instead of grown.
+pub const max_frame_bytes = 16 << 20;
+
 /// A read-only subscription to a server's global project-events feed over the raw-TCP
 /// edit channel. Connects, sends a hello, and drains "updated" events without blocking.
 pub const EditConn = struct {
@@ -74,6 +79,8 @@ pub const EditConn = struct {
     io: std.Io,
     stream: std.Io.net.Stream,
     rbuf: std.ArrayList(u8) = .empty,
+    head: usize = 0, // rbuf[0..head] is already consumed
+    partial: usize = 0, // bytes after the last '\n' in rbuf
     closed: bool = false,
 
     /// Connect to the edit port, authenticate with a hello (empty projectId = global feed),
@@ -109,7 +116,7 @@ pub const EditConn = struct {
     /// It NEVER blocks — the console calls it at every prompt boundary, piped runs included.
     pub fn poll(self: *EditConn) !?Event {
         if (self.closed) return null;
-        if (std.mem.indexOfScalar(u8, self.rbuf.items, '\n') == null) {
+        if (self.partial == self.rbuf.items.len - self.head) {
             if (!readable(self.stream.socket.handle)) return null; // nothing pending right now
             var tmp: [4096]u8 = undefined;
             const n = std.posix.read(self.stream.socket.handle, &tmp) catch |e| switch (e) {
@@ -123,7 +130,10 @@ pub const EditConn = struct {
                 self.closed = true;
                 return null;
             }
-            try self.feed(tmp[0..n]);
+            self.feed(tmp[0..n]) catch |e| {
+                if (e == error.FrameTooLarge) report.note("live updates stopped — the server sent a frame over {d} MiB\n", .{max_frame_bytes >> 20});
+                return e;
+            };
         }
         return self.nextEvent();
     }
@@ -138,21 +148,38 @@ pub const EditConn = struct {
         return true;
     }
 
-    /// Append freshly-read socket bytes to the frame buffer. Split out for testing.
+    /// Append freshly-read socket bytes to the frame buffer; `FrameTooLarge` closes the feed.
     pub fn feed(self: *EditConn, data: []const u8) !void {
+        const nl = std.mem.lastIndexOfScalar(u8, data, '\n');
+        const tail = if (nl) |i| data.len - i - 1 else self.partial + data.len;
+        if (tail > max_frame_bytes) {
+            self.rbuf.clearAndFree(self.gpa);
+            self.head = 0;
+            self.partial = 0;
+            self.closed = true;
+            return error.FrameTooLarge;
+        }
+        if (self.head != 0) { // compact once per read, never once per frame
+            const rest = self.rbuf.items[self.head..];
+            std.mem.copyForwards(u8, self.rbuf.items, rest);
+            self.rbuf.shrinkRetainingCapacity(rest.len);
+            self.head = 0;
+        }
         try self.rbuf.appendSlice(self.gpa, data);
+        self.partial = tail;
     }
 
     /// Pop and parse complete NDJSON frames from the buffer, returning the next project-update event
     /// (skipping welcome/synced frames) or null. Pure buffer work — no socket — so it is unit-tested.
     pub fn nextEvent(self: *EditConn) !?Event {
-        while (std.mem.indexOfScalar(u8, self.rbuf.items, '\n')) |nl| {
-            const line = try self.gpa.dupe(u8, self.rbuf.items[0..nl]);
-            defer self.gpa.free(line);
-            const rest = self.rbuf.items[nl + 1 ..];
-            std.mem.copyForwards(u8, self.rbuf.items, rest);
-            self.rbuf.shrinkRetainingCapacity(rest.len);
+        while (std.mem.indexOfScalarPos(u8, self.rbuf.items, self.head, '\n')) |nl| {
+            const line = self.rbuf.items[self.head..nl];
+            self.head = nl + 1;
             if (try parseEvent(self.gpa, line)) |ev| return ev;
+        }
+        if (self.head == self.rbuf.items.len) {
+            self.rbuf.clearRetainingCapacity();
+            self.head = 0;
         }
         return null;
     }

@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+// The display unit a locale defaults to; twin of defaultUnitFromLocale in
+// browser/js/utils/appQueries.js, which reads the region where the desktop reads Qt's system.
 namespace stencil::core::localeUnit {
 
   // Same integer values as Qt's QLocale::MeasurementSystem; the GUI maps onto this and

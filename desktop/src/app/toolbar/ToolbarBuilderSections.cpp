@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "CanvasWidget.hpp"
 #include "ToolbarBuilder.hpp"
 #include "mainWindowHelpers.hpp"
@@ -26,7 +27,7 @@ namespace stencil::gui {
     label->setObjectName("sectionLabel");
     // Colour comes from the theme sheet (QLabel#sectionLabel) so it re-themes on a swap.
     // 9.5px as points (QSS px is whole); QSS has no letter-spacing, so the font carries the 0.8px.
-    label->setStyleSheet(QString("font-size:%1pt;font-weight:700;").arg(9.5 * 72.0 / label->logicalDpiY()));
+    label->setStyleSheet(support::sectionLabelSheet(9.5 * 72.0 / label->logicalDpiY()));
     QFont caps = label->font();
     caps.setLetterSpacing(QFont::AbsoluteSpacing, 0.8);
     label->setFont(caps);

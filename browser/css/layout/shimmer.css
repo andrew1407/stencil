@@ -1,7 +1,4 @@
-/* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for
-   interactive controls (icon buttons, text buttons, and any .shimmer opt-in item), so icons and
-   items across the app feel consistent. The sweep is a clipped ::after gradient; honours
-   prefers-reduced-motion. ── */
+/* Glass shimmer: the shared hover sweep (a clipped ::after gradient) on interactive controls. */
 button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
 .accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
 .project-menu-item, .ctx-item, .vs-color, .oi-color,
@@ -36,24 +33,15 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
     button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
     .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .shimmer::after { content: none; }
 }
-/* Text / number / search inputs (e.g. the URL & link fields) can't host an ::after, so their
-   hover shimmer is an animated background band layered over the field's own background-colour
-   (a mostly-transparent white gradient, so the field colour shows through). Selects keep their
-   custom carets, so they use the ::after path via the `button` rules only where applicable. */
+/* Inputs can't host an ::after: their shimmer is a background band over the field's own colour. */
 input[type="text"], input[type="number"], input[type="search"], input[type="url"],
 input[type="password"], select {
     background-repeat: no-repeat;
     background-size: 250% 100%;
     background-position: 185% 0;
 }
-/* A field's hover RING, the desktop's twin (theme.cpp QLineEdit/QComboBox:hover): twice
-   the resting border, in the accent at the ring's own strength. Never on a disabled field
-   (a dead control must not light up), and never over :focus, which has its own stronger
-   ring. The second pixel is an INSET shadow just inside the 1px border, not a thicker
-   border: a field's height is content-driven, so growing the border grew the box and
-   pushed its row (border-box only pins a size that was set). `!important` because several
-   fields carry an id-level `border`/`box-shadow` of their own (#zoom-input,
-   #project-name-input…) that outranks this shared rule; only the ring is forced. */
+/* Hover ring, the desktop's twin (theme.cpp QLineEdit/QComboBox:hover): an INSET shadow, not a thicker
+   border that grows the box. `!important` over the id-level borders (#zoom-input…). */
 input[type="text"]:hover:not(:disabled):not(:focus),
 input[type="number"]:hover:not(:disabled):not(:focus),
 input[type="search"]:hover:not(:disabled):not(:focus),
@@ -73,9 +61,7 @@ input[type="password"]:hover:not(:disabled):not(:focus),
 select:hover:not(:disabled) {
     background-image: linear-gradient(115deg, transparent 42%,
         color-mix(in srgb, #ffffff 26%, transparent) 50%, transparent 58%);
-    /* 1.5x the ::after sweep's 0.75s: a band travelling the whole width of a text field
-       reads much faster than the same clock does across a button (user report, the
-       projects search bar). */
+    /* 1.5x the ::after's 0.75s: across a field the same clock reads much faster (user report). */
     animation: ui-shimmer-bg 1.125s ease;
 }
 @keyframes ui-shimmer-bg {
@@ -86,20 +72,17 @@ select:hover:not(:disabled) {
     input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover,
     input[type="password"]:hover, select:hover { animation: none; background-image: none; }
 }
-/* Points and Lines rows sweep a background band (a <tr> can't host an ::after); every row tint is a
-   background-COLOR longhand, as a shorthand resets the size and position the band rides on. */
+/* A <tr> can't host an ::after; row tints are background-COLOR longhands so the band survives. */
 .coordinates-table tbody tr { background-repeat: no-repeat; background-size: 250% 100%; background-position: 150% 0; }
 .coordinates-table tbody tr:hover:not(.row-focused):not(.leaving) {
     background-image: linear-gradient(115deg, transparent 40%,
         color-mix(in srgb, #ffffff 24%, transparent) 50%, transparent 60%);
     animation: ui-shimmer-row 0.75s ease;
 }
-/* Hovering a points row highlights it at once; one list runs its pulse beside the sweep. */
 .coordinates-table tbody tr.row-highlighted:hover:not(.row-focused):not(.leaving) {
     animation: ui-shimmer-row 0.75s ease, rowPulse 0.5s ease;
 }
-/* 150% → -50% of a 250% band: it crosses the row in the middle half of the clock, as the
-   ::after sweep does across a button. */
+/* 150% → -50% of a 250% band crosses the row in the middle half of the clock. */
 @keyframes ui-shimmer-row {
     from { background-position: 150% 0; }
     to   { background-position: -50% 0; }

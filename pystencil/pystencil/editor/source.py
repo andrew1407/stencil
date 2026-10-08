@@ -15,9 +15,6 @@ from ._snapshot import _A4_FALLBACK, _Snapshot, LoadSource, _sniff_image_ext
 
 
 class _SourceApi:
-  """Source loading, blank-page creation and the name/extension derivation."""
-
-  # ── source ─────────────────────────────────────────────────────────────────
   def load(
     self,
     src: LoadSource,
@@ -27,16 +24,11 @@ class _SourceApi:
     source: (str | NoneType) = None,
     resource: (str | NoneType) = None,
   ) -> "Editor":
-    """Load a new original from a path, an http(s) URL, raw bytes, or an :class:`Image`.
-
-    ``frame`` is accepted for API parity with the CLI's video-frame extraction but is
-    not used here (codecs live in the adapters, not this stdlib-only package).
-    ``name`` overrides the derived project name; ``source``/``resource`` record
-    provenance for later server uploads. Replaces any current image + history.
-    """
+    """Load a new original from a path, an http(s) URL, raw bytes or an :class:`Image`, replacing
+    the image and history. ``frame`` is accepted for CLI parity and unused; ``name`` overrides the
+    derived project name; ``source``/``resource`` record provenance for server uploads."""
     img: Image
     derived_name: str
-    # Raw encoded source bytes + ext, kept verbatim for a lossless save_project (None ⇒ none).
     src_bytes: (bytes | NoneType) = None
     src_ext: (str | NoneType) = None
     if isinstance(src, Image):
@@ -54,11 +46,8 @@ class _SourceApi:
         img = Image.decode(src_bytes)
         src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
         derived_name = self._name_from_url(src)
-        # Default the recorded source to the URL we fetched.
         if source is None: source = src
       else:
-        # Read the file once and decode from the bytes (Image.open is just read+decode),
-        # keeping the verbatim bytes for lossless .stencil embedding.
         with open(src, "rb") as fh:
           src_bytes = fh.read()
         img = Image.decode(src_bytes)
@@ -77,16 +66,9 @@ class _SourceApi:
     color: str = "#ffffff",
     page: str = "A4",
   ) -> "Editor":
-    """Create a solid-colour blank page.
-
-    With no explicit size, the dimensions come from the named ``page`` size rendered
-    at the core's default DPI (``default_blank_size_px(named_page_size(page))``), so a
-    blank A4 matches the CLI/browser blank exactly. ``page`` is any ISO A/B/C name
-    (case-insensitive, e.g. "b5"); an unknown name quietly falls back to A4 —
-    mirroring the Zig console, whose ``canonicalPageFormat`` maps unknown names to
-    null and blanks on the default A4 page. ``color`` is any CSS colour the core
-    understands; an unparseable colour falls back to opaque white.
-    """
+    """A solid-colour blank page. Without an explicit size it is the named ``page`` (ISO A/B/C,
+    case-insensitive; an unknown name falls back to A4, as the Zig console) at the core's default
+    DPI, so a blank A4 matches the CLI and browser. An unparseable ``color`` is opaque white."""
     core = self._get_core()
     if width is None or height is None:
       canonical = core.canonical_page_format(page)
@@ -125,16 +107,10 @@ class _SourceApi:
     self._revision += 1
 
 
-  # ── source helpers ─────────────────────────────────────────────────────────
   @staticmethod
   def _fetch_url(url: str, timeout: float = 30.0) -> bytes:
-    """Fetch raw bytes from an http(s) URL through the shared guard in ``_net``.
-
-    One copy of the rules for the whole package: http(s) only (urllib would otherwise
-    open file://, ftp:// or data: URLs), internal/metadata addresses refused, redirects
-    not followed, body size-capped, timeout bounded. Non-strict because ``load(url)`` is
-    a URL the USER named, so loopback stays reachable while RFC1918/link-local do not.
-    """
+    """Bytes from a USER-named http(s) URL through ``_net._fetch``, non-strict: loopback stays
+    reachable, RFC1918 and link-local do not; redirects refused, body capped, timeout bounded."""
     return _net._fetch(url, strict=False, timeout=timeout)
 
   @staticmethod

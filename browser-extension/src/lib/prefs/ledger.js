@@ -1,5 +1,7 @@
 // The editor's projects live in its own origin's localStorage (unreadable here), so every
 // hand-off is mirrored in chrome.storage.local, keyed by source URL.
+import { writeChain, viaWorker } from './writeChain.js';
+
 export const LEDGER_KEY = 'stencil-opened';
 const MAX_ENTRIES = 500;
 
@@ -28,29 +30,40 @@ export const loadLedger = async () => {
   }
 };
 
-// Dedups on (source, resource, name); a repeat open bumps `count`.
-export const recordOpened = async ({ source, resource, name, editorUrl, t }) => {
-  if (!trackableSource(source)) return null;
-  const src = norm(source), res = norm(resource), nm = norm(name);
-  const entries = await loadLedger();
-  const i = entries.findIndex(e =>
-    norm(e.source) === src && norm(e.resource) === res && norm(e.name) === nm);
-  const rec = {
-    source: src, resource: res, name: nm,
-    editorUrl: norm(editorUrl),
-    t: t || Date.now(),
-    count: i !== -1 ? (entries[i].count || 1) + 1 : 1,
-  };
-  if (i !== -1) entries.splice(i, 1);
-  entries.unshift(rec);
-  if (entries.length > MAX_ENTRIES) entries.length = MAX_ENTRIES;
+const ledgerTurn = writeChain();
+
+const saveLedger = async (entries) => {
   try {
     await chrome.storage.local.set({ [LEDGER_KEY]: entries });
   } catch {
     /* storage full / unavailable → badges just won't show; not worth surfacing */
   }
-  return rec;
 };
+
+// Dedups on (source, resource, name); a repeat open bumps `count`.
+const applyRecordOpened = async ({ source, resource, name, editorUrl, t }) => {
+  if (!trackableSource(source)) return null;
+  const src = norm(source), res = norm(resource), nm = norm(name);
+  return ledgerTurn(async () => {
+    const entries = await loadLedger();
+    const i = entries.findIndex(e =>
+      norm(e.source) === src && norm(e.resource) === res && norm(e.name) === nm);
+    const rec = {
+      source: src, resource: res, name: nm,
+      editorUrl: norm(editorUrl),
+      t: t || Date.now(),
+      count: i !== -1 ? (entries[i].count || 1) + 1 : 1,
+    };
+    const after = entries.filter((_, j) => j !== i);
+    after.unshift(rec);
+    if (after.length > MAX_ENTRIES) after.length = MAX_ENTRIES;
+    await saveLedger(after);
+    return rec;
+  });
+};
+
+export const ledgerWrites = Object.freeze({ recordOpened: applyRecordOpened });
+export const recordOpened = (rec) => viaWorker('ledger', 'recordOpened', [rec], applyRecordOpened);
 
 export const lookup = async (source, name) => matchEntries(await loadLedger(), source, name);
 
@@ -87,15 +100,10 @@ export const reconcileLedger = (entries, projects, editorOrigin, now = Date.now(
 };
 
 // reconcileLedger reuses the object for untouched entries, so a reference match ⇔ no change.
-export const pruneLedger = async (projects, editorOrigin) => {
+export const pruneLedger = (projects, editorOrigin) => ledgerTurn(async () => {
   const before = await loadLedger();
   const after = reconcileLedger(before, projects, editorOrigin);
   const changed = after.length !== before.length || after.some((e, i) => e !== before[i]);
-  if (!changed) return false;
-  try {
-    await chrome.storage.local.set({ [LEDGER_KEY]: after });
-  } catch {
-    /* storage unavailable → keep stale badges rather than surface an error */
-  }
-  return true;
-};
+  if (changed) await saveLedger(after);
+  return changed;
+});

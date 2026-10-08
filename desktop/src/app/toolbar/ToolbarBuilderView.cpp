@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
@@ -110,7 +111,7 @@ namespace stencil::gui {
     clearLinesBtn->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
     // Compare leads (browser twin: toolbar.js View cluster), captioned with no colon.
     auto* compareLabel = new QLabel("Compare", &w);
-    compareLabel->setStyleSheet("padding-right: 2px;");
+    compareLabel->setStyleSheet(support::compareLabelSheet());
     addWrapped(row, makeToolSection("View", {}, {
         compareLabel, w.tools.compareCombo, captioned(w.tools.showPointsCheck, "Points", 4),
         captioned(w.tools.showLinesCheck, "Lines", 3), clearLinesBtn }));   // leads: the picker gap, and 5 + 3 = the browser's 8

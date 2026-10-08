@@ -1,10 +1,6 @@
-/* ── Header logo hover: pulse + levitate + accent shine + orbiting rays ──
-   browser css/animations/logoHover.css logoPulse twin. Every host page (popup, side panel,
-   DevTools panel, quick-crop, options) wraps its .logo in a .logo-wrap span:
-   inline SVGs can't host pseudo-elements, so the ray ring lives on the wrap's
-   ::before. Transform/filter only — the logo's box never changes, so no header
-   reflows. z-index:0 makes the wrap a stacking context, keeping the rays'
-   z-index:-1 behind the mark but above the header. */
+/* ── Header logo hover (browser css/animations/logoHover.css logoPulse twin) ──
+   An inline SVG hosts no pseudo-element, so the rays live on .logo-wrap::before; z-index:0
+   makes the wrap a stacking context, keeping them behind the mark but above the header. */
 .logo-wrap { flex: 0 0 auto; position: relative; z-index: 0; display: inline-flex; }
 .logo-wrap .logo { transition: transform 0.2s ease, filter 0.2s ease, color 0.2s ease; }
 .logo-wrap .logo:hover { transform: scale(1.08); animation: logoPulse 1.2s ease-in-out infinite; }
@@ -14,11 +10,7 @@
     50%      { transform: translateY(-2px) scale(1.12);
                filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 80%, transparent)); }
 }
-/* Ray layer: an accent conic-gradient of 8 soft spokes, clipped to a thin ring
-   just outside the mark by a radial mask. It turns slowly (one revolution / 8s)
-   while its opacity breathes on the SAME 1.2s beat as the pulse. Absolutely
-   positioned + pointer-events:none: no layout shift, and the logo's hover/drop
-   target stays exactly the svg. Hidden at rest. */
+/* Eight spokes masked to a ring, one revolution per 8s, breathing on the pulse's 1.2s beat. */
 .logo-wrap::before {
     content: "";
     position: absolute;

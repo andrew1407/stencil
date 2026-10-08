@@ -19,4 +19,7 @@ namespace stencil::model {
   // cuts a stored one (the crossing line keeps what the budget allows, every later one dropped).
   core::Lines capLayout(core::Lines lines);
 
+  // Same lines in the same order: style, lock, fill and every point.
+  bool sameLines(const core::Lines& a, const core::Lines& b);
+
 }  // namespace stencil::model

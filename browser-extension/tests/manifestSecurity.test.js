@@ -18,6 +18,7 @@ const directives = Object.fromEntries(csp.split(';').map((d) => d.trim()).filter
 test('extension pages declare a CSP, and it grants no script escape', () => {
   assert.deepEqual(directives['script-src'], ["'self'"]);
   assert.deepEqual(directives['object-src'], ["'none'"]);
+  assert.deepEqual(directives['base-uri'], ["'none'"]);   // no injected <base> re-points a relative URL
   for (const escape of ["'unsafe-eval'", "'unsafe-inline'", 'wasm-unsafe-eval', '*', 'https:']) {
     assert.ok(!directives['script-src'].includes(escape), `script-src must not grant ${escape}`);
   }

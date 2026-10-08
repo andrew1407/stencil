@@ -195,7 +195,7 @@ namespace stencil::gui {
     const QString id = session->id();
     if (addr.isEmpty() || id.isEmpty()) return;
     if (!h.syncToServer()) return;  // sync off — don't pull peer changes over local edits
-    if (localWriteBusy() || resultInFlight || *planRunning) return;
+    if (localWriteBusy() || resultInFlight || *planRunning || *remoteReloading) return;
     stencil::net::ConnectionManager* mgr = session->getConnections();
     stencil::net::ServerClient* c = mgr ? mgr->find(addr) : nullptr;
     if (!c) return;
@@ -206,7 +206,7 @@ namespace stencil::gui {
       // Re-check at completion: the session may have changed or a push started while the GET was
       // in flight.
       if (session->address() != addr || session->id() != id) return;
-      if (localWriteBusy() || resultInFlight || *planRunning) return;
+      if (localWriteBusy() || resultInFlight || *planRunning || *remoteReloading) return;
       if (meta.version > session->version())
         h.openServerProject(addr, id, /*silent=*/true);
     });

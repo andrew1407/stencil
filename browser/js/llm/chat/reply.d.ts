@@ -4,7 +4,7 @@
 import type { LlmSettings } from '../settings.js';
 import type { TurnResult } from './controller.js';
 
-export type ChatErrorKind = 'abort' | 'refusal' | 'notice' | 'expired' | 'unreachable' | 'error';
+export type ChatErrorKind = 'abort' | 'busy' | 'refusal' | 'notice' | 'expired' | 'unreachable' | 'error';
 
 export interface ChatErrorDescription {
   kind: ChatErrorKind;

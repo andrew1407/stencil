@@ -20,25 +20,21 @@ impl ArgvBuilder {
         Self { argv: Vec::new() }
     }
 
-    /// Push a flag and its value as two argv tokens.
     pub(super) fn opt(&mut self, flag: &'static str, value: impl Into<Cow<'static, str>>) {
         self.argv.push(Cow::Borrowed(flag));
         self.argv.push(value.into());
     }
 
-    /// Push a bare flag (no value).
     pub(super) fn switch(&mut self, flag: &'static str) {
         self.argv.push(Cow::Borrowed(flag));
     }
 
-    /// Push a bare flag only when `cond` holds.
     pub(super) fn switch_if(&mut self, flag: &'static str, cond: bool) {
         if cond {
             self.switch(flag);
         }
     }
 
-    /// Push a bare positional/value token (no flag).
     pub(super) fn arg(&mut self, value: impl Into<Cow<'static, str>>) {
         self.argv.push(value.into());
     }
@@ -76,7 +72,6 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
             return Err(EditError::DashValue("output", p.output.clone()));
         }
 
-        // Collaboration-server invariants, mirroring the CLI's own checks.
         if p.server.is_some() {
             if p.blank.is_some() {
                 return Err(EditError::ServerWithBlank);
@@ -198,8 +193,6 @@ pub fn build_argv(
         b.opt(FLAG_FILTER, filter.clone());
     }
 
-    // Server delivery: write the result back into the fetched project, and/or push it as a
-    // new project. The result is always saved locally too (the positional output below).
     b.switch_if(FLAG_REMOTE_UPDATE, params.remote_update.unwrap_or(false));
     if let Some(remote) = &params.remote {
         b.opt(FLAG_REMOTE, remote.clone());

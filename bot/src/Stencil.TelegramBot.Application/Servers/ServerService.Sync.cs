@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
+using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
@@ -18,7 +19,7 @@ public sealed partial class ServerService
         var layoutJson = ProjectLayoutWriter.BuildJson(session.ActiveProjectLayoutJson, session.Edits, render.Width, render.Height);
         var request = new UpdateProjectRequest
         {
-            Layout = JsonSerializer.Deserialize<JsonElement>(layoutJson),
+            Layout = JsonSerializer.Deserialize<JsonElement>(layoutJson, StencilJson.Options),
             Version = session.ActiveProjectVersion,
         };
         var record = await updateOrConflictAsync(

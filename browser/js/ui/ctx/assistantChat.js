@@ -4,7 +4,7 @@ import { notify } from '../../utils.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';
 import { loadLlmSettings, serverBearerToken, withSessionKey } from '../../llm/settings.js';
 import { probeProvider } from '../../llm/client.js';
-import { MAX_ATTACHMENTS } from '../../llm/chat/controller.js';
+import { MAX_ATTACHMENTS, chatBusyError } from '../../llm/chat/controller.js';
 import {
   sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments,
   ATTACHMENT_CAP_NOTICE, cacheProbe, cachedProbe, probeStatusClass, chatLog, onChatLog,
@@ -110,6 +110,10 @@ export const wireCtxAssistantChat = (app, host, openChatPanel) => {
   });
 
   const runTurn = async (text) => {
+    if (host.sending() || chatTurnInFlight()) {
+      notify(chatBusyError().message, 'info');
+      return;
+    }
     host.setSending(true);
     updateControls();
     await runLoggedChatTurn(sharedChatController(app), text, {
@@ -142,7 +146,7 @@ export const wireCtxAssistantChat = (app, host, openChatPanel) => {
   wireChatSideToggle('ctx-assist', transcript, document);
   // One controller, one log: both surfaces repaint.
   document.getElementById('ctx-assist-clear')?.addEventListener('click', () => {
-    if (host.sending()) return;
+    if (host.sending() || chatTurnInFlight()) return;
     clearSharedConversation(app);
   });
   const voiceHooks = {

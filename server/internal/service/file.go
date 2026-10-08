@@ -12,6 +12,7 @@ import (
 	"hash"
 	"io"
 	"log"
+	"time"
 
 	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
@@ -27,6 +28,8 @@ type FileService struct {
 	Charges  ChargeLedger // charge.go; nil charges nobody
 	// SessionQuota is STORAGE_QUOTA_PER_SESSION_BYTES, in bytes; 0 = off, and no upload touches Charges.
 	SessionQuota int64
+	// OpTimeout bounds each store call on its own (OP_TIMEOUT_SECONDS), so a slow body spends none of it.
+	OpTimeout time.Duration
 }
 
 // NewFiles builds the service.
@@ -49,7 +52,9 @@ func (s *FileService) Store(ctx context.Context, put FilePut, body io.Reader) (p
 		return protocol.FileWriteResponse{}, err
 	}
 	if rec != nil {
-		eventbus.PublishProjectEvent(ctx, s.Bus, protocol.EventUpdated, *rec)
+		octx, cancel := withOpTimeout(ctx, s.OpTimeout)
+		eventbus.PublishProjectEvent(octx, s.Bus, protocol.EventUpdated, *rec)
+		cancel()
 	}
 	return resp, nil
 }
@@ -58,7 +63,7 @@ func (s *FileService) Store(ctx context.Context, put FilePut, body io.Reader) (p
 // mid-upload is compensated by RemoveKind (not Remove) and reported gone (§9).
 func (s *FileService) put(ctx context.Context, put FilePut, body io.Reader) (*protocol.ProjectRecord, protocol.FileWriteResponse, error) {
 	var none protocol.FileWriteResponse
-	if err := exists(ctx, s.Projects, put.ID); isMissing(err) {
+	if err := s.exists(ctx, put.ID); isMissing(err) {
 		return nil, none, err
 	}
 	var sum hash.Hash
@@ -67,7 +72,11 @@ func (s *FileService) put(ctx context.Context, put FilePut, body io.Reader) (*pr
 		body = io.TeeReader(body, sum) // hashed on its way to disk: the bytes are read once
 	}
 	// The bytes count against the owner of the project they land in (STORAGE_QUOTA_PER_OWNER_BYTES).
-	peers := func() ([]string, error) { return s.Projects.OwnerProjectIDs(ctx, put.ID) }
+	peers := func() ([]string, error) {
+		octx, cancel := withOpTimeout(ctx, s.OpTimeout)
+		defer cancel()
+		return s.Projects.OwnerProjectIDs(octx, put.ID)
+	}
 	rel, err := s.Files.PutStreamAs(put.ID, put.Kind, put.Ext, body, filestore.Charge{Peers: peers, Admit: s.admit(ctx, put)})
 	if err != nil {
 		return nil, none, err
@@ -79,7 +88,9 @@ func (s *FileService) put(ctx context.Context, put FilePut, body io.Reader) (*pr
 			file.Hash = hex.EncodeToString(sum.Sum(nil))
 			resp.OriginalHash = file.Hash
 		}
-		rec, err := s.Projects.SetFile(ctx, put.ID, file)
+		octx, cancel := withOpTimeout(ctx, s.OpTimeout)
+		rec, err := s.Projects.SetFile(octx, put.ID, file)
+		cancel()
 		switch {
 		case isMissing(err):
 			s.compensate(put)
@@ -89,11 +100,17 @@ func (s *FileService) put(ctx context.Context, put FilePut, body io.Reader) (*pr
 		}
 		return &rec, resp, nil
 	}
-	if err := exists(ctx, s.Projects, put.ID); isMissing(err) {
+	if err := s.exists(ctx, put.ID); isMissing(err) {
 		s.compensate(put)
 		return nil, none, err
 	}
 	return nil, resp, nil
+}
+
+func (s *FileService) exists(ctx context.Context, id string) error {
+	octx, cancel := withOpTimeout(ctx, s.OpTimeout)
+	defer cancel()
+	return exists(octx, s.Projects, id)
 }
 
 // compensate takes back the bytes of an upload whose project vanished; what it cannot remove is left

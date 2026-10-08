@@ -3,39 +3,31 @@
     padding: 0;
     box-sizing: border-box;
 }
-/* Selected text wears the accent, inked with the contrast colour a light accent needs —
-   the desktop's selection-background-color/selection-color (desktop qss/app/fields.qss text inputs). */
+/* Selection in the accent; desktop twin desktop qss/app/fields.qss. */
 ::selection {
     background: var(--accent);
     color: var(--on-accent);
 }
-/* Every focus ring the app shows is the BRAND accent. Without this the platform's own
-   blue ring turned up on whatever no component styled — a colour belonging to no theme.
-   Bare `:focus-visible`, so a component with its own ring still outranks it, and only
-   focus-visible, so a pointer click never draws one. Twins: the extension's
-   lib/theme/controls.css, the desktop's %ACCENT% focus borders (desktop qss/app). */
+/* Every focus ring is the BRAND accent, focus-visible only. Twins: the extension's lib/theme/controls.css,
+   the desktop's %ACCENT% focus borders (desktop qss/app). */
 :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 body {
     font-family: Arial, sans-serif;
-    /* No frame (user decision): the editor owns the window edge to edge, as the desktop's does. */
+    /* No frame (user decision), as on the desktop. */
     padding: 0;
     background: var(--bg-page);
     color: var(--text-main);
     transition: background 0.3s, color 0.3s;
-    /* The editor OWNS the window: a column that is at least as tall as the viewport, so the
-       canvas can take every pixel the toolbar and status rows leave over instead of the page
-       ending halfway down. dvh (with a vh fallback) so a mobile URL bar can't add a scrollbar.
-       The chain continues through #root → .container → .main-content → .canvas-section →
-       .canvas-viewport, each a flex item that grows; break any link and the fill stops. */
+    /* At least the viewport's height (dvh, vh fallback) so the canvas takes what the toolbar leaves; the fill
+       chain runs #root → .container → .main-content → .canvas-section → .canvas-viewport. */
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
 }
-/* The mount point the whole app renders into — part of the fill chain above. */
 #root {
     flex: 1 1 auto;
     display: flex;
@@ -43,28 +35,16 @@ body {
     min-height: 0;
 }
 .container {
-    /* Full-bleed: the editor's canvas is the point of the page, so it takes the whole window
-       (minus the body's 20px frame) rather than sitting in a centred 1400px column. */
     max-width: none;
-    /* NOT `margin: 0 auto`: an auto cross-axis margin switches a flex item off `stretch`,
-       so this box sized itself to its CONTENT and grew past the window whenever the
-       coordinates panel was restored wider than the space left (the toolbar's right-hand
-       sections then ran off the edge and the page took a horizontal scrollbar). Full-bleed
-       means filling the parent, which is what stretch does. */
+    /* NOT `margin: 0 auto`: an auto margin turns off `stretch` and the box grew to its content. */
     margin: 0;
-    /* …and the whole height, per the fill chain on body. */
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    /* …and never WIDER than the window. A flex item defaults to min-width:auto, i.e. it
-       refuses to shrink below its content — so a coordinates panel restored at a width the
-       window can no longer fit pushed this box past the viewport and the whole page grew a
-       horizontal scrollbar (the toolbar's right-hand sections ran off the edge). The panel
-       is clamped in utils.js too; this is the backstop that keeps any wide content inside. */
+    /* min-width:0: a wide restored coordinates panel otherwise pushes the page past the viewport. */
     min-width: 0;
     background: var(--bg-container);
-    /* One frame all round: the logo's gap from the top edge is its gap from the left. */
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 10px var(--shadow);
@@ -97,10 +77,8 @@ input[type="text"],
 select,
 button {
     padding: 8px 12px;
-    /* The outline is the control's own ink, not a near-invisible grey: on the dark theme a
-       --border-main box all but vanished behind its glyph, and on the light one it read as
-       a smudge (user report, with pictures of both). Both themes now draw the box in the
-       colour of what is inside it. Desktop twin: theme.cpp's input rule. */
+    /* The control's own ink: --border-main vanished on dark and smudged on light (user report).
+       Desktop twin: theme.cpp's input rule. */
     border: 1px solid var(--ui-outline);
     border-radius: 4px;
     font-size: 14px;
@@ -114,8 +92,6 @@ select {
 }
 button {
     background: var(--accent);
-    /* The accent's own ink (theme.css --on-accent); a button that paints its OWN
-       ground sets its own colour. */
     color: var(--on-accent);
     cursor: pointer;
     border: none;
@@ -124,8 +100,7 @@ button {
 button:hover {
     background: var(--accent-2);
 }
-/* Every filled variant is named: a fill like `.chat-settings-actions .primary` outranks a bare
-   `button:disabled`, so a disabled Run kept its accent and read as clickable. */
+/* Every filled variant is named: `.chat-settings-actions .primary` outranks a bare `button:disabled`. */
 button:disabled,
 button.danger:disabled,
 button.active:disabled,
@@ -134,7 +109,6 @@ button.primary:disabled {
     color: var(--disabled-text);
     cursor: not-allowed;
 }
-/* Fixed grounds, not the accent: white regardless of what --on-accent resolves to. */
 button.active {
     background: var(--success);
     color: #fff;
@@ -143,10 +117,7 @@ button.danger {
     background: var(--danger);
     color: #fff;
 }
-/* :not(:disabled) — button.danger:disabled sits earlier above at the SAME specificity
-   (0,2,1), so plain button.danger:hover would win the tie on a disabled danger button
-   (Clear All Lines, Remove) by source order alone, painting it red on hover despite
-   being inactive. */
+/* :not(:disabled): button.danger:disabled above has the same (0,2,1) specificity and loses on order. */
 button.danger:hover:not(:disabled) {
     background: var(--danger-2);
 }

@@ -5,6 +5,7 @@
 #include "../../support/icon/iconSet.hpp"
 #include "../../support/modal/modalReveal.hpp"   // support::motionReduced()
 #include "../../support/theme/theme.hpp"
+#include "chatSheets.hpp"
 
 #include <QKeyEvent>
 #include <QPlainTextEdit>
@@ -41,12 +42,10 @@ namespace stencil::gui {
     accent = pal.accent;
     muted = pal.textMuted;
     setStyleSheet(
-        QStringLiteral(
-            "#chatMenuPanel QScrollArea{background:transparent;border:none;}"
-            "#chatMenuPanel QScrollArea > QWidget > QWidget{background:transparent;}")
+        support::chatMenuPanelSheet()
         // …plus the DOCK's bubble sheet, so a mirrored message wears the same
         // colours and hairlines as the one in the dock.
-        + chatCardStyleSheet(pal, chatSwapSides));
+        + support::chatCardStyleSheet(pal, chatSwapSides));
     // The accent's own line-art ink on the accent fill — identical to the dock's.
     const QColor onAccent = pal.onAccent;
     send->setIcon(themedIcon(busy ? "stop" : "send", onAccent, MENU_CHAT_ICON));

@@ -27,10 +27,8 @@ stencil-chat-panel.chat-dock-right  .chat-resizer { top: 0; left: 0;   bottom: 0
 stencil-chat-panel.chat-dock-top    .chat-resizer { left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; }
 stencil-chat-panel.chat-dock-bottom .chat-resizer { left: 0; right: 0; top: 0;    height: 6px; cursor: row-resize; }
 stencil-chat-panel.chat-dock-float  .chat-resizer { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; border-radius: 10px 0 10px 0; }
-/* …and the SE corner shows the same dot the other three do. #chat-resizer owns that
-   corner in every mode, so it never picked up .chat-float-handle::before and sat blank.
-   Anchored 7px in, like the 14px handle box's centred dot; the block tint is dropped
-   in float so all four read alike. */
+/* The SE corner shows the same dot as the other three: #chat-resizer owns that corner, 7px in like
+   the 14px handle's centred dot. */
 stencil-chat-panel.chat-dock-float .chat-resizer::before {
     content: '';
     position: absolute;
@@ -46,9 +44,8 @@ stencil-chat-panel.chat-dock-float .chat-resizer::before {
 stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before,
 stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before { background: var(--accent); width: 8px; height: 8px; }
 
-/* Float-mode edge/corner resize handles (#chat-resizer stays the SE corner grip).
-   Kept fully inside the host rect — the panel is overflow:hidden. Affordance follows
-   #fs-panel-resizer: a centered pill, resting border-main, accent + grow on hover/drag. */
+/* Float-mode edge/corner handles, kept inside the host rect (the panel is overflow:hidden); the
+   affordance follows #fs-panel-resizer. */
 .chat-float-handle { display: none; position: absolute; background: transparent; touch-action: none; user-select: none; }
 .chat-dock-float .chat-float-handle { display: block; }
 .chat-float-handle::before {

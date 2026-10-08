@@ -18,10 +18,9 @@ import { applyMotionAttr } from './ui/motion/motionPrefs.js';
 import EVENTS from '../../common/config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 import { applyExternalLaunch } from './core/launch/controller.js';
-// Application entrypoint. Loaded LAST — importing layout registers every custom element.
-// On load: init the shared C++ core (wasm), mount component hosts, construct the app, then
-// dispatch `stencil:ready`, preserving DOM → app → wire order. Failed wasm leaves no-ops
-// installed and consumers on their JS fallback.
+import { flushPendingWrites, installUnloadFlush } from './ui/shell/unloadFlush.js';
+// Application entrypoint, loaded LAST (importing layout registers every custom element): DOM → app
+// → wire order, then `stencil:ready`. Failed wasm leaves consumers on their JS fallback.
 // A handed-over script lands HERE because the layer order forbids core/ importing console/. It
 // opens in the Script window, whatever `scriptMode` the link names: the user presses Run.
 const openLaunchScript = (app, stencil) => {
@@ -33,8 +32,7 @@ const openLaunchScript = (app, stencil) => {
 };
 
 window.onload = async () => {
-  // Framed in the extension's in-page editor modal, signal liveness before the heavy boot so
-  // the host keeps the modal up. Addressed at the embedder's origin (the referrer), else '*'.
+  // In the extension's editor modal: liveness before the heavy boot, to the referrer's origin.
   if (window.parent !== window && (location.hash || '').startsWith('#stencil=')) {
     try {
       const target = document.referrer ? new URL(document.referrer).origin : '*';
@@ -43,39 +41,28 @@ window.onload = async () => {
       /* ignore */
     }
   }
-  // prePaintTheme.js already wrote data-motion before first paint; restating it keeps the
-  // attribute right on a host that loads the module graph without that classic script.
+  // Restated for a host that loads the module graph without the classic prePaintTheme.js.
   applyMotionAttr();
-  // Independent boots, so they run together — but BOTH must finish before the app constructs:
-  // Storage reads the projects backend synchronously (core/project/store/projectsBackend.js).
+  // Both before the app constructs: Storage reads the projects backend synchronously.
   await Promise.all([core.init(), initProjectsBackend()]);
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
-  // Voice input (js/llm/voice/modes.js) — installed before the components wire, since the
-  // composers and the toolbar read app.voice as they build their controls.
+  // Before the components wire: the composers and the toolbar read app.voice as they build.
   installVoiceModes(app);
-  // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and
-  // the shared page observer (ui/domWatch.js) catches the inputs modals/panels render later.
   enhanceNumericInputs(document);
   onElementAdded((node) => (node.matches?.('input[type="number"]') ? enhanceNumericInput(node) : enhanceNumericInputs(node)));
   installControlSwap();
-  // The app instance is shared with every component via the stencil:ready
-  // detail below — no window global needed.
   publishReady(app);
-  // Mirrors the desktop quit dialog; beforeunload is synchronous, so it cannot use the
-  // in-app confirm() modal.
+  // The desktop quit dialog's twin; beforeunload is synchronous, so no in-app confirm().
   window.addEventListener('beforeunload', (e) => {
-    app.storage.saveSoon.flush();   // a point committed in the last debounce window still lands
-    app.remoteSync.flushResult();   // best effort: the co-edit result rides out with the page
-    app.storage.thumbs.flush();     // …with its thumbnail rendered now, not in idle time
+    flushPendingWrites(app);
     if (!app.hasEditingSession()) return;
     e.preventDefault();
     e.returnValue = '';   // Chrome/Firefox require a set returnValue to show the prompt
   });
-  // Locked (non-writable, non-configurable) so page scripts can't reassign or delete it; the
-  // instance and its prototypes are frozen too.
+  installUnloadFlush(app);
   const stencil = createStencil(app);
   Object.defineProperty(window, 'stencil', {
     value: stencil, writable: false, configurable: false, enumerable: true
@@ -83,17 +70,10 @@ window.onload = async () => {
   // Wired after the facade exists (a restore forces the shared chat controller, which captures
   // window.stencil on first use) and before the launch/deep-link project loads.
   wireChatPersistence(app);
-  // Platform-format every button tooltip carrying a hotkey hint (⌥R on macOS,
-  // Alt+R elsewhere) now that the components have rendered their markup.
   hotkeys.updateHotkeyTitles();
-  // Instant tooltips everywhere (the native `title` has a ~1s delay and skips disabled controls).
   initTooltips();
-  // …and the same text as the accessible name of every icon-only control, here and in
-  // whatever a modal renders later (ui/ariaLabels.js).
   watchControlLabels();
   applyExternalLaunch(app).then(() => openLaunchScript(app, stencil));
-  // If launched via the projects modal's "open in new tab" action (?open=<id>),
-  // load that project now. No-op for normal sessions.
   app.applyProjectDeepLink();
-  registerServiceWorker();        // enable offline + installable PWA (best-effort)
+  registerServiceWorker();
 };

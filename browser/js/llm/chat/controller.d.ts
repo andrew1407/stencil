@@ -84,6 +84,8 @@ export interface ChatController {
   attachments: Attachment[];
   /** The current working-video attachment (frame ops valid), or null. */
   readonly videoInput: Attachment | null;
+  /** True while a send is running; a second send rejects with chatBusyError(). */
+  readonly busy: boolean;
   /** Images are downscaled now, videos sampled into frames; throws past MAX_ATTACHMENTS. */
   addAttachment(file: File): Promise<Attachment>;
   addImageDataUrl(dataUrl: string, name?: string): Attachment;
@@ -100,3 +102,6 @@ export interface ChatController {
 }
 
 export declare const createChatController: (opts: ChatControllerOptions) => ChatController;
+export declare const CHAT_BUSY_MESSAGE: string;
+/** The refusal of a send while a turn runs; `busy` is true. */
+export declare const chatBusyError: () => Error & { busy: true };

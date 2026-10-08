@@ -1,28 +1,9 @@
 #pragma once
 
-/* extern "C" surface over the shared core for the Zig CLI (cli/) and pystencil. Mirrors
- * the role of wasmApi.cpp for the browser, but shaped for a native image pipeline: it
- * operates on caller-owned interleaved RGBA8 buffers (byte order R,G,B,A) and plain C
- * strings. The host owns all allocation, file/codec/video I/O and JSON parsing; this ABI
- * only transforms buffers and parses geometry / colour / length tokens.
- *
- * Buffer contract — the ABI trusts these and bounds-checks NOTHING:
- *   - A `w`/`h` (or `width`/`height`) pixel buffer is exactly w*h*4 bytes; a
- *     `pixelCount` buffer is pixelCount*4 bytes. Rows are contiguous, no stride.
- *   - A `pts` array is 2*nPts doubles, [x0,y0,x1,y1,…].
- *   - A `luma` plane is width*height bytes (1 per pixel).
- *   - Row-range calls take a half-open [y0,y1); see the Row ranges section for which
- *     ones clamp and which trust y1.
- *   - `src` and `dst` must not overlap; in-place ops say so and take one buffer.
- * Ownership: nothing here allocates or frees caller memory, and no pointer argument is
- * retained past the call — strings are read (and copied if needed) before returning.
- * Any `const char*` in is NUL-terminated or NULL (NULL reads as ""); every `const char*`
- * returned is static storage the caller must not free. Out-pointers may be NULL (the
- * value is simply not written) unless a function says otherwise; on a 0/failure return
- * the out-pointers are left untouched.
- * The exceptions are the stencil_cli_script* and stencil_cli_opplan* families: their strings point
- * INTO their handle and stay valid until it is destroyed — never free one, never read one after.
- * An unknown handle returns NULL / 0 / -1, never a crash. */
+/* extern "C" surface over the shared core for the Zig CLI (cli/) and pystencil: the native
+ * counterpart of the wasm*Api.cpp units, over caller-owned interleaved RGBA8 buffers and C
+ * strings. It bounds-checks nothing; the buffer, ownership, string, handle and thread contract
+ * it trusts is "The C ABI contract" in core/ARCHITECTURE.md. No browser twin. */
 
 #include <stdint.h>
 

@@ -1,5 +1,6 @@
 // The preview column: the picture, the scrub bar riding under it, the frame row and the hint.
 #include "OpenImageDialog.hpp"
+#include "dialogSheets.hpp"
 #include "openImageDialogParts.hpp"
 #include <QLabel>
 #include <QSlider>
@@ -7,11 +8,6 @@
 #include <QVBoxLayout>
 
 namespace stencil::gui {
-
-  namespace {
-    // browser .oi-status / .oi-crop-dims: the muted line under the picture.
-    const QString MUTED_CSS = "color: gray; font-size: 11px;";
-  }
 
   void OpenImageDialog::buildPreviewColumn(QVBoxLayout* layout) {
     // Rendered preview image / frame.
@@ -46,7 +42,7 @@ namespace stencil::gui {
     previewCol->addWidget(cropStageHost, 0, Qt::AlignHCenter);
     previewCol->addWidget(frameSlider, 0, Qt::AlignHCenter);
     cropDims = new QLabel(this);
-    cropDims->setStyleSheet(MUTED_CSS);
+    cropDims->setStyleSheet(support::openImageMutedSheet());
     cropDims->setVisible(false);
     previewCol->addWidget(cropDims, 0, Qt::AlignHCenter);
     auto* previewCenter = new QHBoxLayout;
@@ -63,7 +59,7 @@ namespace stencil::gui {
     layout->addWidget(frameRow);
 
     previewHint = new QLabel(this);
-    previewHint->setStyleSheet(MUTED_CSS);
+    previewHint->setStyleSheet(support::openImageMutedSheet());
     previewHint->setWordWrap(true);
     previewHint->setContentsMargins(4, 10, 0, 0);   // browser .oi-status margin: 10px 0 0 4px
     previewHint->setVisible(false);   // an empty hint keeps no line of its own

@@ -48,3 +48,31 @@ func TestConfigureAppliesNonZeroTimeouts(t *testing.T) {
 		t.Fatal("a zero field moved its timeout")
 	}
 }
+
+// A notice behind a frame stuck on a peer that never reads gives up at its own deadline, not the frame's.
+func TestTCPWriteWaitingForTheLockHonoursItsContext(t *testing.T) {
+	a, b := net.Pipe()
+	t.Cleanup(func() { a.Close(); b.Close() })
+	c := NewTCP(a)
+	stuck := make(chan struct{})
+	go func() {
+		defer close(stuck)
+		_ = c.Write(context.Background(), []byte(`{"type":"edit"}`)) // holds the lock for tcpWriteTimeout
+	}()
+	time.Sleep(20 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if err := c.Write(ctx, []byte(`{"type":"error"}`)); err == nil {
+		t.Fatal("a notice behind a stuck write must fail at its deadline")
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("the notice waited %v behind the stuck frame, want ~100ms", elapsed)
+	}
+	select {
+	case <-stuck:
+		t.Fatal("the stuck frame should still be blocked on the silent peer")
+	default:
+	}
+}

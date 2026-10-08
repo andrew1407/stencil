@@ -74,3 +74,43 @@ test "EditConn frame buffer handles partial, multiple, and skipped frames" {
     // Buffer drained.
     try testing.expect((try c.nextEvent()) == null);
 }
+
+test "a frame past the server's 16 MiB cap closes the feed instead of growing the buffer" {
+    const a = testing.allocator;
+    var c = EditConn{ .gpa = a, .io = undefined, .stream = undefined };
+    defer c.rbuf.deinit(a);
+    const big = try a.alloc(u8, edit.max_frame_bytes);
+    defer a.free(big);
+    @memset(big, 'x');
+
+    // Exactly the cap is still a frame; its newline completes it.
+    try c.feed(big[0 .. big.len - 1]);
+    try c.feed("x\n");
+    try testing.expect((try c.nextEvent()) == null);
+    try testing.expectEqual(@as(usize, 0), c.rbuf.items.len);
+
+    // One byte more, split over reads, and the subscription is dropped with nothing held.
+    try c.feed(big[0..4096]);
+    try testing.expectError(error.FrameTooLarge, c.feed(big));
+    try testing.expect(c.closed);
+    try testing.expectEqual(@as(usize, 0), c.rbuf.capacity);
+    try testing.expect((try c.nextEvent()) == null);
+}
+
+test "nextEvent pops a long run of frames in order without re-copying the buffer per frame" {
+    const a = testing.allocator;
+    var c = EditConn{ .gpa = a, .io = undefined, .stream = undefined };
+    defer c.rbuf.deinit(a);
+    var chunk: std.ArrayList(u8) = .empty;
+    defer chunk.deinit(a);
+    for (0..300) |i| try chunk.print(a, "{{\"type\":\"project-event\",\"project\":{{\"id\":\"p{d}\",\"version\":{d}}}}}\n", .{ i, i });
+    try c.feed(chunk.items);
+    for (0..300) |i| {
+        var ev = (try c.nextEvent()).?;
+        defer ev.deinit(a);
+        try testing.expectEqual(@as(i64, @intCast(i)), ev.version);
+        if (i < 299) try testing.expect(c.head > 0); // consumed in place, compacted on the next feed
+    }
+    try testing.expect((try c.nextEvent()) == null);
+    try testing.expectEqual(@as(usize, 0), c.head);
+}

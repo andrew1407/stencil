@@ -51,15 +51,15 @@ export const requireConnection = (connMgr, address) => {
   return conn;
 };
 
-// File writes bump the version but their response carries none, so re-read it to keep
-// the link's guard accurate for the next save.
-const currentVersion = async (conn, id, fallback) => {
+// A file write bumps the version by exactly one and answers none: the re-read is ours only at
+// before + 1. A peer's save in between keeps `before`, so the next push 409s and merges it.
+const versionAfterWrite = async (conn, id, before) => {
   try {
     const full = await conn.getProject(id);
     const v = full && full.project ? full.project.version : undefined;
-    return v == null ? fallback : v;
+    return typeof before === 'number' && v === before + 1 ? v : before;
   } catch {
-    return fallback;
+    return before;
   }
 };
 
@@ -82,15 +82,15 @@ export const createRemoteProject = async (conn, { name, source, resource, color,
   let version = rec && rec.version != null ? rec.version : 0;
   if (bytes && bytes.length) {
     await conn.putFile(rec.id, 'original', bytes, { ext: ext || 'png', w: w || 0, h: h || 0 });
-    version = await currentVersion(conn, rec.id, version);
+    version = await versionAfterWrite(conn, rec.id, version);
   }
   return { address: conn.url, remoteId: rec.id, version };
 };
 
-// The rendered result alone; the file write bumps the version, so the link comes back re-read.
+// The rendered result alone; the link comes back at the version this write produced, or unmoved.
 export const putRemoteResult = async (conn, link, { bytes, ext, w, h } = {}) => {
   await conn.putFile(link.remoteId, 'result', bytes, { ext: ext || 'png', w: w || 0, h: h || 0 });
-  return { ...link, version: await currentVersion(conn, link.remoteId, link.version) };
+  return { ...link, version: await versionAfterWrite(conn, link.remoteId, link.version) };
 };
 
 // A 409 (lost LWW race) is rethrown with err.conflict === true.
@@ -109,7 +109,7 @@ export const saveRemoteProject = async (conn, link, { name, layout, bytes, ext, 
   let version = rec && rec.version != null ? rec.version : link.version;
   if (bytes && bytes.length) {
     await conn.putFile(link.remoteId, 'result', bytes, { ext: ext || 'png', w: w || 0, h: h || 0 });
-    version = await currentVersion(conn, link.remoteId, version);
+    version = await versionAfterWrite(conn, link.remoteId, version);
   }
   return { ...link, version };
 };

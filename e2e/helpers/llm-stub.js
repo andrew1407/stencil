@@ -1,8 +1,7 @@
 // Scriptable stub LLM server for the AI-assistant e2e specs — all model traffic in this
 // harness terminates here. One zero-dep Node http server speaks the three llm-contract §6
 // wire shapes (openai-compat /chat/completions, ollama /api/chat, Anthropic /v1/messages).
-// `queue()` texts are served FIFO and every request is recorded on `requests`; OPTIONS
-// preflights and permissive CORS are answered because the browser app calls cross-origin.
+// `queue()` texts are served FIFO, every request is recorded, and CORS is answered (the app calls cross-origin).
 import http from 'node:http';
 
 // Fixed port for the collaboration-server proxy spec: LLM_BASE_URL is baked into the server's

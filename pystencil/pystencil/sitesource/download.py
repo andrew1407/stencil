@@ -24,23 +24,16 @@ def download_media(
   name: (str | NoneType) = None,
   err: (TextIO | NoneType) = None,
 ) -> list[str]:
-  """Download ``items`` into ``out_dir`` (created if missing); return the written paths.
+  """Download ``items`` into ``out_dir``; return the written paths, a failed fetch skipped.
 
-  Each file is named from the sanitized last path segment of its URL with a correct
-  extension; a missing/colliding name falls back to ``source-{index}.{ext}``. Pass
-  ``name`` to override that: the sanitized custom stem is used as the base filename (with
-  the per-item extension appended), and — when more than one item is written — an
-  ``-{index}`` suffix keeps the names distinct (``photo.png`` alone, else ``photo-0.png``,
-  ``photo-1.jpg`` …). Per-item fetch failures are non-fatal (skipped). When ``err`` is
-  given, the DESIGN §3 stderr lines are written there (``wrote …`` per file, ``error:
-  could not fetch …`` per failure); the caller prints the final summary.
+  ``err`` gets the DESIGN §3 lines (``wrote …``, ``error: could not fetch …``); the caller
+  prints the summary.
   """
   os.makedirs(out_dir, exist_ok=True)
   written: list[str] = list()
   used: set = set()
   multiple = len(items) > 1
-  # Fetch every item at once (each carries its own guard + cap), then name and write in
-  # INPUT order so filenames, the `used` set and the stderr lines stay deterministic.
+  # Named and written in input order, so names and stderr lines stay deterministic.
   fetched = _net._fetch_all(items, lambda it: __fetch_media(it, host))
   for idx, (item, data) in enumerate(zip(items, fetched)):
     if not isinstance(data, bytes):
@@ -65,26 +58,20 @@ def download_media(
 
 
 def __fetch_media(item: MediaItem, host: str):
-  """Fetch one scraped media URL; returns the bytes, or the exception to report.
-
-  Sub-resource URL: loopback is blocked unless it is on the user-named page's host.
-  """
+  """The bytes, or the exception to report; loopback only on the user-named page's host."""
   try:
     return _net._fetch(item.url, strict=_sub_strict(item.url, host))
   except (OSError, ValueError) as e:
     return e
 
 
-# Magic-byte → extension map for filling in a missing/wrong download extension.
 _SNIFF_EXT = {"png": "png", "jpeg": "jpg", "bmp": "bmp"}
 
-# Every char outside this set is replaced with '_' in a download filename (parity with the
-# Zig CLI's deriveName sanitizer: alnum / '.' / '_' / '-' are kept, everything else → '_').
+# Twin of the Zig CLI's deriveName sanitizer.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
 
 def __ext_for(item: MediaItem, data: bytes) -> str:
-  """The extension to give a downloaded file: the item's format token, else a sniff."""
   if item.ext: return item.ext
   return _SNIFF_EXT.get(codecs.sniff(data), "")
 
@@ -98,13 +85,8 @@ def __safe_filename(
   custom: (str | NoneType) = None,
   multiple: bool = False,
 ) -> str:
-  """Derive a safe, collision-free filename for a downloaded item.
-
-  With ``custom`` set, the sanitized custom string is the stem (``-{index}`` appended when
-  ``multiple`` so a batch stays distinct), plus the per-item extension. Otherwise the URL's
-  last path segment is used; traversal (``..`` / separators) is rejected and a missing,
-  unsafe, or colliding name falls back to ``source-{index}.{ext}``.
-  """
+  """The sanitized ``custom`` stem (``-{idx}`` when ``multiple``), else the URL's last segment;
+  a traversal, missing or colliding name becomes ``source-{idx}``; the extension appended."""
   ext = __ext_for(item, data)
   if custom is not None:
     stem = _UNSAFE_FILENAME_CHARS.sub("_", custom).lstrip(".") or "source"
@@ -113,12 +95,10 @@ def __safe_filename(
     if ext and not cname.lower().endswith("." + ext): cname = "%s.%s" % (cname, ext)
     return cname
   base = os.path.basename(urllib.parse.urlparse(item.url).path)
-  # Guard against path traversal / separators sneaking through a basename.
   if base in ("", ".", "..") or "/" in base or "\\" in base:
     base = ""
   else:
-    # Sanitize identically to the Zig CLI: replace every char outside [A-Za-z0-9._-]
-    # with '_', then strip leading dots so a ".htaccess"-style name can't hide.
+    # Leading dots stripped so a ".htaccess"-style name cannot hide.
     base = _UNSAFE_FILENAME_CHARS.sub("_", base).lstrip(".")
   name = base
   if name and ext and not name.lower().endswith("." + ext): name = "%s.%s" % (name, ext)

@@ -36,7 +36,7 @@ export declare const saveRemoteProject: (
   opts?: { name?: string; layout?: ProjectLayout } & RemoteImageBytes,
 ) => Promise<RemoteLink>;
 
-/** Uploads the rendered result alone and returns the link with the re-read version. */
+/** Uploads the rendered result alone; the link moves only to the version this write produced. */
 export declare const putRemoteResult: (
   conn: ServerConnection,
   link: RemoteLink,

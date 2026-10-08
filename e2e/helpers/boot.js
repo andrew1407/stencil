@@ -71,7 +71,6 @@ export async function expectModalOpen(page, overlayId) {
   await expect(page.locator(`#${overlayId}`)).toHaveClass(/modal-open/, { timeout: 5000 });
 }
 
-// Server-project ids visible to this page through the window.stencil facade.
 export const serverProjectIds = (page) =>
   page.evaluate(async () => (await window.stencil.serverProjects()).map((r) => r.id));
 

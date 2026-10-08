@@ -187,6 +187,22 @@ classDiagram
   re-composes lex → parse → lower as `script.js` does without wasm, pinned by
   `tests/parserParity.test.js`.
 
+## Concurrency
+
+Everything runs on the extension host's one JavaScript thread; the only other actors are the
+child processes and the browser this tree starts, and their answers come back as callbacks on
+that thread. A provider's answer can be outdated by the time it lands, so every asynchronous
+result is checked against the document `version` it was computed for.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| Typing check (`diagnostics.js`) | the host thread | the diagnostic collection | one 200 ms debounce timer per document; a result whose `version` moved on is dropped | the timer is cleared on close and by a context disposable on deactivate |
+| Decoration repaint (`decorations.js`) | the host thread | the visible editors' decorations | one debounce timer; a repaint whose `version` moved on is dropped | the timer is cleared with the decoration types on deactivate |
+| `parserHost` (`lib/parserHost.js`) | the host thread | the parser copies' module | one memoized `import()` | a rejection is forgotten, so the next parse retries |
+| `versionCache` (`lib/spawn/versionCache.js`) under `programCache.js` and `jsSource.js` | the host thread | one answer per (document, version) | keyed on `version`, so no answer outlives its edit | `LIMIT` 8 entries, oldest evicted; `programCache` forgets a closed document |
+| `--script-check` (`lib/scriptCheck.js`) | one `execFile` child per check | the saved file on disk | argv array, no shell; the `version` guard above | killed after 10 s, and an unanswered check falls back to the copies |
+| Web console session (`lib/web/console.js`) | VS Code's js-debug session | the browser page | each `evaluate` is bounded by its own timer, cleared either way | a silent session is an error in the output channel |
+
 ## Rules
 
 1. **The CLI, the Python and the browser instance are explicit user configuration.** `stencil.cliPath`
@@ -194,6 +210,9 @@ classDiagram
    `stencil.webUrl`, else the published default, which must be `http(s)` — all machine-scoped
    so a workspace cannot set them. None is ever read out of the document being edited or anything the script
    fetches; `cliLocator.js`, `pythonLocator.js` and `web/target.js` are the one way each is resolved.
+   `stencil.webBrowser` is not machine-scoped: it only picks `chrome` or `edge` from the
+   `BROWSERS` table in `lib/web/console.js` (js-debug's `chrome` or `msedge` launcher), and any
+   other value falls back to `chrome`.
 2. **Document text never reaches a shell unquoted.** `src/lib/spawn/terminal.js` is the only place
    a command line is composed, for the shell the user actually runs; every spawn elsewhere takes
    an argv array and `shell: false`.
@@ -211,7 +230,8 @@ classDiagram
    Nothing here widens the app's CSP or adds an execution path inside it.
 7. **One dependency, dev-only.** `@vscode/vsce`, exactly pinned, used only by
    `npm run package`; the packaged `.vsix` carries no `node_modules`.
-8. **Every disposable belongs to the context.** `deactivate` does nothing.
+8. **Every disposable belongs to the context.** A pending debounce timer is cleared by a
+   disposable of its own, so `deactivate` does nothing.
 9. **An engine span is bytes; an editor position is UTF-16.** The copies and `--script-check`
    count in UTF-8 bytes; every range converts through `lib/spans.js` against the text of its
    line.

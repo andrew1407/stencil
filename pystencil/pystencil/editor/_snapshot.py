@@ -1,8 +1,4 @@
-"""The editing snapshot and the small value types the whole facade shares.
-
-``_Snapshot`` is the Python mirror of the Zig ``EditState``: rotation + crop + filter
-+ lines, never baked eagerly — :meth:`Editor.result` derives the view from it.
-"""
+"""The editing snapshot and the small value types the whole facade shares."""
 
 from __future__ import annotations
 
@@ -32,13 +28,10 @@ _BASE64_PREFIX = "base64,"
 
 @dataclass
 class _Snapshot:
-  """One editing snapshot — the Python mirror of the Zig ``EditState``.
-
-  ``mirrored`` mirrors the original left-right FIRST, then ``rotation`` turns it 0..3 clockwise quarters; ``crop``
-  is an ``(x, y, w, h)`` rect in rotated-original pixel space (or ``None``); the filter
-  is a mode string ("none"|"bw"|"sepia"|"custom"|"invert"|"contour") plus a custom hex
-  colour; ``lines`` is the list of drawn :class:`Line` objects.
-  """
+  """One editing state, the twin of the Zig ``EditState``: ``mirrored`` mirrors the original
+  left-right FIRST, then ``rotation`` turns it 0..3 clockwise quarters; ``crop`` is ``(x, y, w, h)``
+  in rotated-original pixel space or ``None``; ``filter_mode`` is "none"|"bw"|"sepia"|"custom"|
+  "invert"|"contour", ``filter_color`` the custom hex."""
 
   rotation: int = 0
   mirrored: bool = False
@@ -60,11 +53,8 @@ class _Snapshot:
 
 
 def _clean_keywords(kw) -> list[str]:
-  """Trim keywords and drop empties/non-strings — port of project/file.js ``cleanKeywords``.
-
-  Kept deliberately simple (no dedupe/lower-casing) so a ``.stencil`` round-trip preserves
-  the exact tag list every other surface reads/writes.
-  """
+  """Trimmed keywords, empties and non-strings dropped — port of project/file.js ``cleanKeywords``;
+  no dedupe or case-folding, so a ``.stencil`` round-trip keeps the exact tag list."""
   if not isinstance(kw, list): return []
   return [k.strip() for k in kw if isinstance(k, str) and k.strip()]
 
@@ -79,7 +69,5 @@ def _sniff_image_ext(data: bytes) -> (str | NoneType):
   return None
 
 
-# Source object types accepted by Editor.load().
 LoadSource = Union[str, bytes, bytearray, Image]
-# Layout-ish inputs accepted by draw()/apply_layout().
 LayoutLike = Union[Layout, dict, str, list[Line]]

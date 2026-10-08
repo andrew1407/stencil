@@ -1,6 +1,5 @@
-/* The script window's editor: a transparent textarea over a coloured <pre>. Both layers
-   must share every metric that affects where a glyph lands, or the colours drift off the
-   text under them. */
+/* The script window's editor: a transparent textarea over a coloured <pre>, sharing every metric
+   that places a glyph, or the colours drift off the text. */
 
 /* Matched to the desktop window (ScriptDialog's FIT_SHARE): the two editors are one window
    on two surfaces, so they open at the same width. */
@@ -14,9 +13,8 @@
   justify-content: flex-start;
   align-items: center;
 }
-/* Run is the one GO action in both editors, so it wears the go green rather than the accent
-   every other primary button uses — --success-cta, deep enough to carry white ink and its
-   icon. Disabled still falls through to the shared grey. */
+/* Run is the one GO action in both editors: --success-cta green, deep enough for white ink.
+   Disabled still falls through to the shared grey. */
 .script-actions-bar .primary:not(:disabled),
 .ctx-script .primary:not(:disabled) {
   background: var(--success-cta);
@@ -45,9 +43,8 @@
   overflow: hidden;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-/* The box carries the accent at rest and lights a glow under the pointer. Focus widens that
-   glow into the ring the project rows wear — an INSET hairline here would land on top of the
-   accent border and read as a doubled edge. Desktop twin: theme's QFrame#scriptEditorWrap. */
+/* The accent at rest, a glow under the pointer, focus widening it into the rows' ring (an inset
+   hairline would double the border). Desktop twin: QFrame#scriptEditorWrap. */
 .script-editor-wrap:hover {
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 55%, transparent);
 }
@@ -87,9 +84,8 @@
 /* Fainter than muted, so the example never reads as a script already typed. */
 .script-input::placeholder { color: var(--text-muted); opacity: 0.5; }
 .script-input:focus { outline: none; }
-/* The shared field-hover ring (layout/shimmer.css `textarea:hover`) lays a square hairline
-   inside this rounded frame, since the text layer carries no radius of its own. The box is
-   the wrapper's job here, so the editor opts out. Outranks that rule's own `!important`. */
+/* The shared textarea:hover ring lays a square hairline inside this rounded frame; the wrapper
+   owns the box. Outranks that rule's own `!important`. */
 .script-editor-wrap .script-input:hover:not(:focus) {
   border-color: transparent !important;
   box-shadow: none !important;

@@ -1,4 +1,5 @@
 import { timeoutSignal } from '../../net/abortable.js';
+import { readBlobCapped } from '../../net/cappedBody.js';
 // An <img> dragged from another site lands as a URL in text/uri-list, text/html or
 // text/plain, never as a File; `read(type)` returns the drag's string for that MIME.
 // '//host' is fixable (https); a root-relative '/path' has an unknowable origin and is refused.
@@ -74,7 +75,7 @@ export const fetchDraggedMediaFile = async (url, { accept = /^image\// } = {}) =
     throw new Error(`${hostOf(url)} refused the request (CORS or an unreachable host)`);
   });
   if (!resp.ok) throw new Error(`${hostOf(url)} answered HTTP ${resp.status}`);
-  const blob = await resp.blob();
+  const blob = await readBlobCapped(resp);
   if (!accept.test(blob.type || '')) throw new Error(`that URL is ${blob.type || 'not an image'}`);
   return new File([blob], fileNameForUrl(url, blob.type), { type: blob.type });
 };

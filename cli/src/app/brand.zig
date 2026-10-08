@@ -23,6 +23,15 @@ pub fn rgbOf(comptime key: []const u8) [3]u8 {
     return .{ byteOf(hex[0..2]), byteOf(hex[2..4]), byteOf(hex[4..6]) };
 }
 
+/// The `light` value of the themeTokens.json token `key` (e.g. `--project-name-fg`). Comptime-only.
+pub fn tokenLight(comptime key: []const u8) []const u8 {
+    @setEvalBranchQuota(theme_tokens_json.len * 4);
+    const tok = theme_tokens_json[std.mem.indexOf(u8, theme_tokens_json, "\"" ++ key ++ "\": {").?..];
+    const needle = "\"light\": \"";
+    const at = std.mem.indexOf(u8, tok, needle).? + needle.len;
+    return tok[at..][0..std.mem.indexOfScalar(u8, tok[at..], '"').?];
+}
+
 fn byteOf(comptime s: []const u8) u8 {
     return std.fmt.parseInt(u8, s, 16) catch @compileError("themeTokens.json: bad brand hex " ++ s);
 }

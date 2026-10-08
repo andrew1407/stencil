@@ -75,10 +75,10 @@ if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTORCC ON)
 
-  include(cmake/StencilSources.cmake)   # STENCIL_GUI_DIRS / STENCIL_GUI_SOURCES / STENCIL_SHARE_LIBS
+  include(cmake/StencilSources.cmake)   # STENCIL_GUI_DIRS / STENCIL_APP_MAIN / STENCIL_GUI_SOURCES / STENCIL_SHARE_LIBS
 
   add_executable(stencil
-    src/app/main.cpp
+    ${STENCIL_APP_MAIN}
     ${STENCIL_GUI_SOURCES}
   )
   target_include_directories(stencil PRIVATE ${STENCIL_GUI_DIRS})

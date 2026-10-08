@@ -1,7 +1,7 @@
 #pragma once
 #include "models.hpp"
 
-// Crop-window geometry shared by the desktop and the wasm browser build. A crop is an
+// Crop-window geometry; twin of browser/js/core/parse/cropGeometry.js. A crop is an
 // axis-aligned rect in ORIGINAL-image pixel space; line and point coords are crop-local.
 // The original is never modified, so the crop re-adjusts losslessly. Its aspect is
 // fixed to the page (A3 = 42 / 29.7), so it resizes from a corner only.

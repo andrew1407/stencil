@@ -1,19 +1,14 @@
-      /* ── Dock (selection panel) ── */
       QDockWidget { color: %TEXT%; titlebar-close-icon: none; }
       QDockWidget::title {
         background: %BG_CONTROLS%;
         padding: 5px 10px; border-bottom: 1px solid %BORDER%; font-weight: 600;
       }
-      /* The panel supplies its OWN title bar + body (plain QWidgets), which QDockWidget::title
-         above never reaches — so both let the window backdrop through and the panel read as a
-         hole punched in the page rather than a surface. Same surface as the toolbars, which is
-         the browser's --bg-coord-panel in both themes. */
+      /* The panel's own title and body never see QDockWidget::title; same surface as the toolbars. */
       QWidget#selPanelTitle {
         background: %BG_CONTROLS%;
         border-top-left-radius: 5px; border-top-right-radius: 5px;
       }
-      /* The card below the header hugs its rows (browser .coordinates-panel, 5px radius); the
-         body under it is bare page, as the browser's container shows below the panel. */
+      /* Browser .coordinates-panel: the card hugs its rows, the body below is bare page. */
       QWidget#selPanelBody { background: transparent; }
       QFrame#selPanelCard {
         background: %BG_CONTROLS%;
@@ -23,21 +18,11 @@
         background: transparent; border: 1px solid %BORDER%; border-radius: 8px; padding: 0;
       }
       QToolButton#panelCollapseBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
-      /* The Points | Lines strip sits in the panel HEADER, on that surface rather than the
-         body's — otherwise it painted its own container colour as a band across the header
-         (browser .coord-panel-header holds the tabs and the toggle and nothing else). */
+      /* On the header's surface, not the body's (browser .coord-panel-header). */
       QTabBar#selectionTabBar { background: transparent; }
-      /* …and the pages below it carry no frame of their own: the browser's table IS the
-         box (its own hairline border), so a QTabWidget pane around it read as a second,
-         rounded container nothing in the browser has. */
+      /* No pane frame: the browser's table is the box. */
       QTabWidget#selectionTabs::pane { border: 0; border-radius: 0; top: 0; }
-      /* Open-image dialog tabs (browser .oi-tabs): an underlined strip over plain
-         rows — the .vs-rows carry their own hairlines, so no pane box here either.
-         Only the strip's own full-width hairline survives, as the pane's top border
-         (the tab bar spans just its tabs; the browser line runs the whole body).
-         top: -1px tucks that border under the tab bar's last pixel row, so the
-         active tab's accent underline OVERLAPS it exactly as the browser's
-         margin-bottom: -1px does — instead of a grey line under the accent one.
-         The tabs themselves are painted by support/control/UnderlineTabBar.hpp, not QSS. */
+      /* Browser .oi-tabs: only the full-width hairline survives; top: -1px tucks it under the
+         active underline (margin-bottom: -1px there). UnderlineTabBar paints the tabs. */
       QTabWidget#oiTabs::pane { border: 0; border-radius: 0; border-top: 1px solid %BORDER%; top: -1px; }
 

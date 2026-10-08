@@ -1,6 +1,4 @@
-"""Plan execution over the Editor facade: :func:`execute_op_plan`, the one entry
-point that walks a validated plan (and its variants) against an editor.
-"""
+"""Plan execution over the Editor facade: :func:`execute_op_plan` walks a validated plan."""
 
 from __future__ import annotations
 
@@ -48,32 +46,16 @@ def execute_op_plan(
 ) -> list:
   """Execute a validated plan against an :class:`~pystencil.editor.Editor`.
 
-  Top-level ``actions`` mutate ``editor`` in place (contract semantics: at most one
-  updated result). Each variant then branches from the *flattened pixels* of the
-  post-actions state — a fresh editor of the same class is loaded with that snapshot,
-  the variant's actions run on it, and it yields one extra output. Returns the list
-  of result :class:`~pystencil.image.Image` objects: the updated working image first
-  (only when there were top-level actions), then one image per variant, in order
-  (labels live in ``plan.variants[i].label``). A chat-only plan returns ``[]``.
+  Top-level ``actions`` mutate ``editor`` in place; each variant branches from the
+  flattened post-actions pixels into a fresh editor. Returns the working image first
+  (only when there were top-level actions), then one image per variant in order; a
+  chat-only plan returns ``[]``. Coordinates re-map through the plan's own crops/rotates (§1).
 
-  Plan coordinates arrive in the frame of the image the model was shown, so a
-  running :class:`_FrameMap` re-maps later layout points through the plan's own
-  crops/rotates (contract §1); variants continue from the top-level transform.
-
-  ``attachments`` are the images the turn attached, in attachment order — the same
-  list handed to :meth:`Chat.send` / :meth:`Editor.prompt`, as ``(media_type, bytes)``
-  tuples (an optional third element names the source file, which an unnamed ``save``
-  derives its project name from). The §2.1 ``image`` op indexes them 1-based and
-  ``save`` writes ``<name>.stencil`` into ``save_dir`` (the cwd by default), with the
-  written paths collected on ``plan.saved``. Per §2.1 an index the turn cannot
-  satisfy, or a save with nothing loaded, costs that ACTION only: the note lands in
-  ``plan.warnings`` (and, like a parse warning, on ``plan.reply``).
-
-  ``console`` attaches the interactive console's §10 hook object (the REPL passes
-  itself) so the console-profile ops — connect/disconnect/delete/openUrl/clear/
-  clearChat — execute through the same paths its commands use; without one they
-  are skipped with a note (the library API has no connections, no /delete scope,
-  no user-echo guard for openUrl, and no conversation for clearChat).
+  ``attachments`` are the turn's ``(media_type, bytes[, name])`` tuples, indexed 1-based by
+  the §2.1 ``image`` op; ``save`` writes ``<name>.stencil`` into ``save_dir`` (cwd by
+  default), paths on ``plan.saved``. An unsatisfiable index or a save with nothing loaded
+  costs that action only, noted in ``plan.warnings`` and ``plan.reply``. ``console`` is the
+  §10 hook object the console-profile ops run through; without it they skip with a note.
   """
   outputs: list = list()
   base = None  # the post-actions snapshot, rendered at most once
@@ -98,7 +80,7 @@ def execute_op_plan(
       plan.reply = plan.reply + "\n[warning] " + note
       return outputs
     if base is None:
-      base = editor.result()  # snapshot AFTER the top-level actions
+      base = editor.result()
     branches = list()
     for variant in plan.variants:
       # The core rides along: a branch left to load its own would race the singleton
@@ -111,13 +93,8 @@ def execute_op_plan(
 
 
 def __render_branch(job) -> Any:
-  """Apply one variant's actions to its own editor and render it — the unit of fan-out.
-
-  Runnable on any thread by construction: the branch editor, its pixels and its
-  coordinate frame are this job's alone, and a variant's ops are pure edits (no
-  attachments, no save, no console hooks). The branches themselves are built in plan
-  order by the caller, so a branch's identity never depends on when it finished.
-  """
+  """One variant on its own editor, rendered: the editor, pixels and frame are this job's
+  alone and a variant's ops are pure edits, so it runs on any thread."""
   branch, variant, vframe = job
   for action in variant.actions: __apply_action(action, branch, vframe)
   return branch.result()

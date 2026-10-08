@@ -1,7 +1,4 @@
-"""Category / format / dimension filters, ported from the extension's ``filters.js``.
-
-Pure predicates over :class:`MediaItem`; the page scan applies them in that order.
-"""
+"""Category / format / dimension filters over :class:`MediaItem` (twin of ``filters.js``)."""
 
 from __future__ import annotations
 
@@ -13,11 +10,7 @@ _CATEGORY_KIND = {"img": "img", "video": "video", "background": "bg", "poster": 
 
 
 def _category_kinds(category: str) -> (set | NoneType):
-  """Selected internal kinds, or ``None`` (every category) for empty / any ``all`` token.
-
-  Matches the Zig ``tokenSelected``: as soon as ANY ``|``-separated token equals ``all``
-  (case-insensitive) the whole filter passes.
-  """
+  """Selected internal kinds, or ``None`` (every one) when empty or any token is ``all``."""
   if not category or not category.strip(): return None
   kinds = set()
   for tok in category.split("|"):
@@ -41,12 +34,7 @@ def _format_tokens(formats: str) -> (set | NoneType):
 def _passes_dimension(
   item: MediaItem, min_w: int, max_w: int, min_h: int, max_h: int
 ) -> bool:
-  """Inclusive width/height bounds, checked independently; unknown-size items pass.
-
-  A bound applies only when set (``!= -1``). Port of ``filters.js:81-88``: an item with a
-  known width is rejected only when ``< min_w`` or ``> max_w`` (likewise height); an
-  unmeasured dimension (``<= 0``) passes unconditionally.
-  """
+  """Inclusive bounds, each axis alone; ``-1`` = unset and an unmeasured side (``<= 0``) passes."""
   if item.width > 0:
     if min_w != -1 and item.width < min_w: return False
     if max_w != -1 and item.width > max_w: return False
@@ -57,6 +45,5 @@ def _passes_dimension(
 
 
 def _is_image_kind(item: MediaItem) -> bool:
-  """True for decodable-still categories (img / bg / poster), i.e. not video."""
   return item.kind in ("img", "bg", "poster")
 

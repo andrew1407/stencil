@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ThemePainter.hpp"
 #include "../../support/webcore/icons.hpp"
 #include "ToastStack.hpp"
@@ -38,9 +39,8 @@ namespace stencil::gui {
   void ThemePainter::sizeViewToggles() {
     for (QCheckBox* box : {w.tools.showPointsCheck, w.tools.showLinesCheck}) {
       if (!box) continue;
-      // Through the stylesheet so it reaches sizeHint (setMinimumWidth does not); the padding eats
-      // the indicator's overrun instead of the neighbour's label.
-      box->setStyleSheet(QStringLiteral("padding-right:12px;"));
+      // Through the stylesheet so it reaches sizeHint (setMinimumWidth does not).
+      box->setStyleSheet(support::viewToggleSheet());
       for (QWidget* p = box->parentWidget(); p && p != &w; p = p->parentWidget()) {
         if (!p->layout()) continue;
         p->layout()->invalidate();
@@ -55,7 +55,7 @@ namespace stencil::gui {
     const QString ink = support::isWebcore()
                             ? themePalette(w.painted.dark, w.settings.accentColor).textMain.name()
                             : QStringLiteral("#9aa0a8");
-    w.tools.imageSizeInfo->setStyleSheet(QStringLiteral("color:%1;").arg(ink));
+    w.tools.imageSizeInfo->setStyleSheet(support::imageSizeInfoSheet(ink));
   }
 
   void ThemePainter::syncImageInfoDockHeight() {

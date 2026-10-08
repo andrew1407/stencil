@@ -3,7 +3,7 @@
 import { Emitter } from '../core/emitter.js';
 import { timeoutSignal } from './abortable.js';
 import { REMOTE_FLAG, normalizeUrl, buildInviteUrl, wsUrl, isAuthStatus, isRedirect } from './urlRules.js';
-import { MAX_ERROR_BYTES, readJsonCapped } from './cappedBody.js';
+import { MAX_ERROR_BYTES, readJsonCapped, readBlobCapped } from './cappedBody.js';
 
 // A server that keeps handing out cursors is cut off here (the cli's max_pages), never followed forever.
 export const MAX_LIST_PAGES = 1000;
@@ -172,7 +172,7 @@ export class ServerConnection {
 
   async fetchFile(id, kind) {
     const resp = await this.#req('GET', `/projects/${encodeURIComponent(id)}/files/${kind}`, { raw: true });
-    return resp.blob();
+    return readBlobCapped(resp);
   }
 
   // A FRESH session token from this connection's credential, as `<url>#token=<token>`.

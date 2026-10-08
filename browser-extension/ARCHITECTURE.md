@@ -42,7 +42,7 @@ import in `src/`.
 | `src/config/` | copies of `common/config/{,llm/}` tables | byte-pinned to the originals by `tests/dataParity.test.js` |
 | `src/lib/` | the shared bottom, one folder per feature: the fetch guard (`connection/urlGuard.js`), `stencil.js` (the editor launch), the scanner, pins, connections, menus, drop zones, the ported browser modules, the UI kits | pure where possible and node-tested; a ported file stays byte-identical to its original (`tests/portParity.test.js`) |
 | `src/llm/` | settings, client, the session key, the registry-driven validator, executors, the chat controller | plans validate before any executor runs; the Anthropic key lives in `chrome.storage.session` only |
-| `src/background/` | the service worker: `background.js` is wiring only; `handlers/` holds one module per message group | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
+| `src/background/` | the service worker: `background.js` is wiring only; `registrars.js` holds the content-script registration and the settings keys that re-run it; `handlers/` holds one module per message group | every function handed to `chrome.scripting.executeScript` stays self-contained (`tests/injectedFuncs.test.js`) |
 | `src/content/` | `ctxResolve.js` + `ctxTarget.js` (the one always-on content script), the `pageApi` files (`window.stencil`), `editorApiMain` + `editorBridge` (editor origin only, `stencil.extension`) | content scripts cannot import modules: a multi-file one is one ordered registration (`CTX_PROBE_FILES`, `PAGE_API_MAIN_FILES`) sharing one namespace object |
 | `src/popup/` | the panel controller (`popup.js`, wiring only), the editor mode, the assistant | the same controller runs the popup, the side panel and the DevTools panel |
 | `src/sidepanel/`, `src/devtools/` | the docked and the DevTools surfaces | reuse `popup.js` and the popup CSS; DevTools targets `inspectedWindow.tabId` |
@@ -111,7 +111,7 @@ classDiagram
 | Mediator | `background/background.js` `messageHandlers` + `resolveClickHandler`; `llm/chatController.js` over `ChatCapabilities` | The worker routes by `msg.type` and menu id, so the popup, bridges and editor never address each other; the controller calls injected capabilities only. |
 | Strategy | `llm/client.js` over `providers.json` `wire`; `lib/drop/zones.js` `quadrantAt` → `background/handlers/dropZones.js` | The provider and the drop action are picked by table lookup. |
 | Observer | `chrome.storage.onChanged` in `background.js` and `popup/storageSync.js`; each server's `/ws` project feed (`lib/connection/events.js`, driven by `popup/pin/sharedLive.js`); `lib/pollClock.js`; `watchAccentActionIcon` | Feeds live only while a panel document is open (Rule 7). |
-| Repository | `lib/prefs/{pins,ledger,settings}.js`, `lib/connection/store.js`, `llm/settings.js` | Each wraps one `chrome.storage` key behind load/save/upsert functions; callers never touch storage. |
+| Repository | `lib/prefs/{pins,ledger,settings}.js`, `lib/connection/store.js`, `llm/settings.js` | Each wraps one `chrome.storage` key behind load/save/upsert functions; callers never touch storage. A key with writers in several contexts writes through `lib/prefs/writeChain.js`. |
 | Chain of Responsibility | `urlGuard` → `fetchAsDataUrl` → `lib/image/rasterize.js`; `background/frameCapture.js` routes, tried in order | Each step runs only if the one before passed or failed over to it. |
 | Adapter | `llm/openActions.js` `translateOpenActions`; `popup/pin/sharedPins.js` `sharedToImage`; `lib/menu/editorTabs.js` `editorRow` | Each maps an outside shape onto one the panel already handles. |
 | MAIN ⇄ ISOLATED bridge | `pageApiMain` ↔ `pageApiBridge`; `editorApiMain` ↔ `editorBridge` (`SRC.EXT_API`/`EXT_API_RES`, `SRC.EXT_REQ`/`EXT_RES`) | Id-correlated `postMessage` envelopes, same window only; the ISOLATED half owns `chrome.*`. |
@@ -159,23 +159,66 @@ classDiagram
 - **The message contract.** `MSG` names every `chrome.runtime` channel and `SRC` every
   `window.postMessage` envelope; each handler lives in one `background/handlers/` module.
   Fire-and-forget channels return nothing; the editor-mode group is request/response, where
-  `answers` guarantees `{ ok:true, … } | { ok:false, error }` and `privileged` admits only the
-  extension's own pages and the editor origin. A two-hop channel keeps one name on both legs.
-  The groups: probe, page API, drop zones, editor mode.
+  `answers` guarantees `{ ok:true, … } | { ok:false, error }`. A two-hop channel keeps one
+  name on both legs. The groups: probe, page API, drop zones, editor mode, store writes.
+- **The editor-origin trust boundary.** `privileged` (`background/editorRelay.js`) admits the
+  extension's own pages and, while `editorPageApi` is on (the default), any page on the
+  configured editor origin (default `http://localhost:8080/`): every page served from that
+  origin can list editor and source tabs, scan another tab and import into an editor. The
+  origin is the user's choice, so it is trusted as the extension itself is.
+- **A cross-context write.** `chrome.storage` has no atomic read-modify-write. A pin or ledger
+  write from the popup, side panel, DevTools panel, options or crop page goes to the worker as
+  `MSG.STORE_WRITE` (`routeStoreWrites`), which only the extension's own pages may send; the
+  worker runs it on that key's one `writeChain`, reading the list inside its turn, so every
+  context's writes are one serial sequence. A document whose worker does not answer writes on
+  its own chain.
+
+## Concurrency
+
+Every context is one JavaScript event loop, and they share nothing but `chrome.storage` and
+messages. The MV3 service worker starts on an event and is terminated when idle, losing its
+module state: `background/tabState.js`'s per-tab maps and pins cache, `menus.js`'s
+`desktopSchemeSet` and `registrars.js`'s `registrationQueue`. Each start re-asserts what it
+needs — the menus are rebuilt, the bridge registration re-runs, the pins cache is re-read, the
+session-key area is locked — and the per-tab maps refill on the next probe. Each panel document
+(popup, side panel, DevTools panel), the options page and the crop page live only while open.
+
+| Owner | Runs on | Shares | Guard | On overflow or teardown |
+|---|---|---|---|---|
+| `registrationQueue` (`background/registrars.js`) | the worker | content-script registrations | one pass at a time, the settings read inside the pass | a rejected pass does not stop the next; dies with the worker, the next start re-registers |
+| `PINS_KEY` writers (`lib/prefs/pins.js`) | the worker (context menu, page API); panels and options through `MSG.STORE_WRITE` | `chrome.storage.local` `stencil-pinned` | the worker's `writeChain`, read inside each turn | a rejected write does not stop the chain; with no answering worker a document writes on its own chain |
+| `LEDGER_KEY` writers (`lib/prefs/ledger.js`) | the worker (hand-offs, drops, `pruneLedger` on `MSG.REGISTRY`); panels and the crop page through `MSG.STORE_WRITE` | `chrome.storage.local` `stencil-opened` | the worker's `writeChain`, read inside each turn | as for pins; capped at 500 entries, oldest dropped |
+| `pinsCache` (`background/tabState.js`) | the worker | the pins list, read synchronously by the CTX handler | `storage.onChanged` replaces it; a cold worker's first relabel waits for the start-up read up to `PIN_CACHE_WAIT_MS` (the probe's 150 ms dwell) | dies with the worker; re-read at start |
+| Panel scan (`popup/list/scan.js`) | the panel document | `PanelState.all` | `createScanTurns`: a later scan retires every earlier one, which then writes nothing | — |
+| Project feeds (`popup/pin/sharedLive.js`) | the panel document | one `/ws` socket per server per panel document | a burst of events coalesces into one refresh after 250 ms; a refresh mid-refresh runs once more | closed on `pagehide`; a dropped feed falls back to the poll |
+| `pollClock` (`lib/pollClock.js`) | each document | one 8 s interval for every periodic job | the one timer in a document | ticks skip while hidden and run once on `resume`; no jobs, no timer |
+| Bridge legs | worker → tab (`editorRelay.js`), bridge → page (`editorBridge.js`), page → bridge (`editorApiMain.js`) | id-correlated requests | timeouts of 1.5 s, 1.5 s, then 4 s (30 s for the slow calls), each longer than the leg it wraps | a timeout answers `{ ok:false }`; a late answer finds no pending id and is dropped |
+| `ChatController` (`llm/chatController.js`) | the panel document | the replayed history | `state.busy` admits one turn; the send button aborts the running one | a turn that ends with no reply drops its user turn |
 
 ## Rules
 
-1. **One fetch guard.** Every fetch goes through `lib/connection/urlGuard.js`, which refuses
+1. **Two classes of fetch.** A page-derived URL (a scanned image, a page-API target, a drop,
+   a context click) is fetched only through `lib/connection/urlGuard.js`, which refuses
    non-`http(s)` and the address classes of `common/config/net/blockedRanges.json` (also
    embedded in IPv6 literals); `data:`/`blob:` pass. `guardedFetch` follows no redirect and
    `readCapped` (`cappedBody.js`) caps every body. `allowSameHostAs` (a scanned page's host) and
    `allowLoopback` (a URL the user typed) are the two narrow unlocks; neither unlocks the
-   metadata IP.
+   metadata IP. A user-configured endpoint (a server connection's REST client
+   `lib/connection/rest.js`, its `/ws` feed `lib/connection/events.js`, the LLM client
+   `llm/http.js`) is dialled directly, since its URL is explicit user configuration and never
+   read out of content; those clients follow no redirect and read replies through
+   `cappedBody.js`.
 2. **The hand-off is a fragment.** Bytes are fetched here (host permissions bypass page
    CORS), converted to a `data:` URL and passed in the `#stencil=` fragment, which never
    reaches a server; the editor's `applyExternalLaunch` consumes and strips it.
 3. **Ports stay byte-identical.** Every module `tools/twins.json` copies from the
-   browser is pinned byte-equal by `tests/portParity.test.js`; it is edited at its original.
+   browser, `.d.ts` copies included, is pinned byte-equal by `tests/portParity.test.js`; it is edited at
+   its original. `lib/logo/stage.js` pins only the functions it shares with
+   `browser/js/ui/logo/stage.js` (the bare-window test and the mark's selector are the page's
+   own); `lib/logo/stageLook.js` (motion read from `StencilMotion`, a `MutationObserver` on `<html>`
+   where the app subscribes to its event bus) and `lib/control/customSelect.js` (its own face,
+   row match and hover delay) are extension-owned modules derived from their browser
+   namesakes, not ports.
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable
    object and postMessages requests to an ISOLATED script that relays them to the worker and
    answers on the same id. "Is this the editor?" is an origin match against the configured
@@ -186,14 +229,19 @@ classDiagram
 6. **Two context-menu roots.** The static root declares only `action`/`image`/`video`
    contexts so Chrome hides it itself; the `ctxTarget.js` probe reveals the dynamic root
    *with* its children, so a failure is no entry, never an empty submenu.
-7. **Feeds, then one poll.** Shared pins follow each server's `/ws` feed only while a surface
-   is open; everything else rides the single `lib/pollClock.js` heartbeat, skipped while hidden
-   — never a background socket, never a second periodic timer.
-8. **No native `title`.** Tooltips come from `data-title` via `lib/tip/controlTooltip.js`; the
-   injected modal shell (`lib/drop/overlay.js`) is the one exception.
+7. **Feeds, then one poll.** Shared pins follow one `/ws` feed per server per open panel
+   document, closed on `pagehide`; everything else rides the single `lib/pollClock.js`
+   heartbeat, skipped while hidden — never a background socket, never a second periodic timer.
+8. **No native `title`.** Tooltips come from `data-title` via `lib/tip/controlTooltip.js`. The
+   injected modal shell (`lib/drop/overlay.js`) carries `data-title` too, and shows no tooltip
+   over the host page, where that module never runs.
 9. **Attachments are rasterised** to PNG (`lib/image/rasterize.js`) before they are sent.
 10. **Motion** mirrors `browser/js/ui/motion/` value for value; `tests/portParity.test.js`
     pins the ports.
+11. **Typed boundaries are a pinned allowlist.** `tests/helpers/dtsDocumented.js` lists every
+    `src/` module that carries a `.d.ts`, and `tests/dts.test.js` holds the tree to exactly that
+    list and every declaration to a real export. A ported module carries its original's `.d.ts`
+    as a port; `lib/motion.js`, a re-export barrel, carries none.
 
 ## Tests
 
@@ -206,4 +254,5 @@ asserts the import direction, every `.d.ts`, self-contained injected functions, 
 mirror, the manifest's CSP and its one web-accessible resource. The CSS pin holds every
 declaration per document; the guard's negative suites cover blocked addresses and a refused
 redirect. The content scripts run in a `vm` over a stub page; the feed and poll run on a fake
-clock.
+clock. Concurrent storage writers race over the stub's deferred `set`, and gated promises drive
+the cross-context store writes, the scan turns, the cold-worker relabel and a stopped chat turn.

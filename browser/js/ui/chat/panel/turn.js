@@ -2,7 +2,8 @@
 // toast a turn landing on a closed panel leaves behind.
 import { notify } from '../../../utils.js';
 import { loadLlmSettings } from '../../../llm/settings.js';
-import { runLoggedChatTurn, closedTurnToast } from '../../../llm/chat/session.js';
+import { runLoggedChatTurn, closedTurnToast, chatTurnInFlight } from '../../../llm/chat/session.js';
+import { chatBusyError } from '../../../llm/chat/controller.js';
 import { stickToBottom, notifyAttachmentsChanged } from '../view.js';
 
 export function createPanelTurn(deps) {
@@ -21,6 +22,10 @@ export function createPanelTurn(deps) {
 // The shared logged-turn frame; runTurn rethrows a failed turn so stencil.prompt gets
 // the typed rejection too.
   const runTurn = async (text) => {
+    if (sending || chatTurnInFlight()) {
+      notify(chatBusyError().message, 'info');
+      throw chatBusyError();
+    }
     sending = true;
     updateControls();
     markChatBusy(!panelIsOpen());

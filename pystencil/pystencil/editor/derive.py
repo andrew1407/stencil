@@ -1,9 +1,5 @@
-"""The derived-view pipeline and the page metrics it rests on.
-
-``result()`` applies the CLI ``rebuild()`` order — rotate → crop → filter →
-rasterize lines — and the geometry helpers below are ported one-to-one from
-``session.zig`` / ``pipeline.zig``.
-"""
+"""The derived view, in the CLI ``rebuild()`` order, and the page metrics it rests on; the
+geometry helpers are ported one-to-one from ``session.zig`` / ``pipeline.zig``."""
 
 from __future__ import annotations
 
@@ -15,24 +11,15 @@ CropRect = tuple[int, int, int, int]
 
 
 class _DeriveApi:
-  """The derived view, the page format that rides the layout, and the
-  geometry helpers both need."""
-  # ── render + save ──────────────────────────────────────────────────────────
   def result(self, with_lines: bool = True) -> Image:
-    """Derive and return the current view: mirror → rotate → crop → filter → rasterize lines.
-
-    Memoized on :attr:`revision`, so repeated calls between edits cost only the copy
-    that keeps every caller's :class:`Image` an independent buffer (mirrors
-    ``session.rebuild`` producing ``working``).
-    ``with_lines=False`` skips the line rasterization (the picture alone).
-    """
+    """The current view: mirror → rotate → crop → filter → rasterize lines (``with_lines=False``
+    skips the lines). Memoized on :attr:`revision`; every caller gets its own buffer copy."""
     key = (self._revision, bool(with_lines))
     if self._result is not None and self._result[0] == key: return self._result[1].copy()
     orig = self._require_original()
     core = self._get_core()
     snap = self._current()
     img = orig
-    # 1. mirror, then rotate the original (core reads src, writes a fresh dst — no extra copy)
     if snap.mirrored: img = Image(img.width, img.height, core.mirror_image_rgba(img.data, img.width, img.height))
     if snap.rotation % 4 != 0:
       data = core.rotate_image_rgba(img.data, img.width, img.height, snap.rotation)
@@ -43,8 +30,7 @@ class _DeriveApi:
       cx, cy, cw, ch = self._clamp_rect(snap.crop, img.width, img.height)
       data = core.crop_image_rgba(img.data, img.width, img.height, cx, cy, cw, ch)
       img = Image(cw, ch, data)
-    # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if none ran
-    #    (contour is dimensioned Sobel edge detection, so it takes its own entry point)
+    # Filters run in place; the steps above hand back fresh buffers, so copy only if none ran.
     if img is orig: img = orig.copy()
     if snap.filter_mode and snap.filter_mode.lower() != "none":
       if snap.filter_mode.lower() == "contour":
@@ -55,7 +41,6 @@ class _DeriveApi:
         if arg:
           tint = core.parse_color(arg) or (0, 0, 0, 255)
           core.apply_filter(arg, img.data, img.pixel_count, (tint[0], tint[1], tint[2]))
-    # 4. rasterize each drawn line in place
     for line in snap.lines if with_lines else []:
       points = [(p.x, p.y) for p in line.points]
       core.rasterize_line(
@@ -66,24 +51,16 @@ class _DeriveApi:
     return img.copy()
 
 
-  # ── page format (project-level; rides the layout) ───────────────────────────
   def set_page_format(
     self,
     name: str,
     width: (float | NoneType) = None,
     height: (float | NoneType) = None,
   ) -> "Editor":
-    """Set the project's page format (mirror the console's ``/format``).
-
-    A named format is matched case-insensitively and stored canonical ("b5" → "B5");
-    ``"custom"`` needs ``width``/``height`` in cm within the shared custom-page range
-    (0.1–500 cm, mirroring the console's ``parseCmDim`` and the browser/desktop
-    inputs; NaN/Infinity are rejected too, so an exported layout stays valid JSON).
-    An empty name clears the format back to unset (the layout omits ``pageSize``
-    again). Unknown names raise ``ValueError`` listing the valid formats. The format
-    rides the saved layout (``pageSize``/``customPageWidth``/``customPageHeight``),
-    like every other client.
-    """
+    """Set the page format, as the console's ``/format``: a name matched case-insensitively and
+    stored canonical ("b5" → "B5"), ``"custom"`` with ``width``/``height`` in cm within
+    0.1–500, or "" to clear it. An unknown name raises ``ValueError``; the format rides the
+    layout's ``pageSize``/``customPageWidth``/``customPageHeight``."""
     spec = (name or "").strip()
     if not spec:
       self._page_size = ""
@@ -130,7 +107,6 @@ class _DeriveApi:
     return self._custom_page_height
 
 
-  # ── geometry helpers (ported from session.zig) ─────────────────────────────
   def _view_dims(self, snap: _Snapshot) -> tuple[int, int]:
     """Dimensions of the view a snapshot derives (rotation then crop; filter/lines keep dims)."""
     orig = self._original
@@ -154,9 +130,8 @@ class _DeriveApi:
     return (x, y, rw, rh)
 
   def _named_page_for_image(self, name: str, w: int, h: int) -> tuple[float, float]:
-    """A named format's cm dims oriented to a ``w``x``h`` image — port of
-    ``page.namedPageForImage``. A landscape image lays the page on its side.
-    """
+    """A named format's cm dims oriented to a ``w``x``h`` image, a landscape image laying the page
+    on its side — port of ``page.namedPageForImage``."""
     bw, bh = self._get_core().named_page_size(name) or _A4_FALLBACK
     if w > h: return (max(bw, bh), min(bw, bh))
     return (min(bw, bh), max(bw, bh))
@@ -185,7 +160,6 @@ class _DeriveApi:
     x2: (float | NoneType),
     y2: (float | NoneType),
   ) -> str:
-    """Assemble a ``"x1=.. y1=.. x2=.. y2=.."`` crop spec, omitting None edges."""
     parts: list[str] = list()
     if x1 is not None: parts.append("x1=%s" % x1)
     if y1 is not None: parts.append("y1=%s" % y1)

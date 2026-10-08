@@ -187,9 +187,17 @@ export const createChatController = ({
       const images = attachments.map((a) => a && a.image).filter(Boolean);
       const note = attachmentNote(attachments);
       const msgText = String(text ?? '') + (note ? `\n\n${note}` : '');
-      pushHistory(images.length ? { role: 'user', text: msgText, images } : { role: 'user', text: msgText });
+      const userTurn = images.length ? { role: 'user', text: msgText, images } : { role: 'user', text: msgText };
+      pushHistory(userTurn);
       clearAsked = false;   // an aborted earlier turn must not leak its request
-      const result = await round(client, tabs, false, signal);
+      let result;
+      try {
+        result = await round(client, tabs, false, signal);
+      } catch (err) {
+        // A turn no reply answered (stopped, unreachable) leaves history as it was; Retry re-sends it.
+        if (history[history.length - 1] === userTurn) history.pop();
+        throw err;
+      }
       if (clearAsked) {
         // §10 clearChat, resolved LAST — after the plan's other actions and any
         // continuation round. A declined confirm is a note, never a failed plan.

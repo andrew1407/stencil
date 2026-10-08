@@ -1,9 +1,6 @@
-"""Running a ``.stc`` script against this editor.
-
-Each lowered op becomes one ordinary editor call — ``crop``/``set_filter``/``draw``/
-``undo``/``save`` — so a script and a hand-typed session move through exactly the same
-code. Lengths resolve against the view as it stands at that op, because an
-earlier crop already changed it. Twin of ``cli/src/console/handlers/script.zig``.
+"""Running a ``.stc`` script against this editor: each lowered op is one ordinary editor call,
+its lengths resolved against the view as it stands at that op (an earlier crop already moved
+it). Twin of ``cli/src/console/handlers/script.zig``.
 """
 
 from __future__ import annotations
@@ -115,8 +112,6 @@ HANDLERS = {
 
 
 class _ScriptApi:
-  """``Editor.script`` / ``Editor.script_run`` — the ``.stc`` surface of the facade."""
-
   def script(self, text: str, *, confine_output: bool = False) -> ScriptResult:
     """Parse and run ``text`` against this editor, returning a :class:`ScriptResult`.
 
@@ -143,7 +138,6 @@ class _ScriptApi:
     return result
 
   def script_run(self, path: str, *, confine_output: bool = False) -> ScriptResult:
-    """Read a ``.stc`` file and run it against this editor."""
     return self.script(read_script(path), confine_output=confine_output)
 
   def _script_save(self, op: Op, ctx: _OpContext) -> str:

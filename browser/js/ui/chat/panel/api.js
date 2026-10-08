@@ -1,8 +1,8 @@
 // `app.chat`, the chat panel's scripting surface (console/stencilApi.js): every call rides
 // the same code path as the panel's own buttons.
-import { chatLog, clearSharedConversation, peekChatController } from '../../../llm/chat/session.js';
+import { chatLog, clearSharedConversation, peekChatController, chatTurnInFlight } from '../../../llm/chat/session.js';
 import { rowsToMessages } from '../../../llm/chat/store.js';
-import { MAX_ATTACHMENTS } from '../../../llm/chat/controller.js';
+import { MAX_ATTACHMENTS, chatBusyError } from '../../../llm/chat/controller.js';
 import { DOCKS, DOCK_SIDES } from '../geometry.js';
 
 export function createPanelApi(deps) {
@@ -38,7 +38,7 @@ export function createPanelApi(deps) {
       });
     },
     prompt: async (text, images = []) => {
-      if (turn.isSending) throw new Error('The assistant is already answering — wait for the current turn');
+      if (turn.isSending || chatTurnInFlight()) throw chatBusyError();
 // The whole batch is checked against the remaining room first, so a rejected call never
 // changes the tray (§7 MAX_ATTACHMENTS).
       const room = MAX_ATTACHMENTS - (peekChatController(app)?.attachments.length || 0);
@@ -54,7 +54,7 @@ export function createPanelApi(deps) {
     abort: () => turn.abort(),
 // The trash button's shared path (§12: the persisted copy clears too); refused mid-turn.
     clear: () => {
-      if (turn.isSending) throw new Error('The assistant is answering — stop the turn before clearing');
+      if (turn.isSending || chatTurnInFlight()) throw new Error('The assistant is answering — stop the turn before clearing');
       clearSharedConversation(app);
       updateControls();
     },

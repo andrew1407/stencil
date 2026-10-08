@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import unittest
 
 from pystencil.server import ServerConnection, ServerError
@@ -192,3 +193,24 @@ class SessionProbeTest(unittest.TestCase):
     self.assertEqual((conn.token, conn.credential_kind), ("sess1", "admin"))
     self.assertEqual([c[2] for c in calls], [
       "/auth/session", "/projects?limit=1", "/auth/token", "/projects?limit=1"])
+
+  def test_racing_stale_requests_share_one_re_mint(self) -> None:
+    both_failed = threading.Barrier(2, timeout=10)
+
+    def handler(bearer, method, path):
+      if path == "/auth/token":
+        return {"token": "sess%d" % sum(c[2] == "/auth/token" for c in calls)}
+      if bearer == "stale":
+        both_failed.wait()
+        raise ServerError("unauthorized", "expired", status=401)
+      return {"projects": [{"id": bearer}]}
+
+    conn, calls = self._stubbed("admintok", handler)
+    conn.token = "stale"
+    got = list()
+    threads = [threading.Thread(target=lambda: got.append(conn.list_projects()))
+               for _ in range(2)]
+    for thread in threads: thread.start()
+    for thread in threads: thread.join(10)
+    self.assertEqual(got, [[{"id": "sess1"}]] * 2)
+    self.assertEqual([c[2] for c in calls].count("/auth/token"), 1)

@@ -7,6 +7,7 @@ import { normalizePageSize } from '../settings/units.js';
 import { normalizeUrl } from '../../net/connectionManager.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { timeoutSignal } from '../../net/abortable.js';
+import { readBlobCapped } from '../../net/cappedBody.js';
 import { revealControls } from '../../ui/motion.js';
 import { newEditor, replaceProjectImage } from './openFlow.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
@@ -36,7 +37,7 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
   const imageUrl = launch.kind === 'src' ? launch.src : launch.dataUrl;
   if (launch.kind === 'src' && !opts.source) opts.source = launch.src;
   return fetch(imageUrl, { signal: timeoutSignal(), ...(launch.kind === 'src' ? { mode: 'cors' } : null) })
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return readBlobCapped(r); })
     .then(blob => {
       const file = new File([blob], name, { type: blob.type || 'image/png' });
       if (mode === 'new') loadImageFromFile(app, file, opts);

@@ -2,6 +2,7 @@ import { notify } from '../../utils.js';
 import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../../ui/canvas/serverLayoutPaint.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { guardedFetch } from '../../net/fetchGuard.js';
+import { readBlobCapped } from '../../net/cappedBody.js';
 import { shouldReloadFromEvent } from '../../net/remoteSync.js';
 import { ResultUploader } from './resultUpload.js';
 import { imageSignature, withOriginal, samePicture, applyPeerLayout } from './peerLayout.js';
@@ -172,7 +173,7 @@ export class RemoteSyncController {
     try { blob = await conn.fetchFile(remoteId, 'original'); } catch {}
     if (!blob && /^https?:/i.test(src || '')) {
       const resp = await guardedFetch(src, { mode: 'cors' });
-      if (resp.ok) blob = await resp.blob();
+      if (resp.ok) blob = await readBlobCapped(resp);
     }
     return blob;
   }

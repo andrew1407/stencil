@@ -46,6 +46,11 @@ const PAGE_NAME_BY_LOWER = Object.fromEntries(
 export const normalizePageSize = (s) =>
   PAGE_NAME_BY_LOWER[String(s || '').trim().toLowerCase()] ?? null;
 
+// The page's natural size in cm, as the table names it (no landscape swap); an unknown name is A4.
+export const pageNaturalSize = ({ pageSize, customPageWidth, customPageHeight }) => (pageSize === 'custom'
+  ? { width: customPageWidth, height: customPageHeight }
+  : { ...(PAGE_SIZES[pageSize] || PAGE_SIZES.A4) });
+
 // Total length of every segment in a saved layout, in cm, by getPageDimensions' named-size +
 // landscape-swap rule. Cached on the meta as `lineLengthCm`.
 export const layoutLineLengthCm = (layout) => {

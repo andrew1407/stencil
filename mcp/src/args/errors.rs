@@ -1,5 +1,3 @@
-//! Errors.
-//!
 //! A hand-written error type whose `Display` is the exact user-facing message. Runtime
 //! failures threaded up from the pipeline ride the `Runtime` variant with a ready message.
 
@@ -141,8 +139,7 @@ impl std::fmt::Display for EditError {
 
 impl std::error::Error for EditError {}
 
-/// Runtime failures (locate/spawn/CLI-reported errors) arrive as ready-made strings; wrap
-/// them so `?` composes on `Result<_, String>` helpers.
+/// Runtime failures arrive as ready-made strings; this lets `?` compose on `Result<_, String>`.
 impl From<String> for EditError {
     fn from(message: String) -> Self {
         EditError::Runtime(message)

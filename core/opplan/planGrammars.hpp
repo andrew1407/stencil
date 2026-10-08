@@ -3,8 +3,9 @@
 #include <string_view>
 
 // The registry's token grammars (opRegistry.json `regexes`) matched by hand — core has no regex
-// engine and std::regex throws. Each row records the source it matches with JS RegExp
-// semantics; tests pin both to the registry and to generated/grammarProbes.json.
+// engine and std::regex throws. Twin of the RegExps browser/js/llm/plan/opSchema.js compiles:
+// each row records the source it matches with JS RegExp semantics; tests pin both to the
+// registry and to generated/grammarProbes.json.
 namespace stencil::core::opplan {
 
   enum class Grammar {

@@ -135,6 +135,26 @@ int main(int argc, char** argv) {
     check(sessions == 1, "the autosave timer arms regardless of the remote sync setting");
   }
 
+  // A close flushes what the debounces still hold, once, and nothing they never armed.
+  {
+    SessionController sc;
+    int sessions = 0, views = 0;
+    sc.attach(&app, [&] { ++sessions; }, [&] { ++views; });
+    sc.flushPending();
+    check(sessions == 0 && views == 0, "a flush with nothing pending writes nothing");
+    sc.scheduleAutosave(true, ready());
+    sc.scheduleViewSave(ready());
+    sc.flushPending();
+    check(sessions == 1 && views == 1, "a flush writes the pending session and view at once");
+    pump(SessionController::AUTOSAVE_MS + 250);
+    check(sessions == 1 && views == 1, "…and the debounce it overtook does not write them again");
+    Gates off = ready();
+    off.incognito = true;
+    sc.scheduleAutosave(true, off);
+    sc.flushPending();
+    check(sessions == 1, "an incognito editor has nothing pending to flush");
+  }
+
   std::printf(failures ? "\nFAILED (%d)\n" : "\nOK\n", failures);
   return failures ? 1 : 0;
 }

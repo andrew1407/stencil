@@ -9,6 +9,10 @@ export declare class Storage {
   constructor(app: DrawingApp);
   app: DrawingApp;
   store: ProjectsStore;
+  /** What `store` reads and writes through: the IndexedDB backend, or plain localStorage. */
+  backend: import('../project/store/projectsBackend.js').ProjectsBackend | import('../project/store/projectsBackend.js').StorageLike | null;
+  /** Bumped per save, so only the newest save's commit confirmation acts. */
+  commitSeq?: number;
   activeId: string | null;
   temporary: boolean;
   /** A deliberately unsaved editor: never persists, even once an image loads. */

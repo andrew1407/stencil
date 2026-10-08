@@ -17,11 +17,9 @@ public sealed record EditRequest
     // A missing/unknown extension is auto-filled by the CLI.
     public required string Output { get; init; }
 
-    // When false the adapter refuses to overwrite an existing Output.
     public bool Overwrite { get; init; }
 
-    // Server flags (cli/CONTRACT.md §1), kept so the adapter stays argv-conformant with mcp. With
-    // Server, Input is the NAME of a project to fetch and edit; incompatible with Blank.
+    // Server flags (cli/CONTRACT.md §1): with Server, Input is the NAME of a project to fetch and edit.
     public string? Server { get; init; }
 
     public bool RemoteUpdate { get; init; }

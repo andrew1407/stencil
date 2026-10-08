@@ -1,6 +1,5 @@
-/* ── Main-theme picker: custom colour-swatch dropdown (js/ui/accent/picker.js) ──
-   A native <select> can't paint a colour rect per option on every OS, so this is
-   a small listbox: trigger (current swatch + name) plus a popup of rect+name rows. */
+/* Main-theme picker (js/ui/accent/picker.js): a native <select> cannot paint a colour rect per
+   option on every OS, so a small listbox of rect+name rows. */
 .accent-swatch {
     width: 16px;
     height: 16px;
@@ -13,13 +12,8 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
     transition: background 0.2s ease;
 }
-/* The ✓ marking the ACTIVE preset, baked into its own chip — desktop parity
-   (MainWindow.cpp openAccentPicker draws the same tick into the current swatch), and a
-   marker the row tint can't be: that tint is the same affordance :hover uses, so on the
-   logo menu (opened under the pointer) the active row read no differently from the row
-   being hovered. It inherits the chip's own on-accent ink (accentPicker.js sets it per
-   preset). Every row carries the glyph; only the selected one reveals it, so a custom
-   hex accent (which selects no row) marks nothing. */
+/* The ✓ marks the active preset on its own chip (desktop parity: openAccentPicker), since the row
+   tint is the hover's look; a custom hex accent selects no row and marks nothing. */
 .accent-check {
     opacity: 0;
     transition: opacity 0.15s ease;
@@ -41,13 +35,10 @@
     cursor: pointer;
     transition: border-color 0.2s ease;
 }
-/* The trigger is a <button>, so the app-wide `button:hover { background: var(--accent-2) }`
-   filled it with the accent while its label kept --input-text — dark text on violet in the
-   light theme, with the caret lost too (user report). A field's hover only lights its
-   border; the accent-on-white text shadow is not this control's either. */
-/* :not(:disabled): a disabled trigger (Compare with no image loaded, etc.) must read as
-   dead — this rule's own class specificity otherwise outranks the generic
-   `button:disabled` (shell.css) even while hovering it (user report). */
+/* The trigger is a <button>: the app-wide button:hover accent fill made dark text on violet
+   (user report). A field's hover only lights its border. */
+/* :not(:disabled): this class otherwise outranks `button:disabled` while hovered, and a disabled
+   trigger must read as dead (user report). */
 .accent-dd-trigger:hover:not(:disabled) { border-color: var(--accent); background: var(--input-bg); color: var(--input-text); }
 .accent-dd-trigger:not(:disabled) { text-shadow: none; }
 .accent-dd-trigger:not(:disabled) .ic { filter: none; }
@@ -81,17 +72,13 @@
     box-shadow: 0 8px 24px var(--shadow);
 }
 .accent-dd-menu[hidden] { display: none; }
-/* While open, a menu is moved to <body> and placed in viewport coordinates
-   (js/ui/control/dropdownMenu.js) — `.controls` clips its overflow, which used to slice a long
-   list off at the panel edge, and nothing kept a low trigger's list inside the window.
-   Above every modal/panel, just under #app-tooltip (100003). */
+/* While open the menu moves to <body> in viewport coordinates (dropdownMenu.js): `.controls` clips
+   its overflow. Above every modal and panel, just under #app-tooltip (100003). */
 .accent-dd-menu.dd-portal {
     position: fixed;
     right: auto;
-    /* No `min-width: 100%` here: on <body> that is the whole VIEWPORT, and a list measured
-       at that width before placeMenu's inline trigger-width landed was clamped to the
-       left margin (user report: the list opened at the far left). placeMenu sets the
-       real floor inline. */
+    /* No `min-width: 100%`: on <body> that is the viewport, and the list opened at the far left
+       (user report). placeMenu sets the real floor inline. */
     min-width: 0;
     z-index: 100002;
 }
@@ -108,13 +95,8 @@
    highlight survives the accent flood's View Transition, which drops real :hover. */
 .accent-dd-opt:hover, .accent-dd-opt.dd-hover { background: var(--bg-coord-hover); }
 .accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-/* The logo's right-click / Alt / Alt+click copy of the menu (ui/toolbar/toolbar.js): anchored
-   under the top-left logo inside .app-logo-wrap, so it hangs LEFT-aligned (the shared
-   rule's right:0 would fling it off-screen) and sizes to its rows rather than a trigger.
-   max-height:none lifts the shared 280px cap (sized for the Visuals dialog, it made this
-   full preset list scroll even in a tall window); toolbar.js re-caps it inline to the
-   space under the logo on every open, so the inherited overflow-y:auto only ever shows a
-   scrollbar when the window is genuinely too short for all the rows. */
+/* The logo's copy of the menu (ui/toolbar/toolbar.js) hangs left-aligned under the logo and sizes
+   to its rows; max-height:none lifts the 280px cap, and toolbar.js re-caps it to the room below. */
 .logo-accent-menu {
     left: 0;
     right: auto;
@@ -122,11 +104,8 @@
     min-width: 132px;
     max-height: none;
 }
-/* Hover bridge over the 6px anchor gap: while the menu shows, the pointer can
-   travel logo → menu without ever leaving the wrap's subtree, so the hold-Alt
-   peek (which hides when both are left) survives the crossing — and the hover
-   latch never blinks on the way down. On the WRAP's ::after (its ::before is the
-   ray layer, and the menu's own pseudos would be clipped by its overflow-y). */
+/* Hover bridge over the 6px anchor gap, so the hold-Alt peek survives the logo → menu crossing.
+   On the wrap's ::after: its ::before is the ray layer. */
 .app-logo-wrap:has(.logo-accent-menu:not([hidden]))::after {
     content: "";
     position: absolute;
@@ -135,20 +114,15 @@
     width: 132px;   /* the menu's min-width — covers a diagonal exit toward the rows */
     height: 8px;
 }
-/* While the menu is up (incl. its exit beat), lift the whole wrap: its own stacking
-   context (layout/topbar.css, z-index:0) would otherwise let later positioned toolbar
-   content paint over the dropped-down list. */
+/* Lifted while the menu is up: the wrap's own stacking context (z-index:0) lets later toolbar
+   content paint over the list. */
 .app-logo-wrap:has(.logo-accent-menu:not([hidden])) { z-index: 60; }
-/* Custom toolbar selects (customSelect.js): reuse the .accent-dd look but size the
-   trigger to its content (page-size / units are narrow) and match the surrounding
-   native controls (4px radius, 14px). The replaced native <select> is hidden but
-   stays in the DOM as the value source. */
+/* Custom toolbar selects (customSelect.js): the .accent-dd look sized to content (4px radius,
+   14px); the hidden native <select> stays in the DOM as the value source. */
 .cs-native { display: none; }
 .cs-dd .accent-dd-trigger { min-width: 0; gap: 6px; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
 .cs-dd .accent-dd-menu { left: 0; right: auto; min-width: 100%; }
-/* Searchable dropdown popups (enhanceSelect { search: true }, e.g. #page-size): a
-   .modal-search-style input pinned above the scrolling option rows, plus the
-   "no match" placeholder row shown when the query filters everything out. */
+/* Searchable dropdowns: a search input pinned above the rows, and a "no match" row. */
 .accent-dd-search-row {
     position: sticky;
     top: -4px;               /* cancel the menu's 4px padding so it pins flush */

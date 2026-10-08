@@ -6,9 +6,10 @@
 #include <string_view>
 #include <vector>
 
-// The token layer of jsonReader and its one driver loop: RFC 8259 grammar over valid UTF-8,
-// strings decoded to WTF-8 (an escaped surrogate pair joins into one code point). The driver
-// keeps its own container stack, so nesting never recurses.
+// The token layer of jsonReader and its one driver loop: the JSON.parse that
+// browser/js/llm/plan/parser.js calls — RFC 8259 grammar over valid UTF-8, strings decoded to
+// WTF-8 (an escaped surrogate pair joins into one code point). The driver keeps its own
+// container stack, so nesting never recurses.
 namespace stencil::core::json::scan {
 
   struct Scanner {

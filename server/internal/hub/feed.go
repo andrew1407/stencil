@@ -11,7 +11,7 @@ import (
 )
 
 // watchFeed hands each `updated` project-event's version to that project's live session on this
-// instance, until the hub's context ends; stop releases the subscription.
+// instance, and a `deleted` one ends it, until the hub's context ends; stop releases the subscription.
 func (h *Hub) watchFeed(events <-chan eventbus.Envelope, stop func()) {
 	defer stop()
 	for {
@@ -26,14 +26,18 @@ func (h *Hub) watchFeed(events <-chan eventbus.Envelope, stop func()) {
 				continue
 			}
 			var msg protocol.WSMessage
-			if json.Unmarshal(env.Data, &msg) != nil || msg.Event != protocol.EventUpdated || msg.Project == nil {
+			if json.Unmarshal(env.Data, &msg) != nil || msg.Project == nil {
 				continue
 			}
 			h.mu.Lock()
 			s := h.sessions[msg.Project.ID]
 			h.mu.Unlock()
-			if s != nil {
+			switch {
+			case s == nil:
+			case msg.Event == protocol.EventUpdated:
 				s.noteWrite(msg.Project.Version)
+			case msg.Event == protocol.EventDeleted:
+				s.deleteOnce.Do(func() { close(s.deleted) })
 			}
 		}
 	}

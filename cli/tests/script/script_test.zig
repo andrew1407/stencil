@@ -14,10 +14,6 @@ const sources = @import("../../src/script/sources.zig");
 const steps = @import("../../src/pipeline/steps.zig");
 const pixelsOf = @import("pixels.zig").pixelsOf;
 
-test {
-    _ = @import("clobber_test.zig"); // reaches the test build through this file
-}
-
 test "the save matrix: bare, directory, named and exact targets" {
     const gpa = testing.allocator;
     const Case = struct { target: []const u8, want: []const u8 };

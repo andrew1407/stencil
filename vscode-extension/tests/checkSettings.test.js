@@ -60,3 +60,14 @@ test('checkOnType off: typing schedules no check at all', async () => {
     assert.equal(calls.collections[0].entries.size, 0, 'nothing was checked while typing');
   });
 });
+
+test('disposing the context cancels a pending typing check', async () => {
+  await withHost({ 'stencil.cliPath': '/nowhere/stencil' }, async ({ calls, diagnostics }) => {
+    const context = { subscriptions: [] };
+    diagnostics.register(context);
+    calls.events.change[0]({ document: makeDocument({ text: TEXT }) });
+    for (const d of context.subscriptions) d.dispose?.();
+    await delay(diagnostics.DEBOUNCE_MS * 2);
+    assert.equal(calls.collections[0].entries.size, 0, 'no check ran after deactivation');
+  });
+});

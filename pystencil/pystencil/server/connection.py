@@ -1,14 +1,13 @@
 """One connected Stencil server: identity, request plumbing and the handshake.
 
-The REST surface itself lives in the two mixins this class composes —
-:mod:`.projects` (project metadata) and :mod:`.files` (file bytes + remoteSync) —
-so each stays readable on its own. Every call ultimately routes through
-``_request`` here, which owns the one-shot session-token re-mint.
+Every call of the :mod:`.projects` and :mod:`.files` mixins routes through ``_request``,
+which owns the one-shot session-token re-mint.
 """
 
 from __future__ import annotations
 
 import json
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -23,30 +22,22 @@ from .urls import normalize_url, split_invite_token
 
 
 class ServerConnection(_ProjectApi, _FileApi):
-  """A single connected Stencil server (validated token + REST surface)."""
-
   def __init__(self, url: str, token: (str | NoneType) = None, *, verify: bool = True) -> None:
-    # Invite links carry the token as a '#token=' fragment; explicit wins.
     url, token = split_invite_token(url, token)
     self.base = normalize_url(url)
     self.token = token or ""
-    # What the user supplied — outlives a server restart (_request re-mints
-    # with it when the stored session token goes stale). "" = none supplied.
+    # What the user supplied, kept to re-mint after a server restart; "" = none supplied.
     self.credential = token or ""
-    # What that credential turned out to BE (browser connectionManager parity): "admin" once it
-    # has minted a session token, "session" once it passed GET /projects, "none" if absent.
+    # "admin" once it minted a session token, "session" once it passed a probe, "none" if absent.
     self.credential_kind = "" if self.credential else "none"
-    # 'disconnected' until connect() validates/acquires a token, then 'connected', or 'error'
-    # (mirrors the browser UI dot, minus the live 'connecting' transition).
+    # 'disconnected' | 'connected' | 'error'.
     self.status = "disconnected"
-    # A stable client id, namespaced like the browser's c_<rand>. Derived
-    # from object identity so it's deterministic per instance without RNG.
+    # The browser's c_<rand> namespace, from object identity rather than an RNG.
     self.client_id = "c_" + format(id(self) & 0xFFFFFFFF, "08x")
-    # When False, accept self-signed certs (dev servers); default verifies.
     self._verify = verify
     self._ssl_ctx = None if verify else _unverified_ssl_context()
+    self._mint_lock = threading.Lock()
 
-  # ── request plumbing ──
   def _build_request(
     self,
     method: str,
@@ -57,13 +48,8 @@ class ServerConnection(_ProjectApi, _FileApi):
     raw: bool = False,
     query: (dict | NoneType) = None,
   ) -> urllib.request.Request:
-    """Pure builder: assemble a urllib Request for `method base+path`.
-
-    Kept side-effect free (no network) so it can be unit-tested directly.
-    `raw=True` sends `body` verbatim as application/octet-stream (file
-    uploads); otherwise a non-None body is JSON-encoded. The Authorization
-    header is always present (Bearer <token>), matching the browser client.
-    """
+    """`method base+path`, no network: `raw` sends `body` as octet-stream, else a non-None body
+    is JSON; the Bearer header is always present."""
     url = self.base + path
     if query:
       # Stable, urlencoded query string (?ext=png&w=320&h=240).
@@ -79,11 +65,7 @@ class ServerConnection(_ProjectApi, _FileApi):
     return _json_request(method, url, body, bearer=tok or "")
 
   def _open(self, req: urllib.request.Request, raw: bool = False) -> Any:
-    """Execute a Request, translating non-2xx into ServerError.
-
-    Returns parsed JSON for normal calls, raw bytes when `raw=True`
-    (file downloads), or None for empty/204 responses.
-    """
+    """Parsed JSON, the raw bytes when `raw`, or None for an empty/204 reply; non-2xx is ServerError."""
     status, payload = _http_open(req, self._error_from, context=self._ssl_ctx)
     if raw: return payload
     if status == 204 or not payload: return None
@@ -91,7 +73,6 @@ class ServerConnection(_ProjectApi, _FileApi):
 
   @staticmethod
   def _error_from(e: urllib.error.HTTPError) -> ServerError:
-    """Build a ServerError from an HTTPError, parsing {code,message}."""
     code, message = _parse_http_error(e)
     return ServerError(code, message, status=e.code)
 
@@ -105,35 +86,30 @@ class ServerConnection(_ProjectApi, _FileApi):
     query: (dict | NoneType) = None,
     _retried: bool = False,
   ) -> Any:
+    sent = self.token
     req = self._build_request(method, path, body, raw=raw, query=query)
     try:
       return self._open(req, raw=raw)
     except ServerError as err:
-      # A stored session token dies with a server restart — while we still hold the original
-      # credential, re-mint once and retry in place (port of extension connections.js req()).
+      # A session token dies with a server restart: re-mint once from the credential and
+      # retry in place (twin of the extension's connections.js req()).
       if (_retried or path == "/auth/token" or not self.credential
           or err.status not in (401, 403)):
         raise
-      try:
-        mint = self._build_request(
-          "POST", "/auth/token", {}, token=self.credential)
-        r = self._open(mint)
-      except Exception:
-        raise err from None  # failed re-mint: surface the original error
-      self.token = (r or {}).get("token", "")
+      with self._mint_lock:
+        if self.token == sent:  # else a racing request already re-minted
+          try:
+            r = self._open(self._build_request("POST", "/auth/token", {}, token=self.credential))
+          except Exception:
+            raise err from None
+          self.token = (r or {}).get("token", "")
       out = self._request(
         method, path, body=body, raw=raw, query=query, _retried=True)
-      # It minted AND the retried request works: the credential is an admin token.
       self.credential_kind = "admin"
       return out
 
-  # ── handshake ──
   def connect(self) -> "ServerConnection":
-    """Acquire (or validate) a token, mirroring browser handshake().
-
-    Without a token we mint one via POST /auth/token; with a token we
-    validate it through :meth:`_probe`. Sets `status` accordingly.
-    """
+    """Mint a token, or probe the one supplied (twin of the browser's handshake())."""
     try:
       if not self.token:
         r = self._request("POST", "/auth/token", body={})
@@ -141,17 +117,13 @@ class ServerConnection(_ProjectApi, _FileApi):
       else:
         try:
           self._probe()
-          # A probe that passed without _request re-minting (which would have
-          # said "admin" already) means an ordinary session token.
           if self.credential_kind != "admin": self.credential_kind = "session"
         except ServerError as err:
-          # Browser/desktop parity: the value may be the server's ADMIN token — it holds no
-          # session but it can MINT. Only an auth failure means that; a 500 propagates as-is.
+          # An admin token holds no session but can mint; only an auth failure means that.
           if err.status is not None and err.status not in (401, 403): raise
           r = self._request("POST", "/auth/token", body={})
           self.token = (r or {}).get("token", "")
           self._probe()
-          # Minted, and the session it minted works: proven admin credential.
           self.credential_kind = "admin"
     except Exception:
       self.status = "error"
@@ -169,6 +141,6 @@ class ServerConnection(_ProjectApi, _FileApi):
       self._request("GET", "/projects", query={"limit": "1"})
 
   def close(self) -> None:
-    """Drop the connection (REST-only, so just flips status)."""
+    """REST-only, so this only flips `status`."""
     self.status = "disconnected"
 

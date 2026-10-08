@@ -1,6 +1,5 @@
-"""Project-change diffing and the poll loop that drives watchers, plus the
-connections-listing credential filter. Pure functions over project records.
-"""
+"""Project-change diffing, the poll loop that drives watchers, and the connections-listing
+credential filter."""
 
 from __future__ import annotations
 
@@ -11,25 +10,18 @@ import time
 from .._ffi.types import NoneType
 
 
-# Project-metadata fields a watcher reports on. `version` is the server's monotonic edit
-# counter (any save bumps it); name/color/description are the user-visible metadata.
+# `version` is the server's monotonic edit counter: any save bumps it.
 _WATCHED_FIELDS = ("version", "name", "color", "description")
 _FIELD_DEFAULT = {"version": 0, "name": "", "color": "", "description": ""}
 
-# Attempts for a version-guarded field write before giving up on sustained conflict
-# (matches the CLI's putProjectField retry count).
+# The CLI's putProjectField retry count.
 _FIELD_WRITE_RETRIES = 4
 
 
 def diff_projects(prev: list, curr: list) -> list:
-  """Diff two `GET /projects` lists into project-change events. Pure (no network),
-  so it's unit-tested without a server — the building block for poll-based watching.
-
-  Returns a list of dicts ``{id, kind, fields, project}`` where ``kind`` is
-  ``'created'`` | ``'updated'`` | ``'deleted'`` and ``fields`` lists which of
-  name/color/description/version changed (only for 'updated'; empty for created/deleted).
-  `project` is the current record (the prior record for a deletion).
-  """
+  """Two `GET /projects` lists as ``{id, kind, fields, project}`` events: ``kind`` is
+  created/updated/deleted, ``fields`` the watched fields that changed (only on 'updated'),
+  ``project`` the current record (the prior one for a deletion)."""
   prev_by = {p.get("id"): p for p in (prev or []) if p.get("id")}
   curr_by = {p.get("id"): p for p in (curr or []) if p.get("id")}
   changes: list = list()
@@ -51,12 +43,8 @@ def diff_projects(prev: list, curr: list) -> list:
 
 
 def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> None:
-  """Shared blocking poll loop for the *_changes watchers. Seeds a silent baseline
-  from `fetch()`, then every `interval` seconds re-fetches and fires on_change for
-  each diff. A failed fetch is skipped (keeps the baseline) so a transient outage
-  doesn't look like mass deletes. `stop` (a threading.Event or None) ends the loop;
-  when given, its .wait() makes the sleep interruptible so stop() returns promptly.
-  """
+  """Seed a silent baseline, then every `interval` s fire on_change per diff. A failed fetch
+  keeps the baseline, so an outage never reads as mass deletes; `stop` interrupts the sleep."""
   try:
     baseline = fetch()
   except Exception:
@@ -69,17 +57,13 @@ def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> N
     try:
       current = fetch()
     except Exception:
-      continue  # transient error — keep the baseline, retry next tick
+      continue
     for change in diff_projects(baseline, current): on_change(change)
     baseline = current
 
 
 def parse_credential_filter(arg: str) -> (str | NoneType):
-  """Parse a connections-listing filter word (CLI `/connections [admin|session]`).
-
-  "" (or "all") keeps everything, "admin" keeps admin-credential connections,
-  "session" keeps the rest. None = unrecognised, for a usage note.
-  """
+  """The `/connections [admin|session]` filter: "" or "all" → "all"; None = unrecognised."""
   w = (arg or "").strip().lower()
   if w in ("", "all"): return "all"
   if w in ("admin", "session"): return w
@@ -90,6 +74,6 @@ def credential_filter_matches(flt: str, kind: str) -> bool:
   """True when a connection of credential `kind` belongs in a `flt` listing."""
   if flt == "admin": return kind == "admin"
   if flt == "session":
-    return kind != "admin"  # a plain session token, or none supplied
+    return kind != "admin"
   return True
 

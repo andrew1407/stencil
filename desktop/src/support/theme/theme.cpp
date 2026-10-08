@@ -11,6 +11,7 @@
 #include <cmath>
 #ifdef Q_OS_LINUX
 #include <QProcess>
+#include "../process/childEnv.hpp"
 #endif
 
 // A pre-main caller (tipContent.cpp's static initializer) can run before the resource's
@@ -26,6 +27,7 @@ namespace stencil::gui {
     // Trimmed stdout, empty on failure — the X11/GNOME fallback.
     QString readCommand(const QString& program, const QStringList& args) {
       QProcess proc;
+      proc.setProcessEnvironment(support::scrubbedChildEnv());
       proc.start(program, args);
       if (!proc.waitForFinished(1000)) {
         proc.kill();

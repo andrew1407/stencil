@@ -1,8 +1,5 @@
-//! CLI flag names.
-//!
-//! The exact option strings understood by the Zig CLI (`cli/src/args.zig`). Centralized here
-//! so the flag contract is single-sourced and greppable; `build_argv` references these instead
-//! of bare literals. Changing a flag string means changing it in the CLI too.
+//! The exact option strings the Zig CLI understands (`cli/src/args.zig`), single-sourced:
+//! changing one means changing it in the CLI too.
 
 pub(super) const FLAG_SERVER: &str = "--server";
 pub(super) const FLAG_INPUT: &str = "-i";

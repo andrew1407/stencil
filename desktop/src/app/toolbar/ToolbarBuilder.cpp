@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "windowSheets.hpp"
 #include "ToolbarBuilder.hpp"
 #include "mainWindowHelpers.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
@@ -85,7 +86,7 @@ namespace stencil::gui {
     w.tools.formulaError = new QLabel("\u26A0", w.tools.formulaGroup);
     w.tools.formulaError->setObjectName("formulaError");
     w.tools.formulaError->setToolTip("Invalid formula");
-    w.tools.formulaError->setStyleSheet("color:#d9534f;");
+    w.tools.formulaError->setStyleSheet(support::formulaErrorSheet());
     w.tools.formulaError->setVisible(false);
     // The fields carry the stretch, the tail none: with no tail the excess became spacing and the
     // pair drifted apart.

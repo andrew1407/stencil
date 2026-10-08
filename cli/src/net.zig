@@ -1,7 +1,7 @@
 //! URL fetch using Zig's own HTTP client (std.http.Client) — including HTTPS, via Zig's
-//! built-in TLS and system CA bundle. No external tool: images and layout JSON given as
-//! http(s) URLs are downloaded in-process. (Video URLs are handled by ffmpeg, which reads
-//! URLs directly; pure-Zig video decoding isn't practical — see video.zig.)
+//! built-in TLS and system CA bundle. No external tool: images, layout JSON and video clips
+//! given as http(s) URLs are downloaded in-process (a clip then reaches ffmpeg as a local
+//! file, media/remoteVideo.zig).
 const std = @import("std");
 const report = @import("app/report.zig");
 const host_guard = @import("net/host.zig");

@@ -184,7 +184,7 @@ export class StencilChatPanel extends StencilElement {
 // Clear = a fresh conversation; settings and the working image are untouched.
     const clearBtn = $('chat-clear');
     clearBtn.addEventListener('click', () => {
-      if (turn.isSending) return;
+      if (turn.isSending || chatTurnInFlight()) return;
       clearSharedConversation(app);
       updateControls();
       input.focus();

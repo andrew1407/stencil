@@ -72,7 +72,6 @@ const walkSubtree = ({ root, props, dropped, maxNodes }) => {
   return { nodes, truncated };
 };
 
-// One raw capture — no settling.
 const readPin = async (page, { root, props }) => {
   const out = await page.evaluate(walkSubtree,
     { root, props, dropped: DROPPED, maxNodes: MAX_NODES });

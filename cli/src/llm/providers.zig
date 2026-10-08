@@ -17,6 +17,19 @@ pub const Defaults = struct {
     key_ttl_minutes: u32, // providers.anthropic.sessionKey.ttlMinutes
 };
 
+/// timeouts.perSurface.cli.chatSeconds: how long one console LLM call may run. Read at comptime,
+/// since transport.zig's deadline is a constant.
+pub const cli_chat_seconds: u32 = blk: {
+    @setEvalBranchQuota(asset.len * 4);
+    const surfaces = asset[std.mem.indexOf(u8, asset, "\"perSurface\"").?..];
+    const cli = surfaces[std.mem.indexOf(u8, surfaces, "\"cli\"").?..];
+    const needle = "\"chatSeconds\": ";
+    const at = std.mem.indexOf(u8, cli, needle).? + needle.len;
+    var end = at;
+    while (std.ascii.isDigit(cli[end])) end += 1;
+    break :blk std.fmt.parseInt(u32, cli[at..end], 10) catch @compileError("providers.json: bad cli chatSeconds");
+};
+
 var cached: ?Defaults = null;
 var scratch: [4096]u8 = undefined;
 
@@ -77,4 +90,11 @@ test "providers.json: the anthropic entry, its upstream constants and the sessio
     try testing.expectEqualStrings("2023-06-01", d.anthropic_version);
     try testing.expect(d.default_model.len != 0 and d.max_tokens > 0);
     try testing.expectEqual(@as(i64, 720 * 60 * 1000), keyTtlMs());
+}
+
+test "the comptime cli chatSeconds is what a real parse of providers.json reads" {
+    const parsed = try std.json.parseFromSlice(std.json.Value, testing.allocator, asset, .{});
+    defer parsed.deinit();
+    const cli = parsed.value.object.get("timeouts").?.object.get("perSurface").?.object.get("cli").?.object;
+    try testing.expectEqual(@as(i64, cli_chat_seconds), cli.get("chatSeconds").?.integer);
 }

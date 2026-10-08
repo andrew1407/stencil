@@ -1,8 +1,4 @@
-"""Format detection: magic-byte sniffing and codec-free header dimension reads.
-
-No decode here — just enough of each header to name the format and size it, so
-callers can size-filter scraped media without a full decode.
-"""
+"""Format detection: magic-byte sniffing and codec-free header dimension reads."""
 
 from __future__ import annotations
 
@@ -31,8 +27,6 @@ def check_size(width: int, height: int, fmt: str) -> None:
       "%s is %dx%d, past the %d-pixel side cap" % (fmt, width, height, MAX_SIDE))
 
 
-# --- format detection ------------------------------------------------------
-
 # The 8-byte PNG signature (RFC 2083) and the 2-byte BMP / JPEG markers.
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _BMP_MAGIC = b"BM"
@@ -44,12 +38,8 @@ Dimensions = tuple[int, int]
 
 
 def sniff(data: bytes) -> str:
-  """Identify a buffer by its leading magic bytes.
-
-  Returns one of ``'png'``, ``'bmp'``, ``'jpeg'`` or ``'unknown'``. We only
-  look at the header, never the extension, because callers may hand us bytes
-  fetched over HTTP with no filename attached.
-  """
+  """``'png'``, ``'bmp'``, ``'jpeg'`` or ``'unknown'`` by the magic bytes, never an extension:
+  fetched bytes carry no filename."""
   if data[:8] == _PNG_MAGIC:
     return "png"
   if data[:2] == _BMP_MAGIC:
@@ -139,11 +129,7 @@ def __jpeg_dimensions(data: bytes) -> (Dimensions | NoneType):
 
 
 def format_from_ext(path: str) -> (str | NoneType):
-  """Map a filename's extension to an encoder name, or ``None`` if unknown.
-
-  Used by ``Image.save`` to pick a format when none is given. Case-insensitive
-  so ``"x.PNG"`` -> ``"png"``; ``.jpg`` and ``.jpeg`` both name ``"jpeg"``.
-  """
+  """The encoder a filename's extension names, case-insensitively, or ``None`` if unknown."""
   lower = path.lower()
   if lower.endswith(".png"):
     return "png"

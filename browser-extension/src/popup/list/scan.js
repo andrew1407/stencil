@@ -9,6 +9,9 @@ import { state, rowResource } from './model.js';
 import { filterUi, applyFilters } from './filters.js';
 import { loadShared, startSharedPolling } from '../pin/sharedPins.js';
 import { editorMode } from '../editor/handle.js';
+import { createScanTurns } from './scanTurns.js';
+
+const scanTurns = createScanTurns();
 
 // A DevTools panel is pinned to the tab it inspects, regardless of focus.
 const getTargetTab = async () => {
@@ -18,13 +21,15 @@ const getTargetTab = async () => {
 };
 
 // The tabs this scan reads: on an editor tab, every ticked source page. [] = nothing to scan.
-const resolveScanTab = async () => {
+// null = a later scan began meanwhile.
+const resolveScanTab = async (isCurrent) => {
   const tab = await getTargetTab();
   const { editorUrl } = await getSettings();
   // Origin matching also matches ordinary pages served beside the editor, so the tab's
   // own bridge confirms before the mode flips.
   const onEditorPage = !!tab && isEditorTab(tab.url || '', editorUrl);
   const editor = onEditorPage && editorMode.available && await editorMode.isLiveEditor(tab.id);
+  if (!isCurrent()) return null;
   state.mode = editor ? 'editor' : 'page';
   state.editorTabId = editor ? tab.id : null;
   document.body.classList.toggle('editor-mode', editor);
@@ -38,6 +43,7 @@ const resolveScanTab = async () => {
   // A page closed since the picker was filled is dropped; picker order is kept.
   const picked = editorMode.sourceTabs();
   const looked = await Promise.allSettled(picked.map((choice) => chrome.tabs.get(choice.tabId)));
+  if (!isCurrent()) return null;
   const live = [];
   for (const r of looked) {
     if (r.status === 'fulfilled') live.push(r.value);
@@ -48,12 +54,14 @@ const resolveScanTab = async () => {
 };
 
 export const scan = async () => {
+  const isCurrent = scanTurns.begin();
   listEl.innerHTML = '';
   statusEl.textContent = 'Scanning…';
   // The format checkboxes render up front so they exist even on an unscannable page.
   state.all = [];
   filterUi.populateFormats(state.all);
-  const tabs = await resolveScanTab();
+  const tabs = await resolveScanTab(isCurrent);
+  if (!tabs) return;
   if (!tabs.length) {
     statusEl.textContent = state.mode === 'editor'
       ? 'Tick a page in “Images from another page” to list its images.'
@@ -69,12 +77,14 @@ export const scan = async () => {
   state.activeTabId = scannable[0].id;
   state.activeUrl = scannable[0].url || '';
   await syncHighlightCheckbox(scannable[0].id);
+  if (!isCurrent()) return;
   const images = [];
   const failed = [];
   // Results fold back in `scannable` order so the merged list is stable.
   const scans = await Promise.allSettled(scannable.map((t) => chrome.scripting.executeScript({
     target: { tabId: t.id, allFrames: true }, func: scanPageForImages, args: [MAX_IMAGES]
   })));
+  if (!isCurrent()) return;
   scans.forEach((r, i) => {
     const t = scannable[i];
     if (r.status === 'fulfilled') {
@@ -98,6 +108,7 @@ export const scan = async () => {
     measured: it.w > 0 && it.h > 0
   }));
   await Promise.all([annotateOpened(), annotatePinned(), loadOpenInSettings(), loadShared()]);
+  if (!isCurrent()) return;
   startSharedPolling();
   filterUi.populateFormats(state.all);
   applyFilters();

@@ -5,6 +5,7 @@ import { highlightColorValue } from '../lib/highlight/color.js';
 import { toggleStencilHighlight } from '../lib/highlight/highlight.js';
 import { icon } from '../lib/icons.js';
 import { MSG } from '../lib/messages.js';
+import { routeStoreWrites } from '../lib/prefs/writeChain.js';
 import { watchNumericInputs } from '../lib/numericWatch.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
@@ -26,6 +27,7 @@ import './editor/section.js';
 import './assistant/controls.js';
 import './storageSync.js';
 
+routeStoreWrites();
 installDblReset(document);
 installWebcore(document);
 wireWebcoreHold(document.querySelector('header .logo-wrap'));

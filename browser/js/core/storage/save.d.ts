@@ -4,5 +4,6 @@ import type { Storage } from './storage.js';
 
 /** The hint to show instead of saving, or null when the write may go ahead. */
 export declare const saveBlockedReason: (storage: Storage) => string | null;
-/** Builds the layout + meta from live app state, upserts them and schedules the thumbnail. */
-export declare const writeActiveProject: (storage: Storage) => void;
+/** Builds the layout + meta from live app state, upserts them and schedules the thumbnail; settles
+ *  true once IndexedDB holds the write (confirmCommit). */
+export declare const writeActiveProject: (storage: Storage) => Promise<boolean>;

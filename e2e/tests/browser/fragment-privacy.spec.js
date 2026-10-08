@@ -1,8 +1,6 @@
-// Fragment-privacy invariant: the handed-off image (the #stencil= URL fragment, read by
-// core/launch/controller.js applyExternalLaunch) is local content and must NEVER leave the
-// machine. Browsers do not send a fragment, and the app must not forward the payload either —
-// so every network request the page makes is captured and asserted free of the fragment
-// sentinel, URL and body.
+// The handed-off image (the #stencil= fragment, read by core/launch/controller.js
+// applyExternalLaunch) never leaves the machine: every request the page makes is captured and
+// asserted free of the payload's sentinel, in its URL and body.
 import { test, expect } from '@playwright/test';
 import { gotoApp, PNG_DATA_URL } from '../../helpers/boot.js';
 
@@ -31,12 +29,10 @@ test('the #stencil= fragment payload never appears in any outgoing request', asy
   // Give any (mis)behaving forwarder a beat to fire.
   await page.waitForTimeout(750);
 
-  // No captured request may carry the sentinel OR the raw encoded fragment, in its URL or body.
   const leaks = seen.filter((r) =>
     r.url.includes(SENTINEL) || r.url.includes(payload) ||
     r.body.includes(SENTINEL) || r.body.includes(payload));
   expect(leaks, `local handoff payload leaked into requests: ${JSON.stringify(leaks)}`).toEqual([]);
 
-  // Belt-and-braces: the fragment must also be stripped from the address bar after consumption.
   expect(new URL(page.url()).hash).toBe('');
 });

@@ -42,7 +42,6 @@ pub struct ScriptParams {
 }
 
 impl ScriptParams {
-    /// The sandbox root this run is confined to.
     pub fn root(&self) -> &str {
         match self.output_dir.as_deref().map(str::trim) {
             Some(dir) if !dir.is_empty() => dir,

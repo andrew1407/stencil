@@ -8,7 +8,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QList>
 #include <QMap>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -39,6 +41,18 @@ namespace stencil::test {
     int listGets = 0;
     QString lastAfter;      // the decoded ?after= of the last list request
     QJsonObject lastCreate;   // the body of the last POST /projects
+    bool holdOriginals = false;   // GET …/original waits in `heldOriginals` until releaseOriginals()
+    struct Held {
+      QPointer<QTcpSocket> socket;
+      QString line;
+    };
+    QList<Held> heldOriginals;
+
+    void releaseOriginals() {
+      holdOriginals = false;
+      for (const Held& held : std::exchange(heldOriginals, {}))
+        if (held.socket) reply(held.socket, route(held.line, {}));
+    }
 
     bool listen() {
       QObject::connect(&server, &QTcpServer::newConnection, [this] {
@@ -52,8 +66,13 @@ namespace stencil::test {
             const auto m = lenRe.match(QString::fromLatin1(buf->left(headEnd)));
             const int len = m.hasMatch() ? m.captured(1).toInt() : 0;
             if (buf->size() < headEnd + 4 + len) return;
-            const QByteArray line = buf->left(buf->indexOf("\r\n"));
-            reply(s, route(QString::fromLatin1(line), buf->mid(headEnd + 4, len)));
+            const QString line = QString::fromLatin1(buf->left(buf->indexOf("\r\n")));
+            if (holdOriginals && line.startsWith(QLatin1String("GET ")) &&
+                line.contains(QLatin1String("/original "))) {
+              heldOriginals.append({s, line});
+              return;
+            }
+            reply(s, route(line, buf->mid(headEnd + 4, len)));
           });
           QObject::connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
         }

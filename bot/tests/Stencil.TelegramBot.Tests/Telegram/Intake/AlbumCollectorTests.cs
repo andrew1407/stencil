@@ -149,4 +149,41 @@ public sealed class AlbumCollectorTests
 
         Assert.False(flushed);
     }
+
+    [Fact]
+    public async Task Should_Start_A_New_Group_When_A_Photo_Races_The_Flush_Of_Its_Group()
+    {
+        SettleGate gate = new();
+        List<IReadOnlyList<AlbumPhoto>> flushed = new();
+        using ManualResetEventSlim taken = new();
+        Task Flush(IReadOnlyList<AlbumPhoto> photos)
+        {
+            lock (flushed)
+            {
+                flushed.Add(photos);
+            }
+            taken.Set();
+            return Task.CompletedTask;
+        }
+        int lookups = 0;
+        // The second photo has found the first one's group; that window closes and its flush takes
+        // the photos before the second photo's lock.
+        AlbumCollector collector = new(gate.Wait, () =>
+        {
+            if (Interlocked.Increment(ref lookups) == 2)
+            {
+                Task.Run(() => gate.ReleaseAsync()).GetAwaiter().GetResult();
+                Assert.True(taken.Wait(TimeSpan.FromSeconds(5)), "the first group never flushed");
+            }
+        });
+
+        collector.Add(_userId, "g1", photo(1), Flush, CancellationToken.None);
+        collector.Add(_userId, "g1", photo(2), Flush, CancellationToken.None);
+        await gate.ReleaseAsync();
+        await collector.WhenIdleAsync();
+
+        Assert.Equal(2, flushed.Count);
+        Assert.Equal(1, Assert.Single(flushed[0]).MessageId);
+        Assert.Equal(2, Assert.Single(flushed[1]).MessageId); // the late photo was not lost
+    }
 }

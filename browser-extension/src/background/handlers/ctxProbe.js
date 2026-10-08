@@ -1,10 +1,14 @@
 // Records what the ctxTarget probe resolved under the cursor and relabels/reveals the menu
-// groups that depend on it. Everything here must be synchronous: the native menu is opening.
+// groups that depend on it. Everything here is synchronous, since the native menu is opening,
+// except a cold worker's first pin relabel, which waits for the pins cache's first read.
 import { MENU, menuVisibilityFor, DYNAMIC_ITEMS, PREVIEW_ITEMS, pinItemTitle } from '../../lib/menu/contextMenu.js';
 import { isPinnedIn, siteOf } from '../../lib/prefs/pins.js';
 import { MSG } from '../../lib/messages.js';
-import { lastTargetByTab, lastVideoByTab, lastPosterByTab, pinsCache } from '../tabState.js';
+import { lastTargetByTab, lastVideoByTab, lastPosterByTab, pinsCache, pinsLoaded, pinsReady } from '../tabState.js';
 import { desktopSchemeSet } from '../menus.js';
+
+// The probe's dwell (ctxTarget.js DWELL_MS): a resting pointer reports this long before the click.
+export const PIN_CACHE_WAIT_MS = 150;
 
 export const ctxProbeHandlers = {
   [MSG.CTX]: (msg, sender) => {
@@ -40,8 +44,12 @@ export const ctxProbeHandlers = {
       chrome.contextMenus.update(id, { title: pinItemTitle(isPinnedIn(pinsCache, site, source), kind) },
         () => void chrome.runtime.lastError);
     };
-    relabel(MENU.PIN, data && data.imgUrl, 'image');
-    relabel(MENU.BG_PIN, data && !data.video && data.url, 'image');
-    relabel(MENU.FRAME_PIN, data && data.video && (data.videoUrl || data.poster), 'video');
+    const relabelAll = () => {
+      relabel(MENU.PIN, data && data.imgUrl, 'image');
+      relabel(MENU.BG_PIN, data && !data.video && data.url, 'image');
+      relabel(MENU.FRAME_PIN, data && data.video && (data.videoUrl || data.poster), 'video');
+    };
+    if (pinsLoaded) relabelAll();
+    else Promise.race([pinsReady, new Promise((r) => setTimeout(r, PIN_CACHE_WAIT_MS))]).then(relabelAll);
   },
 };

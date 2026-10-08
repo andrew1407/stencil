@@ -7,6 +7,7 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"time"
 
@@ -41,6 +42,10 @@ type persistResult struct {
 	err    error
 }
 
+// jobSlots bounds the worker's queue: the run loop keeps at most one load and one save outstanding, so a
+// dispatch never blocks and at most two layouts (each up to transport.MaxMessageBytes) wait per session.
+const jobSlots = 2
+
 // snapshotWorker is the only part of a session that touches the store, so the only part needing a per-op
 // deadline. It owns no session state: it drains jobs, runs the store call, and posts the outcome back.
 type snapshotWorker struct {
@@ -51,55 +56,51 @@ type snapshotWorker struct {
 
 	jobs    chan persistJob
 	results chan persistResult
-	done    <-chan struct{} // closed when the session tears down
+	done    <-chan struct{} // closed when the session tears down: queued loads are skipped, saves still run
 }
 
 func newSnapshotWorker(ctx context.Context, st Store, projectID string, tune Tuning, done <-chan struct{}) *snapshotWorker {
 	return &snapshotWorker{
 		ctx: ctx, store: st, projectID: projectID, timeout: tune.OpTimeout,
-		jobs:    make(chan persistJob, tune.OutBuffer),
-		results: make(chan persistResult, tune.OutBuffer),
+		jobs:    make(chan persistJob, jobSlots),
+		results: make(chan persistResult, jobSlots),
 		done:    done,
 	}
 }
 
 // run is the worker goroutine. Exactly one runs per session, and that is the version-ordering guarantee:
-// jobs complete in dispatch order, so a save cannot overtake the first load.
+// jobs complete in dispatch order, so a save cannot overtake the first load. It ends when jobs closes.
 func (w *snapshotWorker) run() {
-	for {
-		select {
-		case <-w.done:
-			return
-		case job := <-w.jobs:
-			ctx, cancel := context.WithTimeout(w.ctx, w.timeout)
-			switch job.kind {
-			case persistLoad:
-				rec, err := w.store.GetProjectSnapshot(ctx, w.projectID)
-				w.post(persistResult{kind: persistLoad, rec: rec, err: err})
-			case persistSave:
-				rec, err := w.store.UpdateProject(ctx, w.projectID, store.ProjectPatch{Layout: job.layout}, job.version)
-				w.post(persistResult{kind: persistSave, member: job.member, rec: rec, layout: job.layout, err: err})
-			}
-			cancel()
+	defer close(w.results)
+	for job := range w.jobs {
+		if job.kind == persistLoad && w.closing() {
+			continue
 		}
+		ctx, cancel := context.WithTimeout(w.ctx, w.timeout)
+		switch job.kind {
+		case persistLoad:
+			rec, err := w.store.GetProjectSnapshot(ctx, w.projectID)
+			w.results <- persistResult{kind: persistLoad, rec: rec, err: err}
+		case persistSave:
+			rec, err := w.store.UpdateProject(ctx, w.projectID, store.ProjectPatch{Layout: job.layout}, job.version)
+			w.results <- persistResult{kind: persistSave, member: job.member, rec: rec, layout: job.layout, err: err}
+		}
+		cancel()
 	}
 }
 
-// dispatch hands a job to the worker without blocking the run-loop past teardown.
+func (w *snapshotWorker) closing() bool {
+	select {
+	case <-w.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// dispatch hands a job to the worker; jobSlots makes it non-blocking.
 func (w *snapshotWorker) dispatch(job persistJob) {
-	select {
-	case w.jobs <- job:
-	case <-w.done:
-	}
-}
-
-// post hands an outcome back to the run-loop; it unblocks if the session is
-// already tearing down so the worker never leaks.
-func (w *snapshotWorker) post(r persistResult) {
-	select {
-	case w.results <- r:
-	case <-w.done:
-	}
+	w.jobs <- job
 }
 
 // ----- the run-loop's half -----
@@ -107,7 +108,7 @@ func (w *snapshotWorker) post(r persistResult) {
 // ensureLoaded kicks off a snapshot load when none has succeeded, or a reported write made the cached
 // one stale, and none is in flight. Idempotent; safe to call from any run-loop case.
 func (s *session) ensureLoaded() {
-	if s.loadInFlight || (s.loaded && !s.stale) {
+	if s.gone || s.loadInFlight || (s.loaded && !s.stale) {
 		return
 	}
 	s.loadInFlight = true
@@ -131,6 +132,10 @@ func (s *session) applyResult(res persistResult) {
 	switch res.kind {
 	case persistLoad:
 		s.loadInFlight = false
+		if errors.Is(res.err, store.ErrNotFound) {
+			s.endProject()
+			return
+		}
 		if res.err != nil {
 			// A later join retries (never an edit). Pending welcomes still get a reply below: the stale
 			// snapshot, or an empty record + version 0 before the first.
@@ -152,5 +157,6 @@ func (s *session) applyResult(res persistResult) {
 		}
 	case persistSave:
 		s.applySaveResult(res)
+		s.nextSave()
 	}
 }

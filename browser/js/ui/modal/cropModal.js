@@ -1,12 +1,11 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { notify } from '../../utils.js';
-import constants from '../../../../common/config/constants.json' with { type: 'json' };
+import { pageNaturalSize } from '../../core/settings/units.js';
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../../core/parse/cropGeometry.js';
 import { icon, spinIconOnce } from '../icons.js';
 import { pinWidestFace } from '../motion.js';
 import { tweenRect } from '../motion/rectTween.js';
 import { wireCropFit } from './cropFit.js';
-const { PAGE_SIZES } = constants;
 
 // A rect over the original image, locked to the page aspect; confirm stores it without
 // replacing the original. Geometry runs in the shared core (cropGeometry.js → wasm).
@@ -68,10 +67,8 @@ export class StencilCropModal extends StencilElement {
     let scale = 1;
     let iw = 0, ih = 0;
 
-    // Page natural dimensions (cm), not orientation-swapped; mirrors blankImageModal's pageDims().
-    const pageDims = () => (app.pageSize === 'custom'
-      ? { width: app.customPageWidth, height: app.customPageHeight }
-      : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
+    // Page natural dimensions (cm), not orientation-swapped.
+    const pageDims = () => pageNaturalSize(app);
 
     // The orientation flip's own rect flight; any plain render settles it (rectTween.js).
     let flight = null;

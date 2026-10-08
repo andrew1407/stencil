@@ -4,9 +4,10 @@
 #include <string>
 #include <string_view>
 
-// JSON.stringify(value) byte for byte: no whitespace, JS Object.keys order, numbers in
-// Number#toString form (a non-finite one as null) and QuoteJSONString's escapes. Iterative.
-// The op-plan result is written with Replace, so its text is always well-formed UTF-8.
+// JSON.stringify(value) byte for byte, as browser/js/llm/plan/parser.js calls it: no
+// whitespace, JS Object.keys order, numbers in Number#toString form (a non-finite one as null)
+// and QuoteJSONString's escapes. Iterative. The op-plan result is written with Replace, so its
+// text is always well-formed UTF-8.
 namespace stencil::core::json {
 
   // What a lone surrogate becomes: U+FFFD, or JSON.stringify's own "\udxxx" escape.

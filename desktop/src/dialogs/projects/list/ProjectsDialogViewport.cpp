@@ -1,5 +1,6 @@
 // The list-viewport link of the Projects dialog's eventFilter chain (order in ProjectsDialog.cpp).
 #include "ProjectsDialog.hpp"
+#include "dialogSheets.hpp"
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
 #include <QGuiApplication>
@@ -98,9 +99,7 @@ namespace stencil::gui {
                                                    Qt::WindowTransparentForInput |
                                                    Qt::WindowDoesNotAcceptFocus);
               hover.hoverPreview->setAttribute(Qt::WA_ShowWithoutActivating, true);
-              hover.hoverPreview->setStyleSheet(
-                  "QLabel{background:#1e1e1e;border:2px solid #d4a017;"
-                  "border-radius:8px;padding:4px;}");
+              hover.hoverPreview->setStyleSheet(support::projectsHoverPreviewSheet());
             }
             // Alt HELD magnifies (browser parity); the SOURCE rides along so the Alt toggle can re-scale without a move.
             const int edge =
