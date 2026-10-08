@@ -52,4 +52,21 @@ namespace stencil::core {
     return rotateEditQuarter(crop, quarters, originalW, originalH, clockwise);
   }
 
+  EditTurn mirrorEdit(const CropRect& crop, int quarters, double originalW, double originalH) {
+    const bool odd = quarters % 2 != 0;
+    const double iw = odd ? originalH : originalW;
+    const double ih = odd ? originalW : originalH;
+    EditTurn out;
+    out.quarters = ((-quarters % 4) + 4) % 4;
+    out.crop = snapCropRect(CropRect{iw - crop.x - crop.width, crop.y, crop.width, crop.height},
+                            iw, ih);
+    return out;
+  }
+
+  EditTurn mirrorEdit(Lines& lines, const CropRect& crop, int quarters, double originalW,
+                      double originalH) {
+    mirrorLinePoints(lines, crop.width);
+    return mirrorEdit(crop, quarters, originalW, originalH);
+  }
+
 }

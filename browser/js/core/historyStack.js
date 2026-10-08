@@ -1,7 +1,7 @@
 import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 // Snapshot history: a snapshot is a Lines array, or an editor memento {lines, cropRect,
-// rotationQuarters, filter, filterColor} — the view and the filter the lines sit on, so a crop, a
+// rotationQuarters, mirrored, filter, filterColor} — the view and the filter the lines sit on, so a crop, a
 // turn or a filter switch is one undo step too. Deep-copied on push/undo/redo; "step 0 → the
 // floor, step -1" on undo. Twin: core/state/HistoryStack.
 
@@ -19,6 +19,7 @@ export const editorMemento = (app) => ({
   lines: app.lines,
   cropRect: app.cropRect,
   rotationQuarters: app.rotationQuarters,
+  mirrored: !!app.mirrored,
   filter: app.imageFilter,
   filterColor: app.filterColor,
 });

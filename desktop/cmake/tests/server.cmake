@@ -37,6 +37,8 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_TIPCONTENT_SOURCES}
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/meta/ExpirationDialog.cpp src/dialogs/meta/ExpirationDialogCalendar.cpp
+    src/dialogs/meta/DescriptionDialog.cpp src/dialogs/meta/keywords/KeywordsDialog.cpp
+    src/dialogs/meta/keywords/KeywordChips.cpp src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_FETCHGUARD_SOURCES}
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
     ${STENCIL_THEME_SOURCES}
@@ -58,6 +60,8 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     ${STENCIL_TIPCONTENT_SOURCES}
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/meta/ExpirationDialog.cpp src/dialogs/meta/ExpirationDialogCalendar.cpp
+    src/dialogs/meta/DescriptionDialog.cpp src/dialogs/meta/keywords/KeywordsDialog.cpp
+    src/dialogs/meta/keywords/KeywordChips.cpp src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_FETCHGUARD_SOURCES}
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
     ${STENCIL_THEME_SOURCES}

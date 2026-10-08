@@ -28,8 +28,19 @@ export interface ProjectMetaModalSpec<V = unknown> {
   save: (app: DrawingApp, id: string | number, value: V) => unknown;
 }
 
+/** Where a row-opened window flies from and back to, and what it reports once saved. */
+export interface MetaOpenFor {
+  from?: Element | null;
+  backTo?: Element | null;
+  onSaved?: ((meta: Record<string, unknown>) => void) | null;
+}
+export interface ProjectMetaModal extends StencilElement {
+  /** Edits project `id` (not the open one), stacked over the projects list. */
+  openFor(id: string | number, anchors?: MetaOpenFor): void;
+}
+
 /** The modal shell shared by descriptionModal.js and keywordsModal.js. */
-export declare const createProjectMetaModal: <V>(spec: ProjectMetaModalSpec<V>) => typeof StencilElement;
+export declare const createProjectMetaModal: <V>(spec: ProjectMetaModalSpec<V>) => typeof StencilElement & (new () => ProjectMetaModal);
 
 /** A text area filling the body; `commitsOn` picks the Enter that saves. */
 export declare const metaTextField: (opts: {

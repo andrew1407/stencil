@@ -23,6 +23,7 @@ import { wireTypedWords } from './keys/typedWords.js';
 import { wireDrawDoublePress } from './keys/drawDoublePress.js';
 import { wireControlState } from '../control/state.js';
 import { beginQuarterTurn } from '../motion/quarterTurn.js';
+import { beginMirrorFlip } from '../motion/mirrorFlip.js';
 import { TUNE } from '../motion/tune.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
@@ -48,13 +49,15 @@ export function wireControls(app) {
   wireCanvasPointer(app);
   wireSmoothZoom(app);
   wireTypedWords(app);
+  // Both orientation flights run on the quarter turn's clock, the canvas's zoom ease held off.
+  const flight = (canvas) => ({ ms: TUNE.ROTATE_MS, easing: TUNE.ROTATE_EASING,
+    onStart: () => canvas.classList.add('zoom-no-transition'),
+    onEnd: () => canvas.classList.remove('zoom-no-transition') });
   app.quarterTurn = () => {
     const canvas = app.canvas, box = canvas.parentElement;
-    return beginQuarterTurn(box, { ms: TUNE.ROTATE_MS, easing: TUNE.ROTATE_EASING,
-      viewport: box?.closest('.canvas-viewport'),
-      onStart: () => canvas.classList.add('zoom-no-transition'),
-      onEnd: () => canvas.classList.remove('zoom-no-transition') });
+    return beginQuarterTurn(box, { ...flight(canvas), viewport: box?.closest('.canvas-viewport') });
   };
+  app.mirrorFlip = () => beginMirrorFlip(app.canvas.parentElement, flight(app.canvas));
   installDblReset(document);
   // Last, so every select the layout rendered wears the app's own dropdown rather than the OS
   // one; a second pass over an already-enhanced select is a no-op.

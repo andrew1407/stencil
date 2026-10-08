@@ -1,7 +1,7 @@
 #pragma once
 // The image rotate's motion: a click-through child of the scroll viewport that turns a snapshot of
-// the refitted canvas upright from the old box while the real canvas is veiled.
-// Browser twin: js/ui/motion/quarterTurn.js.
+// the refitted canvas upright from the old box while the real canvas is veiled; `dir` 0 is a flip,
+// turned over edge-on. Browser twins: js/ui/motion/quarterTurn.js, js/ui/motion/mirrorFlip.js.
 #include "dustKit.hpp"   // support::bezierY / frameIntervalMs
 #include "motionPrefs.hpp"
 #include "quarterTurn.hpp"
@@ -74,9 +74,14 @@ namespace stencil::gui {
       const quarterTurn::Frame f = quarterTurn::frameAt(from, to, dir, t);
       QPainter p(this);
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-      p.translate(f.center);
-      p.rotate(f.degrees);
-      p.scale(f.scale, f.scale);
+      if (dir == 0) {
+        p.translate(QRectF(to).center());
+        p.scale(2 * t - 1, 1);   // scaleX -1 is the old picture exactly: it turns over to face the user
+      } else {
+        p.translate(f.center);
+        p.rotate(f.degrees);
+        p.scale(f.scale, f.scale);
+      }
       p.drawPixmap(QRectF(-to.width() / 2.0, -to.height() / 2.0, to.width(), to.height()), snapshot,
                    QRectF(snapshot.rect()));
     }

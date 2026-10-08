@@ -1,7 +1,7 @@
 #include "CanvasScene.hpp"
 #include "imageTurn.hpp"
 
-// The document's own edits — load, restore, crop, turn, the lines and their undo steps — with no
+// The document's own edits — load, restore, crop, turn, flip, the lines and their undo steps — with no
 // view to resize and no one to tell; CanvasWidget's same-named edits wrap these.
 
 namespace stencil::gui {
@@ -22,23 +22,25 @@ namespace stencil::gui {
       image = QImage();
       return;
     }
+    const QImage source = mirrored ? model::mirror(originalImage) : originalImage;
     if (cropRect.width <= 0) {
-      image = model::turn(originalImage, rotationQuarters);
+      image = model::turn(source, rotationQuarters);
     } else {
       const QRect r(qRound(cropRect.x), qRound(cropRect.y),
                     qRound(cropRect.width), qRound(cropRect.height));
-      image = model::turnAndCrop(originalImage, rotationQuarters, r);
+      image = model::turnAndCrop(source, rotationQuarters, r);
     }
     filterDirty = true;
   }
 
   void CanvasScene::loadFromImage(const QImage& img, const core::CropRect& cropRect,
-                                  int rotationQuarters) {
+                                  int rotationQuarters, bool mirrored) {
     if (img.isNull()) return;
     ++pictureGen;
     blankPage = false;   // a fresh load is a picture until the owner marks it a blank
     originalImage = img.convertToFormat(QImage::Format_ARGB32);
     this->rotationQuarters = ((rotationQuarters % 4) + 4) % 4;  // before defaultCropRect/rebuild
+    this->mirrored = mirrored;
     this->cropRect = cropRect.width > 0 ? cropRect : defaultCropRect();
     rebuildCroppedFromOriginal();
     imagePath.clear();
@@ -51,7 +53,7 @@ namespace stencil::gui {
 
   void CanvasScene::restore(const QString& path, const core::Lines& lines,
                             const core::CropRect& cropRect, int rotationQuarters,
-                            const QImage& decoded) {
+                            const QImage& decoded, bool mirrored) {
     ++pictureGen;
     if (!path.isEmpty() && !decoded.isNull()) {
       blankPage = false;   // the owner re-marks reopened blanks after restore
@@ -59,6 +61,7 @@ namespace stencil::gui {
       imagePath = path;
       // Rotation must be set before defaultCropRect / rebuild read it.
       this->rotationQuarters = ((rotationQuarters % 4) + 4) % 4;
+      this->mirrored = mirrored;
       // Re-apply the stored crop, or default-crop sessions saved before
       // cropping existed (cropRect.width == 0).
       this->cropRect = cropRect.width > 0 ? cropRect : defaultCropRect();
@@ -82,6 +85,19 @@ namespace stencil::gui {
     currentLine = core::Line{};
     applyDefaultsToCurrent();
     pushStep();   // a turn is one undo step, as the browser's
+  }
+
+  void CanvasScene::flipImage() {
+    if (originalImage.isNull()) return;
+    const core::EditTurn flipped = core::mirrorEdit(lines, cropRect, rotationQuarters, originalImage.width(),
+                                                    originalImage.height());
+    cropRect = flipped.crop;
+    rotationQuarters = flipped.quarters;
+    mirrored = !mirrored;
+    rebuildCroppedFromOriginal();
+    currentLine = core::Line{};
+    applyDefaultsToCurrent();
+    pushStep();
   }
 
   void CanvasScene::applyCrop(const core::CropRect& rect, bool recalc) {
@@ -118,18 +134,19 @@ namespace stencil::gui {
     pushStep();
   }
 
-  bool CanvasScene::commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters) {
+  bool CanvasScene::commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters, int mirrored) {
     core::EditorMemento step = memento();
     step.lines = lines;
     step.crop = crop;
     step.quarters = ((quarters % 4) + 4) % 4;
+    if (mirrored >= 0) step.mirrored = mirrored != 0;
     const bool rebuilt = restoreMemento(step);
     pushStep();
     return rebuilt;
   }
 
   core::EditorMemento CanvasScene::memento() const {
-    return {lines, true, cropRect, rotationQuarters, imageFilter.toStdString(),
+    return {lines, true, cropRect, rotationQuarters, mirrored, imageFilter.toStdString(),
             filterColor.name(QColor::HexRgb).toStdString()};
   }
 
@@ -171,10 +188,11 @@ namespace stencil::gui {
     stepFilter = imageFilter;
     stepTint = filterColor;
     const core::CropRect& c = cropRect;
-    const bool sameView = m.quarters == rotationQuarters && m.crop.x == c.x && m.crop.y == c.y &&
+    const bool sameView = m.quarters == rotationQuarters && m.mirrored == mirrored && m.crop.x == c.x && m.crop.y == c.y &&
                           m.crop.width == c.width && m.crop.height == c.height;
     if (!m.hasView || originalImage.isNull() || sameView) return false;
     rotationQuarters = m.quarters;
+    mirrored = m.mirrored;
     cropRect = m.crop;
     rebuildCroppedFromOriginal();
     return true;

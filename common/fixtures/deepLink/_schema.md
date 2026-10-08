@@ -15,7 +15,8 @@ literal: any `{ "$repeat": { "prefix", "char", "length" } }` value expands to
 
 A `#stencil=` fragment may also carry a top-level `script` (a `.stc` the VS Code extension hands
 over, at most `LAUNCH.scriptMaxChars` in `config/constants.json`)
-and `scriptMode` (`open` puts it in the Script window, `run` — the default — runs it). Both are
+and `scriptMode` (`open` or `run`, still written by senders; every receiver now opens the script
+in its Script window and runs nothing). Both are
 deliberately OUTSIDE the normalized shape — the browser reads them off the raw payload and
 every other surface ignores them, exactly as the unknown-key vectors pin — so adding them moved
 no codec. A script-only payload normalizes to nothing; the browser still takes its script.

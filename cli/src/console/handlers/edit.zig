@@ -1,4 +1,4 @@
-//! The undoable transforms — crop, rotate, filter, apply-layout — behind `/exec` and the
+//! The undoable transforms — crop, rotate, flip, filter, apply-layout — behind `/exec` and the
 //! bare verbs. Each updates the session's STRUCTURED edit state and rebuilds the derived
 //! view, so the exact edit serializes to a browser-compatible layout.
 const std = @import("std");
@@ -12,7 +12,7 @@ const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const Action = @import("../commands.zig").Action;
 
-// Transforms (crop / rotate / filter / layout, all undoable) update the session's STRUCTURED edit
+// Transforms (crop / rotate / flip / filter / layout, all undoable) update the session's STRUCTURED edit
 // state, so the exact edit serializes to a browser-compatible layout and shows live in GUI editors.
 
 /// Map a /filter argument ("bw"|"sepia"|"invert"|"contour"|"none"|<colour>) onto the layout filter
@@ -53,7 +53,7 @@ pub fn doExec(session: *Session, io: std.Io, arg: []const u8) bool {
 pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
     // A bare transform lists its variants / usage instead of acting (no image needed) — so
     // `/crop` never silently records a full-image crop and `/filter` shows what it takes.
-    if (action.arg.len == 0) switch (action.kind) {
+    if (action.arg.len == 0 and action.kind != .flip) switch (action.kind) {
         .crop => {
             logo.print(msg.crop_usage, .{});
             logo.print(msg.crop_usage_example, .{});
@@ -63,6 +63,7 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
             logo.print(msg.rotate_usage, .{});
             return false;
         },
+        .flip => unreachable,
         .filter => {
             ui.listFilters();
             return false;
@@ -97,6 +98,10 @@ pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
             }
             session.applyRotate(n) catch return false;
             ui.ack(session, "rotated");
+        },
+        .flip => {
+            session.applyFlip() catch return false;
+            ui.ack(session, "flipped");
         },
         .filter => {
             if (!applyFilterArg(session, action.arg)) {

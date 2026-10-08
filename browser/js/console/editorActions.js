@@ -10,6 +10,8 @@ export const createEditorActions = ({ app }) => {
     // ── Editor actions (chainable) ──
     rotateLeft() { app.imageModel.rotateImage(-1); return stencil; },
     rotateRight() { app.imageModel.rotateImage(1); return stencil; },
+    // Mirror the whole picture left↔right; the crop window and every line follow.
+    flipImage() { app.imageModel.flipImage(); return stencil; },
     // Transform the SELECTED line about its bbox centre (same pivot as the per-line rotate) —
     // flip left↔right / top↔bottom, or rotate a quarter turn ±90. No selection is a no-op.
     flipH() { flipSelectedLine(app, true); return stencil; },

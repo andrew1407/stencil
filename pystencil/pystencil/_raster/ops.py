@@ -1,8 +1,7 @@
 """The pixel-buffer half of the core ABI, mixed into :class:`pystencil.core.Core`.
 
-Crop resolution, a crop window's snap and quarter-turn, and every RGBA8 kernel (crop /
-rotate / fill / filter / contour / rasterize). Each method marshals through :mod:`pystencil._ffi.marshal` and calls one
-stencil_cli_* entry point on ``self._lib``.
+Crop resolution, a crop window's snap, quarter-turn and flip, and every RGBA8 kernel (crop / rotate / mirror /
+fill / filter / contour / rasterize), each marshalled through :mod:`pystencil._ffi.marshal` into one stencil_cli_* call.
 """
 
 from __future__ import annotations
@@ -76,6 +75,12 @@ class RasterOps:
     )
     return _rect(out), int(out[4])
 
+  def mirror_edit(self, rect: Rect, quarters: int, orig_w: int, orig_h: int) -> tuple[Rect, int]:
+    """A left-right flip of an edit at ``quarters``: the crop reflected, the count negated (core::mirrorEdit)."""
+    out = (ctypes.c_double * 5)()
+    self._lib.stencil_cli_mirrorEdit(*map(float, rect), int(quarters), float(orig_w), float(orig_h), out)
+    return _rect(out), int(out[4])
+
   # ── RGBA8 transforms ──────────────────────────────────────────────────────
   def crop_image_rgba(
     self, src: (bytes | bytearray), src_w: int, src_h: int, rx: int, ry: int, rw: int,
@@ -129,6 +134,12 @@ class RasterOps:
       ctypes.c_int(q),
       _buf_view(dst),
     )
+    return dst
+
+  def mirror_image_rgba(self, src: (bytes | bytearray), w: int, h: int) -> bytearray:
+    """Mirror src (w x h) left-right into a fresh bytearray."""
+    _check_dims(src, w, h, "mirror_image_rgba source")
+    self._lib.stencil_cli_mirrorImageRows(_bytes_arg(src), w, h, _buf_view(dst := bytearray(w * h * 4)), 0, h)
     return dst
 
   def fill_rgba(

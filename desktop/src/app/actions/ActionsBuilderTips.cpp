@@ -14,6 +14,7 @@ namespace stencil::gui {
     // Only ids present in hotkeysConfig.json are rebindable.
     w.keys.actions["rotateImageLeft"] = w.acts.rotateLeft;
     w.keys.actions["rotateImageRight"] = w.acts.rotateRight;
+    w.keys.actions["flipImageHorizontal"] = w.acts.flipImage;
     w.keys.actions["startDraw"] = w.acts.startDraw;
     w.keys.actions["clearAllLines"] = w.acts.clearAll;
     w.keys.actions["deleteLine"] = w.acts.deleteLine;
@@ -92,6 +93,7 @@ namespace stencil::gui {
     w.setActionTip(w.acts.crop, "Crop image");
     w.setActionTip(w.acts.rotateLeft, "Rotate image left");
     w.setActionTip(w.acts.rotateRight, "Rotate image right");
+    w.setActionTip(w.acts.flipImage, "Flip image horizontally");
     w.setActionTip(w.acts.fit, "Fit to window");
     w.setActionTip(w.acts.zoomIn, "Zoom in");
     w.setActionTip(w.acts.zoomOut, "Zoom out");
@@ -116,6 +118,7 @@ namespace stencil::gui {
     why(w.acts.crop, "Load an image to crop");
     why(w.acts.rotateLeft, "Load an image to rotate");
     why(w.acts.rotateRight, "Load an image to rotate");
+    why(w.acts.flipImage, "Load an image to flip");
     why(w.acts.undo, "Nothing to undo");
     why(w.acts.redo, "Nothing to redo");
     why(w.acts.startDraw, "Load an image to start drawing");

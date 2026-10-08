@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     const QStringList chain = focusChain(&win);
-    QCOMPARE(chain.size(), 112);
+    QCOMPARE(chain.size(), 113);
     QCOMPARE(focusRuns(chain),
              QStringLiteral(
                  "stencil::gui::CanvasWidget 1|QScrollArea 1|QToolButton 2|QTabWidget 1|"
@@ -85,7 +85,7 @@ class MainWindowGuiTest : public QObject {
                  "QLineEdit 1|stencil::gui::ExprSpinBox 1|QLineEdit 1|QComboBox 1|QPushButton 3|"
                  "stencil::gui::ExprSpinBox 1|QLineEdit 1|QPushButton 1|QToolButton 6|QScrollArea 1|"
                  "QToolButton 2|QPlainTextEdit 1|QToolButton 5|QComboBox 2|QLineEdit 1|"
-                 "QToolButton 2|QLineEdit 1|QToolButton 22|QComboBox 1|QToolButton 10|"
+                 "QToolButton 2|QLineEdit 1|QToolButton 22|QComboBox 1|QToolButton 11|"
                  "stencil::gui::ExprSpinBox 1|QLineEdit 1|stencil::gui::ExprSpinBox 1|"
                  "QLineEdit 1|QComboBox 1|QToolButton 1|QComboBox 1|QCheckBox 2|"
                  "QToolButton 1|QComboBox 1|QToolButton 2|"

@@ -70,6 +70,7 @@ const clearImage = (app) => {
   app.originalImage = null;
   app.cropRect = null;
   app.rotationQuarters = 0;
+  app.mirrored = false;
   app.imageDataUrl = null;
   app.lines = [];
   app.history.reset([], -1);

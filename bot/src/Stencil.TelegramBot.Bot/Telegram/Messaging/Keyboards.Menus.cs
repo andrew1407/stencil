@@ -114,6 +114,7 @@ public static partial class Keyboards
         {
             new[]
             {
+                BotStrings.Button("flip"),
                 BotStrings.Button("rotatePlus90"),
                 BotStrings.Button("rotateMinus90"),
                 BotStrings.Button("crop"),

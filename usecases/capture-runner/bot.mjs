@@ -2,7 +2,7 @@
 // manual by design: Telegram needs a person to log in once, in a dedicated profile kept
 // outside the repo, and the bot must be running (the live one, or `dotnet run` locally with
 // this account on its allowlist). This script never starts the bot and never reads its env.
-//   node usecases/capture-runner/bot.mjs [--bot <username>] [--profile ~/.stencil-docs-telegram]
+//   STENCIL_DOCS_BOT=<username> node usecases/capture-runner/bot.mjs [--bot <username>] [--profile ~/.stencil-docs-telegram]
 import { chromium } from './lib/playwright.mjs';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { expandHome, outDir, repoPath } from './lib/paths.mjs';
@@ -17,7 +17,9 @@ const arg = (flag, fallback) => {
   const at = process.argv.indexOf(flag);
   return at >= 0 ? process.argv[at + 1] : fallback;
 };
-const BOT = arg('--bot', config.get('bot')).replace(/^@/, '');
+// The bot's @username is the operator's, never the repo's: --bot, else STENCIL_DOCS_BOT.
+const BOT = String(arg('--bot', process.env.STENCIL_DOCS_BOT || '')).replace(/^@/, '');
+if (!BOT) throw new Error('name the bot to photograph: --bot <username> or STENCIL_DOCS_BOT=<username>');
 const PROFILE = expandHome(arg('--profile', config.get('profileDir')));
 
 // Telegram's own dark theme follows the emulated colour scheme.
@@ -30,8 +32,8 @@ const page = context.pages()[0] || await context.newPage();
 const SEL = Object.freeze({
   auth: '#auth-qr-form, .auth-form, #auth-phone-number-form',
   search: '#telegram-search-input',
-  // The list is virtualised: off-screen rows exist but cannot be clicked, so match a visible one.
-  result: (bot) => page.locator('.ListItem.chat-item-clickable:visible').filter({ hasText: new RegExp(bot, 'i') }),
+  // A chat row of the search ("Chats and Contacts"); `.ChatMessage` rows are message hits.
+  result: page.locator('.ListItem.search-result:visible'),
   startButton: '#MiddleColumn button:has-text("START")',
   header: '.MiddleHeader',
   footer: '.middle-column-footer',
@@ -54,11 +56,24 @@ for (let waited = 0; await page.locator(SEL.auth).first().isVisible().catch(() =
   await settle(WAITS.loginPollMs);
 }
 // Open the bot's chat through the search box: the address-bar routes land on whatever chat
-// was open last.
+// was open last. Only a CHAT result counts — a message hit that merely mentions the username
+// (BotFather's, where the bot was made) is a different conversation.
 await page.locator(SEL.search).click();
 await page.keyboard.type(BOT, { delay: 40 });   // a React-controlled input ignores fill()
-await SEL.result(BOT).first().waitFor({ timeout: WAITS.menuMs });
-await SEL.result(BOT).first().click({ timeout: WAITS.menuMs });
+await SEL.result.first().waitFor({ timeout: WAITS.menuMs });
+await SEL.result.first().click({ timeout: WAITS.menuMs });
+await page.locator(SEL.header).first().waitFor({ timeout: WAITS.menuMs });
+// Nothing is sent until the open chat is provably a bot that is not BotFather. The header reads
+// "updating" while the client syncs, so its "bot" line is waited for.
+const headingNow = async () => (await page.locator(SEL.header).first().innerText().catch(() => '')).trim();
+let heading = await headingNow();
+for (let waited = 0; !/\bbot\b/i.test(heading) && waited < WAITS.menuMs; waited += 500) {
+  await settle(500);
+  heading = await headingNow();
+}
+if (!/\bbot\b/i.test(heading) || /botfather/i.test(heading)) {
+  throw new Error(`the open chat is not @${BOT} (header: ${JSON.stringify(heading.slice(0, 80))}); nothing was sent`);
+}
 await page.locator(`${SEL.input}, ${SEL.startButton}`).first().waitFor({ timeout: WAITS.menuMs });
 
 // An answer is not always a NEW message — an edit menu rewrites its keyboard in place. This

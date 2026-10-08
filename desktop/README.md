@@ -57,7 +57,7 @@ behind the screenshots in `usecases/docs/desktop/` (run through `usecases/captur
 Open an image, **Start** drawing (`Alt+A`, or press `~` twice; the same key stops), left-click to add
 polyline points, right-click (or `Shift+F10`) for the canvas context menu. The status bar shows
 the cursor's pixel and page (cm) coordinates. Hold-to-draw, rectangles, per-line style,
-filters (none / B&W / sepia / invert / contour / tint — `Alt+B` cycles them), crop, rotate,
+filters (none / B&W / sepia / invert / contour / tint — `Alt+B` cycles them), crop, flip, rotate,
 zoom, undo/redo and the ISO A/B/C page formats (searchable toolbar selector, plus a custom
 size) work as in the browser app, with the same keyboard shortcuts.
 

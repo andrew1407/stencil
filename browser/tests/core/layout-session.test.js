@@ -35,8 +35,8 @@ test('serializeSession: emits every descriptor field in table (byte) order', () 
   const keys = Object.keys(serializeSession(sampleState()));
   assert.deepStrictEqual(keys, LAYOUT_FIELDS.map(f => f.key));
   // Guard the exact head order that differs from the export subset (crop/rotation before lines).
-  assert.deepStrictEqual(keys.slice(0, 5),
-    ['imageWidth', 'imageHeight', 'cropRect', 'rotationQuarters', 'lines']);
+  assert.deepStrictEqual(keys.slice(0, 6),
+    ['imageWidth', 'imageHeight', 'cropRect', 'rotationQuarters', 'mirrored', 'lines']);
 });
 
 test('serializeSession serializes byte-identically to the old #buildLayout literal', () => {

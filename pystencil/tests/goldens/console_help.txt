@@ -6,6 +6,7 @@ commands:
   /format [name|custom w h]  list the page formats / set the session's format
   /crop <spec> [album]   crop, e.g. x1=10% x2=90% y1=10% y2=90%
   /rotate <int>          rotate int×90° (aliases: rot, turn)
+  /flip                  mirror the image left-right (crop and lines follow)
   /filter <mode>         bw | sepia | invert | contour | none | colour (also: /bw /sepia /none /tint)
   /apply <path|url>      draw a layout JSON onto the image (alias: draw)
   /layout [path]         EXPORT the structured layout JSON

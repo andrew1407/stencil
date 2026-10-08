@@ -4,19 +4,19 @@
 #include "ProjectRowDelegate.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "DescriptionDialog.hpp"
 #include "ExpirationDialog.hpp"
+#include "KeywordsDialog.hpp"
 #include "../../../support/menu/menuReveal.hpp"
 #include "../../../support/theme/theme.hpp"
 #include "../../../support/menu/menuDangerRow.hpp"
 #include "../copy/copyProjectMenu.hpp"
 #include "../../../support/motion/MenuShimmer.hpp"
-#include "../../../support/modal/modalChrome.hpp"
 #include "../../../support/modal/modalReveal.hpp"
 
 #include <QAction>
 #include <QMenu>
 #include <QPalette>
-#include <QRegularExpression>
 
 // The per-row ⋯ menu.
 
@@ -58,17 +58,11 @@ namespace stencil::gui {
         for (const auto& sp : this->remote)
           if (sp.id == id && sp.serverUrl == server) { current = sp.description; break; }
       }
-      PromptSpec spec;
-      spec.title = tr("Project description");
-      spec.titleIcon = QStringLiteral("info");
-      spec.message = tr("Description:");
-      spec.defaultValue = current;
-      spec.multiline = true;              // a description is a sentence, not a word
-      spec.maxChars = 2000;               // soft cap (UI only; core does no validation)
-      spec.flight.closeRect = kebabGlobal;
-      const auto entered = promptModal(this, spec);
-      if (!entered) return;
-      const QString text = *entered;
+      // The toolbar's own Description window, over this one (browser row/actions.js editMeta).
+      DescriptionDialog dlg(current, this);
+      support::revealDialog(dlg, nullptr, support::gestureAnchorRect(), kebabGlobal);
+      if (dlg.exec() != QDialog::Accepted) return;
+      const QString text = dlg.text();
       if (text == current) return;        // nothing changed
       commitRowEdit(
           id, server,
@@ -82,8 +76,8 @@ namespace stencil::gui {
           [text](stencil::net::ServerProject& sp) { sp.description = text; });
     };
 
-    // "Add keywords" — the row's search keywords, comma/space separated, normalized to
-    // lowercase unique words the way the browser store's setKeywords does. Empty clears.
+    // "Add keywords" — the row's search keywords as chips, normalized by KeywordsDialog the way the
+    // browser store's setKeywords does. Empty clears.
     auto editKeywords = [this, rowId, rowServer, kebabGlobal] {
       const QString& id = rowId;
       const QString& server = rowServer;
@@ -98,20 +92,10 @@ namespace stencil::gui {
         for (const auto& sp : this->remote)
           if (sp.id == id && sp.serverUrl == server) { current = sp.keywords; break; }
       }
-      PromptSpec spec;
-      spec.title = tr("Project keywords");
-      spec.titleIcon = QStringLiteral("info");
-      spec.message = tr("Keywords (comma or space separated):");
-      spec.defaultValue = current.join(' ');
-      spec.multiline = true;              // keywords are a list, not a word
-      spec.flight.closeRect = kebabGlobal;
-      const auto entered = promptModal(this, spec);
-      if (!entered) return;
-      QStringList next;
-      for (const QString& raw : entered->split(QRegularExpression("[\\s,]+"), Qt::SkipEmptyParts)) {
-        const QString k = raw.toLower();
-        if (!next.contains(k)) next << k;
-      }
+      KeywordsDialog dlg(current, this);
+      support::revealDialog(dlg, nullptr, support::gestureAnchorRect(), kebabGlobal);
+      if (dlg.exec() != QDialog::Accepted) return;
+      const QStringList next = dlg.keywords();
       if (next == current) return;          // nothing changed
       commitRowEdit(
           id, server,

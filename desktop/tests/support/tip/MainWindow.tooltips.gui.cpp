@@ -54,6 +54,7 @@ class MainWindowGuiTest : public QObject {
         {win.acts.keywords, nullptr, "keywords-btn"},
         {win.acts.chat, nullptr, "chat-btn"},
         {win.acts.crop, nullptr, "crop-image"},
+        {win.acts.flipImage, nullptr, "flip-horizontal"},
         {win.acts.rotateLeft, nullptr, "rotate-left"},
         {win.acts.rotateRight, nullptr, "rotate-right"},
         {win.acts.undo, nullptr, "undo"},

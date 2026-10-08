@@ -1,6 +1,6 @@
-"""How the drawn lines follow a rotate or a crop, as the browser's do: the twin of
-``rotateLinePointsQuarter`` / ``scaleLinePoints`` in ``browser/js/core/parse/cropGeometry.js``
-and ``core::cropChange``, and of the CLI console's ``turnLinesJson`` / ``recropLinesJson``.
+"""How the drawn lines follow a rotate, a flip or a crop, as the browser's do: the twin of
+``rotateLinePointsQuarter`` / ``mirrorLinePoints`` / ``scaleLinePoints`` in ``browser/js/core/parse/cropGeometry.js``
+and ``core::cropChange``, and of the CLI console's ``turnLinesJson`` / ``mirrorLinesJson`` / ``recropLinesJson``.
 Lines are view-local, so every result is a fresh list of fresh lines (history never aliases).
 """
 
@@ -28,6 +28,11 @@ def turn_lines(lines: list[Line], quarters: int, w: int, h: int) -> list[Line]:
   q = quarters % 4
   if q == 0: return list(lines)
   return [replace(ln, points=[_turn_point(p, q, float(w), float(h)) for p in ln.points]) for ln in lines]
+
+
+def mirror_lines(lines: list[Line], w: int) -> list[Line]:
+  """Every line mirrored left-right inside a ``w``-wide view: ``x -> w - x``."""
+  return [replace(ln, points=[Point(float(w) - p.x, p.y) for p in ln.points]) for ln in lines]
 
 
 def crop_change(old: Rect, new: Rect) -> tuple[bool, float]:

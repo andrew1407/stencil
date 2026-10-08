@@ -97,6 +97,8 @@ export interface Stencil extends StencilSettings {
   readonly imageSize: Size | undefined;
   /** Rotated-original px, {x,y,w,h} plus width/height aliases; null before an image loads. */
   readonly cropRect: (Required<WireCropRect>) | null;
+  /** True while the picture is shown mirrored left↔right (stencil.flipImage() toggles it). */
+  readonly mirrored: boolean;
   promoteIncognito(): string | null;
   readonly tooltip: TooltipSections;
   readonly lines: Line[];
@@ -157,6 +159,8 @@ export interface Stencil extends StencilSettings {
   // Editor actions
   rotateLeft(): Stencil;
   rotateRight(): Stencil;
+  /** Mirrors the whole picture left↔right (one undo step); flipH/flipV act on the selected line. */
+  flipImage(): Stencil;
   flipH(): Stencil;
   flipV(): Stencil;
   undo(): Stencil;

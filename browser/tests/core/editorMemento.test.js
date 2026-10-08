@@ -6,10 +6,11 @@ import assert from 'node:assert/strict';
 
 import { HistoryStack, MAX_STEPS, editorMemento, cursorStep, sameFilter } from '../../js/core/historyStack.js';
 
-const at = (x, rotationQuarters, lineCount) => ({
+const at = (x, rotationQuarters, lineCount, mirrored = false) => ({
   lines: Array.from({ length: lineCount }, (_, i) => ({ points: [{ x: i, y: 1 }] })),
   cropRect: { x, y: 0, width: 50, height: 40 },
   rotationQuarters,
+  mirrored,
 });
 
 test('a crop and a turn step back and forth with the lines', () => {
@@ -64,9 +65,18 @@ test('stored steps are copies: a later in-place turn of the live lines or crop c
   assert.deepEqual(h.undo(), tinted(0, 'bw', '#7c3aed'));
 });
 
-test('editorMemento captures lines, crop, turn and the filter over them', () => {
+test('editorMemento captures lines, crop, turn, mirror and the filter over them', () => {
   const m = editorMemento({ lines: [], cropRect: null, rotationQuarters: 2, imageFilter: 'custom', filterColor: '#ff0000' });
-  assert.deepEqual(m, { lines: [], cropRect: null, rotationQuarters: 2, filter: 'custom', filterColor: '#ff0000' });
+  assert.deepEqual(m, { lines: [], cropRect: null, rotationQuarters: 2, mirrored: false, filter: 'custom', filterColor: '#ff0000' });
+  assert.equal(editorMemento({ lines: [], cropRect: null, rotationQuarters: 0, mirrored: true }).mirrored, true);
+});
+
+test('a flip is a step of its own: undo brings the unmirrored view back', () => {
+  const h = new HistoryStack();
+  h.reset(at(0, 1, 0));
+  h.push(at(10, 3, 1, true));
+  assert.deepEqual(h.undo(), at(0, 1, 0), 'the floor: unmirrored, quarter one');
+  assert.deepEqual(h.redo(), at(10, 3, 1, true));
 });
 
 test('a filter switch and a tint are steps of their own, and the floor keeps the filter it started on', () => {

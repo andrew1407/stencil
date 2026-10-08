@@ -115,7 +115,6 @@ namespace stencil::gui {
     const QString script = q.queryItemValue("script", QUrl::FullyDecoded);
     if (script.size() > launchScriptMaxChars()) o.scriptDropped = true;
     else if (!script.isEmpty()) o.script = script;
-    if (q.queryItemValue("scriptMode") == QLatin1String("open")) o.scriptMode = QStringLiteral("open");
     return o;
   }
 

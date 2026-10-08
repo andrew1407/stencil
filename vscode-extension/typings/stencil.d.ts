@@ -655,6 +655,18 @@ interface Stencil extends StencilSettings {
    */
   readonly cropRect: (Required<WireCropRect>) | null;
   /**
+   * Whether the picture is shown mirrored left to right.
+   *
+   * True while the picture is shown mirrored left↔right (stencil.flipImage() toggles it).
+   *
+   * ```js
+   * if (stencil.mirrored) stencil.flipImage();
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  readonly mirrored: boolean;
+  /**
    * Turn the incognito session into a saved project.
    *
    * ```js
@@ -1169,9 +1181,21 @@ interface Stencil extends StencilSettings {
    */
   rotateRight(): Stencil;
   /**
-   * Mirror the picture left to right.
+   * Mirror the whole picture left to right.
    *
-   * Hands the facade back, so calls chain.
+   * The crop and every line follow, as one undo step. Hands the facade back, so calls chain.
+   *
+   * ```js
+   * stencil.flipImage().rotateRight();
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  flipImage(): Stencil;
+  /**
+   * Mirror the selected line left to right.
+   *
+   * Turns the selection about its bbox centre; with no selection it does nothing. Hands the facade back, so calls chain.
    *
    * ```js
    * stencil.flipH();
@@ -1181,9 +1205,9 @@ interface Stencil extends StencilSettings {
    */
   flipH(): Stencil;
   /**
-   * Mirror the picture top to bottom.
+   * Mirror the selected line top to bottom.
    *
-   * Hands the facade back, so calls chain.
+   * Turns the selection about its bbox centre; with no selection it does nothing. Hands the facade back, so calls chain.
    *
    * ```js
    * stencil.flipV();

@@ -97,6 +97,21 @@ namespace stencil::core {
     rotateImageRows(src, w, h, quarters, dst, 0, outH);
   }
 
+  void mirrorImageRows(const std::uint8_t* src, int w, int h, std::uint8_t* dst, int y0, int y1) {
+    if (src == nullptr || dst == nullptr || w <= 0 || h <= 0) return;
+    y0 = std::max(0, y0);
+    y1 = std::min(h, y1);
+    for (int y = y0; y < y1; ++y) {
+      std::uint8_t* o = dst + rgbaOffset(0, y, w);
+      const std::uint8_t* s = src + rgbaOffset(w - 1, y, w);
+      for (int x = 0; x < w; ++x, o += RGBA_BYTES, s -= RGBA_BYTES) copyPixel(o, s);
+    }
+  }
+
+  void mirrorImageRGBA(const std::uint8_t* src, int w, int h, std::uint8_t* dst) {
+    mirrorImageRows(src, w, h, dst, 0, h);
+  }
+
   void fillRGBA(std::uint8_t* dst, std::size_t pixelCount, int r, int g, int b, int a) {
     for (std::size_t i = 0; i < pixelCount; ++i) {
       std::uint8_t* o = dst + i * RGBA_BYTES;

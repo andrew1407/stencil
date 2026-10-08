@@ -1,4 +1,4 @@
-//! The session's state records: one undoable `EditState` snapshot (rotation + crop +
+//! The session's state records: one undoable `EditState` snapshot (mirror + rotation + crop +
 //! filter + lines — the browser-compatible model) and one `Attachment` the turn will send.
 const std = @import("std");
 const image = @import("../../media/image.zig");
@@ -6,10 +6,11 @@ const core = @import("../../core.zig");
 
 pub const max_states = 64; // pristine + up to 63 undoable edits; older edits drop off the front
 
-/// One editing snapshot mirroring the browser layout: rotation (0..3 clockwise quarters, applied to
-/// the original first), a crop rect in rotated-original pixels, a filter, and the lines as JSON.
+/// One editing snapshot mirroring the browser layout: a left-right mirror then a rotation (0..3
+/// clockwise quarters) of the original, a crop rect in rotated-original pixels, a filter, and the lines as JSON.
 pub const EditState = struct {
     rotation: i32 = 0,
+    mirrored: bool = false,
     crop: ?core.Rect = null,
     filter_mode: []u8 = &.{},
     filter_color: []u8 = &.{},
@@ -23,7 +24,7 @@ pub const EditState = struct {
     }
 
     pub fn dupe(self: EditState, gpa: std.mem.Allocator) !EditState {
-        var out = EditState{ .rotation = self.rotation, .crop = self.crop };
+        var out = EditState{ .rotation = self.rotation, .mirrored = self.mirrored, .crop = self.crop };
         errdefer out.deinit(gpa);
         out.filter_mode = try gpa.dupe(u8, self.filter_mode);
         out.filter_color = try gpa.dupe(u8, self.filter_color);

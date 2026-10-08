@@ -45,6 +45,8 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             opts.crop = try value(&st, "--crop");
         } else if (eq(arg, "--album")) {
             opts.album = true;
+        } else if (eq(arg, "--flip")) {
+            opts.flip = true;
         } else if (eq(arg, "-r") or eq(arg, "--rotate")) {
             opts.rotate = try parseI32(try value(&st, "--rotate"));
         } else if (eq(arg, "-l") or eq(arg, "--layout")) {
@@ -117,10 +119,11 @@ fn looksNegativeNumber(a: []const u8) bool {
 }
 
 test "parse: flags and positional output" {
-    const argv = [_][:0]const u8{ "-i", "in.png", "-r", "-1", "--album", "-c", "x1=10%", "out.png" };
+    const argv = [_][:0]const u8{ "-i", "in.png", "-r", "-1", "--flip", "--album", "-c", "x1=10%", "out.png" };
     const o = try parse(&argv);
     try testing.expectEqualStrings("in.png", o.input.?);
     try testing.expectEqual(@as(i32, -1), o.rotate);
+    try testing.expect(o.flip);
     try testing.expect(o.album);
     try testing.expectEqualStrings("x1=10%", o.crop.?);
     try testing.expectEqualStrings("out.png", o.output.?);

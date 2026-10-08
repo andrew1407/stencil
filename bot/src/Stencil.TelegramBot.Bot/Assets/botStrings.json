@@ -273,6 +273,10 @@
       "📄 Layout JSON",
       "json"
     ],
+    "flip": [
+      "↔️ Flip",
+      "flip"
+    ],
     "rotatePlus90": [
       "🔄 Rotate +90°",
       "rot90"

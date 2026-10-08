@@ -3,7 +3,7 @@
 #include <QRect>
 #include <QSize>
 
-// The desktop's seam onto core/raster/imageOps: the quarter-turn and the crop the canvas shows,
+// The desktop's seam onto core/raster/imageOps: the quarter-turn, the mirror and the crop the canvas shows,
 // in Qt types. Clockwise turns, as core::rotateImageRows and the browser's model.js.
 namespace stencil::model {
 
@@ -15,6 +15,9 @@ namespace stencil::model {
 
   // The whole picture turned, once.
   QImage turn(const QImage& original, int quarters);
+
+  // The whole picture mirrored left-right (core::mirrorImageRows).
+  QImage mirror(const QImage& original);
 
   // `crop` (in turned space, clipped to it) of the turned picture: only that piece is copied
   // and turned, so a small crop of a large picture never turns the rest.

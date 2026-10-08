@@ -24,6 +24,7 @@ test {
     _ = @import("tests/console/worker_print_test.zig");
     _ = @import("tests/console/script_runs_test.zig");
     _ = @import("tests/console/rotate_lines_test.zig");
+    _ = @import("tests/console/flip_lines_test.zig");
     _ = @import("tests/console/crop_lines_test.zig");
     _ = @import("tests/line_edit/markers_test.zig");
     _ = @import("tests/line_edit/keys_test.zig");

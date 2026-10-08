@@ -10,7 +10,7 @@ export declare const openInWeb: () => Promise<unknown>;
 export declare const openInWebIncognito: () => Promise<unknown>;
 /** The script in the web app's Script window, not run. */
 export declare const openScriptInWeb: () => Promise<unknown>;
-/** The desktop app, over a `stencil://` link: open in its Script window, or run (it asks first). */
+/** The desktop app, over a `stencil://` link: the script opens in its Script window; Run is pressed there. */
 export declare const openInDesktop: () => Promise<unknown>;
 export declare const runInDesktop: () => Promise<unknown>;
 export declare const runInDesktopIncognito: () => Promise<unknown>;

@@ -117,7 +117,7 @@ namespace stencil::gui {
           pr.meta.resource = meta.resource.toStdString();
           pr.imagePath = path;
           int lw = 0, lh = 0;
-          pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters);
+          pr.lines = fileStore::parseLayoutJson(layout, lw, lh, &pr.cropRect, &pr.rotationQuarters, &pr.mirrored);
           const QString localId = QString::fromStdString(newId);
           projectList->push_back(pr);
           fileStore::saveProjects(*projectList);

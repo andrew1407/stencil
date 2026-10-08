@@ -14,8 +14,9 @@ export function wireStyleControls(app) {
     if (supportsShareFiles()) shareBtn.style.display = '';
     shareBtn.addEventListener('click', () => app.export.shareImage());
   }
-  document.getElementById('rotate-left').addEventListener('click', () => app.imageModel.rotateImage(-1));
-  document.getElementById('rotate-right').addEventListener('click', () => app.imageModel.rotateImage(1));
+  for (const [id, act] of [['flip-horizontal', () => app.imageModel.flipImage()],
+    ['rotate-left', () => app.imageModel.rotateImage(-1)], ['rotate-right', () => app.imageModel.rotateImage(1)]])
+    document.getElementById(id).addEventListener('click', act);
   document.getElementById('line-color').addEventListener('change', e => app.settings.setColor(e.target.value));
   document.getElementById('point-color').addEventListener('change', e => app.settings.setPointColor(e.target.value));
   // Live drag (input) previews without persisting; the trailing change commits.

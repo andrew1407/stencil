@@ -37,6 +37,11 @@ test('editor actions route to app.* and return the facade for chaining', () => {
   assert.deepEqual(lastCall(app, 'rotateImage'), ['rotateImage', -1]);
   assert.equal(stencil.rotateRight(), stencil);
   assert.deepEqual(lastCall(app, 'rotateImage'), ['rotateImage', 1]);
+  assert.equal(stencil.flipImage(), stencil);
+  assert.deepEqual(lastCall(app, 'flipImage'), ['flipImage']);
+  assert.equal(stencil.mirrored, false);
+  app.mirrored = true;
+  assert.equal(stencil.mirrored, true);
 
   // A whole chain hits each underlying method once, in order.
   stencil.undo().redo().clearLines().startDrawing().stopDrawing()

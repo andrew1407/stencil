@@ -4,7 +4,7 @@
 #include "ExpirationDialog.hpp"
 #include "iconSet.hpp"
 
-#include "../../support/modal/modalChrome.hpp"  // the browser modal shell + its confirm/prompt
+#include "../../support/modal/modalChrome.hpp"  // the browser modal shell
 #include "ProjectsStore.hpp"
 
 #include <QCheckBox>
@@ -15,7 +15,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-#include <QSignalBlocker>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -35,6 +34,8 @@ namespace stencil::gui {
     chrome.body->addWidget(nameLbl);
 
     keepBox = new QCheckBox(tr("Keep forever (never expires)"), this);
+    keepBox->setObjectName(QStringLiteral("expCheck"));
+    keepBox->setCursor(Qt::PointingHandCursor);
     support::setResetDefault(keepBox, false);
     auto* keepRow = new QHBoxLayout;
     keepRow->addWidget(keepBox);
@@ -59,6 +60,8 @@ namespace stencil::gui {
     chrome.body->addWidget(periodRow);
 
     auto_ = new QCheckBox(tr("Refresh expiration each time the project is opened"), this);
+    auto_->setObjectName(QStringLiteral("expCheck"));
+    auto_->setCursor(Qt::PointingHandCursor);
     support::setResetDefault(auto_, true);
     auto* autoRow = new QHBoxLayout;
     autoRow->addWidget(auto_);
@@ -106,6 +109,11 @@ namespace stencil::gui {
 
     QHBoxLayout* footer = addModalFooter(
         chrome, tr("Past dates can’t be chosen. Expiration is local to this app."));
+    auto* cancelBtn = new QPushButton(tr("Cancel"), this);
+    makeModalCta(cancelBtn, QStringLiteral("x"));
+    cancelBtn->setAutoDefault(false);
+    footer->addWidget(cancelBtn);
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     auto* saveBtn = new QPushButton(tr("Save"), this);
     makeModalCta(saveBtn, QStringLiteral("check"));
     saveBtn->setDefault(true);
@@ -169,15 +177,6 @@ namespace stencil::gui {
 
   void ExpirationDialog::toggleKeepForever() {
     if (keepBox->isChecked()) {
-      ConfirmSpec spec;
-      spec.title = tr("Keep forever");
-      spec.message = tr("Keep this project forever and remove its expiration date?");
-      spec.confirmIcon = QStringLiteral("calendar");
-      if (!confirmModal(this, spec)) {
-        QSignalBlocker b(keepBox);
-        keepBox->setChecked(false);
-        return;
-      }
       expiresAt = 0;
     } else {
       const QString key = period->currentData().toString();

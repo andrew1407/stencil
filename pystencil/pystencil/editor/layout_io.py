@@ -55,6 +55,7 @@ class _LayoutApi:
       )
     snapshot = _Snapshot(
       rotation=core.normalize_quarters(L.rotation_quarters or 0),
+      mirrored=L.mirrored is True,
       crop=crop,
       filter_mode=L.image_filter or "",
       filter_color=L.filter_color or "",
@@ -101,6 +102,7 @@ class _LayoutApi:
       filter_color=filter_color,
       crop_rect=crop_rect,
       rotation_quarters=rotation_quarters,
+      mirrored=True if snap.mirrored else None,
       # Page format only when picked; custom dims only when set (mirror pageMeta()).
       page_size=self._page_size or None,
       custom_page_width=self._custom_page_width or None,

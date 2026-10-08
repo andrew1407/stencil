@@ -159,6 +159,14 @@
       "detail": "Rotated-original px, {x,y,w,h} plus width/height aliases; null before an image loads.",
       "example": "const { x, y, w, h } = stencil.cropRect ?? {};"
     },
+    "mirrored": {
+      "group": "state",
+      "signature": "stencil.mirrored: boolean",
+      "summary": "Whether the picture is shown mirrored left to right.",
+      "readOnly": true,
+      "detail": "True while the picture is shown mirrored left↔right (stencil.flipImage() toggles it).",
+      "example": "if (stencil.mirrored) stencil.flipImage();"
+    },
     "current": {
       "group": "projects",
       "signature": "stencil.current: Project | null",
@@ -265,15 +273,15 @@
     "flipH": {
       "group": "edit",
       "signature": "stencil.flipH(): Stencil",
-      "summary": "Mirror the picture left to right.",
-      "detail": "Hands the facade back, so calls chain.",
+      "summary": "Mirror the selected line left to right.",
+      "detail": "Turns the selection about its bbox centre; with no selection it does nothing. Hands the facade back, so calls chain.",
       "example": "stencil.flipH();"
     },
     "flipV": {
       "group": "edit",
       "signature": "stencil.flipV(): Stencil",
-      "summary": "Mirror the picture top to bottom.",
-      "detail": "Hands the facade back, so calls chain.",
+      "summary": "Mirror the selected line top to bottom.",
+      "detail": "Turns the selection about its bbox centre; with no selection it does nothing. Hands the facade back, so calls chain.",
       "example": "stencil.flipV();"
     },
     "focusRing": {
@@ -696,6 +704,13 @@
       "summary": "Turn the picture a quarter-turn clockwise.",
       "detail": "Hands the facade back, so calls chain.",
       "example": "stencil.rotateRight().apply({ filter: 'sepia' });"
+    },
+    "flipImage": {
+      "group": "edit",
+      "signature": "stencil.flipImage(): Stencil",
+      "summary": "Mirror the whole picture left to right.",
+      "detail": "The crop and every line follow, as one undo step. Hands the facade back, so calls chain.",
+      "example": "stencil.flipImage().rotateRight();"
     },
     "save": {
       "group": "session",

@@ -22,7 +22,7 @@ namespace stencil::gui {
 
   // Returns the original untouched at 0.
   QImage CanvasScene::effectiveOriginalImage() const {
-    return model::turn(originalImage, rotationQuarters);
+    return model::turn(mirrored ? model::mirror(originalImage) : originalImage, rotationQuarters);
   }
 
   core::Lines CanvasScene::allLines() const {

@@ -27,14 +27,14 @@ export const withOriginal = (sig, hash) => imageSignature({
   hasImage: true, originalHash: hash, blankColor: sig ? JSON.parse(sig)[1] : '',
 });
 
-// The layout's crop and quarter turn over the original on screen, snapped as a load snaps them; null
+// The layout's crop, quarter turn and mirror over the original on screen, snapped as a load snaps them; null
 // for a layout without a crop rect, which reloads.
 const peerView = (app, layout) => {
   const o = app.originalImage;
   if (!o || !normalizeCropRect(layout?.cropRect)) return null;
   const q = Number.isInteger(layout.rotationQuarters) ? layout.rotationQuarters : 0;
   const [iw, ih] = q % 2 ? [o.height, o.width] : [o.width, o.height];
-  return { cropRect: app.imageModel.roundRect(layout.cropRect, iw, ih), rotationQuarters: q };
+  return { cropRect: app.imageModel.roundRect(layout.cropRect, iw, ih), rotationQuarters: q, mirrored: layout.mirrored === true };
 };
 
 // Lines land only when they differ, and a crop or turn is re-derived from the original as undo does.

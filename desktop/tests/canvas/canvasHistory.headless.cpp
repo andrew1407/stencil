@@ -1,6 +1,6 @@
 // The canvas's undo steps are editor mementos (core EditorHistory, the browser's editorMemento):
-// the lines, the crop and turn they sit on and the filter, so a crop and a quarter-turn undo and
-// redo like a stroke. A load's own crop starts the stack. Runs offscreen; the filter's own cases
+// the lines, the crop, turn and mirror they sit on and the filter, so a crop, a quarter-turn and a
+// flip undo and redo like a stroke. A load's own crop starts the stack. Runs offscreen; the filter's own cases
 // are canvasHistoryFilter.headless.cpp.
 #include "CanvasWidget.hpp"
 
@@ -70,6 +70,25 @@ int main(int argc, char** argv) {
   canvas.undo();
   check(canvas.getLines().empty() && sameCrop(canvas.getCropRect(), full) && !canvas.canUndo(),
         "…and to the load, on the load's own view");
+
+  std::printf("flip:\n");
+  canvas.applyCrop(core::CropRect{20, 20, 200, 150}, /*recalc=*/true);
+  canvas.commitLines({lineAt(30)});
+  canvas.flipImage();
+  check(canvas.getMirrored() && sameCrop(canvas.getCropRect(), {80, 20, 200, 150}) && canvas.imageWidth() == 200,
+        "a flip mirrors the crop across the picture and keeps the view's size");
+  check(canvas.getLines()[0].points[0].x == 170 && canvas.getLines()[0].points[1].x == 130,
+        "…and the lines inside the view: x → width − x");
+  canvas.rotateImage(/*clockwise=*/true);
+  canvas.flipImage();
+  check(!canvas.getMirrored() && canvas.getRotationQuarters() == 3, "a flip negates the turn");
+  canvas.undo();
+  canvas.undo();
+  canvas.undo();
+  check(!canvas.getMirrored() && canvas.getRotationQuarters() == 0 && sameCrop(canvas.getCropRect(), {20, 20, 200, 150}),
+        "undo walks the flips and the turn back");
+  canvas.undo();
+  canvas.undo();
 
   std::printf("what starts the stack:\n");
   canvas.applyCrop(core::CropRect{0, 0, 120, 80}, /*recalc=*/false);

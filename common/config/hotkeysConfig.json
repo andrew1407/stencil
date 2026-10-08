@@ -85,6 +85,11 @@
     "default": "Alt+Shift+R"
   },
   {
+    "id": "flipImageHorizontal",
+    "label": "Flip Image Horizontally",
+    "default": "Alt+Shift+F"
+  },
+  {
     "id": "flipLineHorizontal",
     "label": "Flip Line Horizontal",
     "default": "Alt+Shift+ArrowUp"

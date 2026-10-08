@@ -9,6 +9,7 @@ export const createProjectMetaModal = ({
   name, title, glyph, hint, noun, addLabel, field, load, save,
 }) => {
   const cls = class extends StencilElement {
+    #openFor;
     static inner() {
       return `
         <div class="app-modal">
@@ -32,25 +33,36 @@ export const createProjectMetaModal = ({
       return hostTag(`stencil-${name}-modal`, `id="${name}-overlay" class="app-modal-overlay"`, cls.inner());
     }
 
+    // A projects-list row's own project, stacked over the list; `onSaved` gets the updated meta.
+    openFor(id, anchors) { this.#openFor?.(id, anchors); }
+
     wire(app) {
       const $ = (id) => document.getElementById(id);
       let shell;
+      let row = null;   // { id, onSaved } while opened from a row, else the active project
+      const targetId = () => (row ? row.id : app.activeProjectId);
       const commit = () => {
-        const id = app.activeProjectId;
+        const id = targetId();
         if (id == null) { notify(`Save the project first to add ${addLabel}`, 'fail'); return; }
-        if (save(app, id, port.get()) == null) { notify(`Could not save the ${noun}`, 'fail'); return; }
+        const updated = save(app, id, port.get());
+        if (updated == null) { notify(`Could not save the ${noun}`, 'fail'); return; }
+        row?.onSaved?.(updated);
         shell.close();
       };
       const port = field.wire(name, commit);
       shell = wireModalShell($(`${name}-overlay`), $(`${name}-btn`), $(`${name}-close`), {
-        onClose: () => port.reset?.(),
+        onClose: () => { port.reset?.(); row = null; },
         // Reopening from what is stored is what makes every close a discard.
         onOpen: () => {
-          const id = app.activeProjectId;
+          const id = targetId();
           port.set(load(id != null ? app.storage.store.getMeta(id) : null));
           setTimeout(() => port.focus(), 0);
         },
       });
+      this.#openFor = (id, { from = null, backTo = null, onSaved = null } = {}) => {
+        row = { id, onSaved };
+        shell.open(from, backTo, { stacked: true });
+      };
       $(`${name}-save`).addEventListener('click', commit);
       $(`${name}-cancel`).addEventListener('click', () => shell.close());
     }

@@ -13,6 +13,8 @@ export const createEditorState = () => ({
 // Quarter turns (0..3, clockwise) applied to `originalImage` before cropping; `cropRect`
 // lives in the rotated pixel space and line points ride along each turn.
   rotationQuarters: 0,
+// The original is mirrored left-right BEFORE the turn: the shown picture is turn(mirror(original)).
+  mirrored: false,
 // `imageSource` = the image/video's own URL, `imageResource` = the web page it came from.
 // Persisted in the layout and mirrored into project meta.
   imageSource: null,

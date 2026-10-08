@@ -198,10 +198,11 @@ test('the snapshot is an editor memento beside the page and formula settings', (
   st.crop({ x1: '1px', x2: '7px', y1: '1px', y2: '5px' });
   const state = captureEditorState(st);
   assert.deepEqual(Object.keys(state).sort(), ['allowFormulas', 'cropRect', 'filter', 'filterColor', 'formulaX',
-    'formulaY', 'lines', 'mark', 'pageSize', 'rotationQuarters', 'size']);
+    'formulaY', 'lines', 'mark', 'mirrored', 'pageSize', 'rotationQuarters', 'size']);
   assert.deepEqual(state.cropRect, { x: 1, y: 1, width: 6, height: 4 });
   assert.deepEqual([state.filter, state.filterColor], ['custom', '#00ff00']);
   assert.equal(state.rotationQuarters, 0, 'the facade names no turn; without a history mark it is 0');
+  assert.equal(state.mirrored, false, 'nor a mirror');
   assert.equal(state.mark, null);
 });
 

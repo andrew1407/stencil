@@ -1,4 +1,4 @@
-//! The console's derived view, cached. A view is rotate → crop → filter over the untouched original,
+//! The console's derived view, cached. A view is mirror → rotate → crop → filter over the untouched original,
 //! and only then the drawn lines; every edit, undo and redo rebuilds it. Drawing a line, undoing
 //! one or rendering an LLM variant leaves the triple alone, so `Base` keeps the last one it built
 //! and hands out copies — which is what stops a `/line` re-running a contour convolution. Costs one
@@ -11,6 +11,7 @@ const pipeline = @import("../../pipeline.zig");
 /// The snapshot fields the base is derived from — everything but the lines.
 pub const Recipe = struct {
     rotation: i32 = 0,
+    mirrored: bool = false,
     crop: ?core.Rect = null,
     mode: []const u8 = &.{},
     color: []const u8 = &.{},
@@ -29,12 +30,12 @@ pub const Base = struct {
     }
 
     fn holds(self: Base, want: Recipe) bool {
-        if (self.img == null or self.made.rotation != want.rotation) return false;
+        if (self.img == null or self.made.rotation != want.rotation or self.made.mirrored != want.mirrored) return false;
         if (!rectEql(self.made.crop, want.crop)) return false;
         return std.mem.eql(u8, self.made.mode, want.mode) and std.mem.eql(u8, self.made.color, want.color);
     }
 
-    /// A fresh copy of rotate → crop → filter applied to `orig` for `want`. Caller owns it.
+    /// A fresh copy of mirror → rotate → crop → filter applied to `orig` for `want`. Caller owns it.
     pub fn view(self: *Base, gpa: std.mem.Allocator, orig: image.Rgba8, want: Recipe) !image.Rgba8 {
         if (!self.holds(want)) try self.rebuild(gpa, orig, want);
         const cached = self.img.?;
@@ -44,6 +45,7 @@ pub const Base = struct {
     fn rebuild(self: *Base, gpa: std.mem.Allocator, orig: image.Rgba8, want: Recipe) !void {
         var img = image.Rgba8{ .width = orig.width, .height = orig.height, .pixels = try gpa.dupe(u8, orig.pixels) };
         errdefer img.deinit(gpa);
+        if (want.mirrored) try pipeline.applyMirror(gpa, &img);
         if (@mod(want.rotation, 4) != 0) try pipeline.applyRotateBy(gpa, &img, want.rotation);
         if (want.crop) |cr| try pipeline.cropToRect(gpa, &img, cr);
         if (want.mode.len != 0 and !std.ascii.eqlIgnoreCase(want.mode, "none")) {
@@ -54,7 +56,7 @@ pub const Base = struct {
         errdefer gpa.free(mode);
         const color = try gpa.dupe(u8, want.color);
         self.deinit(gpa);
-        self.* = .{ .img = img, .made = .{ .rotation = want.rotation, .crop = want.crop, .mode = mode, .color = color } };
+        self.* = .{ .img = img, .made = .{ .rotation = want.rotation, .mirrored = want.mirrored, .crop = want.crop, .mode = mode, .color = color } };
     }
 };
 

@@ -38,6 +38,7 @@ namespace stencil::gui {
     tabBar->setExpanding(false);
     tabBar->setUsesScrollButtons(false);   // their reserve widened the webcore hairline past the tabs
     tabBar->setFocusPolicy(Qt::NoFocus);
+    tabBar->setCursor(Qt::PointingHandCursor);   // browser .coord-tab; the bar is only its two tabs
     tabBar->addTab("Points");
     tabBar->addTab("Lines");
     collapseBtn = new QToolButton(titleBar);
@@ -94,6 +95,7 @@ namespace stencil::gui {
     ptsLay->setContentsMargins(0, 0, 0, 0);
     points = new FitTable(0, COL_COUNT, ptsTab);
     points->setObjectName("pointsTable");
+    points->viewport()->setCursor(Qt::PointingHandCursor);   // browser .coordinates-table tbody tr
     points->setItemDelegate(new PointRowDelegate(points));  // outline-style selection
     applyUnitHeaders();
     points->verticalHeader()->setVisible(false);
@@ -140,6 +142,7 @@ namespace stencil::gui {
     // and one cell padding across both tabs (in the browser it is the same table).
     lines = new FitTable(0, LCOL_COUNT, linesTab);
     lines->setObjectName("linesList");
+    lines->viewport()->setCursor(Qt::PointingHandCursor);   // browser .lines-row
     lines->setItemDelegate(new PointRowDelegate(lines, LCOL_COUNT - 1));
     lines->setHorizontalHeaderLabels({"#", "Color", "Line", "Pts", ""});
     lines->verticalHeader()->setVisible(false);

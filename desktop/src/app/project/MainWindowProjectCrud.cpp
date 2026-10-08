@@ -53,6 +53,7 @@ namespace stencil::gui {
     pr.lines = canvas->allLines();
     pr.cropRect = canvas->getCropRect();
     pr.rotationQuarters = canvas->getRotationQuarters();
+    pr.mirrored = canvas->getMirrored();
     // Seed the current pan/zoom (browser #buildLayout() reads the live scale/scroll on every
     // save).
     pr.zoomScale = canvas->getScale();

@@ -83,7 +83,7 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   number, and the constants `PAGE_WIDTH`, `PAGE_HEIGHT` (in the selected display unit),
   `PAGE_WIDTH_CM` / `_IN`, `PAGE_HEIGHT_CM` / `_IN` and `IMAGE_WIDTH` / `IMAGE_HEIGHT` (in
   pixels). Page formats cover the full ISO A/B/C series plus a custom size.
-- **Image** — filters (B&W, sepia, invert, contour, custom tint), crop, quarter-turn rotate,
+- **Image** — filters (B&W, sepia, invert, contour, custom tint), crop, horizontal flip, quarter-turn rotate,
   zoom/pan, fit-to-window, a blank-page creator, undo/redo, drag-and-drop and clipboard
   paste for images and layout JSON.
 - **Windows** — Projects, Servers, Links, Assistant (`Alt+G`), Assistant settings
@@ -215,7 +215,7 @@ Orientation:
   — and every key works both on the facade and under `stencil.settings`; `apply({...})`
   sets many at once and chains: `stencil.apply({ page: 'a4', pointSize: 6 }).rotateLeft().crop({ x2: '-2cm' })`.
 - **Session**: `await stencil.load(url, { frame, address, incognito })`, `await stencil.blank(color, { size })`,
-  `newEditor()`, `save()`; **image**: `rotateLeft/Right()`, `crop({ x1, y1, x2, y2 } | { scale })`,
+  `newEditor()`, `save()`; **image**: `rotateLeft/Right()`, `flipImage()` (mirror left↔right; `mirrored` reads it), `crop({ x1, y1, x2, y2 } | { scale })`,
   `zoom()`, `undo()/redo()`, `clearLines()`; **export**: `downloadImage()`, `copyImage()`,
   `layout` (get/set), `applyLayout()`, `setLines()`, `saveProjectFile()` / `openProjectFile()`.
 - **Projects**: `stencil.current`, `openedProjects`, `getProjectByName()` → a `Project`

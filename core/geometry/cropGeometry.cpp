@@ -178,4 +178,9 @@ namespace stencil::core {
       }
   }
 
+  void mirrorLinePoints(Lines& lines, double boxW) {
+    for (auto& line : lines)
+      for (auto& p : line.points) p.x = boxW - p.x;
+  }
+
 }

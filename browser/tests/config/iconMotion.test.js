@@ -34,7 +34,7 @@ const isIdentity = (pose) => Object.entries(pose).every(([k, v]) =>
 test('every canonical icon has a motion design, and every design an icon', () => {
   assert.deepEqual(Object.keys(MOTION.icons), Object.keys(ICONS),
     'iconMotion.json must cover icons.json exactly, in the same order');
-  assert.equal(Object.keys(ICONS).length, 76);   // + the layout file pair, + minimize, + script, + chat-settings, + duplicate, + code
+  assert.equal(Object.keys(ICONS).length, 77);   // + the layout file pair, + minimize, + script, + chat-settings, + duplicate, + code, + flip-horizontal
   // Non-canonical glyphs (the draw-mode pair lives inline in core/drawingApp.js) are
   // designed too, but kept OUT of `icons` so the 1:1 check above stays honest.
   assert.ok(MOTION.extras['draw-mode-icon'], 'the draw-mode faces are designed as an extra');

@@ -41,6 +41,7 @@ def _build_parser() -> argparse.ArgumentParser:
   p.add_argument("-f", "--frame", type=int, default=0, help="video frame index (parity only)")
   p.add_argument("-c", "--crop", help='crop spec, e.g. "x1=10%% x2=90%% y1=10%% y2=90%%"')
   p.add_argument("--album", action="store_true", help="derive the missing crop axis from the page")
+  p.add_argument("--flip", action="store_true", help="mirror left-right (after the crop, before the rotation)")
   p.add_argument("-r", "--rotate", type=int, default=0, help="rotate by N quarter-turns (N×90°)")
   p.add_argument("-l", "--layout", help="layout JSON (path or URL) to DRAW onto the image")
   p.add_argument(
@@ -135,8 +136,9 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   # over a separately-parsed positional (there can only be one in practice).
   output = blank_leftover[-1] if blank_leftover else args.output
 
-  # 2) crop → 3) rotate.
+  # 2) crop → flip → 3) rotate.
   if args.crop: editor.crop(args.crop, album=args.album)
+  if args.flip: editor.flip()
   if args.rotate: editor.rotate(args.rotate)
 
   # 4) filter (explicit --filter; raises on an unrecognized value). It belongs to the

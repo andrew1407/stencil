@@ -5,9 +5,9 @@ modes over the shared core, driving an :class:`~pystencil.editor.Editor`:
 
 * **One-shot pipeline** (default): flags mirror the Zig CLI as far as is
  practical — ``-i/--input``, ``--blank``, ``-f/--frame``, ``-c/--crop``,
- ``--album``, ``-r/--rotate``, ``-l/--layout`` (draw), ``--filter``,
+ ``--album``, ``--flip``, ``-r/--rotate``, ``-l/--layout`` (draw), ``--filter``,
  ``--save-layout`` (export the structured layout), and a positional output
- image. Steps run in the fixed order **source → crop → rotate → filter →
+ image. Steps run in the fixed order **source → crop → flip → rotate → filter →
  draw-layout**, then the image and/or layout are written. On success the canonical
  ``wrote {path} ({w}x{h})`` line is printed to stderr (matching the Zig
  contract); failures print ``error: …`` and return a non-zero code.
@@ -15,7 +15,7 @@ modes over the shared core, driving an :class:`~pystencil.editor.Editor`:
 * **Console / REPL** (``--console`` / ``--repl``): reads ``/command <args>``
  lines mirroring the Zig console grammar (``cli/src/console/commands.zig``):
  ``/upload`` (``/open``/``/load``), ``/blank`` (``/new``), ``/format``,
- ``/crop``, ``/rotate`` (``/rot``), ``/filter`` (+ ``/bw`` ``/sepia``
+ ``/crop``, ``/rotate`` (``/rot``), ``/flip``, ``/filter`` (+ ``/bw`` ``/sepia``
  ``/none``), ``/apply`` (``/draw``), ``/layout`` (export), ``/save``,
  ``/undo`` ``/redo`` ``/reset``, ``/status``, ``/connect``, ``/disconnect``,
  ``/delete`` (``/rm``), ``/projects``, ``/fetch``, ``/prompt`` (``/p``) +

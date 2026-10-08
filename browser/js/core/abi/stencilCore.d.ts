@@ -51,6 +51,7 @@ export interface CoreOps extends LineOps {
   rotateCropRectQuarter(r: CropRect, imageW: number, imageH: number, clockwise: boolean): CropRect;
   snapCropRect(r: CropRect, imageW: number, imageH: number): CropRect;
   rotateEditQuarter(crop: CropRect, quarters: number, originalW: number, originalH: number, clockwise: boolean): { crop: CropRect; quarters: number };
+  mirrorEdit(crop: CropRect, quarters: number, originalW: number, originalH: number): { crop: CropRect; quarters: number };
   HoldDrawController: new (opts?: HoldDrawOptions) => WasmHoldDrawController;
   HistoryStack: new () => WasmHistoryStack;
 }

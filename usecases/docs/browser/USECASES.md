@@ -108,10 +108,11 @@ The theme switch sweeps the new palette in from the button you pressed:
 
 ![the theme swap](img/theme-swap.gif)
 
-## Crop, rotate, filter
+## Crop, flip, rotate, filter
 
-**Crop** (`Ctrl+Shift+X`) opens a page-locked crop box; the Edit section rotates by quarter
-turns and applies Black & White, Sepia, Invert, Contour or a tint. Undo and redo cover all
+**Crop** (`Ctrl+Shift+X`) opens a page-locked crop box; the Edit section flips the picture
+left to right (`Alt+Shift+F`), rotates it by quarter turns and applies Black & White, Sepia,
+Invert, Contour or a tint. The lines follow a flip and a turn, and undo and redo cover all
 of it.
 
 ![the crop window](img/crop-modal.png)
@@ -145,9 +146,8 @@ error by line, and runs it with `Ctrl+Enter`. Drop a `.stc` file on the page to 
 ![the script window](img/script-modal.png)
 
 A script can also arrive from somewhere else — the VS Code extension hands one over in the
-page's URL fragment. It runs on the picture as the page opens, and the window shows the
-source that acted. Sent with **Open in Stencil Web's Script window** instead, it lands in the
-window without running, ready to edit.
+page's URL fragment. It lands in the Script window, highlighted and ready to edit; nothing
+runs until **Run** is pressed.
 
 ![a script handed over from VS Code](img/script-handoff.png)
 

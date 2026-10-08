@@ -92,7 +92,7 @@ const swapShown = (el, show) => {
 // data-disabled-reason (in the markup) feeds the tooltip via composeControlTitle.
 const imageGates = (app) => {
   const hasImage = !!app.image;
-  for (const id of ['crop-image', 'rotate-left', 'rotate-right', 'compare-mode', 'save-image',
+  for (const id of ['crop-image', 'flip-horizontal', 'rotate-left', 'rotate-right', 'compare-mode', 'save-image',
     'save-project-btn', 'upload-json-btn']) setDisabled(id, !hasImage);
   setDisabled('image-filter', false);   // a tint chosen ahead colours the next picture
   swapShown(document.getElementById('load-image-btn'), !hasImage);

@@ -36,11 +36,13 @@ namespace stencil::gui {
 
     // The untouched original; image is the cropped region.
     const QImage& getOriginalImage() const { return originalImage; }
-    // The original with the rotation baked in — the pixel space cropRect lives in.
+    // The original with the mirror and rotation baked in — the pixel space cropRect lives in.
     QImage effectiveOriginalImage() const;
     core::CropRect getCropRect() const { return cropRect; }
     // Quarter-turns (0..3, clockwise) applied to the original before the crop.
     int getRotationQuarters() const { return rotationQuarters; }
+    // The original mirrored left-right BEFORE the turn: the shown picture is turn(mirror(original)).
+    bool getMirrored() const { return mirrored; }
     // Natural page size in cm (NOT orientation-swapped); shapes the default centered crop.
     void setPageCm(double widthCm, double heightCm);
     // Bumped by every picture replacement and by a load that begins decoding off-thread: a decode
@@ -59,18 +61,22 @@ namespace stencil::gui {
 
     // The document's own edits; CanvasWidget's same-named ones add the view and the signals.
     // Rotation is applied FIRST, then the crop (rotated-original space); a zero-width crop default-crops.
-    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
+    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters,
+                       bool mirrored = false);
     // Pixels are adopted only under a path and never decoded here: `decoded` is read off the GUI thread.
     void restore(const QString& path, const core::Lines& lines, const core::CropRect& cropRect,
-                 int rotationQuarters, const QImage& decoded);
+                 int rotationQuarters, const QImage& decoded, bool mirrored = false);
     void rotateImage(bool clockwise);
+    // A left-right flip of the shown picture; the crop window and the lines follow — one undo step.
+    void flipImage();
     // `recalc`: lines are cleared on an orientation flip, else rescaled.
     void applyCrop(const core::CropRect& rect, bool recalc);
     void setLines(const core::Lines& lines);     // replace all, reset the history
     void commitLines(const core::Lines& lines);  // replace all, push ONE undo step
     // Lines, crop and turn as ONE undo step, the picture rebuilt from the original as a restored
     // step's is; true when the crop or turn moved.
-    bool commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters);
+    // `mirrored` -1 keeps the mirror on screen, else 0/1 sets it.
+    bool commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters, int mirrored = -1);
     bool undo();
     bool redo();
 
@@ -150,6 +156,7 @@ namespace stencil::gui {
     QImage originalImage;
     core::CropRect cropRect;
     int rotationQuarters = 0;
+    bool mirrored = false;
     double pageWidthCm = 29.7;
     double pageHeightCm = 42.0;
     QString imagePath;

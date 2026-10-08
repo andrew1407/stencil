@@ -18,7 +18,7 @@ keyboard: edit, filter, draw, undo/redo, chat, download, reset, save, rename, de
 
 ## The reply buttons
 
-Every reply carries a keyboard. **Edit** opens rotate and crop, **Draw** the drawing
+Every reply carries a keyboard. **Edit** opens flip, rotate and crop, **Draw** the drawing
 tools, **Download** the image, project or layout JSON; **« Back** returns to the main
 keyboard.
 

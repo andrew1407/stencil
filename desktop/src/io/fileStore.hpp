@@ -98,6 +98,7 @@ namespace stencil::gui {
     // Rotated-image pixels; width 0 = no crop stored → default centered crop on load.
     core::CropRect cropRect;
     int rotationQuarters = 0;
+    bool mirrored = false;   // the original mirrored left-right before the turn
     // The project being edited (empty = unsaved), so a relaunch knows WHOSE pixels these are.
     QString activeProjectId;
   };
@@ -109,6 +110,7 @@ namespace stencil::gui {
     core::Lines lines;
     core::CropRect cropRect;
     int rotationQuarters = 0;
+    bool mirrored = false;
     // llm-contract.md §12.1; empty = no saved chat.
     QJsonObject chat;
     // 0 = never saved → MainWindow falls back to fitToWindow() (browser `if (layout.zoom)` gate).
@@ -164,17 +166,17 @@ namespace stencil::gui {
       QString formulaY;
     };
 
-    // Browser layout.js buildLayoutPayload twin: cropRect and rotationQuarters are omitted when
-    // empty/0 so old exports stay byte-identical; parseLayoutJson leaves an absent out-pointer untouched.
+    // Browser layout.js buildLayoutPayload twin: cropRect, rotationQuarters and mirrored are omitted
+    // when empty/0/false so old exports stay byte-identical; parseLayoutJson leaves an absent out-pointer untouched.
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
                                 const QString& filterColor = DEFAULT_ACCENT_HEX,
                                 const core::CropRect& cropRect = {},
                                 int rotationQuarters = 0,
-                                const LayoutMeta& meta = {});
+                                const LayoutMeta& meta = {}, bool mirrored = false);
     LayoutMeta parseLayoutMeta(const QJsonObject& o);
-    core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
-                                core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
+    core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut, core::CropRect* cropOut = nullptr,
+                                int* rotOut = nullptr, bool* mirroredOut = nullptr);
 
     // .stencil portable project file — browser/js/core/project/file.js twin; QtCore-only (image as base64).
     inline constexpr int STENCIL_FILE_VERSION = 1;

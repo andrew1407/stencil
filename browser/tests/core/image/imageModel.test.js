@@ -14,7 +14,7 @@ const balloon = { notify: (m, t) => notifications.push([m, t]) };
 // Mock canvas: records size, hands back a no-op 2D context.
 const makeCanvas = () => ({
   width: 0, height: 0,
-  getContext: () => ({ translate() {}, rotate() {}, drawImage() {} }),
+  getContext: () => ({ translate() {}, rotate() {}, scale() {}, drawImage() {} }),
   toDataURL: () => 'data:fake',
 });
 globalThis.document = {
@@ -142,4 +142,33 @@ test('restoreView rebuilds from the original only when the step names another cr
   assert.equal(app.rotationQuarters, 1);
   assert.deepEqual(app.cropRect, { x: 0, y: 0, width: 100, height: 200 });
   assert.equal(app.canvas.width, 100, 'the working image is rebuilt at the restored size');
+});
+
+test('flipImage: mirrors the crop window and the lines, toggles the mirror, negates the turn — one step', () => {
+  const app = makeApp({ cropRect: { x: 10, y: 0, width: 80, height: 100 }, lines: [{ points: [{ x: 5, y: 7 }] }] });
+  const m = new ImageModel(app);
+  m.flipImage();
+  assert.equal(app.mirrored, true);
+  assert.deepEqual(app.cropRect, { x: 110, y: 0, width: 80, height: 100 });
+  assert.deepEqual(app.lines, [{ points: [{ x: 75, y: 7 }] }]);
+  assert.deepEqual(app.rec.pushes.map((p) => [p.mirrored, p.rotationQuarters]), [[true, 0]]);
+  m.rotateImage(1);
+  m.flipImage();
+  assert.equal(app.mirrored, false);
+  assert.equal(app.rotationQuarters, 3, 'a flip negates the turn: turn(q)·mirror = mirror·turn(-q)');
+});
+
+test('flipImage: no image → fail notify, no mutation', () => {
+  reset();
+  const app = makeApp({ originalImage: null });
+  new ImageModel(app).flipImage();
+  assert.equal(app.mirrored, undefined);
+  assert.equal(notifications.length, 1);
+});
+
+test('restoreView brings a mirror back even when crop and turn match', () => {
+  const app = makeApp();
+  const m = new ImageModel(app);
+  assert.equal(m.restoreView({ lines: [], cropRect: { x: 0, y: 0, width: 200, height: 100 }, rotationQuarters: 0, mirrored: true }), true);
+  assert.equal(app.mirrored, true);
 });

@@ -84,7 +84,7 @@ namespace stencil::gui {
         canvas->imageWidth(), canvas->imageHeight(), canvas->allLines(),
         settings->imageFilter, settings->filterColor,
         canvas->getCropRect(), canvas->getRotationQuarters(),
-        currentLayoutMeta());
+        currentLayoutMeta(), canvas->getMirrored());
     const QByteArray txt =
         QJsonDocument(obj).toJson(QJsonDocument::Indented);
     QGuiApplication::clipboard()->setText(QString::fromUtf8(txt));

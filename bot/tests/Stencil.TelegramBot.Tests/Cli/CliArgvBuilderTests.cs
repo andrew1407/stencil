@@ -58,6 +58,22 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
+    public void Should_Put_The_Flip_After_The_Crop_And_Before_The_Rotate()
+    {
+        EditRequest req = new()
+        {
+            Input = "a.png",
+            CropSpec = "x1=10%",
+            Rotate = 1,
+            Flip = true,
+            Output = "out.png",
+        };
+        Assert.Equal(
+            new[] { "-i", "a.png", "-c", "x1=10%", "--flip", "-r", "1", "--confine-output", "out.png" },
+            CliArgvBuilder.BuildArgv(req));
+    }
+
+    [Fact]
     public void Should_Pass_A_Negative_Rotate_Through()
     {
         EditRequest req = new()

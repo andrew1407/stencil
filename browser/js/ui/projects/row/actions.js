@@ -81,27 +81,13 @@ export function attachRowActions(deps) {
   const pickColor = () => openColorPicker(meta, menuBtn);
   const clearColor = () => { app.projectTransfer.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
-  // Edit the project's search keywords via a prompt (comma/space separated). The store
-  // normalizes; a server-linked project also pushes them to the server.
-  const editKeywords = async () => {
-    const cur = (meta.keywords || []).join(' ');
-    const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
-    if (v == null) return;
-    const updated = app.projectTransfer.setProjectKeywords(meta.id, v.split(/[\s,]+/));
-    if (updated) meta.keywords = updated.keywords;
-    render();
-  };
-
-  // Edit the project's free-text description via a prompt. The store trims + stores it;
-  // an empty value clears it. Mirrors editKeywords / the colour picker above.
-  const editDescription = async () => {
-    const cur = meta.description || '';
-    const v = await app.prompt('Description:', { title: 'Project description', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
-    if (v == null) return;
-    const updated = app.projectTransfer.setProjectDescription(meta.id, v);
-    if (updated) meta.description = updated.description;
-    render();
-  };
+  // Keywords and description open their own windows (ui/meta/) for THIS row, over the list.
+  const editMeta = (tag, field) => (at) => document.querySelector(`stencil-${tag}-modal`)?.openFor(meta.id, {
+    from: at, backTo: menuBtn,
+    onSaved: (updated) => { meta[field] = updated[field]; render(); },
+  });
+  const editKeywords = editMeta('keywords', 'keywords');
+  const editDescription = editMeta('description', 'description');
 
   // One menu definition, shared by the "⋯" button and a right-click on the row.
   const menuItems = () => [

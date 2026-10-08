@@ -19,7 +19,7 @@ class _DeriveApi:
   geometry helpers both need."""
   # ── render + save ──────────────────────────────────────────────────────────
   def result(self, with_lines: bool = True) -> Image:
-    """Derive and return the current view: rotate → crop → filter → rasterize lines.
+    """Derive and return the current view: mirror → rotate → crop → filter → rasterize lines.
 
     Memoized on :attr:`revision`, so repeated calls between edits cost only the copy
     that keeps every caller's :class:`Image` an independent buffer (mirrors
@@ -32,7 +32,8 @@ class _DeriveApi:
     core = self._get_core()
     snap = self._current()
     img = orig
-    # 1. rotate the original first (core reads src, writes a fresh dst — no extra copy)
+    # 1. mirror, then rotate the original (core reads src, writes a fresh dst — no extra copy)
+    if snap.mirrored: img = Image(img.width, img.height, core.mirror_image_rgba(img.data, img.width, img.height))
     if snap.rotation % 4 != 0:
       data = core.rotate_image_rgba(img.data, img.width, img.height, snap.rotation)
       rot_w, rot_h = core.rotated_dims(img.width, img.height, snap.rotation)
@@ -42,7 +43,7 @@ class _DeriveApi:
       cx, cy, cw, ch = self._clamp_rect(snap.crop, img.width, img.height)
       data = core.crop_image_rgba(img.data, img.width, img.height, cx, cy, cw, ch)
       img = Image(cw, ch, data)
-    # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if neither ran
+    # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if none ran
     #    (contour is dimensioned Sobel edge detection, so it takes its own entry point)
     if img is orig: img = orig.copy()
     if snap.filter_mode and snap.filter_mode.lower() != "none":

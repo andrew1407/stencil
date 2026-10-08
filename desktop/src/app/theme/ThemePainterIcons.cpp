@@ -40,6 +40,7 @@ namespace stencil::gui {
     set(w.acts.crop, "crop");
     set(w.acts.rotateLeft, "rotate-ccw");
     set(w.acts.rotateRight, "rotate-cw");
+    set(w.acts.flipImage, "flip-horizontal");
     set(w.acts.cycleFilter, "image");
     set(w.acts.startDraw, "play");
     set(w.acts.stopDraw, "stop");

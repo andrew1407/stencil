@@ -55,11 +55,13 @@ namespace stencil::gui {
     // turn rebuilt from the picture already held. False only for a layout with no crop.
     auto applyLayoutOnly = [this](const QJsonObject& layout) {
       int lw = 0, lh = 0, rot = 0;
+      bool mirrored = false;
       core::CropRect crop;
-      const core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot);
+      const core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot, &mirrored);
       if (crop.width <= 0) return false;
       const core::CropRect cur = w.canvas->getCropRect();
-      const bool sameView = ((rot % 4) + 4) % 4 == w.canvas->getRotationQuarters() && crop.x == cur.x &&
+      const bool sameView = ((rot % 4) + 4) % 4 == w.canvas->getRotationQuarters() &&
+                            mirrored == w.canvas->getMirrored() && crop.x == cur.x &&
                             crop.y == cur.y && crop.width == cur.width && crop.height == cur.height;
       adoptServerLayoutMeta(layout);
       const core::PageSize page =
@@ -71,7 +73,7 @@ namespace stencil::gui {
       w.applyImageFilter(filter, false);
       // A filter-only edit is its own step, or undoing a later stroke would hand it back; a
       // result upload over the same layout pushes none.
-      if (!sameView) w.canvas->commitLayout(lines, crop, rot);
+      if (!sameView) w.canvas->commitLayout(lines, crop, rot, mirrored);
       else if (!sameLines(lines, w.canvas->allLines())) w.canvas->commitLines(lines);
       else w.canvas->commitFilter(filter, w.tools.filterColorValue);
       return true;

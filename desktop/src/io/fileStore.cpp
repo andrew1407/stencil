@@ -94,7 +94,7 @@ namespace stencil::gui {
                                          const QString& filterColor,
                                          const core::CropRect& cropRect,
                                          int rotationQuarters,
-                                         const LayoutMeta& meta) {
+                                         const LayoutMeta& meta, bool mirrored) {
     QMap<QString, QJsonValue> vals;
     vals["imageWidth"] = w;
     vals["imageHeight"] = h;
@@ -109,16 +109,18 @@ namespace stencil::gui {
     if (meta.allowFormulas) vals["allowFormulas"] = true;
     if (!meta.formulaX.isEmpty()) vals["formulaX"] = meta.formulaX;
     if (!meta.formulaY.isEmpty()) vals["formulaY"] = meta.formulaY;
+    if (mirrored) vals["mirrored"] = true;
     return layoutCanon::emitExport(vals);  // the canon's key set, not this function's
   }
 
-  // Reports the stored image size (browser dimension check) and, when requested, crop/rotation.
+  // Reports the stored image size (browser dimension check) and, when requested, crop/rotation/mirror.
   core::Lines fileStore::parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
-                                         core::CropRect* cropOut, int* rotOut) {
+                                         core::CropRect* cropOut, int* rotOut, bool* mirroredOut) {
     wOut = o.value("imageWidth").toInt(0);
     hOut = o.value("imageHeight").toInt(0);
     if (cropOut && o.contains("cropRect")) *cropOut = cropRectFromJson(o.value("cropRect").toObject());
     if (rotOut) *rotOut = o.value("rotationQuarters").toInt(0);
+    if (mirroredOut) *mirroredOut = o.value("mirrored").toBool(false);
     return linesFromJson(o.value("lines").toArray());
   }
 

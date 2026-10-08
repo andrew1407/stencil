@@ -66,6 +66,10 @@
       "menu": "Rotate 90° × n, e.g. 1, 2 or -1"
     },
     {
+      "verb": "flip",
+      "menu": "Flip the image horizontally (mirror)"
+    },
+    {
       "verb": "filter",
       "menu": "bw | sepia | invert | contour | none | color"
     },
@@ -294,6 +298,7 @@
     "/frame [n] — grab frame n of the loaded video (needs ffmpeg)",
     "/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%",
     "/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1",
+    "/flip — mirror the image left-right",
     "/filter <bw|sepia|invert|contour|none|color> — recolour / tint (a colour = duotone)",
     "/undo · /redo — step back / forward one edit   /reset — clear all edits",
     "/drop — discard the working image",
@@ -429,6 +434,13 @@
             ],
             "command": "`/rotate <n>`",
             "effect": "Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`)"
+          },
+          {
+            "verbs": [
+              "flip"
+            ],
+            "command": "`/flip`",
+            "effect": "Mirror the image left-right; a turn already made flips with it"
           },
           {
             "verbs": [

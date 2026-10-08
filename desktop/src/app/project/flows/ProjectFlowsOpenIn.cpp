@@ -45,7 +45,7 @@ namespace stencil::gui {
       src.layout = fileStore::buildLayoutJson(
           w.canvas->imageWidth(), w.canvas->imageHeight(), w.canvas->allLines(),
           w.settings.imageFilter, w.settings.filterColor, w.canvas->getCropRect(),
-          w.canvas->getRotationQuarters(), w.currentLayoutMeta());
+          w.canvas->getRotationQuarters(), w.currentLayoutMeta(), w.canvas->getMirrored());
     }
     src.startIncognito = w.incognito;
     dispatchOpenIn(src, browserAvailable, telegramAvailable,
@@ -154,10 +154,11 @@ namespace stencil::gui {
       if (ready.image.isNull()) { w.notify->error("That project's image could not be loaded"); return; }
       ready.layout = fileStore::buildLayoutJson(ready.image.width(), ready.image.height(), now->lines,
                                                 w.settings.imageFilter, w.settings.filterColor,
-                                                now->cropRect, now->rotationQuarters, w.currentLayoutMeta());
+                                                now->cropRect, now->rotationQuarters, w.currentLayoutMeta(),
+                                                now->mirrored);
       dispatch(ready);
     };
-    // The ORIGINAL bytes: lines, crop and rotation travel in the layout. A blank project has no file — it is its fill.
+    // The ORIGINAL bytes: lines, crop, rotation and mirror travel in the layout. A blank project has no file — it is its fill.
     if (pr->imagePath.isEmpty()) {
       if (pr->meta.blank && pr->meta.imageW > 0 && pr->meta.imageH > 0) {
         src.image = QImage(pr->meta.imageW, pr->meta.imageH, QImage::Format_ARGB32);

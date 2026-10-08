@@ -14,6 +14,7 @@ namespace stencil::gui {
     blankPage = false;   // a fresh load is a picture until the owner marks it a blank
     originalImage = img.convertToFormat(QImage::Format_ARGB32);
     rotationQuarters = 0;
+    mirrored = false;
     cropRect = defaultCropRect();
     rebuildCroppedFromOriginal();
     imagePath.clear();
@@ -36,9 +37,9 @@ namespace stencil::gui {
   // Rotation is set before the crop is applied (the crop rect lives in rotated-original space);
   // a zero-width crop falls back to the default centered crop.
   void CanvasWidget::loadFromImage(const QImage& img, const core::CropRect& cropRect,
-                                   int rotationQuarters) {
+                                   int rotationQuarters, bool mirrored) {
     if (img.isNull()) return;
-    CanvasScene::loadFromImage(img, cropRect, rotationQuarters);
+    CanvasScene::loadFromImage(img, cropRect, rotationQuarters, mirrored);
     selectedPoint = -1;
     selectedLineIdx = -1;
     continueLineIdx = continueInsertIdx = -1;
@@ -73,6 +74,7 @@ namespace stencil::gui {
     image = QImage();
     imagePath.clear();
     rotationQuarters = 0;
+    mirrored = false;
     cropRect = core::CropRect{};
     lines.clear();
     currentLine = core::Line{};

@@ -101,8 +101,7 @@ namespace stencil::gui {
       notify->error(QString("The script in the link was longer than %1 characters, so it was left out")
                         .arg(launchScriptMaxChars()));
     if (!opts.script.isEmpty())
-      parts.scriptHost.adoptLinkedScript(opts.script, opts.scriptMode == QLatin1String("open"),
-                                         picture ? std::optional<qint64>(pictureBefore) : std::nullopt);
+      parts.scriptHost.adoptLinkedScript(opts.script, picture ? std::optional<qint64>(pictureBefore) : std::nullopt);
   }
 
   // A stencil:// deep link on a RUNNING app (macOS QFileOpenEvent url).

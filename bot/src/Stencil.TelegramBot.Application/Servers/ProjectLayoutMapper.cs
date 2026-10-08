@@ -6,7 +6,8 @@ using Stencil.TelegramBot.Domain.Serialization;
 namespace Stencil.TelegramBot.Application.Servers;
 
 // Translates a server project's stored layout (the browser's buildLayoutPayload shape) into an EditState.
-// The browser rotates then crops; the CLI crops then rotates, so ReadCrop un-rotates cropRect.
+// The browser mirrors, rotates then crops; the CLI crops, flips then rotates, so ReadCrop un-rotates
+// and un-mirrors cropRect.
 public static class ProjectLayoutMapper
 {
     public static EditState ToEditState(JsonElement layout, int originalWidth, int originalHeight)
@@ -17,6 +18,7 @@ public static class ProjectLayoutMapper
         }
         var lines = readLines(layout);
         var rotate = readRotation(layout);
+        bool flip = layout.TryGetProperty("mirrored", out var m) && m.ValueKind == JsonValueKind.True;
         StencilLayout? drawing = lines.Count == 0
             ? null
             : new StencilLayout
@@ -30,7 +32,8 @@ public static class ProjectLayoutMapper
             Layout = drawing,
             Filter = readFilter(layout),
             Rotate = rotate,
-            CropSpec = readCrop(layout, rotate, originalWidth, originalHeight),
+            Flip = flip,
+            CropSpec = readCrop(layout, rotate, flip, originalWidth, originalHeight),
         };
     }
 
@@ -86,7 +89,7 @@ public static class ProjectLayoutMapper
 
     // cropRect is in rotated-image space (canonical {x,y,w,h} or legacy {width,height}); null = no
     // crop.
-    private static string? readCrop(JsonElement layout, int rotate, int originalWidth, int originalHeight)
+    private static string? readCrop(JsonElement layout, int rotate, bool flip, int originalWidth, int originalHeight)
     {
         if (originalWidth <= 0 || originalHeight <= 0)
         {
@@ -108,6 +111,10 @@ public static class ProjectLayoutMapper
 
         var (ox1, oy1) = unrotatePoint(rx, ry, rotate, originalWidth, originalHeight);
         var (ox2, oy2) = unrotatePoint(rx + rw, ry + rh, rotate, originalWidth, originalHeight);
+        if (flip)
+        {
+            (ox1, ox2) = (originalWidth - ox1, originalWidth - ox2);
+        }
         int x1 = clamp((int)Math.Round(Math.Min(ox1, ox2)), 0, originalWidth);
         int x2 = clamp((int)Math.Round(Math.Max(ox1, ox2)), 0, originalWidth);
         int y1 = clamp((int)Math.Round(Math.Min(oy1, oy2)), 0, originalHeight);

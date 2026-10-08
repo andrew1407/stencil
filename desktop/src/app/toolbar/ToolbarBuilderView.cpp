@@ -51,7 +51,7 @@ namespace stencil::gui {
     setTipBase(w.tools.compareCombo,
                "Compare with original\n"
                "• None — normal editing\n"
-               "• Original — the original only (crop + rotation)\n"
+               "• Original — the original only (crop, rotation and flip)\n"
                "• Vertical split — original left, edit right\n"
                "• Horizontal split — original top, edit bottom\n"
                "(hold Alt+Shift+O to peek)");

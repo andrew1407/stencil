@@ -11,6 +11,8 @@ export interface EditorMemento {
   lines: Partial<CodecLine>[];
   cropRect: CropRect | null;
   rotationQuarters: number;
+  /** The original mirrored left-right before the turn; absent reads as false. */
+  mirrored?: boolean;
   /** Absent or '' on a step that leaves the filter as it is. */
   filter?: string;
   filterColor?: string;
@@ -20,7 +22,7 @@ export type Snapshot = Partial<CodecLine>[] | EditorMemento;
 
 /** What a memento is read from: the app's own fields (its filter is `imageFilter`). */
 export interface MementoSource {
-  lines: Partial<CodecLine>[]; cropRect: CropRect | null; rotationQuarters: number;
+  lines: Partial<CodecLine>[]; cropRect: CropRect | null; rotationQuarters: number; mirrored?: boolean;
   imageFilter?: string; filterColor?: string;
 }
 

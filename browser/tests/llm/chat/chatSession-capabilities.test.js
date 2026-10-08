@@ -56,7 +56,7 @@ test('editorHistory is injected: a mark copies the stack, so later pushes never 
   const mark = captureCapabilities(app).editorHistory.mark();
   app.history.history.push(['b']);
   assert.deepStrictEqual(mark, { steps: [['a']], step: 0, floor: [],
-    memento: { lines: [], cropRect: null, rotationQuarters: 0, filter: 'bw', filterColor: '#7c3aed' } });
+    memento: { lines: [], cropRect: null, rotationQuarters: 0, mirrored: false, filter: 'bw', filterColor: '#7c3aed' } });
 });
 
 test('removeProjectNamed: unknown → note, declined → note, accepted → removed', async () => {

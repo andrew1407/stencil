@@ -34,6 +34,7 @@
         border: 2px solid %ACCENT_RING%; border-radius: 3px; background: %ACCENT_SOFT%;
       }
       QLabel#expProjectName { font-weight: bold; background: transparent; }
+      QCheckBox#expCheck { spacing: 9px; }
       QLabel#expLegend { color: %MUTED%; font-size: 11px; background: transparent; }
       /* Assistant modal extras (LlmSettingsForm.cpp): the tinted help note
          (browser .chat-cors-note — accent-tinted fill, solid hint border, muted

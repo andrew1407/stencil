@@ -55,7 +55,7 @@ Local (Ollama) => api:local
 🔗 Link => link  |  ⏳ Expiration => exp:menu  |  🗑 Remove => del:menu
 
 == EditSubmenu()
-🔄 Rotate +90° => rot90  |  🔃 Rotate −90° => rotneg90  |  ✂️ Crop… => crophelp
+↔️ Flip => flip  |  🔄 Rotate +90° => rot90  |  🔃 Rotate −90° => rotneg90  |  ✂️ Crop… => crophelp
 « Back => m:main
 
 == ExpirationMenu()

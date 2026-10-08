@@ -29,12 +29,13 @@ namespace stencil::gui {
 
     // `decoded` = the pixels of `path`, read off the GUI thread; false (nothing changes) without them.
     bool loadImage(const QString& path, const QImage& decoded);
-    void restore(const QString& path, const core::Lines& lines, double scale,
-                 const core::CropRect& cropRect, int rotationQuarters, const QImage& decoded);
+    void restore(const QString& path, const core::Lines& lines, double scale, const core::CropRect& cropRect,
+                 int rotationQuarters, const QImage& decoded, bool mirrored = false);
     void rotateImage(bool clockwise);
+    void flipImage();
     void applyCrop(const core::CropRect& rect, bool recalc);
     void loadFromImage(const QImage& img, bool keepZoom = false);   // keepZoom: no scale reset
-    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int rotationQuarters);
+    void loadFromImage(const QImage& img, const core::CropRect& cropRect, int quarters, bool mirrored = false);
     void clearImage();
     void setIdleHintHidden(bool on);   // off while the clear's dust falls (.canvas-clearing)
     QRect idleCardGlobalRect() const;  // GLOBAL rect of the card; empty when it is not showing
@@ -47,7 +48,7 @@ namespace stencil::gui {
 
     void setLines(const core::Lines& lines);     // replace all, reset the history
     void commitLines(const core::Lines& lines);  // replace all, push ONE undo step
-    bool commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters);  // ONE step; refits
+    bool commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters, int mirrored = -1);  // ONE step; refits
     bool commitFilter(const QString& mode, const QColor& tint);  // the scene's pick, plus changed()
     void startNewLine();      // commit the in-progress line, begin a fresh one
     void deleteLastPoint();   // remove the last point of the in-progress line

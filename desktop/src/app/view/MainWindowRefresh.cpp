@@ -78,11 +78,12 @@ namespace stencil::gui {
     // Paste stays enabled so the Ctrl+V dispatch can still notify "Load an image first".
     const bool hasImg = canvas->hasImage();
     const bool hasLines = !canvas->allLines().empty();
-    // Crop and rotate gate on image presence only (browser drawingApp.updateButtons): the
+    // Crop, flip and rotate gate on image presence only (browser drawingApp.updateButtons): the
     // "Original" compare view still reflects them.
     acts.crop->setEnabled(hasImg);
     acts.rotateLeft->setEnabled(hasImg);
     acts.rotateRight->setEnabled(hasImg);
+    acts.flipImage->setEnabled(hasImg);
     // Nothing to zoom without an image (browser: zoom-in / zoom-out / zoom-fit / zoom-input).
     acts.zoomIn->setEnabled(hasImg);
     acts.zoomOut->setEnabled(hasImg);

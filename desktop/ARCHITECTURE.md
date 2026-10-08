@@ -165,10 +165,9 @@ classDiagram
   line. A `.stc` dropped on the open editor fills it; elsewhere, or opened from the OS, it runs at
   once. The flyout runs in place; its file dialogs, which take every popup down, reopen the
   chain on the script row.
-- **A linked script.** A `stencil://` link may carry `script=` (at most `LAUNCH.scriptMaxChars`) and
-  `scriptMode=open|run`; `ScriptHost::adoptLinkedScript` waits for the linked picture to land.
-  `open` fills the Script window; `run` asks first and runs under `ScriptRunRules::webSourcesOnly`,
-  so an `@source` naming a local path fails its line and the edits before it stay.
+- **A linked script.** A `stencil://` link may carry `script=` (at most `LAUNCH.scriptMaxChars`);
+  `ScriptHost::adoptLinkedScript` waits for the linked picture to land, then fills the Script
+  window. A link never runs a script: a `scriptMode=` beside it is read by no one.
 - **An open-image question's flight.** Every open-image dialog starts and ends at
   `canvasAnchorRect` (40 px on the canvas centre) or `openImageAnchorRect` (the Open half
   `hasImage` shows, read at flight time), from `support/modal/imageAnchor.hpp`, twin of the

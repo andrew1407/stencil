@@ -94,7 +94,7 @@ namespace stencil::gui {
     w.updateColorSwatch(w.tools.filterColorBtn, w.tools.filterColorValue);
     w.tools.filterColorBtn->setVisible(false);   // shown only for the "custom" filter
     addWrapped(tb, makeToolSection("Edit",
-                                   {w.acts.crop, w.acts.rotateLeft, w.acts.rotateRight, w.acts.undo, w.acts.redo},
+                                   {w.acts.crop, w.acts.flipImage, w.acts.rotateLeft, w.acts.rotateRight, w.acts.undo, w.acts.redo},
                                    {w.nameBar.blankColorBtn}, {w.tools.imageFilter, w.tools.filterColorBtn}));
 
     // One Start/Stop button (refreshActions swaps its default action, like the browser's #draw-

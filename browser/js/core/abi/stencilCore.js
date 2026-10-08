@@ -72,7 +72,7 @@ class StencilCore {
       'clampScale', 'zoomMin', 'zoomMax', 'rectZoom', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
       'moveCropClamped', 'scaleCropCentered', 'swapCropOrientation', 'cropResizeScale', 'cropChange',
-      'snapCropRect', 'rotateEditQuarter', 'mergeLinesKeep', 'unchainLine', 'pullOutPoint',
+      'snapCropRect', 'rotateEditQuarter', 'mirrorEdit', 'mergeLinesKeep', 'unchainLine', 'pullOutPoint',
       'HoldDrawController', 'HistoryStack',
       'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];

@@ -1,6 +1,6 @@
 // Handle-based WebAssembly ABI for the editor's undo history (state/HistoryStack): one
 // EditorHistory per handle. Lines cross as the abi/linesCodec.hpp pair; a memento's view as
-// [x, y, width, height, quarters]; a lines-only step passes no view. Unknown handles no-op.
+// [x, y, width, height, quarters, mirrored]; a lines-only step passes no view. Unknown handles no-op.
 
 #include "HandleTable.hpp"
 #include "HistoryStack.hpp"
@@ -35,6 +35,7 @@ namespace {
       m.crop = CropRect{view[0], view[1], view[2], view[3]};
       // A count past int range (or NaN) would make the cast undefined.
       m.quarters = std::abs(view[4]) < 1e9 ? static_cast<int>(view[4]) : 0;
+      m.mirrored = view[5] != 0.0;
       m.filter = filter != nullptr ? filter : "";
       m.filterColor = filterColor != nullptr ? filterColor : "";
     }
@@ -124,7 +125,7 @@ extern "C" {
     if (h != nullptr) abi::encodeLines(h->result.lines, nums, text);
   }
 
-  // 1 with out[0..4] = x, y, width, height, quarters when the step carries a view, else 0.
+  // 1 with out[0..5] = x, y, width, height, quarters, mirrored when the step carries a view, else 0.
   int stencil_history_readView(int handle, double* out) {
     const HistorySlot* h = histories().get(handle);
     if (h == nullptr || !h->result.hasView) return 0;
@@ -132,6 +133,7 @@ extern "C" {
     if (out != nullptr) {
       out[0] = m.crop.x; out[1] = m.crop.y; out[2] = m.crop.width; out[3] = m.crop.height;
       out[4] = m.quarters;
+      out[5] = m.mirrored ? 1.0 : 0.0;
     }
     return 1;
   }

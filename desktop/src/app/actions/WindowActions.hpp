@@ -13,6 +13,7 @@ namespace stencil::gui {
     QAction* crop = nullptr;
     QAction* rotateLeft = nullptr;
     QAction* rotateRight = nullptr;
+    QAction* flipImage = nullptr;
     QAction* cycleFilter = nullptr;
     QAction* cycleCompare = nullptr;
     QAction* startDraw = nullptr;

@@ -1,6 +1,6 @@
 // A .stc handed over with the image: the VS Code extension puts the script in the SAME
 // `#stencil=` fragment, as a top-level `script` key the shared normalizer ignores, so no other
-// surface's codec moved. applyExternalLaunch only stashes it — index.js runs it once the
+// surface's codec moved. applyExternalLaunch only stashes it — index.js opens it in the Script window once the
 // promise it returns has settled, because the layer order forbids core/ reaching console/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +17,7 @@ let fetchImpl = () => Promise.resolve({ ok: true, blob: async () => ({ type: 'im
 const fetchStub = installFetchStub((...args) => fetchImpl(...args));
 const fetchCalls = fetchStub.calls;
 
-const { applyExternalLaunch, MAX_LAUNCH_SCRIPT, launchScriptMode } = await import('../../../js/core/launch/controller.js');
+const { applyExternalLaunch, MAX_LAUNCH_SCRIPT } = await import('../../../js/core/launch/controller.js');
 const constants = (await import('../../../../common/config/constants.json', { with: { type: 'json' } })).default;
 
 // The decode boundary: the real load reads its file and the picture decodes after `decode.delayMs`,
@@ -176,14 +176,13 @@ test('the script cap is the shared LAUNCH.scriptMaxChars', () => {
   assert.equal(MAX_LAUNCH_SCRIPT, constants.LAUNCH.scriptMaxChars);
 });
 
-test('scriptMode "open" asks for the Script window; anything else runs', async () => {
-  for (const [scriptMode, want] of [['open', 'open'], ['run', 'run'], [undefined, 'run'], ['OPEN', 'run'], [1, 'run']]) {
-    assert.equal(launchScriptMode({ script: '@crop 10%\n', scriptMode }), want, String(scriptMode));
+test('scriptMode only rides the wire: open and run both just hand the script over', async () => {
+  for (const scriptMode of ['open', 'run', undefined]) {
+    resetGlobals();
+    globalThis.location.hash = fragmentFor({ script: '@filter sepia\n', scriptMode });
+    const mock = makeMock();
+    await run(mock);
+    assert.equal(mock.pendingLaunchScript, '@filter sepia\n', String(scriptMode));
+    assert.equal('pendingLaunchScriptMode' in mock, false, 'nothing decides to run it');
   }
-  assert.equal(launchScriptMode(null), 'run');
-  resetGlobals();
-  globalThis.location.hash = fragmentFor({ script: '@filter sepia\n', scriptMode: 'open' });
-  const mock = makeMock();
-  await run(mock);
-  assert.deepEqual([mock.pendingLaunchScript, mock.pendingLaunchScriptMode], ['@filter sepia\n', 'open']);
 });

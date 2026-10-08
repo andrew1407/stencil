@@ -87,6 +87,8 @@ pub const EditTurn = crop.EditTurn;
 pub const rotateEditQuarter = crop.rotateEditQuarter;
 pub const rotatedDims = crop.rotatedDims;
 pub const rotateImageRGBA = crop.rotateImageRGBA;
+pub const mirrorEdit = crop.mirrorEdit;
+pub const mirrorImageRGBA = crop.mirrorImageRGBA;
 
 pub fn fillRGBA(dst: []u8, pixel_count: i32, color: Rgba) void {
     c.stencil_cli_fillRGBA(dst.ptr, pixel_count, color.r, color.g, color.b, color.a);

@@ -13,6 +13,8 @@ description: Headless image editing over the shared Stencil core (Python port of
   crop spec, e.g. "x1=10%% x2=90%% y1=10%% y2=90%%"
 --album [metavar= default=False]
   derive the missing crop axis from the page
+--flip [metavar= default=False]
+  mirror left-right (after the crop, before the rotation)
 -r --rotate [metavar= default=0]
   rotate by N quarter-turns (N×90°)
 -l --layout [metavar= default=None]

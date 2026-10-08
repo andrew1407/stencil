@@ -6,7 +6,14 @@ import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionReduced, or
 export const MODAL_CLOSE_MS = SURFACE_OUT_MS;
 // A control's client rect only while it is really on screen: folded away with the tool rows it
 // keeps a rect (visibility, opacity, clipping), and a flight aimed there came out of nothing.
-export const shownRect = (el) => (originOf(el) ? el.getBoundingClientRect() : null);
+// In fullscreen the shown control is the strip's clone, which carries the hidden one's id.
+const shownTwin = (el) => {
+  if (originOf(el)) return el;
+  if (!el?.id || typeof document?.querySelectorAll !== 'function') return null;
+  for (const t of document.querySelectorAll(`[id="${el.id}"]`)) if (t !== el && originOf(t)) return t;
+  return null;
+};
+export const shownRect = (el) => shownTwin(el)?.getBoundingClientRect() ?? null;
 export const createModalFlight = (overlay, boxOf) => {
   let closeTimer = null;
   let originPoint = null;   // the origin centre, in client coordinates

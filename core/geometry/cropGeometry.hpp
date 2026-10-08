@@ -68,4 +68,7 @@ namespace stencil::core {
   void rotateLinePointsQuarter(Lines& lines, double boxW, double boxH,
                                bool clockwise);
 
+  // A left-right mirror in place inside a crop box boxW wide: x -> boxW - x.
+  void mirrorLinePoints(Lines& lines, double boxW);
+
 }

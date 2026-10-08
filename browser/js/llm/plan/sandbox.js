@@ -20,7 +20,7 @@ const plainLines = (stencil) => (stencil.lines || []).map((l) => {
 });
 
 // An editor memento read off the facade, beside what a plan may change outside it. The facade
-// names no quarter turn: that is the history mark's (`editorHistory`, the surface's capability).
+// names no quarter turn or mirror: those are the history mark's (`editorHistory`, the surface's capability).
 export const captureEditorState = (stencil, editorHistory) => {
   const mark = editorHistory ? editorHistory.mark() : null;
   return {
@@ -28,6 +28,7 @@ export const captureEditorState = (stencil, editorHistory) => {
       lines: plainLines(stencil),
       cropRect: cropOf(stencil.cropRect),
       rotationQuarters: mark?.memento?.rotationQuarters ?? 0,
+      mirrored: mark?.memento?.mirrored ?? false,
       imageFilter: stencil.filter,
       filterColor: stencil.filterColor,
     }),

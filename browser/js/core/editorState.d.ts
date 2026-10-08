@@ -21,6 +21,8 @@ export interface EditorState {
   cropRect: CropRect | null;
   /** Clockwise quarter turns (0..3) applied to originalImage before cropping. */
   rotationQuarters: number;
+  /** The original mirrored left-right before the turn. */
+  mirrored: boolean;
   imageSource: string | null;
   imageResource: string | null;
   /** '#rrggbb' for a blank project (recolourable), '' for an ordinary image. */

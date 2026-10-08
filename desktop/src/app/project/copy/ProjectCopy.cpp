@@ -30,6 +30,7 @@ namespace stencil::gui {
     pr.lines = src.lines;
     pr.cropRect = src.crop;
     pr.rotationQuarters = src.quarters;
+    pr.mirrored = src.mirrored;
     if (what != support::COPY_PROJECT) return pr;
     pr.meta.color = m.color;
     pr.meta.description = m.description;

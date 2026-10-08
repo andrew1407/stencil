@@ -10,6 +10,7 @@ export interface CropRectInput { x: number; y: number; w?: number; h?: number; w
 /** The stored layout of a reopened server project or an adopted hand-off. */
 export interface RemoteLayout {
   rotationQuarters?: number;
+  mirrored?: boolean;
   cropRect?: CropRectInput;
   lines?: Partial<CodecLine>[];
   [field: string]: unknown;

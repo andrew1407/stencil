@@ -9,6 +9,7 @@ public sealed record EditRequest
     public string? CropSpec { get; init; }
     public bool Album { get; init; }
     public int? Rotate { get; init; }
+    public bool Flip { get; init; }
 
     public string? LayoutPath { get; init; }
     public string? Filter { get; init; }

@@ -46,6 +46,7 @@ pub const Options = struct {
     crop: ?[]const u8 = null,
     album: bool = false,
     rotate: i32 = 0,
+    flip: bool = false, // --flip: mirror left-right, after the crop and before the rotation
     layout: ?[]const u8 = null,
     layout_frame: LayoutFrame = .current,
     filter: ?[]const u8 = null,

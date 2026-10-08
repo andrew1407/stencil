@@ -14,7 +14,7 @@ export interface ProjectFileData {
   blank?: boolean;
   blankColor?: string;
   image?: { dataUrl: string; ext?: string; w?: number; h?: number };
-  layout?: Record<string, unknown> & { lines?: unknown[]; rotationQuarters?: number; cropRect?: { x: number; y: number; w?: number; h?: number; width?: number; height?: number } };
+  layout?: Record<string, unknown> & { lines?: unknown[]; rotationQuarters?: number; mirrored?: boolean; cropRect?: { x: number; y: number; w?: number; h?: number; width?: number; height?: number } };
   theme?: { mode?: string; accent?: string };
 }
 

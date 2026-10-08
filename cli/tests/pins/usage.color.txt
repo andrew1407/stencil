@@ -12,13 +12,15 @@
   -c, --crop "<spec>"        Crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
                              (units: px, cm, mm, in, %, or a bare pixel delta)
       --album                With one crop axis, derive the other (landscape)
+      --flip                 Mirror the image left-right (after the crop, before
+                             the rotation)
   -r, --rotate <int>         Rotate int*90 deg (e.g. -1 = -90, 3 = 270)
   -l, --layout <path|url>    Layout JSON to draw onto the image
       --layout-frame <current|source>
                              Frame the layout's coordinates are in: 'current'
                              (default) = the cropped/rotated image; 'source' =
                              the source image — points are re-mapped through
-                             the crop/rotation and clamped into the output
+                             the crop/flip/rotation and clamped into the output
       --filter <f>           Apply bw | sepia | invert | contour | <color>;
                              overrides the layout filter
       --thumbnail <px>       Shrink the result so its longer side is at most <px>

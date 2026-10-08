@@ -171,6 +171,12 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
+    private async Task flipAsync(long userId, long chatId, CancellationToken ct)
+    {
+        await _editing.FlipAsync(userId, ct);
+        await RenderAndSendAsync(userId, chatId, ct);
+    }
+
     private async Task filterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)

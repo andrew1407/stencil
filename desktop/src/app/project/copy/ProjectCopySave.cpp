@@ -118,7 +118,7 @@ namespace stencil::gui {
                                         w.currentLayoutMeta());
     if (!src.layout.isEmpty()) return src.layout;
     return fileStore::buildLayoutJson(width, height, src.lines, w.settings.imageFilter, w.settings.filterColor,
-                                      src.crop, src.quarters, w.currentLayoutMeta());
+                                      src.crop, src.quarters, w.currentLayoutMeta(), src.mirrored);
   }
 
   void ProjectCopy::createOnServer(const CopySource& src, support::CopyScope what, const QString& name,

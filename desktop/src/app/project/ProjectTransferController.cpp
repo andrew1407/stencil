@@ -74,7 +74,7 @@ namespace stencil::gui {
     // pr may not outlive the chain.
     const QJsonObject layout = fileStore::buildLayoutJson(
         w, h, pr.lines, settings->imageFilter, settings->filterColor,
-        pr.cropRect, pr.rotationQuarters, this->h.currentLayoutMeta());
+        pr.cropRect, pr.rotationQuarters, this->h.currentLayoutMeta(), pr.mirrored);
     c->createProjectAsync(
         name, QString::fromStdString(pr.meta.source), QString::fromStdString(pr.meta.resource), true,
         w, h, [this, c, name, bytes, ext, w, h, layout, done](bool ok, QString newId, qint64) {

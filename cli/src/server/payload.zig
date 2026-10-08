@@ -33,6 +33,7 @@ pub fn buildLayout(
     filter_color: []const u8,
     crop: ?CropRect,
     rotation: i32,
+    mirrored: bool,
     meta: PageMeta,
 ) ![]u8 {
     var out: std.Io.Writer.Allocating = .init(gpa);
@@ -98,6 +99,11 @@ pub fn buildLayout(
         try js.objectField("formulaY");
         try js.write(meta.formula_y);
     }
+    // Last: export index 13 in common/config/layoutFields.json; only a flipped view names it.
+    if (mirrored) {
+        try js.objectField("mirrored");
+        try js.write(true);
+    }
     try js.endObject();
     return out.toOwnedSlice();
 }
@@ -105,18 +111,20 @@ pub fn buildLayout(
 test "buildLayout emits optional fields only when set" {
     const a = testing.allocator;
     // Bare: just dims + empty lines (no filter/crop/rotation/page/formula).
-    const bare = try buildLayout(a, 10, 20, "", "none", "", null, 0, .{});
+    const bare = try buildLayout(a, 10, 20, "", "none", "", null, 0, false, .{});
     defer a.free(bare);
     try testing.expectEqualStrings("{\"imageWidth\":10,\"imageHeight\":20,\"lines\":[]}", bare);
 
     // Full: filter + color + crop + rotation, with a ready lines array passed through.
-    const full = try buildLayout(a, 5, 6, "[{\"x\":1}]", "custom", "#7c3aed", .{ .x = 1, .y = 2, .w = 3, .h = 4 }, 3, .{});
+    const full = try buildLayout(a, 5, 6, "[{\"x\":1}]", "custom", "#7c3aed", .{ .x = 1, .y = 2, .w = 3, .h = 4 }, 3, true, .{});
     defer a.free(full);
     try testing.expect(std.mem.indexOf(u8, full, "\"lines\":[{\"x\":1}]") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"imageFilter\":\"custom\"") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"filterColor\":\"#7c3aed\"") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"cropRect\":{\"x\":1,\"y\":2,\"width\":3,\"height\":4}") != null);
     try testing.expect(std.mem.indexOf(u8, full, "\"rotationQuarters\":3") != null);
+    try testing.expect(std.mem.endsWith(u8, full, ",\"mirrored\":true}"));
+    try testing.expect(std.mem.indexOf(u8, bare, "mirrored") == null);
 }
 
 test "buildLayout round-trips page format + formulas (omit-when-default)" {
@@ -130,7 +138,7 @@ test "buildLayout round-trips page format + formulas (omit-when-default)" {
         .formula_x = "x*2",
         .formula_y = "y+1",
     };
-    const got = try buildLayout(a, 1, 1, "", "none", "", null, 0, meta);
+    const got = try buildLayout(a, 1, 1, "", "none", "", null, 0, false, meta);
     defer a.free(got);
     try testing.expect(std.mem.indexOf(u8, got, "\"pageSize\":\"custom\"") != null);
     try testing.expect(std.mem.indexOf(u8, got, "\"customPageWidth\":15") != null);
@@ -140,7 +148,7 @@ test "buildLayout round-trips page format + formulas (omit-when-default)" {
     try testing.expect(std.mem.indexOf(u8, got, "\"formulaY\":\"y+1\"") != null);
 
     // A named page with formulas off: pageSize kept, no formula keys, no allowFormulas.
-    const named = try buildLayout(a, 1, 1, "", "none", "", null, 0, .{ .page_size = "A4" });
+    const named = try buildLayout(a, 1, 1, "", "none", "", null, 0, false, .{ .page_size = "A4" });
     defer a.free(named);
     try testing.expect(std.mem.indexOf(u8, named, "\"pageSize\":\"A4\"") != null);
     try testing.expect(std.mem.indexOf(u8, named, "allowFormulas") == null);

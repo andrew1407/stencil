@@ -73,6 +73,14 @@
       },
       "note": "mcp drift: imageFilter \"\" and customPageWidth 0 survive, but the other falsy exported fields (rotationQuarters 0, allowFormulas false, formulaX \"\") are invisible to mcp's Layout and vanish on round-trip"
     },
+    "mirrored-rides-after-the-formulas": {
+      "payload": {
+        "imageWidth": 800,
+        "imageHeight": 600,
+        "lines": []
+      },
+      "note": "mcp drift: mcp's Layout carries no view fields, so rotationQuarters and mirrored vanish on round-trip as cropRect does; the CLI's own --flip is how mcp mirrors"
+    },
     "lines-pass-through-by-reference-unsanitized": {
       "verdict": "reject",
       "note": "mcp drift: serde Line is strict — thickness \"9\" (string) is a type error, so the whole layout is rejected instead of passing lines through unsanitized (the unknown `junk` key alone would have been dropped silently)"

@@ -11,31 +11,12 @@ const pipeline = @import("../../pipeline.zig");
 const page_mod = @import("../../media/page.zig");
 const EditState = @import("../session.zig").EditState;
 const clampRect = @import("../session.zig").clampRect;
-const rotateCropQuarters = @import("../session.zig").rotateCropQuarters;
 const extractLinesJson = @import("../session.zig").extractLinesJson;
 const layoutJson = @import("layoutJson.zig");
 const combineLinesJson = @import("../session.zig").combineLinesJson;
 const parseLayoutInto = @import("../session.zig").parseLayoutInto;
 
 // editing ops (each pushes a snapshot + rebuilds)
-
-/// Rotate by `n` quarter-turns (clockwise). The crop and the lines ride along into the new space,
-/// the lines turning inside the pre-turn view as the browser's rotate turns them.
-pub fn applyRotate(self: *Session, n: i32) !void {
-    const cur = self.state();
-    var next = try cur.dupe(self.gpa);
-    errdefer next.deinit(self.gpa);
-    const orig = self.original.?;
-    const view = if (cur.crop) |cr| core.Size{ .w = cr.w, .h = cr.h } else core.rotatedDims(@intCast(orig.width), @intCast(orig.height), cur.rotation);
-    if (next.crop) |cr| next.crop = rotateCropQuarters(cr, cur.rotation, @intCast(orig.width), @intCast(orig.height), n).crop;
-    if (next.lines_json.len != 0) {
-        const turned = try layoutJson.turnLinesJson(self.gpa, next.lines_json, n, view.w, view.h);
-        self.gpa.free(next.lines_json);
-        next.lines_json = turned;
-    }
-    next.rotation = core.normalizeQuarters(cur.rotation + n);
-    try self.pushState(next);
-}
 
 /// Crop to `rect` (given in CURRENT-view pixels); composes into rotated-original space. The lines
 /// recalc as the browser's crop recalcs them: cleared on an album/portrait flip, else rescaled.
@@ -150,7 +131,7 @@ pub fn currentLayoutJson(self: *Session) ![]u8 {
         .{ .x = c.x, .y = c.y, .w = c.w, .h = c.h }
     else
         .{ .x = 0, .y = 0, .w = @intCast(img.width), .h = @intCast(img.height) };
-    return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, self.pageMeta());
+    return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, st.mirrored, self.pageMeta());
 }
 
 /// Page-format label beside the px size, e.g. "A4 21×29.7cm" (or "custom <w>×<h>cm"). Shares the one

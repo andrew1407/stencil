@@ -1,6 +1,6 @@
-// MainWindow GUI e2e — a script a stencil:// link carries (app/ScriptHostLaunch): "open" puts it in
-// the Script window, "run" asks first and runs it with web sources only, a declined run opens the
-// window, and a linked picture lands before the script reaches it. Helpers: MainWindow.gui.hpp.
+// MainWindow GUI e2e — a script a stencil:// link carries (app/ScriptHostLaunch) opens in the
+// Script window whatever its scriptMode, runs nothing until the user presses Run, and reaches the
+// window only once a linked picture has landed. Helpers: MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 #include "ScriptBuffer.hpp"
 #include "ScriptDialog.hpp"
@@ -40,6 +40,7 @@ class MainWindowGuiTest : public QObject {
   std::unique_ptr<MainWindow> win;
   RecordingSink* notices = nullptr;
   QString shownText;
+  qint64 keyAtShow = 0;   // the canvas original's cacheKey when the window came up
 
   // The modal Script window the host raises: read from a tick of its own loop, then closed.
   void closeScriptWindowWhenShown() {
@@ -49,6 +50,7 @@ class MainWindowGuiTest : public QObject {
       auto* dlg = qobject_cast<ScriptDialog*>(QApplication::activeModalWidget());
       if (!dlg) return;
       shownText = dlg->script();
+      keyAtShow = win->canvas->getOriginalImage().cacheKey();
       closer->stop();
       dlg->reject();
     });
@@ -71,68 +73,31 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
   void cleanup() { win.reset(); }
 
-  void aConfirmedRunAppliesTheScript() {
-    openWindow();
-    win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
-    QStringList asked;
-    win->parts.scriptHost.confirmLinkedRun = [&asked](const QString& text) { asked << text; return true; };
-    win->openStencilUrl(linkOf(QStringLiteral("@filter bw\n"), QStringLiteral("run")));
-    QTRY_COMPARE(asked, QStringList{QStringLiteral("@filter bw\n")});
-    QTRY_VERIFY(notices->shown.contains(QStringLiteral("Script executed successfully")));
-    QCOMPARE(stencil::model::ScriptBuffer::instance().getText(), QStringLiteral("@filter bw\n"));
-    const QRgb px = win->canvas->renderToImage(false).pixel(5, 5);
-    QVERIFY2(qRed(px) == qGreen(px) && qGreen(px) == qBlue(px), "the filter landed");
-  }
-
-  void aLinkedScriptNeverReadsALocalFile() {
-    openWindow();
-    win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
-    win->parts.scriptHost.confirmLinkedRun = [](const QString&) { return true; };
-    win->openStencilUrl(linkOf(QStringLiteral("@filter sepia\n@source /etc/hosts:\n  @filter bw\n"),
-                               QStringLiteral("run")));
-    QTRY_VERIFY(std::any_of(notices->shown.begin(), notices->shown.end(), [](const QString& s) {
-      return s.contains(QStringLiteral("line 2")) && s.contains(QStringLiteral("web images only"));
-    }));
-    QCOMPARE(win->canvas->getImageFilter(), QStringLiteral("sepia"));   // the edit before it stays
-  }
-
-  void aDeclinedRunOpensTheWindowWithTheText() {
-    openWindow();
-    win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
-    win->parts.scriptHost.confirmLinkedRun = [](const QString&) { return false; };
-    closeScriptWindowWhenShown();
-    win->openStencilUrl(linkOf(QStringLiteral("@filter bw\n"), QStringLiteral("run")));
-    QTRY_COMPARE(shownText, QStringLiteral("@filter bw\n"));
-    QCOMPARE(win->canvas->getImageFilter(), QStringLiteral("none"));   // nothing ran
-  }
-
-  void openModeFillsTheWindowAndRunsNothing() {
-    openWindow();
-    int asked = 0;
-    win->parts.scriptHost.confirmLinkedRun = [&asked](const QString&) { ++asked; return true; };
-    closeScriptWindowWhenShown();
-    win->openStencilUrl(linkOf(QStringLiteral("@crop 10%\n"), QStringLiteral("open")));
-    QTRY_COMPARE(shownText, QStringLiteral("@crop 10%\n"));
-    QCOMPARE(asked, 0);
+  void eitherModeOpensTheWindowAndRunsNothing() {
+    for (const QString mode : {QStringLiteral("run"), QStringLiteral("open"), QString()}) {
+      openWindow();
+      win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
+      closeScriptWindowWhenShown();
+      win->openStencilUrl(linkOf(QStringLiteral("@filter bw\n"), mode));
+      QTRY_COMPARE(shownText, QStringLiteral("@filter bw\n"));
+      QCOMPARE(stencil::model::ScriptBuffer::instance().getText(), QStringLiteral("@filter bw\n"));
+      QCOMPARE(win->canvas->getImageFilter(), QStringLiteral("none"));   // nothing ran
+      QVERIFY2(!notices->shown.contains(QStringLiteral("Script executed successfully")), qPrintable(mode));
+      win.reset();
+    }
   }
 
   void theScriptWaitsForTheLinkedPicture() {
     openWindow();
     win->canvas->loadFromImage(flat(QColor(200, 40, 40)));
-    qint64 keyAtAsk = 0;
-    win->parts.scriptHost.confirmLinkedRun = [this, &keyAtAsk](const QString&) {
-      keyAtAsk = win->canvas->getOriginalImage().cacheKey();
-      return false;
-    };
     const qint64 before = win->canvas->getOriginalImage().cacheKey();
-    win->parts.scriptHost.adoptLinkedScript(QStringLiteral("@filter bw\n"), false, before);
-    QTest::qWait(300);
-    QCOMPARE(keyAtAsk, qint64(0));   // still waiting on the picture
     closeScriptWindowWhenShown();
+    win->parts.scriptHost.adoptLinkedScript(QStringLiteral("@filter bw\n"), before);
+    QTest::qWait(300);
+    QVERIFY2(shownText.isEmpty(), "the window came up before the picture landed");
     win->canvas->loadFromImage(flat(QColor(20, 40, 200), QSize(30, 20)));
-    QTRY_VERIFY(keyAtAsk != 0);
-    QVERIFY(keyAtAsk != before);
     QTRY_COMPARE(shownText, QStringLiteral("@filter bw\n"));
+    QVERIFY(keyAtShow != before);
   }
 
   void anOverCapScriptIsLeftOutAndSaid() {

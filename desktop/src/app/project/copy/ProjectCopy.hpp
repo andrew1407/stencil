@@ -43,6 +43,7 @@ namespace stencil::gui {
     core::Lines lines;
     core::CropRect crop;
     int quarters = 0;
+    bool mirrored = false;
     QJsonObject layout;  // a server row's own layout (its filter and page), used as it is
     QJsonObject chat;
     QString server;

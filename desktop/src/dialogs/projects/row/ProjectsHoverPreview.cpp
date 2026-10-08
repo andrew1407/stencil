@@ -17,6 +17,15 @@
 
 namespace stencil::gui {
 
+  namespace {
+    void endHoverDust(ProjectsHoverParts& hover) {
+      if (!hover.hoverDust) return;
+      hover.hoverDust->hide();
+      hover.hoverDust->deleteLater();
+      hover.hoverDust = nullptr;
+    }
+  }  // namespace
+
   bool ProjectsDialog::dustHoverPreview(QListWidgetItem* it, bool gather) {
     if (!hover.hoverPreview || !list || !it) return false;
     // The SAME thumbnail rect the hover hit test uses — the flight starts and
@@ -25,12 +34,14 @@ namespace stencil::gui {
     QRect iconCell = del ? del->iconRectFor(list->row(it)) : QRect();
     if (!iconCell.isValid()) iconCell = list->visualItemRect(it);
     const QPoint origin = list->viewport()->mapToGlobal(iconCell.center());
+    endHoverDust(hover);
     // alwaysEscape: the preview is its own ToolTip window ABOVE the dialog - a child layer's motes
     // played underneath it; paintNow on a close, so it never blinks out before any mote shows.
-    return gui::flyTipDust(hover.hoverPreview, window(), origin, gather,
-                           gather ? gui::TIP_DUST_IN_MS : gui::TIP_DUST_OUT_MS,
-                           /*escapeHost=*/true, /*paintNow=*/!gather,
-                           /*alwaysEscape=*/true) != nullptr;
+    hover.hoverDust = gui::flyTipDust(hover.hoverPreview, window(), origin, gather,
+                                      gather ? gui::TIP_DUST_IN_MS : gui::TIP_DUST_OUT_MS,
+                                      /*escapeHost=*/true, /*paintNow=*/!gather,
+                                      /*alwaysEscape=*/true);
+    return hover.hoverDust != nullptr;
   }
 
   QVariantAnimation* ProjectsDialog::hoverFade() {
@@ -59,7 +70,11 @@ namespace stencil::gui {
     if (gp.y() + sz.height() > scr.bottom()) gp.setY(scr.bottom() - sz.height());
     if (gp.x() < scr.left()) gp.setX(scr.left());
     if (gp.y() < scr.top()) gp.setY(scr.top());
+    const QPoint delta = gp - hover.hoverPreview->pos();
     hover.hoverPreview->move(gp);
+    // A gather lands where the box now is, or its photo stays behind beside the moved preview.
+    auto* dust = static_cast<DisintegrateOverlay*>(hover.hoverDust.data());
+    if (dust && dust->gathering()) dust->retarget(delta);
   }
 
   void ProjectsDialog::revealHoverPreview(QListWidgetItem* it) {
@@ -69,6 +84,7 @@ namespace stencil::gui {
     fade->stop();
     fade->setKeyValues({});
     if (support::motionReduced()) {  // the end state, at once
+      endHoverDust(hover);
       hover.hoverPreview->setWindowOpacity(1.0);
       return;
     }
@@ -92,6 +108,7 @@ namespace stencil::gui {
     const bool dusted = !support::motionReduced() && dustHoverPreview(hover.hoverItem, /*gather=*/false);
     hover.hoverItem = nullptr;
     if (!dusted) {
+      endHoverDust(hover);
       if (hover.hoverFade) { hover.hoverClosing = false; hover.hoverFade->stop(); }
       hover.hoverPreview->hide();
       return;

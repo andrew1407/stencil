@@ -71,7 +71,7 @@ namespace stencil::gui::projectThumbs {
       if (crop.width > 0) { crop.x *= s; crop.y *= s; crop.width *= s; crop.height *= s; }
       // restore() adopts pixels only under a path; an in-memory picture borrows a placeholder one.
       off.restore(src.path.isEmpty() ? QStringLiteral("thumb") : src.path, lines, crop,
-                  src.rotation, d.image);
+                  src.rotation, d.image, src.mirrored);
       off.setImageFilter(look.filter, look.tint);
       const QImage rendered = off.renderToImage(/*withOverlay=*/true);
       if (rendered.isNull()) return {};
@@ -85,7 +85,7 @@ namespace stencil::gui::projectThumbs {
     return QStringList{
         QString::fromStdString(pr.meta.id), QString::number(pr.meta.updatedAt), pr.imagePath,
         QString::number(fi.size()), QString::number(fi.lastModified().toMSecsSinceEpoch()),
-        QStringLiteral("%1,%2,%3,%4,%5").arg(c.x).arg(c.y).arg(c.width).arg(c.height).arg(pr.rotationQuarters),
+        QStringLiteral("%1,%2,%3,%4,%5,%6").arg(c.x).arg(c.y).arg(c.width).arg(c.height).arg(pr.rotationQuarters).arg(pr.mirrored),
         QString::number(linesHash(pr.lines)), QString::number(look.dark), look.accent,
         QString::number(look.showPoints), QString::number(look.showLines), look.filter,
         look.tint.name(QColor::HexArgb), QString::number(look.pageWidthCm),

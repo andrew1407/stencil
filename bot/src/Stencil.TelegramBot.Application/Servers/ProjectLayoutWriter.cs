@@ -48,6 +48,14 @@ public static class ProjectLayoutWriter
         }
 
         root["rotationQuarters"] = edits.Rotate;
+        if (edits.Flip)
+        {
+            root["mirrored"] = true;
+        }
+        else
+        {
+            root.Remove("mirrored");
+        }
         root["imageWidth"] = resultWidth;
         root["imageHeight"] = resultHeight;
         return root;

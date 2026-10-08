@@ -3,7 +3,6 @@
 // (normalizeLaunchPayload); each function takes the app and reuses its loaders.
 import type { DrawingApp } from '../drawingApp.js';
 import type { CropRectInput, RemoteLayout } from '../image/loadFlow.js';
-import type { LaunchScriptMode } from './deepLink.js';
 
 /** A page size handed in by a launch; width/height are cm, read only for 'custom'. */
 export interface LaunchPage { size?: string; width?: number | string; height?: number | string; }
@@ -33,8 +32,6 @@ export declare const stripExt: (name: string | null | undefined) => string;
 export declare const importInlineImage: (app: DrawingApp, launch: NormalizedLaunch, opts?: { mode?: ImportMode }) => Promise<void>;
 /** The longest handed-over script taken, `LAUNCH.scriptMaxChars` (config/constants.json). */
 export declare const MAX_LAUNCH_SCRIPT: number;
-/** 'open' puts the script in the Script window; anything else, or nothing, runs it. */
-export declare const launchScriptMode: (payload: unknown) => LaunchScriptMode;
 /** Consumes the fragment once (stripped from the URL) and routes it through the loaders. */
 export declare const applyExternalLaunch: (app: DrawingApp) => Promise<void>;
 /** The extension bridge's entry point: 'new' resets to a blank editor first. */

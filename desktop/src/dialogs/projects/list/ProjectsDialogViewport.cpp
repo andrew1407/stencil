@@ -72,10 +72,15 @@ namespace stencil::gui {
           const QRect dec = del ? del->iconRectFor(list->row(it)) : QRect();
           overIcon = dec.isValid() && dec.adjusted(-2, -2, 2, 2).contains(vpos);
         }
-        if (overIcon != hover.hoverZoomCursor) {
-          if (overIcon) list->viewport()->setCursor(zoomInCursor());
+        // Browser rows.css: a project row is cursor:pointer, its thumbnail zoom-in.
+        const RowCursor want = overIcon ? RowCursor::Zoom
+                               : (it && !it->data(Qt::UserRole).isNull()) ? RowCursor::Pointer
+                                                                          : RowCursor::None;
+        if (want != hover.rowCursor) {
+          if (want == RowCursor::Zoom) list->viewport()->setCursor(zoomInCursor());
+          else if (want == RowCursor::Pointer) list->viewport()->setCursor(Qt::PointingHandCursor);
           else list->viewport()->unsetCursor();
-          hover.hoverZoomCursor = overIcon;
+          hover.rowCursor = want;
         }
         if (overIcon) {
           // An APPEARANCE forms out of the row; a move on the same thumb keeps the dust alone but
@@ -124,9 +129,9 @@ namespace stencil::gui {
         // A Leave fired by our own preview window sliding under the pointer must not hide what is still hovered.
         if (!pointerOverPreviewedIcon()) {
           if (hover.hoverPreview) hideHoverPreview();
-          if (hover.hoverZoomCursor) {
+          if (hover.rowCursor != RowCursor::None) {
             list->viewport()->unsetCursor();
-            hover.hoverZoomCursor = false;
+            hover.rowCursor = RowCursor::None;
           }
         }
       }

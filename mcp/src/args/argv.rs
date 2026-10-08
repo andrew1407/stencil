@@ -183,6 +183,7 @@ pub fn build_argv(
         }
     }
     b.switch_if(FLAG_ALBUM, params.album.unwrap_or(false));
+    b.switch_if(FLAG_FLIP, params.flip.unwrap_or(false));
     if let Some(rotate) = params.rotate {
         b.opt(FLAG_ROTATE, rotate.to_string());
     }

@@ -26,9 +26,9 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
-  bool CanvasWidget::commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters) {
+  bool CanvasWidget::commitLayout(const core::Lines& lines, const core::CropRect& crop, int quarters, int mirrored) {
     resetStrokeFx();
-    const bool rebuilt = CanvasScene::commitLayout(lines, crop, quarters);
+    const bool rebuilt = CanvasScene::commitLayout(lines, crop, quarters, mirrored);
     clearHoverCache();
     selectedPoint = -1;
     selectedLineIdx = -1;

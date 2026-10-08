@@ -112,6 +112,10 @@ extern "C" {
     if (outH) *outH = oh;
   }
 
+  void stencil_cli_mirrorImageRows(const uint8_t* src, int w, int h, uint8_t* dst, int y0, int y1) {
+    mirrorImageRows(src, w, h, dst, y0, y1);
+  }
+
   void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
                                    uint8_t* dst) {
     rotateImageRGBA(src, w, h, quarters, dst);

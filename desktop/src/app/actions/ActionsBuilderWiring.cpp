@@ -49,6 +49,17 @@ namespace stencil::gui {
       rotate(false);
     });
     QObject::connect(w.acts.rotateRight, &QAction::triggered, &w, [rotate] { rotate(true); });
+    QObject::connect(w.acts.flipImage, &QAction::triggered, &w, [this] {
+      if (!w.canvas->hasImage()) {
+        w.notify->error("Open an image first");
+        return;
+      }
+      QWidget* vp = w.scroll->viewport();
+      const QRect from = QuarterTurnOverlay::boxIn(w.canvas, vp);
+      w.canvas->flipImage();
+      w.refreshActions();
+      QuarterTurnOverlay::play(w.canvas, vp, from, 0);
+    });
     // Cycle the image filter (Alt+B; browser cycleFilter): none → bw → sepia → invert → contour → custom.
     QObject::connect(w.acts.cycleFilter, &QAction::triggered, &w, [this] {   // a tint is chosen ahead too
       static const QStringList order{"none",   "bw",      "sepia",

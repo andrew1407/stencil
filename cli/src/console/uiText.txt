@@ -42,8 +42,9 @@ Commands  (a leading '/' is optional)
 /apply <file.json>	draw a layout JSON onto the image
 /crop <spec> [album]	crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
 /rotate <int>	rotate int*90 degrees (e.g. -1, 2, 3)
+/flip	mirror the image left-right (crop and lines follow)
 /filter <mode>	bw | sepia | invert | contour | none | a colour name/#hex (tint)
-/exec <action> ...	run a transform by name (crop | rotate | filter | apply)
+/exec <action> ...	run a transform by name (crop | rotate | flip | filter | apply)
 /script <directives>	run a .stc script on this image (';' separates statements)
 /script-run <file.stc>	run a .stc script file on this image
 /undo   /redo	step back / forward through edits

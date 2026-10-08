@@ -1,9 +1,10 @@
 /* ── Fullscreen mode ── */
+/* The themed page ground, as outside fullscreen and as the desktop's fullscreen keeps it. */
 body.fullscreen-mode {
     padding: 0;
     margin: 0;
     overflow: hidden;
-    background: #000;
+    background: var(--bg-page);
 }
 body.fullscreen-mode .container {
     max-width: 100vw;
@@ -13,7 +14,7 @@ body.fullscreen-mode .container {
     padding: 0;
     border-radius: 0;
     box-shadow: none;
-    background: #000;
+    background: var(--bg-page);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -42,21 +43,17 @@ body.fullscreen-mode .canvas-viewport {
     max-width: none !important;
     max-height: none !important;
     margin: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    background: #000;
+    /* The only chrome left on screen takes the strip's hairline (desktop shell.qss [fsView]). */
+    border: 1px solid var(--border-main) !important;
+    border-radius: 8px !important;
+    background: var(--bg-page);
     overflow: auto;
     /* Centring is layout/canvas/frame.css's: a flex column, the canvas on `margin: auto` (a
        `safe center` pair centred the incognito frame as a row item beside the picture). */
     display: flex;
     z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
 }
-/* …except when there is nothing to frame: the black is a viewing ground for an IMAGE, and on an
-   empty editor it reads as a hole (plainly wrong in light theme), so the imageless canvas keeps
-   the page ground the "＋ Blank image" card sits on. body.canvas-empty: DrawingApp.updateButtons. */
-body.fullscreen-mode.canvas-empty .canvas-viewport {
-    background: var(--bg-page);
-}
+body.fullscreen-mode .canvas-viewport.remote-editing { border-color: var(--remote-gold) !important; }
 
 /* ── Fullscreen enter/exit flight (js/ui/motion.js flipFrom): the viewport is transform-scaled
    between its in-flow box and the whole window. For the whole flight, both ways: no scrollbars
@@ -70,13 +67,8 @@ body.fullscreen-mode.canvas-empty .canvas-viewport {
 body:not(.fullscreen-mode) .canvas-viewport.flip-active {
     position: relative;
     z-index: 10050;                /* over the toolbars, under nothing that matters */
-    background: #000;              /* the fullscreen ground it is shrinking out of */
+    background: var(--bg-page);    /* the fullscreen ground it is shrinking out of */
     border-radius: 0;
-}
-/* …and an empty editor shrinks out of the page ground it actually had up there.
-   Same specificity as the rule above, so it has to come after it. */
-body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
-    background: var(--bg-page);
 }
 @media (prefers-reduced-motion: reduce) {
     .canvas-viewport.flip-active { will-change: auto; }

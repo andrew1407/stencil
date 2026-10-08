@@ -45,6 +45,20 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
+    public async Task Should_Toggle_The_Flip_And_Negate_The_Turn()
+    {
+        await _service.BlankAsync(UserId, new BlankSpec());
+        await _service.RotateAsync(UserId, 1);
+        UserSession flipped = await _service.FlipAsync(UserId);
+        Assert.True(flipped.Edits.Flip);
+        Assert.Equal(3, flipped.Edits.Rotate);
+        Assert.False(flipped.Edits.IsEmpty);
+        UserSession back = await _service.FlipAsync(UserId);
+        Assert.False(back.Edits.Flip);
+        Assert.Equal(1, back.Edits.Rotate);
+    }
+
+    [Fact]
     public async Task Should_Accumulate_Page_Format_On_The_Edit_State()
     {
         await _service.SetPageFormatAsync(UserId, "B5");

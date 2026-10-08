@@ -60,9 +60,11 @@ pub fn parseCapped(gpa: std.mem.Allocator, bytes: []const u8, caps: core.LayoutC
 // snapshot the model saw, so a preceding crop/rotate re-maps and clamps the layout's points.
 
 /// One frame-changing edit, in application order: a crop subtracts its RESOLVED origin;
-/// a rotate applies clockwise quarter-turns of the pre-rotate `w`×`h` frame.
+/// a mirror reflects across the `w`-wide frame; a rotate applies clockwise quarter-turns of the
+/// pre-rotate `w`×`h` frame.
 pub const FrameStep = union(enum) {
     crop: struct { x: f64, y: f64 },
+    mirror: struct { w: f64 },
     rotate: struct { quarters: i32, w: f64, h: f64 },
 };
 
@@ -77,6 +79,7 @@ pub fn mapPoint(steps: []const FrameStep, p: Point) Point {
             out.x -= cr.x;
             out.y -= cr.y;
         },
+        .mirror => |m| out.x = m.w - out.x,
         .rotate => |r| {
             var w = r.w;
             var h = r.h;

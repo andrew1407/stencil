@@ -14,6 +14,7 @@ pub(super) const FLAG_BLANK: &str = "--blank";
 pub(super) const FLAG_FRAME: &str = "-f";
 pub(super) const FLAG_CROP: &str = "-c";
 pub(super) const FLAG_ALBUM: &str = "--album";
+pub(super) const FLAG_FLIP: &str = "--flip";
 pub(super) const FLAG_ROTATE: &str = "-r";
 pub(super) const FLAG_LAYOUT: &str = "-l";
 pub(super) const FLAG_LAYOUT_FRAME: &str = "--layout-frame";

@@ -48,7 +48,7 @@ namespace stencil::gui {
     const auto land = [this, s, reveal](const QImage& decoded) {
       const core::PageSize page = naturalPageCm(s.pageSize, s.customPageWidth, s.customPageHeight);
       w.canvas->setPageCm(page.width, page.height);
-      w.canvas->restore(s.imagePath, s.lines, s.scale, s.cropRect, s.rotationQuarters, decoded);
+      w.canvas->restore(s.imagePath, s.lines, s.scale, s.cropRect, s.rotationQuarters, decoded, s.mirrored);
       // Re-bind so removing that project empties the editor instead of orphaning its picture.
       if (!s.activeProjectId.isEmpty() && w.findProject(s.activeProjectId.toStdString()))
         w.activeProjectId = s.activeProjectId;

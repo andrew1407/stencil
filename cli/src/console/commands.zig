@@ -32,7 +32,7 @@ pub fn parseCommand(line: []const u8) Command {
 pub const Verb = enum { script, script_run, upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, unpaste, images, theme, mouse, reveal_speed, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del, prompt, llm, chat };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
-// that name a transform (crop/rotate/filter/apply) or are unknown.
+// that name a transform (crop/rotate/flip/filter/apply) or are unknown.
 pub fn verbOf(w: []const u8) ?Verb {
     const eq = eqIgnoreCase;
     if (eq(w, "upload") or eq(w, "open") or eq(w, "load")) return .upload;
@@ -90,11 +90,11 @@ pub fn verbOf(w: []const u8) ?Verb {
     return null;
 }
 
-pub const ActionKind = enum { crop, rotate, filter, layout };
+pub const ActionKind = enum { crop, rotate, flip, filter, layout };
 
 pub const Action = struct {
     kind: ActionKind,
-    arg: []const u8, // crop spec | rotate count | filter mode | layout source
+    arg: []const u8, // crop spec | rotate count | (flip: none) | filter mode | layout source
 };
 
 // Map a transform keyword + its argument to an Action, or null when `word` is not one.
@@ -102,6 +102,7 @@ pub fn actionOf(word: []const u8, arg: []const u8) ?Action {
     const eq = eqIgnoreCase;
     if (eq(word, "crop")) return .{ .kind = .crop, .arg = arg };
     if (eq(word, "rotate") or eq(word, "rot") or eq(word, "turn")) return .{ .kind = .rotate, .arg = arg };
+    if (eq(word, "flip") or eq(word, "mirror")) return .{ .kind = .flip, .arg = arg };
     if (eq(word, "filter")) return .{ .kind = .filter, .arg = arg };
     if (eq(word, "tint") or eq(word, "color") or eq(word, "colour")) return .{ .kind = .filter, .arg = arg };
     if (eq(word, "bw") or eq(word, "b&w") or eq(word, "grayscale") or eq(word, "greyscale") or eq(word, "gray") or eq(word, "grey")) return .{ .kind = .filter, .arg = "bw" };

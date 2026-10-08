@@ -253,6 +253,31 @@
         }
       ]
     },
+    "flip-horizontal": {
+      "action": "flip image horizontally (mirror left-right)",
+      "mode": "hold",
+      "note": "the two halves fold in toward the mirror line they trade places across",
+      "parts": [
+        {
+          "hook": "ic-half-l",
+          "to": {
+            "translate": [
+              1.4,
+              0
+            ]
+          }
+        },
+        {
+          "hook": "ic-half-r",
+          "to": {
+            "translate": [
+              -1.4,
+              0
+            ]
+          }
+        }
+      ]
+    },
     "play": {
       "action": "start drawing",
       "mode": "hold",

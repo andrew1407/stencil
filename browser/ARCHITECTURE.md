@@ -127,7 +127,7 @@ classDiagram
 |---|---|---|---|
 | `DrawingApp` | The editor: image, provenance, lines, viewport, selection, settings and the project session as plain fields (`core/editorState.js`), its collaborators and its change feed (`app.changes`) | One per window, created by `js/index.js` | Mediates every collaborator |
 | `CodecLine` | One drawn line, every field explicit (`core/line/linesCodec.js`, twin of `core/models.hpp`) | `DrawingApp.lines`; copied into snapshots and layouts | `HistoryStack`, `LayoutPayload` |
-| `HistoryStack` | Undo/redo over `{lines, cropRect, rotationQuarters, filter, filterColor}` mementos (a step without a filter leaves it as it is), with a cursor, `MAX_STEPS` and the floor step 0 undoes to; twin of `core/state/HistoryStack.hpp` | One per app, reset on each project switch | `CodecLine` snapshots |
+| `HistoryStack` | Undo/redo over `{lines, cropRect, rotationQuarters, mirrored, filter, filterColor}` mementos (a step without a filter leaves it as it is), with a cursor, `MAX_STEPS` and the floor step 0 undoes to; twin of `core/state/HistoryStack.hpp` | One per app, reset on each project switch | `CodecLine` snapshots |
 | `LayoutPayload` | The export subset of `LAYOUT_FIELDS` (`common/config/layoutFields.json`) plus `lines`; `cropRect` crosses as `{x,y,w,h}` | Built by `buildLayoutPayload` (`core/layout.js`); the browser definition is canonical | `ProjectFileDoc.layout`, the server's project `layout` |
 | `ProjectFileDoc` | The `.stencil` document (`core/project/file.js`); `format` is the sentinel, `version` the schema | Built by `buildProjectFile`, hardened by `parseProjectFile`; the browser definition is canonical | `LayoutPayload` |
 | `ProjectMeta` | One registry row: name, colour, keywords, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry arithmetic twinned with `core/state/ProjectsStore.cpp` | `RemoteLink` |
@@ -223,7 +223,7 @@ classDiagram
     "blank": true, "blankColor": "#rrggbb",                                 // blank canvases only
     "image":  { "dataUrl": "data:image/png;base64,…", "ext": "png", "w": 1280, "h": 720 },
     "layout": { /* exactly buildLayoutPayload(): imageWidth, imageHeight, lines[], cropRect,
-                  rotationQuarters, imageFilter, filterColor, pageSize, customPage*, formulas */ },
+                  rotationQuarters, imageFilter, filterColor, pageSize, customPage*, formulas, mirrored */ },
     "theme":  { "mode": "dark|light", "accent": "…" } }                     // optional, opt-in
   ```
 
@@ -232,10 +232,10 @@ classDiagram
 - **Deep links.** `js/core/launch/deepLink.js` normalizes the inbound `#stencil=` fragment
   (`server` / `dataUrl` / `src` / `layout`) and builds the outbound `stencil://` and Telegram
   `?start=` links; `applyExternalLaunch` (`core/launch/controller.js`) loads it and strips it. A
-  `.stc` and the incognito flag ride the same fragment, with `scriptMode`: `run` (the default)
-  runs it once the launch settles, leaving it in the buffer; `open` puts it in the Script window
-  and runs nothing. `stencil://` carries it as `script=` / `scriptMode=`, alone or beside the
-  picture (`core/launch/desktopLink.js`, shared with Open In).
+  `.stc` and the incognito flag ride the same fragment; once the launch settles the script opens
+  in the Script window and runs nothing, whatever `scriptMode` the sender wrote. `stencil://`
+  carries it as `script=` / `scriptMode=`, alone or beside the picture
+  (`core/launch/desktopLink.js`, shared with Open In).
 - **A logo show.** The held mark, a typed name and `stencil.EasterEggs.<show>()` reach
   `activateShow` (`ui/logo/stageTrigger.js`): the stage (`ui/logo/stage.js`, one canvas
   swallowing the keyboard but Escape), or for the pink show one `installLayout` edit;

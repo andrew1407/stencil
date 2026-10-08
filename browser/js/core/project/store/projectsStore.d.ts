@@ -47,6 +47,7 @@ export interface ProjectLayout {
   imageResource?: string | null;
   cropRect?: { x: number; y: number; w?: number; h?: number; width?: number; height?: number } | null;
   rotationQuarters?: number;
+  mirrored?: boolean;
   [field: string]: unknown;
 }
 

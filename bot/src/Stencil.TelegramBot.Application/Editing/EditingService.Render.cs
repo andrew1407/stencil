@@ -47,6 +47,7 @@ public sealed partial class EditingService
             CropSpec = edits.CropSpec,
             Album = edits.Album,
             Rotate = edits.Rotate == 0 ? null : edits.Rotate,
+            Flip = edits.Flip,
             Filter = edits.Filter,
             LayoutPath = layoutPath,
             Output = _workspace.NewFilePath(userId, ".png"),

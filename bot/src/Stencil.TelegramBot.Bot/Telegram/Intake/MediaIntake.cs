@@ -130,7 +130,7 @@ public sealed class MediaIntake
 
     private static readonly HashSet<string> _captionEditVerbs = new(StringComparer.Ordinal)
     {
-        "crop", "rotate", "filter",
+        "crop", "rotate", "flip", "filter",
         "draw", "line", "polyline", "rect", "rectangle", "poly", "polygon",
         "reset", "undoline", "clearlines", "image", "json",
         "prompt",

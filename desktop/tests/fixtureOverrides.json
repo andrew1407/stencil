@@ -49,6 +49,10 @@
     "verdict": { "imageWidth": 800, "imageHeight": 600, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
     "note": "desktop always emits imageFilter/filterColor (defaults \"none\"/\"#7c3aed\"); the browser omits absent filter fields"
   },
+  "layout/mirrored-rides-after-the-formulas": {
+    "verdict": { "imageWidth": 800, "imageHeight": 600, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed", "rotationQuarters": 1, "mirrored": true },
+    "note": "desktop always emits imageFilter/filterColor (defaults \"none\"/\"#7c3aed\"); mirrored and rotationQuarters ride as the browser emits them"
+  },
   "layout/session-only-fields-never-exported": {
     "verdict": { "imageWidth": 1, "imageHeight": 1, "lines": [], "imageFilter": "none", "filterColor": "#7c3aed" },
     "note": "desktop's builder takes no session fields at all (they cannot leak); only the always-emitted imageFilter/filterColor defaults differ from the browser payload"

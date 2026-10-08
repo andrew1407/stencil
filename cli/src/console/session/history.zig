@@ -119,7 +119,7 @@ pub fn loadImage(self: *Session, img: image.Rgba8, label: []const u8, temp: bool
 }
 
 /// Rebuild the derived view from the original + the current snapshot:
-/// rotate → crop → filter → rasterize lines. Replaces `working`.
+/// mirror → rotate → crop → filter → rasterize lines. Replaces `working`.
 pub fn rebuild(self: *Session) !void {
     if (self.original == null) return;
     var img = try self.viewWithoutLines();
@@ -129,12 +129,13 @@ pub fn rebuild(self: *Session) !void {
     self.working = img;
 }
 
-/// The current view derived WITHOUT the drawn lines (rotate → crop → filter only) — what `rebuild`
+/// The current view derived WITHOUT the drawn lines (mirror → rotate → crop → filter only) — what `rebuild`
 /// rasterizes onto, and what a variant render starts from. Served from `base` (derivedView.zig).
 pub fn viewWithoutLines(self: *Session) !image.Rgba8 {
     const st = self.history.items[self.cursor];
     return self.base.view(self.gpa, self.original.?, .{
         .rotation = st.rotation,
+        .mirrored = st.mirrored,
         .crop = st.crop,
         .mode = st.filter_mode,
         .color = st.filter_color,

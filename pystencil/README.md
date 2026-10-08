@@ -91,7 +91,7 @@ history (64 states deep, the same cap every surface holds).
 | Group | Methods |
 |---|---|
 | Source | `load(src, *, frame=, name=, source=, resource=)`, `blank(width=, height=, color="#ffffff", page="A4")` |
-| Edits (chainable) | `rotate(q)`, `rotate_left()`, `rotate_right()`, `crop(spec=None, *, x1=, y1=, x2=, y2=, album=False)`, `set_filter(mode)`, `set_filter_color(color)`, `apply_filter(mode)`, `set_page_format(name, width=, height=)`, `draw(layout)`, `apply_layout(layout)` |
+| Edits (chainable) | `rotate(q)`, `rotate_left()`, `rotate_right()`, `flip()`, `crop(spec=None, *, x1=, y1=, x2=, y2=, album=False)`, `set_filter(mode)`, `set_filter_color(color)`, `apply_filter(mode)`, `set_page_format(name, width=, height=)`, `draw(layout)`, `apply_layout(layout)` |
 | History | `undo() -> bool`, `redo() -> bool`, `reset()` |
 | Scripts | `script(text) -> ScriptResult`, `script_run(path) -> ScriptResult` |
 | Render / save | `result() -> Image`, `save(path, fmt=None) -> Image`, `layout() -> Layout`, `save_layout(path=None) -> str`, `save_project(path)`, `open_project(src)` |
@@ -203,7 +203,7 @@ python3 -m pystencil --repl
 ```
 
 REPL commands mirror the CLI console: `/upload`, `/source-upload` (alias `/scrape`),
-`/blank`, `/format`, `/crop`, `/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`,
+`/blank`, `/format`, `/crop`, `/rotate`, `/flip`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`,
 `/save`, `/layout`, `/script`, `/script-run`, `/connect`, `/connections`, `/fetch`,
 `/prompt` (alias `/p`), `/llm` and `/chat on|off|clear`. A bare command that needs
 arguments lists its options. `/layout [path]` has the same path semantics as

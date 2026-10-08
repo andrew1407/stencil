@@ -58,6 +58,7 @@ export function hotkeyActions(app) {
     // not also spin the image. Alt+Shift+R is unaffected by the chord.
     rotateImageLeft: () => { if (app.image && selectedIndices(app).length === 0) app.imageModel.rotateImage(-1); },
     rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
+    flipImageHorizontal: () => { if (app.image) app.imageModel.flipImage(); },
     // Alt+Shift+Arrow transforms of the SELECTED line — flip about / rotate ±90 around its bbox
     // centre (same pivot as the arbitrary-angle rotate). The methods no-op without a selection.
     flipLineHorizontal: () => flipSelectedLine(app, true),

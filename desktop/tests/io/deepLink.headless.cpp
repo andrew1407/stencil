@@ -76,21 +76,17 @@ int main(int argc, char** argv) {
     check(parseStencilUrl(u).layoutJson == "{\"lines\":[]}", "…while a small one still rides");
   }
 
-  // ── a script riding the link (script=, scriptMode=), capped at LAUNCH.scriptMaxChars ──
+  // ── a script riding the link (script=; scriptMode= is read by no one), capped at LAUNCH.scriptMaxChars ──
   {
     check(launchScriptMaxChars() == 200000, "the cap is constants.json LAUNCH.scriptMaxChars");
     const LaunchOptions alone =
         parseStencilUrl(QUrl("stencil://open?script=%40crop%2010%25%0A&scriptMode=open"));
     check(!alone.empty(), "a script-only link is a launch");
     check(alone.script == "@crop 10%\n", "script decoded");
-    check(alone.scriptMode == "open", "scriptMode=open opens the window");
     const LaunchOptions run = parseStencilUrl(
         QUrl("stencil://open?src=https%3A%2F%2Fx.example%2Fa.png&script=%40crop%2010%25&incognito=1"));
     check(run.src == "https://x.example/a.png" && run.script == "@crop 10%" && run.incognito,
           "a script rides beside a picture");
-    check(run.scriptMode == "run", "no scriptMode runs, as the browser's fragment does");
-    const LaunchOptions odd = parseStencilUrl(QUrl("stencil://open?script=x&scriptMode=OPEN"));
-    check(odd.scriptMode == "run", "anything but exactly 'open' runs");
     QUrl u("stencil://open");
     QUrlQuery q;
     q.addQueryItem("script", QString(launchScriptMaxChars() + 1, QLatin1Char('a')));

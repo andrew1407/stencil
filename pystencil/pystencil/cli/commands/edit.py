@@ -1,4 +1,4 @@
-"""The picture edits and the lines that report them: crop, rotate, filter, layout
+"""The picture edits and the lines that report them: crop, rotate, flip, filter, layout
 and save, plus the status line most of them print.
 """
 
@@ -9,7 +9,7 @@ from ..registry import command
 
 
 class _EditCommands:
-  """Crop, rotate, filter, draw, export, save, history navigation and status."""
+  """Crop, rotate, flip, filter, draw, export, save, history navigation and status."""
 
   def __cmd_filter_variants(self) -> None:
     """Bare /filter: list the possible modes (a bare required-arg command never errors)."""
@@ -40,6 +40,11 @@ class _EditCommands:
   def _cmd_rotate(self, arg: str) -> None:
     self._editor.rotate(int(arg))
     self._say_status_brief("rotated")
+
+  @command("flip", "mirror", usage="/flip", help="mirror the image left-right (crop and lines follow)")
+  def _cmd_flip(self, arg: str) -> None:
+    self._editor.flip()
+    self._say_status_brief("flipped")
 
   @command(
     "filter",

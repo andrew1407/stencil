@@ -111,7 +111,7 @@ export const makeApp = (over = {}) => {
     setAccent(key) { calls.push(['setAccent', key]); app.accent = key; app.customAccent = null; },
     setCustomAccent(hex) { calls.push(['setCustomAccent', hex]); app.customAccent = hex; return hex; },
     setFormula: rec('setFormula'), setVisualColor: rec('setVisualColor'), setTooltipOption: rec('setTooltipOption'),
-    rotateImage: rec('rotateImage'), undo: rec('undo'), redo: rec('redo'),
+    rotateImage: rec('rotateImage'), flipImage: rec('flipImage'), undo: rec('undo'), redo: rec('redo'),
     clearAllLines: rec('clearAllLines'), saveImage: rec('saveImage'),
     copyLayoutToClipboard: rec('copyLayoutToClipboard'), copyImageToClipboard: rec('copyImageToClipboard'),
     downloadJSON: rec('downloadJSON'), applyPastedLayout: rec('applyPastedLayout'),
@@ -164,7 +164,7 @@ export const makeApp = (over = {}) => {
   app.export = delegate(['saveImage', 'shareImage', 'downloadJSON', 'uploadJSON',
     'copyImageToClipboard', 'copyLayoutToClipboard', 'applyPastedLayout', 'installLayout']);
   app.imageModel = delegate(['defaultCropRect', 'effectiveOriginalDims', 'effectiveOriginalDataUrl',
-    'rebuildCroppedImage', 'rotateImage', 'applyCrop']);
+    'rebuildCroppedImage', 'rotateImage', 'flipImage', 'applyCrop']);
   app.remoteSync = delegate(['scheduleRemoteSync', 'onServerProjectEvent', 'reloadRemoteActive', 'saveToServer']);
   app.input = delegate(['holdAnchorPoint', 'setHoldDrawDelay']);
   app.accents = delegate(['setTheme', 'setAccent', 'setCustomAccent', 'previewAccent', 'endAccentPreview']);

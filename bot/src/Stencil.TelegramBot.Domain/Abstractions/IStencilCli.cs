@@ -5,7 +5,7 @@ namespace Stencil.TelegramBot.Domain.Abstractions;
 
 public interface IStencilCli
 {
-    // source -> crop -> rotate -> filter -> layout -> encode. Throws StencilCliException.
+    // source -> crop -> flip -> rotate -> filter -> layout -> encode. Throws StencilCliException.
     Task<RenderResult> EditAsync(EditRequest request, CancellationToken ct = default);
 
     // Decodes and re-encodes once: the CLI has no read-only metadata mode.

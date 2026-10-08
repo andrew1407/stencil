@@ -64,6 +64,14 @@ pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !vo
     try rotateInPlace(gpa, img, rotate);
 }
 
+/// Mirror in place, left-right.
+pub fn applyMirror(gpa: std.mem.Allocator, img: *image.Rgba8) !void {
+    const dst = try gpa.alloc(u8, img.pixels.len);
+    core.mirrorImageRGBA(img.pixels, @intCast(img.width), @intCast(img.height), dst);
+    gpa.free(img.pixels);
+    img.pixels = dst;
+}
+
 /// Load and parse a layout (file path or URL) WITHOUT drawing it, so a caller can read the optional
 /// filter + page pick it carries first. The returned doc owns its arena; the caller deinits it.
 pub fn loadLayoutDoc(gpa: std.mem.Allocator, io: std.Io, src: []const u8) !layout_mod.Layout {

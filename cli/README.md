@@ -77,6 +77,7 @@ stencil [options] <output>
 | `-f, --frame <n>` | Video frame index to grab (default 0) |
 | `-c, --crop "<spec>"` | Crop, e.g. `"x1=10% x2=90% y1=10% y2=90%"`. Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel delta. Omit an edge to keep the image bound. |
 | `--album` | When only one crop axis is given, derive the other from the page proportion (landscape) |
+| `--flip` | Mirror the image left-right (after the crop, before the rotation) |
 | `-r, --rotate <int>` | Rotate `int × 90°` (e.g. `-1` = −90°, `3` = 270°) |
 | `-l, --layout <path\|url>` | Layout JSON to draw onto the image (same schema the browser exports) |
 | `--filter <bw\|sepia\|invert\|contour\|color>` | Apply an image filter (`invert` = negative, `contour` = edge detection). A colour name/`#hex` makes a duotone tint. Overrides the layout's filter if both are present. |
@@ -325,8 +326,9 @@ monochrome.
 | `/apply <file.json>` | Draw a layout JSON onto the image. Alias: `draw`. |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%`. Bare prints the spec vocabulary. |
 | `/rotate <int>` | Rotate `int × 90°`. Aliases: `rot`, `turn`. |
+| `/flip` | Mirror the image left-right; the crop and the lines follow. Alias: `mirror`. |
 | `/filter <mode>` | `bw` \| `sepia` \| `invert` \| `contour` \| `none` \| a colour (duotone tint). Shorthands: `/bw`, `/sepia`, `/invert`, `/contour`, `/tint <color>`. |
-| `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `filter` \| `apply`). Aliases: `do`, `run`. |
+| `/exec <action> ...` | Run a transform by name (`crop` \| `rotate` \| `flip` \| `filter` \| `apply`). Aliases: `do`, `run`. |
 | `/undo` `/redo` | Step back / forward through edits. Aliases: `u`, `r`. |
 | `/reset` | Revert to the original, dropping all edits. Alias: `revert`. |
 | `/save [path]` | Write the working image to a file (`~` expanded; only `..` traversal is refused). Bare `/save` pushes the current result to the active server project. Alias: `write`. |

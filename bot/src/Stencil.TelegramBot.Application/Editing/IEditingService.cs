@@ -25,6 +25,9 @@ public interface IEditingService
     // Accumulates clockwise, normalised to 0..3.
     Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default);
 
+    // Mirrors the shown view left-right: toggles the flip and negates the turn.
+    Task<UserSession> FlipAsync(long userId, CancellationToken ct = default);
+
     // Null/empty/"none" clears it.
     Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default);
 

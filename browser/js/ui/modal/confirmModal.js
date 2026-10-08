@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define, createModalFlight } from '../base.js';
 import { icon } from '../icons.js';
 import { gestureAnchorRect } from '../canvas/gesturePoint.js';
+import { injectRow, altButton, choiceSelect, promptField, promptReason } from './confirmFields.js';
 
 // The reusable yes/no modal behind app.confirm(): ask(message, opts) → Promise<boolean>,
 // false on Cancel / Close / overlay-click / Escape. `confirmIcon` / `altIcon` name a glyph
@@ -146,13 +147,6 @@ export class StencilConfirmModal extends StencilElement {
       clearPromptGate();
       if (altBtn) { altBtn.remove(); altBtn = null; }
     };
-    const injectRow = (el) => {
-      const wrap = document.createElement('div');
-      wrap.className = 'confirm-choose-row';
-      wrap.appendChild(el);
-      body.appendChild(wrap);
-    };
-
     this.ask = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
@@ -166,14 +160,7 @@ export class StencilConfirmModal extends StencilElement {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Confirm');
-      // Injected at runtime so the static markup (and the markup tests) stay unchanged.
-      const btn = document.createElement('button');
-      btn.id = 'confirm-modal-alt';
-      btn.className = 'btn-icon-text';
-      // A glyph like the other two, or it reads as the odd one out.
-      btn.innerHTML = icon(opts.altIcon || 'plus', { size: 14 }) + '<span></span>';
-      btn.querySelector('span').textContent = opts.altLabel || 'Alternative';
-      btn.addEventListener('click', () => settle('alt'));
+      const btn = altButton(opts, () => settle('alt'));
       cancelBtn.parentElement.insertBefore(btn, cancelBtn.nextSibling);
       altBtn = btn;
       setTimeout(() => confirmBtn.focus(), 30);
@@ -185,15 +172,8 @@ export class StencilConfirmModal extends StencilElement {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Choose');
-      const sel = document.createElement('select');
-      sel.className = 'confirm-choose-select';
-      for (const o of (opts.options || [])) {
-        const opt = document.createElement('option');
-        opt.value = o.value;
-        opt.textContent = o.label != null ? o.label : o.value;
-        sel.appendChild(opt);
-      }
-      injectRow(sel);
+      const sel = choiceSelect(opts.options);
+      injectRow(body, sel);
       choiceSelect = sel;
       setTimeout(() => sel.focus(), 30);
     });
@@ -202,20 +182,12 @@ export class StencilConfirmModal extends StencilElement {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Enter a name');
-      const multiline = !!opts.multiline;
-      const inp = document.createElement(multiline ? 'textarea' : 'input');
-      if (multiline) inp.rows = opts.rows || 3;
-      else inp.type = 'text';
-      inp.className = 'confirm-prompt-input';
-      inp.value = opts.defaultValue || '';
-      inp.addEventListener('keydown', e => e.stopPropagation());
-      injectRow(inp);
+      const inp = promptField(opts);
+      injectRow(body, inp);
       promptInput = inp;
       promptValidate = typeof opts.validate === 'function' ? opts.validate : null;
       if (promptValidate) {
-        const why = document.createElement('div');
-        why.className = 'confirm-prompt-reason';
-        why.style.display = 'none';
+        const why = promptReason();
         inp.parentElement.appendChild(why);
         promptReasonEl = why;
         inp.addEventListener('input', revalidatePrompt);

@@ -1,5 +1,5 @@
 // Parity for the editor-memento history (core/state/HistoryStack's EditorHistory behind
-// core/wasmHistoryApi.cpp) against js/core/historyStack.js: a step's crop, turn and filter cross
+// core/wasmHistoryApi.cpp) against js/core/historyStack.js: a step's crop, turn, mirror and filter cross
 // beside its lines, the floor keeps the view the stack started on, and Lines steps still mix in.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
@@ -25,6 +25,7 @@ const memento = (cropX, rotationQuarters, n, extra = {}) => ({
   lines: Array.from({ length: n }, (_, i) => line(i)),
   cropRect: cropX == null ? null : { x: cropX, y: 1.5, width: 50, height: 40 },
   rotationQuarters,
+  mirrored: false,
   ...extra,
 });
 
@@ -59,8 +60,9 @@ wtest('memento history: crops and turns step back and forth, the floor keeps its
     ['push', memento(0, 0, 1)],
     ['push', memento(7, 1, 1)],
     ['push', memento(7, 1, 2, { filter: 'custom', filterColor: '#7c3aed' })],
-    ['undo'], ['undo'], ['undo'], ['undo'], ['undo'],
-    ['redo'], ['redo'], ['redo'], ['redo'],
+    ['push', memento(9, 3, 2, { mirrored: true })],
+    ['undo'], ['undo'], ['undo'], ['undo'], ['undo'], ['undo'],
+    ['redo'], ['redo'], ['redo'], ['redo'], ['redo'],
     ['reset', memento(3, 2, 2), 0],
     ['undo'], ['redo'],
     ['reset', memento(null, 0, 0), -1],

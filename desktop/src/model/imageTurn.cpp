@@ -48,6 +48,15 @@ namespace stencil::model {
     return out;
   }
 
+  QImage mirror(const QImage& original) {
+    if (original.isNull()) return original;
+    if (!fourBytes(original)) return original.transformed(QTransform().scale(-1, 1));
+    QImage out = blankLike(original, original.size());
+    core::mirrorImageRows(original.constBits(), original.width(), original.height(), out.bits(), 0,
+                          out.height());
+    return out;
+  }
+
   QImage turnAndCrop(const QImage& original, int quarters, const QRect& crop) {
     if (original.isNull()) return QImage();
     const int q = core::normalizeQuarters(quarters);

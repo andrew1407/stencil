@@ -16,6 +16,7 @@ public static partial class CliArgvBuilder
     private const string _flagCrop = "-c";
     private const string _flagAlbum = "--album";
     private const string _flagRotate = "-r";
+    private const string _flagFlip = "--flip";
     private const string _flagLayout = "-l";
     private const string _flagFilter = "--filter";
     private const string _flagConfineOutput = "--confine-output";
@@ -146,6 +147,11 @@ public static partial class CliArgvBuilder
         if (req.Album)
         {
             argv.Add(_flagAlbum);
+        }
+
+        if (req.Flip)
+        {
+            argv.Add(_flagFlip);
         }
 
         if (req.Rotate is int rotate)

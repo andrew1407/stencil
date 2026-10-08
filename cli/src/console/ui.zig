@@ -17,13 +17,14 @@ var current_accent: []const u8 = theme.default_key;
 // Command words offered by Tab-completion in the interactive editor (canonical names +
 // transform shorthands), roughly in the order they appear in `help`.
 pub const completions = [_][]const u8{
-    "upload",        "source-upload", "scrape",              "paste",       "unpaste",         "images",       "blank",        "apply",
-    "crop",          "rotate",        "filter",              "bw",          "sepia",           "invert",       "contour",      "tint",
-    "none",          "exec",          "undo",                "redo",        "reset",           "save",         "delete",       "layout",
-    "formula",       "format",        "connect",             "connections", "disconnect",      "reconnect",    "projects",     "rename",
-    "project-color", "blank-color",   "project-description", "keywords",    "keywords-search", "keywords-add", "keywords-del", "expire",
-    "fetch",         "sync",          "copy",                "status",      "theme",           "mouse",        "reveal-speed", "clear",
-    "drop",          "prompt",        "llm",                 "chat",        "help",            "exit",         "script",       "script-run",
+    "upload",     "source-upload", "scrape",      "paste",               "unpaste",     "images",          "blank",        "apply",
+    "crop",       "rotate",        "flip",        "filter",              "bw",          "sepia",           "invert",       "contour",
+    "tint",       "none",          "exec",        "undo",                "redo",        "reset",           "save",         "delete",
+    "layout",     "formula",       "format",      "connect",             "connections", "disconnect",      "reconnect",    "projects",
+    "rename",     "project-color", "blank-color", "project-description", "keywords",    "keywords-search", "keywords-add", "keywords-del",
+    "expire",     "fetch",         "sync",        "copy",                "status",      "theme",           "mouse",        "reveal-speed",
+    "clear",      "drop",          "prompt",      "llm",                 "chat",        "help",            "exit",         "script",
+    "script-run",
 };
 
 pub fn setInteractive(v: bool) void {

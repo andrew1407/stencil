@@ -140,6 +140,9 @@
 /* Each arrow slides the way it points — the swap itself. */
 .ic-swap .ic-arrow-top { transform: translateX(calc(var(--ic-on) * 1.4px)); }
 .ic-swap .ic-arrow-bot { transform: translateX(calc(var(--ic-on) * -1.4px)); }
+/* The two halves fold in toward the mirror line. */
+.ic-flip-horizontal .ic-half-l { transform: translateX(calc(var(--ic-on) * 1.4px)); }
+.ic-flip-horizontal .ic-half-r { transform: translateX(calc(var(--ic-on) * -1.4px)); }
 .ic-fit .ic-inner       { transform: scale(calc(1 + var(--ic-on) * 0.22)); }  /* grows out to fit the frame */
 .ic-globe .ic-meridian  { transform: scaleX(calc(1 - var(--ic-on) * 0.55)); } /* turning on its axis */
 /* The disguise comes apart: the hat lifts off, the glasses drop away from it. */

@@ -92,6 +92,18 @@ TEST_CASE("rotateImageRGBA 270 clockwise is the inverse of 90") {
   CHECK(dst[1 * 4 + 0] == 0);  // bottom = A
 }
 
+TEST_CASE("mirrorImageRGBA reverses each row and keeps the rows in place") {
+  auto src = ramp(3, 2);  // R = 0,1,2 / 3,4,5
+  std::vector<std::uint8_t> dst(3 * 2 * 4, 0);
+  mirrorImageRGBA(src.data(), 3, 2, dst.data());
+  CHECK(dst[0 * 4] == 2); CHECK(dst[1 * 4] == 1); CHECK(dst[2 * 4] == 0);
+  CHECK(dst[3 * 4] == 5); CHECK(dst[4 * 4] == 4); CHECK(dst[5 * 4] == 3);
+  std::vector<std::uint8_t> banded(dst.size(), 0);
+  mirrorImageRows(src.data(), 3, 2, banded.data(), 1, 9);   // the range clamps
+  mirrorImageRows(src.data(), 3, 2, banded.data(), 0, 1);
+  CHECK(banded == dst);
+}
+
 TEST_CASE("fillRGBA writes a solid colour") {
   std::vector<std::uint8_t> buf(2 * 4, 0);
   fillRGBA(buf.data(), 2, 10, 20, 30, 40);

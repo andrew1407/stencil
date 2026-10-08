@@ -18,6 +18,7 @@ const acquireBlank = sources.acquireBlank;
 const resolveCropSpec = steps_mod.resolveCropSpec;
 const cropInPlace = steps_mod.cropInPlace;
 const applyRotateBy = steps_mod.applyRotateBy;
+const applyMirror = steps_mod.applyMirror;
 const applyFilterMode = steps_mod.applyFilterMode;
 const loadLayoutDoc = steps_mod.loadLayoutDoc;
 const drawLayoutDoc = steps_mod.drawLayoutDoc;
@@ -91,15 +92,20 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     const orig_h: usize = img.height;
     if (opts.remote != null) original_bytes = try image.encode(gpa, img, default_fmt);
 
-    // Crop, then rotate by N quarter-turns. --layout-frame source records both as frame-mapping steps, so
-    // step 3 can re-map the layout's SOURCE-frame points (llm-contract.md §1).
-    var steps_buf: [2]layout_mod.FrameStep = undefined;
+    // Crop, mirror, then rotate by N quarter-turns. --layout-frame source records each as a frame-mapping
+    // step, so step 3 can re-map the layout's SOURCE-frame points (llm-contract.md §1).
+    var steps_buf: [3]layout_mod.FrameStep = undefined;
     var n_steps: usize = 0;
     if (opts.crop) |spec| {
         const rect = resolveCropSpec(img.width, img.height, spec, opts.album) orelse return error.BadCrop;
         try cropInPlace(gpa, &img, rect);
         steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
         n_steps += 1;
+    }
+    if (opts.flip) {
+        steps_buf[n_steps] = .{ .mirror = .{ .w = @floatFromInt(img.width) } };
+        n_steps += 1;
+        try applyMirror(gpa, &img);
     }
     if (@mod(opts.rotate, 4) != 0) {
         // Record the PRE-rotate (post-crop) dims the point mapping turns within.

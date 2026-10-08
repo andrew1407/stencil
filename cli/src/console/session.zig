@@ -172,7 +172,8 @@ pub const Session = struct {
     pub const rebuild = @import("session/history.zig").rebuild;
     pub const viewWithoutLines = @import("session/history.zig").viewWithoutLines;
     pub const pushState = @import("session/history.zig").pushState;
-    pub const applyRotate = @import("session/edits.zig").applyRotate;
+    pub const applyRotate = @import("session/orient.zig").applyRotate;
+    pub const applyFlip = @import("session/orient.zig").applyFlip;
     pub const applyCrop = @import("session/edits.zig").applyCrop;
     pub const setFilter = @import("session/edits.zig").setFilter;
     pub const addLines = @import("session/edits.zig").addLines;
@@ -200,6 +201,7 @@ test {
     _ = @import("session/servers.zig");
     _ = @import("session/history.zig");
     _ = @import("session/edits.zig");
+    _ = @import("session/orient.zig");
     _ = @import("session/scriptLog.zig");
     _ = @import("session/peerMerge.zig");
     _ = geom;

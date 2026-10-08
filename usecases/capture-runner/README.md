@@ -58,7 +58,8 @@ delay; the few remaining pauses are clip timings and live in the config.
 
 Telegram has to be logged into by a person, once, in a dedicated profile kept outside the
 repo (`~/.stencil-docs-telegram`; `--profile` moves it). The script opens Telegram Web, waits
-for that login, then talks to the bot named by `--bot` (the live one, or one you run locally with `dotnet run` and your account on its allowlist) and
+for that login, then talks to the bot named by `--bot <username>` or `STENCIL_DOCS_BOT` (the
+live one, or one you run locally with `dotnet run` and your account on its allowlist) and
 screenshots the chat column. The bot is never started from here and its env is never read.
 
 ## Rules

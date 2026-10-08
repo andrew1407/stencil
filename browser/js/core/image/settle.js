@@ -76,6 +76,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
   app.rotationQuarters = (remoteLayout && Number.isInteger(remoteLayout.rotationQuarters))
     ? remoteLayout.rotationQuarters
     : 0;
+  app.mirrored = remoteLayout?.mirrored === true;
 // Pre-load edits from the load-by-URL modal: opts.page, opts.album, opts.noCrop.
   if (opts.page) {
     const n = normalizePageSize(opts.page);

@@ -143,6 +143,7 @@ export const createStencil = (app) => {
     // Current crop rect in rotated-original px — {x,y,w,h} plus legacy width/height
     // aliases; null before an image loads. The LLM plan executor re-maps against it (§1).
     get cropRect() { const r = app.cropRect; return r ? { x: r.x, y: r.y, w: r.width, h: r.height, width: r.width, height: r.height } : null; },
+    get mirrored() { return !!app.mirrored; },
     get incognito() { return !!app.storage.incognito; },
     // Incognito can only be turned on for a blank editor (no image yet) — same rule as
     // the toolbar toggle; setting it otherwise throws.

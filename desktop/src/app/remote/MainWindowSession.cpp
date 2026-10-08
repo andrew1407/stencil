@@ -35,6 +35,7 @@ namespace stencil::gui {
         canvas->getDrawMode() == CanvasWidget::DrawMode::RECT ? "rect" : "line";
     s.cropRect = canvas->getCropRect();
     s.rotationQuarters = canvas->getRotationQuarters();
+    s.mirrored = canvas->getMirrored();
     s.activeProjectId = activeProjectId;
     fileStore::saveSession(s);
   }
@@ -94,7 +95,7 @@ namespace stencil::gui {
     pf.layout = fileStore::buildLayoutJson(
         canvas->imageWidth(), canvas->imageHeight(), canvas->allLines(),
         settings.imageFilter, settings.filterColor,
-        canvas->getCropRect(), canvas->getRotationQuarters(), currentLayoutMeta());
+        canvas->getCropRect(), canvas->getRotationQuarters(), currentLayoutMeta(), canvas->getMirrored());
     pf.hasTheme = true;
     pf.themeMode = resolveDark(settings.themeMode) ? "dark" : "light";
     pf.themeAccent = settings.accentColor;

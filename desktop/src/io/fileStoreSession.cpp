@@ -26,6 +26,7 @@ namespace stencil::gui {
     s.lines = linesFromJson(o.value("lines").toArray());
     s.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     s.rotationQuarters = o.value("rotationQuarters").toInt(0);
+    s.mirrored = o.value("mirrored").toBool(false);
     s.activeProjectId = o.value("activeProjectId").toString();
     return s;
   }
@@ -43,6 +44,7 @@ namespace stencil::gui {
     o["lines"] = linesToJson(s.lines);
     if (s.cropRect.width > 0) o["cropRect"] = cropRectToJson(s.cropRect);
     if (s.rotationQuarters) o["rotationQuarters"] = s.rotationQuarters;
+    if (s.mirrored) o["mirrored"] = true;
     if (!s.activeProjectId.isEmpty()) o["activeProjectId"] = s.activeProjectId;
     writeJson(sessionPath(), QJsonDocument(o));
   }
@@ -85,6 +87,7 @@ namespace stencil::gui {
     pr.lines = linesFromJson(o.value("lines").toArray());
     pr.cropRect = cropRectFromJson(o.value("cropRect").toObject());
     pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
+    pr.mirrored = o.value("mirrored").toBool(false);
     pr.chat = o.value("chat").toObject();
     // 0.0/0/0 is exactly "never saved".
     pr.zoomScale = o.value("zoom").toDouble(0.0);
@@ -147,6 +150,7 @@ namespace stencil::gui {
     o["lines"] = linesToJson(pr.lines);
     if (pr.cropRect.width > 0) o["cropRect"] = cropRectToJson(pr.cropRect);
     if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
+    if (pr.mirrored) o["mirrored"] = true;
     if (!pr.chat.isEmpty()) o["chat"] = pr.chat;
     // Omitted when never saved so 0.0/0/0 keeps reading as "never saved".
     if (pr.zoomScale > 0) o["zoom"] = pr.zoomScale;

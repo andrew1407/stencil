@@ -18,6 +18,7 @@ namespace stencil::core {
     bool hasView = false;
     CropRect crop;  // width 0: no crop yet
     int quarters = 0;
+    bool mirrored = false;  // the original is mirrored left-right before the turn
     std::string filter;
     std::string filterColor;
   };

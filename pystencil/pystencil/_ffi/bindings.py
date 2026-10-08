@@ -69,6 +69,11 @@ def bind(lib: ctypes.CDLL) -> None:
   lib.stencil_cli_rotateImageRGBA.restype = None
   lib.stencil_cli_rotateImageRGBA.argtypes = [_src, ctypes.c_int, ctypes.c_int, ctypes.c_int, _u8p]
 
+  lib.stencil_cli_mirrorEdit.restype = None
+  lib.stencil_cli_mirrorEdit.argtypes = [_d] * 4 + [ctypes.c_int, _d, _d, _dblp]
+  lib.stencil_cli_mirrorImageRows.restype = None
+  lib.stencil_cli_mirrorImageRows.argtypes = [_src, ctypes.c_int, ctypes.c_int, _u8p, ctypes.c_int, ctypes.c_int]
+
   lib.stencil_cli_fillRGBA.restype = None
   lib.stencil_cli_fillRGBA.argtypes = [_u8p] + [ctypes.c_int] * 5
 

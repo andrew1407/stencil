@@ -39,6 +39,7 @@ namespace stencil::gui::projectThumbs {
     core::CropRect crop;
     int rotation = 0;
     QString key;
+    bool mirrored = false;
   };
 
   // The cache key of a stored project: its id, update stamp, image file, geometry and lines.

@@ -34,6 +34,10 @@ pub struct EditParams {
     #[serde(default)]
     pub album: Option<bool>,
 
+    /// Mirror the image left-right, after the crop and before the rotation.
+    #[serde(default)]
+    pub flip: Option<bool>,
+
     /// Rotate by this many QUARTER-TURNS clockwise, -3..3 (negative = counter-clockwise):
     /// `1` is 90°, `2` is 180°. Degrees are refused.
     #[serde(default)]
@@ -45,7 +49,7 @@ pub struct EditParams {
     pub layout: Option<LayoutArg>,
 
     /// Which frame the layout's coordinates are in: `"current"` (default — the image after
-    /// crop/rotate) or `"source"` (the input before them, re-mapped through the run).
+    /// crop/flip/rotate) or `"source"` (the input before them, re-mapped through the run).
     #[serde(default)]
     pub layout_frame: Option<String>,
 

@@ -22,6 +22,7 @@ namespace stencil::gui {
     auto* file = w.menuBar()->addMenu("F&ile");
     file->addAction(w.acts.open);
     file->addAction(w.acts.crop);
+    file->addAction(w.acts.flipImage);
     file->addAction(w.acts.rotateLeft);
     file->addAction(w.acts.rotateRight);
     file->addAction(w.acts.saveSession);

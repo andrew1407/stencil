@@ -182,6 +182,9 @@ namespace stencil::gui {
     hoverIdx = idx;
     animateHover(hoverIdx, 1.0);
     if (idx >= 0) sweep->sweepBand(tabRect(idx)); else sweep->cancel();
+    // Browser .oi-tab: the hand over a tab only, never the bar's slack.
+    if (idx >= 0 && isTabEnabled(idx)) setCursor(Qt::PointingHandCursor);
+    else unsetCursor();
   }
 
   void UnderlineTabBar::animateHover(int i, double to) {

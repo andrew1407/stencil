@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .._ffi.formula import FormulaContext
 from .._ffi.types import NoneType
-from ._lines import recrop_lines, turn_lines
+from ._lines import mirror_lines, recrop_lines, turn_lines
 
 
 class _EditApi:
@@ -30,6 +30,22 @@ class _EditApi:
       nxt.crop = crop
     nxt.lines = turn_lines(cur.lines, quarters, *self._view_dims(cur))
     nxt.rotation = core.normalize_quarters(cur.rotation + quarters)
+    self._push(nxt)
+    return self
+
+  def flip(self) -> "Editor":
+    """Mirror the shown view left-right; the crop reflects, the turn negates and the drawn lines
+    mirror inside the view, as the browser's flip carries them."""
+    self._require_original()
+    core = self._get_core()
+    cur = self._current()
+    nxt = cur.copy()
+    orig = self._original
+    if cur.crop is not None:
+      nxt.crop, _ = core.mirror_edit(cur.crop, cur.rotation, orig.width, orig.height)
+    nxt.lines = mirror_lines(cur.lines, self._view_dims(cur)[0])
+    nxt.rotation = core.normalize_quarters(-cur.rotation)
+    nxt.mirrored = not cur.mirrored
     self._push(nxt)
     return self
 

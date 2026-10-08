@@ -35,6 +35,7 @@ public sealed partial class CommandHandlers
         ["frame"] = (h, u, c, cmd, ct) => h.frameAsync(u, c, cmd, ct),
         ["crop"] = (h, u, c, cmd, ct) => h.cropAsync(u, c, cmd, ct),
         ["rotate"] = (h, u, c, cmd, ct) => h.rotateAsync(u, c, cmd, ct),
+        ["flip"] = (h, u, c, _, ct) => h.flipAsync(u, c, ct),
         ["filter"] = (h, u, c, cmd, ct) => h.filterAsync(u, c, cmd, ct),
         ["draw"] = (h, u, c, cmd, ct) => h.drawAsync(u, c, cmd, ct),
         ["line"] = (h, u, c, cmd, ct) => h.drawShapeAsync(u, c, "line", cmd.Args, ct),

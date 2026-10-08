@@ -36,6 +36,7 @@ export const expirationModalInner = () => `
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Past dates can’t be chosen. Expiration is local to this browser.</span>
+                <button id="expiration-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span>Cancel</span></button>
                 <button id="expiration-save" class="btn-icon-text">${icon('check')}<span>Save</span></button>
             </div>
         </div>

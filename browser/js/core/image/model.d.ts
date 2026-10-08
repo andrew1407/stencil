@@ -1,6 +1,6 @@
-// Non-destructive crop + quarter-turn rotation over the app's `originalImage` (never
+// Non-destructive crop + mirror + quarter-turn rotation over the app's `originalImage` (never
 // modified) → the working cropped `image`, tracked by `cropRect` (rotated-original pixels)
-// and `rotationQuarters`. Pure geometry lives in cropGeometry.js; this orchestrates it.
+// and `rotationQuarters` + `mirrored`. Pure geometry lives in cropGeometry.js; this orchestrates it.
 import type { CropRect } from '../geometry.js';
 import type { DrawingApp } from '../drawingApp.js';
 import type { CropRectInput } from './loadFlow.js';
@@ -25,6 +25,8 @@ export declare class ImageModel {
   settleView(opts?: { sync?: boolean }): void;
   /** dir < 0 rotates left (CCW), dir > 0 right (CW); crop window and lines follow the picture — one undo step. */
   rotateImage(dir: number): void;
+  /** A left-right flip of the shown picture; crop window and lines follow — one undo step. */
+  flipImage(): void;
   /** With `recalc`, lines are cleared on an orientation flip or rescaled to the new size — one undo step. */
   applyCrop(rect: CropRectInput, opts?: { recalc?: boolean }): void;
 }

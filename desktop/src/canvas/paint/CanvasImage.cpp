@@ -1,6 +1,6 @@
 #include "CanvasWidget.hpp"
 
-// Loading, rotating and cropping the picture this canvas shows: the scene's edit, then the view
+// Loading, rotating, flipping and cropping the picture this canvas shows: the scene's edit, then the view
 // resized to it, the selection dropped and the owner told.
 
 namespace stencil::gui {
@@ -11,6 +11,7 @@ namespace stencil::gui {
     originalImage = decoded;
     imagePath = path;
     rotationQuarters = 0;
+    mirrored = false;
     // Auto-crop from the center to the page aspect (cut the surplus sides). The
     // original is kept; image shows only this region.
     cropRect = defaultCropRect();
@@ -45,6 +46,17 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  void CanvasWidget::flipImage() {
+    if (originalImage.isNull()) return;
+    CanvasScene::flipImage();
+    selectedPoint = -1;
+    selectedLineIdx = -1;
+    continueLineIdx = continueInsertIdx = -1;
+    update();
+    emit changed();
+    emit selectionChanged();
+  }
+
   void CanvasWidget::applyCrop(const core::CropRect& rect, bool recalc) {
     if (originalImage.isNull()) return;
     CanvasScene::applyCrop(rect, recalc);
@@ -60,10 +72,10 @@ namespace stencil::gui {
 
   void CanvasWidget::restore(const QString& path, const core::Lines& lines,
                              double scale, const core::CropRect& cropRect,
-                             int rotationQuarters, const QImage& decoded) {
+                             int rotationQuarters, const QImage& decoded, bool mirrored) {
     resetStrokeFx();
     this->scale = scale > 0 ? scale : 1.0;
-    CanvasScene::restore(path, lines, cropRect, rotationQuarters, decoded);
+    CanvasScene::restore(path, lines, cropRect, rotationQuarters, decoded, mirrored);
     clearHoverCache();
     selectedPoint = -1;
     selectedLineIdx = -1;

@@ -2,6 +2,7 @@
 // The projects dialog's own furniture, grouped as plain value-type bags held by value — the batch
 // bar, the hover preview with its kebab shimmer, and the press state a click/drag is decided from.
 #include <QPoint>
+#include <QPointer>
 #include <QRect>
 #include <QSet>
 #include <QString>
@@ -31,12 +32,16 @@ namespace stencil::gui {
     QVector<QPair<QString, QString>> batchItems;
   };
 
+  enum class RowCursor { None, Pointer, Zoom };
+
   struct ProjectsHoverParts {
     QLabel* hoverPreview = nullptr;
     QListWidgetItem* hoverItem = nullptr;
     QVariantAnimation* hoverFade = nullptr;
     bool hoverClosing = false;
-    bool hoverZoomCursor = false;
+    // The preview's one dust cloud in flight: a new one ends it, so two photos never stand at once.
+    QPointer<QWidget> hoverDust;
+    RowCursor rowCursor = RowCursor::None;
     int kebabHoverRow = -1;
     class ShimmerOverlay* kebabSweep = nullptr;
     QString tipRowText;

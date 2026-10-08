@@ -75,6 +75,16 @@ fn negative_rotate_is_passed_through() {
 }
 
 #[test]
+fn flip_rides_after_the_crop_and_before_the_rotate() {
+    let p = params(json!({ "input": "a.png", "crop": "x1=10%", "rotate": 1, "flip": true, "output": "out.png" }));
+    let argv = build_argv(&p, None).unwrap();
+    let at = |flag: &str| argv.iter().position(|a| a == flag).unwrap();
+    assert!(at("-c") < at("--flip") && at("--flip") < at("-r"));
+    let off = params(json!({ "input": "a.png", "flip": false, "output": "out.png" }));
+    assert!(!build_argv(&off, None).unwrap().iter().any(|a| a == "--flip"));
+}
+
+#[test]
 fn frame_flag_for_video() {
     let p = params(json!({ "input": "clip.mp4", "frame": 24, "output": "f.png" }));
     assert_eq!(

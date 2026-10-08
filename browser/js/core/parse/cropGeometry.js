@@ -149,6 +149,12 @@ export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
     }
 };
 
+// A left-right mirror inside a crop box boxW wide, in place. Twin: core::mirrorLinePoints.
+export const mirrorLinePoints = (lines, boxW) => {
+  for (const line of lines)
+    for (const p of line.points) p.x = boxW - p.x;
+};
+
 // Integer pixels inside the (turned) original: each side Math.round-ed into [1, the image's
 // side], then the origin moved inside. Twin: core::snapCropRect.
 export const snapCropRectJS = (r, imageW, imageH) => {
@@ -171,6 +177,18 @@ export const rotateEditQuarterJS = (crop, quarters, originalW, originalH, clockw
   return {
     crop: snapCropRectJS(rotateCropRectQuarterJS(crop, iw, ih, clockwise), ih, iw),
     quarters: (((quarters + (clockwise ? 1 : -1)) % 4) + 4) % 4,
+  };
+};
+
+// A left-right flip of the shown picture: the window reflects across the turned width, snapped,
+// and the count negates; the caller toggles its mirror flag. Twin: core::mirrorEdit.
+export const mirrorEditJS = (crop, quarters, originalW, originalH) => {
+  const odd = quarters % 2 !== 0;
+  const iw = odd ? originalH : originalW;
+  const ih = odd ? originalW : originalH;
+  return {
+    crop: snapCropRectJS({ x: iw - crop.x - crop.width, y: crop.y, width: crop.width, height: crop.height }, iw, ih),
+    quarters: ((-quarters % 4) + 4) % 4,
   };
 };
 
@@ -200,4 +218,12 @@ const rotateEditCrop = core.bind('rotateEditQuarter', rotateEditQuarterJS);
 export const rotateEditQuarter = (lines, crop, quarters, originalW, originalH, clockwise) => {
   rotateLinePointsQuarter(lines, crop.width, crop.height, clockwise);
   return rotateEditCrop(crop, quarters, originalW, originalH, clockwise);
+};
+
+const mirrorEditCrop = core.bind('mirrorEdit', mirrorEditJS);
+
+// The crop-local lines mirror inside the window (in place, JS in both builds), then the window.
+export const mirrorEdit = (lines, crop, quarters, originalW, originalH) => {
+  mirrorLinePoints(lines, crop.width);
+  return mirrorEditCrop(crop, quarters, originalW, originalH);
 };

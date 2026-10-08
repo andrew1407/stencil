@@ -23,7 +23,7 @@
     "saveChatsNote": "Chats saved with a server project are <strong>readable by everyone\n                        the project is shared with</strong>; local projects stay on this machine."
   },
   "toolbar": {
-    "compareTooltip": "Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)"
+    "compareTooltip": "Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop, rotation and flip)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)"
   },
   "windows": [
     {

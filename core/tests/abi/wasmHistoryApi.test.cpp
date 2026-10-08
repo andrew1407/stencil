@@ -23,21 +23,23 @@ TEST_CASE("wasm history abi: a memento's view and filter round-trip; a lines ste
   const int h = stencil_history_create();
   const double none[] = {0};
   const std::uint8_t text[] = {0};
-  const double viewA[] = {1, 2, 30, 40, 0}, viewB[] = {5, 6, 70, 80, 3};
+  const double viewA[] = {1, 2, 30, 40, 0, 0}, viewB[] = {5, 6, 70, 80, 3, 1};
   stencil_history_resetMemento(h, 0, 0, none, 1, text, 0, viewA, "", "");
   stencil_history_pushMemento(h, none, 1, text, 0, viewB, "custom", "#7c3aed");
   stencil_history_push(h, none, 1, text, 0);
   int sizes[2] = {};
-  double out[5] = {};
+  double out[6] = {};
   REQUIRE(stencil_history_undo(h, sizes) == 1);
   CHECK(stencil_history_readView(h, out) == 1);
   CHECK(out[0] == 5);
   CHECK(out[4] == 3);
+  CHECK(out[5] == 1);
   CHECK(std::strcmp(stencil_history_readFilter(h, 0), "custom") == 0);
   CHECK(std::strcmp(stencil_history_readFilter(h, 1), "#7c3aed") == 0);
   REQUIRE(stencil_history_undo(h, sizes) == 1);   // the floor: the reset view, no lines
   CHECK(stencil_history_readView(h, out) == 1);
   CHECK(out[2] == 30);
+  CHECK(out[5] == 0);
   CHECK(stencil_history_readFilter(h, 0)[0] == '\0');
   stencil_history_redo(h, sizes);
   REQUIRE(stencil_history_redo(h, sizes) == 1);

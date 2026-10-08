@@ -34,13 +34,14 @@ _BASE64_PREFIX = "base64,"
 class _Snapshot:
   """One editing snapshot — the Python mirror of the Zig ``EditState``.
 
-  ``rotation`` is 0..3 clockwise quarter-turns applied to the original FIRST; ``crop``
+  ``mirrored`` mirrors the original left-right FIRST, then ``rotation`` turns it 0..3 clockwise quarters; ``crop``
   is an ``(x, y, w, h)`` rect in rotated-original pixel space (or ``None``); the filter
   is a mode string ("none"|"bw"|"sepia"|"custom"|"invert"|"contour") plus a custom hex
   colour; ``lines`` is the list of drawn :class:`Line` objects.
   """
 
   rotation: int = 0
+  mirrored: bool = False
   crop: (tuple[int, int, int, int] | NoneType) = None
   filter_mode: str = ""
   filter_color: str = ""
@@ -50,6 +51,7 @@ class _Snapshot:
     """A shallow-but-safe clone: the line list is copied so appends don't alias."""
     return _Snapshot(
       rotation=self.rotation,
+      mirrored=self.mirrored,
       crop=self.crop,
       filter_mode=self.filter_mode,
       filter_color=self.filter_color,

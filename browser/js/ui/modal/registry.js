@@ -5,6 +5,9 @@ export const modalShells = new Set();
 // One Escape listener for every shell: the topmost open window answers, and only it. A shell
 // may keep the key for itself; no window the app ships does (tests/ui/modalShell.test.js).
 let escapeWired = false;
+// The presses a window took: the fullscreen layer leaves the mode only on one no window answered.
+const taken = new WeakSet();
+export const windowTookEscape = (e) => taken.has(e);
 export const wireEscapeOnce = () => {
   if (escapeWired) return;
   escapeWired = true;
@@ -14,7 +17,9 @@ export const wireEscapeOnce = () => {
     if (!open.length) return;
     // A stacked window sits over whatever raised it.
     const top = open.find((s) => s.stacked) || open[0];
-    if (top.takesEscape()) top.close();
+    if (!top.takesEscape()) return;
+    taken.add(e);
+    top.close();
   });
 };
 

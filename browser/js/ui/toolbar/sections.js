@@ -80,6 +80,7 @@ export const toolbarImageSectionsHtml = () => `            <!-- ── Section: 
                     </select>
                     <input type="color" id="filter-color" value="#7c3aed" data-title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
                     <button id="crop-image" class="btn-icon" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop">${icon('crop')}</button>
+                    <button id="flip-horizontal" class="btn-icon" data-hk-title="flipImageHorizontal" data-title="Flip image horizontally" data-disabled-reason="Load an image to flip">${icon('flip-horizontal')}</button>
                     <button id="rotate-left" class="btn-icon" data-hk-title="rotateImageLeft" data-title="Rotate image left" data-disabled-reason="Load an image to rotate">${icon('rotate-ccw')}</button>
                     <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate">${icon('rotate-cw')}</button>
                     <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo">${icon('undo')}</button>

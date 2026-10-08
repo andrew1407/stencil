@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     meta.formulaY = "y+1";
     const QJsonObject built = fileStore::buildLayoutJson(
         4, 3, stencil::core::Lines{}, "bw", "#7c3aed",
-        stencil::core::CropRect{1, 1, 2, 2}, 1, meta);
+        stencil::core::CropRect{1, 1, 2, 2}, 1, meta, /*mirrored=*/true);
     QStringList got = built.keys();
     got.sort();
     want.sort();

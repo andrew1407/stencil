@@ -76,6 +76,14 @@ void stencil_cli_rotateEditQuarter(double x, double y, double w, double h, int q
                                    double originalW, double originalH, int clockwise,
                                    double* out);
 
+/* A left-right flip of the shown edit: out[0..3] = the reflected, snapped window, out[4] = the
+ * negated 0..3 count; the caller toggles its mirror flag. */
+void stencil_cli_mirrorEdit(double x, double y, double w, double h, int quarters,
+                            double originalW, double originalH, double* out);
+
+/* Left-right, rows [y0,y1) of it; dst is w*h*4 bytes and must not alias src. */
+void stencil_cli_mirrorImageRows(const uint8_t* src, int w, int h, uint8_t* dst, int y0, int y1);
+
 /* dst is sized by stencil_cli_rotatedDims: still w*h*4 bytes, dims swapped on odd turns. */
 void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
                                  uint8_t* dst);

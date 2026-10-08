@@ -54,10 +54,9 @@ namespace stencil::gui {
     // Inline layout JSON (`layout=`), the in-URL variant of --layout.
     QString layoutJson;
 
-    // A .stc riding the link (`script=`, 1..LAUNCH.scriptMaxChars) and whether it opens in the
-    // Script window or runs ("open" | "run"); scriptDropped = one arrived over the cap.
+    // A .stc riding the link (`script=`, 1..LAUNCH.scriptMaxChars), opened in the Script window
+    // whatever `scriptMode` it names; scriptDropped = one arrived over the cap.
     QString script;
-    QString scriptMode = QStringLiteral("run");
     bool scriptDropped = false;
 
     // A plain launch: applyLaunchOptions does nothing and the session restore stands.
@@ -76,7 +75,7 @@ namespace stencil::gui {
 
   // Grammar mirrored by browser/js/core/launch/deepLink.js buildStencilSchemeUrl: server+id win over src; unknown params ignored;
   // src is restricted to web/data sources — links are remotely clickable, so local paths never ride them.
-  // A script (`script=`, `scriptMode=open|run`) rides beside either, or alone.
+  // A script (`script=`; a `scriptMode=` beside it is ignored) rides beside either, or alone.
   LaunchOptions parseStencilUrl(const QUrl& url);
 
 }

@@ -68,6 +68,14 @@ pub fn rotateEditQuarter(crop: Rect, quarters: i32, orig_w: i32, orig_h: i32, cl
     return .{ .crop = rectOf(out[0..4]), .quarters = @intFromFloat(out[4]) };
 }
 
+/// A left-right flip of an edit shown at `quarters` (the caller toggles its mirror flag): the crop
+/// reflects across the turned width, snapped, and the count negates (core::mirrorEdit).
+pub fn mirrorEdit(crop: Rect, quarters: i32, orig_w: i32, orig_h: i32) EditTurn {
+    var out: [5]f64 = undefined;
+    c.stencil_cli_mirrorEdit(@floatFromInt(crop.x), @floatFromInt(crop.y), @floatFromInt(crop.w), @floatFromInt(crop.h), quarters, @floatFromInt(orig_w), @floatFromInt(orig_h), &out);
+    return .{ .crop = rectOf(out[0..4]), .quarters = @intFromFloat(out[4]) };
+}
+
 // Integer inputs snap to integral, finite values, so the casts cannot trap.
 fn rectOf(v: []const f64) Rect {
     return .{ .x = @intFromFloat(v[0]), .y = @intFromFloat(v[1]), .w = @intFromFloat(v[2]), .h = @intFromFloat(v[3]) };
@@ -84,6 +92,11 @@ pub fn rotateImageRGBA(src: []const u8, w: i32, h: i32, quarters: i32, dst: []u8
     c.stencil_cli_rotateImageRGBA(src.ptr, w, h, quarters, dst.ptr);
 }
 
+/// Left-right; `dst` is w*h*4 bytes and never `src`.
+pub fn mirrorImageRGBA(src: []const u8, w: i32, h: i32, dst: []u8) void {
+    c.stencil_cli_mirrorImageRows(src.ptr, w, h, dst.ptr, 0, h);
+}
+
 test "resolveCrop + rotate helpers" {
     const rect = resolveCrop("x1=0px x2=100px y1=0px y2=50px", 200, 200, 10, 10, 21, 29.7, false).?;
     try testing.expectEqual(@as(i32, 100), rect.w);
@@ -92,6 +105,17 @@ test "resolveCrop + rotate helpers" {
     try testing.expectEqual(@as(i32, 3), normalizeQuarters(-1));
     const d = rotatedDims(4, 2, 1);
     try testing.expect(d.w == 2 and d.h == 4);
+}
+
+test "mirrorEdit reflects the crop and negates the turn; mirrorImageRGBA reverses each row" {
+    const t = mirrorEdit(.{ .x = 10, .y = 20, .w = 80, .h = 40 }, 1, 200, 100);
+    try testing.expectEqual(Rect{ .x = 10, .y = 20, .w = 80, .h = 40 }, t.crop);
+    try testing.expectEqual(@as(i32, 3), t.quarters);
+    try testing.expectEqual(Rect{ .x = 110, .y = 20, .w = 80, .h = 40 }, mirrorEdit(.{ .x = 10, .y = 20, .w = 80, .h = 40 }, 0, 200, 100).crop);
+    const src = [_]u8{ 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 };
+    var dst: [12]u8 = undefined;
+    mirrorImageRGBA(&src, 3, 1, &dst);
+    try testing.expectEqualSlices(u8, &.{ 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 }, &dst);
 }
 
 test "cropChange flips on album/portrait, else scales by the width ratio" {

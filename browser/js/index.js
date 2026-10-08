@@ -5,7 +5,6 @@ import { core } from './core/abi/stencilCore.js';
 import { hotkeys } from './core/settings/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
-import { runScriptHere } from './console/scriptRunner.js';
 import { setScriptText } from './ui/script/buffer.js';
 import { initTooltips } from './ui/tip/controlTooltip.js';
 import { watchControlLabels } from './ui/ariaLabels.js';
@@ -23,18 +22,14 @@ import { applyExternalLaunch } from './core/launch/controller.js';
 // On load: init the shared C++ core (wasm), mount component hosts, construct the app, then
 // dispatch `stencil:ready`, preserving DOM → app → wire order. Failed wasm leaves no-ops
 // installed and consumers on their JS fallback.
-// A handed-over script lands HERE because the layer order forbids core/ importing console/:
-// 'open' shows it in the Script window, 'run' runs it; both leave it in the buffer.
-const LAUNCH_SCRIPT = Object.freeze({
-  open: async (_text, stencil) => { try { stencil.openWindow('script'); } catch { /* the buffer still holds it */ } },
-  run: (text) => runScriptHere(text).catch(() => {}),
-});
-const runLaunchScript = async (app, stencil) => {
+// A handed-over script lands HERE because the layer order forbids core/ importing console/. It
+// opens in the Script window, whatever `scriptMode` the link names: the user presses Run.
+const openLaunchScript = (app, stencil) => {
   const text = app.pendingLaunchScript;
   if (!text) return;
   app.pendingLaunchScript = '';
   setScriptText(text);
-  await (LAUNCH_SCRIPT[app.pendingLaunchScriptMode] ?? LAUNCH_SCRIPT.run)(text, stencil);
+  try { stencil.openWindow('script'); } catch { /* the buffer still holds it */ }
 };
 
 window.onload = async () => {
@@ -96,7 +91,7 @@ window.onload = async () => {
   // …and the same text as the accessible name of every icon-only control, here and in
   // whatever a modal renders later (ui/ariaLabels.js).
   watchControlLabels();
-  applyExternalLaunch(app).then(() => runLaunchScript(app, stencil));
+  applyExternalLaunch(app).then(() => openLaunchScript(app, stencil));
   // If launched via the projects modal's "open in new tab" action (?open=<id>),
   // load that project now. No-op for normal sessions.
   app.applyProjectDeepLink();

@@ -39,11 +39,13 @@ namespace stencil::gui {
     w.acts.crop = newAction("Crop Image…", w.keys.value("cropImage", "Ctrl+Shift+X"));
     w.setActionTip(w.acts.crop,
         "Crop the image — pick the page-shaped region to show on the canvas");
-    // Non-destructive 90° rotation; the crop window and lines follow the picture.
+    // Non-destructive 90° rotation and left-right flip; the crop window and lines follow the picture.
     w.acts.rotateLeft = newAction("Rotate Left", w.keys.value("rotateImageLeft", "Alt+R"));
     w.setActionTip(w.acts.rotateLeft, "Rotate the image left (counter-clockwise)");
     w.acts.rotateRight = newAction("Rotate Right", w.keys.value("rotateImageRight", "Alt+Shift+R"));
     w.setActionTip(w.acts.rotateRight, "Rotate the image right (clockwise)");
+    w.acts.flipImage = newAction("Flip Horizontally", w.keys.value("flipImageHorizontal", "Alt+Shift+F"));
+    w.setActionTip(w.acts.flipImage, "Flip the image horizontally (mirror left-right)");
     w.acts.cycleFilter = newAction("Cycle Image Filter", w.keys.value("cycleFilter", "Alt+B"));
     w.setActionTip(w.acts.cycleFilter,
         "Cycle the image filter (none → B&W → sepia → invert → contour → tint)");

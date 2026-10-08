@@ -3,7 +3,7 @@ using Stencil.TelegramBot.Domain.Layout;
 namespace Stencil.TelegramBot.Domain.Editing;
 
 // Editing intent, not pixels: one base image on disk, the result re-derived through the CLI pipeline.
-// Crop/rotate are the latest spec, never a baked snapshot, so a render stays reproducible.
+// Crop/flip/rotate are the latest spec, never a baked snapshot, so a render stays reproducible.
 public sealed record EditState
 {
     public string? CropSpec { get; init; }
@@ -13,6 +13,9 @@ public sealed record EditState
 
     // Quarter-turns clockwise, normalised to 0..3.
     public int Rotate { get; init; }
+
+    // Mirrored left-right after the crop and before the turn, as the CLI's --flip.
+    public bool Flip { get; init; }
 
     // bw/sepia/invert/contour/none, or a CSS colour / #hex tint.
     public string? Filter { get; init; }
@@ -56,5 +59,5 @@ public sealed record EditState
 
     // A bare original: the pen alone doesn't count as an edit.
     public bool IsEmpty =>
-        CropSpec is null && !Album && Rotate == 0 && Filter is null && PageFormat is null && LineCount == 0;
+        CropSpec is null && !Album && Rotate == 0 && !Flip && Filter is null && PageFormat is null && LineCount == 0;
 }

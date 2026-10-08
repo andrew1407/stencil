@@ -75,6 +75,25 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
+    public void Should_Read_A_Mirrored_Layout_And_Unmirror_Its_Crop()
+    {
+        var layout = parse("""{ "cropRect": {"x":10,"y":0,"w":30,"h":80}, "mirrored": true, "lines": [] }""");
+        EditState edits = ProjectLayoutMapper.ToEditState(layout, 100, 80);
+        Assert.True(edits.Flip);
+        Assert.Equal("x1=60px x2=90px y1=0px y2=80px", edits.CropSpec);
+        Assert.False(ProjectLayoutMapper.ToEditState(parse("""{ "mirrored": "yes", "lines": [] }"""), 100, 80).Flip);
+    }
+
+    [Fact]
+    public void Should_Write_Mirrored_Only_While_Flipped()
+    {
+        JsonElement on = built("""{ "mirrored": true }""", new EditState { Flip = true }, 10, 10);
+        Assert.True(on.GetProperty("mirrored").GetBoolean());
+        JsonElement off = built("""{ "mirrored": true }""", new EditState(), 10, 10);
+        Assert.False(off.TryGetProperty("mirrored", out _));
+    }
+
+    [Fact]
     public void Should_Skip_A_Full_Cover_Crop()
     {
         var layout = parse("""{ "rotationQuarters": 0, "cropRect": {"x":0,"y":0,"width":100,"height":80}, "lines": [] }""");

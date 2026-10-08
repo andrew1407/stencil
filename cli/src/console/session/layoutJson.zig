@@ -52,6 +52,10 @@ pub fn innerArray(s: []const u8) []const u8 {
 pub fn turnLinesJson(gpa: std.mem.Allocator, lines_json: []const u8, n: i32, w: i32, h: i32) ![]u8 {
     return mapLinesJson(gpa, lines_json, .{ .turn = .{ .quarters = core.normalizeQuarters(n), .w = @floatFromInt(w), .h = @floatFromInt(h) } });
 }
+/// Every point mirrored left-right inside a `w`-wide view (core::mirrorLinePoints). Caller owns it.
+pub fn mirrorLinesJson(gpa: std.mem.Allocator, lines_json: []const u8, w: i32) ![]u8 {
+    return mapLinesJson(gpa, lines_json, .{ .mirror = @floatFromInt(w) });
+}
 
 /// The lines as the browser's crop recalcs them when window `old` becomes `new`: an album/portrait
 /// flip clears them, any other resize scales every point (browser scaleLinePoints). Caller owns it.
@@ -65,11 +69,13 @@ pub fn recropLinesJson(gpa: std.mem.Allocator, lines_json: []const u8, old: core
 const PointMap = union(enum) {
     turn: struct { quarters: i32, w: f64, h: f64 },
     scale: f64,
+    mirror: f64,
 
     // Three clockwise quarters are the browser's one left press: (x, y) → (y, W − x), exact.
     fn apply(self: PointMap, p: layout_mod.Point) layout_mod.Point {
         return switch (self) {
             .scale => |s| .{ .x = p.x * s, .y = p.y * s },
+            .mirror => |w| .{ .x = w - p.x, .y = p.y },
             .turn => |t| if (t.quarters == 3) .{ .x = p.y, .y = t.w - p.x } else layout_mod.mapPoint(&.{.{ .rotate = .{ .quarters = t.quarters, .w = t.w, .h = t.h } }}, p),
         };
     }
@@ -109,7 +115,7 @@ fn jsonOfNum(v: f64) std.json.Value {
     return .{ .float = v };
 }
 
-/// Read a server layout document into an EditState (rotation, crop, filter, lines).
+/// Read a server layout document into an EditState (mirror, rotation, crop, filter, lines).
 pub fn parseLayoutInto(gpa: std.mem.Allocator, layout_bytes: []const u8, out: *EditState) !void {
     out.lines_json = try extractLinesJson(gpa, layout_bytes);
     var parsed = std.json.parseFromSlice(std.json.Value, gpa, layout_bytes, .{}) catch return;
@@ -119,6 +125,7 @@ pub fn parseLayoutInto(gpa: std.mem.Allocator, layout_bytes: []const u8, out: *E
     if (jsonStr(obj, "imageFilter")) |m| out.filter_mode = try gpa.dupe(u8, m);
     if (jsonStr(obj, "filterColor")) |c| out.filter_color = try gpa.dupe(u8, c);
     if (jsonInt(obj, "rotationQuarters")) |r| out.rotation = core.normalizeQuarters(@intCast(r));
+    if (obj.get("mirrored")) |mv| out.mirrored = mv == .bool and mv.bool;
     if (obj.get("cropRect")) |cv| {
         if (cv == .object) {
             const co = cv.object;

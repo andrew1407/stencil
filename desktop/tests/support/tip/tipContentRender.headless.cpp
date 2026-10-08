@@ -7,7 +7,7 @@ void renderCases(const Palette& pal) {
     const QString title =
         "Compare with original\n"
         "• None — normal editing\n"
-        "• Original — the original only (crop + rotation)\n"
+        "• Original — the original only (crop, rotation and flip)\n"
         "• Vertical split — original left, edit right\n"
         "(hold Alt+Shift+O to peek) (⌥O)\n"
         "— Load an image to compare";

@@ -145,10 +145,8 @@ def cap_lines(lines: list[Line]) -> list[Line]:
 class Layout:
   """A full layout: required dimensions + lines, plus optional geometry/filter.
 
-  The optional fields (``image_filter``/``filter_color``/``crop_rect``/
-  ``rotation_quarters``) round-trip the editor's filter and geometry to peers
-  and on reopen; they are omitted from the JSON when ``None`` so a bare layout
-  serializes to exactly ``{imageWidth, imageHeight, lines}``.
+  The optional fields (filter, crop, turn, mirror) round-trip the editor's filter and geometry to
+  peers and on reopen; omitted when ``None``, a bare layout is exactly ``{imageWidth, imageHeight, lines}``.
   """
 
   image_width: int
@@ -158,6 +156,7 @@ class Layout:
   filter_color: (str | NoneType) = None
   crop_rect: (dict | NoneType) = None
   rotation_quarters: (int | NoneType) = None
+  mirrored: (bool | NoneType) = None  # the original mirrored before the turn; True only
   # Page format + x/y coordinate-transform formulas (the browser applies them).
   page_size: (str | NoneType) = None
   custom_page_width: (float | NoneType) = None
@@ -187,6 +186,7 @@ class Layout:
     if self.allow_formulas is not None: out["allowFormulas"] = self.allow_formulas
     if self.formula_x is not None: out["formulaX"] = self.formula_x
     if self.formula_y is not None: out["formulaY"] = self.formula_y
+    if self.mirrored: out["mirrored"] = True
     return out
 
   def to_json(self, indent: (int | NoneType) = None) -> str:
@@ -213,6 +213,7 @@ class Layout:
       allow_formulas=_opt_bool(d.get("allowFormulas")),
       formula_x=_opt_str(d.get("formulaX")),
       formula_y=_opt_str(d.get("formulaY")),
+      mirrored=True if d.get("mirrored") is True else None,
     )
 
   @classmethod

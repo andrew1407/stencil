@@ -108,7 +108,7 @@ int walkLayout() {
                                           : QStringLiteral("none"),
         L.value("filterColor").isString() ? L.value("filterColor").toString()
                                           : QStringLiteral("#7c3aed"),
-        crop, L.value("rotationQuarters").toInt(0), meta);
+        crop, L.value("rotationQuarters").toInt(0), meta, L.value("mirrored").toBool(false));
     const QJsonValue want =
         ov.present ? ov.verdict : QJsonValue(c.value("expectPayload").toObject());
     checkJsonEq(got, want, QStringLiteral("%1").arg(taggedName(name, ov)));

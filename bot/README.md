@@ -156,6 +156,7 @@ results back as one album; the last photo's result becomes the working image.
 | `/frame [n]` | Grab frame `n` of the loaded video (needs `ffmpeg` on `PATH`) |
 | `/crop <spec> [album]` | Crop, e.g. `x1=10% x2=90% y1=10% y2=90%` |
 | `/rotate <n>` | Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`) |
+| `/flip` | Mirror the image left-right; a turn already made flips with it |
 | `/filter <bw\|sepia\|invert\|contour\|none\|color>` | Black & white, sepia, invert, edge-detect contour, clear, or a duotone tint |
 | `/reset` · `/drop` | Clear pending edits (keep image) · forget the image entirely — `/drop` is a full start-over, so it also clears the assistant's conversation |
 | `/layout <json \| link>` | Apply a layout: inline JSON or an `http(s)` link to a layout `.json` (same validation as uploading the file; links are SSRF-vetted like `/url`) |

@@ -72,6 +72,7 @@ namespace stencil::gui {
     copy->originalImage = originalImage;
     copy->cropRect = cropRect;
     copy->rotationQuarters = rotationQuarters;
+    copy->mirrored = mirrored;
     copy->imagePath = imagePath;
     copy->lines = lines;
     copy->currentLine = currentLine;

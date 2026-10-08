@@ -6,7 +6,8 @@
     "help": {
       "pin": "usage.color.txt",
       "cols": 100,
-      "title": "stencil --help"
+      "title": "stencil --help",
+      "scaleFactor": 1.5
     },
     "console-help": {
       "pin": "help.color.txt",

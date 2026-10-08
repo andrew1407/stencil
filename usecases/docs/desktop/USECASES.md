@@ -91,9 +91,11 @@ The theme switch wipes the new palette across the window:
 
 ![the theme swap](img/theme-swap.gif)
 
-## Crop
+## Crop, flip, rotate
 
 **File ▸ Crop Image…** (`Ctrl+Shift+X`) crops inside a page-shaped box, album or portrait.
+**File ▸ Flip Horizontally** (`Alt+Shift+F`) mirrors the picture left to right and the
+rotate pair turns it by quarter turns; the lines and the crop follow both.
 
 ![the crop dialog](img/crop-dialog.png)
 
@@ -124,10 +126,9 @@ core's own highlighting; dropping a `.stc` file on the window runs it too. The c
 | ![the script dialog](img/script-dialog.png) | ![the script editor in the canvas menu](img/context-menu-script.png) |
 
 A script can also arrive by a `stencil://` link, from the browser app or from VS Code. It opens
-in the Script window, or, when the link asks to run it, the app shows it and asks first; a
-script that came by link may open web images only.
+in the Script window, highlighted and ready to edit; nothing runs until **Run** is pressed.
 
-![the question before a linked script runs](img/script-link-confirm.png)
+![a linked script in the Script window](img/script-link.png)
 
 ## Projects and servers
 

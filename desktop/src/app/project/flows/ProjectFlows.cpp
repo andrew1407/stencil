@@ -53,14 +53,15 @@ namespace stencil::gui {
       const QString id = QString::fromStdString(pr.meta.id);
       if (id == w.activeProjectId && w.canvas->hasImage()) {
         missing.push_back({id, w.canvas->getImagePath(), w.canvas->getOriginalImage(), w.canvas->allLines(),
-                           w.canvas->getCropRect(), w.canvas->getRotationQuarters(), QString()});
+                           w.canvas->getCropRect(), w.canvas->getRotationQuarters(), QString(),
+                           w.canvas->getMirrored()});
         continue;
       }
       if (pr.imagePath.isEmpty()) continue;
       const QString key = projectThumbs::keyOf(pr, look);
       const QPixmap hit = projectThumbs::cached(key);
       if (!hit.isNull()) thumbs.insert(id, hit);
-      else missing.push_back({id, pr.imagePath, QImage(), pr.lines, pr.cropRect, pr.rotationQuarters, key});
+      else missing.push_back({id, pr.imagePath, QImage(), pr.lines, pr.cropRect, pr.rotationQuarters, key, pr.mirrored});
     }
     ProjectsDialog dlg(w.projectList, nowMs(), w.remote.connections, thumbs,
                        &w, w.activeProjectId, accentPrimary(w.settings.accentColor));

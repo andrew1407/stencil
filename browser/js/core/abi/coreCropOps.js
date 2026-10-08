@@ -1,5 +1,5 @@
 // The core's crop ops over the wasm ABI: the page aspect, the centred default rect, every
-// rect edit (corner resize, move, scale, orientation swap, quarter rotation) and the commit snap.
+// rect edit (corner resize, move, scale, orientation swap, quarter rotation, mirror) and the commit snap.
 export const buildCropOps = (core, { F64, withRectOut }) => {
   const cIsAlbum         = core.cwrap('stencil_isAlbumOrientation', 'number', ['number', 'number']);
   const cCropAspect      = core.cwrap('stencil_cropAspect', 'number', ['number', 'number', 'number']);
@@ -22,6 +22,8 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
     core.ccall('stencil_snapCropRect', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, out]);
   const cTurnEdit = (x, y, w, h, q, ow, oh, cw, out) =>
     core.ccall('stencil_rotateEditQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, q, ow, oh, cw, out]);
+  const cMirrorEdit = (x, y, w, h, q, ow, oh, out) =>
+    core.ccall('stencil_mirrorEdit', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, q, ow, oh, out]);
 
   return {
     isAlbumOrientation(w, h) {
@@ -79,6 +81,18 @@ export const buildCropOps = (core, { F64, withRectOut }) => {
       const out = core._malloc(5 * F64);
       try {
         cTurnEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, clockwise ? 1 : 0, out);
+        const at = (i) => core.getValue(out + i * F64, 'double');
+        return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
+      } finally {
+        core._free(out);
+      }
+    },
+
+    // out[0..3] = the reflected window, out[4] = the negated quarter count.
+    mirrorEdit(crop, quarters, originalW, originalH) {
+      const out = core._malloc(5 * F64);
+      try {
+        cMirrorEdit(crop.x, crop.y, crop.width, crop.height, quarters, originalW, originalH, out);
         const at = (i) => core.getValue(out + i * F64, 'double');
         return { crop: { x: at(0), y: at(1), width: at(2), height: at(3) }, quarters: at(4) };
       } finally {

@@ -27,6 +27,11 @@ namespace stencil::core {
   void rotateImageRows(const std::uint8_t* src, int w, int h, int quarters,
                        std::uint8_t* dst, int oy0, int oy1);
 
+  // Left-right; dst holds w*h*4 bytes and must not alias src. The Rows form is the same
+  // half-open [y0, y1) slicing as the rest.
+  void mirrorImageRGBA(const std::uint8_t* src, int w, int h, std::uint8_t* dst);
+  void mirrorImageRows(const std::uint8_t* src, int w, int h, std::uint8_t* dst, int y0, int y1);
+
   void fillRGBA(std::uint8_t* dst, std::size_t pixelCount, int r, int g, int b, int a);
 
 }

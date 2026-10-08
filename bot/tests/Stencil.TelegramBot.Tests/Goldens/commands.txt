@@ -11,6 +11,7 @@
 /frame — Grab a video frame: [n]
 /crop — Crop, e.g. x1=10% x2=90% y1=10% y2=90%
 /rotate — Rotate 90° × n, e.g. 1, 2 or -1
+/flip — Flip the image horizontally (mirror)
 /filter — bw | sepia | invert | contour | none | color
 /draw — Draw line|rect|poly x1,y1 x2,y2 …
 /color — Set the pen colour

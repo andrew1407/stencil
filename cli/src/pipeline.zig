@@ -19,6 +19,7 @@ pub const applyCropSpec = steps.applyCropSpec;
 pub const resolveCropSpec = steps.resolveCropSpec;
 pub const cropToRect = steps.cropToRect;
 pub const applyRotateBy = steps.applyRotateBy;
+pub const applyMirror = steps.applyMirror;
 pub const loadLayoutDoc = steps.loadLayoutDoc;
 pub const drawLayoutDoc = steps.drawLayoutDoc;
 pub const applyFilterMode = steps.applyFilterMode;

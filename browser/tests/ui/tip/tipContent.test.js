@@ -68,7 +68,7 @@ test('the compare button: heading, bulleted rows, and a parenthesised key hint',
   const title = [
     'Compare with original',
     '• None — normal editing',
-    '• Original — the original only (crop + rotation)',
+    '• Original — the original only (crop, rotation and flip)',
     '• Vertical split — original left, edit right',
     '(hold Alt+Shift+O to peek)',
   ].join('\n');

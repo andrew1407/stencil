@@ -257,6 +257,34 @@
     ]
   },
   {
+    "name": "mirrored-rides-after-the-formulas",
+    "divergences": {
+      "desktop": "always emits imageFilter/filterColor (defaults \"none\"/\"#7c3aed\"); the browser omits absent filter fields",
+      "mcp": "Layout has no rotationQuarters/mirrored (nor cropRect): both drop on round-trip; mcp mirrors through the CLI's --flip"
+    },
+    "layout": {
+      "imageWidth": 800,
+      "imageHeight": 600,
+      "lines": [],
+      "rotationQuarters": 1,
+      "mirrored": true
+    },
+    "expectPayload": {
+      "imageWidth": 800,
+      "imageHeight": 600,
+      "lines": [],
+      "rotationQuarters": 1,
+      "mirrored": true
+    },
+    "expectKeyOrder": [
+      "imageWidth",
+      "imageHeight",
+      "lines",
+      "rotationQuarters",
+      "mirrored"
+    ]
+  },
+  {
     "name": "lines-pass-through-by-reference-unsanitized",
     "divergences": {
       "desktop": "lines never pass through: linesFromJson->lineToJson re-materializes core::Line, dropping unknown keys (\"junk\") and non-numeric thickness \"9\" -> default 2; browser exports the live array by reference",

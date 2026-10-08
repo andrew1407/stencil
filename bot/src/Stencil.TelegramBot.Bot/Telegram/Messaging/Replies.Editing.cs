@@ -70,6 +70,10 @@ public static partial class Replies
         {
             parts.Add(edits.Album ? $"crop[{edits.CropSpec}] album" : $"crop[{edits.CropSpec}]");
         }
+        if (edits.Flip)
+        {
+            parts.Add("flip");
+        }
         if (edits.Rotate != 0)
         {
             parts.Add($"rotate {edits.Rotate * 90}°");

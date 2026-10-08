@@ -31,11 +31,15 @@ export declare const scaleLinePoints: (lines: Lines, scale: number) => void;
 export declare const rotateCropRectQuarterJS: (r: CropRect, imageW: number, imageH: number, clockwise: boolean) => CropRect;
 /** Rotate every crop-local point one quarter turn inside a boxW × boxH box, in place. */
 export declare const rotateLinePointsQuarter: (lines: Lines, boxW: number, boxH: number, clockwise: boolean) => void;
+/** Mirror every crop-local point left-right inside a box boxW wide, in place. */
+export declare const mirrorLinePoints: (lines: Lines, boxW: number) => void;
 /** Integer pixels inside imageW × imageH: sides Math.round-ed into [1, side], origin moved inside. */
 export declare const snapCropRectJS: (r: CropRect, imageW: number, imageH: number) => CropRect;
 /** The window across one quarter-turn of an unturned originalW × originalH picture at `quarters`. */
 export declare const rotateEditQuarterJS: (crop: CropRect, quarters: number, originalW: number,
   originalH: number, clockwise: boolean) => EditTurn;
+/** The window reflected across the turned width and the negated count, for a left-right flip of the shown picture. */
+export declare const mirrorEditJS: (crop: CropRect, quarters: number, originalW: number, originalH: number) => EditTurn;
 
 export declare const isAlbumOrientation: typeof isAlbumOrientationJS;
 export declare const cropAspect: typeof cropAspectJS;
@@ -51,3 +55,6 @@ export declare const snapCropRect: typeof snapCropRectJS;
 /** Turns the crop-local lines inside the old window in place, then the window itself. */
 export declare const rotateEditQuarter: (lines: Lines, crop: CropRect, quarters: number,
   originalW: number, originalH: number, clockwise: boolean) => EditTurn;
+/** Mirrors the crop-local lines inside the window in place, then reflects the window itself. */
+export declare const mirrorEdit: (lines: Lines, crop: CropRect, quarters: number,
+  originalW: number, originalH: number) => EditTurn;

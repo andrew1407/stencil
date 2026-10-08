@@ -24,4 +24,12 @@ namespace stencil::core {
   EditTurn rotateEditQuarter(Lines& lines, const CropRect& crop, int quarters,
                              double originalW, double originalH, bool clockwise);
 
+  // A left-right flip of the shown picture, which is turn(quarters) of mirror^m(original): the
+  // caller toggles m, the count becomes -quarters, and the window reflects across the turned width.
+  EditTurn mirrorEdit(const CropRect& crop, int quarters, double originalW, double originalH);
+
+  // The same, mirroring the crop-local lines inside the window first.
+  EditTurn mirrorEdit(Lines& lines, const CropRect& crop, int quarters, double originalW,
+                      double originalH);
+
 }

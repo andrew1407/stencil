@@ -12,6 +12,7 @@ extern "C" {
                                  double*);
   void stencil_cropChange(double, double, double, double, double, double, double, double,
                           double*);
+  void stencil_mirrorEdit(double, double, double, double, int, double, double, double*);
 }
 
 namespace {
@@ -44,6 +45,18 @@ TEST_CASE("abi shared: rotateEditQuarter agrees under both spellings") {
       CHECK(wasm[4] <= 3);
     }
   }
+}
+
+TEST_CASE("abi shared: mirrorEdit agrees under both spellings") {
+  for (int q = -1; q <= 4; ++q) {
+    double wasm[5] = {}, cli[5] = {};
+    stencil_mirrorEdit(0.4, 7.6, 33.5, 90, q, 200, 100, wasm);
+    stencil_cli_mirrorEdit(0.4, 7.6, 33.5, 90, q, 200, 100, cli);
+    CHECK(sameBits(wasm, cli, 5));
+    CHECK(wasm[4] >= 0);
+    CHECK(wasm[4] <= 3);
+  }
+  stencil_cli_mirrorEdit(0, 0, 1, 1, 0, 10, 10, nullptr);
 }
 
 TEST_CASE("abi shared: cropChange agrees under both spellings") {

@@ -1,11 +1,11 @@
 import { notify } from '../../utils.js';
 import { editorMemento } from '../historyStack.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
-import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter } from '../parse/cropGeometry.js';
+import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter, mirrorEdit } from '../parse/cropGeometry.js';
 
 const { PAGE_SIZES } = constants;
 
-// Non-destructive crop + quarter-turn rotation over `originalImage` (never modified);
+// Non-destructive crop + mirror + quarter-turn rotation over `originalImage` (never modified);
 // `cropRect` is in rotated-original pixels. Geometry: cropGeometry.js (wasm/JS twin).
 export class ImageModel {
   constructor(app) {
@@ -37,11 +37,11 @@ export class ImageModel {
     return (this.app.rotationQuarters % 2) ? { width: h, height: w } : { width: w, height: h };
   }
 
-// The untouched bitmap for no rotation, otherwise a freshly-rotated canvas.
+// The untouched bitmap for no turn or mirror, otherwise a freshly-oriented canvas.
   #rotatedOriginalCanvas() {
     const img = this.app.originalImage;
     const q = ((this.app.rotationQuarters % 4) + 4) % 4;
-    if (q === 0) return img;
+    if (q === 0 && !this.app.mirrored) return img;
     const swap = q % 2 === 1;
     const c = document.createElement('canvas');
     c.width = swap ? img.height : img.width;
@@ -49,14 +49,15 @@ export class ImageModel {
     const ctx = c.getContext('2d');
     ctx.translate(c.width / 2, c.height / 2);
     ctx.rotate(q * Math.PI / 2);
+    if (this.app.mirrored) ctx.scale(-1, 1);
     ctx.drawImage(img, -img.width / 2, -img.height / 2);
     return c;
   }
 
-// For the crop modal; the stored data URL is returned untouched when not rotated (no re-encode).
+// For the crop modal; the stored data URL is returned untouched when not oriented (no re-encode).
   effectiveOriginalDims() { return this.rotatedOriginalDims(); }
   effectiveOriginalDataUrl() {
-    if (!this.app.rotationQuarters) return this.app.imageDataUrl;
+    if (!this.app.rotationQuarters && !this.app.mirrored) return this.app.imageDataUrl;
     return this.#rotatedOriginalCanvas().toDataURL();
   }
 
@@ -76,11 +77,12 @@ export class ImageModel {
     c.width = r.width;
     c.height = r.height;
     const ctx = c.getContext('2d');
-    if (q === 0) ctx.drawImage(img, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+    if (q === 0 && !app.mirrored) ctx.drawImage(img, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
     else {
       const { width: rw, height: rh } = this.rotatedOriginalDims();
       ctx.translate(rw / 2 - r.x, rh / 2 - r.y);
       ctx.rotate(q * Math.PI / 2);
+      if (app.mirrored) ctx.scale(-1, 1);
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
     }
     app.image = c;
@@ -95,8 +97,10 @@ export class ImageModel {
     const r = m.cropRect, c = app.cropRect;
     if (!app.originalImage || !r) return false;
     const q = m.rotationQuarters ?? 0;
-    if (q === app.rotationQuarters && c && r.x === c.x && r.y === c.y && r.width === c.width && r.height === c.height) return false;
+    const mirrored = !!m.mirrored;
+    if (q === app.rotationQuarters && mirrored === !!app.mirrored && c && r.x === c.x && r.y === c.y && r.width === c.width && r.height === c.height) return false;
     app.rotationQuarters = q;
+    app.mirrored = mirrored;
     app.cropRect = { x: r.x, y: r.y, width: r.width, height: r.height };
     this.rebuildCroppedImage();
     return true;
@@ -129,16 +133,30 @@ export class ImageModel {
 
 // dir < 0 rotates left (CCW), dir > 0 right (CW); the crop window and every line follow.
   rotateImage(dir) {
+    this.#reorient(this.app.quarterTurn, (img) =>
+      rotateEditQuarter(this.app.lines, this.app.cropRect, this.app.rotationQuarters, img.width, img.height, dir > 0), dir);
+  }
+
+// A left-right flip of the shown picture; the crop window and every line follow.
+  flipImage() {
+    this.#reorient(this.app.mirrorFlip, (img) => {
+      const flip = mirrorEdit(this.app.lines, this.app.cropRect, this.app.rotationQuarters, img.width, img.height);
+      this.app.mirrored = !this.app.mirrored;
+      return flip;
+    });
+  }
+
+// One orientation edit: `edit` moves the lines and returns the new window and turn; one undo step.
+  #reorient(arm, edit, dir) {
     const app = this.app;
     if (!app.originalImage) {
       notify('Open an image first', 'fail');
       return;
     }
-    const img = app.originalImage;
-    const motion = app.quarterTurn?.() ?? { play() {} };
-    const turn = rotateEditQuarter(app.lines, app.cropRect, app.rotationQuarters, img.width, img.height, dir > 0);
-    app.rotationQuarters = turn.quarters;
-    app.cropRect = turn.crop;
+    const motion = arm?.() ?? { play() {} };
+    const next = edit(app.originalImage);
+    app.rotationQuarters = next.quarters;
+    app.cropRect = next.crop;
     this.rebuildCroppedImage();
     this.#afterImageGeometryChange();
     motion.play(dir);

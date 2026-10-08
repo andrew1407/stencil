@@ -13,6 +13,9 @@ export interface ModalShellApi {
 /** Every wired shell, in wire order. */
 export declare const modalShells: Set<ModalShellApi>;
 
+/** True when an open window answered this Escape keydown (so fullscreen keeps it). */
+export declare function windowTookEscape(e: unknown): boolean;
+
 /** Installs the single document-level Escape listener; safe to call per shell. */
 export declare function wireEscapeOnce(): void;
 

@@ -49,7 +49,7 @@ export class StencilExpirationModal extends StencilElement {
       calTitle: el('expiration-cal-title'), calGrid: el('expiration-cal-grid'),
       prev: el('expiration-prev'), next: el('expiration-next'),
       today: el('expiration-today'), when: el('expiration-when'),
-      save: el('expiration-save'),
+      save: el('expiration-save'), cancel: el('expiration-cancel'),
     };
 
     let targetId = null;
@@ -171,10 +171,8 @@ export class StencilExpirationModal extends StencilElement {
       viewM++; if (viewM > 11) { viewM = 0; viewY++; }
       renderCalendar();
     });
-    els.keep.addEventListener('change', async () => {
+    els.keep.addEventListener('change', () => {
       if (els.keep.checked) {
-        const ok = await app.confirm('Keep this project forever and remove its expiration date?', { title: 'Keep forever', confirmIcon: 'calendar' });
-        if (!ok) { els.keep.checked = false; return; }
         keep = true;
         expiresAt = 0;
       } else {
@@ -184,6 +182,7 @@ export class StencilExpirationModal extends StencilElement {
       }
       renderAll();
     });
+    els.cancel.addEventListener('click', () => close());
     els.save.addEventListener('click', () => {
       if (targetId == null) return;
       app.projectTransfer.setProjectExpiration(targetId, {

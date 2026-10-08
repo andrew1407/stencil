@@ -39,7 +39,7 @@ namespace stencil::gui {
             canvas->setPageCm(page.width, page.height);
           }
           canvas->restore(pr->imagePath, pr->lines, canvas->getScale(), pr->cropRect,
-                           pr->rotationQuarters, decoded);
+                           pr->rotationQuarters, decoded, pr->mirrored);
           // Mirrors the browser storage.loadProject snap; keep-forever (expiresAt 0) is untouched.
           if (pr->meta.autoRefresh && pr->meta.expiresAt != 0) {
             pr->meta.expiresAt = core::ProjectsStore::addPeriod(nowMs(), pr->meta.refreshPeriod);
@@ -94,18 +94,19 @@ namespace stencil::gui {
                                               settings.customPageWidth,
                                               settings.customPageHeight);
     canvas->setPageCm(page.width, page.height);
-    // Rotation applies before the crop (the crop lives in rotated-original space).
+    // Mirror and rotation apply before the crop (the crop lives in rotated-original space).
     int lw = 0, lh = 0;
     core::CropRect crop;
     int rot = 0;
-    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot);
+    bool mirrored = false;
+    core::Lines lines = fileStore::parseLayoutJson(layout, lw, lh, &crop, &rot, &mirrored);
     // An empty layout resets to "none" + the default tint, so a prior filter never bleeds in; it
     // lands before the picture, so the stack the load starts carries it.
     QString filter, tint;
     parseLayoutFilter(layout, settings.filterColor, filter, tint);
     applyTintColor(QColor(tint), /*asUndoStep=*/false);
     applyImageFilter(filter, false);
-    canvas->loadFromImage(img, crop, rot);
+    canvas->loadFromImage(img, crop, rot, mirrored);
     if (!lines.empty()) canvas->setLines(lines);
   }
 

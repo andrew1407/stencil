@@ -9,6 +9,7 @@
 
 #include <QScrollBar>
 #include <QWindow>
+#include <QApplication>
 #include <QDialog>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -138,8 +139,11 @@ namespace stencil::gui {
       if (event->type() == QEvent::KeyPress && w.acts.chat) w.acts.chat->setChecked(false);
       return true;   // the ShortcutOverride claim keeps focused widgets from eating it
     }
+    // An open window owns Escape first (browser parity): only a press aimed at this window leaves fullscreen.
     if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && w.fs.active) {
+      auto* widget = qobject_cast<QWidget*>(obj);
+      if (QApplication::activeModalWidget() || !widget || widget->window() != &w) return {};
       w.parts.view.toggleFullscreen();
       return true;
     }

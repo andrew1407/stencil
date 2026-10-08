@@ -3,6 +3,7 @@
   {"key":"imageHeight","export":1,"exportForce":true},
   {"key":"cropRect","export":5},
   {"key":"rotationQuarters","export":6},
+  {"key":"mirrored","export":13},
   {"key":"lines","export":2,"exportForce":true},
   {"key":"pageSize","export":7},
   {"key":"customPageWidth","export":8},

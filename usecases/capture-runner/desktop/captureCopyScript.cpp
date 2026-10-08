@@ -155,7 +155,7 @@ void MainWindowGuiTest::copyScriptShots(MainWindow& win, const ShotSet& shots) {
 
   // The question a script arriving by a stencil:// link asks before it runs. It exec()s from a
   // queued call, so a timer polls for it from inside that loop, then closes what declining opens.
-  if (shots.has("script-link-confirm")) {
+  if (shots.has("script-link")) {
     bool grabbed = false;
     QTimer poll;
     poll.setInterval(50);
@@ -165,11 +165,11 @@ void MainWindowGuiTest::copyScriptShots(MainWindow& win, const ShotSet& shots) {
       if (grabbed) { dlg->close(); return; }
       grabbed = true;
       pumpFor(400);
-      saveOver("script-link-confirm", &win, dlg);
+      saveOver("script-link", &win, dlg);
       if (auto* d = qobject_cast<QDialog*>(dlg)) d->reject(); else dlg->close();
     });
     poll.start();
-    win.parts.scriptHost.adoptLinkedScript(SCRIPT, /*openOnly=*/false, std::nullopt);
+    win.parts.scriptHost.adoptLinkedScript(SCRIPT, std::nullopt);
     waitUntil([&] { return grabbed; }, 6000);
     pumpFor(1500);
     poll.stop();

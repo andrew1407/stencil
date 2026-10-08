@@ -9,6 +9,7 @@ import { fullscreenLayerInner } from './markup.js';
 import { populateFsControls, populateFsPoints } from './clones.js';
 import { createFsPanels } from './panels.js';
 import { syncFsSelectionPanel } from '../panel/selectionPanel.js';
+import { windowTookEscape } from '../modal/registry.js';
 // Fullscreen trigger zones + slide-in panels; exposes the toggle as app.toggleFullscreen
 // (no window global).
 export class StencilFullscreenLayer extends StencilElement {
@@ -150,7 +151,9 @@ export class StencilFullscreenLayer extends StencilElement {
     fsBtn.addEventListener('click', () => toggleFullscreen());
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
+      // An open window owns Escape first, whichever listener runs first.
+      if (e.key !== 'Escape' || !isFullscreen || windowTookEscape(e) || document.querySelector('.modal-open')) return;
+      toggleFullscreen();
     });
 
     onWindowResize(() => { if (isFullscreen && app && app.image) app.zoomPan.fitToWindow(); });

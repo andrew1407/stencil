@@ -54,7 +54,7 @@ test('the §12 save-chats disclosure is byte-identical and sits in its own div',
 
 test('the compare tooltip is the asset string, newline-joined for tipContent', () => {
   const tip = UI_STRINGS.toolbar.compareTooltip;
-  assert.equal(tip.length, 233);
+  assert.equal(tip.length, 241);
   assert.equal(tip.split('&#10;').length, 6, 'a heading, four modes, the peek hint');
   assert.ok(markup.includes(`data-title="${tip}"`));
 });

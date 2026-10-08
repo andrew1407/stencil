@@ -75,9 +75,9 @@ pub fn runWith(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, llm_env: 
         return error.NoSource;
     }
 
-    // Extra flag edits ON TOP of the source, in pipeline order (crop → rotate → layout → filter).
-    // --layout-frame source records crop/rotate as frame steps for the re-map (llm-contract.md §1).
-    var steps_buf: [2]layout_mod.FrameStep = undefined;
+    // Extra flag edits ON TOP of the source, in pipeline order (crop → flip → rotate → layout → filter).
+    // --layout-frame source records crop/flip/rotate as frame steps for the re-map (llm-contract.md §1).
+    var steps_buf: [3]layout_mod.FrameStep = undefined;
     var n_steps: usize = 0;
     if (opts.crop) |spec| {
         const cur = sess.current();
@@ -85,6 +85,11 @@ pub fn runWith(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, llm_env: 
         try sess.applyCrop(rect);
         steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
         n_steps += 1;
+    }
+    if (opts.flip) {
+        steps_buf[n_steps] = .{ .mirror = .{ .w = @floatFromInt(sess.current().width) } };
+        n_steps += 1;
+        try sess.applyFlip();
     }
     if (@mod(opts.rotate, 4) != 0) {
         const cur = sess.current().*;

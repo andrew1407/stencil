@@ -95,6 +95,7 @@ pub fn collapse<'a>(
         frame,
         crop: crop.map(Crop::Spec),
         album: None,
+        flip: None,
         rotate,
         layout,
         layout_frame,

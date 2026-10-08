@@ -81,7 +81,7 @@ const holdDrawClass = (mod) => {
 };
 
 // Snapshots cross as the flat (nums, text) pair from linesCodec.js, in both directions; a
-// memento's view as [x, y, width, height, quarters] beside it (width 0 = no crop yet).
+// memento's view as [x, y, width, height, quarters, mirrored] beside it (width 0 = no crop yet).
 const historyClass = (mod) => {
   const NUM = 'number', STR = 'string';
   const c = {
@@ -106,14 +106,14 @@ const historyClass = (mod) => {
     const { nums, text } = encodeLines(isMemento ? snapshot.lines : snapshot);
     const numsPtr = mod._malloc(Math.max(1, nums.length * F64));
     const textPtr = mod._malloc(Math.max(1, text.length));
-    const viewPtr = isMemento ? mod._malloc(5 * F64) : 0;
+    const viewPtr = isMemento ? mod._malloc(6 * F64) : 0;
     try {
       new Float64Array(mod.HEAPF64.buffer, numsPtr, nums.length).set(nums);
       mod.HEAPU8.set(text, textPtr);
       if (isMemento) {
         const r = snapshot.cropRect;
         const view = r ? [r.x, r.y, r.width, r.height] : [0, 0, 0, 0];
-        new Float64Array(mod.HEAPF64.buffer, viewPtr, 5).set([...view, snapshot.rotationQuarters ?? 0]);
+        new Float64Array(mod.HEAPF64.buffer, viewPtr, 6).set([...view, snapshot.rotationQuarters ?? 0, snapshot.mirrored ? 1 : 0]);
       }
       return use(numsPtr, nums.length, textPtr, text.length, viewPtr,
         isMemento ? (snapshot.filter ?? '') : '', isMemento ? (snapshot.filterColor ?? '') : '');
@@ -169,14 +169,14 @@ const historyClass = (mod) => {
       const textLen = mod.getValue(this.#sizes + I32, 'i32');
       const numsPtr = mod._malloc(Math.max(1, numsLen * F64));
       const textPtr = mod._malloc(Math.max(1, textLen));
-      const viewPtr = mod._malloc(5 * F64);
+      const viewPtr = mod._malloc(6 * F64);
       try {
         c.read(this.#handle, numsPtr, textPtr);
         const lines = decodeLines(new Float64Array(mod.HEAPF64.buffer, numsPtr, numsLen),
                                   mod.HEAPU8.subarray(textPtr, textPtr + textLen));
         if (!c.readView(this.#handle, viewPtr)) return lines;
-        const [x, y, width, height, rotationQuarters] = new Float64Array(mod.HEAPF64.buffer, viewPtr, 5);
-        const m = { lines, cropRect: width > 0 ? { x, y, width, height } : null, rotationQuarters };
+        const [x, y, width, height, rotationQuarters, mirrored] = new Float64Array(mod.HEAPF64.buffer, viewPtr, 6);
+        const m = { lines, cropRect: width > 0 ? { x, y, width, height } : null, rotationQuarters, mirrored: mirrored === 1 };
         const filter = c.readFilter(this.#handle, 0), filterColor = c.readFilter(this.#handle, 1);
         if (filter) m.filter = filter;
         if (filterColor) m.filterColor = filterColor;

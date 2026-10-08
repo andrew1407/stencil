@@ -51,18 +51,15 @@ test('the button carries no "load an image" reason to show in its tooltip', asyn
             'a disabled-reason would print a stale "Load an image" line in the tooltip');
 });
 
-test('fullscreen on an empty editor keeps the page ground, not the image-viewing black', async () => {
+test('fullscreen keeps the themed page ground and a hairline frame, image or not (desktop [fsView])', async () => {
   const css = COMPONENTS_CSS;
-  // The empty-editor override must come AFTER the plain fullscreen rule it beats, and
-  // after the leave-flight rule too — both match with the same specificity.
-  const fs = css.indexOf('body.fullscreen-mode .canvas-viewport {');
-  const fsEmpty = css.indexOf('body.fullscreen-mode.canvas-empty .canvas-viewport {');
-  const flight = css.indexOf('body:not(.fullscreen-mode) .canvas-viewport.flip-active {');
-  const flightEmpty = css.indexOf('body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {');
-  assert.ok(fs >= 0 && fsEmpty > fs, 'the empty-editor fullscreen ground is declared after the black one');
-  assert.ok(flight >= 0 && flightEmpty > flight, 'the leave-flight override comes after the black flight rule');
   const bodyOf = (at) => css.slice(at, css.indexOf('}', at));
-  assert.match(bodyOf(fsEmpty), /background:\s*var\(--bg-page\)/);
-  assert.match(bodyOf(flightEmpty), /background:\s*var\(--bg-page\)/);
-  assert.match(bodyOf(fs), /background:\s*#000/, 'an image still gets the black viewing ground');
+  const fs = css.indexOf('body.fullscreen-mode .canvas-viewport {');
+  const flight = css.indexOf('body:not(.fullscreen-mode) .canvas-viewport.flip-active {');
+  assert.ok(fs >= 0 && flight >= 0);
+  assert.match(bodyOf(fs), /background:\s*var\(--bg-page\)/);
+  assert.match(bodyOf(fs), /border:\s*1px solid var\(--border-main\)/);
+  assert.match(bodyOf(fs), /border-radius:\s*8px/);
+  assert.match(bodyOf(flight), /background:\s*var\(--bg-page\)/, 'the leave-flight shrinks out of that same ground');
+  assert.equal(/fullscreen-mode[^{]*\{[^}]*#000/.test(css), false, 'no black ground is left anywhere in fullscreen');
 });

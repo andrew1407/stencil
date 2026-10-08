@@ -238,7 +238,7 @@ Running a script through the CLI needs it on the machine: `cd cli && zig build` 
 | Stencil: Open in Stencil Web (incognito) | — | the same, into a session the app keeps nothing from |
 | Stencil: Open in Stencil Web's Script window | — | the browser, on `#stencil=` with `scriptMode: "open"` — nothing runs |
 | Stencil: Open in Stencil Desktop | — | the desktop app, on `stencil://open?script=…&scriptMode=open` |
-| Stencil: Run in Stencil Desktop | — | the same with `scriptMode=run` — the desktop asks first |
+| Stencil: Run in Stencil Desktop | — | the same with `scriptMode=run` — it opens in the Script window; press Run there |
 | Stencil: Run in Stencil Desktop (incognito) | — | the same, into a session the desktop keeps nothing from |
 | Stencil: Run in Stencil Web Console | `Ctrl+Alt+W` / `⌘⌥W` | `stencil.execScript(…)` in the page, or the `.stcjs` itself |
 | Stencil: Run selection in Stencil Web Console… | — | the selection, else an expression you type |

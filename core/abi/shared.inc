@@ -96,3 +96,13 @@ void STENCIL_ABI(rotateEditQuarter, rotateEditQuarter)(double x, double y, doubl
   out[0] = t.crop.x; out[1] = t.crop.y; out[2] = t.crop.width; out[3] = t.crop.height;
   out[4] = t.quarters;
 }
+
+// A left-right flip of the shown edit: out[0..3] = the reflected, snapped window, out[4] = the
+// negated count; the host toggles its mirror flag and mirrors the lines.
+void STENCIL_ABI(mirrorEdit, mirrorEdit)(double x, double y, double w, double h, int quarters,
+                                         double originalW, double originalH, double* out) {
+  const EditTurn t = mirrorEdit(CropRect{x, y, w, h}, quarters, originalW, originalH);
+  if (!out) return;
+  out[0] = t.crop.x; out[1] = t.crop.y; out[2] = t.crop.width; out[3] = t.crop.height;
+  out[4] = t.quarters;
+}

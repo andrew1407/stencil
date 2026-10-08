@@ -14,6 +14,8 @@ export const buildLayoutState = (app) => {
     cropRect: app.cropRect,
     // 0..3 clockwise quarter-turns applied to the original before the crop is taken.
     rotationQuarters: app.rotationQuarters || 0,
+    // The original mirrored left-right BEFORE the turn; true only, so an unflipped layout reads as before.
+    mirrored: app.mirrored || undefined,
     lines: app.lines,
     pageSize: app.pageSize,
     customPageWidth: app.customPageWidth,
@@ -62,6 +64,7 @@ export const currentLayoutPayload = (app) => buildLayoutPayload({
   filterColor: app.filterColor,
   cropRect: app.cropRect,
   rotationQuarters: app.rotationQuarters,
+  mirrored: app.mirrored || undefined,
   pageSize: app.pageSize,
   customPageWidth: app.customPageWidth,
   customPageHeight: app.customPageHeight,

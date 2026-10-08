@@ -23,6 +23,7 @@ installDom({}, {
 });
 
 const { wireModalShell, closeOpenModal } = await import('../../js/ui/base.js');
+const { windowTookEscape } = await import('../../js/ui/modal/registry.js');
 
 test('a shell toggles: the same opener closes the window it opened', () => {
   const overlay = el('a-overlay');
@@ -76,6 +77,19 @@ test('Escape closes only the stacked window, not the one under it', () => {
 
   document.dispatch('keydown', { key: 'Escape' });
   assert.equal(under.isOpen(), false, '…and the next Escape closes it');
+});
+
+// In fullscreen Escape also leaves the mode (ui/fullscreen/layer.js): a window that took the press marks
+// it handled, so the mode stays and the close pours into the canvas, not a toolbar coming back.
+test('Escape that closes a window is marked handled; with none open it is left alone', () => {
+  const shell = wireModalShell(el('esc-overlay'), null, null);
+  shell.open();
+  // One event object for every listener (the stub's dispatch hands each a copy).
+  const press = () => { const e = { key: 'Escape', target: document }; for (const fn of [...document.listeners.keydown]) fn(e); return e; };
+  const first = press();
+  assert.equal(shell.isOpen(), false);
+  assert.equal(windowTookEscape(first), true, 'the window took the key');
+  assert.equal(windowTookEscape(press()), false, 'with no window open, Escape is the page\'s');
 });
 
 // The option below exists for a shell that genuinely owns the key. No window the app ships does:

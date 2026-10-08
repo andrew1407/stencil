@@ -55,6 +55,7 @@ classDiagram
         +Lines lines
         +CropRect crop
         +int quarters
+        +bool mirrored
         +string filter, filterColor
     }
     class ProjectsStore {
@@ -86,7 +87,7 @@ classDiagram
 | `Point` (`models.hpp`) | one image-pixel coordinate | value; inside a `Line` or a flat `[x0,y0,…]` array | `Line` |
 | `Line` (`models.hpp`) | one drawn polyline or closed area; `Lines` is `vector<Line>`. Twin of the plain line object in `browser/js/core/drawingApp.js`, which is canonical | value; snapshotted by the history, burned by `raster/rasterize` | `Point`, `CropRect` |
 | `SnapshotHistory<T>` (`state/HistoryStack.hpp`) | the undo/redo stack of whole snapshots, capped at `MAX_STEPS`; `HistoryStack` over `Lines`, `EditorHistory` over `EditorMemento` | `HistoryStack` owned by the desktop's `CanvasWidget`; `EditorHistory` by a `HistorySlot` over wasm | `Line`, `EditorMemento` |
-| `EditorMemento` (`state/HistoryStack.hpp`) | one editor undo step: the lines and the view they sit on — crop, quarter turns, a filter; a step without a view is lines alone. Twin of the mementos of `browser/js/core/historyStack.js` | value inside an `EditorHistory` | `Line`, `CropRect` |
+| `EditorMemento` (`state/HistoryStack.hpp`) | one editor undo step: the lines and the view they sit on — crop, quarter turns, a mirror, a filter; a step without a view is lines alone. Twin of the mementos of `browser/js/core/historyStack.js` | value inside an `EditorHistory` | `Line`, `CropRect` |
 | `HistorySlot` (`wasmHistoryApi.cpp`) | an `EditorHistory` plus the last undo/redo step, held until the host reads it | process-global `HandleTable<HistorySlot>`, created and destroyed by the host | `SnapshotHistory`, `HandleTable` |
 | `HandleTable<T>` (`abi/HandleTable.hpp`) | opaque int → owned instance; a stale or forged handle looks up to `nullptr` | one static table per stateful class | `HistorySlot`, `HoldDrawController`, `Schema`, `Result` |
 | `HoldDrawController` (`state/holdDraw.hpp`) | the hold-to-draw gesture machine over IDLE / ARMED / DRAWING / ABORTED; time-injected, host screen space | the GUI's pointer handler, or a wasm handle | `HoldEvent` |

@@ -84,9 +84,9 @@ export class DrawingApp {
     this.pendingOpenProjectId = readOpenProjectId(location.search);
 // Likewise a `#stencil=` hand-off keeps the chooser closed; read before applyExternalLaunch() strips it.
     this.hasExternalLaunch = (location.hash || '').startsWith('#stencil=');
-// A .stc handed over with it; applyExternalLaunch fills this, index.js runs it once the image lands.
+// A .stc handed over with it; applyExternalLaunch fills this, index.js opens it in the Script
+// window once the image lands — a link never runs a script.
     this.pendingLaunchScript = '';
-    this.pendingLaunchScriptMode = 'run';
 // Seeded with defaults so the toolbar button gates correctly before the async config load.
     this.openInConfig = { ...OPEN_IN_DEFAULTS };
     loadOpenInConfig().then(cfg => { this.openInConfig = cfg; this.updateButtons(); });

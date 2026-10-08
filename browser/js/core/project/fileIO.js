@@ -77,6 +77,7 @@ export const applyProjectFileInPlace = (app, project, opts = {}) => {
   if (!verdict.ok) return;
   app.lines = opts.mergeLines ? capLayoutPoints(mergeLines(verdict.lines, app.lines)) : verdict.lines;
   if (Number.isInteger(layout.rotationQuarters)) app.rotationQuarters = layout.rotationQuarters;
+  app.mirrored = layout.mirrored === true;
   if (layout.cropRect) app.cropRect = app.imageModel.roundRect(layout.cropRect);
   app.imageModel.rebuildCroppedImage();
   app.remoteSync.adoptServerFilter(layout);

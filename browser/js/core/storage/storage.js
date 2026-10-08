@@ -151,6 +151,7 @@ export class Storage {
           if (this.activeId !== targetId) return;
           // Rotation first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
+          this.app.mirrored = layout.mirrored === true;
           this.app.cropRect = normalizeCropRect(layout.cropRect) || this.app.imageModel.defaultCropRect();
           this.app.imageModel.rebuildCroppedImage();
           this.app.lines = layout.lines || [];

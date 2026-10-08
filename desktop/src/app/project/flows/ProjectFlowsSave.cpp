@@ -40,7 +40,7 @@ namespace stencil::gui {
               fileStore::buildLayoutJson(width, h, w.canvas->allLines(),
                                          w.settings.imageFilter, w.settings.filterColor,
                                          w.canvas->getCropRect(), w.canvas->getRotationQuarters(),
-                                         w.currentLayoutMeta());
+                                         w.currentLayoutMeta(), w.canvas->getMirrored());
           c->updateProjectAsync(
               w.remote.session->getLink().id, w.remote.session->getLink().name, layout, version,
               [this, self, cb](bool ok, qint64 newVersion, bool conflict) {

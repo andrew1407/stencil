@@ -6,7 +6,7 @@ The Zig command-line tool, one-shot and interactive. Build it from
 ## One-shot edits
 
 `stencil --help` prints the whole flag set: a source (a file, a URL, a video frame or a
-blank page), the edits (crop, rotate, filter, layout, script), and the output path.
+blank page), the edits (crop, flip, rotate, filter, layout, script), and the output path.
 
 ![stencil --help](img/help.png)
 
@@ -26,7 +26,7 @@ VS Code's integrated terminal.
 
 ## Edit step by step
 
-`/crop`, `/rotate`, `/filter` and friends take the same arguments as the flags; every step
+`/crop`, `/flip`, `/rotate`, `/filter` and friends take the same arguments as the flags; every step
 reports the new size and its place in the edit history, `/undo` steps back, and `/save`
 writes the result.
 

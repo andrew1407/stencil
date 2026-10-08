@@ -4,8 +4,7 @@
    (user report). Sized to the calendar plus the body's own padding. */
 .exp-modal { width: 400px; }
 /* Raised FROM the projects list (ui/base.js `stacked`), so it must stack above it —
-   on the way in and, like the confirm dialog, on the way out. Below the confirm
-   dialog's 100003: "Keep forever?" is asked from here. */
+   on the way in and, like the confirm dialog, on the way out. */
 #expiration-modal-overlay.modal-open,
 #expiration-modal-overlay.modal-closing { z-index: 100002; }
 .exp-modal .exp-project {
@@ -13,6 +12,13 @@
     color: var(--text-main);
     margin-bottom: 10px;
 }
+.exp-modal .vs-row > label:has(> input[type="checkbox"]) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.exp-modal .vs-row > label > input[type="checkbox"] { margin: 0; cursor: pointer; }
 .exp-period-controls {
     display: inline-flex;
     align-items: center;

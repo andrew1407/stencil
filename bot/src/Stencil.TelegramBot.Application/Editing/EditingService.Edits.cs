@@ -15,6 +15,10 @@ public sealed partial class EditingService
     public Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
 
+    // Flipping the shown view mirrors it and negates the turn: turn(q)·mirror = mirror·turn(−q).
+    public Task<UserSession> FlipAsync(long userId, CancellationToken ct = default) =>
+        applyEditAsync(userId, edits => edits with { Flip = !edits.Flip, Rotate = (4 - edits.Rotate) % 4 }, ct);
+
     public Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default) =>
         applyEditAsync(userId, edits => edits with { Filter = normalizeFilter(filter) }, ct);
 

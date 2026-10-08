@@ -31,7 +31,7 @@ namespace stencil::gui {
       src.meta.imageW = p.imageW;
       src.meta.imageH = p.imageH;
       int lw = 0, lh = 0;
-      src.lines = fileStore::parseLayoutJson(layout, lw, lh, &src.crop, &src.quarters);
+      src.lines = fileStore::parseLayoutJson(layout, lw, lh, &src.crop, &src.quarters, &src.mirrored);
       src.layout = layout;
       src.bytes = bytes;
       src.server = serverUrl;
@@ -54,6 +54,7 @@ namespace stencil::gui {
     src.lines = pr->lines;
     src.crop = pr->cropRect;
     src.quarters = pr->rotationQuarters;
+    src.mirrored = pr->mirrored;
     src.chat = pr->chat;
     // A blank project may have no file: it is its fill (ProjectFlows::openInAnotherAppFor).
     if (pr->imagePath.isEmpty() && pr->meta.blank && pr->meta.imageW > 0 && pr->meta.imageH > 0) {
@@ -113,6 +114,7 @@ namespace stencil::gui {
     src.lines = w.canvas->allLines();
     src.crop = w.canvas->getCropRect();
     src.quarters = w.canvas->getRotationQuarters();
+    src.mirrored = w.canvas->getMirrored();
     src.chat = w.chatSession->buildActiveChatDoc();
     if (!link.address.isEmpty() && !link.id.isEmpty()) src.server = link.address;
     return src;
