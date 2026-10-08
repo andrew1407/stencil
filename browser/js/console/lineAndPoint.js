@@ -6,6 +6,7 @@ import { pointColorOf } from '../core/draw/renderer.js';
 import { toHexColor } from '../core/settings/accents.js';
 import { str } from './coerce.js';
 import { setPointCoord, removePoint, removeLine } from '../core/line/editOps.js';
+import { CHANGE, changed } from '../core/app/changes.js';
 
 export const createLineWrappers = ({ app, guard }) => {
   let stencil;   // the facade, handed over once it is built
@@ -30,7 +31,7 @@ export const createLineWrappers = ({ app, guard }) => {
         if (y != null) setPointCoord(app, lineIdx, ptIdx, 'y', y);
         if (size != null) {
           const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
-          if (line) { line.pointSize = Number(size); app.saveHistory(); app.renderer.redraw(); }
+          if (line) { line.pointSize = Number(size); app.saveHistory(); app.renderer.redraw(); changed(app, CHANGE.lines); }
         }
         return point;
       },
@@ -57,7 +58,13 @@ export const createLineWrappers = ({ app, guard }) => {
   const makeLine = (startIdx) => {
     let idx = startIdx;                       // may shift when an earlier line is removed
     const obj = () => app.lines[idx];
-    const commit = () => { app.saveHistory(); app.renderer.redraw(); };
+    // One undo step; the Lines tab follows, and the bar when this line is the one it shows.
+    const commit = () => {
+      app.saveHistory();
+      app.renderer.redraw();
+      changed(app, CHANGE.lines);
+      if (idx === app.selectedLineIdx && obj()) app.showSelectionPanel(obj());
+    };
     const setProp = (prop, value) => { const l = obj(); if (l) { l[prop] = value; commit(); } };
     let line = {
       get idx() { return idx; },
@@ -103,7 +110,7 @@ export const createLineWrappers = ({ app, guard }) => {
         if (!l) return line;
         const dx = Number(x) || 0, dy = Number(y) || 0;
         for (const p of l.points) { p.x += dx; p.y += dy; }
-        app.saveHistory(); app.renderer.redraw(); app.coordTable.update(l.points, idx);
+        commit(); app.coordTable.update(l.points, idx);
         return line;
       },
       // Rotate the points by `deg` clockwise around `pivot` ({x,y}) or the bbox centre.
@@ -118,7 +125,7 @@ export const createLineWrappers = ({ app, guard }) => {
           p.x = cx + dx * cos - dy * sin;
           p.y = cy + dx * sin + dy * cos;
         }
-        app.saveHistory(); app.renderer.redraw(); app.coordTable.update(l.points, idx);
+        commit(); app.coordTable.update(l.points, idx);
         return line;
       },
       // Insert a point. `at.neighbour` ({x,y} or index) + `at.after` choose the slot.
@@ -134,7 +141,7 @@ export const createLineWrappers = ({ app, guard }) => {
           if (n >= 0) i = at.after === false ? n : n + 1;
         }
         l.points.splice(i, 0, pt);
-        app.saveHistory(); app.renderer.redraw(); app.coordTable.update(l.points, idx);
+        commit(); app.coordTable.update(l.points, idx);
         return line;
       },
       // Remove a point by index or by a point reference ({x,y} or a Point wrapper).

@@ -3,113 +3,12 @@
 #include "iconSet.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/skinPrefs.hpp"
-#include "defaultVisuals.hpp"
-#include <QLabel>
 #include <QPalette>
 #include <QPushButton>
 #include <QWidget>
 #include <algorithm>
 
 namespace stencil::gui {
-
-  void SelectionPanel::setLines(const core::Lines& lines,
-                                const std::vector<int>& selected) {
-    if (!this->lines) return;
-    QSignalBlocker block(this->lines);
-    // clear() drops the current row; carry it across, clamped, or the next keyboard Delete does
-    // nothing (browser re-focuses the row too).
-    const int prevCurrent = this->lines->currentRow();
-    this->lines->clearSpans();
-    this->lines->setRowCount(0);
-    fitTableRows(this->lines);
-    linesSelected = selected;   // styleLineRow's selection snapshot
-    canvasHoverPointRow = -1;   // rebuilt rows carry no stale hover tint
-    canvasHoverLineRow = -1;
-    if (lines.empty()) {
-      this->lines->horizontalHeader()->hide();
-      this->lines->setShowGrid(false);   // a lone message has no cells to divide
-      this->lines->setRowCount(1);
-      this->lines->setSpan(0, 0, 1, LCOL_COUNT);
-      this->lines->setItem(0, 0, emptyMessage(QStringLiteral("No lines yet.")));
-      fitTableRows(this->lines);
-      return;
-    }
-    this->lines->horizontalHeader()->show();
-    this->lines->setShowGrid(true);
-    this->lines->setRowCount(static_cast<int>(lines.size()));
-    for (int i = 0; i < static_cast<int>(lines.size()); ++i) {
-      const core::Line& ln = lines[i];
-      const auto cell = [this, i](int col, const QString& text) {
-        auto* it = new QTableWidgetItem(text);
-        it->setFlags(Qt::ItemIsEnabled);
-        this->lines->setItem(i, col, it);
-      };
-      cell(LCOL_INDEX, QString::number(i + 1));
-      cell(LCOL_SWATCH, QString());
-      cell(LCOL_NAME, ln.locked ? QString("Line %1 · area").arg(i + 1) : QString("Line %1").arg(i + 1));
-      cell(LCOL_PTS, QString::number(int(ln.points.size())));
-
-      // What the line LOOKS like: its fill when it has one, its stroke otherwise — the stroke
-      // always as the rim (browser linesList.js over core/layout.js fillState).
-      const QString rim = ln.color.empty() ? defaultVisuals::table().color
-                                           : QString::fromStdString(ln.color);
-      const bool filled = !ln.fillColor.empty() && ln.fillColor != "transparent";
-      const QString face = filled ? QString::fromStdString(ln.fillColor)
-                         : ln.locked ? QStringLiteral("transparent") : rim;
-      auto* swatch = new QLabel(this->lines);
-      swatch->setObjectName("linesSwatch");
-      swatch->setFixedSize(14, 14);
-      swatch->setAttribute(Qt::WA_TransparentForMouseEvents);
-      swatch->setProperty("face", face);
-      swatch->setProperty("rim", rim);
-      swatch->setStyleSheet(swatchSheet(face, rim));
-      QWidget* swatchCell = centeredCell(swatch, this->lines);
-      swatchCell->setAttribute(Qt::WA_TransparentForMouseEvents);
-      this->lines->setCellWidget(i, LCOL_SWATCH, swatchCell);
-
-      auto* rm = new QPushButton(this->lines);
-      rm->setObjectName("pointDelBtn");
-      rm->setFlat(true);
-      rm->setCursor(Qt::PointingHandCursor);
-      rm->setToolTip("Remove line");
-      rm->setIcon(themedIcon("trash", binColor, 14));
-      connect(rm, &QPushButton::clicked, this, [this, i] {
-        const QRect rowRect(0, this->lines->rowViewportPosition(i),
-                            this->lines->viewport()->width(), this->lines->rowHeight(i));
-        DisintegrateOverlay::overRect(this->lines->viewport(), rowRect, window());
-        emit lineListRemoveRequested(i);
-      });
-      this->lines->setCellWidget(i, LCOL_DEL, centeredCell(rm, this->lines));
-      styleLineRow(i);
-    }
-    if (prevCurrent >= 0)
-      this->lines->setCurrentCell(std::min(prevCurrent, this->lines->rowCount() - 1), LCOL_INDEX);
-  }
-
-  // Square under the skin, where nothing is rounded (browser webcore/chrome.css).
-  QString SelectionPanel::swatchSheet(const QString& face, const QString& rim) {
-    return QString("background:%1;border:1px solid %2;border-radius:%3px;").arg(face, rim).arg(support::isWebcore() ? 0 : 3);
-  }
-
-  // Kept in one place so setCanvasHover can restyle two rows without rebuilding or scrolling.
-  void SelectionPanel::styleLineRow(int i) {
-    if (!lines || i < 0 || i >= lines->rowCount()) return;
-    if (isEmptyRow(lines, i)) {
-      if (QTableWidgetItem* it = lines->item(0, 0)) it->setBackground(i == canvasHoverLineRow ? emptyWash() : QBrush());
-      return;
-    }
-    const bool sel = std::find(linesSelected.begin(), linesSelected.end(), i) !=
-                     linesSelected.end();
-    // Browser .lines-row-selected (the delegate strokes the outline) and .lines-row-hover.
-    const bool hot = i == canvasHoverLineRow;
-    const QBrush wash = (sel || hot) ? rowWash(sel) : QBrush();
-    for (int c = 0; c < LCOL_COUNT; ++c)
-      if (QTableWidgetItem* it = lines->item(i, c)) {
-        it->setBackground(wash);
-        it->setForeground(sel && support::isWebcore() ? rowInk() : QBrush());
-        it->setData(SELECTED_ROLE, sel);
-      }
-  }
 
   // Browser .row-highlighted: a soft accent wash; under the skin a picked row is the navy bar
   // and a hovered one the light face (webcore/menus.css).

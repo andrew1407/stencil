@@ -72,7 +72,7 @@ const makeEditorMock = (over = {}) => {
     },
     history: { reset() {} },
     zoomPan: { fitToWindow() {}, syncViewportHeight() {} },
-    coordTable: { update() {} },
+    coordTable: { update() {} }, hideSelectionPanels() {},
     renderer: { redraw() {}, layers: () => [] },
     tabs: { reportActive() {}, reportIncognito() {} },
     updateIncognitoUI: () => { mock.incognitoUiCalls++; },

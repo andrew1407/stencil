@@ -57,6 +57,32 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
+  // Only what is drawn is labelled (model/markHits.hpp): no point while points are hidden — the stroke
+  // under it answers instead — no stroke while lines are, and nothing with both hidden.
+  void hoverTooltipLabelsNoHiddenMark() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(400, 300, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());
+    win.settings.tooltipEnabled = true;
+    win.canvas->setLines({lineOf({{100, 150}, {300, 150}})});
+    win.setZoom(1.0);
+    QCOMPARE(hitAt(win, 100, 152), QStringLiteral("point:100:150"));
+    win.canvas->setShowPoints(false);
+    QVERIFY2(hitAt(win, 100, 152).startsWith(QStringLiteral("line:0:")), "the shown stroke answers");
+    win.canvas->setShowLines(false);
+    QVERIFY(hitAt(win, 100, 152).isEmpty());
+    QVERIFY(hitAt(win, 200, 151).isEmpty());
+    win.canvas->setShowPoints(true);
+    QCOMPARE(hitAt(win, 100, 152), QStringLiteral("point:100:150"));
+    QVERIFY2(hitAt(win, 200, 151).isEmpty(), "a hidden stroke is never labelled");
+    win.canvas->setShowLines(true);
+    QVERIFY(hitAt(win, 200, 151).startsWith(QStringLiteral("line:0:")));
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

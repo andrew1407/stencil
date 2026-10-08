@@ -22,8 +22,9 @@ export const createProjectRowMenu = () => {
     if (openMenu && !openMenu.contains(e.target) && !subs.some((s) => s.contains(e.target))) closeMenu();
   };
   const onMenuKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } };
-  // Opens under `anchor` (the "⋯" button), or at `point` ({x,y}) for a right-click.
-  const showMenu = (anchor, items, point = null) => {
+  // Opens under `anchor` (the "⋯" button), or at `point` ({x,y}) for a right-click; `from` is
+  // where its dust gathers from and returns to when that is neither.
+  const showMenu = (anchor, items, point = null, { from = null } = {}) => {
     closeMenu();
     const menu = document.createElement('div');
     menu.className = 'project-menu';
@@ -57,7 +58,7 @@ export const createProjectRowMenu = () => {
     menu.style.top = `${Math.max(8, y)}px`;
     openMenu = menu;
     // The cursor for a right-click, the "⋯" button's centre otherwise.
-    menuPoint = point || rectCenter(anchor);
+    menuPoint = from || point || rectCenter(anchor);
     surfaceIn(menu, menuPoint, { ms: SURFACE_MENU_IN_MS });
     setTimeout(() => {
       document.addEventListener('mousedown', onMenuDocDown, true);

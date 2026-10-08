@@ -73,7 +73,7 @@ namespace stencil::gui {
       return w.activeProjectId.isEmpty() && w.remote.session->getLink().id.isEmpty();
     };
     dlg.setTemporary(unsavedSession(), w.incognito);
-    dlg.setDragZones(w.overlays.projectZones);   // the main-window drag-out zone overlay (open/new-window/remove)
+    wireProjectsDrag(dlg, unsavedSession);   // the zones, and Close for the open project
     // Handled WHILE the dialog is up: it confirms itself, we remove, it repaints.
     QObject::connect(&dlg, &ProjectsDialog::clearAllRequested, &w, [this, &dlg, unsavedSession] {
       const int n = static_cast<int>(w.projectList.size());

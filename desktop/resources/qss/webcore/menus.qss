@@ -8,6 +8,7 @@
       }
       QMenu::item { border-radius: 0; margin: 0; padding: 6px %MENU_PAD_R%px 6px 4px; }
       QMenu::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; padding-left: 7px; }   /* browser .ctx-item:hover +3px */
+      QMenu[accentRows="true"]::item:selected { background: %WC_SELECT%; color: %WC_ON_SELECT%; padding-left: 7px; }   /* the skin's one bar */
       QMenu::item:disabled { color: %WC_DISABLED%; }
       QMenu::right-arrow { image: url(%WC_SUBMENU_ARROW%); width: 4px; height: 7px; }   /* browser .ctx-arrow */
       QMenu::indicator:checked { image: url(%WC_MENU_CHECK%); width: 14px; height: 14px; }   /* browser .ctx-check: the pixel tick */

@@ -9,7 +9,14 @@
 #include "iconSet.hpp"
 #include "ReorderableListWidget.hpp"
 #include "ProjectDragZones.hpp"
+#include "ProjectDragMenu.hpp"
 #include "../../../support/motion/ShimmerOverlay.hpp"
+#include <QAction>
+#include <QLabel>
+#include <QMenu>
+#include <QPair>
+#include <QTimer>
+#include <memory>
 namespace stencil::gui {
 
   void ProjectsDialog::buildProjectList() {
@@ -17,7 +24,22 @@ namespace stencil::gui {
     list = reList;
     // Rows are delegate-painted (no grip), so drags are view-initiated.
     reList->setDragEnabled(true);
-    reList->onReorder = [this](int from, int to) {
+    // The header's ⋯ and Close while a row is held; `held` is that row's id and server.
+    auto* header = new ProjectDragMenu(findChild<QLabel*>(QStringLiteral("modalTitle")),
+                                       findChild<QPushButton*>(QStringLiteral("modalClosePill")), this);
+    auto held = std::make_shared<QPair<QString, QString>>();
+    const auto heldItem = [this, held]() -> QListWidgetItem* {
+      for (int i = 0; i < list->count(); ++i) {
+        QListWidgetItem* it = list->item(i);
+        if (!it->data(Qt::UserRole).isNull() && it->data(Qt::UserRole).toString() == held->first &&
+            it->data(Qt::UserRole + 1).toString() == held->second)
+          return it;
+      }
+      return nullptr;
+    };
+    header->openMenu = [this, heldItem](const QPoint& at, const QPoint& from) { return showRowMenu(heldItem(), at, &from); };
+    reList->onReorder = [this, header](int from, int to) {
+      if (header->claimed()) return;
       const int n = list->count();
       if (from < 0 || from >= n) return;
       QVector<QString> keys(n);
@@ -34,17 +56,35 @@ namespace stencil::gui {
       if (sortCombo) { const int mi = sortCombo->findData(g_projectsSortMode); if (mi >= 0) { QSignalBlocker b(sortCombo); sortCombo->setCurrentIndex(mi); } }
       refresh();
     };
-    reList->onDragStart = [this] {
+    reList->onDragStart = [this, header, held] {
       press.rowDragging = true;
       if (press.clickTimer) press.clickTimer->stop();
-      if (dragZones) dragZones->begin(frameGeometry());
+      if (dragZones) dragZones->begin(this);
+      const QListWidgetItem* it = list->currentItem();
+      *held = it ? qMakePair(it->data(Qt::UserRole).toString(), it->data(Qt::UserRole + 1).toString())
+                 : QPair<QString, QString>();
+      header->begin(!held->first.isEmpty() &&
+                    (held->second.isEmpty() ? held->first == activeProjectId
+                                            : held->second == press.openServerUrl && held->first == press.openServerId));
     };
-    reList->onDragEnd = [this] {
+    reList->onDragEnd = [this, header, heldItem] {
       press.rowDragging = false;
       if (dragZones) dragZones->end();
+      const ProjectDragMenu::Release out = header->finish(QCursor::pos());
+      if (out.close) QTimer::singleShot(0, this, [this] { emit closeProjectRequested(); });
+      if (!out.taken) return;
+      // The taken item runs as its click would, on the held row, once the drag loop is gone.
+      QTimer::singleShot(0, this, [this, heldItem, act = out.taken, menu = out.menu] {
+        if (QListWidgetItem* it = heldItem()) list->setCurrentItem(it);
+        hover.menuKebabRect = menu ? menu->property(HELD_MENU_KEBAB_PROP).toRect() : QRect();
+        if (act) act->trigger();
+        hover.menuKebabRect = QRect();
+        if (menu) menu->deleteLater();
+      });
     };
     // New-window + Remove are LOCAL-only (mirrors the ⋯ menu).
-    reList->onDragOut = [this](int rowIdx) {
+    reList->onDragOut = [this, header](int rowIdx) {
+      if (header->claimed()) return;
       const auto zone = dragZones ? dragZones->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::NONE;
       if (zone == ProjectDragZones::Zone::NONE) return;
       QListWidgetItem* it = list->item(rowIdx);

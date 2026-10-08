@@ -3,6 +3,7 @@
 #include "openImageDialogParts.hpp"
 #include "../../support/control/UnderlineTabBar.hpp"
 #include "guiHelpers.hpp"
+#include "colorDrag.hpp"
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
@@ -95,6 +96,10 @@ namespace stencil::gui {
     blank.swatch->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);
     connect(blank.swatch, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
+    support::installColorDrag(blank.swatch, {[this] { return blank.color; }, [this](const QColor& c) {
+                                 blank.color = c;
+                                 setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);
+                               }});
     connect(whiteBtn, &QPushButton::clicked, this, [this] {
       blank.color = QColor(Qt::white);
       setColorSwatch(blank.swatch, blank.color, SWATCH_SIZE, /*withHex=*/true);

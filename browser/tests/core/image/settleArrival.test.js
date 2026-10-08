@@ -15,7 +15,7 @@ const rig = () => {
   const app = {
     image: {}, canvas: { width: 4, height: 3 }, rotationQuarters: 0, lines: [], pendingLines: null,
     imageModel: { defaultCropRect: () => ({ x: 0, y: 0, width: 4, height: 3 }), rebuildCroppedImage() {} },
-    history: { reset() {} }, coordTable: { update() {} }, zoomPan: { fitToWindow() {} },
+    history: { reset() {} }, coordTable: { update() {} }, hideSelectionPanels() {}, zoomPan: { fitToWindow() {} },
     renderer: { redraw() {}, layers: () => { layerCalls.push(1); return [app.canvas, overlay]; } },
     updateInfo() {}, updateButtons() {}, updateCoordStatus() {},
     storage: { save() {}, store: { getMeta: () => null } },

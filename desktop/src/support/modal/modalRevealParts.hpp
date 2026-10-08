@@ -179,19 +179,22 @@ namespace stencil::support {
     return (host && host->isVisible()) ? host : nullptr;
   }
 
-  // The dialog's FRAME on its host's client centre (the browser's viewport), on the host's screen.
+  // The GLOBAL point a dialog that claimed a DialogLanding opens with its frame's top-left on.
+  constexpr const char* LANDING_PROPERTY = "stencilDialogLanding";
+  bool claimLanding(QDialog& dlg);   // modalRevealFlight.hpp
+
+  // The dialog's FRAME on its host's client centre (the browser's viewport), or its top-left on its
+  // landing, on the host's screen.
   void centreOnHost(QDialog& dlg) {
     const QWidget* host = dialogHost(&dlg);
     if (!host) return;
+    const QScreen* s = host->screen();
+    const QRect avail = s ? s->availableGeometry() : QRect();
     const QSize box = dlg.frameGeometry().size();
-    const QPoint mid = host->mapToGlobal(QPoint(host->width() / 2, host->height() / 2));
-    QPoint at(mid.x() - box.width() / 2, mid.y() - box.height() / 2);
-    if (const QScreen* s = host->screen()) {
-      const QRect avail = s->availableGeometry();
-      at.setX(std::max(std::min(at.x(), avail.right() + 1 - box.width()), avail.left()));
-      at.setY(std::max(std::min(at.y(), avail.bottom() + 1 - box.height()), avail.top()));
-    }
-    dlg.move(at);
+    const QVariant landing = dlg.property(LANDING_PROPERTY);
+    dlg.move(landing.isValid()
+                 ? topLeftAt(landing.toPoint(), box, avail)
+                 : centredTopLeft(host->mapToGlobal(QPoint(host->width() / 2, host->height() / 2)), box, avail));
   }
 
   // exec() centres on the host less a GUESSED window frame (10x40 on macOS, where no window has a
@@ -208,6 +211,7 @@ namespace stencil::support {
       if (!dlg || !dlg->isWindow() || dlg->testAttribute(Qt::WA_DontShowOnScreen))
         return QObject::eventFilter(o, e);
       if (e->type() == QEvent::Show && !e->spontaneous() && !dlg->testAttribute(Qt::WA_Moved)) {
+        if (claimLanding(*dlg)) centreOnHost(*dlg);   // at once: not every platform moves it after a Show
         placing = dlg;
         QPointer<QDialog> shown(dlg);   // no move at all: Qt found it already there
         QTimer::singleShot(0, this, [this, shown] { if (placing == shown) placing.clear(); });

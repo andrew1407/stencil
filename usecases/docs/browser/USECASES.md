@@ -77,6 +77,11 @@ Click a line's colour swatch in the **Lines** tab to pick a new colour for it; d
 swatch to put it back to the toolbar's line colour. Double-clicking the toolbar's own line colour
 resets it to the default yellow, and the selection bar's colour goes back to the toolbar's.
 
+Each row also carries the line's thickness, its points' colour and their size. Double-click a
+number to type a new one — Enter keeps it, Escape leaves it as it was — and click the round swatch
+to pick the points' colour; double-click it to give the points the line's own colour again. None
+of these changes which line is selected.
+
 On a phone, fold the controls with **Controls** and drag one finger across the picture to move
 around it — a quick tap still selects, and a press held still starts a line.
 

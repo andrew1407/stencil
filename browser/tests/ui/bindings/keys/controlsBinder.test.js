@@ -3,14 +3,14 @@ import assert from 'node:assert';
 
 // The helper moved to utils.js when the projects modal's per-row swatch needed it too —
 // ui/ must not import the (heavy, ui-importing) controls binder.
-test('anchorPickerInput pins the hidden colour input under the invoking button', async () => {
+test('anchorPickerInput lays the hidden colour input over the invoking button', async () => {
   const { anchorPickerInput } = await import('../../../../js/utils.js');
   const input = { style: {} };
-  const btn = { getBoundingClientRect: () => ({ left: 411.6, bottom: 92.2 }) };
+  const btn = { getBoundingClientRect: () => ({ left: 411.6, top: 70.2, width: 28, height: 22, bottom: 92.2 }) };
   anchorPickerInput(input, btn);
   assert.equal(input.style.position, 'fixed');
-  assert.equal(input.style.left, '412px');
-  assert.equal(input.style.top, '92px');
+  assert.deepEqual([input.style.left, input.style.top, input.style.width, input.style.height],
+    ['411.6px', '70.2px', '28px', '22px']);
   // No button (or no rect) → leave the input untouched rather than throwing.
   const untouched = { style: {} };
   anchorPickerInput(untouched, null);

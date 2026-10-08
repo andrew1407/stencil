@@ -86,6 +86,42 @@ class MainWindowGuiTest : public QObject {
     win.applyImageFilter(QStringLiteral("none"));
   }
 
+  // Alt+Shift+B (hotkeysConfig cycleFilterPrev) steps the filter BACK through the real shortcut map,
+  // wrapping, as Alt+B steps it forward; each step is one undo step, as a pick is.
+  void previousFilterStepsBackWrapping() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QVERIFY(win.acts.cycleFilterPrev);
+    QCOMPARE(win.acts.cycleFilterPrev->shortcut(), QKeySequence("Alt+Shift+B"));
+    QCOMPARE(win.keys.actions.value(QStringLiteral("cycleFilterPrev")), win.acts.cycleFilterPrev);   // a rebind applies live
+    QCOMPARE(win.keys.order.indexOf(QStringLiteral("cycleFilterPrev")),
+             win.keys.order.indexOf(QStringLiteral("cycleFilter")) + 1);
+    win.applyImageFilter(QStringLiteral("none"));
+    if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
+    win.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&win));   // a WindowShortcut needs the active window
+    // The chord's Alt press over a toolbar icon would peek its window; over the canvas it peeks nothing.
+    QCursor::setPos(win.scroll->viewport()->mapToGlobal(win.scroll->viewport()->rect().center()));
+
+    const auto chord = [&win](Qt::KeyboardModifiers mods) {
+      QTest::keyClick(win.windowHandle(), Qt::Key_B, mods);
+      return win.settings.imageFilter;
+    };
+    const Qt::KeyboardModifiers back = Qt::AltModifier | Qt::ShiftModifier;
+    QCOMPARE(chord(back), QStringLiteral("custom"));
+    QCOMPARE(canvas->getImageFilter(), QStringLiteral("custom"));
+    QCOMPARE(chord(back), QStringLiteral("contour"));
+    QCOMPARE(chord(Qt::AltModifier), QStringLiteral("custom"));
+    QCOMPARE(chord(Qt::AltModifier), QStringLiteral("none"));
+    QCOMPARE(chord(back), QStringLiteral("custom"));
+    win.acts.undo->trigger();
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("none"));
+    win.acts.undo->trigger();
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("custom"));
+    win.applyImageFilter(QStringLiteral("none"));
+  }
+
   void clearAllActionEmptiesCanvas() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);

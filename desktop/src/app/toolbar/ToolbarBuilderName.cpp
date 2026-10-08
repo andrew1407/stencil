@@ -4,6 +4,7 @@
 #include "mainWindowHelpers.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "tipContent.hpp"
+#include "colorDrag.hpp"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -75,6 +76,8 @@ namespace stencil::gui {
     // The menu runs its own loop and fully closes before the picker opens (deferred), so no stray
     // grab dismisses the dialog.
     QObject::connect(w.nameBar.colorBtn, &QToolButton::clicked, &w, [this] { w.parts.projects.showProjectColorMenu(); });
+    support::installColorDrag(w.nameBar.colorBtn, {[this] { return w.parts.projects.projectNameColor(); },
+                                                   [this](const QColor& c) { w.parts.projects.setActiveProjectColor(c.name()); }});
     w.tools.statusHintAction = tbName->addWidget(w.tools.statusHint);
     w.tools.statusHintAction->setVisible(false);
     w.nameBar.colorBtn->setContextMenuPolicy(Qt::CustomContextMenu);

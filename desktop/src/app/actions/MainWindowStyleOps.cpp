@@ -65,8 +65,7 @@ namespace stencil::gui {
   void MainWindow::updateColorSwatch(QToolButton* btn, const QColor& color) {
     // The same input palette as the spinboxes beside it, swatch drawn inside; re-run from
     // applyTheme.
-    const Palette pal =
-        themePalette(resolveDark(settings.themeMode), settings.accentColor);
+    const Palette pal = themePalette(parts.theme.paintingDark(), settings.accentColor);
     const bool labelled = !btn->text().isEmpty();
     btn->setFixedHeight(26);
     if (labelled) btn->setMinimumWidth(46);

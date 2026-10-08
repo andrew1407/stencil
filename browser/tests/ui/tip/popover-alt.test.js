@@ -56,6 +56,16 @@ test('Alt release never closes a DELIBERATE open, and the peek never adopts one'
   assert.strictEqual(m2.isOpen(), true);
 });
 
+test('a peek the icon was dragged from is the drag\'s: releasing Alt leaves the window open', () => {
+  const { calls, g, isOpen } = altMachine();
+  g.altHover();
+  g.pressStart({ touch: false });
+  g.dragged();
+  g.altRelease();
+  assert.deepStrictEqual(calls, ['popover'], 'nothing closed what the drop opens in its place');
+  assert.strictEqual(isOpen(), true);
+});
+
 test('altRelease with no peek showing is a safe no-op', () => {
   const { calls, g } = altMachine();
   g.altRelease();

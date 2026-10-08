@@ -69,13 +69,16 @@ namespace stencil::gui {
       w.refreshActions();
       QuarterTurnOverlay::play(w.canvas, vp, from, 0);
     });
-    // Cycle the image filter (Alt+B; browser cycleFilter): none → bw → sepia → invert → contour → custom.
-    QObject::connect(w.acts.cycleFilter, &QAction::triggered, &w, [this] {   // a tint is chosen ahead too
+    // One step along none → bw → sepia → invert → contour → custom, wrapping (dir -1 = back; browser
+    // hotkeyActions.js stepFilter). A tint is chosen ahead too.
+    const auto stepFilter = [this](int dir) {
       static const QStringList order{"none",   "bw",      "sepia",
                                      "invert", "contour", "custom"};
       const int cur = order.indexOf(w.settings.imageFilter);
-      w.applyImageFilter(order[(cur + 1) % order.size()]);
-    });
+      w.applyImageFilter(order[(cur + dir + order.size()) % order.size()]);
+    };
+    QObject::connect(w.acts.cycleFilter, &QAction::triggered, &w, [stepFilter] { stepFilter(1); });
+    QObject::connect(w.acts.cycleFilterPrev, &QAction::triggered, &w, [stepFilter] { stepFilter(-1); });
     QObject::connect(w.acts.cycleCompare, &QAction::triggered, &w, [this] {
       if (!w.canvas->hasImage()) return;
       static const QStringList order{"none", "original", "vertical", "horizontal"};
@@ -117,6 +120,7 @@ namespace stencil::gui {
         return;
       }
       w.canvas->clearAll();
+      if (w.notify) w.notify->success(MainWindow::tr("All lines cleared"));
     });
     QObject::connect(w.acts.deselect, &QAction::triggered, w.canvas, &CanvasWidget::deselect);
     QObject::connect(w.acts.zoomIn, &QAction::triggered, &w, [this] { w.parts.view.zoomIn(); });
@@ -155,6 +159,8 @@ namespace stencil::gui {
                      &MainWindow::saveToActiveProject);
     QObject::connect(w.acts.clearProject, &QAction::triggered, &w,
                      [this] { w.parts.projects.clearCurrentProject(); });
+    QObject::connect(w.acts.closeProject, &QAction::triggered, &w,
+                     [this] { w.parts.projects.closeActiveProject(); });
     QObject::connect(w.acts.saveSession, &QAction::triggered, &w, [this] {
       w.saveSessionNow();
     });

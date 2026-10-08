@@ -105,7 +105,7 @@ const NO_SHAPE_YET = [
   'ui/bindings/dropPaste.js', 'ui/bindings/index.js', 'ui/bindings/keys/hotkeyActions.js',
   'ui/bindings/keys/hotkeyRules.js', 'ui/bindings/keys/keyboard.js',
   'ui/bindings/selectionPanel.js', 'ui/bindings/theme.js', 'ui/bindings/viewport/arrowPan.js',
-  'ui/bindings/viewport/holdZoom.js', 'ui/bindings/viewport/scrollPersist.js',
+  'ui/bindings/viewport/scrollPersist.js',
   'ui/bindings/viewport/smoothZoom.js', 'ui/bindings/viewport/zoom.js',
   'ui/motion/control/canvasFx.js', 'ui/motion/control/chatFx.js', 'ui/motion/control/fx.js',
   'ui/motion/control/revealControls.js', 'ui/motion/control/tips.js', 'ui/motion/disintegrate.js',

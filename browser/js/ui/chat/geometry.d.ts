@@ -19,6 +19,12 @@ export declare const compactChatRect: (anchor: Element, vw: number, vh: number) 
 /** Resize by dragging edge/corner `dir` ('n'|'s'|'e'|'w'|'ne'|'nw'|'se'|'sw'); the opposite edge stays anchored. */
 export declare const resizeFloatRect: (r: FloatRect, dir: string, dx: number, dy: number, vw: number, vh: number) => FloatRect;
 
+/** The float rect moved so its top-left corner sits on (x, y), kept inside the viewport. */
+export declare const floatRectAt: (r: Partial<FloatRect> | null | undefined, x: number, y: number, vw: number, vh: number) => FloatRect;
+
+/** The edges a panel docks to, in the order the drop zones are tested and laid down. */
+export declare const DOCK_SIDES: readonly ('left' | 'right' | 'top' | 'bottom')[];
+
 /** Which edge drop zone a point falls in during a header drag; corners take the nearest edge. */
 export declare const dockZoneAt: (x: number, y: number, vw: number, vh: number, band?: number) => string | null;
 

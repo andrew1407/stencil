@@ -110,6 +110,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     commitHistory();
     update();
@@ -126,8 +127,7 @@ namespace stencil::gui {
     const QString wasMode = imageFilter, wasTint = filterColor.name();
     const bool refit = restoreMemento(*step);
     clearHoverCache();   // the snapshot may not contain the hovered indices
-    selectedPoint = -1;
-    selectedLineIdx = -1;
+    keepLineSelection();
     if (refit) {
       continueLineIdx = continueInsertIdx = -1;
       setFixedSize(QSize(qRound(image.width() * scale), qRound(image.height() * scale)));

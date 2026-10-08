@@ -72,7 +72,7 @@ namespace stencil::gui {
     // A swap already heading for this face owns the button until it lands.
     if (!flipped && animate && faceSwapping(w.tools.startDrawBtn)) return;
     if (flipped) w.tools.startDrawBtn->setDefaultAction(want);   // icon/tooltip/enabled/click target
-    const Palette pal = themePalette(resolveDark(w.settings.themeMode), w.settings.accentColor);
+    const Palette pal = themePalette(paintingDark(), w.settings.accentColor);
     FaceSpec face;
     face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
     face.label = want->iconText();   // the short toolbar word; the menus keep the long one
@@ -105,7 +105,7 @@ namespace stencil::gui {
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under TOOL_ICON: this glyph reads heavier than the rest
     face.gapPx = FACE_ICON_GAP;   // …and the same air before the word as its twin
-    const Palette pal = themePalette(resolveDark(w.settings.themeMode), w.settings.accentColor);
+    const Palette pal = themePalette(paintingDark(), w.settings.accentColor);
     face.glyphColor = pal.onAccent;
     face.textColor = pal.onAccent;
     setTipBase(w.tools.drawModeBtn, rect ? "Drawing mode: Rectangle (click to switch to Line)"

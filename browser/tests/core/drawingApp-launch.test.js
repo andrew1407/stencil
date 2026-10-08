@@ -69,7 +69,7 @@ const makeMock = (over = {}) => ({
   },
   history: { reset() {} },
   zoomPan: { fitToWindow() {} },
-  coordTable: { update() {} },
+  coordTable: { update() {} }, hideSelectionPanels() {},
   renderer: { redraw() {}, layers: () => [] },
   tabs: { reportActive() {}, reportIncognito() {} },
   updateInfo() {}, updateButtons() {}, updateCoordStatus() {}, updateIncognitoUI() {},

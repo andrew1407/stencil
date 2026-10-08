@@ -9,8 +9,6 @@
 #include "Notifications.hpp"
 #include "SessionKey.hpp"
 #include "SiblingWindows.hpp"
-#include <QMenuBar>
-#include <QStatusBar>
 
 namespace stencil::gui {
 
@@ -112,25 +110,7 @@ namespace stencil::gui {
     QObject::connect(w.chatDock, &ChatDock::floatToggleRequested, &w, [this] { w.parts.dockChrome.toggleChatFloat(); });
     // Edge drop bands for the whole title-bar drag; the release position decides (browser parity).
     QObject::connect(w.chatDock, &ChatDock::titleDragStarted, &w, [this] {
-      if (!w.overlays.dockZones) w.overlays.dockZones = new DockZonesOverlay(&w);
-      // The bands span the window's dock region (between the menu bar and the status bar): the
-      // toolbars are the editor's, inside it, so a top band runs above them.
-      QRect target = w.rect();
-      int top = 0;
-      if (w.menuBar() && w.menuBar()->isVisible())
-        top = qMax(top, w.menuBar()->geometry().bottom() + 1);
-      int bottom = w.height() - 1;
-      // findChild, not statusBar(): the accessor lazily creates a status bar, and this window
-      // keeps none.
-      if (auto* sb = w.findChild<QStatusBar*>(); sb && sb->isVisible())
-        bottom = qMin(bottom, sb->geometry().top() - 1);
-      if (bottom > top) {
-        target.setTop(top);
-        target.setBottom(bottom);
-      }
-      static_cast<DockZonesOverlay*>(w.overlays.dockZones)->beginDrag(
-          themePalette(resolveDark(w.settings.themeMode), w.settings.accentColor).accent,
-          target, [this] { return w.chatDock && w.chatDock->getDragActive(); });
+      w.parts.dockChrome.showChatDockZones([this] { return w.chatDock && w.chatDock->getDragActive(); });
     });
     QObject::connect(w.chatDock, &ChatDock::titleDragMoved, &w, [this](const QPoint& g) {
       if (w.overlays.dockZones && w.overlays.dockZones->isVisible())

@@ -35,11 +35,11 @@ test.describe('browser UI pins', () => {
     await expectPin(page, { name: 'context-menu-open', root: '#ctx-menu' });
     await page.keyboard.press('Escape');
 
-    // The fixed layout above; the Lines tab's first row selects a line, which is what
-    // raises the selection panel.
+    // The fixed layout above; the number of the Lines tab's first row selects its line (the row's
+    // swatches and sizes edit it instead), which is what raises the selection panel.
     await page.evaluate((lines) => window.stencil.setLines(lines, { history: false }), LINES);
     await page.locator('#coord-tab-lines').click();
-    await page.locator('#lines-list .lines-row').first().click();
+    await page.locator('#lines-list .lines-row td').first().click();
     await expect(page.locator('#selection-panel')).toBeVisible();
     await expectPin(page, { name: 'selection-panel-with-line', root: '#selection-panel' });
 

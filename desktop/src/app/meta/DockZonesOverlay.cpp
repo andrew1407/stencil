@@ -10,8 +10,13 @@
 namespace stencil::gui {
 
   namespace {
-    constexpr int ZONE_BAND = 56;      // band thickness
-    constexpr int ZONE_INSET = 8;      // inset from the area edges
+    // The browser's .chat-dock-zone boxes (css/components/chat/dockZones.css): 56 px bands 8 px in,
+    // top and bottom between the side bands, a 10 px radius; DOCK_ZONE_BAND (ui/chat/geometry.js) = 72.
+    constexpr int ZONE_BAND = 56;
+    constexpr int ZONE_INSET = 8;
+    constexpr int ZONE_RADIUS = 10;
+    constexpr int DOCK_ZONE_BAND = ZONE_INSET + ZONE_BAND + ZONE_INSET;
+    static_assert(DOCK_ZONE_BAND == 72, "the browser's hit band");
     constexpr int ZONE_NUDGE_PX = 4;    // chevron travel (±px, browser chatZoneNudge)
     constexpr int ZONE_NUDGE_MS = 1400; // full out-and-back cycle (0.7 s each way)
 
@@ -80,7 +85,7 @@ namespace stencil::gui {
     const QPoint p = mapFromGlobal(globalPos);
     const QRect r = rect();
     if (!r.contains(p)) return -1;
-    const int reach = ZONE_INSET + ZONE_BAND;
+    const int reach = DOCK_ZONE_BAND;
     const int d[4] = {p.x(), r.width() - p.x(), p.y(), r.height() - p.y()};
     int best = -1;
     for (int i = 0; i < 4; ++i)
@@ -118,7 +123,7 @@ namespace stencil::gui {
       const QRect z = zoneRect(i);
       if (!backdrop.isNull()) {
         QPainterPath clip;
-        clip.addRoundedRect(z, 10, 10);
+        clip.addRoundedRect(z, ZONE_RADIUS, ZONE_RADIUS);
         p.save();
         p.setClipPath(clip);
         p.drawPixmap(rect(), backdrop);
@@ -130,58 +135,60 @@ namespace stencil::gui {
       stroke.setAlpha(hot ? 255 : 179);  // full / ~70%
       p.setPen(QPen(stroke, 2, Qt::DashLine));
       p.setBrush(fill);
-      p.drawRoundedRect(z, 10, 10);
+      p.drawRoundedRect(z, ZONE_RADIUS, ZONE_RADIUS);
       drawChevron(p, i, z, hot);
     }
   }
 
-  // NON-overlapping: top/bottom span the width; left/right fill the space BETWEEN them.
+  // NON-overlapping: left/right run the full height, top/bottom the room between them.
   QRect DockZonesOverlay::zoneRect(int i) const {
     const QRect r = rect().adjusted(ZONE_INSET, ZONE_INSET, -ZONE_INSET, -ZONE_INSET);
-    const int vTop = r.top() + ZONE_BAND + ZONE_INSET;
-    const int vH = r.height() - 2 * (ZONE_BAND + ZONE_INSET);
+    const int hLeft = r.left() + ZONE_BAND + ZONE_INSET;
+    const int hW = r.width() - 2 * (ZONE_BAND + ZONE_INSET);
     switch (i) {
-      case 0: return {r.left(), vTop, ZONE_BAND, vH};
-      case 1: return {r.right() - ZONE_BAND, vTop, ZONE_BAND, vH};
-      case 2: return {r.left(), r.top(), r.width(), ZONE_BAND};
-      default: return {r.left(), r.bottom() - ZONE_BAND, r.width(), ZONE_BAND};
+      case 0: return {r.left(), r.top(), ZONE_BAND, r.height()};
+      case 1: return {r.right() + 1 - ZONE_BAND, r.top(), ZONE_BAND, r.height()};
+      case 2: return {hLeft, r.top(), hW, ZONE_BAND};
+      default: return {hLeft, r.bottom() + 1 - ZONE_BAND, hW, ZONE_BAND};
     }
   }
 
   void DockZonesOverlay::drawChevron(QPainter& p, int i, const QRect& z, bool hot) {
-    QPoint ctr = z.center();
-    const int a = 7;  // chevron arm
-    const int off = qRound(nudge);
-    QPoint pts[3];
+    // The browser's 18 px chevron (a 24-unit glyph, arms 3 by 6, stroke 2) at 18/24.
+    QPointF ctr = QRectF(z).center();
+    const double a = 4.5, b = 2.25;   // half its span along and across the arrow
+    const double off = nudge;
+    QPointF pts[3];
     switch (i) {
       case 0:
         ctr.rx() -= off;
-        pts[0] = {ctr.x() + a, ctr.y() - a}; pts[1] = {ctr.x() - a, ctr.y()};
-        pts[2] = {ctr.x() + a, ctr.y() + a};
+        pts[0] = {ctr.x() + b, ctr.y() - a}; pts[1] = {ctr.x() - b, ctr.y()};
+        pts[2] = {ctr.x() + b, ctr.y() + a};
         break;
       case 1:
         ctr.rx() += off;
-        pts[0] = {ctr.x() - a, ctr.y() - a}; pts[1] = {ctr.x() + a, ctr.y()};
-        pts[2] = {ctr.x() - a, ctr.y() + a};
+        pts[0] = {ctr.x() - b, ctr.y() - a}; pts[1] = {ctr.x() + b, ctr.y()};
+        pts[2] = {ctr.x() - b, ctr.y() + a};
         break;
       case 2:
         ctr.ry() -= off;
-        pts[0] = {ctr.x() - a, ctr.y() + a}; pts[1] = {ctr.x(), ctr.y() - a};
-        pts[2] = {ctr.x() + a, ctr.y() + a};
+        pts[0] = {ctr.x() - a, ctr.y() + b}; pts[1] = {ctr.x(), ctr.y() - b};
+        pts[2] = {ctr.x() + a, ctr.y() + b};
         break;
       default:
         ctr.ry() += off;
-        pts[0] = {ctr.x() - a, ctr.y() - a}; pts[1] = {ctr.x(), ctr.y() + a};
-        pts[2] = {ctr.x() + a, ctr.y() - a};
+        pts[0] = {ctr.x() - a, ctr.y() - b}; pts[1] = {ctr.x(), ctr.y() + b};
+        pts[2] = {ctr.x() + a, ctr.y() - b};
         break;
     }
     p.setBrush(Qt::NoBrush);
-    p.setPen(QPen(QColor(0, 0, 0, 90), 4.5, Qt::SolidLine, Qt::RoundCap,
-                  Qt::RoundJoin));
+    // drop-shadow(0 0 3px rgba(0,0,0,.55)): a soft halo under the stroke.
+    p.setPen(QPen(QColor(0, 0, 0, 80), 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPolyline(pts, 3);
-    QColor c = accent;
-    c.setAlpha(hot ? 255 : 230);
-    p.setPen(QPen(c, 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    // Accent at 0.9 at rest; the targeted band's turns the key text colour (.chat-dock-zone-active).
+    QColor c = hot ? palette().color(QPalette::WindowText) : accent;
+    c.setAlphaF(hot ? 1.0 : 0.9);
+    p.setPen(QPen(c, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPolyline(pts, 3);
   }
 

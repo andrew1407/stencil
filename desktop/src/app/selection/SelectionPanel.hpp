@@ -50,8 +50,10 @@ namespace stencil::gui {
     void spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms);
     // Off in fullscreen, where the panel hides on its own (browser: the clone drops its chevron).
     void setCollapseChevronVisible(bool on);
-    // The Lines row's swatch cell, the anchor its colour picker grows from.
+    // A Lines row's line and point colour chips, the anchors their pickers grow from.
     QWidget* lineSwatchCell(int index) const;
+    QWidget* pointSwatchCell(int index) const;
+    QTableWidget* linesTable() const { return lines; }
     // True while the view is read-only (compare): the lists then leave Delete/Backspace to the window.
     std::function<bool()> readOnly;
 
@@ -64,10 +66,15 @@ namespace stencil::gui {
     void lineRowHovered(int index);
     void lineListActivated(int index, bool multi);
     void lineListRemoveRequested(int index);
-    // The row's colour chip: a click opens its picker once the double-click window passes, a
-    // double-click resets the line's colour instead (browser linesList.js swatch).
+    // The row's colour chips: a click opens a picker once the double-click window passes, a
+    // double-click resets instead — the line's colour, or its points' (browser lines/events.js).
     void lineSwatchPick(int index);
     void lineSwatchReset(int index);
+    void pointSwatchPick(int index);
+    void pointSwatchReset(int index);
+    // A row's thickness or point size typed in place, already held to LIMITS (browser lines/numEdit.js).
+    void lineThicknessEdited(int index, int thickness);
+    void linePointSizeEdited(int index, int pointSize);
     // Inline px coord edit committed (axis 0 = x, 1 = y); mirrors browser coordTable.js double-
     // click-to-edit.
     void pointCoordChanged(int index, int axis, double value);
@@ -84,15 +91,17 @@ namespace stencil::gui {
     void changeEvent(QEvent* event) override;
 
    private:
+    void buildLinesTab();   // SelectionPanelLines.cpp
     void styleLineRow(int i);
     QBrush rowWash(bool picked) const;
     QBrush rowInk() const;
-    static QString swatchSheet(const QString& face, const QString& rim);
     void applyUnitHeaders();
     void showEmptyPoints();
     // The lone "No … yet." row of either table; it hovers neutral grey (browser tr:hover).
     QTableWidgetItem* emptyMessage(const QString& text) const;
     static bool isEmptyRow(const QTableWidget* t, int row);
+    // The I-beam over a cell a double-click edits, the hand over the rest of a row (browser cursor: text).
+    void cellCursor(QTableWidget* t, int row, int col) const;
     QBrush emptyWash() const;
 
     QToolButton* collapseBtn = nullptr;  // header chevron: hide the panel (browser panel header)
@@ -111,8 +120,6 @@ namespace stencil::gui {
     int canvasHoverPointRow = -1;
     int canvasHoverLineRow = -1;
     std::vector<int> linesSelected;
-    QTimer* swatchWait = nullptr;   // a swatch click waiting out the double-click window
-    int swatchRow = -1;
   };
 
 }

@@ -14,6 +14,7 @@ import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
 import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
          applyStoredTools, applyStoredImage, applyImagelessPayload } from './storedLayout.js';
 import { CHANGE, changed } from '../app/changes.js';
+import { settleReplacedLines } from '../line/selection.js';
 
 // Thin DOM adapter over the DOM-free ProjectsStore for the ACTIVE project. `save()` is a
 // no-op in temporary mode.
@@ -86,13 +87,9 @@ export class Storage {
     if (layout.showPoints !== undefined) this.app.showPoints = layout.showPoints;
     if (layout.showLines !== undefined) this.app.showLines = layout.showLines;
     paintVisibilityChecks(this.app);
-    this.app.selectedLineIdx = -1;
-    this.app.coordLineIdx = -1;
-    this.app.focusedPtIdx = -1;
-    hideSelectionPanels();
+    settleReplacedLines(this.app);
     this.app.renderer.redraw();
     changed(this.app, CHANGE.history, CHANGE.lines, CHANGE.selection);
-    this.app.coordTable.update(this.app.lines.length ? this.app.lines[this.app.lines.length - 1].points : null);
     this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
   }
 

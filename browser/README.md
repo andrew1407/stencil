@@ -91,7 +91,9 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   shortcut closes it again. `Shift+F10` opens the canvas context menu from the keyboard.
   Every shortcut is rebindable in the Shortcuts window.
 - **Appearance** — light/dark theme with preset accents in the Visuals modal (double-click
-  the logo for a one-off custom accent). **Visuals → Motion** turns the drawing animation
+  the logo for a one-off custom accent). Drag the theme switch to preview the other theme through
+  a lens (letting go changes nothing; a click switches); drag the logo onto the canvas to clear the
+  view to the bare picture (no filter, lines, points or compare). **Visuals → Motion** turns the drawing animation
   on/off and picks the interface animation: Dust (default), Water, Fire, Sliding or None;
   the OS's `prefers-reduced-motion` always wins. **Visuals → Notifications** shows notices in
   the app (the corner toasts, the default) or as the browser's own notifications, which asks for
@@ -99,7 +101,9 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
 - **Projects** — the session autosaves; projects are kept in the browser with a one-week
   expiry. In the Projects list a single click asks before opening here, a double click opens
   straight away, ⌘/Ctrl+click opens in a new tab; touch rows open on tap and reorder on
-  press-and-hold.
+  press-and-hold. A dragged row brings a **⋯** beside the window's title: held there it opens that
+  row's menu, and releasing the row on an item runs it. Dropping the open project on
+  **Close**, or `Alt+Shift+W`, closes it here; it stays in Projects.
 - **PWA** — installable from the browser's own install UI; runs in its own window and works
   offline.
 - **Servers** — connect to a [collaboration server](../server/README.md) from the Servers
@@ -223,7 +227,8 @@ Orientation:
   `copy({ what, open, incognito, local })` — "Make a copy" as `<name>-copy`, then `-copy(1)`, …
   (`what`: `'image'` | `'layout'` | `'project'`; `open`: `'none'` | `'here'` | `'newtab'`),
   resolving to the new local `Project`, or null for an incognito or server copy.
-  `stencil.copyProject(opts)` copies what the editor shows now.
+  `stencil.copyProject(opts)` copies what the editor shows now, and `stencil.closeProject()`
+  closes the open one here without asking (it stays in Projects).
 - **Lines & points**: `stencil.lines[i]` → a `Line` (`apply()`, `move()`, `rotate()`, `add()`,
   `join()`); `line.points[j]` → a `Point` (`x`/`y` settable, `move()`, `remove()`).
 - **Servers**: `connect()`, `disconnect()`, `serverProjects()`, `publishIncognito()`;

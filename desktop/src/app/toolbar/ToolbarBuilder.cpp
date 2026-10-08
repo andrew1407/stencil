@@ -38,6 +38,8 @@ namespace stencil::gui {
           b->setCursor(b->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     // The buttons only exist now; styleActionIcons already ran with nothing to find.
     w.parts.theme.styleDangerToolButtons();
+    w.parts.theme.installThemeLens();
+    buildIconDrags();
   }
 
   // The browser's #formula-inputs (toolbar.js), inside the Formula section so they share the

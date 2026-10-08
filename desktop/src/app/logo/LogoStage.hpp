@@ -47,6 +47,8 @@ namespace stencil::gui {
     bool activateByName(const QString& name, bool clearWay = false);
     void dismiss();
     bool isOpen() const { return open; }
+    // The press on the mark already opened a show by its hold, so it is no drag.
+    bool pressOpenedShow() const { return fired; }
     // How far the press has carried the light and the cloud: 1 at rest, holdBoost held down.
     double boostNow() const;
     QString showName() const { return showWord; }

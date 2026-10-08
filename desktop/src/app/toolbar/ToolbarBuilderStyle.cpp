@@ -6,6 +6,7 @@
 #include "../../support/control/WrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 #include "../../support/control/lineLimits.hpp"
 #include "../../support/control/dblReset.hpp"
+#include "colorDrag.hpp"
 #include "defaultVisuals.hpp"
 #include "modalReveal.hpp"
 
@@ -95,15 +96,23 @@ namespace stencil::gui {
     }, [applyLineColor] { applyLineColor(QColor(defaultVisuals::table().color)); });
     // Picking the line colour again stores empty (inherit), so later line-colour changes keep
     // carrying the points.
-    QObject::connect(w.tools.pointColorBtn, &QToolButton::clicked, &w, [this] {
-      const QColor c = support::pickColorAnimated(w.parts.styleControls.effectiveDefaultPointColor(), &w,
-                                                  "Point color", w.tools.pointColorBtn);
-      if (!c.isValid()) return;
+    const auto applyPointColor = [this](const QColor& c) {
       w.settings.defaultPointColor =
           (c.rgb() == w.tools.lineColorValue.rgb()) ? QString() : c.name(QColor::HexRgb);
       w.updateColorSwatch(w.tools.pointColorBtn, w.parts.styleControls.effectiveDefaultPointColor());
       w.parts.styleControls.onLineStyleControlChanged();
+    };
+    QObject::connect(w.tools.pointColorBtn, &QToolButton::clicked, &w, [this, applyPointColor] {
+      const QColor c = support::pickColorAnimated(w.parts.styleControls.effectiveDefaultPointColor(), &w,
+                                                  "Point color", w.tools.pointColorBtn);
+      if (c.isValid()) applyPointColor(c);
     });
+    // A chip dragged onto another hands it its colour, which lands through that chip's own pick.
+    support::installColorDrag(w.tools.lineColorBtn, {[this] { return w.tools.lineColorValue; }, applyLineColor});
+    support::installColorDrag(w.tools.pointColorBtn,
+                              {[this] { return w.parts.styleControls.effectiveDefaultPointColor(); }, applyPointColor});
+    support::installColorDrag(w.tools.filterColorBtn, {[this] { return w.tools.filterColorValue; },
+                                                       [this](const QColor& c) { w.applyTintColor(c); }});
     // drawingApp.js:156-178
     QObject::connect(w.tools.lineThickness, QOverload<int>::of(&QSpinBox::valueChanged), &w,
                      [this](int v) {

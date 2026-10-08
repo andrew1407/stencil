@@ -2,12 +2,12 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { icon } from '../icons.js';
 import { fillState } from '../../core/layout.js';
 import { pointColorOf } from '../../core/draw/renderer.js';
-import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../../utils.js';
+import { notify, cssColorParts, cssWithAlpha, writeColorPair, fillFromPair, NO_FILL } from '../../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from '../motion.js';
 import { syncFsTriggers } from '../fullscreen/panels.js';
 import { THICKNESS_RANGE, POINT_SIZE_RANGE } from '../../core/settings/limits.js';
 import { applySelectionChange } from '../../core/line/selection.js';
-import { renderLinesList } from './linesList.js';
+import { renderLinesList } from './lines/list.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; ui/bindings/selectionPanel.js wires its inputs by id.
 export class StencilSelectionPanel extends StencilElement {
@@ -105,7 +105,7 @@ export function showSelectionPanel(app, line) {
       // No on/off tick: a fill IS its rgba, and 0 alpha is what "none" means. An
       // unfilled area shows the default colour at 0 so picking one is a single move.
       writeColorPair('sel-fill', 'sel-fill-alpha',
-                     fs.enabled ? line.fillColor : NO_FILL);
+                     fs.enabled ? line.fillColor : cssWithAlpha(fs.value, 0));
     } else {
       revealControls(fillGroup, false);
       // …and so does its separator, or the one before it and the one after the group
@@ -139,13 +139,7 @@ export function hideSelectionPanels() {
 
 // Apply the locked-area fill from the selection panel controls; `commit:false` only previews.
 export function applyFill(app, { commit = true } = {}) {
-  if (app.compareReadOnly()) return; // read-only compare view
-  if (app.selectedLineIdx === -1) return;
-  const line = app.lines[app.selectedLineIdx];
-  if (!line) return;
-  line.fillColor = fillFromPair('sel-fill', 'sel-fill-alpha');
-  if (commit) app.saveHistory();
-  app.renderer.redraw();
+  applySelectionChange(app, 'fillColor', fillFromPair('sel-fill', 'sel-fill-alpha'), { commit });
 }
 
 // Rebuild + wire the fullscreen mirror of the panel for `line` (hidden outside fullscreen).
@@ -207,14 +201,9 @@ export function syncFsSelectionPanel(app, line) {
   const fsFill = fsPanel.querySelector('#fs-sel-fill');
   if (fsFill) {
     const applyFsFill = (color, commit = true) => {
-      if (app.selectedLineIdx === -1) return;
-      const ln = app.lines[app.selectedLineIdx];
-      if (!ln) return;
-      ln.fillColor = color;
+      if (!applySelectionChange(app, 'fillColor', color, { commit })) return;
       const mainFill = document.getElementById('sel-fill');
       if (mainFill && color !== NO_FILL) mainFill.value = cssColorParts(color).hex;
-      if (commit) app.saveHistory();
-      app.renderer.redraw();
     };
     fsFill.addEventListener('input', () => applyFsFill(fsFill.value, false));
     fsFill.addEventListener('change', () => applyFsFill(fsFill.value));

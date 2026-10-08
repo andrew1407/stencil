@@ -3,6 +3,9 @@ import { icon } from '../../icons.js';
 import { normalizeHex } from '../../../core/settings/accents.js';
 import { previewProjectColor } from '../../projects/window/projectTitle.js';
 import { colorTrial } from './colorTrial.js';
+import { registerColorSwatch } from '../../drag/colorDragSwatches.js';
+// The neutral grey an uncoloured project name is painted in, not the theme accent.
+const UNSET_NAME_COLOR = '#80868f';
 export function wireProjectColorButton(app) {
   // A native picker for the colour of the project NAME: a drag tries colours on the name alone, closing
   // on one stores and pushes it once; a right-click (or Alt at open) clears it to the theme accent.
@@ -16,12 +19,16 @@ export function wireProjectColorButton(app) {
         if (app.activeProjectId != null) app.projectTransfer.setProjectColor(app.activeProjectId, value);
       },
     });
+    const nameColor = () => normalizeHex(app.storage.store.getMeta(app.activeProjectId)?.color || '') || UNSET_NAME_COLOR;
+    // A colour dropped on the button lands as the picker's own commit.
+    registerColorSwatch(colorBtn, {
+      read: nameColor,
+      enabled: () => app.activeProjectId != null && !app.storage.incognito,
+      apply: (value) => { colorInput.value = value; colorInput.dispatchEvent(new Event('change')); },
+    });
     const openPicker = () => {
       previewProjectColor(app, null);
-      const cur = app.storage.store.getMeta(app.activeProjectId)?.color || '';
-      // No custom colour → open at the neutral grey the name is actually painted in (the unset
-      // default), not the theme accent, so the picker reflects the real current state.
-      colorInput.value = normalizeHex(cur) || '#80868f';
+      colorInput.value = nameColor();
       openTrial(colorBtn);
     };
     colorBtn.addEventListener('click', e => {

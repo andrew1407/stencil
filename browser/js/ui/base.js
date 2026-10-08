@@ -8,11 +8,14 @@ export const define = (tag, klass) => {
   if (typeof customElements !== 'undefined') customElements.define(tag, klass);
 };
 
+// Marks a still copy of the page: a region connected inside one is a picture, never wired.
+export const COPY_ATTR = 'data-stencil-copy';
+
 export class StencilElement extends ElementBase {
   #wired = false;
 
   connectedCallback() {
-    if (this.#wired) return;
+    if (this.#wired || this.closest?.(`[${COPY_ATTR}]`)) return;
     this.#wired = true;
     if (!this.firstElementChild && this.constructor.inner) this.innerHTML = this.constructor.inner();
     onReady((app) => this.wire(app));

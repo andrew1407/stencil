@@ -3,11 +3,12 @@
 // prototype as they are (delegates.js installMethods); `this` is the app.
 import { notify, compareEditedShows } from '../../utils.js';
 import * as hitTest from '../draw/hitTest.js';
+import { shownMarks, lineAt } from '../pointer/markHits.js';
 import * as dragGestures from '../touch/dragGestures.js';
 import * as launch from '../launch/controller.js';
 import { editorMemento, sameFilter } from '../historyStack.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
-import { updateMultiSelectStatus } from '../line/selection.js';
+import { updateMultiSelectStatus, keepLineSelection } from '../line/selection.js';
 import { CHANGE, changed } from './changes.js';
 
 const { HIT } = constants;
@@ -52,9 +53,10 @@ export class EditingMethods {
     reader.readAsText(file);
   }
 
-// Default thresholds are a screen-px radius divided by the zoom, so hits stay constant on screen.
+// Default thresholds are a screen-px radius divided by the zoom, so hits stay constant on screen;
+// only what is drawn is hit (pointer/markHits.js): no point while points hide, no segment while lines do.
   findLineAt(x, y, threshold = HIT.lineRadiusPx / (this.scale || 1)) {
-    return hitTest.findLineAt(this.lines, x, y, threshold);
+    return lineAt(this.lines, shownMarks(this), x, y, threshold);
   }
 
   deselectLine(redraw = true) {
@@ -69,6 +71,7 @@ export class EditingMethods {
   }
 
   findNearestPoint(x, y, threshold = HIT.pointRadiusPx / (this.scale || 1)) {
+    if (!shownMarks(this).points) return null;
     return hitTest.findNearestPoint(this.lines, this.currentLine, x, y, threshold);
   }
 
@@ -115,10 +118,12 @@ export class EditingMethods {
   }
 
   findNearestPointWithIdx(x, y, threshold = HIT.grabRadiusPx / (this.scale || 1)) {
+    if (!shownMarks(this).points) return null;
     return hitTest.findNearestPointWithIdx(this.lines, this.currentLine, x, y, threshold);
   }
 
   findNearestSegmentWithIdx(x, y, threshold = HIT.grabRadiusPx / (this.scale || 1)) {
+    if (!shownMarks(this).lines) return null;
     return hitTest.findNearestSegmentWithIdx(this.lines, x, y, threshold);
   }
 
@@ -142,9 +147,9 @@ export class EditingMethods {
     const result = this.history.undo();
     if (result !== null) {
       this.restoreHistoryStep(result);
+      keepLineSelection(this);
       this.renderer.redraw();
-      changed(this, CHANGE.history, CHANGE.lines);
-      this.coordTable.update();
+      changed(this, CHANGE.history, CHANGE.lines, CHANGE.selection);
     }
   }
 
@@ -161,9 +166,9 @@ export class EditingMethods {
     const result = this.history.redo();
     if (result !== null) {
       this.restoreHistoryStep(result);
+      keepLineSelection(this);
       this.renderer.redraw();
-      changed(this, CHANGE.history, CHANGE.lines);
-      if (this.lines.length > 0) this.coordTable.update(this.lines[this.lines.length - 1].points);
+      changed(this, CHANGE.history, CHANGE.lines, CHANGE.selection);
     }
   }
 

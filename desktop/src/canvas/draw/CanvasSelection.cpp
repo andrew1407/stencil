@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
 
 // Selecting points and lines, and the panel's index-keyed view of them.
 
@@ -40,8 +39,13 @@ namespace stencil::gui {
       // Erase the line the panel actually shows (it need not be lines.back()); a line that keeps
       // points stays selected, its table still up (browser editOps.js removePoint).
       if (line->points.empty()) {
-        lines.erase(lines.begin() + (line - lines.data()));
+        const int gone = static_cast<int>(line - lines.data());
+        lines.erase(lines.begin() + gone);
         selectedLineIdx = -1;
+        // A multi-selection that held it keeps the rest; one left is a single selection again.
+        selectedLines.erase(std::remove(selectedLines.begin(), selectedLines.end(), gone), selectedLines.end());
+        for (int& i : selectedLines) if (i > gone) --i;
+        if (selectedLines.size() == 1) { selectedLineIdx = selectedLines.front(); selectedLines.clear(); }
       }
       commitHistory();
     }
@@ -69,6 +73,7 @@ namespace stencil::gui {
   void CanvasWidget::deselect() {
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     update();
     emit selectionChanged();
@@ -86,11 +91,11 @@ namespace stencil::gui {
   // focuses that point (the rotation pivot); a segment hit selects with no focused point.
   int CanvasWidget::selectLineAt(double x, double y) {
     selectedLines.clear();   // a plain click leaves multi-select mode
-    if (auto pt = core::findNearestPoint(lines, x, y, grabHitRadius())) {
+    if (auto pt = model::pointAt(lines, shownMarks(), x, y, grabHitRadius())) {
       selectedLineIdx = pt->lineIdx;
       selectedPoint = pt->ptIdx;
     } else {
-      selectedLineIdx = core::findLineAt(lines, x, y, lineHitRadius());
+      selectedLineIdx = model::lineAt(lines, shownMarks(), x, y, lineHitRadius());
       selectedPoint = -1;
     }
     update();
@@ -137,10 +142,23 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
+  // Port of selection.js keepLineSelection; one survivor of a multi-selection becomes the single.
+  void CanvasWidget::keepLineSelection() {
+    const int n = static_cast<int>(lines.size());
+    selectedLines.erase(std::remove_if(selectedLines.begin(), selectedLines.end(),
+                                       [n](int i) { return i < 0 || i >= n; }),
+                        selectedLines.end());
+    if (selectedLines.size() == 1) selectedLineIdx = selectedLines.front();
+    if (selectedLines.size() < 2) selectedLines.clear();
+    else selectedLineIdx = -1;
+    if (selectedLineIdx >= n) selectedLineIdx = -1;
+    selectedPoint = -1;
+  }
+
   void CanvasWidget::toggleLineSelection(const core::Point& ip) {
     int idx = -1;
-    if (auto pt = core::findNearestPoint(lines, ip.x, ip.y, grabHitRadius())) idx = pt->lineIdx;
-    else idx = core::findLineAt(lines, ip.x, ip.y, lineHitRadius());
+    if (auto pt = model::pointAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) idx = pt->lineIdx;
+    else idx = model::lineAt(lines, shownMarks(), ip.x, ip.y, lineHitRadius());
     toggleLineIndex(idx);  // idx == -1 (empty space) is a no-op inside
   }
 

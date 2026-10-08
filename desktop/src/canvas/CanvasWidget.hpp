@@ -88,11 +88,11 @@ namespace stencil::gui {
     void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
-    // `preview` = a colour still being picked: the undo step is debounced (scheduleEditCommit).
+    // `preview`: a colour still being picked, its step debounced; `idx` edits that row's line instead.
     void setSelectedLineColor(const QString& color, bool preview = false);
-    void setSelectedLineThickness(double thickness);
-    void setSelectedLinePointSize(double pointSize);
-    void setSelectedLinePointColor(const QString& pointColor, bool preview = false);
+    void setSelectedLineThickness(double thickness, int idx = -1);
+    void setSelectedLinePointSize(double pointSize, int idx = -1);
+    void setSelectedLinePointColor(const QString& pointColor, bool preview = false, int idx = -1);
     void setSelectedLineStyle(const QString& style);
     void setSelectedLineFill(const QString& fillColor, bool preview = false);
     void deleteSelectedLine();
@@ -145,11 +145,11 @@ namespace stencil::gui {
     void leaveEvent(QEvent* event) override;
     // A modifier key changing over the canvas re-applies the hover state without a mouse move.
     bool eventFilter(QObject* watched, QEvent* event) override;
-
    private:
     friend class GestureRoutes;   // each gesture's move and release
     void toggleLineIndex(int idx);
-    void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true);
+    void keepLineSelection();   // after a turn, flip or history step: drop indices past the end
+    void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true, int idx = -1);
     // The step undo and redo take: the scene restored, the view refitted when it changed.
     void takeHistoryStep(const std::optional<core::EditorMemento>& step);
     // Widget-space bounds of one line (-1 = in-progress), padded for stroke, rings and flights.

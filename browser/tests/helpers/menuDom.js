@@ -119,6 +119,12 @@ export const installMenuDom = () => {
         else if (pos === 'beforeend') nodes.forEach((n) => el.appendChild(n));
         else throw new Error(`menuDom: insertAdjacentHTML(${pos})`);
       },
+      insertAdjacentElement: (pos, node) => {
+        if (pos === 'beforeend') return el.appendChild(node);
+        if (pos !== 'afterend') throw new Error(`menuDom: insertAdjacentElement(${pos})`);
+        const kids = el.parentElement.children;
+        return el.parentElement.insertBefore(node, kids[kids.indexOf(el) + 1] ?? null);
+      },
       contains: (n) => n === el || descendants(el).includes(n),
       closest: (sel) => { for (let n = el; n; n = n.parentElement) if (matchesAny(n, sel)) return n; return null; },
       matches: (sel) => matchesAny(el, sel),
@@ -136,6 +142,8 @@ export const installMenuDom = () => {
         return e;
       },
       click: () => { el.clicks++; el.dispatch('click'); },
+      // A synthetic event (`new MouseEvent('mouseenter')`) reaches this node's own listeners.
+      dispatchEvent: (ev) => { el.dispatch(ev.type, ev); return true; },
       focus: () => { doc.activeElement = el; },
       blur: () => { if (doc.activeElement === el) doc.activeElement = doc.body; },
       select() {}, scrollIntoView() {},

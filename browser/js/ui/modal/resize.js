@@ -38,6 +38,12 @@ export const resizeRect = (r, dir, dx, dy, viewport,
   return { left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) };
 };
 
+// A window whose content needs more than the shared floor names its own: data-min-w / data-min-h, px.
+export const floorOf = (box) => ({
+  minW: Math.max(MIN_W, Number(box?.dataset?.minW) || 0),
+  minH: Math.max(MIN_H, Number(box?.dataset?.minH) || 0),
+});
+
 // `boxOf` is the shell's own accessor — the box is re-created by some windows. A popover has
 // its place and cap from its opener, so it keeps them.
 export const wireModalResize = (overlay, boxOf) => {
@@ -99,7 +105,7 @@ export const wireModalResize = (overlay, boxOf) => {
       return;
     }
     if (e.pointerId !== at.id) return;
-    place(box, resizeRect(at.rect, at.dir, e.clientX - at.startX, e.clientY - at.startY, viewport()));
+    place(box, resizeRect(at.rect, at.dir, e.clientX - at.startX, e.clientY - at.startY, viewport(), floorOf(box)));
   });
 
   const drop = (e) => {

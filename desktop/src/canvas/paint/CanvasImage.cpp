@@ -22,6 +22,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     filterDirty = true;    // new image -> rebuild filter cache
     resetSteps();
@@ -36,8 +37,7 @@ namespace stencil::gui {
   void CanvasWidget::rotateImage(bool clockwise) {
     if (originalImage.isNull()) return;
     CanvasScene::rotateImage(clockwise);
-    selectedPoint = -1;
-    selectedLineIdx = -1;
+    keepLineSelection();
     continueLineIdx = continueInsertIdx = -1;
     setFixedSize(QSize(qRound(image.width() * scale),
                        qRound(image.height() * scale)));
@@ -49,8 +49,7 @@ namespace stencil::gui {
   void CanvasWidget::flipImage() {
     if (originalImage.isNull()) return;
     CanvasScene::flipImage();
-    selectedPoint = -1;
-    selectedLineIdx = -1;
+    keepLineSelection();
     continueLineIdx = continueInsertIdx = -1;
     update();
     emit changed();
@@ -59,9 +58,10 @@ namespace stencil::gui {
 
   void CanvasWidget::applyCrop(const core::CropRect& rect, bool recalc) {
     if (originalImage.isNull()) return;
+    const size_t before = lines.size();
     CanvasScene::applyCrop(rect, recalc);
-    selectedPoint = -1;
-    selectedLineIdx = -1;
+    if (lines.size() != before) { selectedLineIdx = -1; selectedLines.clear(); }
+    keepLineSelection();
     continueLineIdx = continueInsertIdx = -1;
     setFixedSize(QSize(qRound(image.width() * scale),
                        qRound(image.height() * scale)));
@@ -79,6 +79,7 @@ namespace stencil::gui {
     clearHoverCache();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     if (!image.isNull()) {
       setFixedSize(QSize(qRound(image.width() * this->scale),

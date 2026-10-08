@@ -4,6 +4,7 @@ import { notify } from '../utils.js';
 import { arriveFrom } from '../ui/motion.js';
 import { validateLayout, capLayoutPoints } from './layout.js';
 import { CHANGE, changed } from './app/changes.js';
+import { settleReplacedLines } from './line/selection.js';
 
 export const uploadJSON = (app, e) => {
   const file = e.target.files[0];
@@ -73,11 +74,11 @@ const applyValidatedLayout = async (app, data, { source, cancelMsg, successMsg, 
 
 // `history:false` keeps the change out of undo.
 const installLines = (app, lines, { history = true } = {}) => {
-    app.lines = lines;
+  app.lines = lines;
+  settleReplacedLines(app);
   if (history) app.saveHistory();
   app.renderer.redraw();
-  changed(app, CHANGE.lines);
-  if (app.lines.length > 0) app.coordTable.update(app.lines[app.lines.length - 1].points);
+  changed(app, CHANGE.lines, CHANGE.selection);
 };
 
 // The programmatic path behind `stencil.setLines()`: no prompt, no toast. True when applied.

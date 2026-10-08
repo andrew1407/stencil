@@ -20,7 +20,7 @@ namespace stencil::gui {
     void setupPageAndZoomControls();
     void setupSyncControllers();
     void wireSignals();
-    void wireLineSwatches();
+    void wireLineRows();
     void restorePersistedState(bool restoreLast);
 
    private:

@@ -77,14 +77,20 @@ export const supportsShareFiles = () => {
 };
 
 
-// The native colour picker opens beside the input's own box, so a hidden 1px input pops
-// it at the page corner unless it is pinned under the button first.
+// The native colour picker opens under the input's own box, so the hidden input is laid over
+// the button. A transformed ancestor re-roots position:fixed, hence the measured correction.
 export const anchorPickerInput = (input, btn) => {
   const r = btn?.getBoundingClientRect?.();
   if (!r) return;
-  input.style.position = 'fixed';
-  input.style.left = `${Math.round(r.left)}px`;
-  input.style.top = `${Math.round(r.bottom)}px`;
+  const st = input.style;
+  const w = Math.max(1, r.width || 0), h = Math.max(1, r.height || 0);
+  Object.assign(st, { position: 'fixed', margin: '0', transform: 'none', boxSizing: 'border-box',
+    left: `${r.left}px`, top: `${r.top}px`, width: `${w}px`, height: `${h}px` });
+  const got = input.getBoundingClientRect?.();
+  if (!got || !(got.width > 0)) return;
+  const sx = got.width / w, sy = got.height > 0 ? got.height / h : sx;
+  Object.assign(st, { left: `${r.left + (r.left - got.left) / sx}px`, top: `${r.top + (r.top - got.top) / sy}px`,
+    width: `${w / sx}px`, height: `${h / sy}px` });
 };
 
 

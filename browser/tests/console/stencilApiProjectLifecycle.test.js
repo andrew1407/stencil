@@ -17,6 +17,19 @@ test('project.renew/open/close route to app and return the project for chaining'
   assert.deepEqual(lastCall(app, 'closeProject'), ['closeProject', 2, { fully: true }]);
 });
 
+// The console twin of the closeProject hotkey and the ✕ drop, minus their question.
+test('stencil.closeProject() closes the project open here as Project.close does; none open throws', () => {
+  const app = withProjects();
+  const stencil = createStencil(app);
+  assert.equal(stencil.closeProject(), stencil, 'chains');
+  assert.deepEqual(lastCall(app, 'closeProject'), ['closeProject', 1, { fully: false }]);
+  stencil.closeProject({ fully: true });
+  assert.deepEqual(lastCall(app, 'closeProject'), ['closeProject', 1, { fully: true }]);
+  assert.ok(!app.calls.some(([name]) => name === 'confirm'), 'a console call asks nothing');
+  assert.throws(() => createStencil(makeApp()).closeProject(), /No project is open/);
+  assert.equal(typeof stencil.current.close, 'function', 'Project.close stays');
+});
+
 test('project expiration facade: expiresAt/refreshPeriod/autoRefresh/keepForever route to app', () => {
   const app = withProjects();
   const stencil = createStencil(app);

@@ -27,6 +27,10 @@ namespace stencil::gui {
     if (filterDirty) rebuildFilteredImage();
     const CompareMode compare = effectiveCompareMode();
     const QRectF target(0, 0, image.width() * scale, image.height() * scale);
+    if (cleanPreview) {   // the logo drag's clean view: the bare picture, nothing over it
+      p.drawImage(target, basePremul.of(image));
+      return;
+    }
     if (compare == CompareMode::ORIGINAL) {
       p.drawImage(target, basePremul.of(compareBaseImage()));
       return;

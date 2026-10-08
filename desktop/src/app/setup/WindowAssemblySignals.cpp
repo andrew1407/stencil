@@ -214,7 +214,7 @@ namespace stencil::gui {
                      });
     QObject::connect(w.selPanel, &SelectionPanel::lineListRemoveRequested, &w,
                      [this](int idx) { w.canvas->removeLineByIndex(idx); });
-    wireLineSwatches();
+    wireLineRows();
     // What a double-click puts each toolbar control back to (support/control/dblReset.hpp).
     const Settings d;
     for (const auto& [control, v] : std::initializer_list<std::pair<QWidget*, QVariant>>{

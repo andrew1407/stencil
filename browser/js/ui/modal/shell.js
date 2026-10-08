@@ -45,7 +45,9 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
 
   // `from` null means there is no control: fall from above. Omitted means the shell's opener.
-  const open = (from, backTo = null, { stacked: stackThisOpen = stacked } = {}) => {
+  // `at`, a client point, takes the window's top-left corner; one already up at full size only moves.
+  const open = (from, backTo = null, { stacked: stackThisOpen = stacked, at = null } = {}) => {
+    if (at && api.isOpen() && !overlay.classList.contains('modal-popover')) { drag.placeAt(at); return; }
     originEl = anchorLike(from) ? from
              : (from === null ? null : defaultOrigin());
     closeOriginEl = anchorLike(backTo) || typeof backTo === 'function' ? backTo : null;
@@ -57,6 +59,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     onOpen?.();
     fromAbove = !rectOf(originEl);
     overlay.classList.add('modal-open');
+    if (at) drag.placeAt(at, true);
     // The box has no size while display:none.
     if (!reducedMotion() && setOriginVars()) playDust(true);
     // A window opens ready to be typed into, deferred past the entrance (infoModal, scriptModal),
@@ -125,6 +128,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     open(from);
   };
   const api = { open, close, openPopover, toggle, isOpen: () => overlay.classList.contains('modal-open'),
+                overlayId: overlay?.id || null,
                 get stacked() { return stackedNow; },
                 takesEscape: () => escapeClose || overlay.classList.contains('modal-popover') };
   modalShells.add(api);

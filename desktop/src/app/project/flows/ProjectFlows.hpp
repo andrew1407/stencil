@@ -7,6 +7,8 @@
 #include <functional>
 #include <optional>
 
+class QWidget;
+
 namespace stencil::gui {
 
   // What removing `n` projects says, from the projects window or the assistant (browser
@@ -17,6 +19,7 @@ namespace stencil::gui {
 
   class MainWindow;
   class OpenInDialog;
+  class ProjectsDialog;
 
   // The project flows behind the Projects window and the Project menu: open, create, rename and
   // erase a project, open a server project or a launch link, publish an incognito session, the
@@ -37,6 +40,11 @@ namespace stencil::gui {
     void createServerProject(const QString& serverUrl, const QString& name,
                              std::function<void()> onLinked = {});
     void clearCurrentProject();
+    // Browser ui/projects/closeProject.js: asks over `over` (the window when null), grown from
+    // `from`, unless `ask` is false, then closes the project this window holds; it stays in Projects.
+    void closeActiveProject(QWidget* over = nullptr, const QRect& from = QRect(), bool ask = true);
+    // The projects list's drag targets here: the window's zones, and Close for the open project.
+    void wireProjectsDrag(ProjectsDialog& dlg, const std::function<bool()>& unsavedSession);
     void resetToBlankEditor();
     void openServerProject(const QString& serverUrl, const QString& id, bool silent = false,
                            bool link = true);
@@ -64,6 +72,7 @@ namespace stencil::gui {
 
     QString activeProjectColor() const;
     QString currentProjectColor() const;
+    QColor projectNameColor() const;   // its own colour, else the neutral grey the name is painted in
     void chooseProjectColor();
     void showProjectColorMenu();
     void setActiveProjectColor(const QString& color);

@@ -11,7 +11,7 @@ const pts = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 0 }));
 const appWith = (lines) => {
   const app = {
     image: {}, canvas: { width: 4, height: 3 }, lines, saves: 0,
-    saveHistory() { app.saves++; }, renderer: { redraw() {} }, coordTable: { update() {} },
+    saveHistory() { app.saves++; }, renderer: { redraw() {} }, coordTable: { update() {} }, hideSelectionPanels() {},
   };
   return app;
 };

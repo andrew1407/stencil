@@ -50,11 +50,13 @@ export function wireOpenState(deps) {
     }
     return openBtn;
   };
+// One entrance's origin in place of the icon: the client rect an icon dropped on the page was released on.
+  let entranceFrom = null;
 // A float panel flies out of the toolbar icon and back (modalFromIcon/modalToIcon). Fed
 // from floatRect: the panel is display:none while closed.
   const setFloatOriginVars = () => {
     if (!host.classList.contains('chat-dock-float')) return;
-    const a = anchorBtn()?.getBoundingClientRect?.();
+    const a = entranceFrom ?? anchorBtn()?.getBoundingClientRect?.();
     const onScreen = !!a && a.width > 0 && a.height > 0 && a.bottom > 0 && a.top < window.innerHeight;
     const f = chatDock.rect();
     const cx = onScreen ? a.left + a.width / 2 : f.x + f.w / 2;
@@ -68,7 +70,7 @@ export function wireOpenState(deps) {
 // icon, a docked panel from far past its edge. Measured live.
   const dustPoint = () => {
     if (host.classList.contains('chat-dock-float')) {
-      const p = rectCenter(anchorBtn());
+      const p = rectCenter(entranceFrom ?? anchorBtn());
       if (p) return p;
     }
     const r = host.getBoundingClientRect();
@@ -189,5 +191,10 @@ export function wireOpenState(deps) {
     if (compactShowing() || (phoneModal() && panelIsOpen())) setOpen(false);
   });
   closeBtn.addEventListener('click', () => setOpen(false));
-  return { setOpen, markChatBusy, chatDock, setDock, adoptLayout };
+// `run` opens or moves the panel; a float it forms comes out of `from`, and its close goes home.
+  const openFrom = (from, run) => {
+    entranceFrom = from;
+    try { run(); } finally { entranceFrom = null; }
+  };
+  return { setOpen, markChatBusy, chatDock, setDock, adoptLayout, openFrom };
 }

@@ -65,8 +65,10 @@ size) work as in the browser app, with the same keyboard shortcuts.
   the swatch next to the project name.
 - **Dialogs** — **Visuals & Settings** (`Alt+V`: theme, motion, menu-bar placement,
   autosave, defaults, page size, AI assistant), **Projects** (save / open / delete, one-week
-  expiry), **Controls & Shortcuts Info** (`Alt+H`), and the **Keyboard Shortcuts** editor
-  (`Alt+K`: click a combo and press the new chord).
+  expiry; a dragged row offers its menu from a ⋯ by the title, and the open project dropped on
+  Close — or **Project ▸ Close Project**, `Alt+Shift+W` — closes it here and stays saved),
+  **Controls & Shortcuts Info** (`Alt+H`), and the **Keyboard Shortcuts** editor (`Alt+K`: click
+  a combo and press the new chord).
 - **Motion** — Settings → Motion: *Drawing animation* on/off and *Interface animation*
   (Dust, Water, Fire, Sliding, None). `STENCIL_NO_ANIM=1` overrides the setting.
 - **Notifications** — Settings → Notifications: *In the app* (the corner toasts, the default) or

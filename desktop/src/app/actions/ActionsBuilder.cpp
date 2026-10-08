@@ -49,6 +49,9 @@ namespace stencil::gui {
     w.acts.cycleFilter = newAction("Cycle Image Filter", w.keys.value("cycleFilter", "Alt+B"));
     w.setActionTip(w.acts.cycleFilter,
         "Cycle the image filter (none → B&W → sepia → invert → contour → tint)");
+    w.acts.cycleFilterPrev = newAction("Previous Image Filter", w.keys.value("cycleFilterPrev", "Alt+Shift+B"));
+    w.setActionTip(w.acts.cycleFilterPrev,
+        "Step the image filter back (tint → contour → invert → sepia → B&W → none)");
     // Compare view: cycle none → original → vertical split → horizontal split; hold Alt+Shift+O to peek.
     w.acts.cycleCompare = newAction("Cycle Compare View", w.keys.value("cycleCompare", "Alt+O"));
     w.setActionTip(w.acts.cycleCompare,
@@ -117,6 +120,9 @@ namespace stencil::gui {
     // Browser's #clear-storage danger button; hidden for server projects (refreshActions).
     w.acts.clearProject = newAction("Clear Project", w.keys.value("clearProject", "Ctrl+Alt+R"));
     w.setActionTip(w.acts.clearProject, "Remove current project");
+    // The browser's closeProject hotkey: always live, so with nothing open it says so.
+    w.acts.closeProject = newAction("Close Project", w.keys.value("closeProject", "Alt+Shift+W"));
+    w.setActionTip(w.acts.closeProject, "Close the open project here — it stays saved in Projects");
     // The same inline edit the ✎ beside the toolbar name opens.
     w.acts.renameProject = newAction("Rename Project", w.keys.value("renameProject", "Ctrl+Alt+N"));
     QObject::connect(w.acts.renameProject, &QAction::triggered, &w, [this] { w.projectTitle->enterNameEdit(); });

@@ -41,7 +41,8 @@ namespace stencil::gui {
     void dockChatTo(Qt::DockWidgetArea area);
     QPointer<gui::DisintegrateOverlay> chatSurfaceFlight(Qt::DockWidgetArea area, bool gather, int ms,
                                                          const std::function<void(int)>& pin, int full);
-    void toggleChatFloat();
+    // `revealFrom` (GLOBAL): where the float grows out of in place of the chat icon (a drop's cursor).
+    void toggleChatFloat(const QRect& revealFrom = QRect());
     void openChatCompactNow(QWidget* anchor);
     QRect compactChatRect(QWidget* anchor) const;
     void dropChatVeil();
@@ -49,6 +50,12 @@ namespace stencil::gui {
     void setChatCompactPopover(bool on);
     // Browser FLOAT_DEFAULT, ported to this window's top-left; clamped to its own screen.
     QRect defaultChatFloatRect() const;
+    // The edge bands a chat drag drops on, up until `stillDragging` turns false.
+    void showChatDockZones(std::function<bool()> stillDragging);
+    // Opened on `area`'s edge, or slid there from wherever it shows.
+    void openChatDocked(Qt::DockWidgetArea area);
+    // Opened or moved as a float with its top-left on `global` (GLOBAL), kept on the window's screen.
+    void openChatFloatingAt(const QPoint& global);
 
     // The canvas ↔ panel handle (browser .panel-resizer): it takes the pointer, so it wears the resize cursor.
     DockEdgeOverlay* panelGrip = nullptr;
@@ -66,6 +73,7 @@ namespace stencil::gui {
     bool chatClosing = false;
     Qt::DockWidgetArea chatCompactPrevArea = Qt::LeftDockWidgetArea;
     QRect chatFloatRect;
+    QRect chatRevealFrom;   // GLOBAL: set only while a drop opens the float, which grows out of it
 
     std::function<void(int)> chatExtentPin(bool horiz);
 

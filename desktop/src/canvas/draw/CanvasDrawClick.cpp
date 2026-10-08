@@ -6,10 +6,10 @@
 
 namespace stencil::gui {
 
-  // The one close route: the click path and hold-to-draw both come here.
-  // Browser twin: drawingApp.js tryCloseShapeAt.
+  // The one close route, click and hold-to-draw both (browser line/shapeBuilder.js): the first point
+  // is the target, so while points are hidden nothing closes and the click lands as a point.
   bool CanvasWidget::tryCloseShapeAt(const core::Point& ip) {
-    if (!isDrawing) return false;
+    if (!isDrawing || !showPoints) return false;
     if (continueLineIdx >= 0 && continueLineIdx < static_cast<int>(lines.size())) {
       core::Line& line = lines[continueLineIdx];
       if (!core::shouldCloseShape(line.points, ip, closeGrabSize(line))) return false;

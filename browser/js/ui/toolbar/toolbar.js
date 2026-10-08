@@ -8,6 +8,7 @@ import { syncWrappedSeparators } from './separators.js';
 import { wireVoiceChatToggle } from '../visuals/voiceToggle.js';
 import { wireLogoColorPicker } from '../logo/accent.js';
 import { wireLogoHold } from '../logo/stageTrigger.js';
+import { wireLogoDrag } from '../drag/logoDrag.js';
 import { toolbarTopbarHtml } from './topbar.js';
 import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './sections.js';
 import { toolbarPageSectionsHtml } from './pageSections.js';
@@ -119,8 +120,9 @@ ${toolbarPageSectionsHtml()}
     new MutationObserver(refresh).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     refresh();
 
-    wireLogoColorPicker(this.querySelector('.app-logo'), _app);
-    wireLogoHold(this.querySelector('.app-logo'), _app);
+    const logo = this.querySelector('.app-logo');
+    wireLogoColorPicker(logo, _app);
+    wireLogoDrag(logo, _app, { hold: wireLogoHold(logo, _app) });
     wireVoiceChatToggle(this.querySelector('#voice-chat-btn'), _app);
     wireCopyProjectMenu(this.querySelector('#copy-project-btn'), _app);
     // The section separators follow the wrap (below): measured again whenever this

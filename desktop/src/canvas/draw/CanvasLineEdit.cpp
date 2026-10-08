@@ -1,5 +1,7 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
+#include "../../support/control/lineLimits.hpp"
+
+#include <algorithm>
 
 // Editing the selected line, and the hover cache the panels read.
 
@@ -8,9 +10,10 @@ namespace stencil::gui {
   // selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515)
 
-  void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit) {
+  // A Lines-tab row names its own line by `idx` and leaves the selection as it is.
+  void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit, int idx) {
     if (compareReadOnly()) return;   // read-only compare view (selection-panel edits)
-    core::Line* line = selectedLine();
+    core::Line* line = idx < 0 ? selectedLine() : idx < static_cast<int>(lines.size()) ? &lines[idx] : nullptr;
     if (!line) return;
     set(*line);
     // A live preview rides the same debounce the wheel edits use, so the whole gesture collapses
@@ -30,17 +33,23 @@ namespace stencil::gui {
     }, !preview);
   }
 
-  void CanvasWidget::setSelectedLineThickness(double thickness) {
-    mutateSelectedLine([&](core::Line& line) { line.thickness = thickness; });
+  // Held to LIMITS, as the browser's applyLineChange holds them.
+  void CanvasWidget::setSelectedLineThickness(double thickness, int idx) {
+    const support::lineLimits::Table& limits = support::lineLimits::table();
+    const double t = std::clamp(thickness, double(limits.thickMin), double(limits.thickMax));
+    mutateSelectedLine([&](core::Line& line) { line.thickness = t; }, true, idx);
   }
 
-  void CanvasWidget::setSelectedLinePointSize(double pointSize) {
-    mutateSelectedLine([&](core::Line& line) { line.pointSize = pointSize; });
+  void CanvasWidget::setSelectedLinePointSize(double pointSize, int idx) {
+    const support::lineLimits::Table& limits = support::lineLimits::table();
+    const double s = std::clamp(pointSize, double(limits.pointMin), double(limits.pointMax));
+    mutateSelectedLine([&](core::Line& line) { line.pointSize = s; }, true, idx);
   }
 
-  void CanvasWidget::setSelectedLinePointColor(const QString& pointColor, bool preview) {
+  // '' = no colour of the points' own: they draw in the line's (core::pointColorOr).
+  void CanvasWidget::setSelectedLinePointColor(const QString& pointColor, bool preview, int idx) {
     mutateSelectedLine(
-        [&](core::Line& line) { line.pointColor = pointColor.toStdString(); }, !preview);
+        [&](core::Line& line) { line.pointColor = pointColor.toStdString(); }, !preview, idx);
   }
 
   void CanvasWidget::setSelectedLineStyle(const QString& style) {
@@ -80,13 +89,12 @@ namespace stencil::gui {
   bool CanvasWidget::updateHover(double imageX, double imageY) {
     int li = -1;
     int pi = -1;
-    if (auto idx = core::nearestPointInLine(currentLine.points, imageX, imageY,
-                                            grabHitRadius())) {
+    if (auto idx = model::pointIn(currentLine.points, shownMarks(), imageX, imageY, grabHitRadius())) {
       li = -1;
       pi = *idx;
     }
     if (pi < 0) {
-      if (auto pt = core::findNearestPoint(lines, imageX, imageY, grabHitRadius())) {
+      if (auto pt = model::pointAt(lines, shownMarks(), imageX, imageY, grabHitRadius())) {
         li = pt->lineIdx;
         pi = pt->ptIdx;
       }
@@ -94,7 +102,7 @@ namespace stencil::gui {
     // The committed LINE under the cursor (a point hit names its line, else a stroke
     // hit) — tints the panel's Lines-list row, the reverse of setListHoverLine.
     const int over =
-        (li >= 0) ? li : core::findLineAt(lines, imageX, imageY, lineHitRadius());
+        (li >= 0) ? li : model::lineAt(lines, shownMarks(), imageX, imageY, lineHitRadius());
     if (li == hover.lineIdx && pi == hover.pointIdx && over == hover.overLineIdx)
       return false;
     hover.lineIdx = li;

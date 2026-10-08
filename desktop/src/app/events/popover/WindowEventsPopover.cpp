@@ -169,6 +169,7 @@ namespace stencil::gui {
       if (event->type() == QEvent::MouseButtonPress &&
           static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
         w.pop.swallowRelease = false;   // a fresh press always starts clean
+        w.pop.dblClickAction.clear();
       }
       if (event->type() == QEvent::MouseButtonDblClick &&
           static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
@@ -176,22 +177,21 @@ namespace stencil::gui {
         w.pop.pendingAction.clear();
         // A DISABLED icon opens nothing; swallow without arming, or a stale pop.anchor pins the NEXT dialog here.
         if (!act->isEnabled()) { btn->setDown(false); return true; }
-        w.pop.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
-        w.parts.popoverGestures.stopLingerPoll();         // a lingering window's poll must not close THIS open
-        btn->setDown(false);
-        w.pop.anchor = btn;
-        // The dblclick's trailing release must not re-arm the deferred click (it would toggle a non-modal target back off).
-        // Set BEFORE trigger(): a modal dialog blocks in exec() and eats the release itself.
-        w.pop.swallowRelease = true;
-        act->trigger();
-        return true;
+        w.pop.dblClickAction = act;
+        return false;   // the press goes on to the icon, whose drag may take the gesture over
       }
       if (event->type() == QEvent::MouseButtonRelease &&
           static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
         const bool inside = btn->rect().contains(
             static_cast<QMouseEvent*>(event)->position().toPoint());
         btn->setDown(false);   // we consume the release, so un-sink the button ourselves
-        if (w.pop.dismissClick) {
+        if (w.pop.dblClickAction == act) {
+          w.pop.dblClickAction.clear();
+          w.pop.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
+          w.parts.popoverGestures.stopLingerPoll();         // a lingering window's poll must not close THIS open
+          w.pop.anchor = btn;
+          act->trigger();
+        } else if (w.pop.dismissClick) {
           w.pop.dismissClick = false;   // this click closed a popover; that was its job
         } else if (w.pop.swallowRelease) {
           w.pop.swallowRelease = false;

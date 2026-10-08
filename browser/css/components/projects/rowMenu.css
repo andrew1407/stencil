@@ -33,6 +33,11 @@
 .project-menu-item.is-danger .ic { color: var(--danger); }
 .project-menu-item.is-danger:hover { background: var(--danger); color: #fff; }
 .project-menu-item.is-danger:hover .ic { color: #fff; }
+/* A drag fires no hover (list/dragMenu.js): the item under a held row wears the hover's own look. */
+.project-menu-item.is-drag-hover { background: var(--accent); color: var(--on-accent); }
+.project-menu-item.is-drag-hover .ic { color: var(--on-accent); }
+.project-menu-item.is-danger.is-drag-hover { background: var(--danger); color: #fff; }
+.project-menu-item.is-danger.is-drag-hover .ic { color: #fff; }
 /* The list's one hidden colour field (projectsModal openColorPicker), moved under the
    button that opens it. Invisible and inert but never `display: none` — an input with no
    box sends the picker to the page corner. Cf. #project-color-input. */

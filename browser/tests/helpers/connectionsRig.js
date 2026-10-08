@@ -143,7 +143,7 @@ export const withSettle = (app) => Object.assign(app, {
   },
   history: { reset() {} },
   renderer: { redraw() {}, layers: () => [] },
-  coordTable: { update() {} },
+  coordTable: { update() {} }, hideSelectionPanels() {},
   updateInfo() {}, updateButtons() {}, updateCoordStatus() {},
 });
 

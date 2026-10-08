@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
 
 #include <QCursor>
 #include <QKeyEvent>
@@ -18,8 +17,7 @@ namespace stencil::gui {
         overTarget = hover.overLineIdx != -1;
       } else {
         overTarget = (hover.pointIdx >= 0) ||
-                     core::findNearestSegment(lines, ip.x, ip.y, grabHitRadius())
-                         .has_value();
+                     model::segmentAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius()).has_value();
       }
       setCursor(overTarget ? Qt::SizeAllCursor : Qt::OpenHandCursor);
     } else if (!isDrawing) {

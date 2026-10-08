@@ -15,6 +15,8 @@ namespace stencil::gui {
     w.keys.actions["rotateImageLeft"] = w.acts.rotateLeft;
     w.keys.actions["rotateImageRight"] = w.acts.rotateRight;
     w.keys.actions["flipImageHorizontal"] = w.acts.flipImage;
+    w.keys.actions["cycleFilter"] = w.acts.cycleFilter;
+    w.keys.actions["cycleFilterPrev"] = w.acts.cycleFilterPrev;
     w.keys.actions["startDraw"] = w.acts.startDraw;
     w.keys.actions["clearAllLines"] = w.acts.clearAll;
     w.keys.actions["deleteLine"] = w.acts.deleteLine;
@@ -57,6 +59,7 @@ namespace stencil::gui {
     w.keys.actions["openAnotherImage"] = w.acts.openAnother;
     w.keys.actions["openProjects"] = w.acts.projects;
     w.keys.actions["clearProject"] = w.acts.clearProject;
+    w.keys.actions["closeProject"] = w.acts.closeProject;
     w.keys.actions["renameProject"] = w.acts.renameProject;
     w.keys.actions["toggleTheme"] = w.acts.theme;
     w.keys.actions["openHelp"] = w.acts.info;

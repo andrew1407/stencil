@@ -1,5 +1,6 @@
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../../core/settings/accents.js';
 import { wireLogoAccentMenu } from './accentMenu.js';
+import { openColorPicker } from '../bindings/controls/colorTrial.js';
 
 // Double-click (or double-tap) the logo opens a native colour picker that tints this page's
 // accent only — not saved, not synced; a Visuals preset clears it. Exported for tests.
@@ -63,13 +64,7 @@ export function wireLogoColorPicker(logo, app) {
   const open = () => {
     const cur = app.customAccent || getComputedStyle(document.documentElement).getPropertyValue('--accent');
     picker.value = normalizeHex(cur) || accentHex(app.accent);
-    // showPicker() is the reliable way; a bare .click() on a hidden input often won't.
-    try {
-      if (typeof picker.showPicker === 'function') picker.showPicker();
-      else picker.click();
-    } catch {
-      picker.click();
-    }
+    openColorPicker(picker, logo);
   };
   logo.addEventListener('dblclick', () => {
     if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }

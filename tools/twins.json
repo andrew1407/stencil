@@ -150,6 +150,11 @@
       "to": "browser-extension/src/lib/tip/controlTooltip.js"
     },
     {
+      "name": "tipHold",
+      "from": "browser/js/ui/tip/tipHold.js",
+      "to": "browser-extension/src/lib/tip/tipHold.js"
+    },
+    {
       "name": "comboMatch",
       "from": "browser/js/ui/control/comboMatch.js",
       "to": "browser-extension/src/lib/control/comboMatch.js"

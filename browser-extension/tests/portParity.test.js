@@ -20,6 +20,8 @@ const MANIFEST = [
   ['numericExpr', '../../browser/js/ui/control/numericExpr.js', '../src/lib/control/numericExpr.js'],
   ['dropdownMenu', '../../browser/js/ui/control/dropdownMenu.js', '../src/lib/control/dropdownMenu.js'],
   ['controlTooltip', '../../browser/js/ui/tip/controlTooltip.js', '../src/lib/tip/controlTooltip.js'],
+  // The hold a control drag puts on every tooltip, which the control tip asks: pure module state.
+  ['tipHold', '../../browser/js/ui/tip/tipHold.js', '../src/lib/tip/tipHold.js'],
   // A written shortcut against a keystroke: pure, so the copy is the whole file.
   ['comboMatch', '../../browser/js/ui/control/comboMatch.js', '../src/lib/control/comboMatch.js'],
   ['scrollbarHover', '../../browser/js/ui/control/scrollbarHover.js', '../src/lib/control/scrollbarHover.js'],

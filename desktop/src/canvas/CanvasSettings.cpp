@@ -20,6 +20,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     commitHistory();   // pushes the snapshot and emits changed()
     update();
@@ -32,6 +33,7 @@ namespace stencil::gui {
     clearHoverCache();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     if (rebuilt) setFixedSize(QSize(qRound(image.width() * scale), qRound(image.height() * scale)));
     update();

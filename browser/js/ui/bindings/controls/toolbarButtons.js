@@ -4,6 +4,7 @@ import { wireBlankColorButton } from './blankColorButton.js';
 import { wireProjectColorButton } from './projectColorButton.js';
 import { wireProjectNameField } from './projectNameField.js';
 import { setupHoldZoom } from '../viewport/holdZoom.js';
+import { wireToolbarDrags } from './toolbarDrags.js';
 import { emptiedControlRect } from '../../modal/imageAnchor.js';
 import { startDrawingMode, setDrawMode, stopDrawingMode } from '../../../core/draw/mode.js';
 import { canToggleIncognito } from '../../../core/launch/incognitoFlow.js';
@@ -78,7 +79,11 @@ export function wireToolbarButtons(app) {
   document.getElementById('clear-all-lines').addEventListener('click', () => app.clearAllLines());
   // Zoom buttons: single click = small step, double-click = large step,
   // hold = continuous zoom (kicks in after a short delay)
-  setupHoldZoom(app.zoomPan, document.getElementById('zoom-in'), +1);
-  setupHoldZoom(app.zoomPan, document.getElementById('zoom-out'), -1);
-  document.getElementById('zoom-fit').addEventListener('click', () => app.zoomPan.fitToWindow());
+  const holds = {
+    in: setupHoldZoom(app.zoomPan, document.getElementById('zoom-in'), +1),
+    out: setupHoldZoom(app.zoomPan, document.getElementById('zoom-out'), -1),
+  };
+  const fitBtn = document.getElementById('zoom-fit');
+  fitBtn.addEventListener('click', () => app.zoomPan.fitToWindow());
+  wireToolbarDrags(app, fitBtn.closest('stencil-toolbar'), holds);
 }

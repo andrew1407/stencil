@@ -8,6 +8,7 @@ import { renderTip, parseTip } from './content.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { comboMatchesEvent, eventCombo, parseCombo } from '../control/comboMatch.js';
+import { tipsHeld, onTipsHeld } from './tipHold.js';
 export { parseCombo, eventCombo, comboMatchesEvent };
 
 // Long enough that flicking across the bar shows nothing, short enough that pausing on ONE
@@ -85,7 +86,8 @@ const place = (e) => {
   tip.style.top = `${y}px`;
 };
 
-const hide = () => {
+// `instant`: gone with no dust out, and any cloud it is still trailing swept (a drag's hold).
+const hide = ({ instant = false } = {}) => {
   clearTimeout(showTimer);
   clearTimeout(shakeTimer);
   showTimer = shakeTimer = null;
@@ -95,13 +97,14 @@ const hide = () => {
   if (!tip) return;
   // It comes apart into its control. The class goes NOW either way: the cloud owns its
   // own lifetime, and the end state must never depend on the animation.
-  if (tip.classList.contains('visible')) surfaceOut(tip, dustPoint(owner), { ms: TIP_OUT_MS });
+  if (tip.classList.contains('visible') && !instant) surfaceOut(tip, dustPoint(owner), { ms: TIP_OUT_MS });
   else settleSurface(tip);
   placeHeldUntil = 0;
   tip.classList.remove('visible');
 };
 
 const reveal = (el) => {
+  if (tipsHeld()) return;
   const txt = textFor(el);
   if (!txt) return;
   const html = renderTip(txt);
@@ -150,8 +153,10 @@ export const dismissTip = () => hide();
 
 export const initTooltips = () => {
   if (typeof document === 'undefined') return;
+  onTipsHeld(() => hide({ instant: true }));
   document.addEventListener('pointerover', (e) => {
     lastEvent = e;
+    if (tipsHeld()) return;
     // A control owning its own hover popup (the "?" badge and .hints-popup) opts out — a floating
     // copy of the same text is the tooltip said twice. Tested on the TARGET, not an ancestor.
     if (e.target.closest && e.target.closest('[data-no-tooltip]')) { hide(); return; }

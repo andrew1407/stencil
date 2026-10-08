@@ -8,6 +8,8 @@ import { defaultSettings as llmDefaults } from '../../llm/settings.js';
 import { DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP, DEFAULT_MOTION_MODE } from '../motion/motionPrefs.js';
 import { DEFAULT_NOTIFY_CHANNEL } from '../../core/settings/notifyChannel.js';
 import { normalizeHex } from '../../core/settings/accents.js';
+import { dragsStarted } from '../drag/iconDrag.js';
+import { openColorPicker } from '../bindings/controls/colorTrial.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 
 // The controls whose default the markup cannot say: read when the double-click lands, so a
@@ -105,9 +107,6 @@ export const resetControl = (el) => {
 };
 
 const { doubleClickMs, doubleTapMs } = constants.POPOVER;
-const openPicker = (el) => {
-  try { el.showPicker(); } catch { el.click(); }
-};
 
 // The native picker opens on the first click and would swallow the second, so a colour field with
 // a default opens once the double-click window passes; a click inside it is the double, and resets.
@@ -122,7 +121,8 @@ const deferColorPicks = (root) => {
     if (pending?.el === el) { cancel(); resetControl(el); return; }
     cancel();
     const wait = e.pointerType === 'touch' ? doubleTapMs : doubleClickMs;
-    pending = { el, timer: setTimeout(() => { pending = null; openPicker(el); }, wait) };
+    const drags = dragsStarted();   // a second press that dragged the swatch away picks nothing
+    pending = { el, timer: setTimeout(() => { pending = null; if (dragsStarted() === drags) openColorPicker(el, null); }, wait) };
   }, true);
 };
 

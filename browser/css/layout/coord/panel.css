@@ -141,10 +141,14 @@
 }
 
 /* ── Lines tab: one row per committed line, on the points table's own grid ── */
-/* Fixed layout: the name is the only elastic column; every other one states its width below. */
+/* Fixed layout over the colgroup: the swatches, the count and the bin state their widths and the
+   two numbers share the rest, so a row fits the panel at its 240px narrowest. */
 .lines-table { table-layout: fixed; }
+.lines-swatch-col { width: 26px; }
+.lines-count-col { width: 40px; }
+.lines-remove-col { width: 28px; }
 .lines-row { cursor: pointer; }
-.lines-row:hover { background-color: var(--bg-coord-hover); }
+.lines-row:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* Canvas-driven counterpart of :hover — the row whose line is under the canvas cursor. */
 .lines-row-hover:not(.lines-row-selected) {
     background-color: color-mix(in srgb, var(--accent) 18%, transparent);
@@ -152,11 +156,8 @@
 .lines-row-selected td { box-shadow: inset 0 1px var(--accent), inset 0 -1px var(--accent); }
 .lines-row-selected td:first-child { box-shadow: inset 1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent); }
 .lines-row-selected td:last-child { box-shadow: inset -1px 0 var(--accent), inset 0 1px var(--accent), inset 0 -1px var(--accent); }
-/* Wide enough for the word in the header above the chip, not for the 14px chip itself. */
-.lines-swatch-cell { width: 46px; text-align: center; }
-/* Three digits of point count, and no more: the rest of the row belongs to the name. */
-.lines-count-cell { width: 46px; }
-.lines-swatch {
+.lines-table td.lines-swatch-cell { text-align: center; padding-left: 2px; padding-right: 2px; }
+.lines-swatch, .lines-point-swatch {
     width: 14px;
     height: 14px;
     border-radius: 3px;
@@ -164,8 +165,12 @@
     display: inline-block;
     vertical-align: middle;
 }
-/* The swatch's one hidden colour field (panel/swatchPicker.js), moved under the swatch that
+/* A point is a dot: its colour is round where the line's is square. */
+.lines-point-swatch { border-radius: 50%; }
+/* A number reads as a value to edit: a double-click opens it (panel/lines/numEdit.js). */
+.lines-num { cursor: text; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+.lines-num:has(.lines-num-input) { padding: 2px; }
+/* The swatch's one hidden colour field (panel/lines/swatchPicker.js), moved under the swatch that
    opens it; never display:none, or the native picker opens at the page corner. */
 .lines-color-picker { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.lines-label { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lines-remove-cell { width: 28px; padding: 4px; }

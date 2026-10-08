@@ -1,5 +1,6 @@
 #include "CanvasTooltip.hpp"
 #include "../support/motion/DisintegrateOverlay.hpp"
+#include "AppTooltip.hpp"   // TIP_WINDOW_PROPERTY
 #include <QApplication>
 #include <QLabel>
 #include <QVariantAnimation>
@@ -19,6 +20,7 @@ namespace stencil::gui {
     setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setObjectName("canvasTooltip");
+    setProperty(TIP_WINDOW_PROPERTY, true);
     setStyleSheet(
         "#canvasTooltip { background:#222; color:#eee; border:1px solid #555;"
         " border-radius:4px; }"

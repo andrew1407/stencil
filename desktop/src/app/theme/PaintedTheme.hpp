@@ -17,6 +17,7 @@ namespace stencil::gui {
     // The wipe in flight; a second toggle is ignored. QPointer — it deleteLater()s itself.
     QPointer<QWidget> wipe;
     bool swapping() const { return !wipe.isNull(); }
+    bool silent = false;   // a restyle nobody sees (the theme lens's photograph): no wipe
     // The ink the action icons were last drawn in, and each action's icon to redraw with it.
     QColor iconColor{Qt::black};
     QHash<QAction*, QString> iconNames;

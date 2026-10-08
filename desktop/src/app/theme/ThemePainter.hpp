@@ -1,11 +1,11 @@
 #pragma once
 #include <QColor>
+#include <QPixmap>
 #include <QPointer>
 #include <QString>
 #include <QWidget>
 
 class QAction;
-class QPixmap;
 class QToolButton;
 class QMenu;
 
@@ -50,9 +50,25 @@ namespace stencil::gui {
     bool accentPreviewActive = false;
 
     void toggleTheme();
+    // The theme applyTheme paints: a forced one (a skin's, or the lens's photograph), else the
+    // stored mode resolved.
+    bool paintingDark() const;
+    // Dragged, the theme switch is a lens previewing the other theme (ThemePainterLens.cpp).
+    void installThemeLens();
+    // The window as the other theme paints it, the theme on screen left as it is.
+    QPixmap otherThemeShot();
 
    private:
+    void openLens(const QPoint& global);
+    void closeLens();
+    bool lensAllowed() const;
+    QString lensKey() const;
+    void primeLens();
+
     MainWindow& w;
+    QPointer<QWidget> lens;
+    QPixmap primed;      // the other theme photographed at idle, ahead of a drag
+    QString primedKey;   // the theme, accent and size it was taken in
   };
 
 }  // namespace stencil::gui

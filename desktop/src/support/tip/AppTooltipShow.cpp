@@ -69,6 +69,7 @@ namespace stencil::gui {
   // `originGlobal` invalid = the owner's centre (wrong for an item view's viewport).
   void AppTooltip::showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
                            const QRect& originGlobal) {
+    if (heldOff) return;
     origin = originGlobal;
     // Re-rendered from the plain text in THIS body's font: the owner's copy was measured
     // in QToolTip's (11pt on macOS vs 13pt), which broke a ⇧⌘X chord onto two lines.
@@ -145,6 +146,16 @@ namespace stencil::gui {
   }
 
 
+  void AppTooltip::dropTip() {
+    settleShake();
+    fade->stop();
+    delete dustFx.data();
+    owner.clear();
+    closing = false;
+    QFrame::hide();
+  }
+
+
   // One damped left-right pass over the KEYCAPS, never a loop.
   void AppTooltip::shakeKeys() {
     if (shakeDelay) shakeDelay->stop();
@@ -171,12 +182,12 @@ namespace stencil::gui {
     QWidget* owner = this->owner.data();
     if (!owner || !owner->isVisible()) return false;
     // paintNow on a close: a deferred first frame was the gap the tip blinked out in.
-    return flyTipDust(this, owner->window(),
+    dustFx = flyTipDust(this, owner->window(),
                       origin.isValid() ? origin.center()
                                         : owner->mapToGlobal(owner->rect().center()), gather,
                       gather ? DUST_IN_MS : DUST_OUT_MS,
-                      /*escapeHost=*/true, /*paintNow=*/!gather)
-           != nullptr;
+                      /*escapeHost=*/true, /*paintNow=*/!gather);
+    return dustFx != nullptr;
   }
 
   void AppTooltip::place(const QPoint& cursor) {

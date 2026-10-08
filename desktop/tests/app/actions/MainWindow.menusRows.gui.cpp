@@ -36,8 +36,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(titles.contains("Dashed"));
     QVERIFY(titles.contains("Dotted"));
 
-    // Image filter (browser toolbar's View section).
+    // Image filter (browser toolbar's View section), both ways.
     QVERIFY(titles.contains("Cycle Image Filter"));
+    QVERIFY(titles.contains("Previous Image Filter"));
   }
   // A context-menu row whose action is unavailable is not in the menu at all, the desktop's version of
   // the browser's hide-not-disable (contextMenu.js syncState). The menu bar keeps its greyed rows.

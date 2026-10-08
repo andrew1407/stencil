@@ -1,7 +1,7 @@
 #pragma once
-// Three-zone drop overlay on the MAIN WINDOW behind the modal Projects dialog (browser projects-modal
-// drag zones): open here / new window / remove. Visual + a cursor poll only; the dialog decides the
-// ACTION from the release position via zoneAt(). Header-only and Q_OBJECT-free, so no MOC.
+// Three-zone drop overlay over the whole MAIN WINDOW behind the Projects dialog (browser projects-modal
+// drag zones, which cover the page): open here / new window / remove. Visual + a cursor poll only; the
+// dialog decides the ACTION from the release position via zoneAt(). Header-only and Q_OBJECT-free.
 #include "iconSet.hpp"
 
 #include <QColor>
@@ -40,12 +40,16 @@ namespace stencil::gui {
       });
     }
 
-    // `dialogFrameGlobal` (global coords) is not treated as a zone. Fills the parent widget.
-    void begin(const QRect& dialogFrameGlobal) {
-      dialogFrame = dialogFrameGlobal;
+    // `dialog` is never a zone. Fills the parent window, and stays under a dialog shown inside it
+    // (the popover form), as the browser's zones lie under the card.
+    void begin(QWidget* dialog) {
+      dialogFrame = dialog->isWindow() ? dialog->frameGeometry()
+                                       : QRect(dialog->mapToGlobal(QPoint(0, 0)), dialog->size());
       if (parentWidget()) setGeometry(parentWidget()->rect());
       hover = Zone::NONE;
       raise();
+      for (QWidget* w = dialog; w && !w->isWindow(); w = w->parentWidget())
+        if (w->parentWidget() == parentWidget()) { stackUnder(w); break; }
       show();
       poll.start();
     }

@@ -8,6 +8,7 @@
 #include "../../support/modal/imageAnchor.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include "../../support/uiTimings.hpp"
+#include "colorDrag.hpp"
 #include "tipContent.hpp"
 
 namespace stencil::gui {
@@ -31,6 +32,8 @@ namespace stencil::gui {
     w.nameBar.blankColorBtn->setToolTip("Blank background color — recolor this blank image (keeps your lines)");
     w.nameBar.blankColorBtn->setVisible(false);
     QObject::connect(w.nameBar.blankColorBtn, &QToolButton::clicked, &w, [this] { w.parts.projects.setActiveBlankColor(); });
+    support::installColorDrag(w.nameBar.blankColorBtn, {[this] { return QColor(w.docSource.blankColor); },
+                                                        [this](const QColor& c) { w.parts.projects.applyBlankColor(c); }});
 
     // Dialog icons answer dblclick / right-click with the compact popover; a plain click is
     // deferred one double-click interval because exec() blocks.

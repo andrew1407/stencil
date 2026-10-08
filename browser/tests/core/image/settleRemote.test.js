@@ -56,7 +56,7 @@ const rig = ({ link = null, answers = true, onOriginal = () => {} } = {}) => {
       defaultCropRect: () => ({ x: 0, y: 0, width: 4, height: 3 }), rebuildCroppedImage() {}, restoreView: () => false,
     },
     history: { push: (m) => calls.pushes.push(m.lines.length), reset: () => { calls.resets++; } },
-    renderer: { redraw() {}, restingBase: () => ({}) }, coordTable: { update() {} }, updateButtons() {}, deselectLine() {},
+    renderer: { redraw() {}, restingBase: () => ({}) }, coordTable: { update() {} }, hideSelectionPanels() {}, updateButtons() {}, deselectLine() {},
     updateInfo() {}, updateCoordStatus() {},
     storage: { save() {}, saveSoon() {}, promoteTemporaryToProject() {}, store: { getMeta: () => null } },
     tabs: { reportActive() {}, reportIncognito() {} },

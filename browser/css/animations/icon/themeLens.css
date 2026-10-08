@@ -1,0 +1,30 @@
+/* The theme lens (js/ui/drag/themeLens.js): a still copy of the page in the other theme, seen
+   through a circle on the pointer and ringed by a thin rim. Above every window and menu; the
+   drag's ghost (100005) rides over it. */
+/* `all: initial` first: the copy's root inherits nothing from the page, as the page's root does not. */
+.theme-lens {
+    all: initial;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 100004;
+}
+/* A white line on the edge between two dark ones, as the compare divider is, so it reads over
+   either theme (desktop ThemeLens paints the same two passes). */
+.theme-lens-rim {
+    position: fixed;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 100004;
+    box-shadow: 0 0 0 0.75px rgba(255, 255, 255, 0.86), inset 0 0 0 0.75px rgba(255, 255, 255, 0.86),
+                0 0 0 1.5px rgba(0, 0, 0, 0.43), inset 0 0 0 1.5px rgba(0, 0, 0, 0.43);
+}
+/* The copy is one instant of the page: nothing in it plays (its moving parts are handed their
+   present values instead). */
+html.theme-copy, html.theme-copy *, html.theme-copy *::before, html.theme-copy *::after {
+    animation: none !important;
+    transition: none !important;
+}

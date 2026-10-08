@@ -96,6 +96,12 @@ stencil_headless_test(stencil_imageanchor_headless
   SOURCES tests/support/modal/imageAnchor.headless.cpp
   LIBS Qt6::Widgets)
 
+# A dialog opened at a point (support/modal DialogLanding): centred on it and kept on the screen,
+# claimed by the next dialog alone, still flown out of its opener.
+stencil_headless_test(stencil_dialoglanding_headless
+  SOURCES tests/support/modal/dialogLanding.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test)
+
 # The window backdrop (support/ModalBackdrop): the browser's scrim + blur, on its switch.
 stencil_headless_test(stencil_modalbackdrop_headless
   SOURCES tests/support/modal/modalBackdrop.headless.cpp

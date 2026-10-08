@@ -120,6 +120,7 @@ classDiagram
 | Double-click reset | `installDblReset` (`lib/control/dblReset.js`) on the Options page and the popup | The editor's twin: a select or checkbox returns to its default through `change`; Options still saves on Save |
 | Anchored entrance | `growFrom` (`lib/control/dropdownMenu.js`), the Options accent picker, the logo's colour menu | The editor's twin: a list grows out of the point its particle cloud flies from — the caret, or the logo's centre |
 | Alt peek | `wireAltPeek` (`lib/tip/altPeek.js`) over the ported `createModalOpenGesture`, on every enhanced select, the accent picker and the logo's colour menu (`lib/accent/logoAccent.js`) | The editor's twin: Alt+hover peeks a list, which lingers if Alt is released over it and closes otherwise; a click-opened list ignores Alt; on the logo's menu a release on a colour picks it (`wireReleasePick`) |
+| Press-drag pick | `wireDragPick` (`lib/control/dropdownMenu.js`, the ported `createDragPick` machine) on every enhanced select and the Options accent picker | The editor's twin: a press on the trigger dragged past the slop opens the list and marks the row under the pointer; released on a row it is that row's click, off the list a close with no change; a plain click stays the trigger's |
 
 ## Design
 

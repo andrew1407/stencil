@@ -54,6 +54,14 @@ stencil_headless_test(stencil_partialpaint_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
+# The logo drag's clean view (CanvasScene::setCleanPreview): the live paint alone, never a render.
+stencil_headless_test(stencil_cleanpreview_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/canvas/paint/cleanPreview.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
+
 # The dash table in px at every line width (canvas/draw/strokeDash.hpp over constants.json).
 stencil_headless_test(stencil_strokedash_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
@@ -147,6 +155,19 @@ stencil_headless_test(stencil_canvashistory_headless
 stencil_headless_test(stencil_lineunion_headless
   SOURCES tests/model/lineUnion.headless.cpp src/model/lineUnion.cpp
   LIBS stencil_core Qt6::Core)
+
+# Model seam: the pointer's hit tests over what the scene draws (model/markHits.hpp over core hitTest).
+stencil_headless_test(stencil_markhits_headless
+  SOURCES tests/model/markHits.headless.cpp
+  LIBS stencil_core Qt6::Core)
+
+# Hidden points and lines out of reach of every pointer path, on a live offscreen canvas.
+stencil_headless_test(stencil_hiddenmarks_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/canvas/input/hiddenMarks.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets)
 
 # Stroke growth (canvas/draw/strokeGrowth.hpp): where a just-added vertex is at a given instant.
 stencil_headless_test(stencil_strokegrowth_headless

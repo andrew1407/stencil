@@ -11,12 +11,16 @@
 
 class QLabel;
 class QListWidgetItem;
+class QMenu;
 class QPushButton;
 class QTimer;
 class QVariantAnimation;
 class QWidget;
 
 namespace stencil::gui {
+
+  struct BatchDirections { bool toServer = false; bool toLocal = false; };
+  BatchDirections batchDirectionsFor(int locals, int remotes, bool haveServers);
 
   struct ProjectsBatchParts {
     QWidget* batchSelectedGroup = nullptr;
@@ -56,6 +60,8 @@ namespace stencil::gui {
     QPoint pressPos;
     bool pressOnCheck = false;
     bool rowDragging = false;
+    QString openServerUrl;   // with openServerId, the server project this window holds
+    QString openServerId;
   };
 
 }  // namespace stencil::gui

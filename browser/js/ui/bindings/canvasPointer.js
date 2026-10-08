@@ -2,7 +2,7 @@ import { perFrame } from '../../utils.js';
 import { deselectEmptyArea } from '../../core/line/selection.js';
 import { canvasClick } from '../../core/pointer/canvasClick.js';
 import { canvasMouseMove, canvasDblClick } from '../../core/pointer/hoverController.js';
-import { applyLinesListHover } from '../panel/linesList.js';
+import { applyLinesListHover } from '../panel/lines/list.js';
 import { updateCoordStatus } from '../panel/unitDisplay.js';
 export function wireCanvasPointer(app) {
   app.canvas.addEventListener('click', e => canvasClick(app, e));

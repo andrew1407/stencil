@@ -5,6 +5,7 @@
 #include "RemoteState.hpp"
 #include "ServerClient.hpp"
 #include "../../support/control/reveal/controlReveal.hpp"
+#include "../../support/drag/colorDrag.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/motionPrefs.hpp"
 
@@ -18,7 +19,7 @@ namespace stencil::gui {
 
   // Qt has no `visibility: hidden` — a hidden widget leaves its layout; an opacity effect paints it out while it keeps its slot.
   void ProjectTitleController::setPaintedOut(QWidget* widget, bool out) {
-    static constexpr const char* STATE_PROP = "stencilPaintedOut";
+    static constexpr const char* STATE_PROP = support::PAINTED_OUT_PROPERTY;
     if (!widget) return;
     // The LOGICAL state lives in a property: a veil mid-flight reads as "half out" and desynced the transitions.
     const QVariant prev = widget->property(STATE_PROP);

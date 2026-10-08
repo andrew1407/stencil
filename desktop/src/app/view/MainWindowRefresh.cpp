@@ -93,6 +93,7 @@ namespace stencil::gui {
     if (tools.imageFilter) tools.imageFilter->setEnabled(true);
     if (tools.filterColorBtn) tools.filterColorBtn->setEnabled(true);
     if (acts.cycleFilter) acts.cycleFilter->setEnabled(true);
+    if (acts.cycleFilterPrev) acts.cycleFilterPrev->setEnabled(true);
     // restoreSession() ignores a session with no image and no lines, so saving one is a true no-
     // op.
     acts.saveSession->setEnabled(hasImg || hasLines);

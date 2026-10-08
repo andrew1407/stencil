@@ -1,6 +1,8 @@
 import { CHANGE, changed } from '../app/changes.js';
-// The single/multi selection set and the two ways to change it (⌘/Ctrl+Shift+click on the
-// canvas, a click in the Lines tab).
+import { clampThickness, clampPointSize } from '../settings/limits.js';
+// The single/multi selection set and the ways to change it (⌘/Ctrl+Shift+click on the canvas, a
+// click in the Lines tab), and one line's own style by index, the path the bar and the rows share.
+// Desktop twin: canvas/draw/CanvasSelection.cpp and CanvasLineEdit.cpp.
 
 // Single-select: `selectedLines` is empty and this is [selectedLineIdx]. Always in range.
 export const selectedIndices = (app) => {
@@ -42,14 +44,57 @@ export const toggleLineSelection = (app, idx) => {
 };
 
 // "N lines selected" in the status line while multi-selecting (2+). Mirrors the desktop status bar.
-export const updateMultiSelectStatus = (app) => {
+export const paintMultiSelectStatus = (app) => {
   const el = document.getElementById('coord-status');
   if (!el) return;
   const n = app.selectedLines.length;
   if (n >= 2) el.textContent = `${n} lines selected — ⌘/Ctrl+Shift+click to add/remove · Alt+Shift+drag to move all · Ctrl+Shift+scroll to rotate all`;
   else if (el.dataset.multi) el.textContent = '';
   el.dataset.multi = n >= 2 ? '1' : '';
+};
+
+export const updateMultiSelectStatus = (app) => {
+  paintMultiSelectStatus(app);
   changed(app, CHANGE.selection);
+};
+
+// A line set replaced whole (undo, redo, an install, a clear) keeps no index into the old one; the
+// points table falls back to the stroke in progress, else the last line (desktop panelLine).
+export const settleReplacedLines = (app) => {
+  app.selectedLineIdx = -1;
+  app.selectedLines = [];
+  app.focusedPtIdx = -1;
+  app.hoveredPtIdx = -1;
+  app.hoverPt = null;
+  app.hoverLineIdx = -1;
+  app.listHoverLineIdx = -1;
+  app.hideSelectionPanels();
+  paintMultiSelectStatus(app);
+  const live = app.currentLine?.points.length ? app.currentLine : null;
+  const idx = live ? -1 : app.lines.length - 1;
+  app.coordTable.update(live ? live.points : (app.lines[idx]?.points ?? null), idx);
+};
+
+// The same lines moved (a turn, a flip, a crop that keeps them, an undo or redo): the selection
+// stays on the lines still there and the bar and table re-read them; with none left it settles.
+export const keepLineSelection = (app) => {
+  const n = app.lines.length;
+  const inSet = (i) => i >= 0 && i < n;
+  const held = (app.selectedLines ?? []).filter(inSet);
+  const one = held.length === 1 ? held[0] : (inSet(app.selectedLineIdx) ? app.selectedLineIdx : -1);
+  if (held.length < 2 && one < 0) { settleReplacedLines(app); return; }
+  app.hoverPt = null;
+  app.hoverLineIdx = -1;
+  app.listHoverLineIdx = -1;
+  app.hoveredPtIdx = -1;
+  app.selectedLines = held.length >= 2 ? held : [];
+  app.selectedLineIdx = held.length >= 2 ? -1 : one;
+  if (app.selectedLineIdx >= 0) app.showSelectionPanel(app.lines[app.selectedLineIdx]);
+  else app.hideSelectionPanels();
+  paintMultiSelectStatus(app);
+  const t = inSet(app.coordLineIdx) ? app.coordLineIdx : (app.selectedLineIdx >= 0 ? app.selectedLineIdx : n - 1);
+  if (app.focusedPtIdx >= app.lines[t].points.length) app.focusedPtIdx = -1;
+  app.coordTable.update(app.lines[t].points, t);
 };
 
 // A click on the letterbox OUTSIDE the image drops the selection; canvasClick() is bound
@@ -64,18 +109,25 @@ export const deselectEmptyArea = (app, e) => {
   app.deselectLine();
 };
 
-// `commit:false` is a picker's live `input` preview; the trailing `change` commits one history step,
-// and names the line set so the Lines tab's swatch follows.
-export const applySelectionChange = (app, prop, value, { commit = true } = {}) => {
-  if (app.compareReadOnly()) return;
-  if (app.selectedLineIdx === -1) return;
-  const line = app.lines[app.selectedLineIdx];
+const CLAMP = Object.freeze({ thickness: clampThickness, pointSize: clampPointSize });
+
+// Line `idx`'s own style. `commit:false` is a live preview; the commit is one history step naming
+// the line set. A size is clamped to LIMITS, and ignored when it is no number.
+export const applyLineChange = (app, idx, prop, value, { commit = true } = {}) => {
+  const line = app.lines[idx];
+  if (!line || app.compareReadOnly()) return false;
+  const clamp = CLAMP[prop];
+  if (clamp && !Number.isFinite(value)) return false;
 // A line still on the inherit fallback ('' pointColor) pins its rendered colour first.
   if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
-  line[prop] = value;
+  line[prop] = clamp ? clamp(value) : value;
   if (commit) { app.saveHistory(); changed(app, CHANGE.lines); }
   app.renderer.redraw();
+  return true;
 };
+
+export const applySelectionChange = (app, prop, value, opts) =>
+  applyLineChange(app, app.selectedLineIdx, prop, value, opts);
 
 // The reverse of applyLinesListHover; -1 / out-of-range clears the glow.
 export const setListHoverLine = (app, idx) => {

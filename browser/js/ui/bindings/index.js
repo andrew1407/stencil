@@ -6,6 +6,7 @@ import { wireCanvasScrollbars } from '../canvas/scrollbars.js';
 import { wireScrollbarHover } from '../control/scrollbarHover.js';
 import { enhanceAllSelects } from '../control/customSelect.js';
 import { installDblReset } from '../control/dblReset.js';
+import { wireColorDrag } from '../drag/colorDrag.js';
 import { wireStyleControls } from './controls/styleControls.js';
 import { wireSelectionPanelControls } from './selectionPanel.js';
 import { wirePageAndDisplayControls } from './controls/pageAndDisplay.js';
@@ -59,6 +60,7 @@ export function wireControls(app) {
   };
   app.mirrorFlip = () => beginMirrorFlip(app.canvas.parentElement, flight(app.canvas));
   installDblReset(document);
+  wireColorDrag(app);
   // Last, so every select the layout rendered wears the app's own dropdown rather than the OS
   // one; a second pass over an already-enhanced select is a no-op.
   enhanceAllSelects(document, {

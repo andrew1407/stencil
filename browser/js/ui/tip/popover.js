@@ -140,6 +140,9 @@ export const createModalOpenGesture = ({
       if (Math.abs(x - press.x) > slop || Math.abs(y - press.y) > slop) cancelHold();
     },
     pressEnd() { cancelHold(); press = null; },
+    // A drag took the press and owns what it opens: nothing armed before it fires — a click still
+    // waiting out the double-click interval, the long press, a peek's close on Alt release.
+    dragged() { cancelClick(); cancelHold(); cancelLinger(); mode = null; press = null; },
     // The owner closed the window through its own means; without this 'sticky' leaks and a
     // later glide would close a window the user opened deliberately.
     notifyClosed() { mode = null; cancelLinger(); },

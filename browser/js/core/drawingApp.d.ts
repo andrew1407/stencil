@@ -156,14 +156,14 @@ export declare class DrawingApp {
   // ── Draw mode face ──
   syncDrawModeUI(): void;
 
-  // ── Selection (ui/panel/selectionPanel.js, ui/panel/linesList.js) ──
+  // ── Selection (ui/panel/selectionPanel.js, ui/panel/lines/list.js) ──
   applyLinesListHover(): void;
   showSelectionPanel(line: Line): void;
   hideSelectionPanels(): void;
   deselectLine(redraw?: boolean): void;
   unchainSelectedLine(): void;
 
-  // ── Hit tests (hitTest.js) ──
+  // ── Hit tests (hitTest.js over what is drawn: pointer/markHits.js) ──
   findLineAt(x: number, y: number, threshold?: number): number;
   findNearestPoint(x: number, y: number, threshold?: number): Point | null;
   findNearestPointWithIdx(x: number, y: number, threshold?: number): PointHit | null;
@@ -174,7 +174,8 @@ export declare class DrawingApp {
   beginPullOutDrag(x: number, y: number): boolean;
 
   // ── Edits ──
-  clearAllLines(): Promise<void>;
+  /** One undo step; `ask: false` skips the confirmation (the eraser dropped on the canvas). */
+  clearAllLines(opts?: { ask?: boolean }): Promise<void>;
 
   // ── History + status ──
   /** Pushes the current lines, crop, turn and filter as one undo step. */

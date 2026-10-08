@@ -27,11 +27,15 @@ export const editorAdapters = (app) => ({
   editorHistory: {
     mark: () => {
       const h = app.history;
-      return { steps: h.history.slice(), step: h.historyStep, floor: h.floor, memento: structuredClone(editorMemento(app)) };
+      return { steps: h.history.slice(), step: h.historyStep, floor: h.floor, memento: structuredClone(editorMemento(app)),
+        picked: [app.selectedLineIdx, [...(app.selectedLines ?? [])], app.coordLineIdx] };
     },
     rewind: (mark) => {
       Object.assign(app.history, { history: mark.steps.slice(), historyStep: mark.step, floor: mark.floor });
       app.restoreHistoryStep(structuredClone(mark.memento));
+      // The marked lines are back, so is what was picked on them, which a preview's install let go.
+      [app.selectedLineIdx, app.selectedLines, app.coordLineIdx] = mark.picked;
+      if (app.selectedLineIdx >= 0) app.showSelectionPanel(app.lines[app.selectedLineIdx]);
       app.renderer.redraw();
       app.updateButtons();
       app.coordTable.update();

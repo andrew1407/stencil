@@ -4,6 +4,8 @@
 #include "../../../support/motion/scrollReveal.hpp"
 #include "../../../support/menu/menuReveal.hpp"
 #include "../../../support/motion/MenuShimmer.hpp"
+#include "../../../support/menu/menuDangerRow.hpp"
+#include "../../../support/theme/theme.hpp"
 #include "../../../support/guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "chatWidgets.hpp"
@@ -59,6 +61,8 @@ namespace stencil::gui {
       }
       support::MenuShimmer shimmer(&menu);
       compactIconMenu(menu);
+      // Browser .chat-row-menu-item: the row menus hover in the accent.
+      support::markAccentRows(menu, onAccentInk(menu.palette().color(QPalette::Highlight)));
       card->setProperty("chatMenuOpen", true);
       support::revealMenu(menu, globalPos);
       QAction* picked = menu.exec(globalPos);

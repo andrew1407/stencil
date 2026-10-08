@@ -23,6 +23,12 @@ export const wireEscapeOnce = () => {
   });
 };
 
+// The shell wired over an overlay id: config/uiStrings.json `windows` names each window's overlay.
+export const shellFor = (overlayId) => {
+  for (const shell of modalShells) if (overlayId && shell.overlayId === overlayId) return shell;
+  return null;
+};
+
 // Close every open modal (optionally sparing one); returns the first shell closed. A
 // `stacked` window means two can be up at once.
 export const closeOpenModal = (except = null) => {

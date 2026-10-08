@@ -1,5 +1,6 @@
 import { notify } from '../../utils.js';
 import { editorMemento } from '../historyStack.js';
+import { keepLineSelection } from '../line/selection.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, snapCropRect, rotateEditQuarter, mirrorEdit } from '../parse/cropGeometry.js';
 
@@ -112,22 +113,18 @@ export class ImageModel {
     this.settleView({ anchor });
   }
 
-// The picture under the lines changed: clear the selection, refit (or return to `anchor`'s zoom),
+// The picture under the lines changed: the selection stays on its lines, refit (or return to `anchor`'s zoom),
 // persist; `sync: false` for a view a peer's layout brought, which the server already holds.
   settleView({ sync = true, anchor = null } = {}) {
     const app = this.app;
     app.currentLine = null;
-    app.selectedLineIdx = -1;
-    app.coordLineIdx = -1;
-    app.focusedPtIdx = -1;
-    app.hideSelectionPanels();
+    keepLineSelection(app);
     if (anchor && app.zoomPan.restoreAnchor) app.zoomPan.restoreAnchor(anchor);
     else app.zoomPan.fitToWindow();
     app.updateInfo();
     app.renderer.redraw();
     app.updateButtons();
     app.updateCoordStatus();
-    app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
     app.storage.saveSoon();
     if (sync) app.remoteSync.scheduleRemoteSync();
   }

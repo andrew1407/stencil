@@ -33,6 +33,9 @@
 
 namespace stencil::gui {
 
+  // Marks a tooltip window of its own (the canvas tip): a control drag's start takes it down.
+  inline constexpr const char* TIP_WINDOW_PROPERTY = "stencilTipWindow";
+
   // The keycaps are inline PNGs in one rich-text label, so they are LOCATED by rendering twice (as
   // is, and with the faces blanked) and diffing; each is blitted back offset.
   class TipBody : public QLabel {
@@ -101,6 +104,11 @@ namespace stencil::gui {
     void moveTo(const QPoint& globalPos);
 
     void hideTip();
+    // Gone at once with the dust it threw, and none shown while held off: a control drag owns the
+    // pointer, and a photograph of the window must catch neither.
+    void dropTip();
+    void holdOff(bool on) { heldOff = on; if (on) dropTip(); }
+    QWidget* liveDust() const { return dustFx.data(); }
 
     void shakeKeys();
 
@@ -124,6 +132,8 @@ namespace stencil::gui {
     QTimer* shakeDelay = nullptr;
     QPointer<QWidget> owner;
     bool closing = false;
+    bool heldOff = false;
+    QPointer<QWidget> dustFx;   // the last dust this tip threw, while it flies
     QDeadlineTimer placeHold{0};   // moveTo is refused until this lapses (the gather)
     QRect origin;   // global; invalid = the owner's centre
   };

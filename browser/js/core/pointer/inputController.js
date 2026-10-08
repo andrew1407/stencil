@@ -1,4 +1,5 @@
-import { HoldDrawController, holdDrawTarget } from '../draw/holdDraw.js';
+import { HoldDrawController } from '../draw/holdDraw.js';
+import { shownMarks, holdTargetAt } from './markHits.js';
 import { classifyEnd } from '../touch/gestures.js';
 import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor, holdDrawEligible } from '../draw/holdDrawView.js';
 import { touchHandlers } from '../touch/input.js';
@@ -122,12 +123,12 @@ export class InputController {
   }
 
 // The target under the press decides: a point continues that line, a body inserts a point then
-// continues, empty starts fresh.
+// continues, empty — or a mark that is hidden — starts fresh.
   #holdStart(clientX, clientY) {
     const app = this.app;
     const { x, y } = canvasCoords(app, clientX, clientY);
     this.#holdAutoEnabled = true;
-    const target = holdDrawTarget(app.lines, x, y);
+    const target = holdTargetAt(app.lines, shownMarks(app), x, y);
     this.#holdPrepend = false;
     if (target.kind === 'point') {
       app.selectedLineIdx = target.lineIdx;

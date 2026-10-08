@@ -15,6 +15,7 @@ namespace stencil::gui {
     QAction* rotateRight = nullptr;
     QAction* flipImage = nullptr;
     QAction* cycleFilter = nullptr;
+    QAction* cycleFilterPrev = nullptr;
     QAction* cycleCompare = nullptr;
     QAction* startDraw = nullptr;
     QAction* stopDraw = nullptr;
@@ -47,6 +48,7 @@ namespace stencil::gui {
     QAction* newProject = nullptr;
     QAction* saveProject = nullptr;
     QAction* clearProject = nullptr;
+    QAction* closeProject = nullptr;
     QAction* renameProject = nullptr;
     QAction* projectColor = nullptr;
     QAction* projectColorClear = nullptr;

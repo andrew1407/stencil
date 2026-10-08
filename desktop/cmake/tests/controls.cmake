@@ -44,6 +44,12 @@ stencil_headless_test(stencil_shimmersweep_headless
   SOURCES tests/support/motion/shimmerSweep.headless.cpp
   LIBS Qt6::Widgets)
 
+# The hover sweep on every selector kind (support/motion/ShimmerOverlay.hpp), driven by hover-in.
+stencil_headless_test(stencil_selectorshimmer_headless
+  SOURCES tests/support/motion/selectorShimmer.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Double-click reset (support/control/dblReset.hpp).
 stencil_headless_test(stencil_dblreset_headless
   SOURCES tests/support/control/dblReset.headless.cpp

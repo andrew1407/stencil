@@ -32,12 +32,13 @@
 namespace stencil::gui {
 
   void MainWindow::applyTheme() {
-    const bool dark = support::forcedDark().value_or(resolveDark(settings.themeMode));
+    const bool dark = parts.theme.paintingDark();
     support::setSkinDark(dark);   // before any icon is asked for: the skin's art has two faces
     // A real palette change gets the browser's flood-from-the-centre wipe. Never under reduced
     // motion, and never while one is in flight - stacking snapshots tore the window.
     const bool paletteMoved = dark != painted.dark || settings.accentColor != painted.accent;
-    const bool swapping = painted.done && !support::motionReduced() && !painted.swapping() && paletteMoved;
+    const bool swapping = painted.done && !support::motionReduced() && !painted.swapping() && paletteMoved &&
+                          !painted.silent;
     // Start the wipe at the icon that owns the change, as the browser blooms from its toggle; the
     // cursor may be up at the menu bar.
     ThemeSwapOverlay* wipe = nullptr;

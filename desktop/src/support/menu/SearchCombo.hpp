@@ -14,6 +14,8 @@ class QSortFilterProxyModel;
 
 namespace stencil::gui {
 
+  class ShimmerOverlay;
+
   // `searchable` false drops the search row but keeps the themed popup: the OS popup is
   // drawn by macOS and uncss-able. Only the long ISO page lists keep the box.
   class SearchComboBox : public QComboBox {
@@ -32,8 +34,12 @@ namespace stencil::gui {
 
   protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
   private:
+    // Press, drag past the slop, release: on a row it picks it as a click does, off the list it
+    // closes it (browser dropdownMenu.js wireDragPick). Qt's own combo list already does this.
+    bool dragPick(QObject* watched, QEvent* event);
     void ensurePopup();
     void choose(int proxyRow);
     void restorePreview();          // put the committed value back after a hover preview
@@ -55,6 +61,10 @@ namespace stencil::gui {
     // Browser toggle: the outside-press auto-close fires first, so without this timestamp
     // the combo click would instantly reopen the popup.
     QElapsedTimer lastHide;
+    QPoint dragFrom;            // the press that opened the list, while its button is held
+    bool dragArmed = false;
+    bool dragging = false;      // …and has moved past the slop
+    ShimmerOverlay* sweep = nullptr;   // its own hover sweep, held while its list grabs the pointer
   };
 
 }

@@ -38,6 +38,9 @@ namespace stencil::gui {
     QPointer<QAction> menuRowAction;
     QRect menuRowRect;
     QPointer<QAction> pendingAction;      // the action a deferred click will trigger
+    // A double-click's popover, opened on that press's release (the browser's dblclick follows the
+    // second mouseup), so a drag starting from the press can still take the gesture over.
+    QPointer<QAction> dblClickAction;
     QPointer<QDialog> active;             // the popover being exec'd (outside-click close)
     QPointer<QWidget> openAnchor;   // the icon `active` grew out of
     // One Alt press propagates up the parents and meets the app-wide filter at every step: act once.

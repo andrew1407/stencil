@@ -21,6 +21,9 @@ export declare function resizeRect(
   limits?: { minW?: number; minH?: number; margin?: number },
 ): Rect;
 
+/** The floor a drag holds `box` above: MIN_W × MIN_H, raised by its data-min-w / data-min-h. */
+export declare function floorOf(box: HTMLElement | null): { minW: number; minH: number };
+
 /** Makes a modal's edges resize its box. `reset()` drops the held size (called on every open). */
 export declare function wireModalResize(
   overlay: HTMLElement | null,

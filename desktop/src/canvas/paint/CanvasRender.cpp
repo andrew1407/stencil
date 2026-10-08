@@ -23,6 +23,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     if (!keepZoom) scale = 1.0;
     filterDirty = true;
@@ -42,6 +43,7 @@ namespace stencil::gui {
     CanvasScene::loadFromImage(img, cropRect, rotationQuarters, mirrored);
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     scale = 1.0;
     setFixedSize(QSize(qRound(image.width() * scale),
@@ -81,6 +83,7 @@ namespace stencil::gui {
     applyDefaultsToCurrent();
     selectedPoint = -1;
     selectedLineIdx = -1;
+    selectedLines.clear();
     continueLineIdx = continueInsertIdx = -1;
     scale = 1.0;
     filterDirty = true;

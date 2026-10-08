@@ -28,6 +28,8 @@ export interface ModalOpenGesture {
   pressStart(p?: { x?: number; y?: number; touch?: boolean }): void;
   pressMove(p?: { x?: number; y?: number }): void;
   pressEnd(): void;
+  /** A drag took the press: a pending click, the long press and a peek's close are dropped. */
+  dragged(): void;
   notifyClosed(): void;
 }
 

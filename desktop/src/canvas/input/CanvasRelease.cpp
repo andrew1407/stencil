@@ -1,6 +1,5 @@
 #include "CanvasWidget.hpp"
 #include "gestureRoutes.hpp"
-#include "hitTest.hpp"
 
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
@@ -53,7 +52,7 @@ namespace stencil::gui {
     if (event->button() == Qt::LeftButton && !isDrawing && !compareReadOnly()) {
       const QPoint pos = event->position().toPoint();
       const core::Point ip = toImageSpace(pos.x(), pos.y());
-      const int idx = core::findLineAt(lines, ip.x, ip.y, lineHitRadius());
+      const int idx = model::lineAt(lines, shownMarks(), ip.x, ip.y, lineHitRadius());
       if (idx != -1) {
         gesture.end(Gesture::PAN);   // the press that opened this double-click armed it
         unsetCursor();

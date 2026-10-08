@@ -42,10 +42,41 @@ namespace stencil::support {
   // Where a close rises to when the home it names is folded away (browser shell.js: up, not the canvas).
   QRect riseRect(const QDialog& dlg);
 
+  // A box's top-left on `at`, moved left or up as far as keeps it inside `avail` (as given when invalid).
+  inline QPoint topLeftAt(QPoint at, const QSize& box, const QRect& avail) {
+    if (!avail.isValid()) return at;
+    at.setX(qMax(qMin(at.x(), avail.right() + 1 - box.width()), avail.left()));
+    at.setY(qMax(qMin(at.y(), avail.bottom() + 1 - box.height()), avail.top()));
+    return at;
+  }
+
+  // A box's top-left with its centre on `centre`, kept inside `avail` (unclamped when invalid).
+  inline QPoint centredTopLeft(const QPoint& centre, const QSize& box, const QRect& avail) {
+    return topLeftAt(QPoint(centre.x() - box.width() / 2, centre.y() - box.height() / 2), box, avail);
+  }
+
+  // A window a drop opens grows out of a box this wide on the cursor (browser DROP_ANCHOR_PX, ui/drag/iconDrag.js).
+  inline constexpr int CURSOR_ORIGIN_PX = 24;
+  inline QRect cursorOrigin(const QPoint& at) {
+    return QRect(at - QPoint(CURSOR_ORIGIN_PX / 2, CURSOR_ORIGIN_PX / 2), QSize(CURSOR_ORIGIN_PX, CURSOR_ORIGIN_PX));
+  }
+
+  // While in scope, the next dialog to show opens with its frame's top-left on `at` (GLOBAL), kept on
+  // its host's screen, and grows out of the cursor there (its close still flies to its opener); a
+  // later dialog is untouched.
+  class DialogLanding {
+   public:
+    explicit DialogLanding(const QPoint& at);
+    ~DialogLanding();
+    DialogLanding(const DialogLanding&) = delete;
+    DialogLanding& operator=(const DialogLanding&) = delete;
+  };
+
   // The same flight for a non-modal window: dismissWindow() hides it and flies a snapshot back.
   // veilForReveal() goes BEFORE the window maps: shown first, it stood whole for a frame.
   void veilForReveal(QWidget& win);
-  void revealWindow(QWidget& win, QWidget* anchor);
+  // `from` (GLOBAL) is where the reveal grows out of in place of `anchor`, the window it flies over.
+  void revealWindow(QWidget& win, QWidget* anchor, const QRect& from = QRect());
   void dismissWindow(QWidget& win, QWidget* anchor);
 
   // Non-native picker centred on `parent`; Cancel -> invalid QColor(). `preview` is called with every

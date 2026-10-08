@@ -44,12 +44,16 @@ export const resizeFloatRect = (r, dir, dx, dy, vw, vh) => {
   return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
 };
 
+// The float rect `r` moved so its top-left corner sits on (x, y), kept inside the viewport.
+export const floatRectAt = (r, x, y, vw, vh) => clampFloatRect({ ...r, x, y }, vw, vh);
+
 // Which edge drop zone a point falls in during a header drag; corners take the nearest edge.
 export const DOCK_ZONE_BAND = 72;
+export const DOCK_SIDES = Object.freeze(['left', 'right', 'top', 'bottom']);
 export const dockZoneAt = (x, y, vw, vh, band = DOCK_ZONE_BAND) => {
   const dist = { left: x, right: vw - x, top: y, bottom: vh - y };
   let best = null;
-  for (const side of ['left', 'right', 'top', 'bottom']) {
+  for (const side of DOCK_SIDES) {
     if (dist[side] <= band && (best == null || dist[side] < dist[best])) best = side;
   }
   return best;

@@ -2,6 +2,7 @@
 #include "accentDefaults.hpp"
 #include "defaultVisuals.hpp"
 #include "canvasCore.hpp"
+#include "markHits.hpp"
 #include "premulImage.hpp"
 
 #include <QColor>
@@ -85,6 +86,8 @@ namespace stencil::gui {
                      const QString& style, const QString& pointColor = QString());
     void setShowPoints(bool on);
     void setShowLines(bool on);
+    // What the paint path draws, so all a pointer may hit (model/markHits.hpp).
+    model::ShownMarks shownMarks() const { return {showPoints, showLines}; }
     void setDark(bool dark);
     void setAccent(const QString& accentKey);
     void setHighlightColors(const QColor& selGlow, const QColor& hoverRing,
@@ -115,6 +118,10 @@ namespace stencil::gui {
     bool compareReadOnly() const { return effectiveCompareMode() != CompareMode::NONE; }
     // True where the EDITED image shows — the only place the layout is drawn; gates the hover tip.
     bool compareShowsEdited(double imageX, double imageY) const;
+    // The logo drag's clean view, a view flag: the live paint shows the bare picture and every
+    // setting stays; renderToImage and renderCopy never read it.
+    void setCleanPreview(bool on);
+    bool getCleanPreview() const { return cleanPreview; }
 
     // Export variants (browser export/service.js): "current" filter + lines, "original" crop and
     // rotation only, "tint" filter only, "split" the composite (`withDivider` bakes the bar in).
@@ -191,6 +198,7 @@ namespace stencil::gui {
     double compareSplit = 0.5;           // divider position (0..1) for the split modes
     bool compareHoldOriginal = false;    // Alt+Shift+O momentary "peek original"
     bool blankPage = false;              // generated solid-fill page (set by the owner)
+    bool cleanPreview = false;
     quint64 pictureGen = 0;
     // A render copy's palette: paintPalette's cache belongs to the GUI thread.
     std::shared_ptr<const Palette> pinnedPalette;

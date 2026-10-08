@@ -31,6 +31,7 @@ export const makeApp = (over = {}) => {
     renderer: { redraw() { record.redraw++; } },
     strokeFx: { suspend() {}, resume() {} },
     coordTable: { update: (...a) => record.coordUpdate.push(a) },
+    hideSelectionPanels() {},
     ...over,
   };
   return app;

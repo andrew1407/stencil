@@ -100,11 +100,10 @@ class MainWindowGuiTest : public QObject {
                             "chatClear zoomCombo controlsPill projectNameField openImageBtn "
                             "openAnotherImageBtn drawFaceBtn drawFaceBtn formulaPill"));
 
-    // The canvas overlays stack in the order the ctor makes them: incognito frame, then the
-    // project drag zones. The split image-drop zones are the WINDOW's child, not the viewport's.
+    // The canvas overlay is the incognito frame alone: the project drag zones and the split
+    // image-drop zones are the WINDOW's children, so they cover it whole.
     auto* viewport = win.findChild<QScrollArea*>("canvasViewport")->viewport();
-    QCOMPARE(childOrder(viewport),
-             QStringLiteral("stencil::gui::CanvasWidget stencil::gui::IncognitoOverlay QWidget"));
+    QCOMPARE(childOrder(viewport), QStringLiteral("stencil::gui::CanvasWidget stencil::gui::IncognitoOverlay"));
 
     // The central column: the canvas row, then the coord readout, then the drop hint.
     QStringList central;

@@ -1,7 +1,7 @@
 import { setVal, notify } from '../../utils.js';
 import { clampThickness } from '../settings/limits.js';
 import { canvasCoords } from '../pointer/canvasCoords.js';
-import { selectedIndices, updateMultiSelectStatus } from './selection.js';
+import { selectedIndices, updateMultiSelectStatus, paintMultiSelectStatus } from './selection.js';
 import { CHANGE, changed } from '../app/changes.js';
 
 // Point / line mutation shared by the coord table, the Lines tab and the console facade.
@@ -21,6 +21,34 @@ export const setPointCoord = (app, lineIdx, ptIdx, axis, valuePx) => {
   return this;
 };
 
+// Line `idx` leaves the set: a selection or table target on it goes, one past it moves down, and a
+// multi-selection left holding one line is a single selection again (desktop removeLineByIndex).
+const dropLine = (app, idx) => {
+  app.lines.splice(idx, 1);
+  app.hoverPt = null;
+  app.hoverLineIdx = -1;
+  app.listHoverLineIdx = -1;
+  const past = (i) => (i > idx ? i - 1 : i);
+  if (app.selectedLineIdx === idx) app.deselectLine(false);
+  else app.selectedLineIdx = past(app.selectedLineIdx);
+  if (app.coordLineIdx === idx) { app.coordLineIdx = -1; app.focusedPtIdx = -1; }
+  else app.coordLineIdx = past(app.coordLineIdx);
+  if (!app.selectedLines?.length) return;
+  app.selectedLines = app.selectedLines.filter((i) => i !== idx).map(past);
+  if (app.selectedLines.length === 1) {
+    app.selectedLineIdx = app.coordLineIdx = app.selectedLines[0];
+    app.selectedLines = [];
+    app.focusedPtIdx = -1;
+    app.showSelectionPanel(app.lines[app.selectedLineIdx]);
+  }
+  paintMultiSelectStatus(app);
+};
+
+const showTableTarget = (app) => {
+  const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
+  app.coordTable.update(target ? target.points : null, app.coordLineIdx);
+};
+
 // Emptying a committed line drops the line too.
 export const removePoint = (app, lineIdx, ptIdx) => {
   const line = lineIdx === -1 ? app.currentLine : app.lines[lineIdx];
@@ -31,11 +59,8 @@ export const removePoint = (app, lineIdx, ptIdx) => {
   app.hoverLineIdx = -1;
   app.listHoverLineIdx = -1;
   if (line.points.length === 0 && lineIdx !== -1) {
-    app.lines.splice(lineIdx, 1);
-    if (app.selectedLineIdx === lineIdx) app.deselectLine(false);
-    app.coordLineIdx = -1;
-    app.focusedPtIdx = -1;
-    app.coordTable.update(null);
+    dropLine(app, lineIdx);
+    showTableTarget(app);
   } else {
     if (app.focusedPtIdx >= line.points.length) app.focusedPtIdx = line.points.length - 1;
     app.coordTable.update(line.points, lineIdx);
@@ -48,20 +73,11 @@ export const removePoint = (app, lineIdx, ptIdx) => {
 
 export const removeLine = (app, idx) => {
   if (idx < 0 || idx >= app.lines.length) return this;
-  app.lines.splice(idx, 1);
-  app.hoverPt = null;
-  app.hoverLineIdx = -1;
-  app.listHoverLineIdx = -1;
-// Drop the selection / coord target if it pointed at the removed line, else shift it down.
-  if (app.selectedLineIdx === idx) app.deselectLine(false);
-  else if (app.selectedLineIdx > idx) app.selectedLineIdx -= 1;
-  if (app.coordLineIdx === idx) { app.coordLineIdx = -1; app.focusedPtIdx = -1; }
-  else if (app.coordLineIdx > idx) app.coordLineIdx -= 1;
+  dropLine(app, idx);
   app.saveHistory();
   app.renderer.redraw();
   changed(app, CHANGE.lines, CHANGE.selection);
-  const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
-  app.coordTable.update(target ? target.points : null, app.coordLineIdx);
+  showTableTarget(app);
   return this;
 };
 
@@ -91,8 +107,7 @@ export const removeSelectedLines = (app) => {
   app.saveHistory();
   app.renderer.redraw();
   changed(app, CHANGE.lines, CHANGE.selection);
-  const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
-  app.coordTable.update(target ? target.points : null, app.coordLineIdx);
+  showTableTarget(app);
   return this;
 };
 
@@ -110,6 +125,7 @@ export const adjustThicknessAtCursor = (app, e, scheduleSave) => {
   const newT = clampThickness((line.thickness || 1) + delta);
   if (newT === line.thickness) return true;
   line.thickness = newT;
+  changed(app, CHANGE.lines);
   if (lineIdx === app.selectedLineIdx) {
     setVal('sel-thickness', newT);
     setVal('fs-sel-thickness', newT);

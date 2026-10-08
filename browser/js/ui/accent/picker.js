@@ -1,6 +1,6 @@
 import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../../core/settings/accents.js';
 import { icon } from '../icons.js';
-import { showMenu, hideMenu } from '../control/dropdownMenu.js';
+import { showMenu, hideMenu, wireDragPick } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 import { isTypingInFocus } from '../../utils.js';
@@ -216,6 +216,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
 
   trigger.addEventListener('click', (e) => { e.preventDefault(); menu.hidden ? open() : close(); });
   const peek = wireAltPeek(mount, menu, { open, close, isTyping: isTypingInFocus });
+  wireDragPick(trigger, menu, { open, close });
   syncTrigger();
   return { set: (k) => { value = k; syncTrigger(); } };
 }

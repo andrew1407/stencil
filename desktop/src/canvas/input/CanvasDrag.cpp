@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
 
 // The drags a press can begin: Alt-drag, pull-out, zoom rect, Ctrl-click.
 
@@ -16,7 +15,7 @@ namespace stencil::gui {
     if ((mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier) && beginPullOut(ip)) return;
 
     if (mods & Qt::ShiftModifier) {
-      const int li = core::findLineAt(lines, ip.x, ip.y, lineHitRadius());
+      const int li = model::lineAt(lines, shownMarks(), ip.x, ip.y, lineHitRadius());
       if (li != -1) {
         gesture.kind = Gesture::LINE;
         gesture.lineIdx = li;
@@ -32,22 +31,21 @@ namespace stencil::gui {
       }
     }
 
-    if (auto idx = core::nearestPointInLine(currentLine.points, ip.x, ip.y,
-                                            grabHitRadius())) {
+    if (auto idx = model::pointIn(currentLine.points, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       gesture.kind = Gesture::POINT;
       gesture.lineIdx = -1;  // in-progress line
       gesture.ptIdx1 = *idx;
       setCursor(Qt::SizeAllCursor);
       return;
     }
-    if (auto pt = core::findNearestPoint(lines, ip.x, ip.y, grabHitRadius())) {
+    if (auto pt = model::pointAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       gesture.kind = Gesture::POINT;
       gesture.lineIdx = pt->lineIdx;
       gesture.ptIdx1 = pt->ptIdx;
       setCursor(Qt::SizeAllCursor);
       return;
     }
-    if (auto seg = core::findNearestSegment(lines, ip.x, ip.y, grabHitRadius())) {
+    if (auto seg = model::segmentAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       gesture.kind = Gesture::SEGMENT;
       gesture.lineIdx = seg->lineIdx;
       gesture.ptIdx1 = seg->ptIdx1;
@@ -65,10 +63,10 @@ namespace stencil::gui {
   bool CanvasWidget::beginPullOut(const core::Point& ip) {
     chain::PullTarget target;
     int lineIdx = -1;
-    if (auto pt = core::findNearestPoint(lines, ip.x, ip.y, grabHitRadius())) {
+    if (auto pt = model::pointAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       lineIdx = pt->lineIdx;
       target = {true, pt->ptIdx};
-    } else if (auto seg = core::findNearestSegment(lines, ip.x, ip.y, grabHitRadius())) {
+    } else if (auto seg = model::segmentAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       lineIdx = seg->lineIdx;
       target = {false, seg->ptIdx2};
     } else {
@@ -115,7 +113,7 @@ namespace stencil::gui {
   // Ctrl+left (browser canvasClick): insert on the nearest segment, else add a connected point.
   // False only for drawing + Ctrl + no segment, which breaks the chain (CanvasChainBreak.cpp).
   bool CanvasWidget::handleCtrlClick(const core::Point& ip) {
-    if (auto seg = core::findNearestSegment(lines, ip.x, ip.y, grabHitRadius())) {
+    if (auto seg = model::segmentAt(lines, shownMarks(), ip.x, ip.y, grabHitRadius())) {
       insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);
       // Inserting shifts later indices right; keep the continuation tail anchored.
       if (seg->lineIdx == continueLineIdx &&

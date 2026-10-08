@@ -27,7 +27,7 @@ namespace stencil::gui {
     aspect = core::cropAspect(this->pageWidthCm, this->pageHeightCm, album);
     cropBox = initial.width > 0 ? initial : core::centeredCrop(iw, ih, aspect);
 
-    if (autoFitScreen) setFitBox(previewFitBox(screenAvail(parent)));
+    if (autoFitScreen) setPreferredBox(previewFitBox(screenAvail(parent)));
     setMouseTracking(true);
   }
 
@@ -40,9 +40,13 @@ namespace stencil::gui {
     if (!sameSize) {
       settleRect();
       cropBox = core::centeredCrop(iw, ih, aspect);
-      // The box last FIT INTO, not scale * the new pixels: scale is the previous image's ratio, so a
-      // portrait swapped for a landscape landed the widget far outside PREVIEW_MAX_W/H.
-      setFitBox(fitBox);
+      // The box last FIT INTO, not the old hint: that is the previous image's shape, so a portrait
+      // swapped for a landscape landed the widget far outside PREVIEW_MAX_W/H.
+      if (pinned) {
+        setFitBox(fitBox);
+      } else {
+        setPreferredBox(fitBox);
+      }
       emit cropChanged();
     }
     update();
@@ -50,14 +54,35 @@ namespace stencil::gui {
 
   // Fit the original into the box (modest upscaling keeps small images' handles usable). A degenerate
   // box must NEVER fall back to scale 1.0 - that is NATIVE pixels, which dwarf the dialog.
-  void CropPreview::setFitBox(const QSize& box) {
-    if (box.width() <= 0 || box.height() <= 0) return;   // keep the last good fit
+  bool CropPreview::fitInto(const QSize& box) {
+    if (box.width() <= 0 || box.height() <= 0) return false;   // keep the last good fit
     fitBox = box;
     const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw),
                               static_cast<double>(box.height()) / std::max(1, ih));
-    scale = s > 0 ? s : 1.0;
-    setFixedSize(qRound(iw * scale) + 2 * INSET, qRound(ih * scale) + 2 * INSET);
+    hint = QSize(qRound(iw * s) + 2 * INSET, qRound(ih * s) + 2 * INSET);
+    return true;
+  }
+
+  void CropPreview::setFitBox(const QSize& box) {
+    if (!fitInto(box)) return;
+    pinned = true;
+    setFixedSize(hint);
     update();
+  }
+
+  // The window's free room decides the size; the picture re-fits whatever it is (imageRect).
+  void CropPreview::setPreferredBox(const QSize& box) {
+    if (!fitInto(box)) return;
+    pinned = false;
+    setMinimumSize(STAGE_MIN + 2 * INSET, STAGE_MIN + 2 * INSET);
+    setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    updateGeometry();
+    update();
+  }
+
+  QSize CropPreview::sizeHint() const {
+    return hint.isValid() ? hint : QSize(STAGE_MIN + 2 * INSET, STAGE_MIN + 2 * INSET);
   }
 
   // swapCropOrientation carries the user's own framing across the flip. Browser twin:
@@ -114,17 +139,31 @@ namespace stencil::gui {
     emit cropChanged();
   }
 
-  core::Point CropPreview::toImage(const QPoint& w) const {
-    return {(w.x() - INSET) / scale, (w.y() - INSET) / scale};
+  double CropPreview::viewScale() const {
+    if (iw <= 0 || ih <= 0) return 0.0;
+    const double s = std::min((width() - 2.0 * INSET) / iw, (height() - 2.0 * INSET) / ih);
+    return s > 0 ? s : 0.0;
   }
 
-  QRect CropPreview::imageRect() const {
-    return rect().adjusted(INSET, INSET, -INSET, -INSET);
+  // Whole-pixel top-left, so a pinned stage paints exactly inside its inset as before.
+  QRectF CropPreview::imageRect() const {
+    const double s = viewScale();
+    const double w = iw * s, h = ih * s;
+    return QRectF(std::floor((width() - w) / 2.0), std::floor((height() - h) / 2.0), w, h);
+  }
+
+  core::Point CropPreview::toImage(const QPoint& w) const {
+    const double s = viewScale();
+    if (s <= 0) return {0, 0};
+    const QPointF at = imageRect().topLeft();
+    return {(w.x() - at.x()) / s, (w.y() - at.y()) / s};
   }
 
   QRectF CropPreview::displayRect() const {
     const core::CropRect& r = flying ? shownRect : cropBox;
-    return QRectF(INSET + r.x * scale, INSET + r.y * scale, r.width * scale, r.height * scale);
+    const double s = viewScale();
+    const QPointF at = imageRect().topLeft();
+    return QRectF(at.x() + r.x * s, at.y() + r.y * s, r.width * s, r.height * s);
   }
 
   int CropPreview::cornerAt(const QPoint& wp) const {
@@ -142,13 +181,14 @@ namespace stencil::gui {
   void CropPreview::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    p.drawImage(imageRect(), original);
+    const QRectF picture = imageRect();
+    p.drawImage(picture, original);
 
     const QRectF d = displayRect();
     // Dim everything outside the crop (even-odd fill of the image rect minus crop).
     QPainterPath outside;
     outside.setFillRule(Qt::OddEvenFill);
-    outside.addRect(QRectF(imageRect()));
+    outside.addRect(picture);
     outside.addRect(d);
     p.fillPath(outside, QColor(0, 0, 0, SHADE_ALPHA));
 

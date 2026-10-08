@@ -9,3 +9,6 @@ export interface ColorTrialHandlers {
 
 /** Wires `input`; the returned function opens its picker beside `anchor`, at the value `input` holds then. */
 export declare const colorTrial: (input: HTMLInputElement, handlers: ColorTrialHandlers) => (anchor: Element) => void;
+
+/** Opens `input`'s native picker laid over `anchor` (a visible field passes null), its tip dropped. */
+export declare const openColorPicker: (input: HTMLInputElement, anchor: Element | null) => void;

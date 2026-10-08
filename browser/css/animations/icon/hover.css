@@ -66,6 +66,8 @@
 :is(button, .btn-icon, .btn-icon-text, .idle-create-btn, .coord-tab, .pill-toggle,
     .accent-dd-trigger, .accent-dd-opt, .name-edit-btn, .project-menu-item):not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
     :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
+/* …and the row-menu item a held project row is over (projects/list/dragMenu.js): a drag fires no hover. */
+.project-menu-item.is-drag-hover:not(.is-loading):not(.swapping) :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
 .ctx-item:not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
     > :is(.ctx-icon, .ctx-check) :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
 /* …and the row the keyboard walk is on (contextMenu.js .ctx-kb): the arrows are a hover. */

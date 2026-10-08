@@ -15,6 +15,13 @@ export declare const activateShow: (name: string, app: DrawingApp, origin?: Stag
 export declare const setShow: (name: string, app: DrawingApp, on: boolean) => void;
 /** The show the mark's hold opens right now, or null. */
 export declare const heldShow: (app: DrawingApp | null) => string | null;
+/** The mark's hold, as a drag of the mark sees it. */
+export interface LogoHold {
+  /** Drops a hold still waiting, so it opens nothing. */
+  cancel(): void;
+  /** True once the current press has opened a show. */
+  readonly fired: boolean;
+}
 /** Hold the header mark to open its show; the release never reaches the accent cycle. */
 export declare const wireLogoHold: (logo: Element | null, app: DrawingApp,
-  opts?: { holdMs?: number }) => void;
+  opts?: { holdMs?: number }) => LogoHold | undefined;

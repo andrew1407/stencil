@@ -89,8 +89,9 @@ namespace stencil::gui {
     view->addSeparator();
     view->addAction(w.acts.showPoints);
     view->addAction(w.acts.showLines);
-    // The context menu's radio submenu is QWidgetActions, which cannot appear in a second menu, so the menu bar gets the plain cycle action (Alt+B).
+    // The context menu's radio submenu is QWidgetActions, which cannot appear in a second menu, so the menu bar gets the plain cycle actions (Alt+B, Alt+Shift+B).
     view->addAction(w.acts.cycleFilter);
+    view->addAction(w.acts.cycleFilterPrev);
     auto* compareMenu = view->addMenu("&Compare");
     w.ctxMenu.compareGroup = new QActionGroup(&w);
     auto mkCompare = [&](const QString& text, const QString& value) {
@@ -132,6 +133,7 @@ namespace stencil::gui {
     project->addAction(w.acts.newProject);
     project->addAction(w.acts.saveProject);
     project->addAction(w.acts.clearProject);
+    project->addAction(w.acts.closeProject);
     project->addSeparator();
     project->addAction(w.acts.renameProject);
     // Per-project name colour; enabled only with an active project (updateProjectTitle).

@@ -7,6 +7,7 @@ import { shouldCloseShape } from './transforms.js';
 import { strokeFoot } from '../../ui/motion.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { CHANGE, changed } from '../app/changes.js';
+import { shownMarks } from '../pointer/markHits.js';
 
 // A screen radius divided by the zoom, zoomed out only: core adds its own +8, so hand it the
 // size that makes the total screen-constant (at 25% a fixed image-pixel radius was unhittable).
@@ -19,9 +20,10 @@ export const closeGrabSize = (app, line) => {
   return Math.max(ps, (ps + slack) / scale - slack);
 };
 
-// The one close route: the click path and hold-to-draw both come here.
+// The one close route: the click path and hold-to-draw both come here. The first point is the
+// target, so while points are hidden nothing closes and the click lands as a point.
 export const tryCloseShapeAt = (app, x, y) => {
-  if (!app.isDrawing) return false;
+  if (!app.isDrawing || !shownMarks(app).points) return false;
   if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
     const line = app.lines[app.continueLineIdx];
     if (!shouldCloseShape(line.points, x, y, closeGrabSize(app, line))) return false;

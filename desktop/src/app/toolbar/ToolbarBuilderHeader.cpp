@@ -5,6 +5,7 @@
 #include "ToastStack.hpp"
 #include "mainWindowHelpers.hpp"
 #include "CanvasWidget.hpp"
+#include "LogoDrag.hpp"
 #include "LogoHoverFx.hpp"
 #include "LogoStage.hpp"
 #include "Notifications.hpp"
@@ -18,6 +19,7 @@
 #include "tipContent.hpp"
 #include "theme.hpp"
 #include <QDialog>
+#include <QScrollArea>
 #include <QToolBar>
 
 namespace stencil::gui {
@@ -197,7 +199,21 @@ namespace stencil::gui {
       for (const QString& n : {QStringLiteral("toast"), QStringLiteral("toastShine")})
         for (QWidget* widget : w.findChildren<QWidget*>(n)) widget->setVisible(!on);
     };
-    new LogoStage(&w, w.tools.logoBtn, std::move(hooks));
+    const LogoStage* stage = new LogoStage(&w, w.tools.logoBtn, std::move(hooks));
+    LogoDragHooks drag;
+    drag.mark = [this] { return w.parts.theme.makeLogoPixmap(HEADER_LOGO); };
+    drag.free = [this] { return !QApplication::activeModalWidget() && !w.pop.active && !w.pop.dismissClick; };
+    drag.canvas = [this]() -> QWidget* { return w.scroll; };
+    drag.hasImage = [this] { return w.canvas->hasImage(); };
+    drag.preview = [this](bool on) { w.canvas->setCleanPreview(on); };
+    drag.commit = [this] {
+      if (w.settings.imageFilter != QLatin1String("none")) w.applyImageFilter(QStringLiteral("none"));
+      for (QAction* view : {w.acts.showLines, w.acts.showPoints})
+        if (view->isChecked()) view->setChecked(false);
+      if (w.canvas->getCompareMode() != QLatin1String("none"))
+        w.parts.styleControls.setCompareModeUi(QStringLiteral("none"));
+    };
+    installLogoDrag(w.tools.logoBtn, stage, std::move(drag));
   }
 
 }  // namespace stencil::gui

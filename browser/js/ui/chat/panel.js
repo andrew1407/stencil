@@ -176,7 +176,7 @@ export class StencilChatPanel extends StencilElement {
     wirePanelDrop({ host, dropRow, attachFiles });
 
     const openBtn = $('chat-btn');
-    const { setOpen, markChatBusy, chatDock, setDock, adoptLayout } = wireOpenState({
+    const { setOpen, markChatBusy, chatDock, setDock, adoptLayout, openFrom } = wireOpenState({
       host, input, openBtn, panelIsOpen, refreshStatus, invalidatePillRects,
       resizer: $('chat-resizer'), header: $('chat-header'), backdrop: $('chat-backdrop'), closeBtn: $('chat-close'),
     });
@@ -199,7 +199,7 @@ export class StencilChatPanel extends StencilElement {
 // `app.chat` is this panel; §12 persistence wires later under `app.chatPersistence`.
     app.chat = createPanelApi({
       app, ctrl, turn, setOpen, panelIsOpen, adoptLayout, setDock, renderAttachments, updateControls,
-      voice: () => voiceCtl,
+      floatAt: chatDock.floatAt, openFrom, voice: () => voiceCtl,
     });
   }
 }

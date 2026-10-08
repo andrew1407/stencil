@@ -4,25 +4,18 @@
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QAbstractAnimation>
+#include <QAbstractButton>
 #include <QAbstractItemView>
+#include <QAbstractSpinBox>
+#include <QComboBox>
 #include <QEasingCurve>
-#include <QEvent>
+#include <QEnterEvent>
+#include <QLineEdit>
 #include <QLinearGradient>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QPointF>
-#include <QPaintEvent>
-#include <QRect>
-#include <QRectF>
-#include <QVariantAnimation>
-#include <QAbstractButton>
-#include <QComboBox>
-#include <QLineEdit>
-#include <QAbstractSpinBox>
 #include <QTimer>
-#include <QWidget>
-
+#include <QVariantAnimation>
 #include <algorithm>
 
 namespace stencil::gui {
@@ -61,19 +54,16 @@ namespace stencil::gui {
       // WA_NoSystemBackground so the target shows through the unpainted parts.
       setAttribute(Qt::WA_TransparentForMouseEvents);
       setAttribute(Qt::WA_NoSystemBackground);
-      // Progress mirrored to a dynamic property so the GUI test can assert the band ADVANCES.
       setObjectName(QStringLiteral("shimmerOverlay"));
       anim = new QVariantAnimation(this);
-      anim->setStartValue(0.0);
-      anim->setEndValue(1.0);
+      anim->setKeyValues({{0.0, 0.0}, {1.0, 1.0}});
       anim->setDuration(view ? SHIMMER_ROW_MS : 325);
       anim->setEasingCurve(shimmerEase());
-      QObject::connect(anim, &QVariantAnimation::valueChanged, this,
-                       [this](const QVariant& v) { setProgress(v.toReal()); });
-      QObject::connect(anim, &QVariantAnimation::finished, this,
-                       [this] { setProgress(-1.0); });
+      QObject::connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) { setProgress(v.toReal()); });
+      QObject::connect(anim, &QVariantAnimation::finished, this, [this] { setProgress(-1.0); });
       this->target->installEventFilter(this);
       if (this->view) this->target->setMouseTracking(true);   // so we get MouseMove without a button held
+      else if (!externalBands) this->target->setAttribute(Qt::WA_Hover);   // hover moves back a late Enter
       setGeometry(this->target->rect());
       raise();
       show();   // stays present (transparent); paints only while the sweep animates
@@ -83,18 +73,25 @@ namespace stencil::gui {
     bool eventFilter(QObject* o, QEvent* e) override {
       if (o == target) {
         switch (e->type()) {
-          case QEvent::Resize:
-          case QEvent::Move:
-          case QEvent::Show:
+          case QEvent::Resize: case QEvent::Move: case QEvent::Show:
             setGeometry(target->rect());
             raise();
             break;
+          // One sweep per hover-in, from whichever of these lands first with the pointer inside: a
+          // late Enter from elsewhere replays nothing, and a hover move stands in for a missing one.
           case QEvent::Enter:
-            if (!view && !externalBands && target->isEnabled()) startSweep(rect());
+          case QEvent::HoverEnter:
+          case QEvent::HoverMove:
+            if (!view && !externalBands && !hovered && target->isEnabled() && pointerInside(e)) {
+              hovered = true;
+              startSweep(rect());
+            }
             break;
           case QEvent::Leave:
+          case QEvent::HoverLeave:
             // Cancel the instant the cursor leaves, or a fast pass leaves a trail of sweeps.
           case QEvent::Hide:
+            hovered = false;
             cancelSweep();
             break;
           case QEvent::EnabledChange:
@@ -160,14 +157,20 @@ namespace stencil::gui {
   public:
     void sweepBand(const QRect& band) { startSweep(band); }
     void cancel() { cancelSweep(); }
+    void holdHover() { hovered = true; }   // the pointer never left: a list it opened had grabbed it
 
   private:
+    bool pointerInside(QEvent* e) const {   // a bare Enter is its own word
+      const auto* at = dynamic_cast<QSinglePointEvent*>(e);
+      return !at || QRectF(target->rect()).adjusted(-1, -1, 1, 1).contains(at->position());
+    }
     // Reduced motion: no sweep at all — pure feedback with no end state (faceSwap / filterFade rule).
     void startSweep(const QRect& band) {
       if (support::motionReduced()) return;
       this->band = band;
       if (view) raise();   // cell widgets a row rebuild added since would otherwise cover the band
       anim->stop();
+      setProgress(0.0);   // the first frame now, not at the animation's first tick
       anim->start();
     }
     void cancelSweep() {
@@ -187,19 +190,18 @@ namespace stencil::gui {
     qreal progress = -1.0;
     QRect band;
     int hoveredRow = -1;
+    bool hovered = false;   // the pointer is over the whole-widget target: its one sweep played
   };
 
-  inline void installHoverShimmer(QWidget* target) {
-    if (target && !target->property("_shimmer").toBool()) {
-      target->setProperty("_shimmer", true);   // guard against double-install
-      new ShimmerOverlay(target);               // parented to target
-    }
+  inline ShimmerOverlay* installHoverShimmer(QWidget* target) {
+    if (!target || target->property("_shimmer").toBool()) return nullptr;
+    target->setProperty("_shimmer", true);   // guard against double-install
+    return new ShimmerOverlay(target);        // parented to target
   }
   inline void installRowShimmer(QAbstractItemView* view) {
-    if (view && !view->property("_shimmer").toBool()) {
-      view->setProperty("_shimmer", true);
-      new ShimmerOverlay(nullptr, view);   // parented to the view's viewport
-    }
+    if (!view || view->property("_shimmer").toBool()) return;
+    view->setProperty("_shimmer", true);
+    new ShimmerOverlay(nullptr, view);   // parented to the view's viewport
   }
 
   // A control opts out with this property.
@@ -220,8 +222,7 @@ namespace stencil::gui {
 
   // …deferred a turn, for a window whose content is added AFTER this is called.
   inline void installHoverShimmerLater(QWidget* root) {
-    if (!root) return;
-    QTimer::singleShot(0, root, [root] { installHoverShimmerIn(root); });
+    if (root) QTimer::singleShot(0, root, [root] { installHoverShimmerIn(root); });
   }
 
 }  // namespace stencil::gui

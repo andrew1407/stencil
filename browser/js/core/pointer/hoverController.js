@@ -2,7 +2,7 @@
 // the Lines-row tint. Bound through a one-per-frame rAF coalescer (ui/bindings/canvasPointer.js).
 import { canvasGestureActive } from './gesture.js';
 import { nearCompareDivider, canvasCoords } from './canvasCoords.js';
-import { CHANGE, changed } from '../app/changes.js';
+import { removeLine } from '../line/editOps.js';
 
 export const canvasMouseMove = (app, e) => {
 // A coalesced pass older than the leave would re-hover an empty canvas.
@@ -105,17 +105,6 @@ export const canvasDblClick = (app, e) => {
   const { x, y } = canvasCoords(app, e.clientX, e.clientY);
 
   const idx = app.findLineAt(x, y);
-  if (idx !== -1) {
-    app.lines.splice(idx, 1);
-    app.hoverPt = null;
-    app.hoverLineIdx = -1;
-    app.listHoverLineIdx = -1;
-    if (app.selectedLineIdx === idx) app.deselectLine(false);
-    else if (app.selectedLineIdx > idx) app.selectedLineIdx--;
-    app.saveHistory();
-    app.renderer.redraw();
-    changed(app, CHANGE.lines, CHANGE.selection);
-    app.coordTable.update();
-  }
+  if (idx !== -1) removeLine(app, idx);
 };
 

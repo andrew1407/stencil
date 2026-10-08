@@ -6,6 +6,9 @@
       QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
       QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
       QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
+      /* The row menus (browser .project-menu-item, .chat-row-menu-item) hover in the accent; their
+         glyphs follow it (support/menu/menuDangerRow.hpp markAccentRows). */
+      QMenu[accentRows="true"]::item:selected { background: %ACCENT%; color: %ON_ACCENT%; }
       QMenu::item:disabled { color: %DISABLED_TEXT%; }
       QMenu::separator { height: 1px; background: %BORDER%; margin: 5px 10px; }
       /* The project-colour menu (browser .project-menu-item: gap 8px, padding 6px 8px):

@@ -24,7 +24,7 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
 .btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
 .idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
 .project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
-.project-menu-item:hover::after, .ctx-item:hover::after,
+.project-menu-item:hover::after, .project-menu-item.is-drag-hover::after, .ctx-item:hover::after,
 .vs-color:hover::after, .oi-color:hover::after, .shimmer:hover::after {
     animation: ui-shimmer 0.75s ease;
 }

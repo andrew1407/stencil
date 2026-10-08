@@ -49,9 +49,9 @@ namespace stencil::support {
     if (!motionReduced()) w.setWindowOpacity(0.0);
   }
 
-  void revealWindow(QWidget& w, QWidget* anchor) {
+  void revealWindow(QWidget& w, QWidget* anchor, const QRect& from) {
     if (motionReduced()) { w.setWindowOpacity(1.0); return; }
-    flyWindow(w, anchor, true, nullptr);
+    flyWindow(w, anchor, true, nullptr, from);
   }
 
   void dismissWindow(QWidget& w, QWidget* anchor) {

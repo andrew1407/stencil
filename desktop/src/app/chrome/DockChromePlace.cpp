@@ -69,7 +69,7 @@ namespace stencil::gui {
 
   // QDockWidget::setFloating teleports with no animation of its own, so the flight is driven
   // here: chatSurfaceFlight's dust out of / into the icon, then dockChatTo's wasFloating leg.
-  void DockChrome::toggleChatFloat() {
+  void DockChrome::toggleChatFloat(const QRect& revealFrom) {
     if (!w.chatDock || w.tearingDown || !w.chatDock->isVisible()) return;
     stopChatAnim();
     QWidget* icon = w.buttonForAction(w.acts.chat);
@@ -91,14 +91,14 @@ namespace stencil::gui {
     const auto pin = chatExtentPin(horiz);
     const int full = horiz ? w.chatDock->width() : w.chatDock->height();
     QPointer<gui::DisintegrateOverlay> outFx = chatSurfaceFlight(area, /*gather=*/false, 200, pin, full);
-    const auto finishToFloat = [this, icon] {
+    const auto finishToFloat = [this, icon, revealFrom] {
       stopChatAnim();
       w.chatDock->setFloating(true);
       support::veilForReveal(*w.chatDock);   // setFloating maps it at once; same turn, so no frame shows
       // setFloating() alone derives the top-level placement from the collapsed 0-width docked
       // geometry, which lands off-screen - pin position AND size (browser chat/panel.js parity).
       w.chatDock->setGeometry(chatFloatRect.isValid() ? chatFloatRect : defaultChatFloatRect());
-      support::revealWindow(*w.chatDock, icon);
+      support::revealWindow(*w.chatDock, icon, revealFrom);
     };
     if (!outFx) { finishToFloat(); return; }
     chatAnim = startExtentSlide(&w, full, 0, 200, pinAndRaiseDust(pin, outFx), finishToFloat);

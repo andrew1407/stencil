@@ -822,6 +822,18 @@ interface Stencil extends StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   copyProject(opts: CopyProjectRequest): Promise<Project | null>;
+  /**
+   * Close the project open here, leaving an empty editor; it stays saved in Projects.
+   *
+   * Asks nothing, as Project.close() does, and throws when no project is open. Hands the facade back, so calls chain.
+   *
+   * ```js
+   * stencil.closeProject();   // { fully: true } also closes the tab
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  closeProject(opts?: { fully?: boolean }): Stencil;
 
   // Servers
   /**

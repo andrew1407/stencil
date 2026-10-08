@@ -10,7 +10,11 @@
 /* One ordinal column on BOTH tabs, so the two grids sit on the same left edge as the tab flips. */
 .coordinates-table th:first-child, .coordinates-table td:first-child { width: 38px; }
 .coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
-.coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
+.coordinates-table tbody tr:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); cursor: pointer; }
+/* The accent at 45/255 is the desktop's hover wash (SelectionPanel::rowWash); its lone message row stays grey. */
+.coordinates-table tbody tr:has(.empty-message):hover { background-color: var(--bg-coord-hover); }
+/* A px cell edits on a double-click (coordTable.js #editCell), so it takes the I-beam. */
+.coordinates-table td:is(.cell-px-x, .cell-px-y) { cursor: text; }
 /* The ring is drawn inside the row (outline-offset), not around it: an outline sits
    outside the border box, so under the sticky header (or against the scroller's edge) its
    top edge was painted over and the ring came out open. Inset, it is always whole. */
@@ -56,8 +60,8 @@
    the desktop's own (SelectedLineBar.cpp restyleIcons). */
 .fill-clear { padding: 0 10px; }
 
-/* inline pixel-coord input */
-.coord-px-input {
+/* inline pixel-coord input, and the Lines tab's number field at its cell's width */
+.coord-px-input, .lines-num-input {
     width: 58px;
     background: var(--input-bg);
     color: var(--input-text);
@@ -67,7 +71,10 @@
     font-size: 12px;
     outline: none;
 }
-.coord-px-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.coord-px-input:focus, .lines-num-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.lines-num-input { width: 100%; box-sizing: border-box; -moz-appearance: textfield; }
+.lines-num-input::-webkit-inner-spin-button,
+.lines-num-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* The delete bin, on both panel tabs: one glyph in one colour for a point and a line. */
 .del-pt-btn {

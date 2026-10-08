@@ -110,6 +110,13 @@ int main(int argc, char** argv) {
   chip->click();
   waitMs(window + 80);
   check(opens == 1 && resets == 1, "a double-click resets and never opens the picker");
+  chip->click();
+  ++stencil::support::dragsStarted();   // the second press dragged the chip away
+  waitMs(window + 80);
+  check(opens == 1 && resets == 1, "a drag starting inside the window keeps the picker shut");
+  chip->click();
+  waitMs(window + 80);
+  check(opens == 2, "…and the next lone click opens it again");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

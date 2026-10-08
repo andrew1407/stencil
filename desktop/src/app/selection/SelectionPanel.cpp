@@ -1,8 +1,6 @@
 #include "SelectionPanel.hpp"
 #include "selectionPanelParts.hpp"
 #include "iconMotionTypes.hpp"
-#include "uiTimings.hpp"
-#include <QGuiApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -112,7 +110,8 @@ namespace stencil::gui {
     points->setMouseTracking(true);
     points->viewport()->setMouseTracking(true);
     connect(points, &QTableWidget::cellEntered, this,
-            [this](int row, int) {
+            [this](int row, int col) {
+              cellCursor(points, row, col);
               setCanvasHover(row, canvasHoverLineRow);
               emit pointRowHovered(row);
             });
@@ -134,72 +133,11 @@ namespace stencil::gui {
 
     tabs->addTab(ptsTab, "Points");
 
-    // browser #lines-list: colour chip · "Line N · M pts" · 🗑; Ctrl/⌘+Shift toggles multi-select.
-    auto* linesTab = new QWidget(tabs);
-    auto* linesLay = new QVBoxLayout(linesTab);
-    linesLay->setContentsMargins(0, 0, 0, 0);
-    // The points table again, with the lines' own columns: one widget is one grid, one header
-    // and one cell padding across both tabs (in the browser it is the same table).
-    lines = new FitTable(0, LCOL_COUNT, linesTab);
-    lines->setObjectName("linesList");
-    lines->viewport()->setCursor(Qt::PointingHandCursor);   // browser .lines-row
-    lines->setItemDelegate(new PointRowDelegate(lines, LCOL_COUNT - 1));
-    lines->setHorizontalHeaderLabels({"#", "Color", "Line", "Pts", ""});
-    lines->verticalHeader()->setVisible(false);
-    lines->setSelectionMode(QAbstractItemView::NoSelection);  // selection is driven by the canvas
-    lines->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    lines->setWordWrap(false);
-    lines->setShowGrid(true);
-    // ClickFocus so a bare Delete/Backspace scopes here; selection stays canvas-driven.
-    lines->setFocusPolicy(Qt::ClickFocus);
-    lines->installEventFilter(this);
-    // Hover cross-highlight, row → canvas (browser renderLinesList row mouseenter).
-    lines->setMouseTracking(true);
-    lines->viewport()->setMouseTracking(true);
-    connect(lines, &QTableWidget::cellEntered, this,
-            [this](int row, int) {
-              setCanvasHover(canvasHoverPointRow, row);
-              emit lineRowHovered(row);
-            });
-    auto* lh = lines->horizontalHeader();
-    // The ordinal and the bin are the points table's own, so both tabs share their edges.
-    lh->setSectionResizeMode(LCOL_INDEX, QHeaderView::ResizeToContents);
-    lh->setSectionResizeMode(LCOL_NAME, QHeaderView::Stretch);
-    for (const auto& [col, w] : {std::pair{LCOL_SWATCH, LINE_COL_SWATCH},
-                                 std::pair{LCOL_PTS, LINE_COL_PTS}, std::pair{LCOL_DEL, 28}}) {
-      lh->setSectionResizeMode(col, QHeaderView::Fixed);
-      lines->setColumnWidth(col, w);
-    }
-    lh->setHighlightSections(false);
-    lh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    lines->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);   // as tall as its rows, as the browser's
-    lines->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
-    linesLay->addWidget(lines);
-    linesLay->addStretch(1);
-    tabs->addTab(linesTab, "Lines");
+    buildLinesTab();
     // Bound both ways so a programmatic page change turns the strip too.
     connect(tabBar, &QTabBar::currentChanged, tabs, &QTabWidget::setCurrentIndex);
     connect(tabs, &QTabWidget::currentChanged, tabBar, &QTabBar::setCurrentIndex);
     connect(tabs, &QTabWidget::currentChanged, tabs, [this] { tabs->updateGeometry(); });
-
-    swatchWait = new QTimer(this);
-    swatchWait->setSingleShot(true);
-    swatchWait->setInterval(support::uiTimings().doubleClickMs);
-    connect(swatchWait, &QTimer::timeout, this, [this] { emit lineSwatchPick(swatchRow); });
-    connect(lines, &QTableWidget::cellClicked, this, [this](int idx, int col) {
-      if (idx < 0) return;
-      lines->setCurrentCell(idx, LCOL_INDEX);   // the row Delete/Backspace will act on
-      const auto mods = QGuiApplication::keyboardModifiers();
-      const bool multi = (mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
-                         (mods & Qt::ShiftModifier);
-      emit lineListActivated(idx, multi);
-      if (col == LCOL_SWATCH && !multi) { swatchRow = idx; swatchWait->start(); }
-    });
-    connect(lines, &QTableWidget::cellDoubleClicked, this, [this](int idx, int col) {
-      if (idx < 0 || col != LCOL_SWATCH) return;
-      swatchWait->stop();
-      emit lineSwatchReset(idx);
-    });
 
     setWidget(body);
     restyleIcons(palette().color(QPalette::WindowText));

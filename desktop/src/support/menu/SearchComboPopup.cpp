@@ -2,15 +2,21 @@
 #include "searchComboParts.hpp"
 #include "menuReveal.hpp"       // support::revealPopup / dismissPopup — the shared surface dust
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
+#include "ShimmerOverlay.hpp"
 
+#include "uiTimings.hpp"
+#include <QApplication>
+#include <QCursor>
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QListView>
 #include <QScreen>
 #include <QScrollBar>
 #include <QSignalBlocker>
+#include <cmath>
 
 namespace stencil::gui {
 
@@ -84,12 +90,50 @@ namespace stencil::gui {
     QComboBox::hidePopup();
   }
 
+  // The list opens on the press; while that press is held every widget's mouse events pass here.
+  void SearchComboBox::mousePressEvent(QMouseEvent* event) {
+    const bool wasOpen = popup && popup->isVisible();
+    QComboBox::mousePressEvent(event);
+    if (event->button() != Qt::LeftButton || wasOpen || !popup || !popup->isVisible()) return;
+    dragFrom = event->globalPosition().toPoint();
+    dragArmed = true;
+    dragging = false;
+    qApp->installEventFilter(this);
+  }
+
+  // A widget's event, never the window's copy of it, so each move and the release count once.
+  bool SearchComboBox::dragPick(QObject* watched, QEvent* event) {
+    const QEvent::Type t = event->type();
+    if (!dragArmed || !watched->isWidgetType() || (t != QEvent::MouseMove && t != QEvent::MouseButtonRelease))
+      return false;
+    auto* me = static_cast<QMouseEvent*>(event);
+    const QPoint at = me->globalPosition().toPoint();
+    if (t == QEvent::MouseMove) {
+      const QPoint d = at - dragFrom;
+      dragging = dragging || std::hypot(d.x(), d.y()) > support::uiTimings().pressSlopPx;
+      return false;
+    }
+    if (me->button() != Qt::LeftButton) return false;
+    dragArmed = false;
+    qApp->removeEventFilter(this);
+    if (!dragging || !popup || !popup->isVisible()) return false;
+    const QPoint inList = list->viewport()->mapFromGlobal(at);
+    const QModelIndex row = list->isVisible() && list->viewport()->rect().contains(inList)
+                                ? list->indexAt(inList) : QModelIndex();
+    if (row.isValid()) choose(row.row());
+    else if (!popup->geometry().contains(at)) hidePopup();
+    return true;
+  }
+
   bool SearchComboBox::eventFilter(QObject* watched, QEvent* event) {
+    if (dragPick(watched, event)) return true;
     if (list && watched == list->viewport() && event->type() == QEvent::Leave)
       restorePreview();   // pointer left the rows while the popup is still up
     if (watched == popup && event->type() == QEvent::Hide) {
       restorePreview();   // however it closed without a pick, revert to the committed value
       lastHide.start();
+      // Closed over a pointer still on the trigger: its hover never ended, so it sweeps no second time.
+      if (sweep && rect().contains(mapFromGlobal(QCursor::pos()))) sweep->holdHover();
       // An outside click hides popup via Qt's grab-loss handling, which never calls hidePopup().
       support::dismissPopup(*popup, this, support::SELECT_POPUP_DUST_MS);
     }

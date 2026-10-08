@@ -65,3 +65,17 @@ export const populateFsPoints = (fsPointsPanel) => {
     fsPointsPanel.appendChild(clone);
   }
 };
+
+// The mirror re-clones once a frame while `isOn()`, after a change to either tab's rows in `body`:
+// the points table moves per frame while drawing, the Lines tab on every line edit.
+export const followCoordBody = (body, isOn, refresh) => {
+  if (!body || typeof MutationObserver === 'undefined') return;
+  let raf = 0;
+  new MutationObserver(() => {
+    if (!isOn() || raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      if (isOn()) refresh();
+    });
+  }).observe(body, { childList: true, subtree: true, characterData: true });
+};

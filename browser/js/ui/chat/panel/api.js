@@ -3,11 +3,12 @@
 import { chatLog, clearSharedConversation, peekChatController } from '../../../llm/chat/session.js';
 import { rowsToMessages } from '../../../llm/chat/store.js';
 import { MAX_ATTACHMENTS } from '../../../llm/chat/controller.js';
-import { DOCKS } from '../geometry.js';
+import { DOCKS, DOCK_SIDES } from '../geometry.js';
 
 export function createPanelApi(deps) {
   const {
-    app, ctrl, turn, setOpen, panelIsOpen, adoptLayout, setDock, renderAttachments, updateControls, voice,
+    app, ctrl, turn, setOpen, panelIsOpen, adoptLayout, setDock, floatAt, openFrom, renderAttachments,
+    updateControls, voice,
   } = deps;
   return {
     open: () => setOpen(true),
@@ -18,6 +19,23 @@ export function createPanelApi(deps) {
       if (!DOCKS.includes(m)) throw new Error(`Unknown dock mode "${mode}" — one of ${DOCKS.join(', ')}`);
       adoptLayout();
       setDock(m);
+    },
+// Docked on a side, else floating with its top-left corner on a client point: the user's own layout,
+// as a header drag's is, and an open panel moves there. A float forms out of `from`, a client rect.
+    openAt: (spot, { from = null } = {}) => {
+      const side = typeof spot === 'string' ? spot.toLowerCase() : null;
+      if (side !== null && !DOCK_SIDES.includes(side)) {
+        throw new Error(`Unknown dock side "${spot}" — one of ${DOCK_SIDES.join(', ')}`);
+      }
+      if (side === null && !(Number.isFinite(spot?.x) && Number.isFinite(spot?.y))) {
+        throw new Error('openAt needs a dock side or a client point');
+      }
+      adoptLayout();
+      if (side === null) floatAt(spot.x, spot.y);
+      openFrom(from, () => {
+        setDock(side ?? 'float');
+        if (!panelIsOpen()) setOpen(true);
+      });
     },
     prompt: async (text, images = []) => {
       if (turn.isSending) throw new Error('The assistant is already answering — wait for the current turn');

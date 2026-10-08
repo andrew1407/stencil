@@ -42,6 +42,7 @@ namespace stencil::gui {
     set(w.acts.rotateRight, "rotate-cw");
     set(w.acts.flipImage, "flip-horizontal");
     set(w.acts.cycleFilter, "image");
+    set(w.acts.cycleFilterPrev, "image");
     set(w.acts.startDraw, "play");
     set(w.acts.stopDraw, "stop");
     set(w.acts.newLine, "plus");
@@ -101,6 +102,7 @@ namespace stencil::gui {
     // The two destructive ones keep the danger tint; a plain set() here would repaint them neutral.
     setDanger(w.acts.deleteProjectFile, "trash");
     setDanger(w.acts.clearProject, "trash");
+    set(w.acts.closeProject, "x");           // closes, removes nothing: no danger tint
     set(w.acts.saveSession, "clipboard");
     set(w.acts.downloadJson, "file-down");
     set(w.acts.uploadJson, "file-up");

@@ -6,7 +6,7 @@ import { flipFrom, FLIP_MS } from '../motion.js';
 import { canvasOrigin } from '../../core/zoom/pan.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { fullscreenLayerInner } from './markup.js';
-import { populateFsControls, populateFsPoints } from './clones.js';
+import { populateFsControls, populateFsPoints, followCoordBody } from './clones.js';
 import { createFsPanels } from './panels.js';
 import { syncFsSelectionPanel } from '../panel/selectionPanel.js';
 import { windowTookEscape } from '../modal/registry.js';
@@ -31,18 +31,7 @@ export class StencilFullscreenLayer extends StencilElement {
       pauseControlsHide, pausePointsHide, reset: resetFsPanels,
     } = createFsPanels({ fsControlsPanel, fsPointsPanel, showPoints });
 
-// The coord table mutates per frame while drawing: coalesce into one rebuild per frame.
-    const coordBody = document.getElementById('coordinates-body');
-    if (coordBody) {
-      let fsPointsRaf = 0;
-      new MutationObserver(() => {
-        if (!isFullscreen || fsPointsRaf) return;
-        fsPointsRaf = requestAnimationFrame(() => {
-          fsPointsRaf = 0;
-          if (isFullscreen) showPoints();
-        });
-      }).observe(coordBody, { childList: true, subtree: true, characterData: true });
-    }
+    followCoordBody(document.getElementById('coord-body'), () => isFullscreen, showPoints);
 
     // Trigger zone hover
     fsTopTrigger.addEventListener('mouseenter', showControlsPanel);

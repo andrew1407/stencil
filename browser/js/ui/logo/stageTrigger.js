@@ -90,7 +90,7 @@ export const setShow = (name, app, on) => {
 export const heldShow = (app) => resolveShow(app?.accent, app?.customAccent, storedMotionMode());
 
 // A press held on the mark for holdMs. The release must not reach the logo's own click, which
-// would cycle the accent 220ms later.
+// would cycle the accent 220ms later. The handle drops a waiting hold, and says if this press fired.
 export const wireLogoHold = (logo, app, { holdMs = HOLD_MS } = {}) => {
   if (!logo || !app) return;
   trackPointer(logo.ownerDocument);
@@ -122,4 +122,5 @@ export const wireLogoHold = (logo, app, { holdMs = HOLD_MS } = {}) => {
       if (!fired) wrap.removeEventListener('click', swallowClick, { capture: true });
     });
   }
+  return { cancel, get fired() { return fired; } };
 };

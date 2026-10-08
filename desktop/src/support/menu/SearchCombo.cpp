@@ -1,7 +1,7 @@
 #include "SearchCombo.hpp"
 #include "searchComboParts.hpp"
 #include "RowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
-#include "ShimmerOverlay.hpp"   // …and takes the app's glass sweep with it
+#include "ShimmerOverlay.hpp"   // …and takes the app's glass sweep with it, as the trigger does
 #include "uiTimings.hpp"
 
 #include <QLabel>
@@ -15,6 +15,7 @@ namespace stencil::gui {
   SearchComboBox::SearchComboBox(QWidget* parent, bool searchable)
       : QComboBox(parent), searchable(searchable) {
     setCursor(Qt::PointingHandCursor);   // browser parity: every selector is a pointer
+    sweep = installHoverShimmer(this);   // its own, so one built after a window's install pass has it
   }
 
   // Lazy, so the model is already filled and themed when first opened.

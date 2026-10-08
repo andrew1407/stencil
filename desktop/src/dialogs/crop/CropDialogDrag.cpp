@@ -101,7 +101,7 @@ namespace stencil::gui {
 
     preview = new CropPreview(original, pageWidthCm, pageHeightCm, initial, this);
     if (initial.width <= 0) preview->setAlbum(album);
-    chrome.body->addWidget(preview, 0, Qt::AlignHCenter);
+    chrome.body->addWidget(preview, 1);   // the stretch: a resized window re-fits the picture
 
     auto* dims = new QLabel(this);
     dims->setObjectName(QStringLiteral("cropDims"));
@@ -116,6 +116,12 @@ namespace stencil::gui {
     makeModalCta(orientationBtn, QStringLiteral("swap"));
     orientationBtn->setToolTip(tr("Swap album / portrait — flips the crop orientation"));
     orientationBtn->setAutoDefault(false);
+    // Fixed to its longer face, so a flip never re-wraps the footer and jolts the picture
+    // (browser twin: cropModal.js pins #crop-orientation's widest face).
+    orientationBtn->setText(tr("Portrait"));
+    const int portraitW = orientationBtn->sizeHint().width();
+    orientationBtn->setText(tr("Album"));
+    orientationBtn->setFixedWidth(std::max(portraitW, orientationBtn->sizeHint().width()));
     footer->addWidget(orientationBtn);
     auto* cancelBtn = new QPushButton(tr("Cancel"), this);
     makeModalCta(cancelBtn, QStringLiteral("x"));
@@ -143,14 +149,14 @@ namespace stencil::gui {
       support::spinIconOnce(orientationBtn);   // the press turns the glyph it flips
     });
     refresh();
-    fitToScreen(chrome, footer);
+    fitToScreen(chrome, footer, original.size());
   }
 
-  // The browser shell is `width:auto` here: the preview sets the width and the footer its floor.
-  // Never under MIN_DIALOG_W, never narrower than the preview, never past the screen.
-  void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer) {
+  // Opens around the picture fitted into the browser's preview box (cropFit.js cropWindowSize): never
+  // under MIN_DIALOG_W or the footer's one line, never past the screen less SCREEN_MARGIN. After that
+  // the user's size wins, down to the layout's floor: the footer whole, STAGE_MIN of picture.
+  void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer, const QSize& image) {
     const QRect avail = screenAvail(this);
-    const QSize box = previewFitBox(avail);
     // A hidden widget's size change never reaches the layouts' caches (updateGeometry stops at a
     // hidden widget), and the shell's layout tree is a widget away, so measurements refresh by hand.
     const auto measure = [this] {
@@ -159,23 +165,24 @@ namespace stencil::gui {
       layout()->invalidate();
       layout()->activate();
     };
-    preview->setFitBox(box);
+    const auto across = [](const QLayout* l) {
+      const QMargins m = l->contentsMargins();
+      return m.left() + m.right();
+    };
     measure();
-    const QSize chromeSize(minimumSizeHint().width() - preview->width(),
-                        sizeHint().height() - preview->height());
-    const QSize room(avail.width() - 2 * SCREEN_MARGIN - chromeSize.width(),
-                     avail.height() - 2 * SCREEN_MARGIN - chromeSize.height());
-    if (box.width() > room.width() || box.height() > room.height()) {
-      preview->setFitBox(QSize(qMin(box.width(), room.width()), qMin(box.height(), room.height())));
-      measure();
-    }
-    const int minW = std::max({MIN_DIALOG_W, minimumSizeHint().width(),
-                               modalFooterLineWidth(chrome, footer)});
-    setMinimumWidth(qMin(minW, avail.width() - 2 * SCREEN_MARGIN));
-    const int w = qMax(minimumWidth(), sizeHint().width());
-    const int h = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(w)
-                                                : sizeHint().height();
-    resize(w, qMin(h, avail.height() - 2 * SCREEN_MARGIN));
+    // The chrome around the PICTURE, handle inset included; its height follows the footer's wrap.
+    const int chromeW = across(layout()) + across(chrome.root) + across(chrome.body) + 2 * INSET;
+    const auto chromeAt = [&](int w) {
+      const int all = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(w) : sizeHint().height();
+      return QSize(chromeW, all - preview->sizeHint().height() + 2 * INSET);
+    };
+    const int floorW = std::max(MIN_DIALOG_W, modalFooterLineWidth(chrome, footer));
+    const QSize first = cropWindowSize(image, chromeAt(avail.width() - 2 * SCREEN_MARGIN), avail, floorW);
+    const QSize at = chromeAt(first.width());
+    const QSize size(first.width(), cropWindowSize(image, at, avail, floorW).height());
+    preview->setPreferredBox(size - at);
+    measure();
+    resize(size);
   }
 
   core::CropRect CropDialog::cropRect() const { return preview->cropRect(); }

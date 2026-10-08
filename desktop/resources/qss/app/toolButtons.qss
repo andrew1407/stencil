@@ -42,6 +42,8 @@
         background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%;
       }
       QToolButton[nameAffordance="true"]:pressed { background: %ACCENT%; border-color: %ACCENT%; }
+      /* The Projects window's drag-time ⋯ while its menu is up (browser .projects-drag-more.is-open). */
+      QToolButton[nameAffordance="true"][open="true"] { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[nameAffordance="true"]:disabled {
         background: %DISABLED_BG%; border-color: %BORDER%;
       }

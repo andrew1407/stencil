@@ -2,9 +2,8 @@
 // The native list is drawn by the OS, so no page style reaches it; this one is built
 // from the SAME <select>, which stays the source of truth (wrapped `.value` setter, a
 // bubbling `change` on pick, `hidden` mirrored onto the wrapper).
-
 import { icon } from '../icons.js';
-import { showMenu, hideMenu } from './dropdownMenu.js';
+import { showMenu, hideMenu, wireDragPick } from './dropdownMenu.js';
 import { attachMenuScrollbar } from './menuScrollbar.js';
 import { wireAltPeek } from '../tip/altPeek.js';
 
@@ -225,5 +224,6 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     menu.hidden ? open() : close();
   });
   const peek = wireAltPeek(wrap, menu, { open, close, enabled: () => !selectEl.disabled });
+  wireDragPick(trigger, menu, { open, close, enabled: () => !selectEl.disabled });
   sync();
 }

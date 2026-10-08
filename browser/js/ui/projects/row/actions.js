@@ -78,7 +78,8 @@ export function attachRowActions(deps) {
 
   // Per-row colour: the native picker paints the project name, and a "Clear colour"
   // item (only when one is set) resets it to the theme accent.
-  const pickColor = () => openColorPicker(meta, menuBtn);
+  // Opens at the clicked menu row (its rect), not at the far-right "⋯".
+  const pickColor = (at) => openColorPicker(meta, at ? { getBoundingClientRect: () => at } : menuBtn);
   const clearColor = () => { app.projectTransfer.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
   // Keywords and description open their own windows (ui/meta/) for THIS row, over the list.
@@ -107,6 +108,8 @@ export function attachRowActions(deps) {
     (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
     { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
   ];
+
+  row._menuItems = menuItems;   // this row's menu, reopened by the title while the row is dragged
 
   const actions = document.createElement('div');
   actions.className = 'project-actions';

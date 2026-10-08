@@ -1,0 +1,14 @@
+/* A colour swatch being dragged (js/ui/drag/colorDrag.js): a chip of the colour rides beside the
+   pointer, over a checkerboard so a translucent colour reads as one. */
+.color-drag-chip {
+    position: fixed;
+    z-index: 100005;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--bg-container);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border-main);
+    background: linear-gradient(var(--chip-color), var(--chip-color)),
+                repeating-conic-gradient(#c8c8c8 0% 25%, #ffffff 0% 50%) 0 0 / 8px 8px;
+    pointer-events: none;
+}

@@ -5,14 +5,16 @@ import { setTranslucentDragImage } from '../../canvas/dragGhost.js';
 import { makeTouchDraggable } from '../../canvas/touchDrag.js';
 import { createDropZones } from '../window/projectDropZones.js';
 import { reconcileManualOrder } from '../window/projectSort.js';
+import { createDragMenu } from './dragMenu.js';
+import { createDragClose } from './dragClose.js';
 
-// Dragging a project row: reorder (persisted as the session's manual order) and the drag-out
-// zones. Mouse uses HTML5 DnD, touch the pointer engine — both drive the same two paths.
+// Dragging a project row: reorder (persisted as the session's manual order), the drag-out zones
+// and the header's ⋯ menu and ✕. Mouse uses HTML5 DnD, touch the pointer engine — one set of paths.
 export function createDragReorder(deps) {
   const {
     list, overlay, app, close, render, sortMode, setSortMode, sortItems, buildItems,
     loadOrder, saveOrder, confirmOpen, openRemote, invalidateRemotes,
-    beginRemoval, retireKey, localKey, remoteKey, rowById,
+    beginRemoval, retireKey, localKey, remoteKey, rowById, header,
   } = deps;
   // A drop rewrites the persisted key order and switches the sort to 'manual'. Seeded from the
   // full current ordering (ignoring the filter) so every project keeps a slot; new ids go last.
@@ -38,23 +40,34 @@ export function createDragReorder(deps) {
   const { showZones, hideZones, zoneForPoint, highlightZone } = createDropZones(overlay);
   let lastX = 0;
   let lastY = 0;
+  // The header's targets: the held row's menu behind a ⋯, and the ✕ for the project open here.
+  // A ⋯ item run by the release settles the list itself: no dragend render after it.
+  const moreMenu = createDragMenu(header);
+  const closeDrop = createDragClose({ app, closeBtn: header.closeBtn, settle: () => render() });
+  const headerAt = (x, y) => [moreMenu.track(x, y), closeDrop.track(x, y)].some(Boolean);
+  const holdHeader = (row, key) => { moreMenu.begin(row._menuItems); closeDrop.begin(keyMeta.get(key)); };
 
   // preventDefault over a zone so the cursor reads as droppable and the drop is ACCEPTED, which
   // suppresses the browser's snap-back-to-source animation.
   const onDocDragOver = (e) => {
     if (!dragActive) return;
     lastX = e.clientX; lastY = e.clientY;
-    const zone = zoneForPoint(lastX, lastY);
+    const onHeader = headerAt(lastX, lastY);
+    const zone = onHeader ? null : zoneForPoint(lastX, lastY);
     highlightZone(zone);
     // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a 'copy'
     // effect makes the browser REJECT the drop (no drop event, no action). Keep every zone 'move'.
-    if (zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
+    if (onHeader || zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
   };
   document.addEventListener('dragover', onDocDragOver);
+  // A pointer arriving on the ⋯ or a menu row fires dragenter first, the dragovers only on later ticks.
+  document.addEventListener('dragenter', onDocDragOver);
   // Run the zone action on the accepted DROP (not dragend), so there's no snap-back glitch and
   // the action fires immediately. A reorder (drop on a row, stopPropagation) never reaches here.
   const onDocDrop = (e) => {
     if (!dragActive) return;
+    if (moreMenu.drop(e.clientX, e.clientY)) { e.preventDefault(); return; }
+    if (closeDrop.drop(e.clientX, e.clientY)) { e.preventDefault(); didZone = true; return; }
     const zone = zoneForPoint(e.clientX, e.clientY);
     if (!zone) return;   // over the dialog → row drop / nothing handles it
     e.preventDefault();
@@ -64,7 +77,7 @@ export function createDragReorder(deps) {
   document.addEventListener('drop', onDocDrop);
   const endDrag = () => {
     dragActive = false; dragKey = null; didReorder = false; didZone = false;
-    hideZones(); clearRowDropCues();
+    hideZones(); clearRowDropCues(); moreMenu.end(); closeDrop.end();
     list.querySelectorAll('.project-dragging').forEach((el) => el.classList.remove('project-dragging'));
   };
 
@@ -123,6 +136,7 @@ export function createDragReorder(deps) {
       row.classList.add('project-dragging');
       setTranslucentDragImage(e, row);  // translucent cursor-following ghost
       showZones();
+      holdHeader(row, key);
       // Mark this as an internal reorder drag so the image-drop overlay ignores it.
       try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-stencil-reorder', 'project'); } catch { /* older DnD */ }
     });
@@ -143,7 +157,7 @@ export function createDragReorder(deps) {
       didReorder = true;
     });
     row.addEventListener('dragend', () => {
-      const acted = didZone;   // the zone action already ran on the accepted drop
+      const acted = didZone || moreMenu.applied;   // a drop action or a ⋯ item settles the list itself
       endDrag();               // resets flags + hides zones (the source row may be detached)
       if (!acted) render();    // reflect a reorder, or clean up after a no-op release
     });
@@ -154,13 +168,14 @@ export function createDragReorder(deps) {
       canStart: (e) => !e.target.closest('input,button,select,.project-name-edit'),
       // The pickup is a DRAG, never an open: drop any pending click intent (the engine
       // also swallows the click after a real drag — this covers the pickup itself).
-      onStart: () => { row._openGesture?.dragStart(); dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); },
+      onStart: () => { row._openGesture?.dragStart(); dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); holdHeader(row, key); },
       onMove: (x, y) => {
         lastX = x; lastY = y;
-        const zone = zoneForPoint(x, y);
-        highlightZone(zone);
         clearRowDropCues();
-        if (!zone) {
+        const onHeader = headerAt(x, y);
+        const zone = onHeader ? null : zoneForPoint(x, y);
+        highlightZone(zone);
+        if (!zone && !onHeader) {
           const target = document.elementFromPoint(x, y)?.closest('.project-row');
           if (target && target.dataset.dragKey && target.dataset.dragKey !== dragKey) {
             const r = target.getBoundingClientRect();
@@ -169,6 +184,8 @@ export function createDragReorder(deps) {
         }
       },
       onDrop: (x, y) => {
+        if (moreMenu.drop(x, y)) { const quiet = moreMenu.applied; endDrag(); if (!quiet) render(); return; }
+        if (closeDrop.drop(x, y)) { endDrag(); return; }
         const zone = zoneForPoint(x, y);
         if (zone) { didZone = true; performZoneAction(dragKey, zone); endDrag(); return; }
         const target = document.elementFromPoint(x, y)?.closest('.project-row');

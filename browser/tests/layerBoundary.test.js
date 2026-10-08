@@ -145,7 +145,7 @@ const UI_ID_ALLOWANCE = {
   'ui/ctx/script.js': 3, 'ui/ctx/scriptEditor.js': 7, 'ui/ctx/state.js': 22, 'ui/ctx/styleActions.js': 21,
   'ui/panel/drawToggleUI.js': 2, 'ui/meta/expirationModal.js': 2, 'ui/fullscreen/clones.js': 2, 'ui/fullscreen/layer.js': 9,
   'ui/fullscreen/panels.js': 2, 'ui/shell/imageMissingBanner.js': 3, 'ui/meta/infoModal.js': 5, 'ui/meta/keywordChips.js': 5,
-  'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/modal.js': 21,
+  'ui/panel/layoutControls.js': 1, 'ui/panel/lines/list.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/modal.js': 21,
   'ui/panel/mainContent.js': 9, 'ui/modal/imageAnchor.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
   'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 12, 'ui/script/modal.js': 10, 'ui/panel/selectionPanel.js': 16,

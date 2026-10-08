@@ -1,5 +1,5 @@
 // MainWindow GUI e2e — Delete / Backspace in the selection panel's lists, as the browser's coordTable.js
-// and linesList.js take them: the focused row's own point or line goes, whatever the modifiers, and
+// and lines/events.js take them: the focused row's own point or line goes, whatever the modifiers, and
 // the window's shortcuts never see the key. Shared ground is in MainWindow.gui.hpp.
 #include "../../MainWindow.gui.hpp"
 

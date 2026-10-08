@@ -58,6 +58,7 @@ export const applyPeerLayout = (app, layout, remote) => {
     app.listHoverLineIdx = -1;
     const gone = (i) => i >= app.lines.length;
     if (gone(app.selectedLineIdx) || (app.selectedLines || []).some(gone)) app.deselectLine(false);
+    else if (app.selectedLineIdx >= 0) app.showSelectionPanel(app.lines[app.selectedLineIdx]);
     if (gone(app.coordLineIdx)) app.coordLineIdx = -1;
   }
   const viewMoved = app.imageModel.restoreView(view);

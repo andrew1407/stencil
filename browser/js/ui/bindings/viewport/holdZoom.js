@@ -1,19 +1,30 @@
 import { setZoomInputValue } from '../../../utils/zoomOverlay.js';
 import { zoomAroundCenter } from '../../../core/zoom/animation.js';
 
+// Smaller, gentler steps so a single click feels like one notch, not a leap.
+const SMALL = 0.10;
+const LARGE = 0.40;
+const DBL_WINDOW = 280;
+const HOLD_DELAY = 480;
+// The held rate, which a fit drag over ± (ui/drag/zoomDrag.js) runs at too.
+export const HOLD_STEP = 0.05;
+export const HOLD_REPEAT_MS = 90;
+
+// One continuous step about the viewport centre; sign is +1 zoom-in, −1 zoom-out.
+export const holdStep = (zp, sign) => {
+  const t = zp.clampScale(zp.app.scale + sign * HOLD_STEP);
+  setZoomInputValue(Math.round(t * 100));
+  zoomAroundCenter(zp, t);
+};
+
 // Press-and-hold zoom for the +/− buttons. sign is +1 zoom-in, −1 zoom-out.
 // Single press → small step; double-press → large step; hold → continuous zoom.
+// The handle stops the hold and reports the view the last press started from.
 export function setupHoldZoom(zp, btn, sign) {
-  // Smaller, gentler steps so a single click feels like one notch, not a leap.
-  const SMALL = 0.10;
-  const LARGE = 0.40;
-  const CONT = 0.05;
-  const DBL_WINDOW = 280;
-  const HOLD_DELAY = 480;
-  const REPEAT_MS = 90;
   let holdTimer = null;
   let repeatTimer = null;
   let lastPress = 0;
+  let before = null;
   const stop = () => {
     clearTimeout(holdTimer);
     holdTimer = null;
@@ -23,6 +34,7 @@ export function setupHoldZoom(zp, btn, sign) {
   btn.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     e.preventDefault();
+    before = zp.viewAnchor?.() ?? null;
     const now = performance.now();
     const isDouble = (now - lastPress) < DBL_WINDOW;
     lastPress = isDouble ? 0 : now;
@@ -33,15 +45,12 @@ export function setupHoldZoom(zp, btn, sign) {
     setZoomInputValue(Math.round(target * 100));
     zoomAroundCenter(zp, target);
     holdTimer = setTimeout(() => {
-      repeatTimer = setInterval(() => {
-        const t = zp.clampScale(zp.app.scale + sign * CONT);
-        setZoomInputValue(Math.round(t * 100));
-        zoomAroundCenter(zp, t);
-      }, REPEAT_MS);
+      repeatTimer = setInterval(() => holdStep(zp, sign), HOLD_REPEAT_MS);
     }, HOLD_DELAY);
   });
   btn.addEventListener('mouseup', stop);
   btn.addEventListener('mouseleave', stop);
   // If the mouse is released anywhere in the window, also stop
   window.addEventListener('mouseup', stop);
+  return { stop, pressAnchor: () => before };
 }

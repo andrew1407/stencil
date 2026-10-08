@@ -144,3 +144,17 @@ test('a preview that tints and turns is rewound, the filter with it, leaving no 
   assert.equal(view(ed.app), beforeView);
   assert.equal(stack(ed.app), beforeStack);
 });
+
+test('a rewind puts back what was picked, which the preview\'s own install let go', () => {
+  const ed = edited();
+  const { app } = ed;
+  Object.assign(app, { selectedLineIdx: 0, selectedLines: [], coordLineIdx: 0, shown: [] });
+  app.showSelectionPanel = (line) => app.shown.push(line);
+  const { editorHistory } = editorAdapters(app);
+  const mark = editorHistory.mark();
+  Object.assign(app, { selectedLineIdx: -1, selectedLines: [], coordLineIdx: -1 });
+  ed.stencil.setLines([]);
+  editorHistory.rewind(mark);
+  assert.deepEqual([app.selectedLineIdx, app.selectedLines, app.coordLineIdx], [0, [], 0]);
+  assert.deepEqual(app.shown, [app.lines[0]], 'the bar comes back on the line');
+});

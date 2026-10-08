@@ -15,8 +15,9 @@ namespace stencil::gui {
 
   // One for one with the browser's coordinates table (mainContent.js <thead>).
   enum PointCol { COL_INDEX = 0, COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y, COL_DEL, COL_COUNT };
-  // …and with its lines table, the same widget so the two tabs read as one panel.
-  enum LineCol { LCOL_INDEX = 0, LCOL_SWATCH, LCOL_NAME, LCOL_PTS, LCOL_DEL, LCOL_COUNT };
+  // …and with its lines table, the same widget so the two tabs read as one panel: the line's colour
+  // and thickness, its points' colour and size, its point count and its bin.
+  enum LineCol { LCOL_INDEX = 0, LCOL_COLOR, LCOL_THICK, LCOL_POINT, LCOL_SIZE, LCOL_PTS, LCOL_DEL, LCOL_COUNT };
   // A row the CANVAS selected; the view's own selection is the current row, what Delete acts on.
   inline constexpr int SELECTED_ROLE = Qt::UserRole + 1;
 
@@ -24,9 +25,9 @@ namespace stencil::gui {
   inline constexpr int TOGGLE_BOX = 24;
   inline constexpr int TOGGLE_GLYPH = 15;
 
-  // The Lines tab's fixed columns (browser .lines-table states every width but the name's).
-  // SWATCH is sized by the word "Color" over the chip, not by the 14px chip itself.
-  inline constexpr int LINE_COL_SWATCH = 46;
+  // The Lines tab's fixed columns (browser .lines-table colgroup): the chips, the count and the
+  // bin; the two numbers share the rest.
+  inline constexpr int LINE_COL_CHIP = 26;
   inline constexpr int LINE_COL_PTS = 40;
 
   // Browser .coordinates-table rows: one text line, td padding 6px above and below, a 1px rule.

@@ -1,6 +1,6 @@
 // MainWindow GUI e2e — colour chips: the Lines tab swatch picks a line's colour or, double-clicked,
 // resets it to the toolbar's line colour; the toolbar chip resets to the canonical default
-// (browser ui/control/dblReset.js + ui/panel/linesList.js).
+// (browser ui/control/dblReset.js + ui/panel/lines/list.js).
 #include "../MainWindow.gui.hpp"
 #include "uiTimings.hpp"
 
@@ -18,7 +18,7 @@ namespace {
     });
     poll->start(10);
   }
-  constexpr int SWATCH_COL = 1;   // selectionPanelParts.hpp LCOL_SWATCH
+  constexpr int SWATCH_COL = 1;   // selectionPanelParts.hpp LCOL_COLOR
 }  // namespace
 
 class MainWindowGuiTest : public QObject {
@@ -39,16 +39,20 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(linesList);
     QTRY_COMPARE(linesList->rowCount(), 1);
     const auto colour = [canvas] { return QString::fromStdString(canvas->getLines()[0].color); };
+    // The row's chip, found afresh: every edit rebuilds the rows.
+    const auto chip = [linesList] {
+      return linesList->cellWidget(0, SWATCH_COL)->findChild<QAbstractButton*>(QStringLiteral("linesSwatch"));
+    };
 
     answerPicker(QColor("#123456"));
-    emit linesList->cellClicked(0, SWATCH_COL);
+    chip()->click();
     QVERIFY2(!QApplication::activeModalWidget(), "the picker waits out the double-click window");
     QTRY_COMPARE_WITH_TIMEOUT(colour(), QString("#123456"), 3000);
     QCOMPARE(canvas->getSelectedLineIdx(), 0);
 
     win.settings.defaultColor = QStringLiteral("#00ff00");
-    emit linesList->cellClicked(0, SWATCH_COL);
-    emit linesList->cellDoubleClicked(0, SWATCH_COL);
+    chip()->click();
+    chip()->click();
     QTest::qWait(stencil::support::uiTimings().doubleClickMs + 100);
     QVERIFY2(!QApplication::activeModalWidget(), "a double-click never opens the picker");
     QCOMPARE(colour(), QString("#00ff00"));

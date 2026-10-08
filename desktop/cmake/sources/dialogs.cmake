@@ -1,8 +1,8 @@
 # The dialogs: settings, projects, open image, links, script, crop, the meta editors and the
 # servers list, each a TU family that travels under one name.
 
-# The projects dialog is split across Projects*.cpp partials (plus its row delegate),
-# all defining ProjectsDialog:: / ProjectRowDelegate:: members; they travel together.
+# The projects dialog is split across Projects*.cpp partials (plus its row delegate and the
+# header a held row reaches, ProjectDragMenu); they travel together.
 set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projects/ProjectsDialog.cpp
   src/dialogs/projects/ProjectsDialogBuild.cpp
@@ -11,6 +11,8 @@ set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projects/list/ProjectsDialogRefresh.cpp
   src/dialogs/projects/list/ProjectsDialogRows.cpp
   src/dialogs/projects/list/ProjectsDialogViewport.cpp
+  src/dialogs/projects/list/ProjectDragMenu.cpp
+  src/dialogs/projects/list/ProjectDragMenuMotion.cpp
   src/dialogs/projects/row/ProjectRowDelegate.cpp
   src/dialogs/projects/row/ProjectRowDelegateRow.cpp
   src/dialogs/projects/list/ProjectsBatchBar.cpp

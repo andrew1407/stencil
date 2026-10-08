@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { surfaceIn, surfaceOut, settleSurface, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { cmToUnit, unitLabel } from '../../utils.js';
 import { decideHover, refreshHover, scheduleReveal } from './tooltipHover.js';
+import { tipsHeld, onTipsHeld } from './tipHold.js';
 import { getPageDimensions, pixelToPageCoords } from '../../core/parse/pageMetrics.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Owns its dynamically-filled DOM and the show/hide/position logic.
@@ -24,6 +25,7 @@ export class StencilTooltip extends StencilElement {
   // is a backstop in case the element is wired before the app assigns it.
   wire(app) {
     this.app = app;
+    onTipsHeld(() => this.hide({ instant: true }));
     // Re-home the position:fixed tooltip to <body> so no ancestor transform (e.g. .container's reveal-animation identity matrix) becomes its containing block and offsets it from the cursor.
     if (this.parentElement !== document.body) document.body.appendChild(this);
   }
@@ -155,6 +157,7 @@ export class StencilTooltip extends StencilElement {
 
   // Reveal at `clientX/Y`, playing the gather only when it was not already showing.
   reveal(clientX, clientY) {
+    if (tipsHeld()) { this.hide(); return; }
     const wasHidden = this.style.display !== 'block';
     this.style.display = 'block';
     this.position(clientX, clientY);
@@ -175,7 +178,7 @@ export class StencilTooltip extends StencilElement {
     this.style.top = top + 'px';
   }
 
-  hide() {
+  hide({ instant = false } = {}) {
     // Drop the reveal delay along with the box — a target abandoned mid-wait must not
     // pop in late, describing whatever the cursor has since moved on to.
     clearTimeout(this.showTimer);
@@ -184,7 +187,7 @@ export class StencilTooltip extends StencilElement {
     this.pendingReveal = null;
     this.shownKey = null;
     // The box goes NOW; the cloud it leaves behind owns its own lifetime.
-    if (this.style.display === 'block') {
+    if (this.style.display === 'block' && !instant) {
       const r = this.getBoundingClientRect?.();
       if (r) this.dust(r.left + r.width / 2, r.top + r.height / 2, false);
     } else settleSurface(this);

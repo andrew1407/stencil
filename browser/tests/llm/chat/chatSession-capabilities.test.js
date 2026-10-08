@@ -52,11 +52,13 @@ test('saveProject promotes to a FRESH project under a unique name and returns it
 
 test('editorHistory is injected: a mark copies the stack, so later pushes never reach it', () => {
   const app = { history: { history: [['a']], historyStep: 0, floor: [] }, lines: [], cropRect: null, rotationQuarters: 0,
-    imageFilter: 'bw', filterColor: '#7c3aed' };
+    imageFilter: 'bw', filterColor: '#7c3aed', selectedLineIdx: -1, selectedLines: [2, 4], coordLineIdx: -1 };
   const mark = captureCapabilities(app).editorHistory.mark();
   app.history.history.push(['b']);
+  app.selectedLines.push(5);
   assert.deepStrictEqual(mark, { steps: [['a']], step: 0, floor: [],
-    memento: { lines: [], cropRect: null, rotationQuarters: 0, mirrored: false, filter: 'bw', filterColor: '#7c3aed' } });
+    memento: { lines: [], cropRect: null, rotationQuarters: 0, mirrored: false, filter: 'bw', filterColor: '#7c3aed' },
+    picked: [-1, [2, 4], -1] });
 });
 
 test('removeProjectNamed: unknown → note, declined → note, accepted → removed', async () => {

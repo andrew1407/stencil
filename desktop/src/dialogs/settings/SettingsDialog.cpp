@@ -1,4 +1,5 @@
 #include "../../support/control/dblReset.hpp"
+#include "colorDrag.hpp"
 #include "../../support/menu/SearchCombo.hpp"
 #include "SettingsDialog.hpp"
 #include "defaultVisuals.hpp"
@@ -119,6 +120,8 @@ namespace stencil::gui {
     btn->setToolTip(tip);
     connect(btn, &QPushButton::clicked, this,
             [this, &hex, title, b = btn] { pickColorInto(b, hex, title); });
+    support::installColorDrag(btn, {[&hex] { return QColor(hex); },
+                                    [this, &hex, b = btn](const QColor& c) { takeColor(b, hex, c); }});
   }
 
   void SettingsDialog::addCheck(Rows& r, QCheckBox*& box, bool on, const QString& tip) {
@@ -211,9 +214,12 @@ namespace stencil::gui {
   void SettingsDialog::pickColorInto(QPushButton* btn, QString& hex, const QString& title) {
     // Anchored on the swatch button that was clicked.
     const QColor c = support::pickColorAnimated(QColor(hex), this, title, btn);
-    if (!c.isValid()) return;
-    hex = c.name().toUpper();
-    setColorSwatch(btn, c, QSize(ctrlW, CTRL_H), /*withHex=*/true);
+    if (c.isValid()) takeColor(btn, hex, c);
+  }
+
+  void SettingsDialog::takeColor(QPushButton* btn, QString& hex, const QColor& color) {
+    hex = color.name().toUpper();
+    setColorSwatch(btn, color, QSize(ctrlW, CTRL_H), /*withHex=*/true);
     applyLive();
   }
 }

@@ -19,6 +19,8 @@ export declare class Renderer {
   useOverlay(canvas: HTMLCanvasElement | null): void;
   /** A blank recolour on trial: the picture paints as a solid `color` (filtered as the base is) until the image changes; null ends it. */
   previewFill(color: string | null): void;
+  /** On: every frame paints the unfiltered picture alone (no lines, points or split); no setting moves. */
+  previewClean(on: boolean): void;
   /** The stage's canvases, bottom first — what a reader of its pixels composites. */
   layers(): HTMLCanvasElement[];
   /** The filtered base as export needs it: built now, on this thread; the image itself when unfiltered. */

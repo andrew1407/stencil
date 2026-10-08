@@ -46,6 +46,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
+    src/support/drag/dragOverlays.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
@@ -69,8 +70,16 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     src/support/menu/menuReveal.cpp
     src/support/menu/popupSlide.cpp
     src/support/menu/SearchCombo.cpp src/support/menu/SearchComboPopup.cpp
+    src/support/drag/dragOverlays.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
+# The Projects window's header while a row is held (dialogs/projects/list/ProjectDragMenu): the ⋯,
+# its menu's dwell, the flyout, leaving, dropping, and Close armed for the open project.
+stencil_headless_test(stencil_projectdragmenu_headless
+  SOURCES tests/dialogs/projects/list/ProjectDragMenu.headless.cpp
+  LIBS stencil_gui_objs
+  ENV STENCIL_NO_ANIM=1)
 
 # Co-edit smoke over two connections as two editors; self-skips with no server reachable
 # (STENCIL_TEST_SERVER, default http://localhost:8090).

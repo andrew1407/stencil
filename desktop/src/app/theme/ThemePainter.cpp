@@ -124,4 +124,8 @@ namespace stencil::gui {
     w.applySettings(w.settings, true);
   }
 
+  bool ThemePainter::paintingDark() const {
+    return support::forcedDark().value_or(resolveDark(w.settings.themeMode));
+  }
+
 }  // namespace stencil::gui

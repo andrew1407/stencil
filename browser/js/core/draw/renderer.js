@@ -21,6 +21,7 @@ export class Renderer {
   #stage = new StageLayers();
   #frame = null;   // the overlay's context while a layered frame paints
   #fill = null;    // { image, color, key, css }: a blank's recolour on trial, over that image only
+  #clean = false;
   // Set per-frame in redraw(): true suppresses selection glow + hover/focus rings (the
   // read-only compare views draw a clean picture). Read by lineRender's glow decision.
   suppressHighlight = false;
@@ -45,6 +46,14 @@ export class Renderer {
   previewFill(color) {
     this.#fill = color && this.app.image ? { image: this.app.image, color, key: null, css: color } : null;
     this.requestRedraw();
+  }
+
+  // While on, every frame paints the unfiltered picture with no lines, points or compare split, and
+  // no setting moves: the controls, history and storage still hold what is applied.
+  previewClean(on) {
+    if (this.#clean === !!on) return;
+    this.#clean = !!on;
+    this.redraw();
   }
 
   // The trial fill as the base would paint it, filter and all; null when none applies.
@@ -101,7 +110,8 @@ export class Renderer {
     const layered = this.#stage.clear(app.canvas, this.#overlayDensity());
     if (!app.image) { this.#stage.invalidate(); return; }
 
-    const compare = this.effectiveCompareMode();
+    // A clean preview frames as the original view does: the unfiltered picture, nothing over it.
+    const compare = this.#clean ? 'original' : this.effectiveCompareMode();
     const isSplit = compare === 'vertical' || compare === 'horizontal';
     const fill = this.#fillColor(compare);
     const source = fill || (compare === 'original' ? app.image : this.#base.frame(...this.#baseKey()));

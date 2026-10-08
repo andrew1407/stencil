@@ -56,7 +56,8 @@ namespace stencil::gui {
     // whole page, so no dock can move the painted split off the window midline.
     w.overlays.dropZones = new DropZonesOverlay(&w);
     // Accent lands in the theme apply below (QPalette::Highlight is the OS selection blue).
-    w.overlays.projectZones = new ProjectDragZones(w.scroll->viewport());
+    // The projects list's drag-out zones cover the page as well (browser .project-dropzones).
+    w.overlays.projectZones = new ProjectDragZones(&w);
     w.overlays.tooltip = new CanvasTooltip(&w);
 
     // browser #coord-status sits between .canvas-viewport and .drop-hint; empty off-canvas, hidden

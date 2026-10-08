@@ -65,6 +65,7 @@ export const clearEditorState = (app) => {
   app.lines = [];
   app.currentLine = null;
   app.selectedLineIdx = -1;
+  app.selectedLines = [];
   app.coordLineIdx = -1;
   app.focusedPtIdx = -1;
   app.pendingLines = null;

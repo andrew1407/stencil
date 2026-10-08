@@ -31,6 +31,8 @@ namespace stencil::gui {
     void buildStyleToolbar();
     void buildDrawViewToolbar();
     void buildImageInfoBar();
+    // What dragging an icon does (app/drag): only the chat, dialog, canvas and zoom icons drag.
+    void buildIconDrags();
 
     bool sectionButtonVisible(QAction* act, QToolButton* btn) const;
 

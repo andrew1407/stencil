@@ -30,6 +30,11 @@
     "default": "Alt+B"
   },
   {
+    "id": "cycleFilterPrev",
+    "label": "Previous Image Filter",
+    "default": "Alt+Shift+B"
+  },
+  {
     "id": "cycleCompare",
     "label": "Cycle Compare View",
     "default": "Alt+O"
@@ -233,6 +238,11 @@
     "id": "clearProject",
     "label": "Remove Current Project",
     "default": "Ctrl+Alt+R"
+  },
+  {
+    "id": "closeProject",
+    "label": "Close Current Project",
+    "default": "Alt+Shift+W"
   },
   {
     "id": "renameProject",

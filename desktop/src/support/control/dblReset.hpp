@@ -15,8 +15,10 @@
 #include <QVariant>
 
 #include <functional>
+#include <memory>
 #include <utility>
 
+#include "../drag/iconDrag.hpp"
 #include "../uiTimings.hpp"
 
 namespace stencil::support {
@@ -116,9 +118,16 @@ namespace stencil::support {
     auto* wait = new QTimer(chip);
     wait->setSingleShot(true);
     wait->setInterval(uiTimings().doubleClickMs);
-    QObject::connect(wait, &QTimer::timeout, chip, std::move(open));
-    QObject::connect(chip, &QAbstractButton::clicked, chip, [wait, reset = std::move(reset)] {
-      if (!wait->isActive()) { wait->start(); return; }
+    auto drags = std::make_shared<unsigned>(0);   // a second press that dragged the chip away picks nothing
+    QObject::connect(wait, &QTimer::timeout, chip, [drags, open = std::move(open)] {
+      if (*drags == dragsStarted()) open();
+    });
+    QObject::connect(chip, &QAbstractButton::clicked, chip, [wait, drags, reset = std::move(reset)] {
+      if (!wait->isActive()) {
+        *drags = dragsStarted();
+        wait->start();
+        return;
+      }
       wait->stop();
       reset();
     });

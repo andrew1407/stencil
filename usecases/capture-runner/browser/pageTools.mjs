@@ -35,7 +35,7 @@ export function makeBrowserPages({ config, browser }) {
   const drawLines = async (page) => {
     await page.evaluate((lines) => window.stencil.setLines(lines, { history: false }), config.get('canvas.lines'));
     await page.locator('#coord-tab-lines').click();
-    await page.locator('#lines-list .lines-row').first().click();
+    await page.locator('#lines-list .lines-row td').first().click();
     await page.locator('#selection-panel').waitFor();
     await waitForAnimations(page);
   };

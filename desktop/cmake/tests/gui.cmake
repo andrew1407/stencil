@@ -26,6 +26,12 @@ stencil_headless_test(stencil_cropfit_headless
   SOURCES tests/dialogs/crop/cropPreviewFitBox.headless.cpp
   LIBS stencil_gui_objs Qt6::Widgets)
 
+# The Crop Image window on small offscreen screens: it opens inside them, footer whole, and every
+# resize re-fits the picture while the crop rect stays put.
+stencil_headless_test(stencil_cropdialogfit_headless
+  SOURCES tests/dialogs/crop/cropDialogFit.headless.cpp
+  LIBS stencil_gui_objs Qt6::Widgets)
+
 # The use-case screenshot capture behind usecases/docs/desktop/img: an opt-in binary ctest never
 # runs, driven by usecases/capture-runner/desktop.mjs.
 if(STENCIL_DOCS_CAPTURE)
@@ -57,6 +63,36 @@ stencil_headless_test(stencil_pointercursor_headless
 stencil_headless_test(stencil_popupslide_headless
   SOURCES tests/support/menu/popupSlide.headless.cpp
   LIBS Qt6::Gui
+  INCLUDE_TESTS)
+
+# Dragging a toolbar control (support/drag/iconDrag): slop, drop, cancel and Escape on a live button.
+stencil_headless_test(stencil_icondrag_headless
+  SOURCES tests/support/drag/iconDrag.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
+# Dragging a colour swatch onto another (support/drag/colorDrag): chips and a table's swatch cells.
+stencil_headless_test(stencil_colordrag_headless
+  SOURCES tests/support/drag/colorDrag.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
+# Press, drag, release on a selector (support/menu/SearchCombo dragPick) and Qt's own combo list.
+stencil_headless_test(stencil_combodragpick_headless
+  SOURCES tests/support/menu/comboDragPick.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS
+  ENV STENCIL_NO_ANIM=1)
+
+# What dragging a toolbar icon does (app/drag/toolbarDrags), on plain buttons over stand-in hooks.
+stencil_headless_test(stencil_toolbardrags_headless
+  SOURCES tests/app/drag/toolbarDrags.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test)
+
+# No tip or tip dust through a control drag (support/drag/iconDrag over support/tip/AppTooltip).
+stencil_headless_test(stencil_icondragtips_headless
+  SOURCES tests/support/drag/iconDragTips.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
 # Alt+hover selector peeks (support/tip/altPeek, support/menu/comboAltPeek) over live combos.

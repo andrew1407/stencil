@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
 #include "pointMath.hpp"
 #include "../../support/control/lineLimits.hpp"
 
@@ -14,10 +13,10 @@ namespace stencil::gui {
   void CanvasWidget::adjustThicknessAtCursor(double imageX, double imageY,
                                              int dir) {
     int lineIdx = -1;
-    if (auto pt = core::findNearestPoint(lines, imageX, imageY, grabHitRadius())) {
+    if (auto pt = model::pointAt(lines, shownMarks(), imageX, imageY, grabHitRadius())) {
       lineIdx = pt->lineIdx;
     } else {
-      lineIdx = core::findLineAt(lines, imageX, imageY, lineHitRadius());
+      lineIdx = model::lineAt(lines, shownMarks(), imageX, imageY, lineHitRadius());
     }
     if (lineIdx < 0 || lineIdx >= static_cast<int>(lines.size())) return;
 

@@ -1,5 +1,5 @@
 import { rowMatches } from '../base.js';
-import { showMenu, hideMenu } from './dropdownMenu.js';
+import { showMenu, hideMenu, wireDragPick } from './dropdownMenu.js';
 import { attachMenuScrollbar } from './menuScrollbar.js';
 import { markSwap } from '../motion.js';
 import { buildSelectFace } from './customSelectFace.js';
@@ -209,6 +209,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     open, close, isOpen: () => !menu.hidden, enabled: () => !selectEl.disabled,
     isTyping: isTypingInFocus,
   });
+  wireDragPick(trigger, menu, { open, close, enabled: () => !selectEl.disabled });
   sync();   // initial trigger label; the menu itself is (re)built on open()
   // Options filled in later (server list, open-in targets) leave no value to set on load;
   // watching the element covers that and the disabled flag, which no event reports either.

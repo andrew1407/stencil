@@ -123,6 +123,24 @@ test('individual line setters commit each change', () => {
   assert.equal(called(app, 'saveHistory').length, 6);   // one commit per setter
 });
 
+// The Lines tab lists each line's colours and sizes and its point count, so every handle edit names
+// the line set; the bar re-shows the line it holds.
+test('every line-handle edit tells the Lines tab, and the bar when it holds that line', async () => {
+  const { Emitter } = await import('../../js/core/emitter.js');
+  const changes = new Emitter();
+  let lines = 0;
+  changes.on('lines', () => { lines++; });
+  const app = makeApp({ changes, selectedLineIdx: 0, lines: [{ color: '#000000', thickness: 1, pointSize: 1, points: [{ x: 0, y: 0 }] }] });
+  app.showSelectionPanel = (l) => app.calls.push(['showSelectionPanel', l]);
+  const line = createStencil(app).lines[0];
+  line.thickness = 4;
+  line.apply({ pointSize: 9 });
+  line.add({ x: 5, y: 5 });
+  line.points[0].apply({ size: 3 });
+  assert.equal(lines, 4);
+  assert.deepEqual(called(app, 'showSelectionPanel').map((c) => c[1]), [app.lines[0], app.lines[0], app.lines[0]]);
+});
+
 test('point x/y setters write absolute coords; pt.remove drops the point (and empties → drops the line)', () => {
   const app = makeApp({ lines: [{ points: [{ x: 1, y: 2 }] }] });
   const stencil = createStencil(app);

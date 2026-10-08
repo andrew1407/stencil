@@ -6,6 +6,8 @@ import { toggleDrawing } from '../../../core/draw/mode.js';
 import { selectedIndices } from '../../../core/line/selection.js';
 import { flipSelectedLine, rotateSelectedLineQuarter } from '../../../core/draw/transformOps.js';
 import { removePoint, removeSelectedLines } from '../../../core/line/editOps.js';
+import { canvasMouseMove } from '../../../core/pointer/hoverController.js';
+import { confirmCloseProject } from '../../projects/closeProject.js';
 // Every hotkey id the editor answers to, as one table of actions — plus the two sets
 // the dispatcher consults: which are edits (inert while comparing) and which act on
 // the selection. The keydown loop above is the only caller.
@@ -18,29 +20,41 @@ export function hotkeyActions(app) {
     if (el.__stencilGestures?.hotkey?.()) return;
     el.click();
   };
+  // One step along the filters and the tint, wrapping (dir -1 = back). Through setImageFilter, so a
+  // step is one undo step, marks the filter dirty and syncs to the server, as a toolbar pick does.
+  const stepFilter = (dir) => {
+    const opts = ['none', 'bw', 'sepia', 'invert', 'contour', 'custom'];
+    const cur = opts.indexOf(app.imageFilter);
+    app.settings.setImageFilter(opts[(cur + dir + opts.length) % opts.length]);
+  };
+  // Marks shown or hidden under a still pointer: hover again where it rests, under the keys held, so
+  // no ring, row tint or cursor outlives a hidden mark (ui/bindings/canvasPointer.js does so on scroll).
+  const hoverAgain = (e) => {
+    if (!app.mouseOverCanvas || !e) return;
+    canvasMouseMove(app, { clientX: app.lastMouseClientX, clientY: app.lastMouseClientY, timeStamp: e.timeStamp,
+      altKey: e.altKey, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey });
+  };
   // Keyboard shortcuts — dispatched via the hotkeys registry
   const HK_HANDLERS = {
     undo: () => { if (!document.getElementById('undo').disabled) app.undo(); },
     redo: () => { if (!document.getElementById('redo').disabled) app.redo(); },
     startDraw: () => toggleDrawing(app),
-    togglePoints: () => {
+    togglePoints: (e) => {
       const cb = document.getElementById('show-points');
       setChecked(cb, !cb.checked);
       app.showPoints = cb.checked;
       app.renderer.redraw();
+      hoverAgain(e);
     },
-    toggleLines: () => {
+    toggleLines: (e) => {
       const cb = document.getElementById('show-lines');
       setChecked(cb, !cb.checked);
       app.showLines = cb.checked;
       app.renderer.redraw();
+      hoverAgain(e);
     },
-    cycleFilter: () => {
-      const opts = ['none', 'bw', 'sepia', 'invert', 'contour', 'custom'];
-      const cur = opts.indexOf(app.imageFilter);
-      // Route through setImageFilter so the cycle marks the filter dirty + syncs to the server.
-      app.settings.setImageFilter(opts[(cur + 1) % opts.length]);
-    },
+    cycleFilter: () => stepFilter(1),
+    cycleFilterPrev: () => stepFilter(-1),
     cycleCompare: () => {
       if (!app.image) return;
       const cur = COMPARE_MODES.indexOf(app.compareMode);
@@ -114,6 +128,8 @@ export function hotkeyActions(app) {
     // Remove the CURRENT project from the editor (the trash in Data) — distinct from
     // deleteProject above, which deletes the .stencil file on disk.
     clearProject: () => clickIfActive('clear-storage'),
+    // Closes it here and keeps it saved; with nothing open it only says so.
+    closeProject: () => confirmCloseProject(app),
     // The ✎ next to the project name: enters inline rename (focus + select). A no-op
     // with no saved project, exactly as clicking the pencil is.
     renameProject: () => clickIfActive('project-name-edit'),

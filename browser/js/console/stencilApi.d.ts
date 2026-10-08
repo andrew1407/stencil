@@ -119,6 +119,8 @@ export interface Stencil extends StencilSettings {
   expire(spec?: string): Project | string;
   /** "Make a copy" of the live editor: the new local project, or null for an incognito or server copy. */
   copyProject(opts: CopyProjectRequest): Promise<Project | null>;
+  /** Closes the project open here, unasked; it stays in Projects. Throws when none is open. */
+  closeProject(opts?: { fully?: boolean }): Stencil;
 
   // Servers
   connect(urlOrUrls: ConnectSpec | ConnectSpec[]): Promise<Stencil>;

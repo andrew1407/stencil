@@ -13,7 +13,11 @@ export class CoordTable {
     this.app = app;
   }
 
-  update(points = null, lineIdx = this.app.coordLineIdx) {
+  // A bare update() re-renders the line the table targets; points alone are listed against the
+  // line that owns them, so a delete in the table always acts on the line it shows.
+  update(points, lineIdx) {
+    if (points === undefined) [points, lineIdx] = this.#target();
+    else if (lineIdx === undefined) lineIdx = this.#ownerOf(points);
     this.app.coordLineIdx = lineIdx;
     this.app.hoveredPtIdx = -1;
     this.#points = points;
@@ -47,6 +51,19 @@ export class CoordTable {
       this.app.coordinatesBody.appendChild(row);
     });
     this.#capPanel();
+  }
+
+  // -1 is the stroke in progress; an index past the line set names nothing.
+  #target() {
+    const i = this.app.coordLineIdx;
+    const line = i === -1 ? this.app.currentLine : this.app.lines[i];
+    return line ? [line.points, i] : [null, -1];
+  }
+
+  #ownerOf(points) {
+    if (points && points === this.app.currentLine?.points) return -1;
+    const i = points ? this.app.lines.findIndex((l) => l.points === points) : -1;
+    return i >= 0 ? i : this.app.coordLineIdx;
   }
 
   // A drag moves the points the table already lists: rewrite the cells, keep the rows.

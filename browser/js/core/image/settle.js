@@ -9,6 +9,7 @@ import { originalHashOf } from '../remote/peerLayout.js';
 import { editorMemento } from '../historyStack.js';
 import { portableSource } from '../project/store/projectSources.js';
 import { reportIncognitoSession } from '../launch/incognitoFlow.js';
+import { settleReplacedLines } from '../line/selection.js';
 
 // The second half of the load flow (loadFlow.js), once the original has decoded;
 // `plan` is what the first half worked out.
@@ -153,7 +154,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
 // A blank recolor keeps the SAME dimensions, so refitting would only throw away the zoom/pan.
   if (!opts.keepZoom) app.zoomPan.fitToWindow();
   app.updateInfo();
-  app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
+  settleReplacedLines(app);
   app.renderer.redraw();
 // The dust-assembly arrival (ghostIn); only an in-place replace is exempt.
   if (!replaceInPlace && opts.landing !== false) {

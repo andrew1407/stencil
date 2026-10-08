@@ -51,3 +51,9 @@ stencil_headless_test(stencil_arrowpanner_headless
 stencil_headless_test(stencil_unitscontroller_headless
   SOURCES tests/app/view/UnitsController.headless.cpp
   LIBS Qt6::Core)
+
+# The theme lens overlay (app/theme/ThemeLens): the photograph in a disc at the pointer, the picture
+# inverted in it, a rim at its edge and the window around it.
+stencil_headless_test(stencil_themelens_headless
+  SOURCES tests/app/theme/themeLens.headless.cpp src/app/theme/ThemeLens.cpp
+  LIBS Qt6::Widgets)

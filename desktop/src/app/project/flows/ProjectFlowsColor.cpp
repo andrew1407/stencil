@@ -29,17 +29,17 @@ namespace stencil::gui {
     return !w.remote.session->getLink().id.isEmpty() ? w.remote.session->getLink().color : activeProjectColor();
   }
 
+  // Not the accent: an uncoloured name is painted in a neutral grey.
+  QColor ProjectFlows::projectNameColor() const {
+    const QColor own(currentProjectColor());
+    return own.isValid() ? own : QColor("#80868f");
+  }
+
   void ProjectFlows::chooseProjectColor() {
     // Direct modal picker: menu/InstantPopup/singleShot variants left a stray mouse grab that
-    // closed the dialog.
-    const QString cur = currentProjectColor();
-    // Seed with the neutral grey the name is painted in, not the accent.
-    const QColor seed = (!cur.isEmpty() && QColor(cur).isValid())
-                            ? QColor(cur)
-                            : QColor("#80868f");
-    // Non-native: the macOS shared NSColorPanel gets dismissed by our event filters.
+    // closed the dialog. Non-native: the macOS shared NSColorPanel gets dismissed by our event filters.
     const QColor picked =
-        support::pickColorAnimated(seed, &w, "Project name color", w.nameBar.colorBtn);
+        support::pickColorAnimated(projectNameColor(), &w, "Project name color", w.nameBar.colorBtn);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }

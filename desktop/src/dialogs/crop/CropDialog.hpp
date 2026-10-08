@@ -21,8 +21,8 @@ namespace stencil::gui {
   class CropPreview : public QWidget {
     Q_OBJECT
    public:
-    // `autoFitScreen`: the constructor's own screen-relative first fit (previewFitBox) - on for the
-    // standalone crop editor, off for a caller that fits its own small box right after.
+    // `autoFitScreen`: the standalone crop editor's elastic stage, asking for the picture fitted
+    // into the screen-relative previewFitBox; off for a caller that pins its own box right after.
     CropPreview(const QImage& original, double pageWidthCm, double pageHeightCm,
                 const core::CropRect& initial, QWidget* parent = nullptr,
                 bool autoFitScreen = true);
@@ -33,12 +33,14 @@ namespace stencil::gui {
     // A DIFFERENT page picked (not a flip): no reciprocal aspect to carry the old box
     // across, so this is a fresh default at the new aspect — same as a first Crop tick.
     void setPageSize(double pageWidthCm, double pageHeightCm);
-    void setFitBox(const QSize& box);   // re-fit the display scale into a new box
+    void setFitBox(const QSize& box);         // pinned: a fixed size, the picture fitted into `box`
+    void setPreferredBox(const QSize& box);   // elastic: that size is only the hint, any size re-fits
     // Swap the pixels under the box — a scrubbed video frame. The cropBox survives while
     // the dimensions do (every frame of one video shares them); otherwise it re-centres.
     void setOriginal(const QImage& original);
     // Where the scaled picture is actually painted — what a bar under it is sized to.
-    QRect paintedRect() const { return imageRect(); }
+    QRect paintedRect() const { return imageRect().toRect(); }
+    QSize sizeHint() const override;
 
    signals:
     void cropChanged();  // cropBox or orientation changed (updates the dialog label)
@@ -56,7 +58,10 @@ namespace stencil::gui {
     core::Point toImage(const QPoint& widgetPos) const;  // display px -> image px
     int cornerAt(const QPoint& widgetPos) const;         // handle hit-test (-1 none)
     QRectF displayRect() const;  // crop cropBox in display (widget) coordinates
-    QRect imageRect() const;     // where the scaled image is painted (inset for handles)
+    // The picture at the widget's current size: fitted inside the handle inset, centred.
+    double viewScale() const;    // display px per image px
+    QRectF imageRect() const;
+    bool fitInto(const QSize& box);   // the hint for `box`; false (and nothing kept) if degenerate
     void flyRectFrom(const core::CropRect& from);   // the painted box eases there → cropBox
     void settleRect();                               // …or lands on cropBox at once
 
@@ -69,8 +74,9 @@ namespace stencil::gui {
     QVariantAnimation* rectAnim = nullptr;   // a flip's flight; paints shownRect meanwhile
     core::CropRect shownRect;
     bool flying = false;
-    double scale = 1.0;   // display px per image px
     QSize fitBox;          // the box last asked for, so a size CHANGE re-fits into it too
+    QSize hint;            // the picture fitted into fitBox, plus the inset
+    bool pinned = false;   // setFitBox's fixed size; else the layout's size re-fits the picture
     int iw = 0, ih = 0;
 
     // Active gesture.
@@ -90,7 +96,7 @@ namespace stencil::gui {
     core::CropRect cropRect() const;
 
    private:
-    void fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer);
+    void fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer, const QSize& image);
 
     CropPreview* preview = nullptr;
     QPushButton* orientationBtn = nullptr;

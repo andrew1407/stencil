@@ -1,8 +1,9 @@
-// CropPreview::setFitBox (dialogs/crop/CropDialog.cpp) — an invalid or degenerate box must never fall back
-// to scale 1.0 (the image's own NATIVE pixels): for a photo or video frame that dwarfs the dialog,
-// that is the "crop covers the whole window" bug. OpenImageDialog's inline stage skips the
-// constructor's screen-relative first fit (autoFitScreen=false) for the same reason.
+// CropPreview's pinned (setFitBox) and elastic (setPreferredBox) fit, dialogs/crop/CropDialog.cpp — an
+// invalid or degenerate box must never fall back to scale 1.0 (the image's own NATIVE pixels): for a photo
+// or video frame that dwarfs the dialog, that is the "crop covers the whole window" bug. OpenImageDialog's
+// inline stage skips the constructor's screen-relative first fit (autoFitScreen=false) for the same reason.
 #include "CropDialog.hpp"
+#include "cropDialogParts.hpp"
 #include "cropGeometry.hpp"
 
 #include <QApplication>
@@ -12,6 +13,7 @@
 #include "../../support/check.hpp"
 
 using stencil::gui::CropPreview;
+using stencil::gui::INSET;
 
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
@@ -38,6 +40,31 @@ int main(int argc, char** argv) {
     check(p.size() == before, "an invalid box is a no-op, not a jump to native pixels");
     p.setFitBox(QSize(0, 0));
     check(p.size() == before, "…and so is a zero one");
+  }
+
+  {
+    // Pinned (the open-image stage): the picture fills the fixed size inside the inset, as it always did.
+    CropPreview p(frame, 29.7, 42.0, initial, nullptr, /*autoFitScreen=*/false);
+    p.setFitBox(QSize(440, 300));
+    check(p.paintedRect() == p.rect().adjusted(INSET, INSET, -INSET, -INSET),
+          "a pinned stage paints exactly inside its handle inset");
+  }
+  {
+    // Elastic (the crop editor's stage): the fitted picture is only the hint; any size re-fits it,
+    // centred, and a degenerate box is refused like a pinned one.
+    QImage wide(3000, 2000, QImage::Format_RGB32);
+    CropPreview p(wide, 21.0, 29.7, initial, nullptr, /*autoFitScreen=*/false);
+    p.setPreferredBox(QSize(600, 600));
+    check(p.sizeHint() == QSize(600 + 2 * INSET, 400 + 2 * INSET),
+          "the hint is the picture fitted into the box, plus the inset");
+    check(p.minimumWidth() < p.sizeHint().width() && p.maximumWidth() > p.sizeHint().width(),
+          "…but the size is the layout's to give");
+    p.resize(1000, 300);
+    const QRect r = p.paintedRect();
+    check(r.height() == 300 - 2 * INSET && std::abs(r.center().x() - 500) <= 1,
+          "a wider stage paints the picture as tall as it allows, centred");
+    p.setPreferredBox(QSize(0, 0));
+    check(p.sizeHint() == QSize(600 + 2 * INSET, 400 + 2 * INSET), "a degenerate box keeps the last good hint");
   }
 
   {

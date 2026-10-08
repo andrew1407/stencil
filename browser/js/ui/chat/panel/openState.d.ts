@@ -8,6 +8,8 @@ export interface PanelOpenState {
   chatDock: ChatDock;
   setDock: (mode: DockMode) => void;
   adoptLayout: () => void;
+  /** Runs `run` (an open or a move); a float it forms flies out of the client rect `from`, null the icon. */
+  openFrom: (from: { left: number; top: number; width: number; height: number } | null, run: () => void) => void;
 }
 
 /** The chat panel's open/closed life: dock, dust flight, compact popover and its dismissals. */

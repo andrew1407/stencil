@@ -57,9 +57,10 @@ namespace stencil::gui {
     void buildDrawingRows(Rows& r, const Settings& current);
     void buildPreferenceRows(Rows& r, const Settings& current);
 
-    // Opens an animated picker anchored on `btn`, writes the chosen color into
-    // `hex`, repaints the swatch, and applies live.
+    // Opens an animated picker anchored on `btn` and takes the chosen color.
     void pickColorInto(QPushButton* btn, QString& hex, const QString& title);
+    // Writes `color` into `hex`, repaints the swatch, and applies live: a pick, or a well dropped on it.
+    void takeColor(QPushButton* btn, QString& hex, const QColor& color);
     void applyLive();  // fires onChange with the current result()
     void applyFilter(const QString& query);
     void resetVisuals();   // the browser's VIS_DEFAULTS + the default accent

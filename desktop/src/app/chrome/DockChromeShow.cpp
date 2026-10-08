@@ -68,7 +68,7 @@ namespace stencil::gui {
       if (show) {
         support::veilForReveal(*w.chatDock);
         w.chatDock->show();
-        support::revealWindow(*w.chatDock, icon);
+        support::revealWindow(*w.chatDock, icon, chatRevealFrom);
       } else {
         chatClosing = true;
         w.chatDock->setClosing(true);

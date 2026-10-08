@@ -6,6 +6,7 @@ import type { DrawingApp } from '../drawingApp.js';
 export declare const setPointCoord: (app: DrawingApp, lineIdx: number, ptIdx: number, axis: 'x' | 'y', valuePx: number | string) => unknown;
 /** Removing the last point of a committed line drops the line too. */
 export declare const removePoint: (app: DrawingApp, lineIdx: number, ptIdx: number) => unknown;
+/** Drops line idx; the selection, a multi-selection (one line left is a single selection again) and the points-table target follow the shifted indices. */
 export declare const removeLine: (app: DrawingApp, idx: number) => unknown;
 /** Every selected line at once, as one history entry. */
 export declare const removeSelectedLines: (app: DrawingApp) => unknown;

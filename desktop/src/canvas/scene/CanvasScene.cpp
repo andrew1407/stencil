@@ -158,4 +158,10 @@ namespace stencil::gui {
     return false;  // "original": the edit (and its layout) is nowhere on screen
   }
 
+  void CanvasScene::setCleanPreview(bool on) {
+    if (cleanPreview == on) return;
+    cleanPreview = on;
+    sceneChanged();
+  }
+
 }  // namespace stencil::gui

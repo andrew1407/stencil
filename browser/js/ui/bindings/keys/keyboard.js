@@ -48,7 +48,7 @@ export function wireKeyboard(app) {
       e.preventDefault();
       noteKeyGesture(def.id);   // a confirm it raises grows from this hotkey's icon (gesturePoint.js)
       const fn = HK_HANDLERS[def.id];
-      if (fn) fn();
+      if (fn) fn(e);
       return;
     }
 

@@ -3,9 +3,28 @@
 // dialog alive until its dust has landed, and the dialog-level entry both directions go through.
 #include "modalRevealParts.hpp"
 
+#include <optional>
+
 namespace stencil::support {
 
-  void flyWindow(QWidget& w, QWidget* anchor, bool opening, std::function<void()> after) {
+  // A DialogLanding's point until the next dialog to show claims it (DialogCentreFilter).
+  std::optional<QPoint>& pendingLanding() {
+    static std::optional<QPoint> at;
+    return at;
+  }
+
+  DialogLanding::DialogLanding(const QPoint& at) { pendingLanding() = at; }
+  DialogLanding::~DialogLanding() { pendingLanding().reset(); }
+
+  bool claimLanding(QDialog& dlg) {
+    if (!pendingLanding()) return false;
+    dlg.setProperty(LANDING_PROPERTY, *pendingLanding());
+    pendingLanding().reset();
+    return true;
+  }
+
+  void flyWindow(QWidget& w, QWidget* anchor, bool opening, std::function<void()> after,
+                 const QRect& from = QRect()) {
     QPointer<QWidget> guard(&w);
     // A declined flight must not leave a window veiled by veilForReveal.
     const auto land = [guard, opening, &after] {
@@ -17,9 +36,9 @@ namespace stencil::support {
     settleLayout(w);
     const QPixmap shot = w.grab();
     if (!host || !target.isValid() || shot.isNull()) return land();
-    const QRect icon = originRect(anchor, target, QRect(), host);
+    const QRect icon = from.isValid() ? from : originRect(anchor, target, QRect(), host);
     if (icon == target) return land();
-    const QRect from = opening ? icon : target;
+    const QRect start = opening ? icon : target;
     const QRect to = opening ? target : icon;
     if (opening) w.setWindowOpacity(0.0);
     if (flySurfaceDust(host, shot, target, icon, opening, inkOf(w), &w)) {
@@ -27,8 +46,8 @@ namespace stencil::support {
       if (after) after();
       return;
     }
-    QLabel* ghost = makeGhost(host, shot, from, to, &w);
-    flyGhost(ghost, host, from, to, opening ? OPEN_MS : CLOSE_MS,
+    QLabel* ghost = makeGhost(host, shot, start, to, &w);
+    flyGhost(ghost, host, start, to, opening ? OPEN_MS : CLOSE_MS,
              opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? openEase() : closeEase(),
              [guard, opening, after] {
                if (guard && opening) guard->setWindowOpacity(1.0);
@@ -137,7 +156,9 @@ namespace stencil::support {
         const QPixmap shot = guard->grab();
         *shotWhileOpen = shot;
         if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
-        const QRect from = originRect(anchorGuard.data(), target, anchorRect, host);
+        const QVariant landing = guard->property(LANDING_PROPERTY);
+        const QRect from = landing.isValid() ? cursorOrigin(landing.toPoint())
+                                             : originRect(anchorGuard.data(), target, anchorRect, host);
         if (from == target) { restore(); return; }
         if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard), guard)) { fadeUpBehindDust(guard); return; }
         QLabel* ghost = makeGhost(host, shot, from, target, guard);

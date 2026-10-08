@@ -11,6 +11,8 @@ export { wireModalShell } from './modal/shell.js';
 
 /** Register a custom element — only in a browser. */
 export declare const define: (tag: string, klass: CustomElementConstructor) => void;
+/** The attribute on a still copy of the page; a region connected inside one is never wired. */
+export declare const COPY_ATTR: string;
 
 export declare class StencilElement extends HTMLElement {
   /** Subclasses provide the region's markup; rendered once on connect when the host is empty. */

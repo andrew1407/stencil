@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QRect>
 #include <QSize>
+#include <cmath>
 
 namespace stencil::gui {
 
@@ -28,8 +29,10 @@ namespace stencil::gui {
   inline constexpr int CROP_TWEEN_MS = 380;
   inline constexpr int MIN_DISP_W = 760;  // the preview fit box never shrinks below this…
   inline constexpr int MIN_DISP_H = 540;
-  inline constexpr int MIN_DIALOG_W = 640;   // the dialog's own floor
+  inline constexpr int MIN_DIALOG_W = 640;   // the narrowest the dialog opens at
   inline constexpr int SCREEN_MARGIN = 20;  // …but the window always keeps this much screen around it
+  // The picture's room never shrinks under this, px a side (browser cropFit.js STAGE_MIN).
+  inline constexpr int STAGE_MIN = 120;
 
   // The screen the dialog lands on (its parent window's, else the primary) as LOGICAL px:
   // availableGeometry is device-independent and leaves out the menu bar / dock / taskbar.
@@ -41,11 +44,25 @@ namespace stencil::gui {
     return screen ? screen->availableGeometry() : QRect(0, 0, 1280, 800);
   }
 
-  // The browser's preview box (cropModal.js #crop-image-el: max-width calc(96vw - 60px), max-height
-  // calc(82vh - 180px)) of that screen - never below 760x540 (fitToScreen still caps the window).
+  // The browser's preview box (cropFit.js previewBox) of that screen - never below 760x540
+  // (fitToScreen still caps the window).
   inline QSize previewFitBox(const QRect& avail) {
     return QSize(qMax(MIN_DISP_W, qRound(avail.width() * 0.96) - 60),
                  qMax(MIN_DISP_H, qRound(avail.height() * 0.82) - 180));
+  }
+
+  // The window's opening size around `chrome` (the window less its picture's room): the picture fitted
+  // into the preview box and what the screen leaves, at least floorW wide, never past the screen less
+  // SCREEN_MARGIN. Browser twin: cropFit.js cropWindowSize.
+  inline QSize cropWindowSize(const QSize& image, const QSize& chrome, const QRect& avail, int floorW) {
+    const QSize room(avail.width() - 2 * SCREEN_MARGIN, avail.height() - 2 * SCREEN_MARGIN);
+    const QSize box = previewFitBox(avail);
+    const double roomW = qMin(box.width(), room.width() - chrome.width());
+    const double roomH = qMin(box.height(), room.height() - chrome.height());
+    const bool any = image.width() > 0 && image.height() > 0 && roomW > 0 && roomH > 0;
+    const double s = any ? qMin(roomW / image.width(), roomH / image.height()) : 0.0;
+    return QSize(qMin(room.width(), qMax(floorW, int(std::ceil(image.width() * s)) + chrome.width())),
+                 qMin(room.height(), int(std::ceil(image.height() * s)) + chrome.height()));
   }
 
 }  // namespace stencil::gui

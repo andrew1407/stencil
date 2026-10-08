@@ -41,7 +41,7 @@ reach into them include them. The document state lives in `CanvasScene` (`core::
 |---|---|---|
 | `src/app/` | `main.cpp`, the controllers, and `MainWindow`: `MainWindow.hpp` (moc runs on the header) holding the hub and the state groups, `WindowParts.hpp` the parts it composes, a folder per feature | composition only, no logic a controller could hold; a new job is a part or a TU in its feature folder, not a longer one, and a part never reaches into another |
 | `src/canvas/` | `scene/` `CanvasScene`, the document and its paint path with no widget; `CanvasWidget` (QPainter), the scene plus the pointer | pixel, geometry and page math come from `core/` through `model/canvasCore.hpp`, never re-derived; pointer timings, hit radii, the hold ghost's dash and alphas and ring metrics come from `constants.json` through `input/pointerTuning` and `scene/markMetrics`, the thickness and point-size ranges from its `LIMITS` through `support/control/lineLimits`; an offscreen render uses a `CanvasScene`, never a hidden widget; the canvas never reads a file, it adopts pixels decoded off the GUI thread |
-| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `model/` may include `core/`, nothing above it may; nothing here is persisted; a turned crop is cut from the unturned picture, then only that piece turned |
+| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole (`ScriptDoc`, `imageTurn`, `lineUnion`, `markHits`, `OpPlanSchema`, `canvasCore.hpp`) and `ScriptBuffer` | the core seam: `model/` may include `core/`, nothing above it may; nothing here is persisted; a turned crop is cut from the unturned picture, then only that piece turned |
 | `src/dialogs/` | a folder per window, one dialog per file, plus `ScriptEditorWidget` (the .stc editor both script surfaces host) and `ScriptMenuPanel` | every prompt/picker goes through `promptModal` / `chooseModal`, never `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a copy |
 | `src/llm/` | `dock/` and `panel/` (the chat surfaces), `client/` (`LlmClient`, `QtLlmTransport`, `SessionKey`), `plan/` (registry, typed plan mapping, executor) | plans validate in `core/opplan` against the shared registry before execution; `plan/` only maps core's result to typed actions and shows core's canonical messages; the executor calls the toolbar's appliers |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil`), `mediaLoader`, `mediaTypes` (suffix sniffers and `sniffImageHeader`, the image-header corpus's sniffer) | QtCore-only serialization; `MediaLoader` decodes every picture it resolves on the pool and answers only from the event loop; any other decode is the window's (`decodeForCanvas`) |
@@ -136,9 +136,15 @@ classDiagram
 | Session override | `support/motionPrefs.hpp`, `support/skinPrefs.hpp`, and the hooks `support/webcore/look.cpp` installs | Asked by every restyle and animation, written to no file: `Settings` never carries a skin, and `applySettings` re-pushes stored switches only when the user moved one |
 | Golden pin / fixture walker | `uiPins`, `opPlanOracle`; the `*Fixtures` walkers | Pins guard pixels, QSS and typed plan results; walkers prove the shared corpora here |
 | Double-click reset | `DblResetFilter` (`support/control/dblReset.hpp`), app-wide, opted into by `setResetDefault` | A combo's two quick presses or a check's double-click sets the declared default through `activated` / `click()`, so the row's own wiring applies it |
-| Deferred click | `support::wireColorChip` (`support/control/dblReset.hpp`); the Lines-tab swatch in `SelectionPanel` | A colour chip's click waits one `POPOVER.doubleClickMs` before its modal picker opens, so a double-click resets it (the toolbar line colour to `DEFAULT_VISUALS`, a line's own to the toolbar's) instead of landing outside the picker |
+| Deferred click | `support::wireColorChip` (`support/control/dblReset.hpp`); the Lines-tab chips in `SelectionPanel` | A colour chip's click waits one `POPOVER.doubleClickMs` before its modal picker opens, so a double-click resets it (the toolbar line colour to `DEFAULT_VISUALS`, a line's own to the toolbar's, its points' to none of their own) instead of landing outside the picker |
 | Popup entrance by motion mode | `revealPopup` / `dismissPopup` (`support/menu/menuReveal`), `slidePopupIn` (`support/menu/popupSlide`) | One origin — a selector's caret, else the control's centre: particle modes fly dust out and back, 'slide' grows the list from it (0.66 scale, 6px lift, the browser's `menuFromAnchor` curve) with no exit, 'none' just shows it; the slide lands on the exact geometry |
 | Alt-peek gesture + glide registry | `AltPeekGesture`, `addGlideHandle` / `glideFrom` (`support/tip/altPeek`); `installComboAltPeek` (`support/menu/comboAltPeek`), app-wide | Port of the browser's `createModalOpenGesture` peek half: Alt+hover peeks; Alt release or focus loss closes unless the pointer is over the list, which lingers until it leaves (`LINGER_CLOSE_MS`); a click-open list ignores Alt. One filter, first on `qApp`, drives a gesture per `QComboBox`, polling while a `Qt::Popup` grabs the pointer. A registered handle (the popover) stays open under a selector peeking inside it; a glide onto an icon marked `ALT_PEEK_TARGET_PROPERTY` opens its peek; the Alt press that opened a peek is consumed. Only the accent popover picks on release (`commitAccent`) |
+| View-only paint flag | `CanvasScene::setCleanPreview` | A transient state only the live paint honours: `renderToImage` and `renderCopy` never read it, so no thumbnail, export or co-edit result sees it, and no setting, control or history step moves |
+| Silent restyle | `ThemePainter::otherThemeShot` over `PaintedTheme::silent` | The other theme applied through `support::setForcedDark`, photographed with `grab()` and put back inside one event-loop turn: no frame of it reaches the screen, no wipe plays, nothing is stored |
+| Control drag | `installIconDrag` (`support/drag/iconDrag`), a pure `IconDragMachine` under a source event filter; browser twin `ui/drag/iconDrag.js` | Past the press slop the button reads the pointer as gone (a hold stops, its release clicks nothing) and a mouse-transparent ghost follows; released back over the button the drag cancels, as Escape or deactivation does; the drop and the cancel run on the next turn, so a hook may open a modal. A double-click's second press drags as a first does. A source that is no button (an item view's viewport) drags only from what its `grab` hook takes hold of, that spot is the origin, and it sees neither the live drag's moves nor its release. No tip shows while a drag is live: its start takes down Qt's, the app's and any window marked `TIP_WINDOW_PROPERTY` (the canvas tip), and `QEvent::ToolTip` is swallowed until its release. `markDropTarget` paints a glow over the window |
+| Colour drag | `installColorDrag` on each colour chip and well, `installColorDragCells` on a table of swatch cells such as the Lines tab's (`support/drag/colorDrag`); browser twin `ui/drag/colorDrag.js` | A control drag with no ghost: a chip of the colour rides beside the pointer and every other live swatch glows (under a modal, only its window's); the one released on takes the RGBA when both carry alpha, else the RGB over its own alpha, through its own pick path (`ColorSwatch::apply`), and nothing when it already shows it. A source at alpha 0 has nothing to hand over. A table drags from a press on a swatch cell or on a chip button inside one, and every cell button is adopted as it arrives |
+| Press-drag pick | `SearchComboBox::dragPick` (`support/menu/SearchComboPopup.cpp`); browser twin `wireDragPick` (`ui/control/dropdownMenu.js`) | The list opens on the press; held past the slop, a release on a row is that row's click and off the list a close with no change, while a plain click keeps it open. Qt's own combo list already picks this way, so only the themed popup filters `qApp`, and only while the press that opened it is held |
+| Drag release menu | `ProjectDragMenu` (`dialogs/projects/list/`); browser twins `ui/projects/list/dragMenu.js`, `dragClose.js` | A held row's ⋯ beside the title — the opaque accent chip (`nameAffordance`), accent-2 while its menu is up — forms out of its dust veiled until the cloud lands and leaves into it (`veilBehindDust`, the browser's `surfaceIn` / `surfaceOut` clocks from `motion.json`), or takes the controls' slot slide in a non-particle mode, and pops the row's own menu up (`showRowMenu`'s held form, its own `revealMenu` entrance and exit or `slidePopupIn`), its rows lit in the accent (`markAccentRows`). The header polls the cursor, as the drag-out zones do: the row under it is lit as a hover lights it and an opener opens its flyout, and only the release takes an item, which runs on the held row once the drag loop has unwound — a modal raised inside macOS's drag loop never sees the release — while that release reorders nothing and opens no zone. The project this window holds, local or the server session, arms Close; the ⋯, its menu and an armed Close take the drop, so a release there never slides the row back. The drag-out zones are the main window's child and cover it whole, under the dialog |
 
 ## Design
 
@@ -151,7 +157,9 @@ classDiagram
   flushes `deferredWrite`.
 - **A canvas press.** `CanvasWidget::mousePressEvent` resolves one gesture by precedence (context
   menu, pan, alt-drag, zoom-rect, multi-select, draw) and edits in image space through core
-  geometry; `commitHistory` pushes the memento, and `MainWindow::onCanvasChanged` refreshes the
+  geometry. It hits only what the scene draws (`model/markHits`, browser `core/pointer/markHits.js`):
+  a hidden point or line is never a target, the close-shape click and the hold-to-draw target
+  included; `commitHistory` pushes the memento, and `MainWindow::onCanvasChanged` refreshes the
   actions and `SelectionPanel` and schedules the session, remote and `.stencil` autosaves.
 - **Running a script.** `ScriptDialog` and the context menu's `ScriptMenuPanel` flyout host a
   `ScriptEditorWidget` over the one `ScriptBuffer`; each keystroke re-parses through `ScriptDoc`,
@@ -176,9 +184,11 @@ classDiagram
   Every modal but the compact popover dims and blurs what is behind it
   (`support/modal/ModalBackdrop`, the browser's `.app-modal-overlay`), toasts kept above the
   scrim; `motionReduced()` drops the flight, keeps the dim. A modal is parented to the window it
-  covers, never a floating chat, centred on its client area, dismissed by an outside press (on
-  macOS through a transparent `Qt::Tool` child) and eased in height about its middle
-  (`support/easeWindowHeight.hpp`).
+  covers, never a floating chat, centred on its client area — or, the first to show inside a
+  `support::DialogLanding`, with its frame's top-left on the point that names (shifted left or up
+  only as far as the screen needs) and grown out of a `CURSOR_ORIGIN_PX` box there, its close still
+  flying to its opener — dismissed by an outside press (on macOS through a transparent `Qt::Tool`
+  child) and eased in height about its middle (`support/easeWindowHeight.hpp`).
 - **A notice.** Every notice reaches, through `Notifications` (browser twin
   `ui/shell/notifySinks.js`), the sink `notifyChannel` names: `ToastStack`, or `SystemNotifier`
   — a macOS `UNUserNotificationCenter` banner (a signed app, `STENCIL_CODESIGN_IDENTITY`),
@@ -191,8 +201,17 @@ classDiagram
   decode gets the browser's attachment-failed toast.
 - **A key in the selection lists.** Delete or Backspace on the focused row of the points table or
   lines list removes that point or line and focuses the row that took its place (the browser's
-  `coordTable.js` / `linesList.js`); the panel takes the `ShortcutOverride`, so no window shortcut
+  `coordTable.js` / `lines/events.js`); the panel takes the `ShortcutOverride`, so no window shortcut
   sees it, except in a read-only compare view. A point's line stays selected while it keeps points.
+- **A Lines row.** A row is its line's number, its own colour and thickness, its points' colour and
+  size, its point count and its bin (`app/selection/SelectionPanelLines.cpp`, the browser's
+  `ui/panel/lines/`); `PairedHeader` heads each colour-and-size pair once. A chip picks after the
+  double-click window and its double-click resets — the line to the toolbar's colour, its points to
+  none of their own, so they draw in the line's; a thickness or point size opens in place on a
+  double-click, held to `LIMITS`. Each edits that row's line through the bar's appliers, one undo step,
+  and the selection stays where it was; the line chip, as before, also selects its line. A removal, a
+  clear, a new picture and a new layout leave no index into the old line set in the selection, the
+  multi-selection included; a turn, a flip, an undo or redo keep it on the lines that still exist.
 - **Open and save `.stencil`.** `openProjectFile` parses the bytes, decodes on the pool, fills the
   canvas, creates a local `Project` and links the file. The save writes
   `fileStore::buildProjectFile` over the untouched source bytes (or a PNG re-encode), the layout,
@@ -207,6 +226,11 @@ classDiagram
   copy that opens, names it with core `ProjectsStore::copySuffixName` past every taken name (the
   server's too for a server copy), writes a fresh local row over its own image file or a new
   project on the source's server, then opens it here, in a new window, or unsaved in incognito.
+- **Closing a project.** The Close Project action (`closeProject` in the shared table) and the open
+  project dropped on the Projects window's Close run `ProjectFlows::closeActiveProject` — the
+  action after one question, no danger, the drop unasked: the project this window holds — local,
+  saved first as a fresh editor saves it, or the server session — leaves an empty editor, stays in
+  Projects and a notice says it closed; with nothing open a notice says so.
 - **Server connect and project fetch.** Each `ServerClient` speaks REST with a bearer token under
   `constants.json` `NETWORK.fetchTimeoutMs`, the browser's bound too. `listProjectsAsync` walks
   the `nextCursor` pages, failing on a repeated cursor or past `MAX_LIST_PAGES`.
@@ -258,6 +282,36 @@ classDiagram
   session skin, motion switches and forced light theme, swaps in the Windows style and the skin's
   face (`support/webcore/look`) and restyles from scratch; an empty editor reopens or builds the
   skin's local project, and the same word restores the stored look.
+- **A logo drag.** Past the press slop the header mark is a control drag (`app/logo/LogoDrag`,
+  browser `ui/drag/logoDrag.js`) whose ghost wears the mark; with a picture up the canvas region
+  glows as its target, and over it the scene paints its clean view — the bare picture, no filter,
+  line, point or compare split. A drop there sets that view through the toolbar's appliers
+  (`applyImageFilter`, the Show Lines and Show Points actions, `setCompareModeUi`), each only where
+  something is applied, so the filter is one undo step and the switches persist; anywhere else, back
+  on the mark, Escape or an empty canvas sets nothing. A modified press is the accent menu's and a
+  press whose hold opened a show is the show's; a drag reads to the hold as a move away.
+- **A theme lens.** Dragging the theme switch opens `ThemeLens` (`app/theme/`, browser
+  `ui/drag/themeLens.js`): a disc at the pointer, under the switch's ghost and a two-pass rim,
+  showing one photograph of the window in the other theme with the visible picture inverted.
+  `ThemePainter::otherThemeShot` takes it as the drag starts. No lens opens under the webcore skin,
+  over a wipe in flight or under the popover; the drag goes on without one. The lens only previews:
+  a release anywhere, or Escape, takes it down and switches nothing, stores nothing and plays no
+  wipe; only a click on the switch toggles the theme.
+- **A toolbar icon drag.** `ToolbarBuilder::buildIconDrags` (`app/drag/`, browser
+  `ui/bindings/controls/toolbarDrags.js`) gives a control drag to these icons alone. A dialog icon
+  — `PopoverHost::dialogActions` but the chat, plus crop — dropped away from itself triggers its
+  action as a click does inside a `support::DialogLanding`: the full dialog, its top-left on the
+  drop and grown out of the cursor, once any popover up has unwound. The chat icon shows the bands
+  its title drag shows (`DockChrome::showChatDockZones`); a band docks the chat on its side, an open
+  one sliding there, anywhere else floats it with its top-left on the drop, grown out of the cursor. Clear-all, rotate and flip act only when dropped on
+  the canvas viewport, which glows meanwhile: clear-all without its confirm, still one undo step
+  with the confirmed clear's notice, the transforms as their click. Zoom − and + follow
+  z0·e^(∓k·d) about the drag-start view's centre (`zoomFollow.hpp`); fit lights both and steps
+  over either at the browser's hold-zoom rate. A popover icon's double-click opens its popover on
+  that press's release, as the browser's `dblclick` follows the mouseup, so a quick click then a
+  drag only drags: a drag start clears the deferred click, the double-click and its own icon's Alt
+  peek close, a popover icon's release then clicks nothing, and back on its icon or on Escape the
+  drag restores whatever it previewed.
 - **Packaging.** `cmake/StencilDeploy.cmake` drives CPack over Qt's deploy (`macdeployqt`,
   `windeployqt`, the generic Linux deploy; Qt ≥ 6.3): the installed binary's rpath points at the
   bundled Qt, Qt's own translations stay out, the macOS bundle keeps only the architecture the
@@ -314,7 +368,10 @@ Headless suites are one per concern, each reporting its own failures. The GUI su
 `MainWindow.<area>.gui.cpp`, one QtTest binary per area over `stencil_gui_objs`, driving the real
 `MainWindow` with `STENCIL_NO_ANIM=1`; each writes its pictures into its own state dir, since ctest
 runs the areas side by side. A case that opens a picture waits for it to land, never sleeps. The
-suites pin the off-thread decode, the overtaken load and a close mid-decode. The fixture walkers prove the
+suites pin the off-thread decode, the overtaken load and a close mid-decode. The drag suites drive a
+control's press, moves and release as its pointer grab delivers them; they pin the logo's clean view
+out of every render, and the theme lens's photograph inside one event-loop turn and equal, region by
+region, to a grab after a real switch. The fixture walkers prove the
 shared `common/fixtures` corpora here (core's plan result byte-equal to
 `generated/normalized.json`); `opPlanOracle` pins `parseOpPlan`'s typed result over the corpus and
 adversarial inputs. The LLM suites use a mock `LlmTransport`, so all runs offline; the anthropic key

@@ -6,7 +6,7 @@ import { keysHtml } from '../tip/content.js';
 import { formatCombo, isMacPlatform } from '../../utils/keys.js';
 import { wirePanelResizer } from '../../utils.js';
 import { createCoordFold } from './coordFold.js';
-import { renderLinesList } from './linesList.js';
+import { renderLinesList } from './lines/list.js';
 
 // The paste combo as KEYCAPS in this platform's glyphs (⌘V on a Mac, Ctrl+V elsewhere);
 // `data-hk` lets hotkeys.updateCtxHints redraw them after a rebind.
@@ -82,12 +82,16 @@ export class StencilMainContent extends StencilElement {
                     </tbody>
                 </table>
                 <table class="coordinates-table lines-table" id="lines-list" role="tabpanel" style="display:none;">
+                    <colgroup>
+                        <col><col class="lines-swatch-col"><col><col class="lines-swatch-col"><col>
+                        <col class="lines-count-col"><col class="lines-remove-col">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th class="lines-swatch-cell">Color</th>
-                            <th>Line</th>
-                            <th class="lines-count-cell">Pts</th>
+                            <th data-title="Line number">#</th>
+                            <th colspan="2" data-title="Line — its own color and thickness">Line</th>
+                            <th colspan="2" data-title="Point — its points' color and size">Point</th>
+                            <th class="lines-count-cell" data-title="Points">Pts</th>
                             <th class="lines-remove-cell"></th>
                         </tr>
                     </thead>

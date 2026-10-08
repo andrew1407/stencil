@@ -25,6 +25,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/planTarget
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/chat/session
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/context
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/drag
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/events
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/events/popover
   ${CMAKE_CURRENT_SOURCE_DIR}/src/app/logo
@@ -64,6 +65,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/reveal
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/control/swap
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/support/drag
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/dust
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/icon
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support/logo

@@ -126,3 +126,15 @@ test('the old plain fadeIn keyframe stays as the reduced-motion / dust-declined 
   const css = LAYOUT_CSS;
   assert.match(css, /#selection-panel \{[\s\S]*?animation: fadeIn 0\.15s ease;[\s\S]*?\}/);
 });
+
+// 'transparent' in a colour field reads as #000000 and its box as 255, so the pair would claim an
+// opaque black fill: an unfilled area shows the default colour at 0 instead, as the desktop's does.
+test('an unfilled area\'s fill pair shows the default colour at alpha 0', () => {
+  liveBar();
+  const app = { pointSize: 4, defaultFillColor: '#336699', syncFsSelectionPanel() {}, renderLinesList() {} };
+  const pair = () => [dust.doc.getElementById('sel-fill').value, dust.doc.getElementById('sel-fill-alpha').value];
+  showSelectionPanel(app, { color: '#ff0000', thickness: 2, locked: true, fillColor: 'transparent' });
+  assert.deepEqual(pair(), ['#336699', '0']);
+  showSelectionPanel(app, { color: '#ff0000', thickness: 2, locked: true, fillColor: '#ff000080' });
+  assert.deepEqual(pair(), ['#ff0000', '128'], 'a filled area shows its own fill');
+});

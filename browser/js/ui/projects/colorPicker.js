@@ -1,6 +1,6 @@
 // One hidden colour field for the whole projects list, anchored to whichever row's swatch asked.
 // Never display:none and never built in the handler: the native picker opens beside a laid-out box.
-import { anchorPickerInput } from '../../utils.js';
+import { openColorPicker } from '../bindings/controls/colorTrial.js';
 import { normalizeHex } from '../../core/settings/accents.js';
 
 export function createColorPicker({ app, list, render }) {
@@ -22,10 +22,6 @@ export function createColorPicker({ app, list, render }) {
   return (meta, btn) => {
     colorTarget = meta;
     colorInput.value = normalizeHex(meta.color) || '#7c3aed';
-    anchorPickerInput(colorInput, btn);
-    try {
-      if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
-      else colorInput.click();
-    } catch { colorInput.click(); }
+    openColorPicker(colorInput, btn);
   };
 }

@@ -1,0 +1,15 @@
+/* A toolbar control being dragged (js/ui/drag/iconDrag.js): the page grabs, the control it left
+   waits dashed for a cancelling return, a drop target glows and brightens under the pointer. */
+html.icon-dragging, html.icon-dragging * { cursor: grabbing !important; }
+.icon-drag-source { opacity: 0.45; outline: 1px dashed var(--accent-2); outline-offset: 2px; }
+.icon-drop-target {
+    --drop-glow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
+                 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent);
+    box-shadow: var(--drop-glow);
+    transition: box-shadow 140ms ease;
+}
+.icon-drop-target-over {
+    --drop-glow: 0 0 0 2px var(--accent), 0 0 18px var(--accent);
+}
+/* The canvas frame's own ring on a server project (layout/canvas/frame.css) outranks the class alone. */
+.canvas-viewport.icon-drop-target { box-shadow: var(--drop-glow); }

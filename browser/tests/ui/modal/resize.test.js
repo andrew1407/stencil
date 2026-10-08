@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from '../../helpers/dom.js';
-import { edgeAt, resizeRect, wireModalResize, MIN_W, MIN_H, CURSORS } from '../../../js/ui/modal/resize.js';
+import { edgeAt, resizeRect, floorOf, wireModalResize, MIN_W, MIN_H, CURSORS } from '../../../js/ui/modal/resize.js';
 
 const BOX = { left: 100, top: 100, width: 400, height: 300 };
 const VIEW = { width: 1000, height: 800 };
@@ -75,4 +75,15 @@ test('the middle of the box, a popover and a closing window are left alone', () 
   overlay.classList.add('modal-closing');
   overlay.dispatch('pointerdown', pointer('pointerdown', 498, 250));
   assert.ok(!box.classList.contains('modal-resizing'), 'a closing window is the flight\'s');
+});
+
+test('a window raises its own floor (data-min-w / data-min-h), never under the shared one', () => {
+  assert.deepEqual(floorOf(null), { minW: MIN_W, minH: MIN_H });
+  assert.deepEqual(floorOf({ dataset: { minH: '326' } }), { minW: MIN_W, minH: 326 });
+  assert.deepEqual(floorOf({ dataset: { minW: '100', minH: 'tall' } }), { minW: MIN_W, minH: MIN_H });
+  const { box, overlay } = rig();
+  box.dataset.minH = '280';
+  overlay.dispatch('pointerdown', pointer('pointerdown', 300, 398));
+  overlay.dispatch('pointermove', pointer('pointermove', 300, 100));
+  assert.equal(box.style.height, '280px', 'the crop window keeps its footer and some picture');
 });

@@ -71,6 +71,13 @@
       "detail": "Hands the facade back, so calls chain.",
       "example": "stencil.clearLines();"
     },
+    "closeProject": {
+      "group": "projects",
+      "signature": "stencil.closeProject(opts?: { fully?: boolean }): Stencil",
+      "summary": "Close the project open here, leaving an empty editor; it stays saved in Projects.",
+      "detail": "Asks nothing, as Project.close() does, and throws when no project is open. Hands the facade back, so calls chain.",
+      "example": "stencil.closeProject();   // { fully: true } also closes the tab"
+    },
     "closeWindow": {
       "group": "windows",
       "signature": "stencil.closeWindow(): Stencil",

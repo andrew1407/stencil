@@ -154,7 +154,7 @@ namespace stencil::gui {
     if (!scr || !isWindow()) return;   // a child's x()/y() are its parent's, not the screen's
     const QRect avail = scr->availableGeometry();
     int y = this->y();
-    const int bottom = y + height();
+    const int bottom = y + height() - 1;   // its last row, as avail.bottom() is the screen's
     if (bottom > avail.bottom()) y -= bottom - avail.bottom();
     y = std::max(y, avail.top());
     if (y != this->y()) move(this->x(), y);

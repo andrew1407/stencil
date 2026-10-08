@@ -32,5 +32,18 @@ test('mouse: right-click opens the popover and cancels any pending click', () =>
   assert.deepStrictEqual(calls, ['popover']);
 });
 
+// The icon dragged off the toolbar (js/ui/drag/iconDrag.js) opens its window where it lands.
+test('mouse: a drag that takes the press drops a click still waiting to open', () => {
+  const { timers, calls, g } = machine();
+  g.pressStart({ touch: false }); g.pressEnd(); g.click();
+  g.pressStart({ touch: false });
+  g.dragged();
+  timers.advance(DOUBLE_CLICK_MS);
+  assert.deepStrictEqual(calls, [], 'the earlier click cannot toggle what the drop opens');
+  g.pressEnd(); g.click();
+  timers.advance(DOUBLE_CLICK_MS);
+  assert.deepStrictEqual(calls, ['full'], 'the next click is a click again');
+});
+
 // An Alt-peek machine whose open/close state is tracked like the real shell's: `engaged` mimes the owner's
 // pointer-inside check at release time, `holdLinger` its mid-typing check.

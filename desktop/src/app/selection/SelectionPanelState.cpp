@@ -37,15 +37,20 @@ namespace stencil::gui {
       if (table)
         for (QPushButton* b : table->findChildren<QPushButton*>(QStringLiteral("pointDelBtn")))
           b->setIcon(themedIcon("trash", this->binColor, 14));
+    // The chips paint their corners by the skin, so a switch repaints them.
     if (lines)
-      for (QLabel* chip : lines->findChildren<QLabel*>(QStringLiteral("linesSwatch")))
-        chip->setStyleSheet(swatchSheet(chip->property("face").toString(), chip->property("rim").toString()));
+      for (const char* name : {"linesSwatch", "linesPointSwatch"})
+        for (QWidget* chip : lines->findChildren<QWidget*>(QLatin1String(name))) chip->update();
   }
 
   void SelectionPanel::setCollapseChevronVisible(bool on) { if (collapseBtn) collapseBtn->setVisible(on); }
 
   QWidget* SelectionPanel::lineSwatchCell(int index) const {
-    return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_SWATCH) : nullptr;
+    return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_COLOR) : nullptr;
+  }
+
+  QWidget* SelectionPanel::pointSwatchCell(int index) const {
+    return index >= 0 && index < lines->rowCount() ? lines->cellWidget(index, LCOL_POINT) : nullptr;
   }
 
   void SelectionPanel::spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms) {
@@ -89,6 +94,12 @@ namespace stencil::gui {
     return t && row == 0 && t->rowCount() == 1 && t->columnSpan(0, 0) > 1;
   }
 
+  void SelectionPanel::cellCursor(QTableWidget* t, int row, int col) const {
+    const QTableWidgetItem* it = t->item(row, col);
+    const bool edits = it && (it->flags() & Qt::ItemIsEditable) && !(readOnly && readOnly());
+    t->viewport()->setCursor(isEmptyRow(t, row) ? Qt::ArrowCursor : edits ? Qt::IBeamCursor : Qt::PointingHandCursor);
+  }
+
   QBrush SelectionPanel::emptyWash() const {
     if (support::isWebcore()) return rowWash(false);
     return themeToken("--bg-coord-hover", palette().color(QPalette::Window).lightness() < 128);
@@ -130,7 +141,7 @@ namespace stencil::gui {
         emit lineRowHovered(-1);
       }
     }
-    // Browser coordTable.js / linesList.js: Delete or Backspace, whatever the modifiers, on a focused
+    // Browser coordTable.js / lines/events.js: Delete or Backspace, whatever the modifiers, on a focused
     // row removes that row's point or line, and no window shortcut ever sees the key.
     const QEvent::Type t = event->type();
     auto* table = obj == points ? points : obj == lines ? lines : nullptr;

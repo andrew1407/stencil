@@ -1,10 +1,10 @@
-import { icon } from '../icons.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { trackPointer } from './view.js';
 import {
   DOCKS, FLOAT_DEFAULT, DRAG_THRESHOLD_PX, DOCK_MIN_SIZE, DOCK_MAX_FRACTION,
-  clampFloatRect, resizeFloatRect, dockZoneAt,
+  clampFloatRect, resizeFloatRect, dockZoneAt, floatRectAt,
 } from './geometry.js';
+import { createDockZones } from './dockZones.js';
 
 // Where the chat panel lives: dock edge or float rect, the gestures that change it, and
 // the insets a docked panel takes out of the editor column. Session-only by design.
@@ -111,28 +111,7 @@ export function createChatDock(deps) {
     resizer.addEventListener('pointerdown', beginResize(resizer, 'se'));
     for (const fh of floatHandles()) fh.addEventListener('pointerdown', beginResize(fh, fh.dataset.dir));
 
-    let zonesEl = null;
-    const showDockZones = () => {
-      if (zonesEl) return;
-      zonesEl = document.createElement('div');
-      zonesEl.className = 'chat-dock-zones';
-      for (const side of ['left', 'right', 'top', 'bottom']) {
-        const z = document.createElement('div');
-        z.className = `chat-dock-zone chat-dock-zone-${side}`;
-        z.dataset.side = side;
-        const arrow = document.createElement('span');
-        arrow.className = 'chat-zone-arrow';
-        arrow.innerHTML = icon(`chevron-${side === 'top' ? 'up' : side === 'bottom' ? 'down' : side}`, { size: 18 });
-        z.appendChild(arrow);
-        zonesEl.appendChild(z);
-      }
-      document.body.appendChild(zonesEl);
-    };
-    const highlightDockZone = (side) => {
-      if (!zonesEl) return;
-      for (const z of zonesEl.children) z.classList.toggle('chat-dock-zone-active', z.dataset.side === side);
-    };
-    const hideDockZones = () => { zonesEl?.remove(); zonesEl = null; };
+    const zones = createDockZones();
 
 // Header = drag handle. Floating moves the window; docked undocks into float at the
 // pointer and continues the gesture. Releasing over an edge zone docks there.
@@ -156,7 +135,7 @@ export function createChatDock(deps) {
         offY = ev.clientY - floatRect.y;
         header.classList.add('chat-dragging');
         host.classList.add('chat-gesturing');
-        showDockZones();
+        zones.show();
       };
       trackPointer((ev) => {
         if (!started) {
@@ -165,11 +144,11 @@ export function createChatDock(deps) {
         }
         floatRect = clampRect({ ...floatRect, x: ev.clientX - offX, y: ev.clientY - offY });
         applyFloatRect();
-        highlightDockZone(dockZoneAt(ev.clientX, ev.clientY, window.innerWidth, window.innerHeight));
+        zones.highlight(dockZoneAt(ev.clientX, ev.clientY, window.innerWidth, window.innerHeight));
       }, (ev) => {
         header.classList.remove('chat-dragging');
         host.classList.remove('chat-gesturing');
-        hideDockZones();
+        zones.hide();
         if (!started) return;
         const zone = ev.type === 'pointercancel' ? null
           : dockZoneAt(ev.clientX, ev.clientY, window.innerWidth, window.innerHeight);
@@ -183,6 +162,10 @@ export function createChatDock(deps) {
     setDock, wireGestures, announceLayout, adoptLayout, restoreFromCompact,
     rect: () => floatRect,
     clampRect,
+    floatAt: (x, y) => {
+      floatRect = floatRectAt(floatRect, x, y, window.innerWidth, window.innerHeight);
+      if (dock === 'float') applyFloatRect();
+    },
     isCompact: () => compactPopover,
     enterCompact: (r) => {
       if (!compactPopover) { dockBeforeCompact = dock; floatRectBeforeCompact = { ...floatRect }; }

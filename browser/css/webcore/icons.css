@@ -43,7 +43,7 @@
    a dark glyph (the link chain) vanished into it. A one-pixel light halo keeps
    every one of them legible without re-inking any. */
 :root[data-skin="webcore"] :is(.ctx-item:hover, .ctx-item.ctx-kb, .accent-dd-opt:hover,
-.accent-dd-opt.dd-hover, .project-menu-item:hover, .chat-row-menu-item:hover, .chat-more-item:hover,
+.accent-dd-opt.dd-hover, .project-menu-item:hover, .project-menu-item.is-drag-hover, .chat-row-menu-item:hover, .chat-more-item:hover,
 .zoom-menu-item:hover, .ctx-checkbox-item:hover,
 .ctx-radio-item:hover) :is(.ic, .draw-mode-icon) {
     filter: drop-shadow(1px 0 0 var(--wc-hilight)) drop-shadow(-1px 0 0 var(--wc-hilight))

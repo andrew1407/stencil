@@ -3,7 +3,9 @@ import { notify } from '../../utils.js';
 import constants from '../../../../common/config/constants.json' with { type: 'json' };
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../../core/parse/cropGeometry.js';
 import { icon, spinIconOnce } from '../icons.js';
+import { pinWidestFace } from '../motion.js';
 import { tweenRect } from '../motion/rectTween.js';
+import { wireCropFit } from './cropFit.js';
 const { PAGE_SIZES } = constants;
 
 // A rect over the original image, locked to the page aspect; confirm stores it without
@@ -11,25 +13,28 @@ const { PAGE_SIZES } = constants;
 export class StencilCropModal extends StencilElement {
   static inner() {
     return `
-        <div class="app-modal" style="width:auto;max-width:calc(100vw - 32px);">
+        <div class="app-modal" style="max-width:calc(100vw - 32px);">
             <div class="settings-header">
                 <h2>${icon('crop', { size: 18 })} Crop Image</h2>
                 <button class="app-modal-close btn-icon-text" id="crop-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
-            <div class="settings-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-                <div id="crop-stage" style="position:relative;display:inline-block;line-height:0;max-width:100%;background:#222;">
-                    <img id="crop-image-el" alt="Crop preview" style="display:block;width:auto;height:auto;max-width:calc(96vw - 60px);max-height:calc(82vh - 180px);user-select:none;-webkit-user-drag:none;">
-                    <!-- Dimming backdrop lives in its own clip layer so the huge box-shadow is
-                         clipped to the image, while the crop box + corner handles below sit in
-                         the UNclipped stage (else handles at the image edge get sliced in half). -->
-                    <div id="crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
-                        <div id="crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
-                    </div>
-                    <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid var(--accent-2);cursor:move;display:none;">
-                        <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
-                        <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
-                        <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
-                        <span class="crop-handle" data-corner="3" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;bottom:-8px;cursor:nesw-resize;"></span>
+            <div class="settings-body" style="display:flex;flex-direction:column;align-items:center;gap:12px;min-height:0;overflow:hidden;scrollbar-gutter:auto;">
+                <!-- The window's free room; the stage inside is exactly the picture, fitted to it (cropFit.js). -->
+                <div class="crop-fit" style="flex:1 1 auto;min-height:0;align-self:stretch;display:flex;align-items:center;justify-content:center;">
+                    <div id="crop-stage" style="position:relative;flex:none;line-height:0;background:#222;">
+                        <img id="crop-image-el" alt="Crop preview" style="display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;">
+                        <!-- Dimming backdrop lives in its own clip layer so the huge box-shadow is
+                             clipped to the image, while the crop box + corner handles below sit in
+                             the UNclipped stage (else handles at the image edge get sliced in half). -->
+                        <div id="crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+                            <div id="crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
+                        </div>
+                        <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid var(--accent-2);cursor:move;display:none;">
+                            <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
+                            <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
+                            <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
+                            <span class="crop-handle" data-corner="3" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;bottom:-8px;cursor:nesw-resize;"></span>
+                        </div>
                     </div>
                 </div>
                 <div id="crop-dims" style="font-size:13px;color:var(--text-muted);"></div>
@@ -50,6 +55,7 @@ export class StencilCropModal extends StencilElement {
 
   wire(app) {
     const overlay = document.getElementById('crop-modal-overlay');
+    const stage = document.getElementById('crop-stage');
     const img = document.getElementById('crop-image-el');
     const box = document.getElementById('crop-box');
     const shade = document.getElementById('crop-shade');
@@ -67,11 +73,6 @@ export class StencilCropModal extends StencilElement {
       ? { width: app.customPageWidth, height: app.customPageHeight }
       : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
 
-    const computeScale = () => {
-      const r = img.getBoundingClientRect();
-      scale = iw > 0 && r.width > 0 ? r.width / iw : 1;
-    };
-
     // The orientation flip's own rect flight; any plain render settles it (rectTween.js).
     let flight = null;
     const settle = () => { if (flight) { flight(); flight = null; } };
@@ -88,17 +89,21 @@ export class StencilCropModal extends StencilElement {
     // Only when the face actually changes: renderBox runs per drag frame, and rewriting the
     // glyph there rebuilds the SVG sixty times a second and drops any turn spinIconOnce started.
     let shownAlbum = null;
+    const FACES = ['Album', 'Portrait'].map((word) => icon('swap', { size: 14 }) + `<span>${word}</span>`);
     const renderOrientFace = () => {
       if (shownAlbum === album) return;
       shownAlbum = album;
-      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
+      orientBtn.innerHTML = FACES[album ? 0 : 1];
+    };
+    const renderDims = () => {
+      dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
     };
     const renderBox = () => {
       settle();
       box.style.display = 'block';
       shade.style.display = 'block';
       paintBox(rect);
-      dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
+      renderDims();
       renderOrientFace();
     };
 
@@ -112,10 +117,13 @@ export class StencilCropModal extends StencilElement {
       if (from.width >= 1) flight = tweenRect(from, rect, paintBox);
     };
 
-    const paint = () => { computeScale(); renderBox(); };
+    // The picture fills the window's free room, re-fitted on every resize; the box follows its scale.
+    const fit = wireCropFit({ overlay, box: overlay.querySelector('.app-modal'), frame: stage.parentElement,
+                              stage, footer: overlay.querySelector('.settings-footer') },
+                            () => ({ iw, ih }), (s) => { scale = s; renderBox(); });
 
     // Seeding hangs off the shell, not the click: the window is also opened without one
-    // (stencil.openCropWindow), and a src that is already decoded fires no load event.
+    // (stencil.openCropWindow). The size is the model's, so the window fits before the src decodes.
     const seedPreview = () => {
       if (!app.originalImage || !app.imageDataUrl) return;
       // The rotated original, so the crop rect (in rotated pixel space) lines up.
@@ -125,10 +133,10 @@ export class StencilCropModal extends StencilElement {
       rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
       album = isAlbumOrientation(rect.width, rect.height);
       aspect = cropAspect(pageDims().width, pageDims().height, album);
-      img.onload = paint;
       img.src = app.imageModel.effectiveOriginalDataUrl();
-      // A decoded src paints once the box has a laid-out size — display:none measures 0.
-      if (img.complete && img.naturalWidth) requestAnimationFrame(paint);
+      // The chrome the window is measured with: the size line, and the toggle at its widest face, so
+      // a flip never re-wraps the footer (desktop twin: the button fixed to its longer face).
+      fit.fitWindow(() => { renderDims(); renderOrientFace(); pinWidestFace(orientBtn, FACES); });
     };
 
     const { open, close } = wireModalShell(overlay, null, document.getElementById('crop-close'), {
@@ -142,7 +150,6 @@ export class StencilCropModal extends StencilElement {
         return;
       }
       open();
-      if (img.complete && img.naturalWidth) paint();
     };
     document.getElementById('crop-image').addEventListener('click', openCrop);
 
@@ -183,7 +190,7 @@ export class StencilCropModal extends StencilElement {
 
     // Wheel / trackpad pinch (a ctrl+wheel event in Chromium) over the crop rect scales it
     // from its centre; passive:false to preventDefault.
-    document.getElementById('crop-stage').addEventListener('wheel', e => {
+    stage.addEventListener('wheel', e => {
       if (box.style.display === 'none' || iw <= 0) return;
       const b = box.getBoundingClientRect();
       if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) return;

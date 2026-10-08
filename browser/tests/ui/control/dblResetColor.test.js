@@ -107,3 +107,23 @@ test('a double-click on the document resets the field under it and stops there',
   fire('dblclick', { target: el, stopPropagation: () => { stopped = true; } });
   assert.equal(stopped, false, 'already at its default: the double-click passes on');
 });
+
+test('a drag that starts inside the window keeps the picker shut; one before the click does not', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { createIconDrag } = await import('../../../js/ui/drag/iconDrag.js');
+  const dragAway = () => {
+    const m = createIconDrag({ originRect: () => ({ left: 0, top: 0, right: 10, bottom: 10 }) });
+    m.press(5, 5);
+    m.move(200, 200);
+    m.release(200, 200);
+  };
+  const fire = rig();
+  const el = new ColorField({ id: 'line-color', value: '#ff0000' });
+  fire('click', click(el, 1));
+  dragAway();
+  t.mock.timers.tick(doubleClickMs);
+  assert.equal(el.picks, 0, 'the second press dragged the swatch away: no picker over the drop');
+  fire('click', click(el, 1));
+  t.mock.timers.tick(doubleClickMs);
+  assert.equal(el.picks, 1, 'a later click still opens it');
+});

@@ -1,5 +1,4 @@
 #include "CanvasWidget.hpp"
-#include "hitTest.hpp"
 
 // Hold-to-draw: the delay, the drop and the anchor it continues from.
 
@@ -38,11 +37,11 @@ namespace stencil::gui {
   }
 
   // The target under the press decides: existing point -> continue that line; line body -> insert
-  // a point there then continue; empty -> fresh line.
+  // a point there then continue; empty, or a mark that is hidden -> fresh line.
   void CanvasWidget::holdStart(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale, widgetY / scale};
     const double grab = pointerTuning::table().grabRadiusPx;   // image px, as the browser's holdDrawTarget
-    const core::HoldTarget t = core::holdDrawTarget(lines, ip.x, ip.y, grab, grab);
+    const core::HoldTarget t = model::holdTargetAt(lines, shownMarks(), ip.x, ip.y, grab);
     hold.prepend = false;
     if (t.kind == core::HoldTargetKind::CONTINUE_POINT) {
       selectedLineIdx = t.lineIdx;

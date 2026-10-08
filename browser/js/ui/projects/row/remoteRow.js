@@ -199,6 +199,7 @@ export function createRemoteRow(deps) {
         { icon: 'download', label: 'Move to local', onClick: moveToLocal },
         { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
       ];
+      row._menuItems = menuItems;   // this row's menu, reopened by the title while the row is dragged
       const menuBtn = document.createElement('button');
       menuBtn.className = 'project-more btn-icon';
       menuBtn.dataset.title = 'More actions';

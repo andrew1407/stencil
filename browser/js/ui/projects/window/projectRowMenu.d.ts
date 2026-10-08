@@ -8,8 +8,9 @@ export interface ProjectRowMenuItem {
 }
 
 export interface ProjectRowMenu {
-  /** Opens under `anchor`, or at `point` for a right-click. */
-  showMenu(anchor: Element, items: (ProjectRowMenuItem | null | undefined)[], point?: { x: number; y: number } | null): void;
+  /** Opens under `anchor`, or at `point` for a right-click; `from` overrides where its dust flies. */
+  showMenu(anchor: Element, items: (ProjectRowMenuItem | null | undefined)[], point?: { x: number; y: number } | null,
+    opts?: { from?: { x: number; y: number } | null }): void;
   closeMenu(): void;
 }
 

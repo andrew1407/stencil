@@ -9,7 +9,7 @@ import { motionReduced } from '../motion/motionPrefs.js';
 import { updateStencilSyncUI } from '../../core/project/fileIO.js';
 import { syncDrawToggleUI, syncDrawModeUI } from '../panel/drawToggleUI.js';
 import { updateProjectTitle } from '../projects/window/projectTitle.js';
-import { renderLinesList } from '../panel/linesList.js';
+import { renderLinesList } from '../panel/lines/list.js';
 
 const IDLE_ARRIVE_CLASS = 'idle-arriving';
 const followers = new Set();

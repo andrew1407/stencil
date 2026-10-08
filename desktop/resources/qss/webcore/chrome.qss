@@ -54,6 +54,7 @@
       QToolButton#extension:hover,
       QToolButton#qt_toolbar_ext_button:hover { background: %WC_FACE%; color: %WC_INK%; border-image: url(%WC_RING%) 2 2 2 2 stretch; }
       QToolButton:pressed, QToolButton:checked, QToolButton:checked:hover, QToolButton[nameAffordance="true"]:pressed,
+      QToolButton[nameAffordance="true"][open="true"],
       QToolButton[chatAccent="true"]:pressed, QToolButton[toolFill="accent"]:pressed, QToolButton[toolFill="danger"]:pressed,
       QToolButton[drawToggle="idle"]:pressed, QToolButton[drawToggle="on"], QToolButton[drawToggle="on"]:hover,
       QToolButton[drawToggle="on"]:pressed, QToolButton[toolGhostBox="true"]:pressed, QToolButton[toolGhostBox="true"]:checked,

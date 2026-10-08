@@ -64,6 +64,11 @@ colour for it, with the canvas following as you drag; double-click the chip to g
 the toolbar's line colour back. Double-clicking the toolbar's own line colour resets it to the
 default yellow.
 
+Each row also carries the line's thickness, its points' colour and their size. Double-click a
+number to type a new one — Enter keeps it, Escape leaves it as it was — and click the round chip
+to pick the points' colour; double-click it to give the points the line's own colour again. None
+of these changes which line is selected.
+
 ![picking a line's colour from the Lines tab](img/lines-swatch-picker.png)
 
 ## The canvas menu

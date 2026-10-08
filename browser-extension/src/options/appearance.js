@@ -2,7 +2,7 @@
 // settings, so they apply instantly and flash-free across the extension's pages — no Save.
 import { surfaceIn, surfaceOut } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { menuDustPoint, growFrom } from '../lib/control/dropdownMenu.js';
+import { menuDustPoint, growFrom, wireDragPick } from '../lib/control/dropdownMenu.js';
 import { wireLogoAccent } from '../lib/accent/logoAccent.js';
 import { wireAltPeek } from '../lib/tip/altPeek.js';
 
@@ -63,6 +63,7 @@ if (accent) {
 
   trigger.addEventListener('click', () => { menu.hidden ? open() : close(); });
   const peek = wireAltPeek(mount, menu, { open, close });
+  wireDragPick(trigger, menu, { open, close });
   sync();
 
   // The logo's own gestures move the accent too: a preset shows that preset, a custom hex "Custom".

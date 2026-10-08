@@ -3,7 +3,7 @@
 // carries the browser suite's cases. An open menu moves to <body> and is placed in viewport
 // coordinates, capped to the room available so a long list scrolls; that matters more here, since
 // the popup window is only ~400x600. While open the menu is NOT inside the component.
-import { popoverPosition } from '../tip/popover.js';
+import { popoverPosition, PRESS_SLOP_PX } from '../tip/popover.js';
 import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 
 const GAP = 4;        // between trigger and menu
@@ -129,4 +129,89 @@ export const hideMenu = (menu) => {
   // The sibling it sat before may itself be gone by now; appending is then correct.
   const before = h.next && h.next.parentElement === h.parent ? h.next : null;
   h.parent.insertBefore(menu, before);
+};
+
+// Press-drag-release: past the slop the list opens, and the release picks the row under the pointer or,
+// off the list, closes it; a press inside the slop stays a click. Desktop twin: support/menu/SearchCombo.
+export const createDragPick = ({ open, close, isOpen, rowAt, inList, pick, slop = PRESS_SLOP_PX }) => {
+  let press = null;
+  let dragging = false;
+  return {
+    get active() { return dragging; },
+    press(x, y) { press = { x, y }; dragging = false; },
+    // The row under the pointer while dragging, else null.
+    move(x, y) {
+      if (!press) return null;
+      if (!dragging) {
+        if (Math.hypot(x - press.x, y - press.y) <= slop) return null;
+        dragging = true;
+        if (!isOpen()) open();
+      }
+      return rowAt(x, y);
+    },
+    // True when this release ended a drag, so the click it makes is the drag's, not the trigger's.
+    release(x, y) {
+      const was = dragging;
+      press = null;
+      dragging = false;
+      const row = was ? rowAt(x, y) : null;
+      if (row) pick(row);
+      else if (was && isOpen() && !inList(x, y)) close();
+      return was;
+    },
+    abort() { press = null; dragging = false; },
+  };
+};
+
+export const DRAG_PICK_ROW_CLASS = 'dd-hover';
+
+const swallowNextClick = () => {
+  const stop = (e) => { e.stopImmediatePropagation(); e.preventDefault(); off(); };
+  const off = () => window.removeEventListener('click', stop, true);
+  window.addEventListener('click', stop, true);
+  setTimeout(off, 0);
+};
+const within = (el, x, y) => {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+};
+
+// Rows are hit by their boxes, since a theme flood owns the hit test while it plays. Mouse and pen
+// only: a touch drag scrolls.
+export const wireDragPick = (trigger, menu, { open, close, isOpen = () => !menu.hidden,
+                                              enabled = () => true, rows = '.accent-dd-opt' }) => {
+  if (!trigger?.addEventListener || !menu) return null;
+  const inList = (x, y) => !menu.hidden && within(menu, x, y);
+  const rowAt = (x, y) => (inList(x, y) ? [...menu.querySelectorAll(rows)].find((li) => within(li, x, y)) ?? null : null);
+  const machine = createDragPick({ open, close, isOpen, rowAt, inList, pick: (row) => row.click() });
+  let marked = null;
+  const mark = (row) => {
+    if (row === marked) return;
+    marked?.classList.remove(DRAG_PICK_ROW_CLASS);
+    marked = row;
+    row?.classList.add(DRAG_PICK_ROW_CLASS);
+  };
+  let pointerId = null;
+  const listen = (on) => {
+    const f = on ? 'addEventListener' : 'removeEventListener';
+    window[f]('pointermove', onMove, true);
+    window[f]('pointerup', onEnd, true);
+    window[f]('pointercancel', onEnd, true);
+  };
+  const onMove = (e) => { if (e.pointerId === pointerId) mark(machine.move(e.clientX, e.clientY)); };
+  const onEnd = (e) => {
+    if (e.pointerId !== pointerId) return;
+    listen(false);
+    pointerId = null;
+    mark(null);
+    if (e.type !== 'pointerup') machine.abort();
+    else if (machine.release(e.clientX, e.clientY)) swallowNextClick();
+  };
+  trigger.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !e.isPrimary || e.pointerType === 'touch' || !enabled()) return;
+    if (pointerId === null) listen(true);
+    pointerId = e.pointerId;
+    machine.press(e.clientX, e.clientY);
+  });
+  return machine;
 };

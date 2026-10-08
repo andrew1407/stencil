@@ -39,14 +39,12 @@ namespace stencil::gui {
   class ProjectDragZones;
   class ListFilterFade;
 
-  struct BatchDirections { bool toServer = false; bool toLocal = false; };
-  BatchDirections batchDirectionsFor(int locals, int remotes, bool haveServers);
-
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
     void setDragZones(ProjectDragZones* z) { dragZones = z; }
     void setOpenInAvailable(bool local, bool server) { openInLocalOk = local; openInServerOk = server; }
+    void setOpenHere(const QString& id, const QString& serverUrl = QString());
 
     // Beyond getAction(): OpenRemote → getSelectedServerUrl() + getSelectedId(); transfers add getNewName();
     // Batch* → batchItems(); SetColor → getSelectedColor(). BatchRemove emits removeRequested instead.
@@ -91,6 +89,7 @@ namespace stencil::gui {
     void openInRequested(const QString& id, const QString& serverUrl, const QRect& closeRect);
     // "Make a copy" of a row (a stay-open request too); `scope` is a support::CopyScope.
     void copyRequested(const QString& id, const QString& serverUrl, int scope, const QRect& closeRect);
+    void closeProjectRequested();   // the open project was dropped on Close
 
    protected:
     // Run in THIS order; filterHoverPreview only observes, an answer from the rest ends the chain.
@@ -141,7 +140,8 @@ namespace stencil::gui {
     QVariantAnimation* hoverFade();
     // The REAL cursor, not an event's claim: our own preview window sliding under the pointer fires spurious Leaves.
     bool pointerOverPreviewedIcon() const;
-    void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
+    // `heldFrom` pops it up for a dragged row, its dust out of that point, and hands it over.
+    QMenu* showRowMenu(QListWidgetItem* it, const QPoint& globalPos, const QPoint* heldFrom = nullptr);
     void openSelected();
     void openSelectedInNewWindow();
     // Browser parity: a single click confirms then opens HERE, a double click opens at once, Ctrl/⌘

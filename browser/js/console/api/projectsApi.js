@@ -51,6 +51,14 @@ export const createProjectsApi = ({ app, makeProject, openedIds }) => {
         .filter((p) => (p.keywords || []).some((kw) => terms.some((t) => str(kw).toLowerCase().includes(t))))
         .map((p) => makeProject(p.id));
     },
+    // Close the project open here, as Project.close does: no question asked, and it stays in
+    // Projects. `fully` also closes the tab.
+    closeProject(opts = {}) {
+      const project = stencil.current;
+      if (!project) throw new Error('No project is open — nothing to close');
+      project.close(opts);
+      return stencil;
+    },
     // "Make a copy" of what the editor shows now (Project.copy for a stored one).
     async copyProject(opts = {}) {
       const newId = await app.projectTransfer.copyProject({ ...opts, id: null });

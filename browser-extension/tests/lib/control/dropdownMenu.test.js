@@ -41,3 +41,14 @@ test('every page replaces its native selects, and the list is themed + portaled'
   assert.ok(!/accent-swatch-menu/.test(options), '…and nothing asks for one');
   assert.match(css, /\.logo-accent-menu \{[^}]*min-width: 168px/, 'the logo badge menu keeps its own size');
 });
+
+// The gesture itself is the ported createDragPick / wireDragPick, proved in the browser suite
+// (browser/tests/ui/control/dropdownMenu-dragPick.test.js); here every selector has to take it.
+test('every enhanced select and the Options accent picker pick by press, drag and release', () => {
+  const read = (p) => readFileSync(new URL(`../../../src/${p}`, import.meta.url), 'utf8');
+  assert.match(read('lib/control/customSelect.js'),
+    /wireDragPick\(trigger, menu, \{ open, close, enabled: \(\) => !selectEl\.disabled \}\)/);
+  assert.match(read('options/appearance.js'), /wireDragPick\(trigger, menu, \{ open, close \}\)/);
+  // The row under a press-drag wears the latched hover the select sheet already paints.
+  assert.match(themeCss(), /\.accent-dd-opt:hover, \.accent-dd-opt\.dd-hover \{/);
+});

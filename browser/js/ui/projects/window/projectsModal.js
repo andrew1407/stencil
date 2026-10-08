@@ -45,6 +45,7 @@ export class StencilProjectsModal extends StencilElement {
     const filterEl = $('projects-filter');
     const sortEl = $('projects-sort');
     const searchModeEl = $('projects-search-mode');
+    const closeBtn = $('projects-close');
     const store = app.storage.store;
 
     let peers = [];
@@ -155,6 +156,7 @@ export class StencilProjectsModal extends StencilElement {
       loadOrder: prefs.loadOrder, saveOrder: prefs.saveOrder, confirmOpen, openRemote: (m) => openRemote(m),
       invalidateRemotes: () => invalidateRemotes(),
       beginRemoval, retireKey, localKey, remoteKey, rowById,
+      header: { title: overlay.querySelector('.settings-header h2'), closeBtn, showMenu, closeMenu },
     });
 
     // Bound once; the observer picks up each rebuild's rows itself.
@@ -167,7 +169,7 @@ export class StencilProjectsModal extends StencilElement {
     });
     const { shownKeys, rowByFilterKey } = rows;
 
-    const { open, close } = wireModalShell(overlay, $('projects-btn'), $('projects-close'), {
+    const { open, close } = wireModalShell(overlay, $('projects-btn'), closeBtn, {
       // Re-fetch the server listing on each open.
       onOpen: () => { search.value = ''; clearSelection(); invalidateRemotes(); syncControls(); render(); },
       focusOnOpen: search,

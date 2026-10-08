@@ -23,6 +23,9 @@ set(STENCIL_GUI_SOURCES
   src/app/toolbar/ToolbarBuilderPage.cpp
   src/app/toolbar/ToolbarBuilderStyle.cpp
   src/app/toolbar/ToolbarBuilderView.cpp
+  src/app/drag/ToolbarBuilderDrags.cpp
+  src/app/drag/toolbarDrags.cpp
+  src/app/drag/toolbarDragsZoom.cpp
   src/app/actions/MenuBuilder.cpp
   src/app/theme/MainWindowTheme.cpp
   src/app/theme/ThemePainter.cpp
@@ -61,6 +64,7 @@ set(STENCIL_GUI_SOURCES
   src/app/events/dropSources.cpp
   src/app/events/MainWindowDnd.cpp
   src/app/chrome/DockChromeDust.cpp
+  src/app/chrome/DockChromeDrop.cpp
   src/app/view/EditorViewFullscreen.cpp
   src/app/meta/HoverTip.cpp
   src/app/meta/MainWindowImageInfo.cpp
@@ -72,6 +76,7 @@ set(STENCIL_GUI_SOURCES
   src/app/events/popover/PopoverGestures.cpp
   src/app/project/MainWindowProjectClose.cpp
   src/app/project/flows/ProjectFlowsCrud.cpp
+  src/app/project/flows/ProjectFlowsClose.cpp
   src/app/project/flows/ProjectFlowsColor.cpp
   src/app/project/MainWindowProjectCrud.cpp
   src/app/project/MainWindowProjectLoad.cpp
@@ -125,7 +130,10 @@ set(STENCIL_GUI_SOURCES
   src/app/logo/LogoStage.cpp
   src/app/logo/LogoStageInput.cpp
   src/app/logo/LogoStagePaint.cpp
+  src/app/logo/LogoDrag.cpp
   src/app/theme/ThemePainterWebcore.cpp
+  src/app/theme/ThemePainterLens.cpp
+  src/app/theme/ThemeLens.cpp
   src/app/meta/DockZonesOverlay.cpp
   src/app/meta/DataExportController.cpp
   src/app/meta/DataExportImage.cpp
@@ -137,6 +145,7 @@ set(STENCIL_GUI_SOURCES
   src/io/deepLink.cpp
   src/app/selection/SelectionPanel.cpp
   src/app/selection/SelectionPanelRows.cpp
+  src/app/selection/SelectionPanelLines.cpp
   src/app/selection/SelectionPanelState.cpp
   src/app/selection/SelectedLineBar.cpp
   src/app/selection/SelectedLineBarRow.cpp

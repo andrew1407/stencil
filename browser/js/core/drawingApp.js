@@ -2,7 +2,7 @@ import { notify } from '../utils.js';
 import * as lineEditOps from './line/editOps.js';
 import * as unitDisplay from '../ui/panel/unitDisplay.js';
 import * as selectionPanel from '../ui/panel/selectionPanel.js';
-import * as linesList from '../ui/panel/linesList.js';
+import * as linesList from '../ui/panel/lines/list.js';
 import * as projectTitle from '../ui/projects/window/projectTitle.js';
 import { updateButtons as updateControlState } from '../ui/control/state.js';
 import * as drawToggleUI from '../ui/panel/drawToggleUI.js';
@@ -27,6 +27,7 @@ import { installDelegates, installMethods } from './app/delegates.js';
 import { EditingMethods } from './app/editing.js';
 import { canToggleIncognito, reportIncognitoSession } from './launch/incognitoFlow.js';
 import { CHANGE, changed } from './app/changes.js';
+import { settleReplacedLines } from './line/selection.js';
 import constants from '../../../common/config/constants.json' with { type: 'json' };
 
 const { DEBOUNCE } = constants;
@@ -192,13 +193,14 @@ export class DrawingApp {
     reportIncognitoSession(this);
   }
 
-  async clearAllLines() {
+// `ask` false skips the confirmation, for a gesture that already said "clear"; still one undo step.
+  async clearAllLines({ ask = true } = {}) {
     if (this.compareReadOnly()) return;
     if ((!this.lines || this.lines.length === 0) && (!this.currentLine || this.currentLine.points.length === 0)) {
       notify('No lines to clear', 'info');
       return;
     }
-    if (!(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true, confirmIcon: 'eraser' }))) {
+    if (ask && !(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true, confirmIcon: 'eraser' }))) {
       notify('Clear canceled', 'info');
       return;
     }
@@ -207,16 +209,8 @@ export class DrawingApp {
     this.strokeFx.cancel();
     this.lines = [];
     if (this.currentLine) this.currentLine.points = [];
-    this.selectedLineIdx = -1;
-    this.coordLineIdx = -1;
-    this.focusedPtIdx = -1;
-    this.hoveredPtIdx = -1;
-    this.hoverPt = null;
-    this.hoverLineIdx = -1;
-    this.listHoverLineIdx = -1;
-    this.hideSelectionPanels();
+    settleReplacedLines(this);
     this.saveHistory();
-    this.coordTable.update();
     this.renderer.redraw();
     changed(this, CHANGE.lines, CHANGE.selection);
     notify('All lines cleared', 'ok');

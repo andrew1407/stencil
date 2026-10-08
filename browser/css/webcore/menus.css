@@ -36,6 +36,7 @@
 :root[data-skin="webcore"] .accent-dd-opt.dd-hover,
 :root[data-skin="webcore"] .zoom-menu-item:hover,
 :root[data-skin="webcore"] .project-menu-item:hover,
+:root[data-skin="webcore"] .project-menu-item.is-drag-hover,
 :root[data-skin="webcore"] .chat-row-menu-item:hover,
 :root[data-skin="webcore"] .chat-more-item:hover:not(:disabled),
 :root[data-skin="webcore"] .ctx-checkbox-item:hover,
@@ -43,7 +44,7 @@
     background: var(--wc-select);
     color: var(--wc-on-select);
 }
-:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):hover
+:root[data-skin="webcore"] :is(.ctx-item, .accent-dd-opt, .project-menu-item, .chat-row-menu-item):is(:hover, .is-drag-hover)
 :is(.ctx-label, .ctx-arrow, .ctx-check, .accent-dd-name, .project-menu-item span) {
     color: var(--wc-on-select);
 }
@@ -87,13 +88,14 @@
 /* A hovered or canvas-highlighted row is the light face; only a SELECTED row is the navy bar
    (desktop SelectionPanel does the same). !important over the base rule's accent wash. */
 :root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-highlighted:not(.row-focused),
+.coordinates-table tbody tr:hover:not(.row-focused):not(.lines-row-selected),
 .lines-row:hover:not(.lines-row-selected), .project-row:hover:not(.project-selected),
 .connect-row:hover:not(.connect-selected)) { background: var(--wc-light) !important; color: var(--wc-ink); }
 /* A navy row carries the on-select ink all the way down; a field or button in it keeps its face. */
 :root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
 .project-row.project-selected, .connect-row.connect-selected) { background: var(--wc-select) !important; }
 :root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,
-.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div, .lines-label) {
+.project-row.project-selected, .connect-row.connect-selected) :is(td, th, span, small, b, strong, div) {
     color: var(--wc-on-select);
 }
 :root[data-skin="webcore"] :is(.coordinates-table tbody tr.row-focused, .lines-row-selected,

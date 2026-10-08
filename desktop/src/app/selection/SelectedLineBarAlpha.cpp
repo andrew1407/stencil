@@ -5,6 +5,7 @@
 #include "cssColor.hpp"
 #include "../../support/guiHelpers.hpp"
 #include "../../support/control/dblReset.hpp"
+#include "colorDrag.hpp"
 #include "../../support/control/numericInput.hpp"
 #include "../../support/modal/modalReveal.hpp"
 
@@ -53,6 +54,9 @@ namespace stencil::gui {
           /*withAlpha=*/true);
       if (c.isValid()) settle(c);
     };
+    // A well carries its alpha byte, so another well hands over the whole RGBA.
+    support::installColorDrag(well, {[&current] { return current; }, settle, /*alpha=*/true,
+                                     [this] { return !updating; }});
     if (!resetTo) { connect(well, &QPushButton::clicked, this, open); return; }
     support::wireColorChip(well, open, [this, settle, resetTo] { if (!updating) settle(resetTo()); });
   }

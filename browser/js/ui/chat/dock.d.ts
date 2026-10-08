@@ -18,6 +18,8 @@ export interface ChatDock {
   restoreFromCompact(): void;
   rect(): FloatRect;
   clampRect(r: FloatRect): FloatRect;
+  /** Puts the float rect's top-left corner on a client point, inside the viewport; a floating panel moves now. */
+  floatAt(x: number, y: number): void;
   /** True while the panel is wearing the transient compact-popover shape. */
   isCompact(): boolean;
   enterCompact(r: FloatRect): void;

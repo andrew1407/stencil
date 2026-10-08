@@ -67,6 +67,14 @@ namespace stencil::gui {
 
 
 
+  // The project this window holds — a local id, or a server project with its url — for the
+  // "(Current)" mark and the Close drop. The caller repaints.
+  void ProjectsDialog::setOpenHere(const QString& id, const QString& serverUrl) {
+    activeProjectId = serverUrl.isEmpty() ? id : QString();
+    press.openServerUrl = serverUrl;
+    press.openServerId = serverUrl.isEmpty() ? QString() : id;
+  }
+
   // Replace the listed projects and repaint (see the header): lets the owner act on a
   // request without the dialog having to close and be reopened.
   void ProjectsDialog::setProjects(const std::vector<Project>& projects) {

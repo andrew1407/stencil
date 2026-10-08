@@ -159,10 +159,16 @@ classDiagram
 | Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over both axes and `core/parse/formulaContext.js` | Port of `core/parse/formulaParser.cpp`; never `eval` |
 | Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses. Outside `llm/`: an op plan's caps guard model output, not the user's own script |
 | Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), laid down by `ui/webcore/toggle.js` | Read by everything, written to no store; the user's next choice through the ordinary setter lifts the motion one |
-| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document`; the Lines-tab swatch (`ui/panel/linesList.js`) | A select, checkbox or colour field takes its default (`DEFAULTS` by id, else `data-default`, else the markup's) and fires `change`; a line's own colour returns to the toolbar's. A colour field with a default opens its picker only after `POPOVER.doubleClickMs`, so the second click resets instead |
+| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document`; the Lines-tab swatches (`ui/panel/lines/events.js`) | A select, checkbox or colour field takes its default (`DEFAULTS` by id, else `data-default`, else the markup's) and fires `change`; a line's own colour returns to the toolbar's, its points' to none of their own (they draw in the line's). A colour field with a default opens its picker only after `POPOVER.doubleClickMs`, so the second click resets instead |
 | Nested row menu | `ui/projects/window/rowSubmenu.js` | A row-menu item with `items` flies its list out beside it, on the same surface motion; the parent's click-away asks it whether a press is its own |
+| Drag release menu | `createDragMenu` (`ui/projects/list/dragMenu.js`) and the ✕ target `createDragClose` (`list/dragClose.js`), under `list/dragReorder.js` | A held project row brings a ⋯ beside the window's title, on the surface dust; over it the row's own menu opens. A drag fires no hover, so its coordinates decide, the mouse's dragover and touch's moves alike: the item under the pointer wears the hover's look and a flyout opens, and only the release runs an item, as its click does — that drop reorders, zones and re-lists nothing, whatever window it raised. Only the project open here arms the ✕ |
 | Anchored entrance | `growFrom` (`ui/control/dropdownMenu.js`) | A list's slide entrance grows out of the point its particle cloud flies from, from the edge nearest its trigger |
 | Alt peek | `createModalOpenGesture` (`ui/tip/popover.js`) on the modal icons, the logo accent menu and the export list; `wireAltPeek` (`ui/tip/altPeek.js`) on every dropdown | Alt+hover peeks; released over the list it lingers until the pointer leaves, elsewhere closes; one glide registry, so a new peek closes the last unless the window `holds` it; a click-opened list ignores Alt. The logo's colour menu alone commits on release (`wireReleasePick`) |
+| Control drag | `wireIconDrag` (`ui/drag/iconDrag.js`), a pure machine (`createIconDrag`) under its DOM wiring | Past the press slop a ghost of the control follows the pointer and the owner's hooks see each move; released back over the control it left, the drag cancels, as Escape does; the click (and dblclick) the release would make is swallowed, and a press gesture the control armed (`createModalOpenGesture`'s `dragged`) is dropped; no tooltip shows while it lasts (`holdTips`, `ui/tip/tipHold.js`, which the control tip and the canvas readout both ask); mouse and pen only, touch keeps its long press. `markDropTarget` glows a target |
+| Colour drag | `wireColorDrag` (`ui/drag/colorDrag.js`) over the swatch adapters of `ui/drag/colorDragSwatches.js`, one capture listener on `document` | A swatch is a control drag from its first press: a colour field (its `.alpha-input` beside it carries the alpha), the well a label wraps around one, a Lines-tab row swatch, or a control that registers its own read and apply (the blank and project buttons). Past the slop a chip of the colour rides beside the pointer and every other live swatch glows; the one released on takes the full RGBA when both carry alpha, else the RGB over its own alpha, through its own change path (a field's `input` + `change`, a row's pick), and nothing when it already shows it. A source at alpha 0 has nothing to hand over |
+| Press-drag pick | `wireDragPick` over the pure `createDragPick` (`ui/control/dropdownMenu.js`), on every enhanced select and the accent picker | A press on the trigger dragged past the slop opens the list and marks the row under the pointer (`.dd-hover`, rows hit by their boxes); released on a row it is that row's own click, off the list a close with no change, inside it on no row the list stays; the click the release makes is swallowed and a plain click stays the trigger's. Mouse and pen only. A native `<select>` keeps the platform's own |
+| View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | A trial the view alone paints while no field of the app moves: a blank's recolour, or the clean view (the unfiltered picture with no lines, points or split, framed as the original compare view is). Its gesture ends it; a commit goes through each control's own setter |
+| Page copy | `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme lens (`ui/drag/themeLens.js`) | A still copy of the body under the page's own sheets as written (a linked sheet's text is read once; the CSSOM's serialization drops a `var()` shorthand a later longhand overrides), `:root` re-rooted onto the copy's root, which takes `data-theme` and every other root attribute as `<html>` does and, like it, inherits nothing: the host resets every property the page hands down. In a shadow tree its ids and radios answer no page query, `COPY_ATTR` (`ui/base.js`) keeps its regions from wiring, and the host is inert; nothing in it can act, its moving parts hold their present values and its canvases their pixels, the picture's inverted |
 
 ## Design
 
@@ -176,15 +182,27 @@ classDiagram
   `TOUCH_DEFAULTS.moveTol` pans the viewport 1:1 (`core/touch/pan.js`); two fingers pinch.
   The read-only compare view only pans.
 - **An edit.** A pointer event reaches `InputController` / `PointerController`, which call the
-  core functions the facade calls. `saveHistory()` pushes a memento onto `HistoryStack` — as a
-  crop or a turn does from `ImageModel` — `Renderer` repaints the overlay (a drag once per frame
-  through `requestRedraw()`), `Storage.saveSoon()` debounces a `ProjectsStore.upsert` of
-  `{ image, layout }`, and a server-linked session schedules `scheduleRemoteSync()`.
+  core functions the facade calls. It reaches only what is drawn (`core/pointer/markHits.js`): with
+  points hidden no point is a target — not the first one a click would close a shape on — and with
+  lines hidden no segment is, so a hold or a click there draws afresh. `saveHistory()` pushes a
+  memento onto `HistoryStack` — as a crop or a turn does from `ImageModel` — `Renderer` repaints
+  the overlay (a drag once per frame through `requestRedraw()`), `Storage.saveSoon()` debounces a
+  `ProjectsStore.upsert` of `{ image, layout }`, and a server-linked session schedules
+  `scheduleRemoteSync()`.
 - **The controls follow.** An edit signals `changed(app, …channels)` and `FLUSH` runs, in sweep
   order, each area of `ui/control/state.js` that follows one of them: gates first, then one
   tooltip pass, then what repaints after them, then the followers. A pointer move, a hover or a
   zoom signals nothing; a drag's release pushes history alone. `updateButtons()` runs every
   area where anything may have changed.
+- **The line panels.** The Lines tab (`ui/panel/lines/`) is the `list` area, rendered on `lines`
+  and `selection` and again when its tab shows, never behind a hidden one: a row is its line's
+  number, its own colour and thickness, its points' colour and size, its point count and its bin.
+  A swatch or a number edits that line through `applyLineChange` (`core/line/selection.js`), the
+  bar's own path, one history step each, and the selection stays where it was; the line swatch, as
+  before, also selects. The points table acts on the line it lists. A line set replaced whole (a new
+  picture, a layout install, a clear) keeps no selection, its table on the stroke in progress, else
+  the last line (`settleReplacedLines`); a turn, a flip, an undo or redo keeps it on the lines that
+  still exist (`keepLineSelection`). Desktop twin: `SelectionPanel`.
 - **Save and sync.** `ProjectsStore.upsert` writes the image and payload keys before the
   registry, so a quota failure leaves the registry untouched; an edit saves through `saveSoon`,
   a synchronous `save()` only where what follows reads the row. A data-URL `source` enters the
@@ -209,6 +227,11 @@ classDiagram
   row or on the source's server, then opens it here, in a new tab, or unsaved in incognito. An
   incognito copy writes nothing, a server copy is never incognito, and a whole-project copy
   takes its saved chat along (`chatPersistence.projectCopied`).
+- **Closing a project.** The `closeProject` hotkey asks one question (`confirmCloseProject`,
+  `ui/projects/closeProject.js`) — no danger, naming the project and that it stays saved — and the
+  open project dropped on the projects window's ✕ goes the same way unasked; then
+  `app.closeProject(id)` leaves this tab an empty editor and a notice says it closed; with nothing
+  open a toast says so. `stencil.closeProject()` closes unasked, as `Project.close()` does.
 - **A script.** `stencil.execScript(text)`, the script window and a dropped `.stc` call
   `runScript` (`js/console/scriptRunner.js`): one parse through `js/core/script.js`, nothing run
   on an error diagnostic, then each lowered op is one facade call (a `layout` fetches
@@ -245,6 +268,31 @@ classDiagram
   the corner toasts, or the browser's own `Notification` when chosen in Visuals and granted; a
   sink that cannot deliver (permission refused or revoked) returns false and the toasts show it.
   Desktop twin: `support/notify/Notifications`.
+- **A toolbar drag.** A toolbar icon dragged off its spot carries its action to where it is
+  released, and `ui/bindings/controls/toolbarDrags.js` names every icon that does. An opener in the
+  `windows` table of `config/uiStrings.json` opens its window there — full, its top-left corner on
+  the point and shifted to stay inside the viewport, placed by the header drag's own offset
+  (`open(dropAnchor(x, y), icon, { at })`), flying out of a cursor-sized square and home to the icon;
+  one already up only moves. The chat shows its header drag's dock zones and docks on the side it
+  lands in, else floats with its top-left corner on the point, formed out of the cursor
+  (`app.chat.openAt(spot, { from })`). Rotate, flip and Clear All Lines act only
+  when dropped on the canvas frame, which glows as the target; the eraser clears without its
+  confirmation, still one undo step. Zoom − / + follow the pointer's distance d from the button,
+  z0·e^(∓k·d) about the viewport centre with z0 the zoom before the press; fit lights both and steps
+  through the one under the pointer at the hold rate. A release back over the icon, or Escape,
+  changes nothing: what the drag previewed returns. Desktop twin: `desktop/src/app/drag/`.
+- **The clean view.** The header logo dragged over the canvas region previews the clean view
+  (`renderer.previewClean`); dropped there, filter → none, Show Lines and Show Points off and
+  compare → none land through their controls' own setters, each only where it is applied, so the
+  filter alone records an undo step. With no picture the canvas is no target. A drag drops the
+  mark's waiting hold; a modified press, one whose hold opened a show, or one while the accent menu
+  is up never becomes a drag. Desktop twin: `desktop/src/app/logo/LogoDrag.cpp`.
+- **The theme lens.** The theme switch dragged opens a circle on the pointer over a page copy in
+  the other theme, built once and moved by its clip and its rim alone. It is a preview only: however
+  the drag ends — dropped anywhere, back on the switch, or on Escape — the lens closes and the theme
+  and its store stay as they were; a plain click on the switch is still what toggles it. Under the
+  webcore skin, or over a swap in flight, no lens opens. Desktop twin:
+  `desktop/src/app/theme/ThemeLens.cpp`.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.

@@ -13,24 +13,30 @@
 #include "../copy/copyProjectMenu.hpp"
 #include "../../../support/motion/MenuShimmer.hpp"
 #include "../../../support/modal/modalReveal.hpp"
+#include "ProjectDragMenu.hpp"
+#include "../../../support/menu/popupSlide.hpp"
+#include "../../../support/motionPrefs.hpp"
 
 #include <QAction>
 #include <QMenu>
 #include <QPalette>
 
-// The per-row ⋯ menu.
+#include <memory>
+
+// The per-row ⋯ menu, run in place or handed over open to a held drag (list/ProjectDragMenu).
 
 namespace stencil::gui {
 
-  void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
-    if (!it || it->data(Qt::UserRole).isNull()) return;
+  QMenu* ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos, const QPoint* heldFrom) {
+    if (!it || it->data(Qt::UserRole).isNull()) return nullptr;
     // Read NOW, never through `it` later: a server refresh rebuilds the list under an open menu.
     const QString rowId = it->data(Qt::UserRole).toString();
     const QString rowServer = it->data(Qt::UserRole + 1).toString();
     const bool remote = !rowServer.isEmpty();
     const QColor ico = palette().color(QPalette::WindowText);
     const bool haveServers = connections && !connections->urls().isEmpty();
-    QMenu menu(this);
+    std::unique_ptr<QMenu> owned(new QMenu(this));
+    QMenu& menu = *owned;
 
     // Where a window raised from this menu flies back to: the menu is gone by close time, so the
     // motes pour into the row's "..." chip. Browser twin: projectsModal.js passes `menuBtn`.
@@ -194,18 +200,28 @@ namespace stencil::gui {
     }
     // The same glass shimmer every other ctx row's hover sweeps (browser
     // .project-menu-item parity; mainWindow's canvas context menu already plays it).
-    support::MenuShimmer shimmer(&menu);
+    new support::MenuShimmer(&menu, &menu);   // lives as long as the menu
     // The treatment every other menu gets (browser projectsModal.js showMenu): a compact icon+label
     // popup fitted to its own longest label, growing out of the click and pouring back.
     gui::compactIconMenu(menu);
     // After compactIconMenu — it replaces the menu's stylesheet, and this appends to it.
     support::markDangerRow(menu, removeAct, dangerColor);
-    support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);   // the canvas menu's 1.5x clock
+    support::markAccentRows(menu, onAccentInk(palette().color(QPalette::Highlight)), removeAct);
+    support::revealMenu(menu, heldFrom ? *heldFrom : globalPos, support::CONTEXT_MENU_DUST_MS);   // the canvas menu's 1.5x clock
+    if (heldFrom) {
+      // A drag holds the pointer, so no nested loop: open it, and carry the chip to the item run.
+      menu.setProperty(HELD_MENU_KEBAB_PROP, kebabGlobal);
+      menu.popup(globalPos);
+      // revealMenu is the particle modes' entrance; 'slide' grows the list out of the same point.
+      if (support::isSlideMotionOk()) support::slidePopupIn(menu, *heldFrom);
+      return owned.release();
+    }
     // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly
     // as long as the popup lives — they capture it and fly their answer back into the chip.
     hover.menuKebabRect = kebabGlobal;
     menu.exec(globalPos);
     hover.menuKebabRect = QRect();
+    return nullptr;
   }
 
 }  // namespace stencil::gui
