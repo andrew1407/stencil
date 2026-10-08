@@ -5,8 +5,7 @@ The system-wide design — the parity contract, canonical data, the layer model,
 The browser app is the reference front-end: a vanilla ES-module editor with no build step,
 running `core/` as wasm behind a JS fallback that matches it op-for-op. It is served beside
 the repo's `common/` (the shared tables, corpora and brand art it imports), and owns the
-`.stencil` document format and the layout payload the other
-surfaces mirror. It does not own the collaboration protocol (`server/internal/protocol`) and
+canonical `.stencil` document format and layout payload. It does not own the collaboration protocol (`server/internal/protocol`) and
 carries no codec beyond what the DOM provides.
 
 ```mermaid
@@ -46,18 +45,18 @@ change feed a ui area subscribes to (`core/app/changes.js`), and the app's view 
 | Path | Holds | Rule |
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
-| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, and last `webcore/`, the session skin | one file per section; `theme.css` tokens mirror `common/config/themeTokens.json`, a skin's own `tokens.css` mirrors `common/config/webcore.json` |
+| `css/` | `theme.css`, then `layout/`, `components/`, `animations/`, and last `webcore/`, the session skin | one file per section; tokens come from `common/config/themeTokens.json` and `common/config/webcore.json` |
 | `js/config/` | the operator's `openInConfig` and its example | operator config, fetched beside its module; never shared, never committed |
-| `../common/` | the shared tables (`config/`), corpora (`fixtures/`, the `.stc` `script/cases.txt` among them), the logo (`icons/`) | served next to `browser/` by every server; a module imports it by relative path, never by a root URL, so the Pages subpath works |
+| `../common/` | the shared tables (`config/`), corpora (`fixtures/`), the logo (`icons/`) | served next to `browser/`; imported by relative path, never a root URL, so a subpath deploy works |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
-| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the DOM-free mixin, change feed and seam) | **no DOM access** — it runs under `node --test` |
+| `js/core/` | `DrawingApp` and its collaborators, one folder per feature (`abi/` the wasm singleton, `app/` the mixin, change feed and seam) | **no DOM access** — it runs under `node --test` |
 | `js/core/script/` (+ `script.js`, `scriptHandles.js`) | the `.stc` engine: lex → parse → templates → lower, plus `dump` | one file per `core/script/*.cpp`; pure — it resolves ops but calls no facade |
 | `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
 | `js/net/` | the fetch guard, abortable fetch, the capped body read, the connection store + manager, remote sync | every fetch goes through `fetchGuard.js` here, every server or provider reply through `cappedBody.js` |
-| `js/llm/` | provider client, op-plan parser/executor, chat controller and session, the anthropic session key | every plan is validated against `config/llm/opRegistry.json` before anything runs |
+| `js/llm/` | provider client, op-plan parser/executor, chat controller, the session key | every plan is validated against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; it calls what the toolbar calls |
-| `js/ui/` | string-returning components composed by `layout()`, one folder per region, plus `bindings/` wiring controls to the app and `control/` the control areas | components return strings and emit on the bus — never reach into `net/` or `llm/` |
-| `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one, and a worker result paints the inline fallback's `imageRaster.js` sequence |
+| `js/ui/` | string-returning components composed by `layout()`, one folder per region; `bindings/` wires controls to the app, `control/` holds the control areas | components emit on the bus and never reach into `net/` or `llm/` |
+| `js/worker/` | the cross-tab projects sync worker and the image worker | a worker filter is bit-identical to the main-thread one |
 | `js/wasm/` | the generated `stencilCore.js` | gitignored; built by `npm run build-wasm` / CI |
 | `sw.js`, `manifest.webmanifest`, `launch.html`, `vite.config.js` | the PWA shell, the `stencil://` bounce page, the optional single-file build | nothing in the app may depend on the build |
 | `tools/` | the static server, the single-file build and its self-check | dev only |
@@ -125,118 +124,87 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `DrawingApp` | The editor: image, provenance, lines, viewport, selection, settings and the project session as plain fields (`core/editorState.js`), its collaborators and its change feed (`app.changes`) | One per window, created by `js/index.js` | Mediates every collaborator |
-| `CodecLine` | One drawn line, every field explicit (`core/line/linesCodec.js`, twin of `core/models.hpp`) | `DrawingApp.lines`; copied into snapshots and layouts | `HistoryStack`, `LayoutPayload` |
-| `HistoryStack` | Undo/redo over `{lines, cropRect, rotationQuarters, mirrored, filter, filterColor}` mementos (a step without a filter leaves it as it is), with a cursor, `MAX_STEPS` and the floor step 0 undoes to; twin of `core/state/HistoryStack.hpp` | One per app, reset on each project switch | `CodecLine` snapshots |
+| `DrawingApp` | The editor: its state as plain fields (`core/editorState.js`), its collaborators and its change feed (`app.changes`) | One per window, created by `js/index.js` | Mediates every collaborator |
+| `CodecLine` | One drawn line, every field explicit (`core/line/linesCodec.js`; ports `core/models.hpp`) | `DrawingApp.lines`; copied into snapshots and layouts | `HistoryStack`, `LayoutPayload` |
+| `HistoryStack` | Undo/redo over editor mementos with a cursor, `MAX_STEPS` and a floor (ports `core/state/HistoryStack.hpp`) | One per app, reset on each project switch | `CodecLine` snapshots |
 | `LayoutPayload` | The export subset of `LAYOUT_FIELDS` (`common/config/layoutFields.json`) plus `lines`; `cropRect` crosses as `{x,y,w,h}` | Built by `buildLayoutPayload` (`core/layout.js`); the browser definition is canonical | `ProjectFileDoc.layout`, the server's project `layout` |
 | `ProjectFileDoc` | The `.stencil` document (`core/project/file.js`); `format` is the sentinel, `version` the schema | Built by `buildProjectFile`, hardened by `parseProjectFile`; the browser definition is canonical | `LayoutPayload` |
-| `ProjectMeta` | One registry row: name, colour, keywords, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry arithmetic twinned with `core/state/ProjectsStore.cpp` | `RemoteLink` |
+| `ProjectMeta` | One registry row: name, expiry, optional server link (`core/project/store/projectsStore.js`) | The `localStorage` registry behind `ProjectsStore`; expiry ports `core/state/ProjectsStore.cpp` | `RemoteLink` |
 | `RemoteLink` | The editor's link to a server project; `version` is the save-back guard (`core/remote/syncController.js`) | `DrawingApp.remoteLink` for a server-linked session | `ProjectMeta`, `ServerConnection` |
-| `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect` — each of a batch stands alone, so one refusal costs only itself — closed on disconnect | `ConnectionManager`, `RemoteLink` |
+| `ServerConnection` | One connected server: session token, REST surface, `/ws` feed (`net/serverConnection.js`); its `RemoteProjectRecord` is the server's `protocol.Project` | Created by `ConnectionManager.connect`, closed on disconnect | `ConnectionManager`, `RemoteLink` |
 | `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
-| `OpPlan` | A validated model reply: `reply`, `actions`, `variants`, `ask`, `warnings`, `chatOnly` (`llm/plan/parser.js`) | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
-| `ScriptBuffer` | The one `.stc` the page is editing (`ui/script/buffer.js`): the text plus its views, so the script window and the context-menu flyout cannot diverge | Module state for the session; never persisted | `wireScriptEditor` (`ui/script/editor.js`) |
+| `OpPlan` | A validated model reply (`llm/plan/parser.js`) | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
+| `ScriptBuffer` | The one `.stc` the page is editing (`ui/script/buffer.js`): the text plus every view of it | Module state for the session; never persisted | `wireScriptEditor` (`ui/script/editor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chat/controller.js`); its transcript is the `ChatRow` log in `llm/chat/session.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
-| `HeldSessionKey` | The user's own Anthropic key and when it lapses (`llm/sessionKey.js`, llm-providers §5) | This tab's `sessionStorage`: a reload keeps it; the tab closing, `sessionKey.ttlMinutes` or Forget drop it | Joined to one request by `withSessionKey`; never in `LlmSettings`, `localStorage`, a project, an export or a fragment |
+| `HeldSessionKey` | The user's own Anthropic key and when it lapses (`llm/sessionKey.js`, llm-providers §5) | This tab's `sessionStorage`, until the tab closes, `sessionKey.ttlMinutes` lapses or Forget | Joined to one request by `withSessionKey`; never persisted elsewhere |
 
 ## Patterns
 
 | Pattern | Where | Notes |
 |---|---|---|
 | Facade over core | `createStencil(app)` in `console/stencilApi.js`, installed as `window.stencil` | Frozen; every entry point reaches the core through it |
-| Mediator | `DrawingApp` (`core/drawingApp.js`) | Each collaborator (`Renderer`, `Storage`, `HistoryStack`, …) takes the app and reaches back through it, never another; `core/app/delegates.js` installs the DOM-free mixin (`core/app/editing.js`) and `VIEW_SEAM` |
-| Memento | `HistoryStack.push` / `undo` / `redo` behind `saveHistory()` and `restoreHistoryStep()` | Every undoable edit (stroke, crop, turn, filter or tint commit) is one memento, applied and reverted by one code path; a filter commit pushes only when it moves the filter off the step on screen (`core/settings/filterStep.js`); a step naming another crop or turn is re-derived from the original by `ImageModel.restoreView` without a decode |
-| Strategy | The provider `wire` in `llm/client.js` (`config/llm/providers.json`); `FilterMode` in `core.applyFilterRGBA`; the filter painters in `core/image/filterCanvas.js` over one cached base per (image, filter, tint) in `core/draw/baseLayer.js`; the `NotificationSink` pair in `ui/shell/notifySinks.js` | Selected by table lookup. A filter switch builds its base on the frame that asks; only a duotone tint change is painted in the image worker |
-| Observer | `app.changes` (an `Emitter`, `core/emitter.js`) over the channels of `core/app/changes.js`; the `Emitter` behind `TabsCoordinator` and `ServerConnection.onEvent`; `eventBus/appBus.js` over the `config/events.json` window events; `ui/domWatch.js`, the one page-wide subtree observer | The `stencil:*` window events are the contract the extension's content scripts read |
-| Composite | `StencilElement` (`ui/base.js`): light-DOM custom elements whose `inner()` markup `layout()` concatenates, `$(id)` scoped to its own subtree, `emit()` for the reply upward | Light DOM, because `cssInventory` follows `index.html`'s link order and the extension consumes these modules inside its own shadow roots; a nested host carries `display:contents` |
-| Repository | `ProjectsStore` over a `StorageBackend` (`projectsBackend.js`, IndexedDB; an image or thumbnail read back as an object URL, the open image as its data URL); `net/connectionStore.js`; `llm/chat/store.js` | Callers see a synchronous `localStorage`-shaped contract; another tab's write reaches this tab's mirror through `refresh(id)` on its `projectsChanged` |
-| Layered canvas | `core/draw/stageLayers.js` behind `Renderer`: `#canvas` the picture, `#canvas-overlay` above it the lines and handles | The picture repaints only when its source, compare mode, split or size changes; every frame repaints the overlay, which takes no pointer. A pixel reader composites `renderer.layers()`; an export, thumbnail or co-edit result repaints through `core/draw/restingPaint.js` |
-| Chain of Responsibility | Any URL: scheme → `timeoutSignal()` (`net/fetchGuard.js`). Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` → `readJsonCapped` | The one browser fetch guard: a `file:` URL never reaches `fetch`, nothing leaves without a deadline, and a refused credential lands in `expired`, not `error` |
-| Adapter | `llm/adapters/` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js` | Each translates an outside request (a chat capability, the extension's state/import/switch, a launch) into the core functions the toolbar calls |
-| State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm twin via `coreHandles.js` |
+| Mediator | `DrawingApp` (`core/drawingApp.js`) | Each collaborator (`Renderer`, `Storage`, `HistoryStack`, …) reaches others only through the app; `core/app/delegates.js` installs the mixin (`core/app/editing.js`) and `VIEW_SEAM` |
+| Memento | `HistoryStack.push` / `undo` / `redo` behind `saveHistory()` and `restoreHistoryStep()` | Every undoable edit is one memento, applied and reverted by one code path; a crop or turn step is re-derived from the original by `ImageModel.restoreView` |
+| Strategy | The provider `wire` in `llm/client.js` (`config/llm/providers.json`); `FilterMode` in `core.applyFilterRGBA`; the filter painters in `core/image/filterCanvas.js` over a cached base (`core/draw/baseLayer.js`); the `NotificationSink`s in `ui/shell/notifySinks.js` | Selected by table lookup |
+| Observer | `app.changes` (an `Emitter`, `core/emitter.js`) over the channels of `core/app/changes.js`; `TabsCoordinator`, `ServerConnection.onEvent`; `eventBus/appBus.js` over `config/events.json`; `ui/domWatch.js`, the one page-wide subtree observer | The `stencil:*` window events are the contract the extension's content scripts read |
+| Composite | `StencilElement` (`ui/base.js`): light-DOM custom elements whose `inner()` markup `layout()` concatenates | `$(id)` is scoped to the element's subtree, `emit()` replies upward; light DOM because the extension consumes these modules inside its own shadow roots |
+| Repository | `ProjectsStore` over a `StorageBackend` (`projectsBackend.js`, IndexedDB); `net/connectionStore.js`; `llm/chat/store.js` | Callers see a synchronous `localStorage`-shaped contract; another tab's write reaches this tab through `refresh(id)` |
+| Layered canvas | `core/draw/stageLayers.js` behind `Renderer`: `#canvas` the picture, `#canvas-overlay` the lines and handles | The picture repaints only when its source or size changes, the overlay every frame; an export or result repaints through `core/draw/restingPaint.js` |
+| Chain of Responsibility | Any URL: scheme → `timeoutSignal()` (`net/fetchGuard.js`). Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` → `readJsonCapped` | The one browser fetch guard: a `file:` URL never reaches `fetch`, nothing leaves without a deadline, a refused credential lands in `expired` |
+| Adapter | `llm/adapters/` (the `ChatCapabilities` bag), `core/launch/extensionBridge.js`, `core/launch/deepLink.js` | Each translates an outside request into the core functions the toolbar calls |
+| State machine | `HoldDrawController` (`core/draw/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm-backed via `coreHandles.js` |
 | State | `DrawingApp.gesture` (`core/pointer/gesture.js`), one drag kind or none | The `is*` drag flags are accessors over it, so two can never both be set |
-| Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over both axes and `core/parse/formulaContext.js` | Port of `core/parse/formulaParser.cpp`; never `eval` |
-| Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses. Outside `llm/`: an op plan's caps guard model output, not the user's own script |
-| Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), laid down by `ui/webcore/toggle.js` | Read by everything, written to no store; the user's next choice through the ordinary setter lifts the motion one |
-| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document`; the Lines-tab swatches (`ui/panel/lines/events.js`) | A select, checkbox or colour field takes its default (`DEFAULTS` by id, else `data-default`, else the markup's) and fires `change`; a line's own colour returns to the toolbar's, its points' to none of their own (they draw in the line's). A colour field with a default opens its picker only after `POPOVER.doubleClickMs`, so the second click resets instead |
-| Nested row menu | `ui/projects/window/rowSubmenu.js` | A row-menu item with `items` flies its list out beside it, on the same surface motion; the parent's click-away asks it whether a press is its own |
-| Drag release menu | `createDragMenu` (`ui/projects/list/dragMenu.js`) and the ✕ target `createDragClose` (`list/dragClose.js`), under `list/dragReorder.js` | A held project row brings a ⋯ beside the window's title, on the surface dust; over it the row's own menu opens. A drag fires no hover, so its coordinates decide, the mouse's dragover and touch's moves alike: the item under the pointer wears the hover's look and a flyout opens, and only the release runs an item, as its click does — that drop reorders, zones and re-lists nothing, whatever window it raised. Only the project open here arms the ✕ |
-| Anchored entrance | `growFrom` (`ui/control/dropdownMenu.js`) | A list's slide entrance grows out of the point its particle cloud flies from, from the edge nearest its trigger |
-| Alt peek | `createModalOpenGesture` (`ui/tip/popover.js`) on the modal icons, the logo accent menu and the export list; `wireAltPeek` (`ui/tip/altPeek.js`) on every dropdown | Alt+hover peeks; released over the list it lingers until the pointer leaves, elsewhere closes; one glide registry, so a new peek closes the last unless the window `holds` it; a click-opened list ignores Alt. The logo's colour menu alone commits on release (`wireReleasePick`) |
-| Control drag | `wireIconDrag` (`ui/drag/iconDrag.js`), a pure machine (`createIconDrag`) under its DOM wiring | Past the press slop a ghost of the control follows the pointer and the owner's hooks see each move; released back over the control it left, the drag cancels, as Escape does; the click (and dblclick) the release would make is swallowed, and a press gesture the control armed (`createModalOpenGesture`'s `dragged`) is dropped; no tooltip shows while it lasts (`holdTips`, `ui/tip/tipHold.js`, which the control tip and the canvas readout both ask); mouse and pen only, touch keeps its long press. `markDropTarget` glows a target |
-| Colour drag | `wireColorDrag` (`ui/drag/colorDrag.js`) over the swatch adapters of `ui/drag/colorDragSwatches.js`, one capture listener on `document` | A swatch is a control drag from its first press: a colour field (its `.alpha-input` beside it carries the alpha), the well a label wraps around one, a Lines-tab row swatch, or a control that registers its own read and apply (the blank and project buttons). Past the slop a chip of the colour rides beside the pointer and every other live swatch glows; the one released on takes the full RGBA when both carry alpha, else the RGB over its own alpha, through its own change path (a field's `input` + `change`, a row's pick), and nothing when it already shows it. A source at alpha 0 has nothing to hand over |
-| Press-drag pick | `wireDragPick` over the pure `createDragPick` (`ui/control/dropdownMenu.js`), on every enhanced select and the accent picker | A press on the trigger dragged past the slop opens the list and marks the row under the pointer (`.dd-hover`, rows hit by their boxes); released on a row it is that row's own click, off the list a close with no change, inside it on no row the list stays; the click the release makes is swallowed and a plain click stays the trigger's. Mouse and pen only. A native `<select>` keeps the platform's own |
-| View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | A trial the view alone paints while no field of the app moves: a blank's recolour, or the clean view (the unfiltered picture with no lines, points or split, framed as the original compare view is). Its gesture ends it; a commit goes through each control's own setter |
-| Page copy | `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme lens (`ui/drag/themeLens.js`) | A still copy of the body under the page's own sheets as written (a linked sheet's text is read once; the CSSOM's serialization drops a `var()` shorthand a later longhand overrides), `:root` re-rooted onto the copy's root, which takes `data-theme` and every other root attribute as `<html>` does and, like it, inherits nothing: the host resets every property the page hands down. In a shadow tree its ids and radios answer no page query, `COPY_ATTR` (`ui/base.js`) keeps its regions from wiring, and the host is inert; nothing in it can act, its moving parts hold their present values and its canvases their pixels, the picture's inverted |
+| Interpreter | `FormulaEngine` (`core/parse/formulaEngine.js`), recursive descent over `core/parse/formulaContext.js` | Ports `core/parse/formulaParser.cpp`; never `eval` |
+| Interpreter + runner | `core/script/` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | The parser never touches the editor and the runner never re-parses; op-plan caps guard model output, not the user's script |
+| Session override | `setMotionOverride` (`ui/motion/motionPrefs.js`), `setIconSkin` (`ui/icons.js`), `setFaviconArt` (`core/settings/accents.js`), set by `ui/webcore/toggle.js` | Read by everything, written to no store |
+| Double-click reset | `installDblReset` (`ui/control/dblReset.js`), one capture listener on `document` | A control returns to its default and fires `change` |
+| Gesture machines | `createIconDrag` (`ui/drag/iconDrag.js`), `createDragPick` (`ui/control/dropdownMenu.js`), `createDragMenu` (`ui/projects/list/dragMenu.js`), `wireColorDrag` (`ui/drag/colorDrag.js`), `wireAltPeek` (`ui/tip/altPeek.js`) | A pure machine under thin DOM wiring; a drag acts only on release, and a release back on its source or Escape changes nothing |
+| View preview | `previewFill` and `previewClean` on `Renderer` (`core/draw/renderer.js`) | The view alone paints a trial while no app field moves; a commit goes through each control's own setter |
+| Page copy | `buildPageCopy` (`ui/accent/themeCopy.js`) in a shadow tree, shown by the theme lens (`ui/drag/themeLens.js`) | An inert still copy of the page under its own sheets; `COPY_ATTR` (`ui/base.js`) keeps its regions from wiring |
 
 ## Design
 
-- **Boot.** `js/index.js` awaits `core.init()` (`js/core/abi/stencilCore.js`: the wasm module and
-  its typed wrappers, long strings marshalled over the heap) and `initProjectsBackend()`, then
-  constructs `DrawingApp` (the change feed, the collaborators, then `wireControls`, whose first
-  act subscribes the control areas), installs `window.stencil`, wires chat persistence, and
-  `publishReady(app)` hands every `<stencil-*>` element the app.
-- **A touch.** One finger on a point or segment drags it, a still press taps, a held one
-  draws (`HoldDrawController`), and a press on empty canvas that wanders past
-  `TOUCH_DEFAULTS.moveTol` pans the viewport 1:1 (`core/touch/pan.js`); two fingers pinch.
-  The read-only compare view only pans.
-- **An edit.** A pointer event reaches `InputController` / `PointerController`, which call the
-  core functions the facade calls. It reaches only what is drawn (`core/pointer/markHits.js`): with
-  points hidden no point is a target — not the first one a click would close a shape on — and with
-  lines hidden no segment is, so a hold or a click there draws afresh. `saveHistory()` pushes a
-  memento onto `HistoryStack` — as a crop or a turn does from `ImageModel` — `Renderer` repaints
-  the overlay (a drag once per frame through `requestRedraw()`), `Storage.saveSoon()` debounces a
-  `ProjectsStore.upsert` of `{ image, layout }`, and a server-linked session schedules
-  `scheduleRemoteSync()`.
+- **Boot.** `js/index.js` awaits `core.init()` (`js/core/abi/stencilCore.js`, the wasm module and
+  its typed wrappers) and `initProjectsBackend()`, constructs `DrawingApp`, installs
+  `window.stencil`, wires chat persistence, and `publishReady(app)` hands every `<stencil-*>`
+  element the app.
+- **An edit.** A pointer or touch event reaches `InputController` / `PointerController`, which
+  call the core functions the facade calls, and hits only what is drawn
+  (`core/pointer/markHits.js`). `saveHistory()` pushes a memento, `Renderer` repaints the overlay
+  (a drag once per frame through `requestRedraw()`), `Storage.saveSoon()` debounces a
+  `ProjectsStore.upsert`, and a server-linked session schedules `scheduleRemoteSync()`.
 - **The controls follow.** An edit signals `changed(app, …channels)` and `FLUSH` runs, in sweep
-  order, each area of `ui/control/state.js` that follows one of them: gates first, then one
-  tooltip pass, then what repaints after them, then the followers. A pointer move, a hover or a
-  zoom signals nothing; a drag's release pushes history alone. `updateButtons()` runs every
-  area where anything may have changed.
-- **The line panels.** The Lines tab (`ui/panel/lines/`) is the `list` area, rendered on `lines`
-  and `selection` and again when its tab shows, never behind a hidden one: a row is its line's
-  number, its own colour and thickness, its points' colour and size, its point count and its bin.
-  A swatch or a number edits that line through `applyLineChange` (`core/line/selection.js`), the
-  bar's own path, one history step each, and the selection stays where it was; the line swatch, as
-  before, also selects. The points table acts on the line it lists. A line set replaced whole (a new
-  picture, a layout install, a clear) keeps no selection, its table on the stroke in progress, else
-  the last line (`settleReplacedLines`); a turn, a flip, an undo or redo keeps it on the lines that
-  still exist (`keepLineSelection`). Desktop twin: `SelectionPanel`.
+  order, each area of `ui/control/state.js` that follows one of them; `updateButtons()` runs
+  every area. A pointer move, hover or zoom signals nothing.
+- **The line panels.** The Lines tab (`ui/panel/lines/`) is the `list` area, rendered only while
+  visible; a row edits its line through `applyLineChange` (`core/line/selection.js`), one history
+  step each. A line set replaced whole resets the selection (`settleReplacedLines`); a turn, flip,
+  undo or redo keeps it on the lines that still exist (`keepLineSelection`).
 - **Save and sync.** `ProjectsStore.upsert` writes the image and payload keys before the
-  registry, so a quota failure leaves the registry untouched; an edit saves through `saveSoon`,
-  a synchronous `save()` only where what follows reads the row. A data-URL `source` enters the
-  registry as a hash reference, so the same image still dedupes; its text stays in
-  `layout.imageSource`, is shed first over the quota, and never leaves the browser
-  (`keptSource`). The co-edit debounce pushes the layout alone under `RemoteLink.version`, a 409
-  merging the peer's lines (`mergeLines`) and retrying; the rendered result trails it once the
-  edits go quiet (`core/remote/resultUpload.js`). Server writes run one at a time. A peer's
-  `project-event` naming the picture on screen (its `originalHash`) is adopted in place as one
-  undo step when its lines, filter, crop or turn moved, a crop or turn re-derived from the original
-  as an undo re-derives it (`core/remote/peerLayout.js`); another original reloads.
-- **An LLM turn.** `ChatController.send(text)` replays history, calls `LlmClient.chat`, `parseOpPlan` validates the reply against the browser
-  profile of `opRegistry.json`, and `executeOpPlan` maps each op 1:1 onto a facade call; variants
-  and ask previews branch through `planSandbox`, whose snapshot is an editor memento beside the page and formula settings. On the `anthropic` wire (llm-providers §6.5)
-  `withSessionKey` joins the `HeldSessionKey` to one request; without one, or over plain http off
-  loopback, nothing is sent (`keyedInit` in `llm/http.js`; no LLM request follows a redirect), upstream text
-  echoing any eight characters of the key is dropped, and `stencil.llm.apiKey` reads `'[redacted]'`.
-- **A copy.** The projects row's "Make a copy ›", the canvas menu's, the Image section's button,
-  `Project.copy` / `stencil.copyProject` and the `copyProject` op all reach
-  `projectTransfer.copyProject` (`core/project/copy/`): it reads the source (the live editor, a
-  stored row or a server-only row), names it with `copySuffixName`, saves it as a detached local
-  row or on the source's server, then opens it here, in a new tab, or unsaved in incognito. An
-  incognito copy writes nothing, a server copy is never incognito, and a whole-project copy
-  takes its saved chat along (`chatPersistence.projectCopied`).
-- **Closing a project.** The `closeProject` hotkey asks one question (`confirmCloseProject`,
-  `ui/projects/closeProject.js`) — no danger, naming the project and that it stays saved — and the
-  open project dropped on the projects window's ✕ goes the same way unasked; then
-  `app.closeProject(id)` leaves this tab an empty editor and a notice says it closed; with nothing
-  open a toast says so. `stencil.closeProject()` closes unasked, as `Project.close()` does.
+  registry, so a quota failure leaves the registry untouched. A data-URL `source` enters the
+  registry as a hash reference and never leaves the browser (`keptSource`). The co-edit debounce
+  pushes the layout under `RemoteLink.version`, a 409 merging the peer's lines (`mergeLines`) and
+  retrying; the rendered result follows once edits go quiet (`core/remote/resultUpload.js`).
+  Server writes run one at a time. A peer's `project-event` on the picture on screen is adopted
+  as one undo step (`core/remote/peerLayout.js`); another original reloads.
+- **An LLM turn.** `ChatController.send(text)` replays history, calls `LlmClient.chat`,
+  `parseOpPlan` validates the reply against the browser profile of `opRegistry.json`, and
+  `executeOpPlan` maps each op 1:1 onto a facade call; variants and ask previews branch through
+  `planSandbox`. On the `anthropic` wire (llm-providers §6.5) `withSessionKey` joins the
+  `HeldSessionKey` to one request; without one, or over plain http off loopback, nothing is sent
+  (`keyedInit` in `llm/http.js`), no LLM request follows a redirect, and upstream text echoing
+  the key is dropped.
+- **A copy.** Every copy entry point (the UI, `stencil.copyProject`, the `copyProject` op) reaches
+  `projectTransfer.copyProject` (`core/project/copy/`): it reads the source, names it with
+  `copySuffixName`, saves it locally or on the source's server, then opens it. An incognito copy
+  writes nothing and a server copy is never incognito.
+- **Closing a project.** `app.closeProject(id)` leaves the tab an empty editor; the hotkey asks
+  first (`confirmCloseProject`, `ui/projects/closeProject.js`), `stencil.closeProject()` does not.
 - **A script.** `stencil.execScript(text)`, the script window and a dropped `.stc` call
   `runScript` (`js/console/scriptRunner.js`): one parse through `js/core/script.js`, nothing run
-  on an error diagnostic, then each lowered op is one facade call (a `layout` fetches
-  http(s) only). A source the browser cannot
-  open (a local path) fails at run time and names the line; the edits before it stay.
+  on an error diagnostic, then each lowered op is one facade call. A failing op names its line;
+  the edits before it stay.
 - **Project files.** `js/core/project/file.js` is the pure `.stencil` (de)serializer; IO is
   `ExportService`. Each surface serializes it independently and `e2e/` proves they agree:
 
@@ -250,49 +218,23 @@ classDiagram
     "theme":  { "mode": "dark|light", "accent": "…" } }                     // optional, opt-in
   ```
 
-  The console surfaces (cli, pystencil) may add an optional `chat` key (llm-contract §12.1,
-  text only); the browser keeps chats in IndexedDB and on the server's `chat` file instead.
-- **Deep links.** `js/core/launch/deepLink.js` normalizes the inbound `#stencil=` fragment
-  (`server` / `dataUrl` / `src` / `layout`) and builds the outbound `stencil://` and Telegram
-  `?start=` links; `applyExternalLaunch` (`core/launch/controller.js`) loads it and strips it. A
-  `.stc` and the incognito flag ride the same fragment; once the launch settles the script opens
-  in the Script window and runs nothing, whatever `scriptMode` the sender wrote. `stencil://`
-  carries it as `script=` / `scriptMode=`, alone or beside the picture
-  (`core/launch/desktopLink.js`, shared with Open In).
-- **A logo show.** The held mark, a typed name and `stencil.EasterEggs.<show>()` reach
-  `activateShow` (`ui/logo/stageTrigger.js`): the stage (`ui/logo/stage.js`, one canvas
-  swallowing the keyboard but Escape), or for the pink show one `installLayout` edit;
-  `config/logoStage.json` resolves a show on both front-ends. The webcore show toggles
-  (`ui/webcore/toggle.js`) the session overrides and `config/iconsWebcore.json`.
-- **A notice.** `notify()` (`utils/dom.js`) hands the message to the sink `notifyChannel()` names:
-  the corner toasts, or the browser's own `Notification` when chosen in Visuals and granted; a
-  sink that cannot deliver (permission refused or revoked) returns false and the toasts show it.
-  Desktop twin: `support/notify/Notifications`.
-- **A toolbar drag.** A toolbar icon dragged off its spot carries its action to where it is
-  released, and `ui/bindings/controls/toolbarDrags.js` names every icon that does. An opener in the
-  `windows` table of `config/uiStrings.json` opens its window there — full, its top-left corner on
-  the point and shifted to stay inside the viewport, placed by the header drag's own offset
-  (`open(dropAnchor(x, y), icon, { at })`), flying out of a cursor-sized square and home to the icon;
-  one already up only moves. The chat shows its header drag's dock zones and docks on the side it
-  lands in, else floats with its top-left corner on the point, formed out of the cursor
-  (`app.chat.openAt(spot, { from })`). Rotate, flip and Clear All Lines act only
-  when dropped on the canvas frame, which glows as the target; the eraser clears without its
-  confirmation, still one undo step. Zoom − / + follow the pointer's distance d from the button,
-  z0·e^(∓k·d) about the viewport centre with z0 the zoom before the press; fit lights both and steps
-  through the one under the pointer at the hold rate. A release back over the icon, or Escape,
-  changes nothing: what the drag previewed returns. Desktop twin: `desktop/src/app/drag/`.
-- **The clean view.** The header logo dragged over the canvas region previews the clean view
-  (`renderer.previewClean`); dropped there, filter → none, Show Lines and Show Points off and
-  compare → none land through their controls' own setters, each only where it is applied, so the
-  filter alone records an undo step. With no picture the canvas is no target. A drag drops the
-  mark's waiting hold; a modified press, one whose hold opened a show, or one while the accent menu
-  is up never becomes a drag. Desktop twin: `desktop/src/app/logo/LogoDrag.cpp`.
-- **The theme lens.** The theme switch dragged opens a circle on the pointer over a page copy in
-  the other theme, built once and moved by its clip and its rim alone. It is a preview only: however
-  the drag ends — dropped anywhere, back on the switch, or on Escape — the lens closes and the theme
-  and its store stay as they were; a plain click on the switch is still what toggles it. Under the
-  webcore skin, or over a swap in flight, no lens opens. Desktop twin:
-  `desktop/src/app/theme/ThemeLens.cpp`.
+  An optional `chat` key (llm-contract §12.1) is written by the console surfaces; the browser
+  keeps chats in IndexedDB and on the server's `chat` file instead.
+- **Deep links.** `js/core/launch/deepLink.js` normalizes the inbound `#stencil=` fragment and
+  builds the outbound `stencil://` and Telegram `?start=` links; `applyExternalLaunch`
+  (`core/launch/controller.js`) loads the fragment and strips it. A `.stc` in a launch opens in
+  the Script window and never runs (`core/launch/desktopLink.js` carries it on `stencil://`).
+- **A logo show.** Every trigger reaches `activateShow` (`ui/logo/stageTrigger.js`), which runs
+  the stage (`ui/logo/stage.js`) resolved from `config/logoStage.json`; the webcore show toggles
+  the session overrides (`ui/webcore/toggle.js`).
+- **A notice.** `notify()` (`utils/dom.js`) hands the message to the sink `notifyChannel()` names;
+  a sink that cannot deliver returns false and the toasts show it.
+- **Drag gestures.** A toolbar icon dragged off its spot carries its action to the release
+  point (`ui/bindings/controls/toolbarDrags.js`): an opener opens its window there, a canvas
+  action applies only on the canvas frame, and a zoom drag scales with distance. The header logo
+  dragged onto the canvas previews and then applies the clean view through the controls' own
+  setters. The theme switch dragged opens a preview-only lens over a page copy in the other
+  theme; the theme itself changes only on a click.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.
@@ -319,14 +261,11 @@ classDiagram
    control; a control area follows the channels its inputs move on, and a narrow flush leaves
    every control where the full sweep would.
 7. **Motion is decoration.** Every particle cloud is one canvas (`cloud.js`), never a DOM node
-   per grain; the OS `prefers-reduced-motion` wins over every setting. A row cloud belongs to its
-   window and its close sweeps it (`sweepDust`); a control's cloud rides its control
-   (`followDust`). The coordinates panel folds as the desktop's (`panel/coordFold.js`, `PANEL_*`
-   clocks). A skin stamps `<html>`, writes no store.
+   per grain, and dies with its owner (`sweepDust`, `followDust`); the OS
+   `prefers-reduced-motion` wins over every setting. A skin stamps `<html>`, writes no store.
 8. **Storage split.** A project's payload, image and thumbnail live in IndexedDB, each under
    its own key, the image and thumbnail as Blobs written only when they change; the small registry
-   (names, expiry) in `localStorage`, never a data URL. An older build's inline image or
-   thumbnail moves out on its first read or save. Chat persistence is opt-in, text only, never
+   (names, expiry) in `localStorage`, never a data URL. Chat persistence is opt-in, text only, never
    in incognito. The anthropic key is the one secret in `sessionStorage`, and
    `saveLlmSettings` cannot write it.
 9. **Nothing local goes outward.** The `#stencil=` fragment never reaches a server
@@ -345,14 +284,13 @@ classDiagram
 Every suite in `tests/` runs offline under `node --test` on the JS fallback: Node never loads
 wasm. The DOM, `fetch`, the storages and speech are stubbed once in `tests/helpers/`; a test
 drives the real core functions over a partial app rather than stubbing a method the app does
-not own. The `wasm-parity*` suites load the generated `js/wasm/stencilCore.js` and run the JS
-reference and the compiled core through one script; they self-skip without it, and CI builds it.
+not own. The `wasm-parity*` suites run the JS reference and the generated `js/wasm/stencilCore.js`
+through one script; they self-skip without it, and CI builds it.
 The op-plan validator stays out of wasm: no `abi/opplanShared.inc` name is in `EXPORTED_FUNCTIONS`
 or the export lists, and the built module carries no `_stencil_opplan*` export.
 
 The structural lints assert the design: the import direction and the `window.stencil` name, no
-pass-through call on the app, the test-count floor, every `.d.ts` against its module, and each
-config table against its consumer. The control areas are proved by count — an edit runs only
-its areas, each flush matching a full sweep. The CSS pin holds every declaration `index.html`
+pass-through call on the app, every `.d.ts` against its module, and each config table against
+its consumer. An edit runs only its control areas, each flush matching a full sweep. The CSS pin holds every declaration `index.html`
 loads, the markup pin the body ids of `layout()`; the fixture walkers run the shared corpora
 through the real modules.
